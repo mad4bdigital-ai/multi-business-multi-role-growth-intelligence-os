@@ -40,11 +40,28 @@ function Invoke-HttpProbe([string]$Uri, [hashtable]$Headers = @{}, [int[]]$Allow
     }
 }
 
-function Assert-WindowsTunnelRuntime([string]$EnvFile) {
+function Ensure-WindowsLoopbackPublication([string]$RepositoryPath, [string]$EnvFile) {
+    $api = Join-Path $RepositoryPath 'http-generic-api'
+    $base = Join-Path $api 'docker-compose.yml'
+    $stage = Join-Path $api 'docker-compose.staging.yml'
+    $windowsOverride = Join-Path $api 'docker-compose.staging.windows-service.yml'
+    if (-not (Test-Path -LiteralPath $windowsOverride)) { Fail 'Windows service Compose override is missing.' }
+
+    Invoke-Checked 'docker' @('compose','-f',$base,'-f',$stage,'-f',$windowsOverride,'--env-file',$EnvFile,'config','--quiet')
+    Invoke-Checked 'docker' @('compose','-f',$base,'-f',$stage,'-f',$windowsOverride,'--env-file',$EnvFile,'up','-d','app')
+
+    for ($attempt = 0; $attempt -lt 30; $attempt++) {
+        $tcp = Test-NetConnection 127.0.0.1 -Port 8080 -WarningAction SilentlyContinue
+        if ($tcp.TcpTestSucceeded -eq $true) { return }
+        Start-Sleep -Seconds 2
+    }
+    Fail 'Windows service mode could not establish loopback-only 127.0.0.1:8080 publication.'
+}
+
+function Assert-WindowsTunnelRuntime([string]$RepositoryPath, [string]$EnvFile) {
     $origin = Get-StagingEnvValue $EnvFile 'CLOUDFLARE_TUNNEL_ORIGIN_APP'
     if ($origin -ne 'http://127.0.0.1:8080') { Fail 'windows_service mode requires loopback origin http://127.0.0.1:8080' }
-    $tcp = Test-NetConnection 127.0.0.1 -Port 8080 -WarningAction SilentlyContinue
-    if ($tcp.TcpTestSucceeded -ne $true) { Fail 'windows_service mode requires the Staging app to be reachable on 127.0.0.1:8080' }
+    Ensure-WindowsLoopbackPublication $RepositoryPath $EnvFile
 
     $service = Get-CimInstance Win32_Service -Filter "Name='Cloudflared'" -ErrorAction SilentlyContinue
     if ($null -eq $service) { Fail 'Cloudflared Windows service is not installed.' }
@@ -53,6 +70,7 @@ function Assert-WindowsTunnelRuntime([string]$EnvFile) {
     if ($pathName -notmatch '(?i)--token-file') { Fail 'Cloudflared Windows service must use --token-file for Staging.' }
     if ($service.State -ne 'Running') {
         Start-Service Cloudflared
+        Start-Sleep -Seconds 2
         $service = Get-CimInstance Win32_Service -Filter "Name='Cloudflared'"
         if ($service.State -ne 'Running') { Fail 'Cloudflared Windows service did not reach Running state.' }
     }
@@ -125,7 +143,7 @@ $envState = Initialize-StagingEnvironment -RepositoryPath $RepositoryPath -Tunne
 $envFile = $envState.env_file
 
 $tunnelState = switch ($TunnelMode) {
-    'windows_service' { Assert-WindowsTunnelRuntime $envFile }
+    'windows_service' { Assert-WindowsTunnelRuntime $RepositoryPath $envFile }
     'docker_sidecar' { Assert-DockerTunnelRuntime $RepositoryPath $envFile }
     default { [pscustomobject]@{ mode = 'disabled'; runtime = 'none'; origin = $null; ready = $true } }
 }
@@ -135,16 +153,10 @@ if ($ProvisionMcpApp) {
     $appId = Get-StagingEnvValue $envFile 'REMOTE_MCP_APP_ID'
     $appSecret = Get-StagingEnvValue $envFile 'REMOTE_MCP_APP_SECRET'
     if ([string]::IsNullOrWhiteSpace($appId) -or [string]::IsNullOrWhiteSpace($appSecret)) { Fail 'Canonical MCP App ID/App Secret are missing from .env.staging.' }
-    $oldSecret = $env:REMOTE_MCP_APP_SECRET
+    Push-Location (Join-Path $RepositoryPath 'http-generic-api')
     try {
-        $env:REMOTE_MCP_APP_SECRET = $appSecret
-        Push-Location (Join-Path $RepositoryPath 'http-generic-api')
-        try {
-            Invoke-Checked 'node' @('scripts/provision-remote-mcp-client.mjs','--environment=staging','--env-file=.env.staging','--profile=openai_chatgpt',"--client-id=$appId",'--confirm=PROVISION_REMOTE_MCP_STAGING',"--redirect-uri=$McpRedirectUri")
-        } finally { Pop-Location }
-    } finally {
-        $env:REMOTE_MCP_APP_SECRET = $oldSecret
-    }
+        Invoke-Checked 'node' @('scripts/provision-remote-mcp-client.mjs','--environment=staging','--env-file=.env.staging','--profile=openai_chatgpt',"--client-id=$appId",'--confirm=PROVISION_REMOTE_MCP_STAGING',"--redirect-uri=$McpRedirectUri",'--redact-secret-output')
+    } finally { Pop-Location }
 }
 
 $public = Invoke-StagingPublicReadiness $envFile $TunnelMode ([bool]$EnableActivationGateway)
