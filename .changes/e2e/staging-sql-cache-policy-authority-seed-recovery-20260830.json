@@ -1,0 +1,107 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-sql-cache-policy-authority-seed-recovery-20260830",
+  "title": "Local Staging SQL cache authority seed recovery",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-sql-cache-policy-authority-seed-recovery-20260830.json",
+      "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1",
+      "autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1",
+      "autopilot-portable-staging/auto-deploy-policy.json",
+      "autopilot-portable-staging/autopilot-one-click-policy.json",
+      "http-generic-api/config/staging-database-role-migration-manifest.json",
+      "http-generic-api/test-staging-auto-deploy-contract.mjs",
+      "http-generic-api/test-staging-database-readiness-repair.mjs",
+      "http-generic-api/test-staging-one-click-autopilot-contract.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Restore the repository-owned sql_cache_policy_v2 authority row in Local Windows/Docker Staging through exact-checksum-bound Staging recovery surfaces while keeping the runtime application principal SELECT-only on sql_cache_runtime_policies and preserving fail-closed environment isolation.",
+      "e2e_journeys": [
+        {
+          "id": "local-staging-sql-cache-authority-seed-recovery",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Windows Docker Staging recovery operator",
+          "entrypoint": "autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1",
+          "terminal_outcome": "Local Staging has exactly one canonical sql_cache_policy_v2 row, the runtime principal can read it through least-privilege SELECT authority, MySQL remains the policy authority, and Staging certification is eligible to proceed without Production or provider mutation.",
+          "steps": [
+            "Bind the recovery to the exact local Staging commit and repository-owned migration checksum.",
+            "Require the sql_cache_runtime_policies base table to exist before non-destructive readiness reconciliation.",
+            "If sql_cache_policy_v2 is absent, apply only the idempotent authority-seed INSERT from 1023_sprint69_sql_cache_runtime_policy.sql using the local Runtime DB root identity.",
+            "Read back exactly one policy row with revision at least one, required=false, and endpoints retained in the immutable table blocklist.",
+            "Reconcile repository-owned Staging grants so runtime_app retains SELECT-only authority on sql_cache_runtime_policies and receives no policy write authority.",
+            "Restart and require the normal Staging certification lifecycle on the exact commit."
+          ],
+          "assertions": [
+            "The authority seed is Local Staging only and exact-checksum bound.",
+            "The shared Production runtime-bootstrap contract is unchanged.",
+            "runtime_app receives SELECT only on sql_cache_runtime_policies and no INSERT, UPDATE, DELETE, schema-wide privilege, global privilege, GRANT OPTION, or delegated role.",
+            "The seed readback requires one sql_cache_policy_v2 row, revision >= 1, required=false, and endpoints in table_blocklist.",
+            "The canonical seed value for enabled is preserved rather than overridden by the recovery path.",
+            "No database reset, schema replay, data-directory move, Production access, Hostinger/Cloudflare mutation, provider mutation, or Production credential access is authorized."
+          ],
+          "tests": [
+            {
+              "id": "staging-database-readiness-repair-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-database-readiness-repair.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-auto-deploy-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-auto-deploy-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-one-click-autopilot-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-one-click-autopilot-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1",
+            "autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1",
+            "http-generic-api/config/staging-database-role-migration-manifest.json",
+            "http-generic-api/test-staging-database-readiness-repair.mjs",
+            "http-generic-api/test-staging-auto-deploy-contract.mjs",
+            "http-generic-api/test-staging-one-click-autopilot-contract.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Production and provider execution remain outside this Staging-only authority-seed recovery.",
+      "blockers": [
+        "Production requires a separate governed promotion lifecycle.",
+        "No Production database, Hostinger, Cloudflare, provider, ruleset, credential, or deployment mutation is authorized by this declaration."
+      ]
+    }
+  ]
+}
