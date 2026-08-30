@@ -65,6 +65,7 @@ function Assert-StagingEnvironmentSafety([string]$Path) {
         throw 'Runtime-minted MCP access/refresh/authorization credentials must never be persisted in .env.staging.'
     }
     if ($text -notmatch '(?im)^TENANT_GPT_SSO_COOKIE_MODE=host_only\s*$') { throw 'Staging SSO cookie mode must be host_only.' }
+    if ((Get-StagingEnvValue $Path 'STAGING_AUTHENTICATED_REMOTE_E2E_REQUIRED').ToLowerInvariant() -ne 'true') { throw 'Authenticated Tenant/MCP remote E2E must remain mandatory for Staging PLATFORM_READY.' }
     foreach ($key in @('MIGRATION_APPLIED','PRODUCTION_MUTATION_AUTHORIZED','RULESET_MUTATION_AUTHORIZED')) {
         if ((Get-StagingEnvValue $Path $key).ToLowerInvariant() -ne 'false') { throw "$key must remain false in Staging bootstrap." }
     }
@@ -123,6 +124,13 @@ function Initialize-StagingEnvironment {
     foreach ($entry in $generatedFactories.GetEnumerator()) {
         if (Ensure-StagingGeneratedValue $envFile $entry.Key $entry.Value) { $generatedNames += $entry.Key }
     }
+
+    # Preserve the explicitly selected existing Staging probe principal. Never
+    # auto-select or auto-create a user/tenant just to make readiness pass.
+    foreach ($probeKey in @('STAGING_READINESS_PROBE_USER_ID','STAGING_READINESS_PROBE_TENANT_ID')) {
+        Set-StagingEnvValue $envFile $probeKey (Get-StagingEnvValue $envFile $probeKey)
+    }
+    Set-StagingEnvValue $envFile 'STAGING_AUTHENTICATED_REMOTE_E2E_REQUIRED' 'true'
 
     # Canonical shared Staging environment authority.
     Set-StagingEnvValue $envFile 'STAGING_TUNNEL_MODE' $TunnelMode
@@ -201,6 +209,8 @@ function Initialize-StagingEnvironment {
         tunnel_origin = Get-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ORIGIN_APP'
         remote_managed_tunnel_origin = Get-StagingEnvValue $envFile 'STAGING_TUNNEL_REMOTE_ORIGIN'
         generated_keys = @($generatedNames)
+        authenticated_remote_e2e_required = $true
+        readiness_probe_principal_configured = (-not [string]::IsNullOrWhiteSpace((Get-StagingEnvValue $envFile 'STAGING_READINESS_PROBE_USER_ID'))) -and (-not [string]::IsNullOrWhiteSpace((Get-StagingEnvValue $envFile 'STAGING_READINESS_PROBE_TENANT_ID')))
         mcp_app_id_present = -not [string]::IsNullOrWhiteSpace((Get-StagingEnvValue $envFile 'REMOTE_MCP_APP_ID'))
         mcp_app_secret_present = -not [string]::IsNullOrWhiteSpace((Get-StagingEnvValue $envFile 'REMOTE_MCP_APP_SECRET'))
         mcp_token_issuance_mode = 'oauth_authorization_code_runtime'
