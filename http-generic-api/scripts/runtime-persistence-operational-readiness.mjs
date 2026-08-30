@@ -242,18 +242,26 @@ export async function runRuntimePersistenceOperationalReadinessCli({
 
   let cleanupError = null;
   let poolEndCalled = false;
-  if (cliPool && typeof cliPool.end === "function") {
-    try {
-      poolEndCalled = true;
-      await cliPool.end();
-    } catch (error) {
-      cleanupError = normalizeError(error);
+  if (cliPool) {
+    if (typeof cliPool.end !== "function") {
+      cleanupError = {
+        code: "runtime_persistence_cli_pool_end_unavailable",
+        status: 503,
+        secrets_included: false,
+      };
+    } else {
+      try {
+        poolEndCalled = true;
+        await cliPool.end();
+      } catch (error) {
+        cleanupError = normalizeError(error);
+      }
     }
   }
 
   const cleanup = {
     attempted: Boolean(cliPool),
-    completed: cleanupError === null,
+    completed: cliPool ? cleanupError === null && poolEndCalled : true,
     pool_end_called: poolEndCalled,
     error: cleanupError,
     secrets_included: false,
