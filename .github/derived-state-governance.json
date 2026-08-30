@@ -278,8 +278,7 @@
       "canonicals/openapi/registration-topology-closure.yaml",
       ".changes/e2e/staging-unqualified-view-dependency-replay-20260829.json",
       ".changes/e2e/staging-cte-alias-view-dependency-replay-20260829.json",
-      ".changes/e2e/staging-database-readiness-repair-20260829.json",
-      ".changes/e2e/staging-sql-cache-seed-insert-guard-20260830.json"
+      ".changes/e2e/staging-database-readiness-repair-20260829.json"
     ],
     "automerge_opt_out_labels": [
       "do-not-auto-merge",
