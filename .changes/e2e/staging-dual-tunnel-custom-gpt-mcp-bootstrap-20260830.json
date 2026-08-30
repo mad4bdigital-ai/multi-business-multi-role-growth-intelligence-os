@@ -11,12 +11,17 @@
       ".changes/e2e/staging-dual-tunnel-custom-gpt-mcp-bootstrap-20260830.json",
       "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
       "autopilot-portable-staging/Staging-Environment.ps1",
+      "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
       "autopilot-portable-staging/Start-Staging-One-Click.cmd",
       "autopilot-portable-staging/autopilot-one-click-policy.json",
       "http-generic-api/.env.staging.example",
       "http-generic-api/docker-compose.staging.windows-service.yml",
+      "http-generic-api/docker-compose.staging.docker-sidecar.yml",
       "http-generic-api/scripts/provision-remote-mcp-client.mjs",
-      "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs"
+      "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs",
+      "http-generic-api/scripts/staging-platform-ready-contract.mjs",
+      "http-generic-api/scripts/staging-public-schema-readiness.mjs",
+      "http-generic-api/scripts/staging-authenticated-remote-readiness.mjs"
     ]
   },
   "environment_impact": {
@@ -33,7 +38,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Make local Windows/Docker Staging ingress mode explicit, preserve both Windows Service and Docker sidecar tunnel deployments, centralize ignored .env.staging generation, bind Admin/Tenant Custom GPT and Remote MCP public readiness to fail-closed remote probes, and provide governed Staging-only MCP OAuth client identity/secret provisioning without persisting user access or refresh tokens.",
+      "objective": "Make local Windows/Docker Staging ingress mode explicit and mutually exclusive, self-heal the Windows Cloudflared service to token-file transport, prove the shared remote-managed loopback origin from fresh runtime evidence, bind published Admin/Tenant/Activation OpenAPI schemas to exact-checkout semantic content, and require real Tenant OAuth plus Remote MCP OAuth authenticated read E2E with zero durable probe residue before PLATFORM_READY.",
       "e2e_journeys": [
         {
           "id": "dual-mode-staging-custom-gpt-mcp-readiness",
@@ -41,31 +46,43 @@
           "level": "synthetic_runtime",
           "actor": "Local Windows Docker Staging operator",
           "entrypoint": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
-          "terminal_outcome": "The selected Staging tunnel runtime is mutually exclusive and mode-correct, public HTTPS and Admin/Tenant Custom GPT schemas/auth metadata are remotely reachable, Remote MCP metadata/schema are reachable, optional MCP App provisioning runs inside the Staging app container with secret-free readback, and PLATFORM_READY cannot be emitted when public ingress is unavailable.",
+          "terminal_outcome": "PLATFORM_READY is emitted only when the selected Staging tunnel is mutually exclusive and stable, Cloudflare runtime evidence binds dev.mad4b.com and mcp_dev.mad4b.com to http://127.0.0.1:8080, published schemas are semantically identical to the exact checkout, Admin read-only auth succeeds, Tenant OAuth authorization-code plus PKCE reaches an authenticated Tenant read, Remote MCP OAuth reaches list_accessible_workspaces, probe residue is zero, and the Activation Gateway is enabled and ready.",
           "steps": [
             "Generate missing local-only Staging secrets once through Staging-Environment.ps1 while preserving existing non-placeholder values.",
+            "Preserve explicitly configured STAGING_READINESS_PROBE_USER_ID and STAGING_READINESS_PROBE_TENANT_ID; never auto-select or auto-create a readiness principal.",
             "Generate a Staging-prefixed Remote MCP App ID, confidential App Secret, isolated OAuth signing secret, Tenant GPT OAuth secrets, and database/runtime secrets into ignored .env.staging without committing values.",
             "Reject persisted Remote MCP authorization codes, access tokens, or refresh tokens; user tokens are minted only by the runtime OAuth authorization-code flow.",
-            "Select windows_service, docker_sidecar, or disabled explicitly and stop the opposite tunnel runtime before activation.",
-            "For windows_service publish app only on 127.0.0.1:8080 and require Cloudflared Windows Service to use --token-file; for docker_sidecar preserve internal app:8080 DNS and require the ignored Staging tunnel token.",
-            "Run the existing exact-SHA local bootstrap and re-assert the selected canonical tunnel mode before public certification.",
-            "Fetch Tenant/Admin Staging OpenAPI schemas, Tenant OAuth metadata, Remote MCP authorization/protected-resource metadata, and bounded authentication enforcement over public HTTPS.",
+            "Quiesce both tunnel runtimes before the exact-SHA transition, then activate only windows_service, docker_sidecar, or disabled.",
+            "For windows_service publish app only on 127.0.0.1:8080, reconcile Cloudflared to --token-file with protected token/log files, require a stable PID window, and prove Docker cloudflared is inactive.",
+            "For docker_sidecar share the app network namespace, use the same remote-managed http://127.0.0.1:8080 origin, require the ignored Staging tunnel token, and prove the Windows service is inactive.",
+            "Read fresh cloudflared runtime evidence and fail closed if either Staging hostname is still mapped to http://app:8080 or if the canonical remote-managed origin cannot be proven.",
+            "Fetch Tenant/Admin/Activation Staging OpenAPI schemas over public HTTPS, parse them, validate server/security/OAuth/operationId/local-ref semantics, and require semantic equality with the exact-checkout canonical files.",
             "Perform a bounded authenticated Admin GPT read-only probe with the Staging backend key.",
-            "When explicitly requested, provision the openai_chatgpt Remote MCP client inside the app container using the generated App ID/App Secret and require secret-redacted status readback.",
-            "Block platform readiness if the selected public ingress, Custom GPT, OAuth, or Remote MCP gates do not pass."
+            "When explicitly requested, provision the openai_chatgpt Remote MCP client inside the Staging app container using the generated App ID/App Secret and require secret-redacted status readback.",
+            "Issue a bounded platform JWT for the configured existing Staging principal, complete Tenant OAuth authorization-code with PKCE S256, exchange the code, and read /connect/status with the minted bearer.",
+            "Complete Remote MCP authorization-code OAuth with PKCE S256 using the provisioned Staging MCP App, call list_accessible_workspaces through POST /mcp, and revoke minted MCP tokens.",
+            "Delete probe-created Tenant OAuth codes/grants/SSO/activation-context/diagnostic evidence and Remote MCP codes/grants, then require probe_residue=0.",
+            "Require the Activation Gateway for PLATFORM_READY; disabled remains local-only and cannot claim platform readiness.",
+            "Block platform readiness if any selected tunnel, remote-origin, public HTTPS, schema semantic, Admin auth, Tenant OAuth/action, Remote MCP OAuth/read, cleanup, or Activation gate fails."
           ],
           "assertions": [
-            "windows_service and docker_sidecar are first-class mutually exclusive modes; disabled remains available for local-only Staging.",
-            "Windows Service origin is http://127.0.0.1:8080 with loopback-only host publication; Docker sidecar origin remains http://app:8080 without host publication requirement.",
-            "Windows Service never consumes an inline --token argument and requires --token-file; only Docker sidecar requires CLOUDFLARE_TUNNEL_TOKEN in ignored .env.staging.",
+            "windows_service and docker_sidecar are first-class mutually exclusive modes; disabled remains available for local-only Staging and never claims PLATFORM_READY.",
+            "Both enabled tunnel modes use the externally reviewed remote-managed origin http://127.0.0.1:8080; mode switching performs no Cloudflare/provider mutation.",
+            "Windows Service uses loopback-only host publication, protected --token-file transport, bounded service recovery, stable process readback, and fresh log evidence; inline --token is forbidden.",
+            "Docker sidecar shares the app network namespace so its loopback origin resolves to the app while requiring no host publication.",
             "Staging-Environment.ps1 is the canonical source of newly generated .env.staging values and does not implicitly rotate populated values.",
+            "STAGING_READINESS_PROBE_USER_ID and STAGING_READINESS_PROBE_TENANT_ID must identify one existing active Staging membership; readiness cannot manufacture a user or tenant.",
             "REMOTE_MCP_APP_ID uses the mcp_stg_ namespace and REMOTE_MCP_APP_SECRET is at least 32 characters of cryptographically random material.",
             "REMOTE_MCP_OAUTH_SIGNING_SECRET remains isolated from JWT_SECRET and MCP user authorization/access/refresh tokens are not persisted in .env.staging.",
             "MCP client provisioning requires the explicit PROVISION_REMOTE_MCP_STAGING confirmation and executes against the Staging Runtime DB from inside the app container.",
             "Canonical App Secret provisioning output is redacted and status/readback remains secrets_included=false.",
+            "Published Tenant/Admin/Activation/MCP schema bindings are validated semantically, including servers, security schemes, OAuth endpoints, unique operationIds and resolvable local refs, and must match exact-checkout semantic hashes.",
+            "Tenant readiness requires platform-jwt -> authorize -> code -> token -> authenticated /connect/status with PKCE S256 and subject binding to the configured probe principal.",
+            "Remote MCP readiness requires authorize -> code -> token -> authenticated list_accessible_workspaces with PKCE S256 using the provisioned Staging MCP App.",
+            "Probe cleanup is fail-closed and PLATFORM_READY requires probe_residue=0 after deleting probe-owned Tenant/MCP authorization artifacts.",
+            "Activation Gateway is mandatory for PLATFORM_READY.",
             "Admin/Tenant Staging schema URLs and MCP resource URLs remain on dev.mad4b.com, activation-dev.mad4b.com, and mcp_dev.mad4b.com only.",
-            "Public ingress failure blocks platform_ready when a tunnel mode is selected.",
-            "No Production deployment, Production database mutation, Hostinger mutation, Cloudflare DNS mutation, provider mutation, or production_live authority is granted."
+            "No Production deployment, Production database mutation, Hostinger mutation, Cloudflare DNS mutation, provider mutation, ruleset mutation, or production_live authority is granted."
           ],
           "tests": [
             {
@@ -74,17 +91,29 @@
               "working_directory": "http-generic-api",
               "path": "scripts/staging-dual-mode-one-click-contract.mjs",
               "args": []
+            },
+            {
+              "id": "staging-platform-ready-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/staging-platform-ready-contract.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
             "autopilot-portable-staging/Staging-Environment.ps1",
+            "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
             "autopilot-portable-staging/Start-Staging-One-Click.cmd",
             "autopilot-portable-staging/autopilot-one-click-policy.json",
             "http-generic-api/.env.staging.example",
             "http-generic-api/docker-compose.staging.windows-service.yml",
+            "http-generic-api/docker-compose.staging.docker-sidecar.yml",
             "http-generic-api/scripts/provision-remote-mcp-client.mjs",
-            "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs"
+            "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs",
+            "http-generic-api/scripts/staging-platform-ready-contract.mjs",
+            "http-generic-api/scripts/staging-public-schema-readiness.mjs",
+            "http-generic-api/scripts/staging-authenticated-remote-readiness.mjs"
           ]
         }
       ]
@@ -96,7 +125,7 @@
       "blockers": [
         "Production remains outside this pull request and requires a separate governed promotion lifecycle.",
         "The shared provisioner explicitly refuses Staging REMOTE_MCP_APP_ID/REMOTE_MCP_APP_SECRET variables when environment=production.",
-        "No Production, Hostinger, Cloudflare, provider, production database, or deployment mutation is authorized by this declaration."
+        "No Production, Hostinger, Cloudflare, provider, production database, ruleset, or deployment mutation is authorized by this declaration."
       ]
     }
   ]
