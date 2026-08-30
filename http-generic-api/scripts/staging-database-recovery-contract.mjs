@@ -85,7 +85,10 @@ assert.doesNotMatch(legacyClone, /(?:^|\s)-u\$(?:user|runtimeUser)\b/m);
 assert.match(legacyClone, /sed -E 's\/DEFINER=\[\^ \]\+\/DEFINER=CURRENT_USER\/g'/);
 assert.match(legacyClone, /mariadb --protocol=socket -u'\$user' '\$db'/);
 assert.doesNotMatch(legacyClone.replace(/^\s*#.*$/gm, ""), /GRANT\s+SET\s+USER/i);
-assert.doesNotMatch(legacyClone, /mariadb[^\r\n]*-uroot/i);
+assert.equal((legacyClone.match(/mariadb[^\r\n]*-uroot/gi) || []).length, 1);
+assert.match(legacyClone, /\$seedSql \| docker compose @compose exec -T -e "MYSQL_PWD=\$runtimeRootPassword" \$runtimeService\.Service mariadb --protocol=socket -uroot \$runtimeDb --binary-mode/);
+assert.doesNotMatch(legacyClone, /gzip -dc[^\r\n]*mariadb[^\r\n]*-uroot/i);
+assert.doesNotMatch(legacyClone, /\$canonicalSeedRows[\s\S]*?mariadb[^\r\n]*-uroot[\s\S]*?canonical_seed_status = "completed"/i);
 assert.match(legacyClone, /if \(\$LASTEXITCODE -ne 0\) \{ Fail "Schema import failed for role \$\(\$item\.Key\); state remains applying for explicit recovery\." \}/);
 
 assert.equal(roleManifest.contract, "mad4b.staging.database-role-migration-manifest.v1");

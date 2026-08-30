@@ -12,11 +12,22 @@ import { loadEnvironmentBranchAuthority } from "./environmentBranchAuthority.js"
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
 const read = (relative) => fs.readFileSync(path.join(ROOT, relative), "utf8");
+const readJson = (relative) => JSON.parse(read(relative));
 
 const grantPlan = read("http-generic-api/scripts/staging-role-grant-plan.mjs");
 const governanceReadiness = read("http-generic-api/governanceDbPrivilegeReadinessService.js");
 const compose = read("http-generic-api/docker-compose.staging.yml");
 const repair = read("autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1");
+const importer = read("autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1");
+const roleManifest = readJson("http-generic-api/config/staging-database-role-migration-manifest.json");
+const autoDeployPolicy = readJson("autopilot-portable-staging/auto-deploy-policy.json");
+const oneClickPolicy = readJson("autopilot-portable-staging/autopilot-one-click-policy.json");
+
+const sqlCacheAuthoritySeed = {
+  file: "1023_sprint69_sql_cache_runtime_policy.sql",
+  sha256: "50424aac877e6c3924191599b295a460007b98d01fbe009d615e06457e24fdc7",
+  statement_count: 2,
+};
 
 assert.deepEqual(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_tables, [
   "customer_sessions",
@@ -74,12 +85,62 @@ assert.equal(authority.staging_branch, "main");
 assert.equal(authority.production_branch, "Production");
 assert.equal(authority.source, "deployment-branch-policy.json");
 
+assert.deepEqual(roleManifest.canonical_seed_lifecycle.seed_files, [
+  "039_sprint43_data_integrity_and_missing_tables.sql",
+  "1043_sprint69_dynamic_container_hvac_activity_seed.sql",
+  "20260815_custom_gpt_mcp_catalog_levels.sql",
+]);
+assert.equal(roleManifest.authority_seed_lifecycle.contract, "mad4b.staging.authority-seed-manifest.v1");
+assert.equal(roleManifest.authority_seed_lifecycle.target_role, "runtime");
+assert.equal(roleManifest.authority_seed_lifecycle.execution_identity, "local_database_root");
+assert.equal(roleManifest.authority_seed_lifecycle.runtime_write_authority_forbidden, true);
+assert.equal(roleManifest.authority_seed_lifecycle.readback_required, true);
+assert.deepEqual(roleManifest.authority_seed_lifecycle.seed_files, [sqlCacheAuthoritySeed]);
+assert.deepEqual(roleManifest.authority_seed_lifecycle.readback, {
+  table: "sql_cache_runtime_policies",
+  policy_key: "sql_cache_policy_v2",
+  exact_row_count: 1,
+  minimum_revision: 1,
+  required: false,
+  required_blocked_tables: ["endpoints"],
+});
+
+assert.equal(autoDeployPolicy.authority_seed_lifecycle.contract, "mad4b.staging.authority-seed-manifest.v1");
+assert.equal(autoDeployPolicy.authority_seed_lifecycle.execution_identity, "local_database_root");
+assert.deepEqual(autoDeployPolicy.authority_seed_lifecycle.seed_files, [sqlCacheAuthoritySeed.file]);
+assert.equal(autoDeployPolicy.authority_seed_lifecycle.runtime_write_authority_forbidden, true);
+assert.ok(autoDeployPolicy.authority_seed_lifecycle.canonical_rows_required.includes("sql_cache_runtime_policies.sql_cache_policy_v2"));
+
+assert.equal(oneClickPolicy.lifecycle.authority_seeds.contract, "mad4b.staging.authority-seed-manifest.v1");
+assert.equal(oneClickPolicy.lifecycle.authority_seeds.execution_identity, "local_database_root");
+assert.deepEqual(oneClickPolicy.lifecycle.authority_seeds.seed_files, [sqlCacheAuthoritySeed.file]);
+assert.equal(oneClickPolicy.lifecycle.authority_seeds.runtime_write_authority_forbidden, true);
+assert.ok(oneClickPolicy.lifecycle.authority_seeds.canonical_rows_required.includes("sql_cache_runtime_policies.sql_cache_policy_v2"));
+
+assert.match(importer, /mad4b\.staging\.authority-seed-manifest\.v1/);
+assert.match(importer, /execution_identity -eq "local_database_root"/);
+assert.match(importer, /RUNTIME_DB_ROOT_PASSWORD/);
+assert.match(importer, /authority_seed_status/);
+assert.match(importer, /authority_seed_applied_files/);
+assert.match(importer, /runtime_write_authority_expanded = \$false/);
+assert.match(importer, /STAGING_AUTHORITY_SEEDS_COMPLETED/);
+assert.match(importer, /sql_cache_runtime_policies WHERE policy_key = 'sql_cache_policy_v2'/);
+assert.doesNotMatch(importer, /GRANT\s+(?:INSERT|UPDATE|DELETE)[^\r\n]*sql_cache_runtime_policies/i);
+
 assert.match(repair, /REPAIR_LOCAL_STAGING_DATABASE_READINESS:\$\{ExpectedCommit\}:staging_local_windows_docker/);
 assert.match(repair, /origin\/main moved away from ExpectedCommit/);
 assert.match(repair, /Tracked working tree changes are forbidden/);
 assert.match(repair, /DOCKER_HOST is forbidden/);
 assert.match(repair, /DOCKER_CONTEXT is forbidden/);
 assert.match(repair, /ALTER DATABASE \$databaseIdentifier CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci/);
+assert.match(repair, /1023_sprint69_sql_cache_runtime_policy\.sql/);
+assert.match(repair, /50424aac877e6c3924191599b295a460007b98d01fbe009d615e06457e24fdc7/);
+assert.match(repair, /Reconcile-SqlCacheRuntimePolicy/);
+assert.match(repair, /sql_cache_policy_v2 must exist exactly once after reconciliation/);
+assert.match(repair, /Local Staging SQL cache policy must remain required=false/);
+assert.match(repair, /immutable endpoints denylist/);
+assert.match(repair, /root_identity_used_for_seed = \$inserted/);
+assert.match(repair, /runtime_write_authority_required = \$false/);
 assert.match(repair, /REVOKE ALL PRIVILEGES, GRANT OPTION/);
 assert.match(repair, /TABLE_PRIVILEGES/);
 assert.match(repair, /SCHEMA_PRIVILEGES/);
@@ -101,6 +162,8 @@ console.log(JSON.stringify({
   production_bootstrap_grants_unchanged: true,
   staging_mcp_catalog_select_only: true,
   staging_sql_cache_policy_select_only: true,
+  staging_sql_cache_policy_seed_reconciled_by_root_only: true,
+  staging_sql_cache_authority_seed_separated: true,
   staging_governance_authority_repository_only: true,
   staging_mariadb_collation_pinned: true,
   non_destructive_resume_repair: true,

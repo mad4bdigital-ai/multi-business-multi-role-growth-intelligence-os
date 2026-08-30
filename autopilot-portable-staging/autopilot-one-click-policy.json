@@ -47,6 +47,16 @@
       "mcp_catalog_columns_required": ["admin_platform_endpoint_tools.mcp_catalog_level", "tenant_platform_endpoint_tools.mcp_catalog_level"],
       "canonical_rows_required": ["registry_surfaces_catalog", "business_type_profiles", "brand_paths", "business_activity_types.hvac_air_conditioning_services"]
     },
+    "authority_seeds": {
+      "contract": "mad4b.staging.authority-seed-manifest.v1",
+      "target_role": "runtime",
+      "execution_identity": "local_database_root",
+      "seed_files": ["1023_sprint69_sql_cache_runtime_policy.sql"],
+      "explicit_apply_only": true,
+      "runtime_write_authority_forbidden": true,
+      "readback_required": true,
+      "canonical_rows_required": ["sql_cache_runtime_policies.sql_cache_policy_v2"]
+    },
     "activation_readiness": {
       "schema_and_catalog_readiness_required": true,
       "gateway_policy_not_stale_required": true,
