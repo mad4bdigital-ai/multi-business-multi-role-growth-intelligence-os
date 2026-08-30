@@ -47,9 +47,20 @@ function Stop-WindowsTunnelRuntime {
 }
 
 function Stop-DockerTunnelRuntime([string]$RepositoryPath, [string]$EnvFile) {
-    $composeArgs = Get-StagingComposeArgs $RepositoryPath $EnvFile
-    & docker @($composeArgs + @('--profile','tunnel','stop','cloudflared')) 2>$null | Out-Null
-    if ($LASTEXITCODE -ne 0) { Fail 'Docker cloudflared sidecar could not be stopped for tunnel-mode mutual exclusion.' }
+    # Do not invoke `docker compose` here: on a first install the exact build
+    # provenance variables have not been materialized yet and Compose would
+    # reject interpolation before it could stop an old sidecar. Inspect only
+    # running cloudflared service containers and stop those bound to Staging.
+    $idsText = (& docker ps -q --filter 'label=com.docker.compose.service=cloudflared' 2>$null | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($idsText)) { return }
+    foreach ($id in @($idsText -split '\s+' | Where-Object { $_ })) {
+        $envJson = (& docker inspect --format '{{json .Config.Env}}' $id 2>$null | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0) { continue }
+        if ($envJson -notmatch 'TUNNEL_ENVIRONMENT=staging') { continue }
+        if ($envJson -notmatch 'TUNNEL_HOSTNAMES=dev\.mad4b\.com,mcp_dev\.mad4b\.com') { continue }
+        & docker stop $id 2>$null | Out-Null
+        if ($LASTEXITCODE -ne 0) { Fail 'Docker cloudflared sidecar could not be stopped for tunnel-mode mutual exclusion.' }
+    }
 }
 
 function Enforce-TunnelRuntimeExclusion([string]$RepositoryPath, [string]$EnvFile, [string]$Mode) {
@@ -87,10 +98,15 @@ function Ensure-WindowsLoopbackPublication([string]$RepositoryPath, [string]$Env
 
     for ($attempt = 0; $attempt -lt 30; $attempt++) {
         $tcp = Test-NetConnection 127.0.0.1 -Port 8080 -WarningAction SilentlyContinue
-        if ($tcp.TcpTestSucceeded -eq $true) { return }
+        if ($tcp.TcpTestSucceeded -eq $true) {
+            try {
+                $health = Invoke-WebRequest -Uri 'http://127.0.0.1:8080/health' -UseBasicParsing -TimeoutSec 10
+                if ([int]$health.StatusCode -eq 200) { return }
+            } catch { }
+        }
         Start-Sleep -Seconds 2
     }
-    Fail 'Windows service mode could not establish loopback-only 127.0.0.1:8080 publication.'
+    Fail 'Windows service mode could not establish healthy loopback-only 127.0.0.1:8080 publication.'
 }
 
 function Assert-WindowsTunnelRuntime([string]$RepositoryPath, [string]$EnvFile) {
