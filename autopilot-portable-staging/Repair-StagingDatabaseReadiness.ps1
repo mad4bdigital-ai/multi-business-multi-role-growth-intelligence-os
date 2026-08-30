@@ -106,7 +106,7 @@ function Reconcile-SqlCacheRuntimePolicy([object]$Role) {
         $insertIndex = $migrationSql.IndexOf($insertMarker, [StringComparison]::Ordinal)
         Require ($insertIndex -ge 0) "Canonical SQL cache policy seed INSERT is missing"
         $seedSql = $migrationSql.Substring($insertIndex).Trim()
-        Require ($seedSql -match '(?is)^INSERT\s+INTO\s+`sql_cache_runtime_policies`\b') "Canonical SQL cache policy seed does not start with the expected INSERT"
+        Require ($seedSql.StartsWith($insertMarker, [StringComparison]::Ordinal)) "Canonical SQL cache policy seed does not start with the expected INSERT"
         Require ($seedSql -match "(?is)'sql_cache_policy_v2'") "Canonical SQL cache policy key is missing from seed"
         Require ($seedSql -match "(?is)ON\s+DUPLICATE\s+KEY\s+UPDATE") "Canonical SQL cache policy seed is not idempotent"
         Require ($seedSql -notmatch "(?im)^\s*(?:GRANT|REVOKE|CREATE\s+USER|ALTER\s+USER|CREATE\s+DATABASE|DROP\s+DATABASE|CREATE\s+TABLE|ALTER\s+TABLE|DROP\s+TABLE|LOAD\s+DATA)\b") "Extracted SQL cache policy seed contains forbidden authority/schema SQL"

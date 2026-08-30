@@ -19,6 +19,7 @@ const governanceReadiness = read("http-generic-api/governanceDbPrivilegeReadines
 const compose = read("http-generic-api/docker-compose.staging.yml");
 const repair = read("autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1");
 const importer = read("autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1");
+const sqlCacheMigration = read("http-generic-api/migrations/1023_sprint69_sql_cache_runtime_policy.sql");
 const roleManifest = readJson("http-generic-api/config/staging-database-role-migration-manifest.json");
 const autoDeployPolicy = readJson("autopilot-portable-staging/auto-deploy-policy.json");
 const oneClickPolicy = readJson("autopilot-portable-staging/autopilot-one-click-policy.json");
@@ -28,6 +29,12 @@ const sqlCacheAuthoritySeed = {
   sha256: "50424aac877e6c3924191599b295a460007b98d01fbe009d615e06457e24fdc7",
   statement_count: 2,
 };
+
+const sqlCacheInsertIndex = sqlCacheMigration.indexOf('INSERT INTO `sql_cache_runtime_policies`');
+assert.ok(sqlCacheInsertIndex >= 0);
+const extractedSqlCacheSeed = sqlCacheMigration.slice(sqlCacheInsertIndex).trim();
+assert.ok(extractedSqlCacheSeed.startsWith('INSERT INTO `sql_cache_runtime_policies`'));
+assert.match(repair, /\$seedSql\.StartsWith\(\$insertMarker, \[StringComparison\]::Ordinal\)/);
 
 assert.deepEqual(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_tables, [
   "customer_sessions",
