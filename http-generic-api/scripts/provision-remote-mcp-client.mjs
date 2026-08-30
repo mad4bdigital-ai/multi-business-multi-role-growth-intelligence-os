@@ -67,6 +67,13 @@ process.env.REMOTE_MCP_ENVIRONMENT = environment;
 const profileKey = argValue("profile") || process.env.REMOTE_MCP_CLIENT_PROFILE_KEY || "generic_remote_mcp_client";
 process.env.REMOTE_MCP_CLIENT_PROFILE_KEY = profileKey;
 
+const canonicalAppId = String(process.env.REMOTE_MCP_APP_ID || "").trim();
+const canonicalAppSecret = String(process.env.REMOTE_MCP_APP_SECRET || process.env.REMOTE_MCP_OAUTH_CLIENT_SECRET || "").trim();
+if (environment === "production" && (process.env.REMOTE_MCP_APP_ID || process.env.REMOTE_MCP_APP_SECRET)) {
+  console.error("Production provisioning must not consume Staging canonical REMOTE_MCP_APP_ID/REMOTE_MCP_APP_SECRET variables.");
+  process.exit(1);
+}
+
 const pool = getPool();
 try {
   if (process.argv.includes("--all-status")) {
@@ -88,9 +95,9 @@ try {
         pool,
         environment,
         profile_key: profileKey,
-        client_id: argValue("client-id"),
+        client_id: argValue("client-id") || canonicalAppId,
         client_name: argValue("client-name"),
-        client_secret: process.env.REMOTE_MCP_OAUTH_CLIENT_SECRET || "",
+        client_secret: canonicalAppSecret,
         redirect_uris: argValues("redirect-uri"),
         scopes: argValues("scope"),
         token_endpoint_auth_method: argValue("token-endpoint-auth-method") || "client_secret_basic",
@@ -98,7 +105,7 @@ try {
         note: argValue("note") || `remote_mcp_oauth_client_${environment}_${profileKey}_operator`,
       });
       console.log(JSON.stringify(result, null, 2));
-      console.error("Store client_secret in the approved client configuration now. It is returned once and is never included in status/readback.");
+      console.error("Store client_secret only in the approved client configuration. Access/refresh tokens are minted by OAuth and must not be persisted in .env files.");
     }
   }
 } finally {
