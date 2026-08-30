@@ -18,6 +18,7 @@ const grantPlan = read("http-generic-api/scripts/staging-role-grant-plan.mjs");
 const governanceReadiness = read("http-generic-api/governanceDbPrivilegeReadinessService.js");
 const compose = read("http-generic-api/docker-compose.staging.yml");
 const repair = read("autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1");
+const runtimePersistenceReadiness = read("http-generic-api/scripts/runtime-persistence-operational-readiness.mjs");
 const importer = read("autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1");
 const sqlCacheMigration = read("http-generic-api/migrations/1023_sprint69_sql_cache_runtime_policy.sql");
 const roleManifest = readJson("http-generic-api/config/staging-database-role-migration-manifest.json");
@@ -111,6 +112,17 @@ assert.deepEqual(roleManifest.authority_seed_lifecycle.readback, {
   required: false,
   required_blocked_tables: ["endpoints"],
 });
+assert.equal(roleManifest.validation.required_role_count, 3);
+assert.equal(roleManifest.validation.missing_required_table_is_blocking, true);
+assert.equal(roleManifest.validation.unexpected_governance_or_persistence_table_is_blocking, true);
+assert.equal(roleManifest.validation.runtime_exclusion_violation_is_blocking, true);
+assert.deepEqual(
+  [
+    ...roleManifest.validation.required_runtime_table_census,
+    ...roleManifest.validation.required_runtime_support_tables,
+  ].sort(),
+  [...roleManifest.roles.runtime.required_tables].sort(),
+);
 
 assert.equal(autoDeployPolicy.authority_seed_lifecycle.contract, "mad4b.staging.authority-seed-manifest.v1");
 assert.equal(autoDeployPolicy.authority_seed_lifecycle.execution_identity, "local_database_root");
@@ -153,6 +165,22 @@ assert.match(repair, /TABLE_PRIVILEGES/);
 assert.match(repair, /SCHEMA_PRIVILEGES/);
 assert.match(repair, /COLUMN_PRIVILEGES/);
 assert.match(repair, /APPLICABLE_ROLES/);
+assert.match(repair, /staging-database-role-migration-manifest\.json/);
+assert.match(repair, /function Assert-RoleSchemaCensus/);
+assert.match(repair, /missing_required_table_is_blocking/);
+assert.match(repair, /unexpected_governance_or_persistence_table_is_blocking/);
+assert.match(repair, /runtime_exclusion_violation_is_blocking/);
+assert.match(repair, /TABLE_TYPE = 'BASE TABLE'/);
+assert.match(repair, /required schema census is incomplete/);
+assert.match(repair, /schema census has unexpected base tables/);
+assert.match(repair, /runtime schema census contains excluded role tables/);
+assert.match(repair, /root_identity_used_for_census = \$true/);
+assert.match(repair, /\$script:State\.schema_census = Assert-RoleSchemaCensus \$roleConfig/);
+assert.match(repair, /Readiness-repaired Staging role\/schema census is not complete/);
+const schemaCensusIndex = repair.indexOf('$script:State.status = "schema_census_validation"');
+const restartAndCertifyIndex = repair.indexOf('$script:State.status = "restart_and_certify"');
+assert.ok(schemaCensusIndex >= 0);
+assert.ok(restartAndCertifyIndex > schemaCensusIndex);
 assert.match(repair, /-BuildMode Smart -SkipSelfUpdate/);
 assert.match(repair, /certification_status -eq "ready"/);
 assert.match(repair, /destructive_reset = \$false/);
@@ -162,6 +190,12 @@ assert.doesNotMatch(repair, /Recover-StagingDatabases\.ps1/);
 assert.doesNotMatch(repair, /Move-Item[^\r\n]*(?:runtime-db|governance-db|persistence-db|_recovery_backups)/i);
 assert.doesNotMatch(repair, /DROP\s+(?:DATABASE|TABLE)/i);
 assert.doesNotMatch(repair, /Clone-StagingDatabases\.ps1/);
+
+assert.match(runtimePersistenceReadiness, /export async function runRuntimePersistenceOperationalReadinessCli/);
+assert.match(runtimePersistenceReadiness, /await cliPool\.end\(\)/);
+assert.match(runtimePersistenceReadiness, /runtime_persistence_cli_resource_cleanup_failed/);
+assert.match(runtimePersistenceReadiness, /cli_resource_cleanup/);
+assert.match(runtimePersistenceReadiness, /runRuntimePersistenceOperationalReadinessCli\(\)/);
 
 console.log(JSON.stringify({
   ok: true,
@@ -174,6 +208,8 @@ console.log(JSON.stringify({
   staging_governance_authority_repository_only: true,
   staging_mariadb_collation_pinned: true,
   non_destructive_resume_repair: true,
+  schema_census_required_before_restart_certification: true,
+  runtime_persistence_cli_pool_cleanup_required: true,
   production_accessed: false,
   provider_accessed: false,
   secrets_included: false,
