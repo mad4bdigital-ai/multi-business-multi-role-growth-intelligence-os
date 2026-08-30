@@ -181,6 +181,8 @@
           ".specify/spec-kit-work-map-integration-policy.json",
           ".specify/work-map-schema-classification-registry.json",
           ".dockerignore",
+          ".gitattributes",
+          "docs/staging-sql-line-ending-contract.md",
           "docs/governance/**",
           "docs/recovery-*.md",
           "docs/surface-contract-**",

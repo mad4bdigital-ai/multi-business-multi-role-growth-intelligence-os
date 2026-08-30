@@ -3,6 +3,7 @@
 *.md text eol=lf
 *.mjs text eol=lf
 *.js text eol=lf
+http-generic-api/migrations/1023_sprint69_sql_cache_runtime_policy.sql text eol=lf
 *.json text eol=lf
 *.yml text eol=lf
 *.yaml text eol=lf
