@@ -159,6 +159,89 @@ function Assert-ExactStringSet([string[]]$Expected, [string[]]$Actual, [string]$
     }
 }
 
+function Assert-RoleSchemaCensus([object[]]$Roles) {
+    Require (Test-Path -LiteralPath $script:RoleManifestPath -PathType Leaf) "Staging database role migration manifest is missing"
+    try {
+        $manifest = Get-Content -Raw -LiteralPath $script:RoleManifestPath | ConvertFrom-Json
+    } catch {
+        Fail "Staging database role migration manifest is invalid JSON"
+    }
+
+    Require ([string]$manifest.contract -eq "mad4b.staging.database-role-migration-manifest.v1") "Unsupported Staging database role migration manifest contract"
+    $manifestRoleProperties = @($manifest.roles.PSObject.Properties)
+    $requiredRoleCount = [int]$manifest.validation.required_role_count
+    Require ($requiredRoleCount -gt 0) "Staging role manifest required_role_count is invalid"
+    Require ($manifestRoleProperties.Count -eq $requiredRoleCount) "Staging role manifest role count mismatch"
+    Require (@($Roles).Count -eq $requiredRoleCount) "Readiness repair role count does not match the Staging role manifest"
+    Require ($manifest.validation.missing_required_table_is_blocking -eq $true) "Staging role manifest must block missing required tables"
+    Require ($manifest.validation.unexpected_governance_or_persistence_table_is_blocking -eq $true) "Staging role manifest must block unexpected governance or persistence tables"
+    Require ($manifest.validation.runtime_exclusion_violation_is_blocking -eq $true) "Staging role manifest must block runtime exclusion violations"
+
+    $readback = @()
+    foreach ($role in @($Roles)) {
+        $manifestRoleProperty = @($manifestRoleProperties | Where-Object { $_.Name -eq $role.Key } | Select-Object -First 1)
+        Require ($manifestRoleProperty.Count -eq 1) "Staging role manifest is missing role: $($role.Key)"
+        $manifestRole = $manifestRoleProperty[0].Value
+        $expected = @($manifestRole.required_tables | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        Require ($expected.Count -gt 0) "Staging role manifest has an empty required table set for role: $($role.Key)"
+
+        if ($role.Key -eq "runtime") {
+            $runtimeValidationTables = @($manifest.validation.required_runtime_table_census) + @($manifest.validation.required_runtime_support_tables)
+            Assert-ExactStringSet $expected $runtimeValidationTables "runtime manifest required-table census"
+        }
+
+        $database = Read-Env $script:EnvFile $role.Database
+        $actualText = Invoke-RootQuery $role "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = $(Sql-String $database) AND TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME"
+        $actual = @($actualText -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+
+        $expectedSet = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+        $actualSet = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+        foreach ($item in $expected) { [void]$expectedSet.Add([string]$item) }
+        foreach ($item in $actual) { [void]$actualSet.Add([string]$item) }
+
+        $missing = @($expectedSet | Where-Object { -not $actualSet.Contains($_) })
+        Require ($missing.Count -eq 0) "$($role.Key) required schema census is incomplete; missing=$($missing -join ',')"
+
+        $exactTableSetRequired = $role.Key -in @("governance", "runtime_persistence")
+        $unexpected = @()
+        if ($exactTableSetRequired) {
+            $unexpected = @($actualSet | Where-Object { -not $expectedSet.Contains($_) })
+            Require ($unexpected.Count -eq 0) "$($role.Key) schema census has unexpected base tables; unexpected=$($unexpected -join ',')"
+        }
+
+        $runtimeExclusionViolations = @()
+        if ($role.Key -eq "runtime") {
+            $excluded = @($manifestRole.excluded_tables | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+            $runtimeExclusionViolations = @($excluded | Where-Object { $actualSet.Contains($_) })
+            Require ($runtimeExclusionViolations.Count -eq 0) "runtime schema census contains excluded role tables; violations=$($runtimeExclusionViolations -join ',')"
+        }
+
+        $readback += [ordered]@{
+            role = $role.Key
+            database = $database
+            required_table_count = $expected.Count
+            observed_base_table_count = $actual.Count
+            required_tables_present = $true
+            exact_table_set_required = $exactTableSetRequired
+            unexpected_table_count = $unexpected.Count
+            runtime_exclusion_violation_count = $runtimeExclusionViolations.Count
+            root_identity_used_for_census = $true
+            secrets_included = $false
+        }
+    }
+
+    return [ordered]@{
+        status = "completed"
+        contract = [string]$manifest.contract
+        required_role_count = $requiredRoleCount
+        missing_required_table_is_blocking = $true
+        unexpected_governance_or_persistence_table_is_blocking = $true
+        runtime_exclusion_violation_is_blocking = $true
+        readback = $readback
+        secrets_included = $false
+    }
+}
+
 function Wait-DatabaseSelfAuth([object]$Role) {
     $database = Read-Env $script:EnvFile $Role.Database
     $user = Read-Env $script:EnvFile $Role.User
@@ -262,6 +345,7 @@ $script:EnvFile = Join-Path $script:ApiPath ".env.staging"
 $ComposeBase = Join-Path $script:ApiPath "docker-compose.yml"
 $ComposeStaging = Join-Path $script:ApiPath "docker-compose.staging.yml"
 $script:GrantPlanScript = Join-Path $script:ApiPath "scripts\staging-role-grant-plan.mjs"
+$script:RoleManifestPath = Join-Path $script:ApiPath "config\staging-database-role-migration-manifest.json"
 $script:SqlCachePolicySeedPath = Join-Path $script:ApiPath "migrations\1023_sprint69_sql_cache_runtime_policy.sql"
 $script:SqlCachePolicySeedSha256 = "50424aac877e6c3924191599b295a460007b98d01fbe009d615e06457e24fdc7"
 $StartAutoPilot = Join-Path $PSScriptRoot "Start-AutoPilot.ps1"
@@ -275,6 +359,7 @@ Require (Test-Path -LiteralPath $script:EnvFile) "Missing local .env.staging"
 Require (Test-Path -LiteralPath $ComposeBase) "Missing base Compose file"
 Require (Test-Path -LiteralPath $ComposeStaging) "Missing Staging Compose file"
 Require (Test-Path -LiteralPath $script:GrantPlanScript) "Missing Staging role grant-plan helper"
+Require (Test-Path -LiteralPath $script:RoleManifestPath) "Missing Staging database role migration manifest"
 Require (Test-Path -LiteralPath $script:SqlCachePolicySeedPath) "Missing canonical SQL cache policy seed migration"
 Require (Test-Path -LiteralPath $StartAutoPilot) "Missing Auto Pilot launcher"
 
@@ -321,6 +406,7 @@ try {
         collation = [ordered]@{ status = "pending"; target = "utf8mb4_unicode_ci"; readback = @() }
         sql_cache_runtime_policy = [ordered]@{ status = "pending"; policy_key = "sql_cache_policy_v2"; row_inserted = $false }
         grants = [ordered]@{ status = "pending"; readback = @() }
+        schema_census = [ordered]@{ status = "pending"; readback = @() }
         destructive_reset = $false
         schema_replay = $false
         data_directory_moved = $false
@@ -365,6 +451,11 @@ try {
     $script:State.grants = [ordered]@{ status = "completed"; readback = $grantReadback }
     Write-JsonAtomic $StatePath $script:State
 
+    $script:State.status = "schema_census_validation"
+    Write-JsonAtomic $StatePath $script:State
+    $script:State.schema_census = Assert-RoleSchemaCensus $roleConfig
+    Write-JsonAtomic $StatePath $script:State
+
     $script:State.status = "restart_and_certify"
     Write-JsonAtomic $StatePath $script:State
     & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $StartAutoPilot -RepositoryPath $RepositoryPath -ExpectedCommit $ExpectedCommit -BuildMode Smart -SkipSelfUpdate
@@ -375,13 +466,14 @@ try {
     $autoPilotState = Get-Content -Raw -LiteralPath $autoPilotStatePath | ConvertFrom-Json
     Require ([string]$autoPilotState.commit -eq $ExpectedCommit) "Readiness-repaired Auto Pilot state commit mismatch"
     Require ([string]$autoPilotState.certification_status -eq "ready") "Readiness-repaired Staging runtime is not certified ready"
+    Require ([string]$script:State.schema_census.status -eq "completed") "Readiness-repaired Staging role/schema census is not complete"
 
     $script:State.status = "ready"
     $script:State.certification_status = "ready"
     $script:State.completed_at = (Get-Date).ToUniversalTime().ToString("o")
     Write-JsonAtomic $StatePath $script:State
     Write-Host "STAGING_DATABASE_READINESS_REPAIR_READY: commit=$ExpectedCommit"
-    Write-Host "SQL cache runtime authority, least-privilege grants, and certification were reconciled without a database reset or schema replay."
+    Write-Host "SQL cache runtime authority, least-privilege grants, complete role/schema census, and certification were reconciled without a database reset or schema replay."
     Write-Host "No data-directory move, Production/provider/Hostinger/Cloudflare mutation, or backup deletion was performed."
 } catch {
     if ($null -ne $script:State) {
