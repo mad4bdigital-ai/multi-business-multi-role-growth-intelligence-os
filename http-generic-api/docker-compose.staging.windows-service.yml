@@ -1,0 +1,6 @@
+services:
+  app:
+    # Windows cloudflared runs outside the Compose network, so publish only to
+    # host loopback. This must never become 0.0.0.0:8080 or a LAN-facing bind.
+    ports:
+      - "127.0.0.1:8080:8080"
