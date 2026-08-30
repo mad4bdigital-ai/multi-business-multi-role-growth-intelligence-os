@@ -14,9 +14,11 @@
       "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
       "autopilot-portable-staging/Start-Staging-One-Click.cmd",
       "autopilot-portable-staging/autopilot-one-click-policy.json",
+      "autopilot-portable-staging/manifest.json",
       "http-generic-api/.env.staging.example",
       "http-generic-api/docker-compose.staging.windows-service.yml",
       "http-generic-api/docker-compose.staging.docker-sidecar.yml",
+      "http-generic-api/scripts/generate-portable-staging-manifest.mjs",
       "http-generic-api/scripts/provision-remote-mcp-client.mjs",
       "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs",
       "http-generic-api/scripts/staging-platform-ready-contract.mjs",
@@ -42,7 +44,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Make local Windows/Docker Staging ingress mode explicit and mutually exclusive, self-heal the Windows Cloudflared service to token-file transport, prove the shared remote-managed loopback origin from fresh runtime evidence, bind published Admin/Tenant/Activation OpenAPI schemas to exact-checkout semantic content, and require real Tenant OAuth plus Remote MCP OAuth authenticated read E2E with zero durable probe residue before PLATFORM_READY.",
+      "objective": "Make local Windows/Docker Staging ingress mode explicit and mutually exclusive, self-heal the Windows Cloudflared service to token-file transport, prove the shared remote-managed loopback origin from fresh runtime evidence, bind published Admin/Tenant/Activation OpenAPI schemas to exact-checkout semantic content, require real Tenant OAuth plus Remote MCP OAuth authenticated read E2E with zero durable probe residue before PLATFORM_READY, and bind every new dual-mode runtime dependency into the governed portable Staging manifest.",
       "e2e_journeys": [
         {
           "id": "dual-mode-staging-custom-gpt-mcp-readiness",
@@ -50,7 +52,7 @@
           "level": "synthetic_runtime",
           "actor": "Local Windows Docker Staging operator",
           "entrypoint": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
-          "terminal_outcome": "PLATFORM_READY is emitted only when the selected Staging tunnel is mutually exclusive and stable, Cloudflare runtime evidence binds dev.mad4b.com and mcp_dev.mad4b.com to http://127.0.0.1:8080, published schemas are semantically identical to the exact checkout, Admin read-only auth succeeds, Tenant OAuth authorization-code plus PKCE reaches an authenticated Tenant read, Remote MCP OAuth reaches list_accessible_workspaces, probe residue is zero, and the Activation Gateway is enabled and ready.",
+          "terminal_outcome": "PLATFORM_READY is emitted only when the selected Staging tunnel is mutually exclusive and stable, Cloudflare runtime evidence binds dev.mad4b.com and mcp_dev.mad4b.com to http://127.0.0.1:8080, published schemas are semantically identical to the exact checkout, Admin read-only auth succeeds, Tenant OAuth authorization-code plus PKCE reaches an authenticated Tenant read, Remote MCP OAuth reaches list_accessible_workspaces, probe residue is zero, the Activation Gateway is enabled and ready, and the portable Staging manifest covers the complete dual-mode runtime dependency graph.",
           "steps": [
             "Generate missing local-only Staging secrets once through Staging-Environment.ps1 while preserving existing non-placeholder values.",
             "Preserve explicitly configured STAGING_READINESS_PROBE_USER_ID and STAGING_READINESS_PROBE_TENANT_ID; never auto-select or auto-create a readiness principal.",
@@ -66,8 +68,9 @@
             "Issue a bounded platform JWT for the configured existing Staging principal, complete Tenant OAuth authorization-code with PKCE S256, exchange the code, and read /connect/status with the minted bearer.",
             "Complete Remote MCP authorization-code OAuth with PKCE S256 using the provisioned Staging MCP App, call list_accessible_workspaces through POST /mcp, and revoke minted MCP tokens.",
             "Delete probe-created Tenant OAuth codes/grants/SSO/activation-context/diagnostic evidence and Remote MCP codes/grants, then require probe_residue=0.",
+            "Regenerate the portable Staging manifest through its canonical generator so the One-Click launcher, helpers, mode-specific Compose overrides, OAuth/MCP readiness scripts, and exact Staging OpenAPI files are hash-bound before closure passes.",
             "Require the Activation Gateway for PLATFORM_READY; disabled remains local-only and cannot claim platform readiness.",
-            "Block platform readiness if any selected tunnel, remote-origin, public HTTPS, schema semantic, Admin auth, Tenant OAuth/action, Remote MCP OAuth/read, cleanup, or Activation gate fails."
+            "Block platform readiness if any selected tunnel, remote-origin, public HTTPS, schema semantic, Admin auth, Tenant OAuth/action, Remote MCP OAuth/read, cleanup, Activation, or portable-manifest gate fails."
           ],
           "assertions": [
             "windows_service and docker_sidecar are first-class mutually exclusive modes; disabled remains available for local-only Staging and never claims PLATFORM_READY.",
@@ -84,6 +87,8 @@
             "Tenant readiness requires platform-jwt -> authorize -> code -> token -> authenticated /connect/status with PKCE S256 and subject binding to the configured probe principal.",
             "Remote MCP readiness requires authorize -> code -> token -> authenticated list_accessible_workspaces with PKCE S256 using the provisioned Staging MCP App.",
             "Probe cleanup is fail-closed and PLATFORM_READY requires probe_residue=0 after deleting probe-owned Tenant/MCP authorization artifacts.",
+            "The portable Staging manifest must hash-bind the dual-mode One-Click launcher, environment and Windows Cloudflared helpers, both mode-specific Compose overrides, MCP provisioner, semantic/authenticated readiness scripts, and exact Tenant/Admin/MCP/Activation Staging OpenAPI surfaces.",
+            "The portable manifest generator itself is manifest-bound so changes to the dependency authority cannot silently bypass closure.",
             "Activation Gateway is mandatory for PLATFORM_READY.",
             "Admin/Tenant Staging schema URLs and MCP resource URLs remain on dev.mad4b.com, activation-dev.mad4b.com, and mcp_dev.mad4b.com only.",
             "No Production deployment, Production database mutation, Hostinger mutation, Cloudflare DNS mutation, provider mutation, ruleset mutation, or production_live authority is granted."
@@ -110,9 +115,11 @@
             "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
             "autopilot-portable-staging/Start-Staging-One-Click.cmd",
             "autopilot-portable-staging/autopilot-one-click-policy.json",
+            "autopilot-portable-staging/manifest.json",
             "http-generic-api/.env.staging.example",
             "http-generic-api/docker-compose.staging.windows-service.yml",
             "http-generic-api/docker-compose.staging.docker-sidecar.yml",
+            "http-generic-api/scripts/generate-portable-staging-manifest.mjs",
             "http-generic-api/scripts/provision-remote-mcp-client.mjs",
             "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs",
             "http-generic-api/scripts/staging-platform-ready-contract.mjs",
