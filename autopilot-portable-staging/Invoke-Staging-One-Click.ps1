@@ -110,7 +110,7 @@ function Invoke-HttpProbe([string]$Uri, [hashtable]$Headers = @{}, [int[]]$Allow
         if ($null -ne $status -and $AllowedStatus -contains $status) {
             return [pscustomobject]@{ uri = $Uri; status = $status; ok = $true }
         }
-        Fail "Remote probe failed for $Uri: $($_.Exception.Message)"
+        Fail "Remote probe failed for ${Uri}: $($_.Exception.Message)"
     }
 }
 
