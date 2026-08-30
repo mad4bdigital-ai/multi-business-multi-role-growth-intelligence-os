@@ -23,6 +23,10 @@
     "default": "windows_service",
     "supported": ["windows_service", "docker_sidecar", "disabled"],
     "mutually_exclusive": true,
+    "quiesce_all_before_exact_sha_transition": true,
+    "remote_managed_origin": "http://127.0.0.1:8080",
+    "remote_origin_change_model": "one_time_external_review_then_mode_switch_requires_no_cloudflare_mutation",
+    "windows_service_stability_seconds_default": 95,
     "windows_service": {
       "runtime": "Cloudflared Windows service",
       "origin": "http://127.0.0.1:8080",
@@ -31,11 +35,15 @@
       "token_transport": "token_file",
       "token_env_required": false,
       "inline_token_forbidden": true,
-      "docker_tunnel_forbidden": true
+      "docker_tunnel_forbidden": true,
+      "process_stability_readback_required": true
     },
     "docker_sidecar": {
       "runtime": "docker_compose_cloudflared",
-      "origin": "http://app:8080",
+      "origin": "http://127.0.0.1:8080",
+      "compose_override": "http-generic-api/docker-compose.staging.docker-sidecar.yml",
+      "network_mode": "service:app",
+      "shared_app_network_namespace_required": true,
       "host_publish_required": false,
       "windows_service_required": false,
       "token_transport": "ignored_env_file",
@@ -55,6 +63,9 @@
     "provisioning_confirmation": "PROVISION_REMOTE_MCP_STAGING",
     "provisioning_execution": "inside_staging_app_container",
     "provisioning_database": "runtime_staging_only",
+    "default_staging_database_mutation": false,
+    "explicit_provisioning_staging_database_mutation": true,
+    "production_database_mutation": false,
     "secret_output_redaction_default_when_canonical_secret_present": true,
     "access_refresh_tokens_runtime_minted": true,
     "token_issuance_mode": "oauth_authorization_code_runtime",
@@ -112,18 +123,20 @@
     },
     "public_readiness": {
       "selected_tunnel_runtime_required": true,
-      "origin_must_match_selected_mode": true,
+      "origin_must_equal_remote_managed_origin": true,
       "public_https_required_when_tunnel_enabled": true,
       "tenant_schema_remote_required": true,
       "admin_schema_remote_required": true,
       "tenant_oauth_metadata_required": true,
       "tenant_auth_enforcement_probe_required": true,
+      "tenant_authenticated_action_requires_end_user_oauth_runtime": true,
       "admin_authenticated_read_only_probe_required": true,
       "remote_mcp_authorization_metadata_required": true,
       "remote_mcp_protected_resource_metadata_required": true,
       "remote_mcp_schema_required": true,
       "activation_gateway_remote_required_when_enabled": true,
-      "public_failure_blocks_platform_ready": true
+      "public_failure_blocks_platform_ready": true,
+      "disabled_mode_does_not_claim_platform_ready": true
     },
     "logging": {
       "schema_version": 2,
