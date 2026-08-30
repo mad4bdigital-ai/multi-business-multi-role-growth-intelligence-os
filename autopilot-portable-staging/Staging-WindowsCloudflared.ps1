@@ -75,6 +75,13 @@ function Ensure-StagingCloudflaredWindowsService([string]$EnvFile) {
         Stop-Service Cloudflared -Force -ErrorAction Stop
         $service.WaitForStatus([System.ServiceProcess.ServiceControllerStatus]::Stopped, [TimeSpan]::FromSeconds(20))
     }
+
+    # Remote-origin proof must belong to this exact service start. Stale log lines
+    # from an earlier app:8080 configuration must never contaminate the readback.
+    $encoding = New-Object Text.UTF8Encoding($false)
+    [IO.File]::WriteAllText($logFile, '', $encoding)
+    Protect-StagingCloudflaredFile $logFile
+
     if ($null -eq $service) {
         & sc.exe create Cloudflared "binPath= $binPath" 'start= auto' 'obj= LocalSystem' 'DisplayName= Cloudflared Staging Tunnel' | Out-Null
         if ($LASTEXITCODE -ne 0) { throw 'Unable to create the Cloudflared Windows service.' }
@@ -103,6 +110,7 @@ function Ensure-StagingCloudflaredWindowsService([string]$EnvFile) {
         log_file = $logFile
         metrics = $metrics
         inline_token = $false
+        fresh_log_evidence = $true
         secrets_included = $false
     }
 }
