@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "dee1e05860b8514109bc67bb10a36355af643149fea951e234ebf997e558b93b"
+      "sha256": "9fe2001d85075c022ebc1394bf54746334b7ba051edd687e64316c1869169503"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
