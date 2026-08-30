@@ -58,6 +58,7 @@
             "Recreate only database containers when the Staging MariaDB server collation command changes while preserving bind-mounted data directories.",
             "Set database defaults to utf8mb4_unicode_ci and read them back without altering recovered table data.",
             "Reconcile repository-owned local Staging grants so the runtime principal retains its existing bounded write tables plus SELECT-only access to the two MCP catalog tables and sql_cache_runtime_policies.",
+            "Extract the reviewed sql_cache_policy_v2 INSERT after exact checksum validation and require its exact ordinal INSERT prefix before any execution.",
             "Replay the reviewed SQL-cache authority seed through local database root only, then require exact readback while preserving runtime SELECT-only authority.",
             "Use repository-only environment branch authority for local Staging Governance readiness while leaving Production SQL-first behavior unchanged.",
             "Restart Auto Pilot at the exact commit and require certification_status=ready."
@@ -66,6 +67,7 @@
             "Production BOOTSTRAP_ROLE_GRANT_POLICIES remain unchanged.",
             "The exact checksum-bound 1023_sprint69_sql_cache_runtime_policy.sql path is pinned to LF without renormalizing unrelated historical migration blobs.",
             "Exact SHA256 verification remains fail-closed; alternate CRLF hashes and checksum bypasses are not accepted.",
+            "The canonical sql_cache_runtime_policies INSERT is accepted only by an exact ordinal prefix guard; the repair does not relax idempotency, forbidden-SQL, target-qualification, or readback checks.",
             "admin_platform_endpoint_tools and tenant_platform_endpoint_tools receive SELECT only in local Staging.",
             "sql_cache_runtime_policies receives SELECT only in local Staging so runtime policy refresh can use MySQL primary authority without granting write access.",
             "The SQL-cache authority seed runs only through local database root; runtime write authority is not expanded.",
