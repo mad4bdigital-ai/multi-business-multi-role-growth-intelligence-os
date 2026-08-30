@@ -1,31 +1,32 @@
 @echo off
 setlocal
-set "BOOTSTRAP=%~dp0Bootstrap-Staging-One-Click.ps1"
-if not exist "%BOOTSTRAP%" (
-  echo AUTO_PILOT_ONE_CLICK_FAIL_CLOSED: missing Bootstrap-Staging-One-Click.ps1
+set "LAUNCHER=%~dp0Invoke-Staging-One-Click.ps1"
+if not exist "%LAUNCHER%" (
+  echo STAGING_DUAL_MODE_ONE_CLICK_FAIL_CLOSED: missing Invoke-Staging-One-Click.ps1
   pause
   exit /b 1
 )
-echo Starting local Staging only: schema/governance preflight, no tunnel, no Auto Deploy watcher, no schema apply.
-powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$p=Start-Process powershell.exe -Verb RunAs -Wait -PassThru -ArgumentList '-NoLogo','-NoProfile','-ExecutionPolicy','Bypass','-File','%BOOTSTRAP%','-NoTunnel','-NoAutoDeploy'; exit $p.ExitCode"
+
+set "TUNNEL_MODE=%~1"
+if "%TUNNEL_MODE%"=="" set "TUNNEL_MODE=windows_service"
+if /I not "%TUNNEL_MODE%"=="windows_service" if /I not "%TUNNEL_MODE%"=="docker_sidecar" if /I not "%TUNNEL_MODE%"=="disabled" (
+  echo Invalid tunnel mode: %TUNNEL_MODE%
+  echo Usage: Start-Staging-One-Click.cmd [windows_service^|docker_sidecar^|disabled]
+  pause
+  exit /b 2
+)
+
+echo Starting governed Staging One-Click mode=%TUNNEL_MODE%
+echo windows_service: Windows cloudflared -^> 127.0.0.1:8080
+echo docker_sidecar : Compose cloudflared -^> app:8080
+echo disabled       : local-only Staging
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$p=Start-Process powershell.exe -Verb RunAs -Wait -PassThru -ArgumentList '-NoLogo','-NoProfile','-ExecutionPolicy','Bypass','-File','%LAUNCHER%','-TunnelMode','%TUNNEL_MODE%','-NoAutoDeploy'; exit $p.ExitCode"
 set "CODE=%ERRORLEVEL%"
 echo.
 echo Auto Pilot log directory: "%~dp0logs"
-echo Schema/governance preflight report: "%~dp0logs\staging-schema-governance-preflight.json"
-if exist "%~dp0logs\last-failure.json" (
-  echo --- Last recorded failure ---
-  type "%~dp0logs\last-failure.json"
-  echo --- End failure ---
-)
-if exist "%~dp0logs\bootstrap-console.log" (
-  echo --- Bootstrap diagnostic ---
-  type "%~dp0logs\bootstrap-console.log"
-  echo --- End bootstrap diagnostic ---
-)
 if not "%CODE%"=="0" (
-  echo.
-  echo Auto Pilot stopped with code %CODE%. No Production or provider mutation was performed.
-  echo The full diagnostic remains in "%~dp0logs\operations.jsonl"
+  echo Staging One-Click stopped with code %CODE%.
+  echo No Production or provider mutation was authorized by this launcher.
 )
 pause
 exit /b %CODE%
