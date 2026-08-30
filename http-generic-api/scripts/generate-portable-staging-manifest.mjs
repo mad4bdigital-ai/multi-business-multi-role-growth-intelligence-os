@@ -8,9 +8,23 @@ const REPO_ROOT = path.resolve(SCRIPT_DIR, "..", "..");
 const MANIFEST_RELATIVE_PATH = "autopilot-portable-staging/manifest.json";
 const MANIFEST_PATH = path.join(REPO_ROOT, MANIFEST_RELATIVE_PATH);
 const REQUIRED_PORTABLE_STAGING_FILES = [
+  "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
+  "autopilot-portable-staging/Staging-Environment.ps1",
+  "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
   "autopilot-portable-staging/Staging-GitTransport.ps1",
   "autopilot-portable-staging/Staging-Schema-Governance-Preflight.ps1",
   "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1",
+  "http-generic-api/docker-compose.staging.windows-service.yml",
+  "http-generic-api/docker-compose.staging.docker-sidecar.yml",
+  "http-generic-api/scripts/generate-portable-staging-manifest.mjs",
+  "http-generic-api/scripts/provision-remote-mcp-client.mjs",
+  "http-generic-api/scripts/staging-public-schema-readiness.mjs",
+  "http-generic-api/scripts/staging-authenticated-remote-readiness.mjs",
+  "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml",
+  "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml",
+  "http-generic-api/openapi/openapi.remote-mcp.staging.yaml",
+  "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
+  "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml",
   "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs",
   "http-generic-api/scripts/staging-sql-parser.mjs",
   "http-generic-api/config/staging-database-role-migration-manifest.json",
