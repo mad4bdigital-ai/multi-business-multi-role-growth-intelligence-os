@@ -18,6 +18,7 @@
       "http-generic-api/governanceDbPrivilegeReadinessService.js",
       "http-generic-api/docker-compose.staging.yml",
       "http-generic-api/test-staging-database-readiness-repair.mjs",
+      "http-generic-api/test-runtime-persistence-operational-readiness.mjs",
       ".github/governance/test-authority-registry.json",
       "http-generic-api/scripts/staging-database-recovery-contract.mjs",
       "http-generic-api/scripts/runtime-persistence-operational-readiness.mjs",
@@ -62,7 +63,7 @@
             "Extract the reviewed sql_cache_policy_v2 INSERT after exact checksum validation and require its exact ordinal INSERT prefix before any execution.",
             "Replay the reviewed SQL-cache authority seed through local database root only, then require exact readback while preserving runtime SELECT-only authority.",
             "Use repository-only environment branch authority for local Staging Governance readiness while leaving Production SQL-first behavior unchanged.",
-            "Run direct Runtime Persistence readiness through a CLI wrapper that captures the CLI-owned pool, awaits pool.end(), reports secret-free cleanup evidence, and fails closed if cleanup fails while leaving the reusable readiness function non-closing for long-lived callers.",
+            "Run direct Runtime Persistence readiness through a CLI wrapper that captures the CLI-owned pool, awaits pool.end(), reports secret-free cleanup evidence, and fails closed if cleanup fails or pool shutdown is unavailable while leaving the reusable readiness function non-closing for long-lived callers.",
             "Restart Auto Pilot at the exact commit and require certification_status=ready."
           ],
           "assertions": [
@@ -76,7 +77,7 @@
             "No schema-wide, global, column, GRANT OPTION, or applicable-role privilege is introduced.",
             "Local Staging Governance readiness does not require SELECT on platform_runtime_config through the runtime principal.",
             "All three local MariaDB services are started with utf8mb4_unicode_ci as server default and the repair readback confirms the database default.",
-            "The direct Runtime Persistence CLI awaits pool.end() whenever it creates a pool, records secret-free cleanup evidence, and treats cleanup failure as blocked readiness.",
+            "The direct Runtime Persistence CLI awaits pool.end() whenever it creates a closable pool, records secret-free cleanup evidence, and treats cleanup failure or a missing pool end() method as blocked readiness.",
             "The reusable runRuntimePersistenceOperationalReadiness() function remains non-closing so long-lived application callers retain ownership of their pool lifecycle.",
             "The repair performs no database reset, schema replay, data-directory move, backup deletion, Production access, Hostinger/Cloudflare mutation, or provider mutation."
           ],
@@ -87,6 +88,13 @@
               "working_directory": "http-generic-api",
               "path": "test-staging-database-readiness-repair.mjs",
               "args": []
+            },
+            {
+              "id": "runtime-persistence-operational-readiness-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-persistence-operational-readiness.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -94,6 +102,7 @@
             "docs/staging-sql-line-ending-contract.md",
             "autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1",
             "http-generic-api/test-staging-database-readiness-repair.mjs",
+            "http-generic-api/test-runtime-persistence-operational-readiness.mjs",
             ".github/governance/test-authority-registry.json",
             "http-generic-api/scripts/staging-database-recovery-contract.mjs",
             "http-generic-api/scripts/runtime-persistence-operational-readiness.mjs",
