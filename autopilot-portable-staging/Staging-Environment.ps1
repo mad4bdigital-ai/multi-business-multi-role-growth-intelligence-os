@@ -69,6 +69,9 @@ function Assert-StagingEnvironmentSafety([string]$Path) {
     if ($text -match '(?im)^(CLOUDFLARE_TUNNEL_HOSTNAMES|PUBLIC_BASE_URL|AUTH_BASE_URL|PLATFORM_JWT_ISSUER|REMOTE_MCP_RESOURCE_URL)=.*(?:auth\.mad4b\.com|mcp\.mad4b\.com|activation\.mad4b\.com)') {
         throw 'Production hostname leaked into Staging environment.'
     }
+    if ($text -match '(?im)^(REMOTE_MCP_ACCESS_TOKEN|REMOTE_MCP_REFRESH_TOKEN|REMOTE_MCP_AUTHORIZATION_CODE)=') {
+        throw 'Runtime-minted MCP access/refresh/authorization credentials must never be persisted in .env.staging.'
+    }
     if ($text -notmatch '(?im)^TENANT_GPT_SSO_COOKIE_MODE=host_only\s*$') { throw 'Staging SSO cookie mode must be host_only.' }
     foreach ($key in @('MIGRATION_APPLIED','PRODUCTION_MUTATION_AUTHORIZED','RULESET_MUTATION_AUTHORIZED')) {
         if ((Get-StagingEnvValue $Path $key).ToLowerInvariant() -ne 'false') { throw "$key must remain false in Staging bootstrap." }
@@ -126,6 +129,8 @@ function Initialize-StagingEnvironment {
     Set-StagingEnvValue $envFile 'REMOTE_MCP_OAUTH_ENABLED' 'true'
     Set-StagingEnvValue $envFile 'REMOTE_MCP_OAUTH_DCR_ENABLED' 'false'
     Set-StagingEnvValue $envFile 'REMOTE_MCP_CLIENT_PROFILE_KEY' 'openai_chatgpt'
+    Set-StagingEnvValue $envFile 'REMOTE_MCP_TOKEN_ISSUANCE_MODE' 'oauth_authorization_code_runtime'
+    Set-StagingEnvValue $envFile 'REMOTE_MCP_TOKEN_PERSISTENCE' 'runtime_only'
     Set-StagingEnvValue $envFile 'REMOTE_MCP_OAUTH_ALLOWED_REDIRECT_ORIGINS' 'https://chatgpt.com,https://www.chatgpt.com,https://claude.ai,https://www.claude.ai'
     Set-StagingEnvValue $envFile 'REMOTE_MCP_RESOURCE_URL' 'https://mcp_dev.mad4b.com'
     Set-StagingEnvValue $envFile 'REMOTE_MCP_AUTHORIZATION_SERVER_URL' 'https://dev.mad4b.com/auth/mcp'
@@ -137,6 +142,7 @@ function Initialize-StagingEnvironment {
             Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ENABLED' 'true'
             Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_RUNTIME' 'windows_service'
             Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ORIGIN_APP' 'http://127.0.0.1:8080'
+            Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_TOKEN_REQUIRED' 'false'
             Set-StagingEnvValue $envFile 'STAGING_APP_HOST_BIND' '127.0.0.1:8080:8080'
             Set-StagingEnvValue $envFile 'STAGING_DOCKER_TUNNEL_ENABLED' 'false'
         }
@@ -144,6 +150,7 @@ function Initialize-StagingEnvironment {
             Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ENABLED' 'true'
             Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_RUNTIME' 'docker_sidecar'
             Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ORIGIN_APP' 'http://app:8080'
+            Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_TOKEN_REQUIRED' 'true'
             Set-StagingEnvValue $envFile 'STAGING_APP_HOST_BIND' ''
             Set-StagingEnvValue $envFile 'STAGING_DOCKER_TUNNEL_ENABLED' 'true'
         }
@@ -151,6 +158,7 @@ function Initialize-StagingEnvironment {
             Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ENABLED' 'false'
             Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_RUNTIME' 'disabled'
             Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ORIGIN_APP' ''
+            Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_TOKEN_REQUIRED' 'false'
             Set-StagingEnvValue $envFile 'STAGING_APP_HOST_BIND' ''
             Set-StagingEnvValue $envFile 'STAGING_DOCKER_TUNNEL_ENABLED' 'false'
         }
@@ -168,8 +176,8 @@ function Initialize-StagingEnvironment {
     Set-StagingEnvValue $envFile 'PRODUCTION_MUTATION_AUTHORIZED' 'false'
     Set-StagingEnvValue $envFile 'RULESET_MUTATION_AUTHORIZED' 'false'
 
-    if ($RequireTunnelToken -and $TunnelMode -ne 'disabled' -and [string]::IsNullOrWhiteSpace((Get-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_TOKEN'))) {
-        throw 'Selected Staging tunnel mode requires CLOUDFLARE_TUNNEL_TOKEN in ignored .env.staging.'
+    if ($RequireTunnelToken -and $TunnelMode -eq 'docker_sidecar' -and [string]::IsNullOrWhiteSpace((Get-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_TOKEN'))) {
+        throw 'Docker-sidecar Staging tunnel mode requires CLOUDFLARE_TUNNEL_TOKEN in ignored .env.staging.'
     }
 
     Assert-StagingEnvironmentSafety $envFile
@@ -181,6 +189,7 @@ function Initialize-StagingEnvironment {
         generated_keys = @($generatedNames)
         mcp_app_id_present = -not [string]::IsNullOrWhiteSpace((Get-StagingEnvValue $envFile 'REMOTE_MCP_APP_ID'))
         mcp_app_secret_present = -not [string]::IsNullOrWhiteSpace((Get-StagingEnvValue $envFile 'REMOTE_MCP_APP_SECRET'))
+        mcp_token_issuance_mode = 'oauth_authorization_code_runtime'
         mcp_access_tokens_persisted_to_env = $false
         production_mutation = $false
         provider_mutation = $false
