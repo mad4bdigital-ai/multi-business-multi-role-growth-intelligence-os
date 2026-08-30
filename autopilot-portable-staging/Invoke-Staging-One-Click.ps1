@@ -60,9 +60,6 @@ function Stop-WindowsTunnelRuntime {
 }
 
 function Stop-DockerTunnelRuntime {
-    # Pre-bootstrap quiescence intentionally avoids Compose because exact build
-    # provenance variables may not exist yet. Only containers carrying Staging
-    # tunnel identity markers are eligible for this local stop.
     $idsText = (& docker ps -q --filter 'label=com.docker.compose.service=cloudflared' 2>$null | Out-String).Trim()
     if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($idsText)) { return }
     foreach ($id in @($idsText -split '\s+' | Where-Object { $_ })) {
@@ -141,11 +138,8 @@ function Assert-WindowsTunnelRuntime([string]$RepositoryPath, [string]$EnvFile, 
     Ensure-WindowsLoopbackPublication $RepositoryPath $EnvFile
     Assert-DockerTunnelInactive $RepositoryPath $EnvFile
 
-    try {
-        $reconciled = Ensure-StagingCloudflaredWindowsService $EnvFile
-    } catch {
-        Fail "Windows Cloudflared self-healing failed: $($_.Exception.Message)"
-    }
+    try { $reconciled = Ensure-StagingCloudflaredWindowsService $EnvFile }
+    catch { Fail "Windows Cloudflared self-healing failed: $($_.Exception.Message)" }
     $initialPid = [int]$reconciled.process_id
     $deadline = [DateTime]::UtcNow.AddSeconds($StabilitySeconds)
     $samples = 0
@@ -160,25 +154,16 @@ function Assert-WindowsTunnelRuntime([string]$RepositoryPath, [string]$EnvFile, 
 
     $health = Invoke-WebRequest -Uri 'http://127.0.0.1:8080/health' -UseBasicParsing -TimeoutSec 10
     if ([int]$health.StatusCode -ne 200) { Fail 'Windows tunnel origin lost local health after stability window.' }
-    try {
-        $remoteOrigin = Assert-StagingRemoteManagedOriginEvidence 'windows_service' $EnvFile
-    } catch {
-        Fail $_.Exception.Message
-    }
+    try { $remoteOrigin = Assert-StagingRemoteManagedOriginEvidence 'windows_service' $EnvFile }
+    catch { Fail $_.Exception.Message }
     Assert-DockerTunnelInactive $RepositoryPath $EnvFile
 
     return [pscustomobject]@{
-        mode = 'windows_service'
-        runtime = 'Cloudflared'
-        origin = $origin
-        process_id = $initialPid
-        stability_seconds = $StabilitySeconds
-        stability_samples = $samples
+        mode = 'windows_service'; runtime = 'Cloudflared'; origin = $origin; process_id = $initialPid
+        stability_seconds = $StabilitySeconds; stability_samples = $samples
         service_reconciled = [bool]$reconciled.service_reconciled
-        remote_managed_origin_verified = $true
-        remote_managed_origin = $remoteOrigin.remote_managed_origin
-        mutually_exclusive = $true
-        ready = $true
+        remote_managed_origin_verified = $true; remote_managed_origin = $remoteOrigin.remote_managed_origin
+        mutually_exclusive = $true; ready = $true
     }
 }
 
@@ -198,21 +183,13 @@ function Assert-DockerTunnelRuntime([string]$RepositoryPath, [string]$EnvFile) {
     Start-Sleep -Seconds 8
     $runningAfter = (& docker inspect --format '{{.State.Running}}' $id 2>$null | Out-String).Trim().ToLowerInvariant()
     if ($runningAfter -ne 'true') { Fail 'cloudflared Compose sidecar exited during the initial stability check.' }
-    try {
-        $remoteOrigin = Assert-StagingRemoteManagedOriginEvidence 'docker_sidecar' $EnvFile $id
-    } catch {
-        Fail $_.Exception.Message
-    }
+    try { $remoteOrigin = Assert-StagingRemoteManagedOriginEvidence 'docker_sidecar' $EnvFile $id }
+    catch { Fail $_.Exception.Message }
     Assert-WindowsTunnelInactive
     return [pscustomobject]@{
-        mode = 'docker_sidecar'
-        runtime = 'docker'
-        origin = $origin
-        container_id = $id
-        remote_managed_origin_verified = $true
-        remote_managed_origin = $remoteOrigin.remote_managed_origin
-        mutually_exclusive = $true
-        ready = $true
+        mode = 'docker_sidecar'; runtime = 'docker'; origin = $origin; container_id = $id
+        remote_managed_origin_verified = $true; remote_managed_origin = $remoteOrigin.remote_managed_origin
+        mutually_exclusive = $true; ready = $true
     }
 }
 
@@ -231,16 +208,10 @@ function Invoke-StagingSemanticSchemaReadiness([string]$RepositoryPath, [string]
 function Invoke-StagingPublicReadiness([string]$RepositoryPath, [string]$EnvFile, [string]$Mode, [bool]$ActivationGateway) {
     if ($Mode -eq 'disabled') {
         return [pscustomobject]@{
-            public_ingress_ready = $false
-            schema_semantic_ready = $false
-            custom_gpt_ready = $false
-            tenant_oauth_metadata_ready = $false
-            tenant_auth_enforcement_ready = $false
-            tenant_authenticated_action_ready = $false
-            remote_mcp_ready = $false
-            activation_gateway_ready = $false
-            reason = 'tunnel_disabled'
-            secrets_included = $false
+            public_ingress_ready = $false; schema_semantic_ready = $false; custom_gpt_ready = $false
+            tenant_oauth_metadata_ready = $false; tenant_auth_enforcement_ready = $false
+            remote_mcp_ready = $false; activation_gateway_ready = $false
+            reason = 'tunnel_disabled'; secrets_included = $false
         }
     }
 
@@ -270,20 +241,40 @@ function Invoke-StagingPublicReadiness([string]$RepositoryPath, [string]$EnvFile
         custom_gpt_ready = $allHttpReady -and [bool]$semantic.ready
         tenant_oauth_metadata_ready = $true
         tenant_auth_enforcement_ready = $true
-        tenant_authenticated_action_ready = $false
         remote_mcp_ready = $allHttpReady -and [bool]$semantic.ready
         activation_gateway_ready = [bool]$ActivationGateway -and $allHttpReady -and [bool]$semantic.ready
-        probe_count = $probes.Count
-        schema_count = $semantic.schema_count
-        secrets_included = $false
+        probe_count = $probes.Count; schema_count = $semantic.schema_count; secrets_included = $false
     }
+}
+
+function Invoke-StagingAuthenticatedRemoteReadiness([string]$RepositoryPath, [string]$EnvFile, [string]$Mode) {
+    if ($Mode -eq 'disabled') {
+        return [pscustomobject]@{
+            ready = $false; probe_principal_active = $false; tenant_oauth_ready = $false
+            tenant_authenticated_action_ready = $false; remote_mcp_oauth_ready = $false
+            remote_mcp_read_ready = $false; probe_residue = 0; reason = 'tunnel_disabled'; secrets_included = $false
+        }
+    }
+    $composeArgs = Get-StagingComposeArgs $RepositoryPath $EnvFile -WindowsOverride:($Mode -eq 'windows_service') -DockerTunnelOverride:($Mode -eq 'docker_sidecar')
+    $raw = (& docker @($composeArgs + @('exec','-T','app','node','scripts/staging-authenticated-remote-readiness.mjs')) 2>&1 | Out-String).Trim()
+    $exit = $LASTEXITCODE
+    $lines = @($raw -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    if ($lines.Count -eq 0) { Fail 'Authenticated Tenant/MCP readiness emitted no evidence.' }
+    try { $evidence = $lines[-1] | ConvertFrom-Json -ErrorAction Stop }
+    catch { Fail 'Authenticated Tenant/MCP readiness did not emit valid final JSON evidence.' }
+    if ($exit -ne 0 -or $evidence.ready -ne $true) {
+        $reason = if ($evidence.failure.code) { $evidence.failure.code } else { "exit_$exit" }
+        Fail "Authenticated Tenant/MCP remote readiness failed: $reason"
+    }
+    if ($evidence.probe_residue -ne 0) { Fail "Authenticated Tenant/MCP readiness left durable probe residue: $($evidence.probe_residue)" }
+    if ($evidence.secrets_included -ne $false -or $evidence.runtime_tokens_persisted_to_env -ne $false) { Fail 'Authenticated remote readiness violated the secret boundary.' }
+    return $evidence
 }
 
 function Invoke-McpAppProvisioning([string]$RepositoryPath, [string]$EnvFile, [string]$RedirectUri, [string]$TunnelMode) {
     $appId = Get-StagingEnvValue $EnvFile 'REMOTE_MCP_APP_ID'
     $appSecret = Get-StagingEnvValue $EnvFile 'REMOTE_MCP_APP_SECRET'
     if ([string]::IsNullOrWhiteSpace($appId) -or [string]::IsNullOrWhiteSpace($appSecret)) { Fail 'Canonical MCP App ID/App Secret are missing from .env.staging.' }
-
     $composeArgs = Get-StagingComposeArgs $RepositoryPath $EnvFile -WindowsOverride:($TunnelMode -eq 'windows_service') -DockerTunnelOverride:($TunnelMode -eq 'docker_sidecar')
     Invoke-Checked 'docker' ($composeArgs + @('exec','-T','app','node','scripts/provision-remote-mcp-client.mjs','--environment=staging','--profile=openai_chatgpt',"--client-id=$appId",'--confirm=PROVISION_REMOTE_MCP_STAGING',"--redirect-uri=$RedirectUri",'--redact-secret-output'))
     Invoke-Checked 'docker' ($composeArgs + @('exec','-T','app','node','scripts/provision-remote-mcp-client.mjs','--environment=staging','--profile=openai_chatgpt','--status'))
@@ -297,6 +288,7 @@ $envState = Initialize-StagingEnvironment -RepositoryPath $RepositoryPath -Tunne
 $envFile = $envState.env_file
 Quiesce-StagingTunnelRuntimes
 
+# Bootstrap the local stack without a tunnel, then restore the selected canonical mode.
 Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ENABLED' 'false'
 Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ORIGIN_APP' 'http://app:8080'
 
@@ -323,17 +315,16 @@ if ($ProvisionMcpApp) {
 }
 
 $public = Invoke-StagingPublicReadiness $RepositoryPath $envFile $TunnelMode ([bool]$EnableActivationGateway)
+$authenticated = Invoke-StagingAuthenticatedRemoteReadiness $RepositoryPath $envFile $TunnelMode
 $publicRequired = $TunnelMode -ne 'disabled'
 $activationRequiredForPlatform = $true
-$platformReady = $publicRequired -and [bool]$EnableActivationGateway -and $tunnelState.ready -and $tunnelState.remote_managed_origin_verified -and $public.public_ingress_ready -and $public.schema_semantic_ready -and $public.custom_gpt_ready -and $public.tenant_oauth_metadata_ready -and $public.tenant_auth_enforcement_ready -and $public.tenant_authenticated_action_ready -and $public.remote_mcp_ready -and $public.activation_gateway_ready
+$platformReady = $publicRequired -and [bool]$EnableActivationGateway -and $tunnelState.ready -and $tunnelState.remote_managed_origin_verified -and $public.public_ingress_ready -and $public.schema_semantic_ready -and $public.custom_gpt_ready -and $public.tenant_oauth_metadata_ready -and $public.tenant_auth_enforcement_ready -and $authenticated.ready -and $authenticated.tenant_oauth_ready -and $authenticated.tenant_authenticated_action_ready -and $public.remote_mcp_ready -and $authenticated.remote_mcp_oauth_ready -and $authenticated.remote_mcp_read_ready -and ($authenticated.probe_residue -eq 0) -and $public.activation_gateway_ready
 
-# Enabled public modes are allowed to finish their core diagnostics before the
-# authenticated E2E probe is wired below, but they may never claim PLATFORM_READY.
 if ($publicRequired -and -not $EnableActivationGateway) {
     Fail 'PLATFORM_READY requires the Staging Activation Gateway; rerun with -EnableActivationGateway or select disabled for local-only readiness.'
 }
 
-$databaseMutationScope = if ($ProvisionMcpApp) { 'remote_mcp_client_staging_runtime_only' } else { 'none' }
+$databaseMutationScope = if ($ProvisionMcpApp) { 'remote_mcp_client_provisioning_plus_authenticated_oauth_probe_zero_residue' } elseif ($publicRequired) { 'authenticated_oauth_probe_zero_residue' } else { 'none' }
 $result = [ordered]@{
     contract = 'mad4b.staging-dual-mode-one-click.v1'
     staging_local_ready = $true
@@ -346,12 +337,19 @@ $result = [ordered]@{
     public_https_ready = [bool]$public.public_ingress_ready
     openapi_semantic_ready = [bool]$public.schema_semantic_ready
     custom_gpt_schema_and_admin_probe_ready = [bool]$public.custom_gpt_ready
+    authenticated_remote_e2e_required = $true
+    readiness_probe_principal_configured = [bool]$envState.readiness_probe_principal_configured
+    readiness_probe_principal_active = [bool]$authenticated.probe_principal_active
     tenant_oauth_metadata_ready = [bool]$public.tenant_oauth_metadata_ready
     tenant_auth_enforcement_ready = [bool]$public.tenant_auth_enforcement_ready
-    tenant_authenticated_action_ready = [bool]$public.tenant_authenticated_action_ready
-    tenant_authenticated_action_state = if ($public.tenant_authenticated_action_ready) { 'ready' } else { 'requires_bounded_staging_oauth_e2e_probe' }
+    tenant_oauth_flow_ready = [bool]$authenticated.tenant_oauth_ready
+    tenant_authenticated_action_ready = [bool]$authenticated.tenant_authenticated_action_ready
+    tenant_authenticated_action_state = if ($authenticated.tenant_authenticated_action_ready) { 'ready' } else { 'blocked' }
     remote_mcp_metadata_and_schema_ready = [bool]$public.remote_mcp_ready
-    remote_mcp_oauth_read_state = 'requires_bounded_staging_oauth_e2e_probe'
+    remote_mcp_oauth_ready = [bool]$authenticated.remote_mcp_oauth_ready
+    remote_mcp_authenticated_read_ready = [bool]$authenticated.remote_mcp_read_ready
+    remote_mcp_oauth_read_state = if ($authenticated.remote_mcp_oauth_ready -and $authenticated.remote_mcp_read_ready) { 'ready' } else { 'blocked' }
+    authenticated_probe_residue = $authenticated.probe_residue
     activation_gateway_required = $activationRequiredForPlatform
     activation_gateway_enabled = [bool]$EnableActivationGateway
     activation_gateway_ready = [bool]$public.activation_gateway_ready
@@ -359,7 +357,8 @@ $result = [ordered]@{
     mcp_app_provisioning_requested = [bool]$ProvisionMcpApp
     mcp_token_issuance_mode = $envState.mcp_token_issuance_mode
     mcp_access_tokens_persisted_to_env = $false
-    staging_database_mutation = [bool]$ProvisionMcpApp
+    staging_database_mutation = [bool]($ProvisionMcpApp -or $publicRequired)
+    staging_database_transient_probe_mutation = [bool]$publicRequired
     database_mutation_scope = $databaseMutationScope
     production_database_mutation = $false
     platform_ready = [bool]$platformReady
