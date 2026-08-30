@@ -18,6 +18,7 @@ const grantPlan = read("http-generic-api/scripts/staging-role-grant-plan.mjs");
 const governanceReadiness = read("http-generic-api/governanceDbPrivilegeReadinessService.js");
 const compose = read("http-generic-api/docker-compose.staging.yml");
 const repair = read("autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1");
+const runtimePersistenceReadiness = read("http-generic-api/scripts/runtime-persistence-operational-readiness.mjs");
 const importer = read("autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1");
 const sqlCacheMigration = read("http-generic-api/migrations/1023_sprint69_sql_cache_runtime_policy.sql");
 const roleManifest = readJson("http-generic-api/config/staging-database-role-migration-manifest.json");
@@ -190,6 +191,12 @@ assert.doesNotMatch(repair, /Move-Item[^\r\n]*(?:runtime-db|governance-db|persis
 assert.doesNotMatch(repair, /DROP\s+(?:DATABASE|TABLE)/i);
 assert.doesNotMatch(repair, /Clone-StagingDatabases\.ps1/);
 
+assert.match(runtimePersistenceReadiness, /export async function runRuntimePersistenceOperationalReadinessCli/);
+assert.match(runtimePersistenceReadiness, /await cliPool\.end\(\)/);
+assert.match(runtimePersistenceReadiness, /runtime_persistence_cli_resource_cleanup_failed/);
+assert.match(runtimePersistenceReadiness, /cli_resource_cleanup/);
+assert.match(runtimePersistenceReadiness, /runRuntimePersistenceOperationalReadinessCli\(\)/);
+
 console.log(JSON.stringify({
   ok: true,
   contract: "mad4b.staging-database-readiness-repair.v1",
@@ -202,6 +209,7 @@ console.log(JSON.stringify({
   staging_mariadb_collation_pinned: true,
   non_destructive_resume_repair: true,
   schema_census_required_before_restart_certification: true,
+  runtime_persistence_cli_pool_cleanup_required: true,
   production_accessed: false,
   provider_accessed: false,
   secrets_included: false,
