@@ -14,7 +14,26 @@ for (const entry of manifest.files) {
   const digest = crypto.createHash("sha256").update(content).digest("hex");
   assert.equal(digest, entry.sha256, `manifest hash mismatch: ${entry.path}`);
 }
-assert.ok(manifest.files.some((entry) => entry.path === "autopilot-portable-staging/Staging-GitTransport.ps1"));
+const manifestPaths = new Set(manifest.files.map((entry) => entry.path));
+for (const requiredPath of [
+  "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
+  "autopilot-portable-staging/Staging-Environment.ps1",
+  "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
+  "autopilot-portable-staging/Staging-GitTransport.ps1",
+  "http-generic-api/docker-compose.staging.windows-service.yml",
+  "http-generic-api/docker-compose.staging.docker-sidecar.yml",
+  "http-generic-api/scripts/generate-portable-staging-manifest.mjs",
+  "http-generic-api/scripts/provision-remote-mcp-client.mjs",
+  "http-generic-api/scripts/staging-public-schema-readiness.mjs",
+  "http-generic-api/scripts/staging-authenticated-remote-readiness.mjs",
+  "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml",
+  "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml",
+  "http-generic-api/openapi/openapi.remote-mcp.staging.yaml",
+  "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
+  "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml",
+]) {
+  assert.ok(manifestPaths.has(requiredPath), `portable manifest missing ${requiredPath}`);
+}
 
 const compose = parse(read("http-generic-api/docker-compose.staging.yml"));
 const dockerfile = read("http-generic-api/Dockerfile.staging");
@@ -24,6 +43,7 @@ const deploymentPolicy = JSON.parse(read("http-generic-api/config/deployment-bra
 const autopilot = read("autopilot-portable-staging/Start-AutoPilot.ps1");
 const certification = read("autopilot-portable-staging/Invoke-StagingCertification.ps1");
 const gitTransport = read("autopilot-portable-staging/Staging-GitTransport.ps1");
+const oneClickCmd = read("autopilot-portable-staging/Start-Staging-One-Click.cmd");
 const authorityClosure = read("http-generic-api/scripts/staging-environment-authority-closure.mjs");
 const liveCertification = read("http-generic-api/scripts/staging-live-certification.mjs");
 const windowsPreflight = read("autopilot-portable-staging/Staging-Windows-Preflight.ps1");
@@ -50,6 +70,9 @@ assert.equal(deploymentPolicy.staging.source_branch, "main");
 assert.equal(deploymentPolicy.staging.production_traffic_allowed, false);
 assert.equal(deploymentPolicy.production.source_branch, "Production");
 assert.equal(deploymentPolicy.promotion.force_push_allowed, false);
+assert.match(oneClickCmd, /docker_sidecar\s*:.*127\.0\.0\.1:8080/i);
+assert.match(oneClickCmd, /shared app network namespace/i);
+assert.doesNotMatch(oneClickCmd, /docker_sidecar\s*:.*app:8080/i);
 
 assert.match(windowsPreflight, /function Test-StagingWsl2DistributionReady/);
 assert.match(windowsPreflight, /-replace "\\x00", ""/);
