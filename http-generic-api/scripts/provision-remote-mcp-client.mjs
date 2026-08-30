@@ -77,6 +77,13 @@ process.env.REMOTE_MCP_ENVIRONMENT = environment;
 const profileKey = argValue("profile") || process.env.REMOTE_MCP_CLIENT_PROFILE_KEY || "generic_remote_mcp_client";
 process.env.REMOTE_MCP_CLIENT_PROFILE_KEY = profileKey;
 
+for (const key of ["REMOTE_MCP_ACCESS_TOKEN", "REMOTE_MCP_REFRESH_TOKEN", "REMOTE_MCP_AUTHORIZATION_CODE"]) {
+  if (String(process.env[key] || "").trim()) {
+    console.error(`${key} must not be sourced from an environment file; Remote MCP user tokens are runtime-minted by OAuth.`);
+    process.exit(1);
+  }
+}
+
 const canonicalAppId = String(process.env.REMOTE_MCP_APP_ID || "").trim();
 const canonicalAppSecret = String(process.env.REMOTE_MCP_APP_SECRET || process.env.REMOTE_MCP_OAUTH_CLIENT_SECRET || "").trim();
 if (environment === "production" && (process.env.REMOTE_MCP_APP_ID || process.env.REMOTE_MCP_APP_SECRET)) {
@@ -84,7 +91,9 @@ if (environment === "production" && (process.env.REMOTE_MCP_APP_ID || process.en
   process.exit(1);
 }
 
-const redactSecretOutput = process.argv.includes("--redact-secret-output");
+// When the canonical Staging App Secret is already present, echoing it back is
+// unnecessary and unsafe. Explicit redaction remains available for legacy callers.
+const redactSecretOutput = process.argv.includes("--redact-secret-output") || Boolean(process.env.REMOTE_MCP_APP_SECRET);
 const pool = getPool();
 try {
   if (process.argv.includes("--all-status")) {
@@ -117,7 +126,7 @@ try {
       });
       console.log(JSON.stringify(redactSecretOutput ? secretFreeProvisioningOutput(result) : result, null, 2));
       console.error(redactSecretOutput
-        ? "Client secret output was redacted; the canonical Staging secret remains only in ignored .env.staging and encrypted platform_secrets after provisioning."
+        ? "Client secret output was redacted; the canonical Staging secret remains only in ignored .env.staging and encrypted platform_secrets after provisioning. Access/refresh tokens remain OAuth-runtime only."
         : "Store client_secret only in the approved client configuration. Access/refresh tokens are minted by OAuth and must not be persisted in .env files.");
     }
   }
