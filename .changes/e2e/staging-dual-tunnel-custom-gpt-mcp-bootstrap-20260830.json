@@ -21,12 +21,16 @@
       "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs",
       "http-generic-api/scripts/staging-platform-ready-contract.mjs",
       "http-generic-api/scripts/staging-public-schema-readiness.mjs",
-      "http-generic-api/scripts/staging-authenticated-remote-readiness.mjs"
+      "http-generic-api/scripts/staging-authenticated-remote-readiness.mjs",
+      "http-generic-api/test-staging-autopilot-closure.mjs"
     ]
   },
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
-    "declared_targets": ["staging", "production"],
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
     "cross_environment_reviewed": true,
     "live_staging_certification_required": true,
     "production_mutation_allowed": false
@@ -113,7 +117,8 @@
             "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs",
             "http-generic-api/scripts/staging-platform-ready-contract.mjs",
             "http-generic-api/scripts/staging-public-schema-readiness.mjs",
-            "http-generic-api/scripts/staging-authenticated-remote-readiness.mjs"
+            "http-generic-api/scripts/staging-authenticated-remote-readiness.mjs",
+            "http-generic-api/test-staging-autopilot-closure.mjs"
           ]
         }
       ]
