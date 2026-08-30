@@ -3,6 +3,7 @@ import {
   RUNTIME_PERSISTENCE_ACTIVATION_CONTRACT,
   inspectRuntimePersistenceConfiguration,
   runRuntimePersistenceOperationalReadiness,
+  runRuntimePersistenceOperationalReadinessCli,
 } from "./scripts/runtime-persistence-operational-readiness.mjs";
 
 const configuredEnv = {
@@ -11,6 +12,27 @@ const configuredEnv = {
   RUNTIME_PERSISTENCE_DB_USER: "runtime_persistence_writer",
   RUNTIME_PERSISTENCE_DB_PASSWORD: "test-only-secret",
 };
+
+const readyAuthority = async () => ({
+  ready: true,
+  table_name: "governed_tool_response_chunks",
+  required_operations: ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  missing_required: [],
+  secrets_included: false,
+});
+const readySchema = async () => ({
+  ready: true,
+  table_name: "governed_tool_response_chunks",
+  required_column_count: 16,
+  missing_columns: [],
+  secrets_included: false,
+});
+const readyCollation = async () => ({
+  ready: true,
+  reason: "runtime_persistence_collation_ready",
+  violations: [],
+  secrets_included: false,
+});
 
 const missing = inspectRuntimePersistenceConfiguration({});
 assert.equal(missing.configured, false);
@@ -48,32 +70,15 @@ const readyResult = await runRuntimePersistenceOperationalReadiness({
   runtimePersistencePoolFactory: () => sentinelPool,
   inspectAuthority: async (input, deps) => {
     authorityDeps = { input, deps };
-    return {
-      ready: true,
-      table_name: "governed_tool_response_chunks",
-      required_operations: ["SELECT", "INSERT", "UPDATE", "DELETE"],
-      missing_required: [],
-      secrets_included: false,
-    };
+    return readyAuthority();
   },
   inspectSchema: async (deps) => {
     schemaDeps = deps;
-    return {
-      ready: true,
-      table_name: "governed_tool_response_chunks",
-      required_column_count: 16,
-      missing_columns: [],
-      secrets_included: false,
-    };
+    return readySchema();
   },
   inspectCollation: async (deps) => {
     collationDeps = deps;
-    return {
-      ready: true,
-      reason: "runtime_persistence_collation_ready",
-      violations: [],
-      secrets_included: false,
-    };
+    return readyCollation();
   },
 });
 assert.equal(readyResult.ok, true);
@@ -99,8 +104,8 @@ const blockedResult = await runRuntimePersistenceOperationalReadiness({
   env: configuredEnv,
   runtimePersistencePoolFactory: () => sentinelPool,
   inspectAuthority: async () => ({ ready: false, missing_required: ["INSERT"], secrets_included: false }),
-  inspectSchema: async () => ({ ready: true, missing_columns: [], secrets_included: false }),
-  inspectCollation: async () => ({ ready: true, violations: [], secrets_included: false }),
+  inspectSchema: readySchema,
+  inspectCollation: readyCollation,
 });
 assert.equal(blockedResult.ok, false);
 assert.equal(blockedResult.status, "blocked");
@@ -128,5 +133,110 @@ assert.equal(errorResult.database_connection_performed, false);
 assert.equal(errorResult.sql_readback_performed, false);
 assert.equal(errorResult.sql_mutation_performed, false);
 assert.equal(errorResult.secrets_included, false);
+
+let readyPoolEndCalls = 0;
+let readyCliOutput = "";
+let readyCliExitCode = null;
+const readyCliPool = {
+  end: async () => {
+    readyPoolEndCalls += 1;
+  },
+};
+const readyCliResult = await runRuntimePersistenceOperationalReadinessCli({
+  env: configuredEnv,
+  runtimePersistencePoolFactory: () => readyCliPool,
+  inspectAuthority: readyAuthority,
+  inspectSchema: readySchema,
+  inspectCollation: readyCollation,
+  writeOutput: (text) => {
+    readyCliOutput += text;
+  },
+  setExitCode: (code) => {
+    readyCliExitCode = code;
+  },
+});
+assert.equal(readyCliResult.ok, true);
+assert.equal(readyCliResult.status, "ready");
+assert.equal(readyCliResult.cli_resource_cleanup.attempted, true);
+assert.equal(readyCliResult.cli_resource_cleanup.completed, true);
+assert.equal(readyCliResult.cli_resource_cleanup.pool_end_called, true);
+assert.equal(readyCliResult.cli_resource_cleanup.error, null);
+assert.equal(readyPoolEndCalls, 1);
+assert.equal(readyCliExitCode, null);
+assert.equal(JSON.parse(readyCliOutput).ok, true);
+assert.equal(readyCliOutput.includes("test-only-secret"), false);
+
+let blockedPoolEndCalls = 0;
+let blockedCliExitCode = null;
+const blockedCliResult = await runRuntimePersistenceOperationalReadinessCli({
+  env: configuredEnv,
+  runtimePersistencePoolFactory: () => ({
+    end: async () => {
+      blockedPoolEndCalls += 1;
+    },
+  }),
+  inspectAuthority: async () => ({ ready: false, missing_required: ["INSERT"], secrets_included: false }),
+  inspectSchema: readySchema,
+  inspectCollation: readyCollation,
+  writeOutput: () => {},
+  setExitCode: (code) => {
+    blockedCliExitCode = code;
+  },
+});
+assert.equal(blockedCliResult.ok, false);
+assert.equal(blockedCliResult.reason, "runtime_persistence_authority_schema_or_collation_not_ready");
+assert.equal(blockedCliResult.cli_resource_cleanup.completed, true);
+assert.equal(blockedCliResult.cli_resource_cleanup.pool_end_called, true);
+assert.equal(blockedPoolEndCalls, 1);
+assert.equal(blockedCliExitCode, 1);
+
+let cleanupFailureExitCode = null;
+const cleanupFailureResult = await runRuntimePersistenceOperationalReadinessCli({
+  env: configuredEnv,
+  runtimePersistencePoolFactory: () => ({
+    end: async () => {
+      const error = new Error("close failed");
+      error.code = "ECLOSE";
+      throw error;
+    },
+  }),
+  inspectAuthority: readyAuthority,
+  inspectSchema: readySchema,
+  inspectCollation: readyCollation,
+  writeOutput: () => {},
+  setExitCode: (code) => {
+    cleanupFailureExitCode = code;
+  },
+});
+assert.equal(cleanupFailureResult.ok, false);
+assert.equal(cleanupFailureResult.status, "blocked");
+assert.equal(cleanupFailureResult.reason, "runtime_persistence_cli_resource_cleanup_failed");
+assert.equal(cleanupFailureResult.cli_resource_cleanup.attempted, true);
+assert.equal(cleanupFailureResult.cli_resource_cleanup.completed, false);
+assert.equal(cleanupFailureResult.cli_resource_cleanup.pool_end_called, true);
+assert.equal(cleanupFailureResult.cli_resource_cleanup.error.code, "ECLOSE");
+assert.equal(cleanupFailureExitCode, 1);
+assert.equal(JSON.stringify(cleanupFailureResult).includes("close failed"), false);
+
+let missingEndExitCode = null;
+const missingEndResult = await runRuntimePersistenceOperationalReadinessCli({
+  env: configuredEnv,
+  runtimePersistencePoolFactory: () => ({}),
+  inspectAuthority: readyAuthority,
+  inspectSchema: readySchema,
+  inspectCollation: readyCollation,
+  writeOutput: () => {},
+  setExitCode: (code) => {
+    missingEndExitCode = code;
+  },
+});
+assert.equal(missingEndResult.ok, false);
+assert.equal(missingEndResult.status, "blocked");
+assert.equal(missingEndResult.reason, "runtime_persistence_cli_resource_cleanup_failed");
+assert.equal(missingEndResult.cli_resource_cleanup.attempted, true);
+assert.equal(missingEndResult.cli_resource_cleanup.completed, false);
+assert.equal(missingEndResult.cli_resource_cleanup.pool_end_called, false);
+assert.equal(missingEndResult.cli_resource_cleanup.error.code, "runtime_persistence_cli_pool_end_unavailable");
+assert.equal(missingEndExitCode, 1);
 
 console.log("runtime persistence operational readiness contract tests passed");
