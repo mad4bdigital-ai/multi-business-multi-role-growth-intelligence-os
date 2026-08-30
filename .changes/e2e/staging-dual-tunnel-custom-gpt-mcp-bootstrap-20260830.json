@@ -24,7 +24,8 @@
       "http-generic-api/scripts/staging-platform-ready-contract.mjs",
       "http-generic-api/scripts/staging-public-schema-readiness.mjs",
       "http-generic-api/scripts/staging-authenticated-remote-readiness.mjs",
-      "http-generic-api/test-staging-autopilot-closure.mjs"
+      "http-generic-api/test-staging-autopilot-closure.mjs",
+      "http-generic-api/test-domain-family-policy.mjs"
     ]
   },
   "environment_impact": {
@@ -125,7 +126,8 @@
             "http-generic-api/scripts/staging-platform-ready-contract.mjs",
             "http-generic-api/scripts/staging-public-schema-readiness.mjs",
             "http-generic-api/scripts/staging-authenticated-remote-readiness.mjs",
-            "http-generic-api/test-staging-autopilot-closure.mjs"
+            "http-generic-api/test-staging-autopilot-closure.mjs",
+            "http-generic-api/test-domain-family-policy.mjs"
           ]
         }
       ]
