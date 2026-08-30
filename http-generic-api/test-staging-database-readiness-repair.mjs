@@ -111,6 +111,17 @@ assert.deepEqual(roleManifest.authority_seed_lifecycle.readback, {
   required: false,
   required_blocked_tables: ["endpoints"],
 });
+assert.equal(roleManifest.validation.required_role_count, 3);
+assert.equal(roleManifest.validation.missing_required_table_is_blocking, true);
+assert.equal(roleManifest.validation.unexpected_governance_or_persistence_table_is_blocking, true);
+assert.equal(roleManifest.validation.runtime_exclusion_violation_is_blocking, true);
+assert.deepEqual(
+  [
+    ...roleManifest.validation.required_runtime_table_census,
+    ...roleManifest.validation.required_runtime_support_tables,
+  ].sort(),
+  [...roleManifest.roles.runtime.required_tables].sort(),
+);
 
 assert.equal(autoDeployPolicy.authority_seed_lifecycle.contract, "mad4b.staging.authority-seed-manifest.v1");
 assert.equal(autoDeployPolicy.authority_seed_lifecycle.execution_identity, "local_database_root");
@@ -153,6 +164,22 @@ assert.match(repair, /TABLE_PRIVILEGES/);
 assert.match(repair, /SCHEMA_PRIVILEGES/);
 assert.match(repair, /COLUMN_PRIVILEGES/);
 assert.match(repair, /APPLICABLE_ROLES/);
+assert.match(repair, /staging-database-role-migration-manifest\.json/);
+assert.match(repair, /function Assert-RoleSchemaCensus/);
+assert.match(repair, /missing_required_table_is_blocking/);
+assert.match(repair, /unexpected_governance_or_persistence_table_is_blocking/);
+assert.match(repair, /runtime_exclusion_violation_is_blocking/);
+assert.match(repair, /TABLE_TYPE = 'BASE TABLE'/);
+assert.match(repair, /required schema census is incomplete/);
+assert.match(repair, /schema census has unexpected base tables/);
+assert.match(repair, /runtime schema census contains excluded role tables/);
+assert.match(repair, /root_identity_used_for_census = \$true/);
+assert.match(repair, /\$script:State\.schema_census = Assert-RoleSchemaCensus \$roleConfig/);
+assert.match(repair, /Readiness-repaired Staging role\/schema census is not complete/);
+const schemaCensusIndex = repair.indexOf('$script:State.status = "schema_census_validation"');
+const restartAndCertifyIndex = repair.indexOf('$script:State.status = "restart_and_certify"');
+assert.ok(schemaCensusIndex >= 0);
+assert.ok(restartAndCertifyIndex > schemaCensusIndex);
 assert.match(repair, /-BuildMode Smart -SkipSelfUpdate/);
 assert.match(repair, /certification_status -eq "ready"/);
 assert.match(repair, /destructive_reset = \$false/);
@@ -174,6 +201,7 @@ console.log(JSON.stringify({
   staging_governance_authority_repository_only: true,
   staging_mariadb_collation_pinned: true,
   non_destructive_resume_repair: true,
+  schema_census_required_before_restart_certification: true,
   production_accessed: false,
   provider_accessed: false,
   secrets_included: false,
