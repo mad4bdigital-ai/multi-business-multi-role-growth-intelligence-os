@@ -3,6 +3,7 @@ import {
   RUNTIME_PERSISTENCE_ACTIVATION_CONTRACT,
   inspectRuntimePersistenceConfiguration,
   runRuntimePersistenceOperationalReadiness,
+  runRuntimePersistenceOperationalReadinessCli,
 } from "./scripts/runtime-persistence-operational-readiness.mjs";
 
 const configuredEnv = {
@@ -128,5 +129,88 @@ assert.equal(errorResult.database_connection_performed, false);
 assert.equal(errorResult.sql_readback_performed, false);
 assert.equal(errorResult.sql_mutation_performed, false);
 assert.equal(errorResult.secrets_included, false);
+
+let cliEndCalls = 0;
+let cliOutput = "";
+let cliExitCode = null;
+const cliPool = {
+  async end() {
+    cliEndCalls += 1;
+  },
+};
+const cliReadyResult = await runRuntimePersistenceOperationalReadinessCli({
+  env: configuredEnv,
+  runtimePersistencePoolFactory: () => cliPool,
+  inspectAuthority: async () => ({ ready: true, missing_required: [], secrets_included: false }),
+  inspectSchema: async () => ({ ready: true, missing_columns: [], secrets_included: false }),
+  inspectCollation: async () => ({ ready: true, violations: [], secrets_included: false }),
+  writeOutput: (text) => {
+    cliOutput += text;
+  },
+  setExitCode: (code) => {
+    cliExitCode = code;
+  },
+});
+assert.equal(cliReadyResult.ok, true);
+assert.equal(cliReadyResult.status, "ready");
+assert.equal(cliEndCalls, 1);
+assert.equal(cliReadyResult.cli_resource_cleanup.attempted, true);
+assert.equal(cliReadyResult.cli_resource_cleanup.completed, true);
+assert.equal(cliReadyResult.cli_resource_cleanup.pool_end_called, true);
+assert.equal(cliReadyResult.cli_resource_cleanup.error, null);
+assert.equal(cliExitCode, null);
+assert.match(cliOutput, /"cli_resource_cleanup":\{"attempted":true,"completed":true,"pool_end_called":true/);
+assert.equal(cliOutput.includes("test-only-secret"), false);
+
+let blockedCliEndCalls = 0;
+let blockedCliExitCode = null;
+const cliBlockedResult = await runRuntimePersistenceOperationalReadinessCli({
+  env: configuredEnv,
+  runtimePersistencePoolFactory: () => ({
+    async end() {
+      blockedCliEndCalls += 1;
+    },
+  }),
+  inspectAuthority: async () => ({ ready: false, missing_required: ["INSERT"], secrets_included: false }),
+  inspectSchema: async () => ({ ready: true, missing_columns: [], secrets_included: false }),
+  inspectCollation: async () => ({ ready: true, violations: [], secrets_included: false }),
+  writeOutput: () => {},
+  setExitCode: (code) => {
+    blockedCliExitCode = code;
+  },
+});
+assert.equal(cliBlockedResult.ok, false);
+assert.equal(cliBlockedResult.status, "blocked");
+assert.equal(blockedCliEndCalls, 1);
+assert.equal(cliBlockedResult.cli_resource_cleanup.completed, true);
+assert.equal(cliBlockedResult.cli_resource_cleanup.pool_end_called, true);
+assert.equal(blockedCliExitCode, 1);
+
+let cleanupFailureExitCode = null;
+const cliCleanupFailureResult = await runRuntimePersistenceOperationalReadinessCli({
+  env: configuredEnv,
+  runtimePersistencePoolFactory: () => ({
+    async end() {
+      const error = new Error("pool close failed");
+      error.code = "POOL_CLOSE_FAILED";
+      throw error;
+    },
+  }),
+  inspectAuthority: async () => ({ ready: true, missing_required: [], secrets_included: false }),
+  inspectSchema: async () => ({ ready: true, missing_columns: [], secrets_included: false }),
+  inspectCollation: async () => ({ ready: true, violations: [], secrets_included: false }),
+  writeOutput: () => {},
+  setExitCode: (code) => {
+    cleanupFailureExitCode = code;
+  },
+});
+assert.equal(cliCleanupFailureResult.ok, false);
+assert.equal(cliCleanupFailureResult.status, "blocked");
+assert.equal(cliCleanupFailureResult.reason, "runtime_persistence_cli_resource_cleanup_failed");
+assert.equal(cliCleanupFailureResult.cli_resource_cleanup.attempted, true);
+assert.equal(cliCleanupFailureResult.cli_resource_cleanup.completed, false);
+assert.equal(cliCleanupFailureResult.cli_resource_cleanup.pool_end_called, true);
+assert.equal(cliCleanupFailureResult.cli_resource_cleanup.error.code, "POOL_CLOSE_FAILED");
+assert.equal(cleanupFailureExitCode, 1);
 
 console.log("runtime persistence operational readiness contract tests passed");
