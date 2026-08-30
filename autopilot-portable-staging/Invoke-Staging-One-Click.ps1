@@ -1,0 +1,171 @@
+[CmdletBinding()]
+param(
+    [string]$RepositoryPath = '',
+    [ValidateSet('disabled','windows_service','docker_sidecar')]
+    [string]$TunnelMode = 'windows_service',
+    [switch]$EnableActivationGateway,
+    [switch]$NoAutoDeploy,
+    [switch]$RequireSchemaBundle,
+    [switch]$ApplySchemaBundle,
+    [switch]$ProvisionMcpApp,
+    [string]$McpRedirectUri = 'https://chatgpt.com/connector_platform_oauth_redirect',
+    [ValidateSet('Smart','ForceBuild','SkipBuild')]
+    [string]$BuildMode = 'Smart'
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$root = Split-Path -Parent $PSCommandPath
+. (Join-Path $root 'Staging-Environment.ps1')
+
+function Fail([string]$Message) { throw "STAGING_DUAL_MODE_ONE_CLICK_FAIL_CLOSED: $Message" }
+
+function Invoke-Checked([string]$File, [string[]]$Arguments) {
+    & $File @Arguments
+    if ($LASTEXITCODE -ne 0) { Fail "$File exited with code $LASTEXITCODE" }
+}
+
+function Invoke-HttpProbe([string]$Uri, [hashtable]$Headers = @{}, [int[]]$AllowedStatus = @(200)) {
+    try {
+        $response = Invoke-WebRequest -Uri $Uri -UseBasicParsing -TimeoutSec 20 -Headers $Headers -MaximumRedirection 0
+        if ($AllowedStatus -notcontains [int]$response.StatusCode) { Fail "Remote probe returned unexpected HTTP $($response.StatusCode): $Uri" }
+        return [pscustomobject]@{ uri = $Uri; status = [int]$response.StatusCode; ok = $true }
+    } catch {
+        $status = $null
+        try { $status = [int]$_.Exception.Response.StatusCode.value__ } catch { }
+        if ($null -ne $status -and $AllowedStatus -contains $status) {
+            return [pscustomobject]@{ uri = $Uri; status = $status; ok = $true }
+        }
+        Fail "Remote probe failed for $Uri: $($_.Exception.Message)"
+    }
+}
+
+function Assert-WindowsTunnelRuntime([string]$EnvFile) {
+    $origin = Get-StagingEnvValue $EnvFile 'CLOUDFLARE_TUNNEL_ORIGIN_APP'
+    if ($origin -ne 'http://127.0.0.1:8080') { Fail 'windows_service mode requires loopback origin http://127.0.0.1:8080' }
+    $tcp = Test-NetConnection 127.0.0.1 -Port 8080 -WarningAction SilentlyContinue
+    if ($tcp.TcpTestSucceeded -ne $true) { Fail 'windows_service mode requires the Staging app to be reachable on 127.0.0.1:8080' }
+
+    $service = Get-CimInstance Win32_Service -Filter "Name='Cloudflared'" -ErrorAction SilentlyContinue
+    if ($null -eq $service) { Fail 'Cloudflared Windows service is not installed.' }
+    $pathName = [string]$service.PathName
+    if ($pathName -match '(?i)(?:^|\s)--token(?:\s|=)') { Fail 'Cloudflared Windows service must not embed the tunnel token in its command line; use --token-file.' }
+    if ($pathName -notmatch '(?i)--token-file') { Fail 'Cloudflared Windows service must use --token-file for Staging.' }
+    if ($service.State -ne 'Running') {
+        Start-Service Cloudflared
+        $service = Get-CimInstance Win32_Service -Filter "Name='Cloudflared'"
+        if ($service.State -ne 'Running') { Fail 'Cloudflared Windows service did not reach Running state.' }
+    }
+    return [pscustomobject]@{ mode = 'windows_service'; runtime = 'Cloudflared'; origin = $origin; ready = $true }
+}
+
+function Assert-DockerTunnelRuntime([string]$RepositoryPath, [string]$EnvFile) {
+    $origin = Get-StagingEnvValue $EnvFile 'CLOUDFLARE_TUNNEL_ORIGIN_APP'
+    if ($origin -ne 'http://app:8080') { Fail 'docker_sidecar mode requires Compose origin http://app:8080' }
+    $api = Join-Path $RepositoryPath 'http-generic-api'
+    $base = Join-Path $api 'docker-compose.yml'
+    $stage = Join-Path $api 'docker-compose.staging.yml'
+    $id = (& docker compose -f $base -f $stage --env-file $EnvFile --profile tunnel ps -q cloudflared 2>$null | Out-String).Trim()
+    if ([string]::IsNullOrWhiteSpace($id)) { Fail 'docker_sidecar mode requires the cloudflared Compose service.' }
+    $running = (& docker inspect --format '{{.State.Running}}' $id 2>$null | Out-String).Trim().ToLowerInvariant()
+    if ($running -ne 'true') { Fail 'cloudflared Compose sidecar is not running.' }
+    return [pscustomobject]@{ mode = 'docker_sidecar'; runtime = 'docker'; origin = $origin; ready = $true }
+}
+
+function Invoke-StagingPublicReadiness([string]$EnvFile, [string]$Mode, [bool]$ActivationGateway) {
+    if ($Mode -eq 'disabled') {
+        return [pscustomobject]@{ public_ingress_ready = $false; custom_gpt_ready = $false; remote_mcp_ready = $false; reason = 'tunnel_disabled'; secrets_included = $false }
+    }
+
+    $probes = @()
+    $probes += Invoke-HttpProbe 'https://dev.mad4b.com/health'
+    $probes += Invoke-HttpProbe 'https://dev.mad4b.com/openapi.tenant-gpt.auth.staging.yaml'
+    $probes += Invoke-HttpProbe 'https://dev.mad4b.com/openapi.custom-gpt.auth-dispatcher.staging.yaml'
+    $probes += Invoke-HttpProbe 'https://mcp_dev.mad4b.com/.well-known/oauth-protected-resource'
+    $probes += Invoke-HttpProbe 'https://mcp_dev.mad4b.com/openapi.remote-mcp.staging.yaml'
+
+    $backendKey = Get-StagingEnvValue $EnvFile 'BACKEND_API_KEY'
+    if ([string]::IsNullOrWhiteSpace($backendKey)) { Fail 'BACKEND_API_KEY is required for the bounded Admin GPT remote probe.' }
+    $probes += Invoke-HttpProbe 'https://dev.mad4b.com/system/tools' @{ 'x-api-key' = $backendKey }
+
+    if ($ActivationGateway) {
+        $probes += Invoke-HttpProbe 'https://activation-dev.mad4b.com/health'
+        $probes += Invoke-HttpProbe 'https://activation-dev.mad4b.com/openapi.tenant-gpt.activation.staging.yaml'
+        $probes += Invoke-HttpProbe 'https://activation-dev.mad4b.com/openapi.custom-gpt.activation-admin.staging.yaml'
+    }
+
+    return [pscustomobject]@{
+        public_ingress_ready = (@($probes | Where-Object { -not $_.ok }).Count -eq 0)
+        custom_gpt_ready = $true
+        remote_mcp_ready = $true
+        probe_count = $probes.Count
+        secrets_included = $false
+    }
+}
+
+if ([string]::IsNullOrWhiteSpace($RepositoryPath)) { $RepositoryPath = [IO.Path]::GetFullPath((Join-Path $root '..')) }
+$RepositoryPath = [IO.Path]::GetFullPath($RepositoryPath)
+if (-not (Test-Path -LiteralPath (Join-Path $RepositoryPath '.git'))) { Fail "RepositoryPath is not a Git checkout: $RepositoryPath" }
+
+$envState = Initialize-StagingEnvironment -RepositoryPath $RepositoryPath -TunnelMode $TunnelMode -EnableActivationGateway:$EnableActivationGateway -RequireTunnelToken:($TunnelMode -ne 'disabled')
+$envFile = $envState.env_file
+
+$bootstrap = Join-Path $root 'Bootstrap-Staging-One-Click.ps1'
+$bootstrapArgs = @('-NoLogo','-NoProfile','-ExecutionPolicy','Bypass','-File',$bootstrap,'-RepositoryPath',$RepositoryPath,'-BuildMode',$BuildMode)
+if ($TunnelMode -ne 'docker_sidecar') { $bootstrapArgs += '-NoTunnel' }
+if ($EnableActivationGateway) { $bootstrapArgs += '-EnableActivationGateway' }
+if ($NoAutoDeploy) { $bootstrapArgs += '-NoAutoDeploy' }
+if ($RequireSchemaBundle) { $bootstrapArgs += '-RequireSchemaBundle' }
+if ($ApplySchemaBundle) { $bootstrapArgs += '-ApplySchemaBundle' }
+Invoke-Checked 'powershell.exe' $bootstrapArgs
+
+# Legacy One-Click may set CLOUDFLARE_TUNNEL_ENABLED=false when -NoTunnel is used.
+# Re-assert the selected canonical mode after local bootstrap without rotating any existing secret.
+$envState = Initialize-StagingEnvironment -RepositoryPath $RepositoryPath -TunnelMode $TunnelMode -EnableActivationGateway:$EnableActivationGateway -RequireTunnelToken:($TunnelMode -ne 'disabled')
+$envFile = $envState.env_file
+
+$tunnelState = switch ($TunnelMode) {
+    'windows_service' { Assert-WindowsTunnelRuntime $envFile }
+    'docker_sidecar' { Assert-DockerTunnelRuntime $RepositoryPath $envFile }
+    default { [pscustomobject]@{ mode = 'disabled'; runtime = 'none'; origin = $null; ready = $true } }
+}
+
+if ($ProvisionMcpApp) {
+    if ($TunnelMode -eq 'disabled') { Fail 'MCP app provisioning requires an enabled Staging public ingress mode.' }
+    $appId = Get-StagingEnvValue $envFile 'REMOTE_MCP_APP_ID'
+    $appSecret = Get-StagingEnvValue $envFile 'REMOTE_MCP_APP_SECRET'
+    if ([string]::IsNullOrWhiteSpace($appId) -or [string]::IsNullOrWhiteSpace($appSecret)) { Fail 'Canonical MCP App ID/App Secret are missing from .env.staging.' }
+    $oldSecret = $env:REMOTE_MCP_APP_SECRET
+    try {
+        $env:REMOTE_MCP_APP_SECRET = $appSecret
+        Push-Location (Join-Path $RepositoryPath 'http-generic-api')
+        try {
+            Invoke-Checked 'node' @('scripts/provision-remote-mcp-client.mjs','--environment=staging','--env-file=.env.staging','--profile=openai_chatgpt',"--client-id=$appId",'--confirm=PROVISION_REMOTE_MCP_STAGING',"--redirect-uri=$McpRedirectUri")
+        } finally { Pop-Location }
+    } finally {
+        $env:REMOTE_MCP_APP_SECRET = $oldSecret
+    }
+}
+
+$public = Invoke-StagingPublicReadiness $envFile $TunnelMode ([bool]$EnableActivationGateway)
+$ready = $tunnelState.ready -and (($TunnelMode -eq 'disabled') -or ($public.public_ingress_ready -and $public.custom_gpt_ready -and $public.remote_mcp_ready))
+if (-not $ready) { Fail 'Selected Staging mode did not satisfy public Custom GPT/MCP readiness.' }
+
+$result = [ordered]@{
+    contract = 'mad4b.staging-dual-mode-one-click.v1'
+    staging_local_ready = $true
+    tunnel_mode = $TunnelMode
+    tunnel_runtime_ready = [bool]$tunnelState.ready
+    tunnel_origin = $tunnelState.origin
+    public_https_ready = [bool]$public.public_ingress_ready
+    custom_gpt_schema_and_admin_probe_ready = [bool]$public.custom_gpt_ready
+    remote_mcp_metadata_ready = [bool]$public.remote_mcp_ready
+    activation_gateway_required = [bool]$EnableActivationGateway
+    mcp_app_credentials_present = $envState.mcp_app_id_present -and $envState.mcp_app_secret_present
+    mcp_access_tokens_persisted_to_env = $false
+    platform_ready = $ready
+    production_mutation = $false
+    provider_mutation = $false
+    secrets_included = $false
+}
+$result | ConvertTo-Json -Depth 6
