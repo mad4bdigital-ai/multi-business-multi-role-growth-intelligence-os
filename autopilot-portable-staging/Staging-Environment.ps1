@@ -76,6 +76,11 @@ function Assert-StagingEnvironmentSafety([string]$Path) {
     foreach ($key in @('MIGRATION_APPLIED','PRODUCTION_MUTATION_AUTHORIZED','RULESET_MUTATION_AUTHORIZED')) {
         if ((Get-StagingEnvValue $Path $key).ToLowerInvariant() -ne 'false') { throw "$key must remain false in Staging bootstrap." }
     }
+    $mode = Get-StagingEnvValue $Path 'STAGING_TUNNEL_MODE'
+    $origin = Get-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_ORIGIN_APP'
+    if ($mode -in @('windows_service','docker_sidecar') -and $origin -ne 'http://127.0.0.1:8080') {
+        throw 'Both supported Staging tunnel runtimes must use the canonical remote-managed loopback origin http://127.0.0.1:8080.'
+    }
     $appId = Get-StagingEnvValue $Path 'REMOTE_MCP_APP_ID'
     if ($appId -and $appId -notmatch '^mcp_stg_[A-Za-z0-9_-]{16,128}$') { throw 'REMOTE_MCP_APP_ID is not a Staging-scoped MCP client identity.' }
     $appSecret = Get-StagingEnvValue $Path 'REMOTE_MCP_APP_SECRET'
@@ -136,6 +141,7 @@ function Initialize-StagingEnvironment {
     Set-StagingEnvValue $envFile 'REMOTE_MCP_AUTHORIZATION_SERVER_URL' 'https://dev.mad4b.com/auth/mcp'
     Set-StagingEnvValue $envFile 'REMOTE_MCP_RESOURCE_DOCUMENTATION_URL' 'https://mcp_dev.mad4b.com/docs'
     Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_HOSTNAMES' 'dev.mad4b.com,mcp_dev.mad4b.com'
+    Set-StagingEnvValue $envFile 'STAGING_TUNNEL_REMOTE_ORIGIN' 'http://127.0.0.1:8080'
 
     switch ($TunnelMode) {
         'windows_service' {
@@ -145,14 +151,16 @@ function Initialize-StagingEnvironment {
             Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_TOKEN_REQUIRED' 'false'
             Set-StagingEnvValue $envFile 'STAGING_APP_HOST_BIND' '127.0.0.1:8080:8080'
             Set-StagingEnvValue $envFile 'STAGING_DOCKER_TUNNEL_ENABLED' 'false'
+            Set-StagingEnvValue $envFile 'STAGING_DOCKER_TUNNEL_COMPOSE_OVERRIDE' ''
         }
         'docker_sidecar' {
             Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ENABLED' 'true'
             Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_RUNTIME' 'docker_sidecar'
-            Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ORIGIN_APP' 'http://app:8080'
+            Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ORIGIN_APP' 'http://127.0.0.1:8080'
             Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_TOKEN_REQUIRED' 'true'
             Set-StagingEnvValue $envFile 'STAGING_APP_HOST_BIND' ''
             Set-StagingEnvValue $envFile 'STAGING_DOCKER_TUNNEL_ENABLED' 'true'
+            Set-StagingEnvValue $envFile 'STAGING_DOCKER_TUNNEL_COMPOSE_OVERRIDE' 'docker-compose.staging.docker-sidecar.yml'
         }
         default {
             Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ENABLED' 'false'
@@ -161,6 +169,7 @@ function Initialize-StagingEnvironment {
             Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_TOKEN_REQUIRED' 'false'
             Set-StagingEnvValue $envFile 'STAGING_APP_HOST_BIND' ''
             Set-StagingEnvValue $envFile 'STAGING_DOCKER_TUNNEL_ENABLED' 'false'
+            Set-StagingEnvValue $envFile 'STAGING_DOCKER_TUNNEL_COMPOSE_OVERRIDE' ''
         }
     }
 
@@ -186,6 +195,7 @@ function Initialize-StagingEnvironment {
         env_file = $envFile
         tunnel_mode = $TunnelMode
         tunnel_origin = Get-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ORIGIN_APP'
+        remote_managed_tunnel_origin = Get-StagingEnvValue $envFile 'STAGING_TUNNEL_REMOTE_ORIGIN'
         generated_keys = @($generatedNames)
         mcp_app_id_present = -not [string]::IsNullOrWhiteSpace((Get-StagingEnvValue $envFile 'REMOTE_MCP_APP_ID'))
         mcp_app_secret_present = -not [string]::IsNullOrWhiteSpace((Get-StagingEnvValue $envFile 'REMOTE_MCP_APP_SECRET'))
