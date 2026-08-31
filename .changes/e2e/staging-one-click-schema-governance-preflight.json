@@ -47,7 +47,7 @@
           "terminal_outcome": "The launcher stops before local startup unless the exact detached main checkout passes all static schema/governance checks; a successful gate records redacted evidence and leaves schema apply, tunnel, Auto Deploy, Production, provider, and credential actions disabled.",
           "steps": [
             "Request elevation and invoke Bootstrap-Staging-One-Click.ps1 with the safe local defaults -NoTunnel and -NoAutoDeploy.",
-            "Fetch and check out the exact origin/main commit in detached mode, then verify exact SHA, origin identity, and clean working tree.",
+            "Fetch origin/main with enough history to retain the exact checkout first parent, check out the exact commit in detached mode, then verify exact SHA, HEAD^1, origin identity, and clean working tree before schema preflight.",
             "Run Staging-Schema-Governance-Preflight.ps1 with the exact checked-out SHA while preserving Git pseudo-revisions as data under Windows PowerShell.",
             "Run the schema builder with --plan only and require every ordered pre-use, canonical bootstrap, collation, enum-seed, text-width, index-key-width, required-INSERT-column, generated-column, and foreign-key guard to be ready with zero findings.",
             "Run migration-contract governance, launcher regression contracts, and environment-impact closure without database/provider/network mutation.",
@@ -56,8 +56,9 @@
           "assertions": [
             "The default CMD path contains -NoTunnel and -NoAutoDeploy and does not pass -ApplySchemaBundle.",
             "The preflight invokes the schema builder only with --plan and never with --confirm.",
+            "Bootstrap must not re-shallow the exact checkout to depth 1; it retains at least the first parent and verifies HEAD^1 resolves before invoking schema governance preflight.",
             "Git HEAD and HEAD^1 pseudo-revisions are passed to Git without member-access binding that can lowercase HEAD^1 before invocation under Windows PowerShell 5.1.",
-            "A missing Node 22 runtime, dirty tree, SHA mismatch, remote Docker override, schema finding, governance blocker, or non-converged environment declaration fails closed before One-Click or Compose startup.",
+            "A missing Node 22 runtime, dirty tree, SHA mismatch, missing first-parent history, remote Docker override, schema finding, governance blocker, or non-converged environment declaration fails closed before One-Click or Compose startup.",
             "The preflight writes only redacted non-secret evidence under the ignored logs directory.",
             "The preflight safety evidence keeps schema_bundle_applied, database_mutation, migration_apply, production_access, provider_access, data_export, credential_access, tunnel_started, and auto_deploy_installed false.",
             "The gate does not import a schema bundle, call Cloudflare or Hostinger, access Production credentials, install a scheduled watcher, or enable production_live authority.",
