@@ -346,7 +346,7 @@
     },
     {
       "path": "http-generic-api/docker-compose.staging.windows-service.yml",
-      "sha256": "e4bbec5a5cd9329330ae3eefdc8c22f45e8a509ab52b074c41dac744d730bd5f"
+      "sha256": "ab4136b36ca0307474720b75f8a0615f062c1d3611ee2244cfe1457fc813dfe2"
     },
     {
       "path": "http-generic-api/docker-compose.staging.docker-sidecar.yml",
