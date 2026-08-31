@@ -498,7 +498,7 @@ function orderedCollationAudit(files) {
     const sample = audit.findings.slice(0, 8).map((finding) => `${path.basename(finding.file)}#${finding.statement_index ?? "?"}:${finding.code}`).join(", ");
     fail(`ordered MariaDB collation-chain audit found ${audit.findings.length} implicit/unregistered JOIN mismatches (${sample})`);
   }
-  if (audit.database_connection_performed !== false || audit.sql_mutation_performed !== false || audit.provider_mutation_performed !== false || audit.secrets_included !== false) {
+  if (audit.database_connection_performed !== false || audit.sql_mutation_performed !== false || audit.provider_mutation_performed !== false || audit.credential_access_performed !== false || audit.data_export_performed !== false || audit.runtime_mutation_performed !== false || audit.secrets_included !== false) {
     fail("ordered MariaDB collation-chain audit violated static-only safety boundary");
   }
   return audit;
@@ -1013,6 +1013,9 @@ function collationAuditMetadata(audit) {
     database_connection_performed: audit.database_connection_performed,
     sql_mutation_performed: audit.sql_mutation_performed,
     provider_mutation_performed: audit.provider_mutation_performed,
+    credential_access_performed: audit.credential_access_performed,
+    data_export_performed: audit.data_export_performed,
+    runtime_mutation_performed: audit.runtime_mutation_performed,
     secrets_included: audit.secrets_included,
   };
 }

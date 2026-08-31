@@ -15,6 +15,8 @@ const gitSafety = fs.readFileSync(path.join(packageRoot, "Staging-GitSafety.ps1"
 const gitTransport = fs.readFileSync(path.join(packageRoot, "Staging-GitTransport.ps1"), "utf8");
 const cmd = fs.readFileSync(path.join(packageRoot, "Start-Staging-One-Click.cmd"), "utf8");
 const schemaPreflight = fs.readFileSync(path.join(packageRoot, "Staging-Schema-Governance-Preflight.ps1"), "utf8");
+const schemaBundleBuilder = fs.readFileSync(path.join(root, "http-generic-api/scripts/build-staging-schema-bundle.mjs"), "utf8");
+const collationPolicyGuard = fs.readFileSync(path.join(root, "http-generic-api/databaseCollationPolicyGuard.js"), "utf8");
 const portableManifestGenerator = fs.readFileSync(path.join(root, "http-generic-api/scripts/generate-portable-staging-manifest.mjs"), "utf8");
 const portableManifest = JSON.parse(fs.readFileSync(path.join(packageRoot, "manifest.json"), "utf8"));
 const policy = JSON.parse(fs.readFileSync(path.join(packageRoot, "autopilot-one-click-policy.json"), "utf8"));
@@ -115,6 +117,15 @@ assert.doesNotMatch(schemaPreflight, /docker\s+compose/i);
 assert.doesNotMatch(schemaPreflight, /Start-AutoPilot/i);
 assert.doesNotMatch(schemaPreflight, /Auto-Deploy-Staging/i);
 assert.doesNotMatch(schemaPreflight, /cloudflared/i);
+for (const safetyName of [
+  "credential_access_performed",
+  "data_export_performed",
+  "runtime_mutation_performed",
+]) {
+  assert.match(collationPolicyGuard, new RegExp(`${safetyName}: false`));
+  assert.match(schemaBundleBuilder, new RegExp(`audit\\.${safetyName} !== false`));
+  assert.match(schemaBundleBuilder, new RegExp(`${safetyName}: audit\\.${safetyName}`));
+}
 assert.match(portableManifestGenerator, /Staging-Schema-Governance-Preflight\.ps1/);
 assert.ok(portableManifest.files.some((entry) => entry.path === "autopilot-portable-staging/Staging-Schema-Governance-Preflight.ps1"));
 assert.match(gitSafety, /ConvertTo-StagingRepositoryIdentity/);

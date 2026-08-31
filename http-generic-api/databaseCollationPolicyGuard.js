@@ -541,6 +541,9 @@ export function inspectOrderedMigrationChainCollations({
     database_connection_performed: false,
     sql_mutation_performed: false,
     provider_mutation_performed: false,
+    credential_access_performed: false,
+    data_export_performed: false,
+    runtime_mutation_performed: false,
     secrets_included: false,
   };
 }
