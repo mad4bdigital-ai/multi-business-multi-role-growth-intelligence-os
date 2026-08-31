@@ -419,7 +419,8 @@ function Start-LocalStaging([string]$RepoPath, [string]$Sha, [string]$EnvFile) {
 function Seed-SchemaIfAvailable([string]$RepoPath, [string]$ScriptRoot, [string]$Sha) {
     $dumpDir = Join-Path $ScriptRoot "staging-db-dumps"
     $required = @("runtime.schema.sql.gz", "governance.schema.sql.gz", "persistence.schema.sql.gz")
-    $available = (Test-Path $dumpDir) -and (($required | Where-Object { -not (Test-Path (Join-Path $dumpDir $_)) }).Count -eq 0)
+    $missing = @($required | Where-Object { -not (Test-Path (Join-Path $dumpDir $_)) })
+    $available = (Test-Path $dumpDir) -and ($missing.Count -eq 0)
     if (-not $available) {
         if ($RequireSchemaBundle -or $ApplySchemaBundle) { Fail "Schema bundle is required but missing from $dumpDir" }
         Write-Host "No local schema-only bundle found; databases remain fresh and no migration or database mutation is performed."
