@@ -273,7 +273,7 @@ export async function inspectLiveJoinCollations(pool, sql, { rules, projectedSch
         else warnings.push(explicitBoundary);
         continue;
       }
-      if (!compatibleColumns(left, right, rules)) {
+      if (!compatibleColumns(left, right, resolved.rules)) {
         findings.push({ code: "join_collation_incompatible", pair, left, right, source, applies_sql: false });
       }
       const warning = legacyWarning([left, right], rules);
@@ -541,6 +541,9 @@ export function inspectOrderedMigrationChainCollations({
     database_connection_performed: false,
     sql_mutation_performed: false,
     provider_mutation_performed: false,
+    credential_access_performed: false,
+    data_export_performed: false,
+    runtime_mutation_performed: false,
     secrets_included: false,
   };
 }
