@@ -30,7 +30,8 @@
       ".github/governance/test-authority-registry.json",
       "http-generic-api/config/deployment-branch-policy.json",
       "http-generic-api/config/repository-governance-constitution.json",
-      ".github/derived-state-governance.json"
+      ".github/derived-state-governance.json",
+      "http-generic-api/test-staging-operations-logging-contract.mjs"
     ]
   },
   "environment_impact": {
@@ -137,7 +138,8 @@
             ".github/governance/test-authority-registry.json",
             "http-generic-api/config/deployment-branch-policy.json",
             "http-generic-api/config/repository-governance-constitution.json",
-            ".github/derived-state-governance.json"
+            ".github/derived-state-governance.json",
+            "http-generic-api/test-staging-operations-logging-contract.mjs"
           ]
         }
       ]
