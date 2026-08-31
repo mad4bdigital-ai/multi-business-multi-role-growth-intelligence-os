@@ -31,10 +31,11 @@ assert.equal(policy.safety.production_deploy, false);
 assert.equal(policy.safety.cloudflare_dns_mutation, false);
 assert.equal(policy.safety.provider_mutation, false);
 
-// Probe identity is explicitly configured; readiness must never invent a principal.
+// Probe identity is explicitly configured; readiness must preserve it and never generate a principal.
 assert.match(envHelper, /STAGING_READINESS_PROBE_USER_ID/);
 assert.match(envHelper, /STAGING_READINESS_PROBE_TENANT_ID/);
-assert.match(envHelper, /Never\s+auto-select\s+or\s+auto-create\s+a\s+user\/tenant/i);
+assert.match(envHelper, /foreach\s*\(\$probeKey\s+in\s+@\('STAGING_READINESS_PROBE_USER_ID','STAGING_READINESS_PROBE_TENANT_ID'\)\)\s*\{\s*Set-StagingEnvValue\s+\$envFile\s+\$probeKey\s+\(Get-StagingEnvValue\s+\$envFile\s+\$probeKey\)\s*\}/s);
+assert.doesNotMatch(envHelper, /Ensure-StagingGeneratedValue\s+\$envFile\s+['"]?STAGING_READINESS_PROBE_(?:USER|TENANT)_ID/);
 assert.match(envHelper, /STAGING_AUTHENTICATED_REMOTE_E2E_REQUIRED'\s+'true'/);
 assert.match(envHelper, /STAGING_PUBLIC_SCHEMA_SEMANTIC_VALIDATION_REQUIRED'\s+'true'/);
 assert.match(envHelper, /STAGING_REMOTE_ORIGIN_EVIDENCE_REQUIRED'\s+'true'/);
