@@ -16,6 +16,7 @@
       "autopilot-portable-staging/manifest.json",
       "http-generic-api/scripts/generate-portable-staging-manifest.mjs",
       "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+      "http-generic-api/test-staging-schema-governance-powershell-revision-contract.mjs",
       "http-generic-api/test-staging-autopilot-closure.mjs",
       "http-generic-api/config/repository-governance-constitution.json",
       ".github/derived-state-governance.json"
@@ -47,7 +48,7 @@
           "steps": [
             "Request elevation and invoke Bootstrap-Staging-One-Click.ps1 with the safe local defaults -NoTunnel and -NoAutoDeploy.",
             "Fetch and check out the exact origin/main commit in detached mode, then verify exact SHA, origin identity, and clean working tree.",
-            "Run Staging-Schema-Governance-Preflight.ps1 with the exact checked-out SHA.",
+            "Run Staging-Schema-Governance-Preflight.ps1 with the exact checked-out SHA while preserving Git pseudo-revisions as data under Windows PowerShell.",
             "Run the schema builder with --plan only and require every ordered pre-use, canonical bootstrap, collation, enum-seed, text-width, index-key-width, required-INSERT-column, generated-column, and foreign-key guard to be ready with zero findings.",
             "Run migration-contract governance, launcher regression contracts, and environment-impact closure without database/provider/network mutation.",
             "Start local Compose only after the static gate passes, preserving explicit schema bundle apply and separate operational tunnel/watcher paths."
@@ -55,6 +56,7 @@
           "assertions": [
             "The default CMD path contains -NoTunnel and -NoAutoDeploy and does not pass -ApplySchemaBundle.",
             "The preflight invokes the schema builder only with --plan and never with --confirm.",
+            "Git HEAD and HEAD^1 pseudo-revisions are passed to Git without member-access binding that can lowercase HEAD^1 before invocation under Windows PowerShell 5.1.",
             "A missing Node 22 runtime, dirty tree, SHA mismatch, remote Docker override, schema finding, governance blocker, or non-converged environment declaration fails closed before One-Click or Compose startup.",
             "The preflight writes only redacted non-secret evidence under the ignored logs directory.",
             "The preflight safety evidence keeps schema_bundle_applied, database_mutation, migration_apply, production_access, provider_access, data_export, credential_access, tunnel_started, and auto_deploy_installed false.",
@@ -68,6 +70,13 @@
               "runner": "node",
               "working_directory": ".",
               "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-schema-governance-powershell-revision-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-staging-schema-governance-powershell-revision-contract.mjs",
               "args": []
             },
             {
@@ -104,6 +113,7 @@
             "http-generic-api/scripts/migration-contract-governance.mjs",
             "http-generic-api/scripts/environment-impact-closure.mjs",
             "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+            "http-generic-api/test-staging-schema-governance-powershell-revision-contract.mjs",
             "http-generic-api/test-staging-autopilot-closure.mjs"
           ]
         }

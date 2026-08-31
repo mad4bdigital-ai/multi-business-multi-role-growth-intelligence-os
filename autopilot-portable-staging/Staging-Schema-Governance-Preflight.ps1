@@ -130,14 +130,18 @@ try {
     Require-Condition (Test-Path -LiteralPath (Join-Path $repoRoot ".git")) "RepositoryPath is not a Git repository"
     Push-Location $repoRoot
     try {
-        $observedCommit = Invoke-GitText @("rev-parse", "HEAD").ToLowerInvariant()
+        # Keep Git pseudo-revisions as data. In Windows PowerShell, member access appended
+        # directly to the final array literal can bind to that literal and lowercase HEAD^1.
+        $headRevision = "HEAD"
+        $baseRevision = "HEAD^1"
+        $observedCommit = (Invoke-GitText @("rev-parse", $headRevision)).ToLowerInvariant()
         $report.observed_commit = $observedCommit
         Require-Condition ($observedCommit -eq $ExpectedCommit) "Repository HEAD does not match the expected exact commit"
         $dirty = Invoke-GitText @("status", "--porcelain", "--untracked-files=all")
         Require-Condition ([string]::IsNullOrWhiteSpace($dirty)) "Working tree is not clean; static schema preflight refuses to continue"
         $origin = Invoke-GitText @("config", "--get", "remote.origin.url")
         Require-Condition ($origin -match "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os") "Repository origin identity mismatch"
-        $baseCommit = Invoke-GitText @("rev-parse", "HEAD^1").ToLowerInvariant()
+        $baseCommit = (Invoke-GitText @("rev-parse", $baseRevision)).ToLowerInvariant()
     } finally {
         Pop-Location
     }
