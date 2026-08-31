@@ -8,9 +8,22 @@ function ConvertTo-StagingBase64Url([byte[]]$Bytes) {
 }
 
 function New-StagingRandomValue([int]$ByteCount = 32, [string]$Prefix = '') {
-    if ($ByteCount -lt 16) { throw 'Staging generated secrets require at least 16 random bytes.' }
+    if ($ByteCount -lt 16) {
+        throw 'Staging generated secrets require at least 16 random bytes.'
+    }
+
     $bytes = New-Object byte[] $ByteCount
-    [Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+    $rng = [Security.Cryptography.RandomNumberGenerator]::Create()
+
+    try {
+        $rng.GetBytes($bytes)
+    }
+    finally {
+        if ($null -ne $rng) {
+            $rng.Dispose()
+        }
+    }
+
     return $Prefix + (ConvertTo-StagingBase64Url $bytes)
 }
 

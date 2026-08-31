@@ -22,6 +22,7 @@
       "http-generic-api/scripts/provision-remote-mcp-client.mjs",
       "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs",
       "http-generic-api/scripts/staging-platform-ready-contract.mjs",
+      "http-generic-api/scripts/staging-powershell51-random-runtime-smoke.mjs",
       "http-generic-api/scripts/staging-public-schema-readiness.mjs",
       "http-generic-api/scripts/staging-authenticated-remote-readiness.mjs",
       "http-generic-api/test-staging-autopilot-closure.mjs",
@@ -51,7 +52,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Make local Windows/Docker Staging ingress mode explicit and mutually exclusive, self-heal the Windows Cloudflared service to token-file transport, prove the shared remote-managed loopback origin from fresh runtime evidence, bind published Admin/Tenant/Activation OpenAPI schemas to exact-checkout semantic content, require real Tenant OAuth plus Remote MCP OAuth authenticated read E2E with zero durable probe residue before PLATFORM_READY, and bind every new dual-mode runtime dependency into the governed portable Staging manifest.",
+      "objective": "Make local Windows/Docker Staging ingress mode explicit and mutually exclusive, self-heal the Windows Cloudflared service to token-file transport, prove the shared remote-managed loopback origin from fresh runtime evidence, bind published Admin/Tenant/Activation OpenAPI schemas to exact-checkout semantic content, require real Tenant OAuth plus Remote MCP OAuth authenticated read E2E with zero durable probe residue before PLATFORM_READY, keep generated-secret creation compatible with the canonical Windows PowerShell 5.1 launcher, and bind every new dual-mode runtime dependency into the governed portable Staging manifest.",
       "e2e_journeys": [
         {
           "id": "dual-mode-staging-custom-gpt-mcp-readiness",
@@ -59,9 +60,11 @@
           "level": "synthetic_runtime",
           "actor": "Local Windows Docker Staging operator",
           "entrypoint": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
-          "terminal_outcome": "PLATFORM_READY is emitted only when the selected Staging tunnel is mutually exclusive and stable, Cloudflare runtime evidence binds dev.mad4b.com and mcp_dev.mad4b.com to http://127.0.0.1:8080, published schemas are semantically identical to the exact checkout, Admin read-only auth succeeds, Tenant OAuth authorization-code plus PKCE reaches an authenticated Tenant read, Remote MCP OAuth reaches list_accessible_workspaces, probe residue is zero, the Activation Gateway is enabled and ready, and the portable Staging manifest covers the complete dual-mode runtime dependency graph.",
+          "terminal_outcome": "PLATFORM_READY is emitted only when the selected Staging tunnel is mutually exclusive and stable, Cloudflare runtime evidence binds dev.mad4b.com and mcp_dev.mad4b.com to http://127.0.0.1:8080, published schemas are semantically identical to the exact checkout, Admin read-only auth succeeds, Tenant OAuth authorization-code plus PKCE reaches an authenticated Tenant read, Remote MCP OAuth reaches list_accessible_workspaces, probe residue is zero, the Activation Gateway is enabled and ready, generated Staging secrets are creatable by the canonical Windows PowerShell runtime, and the portable Staging manifest covers the complete dual-mode runtime dependency graph.",
           "steps": [
             "Generate missing local-only Staging secrets once through Staging-Environment.ps1 while preserving existing non-placeholder values.",
+            "Generate cryptographic random bytes through RandomNumberGenerator.Create().GetBytes(), never RandomNumberGenerator::Fill, so the canonical powershell.exe launcher remains compatible with Windows PowerShell 5.1 while preserving CSPRNG semantics.",
+            "Run the PowerShell 5.1 random-value smoke through powershell.exe on Windows and require a successful 32-byte Base64Url sample plus the minimum-byte guard.",
             "Preserve explicitly configured STAGING_READINESS_PROBE_USER_ID and STAGING_READINESS_PROBE_TENANT_ID; never auto-select or auto-create a readiness principal.",
             "Generate a Staging-prefixed Remote MCP App ID, confidential App Secret, isolated OAuth signing secret, Tenant GPT OAuth secrets, and database/runtime secrets into ignored .env.staging without committing values.",
             "Reject persisted Remote MCP authorization codes, access tokens, or refresh tokens; user tokens are minted only by the runtime OAuth authorization-code flow.",
@@ -77,7 +80,7 @@
             "Delete probe-created Tenant OAuth codes/grants/SSO/activation-context/diagnostic evidence and Remote MCP codes/grants, then require probe_residue=0.",
             "Regenerate the portable Staging manifest through its canonical generator so the One-Click launcher, helpers, mode-specific Compose overrides, OAuth/MCP readiness scripts, and exact Staging OpenAPI files are hash-bound before closure passes.",
             "Require the Activation Gateway for PLATFORM_READY; disabled remains local-only and cannot claim platform readiness.",
-            "Block platform readiness if any selected tunnel, remote-origin, public HTTPS, schema semantic, Admin auth, Tenant OAuth/action, Remote MCP OAuth/read, cleanup, Activation, or portable-manifest gate fails."
+            "Block platform readiness if any selected tunnel, remote-origin, public HTTPS, schema semantic, Admin auth, Tenant OAuth/action, Remote MCP OAuth/read, cleanup, Activation, portable-manifest, or Windows PowerShell compatibility gate fails."
           ],
           "assertions": [
             "windows_service and docker_sidecar are first-class mutually exclusive modes; disabled remains available for local-only Staging and never claims PLATFORM_READY.",
@@ -85,6 +88,8 @@
             "Windows Service uses loopback-only host publication, protected --token-file transport, bounded service recovery, stable process readback, and fresh log evidence; inline --token is forbidden.",
             "Docker sidecar shares the app network namespace so its loopback origin resolves to the app while requiring no host publication.",
             "Staging-Environment.ps1 is the canonical source of newly generated .env.staging values and does not implicitly rotate populated values.",
+            "Generated secret material remains CSPRNG-backed through RandomNumberGenerator.Create().GetBytes(); RandomNumberGenerator::Fill is forbidden because the canonical One-Click launcher executes under Windows PowerShell 5.1.",
+            "The Windows runtime smoke invokes powershell.exe, generates independent 32-byte Base64Url values, verifies the minimum 16-byte guard, and must exit zero when executed on Windows.",
             "STAGING_READINESS_PROBE_USER_ID and STAGING_READINESS_PROBE_TENANT_ID must identify one existing active Staging membership; readiness cannot manufacture a user or tenant.",
             "REMOTE_MCP_APP_ID uses the mcp_stg_ namespace and REMOTE_MCP_APP_SECRET is at least 32 characters of cryptographically random material.",
             "REMOTE_MCP_OAUTH_SIGNING_SECRET remains isolated from JWT_SECRET and MCP user authorization/access/refresh tokens are not persisted in .env.staging.",
@@ -114,6 +119,13 @@
               "working_directory": "http-generic-api",
               "path": "scripts/staging-platform-ready-contract.mjs",
               "args": []
+            },
+            {
+              "id": "staging-powershell51-random-runtime-smoke",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/staging-powershell51-random-runtime-smoke.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -130,6 +142,7 @@
             "http-generic-api/scripts/provision-remote-mcp-client.mjs",
             "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs",
             "http-generic-api/scripts/staging-platform-ready-contract.mjs",
+            "http-generic-api/scripts/staging-powershell51-random-runtime-smoke.mjs",
             "http-generic-api/scripts/staging-public-schema-readiness.mjs",
             "http-generic-api/scripts/staging-authenticated-remote-readiness.mjs",
             "http-generic-api/test-staging-autopilot-closure.mjs",
