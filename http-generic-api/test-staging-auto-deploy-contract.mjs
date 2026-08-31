@@ -8,7 +8,7 @@ const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
 const policy = JSON.parse(read("autopilot-portable-staging/auto-deploy-policy.json"));
 const workflow = read(".github/workflows/staging-main-deploy-eligibility.yml");
 const liveWorkflow = read(".github/workflows/staging-live-certification.yml");
-const activationWorkerWorkflow = read(".github/workflows/governed-staging-activation-worker-deploy.yml");
+const activationWorkerWorkflow = workflow;
 const activationWorkerBuilder = read("http-generic-api/scripts/build-staging-worker.mjs");
 const promotionGates = JSON.parse(read(".github/contracts/production-promotion-supporting-gates.v1.json"));
 const deployScript = read("autopilot-portable-staging/Auto-Deploy-Staging.ps1");
@@ -81,9 +81,11 @@ assert.match(workflow, /STAGING_AUTHORITY_REPORT_FILE: \$\{\{ runner\.temp \}\}/
 assert.doesNotMatch(workflow, /STAGING_AUTHORITY_REPORT_FILE: \.artifacts/);
 assert.doesNotMatch(workflow, /CLOUDFLARE_TUNNEL_TOKEN|BACKEND_API_KEY|JWT_SECRET/);
 
-
-assert.match(activationWorkerWorkflow, /name: Governed Staging Activation Worker Deploy/);
+assert.match(activationWorkerWorkflow, /deploy_activation_worker:/);
+assert.match(activationWorkerWorkflow, /name: Deploy exact main SHA to Staging Worker/);
 assert.match(activationWorkerWorkflow, /workflow_dispatch:/);
+assert.match(activationWorkerWorkflow, /github\.event_name == 'workflow_dispatch'/);
+assert.match(activationWorkerWorkflow, /inputs\.operation == 'deploy_activation_worker'/);
 assert.match(activationWorkerWorkflow, /DEPLOY_STAGING_ACTIVATION_WORKER/);
 assert.match(activationWorkerWorkflow, /git rev-parse origin\/main/);
 assert.match(activationWorkerWorkflow, /build-staging-worker\.mjs/);
