@@ -142,6 +142,10 @@ assert.match(liveCertification, /include_production_activation_readiness/);
 assert.match(liveCertification, /runtime_integrity_verified/);
 assert.match(liveCertification, /combined_database_readiness/);
 assert.match(liveCertification, /gateway_policy_hash_current/);
+assert.match(liveCertification, /const gatewayHealthUsable = health\.ok && health\.body !== null && typeof health\.body === "object"/);
+assert.match(liveCertification, /integrityChecks\.push\(check\("gateway_health_reachable", gatewayHealthUsable/);
+assert.match(liveCertification, /if \(gatewayHealthUsable\) \{[\s\S]*integrityChecks\.push\(check\("gateway_exact_commit"/);
+assert.doesNotMatch(liveCertification, /readinessChecks\.push\(check\("gateway_health_reachable"/);
 assert.match(liveCertification, /outcome = integrityFailed\.length > 0 \? "blocked" : readinessFailed\.length > 0 \? "degraded" : "ready"/);
 assert.doesNotMatch(autopilot, /Invoke-WebRequest|curl|cloudflare.*api|hostinger.*api/i);
 

@@ -17,6 +17,7 @@
       "http-generic-api/databaseCollationPolicyGuard.js",
       "http-generic-api/scripts/build-staging-schema-bundle.mjs",
       "http-generic-api/scripts/generate-portable-staging-manifest.mjs",
+      "http-generic-api/scripts/staging-live-certification.mjs",
       "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
       "http-generic-api/test-staging-schema-governance-powershell-revision-contract.mjs",
       "http-generic-api/test-staging-autopilot-closure.mjs",
@@ -38,7 +39,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Make the default Windows Staging launcher pass a static exact-head schema and governance gate before local startup, including native Windows drive-letter filesystem path resolution for Node contracts and a complete fail-closed static safety envelope for every ordered schema guard, while keeping tunnel exposure, Auto Deploy installation, schema application, Production, and provider actions explicit or unavailable to this path.",
+      "objective": "Make the default Windows Staging launcher pass a static exact-head schema and governance gate before local startup, including native Windows drive-letter filesystem path resolution for Node contracts and a complete fail-closed static safety envelope for every ordered schema guard, while preserving gateway reachability as the primary live-certification failure when the health response is unavailable, and keeping tunnel exposure, Auto Deploy installation, schema application, Production, and provider actions explicit or unavailable to this path.",
       "e2e_journeys": [
         {
           "id": "safe-local-one-click-preflight-before-compose",
@@ -54,6 +55,7 @@
             "Execute the preflight-invoked One-Click Node contract using import.meta.dirname so a drive-letter checkout such as M:\\... is resolved as a native Windows filesystem path instead of a /M:/ file-URL pathname.",
             "Run the schema builder with --plan only and require every ordered pre-use, canonical bootstrap, collation, enum-seed, text-width, index-key-width, required-INSERT-column, generated-column, and foreign-key guard to be ready with zero findings and the complete static-only safety envelope explicitly false.",
             "Run migration-contract governance, launcher regression contracts, and environment-impact closure without database/provider/network mutation.",
+            "During live certification, require a successful object-valued gateway health response before evaluating commit, staleness, policy hash, policy key, or secret-free response fields so an unreachable TLS endpoint is reported causally as gateway_health_reachable.",
             "Start local Compose only after the static gate passes, preserving explicit schema bundle apply and separate operational tunnel/watcher paths."
           ],
           "assertions": [
@@ -67,6 +69,7 @@
             "The preflight writes only redacted non-secret evidence under the ignored logs directory.",
             "The preflight safety evidence keeps schema_bundle_applied, database_mutation, migration_apply, production_access, provider_access, data_export, credential_access, tunnel_started, and auto_deploy_installed false.",
             "The gate does not import a schema bundle, call Cloudflare or Hostinger, access Production credentials, install a scheduled watcher, or enable production_live authority.",
+            "An unavailable, failed, or non-object gateway health response blocks certification on gateway_health_reachable and suppresses derivative gateway_exact_commit and policy-field mismatches that cannot be observed.",
             "The portable manifest writer includes and hashes the preflight helper through its registered writer rather than a manual generated-file edit.",
             "No immutable schema.sql or published historical migration is changed."
           ],
@@ -119,6 +122,7 @@
             "http-generic-api/scripts/build-staging-schema-bundle.mjs",
             "http-generic-api/scripts/migration-contract-governance.mjs",
             "http-generic-api/scripts/environment-impact-closure.mjs",
+            "http-generic-api/scripts/staging-live-certification.mjs",
             "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
             "http-generic-api/test-staging-schema-governance-powershell-revision-contract.mjs",
             "http-generic-api/test-staging-autopilot-closure.mjs"
