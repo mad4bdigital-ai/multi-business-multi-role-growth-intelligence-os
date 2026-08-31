@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 
-const root = path.resolve(new URL(".", import.meta.url).pathname, "..");
+const root = path.resolve(import.meta.dirname, "..");
 const packageRoot = path.join(root, "autopilot-portable-staging");
 const launcher = fs.readFileSync(path.join(packageRoot, "One-Click-Staging.ps1"), "utf8");
 const bootstrap = fs.readFileSync(path.join(packageRoot, "Bootstrap-Staging-One-Click.ps1"), "utf8");

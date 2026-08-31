@@ -36,7 +36,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Make the default Windows Staging launcher pass a static exact-head schema and governance gate before local startup while keeping tunnel exposure, Auto Deploy installation, schema application, Production, and provider actions explicit or unavailable to this path.",
+      "objective": "Make the default Windows Staging launcher pass a static exact-head schema and governance gate before local startup, including native Windows drive-letter filesystem path resolution for Node contracts, while keeping tunnel exposure, Auto Deploy installation, schema application, Production, and provider actions explicit or unavailable to this path.",
       "e2e_journeys": [
         {
           "id": "safe-local-one-click-preflight-before-compose",
@@ -44,11 +44,12 @@
           "level": "synthetic_runtime",
           "actor": "Windows Staging operator",
           "entrypoint": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
-          "terminal_outcome": "The launcher stops before local startup unless the exact detached main checkout passes all static schema/governance checks; a successful gate records redacted evidence and leaves schema apply, tunnel, Auto Deploy, Production, provider, and credential actions disabled.",
+          "terminal_outcome": "The launcher stops before local startup unless the exact detached main checkout passes all static schema/governance checks; the preflight-invoked Node contracts resolve repository paths correctly from Windows drive-letter checkouts, and a successful gate records redacted evidence while leaving schema apply, tunnel, Auto Deploy, Production, provider, and credential actions disabled.",
           "steps": [
             "Request elevation and invoke Bootstrap-Staging-One-Click.ps1 with the safe local defaults -NoTunnel and -NoAutoDeploy.",
             "Fetch origin/main with enough history to retain the exact checkout first parent, check out the exact commit in detached mode, then verify exact SHA, HEAD^1, origin identity, and clean working tree before schema preflight.",
             "Run Staging-Schema-Governance-Preflight.ps1 with the exact checked-out SHA while preserving Git pseudo-revisions as data under Windows PowerShell.",
+            "Execute the preflight-invoked One-Click Node contract using import.meta.dirname so a drive-letter checkout such as M:\\... is resolved as a native Windows filesystem path instead of a /M:/ file-URL pathname.",
             "Run the schema builder with --plan only and require every ordered pre-use, canonical bootstrap, collation, enum-seed, text-width, index-key-width, required-INSERT-column, generated-column, and foreign-key guard to be ready with zero findings.",
             "Run migration-contract governance, launcher regression contracts, and environment-impact closure without database/provider/network mutation.",
             "Start local Compose only after the static gate passes, preserving explicit schema bundle apply and separate operational tunnel/watcher paths."
@@ -58,6 +59,7 @@
             "The preflight invokes the schema builder only with --plan and never with --confirm.",
             "Bootstrap must not re-shallow the exact checkout to depth 1; it retains at least the first parent and verifies HEAD^1 resolves before invoking schema governance preflight.",
             "Git HEAD and HEAD^1 pseudo-revisions are passed to Git without member-access binding that can lowercase HEAD^1 before invocation under Windows PowerShell 5.1.",
+            "The preflight-invoked One-Click Node contract resolves the repository root from import.meta.dirname and does not derive native filesystem paths from import.meta.url pathname text, preventing /M:/ drive-letter path corruption on Windows.",
             "A missing Node 22 runtime, dirty tree, SHA mismatch, missing first-parent history, remote Docker override, schema finding, governance blocker, or non-converged environment declaration fails closed before One-Click or Compose startup.",
             "The preflight writes only redacted non-secret evidence under the ignored logs directory.",
             "The preflight safety evidence keeps schema_bundle_applied, database_mutation, migration_apply, production_access, provider_access, data_export, credential_access, tunnel_started, and auto_deploy_installed false.",
