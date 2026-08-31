@@ -34,7 +34,7 @@
     },
     {
       "path": "autopilot-portable-staging/One-Click-Staging.ps1",
-      "sha256": "663a9294a13c1090b63fa342c074540dd21df9d8e84844e1a45b828f1143c446"
+      "sha256": "6cd30ac4351a3c612559061d0067a632bde12b0db30b73e4cc211d9dbf21a598"
     },
     {
       "path": "autopilot-portable-staging/README.md",
@@ -254,7 +254,7 @@
     },
     {
       "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
-      "sha256": "c59b986b2c110dfabda7a76cb81962609357241ce4880de0ceb12acd7ae97bfb"
+      "sha256": "007d71c99017cd86048aca89a98acb8475236585e4cdea0dc352c0e4c6035d8a"
     },
     {
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
