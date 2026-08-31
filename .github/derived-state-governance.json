@@ -279,7 +279,8 @@
       ".changes/e2e/staging-unqualified-view-dependency-replay-20260829.json",
       ".changes/e2e/staging-cte-alias-view-dependency-replay-20260829.json",
       ".changes/e2e/staging-database-readiness-repair-20260829.json",
-      ".changes/e2e/staging-dual-tunnel-custom-gpt-mcp-bootstrap-20260830.json"
+      ".changes/e2e/staging-dual-tunnel-custom-gpt-mcp-bootstrap-20260830.json",
+      ".github/workflows/governed-staging-activation-worker-deploy.yml"
     ],
     "automerge_opt_out_labels": [
       "do-not-auto-merge",
