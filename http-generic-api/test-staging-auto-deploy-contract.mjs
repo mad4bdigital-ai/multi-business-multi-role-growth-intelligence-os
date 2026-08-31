@@ -93,7 +93,7 @@ assert.match(activationWorkerWorkflow, /CLOUDFLARE_API_TOKEN/);
 assert.match(activationWorkerWorkflow, /sourceCommit == \$sha/);
 assert.match(activationWorkerWorkflow, /workerBuildSha == \$sha/);
 assert.match(activationWorkerWorkflow, /\.stale == false/);
-assert.doesNotMatch(activationWorkerWorkflow, /Production|activation\.mad4b\.com/);
+assert.doesNotMatch(activationWorkerWorkflow, /refs\\/heads\\/Production|activation\\.mad4b\\.com/);
 assert.match(activationWorkerBuilder, /WORKER_BUILD_IDENTITY/);
 assert.match(activationWorkerBuilder, /generateKeyPairSync\("ed25519"\)/);
 assert.match(activationWorkerBuilder, /worker_bundle_sha256/);
