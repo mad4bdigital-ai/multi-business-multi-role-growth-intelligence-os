@@ -182,25 +182,32 @@ if (requireGateway) {
       `https://${gatewayPolicy.public_host}`,
     );
     const health = await fetchJson(new URL("/health", gatewayBase));
+    const gatewayHealthUsable = health.ok && health.body !== null && typeof health.body === "object";
     gatewayEvidence.health = health.body || { status: health.status, error: health.error || null };
-    readinessChecks.push(check("gateway_health_reachable", health.ok, { status: health.status, error: health.error || null }, "readiness"));
-    readinessChecks.push(check("gateway_policy_not_stale", health.body?.ok === true && health.body?.stale === false, {
-      stale: health.body?.stale ?? null,
-      source_commit: health.body?.sourceCommit || null,
-    }, "readiness"));
-    integrityChecks.push(check("gateway_exact_commit", String(health.body?.sourceCommit || "").trim().toLowerCase() === expectedCommit, {
-      expected: expectedCommit,
-      observed: health.body?.sourceCommit || null,
+    integrityChecks.push(check("gateway_health_reachable", gatewayHealthUsable, {
+      status: health.status,
+      error: health.error || null,
+      json_body_available: health.body !== null,
     }));
-    readinessChecks.push(check("gateway_policy_hash_current", health.body?.policyHash === gatewayPolicy.content_hash_sha256, {
-      expected: gatewayPolicy.content_hash_sha256,
-      observed: health.body?.policyHash || null,
-    }, "readiness"));
-    readinessChecks.push(check("gateway_policy_key_current", health.body?.policyKey === gatewayPolicy.policy_key, {
-      expected: gatewayPolicy.policy_key || null,
-      observed: health.body?.policyKey || null,
-    }, "readiness"));
-    readinessChecks.push(check("gateway_health_secret_free", health.body?.secretsIncluded === false, health.body?.secretsIncluded ?? null, "readiness"));
+    if (gatewayHealthUsable) {
+      readinessChecks.push(check("gateway_policy_not_stale", health.body.ok === true && health.body.stale === false, {
+        stale: health.body.stale ?? null,
+        source_commit: health.body.sourceCommit || null,
+      }, "readiness"));
+      integrityChecks.push(check("gateway_exact_commit", String(health.body.sourceCommit || "").trim().toLowerCase() === expectedCommit, {
+        expected: expectedCommit,
+        observed: health.body.sourceCommit || null,
+      }));
+      readinessChecks.push(check("gateway_policy_hash_current", health.body.policyHash === gatewayPolicy.content_hash_sha256, {
+        expected: gatewayPolicy.content_hash_sha256,
+        observed: health.body.policyHash || null,
+      }, "readiness"));
+      readinessChecks.push(check("gateway_policy_key_current", health.body.policyKey === gatewayPolicy.policy_key, {
+        expected: gatewayPolicy.policy_key || null,
+        observed: health.body.policyKey || null,
+      }, "readiness"));
+      readinessChecks.push(check("gateway_health_secret_free", health.body.secretsIncluded === false, health.body.secretsIncluded ?? null, "readiness"));
+    }
     if (requireGatewayUpstream) {
       const ready = await fetchJson(new URL("/ready", gatewayBase));
       gatewayEvidence.ready = ready.body || { status: ready.status, error: ready.error || null };
