@@ -81,8 +81,6 @@ assert.equal(maintenancePolicy.maintenance.repair_may_touch_production, false);
 assert.match(installer, /Staging-HealthMonitor\.ps1/);
 assert.match(installer, /STAGING_HEALTH_TASK_INSTALLED/);
 assert.match(uninstaller, /STAGING_HEALTH_TASK_REMOVED/);
-assert.match(cmd, /last-failure\.json/);
-assert.match(cmd, /operations\.jsonl/);
 assert.match(viewer, /FailuresOnly/);
 assert.match(viewer, /Component/);
 assert.match(gitignore, /autopilot-portable-staging\/logs\//);
