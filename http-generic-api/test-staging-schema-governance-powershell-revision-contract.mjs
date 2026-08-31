@@ -2,15 +2,21 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 
-const root = path.resolve(new URL(".", import.meta.url).pathname, "..");
+const root = path.resolve(import.meta.dirname, "..");
 const packageRoot = path.join(root, "autopilot-portable-staging");
 const preflightPath = path.join(
   packageRoot,
   "Staging-Schema-Governance-Preflight.ps1",
 );
 const bootstrapPath = path.join(packageRoot, "Bootstrap-Staging-One-Click.ps1");
+const oneClickContractPath = path.join(
+  root,
+  "http-generic-api",
+  "test-staging-one-click-autopilot-contract.mjs",
+);
 const preflight = fs.readFileSync(preflightPath, "utf8");
 const bootstrap = fs.readFileSync(bootstrapPath, "utf8");
+const oneClickContract = fs.readFileSync(oneClickContractPath, "utf8");
 
 assert.match(preflight, /\$headRevision\s*=\s*"HEAD"/);
 assert.match(preflight, /\$baseRevision\s*=\s*"HEAD\^1"/);
@@ -47,12 +53,22 @@ assert.ok(
     bootstrap.indexOf('$preflightReportPath ='),
 );
 
+// Node.js file URLs expose Windows drive paths as /C:/... URL pathnames.
+// The contract that runs inside the Windows preflight must resolve from
+// import.meta.dirname rather than passing URL pathname text to node:path.
+assert.match(
+  oneClickContract,
+  /const root = path\.resolve\(import\.meta\.dirname, "\.\."\);/,
+);
+assert.doesNotMatch(oneClickContract, /import\.meta\.url\)\.pathname/);
+
 console.log(
   JSON.stringify({
     ok: true,
     contract: "mad4b.staging-schema-governance-powershell-revision-contract.v1",
     preserves_git_pseudo_revisions: true,
     bootstrap_preserves_first_parent_history: true,
+    windows_node_file_url_paths_safe: true,
     production_mutation: false,
     database_mutation: false,
     provider_mutation: false,
