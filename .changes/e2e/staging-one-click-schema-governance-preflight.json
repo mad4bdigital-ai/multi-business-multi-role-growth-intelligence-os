@@ -11,6 +11,7 @@
       ".changes/e2e/staging-one-click-schema-governance-preflight.json",
       "autopilot-portable-staging/Start-Staging-One-Click.cmd",
       "autopilot-portable-staging/Bootstrap-Staging-One-Click.ps1",
+      "autopilot-portable-staging/One-Click-Staging.ps1",
       "autopilot-portable-staging/Staging-Schema-Governance-Preflight.ps1",
       "autopilot-portable-staging/README.md",
       "autopilot-portable-staging/manifest.json",
@@ -27,7 +28,10 @@
   },
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
-    "declared_targets": ["staging", "production"],
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
     "cross_environment_reviewed": true,
     "live_staging_certification_required": true,
     "production_mutation_allowed": false
@@ -39,7 +43,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Make the default Windows Staging launcher pass a static exact-head schema and governance gate before local startup, including native Windows drive-letter filesystem path resolution for Node contracts and a complete fail-closed static safety envelope for every ordered schema guard, while preserving gateway reachability as the primary live-certification failure when the health response is unavailable, and keeping tunnel exposure, Auto Deploy installation, schema application, Production, and provider actions explicit or unavailable to this path.",
+      "objective": "Make the default Windows Staging launcher pass a static exact-head schema and governance gate before local startup, including native Windows drive-letter filesystem path resolution for Node contracts and a complete fail-closed static safety envelope for every ordered schema guard, while making the optional empty schema-bundle path StrictMode-safe after successful certification, preserving gateway reachability as the primary live-certification failure when the health response is unavailable, and keeping tunnel exposure, Auto Deploy installation, schema application, Production, and provider actions explicit or unavailable to this path.",
       "e2e_journeys": [
         {
           "id": "safe-local-one-click-preflight-before-compose",
@@ -56,7 +60,8 @@
             "Run the schema builder with --plan only and require every ordered pre-use, canonical bootstrap, collation, enum-seed, text-width, index-key-width, required-INSERT-column, generated-column, and foreign-key guard to be ready with zero findings and the complete static-only safety envelope explicitly false.",
             "Run migration-contract governance, launcher regression contracts, and environment-impact closure without database/provider/network mutation.",
             "During live certification, require a successful object-valued gateway health response before evaluating commit, staleness, policy hash, policy key, or secret-free response fields so an unreachable TLS endpoint is reported causally as gateway_health_reachable.",
-            "Start local Compose only after the static gate passes, preserving explicit schema bundle apply and separate operational tunnel/watcher paths."
+            "Start local Compose only after the static gate passes, preserving explicit schema bundle apply and separate operational tunnel/watcher paths.",
+            "Materialize the empty schema-bundle missing-file filter as an array before Count evaluation so Windows PowerShell StrictMode treats the no-bundle path as a successful skip after certification."
           ],
           "assertions": [
             "The default CMD path contains -NoTunnel and -NoAutoDeploy and does not pass -ApplySchemaBundle.",
@@ -71,7 +76,8 @@
             "The gate does not import a schema bundle, call Cloudflare or Hostinger, access Production credentials, install a scheduled watcher, or enable production_live authority.",
             "An unavailable, failed, or non-object gateway health response blocks certification on gateway_health_reachable and suppresses derivative gateway_exact_commit and policy-field mismatches that cannot be observed.",
             "The portable manifest writer includes and hashes the preflight helper through its registered writer rather than a manual generated-file edit.",
-            "No immutable schema.sql or published historical migration is changed."
+            "No immutable schema.sql or published historical migration is changed.",
+            "The optional schema-bundle probe wraps zero missing-file results in an array before reading Count; an absent local bundle cleanly returns skipped_no_schema_bundle and cannot turn a successful certification into a launcher failure."
           ],
           "tests": [
             {
@@ -114,6 +120,7 @@
             ".changes/e2e/staging-one-click-schema-governance-preflight.json",
             "autopilot-portable-staging/Start-Staging-One-Click.cmd",
             "autopilot-portable-staging/Bootstrap-Staging-One-Click.ps1",
+            "autopilot-portable-staging/One-Click-Staging.ps1",
             "autopilot-portable-staging/Staging-Schema-Governance-Preflight.ps1",
             "autopilot-portable-staging/README.md",
             "autopilot-portable-staging/manifest.json",
