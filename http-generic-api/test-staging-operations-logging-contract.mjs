@@ -59,7 +59,7 @@ assert.match(healthMonitor, /Docker daemon is unavailable/);
 assert.match(healthMonitor, /Health Monitor recovered after Docker\/service failure/);
 assert.match(healthMonitor, /suppressed_failures/);
 assert.match(oneClick, /bootstrap-console\.log/);
-assert.match(cmd, /bootstrap-console\.log/);
+assert.match(cmd, /Auto Pilot log directory/);
 assert.match(healthMonitor, /docker context show/);
 assert.match(healthMonitor, /GATEWAY_POLICY_STALE/);
 assert.match(healthMonitor, /activation_policy_stale/);
