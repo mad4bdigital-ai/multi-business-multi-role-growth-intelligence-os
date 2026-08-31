@@ -221,7 +221,8 @@ assert.doesNotMatch(installAutoDeploy, /InteractiveToken/);
 
 assert.match(cmd, /Invoke-Staging-One-Click\.ps1/);
 assert.match(cmd, /Start-Process powershell\.exe -Verb RunAs/);
-assert.match(cmd, /-NoTunnel/);
+assert.match(cmd, /'-TunnelMode','%TUNNEL_MODE%'/);
+assert.match(cmd, /windows_service\^\|docker_sidecar\^\|disabled/);
 assert.match(cmd, /-NoAutoDeploy/);
 assert.doesNotMatch(cmd, /-ApplySchemaBundle/);
 assert.match(cmd, /ExecutionPolicy/);
