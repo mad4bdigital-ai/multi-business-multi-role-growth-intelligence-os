@@ -8,6 +8,8 @@ const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
 const policy = JSON.parse(read("autopilot-portable-staging/auto-deploy-policy.json"));
 const workflow = read(".github/workflows/staging-main-deploy-eligibility.yml");
 const liveWorkflow = read(".github/workflows/staging-live-certification.yml");
+const activationWorkerWorkflow = read(".github/workflows/governed-staging-activation-worker-deploy.yml");
+const activationWorkerBuilder = read("http-generic-api/scripts/build-staging-worker.mjs");
 const promotionGates = JSON.parse(read(".github/contracts/production-promotion-supporting-gates.v1.json"));
 const deployScript = read("autopilot-portable-staging/Auto-Deploy-Staging.ps1");
 const pilotScript = read("autopilot-portable-staging/Start-AutoPilot.ps1");
@@ -78,6 +80,28 @@ assert.match(workflow, /secrets_included: false/);
 assert.match(workflow, /STAGING_AUTHORITY_REPORT_FILE: \$\{\{ runner\.temp \}\}/);
 assert.doesNotMatch(workflow, /STAGING_AUTHORITY_REPORT_FILE: \.artifacts/);
 assert.doesNotMatch(workflow, /CLOUDFLARE_TUNNEL_TOKEN|BACKEND_API_KEY|JWT_SECRET/);
+
+
+assert.match(activationWorkerWorkflow, /name: Governed Staging Activation Worker Deploy/);
+assert.match(activationWorkerWorkflow, /workflow_dispatch:/);
+assert.match(activationWorkerWorkflow, /DEPLOY_STAGING_ACTIVATION_WORKER/);
+assert.match(activationWorkerWorkflow, /git rev-parse origin\/main/);
+assert.match(activationWorkerWorkflow, /build-staging-worker\.mjs/);
+assert.match(activationWorkerWorkflow, /mad4b-activation-gateway-staging/);
+assert.match(activationWorkerWorkflow, /CLOUDFLARE_ACCOUNT_ID/);
+assert.match(activationWorkerWorkflow, /CLOUDFLARE_API_TOKEN/);
+assert.match(activationWorkerWorkflow, /sourceCommit == \$sha/);
+assert.match(activationWorkerWorkflow, /workerBuildSha == \$sha/);
+assert.match(activationWorkerWorkflow, /\.stale == false/);
+assert.doesNotMatch(activationWorkerWorkflow, /Production|activation\.mad4b\.com/);
+assert.match(activationWorkerBuilder, /WORKER_BUILD_IDENTITY/);
+assert.match(activationWorkerBuilder, /generateKeyPairSync\("ed25519"\)/);
+assert.match(activationWorkerBuilder, /worker_bundle_sha256/);
+assert.match(activationWorkerBuilder, /ACTIVATION_GATEWAY_DEPLOYMENT_ATTESTATION_JSON/);
+assert.match(activationWorkerBuilder, /ACTIVATION_GATEWAY_POLICY_PUBLIC_KEY_JWK/);
+assert.match(activationWorkerBuilder, /production_deploy: false/);
+assert.match(activationWorkerBuilder, /database_mutation: false/);
+assert.doesNotMatch(activationWorkerBuilder, /privateKey.*writeFileSync/s);
 
 assert.match(dockerfile, /ARG STAGING_BUILD_COMMIT/);
 assert.match(dockerfile, /ARG STAGING_BUILD_BRANCH=main/);
