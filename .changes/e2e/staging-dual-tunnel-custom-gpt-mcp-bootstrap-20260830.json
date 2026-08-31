@@ -28,7 +28,9 @@
       "http-generic-api/test-domain-family-policy.mjs",
       "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
       ".github/governance/test-authority-registry.json",
-      "http-generic-api/config/deployment-branch-policy.json"
+      "http-generic-api/config/deployment-branch-policy.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json"
     ]
   },
   "environment_impact": {
@@ -133,7 +135,9 @@
             "http-generic-api/test-domain-family-policy.mjs",
             "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
             ".github/governance/test-authority-registry.json",
-            "http-generic-api/config/deployment-branch-policy.json"
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json"
           ]
         }
       ]
