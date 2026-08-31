@@ -31,6 +31,13 @@ assert.equal(policy.safety.production_deploy, false);
 assert.equal(policy.safety.cloudflare_dns_mutation, false);
 assert.equal(policy.safety.provider_mutation, false);
 
+// The canonical One-Click entrypoint is Windows PowerShell, so generated secrets must stay compatible with Windows PowerShell 5.1/.NET Framework while remaining CSPRNG-backed.
+assert.doesNotMatch(envHelper, /RandomNumberGenerator\]\s*::\s*Fill\s*\(/);
+assert.match(envHelper, /RandomNumberGenerator\]\s*::\s*Create\s*\(\s*\)/);
+assert.match(envHelper, /\$rng\.GetBytes\s*\(\s*\$bytes\s*\)/);
+assert.match(envHelper, /\$rng\.Dispose\s*\(\s*\)/);
+assert.match(envHelper, /finally\s*\{[\s\S]*?\$rng\.Dispose\s*\(\s*\)/);
+
 // Probe identity is explicitly configured; readiness must preserve it and never generate a principal.
 assert.match(envHelper, /STAGING_READINESS_PROBE_USER_ID/);
 assert.match(envHelper, /STAGING_READINESS_PROBE_TENANT_ID/);
@@ -111,6 +118,7 @@ assert.match(launcher, /provider_mutation\s*=\s*\$false/);
 console.log(JSON.stringify({
   ok: true,
   contract: "mad4b.staging-platform-ready-contract.v1",
+  windows_powershell_51_random_value_compatible: true,
   authenticated_tenant_oauth: true,
   authenticated_remote_mcp: true,
   pkce_s256: true,
