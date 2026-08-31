@@ -314,7 +314,7 @@
     },
     {
       "path": "autopilot-portable-staging/Staging-Schema-Governance-Preflight.ps1",
-      "sha256": "f29c123aa3641912833fdf2abdb080d04ac25ad129d3f118b6bff7fcdfa6abcc"
+      "sha256": "78f34116b461d462c9b5f07919aad8b667a82a984a484a75195d00056ee950ae"
     },
     {
       "path": "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1",
