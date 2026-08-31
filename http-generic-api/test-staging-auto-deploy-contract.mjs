@@ -103,7 +103,9 @@ assert.match(activationWorkerBuilder, /ACTIVATION_GATEWAY_DEPLOYMENT_ATTESTATION
 assert.match(activationWorkerBuilder, /ACTIVATION_GATEWAY_POLICY_PUBLIC_KEY_JWK/);
 assert.match(activationWorkerBuilder, /production_deploy: false/);
 assert.match(activationWorkerBuilder, /database_mutation: false/);
-assert.doesNotMatch(activationWorkerBuilder, /privateKey.*writeFileSync/s);
+assert.match(activationWorkerBuilder, /const \{ privateKey, publicKey \} = crypto\.generateKeyPairSync\("ed25519"\)/);
+assert.match(activationWorkerBuilder, /crypto\.sign\([^;]*\bprivateKey\b\)/s);
+assert.equal((activationWorkerBuilder.match(/\bprivateKey\b/g) || []).length, 2, "ephemeral private key must only be generated and used for signing");
 
 assert.match(dockerfile, /ARG STAGING_BUILD_COMMIT/);
 assert.match(dockerfile, /ARG STAGING_BUILD_BRANCH=main/);
