@@ -4,13 +4,30 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      operation:
+        description: Governed Staging operation
+        required: true
+        default: eligibility
+        type: choice
+        options:
+          - eligibility
+          - deploy_activation_worker
+      source_sha:
+        description: Exact current main SHA for Activation Worker deployment
+        required: false
+        type: string
+      confirmation:
+        description: Type DEPLOY_STAGING_ACTIVATION_WORKER for Worker deployment
+        required: false
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: staging-main-deploy-eligibility-${{ github.ref }}
-  cancel-in-progress: true
+  group: staging-main-deploy-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
   eligibility:
@@ -158,3 +175,102 @@ jobs:
           path: .artifacts/staging-main-deploy-eligibility/evidence.json
           if-no-files-found: error
           retention-days: 30
+
+  deploy_activation_worker:
+    name: Deploy exact main SHA to Staging Worker
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'deploy_activation_worker' }}
+    needs: eligibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SOURCE_SHA: ${{ inputs.source_sha }}
+      CONFIRMATION: ${{ inputs.confirmation }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      WORKER_NAME: mad4b-activation-gateway-staging
+      PUBLIC_HEALTH_URL: https://activation-dev.mad4b.com/health
+      ARTIFACT_DIR: .artifacts/activation-gateway-staging
+    steps:
+      - name: Validate explicit Staging-only authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$CONFIRMATION" = "DEPLOY_STAGING_ACTIVATION_WORKER"
+          test "$SOURCE_SHA" = "${SOURCE_SHA,,}"
+          [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$CLOUDFLARE_API_TOKEN"
+
+      - name: Checkout exact authorized commit
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Require exact current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git rev-parse origin/main)" = "$SOURCE_SHA"
+          test -z "$(git status --porcelain)"
+
+      - name: Build signed exact-SHA Worker artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/build-staging-worker.mjs \
+            --source-sha="$SOURCE_SHA" \
+            --output-dir="$ARTIFACT_DIR" \
+            --lifetime-hours=168
+
+      - name: Deploy Staging Worker and bound secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          trap 'rm -f "$ARTIFACT_DIR/deployment-secrets.json"' EXIT
+          npx --yes wrangler@4.33.0 deploy "$ARTIFACT_DIR/worker-staging.mjs" \
+            --name "$WORKER_NAME" \
+            --compatibility-date 2026-08-31 \
+            --secrets-file "$ARTIFACT_DIR/deployment-secrets.json"
+          rm -f "$ARTIFACT_DIR/deployment-secrets.json"
+
+      - name: Verify public exact-SHA health readback
+        shell: bash
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
+          for attempt in {1..12}; do
+            status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
+              --connect-timeout 10 --max-time 20 "$PUBLIC_HEALTH_URL" || true)"
+            if test "$status" = "200" \
+              && jq -e --arg sha "$SOURCE_SHA" '
+                .ok == true
+                and .stale == false
+                and .sourceCommit == $sha
+                and .workerBuildSha == $sha
+                and .secretsIncluded == false
+              ' "$response_file" >/dev/null; then
+              jq '{ok, service, policyKey, policyHash, deploymentId, sourceCommit, workerBuildSha, workerBundleSha256, stale, secretsIncluded}' "$response_file"
+              exit 0
+            fi
+            sleep 5
+          done
+          jq '{ok, service, policyKey, policyHash, deploymentId, sourceCommit, workerBuildSha, workerBundleSha256, stale, secretsIncluded}' "$response_file" || true
+          exit 1
+
+      - name: Record non-secret deployment summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "### Staging Activation Worker"
+            echo "- source SHA: `$SOURCE_SHA`"
+            echo "- Worker: `$WORKER_NAME`"
+            echo "- Production deployment: `false`"
+            echo "- Database mutation: `false`"
+            echo "- secrets included in summary: `false`"
+          } >> "$GITHUB_STEP_SUMMARY"

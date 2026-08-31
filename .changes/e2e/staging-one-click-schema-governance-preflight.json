@@ -23,7 +23,10 @@
       "http-generic-api/test-staging-schema-governance-powershell-revision-contract.mjs",
       "http-generic-api/test-staging-autopilot-closure.mjs",
       "http-generic-api/config/repository-governance-constitution.json",
-      ".github/derived-state-governance.json"
+      ".github/derived-state-governance.json",
+      ".github/workflows/staging-main-deploy-eligibility.yml",
+      "http-generic-api/scripts/build-staging-worker.mjs",
+      "http-generic-api/test-staging-auto-deploy-contract.mjs"
     ]
   },
   "environment_impact": {
@@ -43,7 +46,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Make the default Windows Staging launcher pass a static exact-head schema and governance gate before local startup, including native Windows drive-letter filesystem path resolution for Node contracts and a complete fail-closed static safety envelope for every ordered schema guard, while making the optional empty schema-bundle path StrictMode-safe after successful certification, preserving gateway reachability as the primary live-certification failure when the health response is unavailable, and keeping tunnel exposure, Auto Deploy installation, schema application, Production, and provider actions explicit or unavailable to this path.",
+      "objective": "Make the default Windows Staging launcher pass a static exact-head schema and governance gate before local startup, including native Windows drive-letter filesystem path resolution for Node contracts and a complete fail-closed static safety envelope for every ordered schema guard, while making the optional empty schema-bundle path StrictMode-safe after successful certification, preserving gateway reachability as the primary live-certification failure when the health response is unavailable, and keeping tunnel exposure, Auto Deploy installation, schema application, Production, and provider actions explicit or unavailable to this path. Provide a separately gated manually dispatched exact-current-main Staging Worker deployment job within the existing Staging deployment authority that builds and signs a short-lived Worker identity, changes only the named Staging Worker, and verifies public health readback.",
       "e2e_journeys": [
         {
           "id": "safe-local-one-click-preflight-before-compose",
@@ -61,7 +64,8 @@
             "Run migration-contract governance, launcher regression contracts, and environment-impact closure without database/provider/network mutation.",
             "During live certification, require a successful object-valued gateway health response before evaluating commit, staleness, policy hash, policy key, or secret-free response fields so an unreachable TLS endpoint is reported causally as gateway_health_reachable.",
             "Start local Compose only after the static gate passes, preserving explicit schema bundle apply and separate operational tunnel/watcher paths.",
-            "Materialize the empty schema-bundle missing-file filter as an array before Count evaluation so Windows PowerShell StrictMode treats the no-bundle path as a successful skip after certification."
+            "Materialize the empty schema-bundle missing-file filter as an array before Count evaluation so Windows PowerShell StrictMode treats the no-bundle path as a successful skip after certification.",
+            "After explicit dispatch confirmation, require the requested SHA to equal current origin/main, build an ephemeral Ed25519-signed Worker attestation without persisting its private key, deploy only mad4b-activation-gateway-staging, and verify public health returns the exact source and Worker build SHA with stale=false."
           ],
           "assertions": [
             "The default CMD path contains -NoTunnel and -NoAutoDeploy and does not pass -ApplySchemaBundle.",
@@ -77,7 +81,9 @@
             "An unavailable, failed, or non-object gateway health response blocks certification on gateway_health_reachable and suppresses derivative gateway_exact_commit and policy-field mismatches that cannot be observed.",
             "The portable manifest writer includes and hashes the preflight helper through its registered writer rather than a manual generated-file edit.",
             "No immutable schema.sql or published historical migration is changed.",
-            "The optional schema-bundle probe wraps zero missing-file results in an array before reading Count; an absent local bundle cleanly returns skipped_no_schema_bundle and cannot turn a successful certification into a launcher failure."
+            "The optional schema-bundle probe wraps zero missing-file results in an array before reading Count; an absent local bundle cleanly returns skipped_no_schema_bundle and cannot turn a successful certification into a launcher failure.",
+            "The governed Worker deployment job is manual-only, consumes only CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN, targets mad4b-activation-gateway-staging, preserves unrelated Worker secrets, and requires exact-current-main before provider mutation.",
+            "The build artifact embeds exact source_sha and a deterministic source-graph SHA-256, signs the matching attestation with an ephemeral Ed25519 key, writes only the public key into deployment secrets, and never persists the private key."
           ],
           "tests": [
             {
@@ -132,7 +138,10 @@
             "http-generic-api/scripts/staging-live-certification.mjs",
             "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
             "http-generic-api/test-staging-schema-governance-powershell-revision-contract.mjs",
-            "http-generic-api/test-staging-autopilot-closure.mjs"
+            "http-generic-api/test-staging-autopilot-closure.mjs",
+            ".github/workflows/staging-main-deploy-eligibility.yml",
+            "http-generic-api/scripts/build-staging-worker.mjs",
+            "http-generic-api/test-staging-auto-deploy-contract.mjs"
           ]
         }
       ]
