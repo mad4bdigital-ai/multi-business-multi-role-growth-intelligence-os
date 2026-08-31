@@ -27,7 +27,8 @@
       "http-generic-api/test-staging-autopilot-closure.mjs",
       "http-generic-api/test-domain-family-policy.mjs",
       "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
-      ".github/governance/test-authority-registry.json"
+      ".github/governance/test-authority-registry.json",
+      "http-generic-api/config/deployment-branch-policy.json"
     ]
   },
   "environment_impact": {
@@ -131,7 +132,8 @@
             "http-generic-api/test-staging-autopilot-closure.mjs",
             "http-generic-api/test-domain-family-policy.mjs",
             "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
-            ".github/governance/test-authority-registry.json"
+            ".github/governance/test-authority-registry.json",
+            "http-generic-api/config/deployment-branch-policy.json"
           ]
         }
       ]
