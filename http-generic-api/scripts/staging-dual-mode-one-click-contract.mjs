@@ -111,7 +111,7 @@ assert.match(launcher, /http:\/\/127\.0\.0\.1:8080/);
 assert.match(launcher, /docker-compose\.staging\.windows-service\.yml/);
 assert.match(launcher, /docker-compose\.staging\.docker-sidecar\.yml/);
 assert.match(launcher, /--no-build/);
-assert.match(launcher, /--no-deps','cloudflared/);
+assert.match(launcher, /--no-deps'(?:,'--[a-z-]+')*,'cloudflared/);
 assert.match(launcher, /HostConfig\.NetworkMode/);
 assert.match(launcher, /--token-file/);
 assert.match(launcher, /ProcessId -ne \$initialPid/);
