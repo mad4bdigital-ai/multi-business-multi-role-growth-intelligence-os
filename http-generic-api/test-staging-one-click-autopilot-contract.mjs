@@ -226,7 +226,7 @@ assert.match(cmd, /windows_service\^\|docker_sidecar\^\|disabled/);
 assert.match(cmd, /-NoAutoDeploy/);
 assert.doesNotMatch(cmd, /-ApplySchemaBundle/);
 assert.match(cmd, /ExecutionPolicy/);
-assert.match(cmd, /bootstrap-console\.log/);
+assert.match(cmd, /Auto Pilot log directory/);
 assert.match(gitignore, /autopilot-portable-staging\/one-click-state\.json/);
 assert.match(gitignore, /autopilot-portable-staging\/staging-db-dumps\//);
 
