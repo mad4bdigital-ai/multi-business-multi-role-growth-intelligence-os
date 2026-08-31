@@ -273,7 +273,7 @@ export async function inspectLiveJoinCollations(pool, sql, { rules, projectedSch
         else warnings.push(explicitBoundary);
         continue;
       }
-      if (!compatibleColumns(left, right, resolved.rules)) {
+      if (!compatibleColumns(left, right, rules)) {
         findings.push({ code: "join_collation_incompatible", pair, left, right, source, applies_sql: false });
       }
       const warning = legacyWarning([left, right], rules);
