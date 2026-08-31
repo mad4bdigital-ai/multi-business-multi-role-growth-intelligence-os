@@ -302,7 +302,7 @@
     },
     {
       "path": "autopilot-portable-staging/Bootstrap-Staging-One-Click.ps1",
-      "sha256": "b7d189c91c15bb7bd8b5e0a36800c3de5fb75f45b1d11e094f2322c4c0441bb8"
+      "sha256": "bd65347d4656c3ee0f5ac8e345e7b0042abad93cd681b9099628e97ceaac85f5"
     },
     {
       "path": "autopilot-portable-staging/Staging-GitSafety.ps1",
