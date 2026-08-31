@@ -10,6 +10,7 @@ const read = (relative) => fs.readFileSync(path.join(repoRoot, relative), "utf8"
 
 const envHelper = read("autopilot-portable-staging/Staging-Environment.ps1");
 const launcher = read("autopilot-portable-staging/Invoke-Staging-One-Click.ps1");
+const windowsCloudflared = read("autopilot-portable-staging/Staging-WindowsCloudflared.ps1");
 const cmd = read("autopilot-portable-staging/Start-Staging-One-Click.cmd");
 const windowsCompose = read("http-generic-api/docker-compose.staging.windows-service.yml");
 const dockerTunnelCompose = read("http-generic-api/docker-compose.staging.docker-sidecar.yml");
@@ -113,7 +114,11 @@ assert.match(launcher, /docker-compose\.staging\.docker-sidecar\.yml/);
 assert.match(launcher, /--no-build/);
 assert.match(launcher, /--no-deps'(?:,'--[a-z-]+')*,'cloudflared/);
 assert.match(launcher, /HostConfig\.NetworkMode/);
-assert.match(launcher, /--token-file/);
+assert.match(launcher, /Ensure-StagingCloudflaredWindowsService/);
+assert.match(windowsCloudflared, /--token-file/);
+assert.doesNotMatch(windowsCloudflared, /tunnel\s+run\s+--token(?:\s|=)/i);
+assert.match(windowsCloudflared, /PathName/);
+assert.match(windowsCloudflared, /readback is not bound to the canonical token-file/);
 assert.match(launcher, /ProcessId -ne \$initialPid/);
 assert.match(launcher, /RequireTunnelToken:\(\$TunnelMode -eq 'docker_sidecar'\)/);
 assert.match(launcher, /'BuildMode',\$BuildMode,'-NoTunnel'/);
