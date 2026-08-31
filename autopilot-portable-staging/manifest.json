@@ -254,7 +254,7 @@
     },
     {
       "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
-      "sha256": "ad04917965e8e8d4460a09b601b18583ec39417b0247fee81ce6545592ea93ae"
+      "sha256": "18eb2f7bb12d198a7db2538b7322c58aa9357f65e5d48b0edd5fa5b1f96b8b2a"
     },
     {
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
