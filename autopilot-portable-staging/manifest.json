@@ -242,7 +242,7 @@
     },
     {
       "path": "http-generic-api/test-staging-autopilot-closure.mjs",
-      "sha256": "ca394ace0d2e00c92d2c0ada78c3a4adcbe7f7c9333bae0c72e8c64f42495344"
+      "sha256": "c6b6c15c6c947f44791c0f630661b1a73a7c2cef540e6692a39ed28fc855e529"
     },
     {
       "path": "http-generic-api/test-staging-build-context-provenance.mjs",
@@ -286,7 +286,7 @@
     },
     {
       "path": "http-generic-api/scripts/staging-live-certification.mjs",
-      "sha256": "335043b93fc83157c16c2fcb4ac8aebd566ddce5f5bf82348ec1ca9bbe31bb17"
+      "sha256": "ad72a7b5d85c5663bc67dbb690d3e15dd13c7e76f6aea23386115949ca91da78"
     },
     {
       "path": "http-generic-api/tenantGptOAuthPkce.js",
