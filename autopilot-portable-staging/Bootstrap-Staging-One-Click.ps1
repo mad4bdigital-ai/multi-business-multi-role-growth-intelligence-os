@@ -142,12 +142,18 @@ try {
     if ($dirty.Count -gt 0) {
         Fail "Working tree is not clean; refusing bootstrap checkout. Review local changes before running Staging Auto Pilot."
     }
-    Invoke-Git @("fetch", "origin", $Ref, "--depth=1")
+    # The schema governance preflight compares the exact checkout with HEAD^1.
+    # Keep at least one parent available even when bootstrap refreshes a shallow checkout.
+    Invoke-Git @("fetch", "origin", $Ref, "--depth=2")
     $remoteCommit = Get-GitText @("rev-parse", "origin/$Ref")
     if ($remoteCommit -notmatch '^[0-9a-fA-F]{40}$') { Fail "origin/$Ref did not resolve to an exact commit SHA" }
     Invoke-Git @("checkout", "--detach", $remoteCommit)
     $checkedOut = Get-GitText @("rev-parse", "HEAD")
     if ($checkedOut.ToLowerInvariant() -ne $remoteCommit.ToLowerInvariant()) { Fail "Bootstrap checkout readback mismatch" }
+    $firstParentRevision = "HEAD^1"
+    $firstParentCommit = Get-GitText @("rev-parse", "--verify", $firstParentRevision)
+    if ($firstParentCommit -notmatch '^[0-9a-fA-F]{40}$') { Fail "Bootstrap first-parent history is unavailable for $firstParentRevision" }
+    Add-Content -LiteralPath $bootstrapFallbackLog -Encoding utf8 -Value ((Get-Date).ToUniversalTime().ToString("o") + " bootstrap verified first-parent history before schema preflight")
 } finally {
     Pop-Location
 }
