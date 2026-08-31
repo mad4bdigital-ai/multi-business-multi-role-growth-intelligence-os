@@ -11,10 +11,67 @@
     "install_or_verify_wsl2": true,
     "start_docker_desktop": true,
     "prompt_only_for_missing_credentials": true,
-    "never_store_secrets_in_repository": true
+    "never_store_secrets_in_repository": true,
+    "canonical_environment_generator": "autopilot-portable-staging/Staging-Environment.ps1",
+    "local_env_file": "http-generic-api/.env.staging",
+    "local_env_must_remain_untracked": true,
+    "generated_values_are_idempotent_until_explicit_rotation": true
   },
   "allowed_staging_hosts": ["dev.mad4b.com", "mcp_dev.mad4b.com", "activation-dev.mad4b.com"],
   "forbidden_hosts": ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com"],
+  "tunnel_modes": {
+    "default": "windows_service",
+    "supported": ["windows_service", "docker_sidecar", "disabled"],
+    "mutually_exclusive": true,
+    "quiesce_all_before_exact_sha_transition": true,
+    "remote_managed_origin": "http://127.0.0.1:8080",
+    "remote_origin_change_model": "one_time_external_review_then_mode_switch_requires_no_cloudflare_mutation",
+    "windows_service_stability_seconds_default": 95,
+    "windows_service": {
+      "runtime": "Cloudflared Windows service",
+      "origin": "http://127.0.0.1:8080",
+      "app_publish": "127.0.0.1:8080:8080",
+      "compose_override": "http-generic-api/docker-compose.staging.windows-service.yml",
+      "token_transport": "token_file",
+      "token_env_required": false,
+      "inline_token_forbidden": true,
+      "docker_tunnel_forbidden": true,
+      "process_stability_readback_required": true
+    },
+    "docker_sidecar": {
+      "runtime": "docker_compose_cloudflared",
+      "origin": "http://127.0.0.1:8080",
+      "compose_override": "http-generic-api/docker-compose.staging.docker-sidecar.yml",
+      "network_mode": "service:app",
+      "shared_app_network_namespace_required": true,
+      "host_publish_required": false,
+      "windows_service_required": false,
+      "token_transport": "ignored_env_file",
+      "token_env_required": true
+    }
+  },
+  "remote_mcp_bootstrap": {
+    "environment": "staging",
+    "default_profile": "openai_chatgpt",
+    "app_id_env": "REMOTE_MCP_APP_ID",
+    "app_secret_env": "REMOTE_MCP_APP_SECRET",
+    "app_id_prefix": "mcp_stg_",
+    "signing_secret_env": "REMOTE_MCP_OAUTH_SIGNING_SECRET",
+    "credentials_generated_once_if_missing": true,
+    "credentials_rotation_implicit": false,
+    "provisioning_requires_explicit_switch": true,
+    "provisioning_confirmation": "PROVISION_REMOTE_MCP_STAGING",
+    "provisioning_execution": "inside_staging_app_container",
+    "provisioning_database": "runtime_staging_only",
+    "default_staging_database_mutation": false,
+    "explicit_provisioning_staging_database_mutation": true,
+    "production_database_mutation": false,
+    "secret_output_redaction_default_when_canonical_secret_present": true,
+    "access_refresh_tokens_runtime_minted": true,
+    "token_issuance_mode": "oauth_authorization_code_runtime",
+    "access_refresh_tokens_persisted_to_env": false,
+    "forbidden_env_credentials": ["REMOTE_MCP_AUTHORIZATION_CODE", "REMOTE_MCP_ACCESS_TOKEN", "REMOTE_MCP_REFRESH_TOKEN"]
+  },
   "lifecycle": {
     "preflight": {
       "docker_server_required": true,
@@ -63,6 +120,23 @@
       "gateway_policy_hash_current_required": true,
       "gateway_exact_source_commit_required": true,
       "stale_policy_blocks_activation": true
+    },
+    "public_readiness": {
+      "selected_tunnel_runtime_required": true,
+      "origin_must_equal_remote_managed_origin": true,
+      "public_https_required_when_tunnel_enabled": true,
+      "tenant_schema_remote_required": true,
+      "admin_schema_remote_required": true,
+      "tenant_oauth_metadata_required": true,
+      "tenant_auth_enforcement_probe_required": true,
+      "tenant_authenticated_action_requires_end_user_oauth_runtime": true,
+      "admin_authenticated_read_only_probe_required": true,
+      "remote_mcp_authorization_metadata_required": true,
+      "remote_mcp_protected_resource_metadata_required": true,
+      "remote_mcp_schema_required": true,
+      "activation_gateway_remote_required_when_enabled": true,
+      "public_failure_blocks_platform_ready": true,
+      "disabled_mode_does_not_claim_platform_ready": true
     },
     "logging": {
       "schema_version": 2,

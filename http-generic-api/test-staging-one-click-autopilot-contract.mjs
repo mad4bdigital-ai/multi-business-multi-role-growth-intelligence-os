@@ -219,13 +219,14 @@ assert.match(autoDeploy, /ExpectedRepository.*ExpectedCommit/);
 assert.match(installAutoDeploy, /-LogonType Interactive(\s|`|$)/);
 assert.doesNotMatch(installAutoDeploy, /InteractiveToken/);
 
-assert.match(cmd, /Bootstrap-Staging-One-Click\.ps1/);
+assert.match(cmd, /Invoke-Staging-One-Click\.ps1/);
 assert.match(cmd, /Start-Process powershell\.exe -Verb RunAs/);
-assert.match(cmd, /-NoTunnel/);
+assert.match(cmd, /'-TunnelMode','%TUNNEL_MODE%'/);
+assert.match(cmd, /windows_service\^\|docker_sidecar\^\|disabled/);
 assert.match(cmd, /-NoAutoDeploy/);
 assert.doesNotMatch(cmd, /-ApplySchemaBundle/);
 assert.match(cmd, /ExecutionPolicy/);
-assert.match(cmd, /bootstrap-console\.log/);
+assert.match(cmd, /Auto Pilot log directory/);
 assert.match(gitignore, /autopilot-portable-staging\/one-click-state\.json/);
 assert.match(gitignore, /autopilot-portable-staging\/staging-db-dumps\//);
 

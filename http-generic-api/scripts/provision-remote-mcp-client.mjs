@@ -49,6 +49,16 @@ function loadEnvFile(filePath) {
   }
 }
 
+function secretFreeProvisioningOutput(result) {
+  if (!result || typeof result !== "object") return result;
+  return {
+    ...result,
+    client_secret: result.client_secret ? "[REDACTED]" : null,
+    secret_available_from_canonical_env: Boolean(process.env.REMOTE_MCP_APP_SECRET),
+    secrets_included: false,
+  };
+}
+
 const listProfiles = process.argv.includes("--list-profiles");
 if (listProfiles) {
   console.log(JSON.stringify(listRemoteMcpClientProfiles(), null, 2));
@@ -67,6 +77,23 @@ process.env.REMOTE_MCP_ENVIRONMENT = environment;
 const profileKey = argValue("profile") || process.env.REMOTE_MCP_CLIENT_PROFILE_KEY || "generic_remote_mcp_client";
 process.env.REMOTE_MCP_CLIENT_PROFILE_KEY = profileKey;
 
+for (const key of ["REMOTE_MCP_ACCESS_TOKEN", "REMOTE_MCP_REFRESH_TOKEN", "REMOTE_MCP_AUTHORIZATION_CODE"]) {
+  if (String(process.env[key] || "").trim()) {
+    console.error(`${key} must not be sourced from an environment file; Remote MCP user tokens are runtime-minted by OAuth.`);
+    process.exit(1);
+  }
+}
+
+const canonicalAppId = String(process.env.REMOTE_MCP_APP_ID || "").trim();
+const canonicalAppSecret = String(process.env.REMOTE_MCP_APP_SECRET || process.env.REMOTE_MCP_OAUTH_CLIENT_SECRET || "").trim();
+if (environment === "production" && (process.env.REMOTE_MCP_APP_ID || process.env.REMOTE_MCP_APP_SECRET)) {
+  console.error("Production provisioning must not consume Staging canonical REMOTE_MCP_APP_ID/REMOTE_MCP_APP_SECRET variables.");
+  process.exit(1);
+}
+
+// When the canonical Staging App Secret is already present, echoing it back is
+// unnecessary and unsafe. Explicit redaction remains available for legacy callers.
+const redactSecretOutput = process.argv.includes("--redact-secret-output") || Boolean(process.env.REMOTE_MCP_APP_SECRET);
 const pool = getPool();
 try {
   if (process.argv.includes("--all-status")) {
@@ -88,17 +115,19 @@ try {
         pool,
         environment,
         profile_key: profileKey,
-        client_id: argValue("client-id"),
+        client_id: argValue("client-id") || canonicalAppId,
         client_name: argValue("client-name"),
-        client_secret: process.env.REMOTE_MCP_OAUTH_CLIENT_SECRET || "",
+        client_secret: canonicalAppSecret,
         redirect_uris: argValues("redirect-uri"),
         scopes: argValues("scope"),
         token_endpoint_auth_method: argValue("token-endpoint-auth-method") || "client_secret_basic",
         rotate: process.argv.includes("--rotate"),
         note: argValue("note") || `remote_mcp_oauth_client_${environment}_${profileKey}_operator`,
       });
-      console.log(JSON.stringify(result, null, 2));
-      console.error("Store client_secret in the approved client configuration now. It is returned once and is never included in status/readback.");
+      console.log(JSON.stringify(redactSecretOutput ? secretFreeProvisioningOutput(result) : result, null, 2));
+      console.error(redactSecretOutput
+        ? "Client secret output was redacted; the canonical Staging secret remains only in ignored .env.staging and encrypted platform_secrets after provisioning. Access/refresh tokens remain OAuth-runtime only."
+        : "Store client_secret only in the approved client configuration. Access/refresh tokens are minted by OAuth and must not be persisted in .env files.");
     }
   }
 } finally {

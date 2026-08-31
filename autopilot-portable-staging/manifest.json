@@ -66,7 +66,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
-      "sha256": "f5c7ec33bf80565b8f453a2b18539c9890f0f975dfade29dd47dc23baf8875ac"
+      "sha256": "567a7ff93f77b6c87b29e53a33c767fddd54203880aadd9ce629ab03a686b186"
     },
     {
       "path": "autopilot-portable-staging/Uninstall-AutoDeployTask.ps1",
@@ -78,7 +78,7 @@
     },
     {
       "path": "autopilot-portable-staging/autopilot-one-click-policy.json",
-      "sha256": "71acdedf975952d47616c24e9d2154794470255eb7e4eb93eb0bf9615201e674"
+      "sha256": "045e314c50f49e2cbc58ba0855c6b708400444c8d620393e2125ce945c2a5fa2"
     },
     {
       "path": "autopilot-portable-staging/staging-maintenance-policy.json",
@@ -98,7 +98,7 @@
     },
     {
       "path": "http-generic-api/.env.staging.example",
-      "sha256": "d765168c4d60b3c8c8034a62f10f7e4a0d92dd110bac4eb8ab0f3399a662e57c"
+      "sha256": "b4442463e6ae35e2c0fa2e9b167276feb3490458d090a3dca6014b2575a9c111"
     },
     {
       "path": "http-generic-api/Dockerfile",
@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "9fe2001d85075c022ebc1394bf54746334b7ba051edd687e64316c1869169503"
+      "sha256": "a371e727e18a2c8e10dcec6d8283b7e9bf5847f46eb6479040c0504908cfd4eb"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "4bcfd1ff38e0091a1402a4f7f66f52bcad2a5d73bfabea83ccbadff9a76cf239"
+      "sha256": "1482be736ae78139bf55f4a7b0e6fb50a1256bd6c45f3e98813ee3f2923d05ce"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -238,11 +238,11 @@
     },
     {
       "path": "http-generic-api/test-domain-family-policy.mjs",
-      "sha256": "8162adfdb163952df55b28fa43ed613687bc1100bcd5946f9d871e345e221cdf"
+      "sha256": "46a29498f0346bd14d447b7d3288a57231e9d43ddc93140b18acd8846a7d592f"
     },
     {
       "path": "http-generic-api/test-staging-autopilot-closure.mjs",
-      "sha256": "65bb6fcd58838f441f40deaa15f4b88d0c60ed258d6e020dd3292b4fa28f7925"
+      "sha256": "ca394ace0d2e00c92d2c0ada78c3a4adcbe7f7c9333bae0c72e8c64f42495344"
     },
     {
       "path": "http-generic-api/test-staging-build-context-provenance.mjs",
@@ -254,7 +254,7 @@
     },
     {
       "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
-      "sha256": "1882ad842a1c6c5ccb72e80878ecf61ca6d7be41cddea06a5946613a493e4126"
+      "sha256": "4996745e8a65101eae144d3e66564e5b9e335f5fa00f1dd8ff5c1d9a845d98e4"
     },
     {
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
@@ -262,7 +262,7 @@
     },
     {
       "path": "http-generic-api/test-staging-operations-logging-contract.mjs",
-      "sha256": "72413c24bdf82457911b677ceca6f3fc50ecaf7d9115e1fa8785db18a1f6798d"
+      "sha256": "652251e520c01baac2c678b1c0d9de1930e70ff5b4a86a80e4cc8ad7d5dba98b"
     },
     {
       "path": "http-generic-api/test-staging-runtime-oauth-profile.mjs",
@@ -331,6 +331,58 @@
     {
       "path": "http-generic-api/config/staging-database-role-migration-manifest.json",
       "sha256": "3adf53938e0e24cc1132e6425bfcb4fe47d9238e07f77f0a350c5ee9d7c4d081"
+    },
+    {
+      "path": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
+      "sha256": "0febb4bd41486213b9f9bb9e6f37aa0530c097ca6333e7710c30dee0dd9867c0"
+    },
+    {
+      "path": "autopilot-portable-staging/Staging-Environment.ps1",
+      "sha256": "080cf3c1c6e59e5e48f3592a4435235b91d80ed8df68e0cae229e8af21a1fd26"
+    },
+    {
+      "path": "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
+      "sha256": "7d2be3606b61d433c59d7b742377ffef57a72cf792d201e94966c0bb70f73dee"
+    },
+    {
+      "path": "http-generic-api/docker-compose.staging.windows-service.yml",
+      "sha256": "ab4136b36ca0307474720b75f8a0615f062c1d3611ee2244cfe1457fc813dfe2"
+    },
+    {
+      "path": "http-generic-api/docker-compose.staging.docker-sidecar.yml",
+      "sha256": "8dafed881d3c0d591a7959134dbfc9928413ccffae42c70fbadd8058516026fd"
+    },
+    {
+      "path": "http-generic-api/scripts/generate-portable-staging-manifest.mjs",
+      "sha256": "e143c4586b3d13898d77833c0dd3fbfc2cb96e89b1333e5ea7c8e62ffd512fbe"
+    },
+    {
+      "path": "http-generic-api/scripts/provision-remote-mcp-client.mjs",
+      "sha256": "f98a1162238f5379c62f254ed7836ef32600e0e242b6f8db23011de7050079fa"
+    },
+    {
+      "path": "http-generic-api/scripts/staging-public-schema-readiness.mjs",
+      "sha256": "d81ea0c38f7bb08b9f6e6ac03c1480447feedd2e26ec9b82dcfd26caf0c25b71"
+    },
+    {
+      "path": "http-generic-api/scripts/staging-authenticated-remote-readiness.mjs",
+      "sha256": "a87e69ddf87c23642b25c55b1ba88a0b5c0fcfdae19dd7791f3edb14c4a2acae"
+    },
+    {
+      "path": "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml",
+      "sha256": "033d22b391f8c9f4a671177623edc22b28271ee25ba8b5a2cd7f24784ca90861"
+    },
+    {
+      "path": "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml",
+      "sha256": "8d0573f42f986c8a50d75638fa4fe5be955cc13e0507996fb41f3783051a1ba6"
+    },
+    {
+      "path": "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
+      "sha256": "47671a67c411550acdc86b7bffb52cdb1216e44ffeb5f6b3ec86977ec4acb8e8"
+    },
+    {
+      "path": "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml",
+      "sha256": "7f90b1cd8de8d4ff6108398d29726aff7c5742fad1b5cbb020630e53cd46267c"
     }
   ],
   "safety": {
