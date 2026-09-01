@@ -390,7 +390,7 @@
     },
     {
       "path": "autopilot-portable-staging/Converge-StagingActivationGateway.ps1",
-      "sha256": "8f3f0ab785d0d69ce0660878fdfc6a4b1adce61125b83ce2c4cbf8447693e988"
+      "sha256": "37275c4c9bc7e314c707dc4bd63fcf6612dab50581b5096984d55fbe1bbaf7c3"
     },
     {
       "path": "autopilot-portable-staging/activation-gateway-smart-convergence-policy.json",
