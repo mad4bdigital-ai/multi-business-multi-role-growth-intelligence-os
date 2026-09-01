@@ -381,6 +381,8 @@
       "test_paths": [
         "http-generic-api/test-staging-autopilot-closure.mjs",
         "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+        "http-generic-api/test-staging-one-click-autopilot-core.mjs",
+        "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
         "http-generic-api/test-staging-schema-governance-powershell-revision-contract.mjs",
         "http-generic-api/test-staging-auto-deploy-contract.mjs",
         "autopilot-portable-staging/Staging-GitTransport.ps1"
