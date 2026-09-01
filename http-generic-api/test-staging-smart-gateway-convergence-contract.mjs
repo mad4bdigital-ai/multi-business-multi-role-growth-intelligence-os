@@ -10,6 +10,18 @@ const converger = fs.readFileSync(path.join(portable, "Converge-StagingActivatio
 const policy = JSON.parse(fs.readFileSync(path.join(portable, "activation-gateway-smart-convergence-policy.json"), "utf8"));
 const workflow = fs.readFileSync(path.join(root, ".github/workflows/staging-main-deploy-eligibility.yml"), "utf8");
 const liveCertification = fs.readFileSync(path.join(root, "http-generic-api/scripts/staging-live-certification.mjs"), "utf8");
+const manifestGenerator = fs.readFileSync(path.join(root, "http-generic-api/scripts/generate-portable-staging-manifest.mjs"), "utf8");
+const portableManifest = JSON.parse(fs.readFileSync(path.join(portable, "manifest.json"), "utf8"));
+
+const protectedPortablePaths = [
+  "autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1",
+  "autopilot-portable-staging/Converge-StagingActivationGateway.ps1",
+  "autopilot-portable-staging/activation-gateway-smart-convergence-policy.json",
+];
+for (const relativePath of protectedPortablePaths) {
+  assert.ok(manifestGenerator.includes(`"${relativePath}"`), `portable manifest writer must register ${relativePath}`);
+  assert.ok(portableManifest.files.some((entry) => entry.path === relativePath), `portable manifest must hash ${relativePath}`);
+}
 
 assert.equal(policy.contract, "mad4b.staging.activation-gateway-smart-convergence-policy.v1");
 assert.equal(policy.environment, "staging");
@@ -121,6 +133,7 @@ console.log(JSON.stringify({
   exact_main_dispatch: true,
   existing_dispatch_reuse: true,
   exact_public_readback: true,
+  portable_integrity_dependencies_registered: true,
   certification_probe_remains_read_only: true,
   production_mutation: false,
   cloudflare_dns_mutation: false,
