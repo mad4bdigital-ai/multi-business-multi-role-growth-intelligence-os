@@ -1,0 +1,72 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-inherited-port-publication-reset",
+  "title": "Reset inherited Staging host port publications before Windows loopback service mode",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-inherited-port-publication-reset.json",
+      "http-generic-api/docker-compose.staging.yml",
+      "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
+      "autopilot-portable-staging/manifest.json"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Ensure the Staging Compose overlay removes inherited wildcard app and Redis host publications so Windows service mode can add only the governed loopback app publication without racing the previous host binding.",
+      "e2e_journeys": [
+        {
+          "id": "staging-host-publication-reset",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging Auto Pilot operator",
+          "entrypoint": "Compose resolves the base stack with docker-compose.staging.yml before optional Windows service publication is applied.",
+          "terminal_outcome": "The Staging overlay explicitly resets inherited app and Redis host ports, while the Windows service override remains the only authority that can publish the app on 127.0.0.1:8080.",
+          "steps": [
+            "Apply explicit Compose sequence reset semantics to the inherited Redis and app port lists in the Staging overlay.",
+            "Verify the Staging boundary contract requires both resets and rejects a regression to plain empty port lists.",
+            "Refresh the registered portable Staging manifest through the governed generated-artifact writer so its source hashes match the exact branch head.",
+            "Require live Staging certification before treating the changed Staging runtime topology as ready for use."
+          ],
+          "assertions": [
+            "The Staging overlay contains exactly two explicit ports !reset [] declarations for Redis and app.",
+            "The Staging overlay does not restore an ordinary empty ports list that would preserve inherited Compose sequence entries.",
+            "Production mutation, DNS mutation, database mutation, schema or migration apply, volume deletion, and secret changes remain outside this change.",
+            "The portable Staging manifest is maintained only by the registered generated-artifact writer.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "staging-openapi-mcp-db-boundary",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-openapi-mcp-db-boundary.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-inherited-port-publication-reset.json",
+            "http-generic-api/docker-compose.staging.yml",
+            "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
+            "autopilot-portable-staging/manifest.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
