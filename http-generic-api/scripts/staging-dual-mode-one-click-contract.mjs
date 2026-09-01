@@ -9,7 +9,8 @@ const repoRoot = path.resolve(apiRoot, "..");
 const read = (relative) => fs.readFileSync(path.join(repoRoot, relative), "utf8");
 
 const envHelper = read("autopilot-portable-staging/Staging-Environment.ps1");
-const launcher = read("autopilot-portable-staging/Invoke-Staging-One-Click.ps1");
+const entrypoint = read("autopilot-portable-staging/Invoke-Staging-One-Click.ps1");
+const launcher = `${entrypoint}\n${read("autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1")}`;
 const windowsCloudflared = read("autopilot-portable-staging/Staging-WindowsCloudflared.ps1");
 const semanticReadiness = read("http-generic-api/scripts/staging-public-schema-readiness.mjs");
 const cmd = read("autopilot-portable-staging/Start-Staging-One-Click.cmd");
@@ -102,9 +103,9 @@ assert.match(dockerTunnelCompose, /TUNNEL_ORIGIN_APP:\s*http:\/\/127\.0\.0\.1:80
 assert.match(stagingCompose, /app:\s*[\s\S]*?ports:\s*\[\]/);
 assert.match(stagingCompose, /cloudflared:[\s\S]*?--token/);
 
-assert.match(launcher, /ValidateSet\('disabled','windows_service','docker_sidecar'\)/);
-assert.match(launcher, /ValidateRange\(65,300\)/);
-assert.match(launcher, /TunnelStabilitySeconds = 95/);
+assert.match(entrypoint, /ValidateSet\('disabled','windows_service','docker_sidecar'\)/);
+assert.match(entrypoint, /ValidateRange\(65,300\)/);
+assert.match(entrypoint, /TunnelStabilitySeconds = 95/);
 assert.match(launcher, /Quiesce-StagingTunnelRuntimes/);
 assert.match(launcher, /Stop-WindowsTunnelRuntime/);
 assert.match(launcher, /Stop-DockerTunnelRuntime/);

@@ -8,7 +8,7 @@ const apiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const repoRoot = path.resolve(apiRoot, "..");
 const read = (relative) => fs.readFileSync(path.join(repoRoot, relative), "utf8");
 
-const launcher = read("autopilot-portable-staging/Invoke-Staging-One-Click.ps1");
+const launcher = read("autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1");
 const envHelper = read("autopilot-portable-staging/Staging-Environment.ps1");
 const windowsHelper = read("autopilot-portable-staging/Staging-WindowsCloudflared.ps1");
 const semanticReadiness = read("http-generic-api/scripts/staging-public-schema-readiness.mjs");

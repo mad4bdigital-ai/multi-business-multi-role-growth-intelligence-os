@@ -14,9 +14,21 @@ const oneClickContractPath = path.join(
   "http-generic-api",
   "test-staging-one-click-autopilot-contract.mjs",
 );
+const oneClickCoreContractPath = path.join(
+  root,
+  "http-generic-api",
+  "test-staging-one-click-autopilot-core.mjs",
+);
+const smartGatewayContractPath = path.join(
+  root,
+  "http-generic-api",
+  "test-staging-smart-gateway-convergence-contract.mjs",
+);
 const preflight = fs.readFileSync(preflightPath, "utf8");
 const bootstrap = fs.readFileSync(bootstrapPath, "utf8");
 const oneClickContract = fs.readFileSync(oneClickContractPath, "utf8");
+const oneClickCoreContract = fs.readFileSync(oneClickCoreContractPath, "utf8");
+const smartGatewayContract = fs.readFileSync(smartGatewayContractPath, "utf8");
 
 assert.match(preflight, /\$headRevision\s*=\s*"HEAD"/);
 assert.match(preflight, /\$baseRevision\s*=\s*"HEAD\^1"/);
@@ -54,13 +66,24 @@ assert.ok(
 );
 
 // Node.js file URLs expose Windows drive paths as /C:/... URL pathnames.
-// The contract that runs inside the Windows preflight must resolve from
+// The contract that runs inside the Windows preflight delegates to the split
+// Core and smart-gateway modules, so both imported modules must resolve from
 // import.meta.dirname rather than passing URL pathname text to node:path.
 assert.match(
   oneClickContract,
-  /const root = path\.resolve\(import\.meta\.dirname, "\.\."\);/,
+  /import "\.\/test-staging-one-click-autopilot-core\.mjs";/,
 );
-assert.doesNotMatch(oneClickContract, /import\.meta\.url\)\.pathname/);
+assert.match(
+  oneClickContract,
+  /import "\.\/test-staging-smart-gateway-convergence-contract\.mjs";/,
+);
+for (const delegatedContract of [oneClickCoreContract, smartGatewayContract]) {
+  assert.match(
+    delegatedContract,
+    /const root = path\.resolve\(import\.meta\.dirname, "\.\."\);/,
+  );
+  assert.doesNotMatch(delegatedContract, /import\.meta\.url\)\.pathname/);
+}
 
 console.log(
   JSON.stringify({
