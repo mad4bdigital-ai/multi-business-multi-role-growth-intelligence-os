@@ -75,7 +75,7 @@
         "Governed Production Promotion"
       ],
       "required_check_producer": "trusted_github_app_attestor",
-      "required_check_evidence": "source_base_merge_candidate_executed_sha",
+      "required_check_evidence": "exact_current_merge_candidate",
       "required_check_activation": "promotion_authority_controls_release",
       "attestation_source_workflow": ".github/workflows/governed-production-promotion-request-launcher.yml",
       "attestation_source_events": [
