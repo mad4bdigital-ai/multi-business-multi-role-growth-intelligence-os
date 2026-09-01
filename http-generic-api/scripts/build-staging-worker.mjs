@@ -38,8 +38,15 @@ const graphDigest = crypto.createHash("sha256")
   .digest("hex");
 const workerBuildIdentity = { source_sha: sourceSha, bundle_sha256: graphDigest };
 const marker = "/* WORKER_BUILD_IDENTITY */ null";
+const policyImportSpecifier = '"../generated/route-policy.staging.json"';
+const artifactPolicyImportSpecifier = '"./route-policy.staging.json"';
 assert.equal(workerTemplate.split(marker).length, 2, "worker identity marker must occur exactly once");
-const builtWorker = workerTemplate.replace(marker, JSON.stringify(workerBuildIdentity));
+assert.equal(workerTemplate.split(policyImportSpecifier).length, 2, "staging policy import must occur exactly once");
+const builtWorker = workerTemplate
+  .replace(policyImportSpecifier, artifactPolicyImportSpecifier)
+  .replace(marker, JSON.stringify(workerBuildIdentity));
+assert.doesNotMatch(builtWorker, /\.\.\/generated\/route-policy\.staging\.json/u, "deployment artifact must not depend on source-tree policy topology");
+assert.match(builtWorker, /from "\.\/route-policy\.staging\.json" with \{ type: "json" \}/u, "deployment artifact must import its co-located policy");
 
 const deploymentId = `activation-staging-${sourceSha.slice(0, 12)}-${Date.now()}`;
 const expiresAt = new Date(Date.now() + lifetimeHours * 60 * 60 * 1000).toISOString();
