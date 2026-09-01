@@ -12,6 +12,10 @@
       "autopilot-portable-staging/Start-Staging-One-Click.cmd",
       "autopilot-portable-staging/Bootstrap-Staging-One-Click.ps1",
       "autopilot-portable-staging/One-Click-Staging.ps1",
+      "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
+      "autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1",
+      "autopilot-portable-staging/Converge-StagingActivationGateway.ps1",
+      "autopilot-portable-staging/activation-gateway-smart-convergence-policy.json",
       "autopilot-portable-staging/Staging-Schema-Governance-Preflight.ps1",
       "autopilot-portable-staging/README.md",
       "autopilot-portable-staging/manifest.json",
@@ -20,6 +24,7 @@
       "http-generic-api/scripts/generate-portable-staging-manifest.mjs",
       "http-generic-api/scripts/staging-live-certification.mjs",
       "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+      "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
       "http-generic-api/test-staging-schema-governance-powershell-revision-contract.mjs",
       "http-generic-api/test-staging-autopilot-closure.mjs",
       "http-generic-api/config/repository-governance-constitution.json",
@@ -46,7 +51,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Make the default Windows Staging launcher pass a static exact-head schema and governance gate before local startup, including native Windows drive-letter filesystem path resolution for Node contracts and a complete fail-closed static safety envelope for every ordered schema guard, while making optional schema-bundle handling StrictMode-safe and exact-commit aware after successful certification, preserving gateway reachability as the primary live-certification failure when the health response is unavailable, and keeping tunnel exposure, Auto Deploy installation, schema application, Production, and provider actions explicit or unavailable to this path. Provide a separately gated manually dispatched exact-current-main Staging Worker deployment job within the existing Staging deployment authority that builds and signs a short-lived Worker identity, changes only the named Staging Worker, and verifies public health readback.",
+      "objective": "Make the default Windows Staging launcher pass a static exact-head schema and governance gate before local startup, including native Windows drive-letter filesystem path resolution for Node contracts and a complete fail-closed static safety envelope for every ordered schema guard, while making optional schema-bundle handling StrictMode-safe and exact-commit aware after successful certification, preserving gateway reachability as the primary live-certification failure when the health response is unavailable, and keeping tunnel exposure, Auto Deploy installation, schema application, Production, and unrelated provider actions explicit or unavailable to this path. When Activation Gateway readiness is explicitly requested, add bounded smart convergence that consumes typed certification/preflight evidence, reuses or dispatches the existing exact-current-main Staging Worker workflow only for gateway exact-SHA/policy drift, verifies public exact-SHA/policy health, and recertifies once without granting Production, DNS, database, migration, ruleset, Hostinger, or local Cloudflare credential authority.",
       "e2e_journeys": [
         {
           "id": "safe-local-one-click-preflight-before-compose",
@@ -54,7 +59,7 @@
           "level": "synthetic_runtime",
           "actor": "Windows Staging operator",
           "entrypoint": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
-          "terminal_outcome": "The launcher stops before local startup unless the exact detached main checkout passes all static schema/governance checks; the preflight-invoked Node contracts resolve repository paths correctly from Windows drive-letter checkouts, every ordered schema guard emits the complete static-only safety envelope, and a successful gate records redacted evidence while leaving schema apply, tunnel, Auto Deploy, Production, provider, credential, export, and runtime mutation actions disabled.",
+          "terminal_outcome": "The launcher stops before local startup unless the exact detached main checkout passes all static schema/governance checks; the preflight-invoked Node contracts resolve repository paths correctly from Windows drive-letter checkouts, every ordered schema guard emits the complete static-only safety envelope, a stale optional local schema bundle is skipped safely, and an explicitly requested Activation Gateway is automatically converged only through the governed exact-current-main Staging Worker workflow when typed evidence proves gateway-only SHA/policy drift, with final public exact-SHA health and same-cycle certification required before readiness.",
           "steps": [
             "Request elevation and invoke Bootstrap-Staging-One-Click.ps1 with the safe local defaults -NoTunnel and -NoAutoDeploy.",
             "Fetch origin/main with enough history to retain the exact checkout first parent, check out the exact commit in detached mode, then verify exact SHA, HEAD^1, origin identity, and clean working tree before schema preflight.",
@@ -62,11 +67,14 @@
             "Execute the preflight-invoked One-Click Node contract using import.meta.dirname so a drive-letter checkout such as M:\\... is resolved as a native Windows filesystem path instead of a /M:/ file-URL pathname.",
             "Run the schema builder with --plan only and require every ordered pre-use, canonical bootstrap, collation, enum-seed, text-width, index-key-width, required-INSERT-column, generated-column, and foreign-key guard to be ready with zero findings and the complete static-only safety envelope explicitly false.",
             "Run migration-contract governance, launcher regression contracts, and environment-impact closure without database/provider/network mutation.",
-            "During live certification, require a successful object-valued gateway health response before evaluating commit, staleness, policy hash, policy key, or secret-free response fields so an unreachable TLS endpoint is reported causally as gateway_health_reachable.",
+            "During each live-certification probe, keep staging-live-certification.mjs read-only and require a successful object-valued gateway health response before evaluating commit, staleness, policy hash, policy key, or secret-free response fields so an unreachable TLS endpoint is reported causally as gateway_health_reachable.",
             "Start local Compose only after the static gate passes, preserving explicit schema bundle apply and separate operational tunnel/watcher paths.",
             "Materialize the empty schema-bundle missing-file filter as an array before Count evaluation so Windows PowerShell StrictMode treats the no-bundle path as a successful skip after certification.",
             "Before invoking Clone-StagingDatabases.ps1, validate any discovered schema-bundle manifest against the exact expected commit; when bundle use is optional, record and skip missing, invalid, unsupported, or stale bundle state without restore or bundle rewrite, while RequireSchemaBundle or ApplySchemaBundle remains fail-closed.",
-            "After explicit dispatch confirmation, require the requested SHA to equal current origin/main, build an ephemeral Ed25519-signed Worker attestation without persisting its private key, deploy only mad4b-activation-gateway-staging, and verify public health returns the exact source and Worker build SHA with stale=false."
+            "If explicit -EnableActivationGateway execution exits because typed autopilot-state and the passed exact preflight report contain only gateway_exact_commit, gateway_policy_not_stale, gateway_policy_hash_current, or gateway_policy_key_current drift, reject recovery when explicit schema-bundle modes are active or any non-gateway blocker is present.",
+            "For eligible gateway-only drift, first verify the requested SHA still equals origin/main, reuse an in-progress exact-SHA workflow_dispatch when available, otherwise dispatch staging-main-deploy-eligibility.yml with operation=deploy_activation_worker and the exact source SHA, then require the workflow to complete successfully.",
+            "After the governed Worker workflow succeeds, require activation-dev.mad4b.com/health to report HTTP 200, ok=true, stale=false, sourceCommit and workerBuildSha equal to the exact main SHA, the current route-policy hash and policy key, and secretsIncluded=false before allowing one bounded recertification retry.",
+            "Correct the final dual-mode evidence so provider/cloudflare Worker mutation is reported truthfully when convergence deployed the Staging Worker, while Cloudflare DNS, Production, Hostinger, database, migration, and ruleset mutation remain false."
           ],
           "assertions": [
             "The default CMD path contains -NoTunnel and -NoAutoDeploy and does not pass -ApplySchemaBundle.",
@@ -78,14 +86,16 @@
             "A missing Node 22 runtime, dirty tree, SHA mismatch, missing first-parent history, remote Docker override, schema finding, governance blocker, or non-converged environment declaration fails closed before One-Click or Compose startup.",
             "The preflight writes only redacted non-secret evidence under the ignored logs directory.",
             "The preflight safety evidence keeps schema_bundle_applied, database_mutation, migration_apply, production_access, provider_access, data_export, credential_access, tunnel_started, and auto_deploy_installed false.",
-            "The gate does not import a schema bundle, call Cloudflare or Hostinger, access Production credentials, install a scheduled watcher, or enable production_live authority.",
-            "An unavailable, failed, or non-object gateway health response blocks certification on gateway_health_reachable and suppresses derivative gateway_exact_commit and policy-field mismatches that cannot be observed.",
-            "The portable manifest writer includes and hashes the preflight helper through its registered writer rather than a manual generated-file edit.",
+            "The static gate does not import a schema bundle, call Cloudflare or Hostinger, access Production credentials, install a scheduled watcher, or enable production_live authority.",
+            "An unavailable, failed, or non-object gateway health response blocks certification on gateway_health_reachable and never grants automatic provider mutation; smart convergence is restricted to typed exact-SHA/policy drift keys after successful static preflight.",
+            "The portable manifest writer includes and hashes the governed portable scripts through its registered writer rather than a manual generated-file edit.",
             "No immutable schema.sql or published historical migration is changed.",
             "The optional schema-bundle probe wraps zero missing-file results in an array before reading Count; an absent local bundle cleanly returns skipped_no_schema_bundle and cannot turn a successful certification into a launcher failure.",
             "An optional discovered schema bundle is checked for readable manifest, supported contract, required files, and exact source_commit before Clone-StagingDatabases.ps1; missing, invalid, unsupported, or stale optional state is skipped without database restore or bundle rewrite, while RequireSchemaBundle or ApplySchemaBundle preserves exact-commit fail-closed rejection.",
-            "The governed Worker deployment job is manual-only, consumes only CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN, targets mad4b-activation-gateway-staging, preserves unrelated Worker secrets, and requires exact-current-main before provider mutation.",
-            "The build artifact embeds exact source_sha and a deterministic source-graph SHA-256, signs the matching attestation with an ephemeral Ed25519 key, writes only the public key into deployment secrets, and never persists the private key."
+            "The governed Worker deployment workflow remains workflow_dispatch-only, consumes Cloudflare account/token secrets only inside GitHub Actions, targets mad4b-activation-gateway-staging, and requires exact-current-main before provider mutation; the local launcher/helper never reads CLOUDFLARE_API_TOKEN or calls the Cloudflare API directly.",
+            "Smart convergence reuses an already-running exact-SHA dispatch before creating another one, performs at most one core retry after successful convergence, and cannot auto-mutate for non-gateway blockers or explicit schema bundle require/apply modes.",
+            "The build artifact embeds exact source_sha and a deterministic source-graph SHA-256, signs the matching attestation with an ephemeral Ed25519 key, writes only the public key into deployment secrets, and never persists the private key.",
+            "Final dual-mode evidence reports provider_mutation/cloudflare_worker_mutation true only when a Staging Worker deployment occurred, reports its bounded mutation scope, and always keeps cloudflare_dns_mutation, production_mutation, production_database_mutation, database/migration convergence mutation, ruleset mutation, and secrets_included false."
           ],
           "tests": [
             {
@@ -93,6 +103,13 @@
               "runner": "node",
               "working_directory": ".",
               "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-smart-gateway-convergence-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
               "args": []
             },
             {
@@ -129,6 +146,10 @@
             "autopilot-portable-staging/Start-Staging-One-Click.cmd",
             "autopilot-portable-staging/Bootstrap-Staging-One-Click.ps1",
             "autopilot-portable-staging/One-Click-Staging.ps1",
+            "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
+            "autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1",
+            "autopilot-portable-staging/Converge-StagingActivationGateway.ps1",
+            "autopilot-portable-staging/activation-gateway-smart-convergence-policy.json",
             "autopilot-portable-staging/Staging-Schema-Governance-Preflight.ps1",
             "autopilot-portable-staging/README.md",
             "autopilot-portable-staging/manifest.json",
@@ -139,6 +160,7 @@
             "http-generic-api/scripts/environment-impact-closure.mjs",
             "http-generic-api/scripts/staging-live-certification.mjs",
             "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
             "http-generic-api/test-staging-schema-governance-powershell-revision-contract.mjs",
             "http-generic-api/test-staging-autopilot-closure.mjs",
             ".github/workflows/staging-main-deploy-eligibility.yml",
@@ -151,10 +173,10 @@
     {
       "id": "production",
       "status": "blocked",
-      "objective": "This change grants no Production deployment, provider mutation, credential access, or production_live authority.",
+      "objective": "This change grants no Production deployment, Production provider mutation, credential access, DNS mutation, or production_live authority.",
       "blockers": [
         "Production deployment and provider mutation require a separate explicit authorization and evidence.",
-        "This local launcher gate does not read Production credentials, set production_live=true, or activate a provider executor."
+        "This local launcher convergence never reads Production credentials, sets production_live=true, changes DNS, or activates a Production provider executor."
       ]
     }
   ]
