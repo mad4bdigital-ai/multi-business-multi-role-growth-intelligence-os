@@ -74,6 +74,13 @@ assert.match(wrapper, /\$first = Invoke-Core/);
 assert.match(wrapper, /\$convergence = Invoke-GatewayConvergence \$recovery/);
 assert.match(wrapper, /\$second = Invoke-Core/);
 assert.equal((wrapper.match(/\$second = Invoke-Core/g) || []).length, 1);
+assert.match(wrapper, /\$previousErrorActionPreference = \$ErrorActionPreference/);
+assert.match(wrapper, /\$ErrorActionPreference = 'Continue'/);
+assert.match(wrapper, /2>&1 \| ForEach-Object \{ \[string\]\$_ \}/);
+assert.match(wrapper, /\$exitCode = \[int\]\$LASTEXITCODE/);
+assert.match(wrapper, /finally \{\s*\$ErrorActionPreference = \$previousErrorActionPreference\s*\}/s);
+assert.match(wrapper, /exit_code = \$exitCode/);
+assert.doesNotMatch(wrapper, /return \[pscustomobject\]@\{ exit_code = \[int\]\$LASTEXITCODE/);
 assert.match(wrapper, /provider_mutation -NotePropertyValue \$mutated/);
 assert.match(wrapper, /cloudflare_worker_mutation -NotePropertyValue \$mutated/);
 assert.match(wrapper, /cloudflare_dns_mutation -NotePropertyValue \$false/);
@@ -135,6 +142,7 @@ console.log(JSON.stringify({
   exact_public_readback: true,
   portable_integrity_dependencies_registered: true,
   certification_probe_remains_read_only: true,
+  native_stderr_preserves_exit_code: true,
   production_mutation: false,
   cloudflare_dns_mutation: false,
   secrets_included: false,
