@@ -45,8 +45,22 @@ function New-CoreArguments {
 }
 
 function Invoke-Core {
-    $lines = @(& powershell.exe @(New-CoreArguments) 2>&1)
-    return [pscustomobject]@{ exit_code = [int]$LASTEXITCODE; lines = $lines }
+    $previousErrorActionPreference = $ErrorActionPreference
+    $exitCode = $null
+    $lines = @()
+    try {
+        # powershell.exe surfaces native child stderr (for example Docker build progress)
+        # as ErrorRecord objects. The smart wrapper must collect that diagnostic stream
+        # without allowing the wrapper's global Stop policy to terminate before the
+        # child's real exit code can be evaluated for bounded gateway convergence.
+        $ErrorActionPreference = 'Continue'
+        $lines = @(& powershell.exe @(New-CoreArguments) 2>&1 | ForEach-Object { [string]$_ })
+        $exitCode = [int]$LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+    if ($null -eq $exitCode) { Fail 'Dual-mode core did not expose a native exit code.' }
+    return [pscustomobject]@{ exit_code = $exitCode; lines = $lines }
 }
 
 function Write-Lines([object[]]$Lines) {
