@@ -190,6 +190,7 @@ jobs:
       WORKER_NAME: mad4b-activation-gateway-staging
       PUBLIC_HEALTH_URL: https://activation-dev.mad4b.com/health
       ARTIFACT_DIR: .artifacts/activation-gateway-staging
+      WRANGLER_VERSION: "4.99.0"
     steps:
       - name: Validate explicit Staging-only authority
         shell: bash
@@ -226,12 +227,19 @@ jobs:
             --output-dir="$ARTIFACT_DIR" \
             --lifetime-hours=168
 
+      - name: Verify pinned Wrangler deployment capability
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes "wrangler@$WRANGLER_VERSION" --version
+          npx --yes "wrangler@$WRANGLER_VERSION" deploy --help | grep -q -- '--secrets-file'
+
       - name: Deploy Staging Worker and bound secrets
         shell: bash
         run: |
           set -euo pipefail
           trap 'rm -f "$ARTIFACT_DIR/deployment-secrets.json"' EXIT
-          npx --yes wrangler@4.33.0 deploy "$ARTIFACT_DIR/worker-staging.mjs" \
+          npx --yes "wrangler@$WRANGLER_VERSION" deploy "$ARTIFACT_DIR/worker-staging.mjs" \
             --name "$WORKER_NAME" \
             --compatibility-date 2026-08-31 \
             --secrets-file "$ARTIFACT_DIR/deployment-secrets.json"
