@@ -34,7 +34,7 @@
     },
     {
       "path": "autopilot-portable-staging/One-Click-Staging.ps1",
-      "sha256": "6cd30ac4351a3c612559061d0067a632bde12b0db30b73e4cc211d9dbf21a598"
+      "sha256": "7f6a3953efdf0e0f54ac01fbb0e4af65a94edd019196a808b54dbd1fd49d0da7"
     },
     {
       "path": "autopilot-portable-staging/README.md",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "cde6f79cb51a8bc26c76a10502ee0844ed9631afc8c45f17cf7e4d35fd0908d1"
+      "sha256": "d99bb1374869903c4d60e6354e07b2c153adbe9ea9ada943f17c4129469f6b7e"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -254,7 +254,7 @@
     },
     {
       "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
-      "sha256": "007d71c99017cd86048aca89a98acb8475236585e4cdea0dc352c0e4c6035d8a"
+      "sha256": "b8585ddcabd9c24b97f094f6ca120bbc819e24668dc64fce583c84b63b3b8b60"
     },
     {
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
