@@ -1,0 +1,68 @@
+{
+  "contract": "mad4b.staging.activation-gateway-smart-convergence-policy.v1",
+  "extends": "autopilot-portable-staging/autopilot-one-click-policy.json",
+  "environment": "staging",
+  "enabled_by_switch": "EnableActivationGateway",
+  "entrypoint": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
+  "core_entrypoint": "autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1",
+  "convergence_helper": "autopilot-portable-staging/Converge-StagingActivationGateway.ps1",
+  "typed_recovery": {
+    "runtime_state": "autopilot-portable-staging/autopilot-state.json",
+    "preflight_report": "autopilot-portable-staging/logs/staging-schema-governance-preflight.json",
+    "requires_preflight_status": "passed",
+    "requires_exact_preflight_commit": true,
+    "allowed_gateway_drift_keys": [
+      "gateway_exact_commit",
+      "gateway_policy_not_stale",
+      "gateway_policy_hash_current",
+      "gateway_policy_key_current"
+    ],
+    "gateway_health_unreachable_auto_mutation": false,
+    "non_gateway_blocker_auto_mutation": false,
+    "schema_bundle_explicit_mode_auto_mutation": false,
+    "maximum_core_retries_after_convergence": 1
+  },
+  "deployment_authority": {
+    "workflow": ".github/workflows/staging-main-deploy-eligibility.yml",
+    "operation": "deploy_activation_worker",
+    "confirmation": "DEPLOY_STAGING_ACTIVATION_WORKER",
+    "ref": "main",
+    "source_sha": "exact_current_origin_main",
+    "worker": "mad4b-activation-gateway-staging",
+    "direct_cloudflare_api_from_launcher": false,
+    "local_cloudflare_api_token_read": false,
+    "reuse_existing_exact_sha_dispatch": true,
+    "duplicate_dispatch_avoidance_required": true
+  },
+  "postconditions": {
+    "public_health_url": "https://activation-dev.mad4b.com/health",
+    "http_200_required": true,
+    "ok_true_required": true,
+    "stale_false_required": true,
+    "source_commit_exact_required": true,
+    "worker_build_sha_exact_required": true,
+    "policy_hash_current_required": true,
+    "policy_key": "activation_gateway_staging",
+    "secrets_included_false_required": true,
+    "recertify_after_convergence": true
+  },
+  "mutation_scope": {
+    "provider_mutation_default": false,
+    "provider_mutation_when_drifted_and_authorized": true,
+    "provider_mutation_scope": "staging_activation_worker_exact_sha_only",
+    "cloudflare_worker_mutation": "conditional",
+    "cloudflare_dns_mutation": false,
+    "database_mutation": false,
+    "migration_apply": false,
+    "ruleset_mutation": false,
+    "hostinger_mutation": false,
+    "production_deploy": false,
+    "production_mutation": false
+  },
+  "evidence": {
+    "report_contract": "mad4b.staging.activation-gateway-convergence.v1",
+    "report_path": "autopilot-portable-staging/logs/staging-activation-gateway-convergence.json",
+    "provider_mutation_must_be_reported_truthfully": true,
+    "secrets_included": false
+  }
+}
