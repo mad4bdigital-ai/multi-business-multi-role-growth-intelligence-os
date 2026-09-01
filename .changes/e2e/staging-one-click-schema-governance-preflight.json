@@ -75,7 +75,8 @@
             "If explicit -EnableActivationGateway execution exits because typed autopilot-state and the passed exact preflight report contain only gateway_exact_commit, gateway_policy_not_stale, gateway_policy_hash_current, or gateway_policy_key_current drift, reject recovery when explicit schema-bundle modes are active or any non-gateway blocker is present.",
             "For eligible gateway-only drift, first verify the requested SHA still equals origin/main, reuse an in-progress exact-SHA workflow_dispatch when available, otherwise dispatch staging-main-deploy-eligibility.yml with operation=deploy_activation_worker and the exact source SHA, then require the workflow to complete successfully.",
             "After the governed Worker workflow succeeds, require activation-dev.mad4b.com/health to report HTTP 200, ok=true, stale=false, sourceCommit and workerBuildSha equal to the exact main SHA, the current route-policy hash and policy key, and secretsIncluded=false before allowing one bounded recertification retry.",
-            "Correct the final dual-mode evidence so provider/cloudflare Worker mutation is reported truthfully when convergence deployed the Staging Worker, while Cloudflare DNS, Production, Hostinger, database, migration, and ruleset mutation remain false."
+            "Correct the final dual-mode evidence so provider/cloudflare Worker mutation is reported truthfully when convergence deployed the Staging Worker, while Cloudflare DNS, Production, Hostinger, database, migration, and ruleset mutation remain false.",
+            "Normalize the filtered Activation Gateway degraded-reason pipeline into an array before Count evaluation so zero, singleton, and multiple blocker results remain StrictMode-safe after successful local certification."
           ],
           "assertions": [
             "The default CMD path contains -NoTunnel and -NoAutoDeploy and does not pass -ApplySchemaBundle.",
@@ -98,7 +99,8 @@
             "The canonical staging-one-click-autopilot test imports the unchanged historical core assertions and the smart gateway convergence contract so the static preflight validates both layers before local startup.",
             "The build artifact embeds exact source_sha and a deterministic source-graph SHA-256, signs the matching attestation with an ephemeral Ed25519 key, writes only the public key into deployment secrets, and never persists the private key.",
             "Final dual-mode evidence reports provider_mutation/cloudflare_worker_mutation true only when a Staging Worker deployment occurred, reports its bounded mutation scope, and always keeps cloudflare_dns_mutation, production_mutation, production_database_mutation, database/migration convergence mutation, ruleset mutation, and secrets_included false.",
-            "Native stderr from the child Windows PowerShell process is captured as diagnostic text without terminating the Smart wrapper before the real native exit code is snapshotted; the global fail-closed Stop policy is restored in finally before any gateway drift decision."
+            "Native stderr from the child Windows PowerShell process is captured as diagnostic text without terminating the Smart wrapper before the real native exit code is snapshotted; the global fail-closed Stop policy is restored in finally before any gateway drift decision.",
+            "Activation blocker filtering wraps the complete PowerShell pipeline in @(...), so a singleton gateway blocker cannot become a scalar without Count and post-certification finalization remains deterministic."
           ],
           "tests": [
             {

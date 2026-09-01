@@ -172,6 +172,12 @@ assert.match(launcher, /canonical_seed_status/);
 assert.match(launcher, /canonical_seed_readback/);
 assert.match(launcher, /Canonical seed\/readback evidence is incomplete/);
 assert.match(launcher, /Activation Gateway cannot be enabled until schema\/catalog\/gateway readback is ready/);
+assert.ok(launcher.includes(`$activationBlockers = @(
+        @($runtimeState.certification_degraded_reasons | ForEach-Object { [string]$_ }) |
+            Where-Object { $_ -in @("gateway_policy_not_stale", "gateway_policy_hash_current", "gateway_exact_commit", "mcp_catalog_schema_ready", "combined_database_readiness", "governance_db_privilege_ready") }
+    )`));
+assert.doesNotMatch(launcher, /\$activationBlockers = @\([^\n]+\) \| Where-Object/);
+assert.match(launcher, /if \(\$activationBlockers\.Count -gt 0 -or \[string\]\$runtimeState\.certification_status -ne "ready"\)/);
 assert.match(launcher, /gateway_policy_not_stale/);
 assert.match(launcher, /database_mutated = \$schemaSeedApplied/);
 assert.match(launcher, /certification_status = \[string\]\$runtimeState\.certification_status/);

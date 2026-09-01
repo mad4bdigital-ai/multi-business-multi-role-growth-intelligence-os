@@ -34,7 +34,7 @@
     },
     {
       "path": "autopilot-portable-staging/One-Click-Staging.ps1",
-      "sha256": "7f6a3953efdf0e0f54ac01fbb0e4af65a94edd019196a808b54dbd1fd49d0da7"
+      "sha256": "675a25629eda89d9cfc5034b676403ee2d3dda9ed1487d155d9f8f0fe5b4040b"
     },
     {
       "path": "autopilot-portable-staging/README.md",

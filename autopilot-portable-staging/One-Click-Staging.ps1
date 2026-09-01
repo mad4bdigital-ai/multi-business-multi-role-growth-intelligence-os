@@ -557,7 +557,10 @@ if ($databaseState -eq "schema_only_applied") {
 }
 $runtimeState = Read-RuntimeCertificationState $repo $sha
 if ($EnableActivationGateway) {
-    $activationBlockers = @($runtimeState.certification_degraded_reasons | ForEach-Object { [string]$_ }) | Where-Object { $_ -in @("gateway_policy_not_stale", "gateway_policy_hash_current", "gateway_exact_commit", "mcp_catalog_schema_ready", "combined_database_readiness", "governance_db_privilege_ready") }
+    $activationBlockers = @(
+        @($runtimeState.certification_degraded_reasons | ForEach-Object { [string]$_ }) |
+            Where-Object { $_ -in @("gateway_policy_not_stale", "gateway_policy_hash_current", "gateway_exact_commit", "mcp_catalog_schema_ready", "combined_database_readiness", "governance_db_privilege_ready") }
+    )
     if ($activationBlockers.Count -gt 0 -or [string]$runtimeState.certification_status -ne "ready") {
         Fail "Activation Gateway cannot be enabled until schema/catalog/gateway readback is ready: $($activationBlockers -join ',')"
     }
