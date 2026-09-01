@@ -78,7 +78,8 @@
             "Correct the final dual-mode evidence so provider/cloudflare Worker mutation is reported truthfully when convergence deployed the Staging Worker, while Cloudflare DNS, Production, Hostinger, database, migration, and ruleset mutation remain false.",
             "Normalize the filtered Activation Gateway degraded-reason pipeline into an array before Count evaluation so zero, singleton, and multiple blocker results remain StrictMode-safe after successful local certification.",
             "Normalize an empty GitHub workflow_dispatch inventory to a true zero-element array and reject null or headSha-less entries before exact-SHA filtering, then dispatch the governed Staging Worker workflow.",
-            "Capture convergence child PowerShell output as diagnostic lines, snapshot its native exit code under a bounded Continue policy, restore Stop in finally, and return only the typed convergence report to recertification."
+            "Capture convergence child PowerShell output as diagnostic lines, snapshot its native exit code under a bounded Continue policy, restore Stop in finally, and return only the typed convergence report to recertification.",
+            "Before replacing the bootstrap app with the loopback-only Windows service Compose override, stop the existing app through the same Compose project, prove its container is no longer running, allow a bounded port-release interval, then start the override."
           ],
           "assertions": [
             "The default CMD path contains -NoTunnel and -NoAutoDeploy and does not pass -ApplySchemaBundle.",
@@ -104,7 +105,8 @@
             "Native stderr from the child Windows PowerShell process is captured as diagnostic text without terminating the Smart wrapper before the real native exit code is snapshotted; the global fail-closed Stop policy is restored in finally before any gateway drift decision.",
             "Activation blocker filtering wraps the complete PowerShell pipeline in @(...), so a singleton gateway blocker cannot become a scalar without Count and post-certification finalization remains deterministic.",
             "A first-ever exact-SHA convergence with no prior workflow_dispatch runs cannot fail under Windows PowerShell StrictMode; null inventory entries are filtered before headSha access and the governed dispatch remains reachable.",
-            "Successful convergence diagnostics cannot contaminate the Invoke-GatewayConvergence return value; action, workflow_run_id, and mutation evidence are read from one typed report object after child output is rendered through Write-Host."
+            "Successful convergence diagnostics cannot contaminate the Invoke-GatewayConvergence return value; action, workflow_run_id, and mutation evidence are read from one typed report object after child output is rendered through Write-Host.",
+            "The windows_service transition serializes app shutdown before loopback-only startup so Docker Desktop cannot race 0.0.0.0:8080 teardown against 127.0.0.1:8080 binding; failure to prove stop remains fail-closed without removing volumes."
           ],
           "tests": [
             {
