@@ -1,0 +1,94 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr7826-staging-one-click-stale-schema-bundle-skip",
+  "title": "Staging one-click stale optional schema bundle closure",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr7826-staging-one-click-stale-schema-bundle-skip.json",
+      "autopilot-portable-staging/One-Click-Staging.ps1",
+      "autopilot-portable-staging/manifest.json",
+      "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Align One-Click-Staging.ps1 with the existing optional schema-bundle contract so a missing, invalid, unsupported, or stale optional recovery bundle is skipped before Clone-StagingDatabases.ps1, while required or apply mode remains exact-commit fail-closed.",
+      "e2e_journeys": [
+        {
+          "id": "staging-one-click-optional-stale-schema-bundle",
+          "end_to_end": true,
+          "level": "live_non_production",
+          "actor": "Governed local Staging operator",
+          "entrypoint": "Run the Staging one-click launcher against an exact current main SHA with a local schema-only recovery bundle whose manifest is bound to an older source commit.",
+          "terminal_outcome": "Optional stale bundle validation is recorded and skipped before clone invocation, the same-cycle Staging path may continue to certification, and explicitly required or apply mode still rejects stale exact-commit binding.",
+          "steps": [
+            "Validate the local schema-bundle manifest against the exact expected commit before any clone invocation.",
+            "When schema bundle use is optional, classify missing, invalid, unsupported, or stale bundle state as skipped and continue without database restore or bundle rewrite.",
+            "When RequireSchemaBundle or ApplySchemaBundle is explicitly requested, preserve fail-closed exact-commit validation.",
+            "Run the Staging one-click contract assertions and require live Staging certification for the resulting exact source SHA before operational reliance.",
+            "Keep Production, database apply, migration apply, provider mutation, ruleset mutation, and credential payload reads outside this declaration's authority."
+          ],
+          "assertions": [
+            "Optional stale schema bundles are skipped before Clone-StagingDatabases.ps1 is invoked.",
+            "Required or apply mode does not weaken stale source_commit rejection.",
+            "Skipping an optional stale bundle does not delete, rewrite, or apply that bundle.",
+            "The change is Staging-only and live_staging_certification_required remains true.",
+            "production_mutation_allowed is false.",
+            "No database/schema/migration apply, Production deployment, provider/ruleset mutation, or secret payload read is authorized by this declaration.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "staging-one-click-autopilot-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "environment-impact-closure",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+              "args": ["--base-sha", "BASE_SHA", "--head-sha", "HEAD_SHA"]
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/pr7826-staging-one-click-stale-schema-bundle-skip.json",
+            "autopilot-portable-staging/One-Click-Staging.ps1",
+            "autopilot-portable-staging/manifest.json",
+            "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+            "http-generic-api/config/deployment-branch-policy.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "This repair grants no Production deployment, Production provider mutation, Production credential access, database mutation, migration apply, or production_live authority.",
+      "blockers": [
+        "Production changes require a separate governed Production promotion and explicit authorization.",
+        "This PR is limited to local Staging launcher behavior and its live non-production certification."
+      ]
+    }
+  ],
+  "secrets_included": false
+}
