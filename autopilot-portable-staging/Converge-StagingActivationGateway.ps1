@@ -90,9 +90,15 @@ function Get-GatewayHealthEvidence {
 function Get-WorkflowDispatchRuns {
     $raw = & gh run list --repo $ExpectedRepository --workflow $workflow --commit $ExpectedCommit --event workflow_dispatch --limit 30 --json status,conclusion,headSha,databaseId,createdAt,updatedAt,url 2>$null
     if ($LASTEXITCODE -ne 0) { Fail 'Could not read Staging Worker workflow_dispatch runs from GitHub.' }
-    try { $runs = @(($raw | Out-String) | ConvertFrom-Json -ErrorAction Stop) }
-    catch { Fail 'GitHub workflow run listing did not return valid JSON.' }
-    return @($runs | Where-Object { ([string]$_.headSha).ToLowerInvariant() -eq $ExpectedCommit })
+    try {
+        $parsedRuns = ($raw | Out-String) | ConvertFrom-Json -ErrorAction Stop
+        $runs = if ($null -eq $parsedRuns) { @() } else { @($parsedRuns) }
+    } catch { Fail 'GitHub workflow run listing did not return valid JSON.' }
+    return @($runs | Where-Object {
+        $null -ne $_ `
+            -and $_.PSObject.Properties.Name -contains 'headSha' `
+            -and ([string]$_.headSha).ToLowerInvariant() -eq $ExpectedCommit
+    })
 }
 
 function Wait-WorkflowRun([long]$RunId) {
