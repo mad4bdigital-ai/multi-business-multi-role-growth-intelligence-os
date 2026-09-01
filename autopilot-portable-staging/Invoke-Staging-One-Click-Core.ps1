@@ -117,6 +117,24 @@ function Invoke-HttpProbe([string]$Uri, [hashtable]$Headers = @{}, [int[]]$Allow
 function Ensure-WindowsLoopbackPublication([string]$RepositoryPath, [string]$EnvFile) {
     $composeArgs = Get-StagingComposeArgs $RepositoryPath $EnvFile -WindowsOverride
     Invoke-Checked 'docker' ($composeArgs + @('config','--quiet'))
+
+    # Bootstrap starts the app without a tunnel using the base host-port binding.
+    # Stop that exact Compose service before changing it to the loopback-only
+    # Windows service override so Docker Desktop has a bounded port-release
+    # boundary instead of racing container replacement on 127.0.0.1:8080.
+    $existingId = (& docker @($composeArgs + @('ps','-q','app')) 2>$null | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0) { Fail 'Could not inspect the existing app before the Windows loopback transition.' }
+    if (-not [string]::IsNullOrWhiteSpace($existingId)) {
+        Invoke-Checked 'docker' ($composeArgs + @('stop','--timeout','15','app'))
+        $stopped = $false
+        for ($attempt = 0; $attempt -lt 30; $attempt++) {
+            $running = (& docker inspect --format '{{.State.Running}}' $existingId 2>$null | Out-String).Trim().ToLowerInvariant()
+            if ($LASTEXITCODE -eq 0 -and $running -eq 'false') { $stopped = $true; break }
+            Start-Sleep -Milliseconds 250
+        }
+        if (-not $stopped) { Fail 'Existing app did not stop before the Windows loopback port transition.' }
+        Start-Sleep -Seconds 2
+    }
     Invoke-Checked 'docker' ($composeArgs + @('up','-d','--no-build','app'))
 
     for ($attempt = 0; $attempt -lt 30; $attempt++) {

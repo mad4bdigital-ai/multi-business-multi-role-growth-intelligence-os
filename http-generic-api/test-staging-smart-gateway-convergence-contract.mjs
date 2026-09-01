@@ -140,6 +140,14 @@ assert.match(liveCertification, /gateway_policy_hash_current/);
 assert.match(liveCertification, /read_only_probe: true/);
 assert.match(liveCertification, /provider_mutation: false/);
 
+assert.match(core, /\$existingId = \(& docker @\(\$composeArgs \+ @\('ps','-q','app'\)\)/);
+assert.match(core, /Invoke-Checked 'docker' \(\$composeArgs \+ @\('stop','--timeout','15','app'\)\)/);
+assert.match(core, /Existing app did not stop before the Windows loopback port transition/);
+assert.ok(
+  core.indexOf("Invoke-Checked 'docker' ($composeArgs + @('stop','--timeout','15','app'))")
+    < core.indexOf("Invoke-Checked 'docker' ($composeArgs + @('up','-d','--no-build','app'))"),
+  "Windows loopback transition must stop the existing app before changing host-port binding",
+);
 assert.match(core, /mad4b\.staging-dual-mode-one-click\.v1/);
 assert.match(core, /production_mutation = \$false/);
 assert.match(core, /provider_mutation = \$false/);

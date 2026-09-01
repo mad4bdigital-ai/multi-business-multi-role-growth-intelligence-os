@@ -386,7 +386,7 @@
     },
     {
       "path": "autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1",
-      "sha256": "0febb4bd41486213b9f9bb9e6f37aa0530c097ca6333e7710c30dee0dd9867c0"
+      "sha256": "d403cf55f49d7a6fb9ba827a27bd9b38ddfb1ae75eed50f29b6e2be2be17ebc4"
     },
     {
       "path": "autopilot-portable-staging/Converge-StagingActivationGateway.ps1",
