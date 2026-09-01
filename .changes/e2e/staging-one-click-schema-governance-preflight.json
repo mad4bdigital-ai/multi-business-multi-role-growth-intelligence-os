@@ -97,7 +97,8 @@
             "Smart convergence reuses an already-running exact-SHA dispatch before creating another one, performs at most one core retry after successful convergence, and cannot auto-mutate for non-gateway blockers or explicit schema bundle require/apply modes.",
             "The canonical staging-one-click-autopilot test imports the unchanged historical core assertions and the smart gateway convergence contract so the static preflight validates both layers before local startup.",
             "The build artifact embeds exact source_sha and a deterministic source-graph SHA-256, signs the matching attestation with an ephemeral Ed25519 key, writes only the public key into deployment secrets, and never persists the private key.",
-            "Final dual-mode evidence reports provider_mutation/cloudflare_worker_mutation true only when a Staging Worker deployment occurred, reports its bounded mutation scope, and always keeps cloudflare_dns_mutation, production_mutation, production_database_mutation, database/migration convergence mutation, ruleset mutation, and secrets_included false."
+            "Final dual-mode evidence reports provider_mutation/cloudflare_worker_mutation true only when a Staging Worker deployment occurred, reports its bounded mutation scope, and always keeps cloudflare_dns_mutation, production_mutation, production_database_mutation, database/migration convergence mutation, ruleset mutation, and secrets_included false.",
+            "Native stderr from the child Windows PowerShell process is captured as diagnostic text without terminating the Smart wrapper before the real native exit code is snapshotted; the global fail-closed Stop policy is restored in finally before any gateway drift decision."
           ],
           "tests": [
             {
