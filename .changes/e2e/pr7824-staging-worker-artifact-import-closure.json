@@ -1,0 +1,87 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr7824-staging-worker-artifact-import-closure",
+  "title": "Staging Worker deployment artifact import closure",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr7824-staging-worker-artifact-import-closure.json",
+      "http-generic-api/scripts/build-staging-worker.mjs",
+      "http-generic-api/test-staging-auto-deploy-contract.mjs",
+      ".github/workflows/staging-main-deploy-eligibility.yml",
+      "edge/activation-gateway/src/worker-staging.mjs",
+      "edge/activation-gateway/generated/route-policy.staging.json"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make the governed Staging Worker deployment artifact self-contained by rebasing the generated route-policy module import from source-tree topology to the co-located artifact topology, while preserving exact-SHA identity, signed attestation, Staging-only authority, and fail-closed deployment behavior.",
+      "e2e_journeys": [
+        {
+          "id": "staging-worker-self-contained-artifact-deploy",
+          "end_to_end": true,
+          "level": "live_non_production",
+          "actor": "Governed Staging deployment operator",
+          "entrypoint": "staging-main-deploy-eligibility.yml is explicitly dispatched for an exact current main SHA with DEPLOY_STAGING_ACTIVATION_WORKER confirmation.",
+          "terminal_outcome": "Wrangler can bundle the exact-SHA Staging Worker from the generated artifact without resolving files outside the artifact directory, deploy only mad4b-activation-gateway-staging, and the public Staging health readback proves the exact deployed source SHA with stale=false.",
+          "steps": [
+            "Build the Staging Worker artifact from the exact authorized source SHA and generate the signed short-lived deployment attestation.",
+            "Derive the route-policy module specifier from the checked-in source paths and rewrite only the deployment artifact to reference the co-located route-policy.staging.json file.",
+            "Fail closed if the source policy import is absent or duplicated, if the built artifact still depends on the source-tree generated directory, or if the artifact no longer references its co-located policy.",
+            "Run the existing Staging deployment contract and repository governance checks without database, migration, Production, ruleset, or unrelated provider mutation.",
+            "After merge, explicitly dispatch the governed Staging Worker deployment for the exact current main SHA and require Wrangler publish plus public exact-SHA health readback to succeed."
+          ],
+          "assertions": [
+            "The checked-in edge/activation-gateway/src/worker-staging.mjs topology remains unchanged; only the generated deployment artifact import is rebased.",
+            "The artifact contains worker-staging.mjs, gateway.mjs, and route-policy.staging.json with the Worker importing the co-located policy rather than ../generated/route-policy.staging.json.",
+            "The builder derives module specifiers from filesystem paths instead of introducing new configuration candidates or configuration-drift baseline exceptions.",
+            "Exact source SHA, deterministic bundle hash, ephemeral Ed25519 signing, existing Cloudflare credential boundaries, and deployment attestation semantics remain unchanged.",
+            "The change requires live Staging certification and grants no Production mutation authority.",
+            "No database mutation, migration apply, Production deployment, ruleset mutation, credential payload read, or unrelated provider mutation is performed by this declaration or its static verification."
+          ],
+          "tests": [
+            {
+              "id": "staging-auto-deploy-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-staging-auto-deploy-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/pr7824-staging-worker-artifact-import-closure.json",
+            "http-generic-api/scripts/build-staging-worker.mjs",
+            "http-generic-api/test-staging-auto-deploy-contract.mjs",
+            ".github/workflows/staging-main-deploy-eligibility.yml",
+            "edge/activation-gateway/src/worker-staging.mjs",
+            "edge/activation-gateway/generated/route-policy.staging.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "This repair grants no Production Worker deployment, Production provider mutation, Production credential access, database mutation, or production_live authority.",
+      "blockers": [
+        "Production deployment requires a separate governed Production promotion and explicit authorization.",
+        "This PR is scoped to the Staging Worker artifact and its live non-production certification only."
+      ]
+    }
+  ],
+  "secrets_included": false
+}

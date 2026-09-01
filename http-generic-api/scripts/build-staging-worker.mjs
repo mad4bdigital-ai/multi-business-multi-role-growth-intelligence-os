@@ -38,8 +38,28 @@ const graphDigest = crypto.createHash("sha256")
   .digest("hex");
 const workerBuildIdentity = { source_sha: sourceSha, bundle_sha256: graphDigest };
 const marker = "/* WORKER_BUILD_IDENTITY */ null";
+const moduleSpecifier = (fromFile, toFile) => {
+  const relative = path.relative(path.dirname(fromFile), toFile).replaceAll(path.sep, "/");
+  return JSON.stringify(relative.startsWith(".") ? relative : `./${relative}`);
+};
 assert.equal(workerTemplate.split(marker).length, 2, "worker identity marker must occur exactly once");
-const builtWorker = workerTemplate.replace(marker, JSON.stringify(workerBuildIdentity));
+assert.equal(workerTemplate.split(moduleSpecifier(workerPath, policyPath)).length, 2, "staging policy import must occur exactly once");
+const builtWorker = workerTemplate
+  .replace(
+    moduleSpecifier(workerPath, policyPath),
+    moduleSpecifier(path.join(outputDir, "worker-staging.mjs"), path.join(outputDir, path.basename(policyPath))),
+  )
+  .replace(marker, JSON.stringify(workerBuildIdentity));
+assert.equal(
+  builtWorker.includes(moduleSpecifier(workerPath, policyPath)),
+  false,
+  "deployment artifact must not depend on source-tree policy topology",
+);
+assert.equal(
+  builtWorker.includes(moduleSpecifier(path.join(outputDir, "worker-staging.mjs"), path.join(outputDir, path.basename(policyPath)))),
+  true,
+  "deployment artifact must import its co-located policy",
+);
 
 const deploymentId = `activation-staging-${sourceSha.slice(0, 12)}-${Date.now()}`;
 const expiresAt = new Date(Date.now() + lifetimeHours * 60 * 60 * 1000).toISOString();
