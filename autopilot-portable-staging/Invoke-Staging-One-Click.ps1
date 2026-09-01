@@ -124,14 +124,25 @@ function Invoke-GatewayConvergence([object]$Recovery) {
     if (-not (Test-Path -LiteralPath $converger -PathType Leaf)) { Fail "Activation Gateway convergence helper is missing: $converger" }
     if (Test-Path -LiteralPath $convergenceReportPath) { Remove-Item -LiteralPath $convergenceReportPath -Force }
     Write-Host "STAGING_GATEWAY_DRIFT_DETECTED: commit=$($Recovery.commit) reasons=$($Recovery.reasons -join ',')" -ForegroundColor Yellow
-    & powershell.exe @(
-        '-NoLogo','-NoProfile','-ExecutionPolicy','Bypass','-File',$converger,
-        '-RepositoryPath',$RepositoryPath,
-        '-ExpectedCommit',$Recovery.commit,
-        '-ExpectedRepository',$expectedRepository,
-        '-ReportPath',$convergenceReportPath
-    )
-    if ($LASTEXITCODE -ne 0) { Fail "Activation Gateway smart convergence exited with code $LASTEXITCODE" }
+    $previousErrorActionPreference = $ErrorActionPreference
+    $convergenceExitCode = $null
+    $convergenceLines = @()
+    try {
+        $ErrorActionPreference = 'Continue'
+        $convergenceLines = @(& powershell.exe @(
+            '-NoLogo','-NoProfile','-ExecutionPolicy','Bypass','-File',$converger,
+            '-RepositoryPath',$RepositoryPath,
+            '-ExpectedCommit',$Recovery.commit,
+            '-ExpectedRepository',$expectedRepository,
+            '-ReportPath',$convergenceReportPath
+        ) 2>&1 | ForEach-Object { [string]$_ })
+        $convergenceExitCode = [int]$LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+    Write-Lines $convergenceLines
+    if ($null -eq $convergenceExitCode) { Fail 'Activation Gateway smart convergence did not expose a native exit code.' }
+    if ($convergenceExitCode -ne 0) { Fail "Activation Gateway smart convergence exited with code $convergenceExitCode" }
     $report = Read-TypedState $convergenceReportPath 'Activation Gateway convergence report'
     if ([string]$report.contract -ne 'mad4b.staging.activation-gateway-convergence.v1' -or $report.ready -ne $true) {
         Fail 'Activation Gateway smart convergence did not produce ready exact-SHA evidence.'
