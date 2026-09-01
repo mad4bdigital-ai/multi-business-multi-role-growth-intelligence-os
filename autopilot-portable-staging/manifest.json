@@ -138,7 +138,7 @@
     },
     {
       "path": "http-generic-api/docker-compose.staging.yml",
-      "sha256": "b84e162c0328e18cf0ca5fb0a02c7e7bb6be00e1116a0eb66e7d8139655972cb"
+      "sha256": "96cd50610ebd45db6416d24d3347d7e3eedba19bbf5fd455f78f82aba5a92a28"
     },
     {
       "path": "http-generic-api/docker-compose.yml",
@@ -258,7 +258,7 @@
     },
     {
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
-      "sha256": "adcaacb9c1271ec57fc9d0a30dd5fe1889fca58d2d894e24c7ff2616526482da"
+      "sha256": "5df2e3cb08b9da24ba26af6d8887be682020dc81dd6bbf396c97edc7a7534b0e"
     },
     {
       "path": "http-generic-api/test-staging-operations-logging-contract.mjs",
