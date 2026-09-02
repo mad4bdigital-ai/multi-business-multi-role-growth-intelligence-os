@@ -31,7 +31,7 @@
     "hostname_family_policy": "http-generic-api/config/domain-family-policy.json",
     "hostnames": [
       "dev.mad4b.com",
-      "mcp_dev.mad4b.com",
+      "mcp-dev.mad4b.com",
       "activation-dev.mad4b.com"
     ],
     "source_branch": "main",

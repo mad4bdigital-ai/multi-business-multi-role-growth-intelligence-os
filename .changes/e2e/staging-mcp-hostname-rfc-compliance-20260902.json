@@ -1,0 +1,100 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-mcp-hostname-rfc-compliance-20260902",
+  "title": "Use an RFC-compliant Staging MCP hostname",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-mcp-hostname-rfc-compliance-20260902.json",
+      ".changes/e2e/domain-family-environment-separation.json",
+      ".changes/e2e/local-staging-autopilot-tunnel-hardening.json",
+      ".changes/e2e/staging-dual-tunnel-custom-gpt-mcp-bootstrap-20260830.json",
+      ".github/derived-state-governance.json",
+      ".github/governance/test-authority-registry.json",
+      "STAGING-DEEP-AUDIT-2026-08-15.md",
+      "STAGING-WINDOWS.md",
+      "autopilot-portable-staging/",
+      "docs/",
+      "http-generic-api/.env.staging.example",
+      "http-generic-api/canonical-business-operation-parity.generated.json",
+      "http-generic-api/canonical-business-operation-registry.json",
+      "http-generic-api/config/",
+      "http-generic-api/docker-compose.staging.yml",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/openapi/",
+      "http-generic-api/remoteMcpOAuthProfile.js",
+      "http-generic-api/routes/rootDiscoveryRoutes.js",
+      "http-generic-api/scripts/",
+      "http-generic-api/test-domain-family-policy.mjs",
+      "http-generic-api/test-remote-mcp-client-provisioning.mjs",
+      "http-generic-api/test-staging-activation-oauth-profile-enabled.mjs",
+      "http-generic-api/test-staging-auto-deploy-contract.mjs",
+      "http-generic-api/test-staging-autopilot-closure.mjs",
+      "http-generic-api/test-staging-independent-schema-contract.mjs",
+      "http-generic-api/test-staging-one-click-autopilot-core.mjs",
+      "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
+      "http-generic-api/test-staging-runtime-oauth-profile.mjs",
+      "specs/020-platform-resource-identity-brand-governance/",
+      "specs/021-portable-staging-autopilot/e2e-phases.json"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Replace the invalid underscore-based Staging MCP hostname with the RFC-compliant mcp-dev.mad4b.com identity across runtime policy, OAuth, OpenAPI, Windows automation, tests, and operator documentation without changing Production.",
+      "e2e_journeys": [
+        {
+          "id": "staging-mcp-hostname-contract-migration",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging operator and Remote MCP client",
+          "entrypoint": "https://mcp-dev.mad4b.com",
+          "terminal_outcome": "All source-controlled Staging contracts use mcp-dev.mad4b.com, the Windows service requires that hostname to map to the loopback origin, and the invalid underscore hostname is absent.",
+          "steps": [
+            "Replace the old Staging MCP hostname in canonical policies and generated artifacts.",
+            "Update OAuth resource identity, OpenAPI server URLs, discovery routing, and readiness probes.",
+            "Update Windows One-Click and Cloudflared log evidence matching.",
+            "Run the bounded domain, OAuth, schema, Auto-Pilot, and dual-mode contract regressions.",
+            "Provision the provider-side hostname only after this source change is merge-ready."
+          ],
+          "assertions": [
+            "The canonical Staging MCP hostname is exactly mcp-dev.mad4b.com.",
+            "No source-controlled runtime, policy, test, generated artifact, evidence contract, or documentation retains the invalid underscore hostname.",
+            "The Staging Tunnel hostname family remains dev.mad4b.com and mcp-dev.mad4b.com only.",
+            "The Windows Cloudflared contract requires both active hosts to target http://127.0.0.1:8080.",
+            "Production auth.mad4b.com, mcp.mad4b.com, and activation.mad4b.com are unchanged.",
+            "No DNS, provider, database, migration, Production, secret, ruleset, container, or volume mutation is performed by this source change."
+          ],
+          "tests": [
+            {"id": "domain-family-policy", "runner": "node", "working_directory": "http-generic-api", "path": "test-domain-family-policy.mjs", "args": []},
+            {"id": "staging-openapi-mcp-boundary", "runner": "node", "working_directory": "http-generic-api", "path": "test-staging-openapi-mcp-db-boundary.mjs", "args": []},
+            {"id": "staging-runtime-oauth", "runner": "node", "working_directory": "http-generic-api", "path": "test-staging-runtime-oauth-profile.mjs", "args": []},
+            {"id": "staging-autopilot", "runner": "node", "working_directory": "http-generic-api", "path": "test-staging-autopilot-closure.mjs", "args": []},
+            {"id": "staging-dual-mode", "runner": "node", "working_directory": "http-generic-api", "path": "scripts/staging-dual-mode-one-click-contract.mjs", "args": []}
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-mcp-hostname-rfc-compliance-20260902.json",
+            "http-generic-api/config/domain-family-policy.json",
+            "http-generic-api/config/staging-openapi-mcp-policy.json",
+            "http-generic-api/openapi/openapi.remote-mcp.staging.yaml",
+            "autopilot-portable-staging/Staging-WindowsCloudflared.ps1"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

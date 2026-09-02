@@ -48,7 +48,7 @@ try {
   assert.equal(coreAuthorizationBody.issuer, "https://dev.mad4b.com");
   assert.equal(coreAuthorizationBody["x-mad4b-oauth-compatibility"]?.profile, "tenant_core");
 
-  const unknown = await fetch(`http://127.0.0.1:${port}/.well-known/oauth-authorization-server`, { headers: headers("mcp_dev.mad4b.com") });
+  const unknown = await fetch(`http://127.0.0.1:${port}/.well-known/oauth-authorization-server`, { headers: headers("mcp-dev.mad4b.com") });
   assert.equal(unknown.status, 404);
 } finally {
   await new Promise((resolve, reject) => server.close((err) => err ? reject(err) : resolve()));

@@ -6,7 +6,7 @@
     "active_environment": "staging",
     "allowed_public_hosts": [
       "dev.mad4b.com",
-      "mcp_dev.mad4b.com"
+      "mcp-dev.mad4b.com"
     ],
     "blocked_public_hosts": [
       "activation-dev.mad4b.com",

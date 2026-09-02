@@ -33,9 +33,9 @@ const surfaces = [
   },
   {
     key: "remote_mcp",
-    remote: "https://mcp_dev.mad4b.com/openapi.remote-mcp.staging.yaml",
+    remote: "https://mcp-dev.mad4b.com/openapi.remote-mcp.staging.yaml",
     local: "openapi/openapi.remote-mcp.staging.yaml",
-    server: "https://mcp_dev.mad4b.com",
+    server: "https://mcp-dev.mad4b.com",
     securityScheme: "remoteMcpBearerAuth",
     securityType: "http",
     titleToken: "Staging Remote MCP",

@@ -151,7 +151,7 @@ function Assert-StagingRemoteManagedOriginEvidence([string]$Mode, [string]$EnvFi
             throw 'REMOTE_MANAGED_TUNNEL_ORIGIN_MISMATCH: Cloudflare still advertises http://app:8080; expected http://127.0.0.1:8080. No Cloudflare mutation was performed.'
         }
         $devReady = $logText -match 'dev\.mad4b\.com[\s\S]{0,320}http://127\.0\.0\.1:8080'
-        $mcpReady = $logText -match 'mcp_dev\.mad4b\.com[\s\S]{0,320}http://127\.0\.0\.1:8080'
+        $mcpReady = $logText -match 'mcp-dev\.mad4b\.com[\s\S]{0,320}http://127\.0\.0\.1:8080'
         if ($devReady -and $mcpReady) {
             return [pscustomobject]@{
                 remote_managed_origin = $expected

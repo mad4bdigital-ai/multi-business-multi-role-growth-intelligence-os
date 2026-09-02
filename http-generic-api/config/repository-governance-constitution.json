@@ -288,6 +288,8 @@
       "patterns": [
         "docs/**",
         "README.md",
+        "STAGING-DEEP-AUDIT-2026-08-15.md",
+        "STAGING-WINDOWS.md",
         "SECURITY.md",
         "CONTRIBUTING.md",
         "Updating Registry Patch Index.md",
@@ -428,6 +430,7 @@
     ".changes/e2e/staging-git-transport-native-stderr-20260828.json",
     ".changes/e2e/staging-inherited-port-publication-reset.json",
     ".changes/e2e/staging-cloudflared-cim-service-reconcile-20260902.json",
+    ".changes/e2e/staging-mcp-hostname-rfc-compliance-20260902.json",
     "http-generic-api/config/repository-governance-constitution.json",
     "http-generic-api/config/deployment-branch-policy.json",
     "http-generic-api/config/domain-family-policy.json",

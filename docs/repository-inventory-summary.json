@@ -3,37 +3,37 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7469,
-    "bytes": 73851948,
-    "lines": 1714234,
+    "files": 7502,
+    "bytes": 74254127,
+    "lines": 1721670,
     "directories": 266,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2206,
-      "documentation": 1916,
-      "api-runtime": 1527,
+      "tests-and-specs": 2210,
+      "documentation": 1917,
+      "api-runtime": 1536,
       "database-migrations": 833,
-      "root-and-other": 346,
+      "root-and-other": 363,
       "api-contracts": 195,
       "ci-workflows": 170,
       "ci-config": 135,
-      "schemas-and-data": 79,
+      "schemas-and-data": 81,
       "connectors-and-edge": 29,
       "applications": 19,
       "source": 12,
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2517,
-      ".mjs": 1780,
+      ".md": 2518,
+      ".mjs": 1793,
       ".js": 1031,
-      ".json": 898,
+      ".json": 907,
       ".sql": 848,
-      ".yml": 173,
+      ".yml": 175,
       ".yaml": 122,
-      ".ps1": 21,
+      ".ps1": 29,
       ".ts": 16,
       ".cs": 14,
       ".jsx": 9,
@@ -61,13 +61,13 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3891,
-      "docs": 1820,
+      "http-generic-api": 3906,
+      "docs": 1821,
       "specs": 880,
-      ".changes": 316,
+      ".changes": 324,
       ".github": 305,
       "canonicals": 71,
-      "autopilot-portable-staging": 23,
+      "autopilot-portable-staging": 32,
       "local-connector": 23,
       "apps": 19,
       "scripts": 19,
@@ -261,7 +261,7 @@
     "workflows": 170,
     "migrations": 833,
     "apiContracts": 195,
-    "testSpecFiles": 2296
+    "testSpecFiles": 2300
   },
   "largestFiles": [
     {

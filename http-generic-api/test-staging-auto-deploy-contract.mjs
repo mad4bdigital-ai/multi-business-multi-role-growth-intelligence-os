@@ -50,7 +50,7 @@ assert.equal(policy.activation_gateway.readback_gate.schema_and_catalog_readines
 assert.equal(policy.preflight_lifecycle.required_mariadb_image, "mariadb:11.4");
 assert.equal(policy.logging_lifecycle.atomic_status_writes, true);
 assert.equal(policy.health_monitor_lifecycle.recovery_transition_required, true);
-assert.deepEqual(policy.allowed_staging_hosts, ["dev.mad4b.com", "mcp_dev.mad4b.com", "activation-dev.mad4b.com"]);
+assert.deepEqual(policy.allowed_staging_hosts, ["dev.mad4b.com", "mcp-dev.mad4b.com", "activation-dev.mad4b.com"]);
 assert.deepEqual(policy.forbidden_hosts, ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com"]);
 assert.equal(policy.activation_gateway.enabled_by_env, "ACTIVATION_STAGING_GATEWAY_ENABLED");
 assert.equal(policy.activation_gateway.required_host, "activation-dev.mad4b.com");

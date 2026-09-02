@@ -463,7 +463,7 @@ try {
     $activationGatewayEnabled = (Read-EnvValue $EnvFile "ACTIVATION_STAGING_GATEWAY_ENABLED").ToLowerInvariant() -eq "true"
     if ($activationGatewayEnabled -and [string]::IsNullOrWhiteSpace((Read-EnvValue $EnvFile "TENANT_GPT_STAGING_ACTIVATION_OAUTH_CLIENT_SECRET"))) { Fail "Activation Staging Gateway requires TENANT_GPT_STAGING_ACTIVATION_OAUTH_CLIENT_SECRET" }
     if ($effectiveEnv -notmatch '(?im)^TENANT_GPT_SSO_COOKIE_MODE=host_only\s*$') { Fail "Staging SSO cookie mode must be host_only" }
-    if ($effectiveEnv -notmatch '(?im)^CLOUDFLARE_TUNNEL_HOSTNAMES=dev\.mad4b\.com,mcp_dev\.mad4b\.com\s*$') { Fail "Staging Tunnel requires exactly dev.mad4b.com and mcp_dev.mad4b.com; Activation uses a separate Worker custom domain" }
+    if ($effectiveEnv -notmatch '(?im)^CLOUDFLARE_TUNNEL_HOSTNAMES=dev\.mad4b\.com,mcp-dev\.mad4b\.com\s*$') { Fail "Staging Tunnel requires exactly dev.mad4b.com and mcp-dev.mad4b.com; Activation uses a separate Worker custom domain" }
     if ($activationGatewayEnabled -and (Read-EnvValue $EnvFile "ACTIVATION_HOST_GATEWAY_HOST") -ne "activation-dev.mad4b.com") { Fail "Activation Staging Gateway must use activation-dev.mad4b.com as its Worker custom domain" }
     if ($activationGatewayEnabled -and (Read-EnvValue $EnvFile "ACTIVATION_STAGING_AUTH_HOST") -ne "activation-dev.mad4b.com") { Fail "Activation Staging OAuth host must be activation-dev.mad4b.com" }
     if ($effectiveEnv -notmatch '(?im)^CLOUDFLARE_TUNNEL_ORIGIN_APP=http://app:8080\s*$') { Fail "Staging tunnel origin must be exactly http://app:8080" }
@@ -510,7 +510,7 @@ try {
     if ($StartTunnel) {
         Write-StagingLog -Level info -Component $LogComponent -Stage "tunnel" -Message "starting explicitly enabled Staging tunnel"
         Invoke-Native "docker" ($composeArgs + @("--profile", "tunnel", "up", "-d", "cloudflared"))
-        Write-StagingOperationBoundary -Component $LogComponent -Stage "tunnel" -Outcome "success" -Message "Staging tunnel started" -Data @{ hostnames = "dev.mad4b.com,mcp_dev.mad4b.com" }
+        Write-StagingOperationBoundary -Component $LogComponent -Stage "tunnel" -Outcome "success" -Message "Staging tunnel started" -Data @{ hostnames = "dev.mad4b.com,mcp-dev.mad4b.com" }
     }
     Invoke-Native "docker" ($composeArgs + @("ps"))
 

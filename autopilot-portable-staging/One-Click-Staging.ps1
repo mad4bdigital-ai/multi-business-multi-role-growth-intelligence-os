@@ -361,7 +361,7 @@ function Initialize-Environment([string]$RepoPath, [string]$ScriptRoot) {
     $effective = Get-Content -Raw -LiteralPath $envFile
     if ($effective -match '(?im)^(CLOUDFLARE_TUNNEL_HOSTNAMES|PUBLIC_BASE_URL|AUTH_BASE_URL|PLATFORM_JWT_ISSUER)=.*(auth\.mad4b\.com|mcp\.mad4b\.com|activation\.mad4b\.com)') { Fail "Production hostname leaked into Staging environment" }
     $activationGatewayEnabled = (Get-EnvValue $envFile "ACTIVATION_STAGING_GATEWAY_ENABLED").ToLowerInvariant() -eq "true"
-    if ($effective -notmatch '(?im)^CLOUDFLARE_TUNNEL_HOSTNAMES=dev\.mad4b\.com,mcp_dev\.mad4b\.com\s*$') { Fail "Staging Tunnel requires exactly dev.mad4b.com and mcp_dev.mad4b.com; Activation uses a separate Worker custom domain" }
+    if ($effective -notmatch '(?im)^CLOUDFLARE_TUNNEL_HOSTNAMES=dev\.mad4b\.com,mcp-dev\.mad4b\.com\s*$') { Fail "Staging Tunnel requires exactly dev.mad4b.com and mcp-dev.mad4b.com; Activation uses a separate Worker custom domain" }
     if ($activationGatewayEnabled) {
         if ((Get-EnvValue $envFile "ACTIVATION_HOST_GATEWAY_HOST") -ne "activation-dev.mad4b.com") { Fail "Activation Gateway must use activation-dev.mad4b.com as its Worker custom domain" }
         if ((Get-EnvValue $envFile "ACTIVATION_STAGING_AUTH_HOST") -ne "activation-dev.mad4b.com") { Fail "Activation OAuth host must be activation-dev.mad4b.com" }
@@ -606,7 +606,7 @@ if ($runtimeState.certification_status -eq "degraded") {
 } else {
     Write-Host "AUTO_PILOT_ONE_CLICK_READY: staging=$repo commit=$sha tunnel=$(-not $NoTunnel) activation_gateway=$EnableActivationGateway auto_deploy=$(-not $NoAutoDeploy) database_seed=$databaseState" -ForegroundColor Green
 }
-Write-Host "URLs: https://dev.mad4b.com | https://mcp_dev.mad4b.com"
-Write-Host "OpenAPI: Tenant/Admin on dev.mad4b.com; Remote MCP on mcp_dev.mad4b.com"
+Write-Host "URLs: https://dev.mad4b.com | https://mcp-dev.mad4b.com"
+Write-Host "OpenAPI: Tenant/Admin on dev.mad4b.com; Remote MCP on mcp-dev.mad4b.com"
 Write-StagingOperationBoundary -Component $LogComponent -Stage "complete" -Outcome "success" -Message "one-click staging completed" -Data @{ sha = $sha; repository_path = $repo; database_seed = $databaseState; activation_gateway = [bool]$EnableActivationGateway; certification_status = $runtimeState.certification_status }
 Write-Host "AUTO_PILOT_LOG: $(Get-StagingLogRoot)"

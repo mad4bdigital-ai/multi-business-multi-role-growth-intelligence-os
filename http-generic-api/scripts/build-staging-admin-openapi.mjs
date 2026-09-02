@@ -41,8 +41,8 @@ function replaceStagingHosts(value) {
       .replaceAll("auth.mad4b.com", "dev.mad4b.com")
       .replaceAll("https://activation.mad4b.com", stagingHost)
       .replaceAll("activation.mad4b.com", "dev.mad4b.com")
-      .replaceAll("https://mcp.mad4b.com", "https://mcp_dev.mad4b.com")
-      .replaceAll("mcp.mad4b.com", "mcp_dev.mad4b.com")
+      .replaceAll("https://mcp.mad4b.com", "https://mcp-dev.mad4b.com")
+      .replaceAll("mcp.mad4b.com", "mcp-dev.mad4b.com")
       .replaceAll("activation-dev.mad4b.com", "dev.mad4b.com");
   }
   if (Array.isArray(value)) return value.map(replaceStagingHosts);

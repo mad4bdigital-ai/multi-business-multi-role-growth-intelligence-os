@@ -12,7 +12,7 @@ process.env.TENANT_GPT_STAGING_AUTHORIZATION_SERVER_URL = "https://dev.mad4b.com
 process.env.TENANT_GPT_STAGING_RESOURCE_URL = "https://dev.mad4b.com";
 process.env.TENANT_GPT_STAGING_ACTIVATION_AUTHORIZATION_SERVER_URL = "https://dev.mad4b.com";
 process.env.TENANT_GPT_STAGING_ACTIVATION_RESOURCE_URL = "https://activation-dev.mad4b.com";
-process.env.REMOTE_MCP_RESOURCE_URL = "https://mcp_dev.mad4b.com";
+process.env.REMOTE_MCP_RESOURCE_URL = "https://mcp-dev.mad4b.com";
 process.env.REMOTE_MCP_AUTHORIZATION_SERVER_URL = "https://dev.mad4b.com/auth/mcp";
 process.env.REMOTE_MCP_TRUST_PROXY_HOST_HEADERS = "true";
 
@@ -43,7 +43,7 @@ const schemaDefinitions = [
   { name: "admin_core", file: "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml", host: "https://dev.mad4b.com" },
   { name: "tenant_activation", file: "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml", host: "https://activation-dev.mad4b.com", registration_set: "tenant_activation_staging" },
   { name: "admin_activation", file: "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml", host: "https://activation-dev.mad4b.com", registration_set: "admin_activation_staging" },
-  { name: "remote_mcp", file: "http-generic-api/openapi/openapi.remote-mcp.staging.yaml", host: "https://mcp_dev.mad4b.com", surface: "remote-mcp" },
+  { name: "remote_mcp", file: "http-generic-api/openapi/openapi.remote-mcp.staging.yaml", host: "https://mcp-dev.mad4b.com", surface: "remote-mcp" },
 ];
 const forbiddenProductionHost = /https:\/\/(?:auth|activation|mcp)\.mad4b\.com(?:\/(?!scopes\/)|$)/u;
 for (const definition of schemaDefinitions) {
@@ -120,15 +120,15 @@ try {
     assert.equal(response.status, 200, `activation-dev must expose ${schema}`);
     assert.match(await response.text(), /https:\/\/activation-dev\.mad4b\.com/u);
   }
-  const remoteResponse = await get("mcp_dev.mad4b.com", "openapi.remote-mcp.staging.yaml");
+  const remoteResponse = await get("mcp-dev.mad4b.com", "openapi.remote-mcp.staging.yaml");
   assert.equal(remoteResponse.status, 200);
-  assert.match(await remoteResponse.text(), /https:\/\/mcp_dev\.mad4b\.com/u);
+  assert.match(await remoteResponse.text(), /https:\/\/mcp-dev\.mad4b\.com/u);
   for (const [host, schema] of [
     ["dev.mad4b.com", "openapi.tenant-gpt.activation.staging.yaml"],
     ["dev.mad4b.com", "openapi.custom-gpt.activation-admin.staging.yaml"],
     ["activation-dev.mad4b.com", "openapi.tenant-gpt.auth.staging.yaml"],
     ["activation-dev.mad4b.com", "openapi.custom-gpt.auth-dispatcher.staging.yaml"],
-    ["mcp_dev.mad4b.com", "openapi.custom-gpt.activation-admin.staging.yaml"],
+    ["mcp-dev.mad4b.com", "openapi.custom-gpt.activation-admin.staging.yaml"],
   ]) {
     const response = await get(host, schema);
     assert.equal(response.status, 404, `${host} must not expose ${schema}`);

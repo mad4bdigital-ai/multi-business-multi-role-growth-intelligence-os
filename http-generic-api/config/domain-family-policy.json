@@ -63,7 +63,7 @@
       "deployment_provider": "local_device",
       "credential_namespace": "staging",
       "tunnel_enabled": true,
-      "active_tunnel_hostnames": ["dev.mad4b.com", "mcp_dev.mad4b.com"],
+      "active_tunnel_hostnames": ["dev.mad4b.com", "mcp-dev.mad4b.com"],
       "active_worker_custom_domains": ["activation-dev.mad4b.com"],
       "reserved_disabled_hostnames": [],
       "tunnel_token_env": "CLOUDFLARE_TUNNEL_TOKEN",
@@ -81,7 +81,7 @@
           "credential_namespace": "staging.auth"
         },
         "mcp": {
-          "hostname": "mcp_dev.mad4b.com",
+          "hostname": "mcp-dev.mad4b.com",
           "service": "mcp",
           "origin_kind": "local_staging_app",
           "exposure_status": "active_opt_in",

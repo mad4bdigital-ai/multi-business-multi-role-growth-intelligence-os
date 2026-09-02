@@ -25,15 +25,15 @@
     "enabled_env": "REMOTE_MCP_ENABLED",
     "oauth_enabled_env": "REMOTE_MCP_OAUTH_ENABLED",
     "environment_env": "REMOTE_MCP_ENVIRONMENT",
-    "resource": "https://mcp_dev.mad4b.com",
+    "resource": "https://mcp-dev.mad4b.com",
     "authorization_server": "https://dev.mad4b.com/auth/mcp",
-    "documentation_url": "https://mcp_dev.mad4b.com/docs",
-    "schema_url": "https://mcp_dev.mad4b.com/openapi.remote-mcp.staging.yaml",
+    "documentation_url": "https://mcp-dev.mad4b.com/docs",
+    "schema_url": "https://mcp-dev.mad4b.com/openapi.remote-mcp.staging.yaml",
     "server_uri_count": 1,
     "production_resources_forbidden": ["https://mcp.mad4b.com", "https://auth.mad4b.com/auth/mcp"]
   },
   "tunnel": {
-    "active_hostnames": ["dev.mad4b.com", "mcp_dev.mad4b.com"],
+    "active_hostnames": ["dev.mad4b.com", "mcp-dev.mad4b.com"],
     "worker_custom_domains": ["activation-dev.mad4b.com"],
     "reserved_disabled_hostnames": [],
     "activation_gateway": {
