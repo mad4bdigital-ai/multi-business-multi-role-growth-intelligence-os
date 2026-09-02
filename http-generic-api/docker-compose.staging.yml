@@ -1,7 +1,9 @@
 services:
   redis:
-    # Base compose publishes Redis; Staging must never expose it to the host LAN.
-    ports: []
+    # Base Compose publishes Redis; Staging must never expose it to the host LAN.
+    # Compose merges sequence values across files, so an empty list alone does not
+    # remove the base publication. Reset it explicitly before applying Staging.
+    ports: !reset []
     volumes:
       - ${STAGING_DATA_ROOT:-./.staging-data}/redis:/data
 
@@ -72,8 +74,9 @@ services:
         STAGING_BUILD_TREE: ${STAGING_BUILD_TREE:?set STAGING_BUILD_TREE by Start-AutoPilot}
         STAGING_BUILD_CONTEXT_FILE_SET_SHA256: ${STAGING_BUILD_CONTEXT_FILE_SET_SHA256:?set STAGING_BUILD_CONTEXT_FILE_SET_SHA256 by Start-AutoPilot}
     # Staging ingress is internal-only; cloudflared reaches http://app:8080.
-    # An optional operator override may publish a localhost port when needed.
-    ports: []
+    # Reset the base host publication completely. An explicit operator override
+    # may add a localhost-only port when the Windows service mode needs one.
+    ports: !reset []
     env_file:
       - .env.staging
     volumes:
@@ -122,7 +125,6 @@ services:
         condition: service_healthy
 
   # Optional local-only ingress. Start explicitly with --profile tunnel.
-  # The Cloudflare dashboard ingress must target http://app:8080.
   cloudflared:
     image: cloudflare/cloudflared:2025.11.1-amd64@sha256:f751174c3d8ae54b12575af320a4aa01bb3b6e61ab82aa1e4f8ecac8a079ce61
     profiles: ["tunnel"]
