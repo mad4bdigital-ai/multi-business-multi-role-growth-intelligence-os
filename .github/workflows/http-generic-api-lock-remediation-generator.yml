@@ -1,0 +1,77 @@
+name: HTTP Generic API Lock Remediation Generator
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/http-generic-api-lock-remediation-generator.yml'
+      - 'http-generic-api/package.json'
+      - 'http-generic-api/package-lock.json'
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    if: github.head_ref == 'fix/repository-evaluation-audit-diagnostics-20260902'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+
+      - name: Generate minimal secure dependency graph
+        shell: bash
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+          remote_sha="$(git ls-remote origin "refs/heads/$HEAD_REF" | awk '{print $1}')"
+          test "$remote_sha" = "$EXPECTED_HEAD_SHA"
+
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const path = 'http-generic-api/package.json';
+          const pkg = JSON.parse(fs.readFileSync(path, 'utf8'));
+          pkg.dependencies.mysql2 = '^3.23.1';
+          pkg.overrides = { ...(pkg.overrides || {}), qs: '6.16.0' };
+          fs.writeFileSync(path, `${JSON.stringify(pkg, null, 2)}\n`);
+          NODE
+
+          npm install --package-lock-only --ignore-scripts --prefix http-generic-api
+          npm ci --ignore-scripts --prefix http-generic-api
+          npm audit --prefix http-generic-api --json --omit=dev > "$RUNNER_TEMP/http-generic-api-audit.json" || audit_status=$?
+          audit_status="${audit_status:-0}"
+          node - "$RUNNER_TEMP/http-generic-api-audit.json" "$audit_status" <<'NODE'
+          const fs = require('node:fs');
+          const [path, statusText] = process.argv.slice(2);
+          const report = JSON.parse(fs.readFileSync(path, 'utf8'));
+          const total = Number(report.metadata?.vulnerabilities?.total ?? -1);
+          console.log(`audit_status=${statusText} vulnerabilities_total=${total}`);
+          if (Number(statusText) !== 0 || total !== 0) process.exit(1);
+          NODE
+
+          if git diff --quiet -- http-generic-api/package.json http-generic-api/package-lock.json; then
+            echo 'Secure dependency graph already generated; no commit required.'
+            exit 0
+          fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add http-generic-api/package.json http-generic-api/package-lock.json
+          git commit -m 'fix(deps): remediate http api audit advisories'
+
+          remote_sha="$(git ls-remote origin "refs/heads/$HEAD_REF" | awk '{print $1}')"
+          test "$remote_sha" = "$EXPECTED_HEAD_SHA"
+          git push origin "HEAD:refs/heads/$HEAD_REF"
