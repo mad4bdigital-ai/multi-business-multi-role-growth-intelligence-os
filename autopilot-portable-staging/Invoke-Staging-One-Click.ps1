@@ -19,6 +19,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSCommandPath
 $core = Join-Path $root 'Invoke-Staging-One-Click-Core.ps1'
+$envAuthorityGuard = Join-Path $root 'Assert-StagingEnvAuthority.ps1'
 $converger = Join-Path $root 'Converge-StagingActivationGateway.ps1'
 $convergenceReportPath = Join-Path $root 'logs\staging-activation-gateway-convergence.json'
 $preflightReportPath = Join-Path $root 'logs\staging-schema-governance-preflight.json'
@@ -26,6 +27,33 @@ $runtimeStatePath = Join-Path $root 'autopilot-state.json'
 $expectedRepository = 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os'
 
 function Fail([string]$Message) { throw "STAGING_DUAL_MODE_SMART_ONE_CLICK_FAIL_CLOSED: $Message" }
+
+function Invoke-EnvAuthorityGuard {
+    if (-not (Test-Path -LiteralPath $envAuthorityGuard -PathType Leaf)) {
+        Fail "Staging environment authority guard is missing: $envAuthorityGuard"
+    }
+
+    $previousErrorActionPreference = $ErrorActionPreference
+    $exitCode = $null
+    $lines = @()
+    try {
+        $ErrorActionPreference = 'Continue'
+        $lines = @(& powershell.exe @(
+            '-NoLogo','-NoProfile','-ExecutionPolicy','Bypass','-File',$envAuthorityGuard,
+            '-RepositoryPath',$RepositoryPath
+        ) 2>&1 | ForEach-Object { [string]$_ })
+        $exitCode = [int]$LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+
+    if ($null -eq $exitCode) { Fail 'Staging environment authority guard did not expose a native exit code.' }
+    if ($exitCode -ne 0) {
+        Write-Lines $lines
+        Fail "Staging environment authority guard exited with code $exitCode"
+    }
+    Write-Lines $lines
+}
 
 function New-CoreArguments {
     $arguments = @(
@@ -199,6 +227,7 @@ if (-not (Test-Path -LiteralPath $core -PathType Leaf)) { Fail "Dual-mode core l
 if (-not (Test-Path -LiteralPath (Join-Path $RepositoryPath '.git'))) { Fail "RepositoryPath is not a Git checkout: $RepositoryPath" }
 if (Test-Path -LiteralPath $convergenceReportPath) { Remove-Item -LiteralPath $convergenceReportPath -Force }
 
+Invoke-EnvAuthorityGuard
 $first = Invoke-Core
 if ($first.exit_code -eq 0) {
     Write-CorrectedResult $first.lines $null
