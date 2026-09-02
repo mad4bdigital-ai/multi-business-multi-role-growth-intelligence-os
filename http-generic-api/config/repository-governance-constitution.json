@@ -426,6 +426,7 @@
     ".changes/e2e/staging-one-click-schema-governance-preflight.json",
     ".changes/e2e/pr7824-staging-worker-artifact-import-closure.json",
     ".changes/e2e/staging-git-transport-native-stderr-20260828.json",
+    ".changes/e2e/staging-inherited-port-publication-reset.json",
     "http-generic-api/config/repository-governance-constitution.json",
     "http-generic-api/config/deployment-branch-policy.json",
     "http-generic-api/config/domain-family-policy.json",
