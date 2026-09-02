@@ -106,7 +106,7 @@ function normalizeContractKey(value) {
   const key = safeText(value, 96);
   if (!key) throw brokerError(400, "breakglass_contract_required", "contract_key is required.");
   const contract = readCatalog().contracts.find((entry) => entry.key === key);
-  if (!contract) throw brokerError(400, "breakglass_contract_not_allowed", "The requested Breakglass contract is not registered by the Breakglass catalog.", { contract_key: key });
+  if (!contract) throw brokerError(400, "breakglass_contract_not_allowed", "The requested Breakglass contract is not registered.", { contract_key: key });
   return contract;
 }
 
