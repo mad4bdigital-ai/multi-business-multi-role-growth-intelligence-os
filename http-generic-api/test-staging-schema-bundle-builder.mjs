@@ -387,7 +387,13 @@ test("schema bundle manifest declares exactly three isolated roles", () => {
   ]);
   assert.deepEqual(manifest.validation.required_validation_repair_baseline_columns, ["validation_type", "repair_action", "repair_status", "priority"]);
   assert.equal(manifest.validation.required_runtime_table_census.length, 18);
-  assert.deepEqual(manifest.validation.required_runtime_support_tables, ["connected_systems", "platform_contract_surfaces", "platform_endpoint_tool_exports", "tenant_secrets", "platform_secrets", "secret_references", "credential_bindings", "admin_platform_endpoint_tools", "tenant_platform_endpoint_tools", "customer_sessions", "gpt_session_turns"]);
+  assert.deepEqual(manifest.validation.required_runtime_support_tables, [
+    "connected_systems", "platform_contract_surfaces", "platform_endpoint_tool_exports", "tenant_secrets", "platform_secrets",
+    "secret_references", "credential_bindings", "admin_platform_endpoint_tools", "tenant_platform_endpoint_tools", "customer_sessions",
+    "gpt_session_turns", "activation_dynamic_tab_registry", "activation_dynamic_tab_section_registry",
+    "activation_dynamic_tab_discovery_rule_registry", "activation_section_action_registry", "activation_attention_rule_registry",
+    "activation_freshness_policy_registry", "activation_signal_subscription_registry", "activation_connector_pack_registry",
+  ]);
   assert.equal(manifest.canonical_seed_lifecycle.contract, "mad4b.staging.canonical-seed-manifest.v1");
   assert.deepEqual(manifest.canonical_seed_lifecycle.seed_files, [
     "039_sprint43_data_integrity_and_missing_tables.sql",
@@ -418,10 +424,11 @@ test("baseline actions schema covers the full migration column contract", () => 
   const requiredColumns = [
     "action_id", "action_title", "action_class", "action_scope", "endpoint_group", "route_target",
     "execution_layer", "logging_target", "inventory_role", "admin_only", "client_allowed", "team_allowed",
-    "review_required", "provider_agnostic", "request_envelope_required", "structured_api_supported", "writeback_scope",
-    "secret_store_ref", "openai_schema_file_name", "openai_schema_ref", "openai_schema_storage_surface",
-    "oauth_config_ref", "oauth_client_id_ref", "oauth_client_secret_ref", "oauth_binding_status",
-    "runtime_binding_profile", "schema_json", "import_job_id", "schema_imported_at",
+    "allowed_actor_roles", "allowed_governance_levels", "review_required", "provider_agnostic", "request_envelope_required",
+    "structured_api_supported", "writeback_scope", "secret_store_ref", "openai_schema_file_name", "openai_schema_ref",
+    "openai_schema_storage_surface", "oauth_config_ref", "oauth_client_id_ref", "oauth_client_secret_ref",
+    "oauth_secret_storage_type", "oauth_binding_status", "oauth_last_validated_at", "runtime_binding_profile", "schema_json",
+    "import_job_id", "schema_imported_at",
   ];
   for (const column of requiredColumns) {
     assert.equal(baselineSchema.includes(`${quote}${column}${quote}`), true, `actions baseline missing ${column}`);
@@ -838,7 +845,7 @@ test("all SHA2 ordinary-column bridges preserve source keys and exact trigger co
       assert.ok(bridgeIndex < defaultIndex && defaultIndex < sourceIndex, `${rule.required_default_file} must be between ${rule.bridge_file} and ${rule.source_file}`);
       const defaultSql = stripSqlComments(fs.readFileSync(path.join(migrationsDir, rule.required_default_file), "utf8"));
       assert.match(defaultSql, new RegExp("^\\s*ALTER\\s+TABLE\\s+(?:IF\\s+EXISTS\\s+)?`?" + escape(rule.table) + "`?\\s+MODIFY\\s+(?:COLUMN\\s+)?`?" + escape(rule.column) + "`?\\s+" + escape(rule.replacement_column_type) + "\\s+" + escape(rule.replacement_column_nullability) + "\\s+DEFAULT\\s+" + escape(rule.replacement_column_default) + "\\s*;?\\s*$", "imu"));
-      assert.doesNotMatch(defaultSql, /(?:^|;)\\s*(?:INSERT|REPLACE|UPDATE|DELETE|LOAD\\s+DATA)\\b/imu, `${rule.required_default_file} must be DDL-only`);
+      assert.doesNotMatch(defaultSql, /(?:^|;)\s*(?:INSERT|REPLACE|UPDATE|DELETE|LOAD\s+DATA)\b/imu, `${rule.required_default_file} must be DDL-only`);
     } else {
       assert.equal(rule.required_default_file, null);
       assert.equal(rule.replacement_column_default, null);
@@ -1294,16 +1301,16 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.deepEqual(plan.baseline_schema.required_platform_endpoint_tool_exports_baseline_columns.sort(), manifest.validation.required_platform_endpoint_tool_exports_baseline_columns.slice().sort());
   assert.deepEqual(plan.baseline_schema.required_tenant_secrets_baseline_columns.sort(), manifest.validation.required_tenant_secrets_baseline_columns.slice().sort());
   assert.deepEqual(plan.baseline_schema.required_platform_secrets_baseline_columns.sort(), manifest.validation.required_platform_secrets_baseline_columns.slice().sort());
-  assert.equal(plan.migration_count, 833);
-  assert.equal(plan.statement_count, 3134);
+  assert.equal(plan.migration_count, 834);
+  assert.equal(plan.statement_count, 3135);
   assert.equal(plan.confirmation_required, "BUILD_STAGING_SCHEMA_BUNDLE");
   assert.equal(plan.ordered_collation_chain.contract, "mad4b.mariadb-collation-ordered-chain.v1");
   assert.equal(plan.ordered_collation_chain.ok, true);
   assert.equal(plan.ordered_collation_chain.ready, true);
   assert.equal(plan.ordered_collation_chain.finding_count, 0);
-  assert.equal(plan.ordered_collation_chain.files_checked, 834);
-  assert.equal(plan.ordered_collation_chain.migration_files_checked, 833);
-  assert.equal(plan.ordered_collation_chain.statements_checked, 3161);
+  assert.equal(plan.ordered_collation_chain.files_checked, 835);
+  assert.equal(plan.ordered_collation_chain.migration_files_checked, 834);
+  assert.equal(plan.ordered_collation_chain.statements_checked, 3162);
   assert.equal(plan.ordered_collation_chain.database_connection_performed, false);
   assert.equal(plan.ordered_collation_chain.sql_mutation_performed, false);
   assert.equal(plan.ordered_collation_chain.provider_mutation_performed, false);
@@ -1312,9 +1319,9 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_enum_seed_chain.ok, true);
   assert.equal(plan.ordered_enum_seed_chain.ready, true);
   assert.equal(plan.ordered_enum_seed_chain.finding_count, 0);
-  assert.equal(plan.ordered_enum_seed_chain.files_checked, 834);
-  assert.equal(plan.ordered_enum_seed_chain.migration_files_checked, 833);
-  assert.equal(plan.ordered_enum_seed_chain.statements_checked, 3161);
+  assert.equal(plan.ordered_enum_seed_chain.files_checked, 835);
+  assert.equal(plan.ordered_enum_seed_chain.migration_files_checked, 834);
+  assert.equal(plan.ordered_enum_seed_chain.statements_checked, 3162);
   assert.equal(plan.ordered_enum_seed_chain.enum_columns, 836);
   assert.equal(plan.ordered_enum_seed_chain.definitions_applied, 903);
   assert.equal(plan.ordered_enum_seed_chain.database_connection_performed, false);
@@ -1328,11 +1335,11 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_text_width_chain.ok, true);
   assert.equal(plan.ordered_text_width_chain.ready, true);
   assert.equal(plan.ordered_text_width_chain.finding_count, 0);
-  assert.equal(plan.ordered_text_width_chain.files_checked, 834);
-  assert.equal(plan.ordered_text_width_chain.migration_files_checked, 833);
-  assert.equal(plan.ordered_text_width_chain.statements_checked, 3161);
-  assert.equal(plan.ordered_text_width_chain.bounded_text_columns, 5201);
-  assert.equal(plan.ordered_text_width_chain.definitions_applied, 6041);
+  assert.equal(plan.ordered_text_width_chain.files_checked, 835);
+  assert.equal(plan.ordered_text_width_chain.migration_files_checked, 834);
+  assert.equal(plan.ordered_text_width_chain.statements_checked, 3162);
+  assert.equal(plan.ordered_text_width_chain.bounded_text_columns, 5202);
+  assert.equal(plan.ordered_text_width_chain.definitions_applied, 6044);
   assert.equal(plan.ordered_text_width_chain.insert_select_source_domain_checks, 933);
   assert.equal(plan.ordered_text_width_chain.insert_select_source_domain_overflows, 0);
   assert.equal(plan.ordered_text_width_chain.database_connection_performed, false);
@@ -1346,9 +1353,9 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_index_key_width_chain.ok, true);
   assert.equal(plan.ordered_index_key_width_chain.ready, true);
   assert.equal(plan.ordered_index_key_width_chain.finding_count, 0);
-  assert.equal(plan.ordered_index_key_width_chain.files_checked, 834);
-  assert.equal(plan.ordered_index_key_width_chain.migration_files_checked, 833);
-  assert.equal(plan.ordered_index_key_width_chain.statements_checked, 3161);
+  assert.equal(plan.ordered_index_key_width_chain.files_checked, 835);
+  assert.equal(plan.ordered_index_key_width_chain.migration_files_checked, 834);
+  assert.equal(plan.ordered_index_key_width_chain.statements_checked, 3162);
   assert.equal(plan.ordered_index_key_width_chain.tables_projected, 582);
   assert.equal(plan.ordered_index_key_width_chain.indexes_checked, 2850);
   assert.equal(plan.ordered_index_key_width_chain.index_columns_checked, 4837);
@@ -1364,9 +1371,9 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_required_insert_column_chain.ok, true);
   assert.equal(plan.ordered_required_insert_column_chain.ready, true);
   assert.equal(plan.ordered_required_insert_column_chain.finding_count, 0);
-  assert.equal(plan.ordered_required_insert_column_chain.files_checked, 834);
-  assert.equal(plan.ordered_required_insert_column_chain.migration_files_checked, 833);
-  assert.equal(plan.ordered_required_insert_column_chain.statements_checked, 3161);
+  assert.equal(plan.ordered_required_insert_column_chain.files_checked, 835);
+  assert.equal(plan.ordered_required_insert_column_chain.migration_files_checked, 834);
+  assert.equal(plan.ordered_required_insert_column_chain.statements_checked, 3162);
   assert.equal(plan.ordered_required_insert_column_chain.tables_projected, 585);
   assert.equal(plan.ordered_required_insert_column_chain.writer_checks, 11);
   assert.equal(plan.ordered_required_insert_column_chain.required_columns_checked, 11);
@@ -1383,12 +1390,12 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_generated_column_chain.ok, true);
   assert.equal(plan.ordered_generated_column_chain.ready, true);
   assert.equal(plan.ordered_generated_column_chain.finding_count, 0);
-  assert.equal(plan.ordered_generated_column_chain.files_checked, 834);
-  assert.equal(plan.ordered_generated_column_chain.migration_files_checked, 833);
-  assert.equal(plan.ordered_generated_column_chain.statements_checked, 3161);
+  assert.equal(plan.ordered_generated_column_chain.files_checked, 835);
+  assert.equal(plan.ordered_generated_column_chain.migration_files_checked, 834);
+  assert.equal(plan.ordered_generated_column_chain.statements_checked, 3162);
   assert.equal(plan.ordered_generated_column_chain.generated_columns, 8);
   assert.equal(plan.ordered_generated_column_chain.definitions_applied, 8);
-  assert.equal(plan.ordered_generated_column_chain.writer_checks, 3161);
+  assert.equal(plan.ordered_generated_column_chain.writer_checks, 3162);
   assert.equal(plan.ordered_generated_column_chain.generated_expression_checks, 20);
   assert.equal(plan.ordered_generated_column_chain.compatibility_bridge_candidates, 5);
   assert.equal(plan.ordered_generated_column_chain.unsupported_generated_expressions, 0);
@@ -1405,9 +1412,9 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_foreign_key_compatibility_chain.ok, true);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.ready, true);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.finding_count, 0);
-  assert.equal(plan.ordered_foreign_key_compatibility_chain.files_checked, 834);
-  assert.equal(plan.ordered_foreign_key_compatibility_chain.migration_files_checked, 833);
-  assert.equal(plan.ordered_foreign_key_compatibility_chain.statements_checked, 3161);
+  assert.equal(plan.ordered_foreign_key_compatibility_chain.files_checked, 835);
+  assert.equal(plan.ordered_foreign_key_compatibility_chain.migration_files_checked, 834);
+  assert.equal(plan.ordered_foreign_key_compatibility_chain.statements_checked, 3162);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.tables_projected, 583);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.foreign_keys_checked, 138);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.type_comparisons, 140);

@@ -431,6 +431,7 @@
     ".changes/e2e/staging-inherited-port-publication-reset.json",
     ".changes/e2e/staging-cloudflared-cim-service-reconcile-20260902.json",
     ".changes/e2e/staging-mcp-hostname-rfc-compliance-20260902.json",
+    ".changes/e2e/staging-activation-schema-runtime-grants-reconciliation-20260902.json",
     ".changes/e2e/pr7859-recovery-breakglass-workflow-contract.json",
     ".changes/e2e/staging-env-authority-canonicalization-20260902.json",
     "http-generic-api/config/repository-governance-constitution.json",
