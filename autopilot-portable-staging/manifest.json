@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "d92d19557aa799443a801614b7085df7f4eec7dd2fc04413082a30f10890e9c3"
+      "sha256": "6747f850aacd63614265e2ca0775aa32c933734ac7bfce6e25cbbe7e37fa2af8"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -342,7 +342,7 @@
     },
     {
       "path": "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
-      "sha256": "bd5c55ad3cfdbb54be65e74e36ccf060c825bbaa58bbe7ad1455744e9fb08932"
+      "sha256": "647d1e75670d51fc05f0aac8312280063f702474ed330f786789cd87c905a6dd"
     },
     {
       "path": "http-generic-api/docker-compose.staging.windows-service.yml",
