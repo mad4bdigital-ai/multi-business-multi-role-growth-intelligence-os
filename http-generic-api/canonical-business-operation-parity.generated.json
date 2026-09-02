@@ -1,7 +1,7 @@
 {
   "schema_version": "canonical-business-operation-parity-v1",
   "revision": "staging-safe-2026-08-15-spec020-r2",
-  "registry_fingerprint": "b8dbe51450bec0c35a57b901b48d1a285787bfa099322a8e54d1e2f8cd055b01",
+  "registry_fingerprint": "cd8709e9871cd75b2c60ae35a2498cda8890a0d0993fbb633d9c6e49daeff4fb",
   "environment_policy": {
     "active_environment": "staging",
     "allowed_public_hosts": [
