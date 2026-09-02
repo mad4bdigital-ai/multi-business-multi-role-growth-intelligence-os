@@ -100,7 +100,9 @@ assert.match(windowsCompose, /127\.0\.0\.1:8080:8080/);
 assert.doesNotMatch(windowsCompose, /0\.0\.0\.0:8080/);
 assert.match(dockerTunnelCompose, /network_mode:\s*"service:app"/);
 assert.match(dockerTunnelCompose, /TUNNEL_ORIGIN_APP:\s*http:\/\/127\.0\.0\.1:8080/);
-assert.match(stagingCompose, /app:\s*[\s\S]*?ports:\s*\[\]/);
+assert.match(stagingCompose, /app:\s*[\s\S]*?ports:\s*!reset\s*\[\]/);
+assert.equal((stagingCompose.match(/ports:\s*!reset\s*\[\]/g) || []).length, 2, "Staging must reset inherited Redis and app host publications");
+assert.doesNotMatch(stagingCompose, /^\s+ports:\s*\[\]\s*$/m);
 assert.match(stagingCompose, /cloudflared:[\s\S]*?--token/);
 
 assert.match(entrypoint, /ValidateSet\('disabled','windows_service','docker_sidecar'\)/);
