@@ -41,10 +41,49 @@ export const BOOTSTRAP_ROLE_GRANT_POLICIES = Object.freeze({
   runtime_persistence: buildGrantSpec(["governed_tool_response_chunks"], ["SELECT", "INSERT", "UPDATE", "DELETE"], "always"),
 });
 
+const STAGING_RUNTIME_READ_ONLY_TABLES = Object.freeze([
+  "admin_platform_endpoint_tools",
+  "tenant_platform_endpoint_tools",
+  "sql_cache_runtime_policies",
+  "memberships",
+  "role_assignments",
+  "workspace_registry",
+  "connected_systems",
+  "installations",
+  "permission_grants",
+  "activation_authorized_surface_registry",
+  "registry_surfaces_catalog",
+  "brands",
+  "plugins",
+  "logic_definitions",
+  "workflows",
+  "session_summaries",
+  "gpt_session_conversation_refs",
+  "platform_pending_tasks",
+  "platform_graph_nodes",
+  "platform_graph_edges",
+  "platform_graph_memory_rank_rules",
+  "json_asset_subject_links",
+  "activation_dynamic_tab_registry",
+  "activation_dynamic_tab_section_registry",
+  "activation_dynamic_tab_discovery_rule_registry",
+  "activation_section_action_registry",
+  "activation_attention_rule_registry",
+  "activation_freshness_policy_registry",
+  "activation_signal_subscription_registry",
+  "activation_connector_pack_registry",
+]);
+
+const STAGING_RUNTIME_READ_ONLY_MATRIX = Object.freeze(Object.fromEntries(
+  STAGING_RUNTIME_READ_ONLY_TABLES.map((table) => [table, Object.freeze(["SELECT"])]),
+));
+
 // Local Staging keeps the production bootstrap grant surface unchanged while
 // adding only bounded read-only runtime authority surfaces that the running
-// Staging app must inspect: the two MCP catalog tables and the MySQL-primary
-// SQL-cache runtime policy. No broad schema grant or write authority is added.
+// Staging app must inspect. The Staging-only overlay includes Activation
+// session-context, registry, graph-memory and hard-run read surfaces. No broad
+// schema grant, CREATE/ALTER authority, GRANT OPTION, or Production grant change
+// is introduced.
 export const STAGING_ROLE_GRANT_POLICIES = Object.freeze({
   runtime: buildGrantSpec(
     [
@@ -54,17 +93,11 @@ export const STAGING_ROLE_GRANT_POLICIES = Object.freeze({
       "dynamic_audit_scheduler_runs",
       "execution_log",
       "json_assets",
-      "admin_platform_endpoint_tools",
-      "tenant_platform_endpoint_tools",
-      "sql_cache_runtime_policies",
+      ...STAGING_RUNTIME_READ_ONLY_TABLES,
     ],
     ["SELECT", "INSERT", "UPDATE"],
     "always",
-    {
-      admin_platform_endpoint_tools: ["SELECT"],
-      tenant_platform_endpoint_tools: ["SELECT"],
-      sql_cache_runtime_policies: ["SELECT"],
-    },
+    STAGING_RUNTIME_READ_ONLY_MATRIX,
   ),
   governance: BOOTSTRAP_ROLE_GRANT_POLICIES.governance,
   runtime_persistence: BOOTSTRAP_ROLE_GRANT_POLICIES.runtime_persistence,
