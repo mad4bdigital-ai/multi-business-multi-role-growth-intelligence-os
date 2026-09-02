@@ -59,26 +59,6 @@ on:
         description: Server-issued Breakglass correlation binding used for exact workflow-run discovery and idempotency.
         required: false
         type: string
-      expected_branch:
-        description: Compatibility assertion from the server broker; when supplied it must be Production.
-        required: false
-        default: Production
-        type: string
-      auth_url:
-        description: Compatibility assertion from the server broker; only the canonical Production version URL is accepted.
-        required: false
-        default: https://auth.mad4b.com/version
-        type: string
-      deployment_info_url:
-        description: Compatibility assertion from the server broker; only the canonical Production deployment-info URL is accepted.
-        required: false
-        default: https://auth.mad4b.com/deployment-info
-        type: string
-      runtime_bootstrap_url:
-        description: Compatibility assertion from the server broker; only the canonical protected runtime-bootstrap dry-run URL is accepted.
-        required: false
-        default: https://auth.mad4b.com/deployment-info/runtime-bootstrap-dry-run
-        type: string
       strategy:
         description: Optional recovery control-plane mode; disabled leaves the existing parity workflow unchanged.
         required: false
@@ -221,18 +201,10 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         env:
           BREAKGLASS_CORRELATION_ID: ${{ inputs.breakglass_correlation_id }}
-          EXPECTED_BRANCH_INPUT: ${{ inputs.expected_branch || 'Production' }}
-          AUTH_URL_INPUT: ${{ inputs.auth_url || 'https://auth.mad4b.com/version' }}
-          DEPLOYMENT_INFO_URL_INPUT: ${{ inputs.deployment_info_url || 'https://auth.mad4b.com/deployment-info' }}
-          RUNTIME_BOOTSTRAP_URL_INPUT: ${{ inputs.runtime_bootstrap_url || 'https://auth.mad4b.com/deployment-info/runtime-bootstrap-dry-run' }}
         shell: bash
         run: |
           set -euo pipefail
           [[ "${GITHUB_REF}" == "refs/heads/main" ]]
-          [[ "${EXPECTED_BRANCH_INPUT}" == "Production" ]]
-          [[ "${AUTH_URL_INPUT}" == "https://auth.mad4b.com/version" ]]
-          [[ "${DEPLOYMENT_INFO_URL_INPUT}" == "https://auth.mad4b.com/deployment-info" ]]
-          [[ "${RUNTIME_BOOTSTRAP_URL_INPUT}" == "https://auth.mad4b.com/deployment-info/runtime-bootstrap-dry-run" ]]
           if [[ -n "${BREAKGLASS_CORRELATION_ID}" ]]; then
             [[ "${BREAKGLASS_CORRELATION_ID}" =~ ^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$ ]]
           fi
