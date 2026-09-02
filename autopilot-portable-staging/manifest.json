@@ -342,7 +342,7 @@
     },
     {
       "path": "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
-      "sha256": "4aaef2be1f739118c4b0ff5a72c157b99b2e8b2bae1c2d22744ec93e691375c3"
+      "sha256": "b56471af058a0afda7736dfb559fff780638c2e8ffc8fe95558f007299f17d04"
     },
     {
       "path": "http-generic-api/docker-compose.staging.windows-service.yml",
