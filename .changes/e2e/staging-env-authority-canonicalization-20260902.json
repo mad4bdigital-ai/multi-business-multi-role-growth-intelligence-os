@@ -11,9 +11,11 @@
   "scope": {
     "include": [
       ".changes/e2e/staging-env-authority-canonicalization-20260902.json",
+      ".github/derived-state-governance.json",
       "autopilot-portable-staging/Assert-StagingEnvAuthority.ps1",
       "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
       "autopilot-portable-staging/manifest.json",
+      "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/scripts/staging-env-authority-contract.mjs"
     ]
   },
@@ -64,9 +66,11 @@
           ],
           "evidence_paths": [
             ".changes/e2e/staging-env-authority-canonicalization-20260902.json",
+            ".github/derived-state-governance.json",
             "autopilot-portable-staging/Assert-StagingEnvAuthority.ps1",
             "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
             "autopilot-portable-staging/manifest.json",
+            "http-generic-api/config/repository-governance-constitution.json",
             "http-generic-api/scripts/staging-env-authority-contract.mjs"
           ]
         }
