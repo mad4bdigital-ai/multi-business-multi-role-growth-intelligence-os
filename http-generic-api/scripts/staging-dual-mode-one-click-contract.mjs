@@ -123,6 +123,12 @@ assert.match(windowsCloudflared, /--token-file/);
 assert.doesNotMatch(windowsCloudflared, /tunnel\s+run\s+--token(?:\s|=)/i);
 assert.match(windowsCloudflared, /PathName/);
 assert.match(windowsCloudflared, /readback is not bound to the canonical token-file/);
+assert.match(windowsCloudflared, /\$null -ne \$command/);
+assert.doesNotMatch(
+  windowsCloudflared,
+  /\$[A-Za-z_][A-Za-z0-9_]*\?\./,
+  "Windows Cloudflared helper must remain compatible with Windows PowerShell 5.1 and must not use PowerShell 7 null-conditional syntax",
+);
 assert.match(launcher, /ProcessId -ne \$initialPid/);
 assert.match(launcher, /RequireTunnelToken:\(\$TunnelMode -eq 'docker_sidecar'\)/);
 assert.match(launcher, /'-BuildMode',\$BuildMode,'-NoTunnel'/);

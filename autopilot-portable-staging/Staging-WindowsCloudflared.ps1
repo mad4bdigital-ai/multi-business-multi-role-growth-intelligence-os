@@ -8,7 +8,7 @@ function Convert-StagingSecureStringToPlain([Security.SecureString]$Value) {
 
 function Get-StagingCloudflaredBinary {
     $command = Get-Command cloudflared.exe -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($command?.Source -and (Test-Path -LiteralPath $command.Source)) { return $command.Source }
+    if ($null -ne $command -and -not [string]::IsNullOrWhiteSpace([string]$command.Source) -and (Test-Path -LiteralPath $command.Source)) { return $command.Source }
     foreach ($candidate in @(
         'C:\Program Files (x86)\cloudflared\cloudflared.exe',
         'C:\Program Files\cloudflared\cloudflared.exe'
