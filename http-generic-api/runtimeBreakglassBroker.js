@@ -106,7 +106,7 @@ function normalizeContractKey(value) {
   const key = safeText(value, 96);
   if (!key) throw brokerError(400, "breakglass_contract_required", "contract_key is required.");
   const contract = readCatalog().contracts.find((entry) => entry.key === key);
-  if (!contract) throw brokerError(400, "breakglass_contract_not_allowed", "The requested Breakglass contract is not registered.", { contract_key: key });
+  if (!contract) throw brokerError(400, "breakglass_contract_not_allowed", "The requested Breakglass contract is not registered by the Breakglass catalog.", { contract_key: key });
   return contract;
 }
 
@@ -313,10 +313,6 @@ function workflowInputPayload(request) {
   const workflow = canonicalWorkflow();
   const inputs = {
     expected_sha: request.expected_sha,
-    expected_branch: "Production",
-    auth_url: "https://auth.mad4b.com/version",
-    deployment_info_url: "https://auth.mad4b.com/deployment-info",
-    runtime_bootstrap_url: "https://auth.mad4b.com/deployment-info/runtime-bootstrap-dry-run",
     strategy: "disabled",
     source_mode: "sql",
     apply_execution: "false",
