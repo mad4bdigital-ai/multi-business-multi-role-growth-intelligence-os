@@ -1,0 +1,77 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-env-authority-canonicalization-20260902",
+  "title": "Fail closed on ambiguous Staging environment authority syntax",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-env-authority-canonicalization-20260902.json",
+      "autopilot-portable-staging/Assert-StagingEnvAuthority.ps1",
+      "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
+      "autopilot-portable-staging/manifest.json",
+      "http-generic-api/scripts/staging-env-authority-contract.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prevent Docker Compose and exact PowerShell readers from resolving different Staging authorities when .env.staging contains whitespace, export-prefixed, or duplicate normalized keys. The smart One-Click wrapper validates canonical KEY=VALUE syntax before invoking the dual-mode core and emits only non-secret evidence.",
+      "e2e_journeys": [
+        {
+          "id": "staging-env-authority-fail-closed",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Windows Docker Staging operator",
+          "entrypoint": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
+          "terminal_outcome": "Ambiguous .env.staging key syntax is rejected before the dual-mode core can start, preventing a raw host key from diverging from the Docker Compose/container authority and eliminating misleading authenticated readiness 403 failures.",
+          "steps": [
+            "Resolve the ignored local .env.staging file without printing values.",
+            "Ignore blank and comment lines and require every other line to be a canonical KEY=VALUE assignment.",
+            "Normalize assignment names only for validation and reject whitespace or export-prefixed aliases whose raw name differs from the canonical name.",
+            "Reject duplicate keys after normalization before invoking the One-Click core.",
+            "Emit bounded non-secret pass evidence when the file is canonical."
+          ],
+          "assertions": [
+            "BACKEND_API_KEY =value is rejected rather than being allowed to compete with BACKEND_API_KEY=value.",
+            "Duplicate normalized authorities fail closed before Docker Compose or remote authenticated readiness runs.",
+            "No environment value or secret is written to logs or structured evidence.",
+            "The guard remains compatible with Windows PowerShell 5.1.",
+            "No Production deployment, Production access, Cloudflare DNS mutation, database mutation, migration apply, ruleset mutation, secret rotation, container deletion, or volume deletion is authorized."
+          ],
+          "tests": [
+            {
+              "id": "staging-env-authority-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/staging-env-authority-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-env-authority-canonicalization-20260902.json",
+            "autopilot-portable-staging/Assert-StagingEnvAuthority.ps1",
+            "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
+            "autopilot-portable-staging/manifest.json",
+            "http-generic-api/scripts/staging-env-authority-contract.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
