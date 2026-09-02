@@ -8,7 +8,9 @@
   "scope": {
     "include": [
       ".changes/e2e/pr7859-recovery-breakglass-workflow-contract.json",
+      ".github/derived-state-governance.json",
       ".github/workflows/production-runtime-parity-evidence.yml",
+      "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/runtimeBreakglassBroker.js"
     ]
   },
@@ -34,16 +36,18 @@
           "level": "synthetic_runtime",
           "actor": "Governed CI",
           "entrypoint": "Evaluate the exact PR head against the canonical deployment and environment authority policies.",
-          "terminal_outcome": "The shared-runtime contract change is explicitly declared for staging and production, cross-environment review is explicit, live staging certification remains required, and production mutation remains denied.",
+          "terminal_outcome": "The shared-runtime contract change is explicitly declared for staging and production, cross-environment review is explicit, live staging certification remains required, the declaration is registered in both governance control-plane registries, and production mutation remains denied.",
           "steps": [
             "Classify the exact base-to-head changes against the canonical environment path classes.",
             "Read back deployment, domain, runtime invariant, database authority, readiness, and staging gateway policies.",
+            "Register this changed critical governance declaration in Constitution.control_plane_paths and convergence.automation_control_paths.",
             "Verify the declaration binds both staging and production and requires live staging certification.",
             "Verify production mutation, database mutation, migration apply, provider mutation, credential payload reads, and production activation remain forbidden.",
             "Bind the result to the exact evaluated HEAD SHA."
           ],
           "assertions": [
             "The environment impact declaration source of truth is the canonical deployment branch policy.",
+            "The changed critical governance declaration is registered in Constitution.control_plane_paths and convergence.automation_control_paths.",
             "Both staging and production are explicitly declared and cross-environment review is true.",
             "Live staging certification remains required and is not silently waived.",
             "production_mutation_allowed is false.",
@@ -60,9 +64,11 @@
           ],
           "evidence_paths": [
             ".changes/e2e/pr7859-recovery-breakglass-workflow-contract.json",
+            ".github/derived-state-governance.json",
             ".github/workflows/production-runtime-parity-evidence.yml",
-            "http-generic-api/runtimeBreakglassBroker.js",
-            "http-generic-api/config/deployment-branch-policy.json"
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "http-generic-api/runtimeBreakglassBroker.js"
           ]
         }
       ],
