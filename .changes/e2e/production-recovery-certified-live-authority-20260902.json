@@ -1,0 +1,126 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-recovery-certified-live-authority-20260902",
+  "title": "Certified Production Recovery live-authority candidate gate",
+  "delivery_mode": "single_pr",
+  "secrets_included": false,
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/production-recovery-certified-live-authority-20260902.json",
+      "http-generic-api/serverManagedRecoveryBindingProvider.js",
+      "http-generic-api/productionRecoveryCompositionFactory.js",
+      "http-generic-api/productionActivationReadiness.js",
+      "http-generic-api/test-production-recovery-composition-factory.mjs",
+      "http-generic-api/test-server-managed-recovery-binding.mjs",
+      "http-generic-api/test-recovery-activation-readiness.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false,
+    "live_migration_executed": false,
+    "live_grant_executed": false,
+    "deployment_or_restart_executed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Allow an explicit Hostinger Production server-managed binding request to be validated as a non-live activation candidate, evaluate the candidate against existing signed certification and deployment-attestation authorities, and keep all route mutation authority fail-closed.",
+      "e2e_journeys": [
+        {
+          "id": "production-live-candidate-remains-fail-closed",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Production Recovery composition root",
+          "entrypoint": "createProductionRecoveryComposition",
+          "terminal_outcome": "A complete deployment-owned Production candidate graph can be inspected for activation eligibility while the returned runtime composition remains fail_closed with mutation_authority_available=false and live_activation=false.",
+          "steps": [
+            "Resolve runtime identity and accept Production intent only for explicit production_hostinger_autodeploy.",
+            "Load the deployment-owned server-managed binding resolver without accepting caller, GPT, Local Connector, raw SQL, or secret-bearing envelope fields.",
+            "Validate the complete adapter graph using the canonical Recovery composition contract.",
+            "Convert Production intent into candidate metadata only; discard the candidate adapters from route dependencies by returning the canonical fail-closed composition.",
+            "Evaluate candidate component status against signed staging certification, exact Production deployment attestation, target fingerprint, artifact parity, typed adapter provenance, and unresolved-incident gates.",
+            "Assert live activation and Production/database/provider mutation remain false."
+          ],
+          "assertions": [
+            "generic or ambiguous Production runtime cannot request a candidate",
+            "only explicit hostinger_autodeploy can carry production_live intent",
+            "candidate adapters are validated but never exposed as route mutation authority",
+            "production_live.enabled remains false",
+            "database_mutation_performed=false",
+            "provider_mutation_performed=false",
+            "secrets_included=false"
+          ],
+          "tests": [
+            {
+              "id": "production-recovery-composition-factory-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-recovery-composition-factory.mjs",
+              "args": []
+            },
+            {
+              "id": "server-managed-recovery-binding-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-server-managed-recovery-binding.mjs",
+              "args": []
+            },
+            {
+              "id": "recovery-activation-readiness-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-activation-readiness.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/production-recovery-certified-live-authority-20260902.json",
+            "http-generic-api/serverManagedRecoveryBindingProvider.js",
+            "http-generic-api/productionRecoveryCompositionFactory.js",
+            "http-generic-api/productionActivationReadiness.js"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Deploy the independently certified server-managed binding module and signed readiness evidence, then collect a fresh Production activation-readiness result without enabling mutation."
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Keep Production live execution disabled until exact deployment evidence proves activation_eligible and a separate explicit Production activation authorization is granted.",
+      "blockers": [
+        "deployment_owned_live_binding_module_not_configured",
+        "fresh_signed_recovery_readiness_evidence_required",
+        "exact_production_activation_readiness_required",
+        "explicit_production_activation_authorization_required"
+      ]
+    }
+  ],
+  "safety": {
+    "repository_only": true,
+    "production_mutation_allowed": false,
+    "database_mutation": false,
+    "migration_apply": false,
+    "grant_execution": false,
+    "ssh_execution": false,
+    "provider_call": false,
+    "workflow_dispatch": false,
+    "live_provider_authority_configured": false,
+    "secrets_included": false
+  }
+}
