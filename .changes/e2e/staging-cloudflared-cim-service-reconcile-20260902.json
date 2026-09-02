@@ -1,0 +1,73 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-cloudflared-cim-service-reconcile-20260902",
+  "title": "Reconcile the Windows Staging Cloudflared service through structured CIM data",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-cloudflared-cim-service-reconcile-20260902.json",
+      "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
+      "autopilot-portable-staging/manifest.json",
+      "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Remove the Windows PowerShell 5.1 native-argument quoting boundary from existing Cloudflared service reconciliation by passing the exact token-file command line through Win32_Service.Change, while preserving LocalSystem, automatic start, bounded recovery, fresh-log proof, loopback-only metrics, and fail-closed readback.",
+      "e2e_journeys": [
+        {
+          "id": "windows-cloudflared-structured-service-reconcile",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Windows Docker Staging operator",
+          "entrypoint": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1 -TunnelMode windows_service",
+          "terminal_outcome": "An existing Cloudflared Windows service is reconciled to the exact token-file/logfile command line without native sc.exe config quoting, starts as LocalSystem in automatic mode, remains stable, and can proceed to remote-origin proof and PLATFORM_READY.",
+          "steps": [
+            "Stop the existing Cloudflared service before changing its command line.",
+            "Pass PathName, Automatic start mode, and LocalSystem account through Win32_Service.Change using Invoke-CimMethod instead of sc.exe config.",
+            "Fail closed with the Win32_Service.Change ReturnValue when Windows rejects reconciliation.",
+            "Retain bounded sc.exe failure recovery configuration, start the service, and read back PathName, token-file, logfile, service account, start mode, running state, and process id.",
+            "Require live Staging certification after merge before treating windows_service mode as platform-ready."
+          ],
+          "assertions": [
+            "Existing-service reconciliation does not depend on native sc.exe config binPath quoting.",
+            "The service readback is bound to the canonical --token-file and Staging logfile and does not contain an inline --token.",
+            "The reconciled service account is LocalSystem and StartMode is Auto.",
+            "The Cloudflared metrics listener remains loopback-only.",
+            "No Cloudflare DNS mutation, Production deployment, Production access, database mutation, schema or migration apply, ruleset mutation, secret rotation, container deletion, or volume deletion is authorized."
+          ],
+          "tests": [
+            {
+              "id": "staging-dual-mode-one-click-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/staging-dual-mode-one-click-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-cloudflared-cim-service-reconcile-20260902.json",
+            "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
+            "autopilot-portable-staging/manifest.json",
+            "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
