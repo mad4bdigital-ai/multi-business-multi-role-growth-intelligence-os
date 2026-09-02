@@ -210,6 +210,8 @@ jobs:
             docs/repository-evaluation.json
             docs/repository-evaluation-summary.json
             docs/repository-evaluation.md
+            ${{ runner.temp }}/root-npm-audit.json
+            ${{ runner.temp }}/http-generic-api-npm-audit.json
             ${{ runner.temp }}/repository-evaluation-baseline-diff.json
             ${{ runner.temp }}/repository-evaluation-probes.json
             ${{ runner.temp }}/repository-evaluation-probes.md

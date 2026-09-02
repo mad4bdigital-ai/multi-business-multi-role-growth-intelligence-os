@@ -1,0 +1,55 @@
+name: PR 7869 Dependency Lock Refresh
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    if: ${{ github.head_ref == 'fix/repository-evaluation-audit-evidence-20260902' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+
+      - name: Generate targeted remediation candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd http-generic-api
+          npm pkg set overrides.qs=6.16.0
+          npm install --package-lock-only --ignore-scripts mysql2@3.23.2
+          npm audit --json --omit=dev > "$RUNNER_TEMP/http-generic-api-npm-audit-after.json" || true
+          node - "$RUNNER_TEMP/http-generic-api-npm-audit-after.json" <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const total = Number(report.metadata?.vulnerabilities?.total ?? -1);
+          console.log(`post-remediation vulnerable package count: ${total}`);
+          if (total !== 0) {
+            console.error(JSON.stringify(report.vulnerabilities ?? {}, null, 2));
+            process.exit(1);
+          }
+          NODE
+
+      - name: Upload canonical remediation candidate
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: pr7869-dependency-remediation-candidate
+          path: |
+            http-generic-api/package.json
+            http-generic-api/package-lock.json
+            ${{ runner.temp }}/http-generic-api-npm-audit-after.json
+          if-no-files-found: error
