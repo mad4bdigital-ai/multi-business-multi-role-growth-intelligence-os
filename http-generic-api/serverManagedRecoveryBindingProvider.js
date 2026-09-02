@@ -5,7 +5,7 @@ import {
   SERVER_MANAGED_RECOVERY_COMPOSITION_CONTRACT,
   validateRecoveryCompositionAdapters,
 } from "./recoveryComposition.js";
-import { resolveRuntimeEnvironment } from "./runtimeEnvironmentResolver.js";
+import { resolveRuntimeEnvironment, resolveRuntimeEnvironmentStrict } from "./runtimeEnvironmentResolver.js";
 import { recoveryReadinessRouteDependencies } from "./recoveryReadinessEvidence.js";
 
 export const SERVER_MANAGED_BINDING_PROVIDER_CONTRACT = "mad4b.recovery-server-managed-binding-provider.v1";
@@ -164,14 +164,29 @@ function normalizeEnvelope(envelope, moduleIdHash) {
   });
 }
 
-export function getServerManagedRecoveryBindingMode(env = process.env) {
+export function getServerManagedRecoveryBindingIntent(env = process.env) {
   const runtime = resolveRuntimeEnvironment(env);
   const requested = text(env[SERVER_MANAGED_BINDING_MODE_ENV], 64).toLowerCase();
-  // This repository-only wiring must never enable a Recovery binding in Production or
-  // an unknown/conflicting environment. A later operational release must change this
-  // gate explicitly and independently.
-  if (!runtime.ok || !["staging", "test", "ci"].includes(runtime.environment_key)) return "disabled";
+  if (!runtime.ok) return "disabled";
+
+  if (runtime.environment_key === "production") {
+    const strictRuntime = resolveRuntimeEnvironmentStrict(env);
+    if (!strictRuntime.ok
+      || strictRuntime.runtime_class !== "hostinger_autodeploy"
+      || strictRuntime.runtime_class_explicit !== true) return "disabled";
+    return requested === "production_live" ? "production_live" : "disabled";
+  }
+
+  if (!["staging", "test", "ci"].includes(runtime.environment_key)) return "disabled";
   return requested === "injected_non_live" ? "injected_non_live" : "disabled";
+}
+
+export function getServerManagedRecoveryBindingMode(env = process.env) {
+  const intent = getServerManagedRecoveryBindingIntent(env);
+  // The server root currently constructs the provider only for injected_non_live.
+  // A Production live request therefore enters as a non-live candidate graph. The
+  // factory validates that graph but keeps route mutation authority fail-closed.
+  return intent === "production_live" ? "injected_non_live" : intent;
 }
 
 // Separate read-only export: resolving evidence must not instantiate a mutation
@@ -203,12 +218,16 @@ export function createServerManagedRecoveryBindingProvider({ env = process.env, 
       "The server-managed Recovery binding resolver must be a function.",
     );
   }
+  const bindingIntent = getServerManagedRecoveryBindingIntent(env);
   return Object.freeze((context = {}) => {
+    const requestedMode = bindingIntent === "production_live"
+      ? "production_live"
+      : "injected_non_live";
     const requestContext = Object.freeze({
       ...context,
       contract: SERVER_MANAGED_BINDING_PROVIDER_CONTRACT,
       binding_source: "server_managed",
-      requested_mode: "injected_non_live",
+      requested_mode: requestedMode,
       caller_credentials_accepted: false,
       gpt_credentials_accepted: false,
       local_connector_accepted: false,
@@ -226,7 +245,11 @@ export function createServerManagedRecoveryBindingProvider({ env = process.env, 
         { cause_code: error?.code || "binding_resolution_failed", module_id_hash: moduleIdHash },
       );
     }
-    return normalizeEnvelope(envelope, moduleIdHash);
+    const normalized = normalizeEnvelope(envelope, moduleIdHash);
+    return Object.freeze({
+      ...normalized,
+      requested_mode: requestedMode,
+    });
   });
 }
 
@@ -235,6 +258,7 @@ export function getServerManagedRecoveryBindingStatus({ env = process.env, modul
   return {
     contract: SERVER_MANAGED_BINDING_PROVIDER_CONTRACT,
     mode: getServerManagedRecoveryBindingMode(env),
+    requested_mode: getServerManagedRecoveryBindingIntent(env),
     module_configured: Boolean(resolver || resolvedModulePath),
     module_id_hash: resolvedModulePath ? hash(resolvedModulePath) : null,
     binding_source: "server_managed",
