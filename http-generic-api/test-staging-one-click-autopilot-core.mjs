@@ -26,7 +26,7 @@ assert.equal(policy.contract, "mad4b.staging-one-click-autopilot.v1");
 assert.equal(policy.ref, "main");
 assert.equal(policy.requires_exact_commit, true);
 assert.equal(policy.requires_ci_eligibility, true);
-assert.deepEqual(policy.allowed_staging_hosts, ["dev.mad4b.com", "mcp_dev.mad4b.com", "activation-dev.mad4b.com"]);
+assert.deepEqual(policy.allowed_staging_hosts, ["dev.mad4b.com", "mcp-dev.mad4b.com", "activation-dev.mad4b.com"]);
 assert.deepEqual(policy.forbidden_hosts, ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com"]);
 assert.equal(policy.database_seed.default_mode, "schema_only_dry_run_if_local_bundle_exists");
 assert.equal(policy.database_seed.apply_requires_explicit_switch, true);
@@ -188,7 +188,7 @@ assert.match(launcher, /if \(\$ApplySchemaBundle\) \{ \$argList \+= "-ApplySchem
 assert.match(launcher, /CLOUDFLARE_TUNNEL_TOKEN/);
 assert.match(launcher, /Read-Host "Staging Tunnel token" -AsSecureString/);
 assert.ok(launcher.includes("https://dev.mad4b.com"));
-assert.ok(launcher.includes("https://mcp_dev.mad4b.com"));
+assert.ok(launcher.includes("https://mcp-dev.mad4b.com"));
 assert.doesNotMatch(launcher, /CLOUDFLARE_TUNNEL_HOSTNAMES.*auth\.mad4b\.com/);
 assert.match(launcher, /activation-dev\.mad4b\.com/);
 assert.match(launcher, /\[switch\]\$EnableActivationGateway/);

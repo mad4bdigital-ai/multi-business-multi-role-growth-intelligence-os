@@ -60,7 +60,7 @@
           "level": "synthetic_runtime",
           "actor": "Local Windows Docker Staging operator",
           "entrypoint": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
-          "terminal_outcome": "PLATFORM_READY is emitted only when the selected Staging tunnel is mutually exclusive and stable, Cloudflare runtime evidence binds dev.mad4b.com and mcp_dev.mad4b.com to http://127.0.0.1:8080, published schemas are semantically identical to the exact checkout, Admin read-only auth succeeds, Tenant OAuth authorization-code plus PKCE reaches an authenticated Tenant read, Remote MCP OAuth reaches list_accessible_workspaces, probe residue is zero, the Activation Gateway is enabled and ready, generated Staging secrets are creatable by the canonical Windows PowerShell runtime, and the portable Staging manifest covers the complete dual-mode runtime dependency graph.",
+          "terminal_outcome": "PLATFORM_READY is emitted only when the selected Staging tunnel is mutually exclusive and stable, Cloudflare runtime evidence binds dev.mad4b.com and mcp-dev.mad4b.com to http://127.0.0.1:8080, published schemas are semantically identical to the exact checkout, Admin read-only auth succeeds, Tenant OAuth authorization-code plus PKCE reaches an authenticated Tenant read, Remote MCP OAuth reaches list_accessible_workspaces, probe residue is zero, the Activation Gateway is enabled and ready, generated Staging secrets are creatable by the canonical Windows PowerShell runtime, and the portable Staging manifest covers the complete dual-mode runtime dependency graph.",
           "steps": [
             "Generate missing local-only Staging secrets once through Staging-Environment.ps1 while preserving existing non-placeholder values.",
             "Generate cryptographic random bytes through RandomNumberGenerator.Create().GetBytes(), never RandomNumberGenerator::Fill, so the canonical powershell.exe launcher remains compatible with Windows PowerShell 5.1 while preserving CSPRNG semantics.",
@@ -104,7 +104,7 @@
             "The portable Staging manifest must hash-bind the dual-mode One-Click launcher, environment and Windows Cloudflared helpers, both mode-specific Compose overrides, MCP provisioner, semantic/authenticated readiness scripts, and exact Tenant/Admin/MCP/Activation Staging OpenAPI surfaces.",
             "The portable manifest generator itself is manifest-bound so changes to the dependency authority cannot silently bypass closure.",
             "Activation Gateway is mandatory for PLATFORM_READY.",
-            "Admin/Tenant Staging schema URLs and MCP resource URLs remain on dev.mad4b.com, activation-dev.mad4b.com, and mcp_dev.mad4b.com only.",
+            "Admin/Tenant Staging schema URLs and MCP resource URLs remain on dev.mad4b.com, activation-dev.mad4b.com, and mcp-dev.mad4b.com only.",
             "No Production deployment, Production database mutation, Hostinger mutation, Cloudflare DNS mutation, provider mutation, ruleset mutation, or production_live authority is granted."
           ],
           "tests": [

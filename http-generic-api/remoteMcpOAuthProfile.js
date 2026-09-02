@@ -83,7 +83,7 @@ export function resolveRemoteMcpEnvironment(env = process.env) {
   const resource = resolveRemoteMcpOAuthResource(env);
   try {
     const resourceHost = new URL(resource).hostname.toLowerCase();
-    if (resourceHost === "mcp_dev.mad4b.com") return "staging";
+    if (resourceHost === "mcp-dev.mad4b.com") return "staging";
     if (resourceHost === "mcp.mad4b.com") return "production";
   } catch {}
 

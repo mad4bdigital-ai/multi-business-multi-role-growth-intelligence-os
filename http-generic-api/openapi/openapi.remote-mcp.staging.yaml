@@ -3,9 +3,9 @@ info:
   title: Growth Intelligence Platform - Staging Remote MCP
   version: 1.0.0-staging-mcp
   summary: Independent Staging Remote MCP streamable HTTP contract.
-  description: A separate MCP protocol document for mcp_dev.mad4b.com. This is not a Tenant or Admin Custom GPT Action schema; it describes only the governed Remote MCP transport and keeps mutation scope enforcement in the runtime governance layer.
+  description: A separate MCP protocol document for mcp-dev.mad4b.com. This is not a Tenant or Admin Custom GPT Action schema; it describes only the governed Remote MCP transport and keeps mutation scope enforcement in the runtime governance layer.
 servers:
-  - url: https://mcp_dev.mad4b.com
+  - url: https://mcp-dev.mad4b.com
     description: Staging Remote MCP resource
 security:
   - remoteMcpBearerAuth: []
@@ -26,7 +26,7 @@ paths:
         "401":
           description: OAuth bearer authorization required
         "404":
-          description: Canonical mcp_dev host required
+          description: Canonical mcp-dev host required
     post:
       operationId: remoteMcpJsonRpc
       summary: Send a Remote MCP JSON-RPC request
@@ -50,7 +50,7 @@ paths:
         "403":
           description: Scope or write governance denied
         "404":
-          description: Canonical mcp_dev host required
+          description: Canonical mcp-dev host required
 components:
   securitySchemes:
     remoteMcpBearerAuth:
@@ -101,7 +101,7 @@ components:
 x-mad4b-environment: staging
 x-mad4b-surface: remote-mcp
 x-mad4b-staging-boundary:
-  resource: https://mcp_dev.mad4b.com
+  resource: https://mcp-dev.mad4b.com
   server_uri_count: 1
   authorization_server: https://dev.mad4b.com/auth/mcp
   write_activation: false

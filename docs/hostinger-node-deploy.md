@@ -7,7 +7,7 @@ The machine-readable authority is `http-generic-api/config/deployment-branch-pol
 | Hostname family | Role | Source branch | Deployment path |
 |---|---|---|---|
 | `auth.mad4b.com`, `mcp.mad4b.com`, `activation.mad4b.com` | Production application family | `Production` | Hostinger Auto Deploy and separate Production edge |
-| `dev.mad4b.com`, `mcp_dev.mad4b.com`, `activation-dev.mad4b.com` | Planned local staging family | `main` | Local device through dedicated Dev Cloudflare Tunnel; not Hostinger Auto Deploy |
+| `dev.mad4b.com`, `mcp-dev.mad4b.com`, `activation-dev.mad4b.com` | Planned local staging family | `main` | Local device through dedicated Dev Cloudflare Tunnel; not Hostinger Auto Deploy |
 | `connector.mad4b.com` | Admin-only break-glass local connector | Managed local Windows service | Cloudflare Tunnel; not Hostinger and excluded from both application families |
 
 A push or merge to `main` must not deploy production directly. `main` is the source-of-change branch and the source for the planned local staging runtime. Production changes reach Hostinger only after a governed pull request promotes an exact validated `main` snapshot into protected `Production`.
@@ -64,7 +64,7 @@ Production hPanel variables must preserve `MIGRATION_APPLIED=false` and `DATABAS
 
 ## Cloudflare separation
 
-The Dev family (`dev.mad4b.com`, `mcp_dev.mad4b.com`, and `activation-dev.mad4b.com`) uses one dedicated local-only Cloudflare Tunnel identity with explicit hostname ingress rules targeting `http://app:8080` on the local Compose network. `mcp_dev.mad4b.com` remains reserved-disabled until the staging MCP feature flag and separate credentials are enabled; `activation-dev.mad4b.com` remains reserved-disabled until a dedicated staging Activation Gateway bundle changes both its public host and upstream origin. The current generated Activation bundle is Production-only and targets `activation.mad4b.com` -> `https://auth.mad4b.com`. The Production family (`auth.mad4b.com`, `mcp.mad4b.com`, and `activation.mad4b.com`) uses separate Cloudflare DNS/CDN records in front of the Hostinger Production edge and never reuses the Dev tunnel, token, hostname, origin, or credentials. Every hostname must be represented explicitly in `http-generic-api/config/domain-family-policy.json`; unmatched hostnames fail closed. `CLOUDFLARE_TUNNEL_HOSTNAMES` in the local env is declaration-only metadata; it does not create or alter Cloudflare ingress. The Cloudflare remote tunnel configuration is the ingress source of truth and must be reviewed against the policy before exposure. Cloudflare DNS changes, CNAME creation, and tunnel creation are manual/provider-side operations and are not performed by the local Auto Pilot. A mismatch denies exposure rather than falling back to another origin.
+The Dev family (`dev.mad4b.com`, `mcp-dev.mad4b.com`, and `activation-dev.mad4b.com`) uses one dedicated local-only Cloudflare Tunnel identity with explicit hostname ingress rules targeting `http://app:8080` on the local Compose network. `mcp-dev.mad4b.com` remains reserved-disabled until the staging MCP feature flag and separate credentials are enabled; `activation-dev.mad4b.com` remains reserved-disabled until a dedicated staging Activation Gateway bundle changes both its public host and upstream origin. The current generated Activation bundle is Production-only and targets `activation.mad4b.com` -> `https://auth.mad4b.com`. The Production family (`auth.mad4b.com`, `mcp.mad4b.com`, and `activation.mad4b.com`) uses separate Cloudflare DNS/CDN records in front of the Hostinger Production edge and never reuses the Dev tunnel, token, hostname, origin, or credentials. Every hostname must be represented explicitly in `http-generic-api/config/domain-family-policy.json`; unmatched hostnames fail closed. `CLOUDFLARE_TUNNEL_HOSTNAMES` in the local env is declaration-only metadata; it does not create or alter Cloudflare ingress. The Cloudflare remote tunnel configuration is the ingress source of truth and must be reviewed against the policy before exposure. Cloudflare DNS changes, CNAME creation, and tunnel creation are manual/provider-side operations and are not performed by the local Auto Pilot. A mismatch denies exposure rather than falling back to another origin.
 
 ## Hostinger hPanel production setup
 
@@ -87,14 +87,14 @@ Hostinger may use a detached checkout. Git `HEAD`, hostname inference, or branch
 
 ## Planned staging environment
 
-The Dev hostname family (`dev.mad4b.com`, `mcp_dev.mad4b.com`, and `activation-dev.mad4b.com`) is reserved for the staging runtime built on the local device.
+The Dev hostname family (`dev.mad4b.com`, `mcp-dev.mad4b.com`, and `activation-dev.mad4b.com`) is reserved for the staging runtime built on the local device.
 
 Its source branch is `main`, but it must not be connected to Hostinger Auto Deploy. When implemented, the local staging runtime must expose bounded deployment evidence and remain isolated from production traffic and production mutations.
 
 Expected future provenance:
 
 ```text
-hostnames: dev.mad4b.com, mcp_dev.mad4b.com, activation-dev.mad4b.com
+hostnames: dev.mad4b.com, mcp-dev.mad4b.com, activation-dev.mad4b.com
 source branch: main
 runtime location: local device
 deployment mode: local staging runtime through dedicated Dev Tunnel

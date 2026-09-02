@@ -213,7 +213,7 @@
     {
       "id": "canary",
       "status": "blocked",
-      "objective": "Validate the exact dev.mad4b.com, mcp_dev.mad4b.com, and activation-dev.mad4b.com non-production canary against one exact main SHA.",
+      "objective": "Validate the exact dev.mad4b.com, mcp-dev.mad4b.com, and activation-dev.mad4b.com non-production canary against one exact main SHA.",
       "blockers": [
         "A live dedicated Cloudflare Tunnel token and operator-approved Staging runtime are required."
       ]

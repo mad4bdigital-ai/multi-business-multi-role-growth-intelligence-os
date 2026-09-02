@@ -71,7 +71,7 @@ assert.match(windowsHelper, /sc\.exe\s+failure\s+Cloudflared/);
 assert.match(windowsHelper, /WriteAllText\(\$logFile,\s*''/);
 assert.match(windowsHelper, /REMOTE_MANAGED_TUNNEL_ORIGIN_MISMATCH/);
 assert.match(windowsHelper, /dev\\\.mad4b\\\.com/);
-assert.match(windowsHelper, /mcp_dev\\\.mad4b\\\.com/);
+assert.match(windowsHelper, /mcp-dev\\\.mad4b\\\.com/);
 assert.doesNotMatch(windowsHelper, /--token\s+\"?\$token/);
 
 // Docker sidecar shares the app network namespace so the remote-managed loopback origin is valid there too.

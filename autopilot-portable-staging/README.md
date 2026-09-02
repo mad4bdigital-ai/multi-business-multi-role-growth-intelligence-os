@@ -93,7 +93,7 @@ Remove the watcher without stopping Staging with `Uninstall-AutoDeployTask.ps1`;
 
 ## Dev Tunnel
 
-Before exposing anything publicly, configure one dedicated Cloudflare Tunnel identity for Staging with two active opt-in ingress hostnames: `dev.mad4b.com` and `mcp_dev.mad4b.com`, both targeting `http://app:8080`. The remote configuration must have an explicit unmatched-hostname fallback that denies traffic. `activation-dev.mad4b.com` is deliberately excluded from the Tunnel because it is served by the independent `mad4b-activation-gateway-staging` Worker.
+Before exposing anything publicly, configure one dedicated Cloudflare Tunnel identity for Staging with two active opt-in ingress hostnames: `dev.mad4b.com` and `mcp-dev.mad4b.com`, both targeting `http://app:8080`. The remote configuration must have an explicit unmatched-hostname fallback that denies traffic. `activation-dev.mad4b.com` is deliberately excluded from the Tunnel because it is served by the independent `mad4b-activation-gateway-staging` Worker.
 
 After the remote configuration has been reviewed, put only the Staging tunnel token in the ignored `.env.staging`, then run:
 

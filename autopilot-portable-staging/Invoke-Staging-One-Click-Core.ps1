@@ -239,7 +239,7 @@ function Invoke-StagingPublicReadiness([string]$RepositoryPath, [string]$EnvFile
     $probes += Invoke-HttpProbe 'https://dev.mad4b.com/.well-known/oauth-protected-resource'
     $probes += Invoke-HttpProbe 'https://dev.mad4b.com/connect/status' @{} @(401,403)
     $probes += Invoke-HttpProbe 'https://dev.mad4b.com/.well-known/oauth-authorization-server/auth/mcp'
-    $probes += Invoke-HttpProbe 'https://mcp_dev.mad4b.com/.well-known/oauth-protected-resource'
+    $probes += Invoke-HttpProbe 'https://mcp-dev.mad4b.com/.well-known/oauth-protected-resource'
 
     $backendKey = Get-StagingEnvValue $EnvFile 'BACKEND_API_KEY'
     if ([string]::IsNullOrWhiteSpace($backendKey)) { Fail 'BACKEND_API_KEY is required for the bounded Admin GPT remote probe.' }

@@ -97,7 +97,7 @@ const pool = {
 
 const stagingEnv = {
   REMOTE_MCP_ENVIRONMENT: "staging",
-  REMOTE_MCP_RESOURCE_URL: "https://mcp_dev.mad4b.com",
+  REMOTE_MCP_RESOURCE_URL: "https://mcp-dev.mad4b.com",
   REMOTE_MCP_AUTHORIZATION_SERVER_URL: "https://dev.mad4b.com/auth/mcp",
   REMOTE_MCP_OAUTH_ALLOWED_REDIRECT_ORIGINS: "https://chatgpt.com",
 };

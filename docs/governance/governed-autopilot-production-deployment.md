@@ -21,7 +21,7 @@ No source change in this PR authorizes Cloudflare, Hostinger, DNS, database, mig
 | Local Scheduled Task used an obsolete logon value | Contract-test the installer and require the supported `Interactive` logon form |
 | Known AutoPilot backup files blocked integrity checks | Quarantine only known backup files outside the repository; fail closed on every unknown dirty file |
 | Staging Activation env keys or local secrets were missing | Generate only local ignored secrets and repair only non-secret Staging defaults without printing secret values |
-| Staging Tunnel scope could include Activation or Production | Keep Tunnel ingress limited to `dev.mad4b.com` and `mcp_dev.mad4b.com`; keep `activation-dev.mad4b.com` on its independent Worker |
+| Staging Tunnel scope could include Activation or Production | Keep Tunnel ingress limited to `dev.mad4b.com` and `mcp-dev.mad4b.com`; keep `activation-dev.mad4b.com` on its independent Worker |
 | Hostinger runtime started without the SSO signing secret | Require the dedicated Production secret as a startup/preflight contract; never invent a Production substitute in CI |
 | Git promotion succeeded while public runtime returned 503 | Treat branch promotion and runtime activation as separate states; R7 must remain negative until public identity endpoints prove the exact SHA/branch |
 | MCP OAuth metadata can fail closed when ingress trust is incomplete | Require the three-part trusted-ingress contract and test it under Production semantics |

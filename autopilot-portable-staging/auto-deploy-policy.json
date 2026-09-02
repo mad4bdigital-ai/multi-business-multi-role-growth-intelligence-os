@@ -10,7 +10,7 @@
   "requires_ci_eligibility": true,
   "allowed_staging_hosts": [
     "dev.mad4b.com",
-    "mcp_dev.mad4b.com",
+    "mcp-dev.mad4b.com",
     "activation-dev.mad4b.com"
   ],
   "forbidden_hosts": [

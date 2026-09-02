@@ -91,7 +91,7 @@ const SCOPES_BY_HOST = {
       admin_activation: "openapi.custom-gpt.activation-admin.staging.yaml",
     },
   },
-  "mcp_dev.mad4b.com": {
+  "mcp-dev.mad4b.com": {
     scope: "staging-remote-mcp",
     schema_file: "openapi.remote-mcp.staging.yaml",
     primary_paths: ["/health", "/mcp"],

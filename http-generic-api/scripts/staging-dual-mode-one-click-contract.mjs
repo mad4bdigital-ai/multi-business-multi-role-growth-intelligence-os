@@ -176,7 +176,7 @@ assert.match(cmd, /docker_sidecar/);
 
 assert.match(tenantSchema, /https:\/\/dev\.mad4b\.com/);
 assert.match(adminSchema, /https:\/\/dev\.mad4b\.com/);
-assert.match(remoteMcpSchema, /https:\/\/mcp_dev\.mad4b\.com/);
+assert.match(remoteMcpSchema, /https:\/\/mcp-dev\.mad4b\.com/);
 assert.doesNotMatch(tenantSchema, /https:\/\/auth\.mad4b\.com\s*$/m);
 assert.doesNotMatch(adminSchema, /https:\/\/auth\.mad4b\.com\s*$/m);
 

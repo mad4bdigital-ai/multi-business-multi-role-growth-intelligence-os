@@ -17,7 +17,7 @@
     "local_env_must_remain_untracked": true,
     "generated_values_are_idempotent_until_explicit_rotation": true
   },
-  "allowed_staging_hosts": ["dev.mad4b.com", "mcp_dev.mad4b.com", "activation-dev.mad4b.com"],
+  "allowed_staging_hosts": ["dev.mad4b.com", "mcp-dev.mad4b.com", "activation-dev.mad4b.com"],
   "forbidden_hosts": ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com"],
   "tunnel_modes": {
     "default": "windows_service",

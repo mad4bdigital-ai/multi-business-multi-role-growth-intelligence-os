@@ -28,6 +28,7 @@
         "http-generic-api/test-staging-activation-gateway.mjs",
         "http-generic-api/test-staging-activation-oauth-profile-enabled.mjs",
         "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
+        "http-generic-api/test-staging-runtime-oauth-profile.mjs",
         "http-generic-api/test-tenant-gpt-access-token-verifier.mjs",
         "http-generic-api/test-trusted-request-host-routing.mjs"
       ]

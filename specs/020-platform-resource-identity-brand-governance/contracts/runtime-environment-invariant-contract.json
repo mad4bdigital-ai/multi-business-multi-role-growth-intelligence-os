@@ -22,7 +22,7 @@
       "default_for_custom_gpt": true,
       "allowed_hosts": [
         "dev.mad4b.com",
-        "mcp_dev.mad4b.com",
+        "mcp-dev.mad4b.com",
         "activation-dev.mad4b.com"
       ],
       "credential_namespace_prefixes": [
@@ -52,7 +52,7 @@
       ],
       "staging_hosts_forbidden": [
         "dev.mad4b.com",
-        "mcp_dev.mad4b.com",
+        "mcp-dev.mad4b.com",
         "activation-dev.mad4b.com"
       ]
     }

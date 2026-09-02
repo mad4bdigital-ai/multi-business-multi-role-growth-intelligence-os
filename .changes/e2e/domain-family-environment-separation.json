@@ -21,6 +21,16 @@
   "merge_contract": {
     "minimum_phase": "mvp"
   },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "production",
+      "staging"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
   "phases": [
     {
       "id": "mvp",
@@ -42,7 +52,7 @@
             "Run the bounded domain-family regression and emit only secret-free pass/fail evidence."
           ],
           "assertions": [
-            "Production is exactly auth.mad4b.com, mcp.mad4b.com, and activation.mad4b.com; staging is exactly dev.mad4b.com, mcp_dev.mad4b.com, and activation-dev.mad4b.com.",
+            "Production is exactly auth.mad4b.com, mcp.mad4b.com, and activation.mad4b.com; staging is exactly dev.mad4b.com, mcp-dev.mad4b.com, and activation-dev.mad4b.com.",
             "No hostname belongs to both families and connector.mad4b.com remains independent.",
             "Production and staging have distinct origin kinds, deployment providers, credential namespaces, and tunnel authority.",
             "The local staging tunnel remains behind the explicit tunnel profile and targets only http://app:8080.",

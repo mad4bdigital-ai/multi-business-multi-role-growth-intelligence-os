@@ -7,7 +7,7 @@ process.env.REMOTE_MCP_ENVIRONMENT = "staging";
 process.env.TENANT_GPT_STAGING_OAUTH_CLIENT_ID = "mad4b-tenant-gpt-staging";
 process.env.TENANT_GPT_STAGING_AUTHORIZATION_SERVER_URL = "https://dev.mad4b.com";
 process.env.TENANT_GPT_STAGING_RESOURCE_URL = "https://dev.mad4b.com";
-process.env.REMOTE_MCP_RESOURCE_URL = "https://mcp_dev.mad4b.com";
+process.env.REMOTE_MCP_RESOURCE_URL = "https://mcp-dev.mad4b.com";
 process.env.REMOTE_MCP_AUTHORIZATION_SERVER_URL = "https://dev.mad4b.com/auth/mcp";
 process.env.REMOTE_MCP_TRUST_PROXY_HOST_HEADERS = "true";
 
@@ -46,7 +46,7 @@ assert.equal(profile.resolveTenantGptOAuthResourceProfile({
 }).ok, false);
 assert.equal(clientConfig.TENANT_GPT_OAUTH_CLIENT_SECRET_ENV, "TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET");
 assert.equal(clientConfig.TENANT_GPT_OAUTH_CLIENT_SECRET_REF, "platform_secret:TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET");
-assert.equal(remoteMcp.resolveRemoteMcpOAuthResource(), "https://mcp_dev.mad4b.com");
+assert.equal(remoteMcp.resolveRemoteMcpOAuthResource(), "https://mcp-dev.mad4b.com");
 assert.equal(remoteMcp.resolveRemoteMcpAuthorizationIssuer(), "https://dev.mad4b.com/auth/mcp");
 
 const { buildRootDiscoveryRoutes } = await import("./routes/rootDiscoveryRoutes.js");
@@ -79,7 +79,7 @@ try {
   assert.equal(protectedResource.resource, "https://dev.mad4b.com");
   assert.deepEqual(protectedResource.authorization_servers, ["https://dev.mad4b.com"]);
 
-  for (const host of ["mcp_dev.mad4b.com", "activation-dev.mad4b.com"]) {
+  for (const host of ["mcp-dev.mad4b.com", "activation-dev.mad4b.com"]) {
     const blocked = await fetch(`http://127.0.0.1:${port}/tenant-gpt/oauth-preset`, { headers: { "x-forwarded-host": host } });
     assert.equal(blocked.status, 404, `preset must remain unavailable for ${host}`);
   }

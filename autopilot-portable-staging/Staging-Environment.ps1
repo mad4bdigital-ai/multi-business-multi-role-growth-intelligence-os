@@ -148,7 +148,7 @@ function Initialize-StagingEnvironment {
     # Canonical shared Staging environment authority.
     Set-StagingEnvValue $envFile 'STAGING_TUNNEL_MODE' $TunnelMode
     Set-StagingEnvValue $envFile 'STAGING_TUNNEL_REMOTE_ORIGIN' 'http://127.0.0.1:8080'
-    Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_HOSTNAMES' 'dev.mad4b.com,mcp_dev.mad4b.com'
+    Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_HOSTNAMES' 'dev.mad4b.com,mcp-dev.mad4b.com'
     Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_TOKEN_FILE' 'C:\ProgramData\cloudflared\tunnel-token.txt'
     Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_LOG_FILE' 'C:\ProgramData\cloudflared\staging-cloudflared.log'
     Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_METRICS' '127.0.0.1:49312'
@@ -164,9 +164,9 @@ function Initialize-StagingEnvironment {
     Set-StagingEnvValue $envFile 'REMOTE_MCP_TOKEN_ISSUANCE_MODE' 'oauth_authorization_code_runtime'
     Set-StagingEnvValue $envFile 'REMOTE_MCP_TOKEN_PERSISTENCE' 'runtime_only'
     Set-StagingEnvValue $envFile 'REMOTE_MCP_OAUTH_ALLOWED_REDIRECT_ORIGINS' 'https://chatgpt.com,https://www.chatgpt.com,https://claude.ai,https://www.claude.ai'
-    Set-StagingEnvValue $envFile 'REMOTE_MCP_RESOURCE_URL' 'https://mcp_dev.mad4b.com'
+    Set-StagingEnvValue $envFile 'REMOTE_MCP_RESOURCE_URL' 'https://mcp-dev.mad4b.com'
     Set-StagingEnvValue $envFile 'REMOTE_MCP_AUTHORIZATION_SERVER_URL' 'https://dev.mad4b.com/auth/mcp'
-    Set-StagingEnvValue $envFile 'REMOTE_MCP_RESOURCE_DOCUMENTATION_URL' 'https://mcp_dev.mad4b.com/docs'
+    Set-StagingEnvValue $envFile 'REMOTE_MCP_RESOURCE_DOCUMENTATION_URL' 'https://mcp-dev.mad4b.com/docs'
 
     switch ($TunnelMode) {
         'windows_service' {

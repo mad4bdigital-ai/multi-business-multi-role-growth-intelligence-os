@@ -8,7 +8,7 @@ import { readRemoteMcpOAuthClient } from "../remoteMcpOAuthStore.js";
 const CONTRACT = "mad4b.staging-authenticated-remote-readiness.v1";
 const TENANT_BASE = String(process.env.TENANT_GPT_STAGING_AUTHORIZATION_SERVER_URL || "https://dev.mad4b.com").replace(/\/+$/u, "");
 const TENANT_RESOURCE = String(process.env.TENANT_GPT_STAGING_RESOURCE_URL || "https://dev.mad4b.com").replace(/\/+$/u, "");
-const MCP_RESOURCE = String(process.env.REMOTE_MCP_RESOURCE_URL || "https://mcp_dev.mad4b.com").replace(/\/+$/u, "");
+const MCP_RESOURCE = String(process.env.REMOTE_MCP_RESOURCE_URL || "https://mcp-dev.mad4b.com").replace(/\/+$/u, "");
 const MCP_ISSUER = String(process.env.REMOTE_MCP_AUTHORIZATION_SERVER_URL || "https://dev.mad4b.com/auth/mcp").replace(/\/+$/u, "");
 const TENANT_STATUS_SCOPE = TENANT_GPT_SCOPE_LINKS.find((scope) => scope.endsWith("/tenant.status")) || TENANT_GPT_SCOPE_LINKS[0];
 const MCP_SCOPE = "workspaces.read";

@@ -2,12 +2,12 @@
 
 ## الهدف
 
-تضيف هذه الدفعة مساراً مستقلاً لبيئة Staging على `dev.mad4b.com` و`mcp_dev.mad4b.com`. لا يعاد استخدام Production OAuth resources أو MCP resource أو أسرار Hostinger. يبقى `activation-dev.mad4b.com` محجوباً إلى أن يوجد Activation Gateway bundle مستقل ومختبر.
+تضيف هذه الدفعة مساراً مستقلاً لبيئة Staging على `dev.mad4b.com` و`mcp-dev.mad4b.com`. لا يعاد استخدام Production OAuth resources أو MCP resource أو أسرار Hostinger. يبقى `activation-dev.mad4b.com` محجوباً إلى أن يوجد Activation Gateway bundle مستقل ومختبر.
 
 | السطح | Staging | Production | الحالة |
 |---|---|---|---|
 | Custom GPT/OpenAPI core | `https://dev.mad4b.com` | `https://auth.mad4b.com` | opt-in بعد إنشاء client مستقل |
-| Remote MCP | `https://mcp_dev.mad4b.com` | `https://mcp.mad4b.com` | opt-in عبر OAuth فقط |
+| Remote MCP | `https://mcp-dev.mad4b.com` | `https://mcp.mad4b.com` | opt-in عبر OAuth فقط |
 | Activation GPT | محجوب | `https://activation.mad4b.com` | لا يوجد staging bundle بعد |
 | OAuth authority | `https://dev.mad4b.com` | `https://auth.mad4b.com` | resource/client منفصلان |
 
@@ -19,9 +19,9 @@
 
 ## Staging Remote MCP
 
-يستخدم MCP Staging `REMOTE_MCP_ENVIRONMENT=staging` و`REMOTE_MCP_ENABLED=true` و`REMOTE_MCP_OAUTH_ENABLED=true` مع resource `https://mcp_dev.mad4b.com` وauthorization server `https://dev.mad4b.com/auth/mcp`. يظل DCR مغلقاً افتراضياً، ولا يسمح loopback إلا في اختبار محلي صريح. لا يتم منح write scope لمجرد تفعيل MCP؛ shared mutation governance وapproval وcapability وlease تبقى شروطاً مستقلة، وتبقى كل المسارات غير المربوطة fail-closed.
+يستخدم MCP Staging `REMOTE_MCP_ENVIRONMENT=staging` و`REMOTE_MCP_ENABLED=true` و`REMOTE_MCP_OAUTH_ENABLED=true` مع resource `https://mcp-dev.mad4b.com` وauthorization server `https://dev.mad4b.com/auth/mcp`. يظل DCR مغلقاً افتراضياً، ولا يسمح loopback إلا في اختبار محلي صريح. لا يتم منح write scope لمجرد تفعيل MCP؛ shared mutation governance وapproval وcapability وlease تبقى شروطاً مستقلة، وتبقى كل المسارات غير المربوطة fail-closed.
 
-يقوم Cloudflare Tunnel بتوجيه `dev.mad4b.com` و`mcp_dev.mad4b.com` إلى `http://app:8080` فقط بعد إنشاء ingress يدوي مطابق لهذه السياسة. لا ينشئ Auto Pilot DNS أو Tunnel أو OAuth client. يجب أن يحتوي tunnel configuration على deny fallback، وألا يحتوي أي ingress لـ`activation-dev.mad4b.com`.
+يقوم Cloudflare Tunnel بتوجيه `dev.mad4b.com` و`mcp-dev.mad4b.com` إلى `http://app:8080` فقط بعد إنشاء ingress يدوي مطابق لهذه السياسة. لا ينشئ Auto Pilot DNS أو Tunnel أو OAuth client. يجب أن يحتوي tunnel configuration على deny fallback، وألا يحتوي أي ingress لـ`activation-dev.mad4b.com`.
 
 ## قواعد البيانات وSchemas/Tables
 
@@ -41,7 +41,7 @@
 
 ## خطوات التفعيل الخارجي
 
-على Cloudflare، ينشئ operator tunnel مخصصاً لـStaging فقط مع hostname rules لـ`dev.mad4b.com` و`mcp_dev.mad4b.com`، ثم يضع token في `.env.staging` المحلي دون commit. على OAuth، ينشئ operator clientين منفصلين إذا لزم الأمر: Custom GPT Staging client وMCP Staging client، مع callback/resource allowlists خاصة بـStaging. لا يجوز نسخ client secret من Production.
+على Cloudflare، ينشئ operator tunnel مخصصاً لـStaging فقط مع hostname rules لـ`dev.mad4b.com` و`mcp-dev.mad4b.com`، ثم يضع token في `.env.staging` المحلي دون commit. على OAuth، ينشئ operator clientين منفصلين إذا لزم الأمر: Custom GPT Staging client وMCP Staging client، مع callback/resource allowlists خاصة بـStaging. لا يجوز نسخ client secret من Production.
 
 بعد ذلك يشغل operator Auto Pilot مع tunnel opt-in، ثم يراجع OpenAPI protected-resource metadata وMCP metadata من المضيفين، ثم يجري read-only canary. يظل write governance محجوباً حتى وجود approval وcapability وlease وreadback evidence.
 

@@ -5,7 +5,7 @@ import YAML from "yaml";
 const here = path.dirname(new URL(import.meta.url).pathname);
 const apiRoot = path.resolve(here, "..");
 const targetPath = path.join(apiRoot, "openapi", "openapi.remote-mcp.staging.yaml");
-const resource = "https://mcp_dev.mad4b.com";
+const resource = "https://mcp-dev.mad4b.com";
 const forbiddenHosts = ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com", "activation-dev.mad4b.com"];
 const document = {
   openapi: "3.1.0",
@@ -13,7 +13,7 @@ const document = {
     title: "Growth Intelligence Platform - Staging Remote MCP",
     version: "1.0.0-staging-mcp",
     summary: "Independent Staging Remote MCP streamable HTTP contract.",
-    description: "A separate MCP protocol document for mcp_dev.mad4b.com. This is not a Tenant or Admin Custom GPT Action schema; it describes only the governed Remote MCP transport and keeps mutation scope enforcement in the runtime governance layer."
+    description: "A separate MCP protocol document for mcp-dev.mad4b.com. This is not a Tenant or Admin Custom GPT Action schema; it describes only the governed Remote MCP transport and keeps mutation scope enforcement in the runtime governance layer."
   },
   servers: [{ url: resource, description: "Staging Remote MCP resource" }],
   security: [{ remoteMcpBearerAuth: [] }],
@@ -26,7 +26,7 @@ const document = {
         responses: {
           "200": { description: "MCP JSON-RPC response or capability resource metadata", content: { "application/json": { schema: { $ref: "#/components/schemas/JsonRpcResponse" } } } },
           "401": { description: "OAuth bearer authorization required" },
-          "404": { description: "Canonical mcp_dev host required" }
+          "404": { description: "Canonical mcp-dev host required" }
         }
       },
       post: {
@@ -38,7 +38,7 @@ const document = {
           "200": { description: "MCP JSON-RPC response", content: { "application/json": { schema: { $ref: "#/components/schemas/JsonRpcResponse" } } } },
           "401": { description: "OAuth bearer authorization required" },
           "403": { description: "Scope or write governance denied" },
-          "404": { description: "Canonical mcp_dev host required" }
+          "404": { description: "Canonical mcp-dev host required" }
         }
       }
     }

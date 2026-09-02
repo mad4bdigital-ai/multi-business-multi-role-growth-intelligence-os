@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "5c0aadacff29e1103ef46ba211695b7b2c3f1f724c0cd9efd6b37f69c0a6e8c6",
+    "source_digest": "c76fb2d41170dbd42f83255423206e9f23755effce98fc4822ffd90ba4305155",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -156,7 +156,7 @@
       },
       {
         "file": "openapi/openapi.remote-mcp.staging.yaml",
-        "sha256": "abc55c8befc40af3ddde9c3f412435689b6900645372bdf2a9e914fd323eb99b",
+        "sha256": "f89328141c38cbd3729d8f7a1c736fb5a885a0b9d3ba8b4c49ecd25484defaa5",
         "present": true
       },
       {
@@ -831,7 +831,7 @@
       },
       {
         "file": "routes/rootDiscoveryRoutes.js",
-        "sha256": "2a87b0c0763ff60b90b4033d9928e5f90a8a44e0f203ffa152547bf75c190bbf",
+        "sha256": "e2af6c08942551ee2a1901efa0f67b49fa9ef42dd6b16c4d963ea4d9b5d94018",
         "present": true
       },
       {
@@ -9058,7 +9058,7 @@
       "family_key": "root-discovery.developer",
       "label": "root discovery (developer)",
       "source_file": "routes/rootDiscoveryRoutes.js",
-      "source_digest": "2a87b0c0763ff60b90b4033d9928e5f90a8a44e0f203ffa152547bf75c190bbf",
+      "source_digest": "e2af6c08942551ee2a1901efa0f67b49fa9ef42dd6b16c4d963ea4d9b5d94018",
       "mount_prefix": "/",
       "mount_order": 14522,
       "split_from_mixed_scope_file": true,
@@ -9266,7 +9266,7 @@
       "family_key": "root-discovery.public",
       "label": "root discovery (public)",
       "source_file": "routes/rootDiscoveryRoutes.js",
-      "source_digest": "2a87b0c0763ff60b90b4033d9928e5f90a8a44e0f203ffa152547bf75c190bbf",
+      "source_digest": "e2af6c08942551ee2a1901efa0f67b49fa9ef42dd6b16c4d963ea4d9b5d94018",
       "mount_prefix": "/",
       "mount_order": 14522,
       "split_from_mixed_scope_file": true,

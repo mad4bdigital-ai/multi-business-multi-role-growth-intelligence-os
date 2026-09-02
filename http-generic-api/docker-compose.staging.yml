@@ -132,7 +132,7 @@ services:
     command: ["tunnel", "--no-autoupdate", "run", "--token", "${CLOUDFLARE_TUNNEL_TOKEN:-}"]
     environment:
       TUNNEL_ENVIRONMENT: ${CLOUDFLARE_TUNNEL_ENVIRONMENT:-staging}
-      TUNNEL_HOSTNAMES: ${CLOUDFLARE_TUNNEL_HOSTNAMES:-dev.mad4b.com,mcp_dev.mad4b.com}
+      TUNNEL_HOSTNAMES: ${CLOUDFLARE_TUNNEL_HOSTNAMES:-dev.mad4b.com,mcp-dev.mad4b.com}
       TUNNEL_ORIGIN_APP: ${CLOUDFLARE_TUNNEL_ORIGIN_APP:-http://app:8080}
       TUNNEL_HOSTNAME: ${CLOUDFLARE_TUNNEL_HOSTNAME:-dev.mad4b.com}
       TUNNEL_LOGLEVEL: ${CLOUDFLARE_TUNNEL_LOGLEVEL:-info}
