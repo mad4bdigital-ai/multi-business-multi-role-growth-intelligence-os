@@ -216,6 +216,8 @@ assert(workflow.includes("Skipping stale surface remediation before branch creat
 assert(workflow.includes("Closing stale surface remediation PR"), "surface remediation must close an exact-head PR if main advances before finalization");
 assert(workflow.includes("Governance-finalizer eligible:"), "surface remediation PR body must record finalizer eligibility rather than native auto-merge authority");
 assert(workflow.includes("Native GitHub auto-merge is intentionally not registered"), "surface remediation must explicitly defer merge to Derived State Closure and the Governance Finalizer");
+assert(!workflow.includes("\nAutomated, checksum-bound surface-contract remediation"), "multiline remediation PR body must not escape the YAML run block");
+assert(workflow.includes("\n          Automated, checksum-bound surface-contract remediation"), "multiline remediation PR body must remain indented inside the YAML run block");
 assert(workflow.includes("eligible for governance finalization after Derived State Closure"), "safe surface remediation must expose finalizer eligibility only after exact-head checks");
 assert(!workflow.includes("node .github/ops/github-followup-automerge-readiness.mjs"), "surface remediation producer must not consume final merge readiness authority");
 assert(!workflow.includes("gh pr merge"), "surface remediation producer must not merge its own PR");
