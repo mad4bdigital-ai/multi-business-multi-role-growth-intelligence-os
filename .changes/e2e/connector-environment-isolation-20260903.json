@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "connector-environment-isolation-20260903",
-  "title": "Environment-bound Local Connector routing and recovery isolation",
+  "title": "Environment-bound Tenant Connector routing and Staging transport ownership isolation",
   "delivery_mode": "single_pr",
   "merge_contract": {
     "minimum_phase": "mvp"
@@ -11,12 +11,18 @@
   "scope": {
     "include": [
       ".changes/e2e/connector-environment-isolation-20260903.json",
+      "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
+      "autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1",
+      "local-connector/connector-watchdog.ps1",
       "http-generic-api/config/deployment-branch-policy.json",
       "http-generic-api/config/domain-family-policy.json",
       "http-generic-api/routes/connectorAgentRoutes.js",
       "http-generic-api/routes/connectorProxyRoutes.js",
+      "http-generic-api/scripts/staging-platform-ready-contract.mjs",
+      "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs",
       "http-generic-api/test-domain-family-policy.mjs",
       "http-generic-api/test-environment-impact-closure.mjs",
+      "http-generic-api/test-local-connector-durable-self-healing.mjs",
       "http-generic-api/test-local-manager-tool-release-owner.mjs"
     ]
   },
@@ -31,7 +37,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Make Local Connector routing environment-bound and fail closed so tenant/device traffic cannot silently escalate to admin recovery and connector callbacks cannot return to the wrong environment control plane.",
+      "objective": "Make Connector routing environment-bound and fail closed while preventing Staging from stopping or reconfiguring the legacy Local Connector cloudflared service. connector.mad4b.com remains one shared Admin Recovery transport whose authority is resolved by the receiving environment runtime/database; no connector-dev hostname is introduced by this change.",
       "e2e_journeys": [
         {
           "id": "tenant-device-route-never-escalates-to-admin-recovery",
@@ -39,18 +45,20 @@
           "level": "synthetic_runtime",
           "actor": "Tenant or API-credential caller through the environment control plane",
           "entrypoint": "A /connector/:device_id proxy request resolved against the receiving environment database",
-          "terminal_outcome": "Candidate routes remain tenant/device routes only; admin_recovery is excluded unless an admin principal supplies an explicit recovery intent.",
+          "terminal_outcome": "Candidate routes remain tenant/device routes only; admin_recovery is excluded unless an Admin principal supplies explicit recovery intent.",
           "steps": [
-            "Resolve tenant, user, canonical device, and config from the receiving runtime database.",
+            "Resolve environment from the receiving runtime and its configured database authority.",
+            "Resolve tenant, user, canonical device, and config from that environment database.",
             "Load enabled route candidates for the resolved config.",
-            "Exclude admin_recovery routes for non-admin callers and for admin callers without explicit recovery intent.",
-            "Forward only the selected device route and strip the control-plane recovery selector from the device request."
+            "Exclude admin_recovery routes for tenant/API-credential callers and for Admin callers without explicit recovery intent.",
+            "Forward only the selected eligible route and strip the control-plane recovery selector from the device request."
           ],
           "assertions": [
+            "environment authority precedes tenant/device route selection",
             "tenant and API-credential callers cannot receive admin_recovery as a fallback candidate",
-            "admin authority alone does not enable recovery fallback without explicit recovery intent",
+            "Admin authority alone does not enable recovery fallback without explicit recovery intent",
             "recovery_intent is not forwarded to the local device",
-            "connector.mad4b.com remains an admin recovery role rather than a tenant runtime route"
+            "connector.mad4b.com remains a shared Admin Recovery transport rather than a tenant runtime route"
           ],
           "tests": [
             {
@@ -62,6 +70,7 @@
             }
           ],
           "evidence_paths": [
+            "http-generic-api/config/deployment-branch-policy.json",
             "http-generic-api/routes/connectorProxyRoutes.js",
             "http-generic-api/test-local-manager-tool-release-owner.mjs",
             ".changes/e2e/connector-environment-isolation-20260903.json"
@@ -73,18 +82,22 @@
           "level": "synthetic_runtime",
           "actor": "Local Connector installer emitted by Production or Staging control plane",
           "entrypoint": "GET /connector-agent/installer.ps1 on the originating runtime",
-          "terminal_outcome": "The generated connector environment binds policy and heartbeat callbacks to the same environment control plane and fails closed on a cross-environment override.",
+          "terminal_outcome": "The generated connector environment binds policy and heartbeat callbacks to the same environment control plane; the Watchdog rejects missing or cross-environment heartbeat binding instead of defaulting to Production.",
           "steps": [
             "Resolve environment from DEPLOYMENT_ENVIRONMENT/NODE_ENV.",
             "Select only auth.mad4b.com for Production or dev.mad4b.com for Staging.",
             "Persist CONNECTOR_ENVIRONMENT and CONNECTOR_CONTROL_PLANE_BASE_URL into the connector environment.",
             "Derive policy and heartbeat URLs from that validated base URL.",
-            "Reject a configured control-plane URL whose hostname does not match the resolved environment."
+            "Reject a configured control-plane URL whose hostname does not match the resolved environment.",
+            "Have the Watchdog validate CONNECTOR_ENVIRONMENT against CONNECTOR_HEARTBEAT_URL before sending authenticated state."
           ],
           "assertions": [
             "Staging connector callbacks cannot default to auth.mad4b.com",
             "Production connector callbacks cannot target dev.mad4b.com",
-            "connector-dev.mad4b.com is declared planned and excluded from both application hostname families",
+            "the Watchdog has no hard-coded Production heartbeat fallback",
+            "connector.mad4b.com is excluded from application hostname families but remains environment-bound through runtime/database/credential authority",
+            "connector-dev.mad4b.com is not introduced or required by this change",
+            "cross-environment Connector credential reuse is forbidden",
             "no provider, DNS, live database, or Production deployment mutation is performed by this change"
           ],
           "tests": [
@@ -108,15 +121,80 @@
               "working_directory": "http-generic-api",
               "path": "test-local-manager-tool-release-owner.mjs",
               "args": []
+            },
+            {
+              "id": "connector-watchdog-environment-binding",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-local-connector-durable-self-healing.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             "http-generic-api/config/deployment-branch-policy.json",
             "http-generic-api/config/domain-family-policy.json",
             "http-generic-api/routes/connectorAgentRoutes.js",
+            "local-connector/connector-watchdog.ps1",
             "http-generic-api/test-domain-family-policy.mjs",
             "http-generic-api/test-environment-impact-closure.mjs",
+            "http-generic-api/test-local-connector-durable-self-healing.mjs",
             "http-generic-api/test-local-manager-tool-release-owner.mjs"
+          ]
+        },
+        {
+          "id": "staging-tunnel-does-not-mutate-local-connector-transport",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Windows/Docker Staging One-Click operator",
+          "entrypoint": "Invoke-Staging-One-Click-Core.ps1 with windows_service, docker_sidecar, or disabled tunnel mode",
+          "terminal_outcome": "Staging manages only Mad4B-Staging-Cloudflared or its own Docker sidecar and never stops, deletes, creates, reconfigures, or performs inactivity checks against the generic Local Connector cloudflared Windows service.",
+          "steps": [
+            "Resolve the canonical Staging Windows service name as Mad4B-Staging-Cloudflared.",
+            "Store the Staging tunnel token and log beneath C:\\ProgramData\\Mad4B\\Staging\\Cloudflared with restricted ACLs.",
+            "Quiesce only the Staging-owned Windows service and Staging-owned Docker sidecar before topology transitions.",
+            "Create or reconcile only Mad4B-Staging-Cloudflared when windows_service mode is selected.",
+            "Verify process stability, LocalSystem ownership, token-file transport, HTTP/2 transport, and remote managed origin on the exact Staging service.",
+            "Leave the generic cloudflared service untouched as the backward-compatible Local Connector ownership boundary until a separately certified Local Connector service migration."
+          ],
+          "assertions": [
+            "Staging source contains no Get-Service Cloudflared or Stop-Service Cloudflared mutation path",
+            "Staging source does not query Win32_Service Name='Cloudflared'",
+            "Staging creates and recovers only Mad4B-Staging-Cloudflared",
+            "docker_sidecar selection does not stop the Local Connector Windows tunnel service",
+            "legacy Local Connector cloudflared ownership is preserved during this transition",
+            "Local Connector Watchdog can later consume CONNECTOR_CLOUDFLARED_SERVICE for a separately certified service namespace migration",
+            "no Cloudflare DNS/configuration mutation is performed by Staging One-Click"
+          ],
+          "tests": [
+            {
+              "id": "staging-platform-ready-owned-service-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/staging-platform-ready-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-dual-mode-owned-service-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/staging-dual-mode-one-click-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "connector-durable-self-healing-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-local-connector-durable-self-healing.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
+            "autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1",
+            "local-connector/connector-watchdog.ps1",
+            "http-generic-api/scripts/staging-platform-ready-contract.mjs",
+            "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs",
+            "http-generic-api/test-local-connector-durable-self-healing.mjs"
           ]
         }
       ]
