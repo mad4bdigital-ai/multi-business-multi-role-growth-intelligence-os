@@ -294,7 +294,7 @@
     },
     {
       "path": "http-generic-api/test-staging-auto-deploy-contract.mjs",
-      "sha256": "131a734eb5396b80a1acec5e8c835725daac551b2b3acd80fea7a2aa1f82ba19"
+      "sha256": "6275f5119ec9ed7849ad9ca3752157bada6d7896785cafa78bab916b0e05483b"
     },
     {
       "path": "http-generic-api/test-staging-environment-certification-contract.mjs",
