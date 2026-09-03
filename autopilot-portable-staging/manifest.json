@@ -334,7 +334,7 @@
     },
     {
       "path": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
-      "sha256": "6e37a5fdfb593dc6f367b457a780589fdd5b2352782cfbab5f44bc5f702fc4d2"
+      "sha256": "59d2384af53689e1979847ab32f40c8573d5468175d182fe07007f2cfcee55c1"
     },
     {
       "path": "autopilot-portable-staging/Staging-Environment.ps1",
@@ -390,7 +390,7 @@
     },
     {
       "path": "autopilot-portable-staging/Converge-StagingActivationGateway.ps1",
-      "sha256": "f1201c874fe43473db6199116a8ffbae091ed78c6e29065f52c74899503942b3"
+      "sha256": "f3ad74f3141fcde448803e1f1f6baf760a8f0d75aa7c3de3deb2101c8d8af881"
     },
     {
       "path": "autopilot-portable-staging/activation-gateway-smart-convergence-policy.json",
