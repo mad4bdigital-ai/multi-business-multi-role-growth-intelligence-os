@@ -3,7 +3,7 @@
   "schema_version": 1,
   "feature_key": "staging-recovery-authority-certification-20260903",
   "title": "Staging Recovery authority binding and genuine signed certification",
-  "delivery_mode": "single_pr",
+  "delivery_mode": "multi_pr",
   "current_phase": "mvp",
   "secrets_included": false,
   "scope": {
@@ -30,7 +30,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Bind a deployment-owned, durable and fully typed 14-component Recovery authority graph into explicit local Windows/Docker Staging, expose trusted pre-certification readiness without synthesizing a certificate, and keep Production, Local Connector and external-provider authority fail-closed.",
+      "objective": "Bind a deployment-owned, durable and fully typed 14-component Recovery authority graph into explicit local Windows/Docker Staging, harden its single-use concurrency and same-fence primitives, expose trusted pre-certification readiness without synthesizing a certificate, and keep Production, Local Connector and external-provider authority fail-closed.",
       "e2e_journeys": [
         {
           "id": "staging-recovery-authority-phase-a",
@@ -38,14 +38,16 @@
           "level": "synthetic_runtime",
           "actor": "Staging Recovery deployment composition",
           "entrypoint": "server root loads ./stagingRecoveryAuthorityBinding.js in injected_non_live mode",
-          "terminal_outcome": "The Staging Recovery composition has all 14 real server-managed authority components, durable and attestation capabilities, typed provenance and an independent readiness evidence root; /admin/recovery/staging/readiness can compute HTTP-200 blocked readiness with authority_graph.ready=true while genuine certification and external evidence remain absent.",
+          "terminal_outcome": "The Staging Recovery composition has all 14 real server-managed authority components, durable and attestation capabilities, typed provenance, single-owner approval/ticket claims, exact-fence canary readback and an independent readiness evidence root; /admin/recovery/staging/readiness can compute HTTP-200 blocked readiness with authority_graph.ready=true while genuine certification and external evidence remain absent.",
           "steps": [
             "Resolve an explicit staging_local_windows_docker runtime and reject Production, unknown or conflicting runtime identities.",
             "Load the deployment-owned binding module from the Staging image with injected_non_live mode only.",
             "Derive deployment identity from the exact image deployment manifest and derive a durable target fingerprint from persistent server-owned target identity.",
             "Construct the complete 14-component Recovery graph with durable filesystem state, approval/ticket authorities, fenced locking, bounded Staging canary execution, same-store ticket verification, immutable receipts and durable ledger.",
+            "Enforce one approval reservation per approval_id+plan_hash+step_id, immutable ticket reservation/finalization claims, expired-lock takeover claims, and exact fencing-token plus execution-identity readback.",
+            "Initialize each internal Ed25519 authority from one exclusive private-key source and derive its public key from that authority to avoid split-pair initialization races.",
             "Expose typed mad4b.recovery-adapter-provenance.v1 for every component and attest durability/attestation capabilities.",
-            "Keep /app/data/recovery-readiness independent from /app/data/recovery-ingress and expose a dynamic atomic current-certification pointer without requiring restart.",
+            "Reject relative evidence-root configuration before path resolution; keep /app/data/recovery-readiness independent from /app/data/recovery-ingress and expose a dynamic atomic current-certification pointer without requiring restart.",
             "With no certification pointer, return trusted pre-certification snapshot data but authenticity_verified=false and no stagingCertification.",
             "Evaluate Staging Recovery Admin readiness and require authority_graph.ready=true while certification and external-evidence checks remain blocking.",
             "Register this critical Phase A declaration in Constitution.control_plane_paths and convergence.automation_control_paths before source-policy closure."
@@ -53,11 +55,18 @@
           "assertions": [
             "No mock, dummy, in-memory or test-double adapter is installed by the deployment-owned Staging module.",
             "The recoveryStore retains the exact injected executionTicketVerifier object and durable claims/reservations are filesystem-backed.",
+            "The readback verifier is independent, role-aware and non-mutating, derives the exact durable canary identity from the canonical plan/step/run tuple, and reports same_fence=true only when the durable record fencing_token equals the kernel-provided fencing token.",
+            "An approval can have at most one active reservation across competing idempotency keys for the same approval_id+plan_hash+step_id, and an immutable used marker prevents reuse after finalization.",
+            "An execution ticket can have at most one active immutable reservation claim, finalization is immutable, and replay after finalization is denied.",
+            "Expired lock owners cannot heartbeat; competing expired-lock takeover attempts are fenced by an immutable claim tied to the prior lease id and fencing token, and at most one new fence is acquired.",
+            "Concurrent internal key initialization converges on one private Ed25519 authority and every public verification key is derived from that private authority.",
+            "Relative readiness or ingress replay roots are rejected before path.resolve can normalize them into absolute paths.",
             "Production and unknown runtimes fail closed before a binding envelope can be returned.",
             "No Local Connector input or connector.mad4b.com dependency enters the authority graph.",
             "No Production deployment, Production mutation, database mutation, provider mutation, DNS mutation, migration apply or ruleset mutation is authorized by Phase A.",
             "A missing certification is represented as blocked readiness, never as a synthetic signed pass.",
             "If a current-certification pointer appears without valid configured signing trust, the existing authority fails closed immediately.",
+            "Phase B remains planned and cannot be implemented or activated until the hardened Phase A exact-SHA live Staging proof is captured.",
             "The changed critical Phase A declaration is registered in both canonical governance control-path registries; manual merge remains required for the control-plane amendment."
           ],
           "tests": [
@@ -80,7 +89,7 @@
     {
       "id": "canary",
       "status": "planned",
-      "objective": "Run genuine exact-SHA Staging Recovery certification only after Phase A reaches authority_graph.ready=true with certification/external evidence as the remaining blockers.",
+      "objective": "Run genuine exact-SHA Staging Recovery certification only after hardened Phase A reaches authority_graph.ready=true with certification/external evidence as the remaining blockers and its live proof is captured.",
       "planned_e2e_journey": {
         "id": "staging-recovery-genuine-signed-certification",
         "required_level": "live_non_production",
@@ -89,8 +98,8 @@
         "terminal_outcome": "A dedicated certification signer produces a verified immutable exact-SHA Staging certification record, the atomic current-certification pointer advances only after verification, and public signed-ingress readback reports ready=true and certification valid=true without Production or Local Connector authority.",
         "steps": [
           "Require exact current main, exact deployed Staging SHA, exact Worker SHA and exact durable target fingerprint.",
-          "Execute the canonical Recovery lifecycle through durable evidence and same-fence readback.",
-          "Run the canonical negative certification suite and require every case to pass.",
+          "Execute the canonical Recovery lifecycle through durable single-use evidence and exact same-fence readback.",
+          "Run the canonical negative certification suite and require every concurrency, replay, lost-fence, restart-durability, cross-target and cross-SHA case to pass.",
           "Collect fresh registration, OAuth, network and Worker deployment evidence bound to the same deployment and target.",
           "Build stagingCertification and outer Recovery readiness evidence, sign with a dedicated Ed25519 certification key outside the app, persist immutable evidence, verify it, and atomically move current-certification.",
           "Verify public activation-dev.mad4b.com signed-ingress readiness and certification readbacks."
