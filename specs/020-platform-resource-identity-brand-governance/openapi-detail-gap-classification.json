@@ -6,7 +6,7 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "c76fb2d41170dbd42f83255423206e9f23755effce98fc4822ffd90ba4305155",
+    "dispatch_source_digest": "db9774e167ce5236091008a6634f28b4e1e9b1ed0aa2de5ee22bf17a3329229e",
     "dispatch_artifact_sha256": "64802d42556efe81398979699efcda8e76650fecca272344f3602e224b8fc74d"
   },
   "coverage": {
