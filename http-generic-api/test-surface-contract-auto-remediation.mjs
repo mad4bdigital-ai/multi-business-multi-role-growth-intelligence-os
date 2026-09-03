@@ -191,6 +191,7 @@ assert.throws(
 
 const workflow = readFileSync("../.github/workflows/surface-contract-auto-remediation.yml", "utf8");
 assert(workflow.includes("schedule:"), "automation must run on a schedule");
+assert(workflow.includes('- ".github/workflows/surface-contract-auto-remediation.yml"'), "Surface workflow changes must self-trigger post-merge loadability validation");
 assert(workflow.includes('gh workflow run surface-contract-auto-remediation.yml \\\n            --repo "${GITHUB_REPOSITORY}"'), "dispatch must bind the repository explicitly when no checkout exists");
 assert(workflow.includes("Enforce registered documentation and generated-evidence mutation boundary"));
 assert(workflow.includes("git status --porcelain=v1 -z --untracked-files=all"), "workflow must parse tracked and untracked paths with NUL delimiters");
