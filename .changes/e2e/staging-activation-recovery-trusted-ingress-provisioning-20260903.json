@@ -1,0 +1,115 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-activation-recovery-trusted-ingress-provisioning-20260903",
+  "title": "Staging Activation Recovery trusted-ingress provisioning and durable replay convergence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-activation-recovery-trusted-ingress-provisioning-20260903.json",
+      ".github/workflows/staging-main-deploy-eligibility.yml",
+      "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
+      "autopilot-portable-staging/Converge-StagingActivationGateway.ps1",
+      "autopilot-portable-staging/activation-gateway-smart-convergence-policy.json",
+      "http-generic-api/.env.staging.example",
+      "http-generic-api/scripts/build-staging-worker.mjs",
+      "http-generic-api/trustedIngressContract.js",
+      "http-generic-api/routes/activationHostGatewayRoutes.js",
+      "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provision the missing Staging Activation Recovery Worker signing authority, bind its exact deployed public trust into the local Staging origin, provide durable single-filesystem replay claims for local Windows/Docker, and make One-Click recover the trusted-ingress gap even when ordinary Gateway health is already green, without using Local Connector authority or synthesizing certification readiness.",
+      "e2e_journeys": [
+        {
+          "id": "staging-activation-recovery-trusted-ingress-convergence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Windows Docker Staging recovery operator",
+          "entrypoint": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1 -EnableActivationGateway",
+          "terminal_outcome": "The governed exact-main Worker deployment owns an independent Ed25519 Recovery ingress private key, publishes only the matching public origin-trust artifact after exact-SHA Worker readback, One-Click hydrates only non-secret exact trust into ignored local Staging configuration, the origin atomically consumes Recovery JTIs from persistent app storage, and /admin/recovery/staging/* can reach the bounded Recovery surface without connector.mad4b.com or Production authority. Certification may still report blocked until genuine signed readiness evidence exists.",
+          "steps": [
+            "Bind smart convergence to an exact current origin/main commit and a passed Staging schema/governance preflight.",
+            "Build the Staging Activation Worker with an independent Ed25519 Recovery ingress signing keypair separate from the policy-attestation key.",
+            "Place the ingress private JWK and key ID only in the ephemeral Wrangler secrets file; emit a public-only origin-trust artifact with exact source SHA, Worker source-set digest, policy hash, issuer, audience and key ID.",
+            "Deploy through the existing governed Staging Worker workflow and publish the origin-trust artifact only after public exact-SHA health readback succeeds.",
+            "Download that exact workflow-run artifact locally and hydrate only the public trust fields into ignored .env.staging.",
+            "Decode the single-line escaped public PEM at the origin trust boundary and verify issuer, audience, host, exact deployment SHA, request bindings and key ID.",
+            "Use the deployment-owned absolute /app/data/recovery-ingress path for atomic single-filesystem replay claims only in local Windows/Docker Staging when no higher authority injected a replay store.",
+            "Run the Staging One-Click core once more after convergence so the app restarts with the exact trusted-ingress configuration."
+          ],
+          "assertions": [
+            "connector.mad4b.com is not a route, fallback, authority source or provisioning dependency for Staging Activation Recovery.",
+            "The Worker Recovery private key never appears in origin-trust.json, .env.staging, workflow summaries or repository evidence.",
+            "The public origin-trust artifact is uploaded only after successful Worker deployment and exact-SHA public health readback.",
+            "Local Recovery replay claims use the canonical durable replay-store contract and atomic exclusive filesystem claims; missing or invalid replay authority still fails closed.",
+            "Green /health alone does not suppress Recovery trust convergence; gateway_recovery_trusted_ingress is a typed recoverable Staging-only reason.",
+            "No Production deployment, Production mutation, Cloudflare DNS mutation, Hostinger mutation, database mutation, migration apply, ruleset mutation or synthetic live certification is authorized by this feature."
+          ],
+          "tests": [
+            {
+              "id": "staging-smart-gateway-recovery-trust-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-smart-gateway-convergence-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-recovery-admin-crypto-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-admin-surface.mjs",
+              "args": []
+            },
+            {
+              "id": "trusted-ingress-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-trusted-ingress-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/staging-main-deploy-eligibility.yml",
+            "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
+            "autopilot-portable-staging/Converge-StagingActivationGateway.ps1",
+            "autopilot-portable-staging/activation-gateway-smart-convergence-policy.json",
+            "http-generic-api/scripts/build-staging-worker.mjs",
+            "http-generic-api/trustedIngressContract.js",
+            "http-generic-api/routes/activationHostGatewayRoutes.js",
+            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+            "http-generic-api/test-staging-recovery-admin-surface.mjs",
+            "http-generic-api/test-trusted-ingress-contract.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Production Recovery activation, Production trusted-ingress provisioning and Production provider/database mutation remain outside this feature.",
+      "blockers": [
+        "Production requires its separate governed release, trust provisioning, certification and authorization lifecycle.",
+        "This feature grants no Production database, provider, Hostinger, Cloudflare DNS, deployment or Recovery execution authority."
+      ]
+    }
+  ]
+}
