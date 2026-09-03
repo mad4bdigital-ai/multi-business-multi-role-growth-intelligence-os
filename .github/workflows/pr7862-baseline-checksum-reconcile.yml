@@ -20,14 +20,16 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 2
+          fetch-depth: 0
           persist-credentials: true
 
       - name: Verify exact reconciliation source
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = "22d0f9977992b4aebd82b267a0f92bf3f125023b"
+          test "$(git rev-parse HEAD^)" = "80c82ee11220f5beae05c40ef020c246c6451a6b"
+          test "$(git rev-parse HEAD^^)" = "22d0f9977992b4aebd82b267a0f92bf3f125023b"
+          git cat-file -e "e42b5cafe67acfd276d62e473e40069d60edab17^{commit}"
           test "${GITHUB_HEAD_REF}" = "fix/staging-schema-runtime-grants-reconciliation-20260902"
           case "${GITHUB_HEAD_REF}" in main|Production) exit 1 ;; esac
           test -z "$(git status --porcelain)"
