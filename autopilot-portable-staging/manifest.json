@@ -122,11 +122,11 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "11010cc5500741f39f31adad2f2b42bd34782a6c2e21e9ea47e9718267c54d3a"
+      "sha256": "185ca96396f66f47efdf28725d0eace4d9f174400a840864f0c42cf5e73dfaf7"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
-      "sha256": "fe86fe1e297dc5b4e1be62ffc113089149772861d4f85d5cf045b7092dfd461d"
+      "sha256": "5cdcb4b16a07d999dcff35d8a1fef14d441f4bac4ee26b8326cba1b2d92b3d3d"
     },
     {
       "path": "http-generic-api/config/staging-openapi-mcp-policy.json",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "117a887fee29127c39e2669f77ba148a5eac394abed286d49a2ade76f7130bf9"
+      "sha256": "8c15dfc7660e106d00a1fea03367fc6cda261b01d0758082739b89effab2728e"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -238,7 +238,7 @@
     },
     {
       "path": "http-generic-api/test-domain-family-policy.mjs",
-      "sha256": "f7a54ae6c9ff9070b17cf4af97d24228642f52e796257ad6356a8273fa923386"
+      "sha256": "625849e697068f1ac932339773e92f7fd5591ad4a0eec12a27ab4769928b2392"
     },
     {
       "path": "http-generic-api/test-staging-autopilot-closure.mjs",
@@ -342,7 +342,7 @@
     },
     {
       "path": "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
-      "sha256": "b56471af058a0afda7736dfb559fff780638c2e8ffc8fe95558f007299f17d04"
+      "sha256": "ab2771203559a09b8cae6eae2f0669f7dbca4a08da160980623442e1cc7b1061"
     },
     {
       "path": "http-generic-api/docker-compose.staging.windows-service.yml",
@@ -386,7 +386,7 @@
     },
     {
       "path": "autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1",
-      "sha256": "994480365e37d6c493c93982d84e57d1c29f7703ec73cb57f7e0a97da1933e28"
+      "sha256": "bb6824cfe873dd339ddfb50026383515811864efce76777adf501caa2a9df0ea"
     },
     {
       "path": "autopilot-portable-staging/Converge-StagingActivationGateway.ps1",
