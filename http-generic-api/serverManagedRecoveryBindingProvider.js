@@ -241,14 +241,14 @@ export function createServerManagedRecoveryBindingProvider({ env = process.env, 
   }
   const bindingIntent = getServerManagedRecoveryBindingIntent(env);
   return Object.freeze((context = {}) => {
-    const requestedMode = bindingIntent === "production_live"
+    const resolverBindingIntent = bindingIntent === "production_live"
       ? "production_live"
       : "injected_non_live";
     const requestContext = Object.freeze({
       ...context,
       contract: SERVER_MANAGED_BINDING_PROVIDER_CONTRACT,
       binding_source: "server_managed",
-      requested_mode: requestedMode,
+      requested_mode: resolverBindingIntent,
       caller_credentials_accepted: false,
       gpt_credentials_accepted: false,
       local_connector_accepted: false,
@@ -269,7 +269,7 @@ export function createServerManagedRecoveryBindingProvider({ env = process.env, 
     const normalized = normalizeEnvelope(envelope, moduleIdHash);
     return Object.freeze({
       ...normalized,
-      requested_mode: requestedMode,
+      requested_mode: resolverBindingIntent,
     });
   });
 }
