@@ -159,15 +159,31 @@ function canary(root) {
     return { ok: true, status: "provider_acknowledged", canary_id: id, mutation_attestation: record, production_mutation_performed: false, database_mutation_performed: false, provider_mutation_performed: false, secrets_included: false };
   } });
 }
+function reconciliationFence(plan, step, run) {
+  if (!run?.run_id || !Array.isArray(run.events)) return null;
+  const matches = run.events.filter((event) => event?.event === "recovery_lock_acquired"
+    && event?.phase === "locked"
+    && event?.run_id === run.run_id
+    && event?.plan_hash === plan?.plan_hash
+    && event?.step_id === step?.step_id
+    && txt(event?.fencing_token, 512));
+  return matches.length === 1 ? txt(matches[0].fencing_token, 512) : null;
+}
 function readback(root) {
   return Object.freeze({
     independent_authority: true,
     role_aware: true,
     mutation_authority: false,
-    async verify({ plan, step, run, fencing_token }) {
+    async verify({ plan, step, run, fencing_token, same_cycle, reconciliation }) {
       const identity = { plan_hash: plan?.plan_hash || null, step_id: step?.step_id || null, idempotency_key: run?.idempotency_key || null, operation: step?.operation || null };
       const id = digest(identity); const record = await readJson(path.join(root, "certification-canary", `${id}.json`));
-      const sameFence = Boolean(record && fencing_token && record.fencing_token === fencing_token);
+      const explicitFence = txt(fencing_token, 512) || null;
+      const isReconciliation = same_cycle === false && reconciliation === true;
+      const durableFence = isReconciliation ? reconciliationFence(plan, step, run) : null;
+      const expectedFence = isReconciliation
+        ? (explicitFence ? (explicitFence === durableFence ? explicitFence : null) : durableFence)
+        : explicitFence;
+      const sameFence = Boolean(record && expectedFence && record.fencing_token === expectedFence);
       const sameIdentity = Boolean(record && record.id === id && record.plan_hash === identity.plan_hash && record.step_id === identity.step_id && record.idempotency_key === identity.idempotency_key && record.operation === identity.operation);
       const ok = Boolean(record?.environment === "staging" && record?.production_mutation_performed === false && record?.database_mutation_performed === false && record?.provider_mutation_performed === false && sameFence && sameIdentity);
       return { ok, verified: ok, same_fence: sameFence, postconditions_passed: ok, behavioral_probe_passed: ok, evidence_hash: ok ? digest(record) : null, secrets_included: false };
