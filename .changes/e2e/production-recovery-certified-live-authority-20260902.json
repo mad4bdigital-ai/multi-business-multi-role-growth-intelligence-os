@@ -9,6 +9,8 @@
   "scope": {
     "include": [
       ".changes/e2e/production-recovery-certified-live-authority-20260902.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/serverManagedRecoveryBindingProvider.js",
       "http-generic-api/productionRecoveryCompositionFactory.js",
       "http-generic-api/productionActivationReadiness.js",
@@ -23,6 +25,7 @@
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
     "declared_targets": [
+      "staging",
       "production"
     ],
     "cross_environment_reviewed": true,
@@ -51,12 +54,15 @@
             "Validate the complete adapter graph using the canonical Recovery composition contract.",
             "Convert Production intent into candidate metadata only; discard the candidate adapters from route dependencies by returning the canonical fail-closed composition.",
             "Evaluate candidate component status against signed staging certification, exact Production deployment attestation, target fingerprint, artifact parity, typed adapter provenance, and unresolved-incident gates.",
+            "Register this changed critical declaration in both repository governance control-plane registries.",
             "Assert live activation and Production/database/provider mutation remain false."
           ],
           "assertions": [
             "generic or ambiguous Production runtime cannot request a candidate",
             "only explicit hostinger_autodeploy can carry production_live intent",
             "candidate adapters are validated but never exposed as route mutation authority",
+            "the critical declaration is registered in Constitution.control_plane_paths and convergence.automation_control_paths",
+            "staging and production are both explicitly declared and live staging certification remains required",
             "production_live.enabled remains false",
             "database_mutation_performed=false",
             "provider_mutation_performed=false",
@@ -87,6 +93,8 @@
           ],
           "evidence_paths": [
             ".changes/e2e/production-recovery-certified-live-authority-20260902.json",
+            ".github/derived-state-governance.json",
+            "http-generic-api/config/repository-governance-constitution.json",
             "http-generic-api/serverManagedRecoveryBindingProvider.js",
             "http-generic-api/productionRecoveryCompositionFactory.js",
             "http-generic-api/productionActivationReadiness.js"
