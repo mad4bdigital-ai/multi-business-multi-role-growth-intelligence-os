@@ -15,6 +15,11 @@ export const SERVER_MANAGED_BINDING_MODE_ENV = "RECOVERY_SERVER_MANAGED_BINDING_
 const require = createRequire(import.meta.url);
 const SECRET_FIELD_PATTERN = /(pass(word)?|token|secret|credential|private[_-]?key|api[_-]?key)/iu;
 const FORBIDDEN_INPUT_PATTERN = /(caller|gpt|local[_-]?connector|raw[_-]?sql)/iu;
+const REQUIRED_ZERO_ACTIVITY_FIELDS = Object.freeze([
+  "provider_accessed",
+  "database_connection_performed",
+  "database_mutation_performed",
+]);
 const MAX_SCAN_DEPTH = 8;
 
 function text(value, max = 512) {
@@ -59,6 +64,18 @@ function forbiddenInputFieldFound(value, pathName = "envelope", depth = 0, seen 
     }
   }
   return null;
+}
+
+function assertZeroActivityEnvelope(envelope) {
+  for (const field of REQUIRED_ZERO_ACTIVITY_FIELDS) {
+    if (envelope?.[field] !== false) {
+      throw providerError(
+        "RECOVERY_SERVER_MANAGED_BINDING_ACTIVITY_FORBIDDEN",
+        "A non-live or Production-candidate Recovery binding must explicitly attest zero provider/database activity.",
+        { field, observed: envelope?.[field] ?? null },
+      );
+    }
+  }
 }
 
 function resolveModulePath(modulePath, env = process.env) {
@@ -136,6 +153,7 @@ function normalizeEnvelope(envelope, moduleIdHash) {
       "Recovery binding envelopes must explicitly declare secrets_included=false.",
     );
   }
+  assertZeroActivityEnvelope(envelope);
   if (!envelope.adapters || typeof envelope.adapters !== "object" || Array.isArray(envelope.adapters)) {
     throw providerError(
       "RECOVERY_SERVER_MANAGED_BINDING_ADAPTERS_MISSING",
@@ -160,6 +178,9 @@ function normalizeEnvelope(envelope, moduleIdHash) {
     recovery_composition_contract: SERVER_MANAGED_RECOVERY_COMPOSITION_CONTRACT,
     module_id_hash: moduleIdHash,
     binding_source: "server_managed",
+    provider_accessed: false,
+    database_connection_performed: false,
+    database_mutation_performed: false,
     secrets_included: false,
   });
 }
@@ -274,9 +295,11 @@ export function getServerManagedRecoveryBindingStatus({ env = process.env, modul
 export const _testingServerManagedRecoveryBindingProvider = Object.freeze({
   SECRET_FIELD_PATTERN,
   FORBIDDEN_INPUT_PATTERN,
+  REQUIRED_ZERO_ACTIVITY_FIELDS,
   normalizeEnvelope,
   resolveExport,
   resolveModulePath,
   secretFieldFound,
+  assertZeroActivityEnvelope,
   hash,
 });
