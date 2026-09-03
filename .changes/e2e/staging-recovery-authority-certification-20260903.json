@@ -9,7 +9,9 @@
   "scope": {
     "include": [
       ".changes/e2e/staging-recovery-authority-certification-20260903.json",
+      ".github/derived-state-governance.json",
       ".github/governance/test-authority-registry.json",
+      "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/Dockerfile.staging",
       "http-generic-api/recoveryReadinessEvidence.js",
       "http-generic-api/stagingRecoveryAuthorityBinding.js",
@@ -45,7 +47,8 @@
             "Expose typed mad4b.recovery-adapter-provenance.v1 for every component and attest durability/attestation capabilities.",
             "Keep /app/data/recovery-readiness independent from /app/data/recovery-ingress and expose a dynamic atomic current-certification pointer without requiring restart.",
             "With no certification pointer, return trusted pre-certification snapshot data but authenticity_verified=false and no stagingCertification.",
-            "Evaluate Staging Recovery Admin readiness and require authority_graph.ready=true while certification and external-evidence checks remain blocking."
+            "Evaluate Staging Recovery Admin readiness and require authority_graph.ready=true while certification and external-evidence checks remain blocking.",
+            "Register this critical Phase A declaration in Constitution.control_plane_paths and convergence.automation_control_paths before source-policy closure."
           ],
           "assertions": [
             "No mock, dummy, in-memory or test-double adapter is installed by the deployment-owned Staging module.",
@@ -54,7 +57,8 @@
             "No Local Connector input or connector.mad4b.com dependency enters the authority graph.",
             "No Production deployment, Production mutation, database mutation, provider mutation, DNS mutation, migration apply or ruleset mutation is authorized by Phase A.",
             "A missing certification is represented as blocked readiness, never as a synthetic signed pass.",
-            "If a current-certification pointer appears without valid configured signing trust, the existing authority fails closed immediately."
+            "If a current-certification pointer appears without valid configured signing trust, the existing authority fails closed immediately.",
+            "The changed critical Phase A declaration is registered in both canonical governance control-path registries; manual merge remains required for the control-plane amendment."
           ],
           "tests": [
             { "id": "staging-recovery-authority-binding", "runner": "node", "working_directory": "http-generic-api", "path": "test-staging-recovery-authority-binding.mjs", "args": [] },
@@ -62,6 +66,8 @@
             { "id": "staging-recovery-admin-regression", "runner": "node", "working_directory": "http-generic-api", "path": "test-staging-recovery-admin-surface.mjs", "args": [] }
           ],
           "evidence_paths": [
+            ".github/derived-state-governance.json",
+            "http-generic-api/config/repository-governance-constitution.json",
             "http-generic-api/Dockerfile.staging",
             "http-generic-api/recoveryReadinessEvidence.js",
             "http-generic-api/stagingRecoveryAuthorityBinding.js",
