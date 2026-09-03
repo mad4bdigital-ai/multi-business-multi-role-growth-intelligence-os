@@ -9,6 +9,7 @@
   "scope": {
     "include": [
       ".changes/e2e/staging-recovery-authority-certification-20260903.json",
+      ".github/governance/test-authority-registry.json",
       "http-generic-api/Dockerfile.staging",
       "http-generic-api/recoveryReadinessEvidence.js",
       "http-generic-api/stagingRecoveryAuthorityBinding.js",
@@ -32,7 +33,7 @@
         {
           "id": "staging-recovery-authority-phase-a",
           "end_to_end": true,
-          "level": "in_process",
+          "level": "synthetic_runtime",
           "actor": "Staging Recovery deployment composition",
           "entrypoint": "server root loads ./stagingRecoveryAuthorityBinding.js in injected_non_live mode",
           "terminal_outcome": "The Staging Recovery composition has all 14 real server-managed authority components, durable and attestation capabilities, typed provenance and an independent readiness evidence root; /admin/recovery/staging/readiness can compute HTTP-200 blocked readiness with authority_graph.ready=true while genuine certification and external evidence remain absent.",
