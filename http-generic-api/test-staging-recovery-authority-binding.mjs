@@ -216,14 +216,14 @@ test("Phase A approval reservation is single-owner across idempotency races", as
     const env = stagingEnv(root);
     const directories = _testingStagingRecoveryAuthorityBinding.roots(env);
     const store = _testingStagingRecoveryAuthorityBinding.adapters(directories.readiness, env).adapters.recoveryStore;
-    const approval = { approval_id: "approval:phase-a-race", plan_id: "plan:phase-a-race", plan_hash: "plan-hash-race", step_id: "step:phase-a-race", used: false };
-    await store.putApproval(approval);
-    const contexts = ["idem:a", "idem:b", "idem:c", "idem:d"].map((idempotency_key) => ({ approval_id: approval.approval_id, plan_hash: approval.plan_hash, step_id: approval.step_id, idempotency_key }));
+    const approvalRecord = { approval_id: "approval:phase-a-race", plan_id: "plan:phase-a-race", plan_hash: "plan-hash-race", step_id: "step:phase-a-race", used: false };
+    await store.putApproval(approvalRecord);
+    const contexts = ["idem:a", "idem:b", "idem:c", "idem:d"].map((idempotency_key) => ({ approval_id: approvalRecord.approval_id, plan_hash: approvalRecord.plan_hash, step_id: approvalRecord.step_id, idempotency_key }));
     const results = await Promise.all(contexts.map((context) => store.reserveApproval(context)));
     assert.equal(results.filter((result) => result.reserved === true).length, 1);
     const winner = contexts[results.findIndex((result) => result.reserved === true)];
     assert.ok(winner);
-    assert.equal((await store.markApprovalUsed(approval.approval_id)).finalized, true);
+    assert.equal((await store.markApprovalUsed(approvalRecord.approval_id)).finalized, true);
     assert.equal((await store.reserveApproval({ ...winner, idempotency_key: "idem:after-used" })).reserved, false);
   } finally {
     await rm(root, { recursive: true, force: true });
