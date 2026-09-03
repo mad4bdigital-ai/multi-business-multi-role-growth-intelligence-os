@@ -210,6 +210,7 @@
           "http-generic-api/activation-surfaces/**",
           "http-generic-api/config/**",
           "http-generic-api/context-kernel-hardcoding-scan.config.json",
+          "http-generic-api/surface-contract-classification-evidence.json",
           "http-generic-api/scripts/e2e-*.mjs",
           "http-generic-api/scripts/test-e2e-*.mjs",
           "http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs",
