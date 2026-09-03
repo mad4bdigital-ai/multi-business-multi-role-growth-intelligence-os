@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "c76fb2d41170dbd42f83255423206e9f23755effce98fc4822ffd90ba4305155",
+    "source_digest": "09fb4e6f7d9b6e9a68347a85f75496c38ee5ffcfa189b3baaea8e8d1f41373c6",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -381,7 +381,7 @@
       },
       {
         "file": "routes/activationHostGatewayRoutes.js",
-        "sha256": "41fe9694c4bfeb772b68f3776c2f720012c2277d6ef68fb94cf24d21a087a7c0",
+        "sha256": "b98ba3fe8daab9ab8b8c611abbb42866f23c584c9d5ea1cff54d43ca7b5dc952",
         "present": true
       },
       {
