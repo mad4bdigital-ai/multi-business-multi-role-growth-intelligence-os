@@ -227,6 +227,28 @@ test("explicit Hostinger Production intent is validated as a candidate while exe
   assert.equal(composition.productionRecoveryCompositionFactory.activation_candidate.secrets_included, false);
 });
 
+test("activity-bearing or incomplete zero-activity evidence is rejected before candidate normalization", () => {
+  const valid = createValidEnvelope();
+  for (const field of ["provider_accessed", "database_connection_performed", "database_mutation_performed"]) {
+    assert.throws(
+      () => createServerManagedRecoveryBindingProvider({ resolver: () => ({ ...valid, [field]: true }) })({}),
+      (error) => error.code === "RECOVERY_SERVER_MANAGED_BINDING_ACTIVITY_FORBIDDEN"
+        && error.details.field === field
+        && error.details.observed === true,
+      field,
+    );
+    const missing = { ...valid };
+    delete missing[field];
+    assert.throws(
+      () => createServerManagedRecoveryBindingProvider({ resolver: () => missing })({}),
+      (error) => error.code === "RECOVERY_SERVER_MANAGED_BINDING_ACTIVITY_FORBIDDEN"
+        && error.details.field === field
+        && error.details.observed === null,
+      `${field}:missing`,
+    );
+  }
+});
+
 test("valid concrete server-managed bundle becomes complete non-live composition", () => {
   let resolverCalls = 0;
   let resolverContext = null;
