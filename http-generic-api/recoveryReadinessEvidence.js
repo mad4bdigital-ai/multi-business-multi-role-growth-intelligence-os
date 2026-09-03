@@ -1,5 +1,5 @@
-import { createHash, createPublicKey, verify } from "node:crypto";
-import { open, mkdir, readFile } from "node:fs/promises";
+import { createHash, createPublicKey, randomUUID, verify } from "node:crypto";
+import { open, mkdir, readFile, rename, rm } from "node:fs/promises";
 import YAML from "yaml";
 import path from "node:path";
 import { constants } from "node:fs";
@@ -45,44 +45,80 @@ export function producePromotionArtifactParity({ source, target } = {}) {
   };
 }
 
-// Deployment-owned, dedicated persistent directory only. No request chooses a path.
+async function syncDirectory(directory) {
+  const directoryHandle = await open(directory, "r");
+  try { await directoryHandle.sync(); } finally { await directoryHandle.close(); }
+}
+
+async function boundedRead(file, { missing = null } = {}) {
+  let handle;
+  try { handle = await open(file, constants.O_RDONLY | constants.O_NOFOLLOW); }
+  catch (error) { if (error.code === "ENOENT") return missing; throw error; }
+  try {
+    const stat = await handle.stat();
+    if (!stat.isFile() || stat.size > MAX_BYTES) fail("RECOVERY_EVIDENCE_TOO_LARGE");
+    const buffer = Buffer.alloc(MAX_BYTES + 1);
+    const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);
+    if (bytesRead > MAX_BYTES) fail("RECOVERY_EVIDENCE_TOO_LARGE");
+    return buffer.subarray(0, bytesRead).toString("utf8");
+  } finally { await handle.close(); }
+}
+
+// Deployment-owned persistent roots only. Certification/readiness records and
+// signed-ingress replay claims may be placed on separate filesystem directories.
 // O_EXCL claims are shared across processes on the SAME filesystem. Multi-host
 // deployments must inject a shared atomic store with replayStore.scope=shared_deployment.
-export function createFileRecoveryEvidenceStore({ directory } = {}) {
-  if (!path.isAbsolute(directory || "")) fail("RECOVERY_EVIDENCE_DIRECTORY_INVALID");
+export function createFileRecoveryEvidenceStore({ directory, replayDirectory = directory } = {}) {
+  if (!path.isAbsolute(directory || "") || !path.isAbsolute(replayDirectory || "")) fail("RECOVERY_EVIDENCE_DIRECTORY_INVALID");
   const root = path.resolve(directory);
-  async function immutableWrite(name, bytes) {
-    await mkdir(root, { recursive: true, mode: 0o700 });
-    const handle = await open(path.join(root, name), "wx", 0o600);
+  const replayRoot = path.resolve(replayDirectory);
+  async function immutableWrite(targetRoot, name, bytes) {
+    await mkdir(targetRoot, { recursive: true, mode: 0o700 });
+    const handle = await open(path.join(targetRoot, name), "wx", 0o600);
     try { await handle.writeFile(bytes); await handle.sync(); } finally { await handle.close(); }
-    const directoryHandle = await open(root, "r");
-    try { await directoryHandle.sync(); } finally { await directoryHandle.close(); }
+    await syncDirectory(targetRoot);
   }
-  return Object.freeze({
+  async function atomicPointer(id) {
+    if (!SHA256.test(id || "")) fail("RECOVERY_EVIDENCE_ID_INVALID");
+    await mkdir(root, { recursive: true, mode: 0o700 });
+    const temp = path.join(root, `.current-certification.${process.pid}.${randomUUID()}.tmp`);
+    const handle = await open(temp, "wx", 0o600);
+    try { await handle.writeFile(`${id}\n`); await handle.sync(); } finally { await handle.close(); }
+    try { await rename(temp, path.join(root, "current-certification")); }
+    catch (error) { await rm(temp, { force: true }); throw error; }
+    await syncDirectory(root);
+  }
+  const store = {
     contract: RECOVERY_CERTIFICATION_STORE_CONTRACT,
     durability: "persistent_filesystem",
     scope: "single_filesystem",
+    certification_root: root,
+    replay_root: replayRoot,
     async putCertification(record) {
       const bytes = readinessEvidencePayload(record);
       if (Buffer.byteLength(bytes) > MAX_BYTES) fail("RECOVERY_EVIDENCE_TOO_LARGE");
       const id = hash(bytes);
-      try { await immutableWrite(`cert-${id}.json`, bytes); }
+      try { await immutableWrite(root, `cert-${id}.json`, bytes); }
       catch (error) { if (error.code !== "EEXIST") throw error; }
       return id;
     },
     async getCertification(id) {
       if (!SHA256.test(id || "")) fail("RECOVERY_EVIDENCE_ID_INVALID");
-      const handle = await open(path.join(root, `cert-${id}.json`), constants.O_RDONLY | constants.O_NOFOLLOW);
-      try {
-        const stat = await handle.stat();
-        if (!stat.isFile() || stat.size > MAX_BYTES) fail("RECOVERY_EVIDENCE_TOO_LARGE");
-        const buffer = Buffer.alloc(MAX_BYTES + 1);
-        const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);
-        if (bytesRead > MAX_BYTES) fail("RECOVERY_EVIDENCE_TOO_LARGE");
-        const bytes = buffer.subarray(0, bytesRead).toString("utf8");
-        if (hash(bytes) !== id) fail("RECOVERY_EVIDENCE_INTEGRITY_INVALID");
-        return JSON.parse(bytes);
-      } finally { await handle.close(); }
+      const bytes = await boundedRead(path.join(root, `cert-${id}.json`));
+      if (bytes === null || hash(bytes) !== id) fail("RECOVERY_EVIDENCE_INTEGRITY_INVALID");
+      return JSON.parse(bytes);
+    },
+    async setCurrentCertification(id) {
+      await store.getCertification(id);
+      await atomicPointer(id);
+      return { current_certification_id: id, updated: true };
+    },
+    async getCurrentCertificationId() {
+      const value = await boundedRead(path.join(root, "current-certification"));
+      if (value === null) return null;
+      const id = value.trim();
+      if (!SHA256.test(id)) fail("RECOVERY_EVIDENCE_POINTER_INVALID");
+      return id;
     },
     replayStore: Object.freeze({
       contract: RECOVERY_REPLAY_STORE_CONTRACT,
@@ -90,45 +126,100 @@ export function createFileRecoveryEvidenceStore({ directory } = {}) {
       async claim({ issuer, key_id, jti, expires_at }) {
         if (!issuer || !key_id || !jti || !Number.isInteger(expires_at) || expires_at <= Date.now() / 1000) return false;
         const id = hash(readinessEvidencePayload([issuer, key_id, jti]));
-        try { await immutableWrite(`ingress-${id}.json`, JSON.stringify({ expires_at })); return true; }
+        try { await immutableWrite(replayRoot, `ingress-${id}.json`, JSON.stringify({ expires_at })); return true; }
         catch (error) { if (error.code === "EEXIST") return false; throw error; }
       },
     }),
-  });
+  };
+  return Object.freeze(store);
+}
+
+function validateRuntimeTarget({ runtime, target, attestation }) {
+  if (target?.environment !== runtime.environment_key || target?.runtime_class !== runtime.runtime_class
+    || typeof target?.target_fingerprint !== "string" || !target.target_fingerprint
+    || attestation?.environment !== runtime.environment_key || attestation?.target_fingerprint !== target.target_fingerprint
+    || !SHA40.test(attestation?.sha || "")) fail("RECOVERY_EVIDENCE_TARGET_MISMATCH");
 }
 
 export function createRecoveryReadinessAuthorities({
   evidenceStore, deploymentIdentityProvider, targetIdentityProvider,
-  recordId, publicKey, keyId, issuer, env = process.env,
+  recordId = null, publicKey = null, keyId = null, issuer = null, env = process.env,
+  adapterProvenance = null, adapterProvenanceReader = null,
 } = {}) {
   const runtime = resolveRuntimeEnvironmentStrict(env);
   if (!runtime.ok || !["staging", "production"].includes(runtime.environment_key)) fail("RECOVERY_EVIDENCE_RUNTIME_INVALID");
   if (evidenceStore?.contract !== RECOVERY_CERTIFICATION_STORE_CONTRACT
     || typeof evidenceStore.getCertification !== "function" || typeof evidenceStore.putCertification !== "function"
     || typeof deploymentIdentityProvider?.readAttestation !== "function"
-    || typeof targetIdentityProvider?.readIdentity !== "function" || !SHA256.test(recordId || "")
-    || !keyId || !issuer) fail("RECOVERY_EVIDENCE_AUTHORITY_INCOMPLETE");
+    || typeof targetIdentityProvider?.readIdentity !== "function") fail("RECOVERY_EVIDENCE_AUTHORITY_INCOMPLETE");
+  if (recordId !== null && !SHA256.test(recordId || "")) fail("RECOVERY_EVIDENCE_AUTHORITY_INCOMPLETE");
+  if (adapterProvenanceReader !== null && typeof adapterProvenanceReader !== "function") fail("RECOVERY_EVIDENCE_AUTHORITY_INCOMPLETE");
   if (runtime.environment_key === "staging" && runtime.runtime_class !== "local_windows_docker"
     && evidenceStore.replayStore?.scope !== "shared_deployment") fail("RECOVERY_REPLAY_STORE_SCOPE_INSUFFICIENT");
-  const verificationKey = createPublicKey(publicKey);
-  if (verificationKey.asymmetricKeyType !== "ed25519") fail("RECOVERY_EVIDENCE_KEY_INVALID");
+
+  let verificationKey = null;
+  function resolveVerificationKey() {
+    if (verificationKey) return verificationKey;
+    if (!publicKey || !keyId || !issuer) fail("RECOVERY_EVIDENCE_SIGNING_TRUST_UNAVAILABLE");
+    verificationKey = createPublicKey(publicKey);
+    if (verificationKey.asymmetricKeyType !== "ed25519") fail("RECOVERY_EVIDENCE_KEY_INVALID");
+    return verificationKey;
+  }
+
+  async function currentRecordId() {
+    if (recordId) return recordId;
+    if (typeof evidenceStore.getCurrentCertificationId === "function") return evidenceStore.getCurrentCertificationId();
+    return null;
+  }
+
+  async function currentProvenance(attestation) {
+    const candidate = typeof adapterProvenanceReader === "function"
+      ? await adapterProvenanceReader()
+      : adapterProvenance;
+    return candidate?.environment === runtime.environment_key
+      && candidate?.deployment_sha === attestation.sha ? candidate : null;
+  }
+
+  async function preCertificationSnapshot(attestation, target) {
+    return Object.freeze({
+      stagingCertification: null,
+      deploymentAttestation: attestation,
+      candidateSha: attestation.sha,
+      candidateTargetFingerprint: target.target_fingerprint,
+      runtimeClass: runtime.runtime_class,
+      promotionArtifactParity: null,
+      adapterProvenance: await currentProvenance(attestation),
+      registrationEvidence: null,
+      oauthEvidence: null,
+      networkEvidence: null,
+      workerDeploymentEvidence: null,
+      unresolvedRecoveryIncidents: ["certification_not_issued"],
+      evidence_id: null,
+      authenticity_verified: false,
+      pre_certification: true,
+    });
+  }
+
   async function readSnapshot() {
-    const [record, attestation, target] = await Promise.all([
-      evidenceStore.getCertification(recordId), deploymentIdentityProvider.readAttestation(), targetIdentityProvider.readIdentity(),
+    const [attestation, target] = await Promise.all([
+      deploymentIdentityProvider.readAttestation(), targetIdentityProvider.readIdentity(),
     ]);
+    validateRuntimeTarget({ runtime, target, attestation });
+    const selectedRecordId = await currentRecordId();
+    if (!selectedRecordId) return preCertificationSnapshot(attestation, target);
+
+    const record = await evidenceStore.getCertification(selectedRecordId);
     const payload = record?.payload;
+    const key = resolveVerificationKey();
     if (!payload || payload.contract !== RECOVERY_READINESS_EVIDENCE_CONTRACT
       || payload.issuer !== issuer || payload.key_id !== keyId || payload.secrets_included !== false
       || !Number.isFinite(Date.parse(payload.expires_at)) || Date.parse(payload.expires_at) <= Date.now()
       || !/^[A-Za-z0-9_-]{86}$/.test(record.signature || "")
-      || !verify(null, Buffer.from(readinessEvidencePayload(payload)), verificationKey, Buffer.from(record.signature, "base64url"))) {
+      || !verify(null, Buffer.from(readinessEvidencePayload(payload)), key, Buffer.from(record.signature, "base64url"))) {
       fail("RECOVERY_EVIDENCE_SIGNATURE_OR_FRESHNESS_INVALID");
     }
-    if (target?.environment !== runtime.environment_key || target?.runtime_class !== runtime.runtime_class
-      || typeof target?.target_fingerprint !== "string" || !target.target_fingerprint
-      || payload.environment !== runtime.environment_key || payload.target_fingerprint !== target.target_fingerprint
-      || payload.deployment_sha !== attestation?.sha || attestation?.environment !== runtime.environment_key
-      || attestation?.target_fingerprint !== target.target_fingerprint) fail("RECOVERY_EVIDENCE_TARGET_MISMATCH");
+    if (payload.environment !== runtime.environment_key || payload.target_fingerprint !== target.target_fingerprint
+      || payload.deployment_sha !== attestation.sha) fail("RECOVERY_EVIDENCE_TARGET_MISMATCH");
     return Object.freeze({
       stagingCertification: payload.stagingCertification || null,
       deploymentAttestation: attestation,
@@ -143,14 +234,18 @@ export function createRecoveryReadinessAuthorities({
       networkEvidence: payload.networkEvidence || null,
       workerDeploymentEvidence: payload.workerDeploymentEvidence || null,
       unresolvedRecoveryIncidents: Array.isArray(payload.unresolvedRecoveryIncidents) ? payload.unresolvedRecoveryIncidents : ["incident_evidence_missing"],
-      evidence_id: recordId,
+      evidence_id: selectedRecordId,
       authenticity_verified: true,
+      pre_certification: false,
     });
   }
-  const authority = Object.freeze({ readSnapshot,
+  const authority = Object.freeze({
+    contract: "mad4b.recovery-readiness-authority.v1",
+    readSnapshot,
     readDeploymentAttestation: () => deploymentIdentityProvider.readAttestation(),
     readTargetFingerprint: async () => (await targetIdentityProvider.readIdentity())?.target_fingerprint || null,
-    ingressReplayStore: evidenceStore.replayStore || null });
+    ingressReplayStore: evidenceStore.replayStore || null,
+  });
   authorities.add(authority);
   return authority;
 }
@@ -223,8 +318,6 @@ export async function evaluateExternalStagingEvidence(snapshot, ingressBuildIden
       && worker?.worker_build_sha === snapshot?.candidateSha
       && worker?.policy_source_sha === snapshot?.candidateSha
       && SHA256.test(worker?.worker_bundle_sha256 || "")
-      // The stamped source-set digest is not the final release bundle digest.
-      // Compare the observed deployment to the signed release artifact instead.
       && SHA256.test(worker?.release_bundle_sha256 || "")
       && worker?.deployed_bundle_sha256 === worker?.release_bundle_sha256,
     gateway_request_build_binding: ingressBuildIdentity?.deployment_sha === snapshot?.candidateSha
