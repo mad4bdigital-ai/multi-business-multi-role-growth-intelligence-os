@@ -63,6 +63,34 @@ assert.notEqual(policy.environments.production.credential_namespace, policy.envi
 assert.deepEqual(deployment.production.hostnames, productionNames);
 assert.deepEqual(deployment.staging.hostnames, stagingNames);
 assert.equal(deployment.connector_recovery.excluded_from_hostname_families, true);
+assert.equal(deployment.connector_recovery.authority_environment, "production");
+assert.equal(deployment.connector_recovery.control_plane_base_url, "https://auth.mad4b.com");
+assert.equal(deployment.connector_recovery.requires_dedicated_runtime, true);
+assert.equal(deployment.connector_recovery.requires_dedicated_tunnel, true);
+assert.equal(deployment.staging_connector_recovery.hostname, "connector-dev.mad4b.com");
+assert.equal(deployment.staging_connector_recovery.excluded_from_hostname_families, true);
+assert.equal(deployment.staging_connector_recovery.authority_environment, "staging");
+assert.equal(deployment.staging_connector_recovery.control_plane_base_url, "https://dev.mad4b.com");
+assert.equal(deployment.staging_connector_recovery.lifecycle_status, "planned_not_provisioned");
+assert.equal(deployment.staging_connector_recovery.production_traffic_allowed, false);
+assert.equal(productionNames.includes(deployment.connector_recovery.hostname), false);
+assert.equal(stagingNames.includes(deployment.connector_recovery.hostname), false);
+assert.equal(productionNames.includes(deployment.staging_connector_recovery.hostname), false);
+assert.equal(stagingNames.includes(deployment.staging_connector_recovery.hostname), false);
+
+assert.equal(policy.external_surfaces.production_admin_breakglass.hostname, "connector.mad4b.com");
+assert.equal(policy.external_surfaces.production_admin_breakglass.authority_environment, "production");
+assert.equal(policy.external_surfaces.production_admin_breakglass.hostname_family_membership, "excluded");
+assert.equal(policy.external_surfaces.staging_admin_breakglass.hostname, "connector-dev.mad4b.com");
+assert.equal(policy.external_surfaces.staging_admin_breakglass.authority_environment, "staging");
+assert.equal(policy.external_surfaces.staging_admin_breakglass.hostname_family_membership, "excluded");
+assert.equal(policy.external_surfaces.staging_admin_breakglass.exposure_status, "planned_not_provisioned");
+for (const rule of [
+  "connector_device_hostnames_must_not_be_staging_application_tunnel_ingress",
+  "breakglass_hostnames_must_not_share_runtime_or_tunnel_across_environments",
+  "connector_callbacks_must_return_to_the_originating_environment_control_plane",
+  "admin_recovery_routes_must_not_be_tenant_runtime_fallbacks",
+]) assert.equal(policy.isolation_rules.includes(rule), true, `missing connector isolation rule ${rule}`);
 
 for (const hostname of productionNames) assert.equal(env.includes(hostname), false, `staging env must not contain Production hostname ${hostname}`);
 assert.match(env, /CLOUDFLARE_TUNNEL_ENVIRONMENT=staging/);
