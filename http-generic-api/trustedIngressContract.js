@@ -15,6 +15,15 @@ function text(value, max = 256) {
   return String(value || "").trim().slice(0, max);
 }
 
+function trustedIngressPublicKey(env = process.env) {
+  const configured = text(env?.REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY, 8192);
+  if (!configured) return "";
+  // Local Staging .env values are single-line. The governed Worker deployment
+  // publishes only the public PEM with literal \n escapes; decode those escapes
+  // at the trust boundary while preserving ordinary multiline PEM compatibility.
+  return configured.includes("\\n") ? configured.replaceAll("\\n", "\n") : configured;
+}
+
 function boundedSeconds(value, fallback, maximum) {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < 0) return fallback;
@@ -50,7 +59,7 @@ function baseReadiness(env = process.env) {
     caller_headers_stripped: stripCallerHeaders,
     required_for_production: true,
     signed_attestation_configured: mode === "signature"
-      && Boolean(text(env?.REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY, 8192))
+      && Boolean(trustedIngressPublicKey(env))
       && Boolean(text(env?.REMOTE_MCP_TRUSTED_INGRESS_CANONICAL_HOST, 256))
       && Boolean(text(env?.REMOTE_MCP_TRUSTED_INGRESS_AUDIENCE, 256))
       && Boolean(text(env?.REMOTE_MCP_TRUSTED_INGRESS_ISSUER, 256))
@@ -96,7 +105,7 @@ function verifySignedAttestation(env, request) {
   const parsed = parseSignedAttestation(rawHeader);
   if (!parsed.ok) return parsed;
 
-  const publicKeyPem = text(env?.REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY, 8192);
+  const publicKeyPem = trustedIngressPublicKey(env);
   const canonicalHost = text(env?.REMOTE_MCP_TRUSTED_INGRESS_CANONICAL_HOST, 256).toLowerCase();
   const audience = text(env?.REMOTE_MCP_TRUSTED_INGRESS_AUDIENCE, 256);
   const issuer = text(env?.REMOTE_MCP_TRUSTED_INGRESS_ISSUER, 256);

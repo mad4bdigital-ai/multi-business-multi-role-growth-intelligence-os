@@ -243,6 +243,22 @@ jobs:
             --source-sha="$SOURCE_SHA" \
             --output-dir="$ARTIFACT_DIR" \
             --lifetime-hours=168
+          jq -e --arg sha "$SOURCE_SHA" '
+            .contract == "mad4b.staging.activation-recovery-origin-trust.v1"
+            and .source_commit == $sha
+            and .worker_build_sha == $sha
+            and .gateway_host == "activation-dev.mad4b.com"
+            and .canonical_host == "activation-dev.mad4b.com"
+            and .audience == "https://dev.mad4b.com"
+            and .issuer == "https://activation-dev.mad4b.com"
+            and (.key_id | type == "string" and length >= 16)
+            and (.public_key_pem_escaped | startswith("-----BEGIN PUBLIC KEY-----\\n"))
+            and .trusted_ingress_mode == "signature"
+            and .strip_caller_headers == true
+            and .replay_store_scope == "single_filesystem"
+            and .secrets_included == false
+            and ([keys[] | select(. != "secrets_included" and test("private|secret|credential|token"; "i"))] | length == 0)
+          ' "$ARTIFACT_DIR/origin-trust.json" >/dev/null
 
       - name: Verify pinned Wrangler deployment capability
         shell: bash
@@ -287,6 +303,14 @@ jobs:
           jq '{ok, service, policyKey, policyHash, deploymentId, sourceCommit, workerBuildSha, workerBundleSha256, stale, secretsIncluded}' "$response_file" || true
           exit 1
 
+      - name: Upload deployed Recovery origin trust
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: staging-activation-origin-trust-${{ inputs.source_sha }}
+          path: ${{ env.ARTIFACT_DIR }}/origin-trust.json
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Record non-secret deployment summary
         if: always()
         shell: bash
@@ -295,6 +319,7 @@ jobs:
             printf '%s\n' '### Staging Activation Worker'
             printf -- '- source SHA: `%s`\n' "$SOURCE_SHA"
             printf -- '- Worker: `%s`\n' "$WORKER_NAME"
+            printf '%s\n' '- Recovery origin trust artifact: `public-key-only`'
             printf '%s\n' '- Production deployment: `false`'
             printf '%s\n' '- Database mutation: `false`'
             printf '%s\n' '- secrets included in summary: `false`'

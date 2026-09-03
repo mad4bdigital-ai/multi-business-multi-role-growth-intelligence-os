@@ -98,7 +98,7 @@
     },
     {
       "path": "http-generic-api/.env.staging.example",
-      "sha256": "579730f786b0f763de638ac981e7f3e54638667f2fb981653f83c0e9910c856e"
+      "sha256": "cad241a4aa5dc495ea0b007dd421d0ef7daa9dec1f88645205ec2f25b2fd2740"
     },
     {
       "path": "http-generic-api/Dockerfile",
@@ -150,7 +150,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "64802d42556efe81398979699efcda8e76650fecca272344f3602e224b8fc74d"
+      "sha256": "8c9e9c5ad53946e1bfc02bced5c25e8cce6fa23f1b515d20fc69e3bd22d7bd4e"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "117a887fee29127c39e2669f77ba148a5eac394abed286d49a2ade76f7130bf9"
+      "sha256": "1e11393c5f8c5ffb4c706726790318975d8bb0631db31c12b26ee438f644a054"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -294,7 +294,7 @@
     },
     {
       "path": "http-generic-api/test-staging-auto-deploy-contract.mjs",
-      "sha256": "131a734eb5396b80a1acec5e8c835725daac551b2b3acd80fea7a2aa1f82ba19"
+      "sha256": "6275f5119ec9ed7849ad9ca3752157bada6d7896785cafa78bab916b0e05483b"
     },
     {
       "path": "http-generic-api/test-staging-environment-certification-contract.mjs",
@@ -334,7 +334,7 @@
     },
     {
       "path": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
-      "sha256": "5f1f4e800ce30ff733682d04b71ee2d4dd046b0b84a3164ca5f74eec43623c29"
+      "sha256": "59d2384af53689e1979847ab32f40c8573d5468175d182fe07007f2cfcee55c1"
     },
     {
       "path": "autopilot-portable-staging/Staging-Environment.ps1",
@@ -390,11 +390,11 @@
     },
     {
       "path": "autopilot-portable-staging/Converge-StagingActivationGateway.ps1",
-      "sha256": "37275c4c9bc7e314c707dc4bd63fcf6612dab50581b5096984d55fbe1bbaf7c3"
+      "sha256": "f3ad74f3141fcde448803e1f1f6baf760a8f0d75aa7c3de3deb2101c8d8af881"
     },
     {
       "path": "autopilot-portable-staging/activation-gateway-smart-convergence-policy.json",
-      "sha256": "0c712963012e9124d2a3742c87cef06c990884674a07d1ee1e1344f365157719"
+      "sha256": "941cfef2cba6eee866f49fd02807cac767c99c496f96eb8c598e07d27ab3add5"
     }
   ],
   "safety": {

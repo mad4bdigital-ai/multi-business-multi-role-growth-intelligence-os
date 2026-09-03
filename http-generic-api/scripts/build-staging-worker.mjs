@@ -83,6 +83,41 @@ const signature = crypto.sign(null, Buffer.from(stableJson(unsigned)), privateKe
 const attestation = { ...unsigned, signature_b64url: signature };
 const publicJwk = publicKey.export({ format: "jwk" });
 
+// Recovery ingress signing authority is intentionally independent from the policy
+// attestation key. The private key is emitted only into the ephemeral Wrangler
+// secrets file; the origin receives only the matching public trust bundle.
+const { privateKey: ingressPrivateKey, publicKey: ingressPublicKey } = crypto.generateKeyPairSync("ed25519");
+const ingressPrivateJwk = ingressPrivateKey.export({ format: "jwk" });
+const ingressPublicJwk = ingressPublicKey.export({ format: "jwk" });
+const ingressPublicPemEscaped = ingressPublicKey
+  .export({ type: "spki", format: "pem" })
+  .replaceAll("\r", "")
+  .replaceAll("\n", "\\n");
+const ingressFingerprint = crypto.createHash("sha256")
+  .update(JSON.stringify(ingressPublicJwk))
+  .digest("hex")
+  .slice(0, 16);
+const ingressKeyId = `activation-staging-${sourceSha.slice(0, 12)}-${ingressFingerprint}`;
+const originTrust = {
+  contract: "mad4b.staging.activation-recovery-origin-trust.v1",
+  source_commit: sourceSha,
+  worker_build_sha: sourceSha,
+  worker_bundle_sha256: graphDigest,
+  policy_hash: policy.content_hash_sha256,
+  gateway_host: policy.public_host,
+  canonical_host: policy.public_host,
+  audience: policy.upstream_origin,
+  issuer: `https://${policy.public_host}`,
+  key_id: ingressKeyId,
+  public_key_pem_escaped: ingressPublicPemEscaped,
+  trusted_ingress_mode: "signature",
+  strip_caller_headers: true,
+  replay_store_scope: "single_filesystem",
+  production_deploy: false,
+  database_mutation: false,
+  secrets_included: false,
+};
+
 fs.rmSync(outputDir, { recursive: true, force: true });
 fs.mkdirSync(outputDir, { recursive: true });
 fs.writeFileSync(path.join(outputDir, "worker-staging.mjs"), builtWorker);
@@ -91,7 +126,10 @@ fs.writeFileSync(path.join(outputDir, "route-policy.staging.json"), policyText);
 fs.writeFileSync(path.join(outputDir, "deployment-secrets.json"), JSON.stringify({
   ACTIVATION_GATEWAY_DEPLOYMENT_ATTESTATION_JSON: JSON.stringify(attestation),
   ACTIVATION_GATEWAY_POLICY_PUBLIC_KEY_JWK: JSON.stringify(publicJwk),
+  ACTIVATION_GATEWAY_INGRESS_PRIVATE_KEY_JWK: JSON.stringify(ingressPrivateJwk),
+  ACTIVATION_GATEWAY_INGRESS_KEY_ID: ingressKeyId,
 }, null, 2));
+fs.writeFileSync(path.join(outputDir, "origin-trust.json"), stableJson(originTrust));
 fs.writeFileSync(path.join(outputDir, "deployment-evidence.json"), stableJson({
   contract: "mad4b.activation-gateway-staging-deployment-evidence.v1",
   deployment_id: deploymentId,
@@ -100,6 +138,8 @@ fs.writeFileSync(path.join(outputDir, "deployment-evidence.json"), stableJson({
   public_host: policy.public_host,
   source_commit: sourceSha,
   worker_bundle_sha256: graphDigest,
+  recovery_ingress_key_id: ingressKeyId,
+  recovery_origin_trust_contract: originTrust.contract,
   production_deploy: false,
   database_mutation: false,
   secrets_included: false,
@@ -112,5 +152,7 @@ console.log(JSON.stringify({
   policy_hash: policy.content_hash_sha256,
   source_commit: sourceSha,
   worker_bundle_sha256: graphDigest,
+  recovery_ingress_key_id: ingressKeyId,
+  recovery_origin_trust_contract: originTrust.contract,
   secrets_included: false,
 }));

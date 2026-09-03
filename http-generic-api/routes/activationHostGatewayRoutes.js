@@ -6,6 +6,7 @@ import { requireActivationTenantGptAccessToken } from "../tenantGptAccessTokenVe
 import { resolveActivationGatewayHostProfile } from "../activationGatewayHostProfile.js";
 import { resolveTrustedRequestHost } from "../trustedRequestHost.js";
 import { verifyRecoveryGatewayIngress } from "../trustedIngressContract.js";
+import { createFileRecoveryEvidenceStore } from "../recoveryReadinessEvidence.js";
 import stagingPolicy from "../activation-gateway-runtime/generated/route-policy.staging.json" with { type: "json" };
 const DEFAULT_HOST_PROFILE = resolveActivationGatewayHostProfile(process.env);
 export const ACTIVATION_HOST_GATEWAY_HOST = String(
@@ -71,6 +72,16 @@ function buildGatewayConfig(env = process.env, activationHostOverride = null) {
         : productionLike ? ["/admin/recovery/kernel/"] : []),
     ] : [],
   });
+}
+
+function resolveStagingRecoveryReplayStore(config, env, suppliedStore) {
+  if (suppliedStore) return suppliedStore;
+  if (!config.staging || config.runtime?.runtime_class !== "local_windows_docker") return null;
+  const directory = String(env?.RECOVERY_STAGING_INGRESS_REPLAY_DIRECTORY || "").trim();
+  if (!directory) return null;
+  // Deployment-owned absolute path only. createFileRecoveryEvidenceStore rejects
+  // relative/caller-controlled paths and provides atomic O_EXCL replay claims.
+  return createFileRecoveryEvidenceStore({ directory }).replayStore;
 }
 
 const DEFAULT_GATEWAY_CONFIG = buildGatewayConfig(process.env);
@@ -182,6 +193,7 @@ export function buildActivationHostGatewayRoutes({
   deploymentAttestationReader = null,
 } = {}) {
   const config = buildGatewayConfig(env, activationHost);
+  const effectiveIngressReplayStore = resolveStagingRecoveryReplayStore(config, env, ingressReplayStore);
   const gatewayEnabled = config.supported && (enabled === undefined
     ? !config.staging || String(env.ACTIVATION_STAGING_GATEWAY_ENABLED || "").trim().toLowerCase() === "true"
     : enabled === true);
@@ -254,7 +266,7 @@ export function buildActivationHostGatewayRoutes({
       } catch { return res.status(503).json(errorResponse("GATEWAY_ORIGIN_ATTESTATION_UNAVAILABLE", "Server deployment evidence is unavailable.", req)); }
     }
     if (config.staging && pathname.startsWith("/admin/recovery/staging/")) {
-      recoveryIngress = await verifyRecoveryGatewayIngress({ env, request: req, policy: stagingPolicy, replayStore: ingressReplayStore });
+      recoveryIngress = await verifyRecoveryGatewayIngress({ env, request: req, policy: stagingPolicy, replayStore: effectiveIngressReplayStore });
       if (!recoveryIngress.ok) return res.status(403).json(errorResponse(
         "RECOVERY_TRUSTED_INGRESS_REQUIRED", "A fresh signed Gateway request and durable replay claim are required.", req,
       ));
