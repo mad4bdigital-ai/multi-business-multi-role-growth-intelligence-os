@@ -19,6 +19,9 @@ $workflow = 'staging-main-deploy-eligibility.yml'
 $healthUrl = 'https://activation-dev.mad4b.com/health'
 $policyPath = Join-Path $RepositoryPath 'edge\activation-gateway\generated\route-policy.staging.json'
 $gitTransportPath = Join-Path $RepositoryPath 'autopilot-portable-staging\Staging-GitTransport.ps1'
+$envHelperPath = Join-Path $RepositoryPath 'autopilot-portable-staging\Staging-Environment.ps1'
+$envFilePath = Join-Path $RepositoryPath 'http-generic-api\.env.staging'
+$originTrustArtifactName = "staging-activation-origin-trust-$ExpectedCommit"
 
 function Fail([string]$Message) {
     throw "STAGING_ACTIVATION_GATEWAY_CONVERGENCE_FAIL_CLOSED: $Message"
@@ -27,7 +30,9 @@ function Fail([string]$Message) {
 if (-not (Test-Path -LiteralPath (Join-Path $RepositoryPath '.git'))) { Fail "RepositoryPath is not a Git checkout: $RepositoryPath" }
 if (-not (Test-Path -LiteralPath $policyPath -PathType Leaf)) { Fail "Staging Activation Gateway policy is missing: $policyPath" }
 if (-not (Test-Path -LiteralPath $gitTransportPath -PathType Leaf)) { Fail "Staging Git transport helper is missing: $gitTransportPath" }
+if (-not (Test-Path -LiteralPath $envHelperPath -PathType Leaf)) { Fail "Staging environment helper is missing: $envHelperPath" }
 . $gitTransportPath
+. $envHelperPath
 if (-not (Get-Command gh -ErrorAction SilentlyContinue)) { Fail 'GitHub CLI is unavailable after One-Click prerequisite closure.' }
 
 try { $policy = Get-Content -Raw -LiteralPath $policyPath | ConvertFrom-Json -ErrorAction Stop }
@@ -87,6 +92,93 @@ function Get-GatewayHealthEvidence {
     }
 }
 
+function Get-LocalRecoveryTrustEvidence {
+    if (-not (Test-Path -LiteralPath $envFilePath -PathType Leaf)) {
+        return [pscustomobject]@{
+            configured = $false; exact = $false; reason = 'env_missing'; key_id = $null
+            expected_deployment_sha = $null; replay_directory = $null; secrets_included = $false
+        }
+    }
+    $mode = (Get-StagingEnvValue $envFilePath 'REMOTE_MCP_TRUSTED_INGRESS_MODE').Trim().ToLowerInvariant()
+    $strip = (Get-StagingEnvValue $envFilePath 'REMOTE_MCP_TRUSTED_INGRESS_STRIP_CALLER_HEADERS').Trim().ToLowerInvariant()
+    $proxy = (Get-StagingEnvValue $envFilePath 'REMOTE_MCP_TRUST_PROXY_HOST_HEADERS').Trim().ToLowerInvariant()
+    $publicKey = Get-StagingEnvValue $envFilePath 'REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY'
+    $keyId = (Get-StagingEnvValue $envFilePath 'REMOTE_MCP_TRUSTED_INGRESS_KEY_ID').Trim()
+    $canonicalHost = (Get-StagingEnvValue $envFilePath 'REMOTE_MCP_TRUSTED_INGRESS_CANONICAL_HOST').Trim().ToLowerInvariant()
+    $audience = (Get-StagingEnvValue $envFilePath 'REMOTE_MCP_TRUSTED_INGRESS_AUDIENCE').Trim()
+    $issuer = (Get-StagingEnvValue $envFilePath 'REMOTE_MCP_TRUSTED_INGRESS_ISSUER').Trim()
+    $expectedSha = (Get-StagingEnvValue $envFilePath 'REMOTE_MCP_EXPECTED_DEPLOYMENT_SHA').Trim().ToLowerInvariant()
+    $replayDirectory = (Get-StagingEnvValue $envFilePath 'RECOVERY_STAGING_INGRESS_REPLAY_DIRECTORY').Trim()
+    $publicKeyShape = $publicKey.StartsWith('-----BEGIN PUBLIC KEY-----\n') -and $publicKey.Contains('\n-----END PUBLIC KEY-----\n')
+    $exact = $mode -eq 'signature' `
+        -and $strip -eq 'true' `
+        -and $proxy -eq 'true' `
+        -and $publicKeyShape `
+        -and $keyId -match '^[A-Za-z0-9._:-]{16,128}$' `
+        -and $canonicalHost -eq 'activation-dev.mad4b.com' `
+        -and $audience -eq 'https://dev.mad4b.com' `
+        -and $issuer -eq 'https://activation-dev.mad4b.com' `
+        -and $expectedSha -eq $ExpectedCommit `
+        -and $replayDirectory -eq '/app/data/recovery-ingress'
+    return [pscustomobject]@{
+        configured = [bool]($publicKeyShape -and $keyId)
+        exact = [bool]$exact
+        reason = if ($exact) { $null } else { 'origin_trust_not_exact' }
+        key_id = if ($keyId) { $keyId } else { $null }
+        expected_deployment_sha = if ($expectedSha) { $expectedSha } else { $null }
+        replay_directory = if ($replayDirectory) { $replayDirectory } else { $null }
+        secrets_included = $false
+    }
+}
+
+function Install-OriginTrustFromRun([long]$RunId) {
+    $tempRoot = Join-Path ([IO.Path]::GetTempPath()) ("mad4b-staging-origin-trust-" + [Guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
+    try {
+        $download = (& gh run download $RunId --repo $ExpectedRepository --name $originTrustArtifactName --dir $tempRoot 2>&1 | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0) { Fail "Could not download exact-SHA Recovery origin trust artifact from run $RunId: $download" }
+        $artifactPath = Join-Path $tempRoot 'origin-trust.json'
+        if (-not (Test-Path -LiteralPath $artifactPath -PathType Leaf)) { Fail "Recovery origin trust artifact is missing from run $RunId." }
+        try { $trust = Get-Content -Raw -LiteralPath $artifactPath | ConvertFrom-Json -ErrorAction Stop }
+        catch { Fail "Recovery origin trust artifact from run $RunId is invalid JSON." }
+        if ([string]$trust.contract -ne 'mad4b.staging.activation-recovery-origin-trust.v1') { Fail 'Recovery origin trust contract mismatch.' }
+        if (([string]$trust.source_commit).Trim().ToLowerInvariant() -ne $ExpectedCommit) { Fail 'Recovery origin trust source commit mismatch.' }
+        if (([string]$trust.worker_build_sha).Trim().ToLowerInvariant() -ne $ExpectedCommit) { Fail 'Recovery origin trust Worker build SHA mismatch.' }
+        if (([string]$trust.policy_hash).Trim().ToLowerInvariant() -ne $expectedPolicyHash) { Fail 'Recovery origin trust policy hash mismatch.' }
+        if ([string]$trust.gateway_host -ne 'activation-dev.mad4b.com' -or [string]$trust.canonical_host -ne 'activation-dev.mad4b.com') { Fail 'Recovery origin trust gateway host mismatch.' }
+        if ([string]$trust.audience -ne 'https://dev.mad4b.com' -or [string]$trust.issuer -ne 'https://activation-dev.mad4b.com') { Fail 'Recovery origin trust issuer/audience mismatch.' }
+        if ([string]$trust.trusted_ingress_mode -ne 'signature' -or $trust.strip_caller_headers -ne $true) { Fail 'Recovery origin trust signed-ingress mode mismatch.' }
+        if ([string]$trust.replay_store_scope -ne 'single_filesystem') { Fail 'Recovery origin trust replay-store scope mismatch.' }
+        if ($trust.secrets_included -ne $false) { Fail 'Recovery origin trust artifact must declare secrets_included=false.' }
+        $keyId = ([string]$trust.key_id).Trim()
+        $publicKey = [string]$trust.public_key_pem_escaped
+        if ($keyId -notmatch '^[A-Za-z0-9._:-]{16,128}$') { Fail 'Recovery origin trust key ID is invalid.' }
+        if (-not $publicKey.StartsWith('-----BEGIN PUBLIC KEY-----\n') -or -not $publicKey.Contains('\n-----END PUBLIC KEY-----\n')) { Fail 'Recovery origin trust public key is not an escaped PEM public key.' }
+        foreach ($property in @($trust.PSObject.Properties.Name)) {
+            if ($property -ne 'secrets_included' -and $property -match '(?i)private|secret|credential|token') {
+                Fail "Recovery origin trust artifact contains forbidden secret-shaped field: $property"
+            }
+        }
+
+        Set-StagingEnvValue $envFilePath 'REMOTE_MCP_TRUST_PROXY_HOST_HEADERS' 'true'
+        Set-StagingEnvValue $envFilePath 'REMOTE_MCP_TRUSTED_INGRESS_MODE' 'signature'
+        Set-StagingEnvValue $envFilePath 'REMOTE_MCP_TRUSTED_INGRESS_STRIP_CALLER_HEADERS' 'true'
+        Set-StagingEnvValue $envFilePath 'REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY' $publicKey
+        Set-StagingEnvValue $envFilePath 'REMOTE_MCP_TRUSTED_INGRESS_KEY_ID' $keyId
+        Set-StagingEnvValue $envFilePath 'REMOTE_MCP_TRUSTED_INGRESS_CANONICAL_HOST' 'activation-dev.mad4b.com'
+        Set-StagingEnvValue $envFilePath 'REMOTE_MCP_TRUSTED_INGRESS_AUDIENCE' 'https://dev.mad4b.com'
+        Set-StagingEnvValue $envFilePath 'REMOTE_MCP_TRUSTED_INGRESS_ISSUER' 'https://activation-dev.mad4b.com'
+        Set-StagingEnvValue $envFilePath 'REMOTE_MCP_EXPECTED_DEPLOYMENT_SHA' $ExpectedCommit
+        Set-StagingEnvValue $envFilePath 'RECOVERY_STAGING_INGRESS_REPLAY_DIRECTORY' '/app/data/recovery-ingress'
+
+        $installed = Get-LocalRecoveryTrustEvidence
+        if ($installed.exact -ne $true) { Fail 'Recovery origin trust was written but did not validate as exact.' }
+        return $installed
+    } finally {
+        if (Test-Path -LiteralPath $tempRoot) { Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+}
+
 function Get-WorkflowDispatchRuns {
     $raw = & gh run list --repo $ExpectedRepository --workflow $workflow --commit $ExpectedCommit --event workflow_dispatch --limit 30 --json status,conclusion,headSha,databaseId,createdAt,updatedAt,url 2>$null
     if ($LASTEXITCODE -ne 0) { Fail 'Could not read Staging Worker workflow_dispatch runs from GitHub.' }
@@ -129,12 +221,14 @@ function Wait-GatewayExactHealth {
 }
 
 $initialHealth = Get-GatewayHealthEvidence
+$initialTrust = Get-LocalRecoveryTrustEvidence
 $providerMutation = $false
 $providerMutationInitiated = $false
+$originTrustUpdated = $false
 $runId = $null
 $action = 'already_current'
 
-if ($initialHealth.exact -ne $true) {
+if ($initialHealth.exact -ne $true -or $initialTrust.exact -ne $true) {
     $remoteMain = Get-RemoteMainSha
     if ($remoteMain -ne $ExpectedCommit) { Fail "origin/main moved before Staging Worker convergence: expected=$ExpectedCommit observed=$remoteMain" }
 
@@ -144,6 +238,8 @@ if ($initialHealth.exact -ne $true) {
         $action = 'wait_existing_run'
         Write-Host "STAGING_GATEWAY_CONVERGENCE_WAIT: run=$runId sha=$ExpectedCommit"
         [void](Wait-WorkflowRun $runId)
+        [void](Install-OriginTrustFromRun $runId)
+        $originTrustUpdated = $true
         $afterExisting = Get-GatewayHealthEvidence
         if ($afterExisting.exact -eq $true) {
             $providerMutation = $true
@@ -173,6 +269,8 @@ if ($initialHealth.exact -ne $true) {
         if ($null -eq $runId) { Fail 'Governed Staging Worker dispatch succeeded but its workflow run ID could not be resolved.' }
         Write-Host "STAGING_GATEWAY_CONVERGENCE_DEPLOY: run=$runId sha=$ExpectedCommit"
         [void](Wait-WorkflowRun $runId)
+        [void](Install-OriginTrustFromRun $runId)
+        $originTrustUpdated = $true
         $providerMutation = $true
         $providerMutationInitiated = $true
         $action = 'deployed'
@@ -181,6 +279,9 @@ if ($initialHealth.exact -ne $true) {
 } else {
     $finalHealth = $initialHealth
 }
+
+$finalTrust = Get-LocalRecoveryTrustEvidence
+if ($finalTrust.exact -ne $true) { Fail 'Staging Recovery origin trust did not converge to the exact Worker deployment.' }
 
 $report = [ordered]@{
     contract = 'mad4b.staging.activation-gateway-convergence.v1'
@@ -192,10 +293,15 @@ $report = [ordered]@{
     workflow_run_id = $runId
     initial_health = $initialHealth
     final_health = $finalHealth
-    ready = [bool]$finalHealth.exact
+    initial_origin_trust = $initialTrust
+    final_origin_trust = $finalTrust
+    origin_trust_updated = [bool]$originTrustUpdated
+    recovery_ingress_replay_scope = 'single_filesystem'
+    ready = [bool]($finalHealth.exact -and $finalTrust.exact)
     provider_mutation = [bool]$providerMutation
     provider_mutation_initiated = [bool]$providerMutationInitiated
     provider_mutation_scope = if ($providerMutation) { 'staging_activation_worker_exact_sha_only' } else { 'none' }
+    local_origin_trust_config_mutation = [bool]$originTrustUpdated
     cloudflare_worker_mutation = [bool]$providerMutation
     cloudflare_dns_mutation = $false
     production_mutation = $false
