@@ -215,15 +215,6 @@
       ]
     },
     {
-      "id": "local_connector_runtime",
-      "patterns": [
-        "local-connector/**/*.js",
-        "local-connector/**/*.mjs",
-        "local-connector/**/*.sh",
-        "local-connector/**/*.ps1"
-      ]
-    },
-    {
       "id": "staging_schema_bootstrap",
       "patterns": [
         "http-generic-api/schema.sql",
@@ -282,13 +273,6 @@
       "risk": "high",
       "patterns": [
         "autopilot-portable-staging/**"
-      ]
-    },
-    {
-      "id": "local_connector",
-      "risk": "high",
-      "patterns": [
-        "local-connector/**"
       ]
     },
     {
@@ -447,6 +431,7 @@
     ".changes/e2e/staging-inherited-port-publication-reset.json",
     ".changes/e2e/staging-cloudflared-cim-service-reconcile-20260902.json",
     ".changes/e2e/staging-mcp-hostname-rfc-compliance-20260902.json",
+    ".changes/e2e/staging-activation-schema-runtime-grants-reconciliation-20260902.json",
     ".changes/e2e/pr7859-recovery-breakglass-workflow-contract.json",
     ".changes/e2e/staging-env-authority-canonicalization-20260902.json",
     "http-generic-api/config/repository-governance-constitution.json",

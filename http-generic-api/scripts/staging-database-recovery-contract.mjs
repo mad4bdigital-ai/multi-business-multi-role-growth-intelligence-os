@@ -93,7 +93,7 @@ assert.match(legacyClone, /if \(\$LASTEXITCODE -ne 0\) \{ Fail "Schema import fa
 
 assert.equal(roleManifest.contract, "mad4b.staging.database-role-migration-manifest.v1");
 assert.equal(roleManifest.validation.required_runtime_table_census.length, 18);
-assert.equal(roleManifest.validation.required_runtime_support_tables.length, 11);
+assert.equal(roleManifest.validation.required_runtime_support_tables.length, 19);
 assert.match(legacyClone, /staging-database-role-migration-manifest\.json/);
 assert.match(legacyClone, /Assert-SetEqual \$canonicalRuntimeCensus \$requiredRuntimeCensus "schema bundle runtime census projection"/);
 assert.match(legacyClone, /\$requiredRuntimeSupportTables = @\(\$roleMigrationManifest\.validation\.required_runtime_support_tables\)/);
