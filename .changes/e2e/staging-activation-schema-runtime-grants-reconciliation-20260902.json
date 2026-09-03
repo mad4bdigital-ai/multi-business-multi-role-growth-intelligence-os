@@ -1,0 +1,95 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-activation-schema-runtime-grants-reconciliation-20260902",
+  "title": "Local Staging activation schema and runtime read-authority reconciliation",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-activation-schema-runtime-grants-reconciliation-20260902.json",
+      "http-generic-api/config/staging-database-role-migration-manifest.json",
+      "http-generic-api/databasePrivilegeContracts.js",
+      "http-generic-api/migrations/20260902_staging_actions_runtime_contract_reconciliation.sql"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Fail closed when the eight Activation hard-run registry tables are absent, reconcile action-governance/OAuth metadata through an additive migration, and restore only the bounded SELECT authority required by local Staging activation/session-context and registry reads while leaving Production bootstrap grants unchanged.",
+      "e2e_journeys": [
+        {
+          "id": "local-staging-activation-schema-runtime-readiness",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Windows Docker Staging recovery operator",
+          "entrypoint": "autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1",
+          "terminal_outcome": "Local Staging schema census blocks incomplete Activation registry state, canonical schema replay supplies the runtime action metadata columns, repository-owned grant reconciliation supplies only the proven SELECT surfaces, and same-cycle certification can proceed without Production/provider mutation or broad runtime database authority.",
+          "steps": [
+            "Bind local Staging repair and schema replay to the exact eligible main commit.",
+            "Build the schema-only three-role bundle from canonical schema plus ordered repository migrations.",
+            "Require all eight Activation hard-run registry tables in the runtime schema census before restart/certification.",
+            "Apply the additive action runtime contract migration through the governed local Staging schema lifecycle when schema reconciliation is authorized.",
+            "Reconcile the repository-owned Staging runtime grant plan so activation/session-context, registry, graph-memory and hard-run source tables receive SELECT only.",
+            "Preserve existing bounded write authority only on the pre-existing runtime bootstrap tables.",
+            "Run schema/grant readback and same-cycle Staging certification."
+          ],
+          "assertions": [
+            "The eight Activation hard-run registry tables are required by the local Staging runtime schema census.",
+            "The actions reconciliation migration is additive and idempotent and adds allowed_actor_roles, allowed_governance_levels, oauth_secret_storage_type and oauth_last_validated_at only when absent.",
+            "BOOTSTRAP_ROLE_GRANT_POLICIES.runtime is unchanged.",
+            "Every newly introduced Staging runtime surface is constrained to SELECT in required_operations_by_table.",
+            "No schema-wide grant, GRANT ALL, CREATE, ALTER, DROP, GRANT OPTION, Production DB access, provider call, Hostinger mutation, Cloudflare mutation, or secret value is introduced."
+          ],
+          "tests": [
+            {
+              "id": "staging-database-readiness-repair-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-database-readiness-repair.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-schema-bundle-builder-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-schema-bundle-builder.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/config/staging-database-role-migration-manifest.json",
+            "http-generic-api/databasePrivilegeContracts.js",
+            "http-generic-api/migrations/20260902_staging_actions_runtime_contract_reconciliation.sql",
+            "http-generic-api/test-staging-database-readiness-repair.mjs",
+            "http-generic-api/test-staging-schema-bundle-builder.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Production activation, database mutation and provider mutation remain outside this patch.",
+      "blockers": [
+        "Production requires a separate governed promotion and authorization lifecycle.",
+        "This declaration grants no Production database, provider, Hostinger, Cloudflare or deployment mutation authority."
+      ]
+    }
+  ]
+}
