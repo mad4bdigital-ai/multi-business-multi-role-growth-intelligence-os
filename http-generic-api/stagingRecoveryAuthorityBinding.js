@@ -128,21 +128,13 @@ function adapters(root, env = process.env) {
 }
 function provenance(sha) { if (!SHA40.test(sha || "")) denied("RECOVERY_STAGING_PROVENANCE_SHA_INVALID", "Typed provenance requires exact SHA."); const durable = new Set(["recoveryStore", "approvalStore", "recoveryLock", "partialReceiptStore", "migrationLedger"]); return { contract: "mad4b.recovery-adapter-provenance.v1", environment: "staging", deployment_sha: sha, components: Object.fromEntries(RECOVERY_COMPOSITION_COMPONENT_KEYS.map((name) => [name, { implementation_id: `mad4b.staging.recovery.${name}.v1`, artifact_sha256: MODULE_SHA256, authority_class: "server_managed", storage_class: durable.has(name) ? "durable" : "stateless" }])), secrets_included: false }; }
 
-function createServerManagedRecoveryBindingForEnv(context = {}, env = process.env) {
-  runtime(context, env); const r = roots(env); const graph = adapters(r.readiness, env).adapters; const binding = createServerManagedRecoveryAuthorityBinding({ adapters: graph, adapterOrigin: "server_managed_concrete", capabilities: { adapter_present: true, durability_capable: true, attestation_capable: true }, authorityHandles: { deployment_owned: true } }); return createServerManagedRecoveryBindingEnvelope({ binding, readiness: { adapter_present: true, durability_capable: true, attestation_capable: true }, source: "staging_recovery_authority_binding" });
-}
-
 export function createServerManagedRecoveryBinding(context = {}) {
-  return createServerManagedRecoveryBindingForEnv(context, process.env);
-}
-
-function createRecoveryReadinessAuthoritiesForEnv(context = {}, env = process.env) {
-  runtime(context, env, true); if (context.read_only !== true || context.production_live !== false) denied("RECOVERY_STAGING_READINESS_CONTEXT_DENIED", "Readiness requires read_only=true and production_live=false.");
-  const r = roots(env); const a = adapters(r.readiness, env); const store = createFileRecoveryEvidenceStore({ directory: path.join(r.readiness, "certification-evidence"), replayDirectory: r.replay }); return createCanonicalReadinessAuthority({ evidenceStore: store, deploymentIdentityProvider: a.deployment, targetIdentityProvider: a.target, publicKey: null, keyId: null, issuer: null, env, adapterProvenanceReader: async () => provenance((await a.deployment.readAttestation()).sha) });
+  runtime(context); const r = roots(); const graph = adapters(r.readiness).adapters; const binding = createServerManagedRecoveryAuthorityBinding({ adapters: graph, adapterOrigin: "server_managed_concrete", capabilities: { adapter_present: true, durability_capable: true, attestation_capable: true }, authorityHandles: { deployment_owned: true } }); return createServerManagedRecoveryBindingEnvelope({ binding, readiness: { adapter_present: true, durability_capable: true, attestation_capable: true }, source: "staging_recovery_authority_binding" });
 }
 
 export function createRecoveryReadinessAuthorities(context = {}) {
-  return createRecoveryReadinessAuthoritiesForEnv(context, process.env);
+  runtime(context, process.env, true); if (context.read_only !== true || context.production_live !== false) denied("RECOVERY_STAGING_READINESS_CONTEXT_DENIED", "Readiness requires read_only=true and production_live=false.");
+  const r = roots(); const a = adapters(r.readiness); const store = createFileRecoveryEvidenceStore({ directory: path.join(r.readiness, "certification-evidence"), replayDirectory: r.replay }); const escaped = txt(process.env.RECOVERY_STAGING_CERTIFICATION_PUBLIC_KEY_PEM_ESCAPED, 16384); return createCanonicalReadinessAuthority({ evidenceStore: store, deploymentIdentityProvider: a.deployment, targetIdentityProvider: a.target, publicKey: escaped ? escaped.replaceAll("\\n", "\n") : null, keyId: txt(process.env.RECOVERY_STAGING_CERTIFICATION_KEY_ID, 256) || null, issuer: txt(process.env.RECOVERY_STAGING_CERTIFICATION_ISSUER, 512) || null, env: process.env, adapterProvenanceReader: async () => provenance((await a.deployment.readAttestation()).sha) });
 }
 
-export const _testingStagingRecoveryAuthorityBinding = Object.freeze({ MODULE_SHA256, roots, runtime, provenance, targetIdentityProvider, adapters, createServerManagedRecoveryBindingForEnv, createRecoveryReadinessAuthoritiesForEnv });
+export const _testingStagingRecoveryAuthorityBinding = Object.freeze({ MODULE_SHA256, roots, runtime, provenance, targetIdentityProvider, adapters });

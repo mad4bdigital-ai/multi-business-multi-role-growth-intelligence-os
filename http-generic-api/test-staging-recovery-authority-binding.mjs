@@ -5,6 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
+  createRecoveryReadinessAuthorities,
+  createServerManagedRecoveryBinding,
   _testingStagingRecoveryAuthorityBinding,
 } from "./stagingRecoveryAuthorityBinding.js";
 import { createFileRecoveryEvidenceStore } from "./recoveryReadinessEvidence.js";
@@ -21,37 +23,59 @@ assert.match(dockerfile, /RECOVERY_STAGING_INGRESS_REPLAY_DIRECTORY=\/app\/data\
 const SHA = "a".repeat(40);
 const TREE = "b".repeat(40);
 const CONTEXT = "c".repeat(64);
+const ENV_KEYS = [
+  "NODE_ENV",
+  "DEPLOYMENT_ENVIRONMENT",
+  "REMOTE_MCP_ENVIRONMENT",
+  "RECOVERY_SERVER_MANAGED_BINDING_MODE",
+  "RECOVERY_SERVER_MANAGED_BINDING_MODULE",
+  "RECOVERY_STAGING_READINESS_DIRECTORY",
+  "RECOVERY_STAGING_INGRESS_REPLAY_DIRECTORY",
+  "RECOVERY_STAGING_CERTIFICATION_PUBLIC_KEY_PEM_ESCAPED",
+  "RECOVERY_STAGING_CERTIFICATION_KEY_ID",
+  "RECOVERY_STAGING_CERTIFICATION_ISSUER",
+  "DEPLOYMENT_MANIFEST_JSON",
+];
 
-function stagingEnv(root) {
-  return {
-    NODE_ENV: "staging",
-    DEPLOYMENT_ENVIRONMENT: "staging_local_windows_docker",
-    REMOTE_MCP_ENVIRONMENT: "staging",
-    RECOVERY_SERVER_MANAGED_BINDING_MODE: "injected_non_live",
-    RECOVERY_SERVER_MANAGED_BINDING_MODULE: "./stagingRecoveryAuthorityBinding.js",
-    RECOVERY_STAGING_READINESS_DIRECTORY: path.join(root, "recovery-readiness"),
-    RECOVERY_STAGING_INGRESS_REPLAY_DIRECTORY: path.join(root, "recovery-ingress"),
-    DEPLOYMENT_MANIFEST_JSON: JSON.stringify({
-      repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
-      branch: "main",
-      commit_sha: SHA,
-      tree_sha: TREE,
-      context_file_set_sha256: CONTEXT,
-      build_source: "portable_staging_docker_build",
-      secrets_included: false,
-    }),
-  };
+function restoreEnv(snapshot) {
+  for (const key of ENV_KEYS) {
+    if (snapshot[key] === undefined) delete process.env[key];
+    else process.env[key] = snapshot[key];
+  }
+}
+
+function setStagingEnv(root) {
+  process.env.NODE_ENV = "staging";
+  process.env.DEPLOYMENT_ENVIRONMENT = "staging_local_windows_docker";
+  process.env.REMOTE_MCP_ENVIRONMENT = "staging";
+  process.env.RECOVERY_SERVER_MANAGED_BINDING_MODE = "injected_non_live";
+  process.env.RECOVERY_SERVER_MANAGED_BINDING_MODULE = "./stagingRecoveryAuthorityBinding.js";
+  process.env.RECOVERY_STAGING_READINESS_DIRECTORY = path.join(root, "recovery-readiness");
+  process.env.RECOVERY_STAGING_INGRESS_REPLAY_DIRECTORY = path.join(root, "recovery-ingress");
+  delete process.env.RECOVERY_STAGING_CERTIFICATION_PUBLIC_KEY_PEM_ESCAPED;
+  delete process.env.RECOVERY_STAGING_CERTIFICATION_KEY_ID;
+  delete process.env.RECOVERY_STAGING_CERTIFICATION_ISSUER;
+  process.env.DEPLOYMENT_MANIFEST_JSON = JSON.stringify({
+    repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+    branch: "main",
+    commit_sha: SHA,
+    tree_sha: TREE,
+    context_file_set_sha256: CONTEXT,
+    build_source: "portable_staging_docker_build",
+    secrets_included: false,
+  });
 }
 
 test("Phase A binds a complete durable Staging Recovery graph and remains certification-blocked", async () => {
+  const snapshot = Object.fromEntries(ENV_KEYS.map((key) => [key, process.env[key]]));
   const root = await mkdtemp(path.join(os.tmpdir(), "staging-recovery-authority-"));
   try {
-    const env = stagingEnv(root);
-    const envelope = _testingStagingRecoveryAuthorityBinding.createServerManagedRecoveryBindingForEnv({
+    setStagingEnv(root);
+    const envelope = createServerManagedRecoveryBinding({
       environment: "staging",
       requested_mode: "injected_non_live",
       production_live: false,
-    }, env);
+    });
     assert.equal(envelope.binding_source, "server_managed");
     assert.equal(envelope.capabilities.durability_capable, true);
     assert.equal(envelope.capabilities.attestation_capable, true);
@@ -77,12 +101,12 @@ test("Phase A binds a complete durable Staging Recovery graph and remains certif
     assert.equal(composition.productionRecoveryCompositionFactory.authority_readiness.durability_capable, true);
     assert.equal(composition.productionRecoveryCompositionFactory.authority_readiness.attestation_capable, true);
 
-    const authority = _testingStagingRecoveryAuthorityBinding.createRecoveryReadinessAuthoritiesForEnv({
+    const authority = createRecoveryReadinessAuthorities({
       environment: "staging",
       runtime_class: "local_windows_docker",
       read_only: true,
       production_live: false,
-    }, env);
+    });
     const deps = getRecoveryCompositionRouteDependencies(composition, authority);
     const readinessSnapshot = await deps.recoveryReadinessEvidenceReader();
     assert.equal(readinessSnapshot.pre_certification, true);
@@ -112,7 +136,7 @@ test("Phase A binds a complete durable Staging Recovery graph and remains certif
     assert.equal(readiness.production_mutation_performed, false);
     assert.equal(readiness.production_live.enabled, false);
 
-    const directories = _testingStagingRecoveryAuthorityBinding.roots(env);
+    const directories = _testingStagingRecoveryAuthorityBinding.roots(process.env);
     assert.notEqual(directories.readiness, directories.replay);
     const evidence = createFileRecoveryEvidenceStore({
       directory: path.join(directories.readiness, "certification-evidence"),
@@ -127,21 +151,22 @@ test("Phase A binds a complete durable Staging Recovery graph and remains certif
     await evidence.setCurrentCertification(unsignedId);
     await assert.rejects(authority.readSnapshot(), (error) => error.code === "RECOVERY_EVIDENCE_SIGNING_TRUST_UNAVAILABLE");
   } finally {
+    restoreEnv(snapshot);
     await rm(root, { recursive: true, force: true });
   }
 });
 
 test("deployment-owned Staging binding fails closed for Production, unknown and mixed runtimes", () => {
-  const root = path.join(os.tmpdir(), "staging-recovery-authority-negative");
-  const base = stagingEnv(root);
-  for (const env of [
-    { ...base, NODE_ENV: "production", DEPLOYMENT_ENVIRONMENT: "production_hostinger_autodeploy", REMOTE_MCP_ENVIRONMENT: "production" },
-    { ...base, NODE_ENV: "garbage", DEPLOYMENT_ENVIRONMENT: "garbage", REMOTE_MCP_ENVIRONMENT: "garbage" },
-    { ...base, NODE_ENV: "staging", DEPLOYMENT_ENVIRONMENT: "staging_local_windows_docker", REMOTE_MCP_ENVIRONMENT: "production" },
-  ]) {
-    assert.throws(
-      () => _testingStagingRecoveryAuthorityBinding.createServerManagedRecoveryBindingForEnv({ requested_mode: "injected_non_live" }, env),
-      (error) => error.code === "RECOVERY_STAGING_AUTHORITY_RUNTIME_DENIED",
-    );
-  }
+  const snapshot = Object.fromEntries(ENV_KEYS.map((key) => [key, process.env[key]]));
+  try {
+    process.env.RECOVERY_SERVER_MANAGED_BINDING_MODE = "injected_non_live";
+    for (const env of [
+      { NODE_ENV: "production", DEPLOYMENT_ENVIRONMENT: "production_hostinger_autodeploy", REMOTE_MCP_ENVIRONMENT: "production" },
+      { NODE_ENV: "garbage", DEPLOYMENT_ENVIRONMENT: "garbage", REMOTE_MCP_ENVIRONMENT: "garbage" },
+      { NODE_ENV: "staging", DEPLOYMENT_ENVIRONMENT: "staging_local_windows_docker", REMOTE_MCP_ENVIRONMENT: "production" },
+    ]) {
+      Object.assign(process.env, env);
+      assert.throws(() => createServerManagedRecoveryBinding({ requested_mode: "injected_non_live" }), (error) => error.code === "RECOVERY_STAGING_AUTHORITY_RUNTIME_DENIED");
+    }
+  } finally { restoreEnv(snapshot); }
 });
