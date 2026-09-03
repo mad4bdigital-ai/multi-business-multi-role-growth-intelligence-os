@@ -35,9 +35,12 @@ function runtime(context = {}, env = process.env, readiness = false) {
 }
 
 function roots(env = process.env) {
-  const readiness = path.resolve(txt(env.RECOVERY_STAGING_READINESS_DIRECTORY || "/app/data/recovery-readiness", 2048));
-  const replay = path.resolve(txt(env.RECOVERY_STAGING_INGRESS_REPLAY_DIRECTORY || "/app/data/recovery-ingress", 2048));
-  if (!path.isAbsolute(readiness) || !path.isAbsolute(replay) || readiness === replay || readiness.startsWith(`${replay}${path.sep}`) || replay.startsWith(`${readiness}${path.sep}`)) denied("RECOVERY_STAGING_EVIDENCE_REPLAY_NOT_ISOLATED", "Readiness evidence and ingress replay require independent absolute roots.");
+  const readinessConfigured = txt(env.RECOVERY_STAGING_READINESS_DIRECTORY || "/app/data/recovery-readiness", 2048);
+  const replayConfigured = txt(env.RECOVERY_STAGING_INGRESS_REPLAY_DIRECTORY || "/app/data/recovery-ingress", 2048);
+  if (!path.isAbsolute(readinessConfigured) || !path.isAbsolute(replayConfigured)) denied("RECOVERY_STAGING_EVIDENCE_REPLAY_NOT_ISOLATED", "Readiness evidence and ingress replay require independently configured absolute roots.");
+  const readiness = path.resolve(readinessConfigured);
+  const replay = path.resolve(replayConfigured);
+  if (readiness === replay || readiness.startsWith(`${replay}${path.sep}`) || replay.startsWith(`${readiness}${path.sep}`)) denied("RECOVERY_STAGING_EVIDENCE_REPLAY_NOT_ISOLATED", "Readiness evidence and ingress replay require independent absolute roots.");
   return { readiness, replay };
 }
 
@@ -53,6 +56,7 @@ async function writeJson(file, value, immutable = false) {
   const temp = path.join(dir, `.${path.basename(file)}.${process.pid}.${randomUUID()}.tmp`); const h = await open(temp, "wx", 0o600); try { await h.writeFile(bytes); await h.sync(); } finally { await h.close(); } await rename(temp, file); await syncDir(dir);
 }
 async function remove(file) { await rm(file, { force: true }); await ensure(path.dirname(file)); await syncDir(path.dirname(file)); }
+async function immutableClaim(file, value) { try { await writeJson(file, value, true); return true; } catch (e) { if (e.code === "EEXIST") return false; throw e; } }
 
 function targetIdentityProvider(root) {
   const file = path.join(root, "identity", "target.json");
@@ -75,13 +79,18 @@ function deploymentIdentityProvider(targetProvider, env = process.env) {
 }
 
 async function keys(root, name) {
-  const dir = path.join(root, "authority-keys", name); const prv = path.join(dir, "private.pkcs8.pem"); const pub = path.join(dir, "public.spki.pem"); await ensure(dir);
-  let privatePem, publicPem; try { [privatePem, publicPem] = await Promise.all([readFile(prv, "utf8"), readFile(pub, "utf8")]); } catch (e) {
-    if (e.code !== "ENOENT") throw e; const pair = generateKeyPairSync("ed25519"); privatePem = pair.privateKey.export({ type: "pkcs8", format: "pem" }); publicPem = pair.publicKey.export({ type: "spki", format: "pem" });
-    for (const [file, value] of [[prv, privatePem], [pub, publicPem]]) try { const h = await open(file, "wx", 0o600); try { await h.writeFile(value); await h.sync(); } finally { await h.close(); } } catch (x) { if (x.code !== "EEXIST") throw x; }
-    await syncDir(dir); [privatePem, publicPem] = await Promise.all([readFile(prv, "utf8"), readFile(pub, "utf8")]);
+  const dir = path.join(root, "authority-keys", name); const prv = path.join(dir, "private.pkcs8.pem"); await ensure(dir);
+  let privatePem;
+  try { privatePem = await readFile(prv, "utf8"); } catch (e) {
+    if (e.code !== "ENOENT") throw e;
+    const pair = generateKeyPairSync("ed25519"); const candidate = pair.privateKey.export({ type: "pkcs8", format: "pem" });
+    try { const h = await open(prv, "wx", 0o600); try { await h.writeFile(candidate); await h.sync(); } finally { await h.close(); } await syncDir(dir); } catch (x) { if (x.code !== "EEXIST") throw x; }
+    privatePem = await readFile(prv, "utf8");
   }
-  const privateKey = createPrivateKey(privatePem); const publicKey = createPublicKey(publicPem); if (privateKey.asymmetricKeyType !== "ed25519" || publicKey.asymmetricKeyType !== "ed25519") denied("RECOVERY_STAGING_INTERNAL_KEY_INVALID", "Internal Recovery authority key is invalid."); return { privateKey, publicKey };
+  let privateKey; let publicKey;
+  try { privateKey = createPrivateKey(privatePem); publicKey = createPublicKey(privateKey); } catch { denied("RECOVERY_STAGING_INTERNAL_KEY_INVALID", "Internal Recovery authority key is invalid."); }
+  if (privateKey.asymmetricKeyType !== "ed25519" || publicKey.asymmetricKeyType !== "ed25519") denied("RECOVERY_STAGING_INTERNAL_KEY_INVALID", "Internal Recovery authority key is invalid.");
+  return { privateKey, publicKey };
 }
 
 function ticketAuthorities(root) {
@@ -100,26 +109,71 @@ function approvalAuthorities(root) {
 
 function recoveryStore(root, executionTicketVerifier) {
   const base = path.join(root, "kernel-store"); const file = (kind, id) => path.join(base, kind, `${key(id)}.json`); const get = (k, id) => readJson(file(k, id)); const put = (k, id, v) => writeJson(file(k, id), v);
-  const claim = async (kind, id, value) => { try { await writeJson(file(kind, id), value, true); return true; } catch (e) { if (e.code === "EEXIST") return false; throw e; } };
+  const claim = async (kind, id, value) => immutableClaim(file(kind, id), value);
+  const approvalReservationId = (c) => `${c.approval_id}:${c.plan_hash}:${c.step_id}`;
   return Object.freeze({ recovery_store_contract: "mad4b.staging-recovery-filesystem-store.v1", independent_of_target_databases: true, target_database_binding: "forbidden", durability: "persistent_filesystem", provider_accessed: false, executionTicketVerifier,
     async putRun(v) { await put("runs", v.run_id, v); if (v.idempotency_key) await put("run-idempotency", v.idempotency_key, { run_id: v.run_id }); }, async getRun(id) { return get("runs", id); }, async putPlan(v) { await put("plans", v.plan_id, v); }, async getPlan(id) { return get("plans", id); }, async putFinding(v) { await put("findings", v.finding_id, v); }, async getFinding(id) { return get("findings", id); },
     async getRunByIdempotency(id) { const receipt = await get("receipts", id); if (receipt) return receipt; const index = await get("run-idempotency", id); return index?.run_id ? get("runs", index.run_id) : null; }, async appendEvidenceEvent(run_id, event) { const id = `${Date.now()}:${randomUUID()}`; await writeJson(file("evidence", id), { run_id, ...event }, true); }, async putIdempotencyReceipt(id, v) { await put("receipts", id, v); },
-    async putApproval(v) { await put("approvals", v.approval_id, v); await put("approval-index", `${v.plan_id}:${v.step_id}`, { approval_id: v.approval_id }); }, async getApprovalByPlanStep(plan, step) { const i = await get("approval-index", `${plan}:${step}`); return i?.approval_id ? get("approvals", i.approval_id) : null; }, async markApprovalUsed(id) { const a = await get("approvals", id); if (!a || a.used) return { already_finalized: true }; await put("approvals", id, { ...a, used: true, finalized_at: new Date().toISOString() }); return { finalized: true }; },
+    async putApproval(v) { await put("approvals", v.approval_id, v); await put("approval-index", `${v.plan_id}:${v.step_id}`, { approval_id: v.approval_id }); }, async getApprovalByPlanStep(plan, step) { const i = await get("approval-index", `${plan}:${step}`); return i?.approval_id ? get("approvals", i.approval_id) : null; },
+    async markApprovalUsed(id) { const a = await get("approvals", id); if (!a) return { already_finalized: true }; const finalized = await claim("approval-used", id, { approval_id: id, finalized_at: new Date().toISOString(), secrets_included: false }); if (!finalized) return { already_finalized: true }; await put("approvals", id, { ...a, used: true, finalized_at: new Date().toISOString() }); return { finalized: true }; },
     async claimExecution(c) { const v = { claim_id: `claim:${key(c.idempotency_key).slice(0, 32)}`, status: "claimed", ...c }; return await claim("execution-claims", c.idempotency_key, v) ? { claimed: true, claim_id: v.claim_id } : { existing: true, status: "claimed", claim_id: (await get("execution-claims", c.idempotency_key))?.claim_id }; }, async releaseExecutionClaim(c) { await remove(file("execution-claims", c.idempotency_key)); return { released: true }; },
-    async reserveApproval(c) { const a = await get("approvals", c.approval_id); if (!a || a.used || a.plan_hash !== c.plan_hash || a.step_id !== c.step_id) return { reserved: false }; return await claim("approval-reservations", `${c.approval_id}:${c.plan_hash}:${c.step_id}:${c.idempotency_key}`, c) ? { reserved: true } : { reserved: false, existing: true }; }, async releaseApprovalReservation(c) { await remove(file("approval-reservations", `${c.approval_id}:${c.plan_hash}:${c.step_id}:${c.idempotency_key}`)); return { released: true }; },
-    async getExecutionTicket(id) { return get("tickets", id); }, async putExecutionTicket(t) { try { await writeJson(file("tickets", t.ticket_id), t, true); } catch (e) { if (e.code !== "EEXIST") throw e; } if (!(await get("ticket-state", t.ticket_id))) await put("ticket-state", t.ticket_id, { status: "issued", ticket_hash: t.ticket_hash }); }, async reserveExecutionTicket(c) { const s = await get("ticket-state", c.ticket_id); if (!s || s.ticket_hash !== c.ticket_hash || s.status === "finalized") return { reserved: false }; if (s.status === "reserved") return s.idempotency_key === c.idempotency_key ? { reserved: false, existing: true } : { reserved: false }; await put("ticket-state", c.ticket_id, { ...s, ...c, status: "reserved" }); return { reserved: true }; }, async releaseExecutionTicket(c) { const s = await get("ticket-state", c.ticket_id); if (s?.status === "reserved" && s.idempotency_key === c.idempotency_key) await put("ticket-state", c.ticket_id, { status: "issued", ticket_hash: s.ticket_hash }); return { released: true }; }, async finalizeExecutionTicket(c) { const s = await get("ticket-state", c.ticket_id); if (!s || s.ticket_hash !== c.ticket_hash) return { finalized: false }; if (s.status === "finalized") return { already_finalized: true }; if (s.status !== "reserved" || s.idempotency_key !== c.idempotency_key) return { finalized: false }; await put("ticket-state", c.ticket_id, { ...s, status: "finalized" }); return { finalized: true }; },
+    async reserveApproval(c) { const a = await get("approvals", c.approval_id); const used = await get("approval-used", c.approval_id); if (!a || a.used || used || a.plan_hash !== c.plan_hash || a.step_id !== c.step_id) return { reserved: false }; const id = approvalReservationId(c); const value = { ...c, reservation_id: id, reserved_at: new Date().toISOString(), secrets_included: false }; if (await claim("approval-reservations", id, value)) return { reserved: true }; const existing = await get("approval-reservations", id); return { reserved: false, existing: true, same_idempotency: existing?.idempotency_key === c.idempotency_key }; },
+    async releaseApprovalReservation(c) { const id = approvalReservationId(c); const existing = await get("approval-reservations", id); if (existing?.idempotency_key !== c.idempotency_key) return { released: false }; await remove(file("approval-reservations", id)); return { released: true }; },
+    async getExecutionTicket(id) { return get("tickets", id); },
+    async putExecutionTicket(t) { try { await writeJson(file("tickets", t.ticket_id), t, true); } catch (e) { if (e.code !== "EEXIST") throw e; const existing = await get("tickets", t.ticket_id); if (!existing || existing.ticket_hash !== t.ticket_hash) denied("RECOVERY_STAGING_EXECUTION_TICKET_COLLISION", "Execution ticket identity cannot be rebound to different content."); } },
+    async reserveExecutionTicket(c) { const ticket = await get("tickets", c.ticket_id); if (!ticket || ticket.ticket_hash !== c.ticket_hash || await get("ticket-finalized", c.ticket_id)) return { reserved: false }; const value = { ...c, reserved_at: new Date().toISOString(), secrets_included: false }; if (await claim("ticket-reservations", c.ticket_id, value)) return { reserved: true }; const existing = await get("ticket-reservations", c.ticket_id); return { reserved: false, existing: true, same_idempotency: existing?.idempotency_key === c.idempotency_key }; },
+    async releaseExecutionTicket(c) { if (await get("ticket-finalized", c.ticket_id)) return { released: false, finalized: true }; const existing = await get("ticket-reservations", c.ticket_id); if (!existing || existing.ticket_hash !== c.ticket_hash || existing.idempotency_key !== c.idempotency_key) return { released: false }; await remove(file("ticket-reservations", c.ticket_id)); return { released: true }; },
+    async finalizeExecutionTicket(c) { const ticket = await get("tickets", c.ticket_id); if (!ticket || ticket.ticket_hash !== c.ticket_hash) return { finalized: false }; const reservation = await get("ticket-reservations", c.ticket_id); if (!reservation || reservation.ticket_hash !== c.ticket_hash || reservation.idempotency_key !== c.idempotency_key) return { finalized: false }; if (!await claim("ticket-finalized", c.ticket_id, { ...c, status: "finalized", finalized_at: new Date().toISOString(), secrets_included: false })) return { already_finalized: true }; return { finalized: true }; },
   });
 }
 
 function lock(root) {
-  const dir = path.join(root, "fenced-locks"); const f = (target) => path.join(dir, `${key(target)}.json`);
-  return Object.freeze({ async acquire({ target_key, plan_hash, ttl_seconds = 600 }) { const lease = { target_key, plan_hash, lease_id: `lease:${randomUUID()}`, fencing_token: `${Date.now()}:${randomUUID()}`, expires_at: new Date(Date.now() + Math.min(Number(ttl_seconds) || 600, 600) * 1000).toISOString() }; try { await writeJson(f(target_key), lease, true); return { acquired: true, ...lease }; } catch (e) { if (e.code !== "EEXIST") throw e; const old = await readJson(f(target_key)); if (old && Date.parse(old.expires_at) <= Date.now()) { await remove(f(target_key)); return this.acquire({ target_key, plan_hash, ttl_seconds }); } return { acquired: false }; } }, async heartbeat(c) { const l = await readJson(f(c.target_key)); if (!l || l.lease_id !== c.lease_id || l.fencing_token !== c.fencing_token) return { renewed: false, valid: false }; const next = { ...l, expires_at: new Date(Date.now() + 600000).toISOString() }; await writeJson(f(c.target_key), next); return { renewed: true, valid: true, ...next }; }, async assertFence(c) { const l = await readJson(f(c.target_key)); return { valid: Boolean(l && l.lease_id === c.lease_id && l.fencing_token === c.fencing_token && Date.parse(l.expires_at) > Date.now()) }; }, async release({ target_key, lock: h }) { const l = await readJson(f(target_key)); if (l && h && l.lease_id === h.lease_id && l.fencing_token === h.fencing_token) await remove(f(target_key)); return { released: true }; } });
+  const dir = path.join(root, "fenced-locks"); const f = (target) => path.join(dir, `${key(target)}.json`); const takeoverFile = (target, lease) => path.join(dir, "takeover-claims", `${key(`${target}:${lease.lease_id}:${lease.fencing_token}`)}.json`);
+  return Object.freeze({
+    async acquire({ target_key, plan_hash, ttl_seconds = 600 }) {
+      const lease = { target_key, plan_hash, lease_id: `lease:${randomUUID()}`, fencing_token: `${Date.now()}:${randomUUID()}`, expires_at: new Date(Date.now() + Math.min(Number(ttl_seconds) || 600, 600) * 1000).toISOString() };
+      try { await writeJson(f(target_key), lease, true); return { acquired: true, ...lease }; } catch (e) {
+        if (e.code !== "EEXIST") throw e;
+        const old = await readJson(f(target_key)); if (!old || Date.parse(old.expires_at) > Date.now()) return { acquired: false };
+        const takeover = { contract: "mad4b.staging-recovery-lock-takeover.v1", target_key, prior_lease_id: old.lease_id, prior_fencing_token: old.fencing_token, prior_expires_at: old.expires_at, claimed_at: new Date().toISOString(), secrets_included: false };
+        if (!await immutableClaim(takeoverFile(target_key, old), takeover)) return { acquired: false };
+        const current = await readJson(f(target_key));
+        if (!current || current.lease_id !== old.lease_id || current.fencing_token !== old.fencing_token || Date.parse(current.expires_at) > Date.now()) return { acquired: false };
+        await remove(f(target_key));
+        return this.acquire({ target_key, plan_hash, ttl_seconds });
+      }
+    },
+    async heartbeat(c) { const l = await readJson(f(c.target_key)); if (!l || l.lease_id !== c.lease_id || l.fencing_token !== c.fencing_token || Date.parse(l.expires_at) <= Date.now()) return { renewed: false, valid: false }; const next = { ...l, expires_at: new Date(Date.now() + 600000).toISOString() }; await writeJson(f(c.target_key), next); return { renewed: true, valid: true, ...next }; },
+    async assertFence(c) { const l = await readJson(f(c.target_key)); return { valid: Boolean(l && l.lease_id === c.lease_id && l.fencing_token === c.fencing_token && Date.parse(l.expires_at) > Date.now()) }; },
+    async release({ target_key, lock: h }) { const l = await readJson(f(target_key)); if (l && h && l.lease_id === h.lease_id && l.fencing_token === h.fencing_token) await remove(f(target_key)); return { released: true }; },
+  });
 }
 
 function canary(root) {
-  const dir = path.join(root, "certification-canary"); return Object.freeze({ async execute(payload = {}) { const id = digest({ plan_hash: payload.plan_hash || null, step_id: payload.step_id || null, idempotency_key: payload.idempotency_key || null, operation: payload.operation || null }); const record = { contract: "mad4b.staging-recovery-certification-canary.v1", id, environment: "staging", fencing_token: payload.fencing_token || payload.lock?.fencing_token || null, written_at: new Date().toISOString(), production_mutation_performed: false, database_mutation_performed: false, provider_mutation_performed: false, secrets_included: false }; await writeJson(path.join(dir, `${id}.json`), record); return { ok: true, status: "provider_acknowledged", canary_id: id, mutation_attestation: record, production_mutation_performed: false, database_mutation_performed: false, provider_mutation_performed: false, secrets_included: false }; } });
+  const dir = path.join(root, "certification-canary");
+  return Object.freeze({ async execute(payload = {}) {
+    const identity = { plan_hash: payload.plan_hash || null, step_id: payload.step_id || null, idempotency_key: payload.idempotency_key || null, operation: payload.operation || null };
+    const id = digest(identity);
+    const record = { contract: "mad4b.staging-recovery-certification-canary.v1", id, ...identity, environment: "staging", fencing_token: payload.fencing_token || payload.lock?.fencing_token || null, written_at: new Date().toISOString(), production_mutation_performed: false, database_mutation_performed: false, provider_mutation_performed: false, secrets_included: false };
+    try { await writeJson(path.join(dir, `${id}.json`), record, true); } catch (e) { if (e.code === "EEXIST") denied("RECOVERY_STAGING_CANARY_REPLAY_DENIED", "A Staging certification canary identity is immutable and cannot be executed twice."); throw e; }
+    return { ok: true, status: "provider_acknowledged", canary_id: id, mutation_attestation: record, production_mutation_performed: false, database_mutation_performed: false, provider_mutation_performed: false, secrets_included: false };
+  } });
 }
-function readback(root) { return Object.freeze({ async verify({ result, execution_result }) { const id = (result || execution_result)?.canary_id; if (!SHA256.test(id || "")) return { ok: false, verified: false }; const record = await readJson(path.join(root, "certification-canary", `${id}.json`)); const ok = record?.environment === "staging" && record?.production_mutation_performed === false; return { ok, verified: ok, same_fence: true, postconditions_passed: ok, behavioral_probe_passed: ok, evidence_hash: ok ? digest(record) : null, secrets_included: false }; } }); }
+function readback(root) {
+  return Object.freeze({
+    independent_authority: true,
+    role_aware: true,
+    mutation_authority: false,
+    async verify({ plan, step, run, fencing_token }) {
+      const identity = { plan_hash: plan?.plan_hash || null, step_id: step?.step_id || null, idempotency_key: run?.idempotency_key || null, operation: step?.operation || null };
+      const id = digest(identity); const record = await readJson(path.join(root, "certification-canary", `${id}.json`));
+      const sameFence = Boolean(record && fencing_token && record.fencing_token === fencing_token);
+      const sameIdentity = Boolean(record && record.id === id && record.plan_hash === identity.plan_hash && record.step_id === identity.step_id && record.idempotency_key === identity.idempotency_key && record.operation === identity.operation);
+      const ok = Boolean(record?.environment === "staging" && record?.production_mutation_performed === false && record?.database_mutation_performed === false && record?.provider_mutation_performed === false && sameFence && sameIdentity);
+      return { ok, verified: ok, same_fence: sameFence, postconditions_passed: ok, behavioral_probe_passed: ok, evidence_hash: ok ? digest(record) : null, secrets_included: false };
+    },
+  });
+}
 function immutableStore(root, name, method) { return Object.freeze({ async [method](value) { const id = digest(value); try { await writeJson(path.join(root, name, `${id}.json`), value, true); } catch (e) { if (e.code !== "EEXIST") throw e; } return { persisted: true, finalized: true, durable: true, evidence_hash: id }; } }); }
 
 function adapters(root, env = process.env) {
