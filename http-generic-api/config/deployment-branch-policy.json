@@ -138,6 +138,7 @@
       {
         "id": "shared_runtime",
         "patterns": [
+          "local-connector/**",
           "http-generic-api/routes/**",
           "http-generic-api/schema.sql",
           "http-generic-api/migrations/**",
@@ -280,13 +281,35 @@
         "id": "shared-runtime-requires-staging-certification",
         "effect": "require",
         "when": "shared_runtime_or_staging_only_changes_are_present"
+      },
+      {
+        "id": "connector-runtime-requires-cross-environment-certification",
+        "effect": "require",
+        "when": "local_connector_shared_runtime_changes_are_present"
       }
     ]
   },
+  "connector_runtime": {
+    "environment_authority": "receiving_control_plane_runtime_and_its_database",
+    "tenant_routing_barrier": "tenant_id+user_id+canonical_device_id+config_id",
+    "device_runtime_hostname_role": "stable_device_identity",
+    "admin_recovery_hostname_role": "shared_recovery_transport",
+    "cross_environment_credential_reuse_allowed": false,
+    "cross_environment_callback_allowed": false,
+    "unknown_transport_ownership_action": "fail_closed"
+  },
   "connector_recovery": {
     "hostname": "connector.mad4b.com",
-    "excluded_from_hostname_families": true,
+    "role": "shared_admin_recovery_transport",
+    "authority_environment": "receiving_control_plane_runtime_and_database",
+    "hostname_family_membership": "excluded",
+    "credential_scope": "environment_and_config_bound",
+    "callbacks_must_return_to_originating_environment": true,
+    "tenant_runtime_fallback_allowed": false,
+    "requires_dedicated_transport_from_application_tunnels": true,
+    "cross_environment_credential_reuse_allowed": false,
     "deployment_provider": "cloudflare_tunnel_local_windows_service",
-    "hostinger_auto_deploy": false
+    "hostinger_auto_deploy": false,
+    "excluded_from_hostname_families": true
   }
 }

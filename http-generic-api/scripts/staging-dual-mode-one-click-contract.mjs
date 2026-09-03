@@ -119,6 +119,21 @@ assert.match(launcher, /--no-build/);
 assert.match(launcher, /--no-deps'(?:,'--[a-z-]+')*,'cloudflared/);
 assert.match(launcher, /HostConfig\.NetworkMode/);
 assert.match(launcher, /Ensure-StagingCloudflaredWindowsService/);
+
+// Staging SCM ownership must be namespaced. Generic cloudflared is reserved for
+// the legacy Local Connector migration boundary and cannot be stopped/reconfigured here.
+assert.match(windowsCloudflared, /Get-StagingCloudflaredServiceName/);
+assert.match(windowsCloudflared, /return 'Mad4B-Staging-Cloudflared'/);
+assert.match(launcher, /Get-StagingCloudflaredServiceName/);
+assert.match(launcher, /Get-Service -Name \$serviceName/);
+assert.match(launcher, /Name='\$serviceName'/);
+assert.doesNotMatch(launcher, /Get-Service Cloudflared/);
+assert.doesNotMatch(launcher, /Stop-Service Cloudflared/);
+assert.doesNotMatch(launcher, /Name='Cloudflared'/);
+assert.doesNotMatch(windowsCloudflared, /sc\.exe\s+create\s+Cloudflared/);
+assert.match(windowsCloudflared, /sc\.exe\s+create\s+\$serviceName/);
+assert.match(windowsCloudflared, /sc\.exe\s+failure\s+\$serviceName/);
+assert.match(windowsCloudflared, /C:\\ProgramData\\Mad4B\\Staging\\Cloudflared/);
 assert.match(windowsCloudflared, /--token-file/);
 assert.match(windowsCloudflared, /tunnel --protocol http2 --no-autoupdate/);
 assert.match(windowsCloudflared, /not pinned to the canonical http2 transport/);
@@ -187,6 +202,8 @@ console.log(JSON.stringify({
   ok: true,
   contract: "mad4b.staging-dual-mode-one-click-contract.v1",
   tunnel_modes: policy.tunnel_modes.supported,
+  staging_windows_service: "Mad4B-Staging-Cloudflared",
+  generic_cloudflared_untouched: true,
   remote_managed_origin: policy.tunnel_modes.remote_managed_origin,
   canonical_env_generator: policy.bootstrap.canonical_environment_generator,
   mcp_token_issuance_mode: policy.remote_mcp_bootstrap.token_issuance_mode,

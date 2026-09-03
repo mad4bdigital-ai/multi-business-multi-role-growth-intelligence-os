@@ -62,7 +62,38 @@ assert.notEqual(policy.environments.production.credential_namespace, policy.envi
 
 assert.deepEqual(deployment.production.hostnames, productionNames);
 assert.deepEqual(deployment.staging.hostnames, stagingNames);
+assert.equal(deployment.connector_runtime.environment_authority, "receiving_control_plane_runtime_and_its_database");
+assert.equal(deployment.connector_runtime.tenant_routing_barrier, "tenant_id+user_id+canonical_device_id+config_id");
+assert.equal(deployment.connector_runtime.cross_environment_credential_reuse_allowed, false);
+assert.equal(deployment.connector_runtime.cross_environment_callback_allowed, false);
+assert.equal(deployment.connector_runtime.unknown_transport_ownership_action, "fail_closed");
+assert.equal(deployment.connector_recovery.hostname, "connector.mad4b.com");
+assert.equal(deployment.connector_recovery.role, "shared_admin_recovery_transport");
+assert.equal(deployment.connector_recovery.authority_environment, "receiving_control_plane_runtime_and_database");
+assert.equal(deployment.connector_recovery.credential_scope, "environment_and_config_bound");
+assert.equal(deployment.connector_recovery.callbacks_must_return_to_originating_environment, true);
+assert.equal(deployment.connector_recovery.tenant_runtime_fallback_allowed, false);
+assert.equal(deployment.connector_recovery.requires_dedicated_transport_from_application_tunnels, true);
+assert.equal(deployment.connector_recovery.cross_environment_credential_reuse_allowed, false);
 assert.equal(deployment.connector_recovery.excluded_from_hostname_families, true);
+assert.equal(productionNames.includes(deployment.connector_recovery.hostname), false);
+assert.equal(stagingNames.includes(deployment.connector_recovery.hostname), false);
+assert.equal(Object.hasOwn(deployment, "staging_connector_recovery"), false);
+
+assert.equal(policy.external_surfaces.shared_admin_recovery.hostname, "connector.mad4b.com");
+assert.equal(policy.external_surfaces.shared_admin_recovery.authority_resolution, "receiving_control_plane_runtime_and_database");
+assert.equal(policy.external_surfaces.shared_admin_recovery.hostname_family_membership, "excluded");
+assert.equal(policy.external_surfaces.shared_admin_recovery.credential_scope, "environment_and_config_bound");
+assert.equal(policy.external_surfaces.shared_admin_recovery.callbacks_must_return_to_originating_environment, true);
+assert.equal(policy.external_surfaces.shared_admin_recovery.tenant_runtime_fallback_allowed, false);
+assert.equal(policy.external_surfaces.shared_admin_recovery.requires_dedicated_transport_from_application_tunnels, true);
+for (const rule of [
+  "connector_device_hostnames_must_not_be_staging_application_tunnel_ingress",
+  "admin_recovery_transport_must_not_be_staging_application_tunnel_ingress",
+  "connector_callbacks_must_return_to_the_originating_environment_control_plane",
+  "admin_recovery_routes_must_not_be_tenant_runtime_fallbacks",
+  "cross_environment_connector_credentials_must_not_be_reused",
+]) assert.equal(policy.isolation_rules.includes(rule), true, `missing connector isolation rule ${rule}`);
 
 for (const hostname of productionNames) assert.equal(env.includes(hostname), false, `staging env must not contain Production hostname ${hostname}`);
 assert.match(env, /CLOUDFLARE_TUNNEL_ENVIRONMENT=staging/);

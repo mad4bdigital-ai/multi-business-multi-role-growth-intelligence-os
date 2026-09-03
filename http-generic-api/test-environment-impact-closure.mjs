@@ -54,6 +54,7 @@ assert.equal(policy.derived_outputs.source_path_classification_remains_authorita
 assert.equal(policy.derived_outputs.unregistered_outputs_fail_closed, true);
 const sharedRuntimeClass = policy.path_classes.find((entry) => entry.id === "shared_runtime");
 const repositoryGovernanceClass = policy.path_classes.find((entry) => entry.id === "repository_governance");
+assert.ok(sharedRuntimeClass.patterns.includes("local-connector/**"));
 assert.ok(sharedRuntimeClass.exclude_patterns.includes("http-generic-api/test-*.mjs"));
 assert.ok(sharedRuntimeClass.exclude_patterns.includes("http-generic-api/test-*.js"));
 assert.ok(repositoryGovernanceClass.patterns.includes("http-generic-api/test-*.mjs"));
@@ -65,6 +66,8 @@ assert.deepEqual(
 
 const classes = policy.path_classes;
 assert.deepEqual(classifyPath("autopilot-portable-staging/Start-AutoPilot.ps1", classes).map((entry) => entry.id), ["staging_only"]);
+assert.deepEqual(classifyPath("local-connector/server.mjs", classes).map((entry) => entry.id), ["shared_runtime"]);
+assert.deepEqual(classifyPath("local-connector/connector-watchdog.ps1", classes).map((entry) => entry.id), ["shared_runtime"]);
 assert.deepEqual(classifyPath("http-generic-api/routes/tenantTools.js", classes).map((entry) => entry.id), ["shared_runtime"]);
 assert.deepEqual(classifyPath("http-generic-api/schema.sql", classes).map((entry) => entry.id), ["shared_runtime"]);
 assert.deepEqual(classifyPath("autopilot-portable-production/Deploy.ps1", classes).map((entry) => entry.id), ["production_only"]);
@@ -114,6 +117,13 @@ assert.deepEqual(sharedChange.environment_source_classes, ["shared_runtime"]);
 assert.deepEqual(sharedChange.environment_source_environments, ["production", "staging"]);
 assert.equal(sharedChange.requires_live_certification, true);
 assert.equal(sharedChange.environment_source_requires_live_certification, true);
+const connectorRuntimeChange = classifyChange({ status: "M", path: "local-connector/server.mjs", previous_path: null }, classes, derivedOutputs);
+assert.deepEqual(connectorRuntimeChange.classes, ["shared_runtime"]);
+assert.deepEqual(connectorRuntimeChange.environments, ["production", "staging"]);
+assert.deepEqual(connectorRuntimeChange.environment_source_classes, ["shared_runtime"]);
+assert.deepEqual(connectorRuntimeChange.environment_source_environments, ["production", "staging"]);
+assert.equal(connectorRuntimeChange.requires_live_certification, true);
+assert.equal(connectorRuntimeChange.environment_source_requires_live_certification, true);
 const schemaChange = classifyChange({ status: "M", path: "http-generic-api/schema.sql", previous_path: null }, classes, derivedOutputs);
 assert.deepEqual(schemaChange.classes, ["shared_runtime"]);
 assert.deepEqual(schemaChange.environments, ["production", "staging"]);

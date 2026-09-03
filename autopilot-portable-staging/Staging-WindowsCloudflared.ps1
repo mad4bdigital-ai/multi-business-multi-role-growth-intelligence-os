@@ -1,5 +1,9 @@
 Set-StrictMode -Version Latest
 
+function Get-StagingCloudflaredServiceName {
+    return 'Mad4B-Staging-Cloudflared'
+}
+
 function Convert-StagingSecureStringToPlain([Security.SecureString]$Value) {
     $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Value)
     try { return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr) }
@@ -28,7 +32,7 @@ function Protect-StagingCloudflaredFile([string]$Path) {
 function Ensure-StagingCloudflaredTokenFile([string]$EnvFile) {
     $tokenFile = Get-StagingEnvValue $EnvFile 'CLOUDFLARE_TUNNEL_TOKEN_FILE'
     if ([string]::IsNullOrWhiteSpace($tokenFile)) {
-        $tokenFile = 'C:\ProgramData\cloudflared\tunnel-token.txt'
+        $tokenFile = 'C:\ProgramData\Mad4B\Staging\Cloudflared\tunnel-token.txt'
         Set-StagingEnvValue $EnvFile 'CLOUDFLARE_TUNNEL_TOKEN_FILE' $tokenFile
     }
     $directory = Split-Path -Parent $tokenFile
@@ -51,11 +55,12 @@ function Ensure-StagingCloudflaredTokenFile([string]$EnvFile) {
 }
 
 function Ensure-StagingCloudflaredWindowsService([string]$EnvFile) {
+    $serviceName = Get-StagingCloudflaredServiceName
     $exe = Get-StagingCloudflaredBinary
     $tokenFile = Ensure-StagingCloudflaredTokenFile $EnvFile
     $logFile = Get-StagingEnvValue $EnvFile 'CLOUDFLARE_TUNNEL_LOG_FILE'
     if ([string]::IsNullOrWhiteSpace($logFile)) {
-        $logFile = 'C:\ProgramData\cloudflared\staging-cloudflared.log'
+        $logFile = 'C:\ProgramData\Mad4B\Staging\Cloudflared\cloudflared.log'
         Set-StagingEnvValue $EnvFile 'CLOUDFLARE_TUNNEL_LOG_FILE' $logFile
     }
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $logFile) | Out-Null
@@ -72,9 +77,9 @@ function Ensure-StagingCloudflaredWindowsService([string]$EnvFile) {
     # Windows service transport is pinned to HTTP/2 because repeated QUIC remote closures
     # can terminate every connector within the required stability window.
     $binPath = '"' + $exe + '" tunnel --protocol http2 --no-autoupdate --loglevel info --logfile "' + $logFile + '" --metrics ' + $metrics + ' run --token-file "' + $tokenFile + '"'
-    $service = Get-Service Cloudflared -ErrorAction SilentlyContinue
+    $service = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
     if ($null -ne $service -and $service.Status -ne 'Stopped') {
-        Stop-Service Cloudflared -Force -ErrorAction Stop
+        Stop-Service -Name $serviceName -Force -ErrorAction Stop
         $service.WaitForStatus([System.ServiceProcess.ServiceControllerStatus]::Stopped, [TimeSpan]::FromSeconds(20))
     }
 
@@ -85,13 +90,13 @@ function Ensure-StagingCloudflaredWindowsService([string]$EnvFile) {
     Protect-StagingCloudflaredFile $logFile
 
     if ($null -eq $service) {
-        & sc.exe create Cloudflared "binPath= $binPath" 'start= auto' 'obj= LocalSystem' 'DisplayName= Cloudflared Staging Tunnel' | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw 'Unable to create the Cloudflared Windows service.' }
+        & sc.exe create $serviceName "binPath= $binPath" 'start= auto' 'obj= LocalSystem' 'DisplayName= Mad4B Staging Cloudflared Tunnel' | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "Unable to create the $serviceName Windows service." }
     } else {
         # Windows PowerShell 5.1 native argument quoting can corrupt an sc.exe config
         # binPath that itself contains quoted paths. Reconcile the existing service
         # through Win32_Service.Change so PathName is passed as structured CIM data.
-        $serviceConfig = Get-CimInstance Win32_Service -Filter "Name='Cloudflared'" -ErrorAction Stop
+        $serviceConfig = Get-CimInstance Win32_Service -Filter "Name='$serviceName'" -ErrorAction Stop
         $change = Invoke-CimMethod -InputObject $serviceConfig -MethodName Change -Arguments @{
             PathName = $binPath
             StartMode = 'Automatic'
@@ -99,27 +104,27 @@ function Ensure-StagingCloudflaredWindowsService([string]$EnvFile) {
         } -ErrorAction Stop
         $changeCode = [int]$change.ReturnValue
         if ($changeCode -ne 0) {
-            throw "Unable to reconcile the Cloudflared Windows service configuration: Win32_Service.Change returned $changeCode."
+            throw "Unable to reconcile the $serviceName Windows service configuration: Win32_Service.Change returned $changeCode."
         }
     }
-    & sc.exe failure Cloudflared 'reset= 86400' 'actions= restart/5000/restart/15000/none/0' | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw 'Unable to configure bounded Cloudflared Windows service recovery.' }
+    & sc.exe failure $serviceName 'reset= 86400' 'actions= restart/5000/restart/15000/none/0' | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Unable to configure bounded $serviceName Windows service recovery." }
 
-    Start-Service Cloudflared -ErrorAction Stop
+    Start-Service -Name $serviceName -ErrorAction Stop
     Start-Sleep -Seconds 2
-    $readback = Get-CimInstance Win32_Service -Filter "Name='Cloudflared'" -ErrorAction Stop
+    $readback = Get-CimInstance Win32_Service -Filter "Name='$serviceName'" -ErrorAction Stop
     $pathName = [string]$readback.PathName
-    if ($pathName -match '(?i)(?:^|\s)--token(?:\s|=)') { throw 'Cloudflared service readback still embeds an inline token.' }
-    if ($pathName -notmatch '(?i)--token-file' -or $pathName -notmatch [regex]::Escape($tokenFile)) { throw 'Cloudflared service readback is not bound to the canonical token-file.' }
-    if ($pathName -notmatch [regex]::Escape($logFile)) { throw 'Cloudflared service readback is not bound to the canonical Staging logfile.' }
-    if ($pathName -notmatch '(?i)--protocol\s+http2(?:\s|$)') { throw 'Cloudflared Windows service is not pinned to the canonical http2 transport.' }
-    if ([string]$readback.StartName -notin @('LocalSystem', 'NT AUTHORITY\LocalSystem')) { throw 'Cloudflared Windows service is not bound to LocalSystem after reconciliation.' }
-    if ($readback.StartMode -ne 'Auto') { throw 'Cloudflared Windows service is not configured for automatic start after reconciliation.' }
-    if ($readback.State -ne 'Running' -or [int]$readback.ProcessId -le 0) { throw 'Cloudflared Windows service did not reach Running after reconciliation.' }
+    if ($pathName -match '(?i)(?:^|\s)--token(?:\s|=)') { throw "$serviceName service readback still embeds an inline token." }
+    if ($pathName -notmatch '(?i)--token-file' -or $pathName -notmatch [regex]::Escape($tokenFile)) { throw "$serviceName service readback is not bound to the canonical token-file." }
+    if ($pathName -notmatch [regex]::Escape($logFile)) { throw "$serviceName service readback is not bound to the canonical Staging logfile." }
+    if ($pathName -notmatch '(?i)--protocol\s+http2(?:\s|$)') { throw "$serviceName Windows service is not pinned to the canonical http2 transport." }
+    if ([string]$readback.StartName -notin @('LocalSystem', 'NT AUTHORITY\LocalSystem')) { throw "$serviceName Windows service is not bound to LocalSystem after reconciliation." }
+    if ($readback.StartMode -ne 'Auto') { throw "$serviceName Windows service is not configured for automatic start after reconciliation." }
+    if ($readback.State -ne 'Running' -or [int]$readback.ProcessId -le 0) { throw "$serviceName Windows service did not reach Running after reconciliation." }
 
     return [pscustomobject]@{
         service_reconciled = $true
-        service_name = 'Cloudflared'
+        service_name = $serviceName
         process_id = [int]$readback.ProcessId
         token_transport = 'token_file'
         token_file = $tokenFile

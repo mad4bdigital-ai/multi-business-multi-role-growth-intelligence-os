@@ -30,8 +30,32 @@ assert(
     watchdogSource.includes("Ensure-ServiceRunning $ConnectorService")
 );
 assert(
+  "watchdog preserves legacy cloudflared service until live migration is certified",
+  watchdogSource.includes('[string]$CloudflaredService = "cloudflared"') &&
+    watchdogSource.includes('Get-DotEnvValue "CONNECTOR_CLOUDFLARED_SERVICE"')
+);
+assert(
+  "watchdog can bind to a future explicitly owned connector transport service",
+  watchdogSource.includes('$CloudflaredService = $configuredCloudflaredService') &&
+    watchdogSource.includes("^[A-Za-z0-9_.-]{1,128}$")
+);
+assert(
+  "watchdog heartbeat is environment-bound and has no Production fallback",
+  watchdogSource.includes('Get-DotEnvValue "CONNECTOR_ENVIRONMENT"') &&
+    watchdogSource.includes('"production" { "auth.mad4b.com" }') &&
+    watchdogSource.includes('"staging" { "dev.mad4b.com" }') &&
+    watchdogSource.includes("Test-HeartbeatBinding $heartbeatUrl") &&
+    !watchdogSource.includes('$heartbeatUrl = "https://auth.mad4b.com/connector-agent/heartbeat"')
+);
+assert(
+  "watchdog fails closed when environment heartbeat binding is invalid",
+  watchdogSource.includes("heartbeat_skipped reason=environment_binding_invalid")
+);
+assert(
   "watchdog writes a secret-free runtime state snapshot",
   watchdogSource.includes("connector-runtime-state.json") &&
+    watchdogSource.includes("connector_environment = $binding.environment") &&
+    watchdogSource.includes("cloudflared_service = $CloudflaredService") &&
     watchdogSource.includes("secrets_included = $false")
 );
 assert(
