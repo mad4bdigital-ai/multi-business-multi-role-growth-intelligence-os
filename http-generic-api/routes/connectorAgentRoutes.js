@@ -128,6 +128,20 @@ function publicBaseUrl(req) {
   return `${proto}://${host}`;
 }
 
+function resolveConnectorEnvironmentBinding(env = process.env) {
+  const runtimeEnvironment = String(env.DEPLOYMENT_ENVIRONMENT || env.NODE_ENV || "production").trim().toLowerCase();
+  const environment = runtimeEnvironment.includes("staging") || runtimeEnvironment === "development" ? "staging" : "production";
+  const expectedHost = environment === "staging" ? "dev.mad4b.com" : "auth.mad4b.com";
+  const configured = String(env.CONNECTOR_CONTROL_PLANE_BASE_URL || "").trim().replace(/\/$/, "");
+  const baseUrl = configured || `https://${expectedHost}`;
+  let parsed;
+  try { parsed = new URL(baseUrl); } catch { throw new Error("connector_control_plane_url_invalid"); }
+  if (parsed.protocol !== "https:" || parsed.hostname.toLowerCase() !== expectedHost || parsed.pathname !== "/" || parsed.search || parsed.hash) {
+    throw new Error(`connector_control_plane_environment_mismatch:${environment}:${expectedHost}`);
+  }
+  return { environment, baseUrl, expectedHost };
+}
+
 function httpError(status, code, message) {
   const err = new Error(message || code);
   err.status = status;
@@ -384,7 +398,7 @@ function normalizeShellPolicyRow(row) {
   };
 }
 
-function buildConnectorEnv({ connectorSecret, connectorLocalApiKey = '', aliases, port, capabilities = [], permissionGrants = {} }) {
+function buildConnectorEnv({ connectorSecret, connectorLocalApiKey = '', aliases, port, capabilities = [], permissionGrants = {}, environment, controlPlaneBaseUrl }) {
   const grants = normalizePermissionGrants(permissionGrants);
   const allAliases = [...aliases, ...grants.shell_aliases];
   const appAllowlistLine = Object.keys(grants.apps).length ? [envJsonLine("CONNECTOR_APP_ALLOWLIST", grants.apps)] : [];
@@ -395,8 +409,11 @@ function buildConnectorEnv({ connectorSecret, connectorLocalApiKey = '', aliases
   return [
     `CONNECTOR_SECRET=${connectorSecret}`,
     ...connectorLocalApiKeyLine,
+    `CONNECTOR_ENVIRONMENT=${environment}`,
+    `CONNECTOR_CONTROL_PLANE_BASE_URL=${controlPlaneBaseUrl}`,
+    `CONNECTOR_POLICY_URL=${controlPlaneBaseUrl}/connector-agent/policy`,
+    `CONNECTOR_HEARTBEAT_URL=${controlPlaneBaseUrl}/connector-agent/heartbeat`,
     "MAIN_API_URL=https://api.mad4b.com",
-    "CONNECTOR_HEARTBEAT_URL=https://auth.mad4b.com/connector-agent/heartbeat",
     `CONNECTOR_PORT=${port}`,
     "CONNECTOR_SHELL_ENABLED=true",
     "CONNECTOR_FILES_ENABLED=true",
@@ -424,8 +441,8 @@ function buildConnectorEnv({ connectorSecret, connectorLocalApiKey = '', aliases
   ].join("\r\n");
 }
 
-function buildInstallPowerShell({ cfToken, connectorSecret, connectorLocalApiKey = '', tunnelUrl, aliases, port, capabilities = [], permissionGrants = {} }) {
-  const envText = buildConnectorEnv({ connectorSecret, connectorLocalApiKey, aliases, port, capabilities, permissionGrants });
+function buildInstallPowerShell({ cfToken, connectorSecret, connectorLocalApiKey = '', tunnelUrl, aliases, port, capabilities = [], permissionGrants = {}, environment, controlPlaneBaseUrl }) {
+  const envText = buildConnectorEnv({ connectorSecret, connectorLocalApiKey, aliases, port, capabilities, permissionGrants, environment, controlPlaneBaseUrl });
   return [
     "# Mad4B Local Connector — run once as Administrator",
     "$ErrorActionPreference = 'Stop'",
@@ -435,7 +452,7 @@ function buildInstallPowerShell({ cfToken, connectorSecret, connectorLocalApiKey
     "$CfService = 'cloudflared'",
     "$NodeService = 'local-connector'",
     "$ServerMjs = Join-Path $Root 'server.mjs'",
-    "$ManifestUrl = 'https://auth.mad4b.com/connector-agent/manifest.json'",
+    `$ManifestUrl = '${psQuote(controlPlaneBaseUrl)}/connector-agent/manifest.json'`,
     "$ManifestPath = Join-Path $Root 'connector-agent-manifest.json'",
     "$WatchdogPs1 = Join-Path $Root 'connector-watchdog.ps1'",
     "$SafeUpgradePs1 = Join-Path $Root 'connector-safe-upgrade.ps1'",
@@ -736,11 +753,14 @@ export function buildConnectorAgentRoutes() {
       const server = await loadAgentFile("server.mjs");
       const watchdog = await loadAgentFile("connector-watchdog.ps1");
       const safeUpgrade = await loadAgentFile("connector-safe-upgrade.ps1");
+      const binding = resolveConnectorEnvironmentBinding();
       return res.status(200).json({
         ok: true,
         agent: {
           name: "mad4b-local-connector",
           version: AGENT_VERSION,
+          environment: binding.environment,
+          control_plane_base_url: binding.baseUrl,
           sha256: server.sha256,
           server_sha256: server.sha256,
           watchdog_sha256: watchdog.sha256,
@@ -761,6 +781,7 @@ export function buildConnectorAgentRoutes() {
   router.get("/connector-agent/manifest.json", async (req, res) => {
     try {
       const base = publicBaseUrl(req);
+      const binding = resolveConnectorEnvironmentBinding();
       const files = {};
       for (const fileName of Object.keys(FILES)) {
         const loaded = await loadAgentFile(fileName);
@@ -778,6 +799,8 @@ export function buildConnectorAgentRoutes() {
         agent: "mad4b-local-connector",
         version: AGENT_VERSION,
         release_channel: "stable",
+        environment: binding.environment,
+        control_plane_base_url: binding.baseUrl,
         minimum_watchdog_version: "2026.05.18.1",
         generated_at: new Date().toISOString(),
         files,
@@ -813,6 +836,7 @@ export function buildConnectorAgentRoutes() {
       if (!config) throw httpError(404, "connector_config_not_found", "No active connector config was found for this download token.");
       if (!config.cf_token || !config.connector_secret) throw httpError(409, "connector_config_incomplete", "Connector config is missing recovery token or connector secret.");
       const dbGrants = await loadConnectorGrantPolicy(config.config_id);
+      const binding = resolveConnectorEnvironmentBinding();
       const installer = buildInstallPowerShell({
         cfToken: config.cf_token,
         connectorSecret: config.connector_secret,
@@ -822,6 +846,8 @@ export function buildConnectorAgentRoutes() {
         port: CONNECTOR_PORT,
         capabilities: payload.capabilities || [],
         permissionGrants: mergePermissionGrants(dbGrants, payload.permission_grants || {}),
+        environment: binding.environment,
+        controlPlaneBaseUrl: binding.baseUrl,
       });
       const filename = `install-local-connector-${String(config.device_id).replace(/[^a-zA-Z0-9_-]+/g, "-")}.ps1`;
       res.setHeader("Content-Type", "text/plain; charset=utf-8");
