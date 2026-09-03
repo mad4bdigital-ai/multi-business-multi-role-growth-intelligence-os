@@ -228,6 +228,8 @@ function routeResponseMeta(route) {
     priority: route.priority ?? 1000,
     endpoint_url: route.endpoint_url ? redactUrlForError(route.endpoint_url) : null,
     health_status: route.health_status || "unknown",
+    is_customer_selectable: route.is_customer_selectable === undefined ? null : Boolean(route.is_customer_selectable),
+    requires_admin_setup: route.requires_admin_setup === undefined ? null : Boolean(route.requires_admin_setup),
     last_health_at: route.last_health_at || null,
     last_success_at: route.last_success_at || null,
     last_failure_at: route.last_failure_at || null,
@@ -236,6 +238,16 @@ function routeResponseMeta(route) {
     health_age_seconds: secondsSince(lastHealthAt),
     failure_after_success: isFailureAfterSuccess(route),
   };
+}
+
+function explicitAdminRecoveryRequested(req) {
+  const raw = String(
+    req?.headers?.["x-mad4b-recovery-intent"] ||
+    req?.query?.recovery_intent ||
+    req?.body?.recovery_intent ||
+    ""
+  ).trim().toLowerCase();
+  return ["admin_breakglass", "admin_recovery", "break_glass"].includes(raw);
 }
 
 function normalizeDeviceLabel(value) {
@@ -295,19 +307,22 @@ async function fetchConnectorJson(url, options) {
   return { response, data };
 }
 
-async function listRegisteredRoutes(device, { includeDown = false } = {}) {
+async function listRegisteredRoutes(device, { includeDown = false, allowAdminRecovery = false } = {}) {
   if (!device?.config_id) return [];
   const healthClause = includeDown
     ? "AND health_status IN ('healthy','unknown','degraded','down')"
     : "AND health_status IN ('healthy','unknown','degraded')";
+  const adminRecoveryClause = allowAdminRecovery ? "" : "AND route_type <> 'admin_recovery'";
   const [rows] = await getPool().query(
     `SELECT route_id, config_id, route_type, route_label, endpoint_url, priority,
+            is_customer_selectable, requires_admin_setup,
             tls_mode, auth_mode, health_status, last_health_at, last_success_at, last_failure_at,
             last_error_code, last_error_message, updated_at
        FROM \`local_connector_device_routes\`
       WHERE config_id = ?
         AND is_enabled = 1
         ${healthClause}
+        ${adminRecoveryClause}
       ORDER BY priority ASC,
                FIELD(health_status, 'healthy','unknown','degraded','down') ASC,
                FIELD(route_type, 'vpn_private_ip','lan_private_ip','direct_public_ip','dynamic_public_ip','cloudflare_tunnel','admin_recovery'),
@@ -317,12 +332,12 @@ async function listRegisteredRoutes(device, { includeDown = false } = {}) {
   return rows;
 }
 
-async function listCandidateRoutes(device) {
+async function listCandidateRoutes(device, { allowAdminRecovery = false } = {}) {
   const routes = [];
   let registeredRoutes = [];
   let registeredRoutesIncludingDown = [];
   if (device?.config_id) {
-    registeredRoutes = await listRegisteredRoutes(device);
+    registeredRoutes = await listRegisteredRoutes(device, { allowAdminRecovery });
     routes.push(...registeredRoutes);
   }
 
@@ -332,7 +347,7 @@ async function listCandidateRoutes(device) {
     String(route.endpoint_url || "").replace(/\/$/, "") === normalizedDeviceRuntimeUrl
   );
   if (deviceRuntimeUrl && !hasDeviceRuntimeRoute && device?.config_id) {
-    registeredRoutesIncludingDown = await listRegisteredRoutes(device, { includeDown: true });
+    registeredRoutesIncludingDown = await listRegisteredRoutes(device, { includeDown: true, allowAdminRecovery });
     const recoverableRegisteredRoute = registeredRoutesIncludingDown.find((route) =>
       String(route.endpoint_url || "").replace(/\/$/, "") === normalizedDeviceRuntimeUrl &&
       route.route_type === "cloudflare_tunnel" &&
@@ -554,6 +569,7 @@ async function buildForwardOptions(req, targetPath, context = {}) {
     const forwardedBody = { ...req.body };
     delete forwardedBody.user_id;
     delete forwardedBody.tenant_id;
+    delete forwardedBody.recovery_intent;
     if (targetPath === "/n8n") {
       const bridge = await resolveN8nApiBridge({ tenantId: context.tenantId, userId: context.userId });
       if (bridge?.apiKey) {
@@ -660,8 +676,8 @@ async function connectorRouteDiagnostics(req, res, deviceId) {
     return res.status(404).json({ ok: false, error: { code: "device_not_found", message: `No active connector found for device '${deviceId}'.` } });
   }
 
-  const registeredRoutes = await listRegisteredRoutes(device, { includeDown: true });
-  const routes = await listCandidateRoutes(device);
+  const registeredRoutes = await listRegisteredRoutes(device, { includeDown: true, allowAdminRecovery: isAdmin });
+  const routes = await listCandidateRoutes(device, { allowAdminRecovery: isAdmin });
   const candidateTokens = isAdmin
     ? uniqueTruthy([device.connector_secret, device.connector_local_api_key, process.env.BACKEND_API_KEY])
     : uniqueTruthy([device.connector_secret, device.connector_local_api_key]);
@@ -675,7 +691,7 @@ async function connectorRouteDiagnostics(req, res, deviceId) {
       tenant_id: device.tenant_id,
       device_runtime_url: device.device_runtime_url ? redactUrlForError(device.device_runtime_url) : null,
       tunnel_url: device.tunnel_url ? redactUrlForError(device.tunnel_url) : null,
-      admin_recovery_url: device.admin_recovery_url ? redactUrlForError(device.admin_recovery_url) : null,
+      admin_recovery_url: isAdmin && device.admin_recovery_url ? redactUrlForError(device.admin_recovery_url) : null,
       config_last_health_at: device.last_health_at || null,
       config_health_age_seconds: secondsSince(device.last_health_at),
       config_last_error_code: device.last_error_code || null,
@@ -687,6 +703,7 @@ async function connectorRouteDiagnostics(req, res, deviceId) {
     selected_route: routes[0] ? routeResponseMeta(routes[0]) : null,
     candidate_routes: routes.map(routeResponseMeta),
     registered_routes: registeredRoutes.map(routeResponseMeta),
+    admin_recovery_visible: isAdmin,
     proxy_default_timeout_ms: CONNECTOR_PROXY_DEFAULT_TIMEOUT_MS,
     proxy_max_timeout_ms: CONNECTOR_PROXY_MAX_TIMEOUT_MS,
     secrets_included: false,
@@ -696,6 +713,7 @@ async function connectorRouteDiagnostics(req, res, deviceId) {
 async function proxyToDevice(req, res, deviceId, targetPath) {
   const isUserAuth = req.auth?.mode === "user_jwt" || req.auth?.mode === "api_credential";
   const isAdmin = req.auth?.mode === "backend_api_key" || req.auth?.is_admin === true;
+  const allowAdminRecovery = isAdmin && explicitAdminRecoveryRequested(req);
   let userId = isUserAuth ? req.auth.user_id : null;
   const tenantId = req.auth?.tenant_id || req.query.tenant_id || req.body?.tenant_id || null;
   if (!userId && isAdmin) {
@@ -756,9 +774,10 @@ async function proxyToDevice(req, res, deviceId, targetPath) {
   const forwardedQuery = { ...req.query };
   delete forwardedQuery.user_id;
   delete forwardedQuery.tenant_id;
+  delete forwardedQuery.recovery_intent;
   const queryString = Object.keys(forwardedQuery).length ? "?" + new URLSearchParams(forwardedQuery).toString() : "";
   const baseOptions = await buildForwardOptions(req, targetPath, { tenantId, userId });
-  const routes = await listCandidateRoutes(device);
+  const routes = await listCandidateRoutes(device, { allowAdminRecovery });
 
   if (!routes.length) {
     return res.status(503).json({ ok: false, error: { code: "connector_route_not_provisioned", message: "No enabled healthy/unknown connector route is available for this device." } });
