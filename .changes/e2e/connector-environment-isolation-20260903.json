@@ -11,9 +11,11 @@
   "scope": {
     "include": [
       ".changes/e2e/connector-environment-isolation-20260903.json",
+      ".github/governance/test-authority-registry.json",
       "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
       "autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1",
       "local-connector/connector-watchdog.ps1",
+      "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/config/deployment-branch-policy.json",
       "http-generic-api/config/domain-family-policy.json",
       "http-generic-api/routes/connectorAgentRoutes.js",
@@ -131,6 +133,8 @@
             }
           ],
           "evidence_paths": [
+            ".github/governance/test-authority-registry.json",
+            "http-generic-api/config/repository-governance-constitution.json",
             "http-generic-api/config/deployment-branch-policy.json",
             "http-generic-api/config/domain-family-policy.json",
             "http-generic-api/routes/connectorAgentRoutes.js",
