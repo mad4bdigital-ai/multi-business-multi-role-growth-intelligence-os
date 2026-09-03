@@ -55,6 +55,32 @@
         "deploys": false,
         "secrets_included": false
       }
+    },
+    {
+      "migration_file": "20260808_github_issue_comment_dispatch_parity.sql",
+      "source_git_blob_sha": "dd3451b0f88af0b40a51e10d40c5380e20a993a5",
+      "classification_status": "verified_evidence_only",
+      "classification_reason": "Checksum-bound classification of the GitHub issue-comment provider path stored in endpoint registry metadata; the literal is not a platform Express route.",
+      "route_literals": [
+        {
+          "route": "/repos/{owner}/{repo}/issues/{issue_number}/comments",
+          "classification": "evidence_only_external_readback",
+          "reason": "Canonical GitHub provider endpoint path resolved from endpoint registry authority through http_generic_api; not a standalone platform HTTP handler."
+        }
+      ]
+    },
+    {
+      "migration_file": "20260810_github_issue_comment_exact_response_parity.sql",
+      "source_git_blob_sha": "70dbabefe6d9fabd96cec1783b3bc0610f24c61d",
+      "classification_status": "verified_evidence_only",
+      "classification_reason": "Checksum-bound classification of the GitHub issue-comment provider path used while reconciling endpoint response metadata; the literal is not a platform Express route.",
+      "route_literals": [
+        {
+          "route": "/repos/{owner}/{repo}/issues/{issue_number}/comments",
+          "classification": "evidence_only_external_readback",
+          "reason": "Canonical GitHub provider endpoint path referenced while updating registry metadata and parity views; not a standalone platform HTTP handler."
+        }
+      ]
     }
   ]
 }
