@@ -10,6 +10,7 @@ const syncScript = readFileSync("scripts/repo-maintenance-sync.mjs", "utf8");
 const docsScript = readFileSync("scripts/update-repo-planning-docs.mjs", "utf8");
 const autofillTest = readFileSync("test-openapi-autofill-missing-routes.mjs", "utf8");
 const workflow = readFileSync("../.github/workflows/openapi-auto-sync.yml", "utf8");
+const surfaceWorkflow = readFileSync("../.github/workflows/surface-contract-auto-remediation.yml", "utf8");
 const docsFollowupWorkflow = readFileSync("../.github/workflows/docs-agent-main-followup.yml", "utf8");
 const permissionRunbook = readFileSync("../docs/repo-autosync-permissions.md", "utf8");
 const registry = loadGeneratedArtifactRegistry();
@@ -67,6 +68,26 @@ const surfaceArtifact = assertOwnerCanWrite(
   registry,
 );
 assert.equal(surfaceArtifact.id, "surface-contract-documents");
+const docsImpactArtifact = assertOwnerCanWrite(
+  "docs_agent",
+  "docs/auto-docs-agent/pr-1234.md",
+  registry,
+);
+assert.equal(docsImpactArtifact.id, "docs-agent-impact-notes");
+const surfaceSummaryArtifact = assertOwnerCanWrite(
+  "surface_contract_remediator",
+  "docs/auto-docs-agent/README.md",
+  registry,
+);
+assert.equal(surfaceSummaryArtifact.id, "docs-agent-surface-summary");
+assertOwnerCanWrite("docs_agent", "docs/auto-docs-agent/README.md", registry);
+assert.throws(
+  () => assertOwnerCanWrite("surface_contract_remediator", "docs/auto-docs-agent/pr-1234.md", registry),
+  /not authorized/i,
+  "Surface remediation must not inherit Docs Agent impact-note authority",
+);
+assert(surfaceWorkflow.includes('"docs/auto-docs-agent/README.md"|\\'), "Surface mutation boundary must admit only the governed README summary");
+assert(surfaceWorkflow.includes('"docs/auto-docs-agent/README.md" \\'), "Surface remediation commit must stage the governed README summary");
 assert.throws(
   () => assertOwnerCanWrite("openapi_auto_sync", "UNREGISTERED_ROOT_REPORT.md", registry),
   /unknown|unregistered/i,

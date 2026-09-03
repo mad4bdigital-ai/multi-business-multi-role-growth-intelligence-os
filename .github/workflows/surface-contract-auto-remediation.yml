@@ -12,6 +12,7 @@ on:
   push:
     branches: [main]
     paths:
+      - ".github/workflows/surface-contract-auto-remediation.yml"
       - "http-generic-api/migrations/**"
       - "http-generic-api/scripts/surface-contract-*.mjs"
       - "docs/surface-contract-*.json"
@@ -173,6 +174,7 @@ jobs:
               "Updating Registry Patch Index.md"|\
               "deployment_parity_checklist.md"|\
               "docs/ai-docs-agent-governance.md"|\
+              "docs/auto-docs-agent/README.md"|\
               "docs/change-documentation-governance.md"|\
               docs/surface-contract-*.json|\
               docs/surface-contract-*.md)
@@ -215,6 +217,7 @@ jobs:
             "Updating Registry Patch Index.md" \
             "deployment_parity_checklist.md" \
             "docs/ai-docs-agent-governance.md" \
+            "docs/auto-docs-agent/README.md" \
             "docs/change-documentation-governance.md" \
             docs/surface-contract-*.json \
             docs/surface-contract-*.md
@@ -226,7 +229,7 @@ jobs:
             --title "Surface contract agent: automated remediation" \
             --body "<!-- surface-contract-remediation-source:${EXPECTED_HEAD_SHA} -->
 
-Automated, checksum-bound surface-contract remediation from exact main ${EXPECTED_HEAD_SHA}. Scope is registered documentation and generated evidence only. Spec manifests are intentionally excluded because their environment impact is not uniformly repository-only. No migration SQL, runtime code, database state, credentials, provider calls, external sends, or deployment actions are changed. Governance-finalizer eligible: ${AUTO_MERGE_ELIGIBLE}. New-gap gate blocking: ${NEW_GAP_BLOCKING}. Manual-review items: ${MANUAL_REVIEW_COUNT}. Remaining queue items: ${REMAINING_QUEUE_ITEMS}. Native GitHub auto-merge is intentionally not registered; Derived State Closure and the Governance Finalizer own any automated merge decision.")
+          Automated, checksum-bound surface-contract remediation from exact main ${EXPECTED_HEAD_SHA}. Scope is registered documentation and generated evidence only. Spec manifests are intentionally excluded because their environment impact is not uniformly repository-only. No migration SQL, runtime code, database state, credentials, provider calls, external sends, or deployment actions are changed. Governance-finalizer eligible: ${AUTO_MERGE_ELIGIBLE}. New-gap gate blocking: ${NEW_GAP_BLOCKING}. Manual-review items: ${MANUAL_REVIEW_COUNT}. Remaining queue items: ${REMAINING_QUEUE_ITEMS}. Native GitHub auto-merge is intentionally not registered; Derived State Closure and the Governance Finalizer own any automated merge decision.")
           echo "url=$PR_URL" >> "$GITHUB_OUTPUT"
           PR_NUMBER="$(gh pr view "$PR_URL" --json number --jq '.number')"
           echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"

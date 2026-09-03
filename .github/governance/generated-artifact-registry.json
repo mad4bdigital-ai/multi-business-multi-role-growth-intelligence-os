@@ -27,8 +27,26 @@
   "artifacts": [
     {
       "id": "docs-agent-impact-notes",
-      "patterns": ["docs/auto-docs-agent/**"],
+      "patterns": [
+        "docs/auto-docs-agent/pr-*.md",
+        "docs/auto-docs-agent/commit-*.md",
+        "docs/auto-docs-agent/main-*.md"
+      ],
       "owners": ["docs_agent"],
+      "surface_class": "documentation_evidence",
+      "environment_class": "repository_governance",
+      "environment_targets": ["repository"],
+      "auto_merge": {
+        "allowed": true,
+        "requires_protected_main": true,
+        "required_check": "Derived State Closure",
+        "manual_review_when": ["high_risk_source_change"]
+      }
+    },
+    {
+      "id": "docs-agent-surface-summary",
+      "patterns": ["docs/auto-docs-agent/README.md"],
+      "owners": ["docs_agent", "surface_contract_remediator"],
       "surface_class": "documentation_evidence",
       "environment_class": "repository_governance",
       "environment_targets": ["repository"],
