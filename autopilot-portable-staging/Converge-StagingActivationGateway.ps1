@@ -136,7 +136,7 @@ function Install-OriginTrustFromRun([long]$RunId) {
     New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
     try {
         $download = (& gh run download $RunId --repo $ExpectedRepository --name $originTrustArtifactName --dir $tempRoot 2>&1 | Out-String).Trim()
-        if ($LASTEXITCODE -ne 0) { Fail "Could not download exact-SHA Recovery origin trust artifact from run $RunId: $download" }
+        if ($LASTEXITCODE -ne 0) { Fail "Could not download exact-SHA Recovery origin trust artifact from run ${RunId}: $download" }
         $artifactPath = Join-Path $tempRoot 'origin-trust.json'
         if (-not (Test-Path -LiteralPath $artifactPath -PathType Leaf)) { Fail "Recovery origin trust artifact is missing from run $RunId." }
         try { $trust = Get-Content -Raw -LiteralPath $artifactPath | ConvertFrom-Json -ErrorAction Stop }

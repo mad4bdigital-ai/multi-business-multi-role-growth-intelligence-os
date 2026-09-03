@@ -253,7 +253,7 @@ function Write-CorrectedResult([object[]]$Lines, [object]$Convergence) {
     $result | Add-Member -NotePropertyName activation_gateway_convergence_action -NotePropertyValue $action -Force
     $result | Add-Member -NotePropertyName activation_gateway_deploy_run_id -NotePropertyValue $runId -Force
     $result | Add-Member -NotePropertyName activation_recovery_origin_trust_updated -NotePropertyValue $originTrustUpdated -Force
-    $result | Add-Member -NotePropertyName activation_recovery_trusted_ingress_ready -NotePropertyValue ([bool]($EnableActivationGateway -and (Test-LocalRecoveryTrustExact ([string]$result.commit))) -Force
+    $result | Add-Member -NotePropertyName activation_recovery_trusted_ingress_ready -NotePropertyValue ([bool]($EnableActivationGateway -and (Test-LocalRecoveryTrustExact ([string]$result.commit)))) -Force
     $result | Add-Member -NotePropertyName staging_worker_deploy_performed -NotePropertyValue $mutated -Force
     $result | Add-Member -NotePropertyName staging_worker_deploy_initiated -NotePropertyValue $initiated -Force
     $result | Add-Member -NotePropertyName provider_mutation -NotePropertyValue $mutated -Force
