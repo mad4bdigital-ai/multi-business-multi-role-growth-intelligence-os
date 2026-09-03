@@ -11,6 +11,7 @@ import {
 } from "./productionRecoveryCompositionFactory.js";
 import {
   createServerManagedRecoveryBindingProvider,
+  getServerManagedRecoveryBindingIntent,
   getServerManagedRecoveryBindingMode,
   getServerManagedRecoveryBindingStatus,
 } from "./serverManagedRecoveryBindingProvider.js";
@@ -176,6 +177,54 @@ test("default server-managed mode remains disabled and exposes no binding", () =
   const status = getServerManagedRecoveryBindingStatus({ env: {} });
   assert.equal(status.module_configured, false);
   assert.equal(status.secrets_included, false);
+});
+
+test("explicit Hostinger Production intent is validated as a candidate while execution remains fail-closed", () => {
+  const env = {
+    NODE_ENV: "production",
+    DEPLOYMENT_ENVIRONMENT: "production_hostinger_autodeploy",
+    RECOVERY_SERVER_MANAGED_BINDING_MODE: "production_live",
+  };
+  assert.equal(getServerManagedRecoveryBindingIntent(env), "production_live");
+  assert.equal(getServerManagedRecoveryBindingMode(env), "injected_non_live");
+  assert.equal(getServerManagedRecoveryBindingIntent({
+    NODE_ENV: "production",
+    DEPLOYMENT_ENVIRONMENT: "production",
+    RECOVERY_SERVER_MANAGED_BINDING_MODE: "production_live",
+  }), "disabled");
+
+  let resolverContext = null;
+  const provider = createServerManagedRecoveryBindingProvider({
+    env,
+    resolver: (context) => {
+      resolverContext = context;
+      return createValidEnvelope();
+    },
+  });
+  const composition = createProductionRecoveryComposition({
+    mode: getServerManagedRecoveryBindingMode(env),
+    serverManagedBindingProvider: provider,
+    source: "test_production_candidate",
+  });
+
+  assert.equal(resolverContext.requested_mode, "production_live");
+  assert.equal(resolverContext.caller_credentials_accepted, false);
+  assert.equal(resolverContext.gpt_credentials_accepted, false);
+  assert.equal(resolverContext.local_connector_accepted, false);
+  assert.equal(composition.mode, "fail_closed");
+  assert.equal(composition.live_activation, false);
+  assert.equal(composition.mutation_authority_available, false);
+  assert.equal(composition.provider_accessed, false);
+  assert.equal(composition.database_connection_performed, false);
+  assert.equal(composition.database_mutation_performed, false);
+  assert.equal(composition.productionRecoveryCompositionFactory.mode, "production_live");
+  assert.equal(composition.productionRecoveryCompositionFactory.activation_requested, true);
+  assert.equal(composition.productionRecoveryCompositionFactory.live_activation, false);
+  assert.equal(composition.productionRecoveryCompositionFactory.server_managed_binding_resolved, true);
+  assert.equal(composition.productionRecoveryCompositionFactory.activation_candidate.configured, true);
+  assert.equal(composition.productionRecoveryCompositionFactory.activation_candidate.mutation_authority_exposed, false);
+  assert.equal(composition.productionRecoveryCompositionFactory.activation_candidate.live_activation, false);
+  assert.equal(composition.productionRecoveryCompositionFactory.activation_candidate.secrets_included, false);
 });
 
 test("valid concrete server-managed bundle becomes complete non-live composition", () => {
