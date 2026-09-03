@@ -1,0 +1,86 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr7859-recovery-breakglass-workflow-contract",
+  "title": "PR7859 Recovery Breakglass broker and workflow contract environment impact",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr7859-recovery-breakglass-workflow-contract.json",
+      ".github/derived-state-governance.json",
+      ".github/workflows/production-runtime-parity-evidence.yml",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/runtimeBreakglassBroker.js"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Bind the Runtime Breakglass broker/workflow dispatch-contract repair to the canonical staging and production environment-impact policy while keeping all live mutation and activation authority denied.",
+      "e2e_journeys": [
+        {
+          "id": "pr7859-recovery-breakglass-environment-impact-readback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed CI",
+          "entrypoint": "Evaluate the exact PR head against the canonical deployment and environment authority policies.",
+          "terminal_outcome": "The shared-runtime contract change is explicitly declared for staging and production, cross-environment review is explicit, live staging certification remains required, the declaration is registered in both governance control-plane registries, and production mutation remains denied.",
+          "steps": [
+            "Classify the exact base-to-head changes against the canonical environment path classes.",
+            "Read back deployment, domain, runtime invariant, database authority, readiness, and staging gateway policies.",
+            "Register this changed critical governance declaration in Constitution.control_plane_paths and convergence.automation_control_paths.",
+            "Verify the declaration binds both staging and production and requires live staging certification.",
+            "Verify production mutation, database mutation, migration apply, provider mutation, credential payload reads, and production activation remain forbidden.",
+            "Bind the result to the exact evaluated HEAD SHA."
+          ],
+          "assertions": [
+            "The environment impact declaration source of truth is the canonical deployment branch policy.",
+            "The changed critical governance declaration is registered in Constitution.control_plane_paths and convergence.automation_control_paths.",
+            "Both staging and production are explicitly declared and cross-environment review is true.",
+            "Live staging certification remains required and is not silently waived.",
+            "production_mutation_allowed is false.",
+            "No migration apply, grants, database mutations, provider mutations, credential payload reads, Production deployment, or Production activation are introduced by this declaration.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "pr7859-environment-impact-closure-test",
+              "runner": "node",
+              "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+              "args": ["--base-sha", "BASE_SHA", "--head-sha", "HEAD_SHA"]
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/pr7859-recovery-breakglass-workflow-contract.json",
+            ".github/derived-state-governance.json",
+            ".github/workflows/production-runtime-parity-evidence.yml",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "http-generic-api/runtimeBreakglassBroker.js"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "environment-impact-closure",
+          "runner": "node",
+          "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+          "args": ["--base-sha", "BASE_SHA", "--head-sha", "HEAD_SHA"]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

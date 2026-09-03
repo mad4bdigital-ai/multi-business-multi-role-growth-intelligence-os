@@ -69,7 +69,9 @@ function Ensure-StagingCloudflaredWindowsService([string]$EnvFile) {
     }
     if ($metrics -notmatch '^127\.0\.0\.1:\d{2,5}$') { throw 'Windows cloudflared metrics listener must remain loopback-only.' }
 
-    $binPath = '"' + $exe + '" tunnel --no-autoupdate --loglevel info --logfile "' + $logFile + '" --metrics ' + $metrics + ' run --token-file "' + $tokenFile + '"'
+    # Windows service transport is pinned to HTTP/2 because repeated QUIC remote closures
+    # can terminate every connector within the required stability window.
+    $binPath = '"' + $exe + '" tunnel --protocol http2 --no-autoupdate --loglevel info --logfile "' + $logFile + '" --metrics ' + $metrics + ' run --token-file "' + $tokenFile + '"'
     $service = Get-Service Cloudflared -ErrorAction SilentlyContinue
     if ($null -ne $service -and $service.Status -ne 'Stopped') {
         Stop-Service Cloudflared -Force -ErrorAction Stop
@@ -110,6 +112,7 @@ function Ensure-StagingCloudflaredWindowsService([string]$EnvFile) {
     if ($pathName -match '(?i)(?:^|\s)--token(?:\s|=)') { throw 'Cloudflared service readback still embeds an inline token.' }
     if ($pathName -notmatch '(?i)--token-file' -or $pathName -notmatch [regex]::Escape($tokenFile)) { throw 'Cloudflared service readback is not bound to the canonical token-file.' }
     if ($pathName -notmatch [regex]::Escape($logFile)) { throw 'Cloudflared service readback is not bound to the canonical Staging logfile.' }
+    if ($pathName -notmatch '(?i)--protocol\s+http2(?:\s|$)') { throw 'Cloudflared Windows service is not pinned to the canonical http2 transport.' }
     if ([string]$readback.StartName -notin @('LocalSystem', 'NT AUTHORITY\LocalSystem')) { throw 'Cloudflared Windows service is not bound to LocalSystem after reconciliation.' }
     if ($readback.StartMode -ne 'Auto') { throw 'Cloudflared Windows service is not configured for automatic start after reconciliation.' }
     if ($readback.State -ne 'Running' -or [int]$readback.ProcessId -le 0) { throw 'Cloudflared Windows service did not reach Running after reconciliation.' }
@@ -122,6 +125,7 @@ function Ensure-StagingCloudflaredWindowsService([string]$EnvFile) {
         token_file = $tokenFile
         log_file = $logFile
         metrics = $metrics
+        transport_protocol = 'http2'
         service_account = [string]$readback.StartName
         service_start_mode = [string]$readback.StartMode
         reconciliation_transport = if ($null -eq $service) { 'sc_create' } else { 'win32_service_change' }

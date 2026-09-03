@@ -13,12 +13,15 @@
       ".changes/e2e/staging-cloudflared-cim-service-reconcile-20260902.json",
       "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
       "autopilot-portable-staging/manifest.json",
-      "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs"
+      "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs",
+      "http-generic-api/scripts/staging-platform-ready-contract.mjs"
     ]
   },
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
-    "declared_targets": ["staging"],
+    "declared_targets": [
+      "staging"
+    ],
     "cross_environment_reviewed": true,
     "live_staging_certification_required": true,
     "production_mutation_allowed": false
@@ -27,7 +30,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Remove the Windows PowerShell 5.1 native-argument quoting boundary from existing Cloudflared service reconciliation by passing the exact token-file command line through Win32_Service.Change, while preserving LocalSystem, automatic start, bounded recovery, fresh-log proof, loopback-only metrics, and fail-closed readback.",
+      "objective": "Remove the Windows PowerShell 5.1 native-argument quoting boundary from existing Cloudflared service reconciliation by passing the exact token-file command line through Win32_Service.Change, while preserving LocalSystem, automatic start, bounded recovery, fresh-log proof, loopback-only metrics, and fail-closed readback. Pin the same reconciled Windows service to HTTP/2 when QUIC remote closures otherwise rotate every connector inside the required stability window.",
       "e2e_journeys": [
         {
           "id": "windows-cloudflared-structured-service-reconcile",
@@ -64,6 +67,51 @@
             "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
             "autopilot-portable-staging/manifest.json",
             "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs"
+          ]
+        },
+        {
+          "id": "windows-cloudflared-http2-stability",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Windows Docker Staging operator",
+          "entrypoint": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1 -TunnelMode windows_service",
+          "terminal_outcome": "The reconciled Cloudflared Windows service is pinned to HTTP/2, retains one process id throughout the configured stability window, and proceeds to remote-origin proof and PLATFORM_READY.",
+          "steps": [
+            "Build the Windows service command line with tunnel --protocol http2 before run.",
+            "Reconcile the exact command line through Win32_Service.Change without embedding an inline token.",
+            "Fail closed unless service PathName readback proves the canonical HTTP/2 transport.",
+            "Expose the selected transport in bounded non-secret reconciliation evidence.",
+            "Require live Staging certification after merge before treating windows_service mode as platform-ready."
+          ],
+          "assertions": [
+            "Windows service transport is exactly HTTP/2 and is verified from PathName readback.",
+            "Docker sidecar topology and its loopback origin behavior remain unchanged.",
+            "Token transport remains the protected canonical token-file and never becomes an inline token.",
+            "The service remains LocalSystem, automatic-start, loopback-metrics-only, and bounded-recovery.",
+            "No Cloudflare DNS mutation, Production deployment, Production access, database mutation, migration apply, ruleset mutation, secret rotation, container deletion, or volume deletion is authorized."
+          ],
+          "tests": [
+            {
+              "id": "staging-dual-mode-one-click-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/staging-dual-mode-one-click-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-platform-ready-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/staging-platform-ready-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-cloudflared-cim-service-reconcile-20260902.json",
+            "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
+            "autopilot-portable-staging/manifest.json",
+            "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs",
+            "http-generic-api/scripts/staging-platform-ready-contract.mjs"
           ]
         }
       ]

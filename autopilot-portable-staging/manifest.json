@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "40f11de5753d85e5c21d65105433e98d9b2e60e04216811eede1b59ff14124f3"
+      "sha256": "11010cc5500741f39f31adad2f2b42bd34782a6c2e21e9ea47e9718267c54d3a"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "6d9601dba1ee52c4064e947f27951519c520bfe79d2ba6bd20c8e4fbec828e8a"
+      "sha256": "506be2058695850d1f4f1d9f5674511e939989591af10b98d512daee412a8aee"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -334,7 +334,7 @@
     },
     {
       "path": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
-      "sha256": "11251252944e4482c80c344715d5b40628a33ab4b8e0d92ab4f1dd39f33aa9cb"
+      "sha256": "5f1f4e800ce30ff733682d04b71ee2d4dd046b0b84a3164ca5f74eec43623c29"
     },
     {
       "path": "autopilot-portable-staging/Staging-Environment.ps1",
@@ -342,7 +342,7 @@
     },
     {
       "path": "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
-      "sha256": "4aaef2be1f739118c4b0ff5a72c157b99b2e8b2bae1c2d22744ec93e691375c3"
+      "sha256": "b56471af058a0afda7736dfb559fff780638c2e8ffc8fe95558f007299f17d04"
     },
     {
       "path": "http-generic-api/docker-compose.staging.windows-service.yml",

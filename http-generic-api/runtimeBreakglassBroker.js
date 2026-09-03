@@ -313,10 +313,6 @@ function workflowInputPayload(request) {
   const workflow = canonicalWorkflow();
   const inputs = {
     expected_sha: request.expected_sha,
-    expected_branch: "Production",
-    auth_url: "https://auth.mad4b.com/version",
-    deployment_info_url: "https://auth.mad4b.com/deployment-info",
-    runtime_bootstrap_url: "https://auth.mad4b.com/deployment-info/runtime-bootstrap-dry-run",
     strategy: "disabled",
     source_mode: "sql",
     apply_execution: "false",

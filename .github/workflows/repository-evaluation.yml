@@ -107,25 +107,70 @@ jobs:
           run_audit() {
             local label="$1"
             local output="$2"
-            shift 2
+            local stderr_output="$3"
+            local diagnostic_output="$4"
+            shift 4
             set +e
-            "$@" > "$output"
+            "$@" > "$output" 2> "$stderr_output"
             local status=$?
             set -e
-            node - "$label" "$output" "$status" <<'NODE'
+            node - "$label" "$output" "$stderr_output" "$diagnostic_output" "$status" <<'NODE'
           const fs = require('node:fs');
-          const [label, output, statusText] = process.argv.slice(2);
+          const [label, output, stderrOutput, diagnosticOutput, statusText] = process.argv.slice(2);
           const status = Number(statusText);
-          const report = JSON.parse(fs.readFileSync(output, 'utf8'));
+          const raw = fs.readFileSync(output, 'utf8');
+          const stderr = fs.readFileSync(stderrOutput, 'utf8');
+          let report;
+          try {
+            report = JSON.parse(raw);
+          } catch (error) {
+            const diagnostic = {
+              contract: 'mad4b.repository-evaluation-npm-audit-diagnostic.v1',
+              label,
+              status,
+              json_valid: false,
+              stdout_bytes: Buffer.byteLength(raw),
+              stderr_present: stderr.trim().length > 0,
+              parse_error: error instanceof Error ? error.message : String(error),
+            };
+            fs.writeFileSync(diagnosticOutput, `${JSON.stringify(diagnostic, null, 2)}\n`);
+            console.error(`${label}: npm audit returned invalid JSON (status=${status}, stdout_bytes=${diagnostic.stdout_bytes}, stderr_present=${diagnostic.stderr_present})`);
+            if (stderr.trim()) {
+              console.error(`${label}: npm audit stderr follows (GitHub secret masking remains active):`);
+              console.error(stderr.trim());
+            }
+            process.exit(1);
+          }
           const total = Number(report.metadata?.vulnerabilities?.total ?? 0);
+          const diagnostic = {
+            contract: 'mad4b.repository-evaluation-npm-audit-diagnostic.v1',
+            label,
+            status,
+            json_valid: true,
+            stdout_bytes: Buffer.byteLength(raw),
+            stderr_present: stderr.trim().length > 0,
+            metadata_present: Boolean(report.metadata),
+            audit_error_present: Boolean(report.error),
+            audit_error_code: report.error?.code ?? null,
+            vulnerabilities_total: total,
+          };
+          fs.writeFileSync(diagnosticOutput, `${JSON.stringify(diagnostic, null, 2)}\n`);
           if (total > 0) { console.error(`${label}: ${total} advisories reported`); process.exit(1); }
           if (report.error || !report.metadata) { console.warn(`${label}: audit service unavailable or returned no metadata; transport result is recorded but does not mask advisories`); process.exit(0); }
           if (status !== 0) { console.error(`${label}: audit exited ${status} without a parseable advisory count`); process.exit(1); }
           console.log(`${label}: audit passed with zero advisories`);
           NODE
           }
-          run_audit root "$RUNNER_TEMP/root-npm-audit.json" npm audit --json --omit=dev
-          run_audit http-generic-api "$RUNNER_TEMP/http-generic-api-npm-audit.json" npm audit --prefix http-generic-api --json --omit=dev
+          run_audit root \
+            "$RUNNER_TEMP/root-npm-audit.json" \
+            "$RUNNER_TEMP/root-npm-audit.stderr" \
+            "$RUNNER_TEMP/root-npm-audit-diagnostic.json" \
+            npm audit --json --omit=dev
+          run_audit http-generic-api \
+            "$RUNNER_TEMP/http-generic-api-npm-audit.json" \
+            "$RUNNER_TEMP/http-generic-api-npm-audit.stderr" \
+            "$RUNNER_TEMP/http-generic-api-npm-audit-diagnostic.json" \
+            npm audit --prefix http-generic-api --json --omit=dev
           dotnet --version
 
       - name: Capture structured network and environment evidence
@@ -210,6 +255,10 @@ jobs:
             docs/repository-evaluation.json
             docs/repository-evaluation-summary.json
             docs/repository-evaluation.md
+            ${{ runner.temp }}/root-npm-audit.json
+            ${{ runner.temp }}/http-generic-api-npm-audit.json
+            ${{ runner.temp }}/root-npm-audit-diagnostic.json
+            ${{ runner.temp }}/http-generic-api-npm-audit-diagnostic.json
             ${{ runner.temp }}/repository-evaluation-baseline-diff.json
             ${{ runner.temp }}/repository-evaluation-probes.json
             ${{ runner.temp }}/repository-evaluation-probes.md
