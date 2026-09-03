@@ -12,6 +12,7 @@ on:
   push:
     branches: [main]
     paths:
+      - ".github/workflows/surface-contract-auto-remediation.yml"
       - "http-generic-api/migrations/**"
       - "http-generic-api/scripts/surface-contract-*.mjs"
       - "docs/surface-contract-*.json"
