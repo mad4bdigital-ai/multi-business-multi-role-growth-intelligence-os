@@ -8,6 +8,7 @@ import {
   connectorAuthPredicateForToken,
   connectorLocalApiKeySelectFragment,
 } from "../connectorSchemaCompatibility.js";
+import { resolveRuntimeEnvironmentStrict } from "../runtimeEnvironmentResolver.js";
 
 const AGENT_VERSION = "2026.05.28.1";
 const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -128,18 +129,30 @@ function publicBaseUrl(req) {
   return `${proto}://${host}`;
 }
 
+function connectorControlPlaneHost(environment) {
+  if (!['staging', 'production'].includes(environment)) {
+    throw new Error(`connector_runtime_environment_unsupported:${environment || 'unknown'}`);
+  }
+  let expectedHost;
+  expectedHost = environment === "staging" ? "dev.mad4b.com" : "auth.mad4b.com";
+  return expectedHost;
+}
+
 function resolveConnectorEnvironmentBinding(env = process.env) {
-  const runtimeEnvironment = String(env.DEPLOYMENT_ENVIRONMENT || env.NODE_ENV || "production").trim().toLowerCase();
-  const environment = runtimeEnvironment.includes("staging") || runtimeEnvironment === "development" ? "staging" : "production";
-  const expectedHost = environment === "staging" ? "dev.mad4b.com" : "auth.mad4b.com";
+  const runtimeIdentity = resolveRuntimeEnvironmentStrict(env);
+  if (!runtimeIdentity.ok) {
+    throw new Error(`connector_runtime_environment_unresolved:${runtimeIdentity.reason || "unknown"}`);
+  }
+  const boundEnvironment = runtimeIdentity.environment_key;
+  const controlPlaneHost = connectorControlPlaneHost(boundEnvironment);
   const configured = String(env.CONNECTOR_CONTROL_PLANE_BASE_URL || "").trim().replace(/\/$/, "");
-  const baseUrl = configured || `https://${expectedHost}`;
+  const baseUrl = configured || `https://${controlPlaneHost}`;
   let parsed;
   try { parsed = new URL(baseUrl); } catch { throw new Error("connector_control_plane_url_invalid"); }
-  if (parsed.protocol !== "https:" || parsed.hostname.toLowerCase() !== expectedHost || parsed.pathname !== "/" || parsed.search || parsed.hash) {
-    throw new Error(`connector_control_plane_environment_mismatch:${environment}:${expectedHost}`);
+  if (parsed.protocol !== "https:" || parsed.hostname.toLowerCase() !== controlPlaneHost || parsed.pathname !== "/" || parsed.search || parsed.hash) {
+    throw new Error(`connector_control_plane_environment_mismatch:${boundEnvironment}:${controlPlaneHost}`);
   }
-  return { environment, baseUrl, expectedHost };
+  return { environment: boundEnvironment, baseUrl, expectedHost: controlPlaneHost };
 }
 
 function httpError(status, code, message) {
@@ -521,7 +534,7 @@ function buildInstallPowerShell({ cfToken, connectorSecret, connectorLocalApiKey
     "Start-Service $NodeService -ErrorAction SilentlyContinue",
     "",
     "$TaskName = 'Mad4B-LocalConnector-Watchdog'",
-    "$TaskAction = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument \"-NoProfile -ExecutionPolicy Bypass -File `\"$WatchdogPs1`\" -Root `\"$Root`\"\"", 
+    "$TaskAction = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument \"-NoProfile -ExecutionPolicy Bypass -File `\"$WatchdogPs1`\" -Root `\"$Root`\"\"",
     "$TaskTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 1) -RepetitionDuration (New-TimeSpan -Days 3650)",
     "$TaskPrincipal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -RunLevel Highest",
     "Register-ScheduledTask -TaskName $TaskName -Action $TaskAction -Trigger $TaskTrigger -Principal $TaskPrincipal -Force | Out-Null",
