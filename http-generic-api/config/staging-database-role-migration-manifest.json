@@ -59,7 +59,15 @@
         "admin_platform_endpoint_tools",
         "tenant_platform_endpoint_tools",
         "customer_sessions",
-        "gpt_session_turns"
+        "gpt_session_turns",
+        "activation_dynamic_tab_registry",
+        "activation_dynamic_tab_section_registry",
+        "activation_dynamic_tab_discovery_rule_registry",
+        "activation_section_action_registry",
+        "activation_attention_rule_registry",
+        "activation_freshness_policy_registry",
+        "activation_signal_subscription_registry",
+        "activation_connector_pack_registry"
       ],
       "excluded_tables": [
         "capability_resolution_envelope_ledger",
@@ -195,7 +203,15 @@
       "admin_platform_endpoint_tools",
       "tenant_platform_endpoint_tools",
       "customer_sessions",
-      "gpt_session_turns"
+      "gpt_session_turns",
+      "activation_dynamic_tab_registry",
+      "activation_dynamic_tab_section_registry",
+      "activation_dynamic_tab_discovery_rule_registry",
+      "activation_section_action_registry",
+      "activation_attention_rule_registry",
+      "activation_freshness_policy_registry",
+      "activation_signal_subscription_registry",
+      "activation_connector_pack_registry"
     ],
     "required_bundle_files": [
       "runtime.schema.sql.gz",
@@ -224,6 +240,8 @@
       "admin_only",
       "client_allowed",
       "team_allowed",
+      "allowed_actor_roles",
+      "allowed_governance_levels",
       "review_required",
       "provider_agnostic",
       "request_envelope_required",
@@ -236,7 +254,9 @@
       "oauth_config_ref",
       "oauth_client_id_ref",
       "oauth_client_secret_ref",
+      "oauth_secret_storage_type",
       "oauth_binding_status",
+      "oauth_last_validated_at",
       "runtime_binding_profile",
       "schema_json",
       "import_job_id",
