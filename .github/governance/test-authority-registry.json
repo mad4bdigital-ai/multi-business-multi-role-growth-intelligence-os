@@ -239,6 +239,7 @@
         "http-generic-api/test-recovery-composition.mjs",
         "http-generic-api/test-production-recovery-composition-factory.mjs",
         "http-generic-api/test-server-managed-recovery-binding.mjs",
+        "http-generic-api/test-staging-recovery-authority-binding.mjs",
         "http-generic-api/test-recovery-activation-readiness.mjs",
         "http-generic-api/test-staging-recovery-admin-surface.mjs",
         "http-generic-api/test-staging-recovery-route-policy.mjs",

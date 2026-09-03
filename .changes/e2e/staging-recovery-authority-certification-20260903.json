@@ -4,20 +4,16 @@
   "feature_key": "staging-recovery-authority-certification-20260903",
   "title": "Staging Recovery authority binding and genuine signed certification",
   "delivery_mode": "single_pr",
-  "current_phase": "canary",
+  "current_phase": "mvp",
   "secrets_included": false,
   "scope": {
     "include": [
       ".changes/e2e/staging-recovery-authority-certification-20260903.json",
-      ".github/workflows/staging-recovery-certification.yml",
-      "autopilot-portable-staging/Invoke-Staging-Recovery-Certification.ps1",
+      ".github/governance/test-authority-registry.json",
       "http-generic-api/Dockerfile.staging",
       "http-generic-api/recoveryReadinessEvidence.js",
       "http-generic-api/stagingRecoveryAuthorityBinding.js",
-      "http-generic-api/stagingRecoveryCertification.js",
-      "http-generic-api/scripts/run-staging-recovery-certification.mjs",
-      "http-generic-api/test-staging-recovery-authority-binding.mjs",
-      "http-generic-api/test-staging-recovery-certification.mjs"
+      "http-generic-api/test-staging-recovery-authority-binding.mjs"
     ]
   },
   "environment_impact": {
@@ -37,7 +33,7 @@
         {
           "id": "staging-recovery-authority-phase-a",
           "end_to_end": true,
-          "level": "in_process",
+          "level": "synthetic_runtime",
           "actor": "Staging Recovery deployment composition",
           "entrypoint": "server root loads ./stagingRecoveryAuthorityBinding.js in injected_non_live mode",
           "terminal_outcome": "The Staging Recovery composition has all 14 real server-managed authority components, durable and attestation capabilities, typed provenance and an independent readiness evidence root; /admin/recovery/staging/readiness can compute HTTP-200 blocked readiness with authority_graph.ready=true while genuine certification and external evidence remain absent.",
@@ -77,50 +73,23 @@
     },
     {
       "id": "canary",
-      "status": "implemented",
-      "objective": "Provide a genuine post-deployment exact-main Staging certification workflow that executes the durable Recovery canary lifecycle, requires the complete negative suite and fresh external evidence, signs outside the app with a dedicated Ed25519 key, atomically promotes only a verified immutable record, and requires public signed-ingress readback before declaring certification complete.",
-      "e2e_journeys": [
-        {
-          "id": "staging-recovery-genuine-signed-certification",
-          "end_to_end": true,
-          "level": "live_non_production",
-          "actor": "Governed Windows Staging Recovery certification workflow",
-          "entrypoint": ".github/workflows/staging-recovery-certification.yml workflow_dispatch",
-          "terminal_outcome": "On an exact current-main SHA already deployed to local Windows/Docker Staging, a host-only Ed25519 signer certifies the real durable Recovery authority lifecycle and public activation-dev signed-ingress readiness returns ready=true with certification.valid=true and external_evidence.ready=true; Production remains disabled.",
-          "steps": [
-            "Require workflow_dispatch confirmation, exact lowercase source SHA, exact current origin/main and a clean tracked checkout on a self-hosted Windows runner attached to the Staging Docker host.",
-            "Read the exact deployment manifest from the running Staging app and bind the host-side certification process to the same bind-mounted recovery-readiness and recovery-ingress roots.",
-            "Require the certification private key only on the Windows host and explicitly fail if private certification-key material is present inside the app container.",
-            "Require fresh actual ChatGPT registration observation and OAuth browser round-trip observation; collect exact Worker health and direct-origin denial evidence live.",
-            "Run durable inspection, finding, immutable plan, server approval, approval verification/reservation, server-issued Ed25519 execution ticket, ticket reservation, idempotency claim, fenced canary execution, same-fence readback, immutable evidence, ticket/approval finalization and lock release using the Phase A adapters.",
-            "Run all twenty canonical negative certification cases and fail closed unless every case passes, including approval/ticket cross-binding, replay, idempotency, restart durability, lost fence, unknown outcome, partial reconciliation, readback and artifact/schema drift cases.",
-            "Build mad4b.recovery-staging-certification.v1, evaluate it with the canonical evaluator, bind fresh external evidence to the same deployment SHA and durable target fingerprint, and sign the outer mad4b.recovery-readiness-evidence.v1 record with the dedicated external Ed25519 certification key.",
-            "Persist the signed record immutably, verify the persisted signature against the Staging public trust anchor, atomically move current-certification, and re-read the promoted evidence through the canonical readiness authority.",
-            "Require final public activation-dev.mad4b.com signed-ingress readiness and certification readback to report authority_graph.ready=true, certification.valid=true and external_evidence.ready=true before the workflow reports certified."
-          ],
-          "assertions": [
-            "The certification private key is never copied into the app image, app environment, Recovery evidence record, logs or Local Connector state.",
-            "The Activation Gateway ingress signing key is not reused as the Recovery certification key.",
-            "No GPT/OpenAPI mutation operation is added for certification orchestration; certification runs from the Windows Staging host against the bind-mounted durable authority store.",
-            "The canary mutates only the Staging Recovery certification filesystem namespace and attests production_mutation_performed=false, database_mutation_performed=false and provider_mutation_performed=false.",
-            "No Production deployment, Production Recovery activation, Hostinger/provider/database/schema/migration/grant, DNS or ruleset mutation is authorized or performed.",
-            "No Local Connector or connector.mad4b.com authority is used.",
-            "Implementation status does not itself claim live certification; the live workflow must be dispatched on an exact current-main Staging deployment and must pass public signed-ingress readback."
-          ],
-          "tests": [
-            { "id": "staging-recovery-certification-runner", "runner": "node", "working_directory": "http-generic-api", "path": "test-staging-recovery-certification.mjs", "args": [] },
-            { "id": "staging-recovery-authority-binding", "runner": "node", "working_directory": "http-generic-api", "path": "test-staging-recovery-authority-binding.mjs", "args": [] },
-            { "id": "staging-recovery-admin-regression", "runner": "node", "working_directory": "http-generic-api", "path": "test-staging-recovery-admin-surface.mjs", "args": [] }
-          ],
-          "evidence_paths": [
-            ".github/workflows/staging-recovery-certification.yml",
-            "autopilot-portable-staging/Invoke-Staging-Recovery-Certification.ps1",
-            "http-generic-api/stagingRecoveryCertification.js",
-            "http-generic-api/scripts/run-staging-recovery-certification.mjs",
-            "http-generic-api/test-staging-recovery-certification.mjs"
-          ]
-        }
-      ]
+      "status": "planned",
+      "objective": "Run genuine exact-SHA Staging Recovery certification only after Phase A reaches authority_graph.ready=true with certification/external evidence as the remaining blockers.",
+      "planned_e2e_journey": {
+        "id": "staging-recovery-genuine-signed-certification",
+        "required_level": "live_non_production",
+        "actor": "Governed Staging Recovery certification workflow",
+        "entrypoint": ".github/workflows/staging-recovery-certification.yml workflow_dispatch",
+        "terminal_outcome": "A dedicated certification signer produces a verified immutable exact-SHA Staging certification record, the atomic current-certification pointer advances only after verification, and public signed-ingress readback reports ready=true and certification valid=true without Production or Local Connector authority.",
+        "steps": [
+          "Require exact current main, exact deployed Staging SHA, exact Worker SHA and exact durable target fingerprint.",
+          "Execute the canonical Recovery lifecycle through durable evidence and same-fence readback.",
+          "Run the canonical negative certification suite and require every case to pass.",
+          "Collect fresh registration, OAuth, network and Worker deployment evidence bound to the same deployment and target.",
+          "Build stagingCertification and outer Recovery readiness evidence, sign with a dedicated Ed25519 certification key outside the app, persist immutable evidence, verify it, and atomically move current-certification.",
+          "Verify public activation-dev.mad4b.com signed-ingress readiness and certification readbacks."
+        ]
+      }
     },
     {
       "id": "production",
