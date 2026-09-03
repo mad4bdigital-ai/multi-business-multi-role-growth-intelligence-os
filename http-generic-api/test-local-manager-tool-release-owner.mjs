@@ -51,7 +51,13 @@ assert(connectorAgent.includes('capabilities: payload.capabilities || []'), 'con
 assert(connectorAgent.includes('BROWSER4_ALLOWED_HOSTS=mad4b.com,n8n.mad4b.com'), 'Browser4 install must preserve connector-side domain allowlist');
 assert(connectorAgent.includes("Get-Mad4BManifestFile -Name 'browser4-adapter.mjs'"), 'installer must install manifest-declared Browser4 adapter file');
 assert(connectorAgent.includes('local_tool_release_owner: "mad4b-local-manager"'), 'upgrade policy must identify Local Manager as tool release owner');
-assert(connectorAgent.includes('CONNECTOR_HEARTBEAT_URL=https://auth.mad4b.com/connector-agent/heartbeat'), 'connector installer env must declare the canonical heartbeat endpoint');
+assert(connectorAgent.includes('resolveConnectorEnvironmentBinding'), 'connector installer must resolve an explicit environment binding');
+assert(connectorAgent.includes('expectedHost = environment === "staging" ? "dev.mad4b.com" : "auth.mad4b.com"'), 'connector environment binding must select only the canonical control-plane host for each environment');
+assert(connectorAgent.includes('CONNECTOR_CONTROL_PLANE_BASE_URL'), 'connector installer must persist its originating environment control-plane authority');
+assert(connectorAgent.includes('`CONNECTOR_POLICY_URL=${controlPlaneBaseUrl}/connector-agent/policy`'), 'connector policy callback must derive from the originating environment control plane');
+assert(connectorAgent.includes('`CONNECTOR_HEARTBEAT_URL=${controlPlaneBaseUrl}/connector-agent/heartbeat`'), 'connector heartbeat callback must derive from the originating environment control plane');
+assert(!connectorAgent.includes('"CONNECTOR_HEARTBEAT_URL=https://auth.mad4b.com/connector-agent/heartbeat"'), 'connector installer must not hardcode the Production heartbeat endpoint');
+assert(connectorAgent.includes('connector_control_plane_environment_mismatch'), 'connector environment binding must fail closed on a cross-environment control-plane URL');
 assert(/New-ScheduledTaskAction[^\n]+-File[^\n]+\$WatchdogPs1[^\n]+-Root[^\n]+\$Root/.test(connectorAgent), 'scheduled watchdog task must receive the actual installed root');
 assert(connectorAgent.includes('Start-ScheduledTask -TaskName $TaskName'), 'installer must start the watchdog immediately for post-install readback');
 assert(connectorAgent.includes('INSERT INTO') && connectorAgent.includes('local_connector_device_routes'), 'first connector heartbeat must be able to create the canonical route');
@@ -108,6 +114,11 @@ assert(!installRoutes.includes('CONNECTOR_WIN_ENABLED=true",'), 'Windows control
 
 assert(proxyRoutes.includes('code: "DISABLED"'), 'connector proxy must preserve disabled capability errors');
 assert(proxyRoutes.includes('connector_capability_status: "disabled"'), 'connector proxy response must classify disabled capability state');
+assert(proxyRoutes.includes('explicitAdminRecoveryRequested'), 'connector proxy must require explicit admin recovery intent');
+assert(proxyRoutes.includes("AND route_type <> 'admin_recovery'"), 'normal connector route selection must exclude admin recovery routes');
+assert(proxyRoutes.includes('allowAdminRecovery = isAdmin && explicitAdminRecoveryRequested(req)'), 'admin recovery fallback must require both admin authority and explicit recovery intent');
+assert(proxyRoutes.includes('delete forwardedQuery.recovery_intent'), 'recovery routing intent must remain a control-plane selector and must not be forwarded to the device');
+assert(proxyRoutes.includes('delete forwardedBody.recovery_intent'), 'recovery routing intent must be stripped from forwarded mutation bodies');
 
 assert(localManagerWindowsInstallerSurface.includes('app_managed = true'), 'Windows app must request app-managed installer bootstraps');
 assert(localManagerWindowsInstallerSurface.includes('suppress_pause = true'), 'Windows app must request no-pause installer bootstraps');
