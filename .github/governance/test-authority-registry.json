@@ -57,6 +57,16 @@
       ]
     },
     {
+      "id": "local_connector_environment_and_transport_isolation",
+      "test_paths": [
+        "http-generic-api/test-local-connector-durable-self-healing.mjs",
+        "http-generic-api/test-local-manager-tool-release-owner.mjs",
+        "local-connector/connector-watchdog.ps1",
+        "http-generic-api/routes/connectorAgentRoutes.js",
+        "http-generic-api/routes/connectorProxyRoutes.js"
+      ]
+    },
+    {
       "id": "generated_artifact_refresh_scope",
       "test_paths": [
         "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",

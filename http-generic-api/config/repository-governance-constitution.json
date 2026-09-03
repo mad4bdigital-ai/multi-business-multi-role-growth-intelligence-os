@@ -215,6 +215,15 @@
       ]
     },
     {
+      "id": "local_connector_runtime",
+      "patterns": [
+        "local-connector/**/*.js",
+        "local-connector/**/*.mjs",
+        "local-connector/**/*.sh",
+        "local-connector/**/*.ps1"
+      ]
+    },
+    {
       "id": "staging_schema_bootstrap",
       "patterns": [
         "http-generic-api/schema.sql",
@@ -273,6 +282,13 @@
       "risk": "high",
       "patterns": [
         "autopilot-portable-staging/**"
+      ]
+    },
+    {
+      "id": "local_connector",
+      "risk": "high",
+      "patterns": [
+        "local-connector/**"
       ]
     },
     {

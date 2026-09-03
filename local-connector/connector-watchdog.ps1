@@ -1,8 +1,9 @@
 # Mad4B Local Connector Watchdog
-# Runs independently from server.mjs. Keeps cloudflared and local-connector alive,
-# publishes authenticated runtime health to the canonical platform readback,
-# and rolls back server.mjs if a bad upgrade prevents local health from returning.
-# A healthy running service is never restarted during a normal watchdog tick.
+# Runs independently from server.mjs. Keeps the connector-owned cloudflared service
+# and local-connector alive, publishes authenticated runtime health only to the
+# environment-bound control plane, and rolls back server.mjs if a bad upgrade
+# prevents local health from returning. A healthy running service is never
+# restarted during a normal watchdog tick.
 
 param(
   [string]$Root = "C:\mad4b-connector\local-connector",
@@ -53,8 +54,39 @@ function Get-DotEnvValue([string]$Name) {
   return ""
 }
 
+function Get-ConnectorEnvironmentBinding {
+  $environment = (Get-DotEnvValue "CONNECTOR_ENVIRONMENT").ToLowerInvariant()
+  $expectedHost = switch ($environment) {
+    "production" { "auth.mad4b.com" }
+    "staging" { "dev.mad4b.com" }
+    default { "" }
+  }
+  return [pscustomobject]@{
+    environment = $environment
+    expected_host = $expectedHost
+  }
+}
+
+function Test-HeartbeatBinding([string]$HeartbeatUrl) {
+  $binding = Get-ConnectorEnvironmentBinding
+  if (-not $binding.expected_host -or -not $HeartbeatUrl) { return $false }
+  try {
+    $uri = [Uri]$HeartbeatUrl
+    return (
+      $uri.Scheme -eq "https" -and
+      $uri.Host.ToLowerInvariant() -eq $binding.expected_host -and
+      $uri.AbsolutePath -eq "/connector-agent/heartbeat" -and
+      -not $uri.Query -and
+      -not $uri.Fragment
+    )
+  } catch {
+    return $false
+  }
+}
+
 function Write-RuntimeState($Stage, [bool]$LocalHealth, $Details = "", [bool]$HeartbeatSent = $false) {
   try {
+    $binding = Get-ConnectorEnvironmentBinding
     $state = [ordered]@{
       timestamp_utc = (Get-Date).ToUniversalTime().ToString("o")
       stage = $Stage
@@ -62,6 +94,8 @@ function Write-RuntimeState($Stage, [bool]$LocalHealth, $Details = "", [bool]$He
       heartbeat_sent = $HeartbeatSent
       watchdog_version = $WatchdogVersion
       agent_version = $AgentVersion
+      connector_environment = $binding.environment
+      cloudflared_service = $CloudflaredService
       cloudflared_status = Get-ServiceState $CloudflaredService
       connector_status = Get-ServiceState $ConnectorService
       details = [string]$Details
@@ -83,9 +117,13 @@ function Publish-Heartbeat(
   try {
     $secret = Get-DotEnvValue "CONNECTOR_SECRET"
     $heartbeatUrl = Get-DotEnvValue "CONNECTOR_HEARTBEAT_URL"
-    if (-not $heartbeatUrl) { $heartbeatUrl = "https://auth.mad4b.com/connector-agent/heartbeat" }
+    $binding = Get-ConnectorEnvironmentBinding
     if (-not $secret) {
       Write-WatchdogLog "heartbeat_skipped reason=connector_secret_missing"
+      return $false
+    }
+    if (-not (Test-HeartbeatBinding $heartbeatUrl)) {
+      Write-WatchdogLog "heartbeat_skipped reason=environment_binding_invalid environment=$($binding.environment)"
       return $false
     }
 
@@ -100,7 +138,9 @@ function Publish-Heartbeat(
       active_slot = "legacy"
       metadata = [ordered]@{
         local_health = $LocalHealth
+        connector_environment = $binding.environment
         connector_status = Get-ServiceState $ConnectorService
+        cloudflared_service = $CloudflaredService
         cloudflared_status = Get-ServiceState $CloudflaredService
         secrets_included = $false
       }
@@ -112,7 +152,7 @@ function Publish-Heartbeat(
     $body = $payload | ConvertTo-Json -Depth 5 -Compress
     $response = Invoke-RestMethod -Uri $heartbeatUrl -Method Post -Headers $headers -ContentType "application/json" -Body $body -TimeoutSec 20
     $eventId = [string]$response.heartbeat.event_id
-    Write-WatchdogLog "heartbeat_sent event_type=$EventType status=$Status event_id=$eventId"
+    Write-WatchdogLog "heartbeat_sent event_type=$EventType status=$Status environment=$($binding.environment) event_id=$eventId"
     return $true
   } catch {
     $statusCode = "unknown"
@@ -185,7 +225,11 @@ function Restore-StableServer {
 
 try {
   if (-not (Test-Path $Root)) { New-Item -ItemType Directory -Path $Root -Force | Out-Null }
-  Write-WatchdogLog "watchdog_tick root=$Root port=$Port"
+  $configuredCloudflaredService = Get-DotEnvValue "CONNECTOR_CLOUDFLARED_SERVICE"
+  if ($configuredCloudflaredService -and $configuredCloudflaredService -match '^[A-Za-z0-9_.-]{1,128}$') {
+    $CloudflaredService = $configuredCloudflaredService
+  }
+  Write-WatchdogLog "watchdog_tick root=$Root port=$Port cloudflared_service=$CloudflaredService"
 
   $cloudflaredReady = Ensure-ServiceRunning $CloudflaredService
   $connectorReady = Ensure-ServiceRunning $ConnectorService
@@ -200,9 +244,9 @@ try {
       if ($heartbeatSent) { exit 0 }
       exit 4
     }
-    $heartbeatSent = Publish-Heartbeat "failed" "health_failed" $true "cloudflared_unavailable" "Cloudflared service is not running."
+    $heartbeatSent = Publish-Heartbeat "failed" "health_failed" $true "cloudflared_unavailable" "$CloudflaredService service is not running."
     Write-WatchdogLog "health_ok tunnel_service=false heartbeat_sent=$heartbeatSent"
-    Write-RuntimeState "tunnel_service_unavailable" $true "cloudflared service is not running" $heartbeatSent
+    Write-RuntimeState "tunnel_service_unavailable" $true "$CloudflaredService service is not running" $heartbeatSent
     exit 3
   }
 
@@ -213,7 +257,7 @@ try {
     if (Test-Path $ServerPath) { Copy-Item -LiteralPath $ServerPath -Destination $LastGoodPath -Force -ErrorAction SilentlyContinue }
     $status = if ($cloudflaredReady) { "ok" } else { "failed" }
     $errorCode = if ($cloudflaredReady) { "" } else { "cloudflared_unavailable" }
-    $errorMessage = if ($cloudflaredReady) { "" } else { "Cloudflared service is not running." }
+    $errorMessage = if ($cloudflaredReady) { "" } else { "$CloudflaredService service is not running." }
     $heartbeatSent = Publish-Heartbeat $status "service_restart" $true $errorCode $errorMessage
     Write-WatchdogLog "health_ok after_restart=true tunnel_service=$cloudflaredReady heartbeat_sent=$heartbeatSent"
     Write-RuntimeState "healthy_after_restart" $true "tunnel_service=$cloudflaredReady" $heartbeatSent
@@ -229,7 +273,7 @@ try {
     if ($healthAfterRollback) {
       $status = if ($cloudflaredReady) { "ok" } else { "failed" }
       $errorCode = if ($cloudflaredReady) { "" } else { "cloudflared_unavailable" }
-      $errorMessage = if ($cloudflaredReady) { "" } else { "Cloudflared service is not running." }
+      $errorMessage = if ($cloudflaredReady) { "" } else { "$CloudflaredService service is not running." }
       $heartbeatSent = Publish-Heartbeat $status "rollback" $true $errorCode $errorMessage
       Write-WatchdogLog "health_ok after_rollback=true tunnel_service=$cloudflaredReady heartbeat_sent=$heartbeatSent"
       Write-RuntimeState "healthy_after_rollback" $true "tunnel_service=$cloudflaredReady" $heartbeatSent

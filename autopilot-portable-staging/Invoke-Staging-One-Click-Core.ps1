@@ -51,12 +51,13 @@ function Get-StagingComposeArgs(
 }
 
 function Stop-WindowsTunnelRuntime {
-    $service = Get-Service Cloudflared -ErrorAction SilentlyContinue
+    $serviceName = Get-StagingCloudflaredServiceName
+    $service = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
     if ($null -eq $service -or $service.Status -eq 'Stopped') { return }
-    Stop-Service Cloudflared -ErrorAction Stop
+    Stop-Service -Name $serviceName -ErrorAction Stop
     $service.WaitForStatus([System.ServiceProcess.ServiceControllerStatus]::Stopped, [TimeSpan]::FromSeconds(15))
     $service.Refresh()
-    if ($service.Status -ne 'Stopped') { Fail 'Cloudflared Windows service could not be stopped before Staging topology transition.' }
+    if ($service.Status -ne 'Stopped') { Fail "$serviceName Windows service could not be stopped before Staging topology transition." }
 }
 
 function Stop-DockerTunnelRuntime {
@@ -79,9 +80,10 @@ function Quiesce-StagingTunnelRuntimes {
 }
 
 function Assert-WindowsTunnelInactive {
-    $service = Get-CimInstance Win32_Service -Filter "Name='Cloudflared'" -ErrorAction SilentlyContinue
+    $serviceName = Get-StagingCloudflaredServiceName
+    $service = Get-CimInstance Win32_Service -Filter "Name='$serviceName'" -ErrorAction SilentlyContinue
     if ($null -ne $service -and $service.State -eq 'Running') {
-        Fail 'Tunnel mutual-exclusion violation: Cloudflared Windows service is running while docker_sidecar mode is selected.'
+        Fail "Tunnel mutual-exclusion violation: $serviceName Windows service is running while docker_sidecar mode is selected."
     }
 }
 
@@ -158,14 +160,15 @@ function Assert-WindowsTunnelRuntime([string]$RepositoryPath, [string]$EnvFile, 
 
     try { $reconciled = Ensure-StagingCloudflaredWindowsService $EnvFile }
     catch { Fail "Windows Cloudflared self-healing failed: $($_.Exception.Message)" }
+    $serviceName = [string]$reconciled.service_name
     $initialPid = [int]$reconciled.process_id
     $deadline = [DateTime]::UtcNow.AddSeconds($StabilitySeconds)
     $samples = 0
     while ([DateTime]::UtcNow -lt $deadline) {
         Start-Sleep -Seconds 5
-        $after = Get-CimInstance Win32_Service -Filter "Name='Cloudflared'" -ErrorAction SilentlyContinue
+        $after = Get-CimInstance Win32_Service -Filter "Name='$serviceName'" -ErrorAction SilentlyContinue
         if ($null -eq $after -or $after.State -ne 'Running' -or [int]$after.ProcessId -ne $initialPid) {
-            Fail "Cloudflared Windows service did not remain process-stable for $StabilitySeconds seconds."
+            Fail "$serviceName Windows service did not remain process-stable for $StabilitySeconds seconds."
         }
         $samples++
     }
@@ -177,7 +180,7 @@ function Assert-WindowsTunnelRuntime([string]$RepositoryPath, [string]$EnvFile, 
     Assert-DockerTunnelInactive $RepositoryPath $EnvFile
 
     return [pscustomobject]@{
-        mode = 'windows_service'; runtime = 'Cloudflared'; origin = $origin; process_id = $initialPid
+        mode = 'windows_service'; runtime = $serviceName; origin = $origin; process_id = $initialPid
         stability_seconds = $StabilitySeconds; stability_samples = $samples
         service_reconciled = [bool]$reconciled.service_reconciled
         remote_managed_origin_verified = $true; remote_managed_origin = $remoteOrigin.remote_managed_origin

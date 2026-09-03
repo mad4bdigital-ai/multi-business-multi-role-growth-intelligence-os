@@ -51,14 +51,20 @@ assert.match(envExample, /^STAGING_READINESS_PROBE_USER_ID=$/m);
 assert.match(envExample, /^STAGING_READINESS_PROBE_TENANT_ID=$/m);
 assert.match(envExample, /^STAGING_AUTHENTICATED_REMOTE_E2E_REQUIRED=true$/m);
 
-// Windows service is self-healed to token-file transport, bounded recovery and fresh-log origin evidence.
+// Windows Staging transport owns a dedicated SCM identity. It must never reconcile
+// the generic cloudflared service used by the legacy Local Connector runtime.
+assert.match(windowsHelper, /Get-StagingCloudflaredServiceName/);
+assert.match(windowsHelper, /return 'Mad4B-Staging-Cloudflared'/);
+assert.match(windowsHelper, /C:\\ProgramData\\Mad4B\\Staging\\Cloudflared\\tunnel-token\.txt/);
+assert.match(windowsHelper, /C:\\ProgramData\\Mad4B\\Staging\\Cloudflared\\cloudflared\.log/);
 assert.match(windowsHelper, /Ensure-StagingCloudflaredTokenFile/);
 assert.match(windowsHelper, /icacls\.exe/);
 assert.match(windowsHelper, /--token-file/);
 assert.match(windowsHelper, /tunnel --protocol http2 --no-autoupdate/);
-assert.match(windowsHelper, /Cloudflared Windows service is not pinned to the canonical http2 transport/);
+assert.match(windowsHelper, /not pinned to the canonical http2 transport/);
 assert.match(windowsHelper, /transport_protocol = 'http2'/);
-assert.match(windowsHelper, /sc\.exe\s+create\s+Cloudflared/);
+assert.match(windowsHelper, /sc\.exe\s+create\s+\$serviceName/);
+assert.doesNotMatch(windowsHelper, /sc\.exe\s+create\s+Cloudflared/);
 assert.doesNotMatch(windowsHelper, /sc\.exe\s+config\s+Cloudflared/);
 assert.match(windowsHelper, /Get-CimInstance\s+Win32_Service/);
 assert.match(windowsHelper, /Invoke-CimMethod[\s\S]*?-MethodName\s+Change[\s\S]*?PathName\s*=\s*\$binPath[\s\S]*?StartMode\s*=\s*'Automatic'[\s\S]*?StartName\s*=\s*'LocalSystem'/);
@@ -68,14 +74,19 @@ assert.match(windowsHelper, /Win32_Service\.Change returned \$changeCode/);
 assert.match(windowsHelper, /service readback still embeds an inline token/);
 assert.match(windowsHelper, /service readback is not bound to the canonical token-file/);
 assert.match(windowsHelper, /service readback is not bound to the canonical Staging logfile/);
-assert.match(windowsHelper, /Cloudflared Windows service is not bound to LocalSystem after reconciliation/);
-assert.match(windowsHelper, /Cloudflared Windows service is not configured for automatic start after reconciliation/);
-assert.match(windowsHelper, /sc\.exe\s+failure\s+Cloudflared/);
+assert.match(windowsHelper, /Windows service is not bound to LocalSystem after reconciliation/);
+assert.match(windowsHelper, /Windows service is not configured for automatic start after reconciliation/);
+assert.match(windowsHelper, /sc\.exe\s+failure\s+\$serviceName/);
 assert.match(windowsHelper, /WriteAllText\(\$logFile,\s*''/);
 assert.match(windowsHelper, /REMOTE_MANAGED_TUNNEL_ORIGIN_MISMATCH/);
 assert.match(windowsHelper, /dev\\\.mad4b\\\.com/);
 assert.match(windowsHelper, /mcp-dev\\\.mad4b\\\.com/);
 assert.doesNotMatch(windowsHelper, /--token\s+\"?\$token/);
+assert.match(launcher, /Get-StagingCloudflaredServiceName/);
+assert.match(launcher, /Get-Service -Name \$serviceName/);
+assert.match(launcher, /Name='\$serviceName'/);
+assert.doesNotMatch(launcher, /Get-Service Cloudflared/);
+assert.doesNotMatch(launcher, /Name='Cloudflared'/);
 
 // Docker sidecar shares the app network namespace so the remote-managed loopback origin is valid there too.
 assert.match(dockerSidecar, /network_mode:\s*"service:app"/);
@@ -133,6 +144,8 @@ console.log(JSON.stringify({
   ok: true,
   contract: "mad4b.staging-platform-ready-contract.v1",
   windows_powershell_51_random_value_compatible: true,
+  staging_windows_service: "Mad4B-Staging-Cloudflared",
+  generic_cloudflared_untouched: true,
   authenticated_tenant_oauth: true,
   authenticated_remote_mcp: true,
   pkce_s256: true,
