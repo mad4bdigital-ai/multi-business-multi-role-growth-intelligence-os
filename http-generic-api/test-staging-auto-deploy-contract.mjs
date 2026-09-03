@@ -105,7 +105,11 @@ assert.match(activationWorkerBuilder, /production_deploy: false/);
 assert.match(activationWorkerBuilder, /database_mutation: false/);
 assert.match(activationWorkerBuilder, /const \{ privateKey, publicKey \} = crypto\.generateKeyPairSync\("ed25519"\)/);
 assert.match(activationWorkerBuilder, /crypto\.sign\([^;]*\bprivateKey\b\)/s);
-assert.equal((activationWorkerBuilder.match(/\bprivateKey\b/g) || []).length, 2, "ephemeral private key must only be generated and used for signing");
+assert.equal((activationWorkerBuilder.match(/crypto\.sign\([^;]*\bprivateKey\b\)/gs) || []).length, 1, "policy attestation private key must only sign the deployment attestation");
+assert.match(activationWorkerBuilder, /const \{ privateKey: ingressPrivateKey, publicKey: ingressPublicKey \} = crypto\.generateKeyPairSync\("ed25519"\)/);
+assert.equal((activationWorkerBuilder.match(/\bingressPrivateKey\b/g) || []).length, 2, "recovery ingress private key must only be generated and exported to an ephemeral JWK");
+assert.equal((activationWorkerBuilder.match(/\bingressPrivateJwk\b/g) || []).length, 2, "recovery ingress private JWK must only be created and written to deployment secrets");
+assert.match(activationWorkerBuilder, /ACTIVATION_GATEWAY_INGRESS_PRIVATE_KEY_JWK: JSON\.stringify\(ingressPrivateJwk\)/);
 
 assert.match(dockerfile, /ARG STAGING_BUILD_COMMIT/);
 assert.match(dockerfile, /ARG STAGING_BUILD_BRANCH=main/);
