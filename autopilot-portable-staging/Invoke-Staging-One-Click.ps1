@@ -117,8 +117,42 @@ function Read-TypedState([string]$Path, [string]$Label) {
     catch { Fail "$Label is invalid JSON: $Path" }
 }
 
+function Read-LocalStagingEnvValue([string]$Name) {
+    $envFile = Join-Path $RepositoryPath 'http-generic-api\.env.staging'
+    if (-not (Test-Path -LiteralPath $envFile -PathType Leaf)) { return '' }
+    $pattern = "^$([regex]::Escape($Name))=(.*)$"
+    $matches = @(Get-Content -LiteralPath $envFile | Where-Object { $_ -match $pattern })
+    if ($matches.Count -gt 1) { Fail "Duplicate Staging environment key is forbidden: $Name" }
+    if ($matches.Count -eq 0) { return '' }
+    return ($matches[0] -replace "^$([regex]::Escape($Name))=", '')
+}
+
+function Test-LocalRecoveryTrustExact([string]$Commit) {
+    $mode = (Read-LocalStagingEnvValue 'REMOTE_MCP_TRUSTED_INGRESS_MODE').Trim().ToLowerInvariant()
+    $strip = (Read-LocalStagingEnvValue 'REMOTE_MCP_TRUSTED_INGRESS_STRIP_CALLER_HEADERS').Trim().ToLowerInvariant()
+    $proxy = (Read-LocalStagingEnvValue 'REMOTE_MCP_TRUST_PROXY_HOST_HEADERS').Trim().ToLowerInvariant()
+    $publicKey = Read-LocalStagingEnvValue 'REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY'
+    $keyId = (Read-LocalStagingEnvValue 'REMOTE_MCP_TRUSTED_INGRESS_KEY_ID').Trim()
+    $canonicalHost = (Read-LocalStagingEnvValue 'REMOTE_MCP_TRUSTED_INGRESS_CANONICAL_HOST').Trim().ToLowerInvariant()
+    $audience = (Read-LocalStagingEnvValue 'REMOTE_MCP_TRUSTED_INGRESS_AUDIENCE').Trim()
+    $issuer = (Read-LocalStagingEnvValue 'REMOTE_MCP_TRUSTED_INGRESS_ISSUER').Trim()
+    $expectedSha = (Read-LocalStagingEnvValue 'REMOTE_MCP_EXPECTED_DEPLOYMENT_SHA').Trim().ToLowerInvariant()
+    $replayDirectory = (Read-LocalStagingEnvValue 'RECOVERY_STAGING_INGRESS_REPLAY_DIRECTORY').Trim()
+    return $mode -eq 'signature' `
+        -and $strip -eq 'true' `
+        -and $proxy -eq 'true' `
+        -and $publicKey.StartsWith('-----BEGIN PUBLIC KEY-----\n') `
+        -and $publicKey.Contains('\n-----END PUBLIC KEY-----\n') `
+        -and $keyId -match '^[A-Za-z0-9._:-]{16,128}$' `
+        -and $canonicalHost -eq 'activation-dev.mad4b.com' `
+        -and $audience -eq 'https://dev.mad4b.com' `
+        -and $issuer -eq 'https://activation-dev.mad4b.com' `
+        -and $expectedSha -eq $Commit `
+        -and $replayDirectory -eq '/app/data/recovery-ingress'
+}
+
 function Get-GatewayDriftRecovery([int]$ChildExitCode) {
-    if ($ChildExitCode -eq 0 -or -not $EnableActivationGateway) { return $null }
+    if (-not $EnableActivationGateway) { return $null }
     if ($RequireSchemaBundle -or $ApplySchemaBundle) { return $null }
 
     $runtime = Read-TypedState $runtimeStatePath 'Auto Pilot runtime state'
@@ -131,10 +165,14 @@ function Get-GatewayDriftRecovery([int]$ChildExitCode) {
     if ($preflight.safety.production_access -ne $false -or $preflight.safety.provider_access -ne $false) { return $null }
     if ($preflight.safety.database_mutation -ne $false -or $preflight.safety.migration_apply -ne $false) { return $null }
 
-    $blocking = @($runtime.certification_blocking_failures | ForEach-Object { [string]$_ } | Where-Object { $_ })
-    $degraded = @($runtime.certification_degraded_reasons | ForEach-Object { [string]$_ } | Where-Object { $_ })
+    $trustExact = Test-LocalRecoveryTrustExact $commit
+    if ($ChildExitCode -eq 0 -and $trustExact) { return $null }
+
+    $blocking = if ($ChildExitCode -eq 0) { @() } else { @($runtime.certification_blocking_failures | ForEach-Object { [string]$_ } | Where-Object { $_ }) }
+    $degraded = if ($ChildExitCode -eq 0) { @() } else { @($runtime.certification_degraded_reasons | ForEach-Object { [string]$_ } | Where-Object { $_ }) }
     $reasons = @($blocking + $degraded | Select-Object -Unique)
-    $gatewayDriftKeys = @('gateway_exact_commit','gateway_policy_not_stale','gateway_policy_hash_current','gateway_policy_key_current')
+    if (-not $trustExact) { $reasons = @($reasons + 'gateway_recovery_trusted_ingress' | Select-Object -Unique) }
+    $gatewayDriftKeys = @('gateway_exact_commit','gateway_policy_not_stale','gateway_policy_hash_current','gateway_policy_key_current','gateway_recovery_trusted_ingress')
     if ($reasons.Count -eq 0) { return $null }
     $nonGateway = @($reasons | Where-Object { $_ -notin $gatewayDriftKeys })
     if ($nonGateway.Count -gt 0) { return $null }
@@ -145,6 +183,7 @@ function Get-GatewayDriftRecovery([int]$ChildExitCode) {
         blocking = $blocking
         degraded = $degraded
         reasons = $reasons
+        recovery_trust_exact = [bool]$trustExact
     }
 }
 
@@ -182,6 +221,9 @@ function Invoke-GatewayConvergence([object]$Recovery) {
     if ($report.database_mutation -ne $false -or $report.migration_apply -ne $false -or $report.ruleset_mutation -ne $false -or $report.secrets_included -ne $false) {
         Fail 'Activation Gateway convergence violated a non-Worker safety boundary.'
     }
+    if ($report.final_origin_trust.exact -ne $true -or [string]$report.recovery_ingress_replay_scope -ne 'single_filesystem') {
+        Fail 'Activation Gateway convergence did not establish exact Recovery origin trust and durable local replay authority.'
+    }
     return $report
 }
 
@@ -198,16 +240,20 @@ function Write-CorrectedResult([object[]]$Lines, [object]$Convergence) {
     $scope = 'none'
     $action = if ($EnableActivationGateway) { 'already_current_or_core_ready' } else { 'not_requested' }
     $runId = $null
+    $originTrustUpdated = $false
     if ($null -ne $Convergence) {
         $mutated = [bool]$Convergence.provider_mutation
         $initiated = [bool]$Convergence.provider_mutation_initiated
         $scope = [string]$Convergence.provider_mutation_scope
         $action = [string]$Convergence.action
         $runId = $Convergence.workflow_run_id
+        $originTrustUpdated = [bool]$Convergence.origin_trust_updated
     }
     $result | Add-Member -NotePropertyName activation_gateway_smart_convergence -NotePropertyValue ([bool]$EnableActivationGateway) -Force
     $result | Add-Member -NotePropertyName activation_gateway_convergence_action -NotePropertyValue $action -Force
     $result | Add-Member -NotePropertyName activation_gateway_deploy_run_id -NotePropertyValue $runId -Force
+    $result | Add-Member -NotePropertyName activation_recovery_origin_trust_updated -NotePropertyValue $originTrustUpdated -Force
+    $result | Add-Member -NotePropertyName activation_recovery_trusted_ingress_ready -NotePropertyValue ([bool]($EnableActivationGateway -and (Test-LocalRecoveryTrustExact ([string]$result.commit))) -Force
     $result | Add-Member -NotePropertyName staging_worker_deploy_performed -NotePropertyValue $mutated -Force
     $result | Add-Member -NotePropertyName staging_worker_deploy_initiated -NotePropertyValue $initiated -Force
     $result | Add-Member -NotePropertyName provider_mutation -NotePropertyValue $mutated -Force
@@ -229,13 +275,12 @@ if (Test-Path -LiteralPath $convergenceReportPath) { Remove-Item -LiteralPath $c
 
 Invoke-EnvAuthorityGuard
 $first = Invoke-Core
-if ($first.exit_code -eq 0) {
-    Write-CorrectedResult $first.lines $null
-    exit 0
-}
-
 $recovery = Get-GatewayDriftRecovery $first.exit_code
 if ($null -eq $recovery) {
+    if ($first.exit_code -eq 0) {
+        Write-CorrectedResult $first.lines $null
+        exit 0
+    }
     Write-Lines $first.lines
     exit $first.exit_code
 }
