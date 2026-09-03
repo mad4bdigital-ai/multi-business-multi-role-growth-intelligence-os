@@ -102,6 +102,19 @@ function validateServerManagedEnvelope(envelope) {
   return envelope;
 }
 
+function candidateMetadata(composition, envelope) {
+  return Object.freeze({
+    requested_mode: "production_live",
+    graph_contract: composition.contract,
+    configured: composition.configured === true,
+    component_status: composition.component_status,
+    mutation_authority_exposed: false,
+    live_activation: false,
+    binding_module_id_hash: envelope.module_id_hash || null,
+    secrets_included: false,
+  });
+}
+
 export function createProductionRecoveryComposition({
   mode = "disabled",
   serverManagedBindingProvider = null,
@@ -119,6 +132,9 @@ export function createProductionRecoveryComposition({
     return failClosedComposition(source, "production_live_activation_not_requested");
   }
 
+  // A direct factory production_live call remains forbidden. The only Production
+  // candidate path is a deployment-owned server-managed provider that is loaded by
+  // the existing non-live composition root and explicitly reports requested_mode.
   if (mode === "production_live") {
     throw factoryError(
       "RECOVERY_PRODUCTION_LIVE_DISABLED",
@@ -142,15 +158,42 @@ export function createProductionRecoveryComposition({
       requested_mode: mode,
     })),
   );
-  const composition = createRecoveryComposition({
+  const candidate = createRecoveryComposition({
     mode: "injected_non_live",
     adapters: envelope.adapters,
     source,
   });
+  const productionCandidateRequested = envelope.requested_mode === "production_live";
+
+  if (productionCandidateRequested) {
+    const failClosed = failClosedComposition(source, "production_live_candidate_requires_certification_and_activation");
+    return Object.freeze({
+      ...failClosed,
+      productionRecoveryCompositionFactory: Object.freeze({
+        ...failClosed.productionRecoveryCompositionFactory,
+        contract: PRODUCTION_RECOVERY_COMPOSITION_FACTORY_CONTRACT,
+        recoveryCompositionContract: SERVER_MANAGED_RECOVERY_COMPOSITION_CONTRACT,
+        mode: "production_live",
+        registered: true,
+        activation_requested: true,
+        live_activation: false,
+        adapter_factory_wired: true,
+        server_managed_binding_resolved: true,
+        authority_readiness: buildLiveAuthorityReadiness(candidate, true, envelope.capabilities),
+        activation_candidate: candidateMetadata(candidate, envelope),
+        provider_accessed: false,
+        database_connection_performed: false,
+        database_mutation_performed: false,
+        denial_reason: "production_live_candidate_requires_certification_and_activation",
+        secrets_included: false,
+      }),
+    });
+  }
+
   return Object.freeze({
-    ...composition,
+    ...candidate,
     productionRecoveryCompositionFactory: Object.freeze({
-      ...composition.productionRecoveryCompositionFactory,
+      ...candidate.productionRecoveryCompositionFactory,
       contract: PRODUCTION_RECOVERY_COMPOSITION_FACTORY_CONTRACT,
       recoveryCompositionContract: SERVER_MANAGED_RECOVERY_COMPOSITION_CONTRACT,
       mode: "injected_non_live",
@@ -159,7 +202,7 @@ export function createProductionRecoveryComposition({
       live_activation: false,
       adapter_factory_wired: true,
       server_managed_binding_resolved: true,
-      authority_readiness: buildLiveAuthorityReadiness(composition, true, envelope.capabilities),
+      authority_readiness: buildLiveAuthorityReadiness(candidate, true, envelope.capabilities),
       provider_accessed: false,
       database_connection_performed: false,
       database_mutation_performed: false,
@@ -173,4 +216,5 @@ export const _testingProductionRecoveryCompositionFactory = Object.freeze({
   SERVER_MANAGED_CONTEXT,
   validateServerManagedEnvelope,
   failClosedComposition,
+  candidateMetadata,
 });
