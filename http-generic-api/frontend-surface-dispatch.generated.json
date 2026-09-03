@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "c76fb2d41170dbd42f83255423206e9f23755effce98fc4822ffd90ba4305155",
+    "source_digest": "d508611663009714a09a488809dfa92b47f8a553977534bda0ee975931fbd9f1",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -516,12 +516,12 @@
       },
       {
         "file": "routes/connectorAgentRoutes.js",
-        "sha256": "463d9f6a1a8be0a5a867dc4770ccc977f3f2583439fbd9fdfed2090f4d42b3fd",
+        "sha256": "067e04131969cd5969b13e2a68dbd1403a8b49a4c1bdfc04657f468ade861e8f",
         "present": true
       },
       {
         "file": "routes/connectorProxyRoutes.js",
-        "sha256": "10dfe0966ed696dba7071dd736ffe791e302885688a91552032aa85f71796f0c",
+        "sha256": "33de5817c68a97f1ac02099b954a6b35180a6e43f4e2ec01976cd6bff3d53a74",
         "present": true
       },
       {
@@ -4886,7 +4886,7 @@
       "family_key": "connector-agent.developer",
       "label": "connector agent (developer)",
       "source_file": "routes/connectorAgentRoutes.js",
-      "source_digest": "463d9f6a1a8be0a5a867dc4770ccc977f3f2583439fbd9fdfed2090f4d42b3fd",
+      "source_digest": "067e04131969cd5969b13e2a68dbd1403a8b49a4c1bdfc04657f468ade861e8f",
       "mount_prefix": "/",
       "mount_order": 13563,
       "split_from_mixed_scope_file": true,
@@ -5018,7 +5018,7 @@
       "family_key": "connector-agent.local_device",
       "label": "connector agent (local_device)",
       "source_file": "routes/connectorAgentRoutes.js",
-      "source_digest": "463d9f6a1a8be0a5a867dc4770ccc977f3f2583439fbd9fdfed2090f4d42b3fd",
+      "source_digest": "067e04131969cd5969b13e2a68dbd1403a8b49a4c1bdfc04657f468ade861e8f",
       "mount_prefix": "/",
       "mount_order": 13563,
       "split_from_mixed_scope_file": true,
@@ -5204,7 +5204,7 @@
       "family_key": "connector-agent.public",
       "label": "connector agent (public)",
       "source_file": "routes/connectorAgentRoutes.js",
-      "source_digest": "463d9f6a1a8be0a5a867dc4770ccc977f3f2583439fbd9fdfed2090f4d42b3fd",
+      "source_digest": "067e04131969cd5969b13e2a68dbd1403a8b49a4c1bdfc04657f468ade861e8f",
       "mount_prefix": "/",
       "mount_order": 13563,
       "split_from_mixed_scope_file": true,
@@ -88409,7 +88409,7 @@
       "family_key": "connector-proxy.developer",
       "label": "connector proxy (developer)",
       "source_file": "routes/connectorProxyRoutes.js",
-      "source_digest": "10dfe0966ed696dba7071dd736ffe791e302885688a91552032aa85f71796f0c",
+      "source_digest": "33de5817c68a97f1ac02099b954a6b35180a6e43f4e2ec01976cd6bff3d53a74",
       "mount_prefix": "/",
       "mount_order": 22894,
       "split_from_mixed_scope_file": true,
@@ -89938,7 +89938,7 @@
       "family_key": "connector-proxy.local_device",
       "label": "connector proxy (local_device)",
       "source_file": "routes/connectorProxyRoutes.js",
-      "source_digest": "10dfe0966ed696dba7071dd736ffe791e302885688a91552032aa85f71796f0c",
+      "source_digest": "33de5817c68a97f1ac02099b954a6b35180a6e43f4e2ec01976cd6bff3d53a74",
       "mount_prefix": "/",
       "mount_order": 22894,
       "split_from_mixed_scope_file": true,
