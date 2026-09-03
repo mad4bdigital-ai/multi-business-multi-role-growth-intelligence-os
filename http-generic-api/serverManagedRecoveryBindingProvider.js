@@ -5,7 +5,7 @@ import {
   SERVER_MANAGED_RECOVERY_COMPOSITION_CONTRACT,
   validateRecoveryCompositionAdapters,
 } from "./recoveryComposition.js";
-import { resolveRuntimeEnvironment } from "./runtimeEnvironmentResolver.js";
+import { resolveRuntimeEnvironment, resolveRuntimeEnvironmentStrict } from "./runtimeEnvironmentResolver.js";
 import { recoveryReadinessRouteDependencies } from "./recoveryReadinessEvidence.js";
 
 export const SERVER_MANAGED_BINDING_PROVIDER_CONTRACT = "mad4b.recovery-server-managed-binding-provider.v1";
@@ -15,6 +15,11 @@ export const SERVER_MANAGED_BINDING_MODE_ENV = "RECOVERY_SERVER_MANAGED_BINDING_
 const require = createRequire(import.meta.url);
 const SECRET_FIELD_PATTERN = /(pass(word)?|token|secret|credential|private[_-]?key|api[_-]?key)/iu;
 const FORBIDDEN_INPUT_PATTERN = /(caller|gpt|local[_-]?connector|raw[_-]?sql)/iu;
+const REQUIRED_ZERO_ACTIVITY_FIELDS = Object.freeze([
+  "provider_accessed",
+  "database_connection_performed",
+  "database_mutation_performed",
+]);
 const MAX_SCAN_DEPTH = 8;
 
 function text(value, max = 512) {
@@ -59,6 +64,18 @@ function forbiddenInputFieldFound(value, pathName = "envelope", depth = 0, seen 
     }
   }
   return null;
+}
+
+function assertZeroActivityEnvelope(envelope) {
+  for (const field of REQUIRED_ZERO_ACTIVITY_FIELDS) {
+    if (envelope?.[field] !== false) {
+      throw providerError(
+        "RECOVERY_SERVER_MANAGED_BINDING_ACTIVITY_FORBIDDEN",
+        "A non-live or Production-candidate Recovery binding must explicitly attest zero provider/database activity.",
+        { field, observed: envelope?.[field] ?? null },
+      );
+    }
+  }
 }
 
 function resolveModulePath(modulePath, env = process.env) {
@@ -136,6 +153,7 @@ function normalizeEnvelope(envelope, moduleIdHash) {
       "Recovery binding envelopes must explicitly declare secrets_included=false.",
     );
   }
+  assertZeroActivityEnvelope(envelope);
   if (!envelope.adapters || typeof envelope.adapters !== "object" || Array.isArray(envelope.adapters)) {
     throw providerError(
       "RECOVERY_SERVER_MANAGED_BINDING_ADAPTERS_MISSING",
@@ -160,18 +178,36 @@ function normalizeEnvelope(envelope, moduleIdHash) {
     recovery_composition_contract: SERVER_MANAGED_RECOVERY_COMPOSITION_CONTRACT,
     module_id_hash: moduleIdHash,
     binding_source: "server_managed",
+    provider_accessed: false,
+    database_connection_performed: false,
+    database_mutation_performed: false,
     secrets_included: false,
   });
 }
 
-export function getServerManagedRecoveryBindingMode(env = process.env) {
+export function getServerManagedRecoveryBindingIntent(env = process.env) {
   const runtime = resolveRuntimeEnvironment(env);
   const requested = text(env[SERVER_MANAGED_BINDING_MODE_ENV], 64).toLowerCase();
-  // This repository-only wiring must never enable a Recovery binding in Production or
-  // an unknown/conflicting environment. A later operational release must change this
-  // gate explicitly and independently.
-  if (!runtime.ok || !["staging", "test", "ci"].includes(runtime.environment_key)) return "disabled";
+  if (!runtime.ok) return "disabled";
+
+  if (runtime.environment_key === "production") {
+    const strictRuntime = resolveRuntimeEnvironmentStrict(env);
+    if (!strictRuntime.ok
+      || strictRuntime.runtime_class !== "hostinger_autodeploy"
+      || strictRuntime.runtime_class_explicit !== true) return "disabled";
+    return requested === "production_live" ? "production_live" : "disabled";
+  }
+
+  if (!["staging", "test", "ci"].includes(runtime.environment_key)) return "disabled";
   return requested === "injected_non_live" ? "injected_non_live" : "disabled";
+}
+
+export function getServerManagedRecoveryBindingMode(env = process.env) {
+  const intent = getServerManagedRecoveryBindingIntent(env);
+  // The server root currently constructs the provider only for injected_non_live.
+  // A Production live request therefore enters as a non-live candidate graph. The
+  // factory validates that graph but keeps route mutation authority fail-closed.
+  return intent === "production_live" ? "injected_non_live" : intent;
 }
 
 // Separate read-only export: resolving evidence must not instantiate a mutation
@@ -203,12 +239,16 @@ export function createServerManagedRecoveryBindingProvider({ env = process.env, 
       "The server-managed Recovery binding resolver must be a function.",
     );
   }
+  const bindingIntent = getServerManagedRecoveryBindingIntent(env);
   return Object.freeze((context = {}) => {
+    const resolverBindingIntent = bindingIntent === "production_live"
+      ? "production_live"
+      : "injected_non_live";
     const requestContext = Object.freeze({
       ...context,
       contract: SERVER_MANAGED_BINDING_PROVIDER_CONTRACT,
       binding_source: "server_managed",
-      requested_mode: "injected_non_live",
+      requested_mode: resolverBindingIntent,
       caller_credentials_accepted: false,
       gpt_credentials_accepted: false,
       local_connector_accepted: false,
@@ -226,7 +266,11 @@ export function createServerManagedRecoveryBindingProvider({ env = process.env, 
         { cause_code: error?.code || "binding_resolution_failed", module_id_hash: moduleIdHash },
       );
     }
-    return normalizeEnvelope(envelope, moduleIdHash);
+    const normalized = normalizeEnvelope(envelope, moduleIdHash);
+    return Object.freeze({
+      ...normalized,
+      requested_mode: resolverBindingIntent,
+    });
   });
 }
 
@@ -235,6 +279,7 @@ export function getServerManagedRecoveryBindingStatus({ env = process.env, modul
   return {
     contract: SERVER_MANAGED_BINDING_PROVIDER_CONTRACT,
     mode: getServerManagedRecoveryBindingMode(env),
+    requested_mode: getServerManagedRecoveryBindingIntent(env),
     module_configured: Boolean(resolver || resolvedModulePath),
     module_id_hash: resolvedModulePath ? hash(resolvedModulePath) : null,
     binding_source: "server_managed",
@@ -250,9 +295,11 @@ export function getServerManagedRecoveryBindingStatus({ env = process.env, modul
 export const _testingServerManagedRecoveryBindingProvider = Object.freeze({
   SECRET_FIELD_PATTERN,
   FORBIDDEN_INPUT_PATTERN,
+  REQUIRED_ZERO_ACTIVITY_FIELDS,
   normalizeEnvelope,
   resolveExport,
   resolveModulePath,
   secretFieldFound,
+  assertZeroActivityEnvelope,
   hash,
 });
