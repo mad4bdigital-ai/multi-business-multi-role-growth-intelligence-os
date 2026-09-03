@@ -257,7 +257,7 @@ jobs:
             and .strip_caller_headers == true
             and .replay_store_scope == "single_filesystem"
             and .secrets_included == false
-            and ([keys[] | select(test("private|secret"; "i"))] | length == 0)
+            and ([keys[] | select(. != "secrets_included" and test("private|secret|credential|token"; "i"))] | length == 0)
           ' "$ARTIFACT_DIR/origin-trust.json" >/dev/null
 
       - name: Verify pinned Wrangler deployment capability
