@@ -42,4 +42,10 @@ LABEL org.mad4b.staging.provenance.contract="mad4b.staging-build-provenance.v1" 
 
 ENV NODE_ENV=staging
 ENV PORT=8080
+# Deployment-owned Staging Recovery authority. The same module exports read-only
+# readiness authority; Production/unknown runtimes are rejected inside the module.
+ENV RECOVERY_SERVER_MANAGED_BINDING_MODE=injected_non_live
+ENV RECOVERY_SERVER_MANAGED_BINDING_MODULE=./stagingRecoveryAuthorityBinding.js
+ENV RECOVERY_STAGING_READINESS_DIRECTORY=/app/data/recovery-readiness
+ENV RECOVERY_STAGING_INGRESS_REPLAY_DIRECTORY=/app/data/recovery-ingress
 CMD ["npm", "start"]
