@@ -12,6 +12,10 @@ const workflow = fs.readFileSync(path.join(root, ".github/workflows/staging-main
 const liveCertification = fs.readFileSync(path.join(root, "http-generic-api/scripts/staging-live-certification.mjs"), "utf8");
 const manifestGenerator = fs.readFileSync(path.join(root, "http-generic-api/scripts/generate-portable-staging-manifest.mjs"), "utf8");
 const portableManifest = JSON.parse(fs.readFileSync(path.join(portable, "manifest.json"), "utf8"));
+const workerBuilder = fs.readFileSync(path.join(root, "http-generic-api/scripts/build-staging-worker.mjs"), "utf8");
+const trustedIngress = fs.readFileSync(path.join(root, "http-generic-api/trustedIngressContract.js"), "utf8");
+const activationGatewayRoutes = fs.readFileSync(path.join(root, "http-generic-api/routes/activationHostGatewayRoutes.js"), "utf8");
+const stagingEnvExample = fs.readFileSync(path.join(root, "http-generic-api/.env.staging.example"), "utf8");
 
 const protectedPortablePaths = [
   "autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1",
@@ -33,6 +37,7 @@ assert.deepEqual(policy.typed_recovery.allowed_gateway_drift_keys, [
   "gateway_policy_not_stale",
   "gateway_policy_hash_current",
   "gateway_policy_key_current",
+  "gateway_recovery_trusted_ingress",
 ]);
 assert.equal(policy.typed_recovery.gateway_health_unreachable_auto_mutation, false);
 assert.equal(policy.typed_recovery.non_gateway_blocker_auto_mutation, false);
@@ -46,12 +51,17 @@ assert.equal(policy.deployment_authority.worker, "mad4b-activation-gateway-stagi
 assert.equal(policy.deployment_authority.direct_cloudflare_api_from_launcher, false);
 assert.equal(policy.deployment_authority.local_cloudflare_api_token_read, false);
 assert.equal(policy.deployment_authority.reuse_existing_exact_sha_dispatch, true);
+assert.equal(policy.postconditions.recovery_origin_trust_exact_required, true);
+assert.equal(policy.postconditions.recovery_ingress_replay_scope, "single_filesystem");
+assert.equal(policy.postconditions.origin_trust_artifact, "staging-activation-origin-trust-{{source_sha}}");
 assert.equal(policy.mutation_scope.provider_mutation_scope, "staging_activation_worker_exact_sha_only");
+assert.equal(policy.mutation_scope.local_origin_trust_config_mutation, "conditional_non_secret");
 assert.equal(policy.mutation_scope.cloudflare_dns_mutation, false);
 assert.equal(policy.mutation_scope.database_mutation, false);
 assert.equal(policy.mutation_scope.production_deploy, false);
 assert.equal(policy.mutation_scope.production_mutation, false);
 assert.equal(policy.evidence.provider_mutation_must_be_reported_truthfully, true);
+assert.equal(policy.evidence.origin_trust_mutation_must_be_reported_truthfully, true);
 assert.equal(policy.evidence.secrets_included, false);
 
 assert.match(wrapper, /Invoke-Staging-One-Click-Core\.ps1/);
@@ -63,6 +73,12 @@ assert.match(wrapper, /gateway_exact_commit/);
 assert.match(wrapper, /gateway_policy_not_stale/);
 assert.match(wrapper, /gateway_policy_hash_current/);
 assert.match(wrapper, /gateway_policy_key_current/);
+assert.match(wrapper, /gateway_recovery_trusted_ingress/);
+assert.match(wrapper, /Test-LocalRecoveryTrustExact/);
+assert.match(wrapper, /REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY/);
+assert.match(wrapper, /REMOTE_MCP_EXPECTED_DEPLOYMENT_SHA/);
+assert.match(wrapper, /RECOVERY_STAGING_INGRESS_REPLAY_DIRECTORY/);
+assert.match(wrapper, /activation_recovery_trusted_ingress_ready/);
 assert.doesNotMatch(wrapper, /gateway_health_reachable['"]/);
 assert.match(wrapper, /if \(\$RequireSchemaBundle -or \$ApplySchemaBundle\) \{ return \$null \}/);
 assert.match(wrapper, /preflight\.status -ne 'passed'/);
@@ -71,6 +87,7 @@ assert.match(wrapper, /preflight\.safety\.provider_access -ne \$false/);
 assert.match(wrapper, /preflight\.safety\.database_mutation -ne \$false/);
 assert.match(wrapper, /preflight\.safety\.migration_apply -ne \$false/);
 assert.match(wrapper, /\$first = Invoke-Core/);
+assert.match(wrapper, /\$recovery = Get-GatewayDriftRecovery \$first\.exit_code/);
 assert.match(wrapper, /\$convergence = Invoke-GatewayConvergence \$recovery/);
 assert.match(wrapper, /\$second = Invoke-Core/);
 assert.equal((wrapper.match(/\$second = Invoke-Core/g) || []).length, 1);
@@ -103,6 +120,15 @@ assert.match(converger, /policyHash/);
 assert.match(converger, /policyKey/);
 assert.match(converger, /secretsIncluded/);
 assert.match(converger, /stale -eq \$false/);
+assert.match(converger, /staging-activation-origin-trust-\$ExpectedCommit/);
+assert.match(converger, /gh run download/);
+assert.match(converger, /origin-trust\.json/);
+assert.match(converger, /REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY/);
+assert.match(converger, /REMOTE_MCP_TRUSTED_INGRESS_KEY_ID/);
+assert.match(converger, /REMOTE_MCP_EXPECTED_DEPLOYMENT_SHA/);
+assert.match(converger, /\/app\/data\/recovery-ingress/);
+assert.match(converger, /final_origin_trust/);
+assert.match(converger, /recovery_ingress_replay_scope/);
 assert.match(converger, /ls-remote.*refs\/heads\/main/s);
 assert.match(converger, /--event workflow_dispatch/);
 assert.match(converger, /\$parsedRuns = \(\$raw \| Out-String\) \| ConvertFrom-Json -ErrorAction Stop/);
@@ -133,6 +159,30 @@ assert.match(workflow, /\.sourceCommit == \$sha/);
 assert.match(workflow, /\.workerBuildSha == \$sha/);
 assert.match(workflow, /\.stale == false/);
 assert.match(workflow, /\.secretsIncluded == false/);
+assert.match(workflow, /staging-activation-origin-trust-\$\{\{ inputs\.source_sha \}\}/);
+assert.match(workflow, /origin-trust\.json/);
+assert.ok(
+  workflow.indexOf("Verify public exact-SHA health readback") < workflow.indexOf("Upload deployed Recovery origin trust"),
+  "Origin trust must only be published after exact public Worker readback",
+);
+
+assert.match(workerBuilder, /ACTIVATION_GATEWAY_INGRESS_PRIVATE_KEY_JWK/);
+assert.match(workerBuilder, /ACTIVATION_GATEWAY_INGRESS_KEY_ID/);
+assert.match(workerBuilder, /mad4b\.staging\.activation-recovery-origin-trust\.v1/);
+assert.match(workerBuilder, /origin-trust\.json/);
+assert.match(workerBuilder, /public_key_pem_escaped/);
+assert.match(workerBuilder, /secrets_included: false/);
+assert.match(trustedIngress, /trustedIngressPublicKey/);
+assert.match(trustedIngress, /replaceAll\("\\\\n", "\\n"\)/);
+assert.match(activationGatewayRoutes, /createFileRecoveryEvidenceStore/);
+assert.match(activationGatewayRoutes, /RECOVERY_STAGING_INGRESS_REPLAY_DIRECTORY/);
+assert.match(activationGatewayRoutes, /runtime_class !== "local_windows_docker"/);
+assert.match(activationGatewayRoutes, /effectiveIngressReplayStore/);
+assert.match(stagingEnvExample, /^REMOTE_MCP_TRUSTED_INGRESS_MODE=signature$/m);
+assert.match(stagingEnvExample, /^REMOTE_MCP_TRUSTED_INGRESS_KEY_ID=$/m);
+assert.match(stagingEnvExample, /^REMOTE_MCP_EXPECTED_DEPLOYMENT_SHA=$/m);
+assert.match(stagingEnvExample, /^RECOVERY_STAGING_INGRESS_REPLAY_DIRECTORY=\/app\/data\/recovery-ingress$/m);
+assert.doesNotMatch(stagingEnvExample, /^ACTIVATION_GATEWAY_INGRESS_PRIVATE_KEY_JWK=/m);
 
 assert.match(liveCertification, /gateway_health_reachable/);
 assert.match(liveCertification, /gateway_exact_commit/);
@@ -156,6 +206,8 @@ console.log(JSON.stringify({
   ok: true,
   contract: policy.contract,
   typed_gateway_only_recovery: true,
+  recovery_trusted_ingress_convergence: true,
+  recovery_ingress_replay_scope: policy.postconditions.recovery_ingress_replay_scope,
   exact_main_dispatch: true,
   existing_dispatch_reuse: true,
   exact_public_readback: true,
