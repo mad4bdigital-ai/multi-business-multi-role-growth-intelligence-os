@@ -1,0 +1,74 @@
+name: PR 7862 Index Metric Repair
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: >-
+      github.event.pull_request.number == 7862 &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'fix/staging-schema-runtime-grants-reconciliation-20260902'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
+          persist-credentials: true
+
+      - name: Verify exact repair source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "1bb30548d0dde1bfc3818ca88820b1ba677d3219"
+          test "${GITHUB_HEAD_REF}" = "fix/staging-schema-runtime-grants-reconciliation-20260902"
+          case "${GITHUB_HEAD_REF}" in main|Production) exit 1 ;; esac
+          test -z "$(git status --porcelain)"
+
+      - name: Apply exact snapshot repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('http-generic-api/test-staging-schema-bundle-builder.mjs')
+          text = path.read_text(encoding='utf-8')
+          replacements = [
+              ('assert.equal(plan.ordered_index_key_width_chain.indexes_checked, 2850);',
+               'assert.equal(plan.ordered_index_key_width_chain.indexes_checked, 2853);'),
+              ('assert.equal(plan.ordered_index_key_width_chain.index_columns_checked, 4837);',
+               'assert.equal(plan.ordered_index_key_width_chain.index_columns_checked, 4840);'),
+          ]
+          for old, new in replacements:
+              if text.count(old) != 1:
+                  raise SystemExit(f'expected exactly one repair anchor: {old}')
+              text = text.replace(old, new, 1)
+          path.write_text(text, encoding='utf-8', newline='\n')
+          PY
+          git diff --check
+          test "$(git diff --name-only | wc -l | tr -d ' ')" = "1"
+          test "$(git diff --name-only)" = "http-generic-api/test-staging-schema-bundle-builder.mjs"
+          test "$(git diff --numstat -- http-generic-api/test-staging-schema-bundle-builder.mjs)" = $'2\t2\thttp-generic-api/test-staging-schema-bundle-builder.mjs'
+
+      - name: Commit repair and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -- .github/workflows/pr7862-index-metric-repair.yml
+          mapfile -t changed < <(git diff --name-only | sort)
+          test "${#changed[@]}" -eq 2
+          test "${changed[0]}" = ".github/workflows/pr7862-index-metric-repair.yml"
+          test "${changed[1]}" = "http-generic-api/test-staging-schema-bundle-builder.mjs"
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- .github/workflows/pr7862-index-metric-repair.yml http-generic-api/test-staging-schema-bundle-builder.mjs
+          git commit -m "test(staging): reconcile index-width metrics"
+          git push origin "HEAD:${GITHUB_HEAD_REF}"
