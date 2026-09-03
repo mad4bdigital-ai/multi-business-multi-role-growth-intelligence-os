@@ -138,6 +138,7 @@
       {
         "id": "shared_runtime",
         "patterns": [
+          "local-connector/**",
           "http-generic-api/routes/**",
           "http-generic-api/schema.sql",
           "http-generic-api/migrations/**",
@@ -280,13 +281,47 @@
         "id": "shared-runtime-requires-staging-certification",
         "effect": "require",
         "when": "shared_runtime_or_staging_only_changes_are_present"
+      },
+      {
+        "id": "connector-runtime-requires-cross-environment-certification",
+        "effect": "require",
+        "when": "local_connector_shared_runtime_changes_are_present"
       }
     ]
   },
+  "connector_runtime": {
+    "environment_authority": "receiving_control_plane_runtime_and_its_database",
+    "tenant_routing_barrier": "tenant_id+user_id+canonical_device_id+config_id",
+    "device_runtime_hostname_role": "stable_device_identity",
+    "admin_recovery_hostname_role": "environment_scoped_role_alias",
+    "cross_environment_credential_reuse_allowed": false,
+    "cross_environment_callback_allowed": false,
+    "unknown_transport_ownership_action": "fail_closed"
+  },
   "connector_recovery": {
     "hostname": "connector.mad4b.com",
+    "role": "production_admin_breakglass",
+    "authority_environment": "production",
+    "control_plane_base_url": "https://auth.mad4b.com",
     "excluded_from_hostname_families": true,
     "deployment_provider": "cloudflare_tunnel_local_windows_service",
+    "requires_dedicated_runtime": true,
+    "requires_dedicated_tunnel": true,
+    "cross_environment_origin_sharing_allowed": false,
+    "hostinger_auto_deploy": false
+  },
+  "staging_connector_recovery": {
+    "hostname": "connector-dev.mad4b.com",
+    "role": "staging_admin_breakglass",
+    "authority_environment": "staging",
+    "control_plane_base_url": "https://dev.mad4b.com",
+    "excluded_from_hostname_families": true,
+    "deployment_provider": "cloudflare_tunnel_local_windows_service",
+    "lifecycle_status": "planned_not_provisioned",
+    "requires_dedicated_runtime": true,
+    "requires_dedicated_tunnel": true,
+    "cross_environment_origin_sharing_allowed": false,
+    "production_traffic_allowed": false,
     "hostinger_auto_deploy": false
   }
 }

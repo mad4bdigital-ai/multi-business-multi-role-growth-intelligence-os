@@ -1,0 +1,126 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "connector-environment-isolation-20260903",
+  "title": "Environment-bound Local Connector routing and recovery isolation",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/connector-environment-isolation-20260903.json",
+      "http-generic-api/config/deployment-branch-policy.json",
+      "http-generic-api/config/domain-family-policy.json",
+      "http-generic-api/routes/connectorAgentRoutes.js",
+      "http-generic-api/routes/connectorProxyRoutes.js",
+      "http-generic-api/test-domain-family-policy.mjs",
+      "http-generic-api/test-environment-impact-closure.mjs",
+      "http-generic-api/test-local-manager-tool-release-owner.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make Local Connector routing environment-bound and fail closed so tenant/device traffic cannot silently escalate to admin recovery and connector callbacks cannot return to the wrong environment control plane.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-device-route-never-escalates-to-admin-recovery",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Tenant or API-credential caller through the environment control plane",
+          "entrypoint": "A /connector/:device_id proxy request resolved against the receiving environment database",
+          "terminal_outcome": "Candidate routes remain tenant/device routes only; admin_recovery is excluded unless an admin principal supplies an explicit recovery intent.",
+          "steps": [
+            "Resolve tenant, user, canonical device, and config from the receiving runtime database.",
+            "Load enabled route candidates for the resolved config.",
+            "Exclude admin_recovery routes for non-admin callers and for admin callers without explicit recovery intent.",
+            "Forward only the selected device route and strip the control-plane recovery selector from the device request."
+          ],
+          "assertions": [
+            "tenant and API-credential callers cannot receive admin_recovery as a fallback candidate",
+            "admin authority alone does not enable recovery fallback without explicit recovery intent",
+            "recovery_intent is not forwarded to the local device",
+            "connector.mad4b.com remains an admin recovery role rather than a tenant runtime route"
+          ],
+          "tests": [
+            {
+              "id": "local-manager-release-owner-routing-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-local-manager-tool-release-owner.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/routes/connectorProxyRoutes.js",
+            "http-generic-api/test-local-manager-tool-release-owner.mjs",
+            ".changes/e2e/connector-environment-isolation-20260903.json"
+          ]
+        },
+        {
+          "id": "connector-callbacks-return-to-originating-environment",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Connector installer emitted by Production or Staging control plane",
+          "entrypoint": "GET /connector-agent/installer.ps1 on the originating runtime",
+          "terminal_outcome": "The generated connector environment binds policy and heartbeat callbacks to the same environment control plane and fails closed on a cross-environment override.",
+          "steps": [
+            "Resolve environment from DEPLOYMENT_ENVIRONMENT/NODE_ENV.",
+            "Select only auth.mad4b.com for Production or dev.mad4b.com for Staging.",
+            "Persist CONNECTOR_ENVIRONMENT and CONNECTOR_CONTROL_PLANE_BASE_URL into the connector environment.",
+            "Derive policy and heartbeat URLs from that validated base URL.",
+            "Reject a configured control-plane URL whose hostname does not match the resolved environment."
+          ],
+          "assertions": [
+            "Staging connector callbacks cannot default to auth.mad4b.com",
+            "Production connector callbacks cannot target dev.mad4b.com",
+            "connector-dev.mad4b.com is declared planned and excluded from both application hostname families",
+            "no provider, DNS, live database, or Production deployment mutation is performed by this change"
+          ],
+          "tests": [
+            {
+              "id": "domain-family-connector-isolation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-domain-family-policy.mjs",
+              "args": []
+            },
+            {
+              "id": "environment-impact-connector-classification",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-environment-impact-closure.mjs",
+              "args": []
+            },
+            {
+              "id": "connector-agent-callback-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-local-manager-tool-release-owner.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/config/domain-family-policy.json",
+            "http-generic-api/routes/connectorAgentRoutes.js",
+            "http-generic-api/test-domain-family-policy.mjs",
+            "http-generic-api/test-environment-impact-closure.mjs",
+            "http-generic-api/test-local-manager-tool-release-owner.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
