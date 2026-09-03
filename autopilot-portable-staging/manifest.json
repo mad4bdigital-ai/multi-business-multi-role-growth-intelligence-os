@@ -106,7 +106,7 @@
     },
     {
       "path": "http-generic-api/Dockerfile.staging",
-      "sha256": "ceec5eb63667d0f862c73090ead2b9b6dd491e6be82d9cabe33388b65d854106"
+      "sha256": "763e2fbed99d2d2e6e452ec10ce3ecdc618dcee536269beab1625892abaa5c8b"
     },
     {
       "path": "http-generic-api/canonical-business-operation-parity.generated.json",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "9fa4eab0d501ba9447d619774bebeb0c8ecb4c1167b3a611bf319dedbd310ab8"
+      "sha256": "71cac8688a8e61390ff2e7fdd401b441042a33e39b6cb99f7d53260c16898b36"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
