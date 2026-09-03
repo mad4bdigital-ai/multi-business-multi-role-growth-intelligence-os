@@ -105,25 +105,15 @@
     }
   },
   "external_surfaces": {
-    "production_admin_breakglass": {
+    "shared_admin_recovery": {
       "hostname": "connector.mad4b.com",
       "hostname_family_membership": "excluded",
-      "authority_environment": "production",
-      "role": "admin_breakglass_alias",
-      "control_plane_base_url": "https://auth.mad4b.com",
-      "requires_dedicated_runtime": true,
-      "requires_dedicated_tunnel": true
-    },
-    "staging_admin_breakglass": {
-      "hostname": "connector-dev.mad4b.com",
-      "hostname_family_membership": "excluded",
-      "authority_environment": "staging",
-      "role": "admin_breakglass_alias",
-      "control_plane_base_url": "https://dev.mad4b.com",
-      "exposure_status": "planned_not_provisioned",
-      "requires_dedicated_runtime": true,
-      "requires_dedicated_tunnel": true,
-      "production_traffic_allowed": false
+      "authority_resolution": "receiving_control_plane_runtime_and_database",
+      "role": "shared_admin_recovery_transport",
+      "credential_scope": "environment_and_config_bound",
+      "callbacks_must_return_to_originating_environment": true,
+      "tenant_runtime_fallback_allowed": false,
+      "requires_dedicated_transport_from_application_tunnels": true
     }
   },
   "isolation_rules": [
@@ -136,9 +126,10 @@
     "cloudflare_ingress_must_match_policy_before_exposure",
     "auto_pilot_must_not_create_or_modify_dns_records",
     "connector_device_hostnames_must_not_be_staging_application_tunnel_ingress",
-    "breakglass_hostnames_must_not_share_runtime_or_tunnel_across_environments",
+    "admin_recovery_transport_must_not_be_staging_application_tunnel_ingress",
     "connector_callbacks_must_return_to_the_originating_environment_control_plane",
     "admin_recovery_routes_must_not_be_tenant_runtime_fallbacks",
+    "cross_environment_connector_credentials_must_not_be_reused",
     "unmatched_hostnames_must_fail_closed"
   ]
 }
