@@ -1,0 +1,112 @@
+name: PR 7862 Baseline Checksum Reconcile
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    if: >-
+      github.event.pull_request.number == 7862 &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'fix/staging-schema-runtime-grants-reconciliation-20260902'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
+          persist-credentials: true
+
+      - name: Verify exact reconciliation source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "22d0f9977992b4aebd82b267a0f92bf3f125023b"
+          test "${GITHUB_HEAD_REF}" = "fix/staging-schema-runtime-grants-reconciliation-20260902"
+          case "${GITHUB_HEAD_REF}" in main|Production) exit 1 ;; esac
+          test -z "$(git status --porcelain)"
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+
+      - name: Validate baseline and reconcile reviewed checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import crypto from 'node:crypto';
+          import fs from 'node:fs';
+          import { execFileSync } from 'node:child_process';
+          import { splitStatements } from './http-generic-api/scripts/staging-sql-parser.mjs';
+
+          const baseSha = 'e42b5cafe67acfd276d62e473e40069d60edab17';
+          const oldSha256 = 'ccec29be9d88e8c8eb9355169467270d03a72b8887d48a510634cfe797fd5169';
+          const schemaPath = 'http-generic-api/schema.sql';
+          const contractPath = '.github/ops/production-runtime-recovery-routes.json';
+          const sql = fs.readFileSync(schemaPath, 'utf8');
+          const statements = splitStatements(sql);
+          const sha256 = crypto.createHash('sha256').update(sql).digest('hex');
+
+          assert.equal(statements.length, 27, 'canonical baseline statement count changed');
+          const forbidden = [
+            /^\s*(?:GRANT|REVOKE|CREATE\s+USER|ALTER\s+USER|DROP\s+DATABASE|CREATE\s+DATABASE|INSERT|UPDATE|DELETE|LOAD\s+DATA)\b/imu,
+            /^\s*SELECT[\s\S]*\bINTO\s+(?:OUTFILE|DUMPFILE)\b/imu,
+          ];
+          assert.equal(forbidden.some((pattern) => pattern.test(statements.join('\n'))), false, 'canonical baseline gained forbidden authority/data SQL');
+
+          const diff = execFileSync('git', ['diff', '--unified=0', baseSha, '--', schemaPath], { encoding: 'utf8' });
+          const changed = diff.split(/\r?\n/).filter((line) =>
+            (line.startsWith('+') || line.startsWith('-')) && !line.startsWith('+++') && !line.startsWith('---')
+          ).sort();
+          const expected = [
+            '+  `allowed_actor_roles`         TEXT,',
+            '+  `allowed_governance_levels`   TEXT,',
+            '+  `oauth_last_validated_at`     DATETIME,',
+            '+  `oauth_secret_storage_type`   VARCHAR(100),',
+            '+  `engine_association_status`             VARCHAR(100),',
+            '-  `engine_association_status`            VARCHAR(100),',
+          ].sort();
+          assert.deepEqual(changed, expected, 'schema.sql changed outside the reviewed four-column reconciliation plus cosmetic spacing');
+
+          const contractText = fs.readFileSync(contractPath, 'utf8');
+          const contract = JSON.parse(contractText);
+          const spec = contract.fallback_migration_policy?.baseline_bootstrap_migrations?.find((entry) => entry.file === schemaPath);
+          assert.ok(spec, 'canonical schema baseline policy entry missing');
+          assert.equal(spec.sha256, oldSha256, 'reviewed baseline checksum changed before bounded reconciliation');
+          assert.equal(spec.statement_count, 27, 'reviewed baseline statement count changed');
+          assert.equal(spec.data_statements_allowed, false, 'baseline data-statement policy changed');
+          assert.notEqual(sha256, oldSha256, 'schema checksum unexpectedly unchanged');
+          assert.equal((contractText.match(new RegExp(oldSha256, 'g')) || []).length, 1, 'old baseline checksum must appear exactly once');
+
+          const updated = contractText.replace(oldSha256, sha256);
+          fs.writeFileSync(contractPath, updated, 'utf8');
+          console.log(`canonical_schema_sha256=${sha256}`);
+          console.log(`canonical_schema_statement_count=${statements.length}`);
+          NODE
+          git diff --check
+          test "$(git diff --numstat -- .github/ops/production-runtime-recovery-routes.json)" = $'1\t1\t.github/ops/production-runtime-recovery-routes.json'
+
+      - name: Commit bounded checksum reconciliation and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -- .github/workflows/pr7862-baseline-checksum-reconcile.yml
+          mapfile -t changed < <(git diff --name-only | sort)
+          test "${#changed[@]}" -eq 2
+          test "${changed[0]}" = ".github/ops/production-runtime-recovery-routes.json"
+          test "${changed[1]}" = ".github/workflows/pr7862-baseline-checksum-reconcile.yml"
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- .github/ops/production-runtime-recovery-routes.json .github/workflows/pr7862-baseline-checksum-reconcile.yml
+          git commit -m "fix(recovery): rebind canonical baseline checksum"
+          git push origin "HEAD:${GITHUB_HEAD_REF}"
