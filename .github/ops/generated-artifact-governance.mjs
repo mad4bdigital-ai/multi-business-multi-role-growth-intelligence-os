@@ -168,6 +168,7 @@ export function buildGeneratedArtifactGovernanceReport(registry, sources = {}) {
   if (sources.constitution && sources.deploymentPolicy && sources.automationPolicy) {
     const representative = {
       "docs-agent-impact-notes": "docs/auto-docs-agent/main-0123456789ab.md",
+      "docs-agent-surface-summary": "docs/auto-docs-agent/README.md",
       "repository-maintenance-status": "docs/repo-maintenance-status.md",
       "surface-contract-documents": "docs/surface-contract-governance-dashboard.json",
       "surface-contract-governance-documents": "docs/ai-docs-agent-governance.md",
