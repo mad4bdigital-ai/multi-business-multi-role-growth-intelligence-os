@@ -8,7 +8,7 @@
 param(
   [string]$Root = "C:\mad4b-connector\local-connector",
   [string]$ConnectorService = "local-connector",
-  [string]$CloudflaredService = "Mad4B-LocalConnector-Cloudflared",
+  [string]$CloudflaredService = "cloudflared",
   [int]$Port = 7070,
   [int]$HealthTimeoutSeconds = 8
 )
@@ -225,6 +225,10 @@ function Restore-StableServer {
 
 try {
   if (-not (Test-Path $Root)) { New-Item -ItemType Directory -Path $Root -Force | Out-Null }
+  $configuredCloudflaredService = Get-DotEnvValue "CONNECTOR_CLOUDFLARED_SERVICE"
+  if ($configuredCloudflaredService -and $configuredCloudflaredService -match '^[A-Za-z0-9_.-]{1,128}$') {
+    $CloudflaredService = $configuredCloudflaredService
+  }
   Write-WatchdogLog "watchdog_tick root=$Root port=$Port cloudflared_service=$CloudflaredService"
 
   $cloudflaredReady = Ensure-ServiceRunning $CloudflaredService
