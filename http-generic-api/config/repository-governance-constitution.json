@@ -451,6 +451,7 @@
     ".changes/e2e/pr7859-recovery-breakglass-workflow-contract.json",
     ".changes/e2e/production-recovery-certified-live-authority-20260902.json",
     ".changes/e2e/staging-env-authority-canonicalization-20260902.json",
+    ".changes/e2e/connector-environment-isolation-20260903.json",
     ".changes/e2e/staging-activation-recovery-trusted-ingress-provisioning-20260903.json",
     "http-generic-api/config/repository-governance-constitution.json",
     "http-generic-api/config/deployment-branch-policy.json",
