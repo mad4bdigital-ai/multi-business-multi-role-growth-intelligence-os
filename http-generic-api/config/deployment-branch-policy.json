@@ -252,6 +252,7 @@
           "http-generic-api/docs/remote-mcp-*.md",
           "http-generic-api/.env.example",
           "http-generic-api/package.json",
+          "http-generic-api/package-lock.json",
           "http-generic-api/scripts/manifests/**",
           "http-generic-api/scripts/test-manifest.mjs",
           "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
