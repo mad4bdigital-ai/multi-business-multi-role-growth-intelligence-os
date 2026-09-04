@@ -83,6 +83,7 @@ services:
       - ${STAGING_DATA_ROOT:-./.staging-data}/app:/app/data
     environment:
       NODE_ENV: staging
+      RECOVERY_SERVER_MANAGED_BINDING_MODULE: ./stagingRecoveryAuthorityBindingPhaseB.js
       DEPLOYMENT_EXPECTED_COMMIT_SHA: ${DEPLOYMENT_EXPECTED_COMMIT_SHA:?set DEPLOYMENT_EXPECTED_COMMIT_SHA in .env.staging}
       DEPLOY_COMMIT: ${DEPLOY_COMMIT:?set DEPLOY_COMMIT in .env.staging}
       DEPLOY_BRANCH: ${DEPLOY_BRANCH:-main}
