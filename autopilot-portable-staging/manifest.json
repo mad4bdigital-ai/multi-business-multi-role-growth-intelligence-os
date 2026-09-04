@@ -42,7 +42,7 @@
     },
     {
       "path": "autopilot-portable-staging/Show-StagingLogs.ps1",
-      "sha256": "2a5e9f9b0628c783f83b3bee3f2a5f83859435b284e09d8ac94636774e45bdc"
+      "sha256": "2a5e9f9b0628c043220803cc61563c02d896871992d42adec66668b70ebccd4e"
     },
     {
       "path": "autopilot-portable-staging/Staging-Doctor.ps1",
