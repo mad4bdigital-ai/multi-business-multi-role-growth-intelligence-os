@@ -69,7 +69,9 @@ function assertNoSecretShapedFields(value, path = "payload") {
   if (!value || typeof value !== "object") return;
   for (const [key, child] of Object.entries(value)) {
     const normalized = key.toLowerCase();
-    if (normalized !== "secrets_included"
+    const boundedNegativeAttestation = ["caller_credentials_accepted", "local_connector_production_authority"].includes(normalized)
+      && child === false;
+    if (normalized !== "secrets_included" && !boundedNegativeAttestation
       && /(password|secret|credential|authorization|private[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret)/u.test(normalized)) {
       fail("RECOVERY_CERTIFICATION_SECRET_SHAPED_FIELD_FORBIDDEN", `Signing payload contains forbidden secret-shaped field: ${path}.${key}`);
     }
