@@ -215,4 +215,15 @@ export function createRecoveryReadinessAuthorities(context = {}) {
   return createRecoveryReadinessAuthoritiesForEnv(context, process.env);
 }
 
-export const _testingStagingRecoveryAuthorityBinding = Object.freeze({ MODULE_SHA256, roots, runtime, provenance, targetIdentityProvider, adapters, createServerManagedRecoveryBindingForEnv, createRecoveryReadinessAuthoritiesForEnv });
+export const stagingRecoveryAuthorityInternals = Object.freeze({
+  MODULE_SHA256,
+  roots,
+  runtime,
+  provenance,
+  targetIdentityProvider,
+  adapters,
+  createServerManagedRecoveryBindingForEnv,
+  createRecoveryReadinessAuthoritiesForEnv,
+});
+
+export const _testingStagingRecoveryAuthorityBinding = stagingRecoveryAuthorityInternals;

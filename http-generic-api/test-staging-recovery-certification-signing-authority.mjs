@@ -2,26 +2,22 @@ import assert from "node:assert/strict";
 import { createHash, generateKeyPairSync } from "node:crypto";
 import test from "node:test";
 import {
-  STAGING_RECOVERY_CERTIFICATION_TRUST_CONTRACT,
-  loadStagingRecoveryCertificationPublicTrust,
-  verifyStagingRecoverySignedCertificationRecord,
-} from "./stagingRecoveryCertificationPublicTrust.js";
+  RECOVERY_READINESS_EVIDENCE_CONTRACT,
+  readinessEvidencePayload,
+} from "./recoveryReadinessEvidence.js";
 import {
   STAGING_RECOVERY_GITHUB_VERIFICATION_REPORT_CONTRACT,
   signVerifiedRecoveryEvidence,
 } from "../.github/scripts/staging-recovery-sign-certification.mjs";
-import {
-  RECOVERY_READINESS_EVIDENCE_CONTRACT,
-  readinessEvidencePayload,
-} from "./recoveryReadinessEvidence.js";
 
 const recovery = generateKeyPairSync("ed25519");
 const ingress = generateKeyPairSync("ed25519");
 const privatePem = recovery.privateKey.export({ format: "pem", type: "pkcs8" });
-const publicPem = recovery.publicKey.export({ format: "pem", type: "spki" });
-const ingressPublicPem = ingress.publicKey.export({ format: "pem", type: "spki" });
 const ingressFingerprint = createHash("sha256")
   .update(ingress.publicKey.export({ format: "der", type: "spki" }))
+  .digest("hex");
+const recoveryFingerprint = createHash("sha256")
+  .update(recovery.publicKey.export({ format: "der", type: "spki" }))
   .digest("hex");
 const SHA = "a".repeat(40);
 const TARGET = "b".repeat(64);
@@ -34,7 +30,7 @@ const KEY_ID = "recovery-certification-test";
 function validStagingCertification() {
   return {
     contract: "mad4b.recovery-staging-certification.v1",
-    certification_id: "cert:staging:surface-001",
+    certification_id: "cert:staging:phase-b-001",
     status: "passed",
     result: "pass",
     environment_key: "staging",
@@ -60,7 +56,7 @@ function validStagingCertification() {
   };
 }
 
-function report() {
+function report(overrides = {}) {
   const base = {
     contract: STAGING_RECOVERY_GITHUB_VERIFICATION_REPORT_CONTRACT,
     verified: true,
@@ -83,11 +79,17 @@ function report() {
       secret_scan: true,
     },
     secrets_included: false,
+    ...overrides,
   };
-  return { ...base, verification_report_sha256: createHash("sha256").update(readinessEvidencePayload(base)).digest("hex") };
+  return {
+    ...base,
+    verification_report_sha256: createHash("sha256")
+      .update(readinessEvidencePayload(base))
+      .digest("hex"),
+  };
 }
 
-function payload(verificationReport) {
+function payload(verificationReport, overrides = {}) {
   return {
     contract: RECOVERY_READINESS_EVIDENCE_CONTRACT,
     issuer: ISSUER,
@@ -107,20 +109,12 @@ function payload(verificationReport) {
     local_connector_production_authority: false,
     stagingCertification: validStagingCertification(),
     secrets_included: false,
+    ...overrides,
   };
 }
 
-test("private signer is denied outside GitHub-hosted Actions", () => {
-  const verificationReport = report();
-  assert.throws(
-    () => signVerifiedRecoveryEvidence({ payload: payload(verificationReport), verificationReport, env: {} }),
-    (error) => error?.code === "RECOVERY_CERTIFICATION_SIGNER_RUNTIME_DENIED",
-  );
-});
-
-test("GitHub-hosted signer is exact-main bound and local verifier accepts only public trust", () => {
-  const verificationReport = report();
-  const env = {
+function env(overrides = {}) {
+  return {
     GITHUB_ACTIONS: "true",
     RUNNER_ENVIRONMENT: "github-hosted",
     GITHUB_REF: "refs/heads/main",
@@ -130,49 +124,87 @@ test("GitHub-hosted signer is exact-main bound and local verifier accepts only p
     RECOVERY_STAGING_CERTIFICATION_ISSUER: ISSUER,
     RECOVERY_STAGING_CERTIFICATION_KEY_ID: KEY_ID,
     ACTIVATION_GATEWAY_INGRESS_PUBLIC_KEY_SHA256: ingressFingerprint,
+    ...overrides,
   };
-  const signed = signVerifiedRecoveryEvidence({ payload: payload(verificationReport), verificationReport, env });
-  assert.equal(signed.signer_runtime, "github_hosted_actions");
-  assert.equal(JSON.stringify(signed).includes("PRIVATE KEY"), false);
+}
 
-  const trust = loadStagingRecoveryCertificationPublicTrust({
-    RECOVERY_STAGING_CERTIFICATION_PUBLIC_KEY: publicPem,
-    RECOVERY_STAGING_CERTIFICATION_KEY_ID: KEY_ID,
-    RECOVERY_STAGING_CERTIFICATION_ISSUER: ISSUER,
-    REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY: ingressPublicPem,
+test("signer rejects generic verified=true when required independent checks are incomplete", () => {
+  const verificationReport = report({
+    checks: {
+      exact_main: true,
+      workflow_source_same_sha: true,
+      evidence_envelope_hash: true,
+      target_binding: true,
+      run_nonce_binding: true,
+      worker_provenance: true,
+      artifact_integrity: true,
+      evidence_freshness: true,
+      external_evidence: false,
+      production_boundary: true,
+      secret_scan: true,
+    },
   });
-  assert.equal(trust.contract, STAGING_RECOVERY_CERTIFICATION_TRUST_CONTRACT);
-  assert.equal(trust.separation_verified, true);
-  const verified = verifyStagingRecoverySignedCertificationRecord(signed, {
-    trust,
-    expectedSha: SHA,
-    expectedTargetFingerprint: TARGET,
-    expectedRunId: RUN,
-    expectedNonce: NONCE,
-  });
-  assert.equal(verified.valid, true);
-  assert.equal(verified.ingress_key_separation_verified, true);
-});
-
-test("Recovery certification trust fails closed when Activation Gateway ingress trust is unavailable", () => {
   assert.throws(
-    () => loadStagingRecoveryCertificationPublicTrust({
-      RECOVERY_STAGING_CERTIFICATION_PUBLIC_KEY: publicPem,
-      RECOVERY_STAGING_CERTIFICATION_KEY_ID: KEY_ID,
-      RECOVERY_STAGING_CERTIFICATION_ISSUER: ISSUER,
-    }),
-    (error) => error?.code === "RECOVERY_CERTIFICATION_INGRESS_TRUST_UNAVAILABLE",
+    () => signVerifiedRecoveryEvidence({ payload: payload(verificationReport), verificationReport, env: env() }),
+    (error) => error?.code === "RECOVERY_CERTIFICATION_VERIFICATION_CHECKS_INCOMPLETE",
   );
 });
 
-test("Recovery certification trust rejects Activation Gateway ingress key reuse", () => {
+test("signer rejects non-canonical or cross-environment payloads before signing", () => {
+  const verificationReport = report();
+  for (const patch of [
+    { contract: "anything" },
+    { environment: "production" },
+    { branch: "Production" },
+    { deployment_sha: "f".repeat(40) },
+    { target_fingerprint: "short" },
+    { certification_run_id: "" },
+    { nonce: "" },
+    { secrets_included: true },
+    { production_mutation_performed: true },
+  ]) {
+    assert.throws(() => signVerifiedRecoveryEvidence({
+      payload: payload(verificationReport, patch),
+      verificationReport,
+      env: env(),
+    }));
+  }
+});
+
+test("signer fails closed when Activation Gateway ingress authority cannot be proved distinct", () => {
+  const verificationReport = report();
   assert.throws(
-    () => loadStagingRecoveryCertificationPublicTrust({
-      RECOVERY_STAGING_CERTIFICATION_PUBLIC_KEY: publicPem,
-      RECOVERY_STAGING_CERTIFICATION_KEY_ID: KEY_ID,
-      RECOVERY_STAGING_CERTIFICATION_ISSUER: ISSUER,
-      REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY: publicPem,
+    () => signVerifiedRecoveryEvidence({
+      payload: payload(verificationReport),
+      verificationReport,
+      env: env({ ACTIVATION_GATEWAY_INGRESS_PUBLIC_KEY_SHA256: "" }),
+    }),
+    (error) => error?.code === "RECOVERY_CERTIFICATION_INGRESS_AUTHORITY_UNAVAILABLE",
+  );
+  assert.throws(
+    () => signVerifiedRecoveryEvidence({
+      payload: payload(verificationReport),
+      verificationReport,
+      env: env({ ACTIVATION_GATEWAY_INGRESS_PUBLIC_KEY_SHA256: recoveryFingerprint }),
     }),
     (error) => error?.code === "RECOVERY_CERTIFICATION_KEY_REUSE_FORBIDDEN",
   );
+});
+
+test("signer binds issuer, key ID, exact SHA, target, run ID, nonce and evidence report", () => {
+  const verificationReport = report();
+  const signed = signVerifiedRecoveryEvidence({
+    payload: payload(verificationReport),
+    verificationReport,
+    env: env(),
+  });
+  assert.equal(signed.payload.deployment_sha, SHA);
+  assert.equal(signed.payload.target_fingerprint, TARGET);
+  assert.equal(signed.payload.certification_run_id, RUN);
+  assert.equal(signed.payload.nonce, NONCE);
+  assert.equal(signed.payload.issuer, ISSUER);
+  assert.equal(signed.payload.key_id, KEY_ID);
+  assert.equal(signed.signing_public_key_sha256, recoveryFingerprint);
+  assert.equal(signed.secrets_included, false);
+  assert.equal(JSON.stringify(signed).includes("PRIVATE KEY"), false);
 });

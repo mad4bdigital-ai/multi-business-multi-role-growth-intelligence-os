@@ -2,7 +2,7 @@ import path from "node:path";
 import {
   createServerManagedRecoveryBinding as createPhaseABinding,
   createRecoveryReadinessAuthorities as createPhaseAReadinessAuthorities,
-  _testingStagingRecoveryAuthorityBinding as phaseATesting,
+  stagingRecoveryAuthorityInternals as phaseAInternals,
 } from "./stagingRecoveryAuthorityBinding.js";
 import {
   createFileRecoveryEvidenceStore,
@@ -26,7 +26,7 @@ function readinessRoot(env = process.env) {
 }
 
 function assertReadOnlyContext(context = {}) {
-  phaseATesting.runtime(context, process.env, true);
+  phaseAInternals.runtime(context, process.env, true);
   if (context.read_only !== true || context.production_live !== false) {
     throw Object.assign(new Error("Phase B readiness authority remains read-only and Production-disabled."), {
       code: "RECOVERY_PHASE_B_READINESS_CONTEXT_DENIED",
@@ -54,8 +54,8 @@ export function createRecoveryReadinessAuthorities(context = {}) {
   const trust = loadStagingRecoveryCertificationPublicTrust(process.env);
   if (!trust) return createPhaseAReadinessAuthorities(context);
   assertReadOnlyContext(context);
-  const roots = phaseATesting.roots(process.env);
-  const base = phaseATesting.adapters(roots.readiness, process.env);
+  const roots = phaseAInternals.roots(process.env);
+  const base = phaseAInternals.adapters(roots.readiness, process.env);
   const evidenceStore = createFileRecoveryEvidenceStore({
     directory: path.join(roots.readiness, "certification-evidence"),
     replayDirectory: roots.replay,
@@ -68,7 +68,7 @@ export function createRecoveryReadinessAuthorities(context = {}) {
     keyId: trust.keyId,
     issuer: trust.issuer,
     env: process.env,
-    adapterProvenanceReader: async () => phaseATesting.provenance((await base.deployment.readAttestation()).sha),
+    adapterProvenanceReader: async () => phaseAInternals.provenance((await base.deployment.readAttestation()).sha),
   });
 }
 

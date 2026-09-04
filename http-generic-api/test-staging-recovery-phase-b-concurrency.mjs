@@ -1,14 +1,30 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import {
   STAGING_RECOVERY_PHASE_B_CONCURRENCY_CONTRACT,
+  _testingStagingRecoveryPhaseBConcurrency,
   wrapStagingRecoveryAdaptersForPhaseB,
   withStagingRecoverySerialFence,
 } from "./stagingRecoveryPhaseBConcurrency.js";
+
+const {
+  scopePaths,
+  readLeaseState,
+  claimGeneration,
+  retireExpiredGeneration,
+  releaseGeneration,
+} = _testingStagingRecoveryPhaseBConcurrency;
+
+function deferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((res, rej) => { resolve = res; reject = rej; });
+  return { promise, resolve, reject };
+}
 
 function fakeAdapters() {
   const state = {
@@ -109,6 +125,118 @@ test("heartbeat and release cannot resurrect or delete a takeover lease", async 
   }
 });
 
-test("Phase B concurrency contract remains secret-free", () => {
-  assert.equal(STAGING_RECOVERY_PHASE_B_CONCURRENCY_CONTRACT, "mad4b.staging-recovery-phase-b-concurrency.v1");
+test("retire-old-vs-new-owner is generation-safe", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "recovery-phase-b-retire-race-"));
+  try {
+    const paths = scopePaths(root, "generation:retire-race");
+    await mkdir(paths.directory, { recursive: true, mode: 0o700 });
+    const old = await claimGeneration(paths, "generation:retire-race", 1000, {
+      now: Date.now() - 10_000,
+      ownerPid: 999_999_991,
+    });
+    const observedByA = await readLeaseState(paths);
+    assert.equal(observedByA.generation_id, old.generation_id);
+
+    assert.equal(await retireExpiredGeneration(paths, observedByA, { isOwnerAlive: () => false }), true);
+    const successor = await claimGeneration(paths, "generation:retire-race", 60_000);
+    assert.ok(successor);
+
+    assert.equal(await retireExpiredGeneration(paths, observedByA, { isOwnerAlive: () => false }), false);
+    const current = await readLeaseState(paths);
+    assert.equal(current.generation_id, successor.generation_id);
+    assert.equal(current.owner, successor.owner);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("release-old-vs-successor cannot delete the successor generation", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "recovery-phase-b-release-race-"));
+  try {
+    const paths = scopePaths(root, "generation:release-race");
+    await mkdir(paths.directory, { recursive: true, mode: 0o700 });
+    const old = await claimGeneration(paths, "generation:release-race", 1000, {
+      now: Date.now() - 10_000,
+      ownerPid: 999_999_992,
+    });
+    const observed = await readLeaseState(paths);
+    assert.equal(await retireExpiredGeneration(paths, observed, { isOwnerAlive: () => false }), true);
+    const successor = await claimGeneration(paths, "generation:release-race", 60_000);
+
+    assert.equal(await releaseGeneration(paths, old), false);
+    const current = await readLeaseState(paths);
+    assert.equal(current.generation_id, successor.generation_id);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("callback-longer-than-lease remains pinned by heartbeat and live-owner protection", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "recovery-phase-b-long-callback-"));
+  try {
+    const firstEntered = deferred();
+    const releaseFirst = deferred();
+    const secondEntered = deferred();
+    const first = withStagingRecoverySerialFence({ root, scope: "generation:long", leaseMs: 240, waitMs: 2_000 }, async ({ assert_owned }) => {
+      firstEntered.resolve();
+      await releaseFirst.promise;
+      await assert_owned();
+      return "first";
+    });
+    await firstEntered.promise;
+
+    const second = withStagingRecoverySerialFence({ root, scope: "generation:long", leaseMs: 240, waitMs: 2_000 }, async () => {
+      secondEntered.resolve();
+      return "second";
+    });
+    await delay(700); // > 2x lease; second must still be fenced out while the first callback is alive.
+    let entered = false;
+    await Promise.race([secondEntered.promise.then(() => { entered = true; }), delay(20)]);
+    assert.equal(entered, false);
+
+    releaseFirst.resolve();
+    assert.equal(await first, "first");
+    assert.equal(await second, "second");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("two-expired-retirers-with-new-owner-between cannot retire the successor", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "recovery-phase-b-two-retirers-"));
+  try {
+    const paths = scopePaths(root, "generation:two-retirers");
+    await mkdir(paths.directory, { recursive: true, mode: 0o700 });
+    const expired = await claimGeneration(paths, "generation:two-retirers", 1000, {
+      now: Date.now() - 10_000,
+      ownerPid: 999_999_993,
+    });
+    const observedA = await readLeaseState(paths);
+    const observedB = structuredClone(observedA);
+    const aObserved = deferred();
+    const bMayRetire = deferred();
+
+    const retireA = (async () => {
+      aObserved.resolve();
+      await bMayRetire.promise;
+      return retireExpiredGeneration(paths, observedA, { isOwnerAlive: () => false });
+    })();
+
+    await aObserved.promise;
+    assert.equal(await retireExpiredGeneration(paths, observedB, { isOwnerAlive: () => false }), true);
+    const successor = await claimGeneration(paths, "generation:two-retirers", 60_000);
+    assert.ok(successor);
+    bMayRetire.resolve();
+
+    assert.equal(await retireA, false);
+    const current = await readLeaseState(paths);
+    assert.equal(current.generation_id, successor.generation_id);
+    assert.notEqual(current.generation_id, expired.generation_id);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("Phase B concurrency contract remains secret-free and generation-safe", () => {
+  assert.equal(STAGING_RECOVERY_PHASE_B_CONCURRENCY_CONTRACT, "mad4b.staging-recovery-phase-b-concurrency.v2");
 });
