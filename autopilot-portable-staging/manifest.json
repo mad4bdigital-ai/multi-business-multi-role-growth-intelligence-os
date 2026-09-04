@@ -242,7 +242,7 @@
     },
     {
       "path": "http-generic-api/test-staging-autopilot-closure.mjs",
-      "sha256": "3784b1ab27038ade1ed73300b5fdb4763f390cf999ad97aef3bc8c15c45dfe24"
+      "sha256": "eb4a6d558ce5ab43f5efba87db6a3b1dc697384ca41f883e3bab676878202f32"
     },
     {
       "path": "http-generic-api/test-staging-build-context-provenance.mjs",
