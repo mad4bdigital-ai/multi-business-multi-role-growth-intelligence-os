@@ -42,7 +42,7 @@
     },
     {
       "path": "autopilot-portable-staging/Show-StagingLogs.ps1",
-      "sha256": "2a5e9f9b0628c043220803cc61563c02d896871992d42adec66668b70ebccd4e"
+      "sha256": "2a5e9f9b0628c783f83b3bee3f2a5f83859435b284e09d8ac94636774e45bdc"
     },
     {
       "path": "autopilot-portable-staging/Staging-Doctor.ps1",
@@ -62,7 +62,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "77ff190e9c070795cd2081310a9630bc61a7f4fe763af6579878e7f8a875d5b2"
+      "sha256": "8aa37f14c3523ea966a5b18113bb891e8dc45856eacd3b16bd3c6700c9b1b2d5"
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
@@ -242,7 +242,7 @@
     },
     {
       "path": "http-generic-api/test-staging-autopilot-closure.mjs",
-      "sha256": "c85b3882ad0889a561954f7545aa42ba309a7236799eaef63436a31f4c8dd471"
+      "sha256": "3784b1ab27038ade1ed73300b5fdb4763f390cf999ad97aef3bc8c15c45dfe24"
     },
     {
       "path": "http-generic-api/test-staging-build-context-provenance.mjs",
