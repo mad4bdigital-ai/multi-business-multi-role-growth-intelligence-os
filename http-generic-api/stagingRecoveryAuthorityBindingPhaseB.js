@@ -2,8 +2,14 @@ import path from "node:path";
 import {
   createServerManagedRecoveryBinding as createPhaseABinding,
   createRecoveryReadinessAuthorities as createPhaseAReadinessAuthorities,
+  _testingStagingRecoveryAuthorityBinding as phaseATesting,
 } from "./stagingRecoveryAuthorityBinding.js";
+import {
+  createFileRecoveryEvidenceStore,
+  createRecoveryReadinessAuthorities as createCanonicalReadinessAuthority,
+} from "./recoveryReadinessEvidence.js";
 import { wrapStagingRecoveryAdaptersForPhaseB } from "./stagingRecoveryPhaseBConcurrency.js";
+import { loadStagingRecoveryCertificationPublicTrust } from "./stagingRecoveryCertificationPublicTrust.js";
 
 export const STAGING_RECOVERY_PHASE_B_BINDING_CONTRACT = "mad4b.staging-recovery-phase-b-binding.v1";
 
@@ -17,6 +23,17 @@ function readinessRoot(env = process.env) {
     });
   }
   return path.resolve(configured);
+}
+
+function assertReadOnlyContext(context = {}) {
+  phaseATesting.runtime(context, process.env, true);
+  if (context.read_only !== true || context.production_live !== false) {
+    throw Object.assign(new Error("Phase B readiness authority remains read-only and Production-disabled."), {
+      code: "RECOVERY_PHASE_B_READINESS_CONTEXT_DENIED",
+      status: 503,
+      details: { secrets_included: false },
+    });
+  }
 }
 
 export function createServerManagedRecoveryBinding(context = {}) {
@@ -34,7 +51,25 @@ export function createServerManagedRecoveryBinding(context = {}) {
 }
 
 export function createRecoveryReadinessAuthorities(context = {}) {
-  return createPhaseAReadinessAuthorities(context);
+  const trust = loadStagingRecoveryCertificationPublicTrust(process.env);
+  if (!trust) return createPhaseAReadinessAuthorities(context);
+  assertReadOnlyContext(context);
+  const roots = phaseATesting.roots(process.env);
+  const base = phaseATesting.adapters(roots.readiness, process.env);
+  const evidenceStore = createFileRecoveryEvidenceStore({
+    directory: path.join(roots.readiness, "certification-evidence"),
+    replayDirectory: roots.replay,
+  });
+  return createCanonicalReadinessAuthority({
+    evidenceStore,
+    deploymentIdentityProvider: base.deployment,
+    targetIdentityProvider: base.target,
+    publicKey: trust.publicKey,
+    keyId: trust.keyId,
+    issuer: trust.issuer,
+    env: process.env,
+    adapterProvenanceReader: async () => phaseATesting.provenance((await base.deployment.readAttestation()).sha),
+  });
 }
 
 export default createServerManagedRecoveryBinding;
