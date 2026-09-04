@@ -51,6 +51,7 @@
             "Run Git reads and fetches through one shared transport helper with bounded retry and sanitized diagnostics.",
             "Verify the fetched ref resolves to the exact expected commit before checkout or eligibility use.",
             "Reload the exact checked-out launcher and preserve manifest hash and build-context provenance checks.",
+            "Require the Auto Pilot tunnel-origin assertion to match the canonical Windows loopback authority at http://127.0.0.1:8080 and reject the stale http://app:8080 contract.",
             "Continue to canonical Compose, app health, certification, and readback only after Git convergence.",
             "Keep Production deployment, Hostinger mutation, Cloudflare DNS mutation, database migration, provider mutation, and force-push disabled."
           ],
@@ -62,6 +63,7 @@
             "The fetched ref and checked-out HEAD remain exact 40-character SHA values and must equal the expected candidate.",
             "All four local Staging callers use the shared helper: Start-AutoPilot, One-Click, Bootstrap, and Auto-Deploy.",
             "The portable manifest includes and hashes the shared helper through the governed manifest writer.",
+            "The canonical Staging tunnel origin remains http://127.0.0.1:8080 and the Auto Pilot source contains no http://app:8080 origin authority.",
             "No Production branch, Production runtime, provider, DNS, migration, grant, or database mutation is introduced.",
             "secrets_included is false."
           ],
