@@ -1,23 +1,83 @@
 {
-  "contract": "mad4b.environment-impact-declaration.v1",
-  "change_id": "production-full-schema-metadata-census-20260905",
-  "summary": "Add an authenticated, read-only information_schema census for preliminary fail-closed sanitized-clone classification.",
-  "declared_targets": [
-    "production",
-    "staging"
-  ],
-  "cross_environment_reviewed": true,
-  "production_mutation_allowed": false,
-  "staging_mutation_allowed": false,
-  "database_mutation_allowed": false,
-  "provider_mutation_allowed": false,
-  "dns_mutation_allowed": false,
-  "reads_row_values": false,
-  "reads_secrets": false,
-  "exact_row_counts": false,
-  "rollback": "Revert the route branch and remove the metadata census module.",
-  "evidence": [
-    "node http-generic-api/test-full-schema-metadata-census.mjs"
-  ],
-  "secrets_included": false
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-full-schema-metadata-census-20260905",
+  "title": "Production full schema metadata census",
+  "delivery_mode": "multi_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/fullSchemaMetadataCensus.js",
+      "http-generic-api/routes/adminCliRoutes.js",
+      "http-generic-api/test-full-schema-metadata-census.mjs",
+      "http-generic-api/scripts/test-manifest.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Expose an authenticated information_schema-only census that inventories all runtime tables and proposes fail-closed sanitized-clone classifications without reading application row values or performing mutations.",
+      "e2e_journeys": [
+        {
+          "id": "full-schema-metadata-read-only-classification",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authorized Production administrator performing sanitized-clone discovery",
+          "entrypoint": "GET /admin/cli/data-source/census?scope=full_schema_metadata",
+          "terminal_outcome": "The response contains schema metadata, estimated row counts, relationships, and preliminary fail-closed classifications with explicit zero-mutation and zero-row-value-read evidence.",
+          "steps": [
+            "Authenticate through the existing backend-key and admin-principal guards.",
+            "Read table, column and foreign-key metadata only from information_schema.",
+            "Classify secret, identity, operational, PII-bearing, reference and unknown surfaces using metadata names and types.",
+            "Return all classifications with copy authorization still required."
+          ],
+          "assertions": [
+            "Only information_schema.TABLES, information_schema.COLUMNS and information_schema.KEY_COLUMN_USAGE are queried.",
+            "No application table SELECT, exact COUNT, row-value scan, database mutation, provider mutation, DNS mutation, Production mutation, Staging mutation or secret exposure occurs.",
+            "Unknown and opaque surfaces fail closed to manual_review.",
+            "The pre-existing default census response remains unchanged when scope is omitted."
+          ],
+          "tests": [
+            {
+              "id": "full-schema-metadata-census-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-full-schema-metadata-census.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/fullSchemaMetadataCensus.js",
+            "http-generic-api/routes/adminCliRoutes.js",
+            "http-generic-api/test-full-schema-metadata-census.mjs",
+            "http-generic-api/scripts/test-manifest.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Capture a separately authorized live Production metadata census and review candidate classifications."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Validate bounded behavior for information_schema permission and availability failures."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Exercise the read-only scope against Staging before Production rollout."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Deploy only after exact-head authorization and capture read-only Production evidence."
+    }
+  ]
 }
