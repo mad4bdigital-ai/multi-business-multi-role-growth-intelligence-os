@@ -1,0 +1,119 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-recovery-genuine-certification-phase-b-20260904",
+  "title": "Staging Recovery genuine certification Phase B environment impact",
+  "delivery_mode": "single_pr",
+  "current_phase": "operational",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-recovery-genuine-certification-phase-b-20260904.json",
+      ".github/governance/test-authority-registry.json",
+      ".github/scripts/staging-recovery-sign-certification.mjs",
+      ".github/scripts/staging-recovery-verify-and-countersign.mjs",
+      ".github/workflows/staging-post-deploy-verification.yml",
+      "http-generic-api/recoveryKernel.js",
+      "http-generic-api/stagingRecoveryAuthorityBindingPhaseB.js",
+      "http-generic-api/stagingRecoveryCertificationProtocol.js",
+      "http-generic-api/stagingRecoveryCertificationPublicTrust.js",
+      "http-generic-api/stagingRecoveryPhaseBConcurrency.js"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "operational"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "operational",
+      "status": "implemented",
+      "objective": "Bind genuine Staging Recovery certification to the real Recovery Kernel, exact deployed main SHA, target fingerprint, independent GitHub countersign, and immutable local publication while keeping Production live activation and mutation disabled.",
+      "e2e_journeys": [
+        {
+          "id": "staging-recovery-kernel-evidence-to-independent-countersign",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed Staging operator",
+          "entrypoint": "Produce bounded no-secret evidence from the genuine Staging-only Recovery Kernel canary for the exact deployed main SHA and target fingerprint.",
+          "terminal_outcome": "GitHub independently verifies and countersigns the exact evidence, the local verifier accepts only the dedicated Ed25519 authority, and publication remains immutable and fail-closed without enabling Production.",
+          "steps": [
+            "Execute the dedicated Staging certification plan through approval, ticket, fenced execution, readback, receipt, and durable evidence lifecycle.",
+            "Bind deployment SHA, branch main, target fingerprint, certification run id, nonce, lifecycle hashes, and external Worker evidence.",
+            "Recompute the canonical evidence on GitHub-hosted Actions and reject stale, synthetic, secret-bearing, Production-targeting, or key-reuse claims.",
+            "Verify the countersign locally before immutable persistence and atomic current-certification pointer advancement.",
+            "Require live Staging certification after merge and deployment; do not treat CI success as the live certificate."
+          ],
+          "assertions": [
+            "Staging certification uses the real Recovery Kernel lifecycle and a dedicated Staging-only canary capability.",
+            "All evidence is bound to the same exact deployment SHA, main branch, target fingerprint, run id, and nonce.",
+            "The Recovery certification Ed25519 authority is distinct from Activation Gateway ingress trust.",
+            "Synthetic lifecycle verdicts and caller-generated execution authority are rejected.",
+            "Production deployment, Production Recovery activation, database mutation, provider mutation, DNS mutation, and ruleset mutation remain forbidden.",
+            "live_staging_certification_required is true, production_mutation_allowed is false, and secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "phase-b-concurrency",
+              "runner": "node",
+              "path": "http-generic-api/test-staging-recovery-phase-b-concurrency.mjs"
+            },
+            {
+              "id": "certification-protocol",
+              "runner": "node",
+              "path": "http-generic-api/test-staging-recovery-certification-protocol.mjs"
+            },
+            {
+              "id": "certification-public-trust",
+              "runner": "node",
+              "path": "http-generic-api/test-staging-recovery-certification-public-trust.mjs"
+            },
+            {
+              "id": "certification-signing-authority",
+              "runner": "node",
+              "path": "http-generic-api/test-staging-recovery-certification-signing-authority.mjs"
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-recovery-genuine-certification-phase-b-20260904.json",
+            ".github/workflows/staging-post-deploy-verification.yml",
+            "http-generic-api/recoveryKernel.js",
+            "http-generic-api/stagingRecoveryCertificationProtocol.js",
+            "http-generic-api/stagingRecoveryCertificationPublicTrust.js"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "phase-b-concurrency",
+          "runner": "node",
+          "path": "http-generic-api/test-staging-recovery-phase-b-concurrency.mjs"
+        },
+        {
+          "id": "certification-protocol",
+          "runner": "node",
+          "path": "http-generic-api/test-staging-recovery-certification-protocol.mjs"
+        },
+        {
+          "id": "certification-public-trust",
+          "runner": "node",
+          "path": "http-generic-api/test-staging-recovery-certification-public-trust.mjs"
+        },
+        {
+          "id": "certification-signing-authority",
+          "runner": "node",
+          "path": "http-generic-api/test-staging-recovery-certification-signing-authority.mjs"
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
