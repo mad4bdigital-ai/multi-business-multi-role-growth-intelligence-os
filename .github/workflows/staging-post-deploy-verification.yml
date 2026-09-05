@@ -238,7 +238,7 @@ jobs:
           [[ "${EVIDENCE_RUN_ID}" =~ ^[0-9]+$ ]] || { echo "::error::evidence_run_id must be numeric."; exit 1; }
           [[ "${EXPECTED_TARGET_FINGERPRINT}" =~ ^[0-9a-f]{64}$ ]] || { echo "::error::expected_target_fingerprint must be a 64-character SHA-256 fingerprint."; exit 1; }
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ inputs.expected_sha }}
           fetch-depth: 0
@@ -252,7 +252,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "${{ inputs.expected_sha }}"
           test "$(git rev-parse origin/main)" = "${{ inputs.expected_sha }}"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
@@ -263,7 +263,7 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Download exact no-secret canary evidence
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
@@ -283,7 +283,7 @@ jobs:
         run: node .github/scripts/staging-recovery-verify-and-countersign.mjs
 
       - name: Upload signed bounded certification
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: staging-recovery-signed-certification-${{ inputs.expected_sha }}-${{ inputs.expected_target_fingerprint }}
           path: ${{ runner.temp }}/staging-recovery-countersign
