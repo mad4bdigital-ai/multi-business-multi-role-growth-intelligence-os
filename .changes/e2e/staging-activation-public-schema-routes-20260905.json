@@ -4,7 +4,9 @@
   "feature_key": "staging-activation-public-schema-routes-20260905",
   "title": "Expose bounded Staging Activation OpenAPI schema routes",
   "delivery_mode": "single_pr",
-  "merge_contract": { "minimum_phase": "mvp" },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
   "current_phase": "mvp",
   "scope": {
     "include": [
@@ -17,49 +19,58 @@
   },
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
-    "declared_targets": ["staging"],
+    "declared_targets": [
+      "production",
+      "staging"
+    ],
     "cross_environment_reviewed": true,
     "live_staging_certification_required": true,
     "production_mutation_allowed": false
   },
-  "phases": [{
-    "id": "mvp",
-    "status": "implemented",
-    "objective": "Add the two declared Staging Activation OpenAPI documents as bounded GET-only Worker routes so public semantic readiness can verify the exact deployed surface.",
-    "e2e_journeys": [{
-      "id": "staging-activation-public-schema-readback",
-      "end_to_end": true,
-      "level": "synthetic_runtime",
-      "actor": "Local Windows Docker Staging operator",
-      "entrypoint": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1 -TunnelMode windows_service -EnableActivationGateway",
-      "terminal_outcome": "Both declared Activation OpenAPI documents return through activation-dev.mad4b.com and semantic readiness proceeds without a 404.",
-      "steps": [
-        "Generate GET-only routes from the two registered Staging Activation schema output files.",
-        "Forward only those exact paths to the Staging origin with the governed activation host identity.",
-        "Validate the public remote documents against the exact local schemas.",
-        "Require explicit exact-SHA Staging Worker deployment authorization after merge."
-      ],
-      "assertions": [
-        "The two schema routes are public, read-only, query-free, and bounded by existing response and timeout limits.",
-        "No wildcard proxy route is introduced.",
-        "Provider deployment remains workflow-dispatch-only and exact-SHA-bound.",
-        "No DNS, Production, database, migration, ruleset, or secret mutation is authorized."
-      ],
-      "tests": [{
-        "id": "staging-auto-deploy-contract",
-        "runner": "node",
-        "working_directory": "http-generic-api",
-        "path": "test-staging-auto-deploy-contract.mjs",
-        "args": []
-      }],
-      "evidence_paths": [
-        ".changes/e2e/staging-activation-public-schema-routes-20260905.json",
-        "http-generic-api/scripts/generate-activation-staging-policy.mjs",
-        "edge/activation-gateway/generated/route-policy.staging.json",
-        "http-generic-api/activation-gateway-runtime/generated/route-policy.staging.json",
-        "http-generic-api/test-staging-auto-deploy-contract.mjs"
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Add the two declared Staging Activation OpenAPI documents as bounded GET-only Worker routes so public semantic readiness can verify the exact deployed surface.",
+      "e2e_journeys": [
+        {
+          "id": "staging-activation-public-schema-readback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Windows Docker Staging operator",
+          "entrypoint": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1 -TunnelMode windows_service -EnableActivationGateway",
+          "terminal_outcome": "Both declared Activation OpenAPI documents return through activation-dev.mad4b.com and semantic readiness proceeds without a 404.",
+          "steps": [
+            "Generate GET-only routes from the two registered Staging Activation schema output files.",
+            "Forward only those exact paths to the Staging origin with the governed activation host identity.",
+            "Validate the public remote documents against the exact local schemas.",
+            "Require explicit exact-SHA Staging Worker deployment authorization after merge."
+          ],
+          "assertions": [
+            "The two schema routes are public, read-only, query-free, and bounded by existing response and timeout limits.",
+            "No wildcard proxy route is introduced.",
+            "Provider deployment remains workflow-dispatch-only and exact-SHA-bound.",
+            "No DNS, Production, database, migration, ruleset, or secret mutation is authorized."
+          ],
+          "tests": [
+            {
+              "id": "staging-auto-deploy-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-auto-deploy-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-activation-public-schema-routes-20260905.json",
+            "http-generic-api/scripts/generate-activation-staging-policy.mjs",
+            "edge/activation-gateway/generated/route-policy.staging.json",
+            "http-generic-api/activation-gateway-runtime/generated/route-policy.staging.json",
+            "http-generic-api/test-staging-auto-deploy-contract.mjs"
+          ]
+        }
       ]
-    }]
-  }],
+    }
+  ],
   "secrets_included": false
 }
