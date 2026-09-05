@@ -55,6 +55,9 @@ assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes("sql_c
 assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.admin_platform_endpoint_tools, ["SELECT"]);
 assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.tenant_platform_endpoint_tools, ["SELECT"]);
 assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.sql_cache_runtime_policies, ["SELECT"]);
+assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes("platform_runtime_config"), true);
+assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.platform_runtime_config, ["SELECT"]);
+assert.equal(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_tables.includes("platform_runtime_config"), false);
 for (const identityTable of ["users", "memberships", "tenants"]) {
   assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes(identityTable), true);
   assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table[identityTable], ["SELECT"]);
@@ -208,6 +211,7 @@ console.log(JSON.stringify({
   production_bootstrap_grants_unchanged: true,
   staging_mcp_catalog_select_only: true,
   staging_sql_cache_policy_select_only: true,
+  staging_runtime_config_select_only: true,
   staging_identity_lookup_select_only: true,
   staging_sql_cache_policy_seed_reconciled_by_root_only: true,
   staging_sql_cache_authority_seed_separated: true,
