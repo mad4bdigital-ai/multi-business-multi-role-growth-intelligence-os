@@ -11,7 +11,8 @@
       ".changes/e2e/staging-activation-schema-runtime-grants-reconciliation-20260902.json",
       "http-generic-api/config/staging-database-role-migration-manifest.json",
       "http-generic-api/databasePrivilegeContracts.js",
-      "http-generic-api/migrations/20260902_staging_actions_runtime_contract_reconciliation.sql"
+      "http-generic-api/migrations/20260902_staging_actions_runtime_contract_reconciliation.sql",
+      "http-generic-api/test-staging-database-readiness-repair.mjs"
     ]
   },
   "environment_impact": {
@@ -31,7 +32,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Fail closed when the eight Activation hard-run registry tables are absent, reconcile action-governance/OAuth metadata through an additive migration, and restore only the bounded SELECT authority required by local Staging activation/session-context and registry reads while leaving Production bootstrap grants unchanged.",
+      "objective": "Fail closed when the eight Activation hard-run registry tables are absent, reconcile action-governance/OAuth metadata through an additive migration, and restore only the bounded SELECT authority required by local Staging activation/session-context and registry reads while leaving Production bootstrap grants unchanged. The same overlay permits SELECT-only identity resolution across users, memberships and tenants for authenticated Staging readiness.",
       "e2e_journeys": [
         {
           "id": "local-staging-activation-schema-runtime-readiness",
@@ -47,14 +48,16 @@
             "Apply the additive action runtime contract migration through the governed local Staging schema lifecycle when schema reconciliation is authorized.",
             "Reconcile the repository-owned Staging runtime grant plan so activation/session-context, registry, graph-memory and hard-run source tables receive SELECT only.",
             "Preserve existing bounded write authority only on the pre-existing runtime bootstrap tables.",
-            "Run schema/grant readback and same-cycle Staging certification."
+            "Run schema/grant readback and same-cycle Staging certification.",
+            "Grant the Staging runtime principal SELECT-only access to users, memberships and tenants so authenticated principal discovery and OAuth issuance can resolve active identities."
           ],
           "assertions": [
             "The eight Activation hard-run registry tables are required by the local Staging runtime schema census.",
             "The actions reconciliation migration is additive and idempotent and adds allowed_actor_roles, allowed_governance_levels, oauth_secret_storage_type and oauth_last_validated_at only when absent.",
             "BOOTSTRAP_ROLE_GRANT_POLICIES.runtime is unchanged.",
             "Every newly introduced Staging runtime surface is constrained to SELECT in required_operations_by_table.",
-            "No schema-wide grant, GRANT ALL, CREATE, ALTER, DROP, GRANT OPTION, Production DB access, provider call, Hostinger mutation, Cloudflare mutation, or secret value is introduced."
+            "No schema-wide grant, GRANT ALL, CREATE, ALTER, DROP, GRANT OPTION, Production DB access, provider call, Hostinger mutation, Cloudflare mutation, or secret value is introduced.",
+            "users, memberships and tenants are present only in the Staging runtime overlay and each is constrained to SELECT; Production bootstrap grants and identity-table write authority remain unchanged."
           ],
           "tests": [
             {
