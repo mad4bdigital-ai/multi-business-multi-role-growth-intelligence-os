@@ -294,7 +294,10 @@
       ".changes/e2e/domain-family-environment-separation.json",
       ".changes/e2e/local-staging-autopilot-tunnel-hardening.json",
       "docs/governance/governed-autopilot-production-deployment.md",
-      ".changes/e2e/staging-recovery-genuine-certification-phase-b-20260904.json"
+      ".changes/e2e/staging-recovery-genuine-certification-phase-b-20260904.json",
+      ".github/scripts/staging-recovery-sign-certification.mjs",
+      ".github/scripts/staging-recovery-verify-and-countersign.mjs",
+      ".github/workflows/staging-post-deploy-verification.yml"
     ],
     "automerge_opt_out_labels": [
       "do-not-auto-merge",
