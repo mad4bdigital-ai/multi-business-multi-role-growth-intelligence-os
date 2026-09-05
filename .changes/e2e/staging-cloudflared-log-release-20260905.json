@@ -10,7 +10,7 @@
     "include": [
       ".changes/e2e/staging-cloudflared-log-release-20260905.json",
       "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
-      "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs"
+      "http-generic-api/test-staging-cloudflared-log-release.mjs"
     ]
   },
   "environment_impact": {
@@ -51,16 +51,16 @@
           ],
           "tests": [
             {
-              "id": "staging-dual-mode-one-click-contract",
+              "id": "staging-cloudflared-log-release-regression",
               "runner": "node",
               "working_directory": "http-generic-api",
-              "path": "scripts/staging-dual-mode-one-click-contract.mjs",
+              "path": "test-staging-cloudflared-log-release.mjs",
               "args": []
             }
           ],
           "evidence_paths": [
             "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
-            "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs"
+            "http-generic-api/test-staging-cloudflared-log-release.mjs"
           ]
         }
       ]
