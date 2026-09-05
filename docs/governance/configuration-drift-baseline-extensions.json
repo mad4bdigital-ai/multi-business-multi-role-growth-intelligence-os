@@ -959,6 +959,39 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/scripts/staging-recovery-sign-certification.mjs|STAGING_RECOVERY_GITHUB_VERIFICATION_REPORT_CONTRACT|literal_declaration|staging.recovery.github.verification.report.contract",
+      "owner": "staging-recovery-governance",
+      "reason": "Static contract identifier for the no-secret GitHub verification report; it is not runtime configuration and grants no signing, repository, provider, database, or Production authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/stagingRecoveryPhaseBConcurrency.js|STAGING_RECOVERY_PHASE_B_CONCURRENCY_CONTRACT|literal_declaration|staging.recovery.phase.b.concurrency.contract",
+      "owner": "staging-recovery-governance",
+      "reason": "Static Phase B concurrency evidence contract identifier; it is not a configurable runtime setting and grants no mutation, provider, database, or Production authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/test-staging-recovery-certification-protocol.mjs|approval|literal_declaration|approval",
+      "owner": "test-governance",
+      "reason": "Test-only approval fixture used to prove the certification protocol lifecycle binding; it contains no credential or authority value and grants no runtime, repository, database, provider, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {
