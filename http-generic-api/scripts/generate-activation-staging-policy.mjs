@@ -94,6 +94,23 @@ function buildRoutes(registry, surfaceKeys, limits) {
     }))
     .sort((a, b) => `${a.path} ${a.method}`.localeCompare(`${b.path} ${b.method}`));
 }
+function buildPublicSchemaRoutes(registry, surfaceKeys, limits) {
+  return surfaceKeys.map((surfaceKey) => {
+    const surface = registry.surfaces[surfaceKey];
+    if (!surface?.output_file) throw new Error(`Missing public schema output for ${surfaceKey}`);
+    return {
+      ...limits,
+      method: "GET",
+      path: `/${path.basename(surface.output_file)}`,
+      mutation: false,
+      operation_ids: [`get_${surfaceKey}_openapi_schema`],
+      auth_profiles: ["public"],
+      surfaces: [surfaceKey],
+      allowed_query_parameters: [],
+      freshness_class: "read_strict",
+    };
+  });
+}
 function buildWarningBudget(registry, schemaSurfaceKeys) {
   return schemaSurfaceKeys.map((surfaceKey) => {
     const surface = registry.surfaces[surfaceKey];
@@ -137,7 +154,8 @@ function build() {
       require_policy_hash: true,
       require_source_commit: true,
     },
-    routes: buildRoutes(registry, routeSurfaces, limits),
+    routes: [...buildRoutes(registry, routeSurfaces, limits), ...buildPublicSchemaRoutes(registry, routeSurfaces, limits)]
+      .sort((a, b) => `${a.path} ${a.method}`.localeCompare(`${b.path} ${b.method}`)),
     deployment_signature_required: true,
     secrets_included: false,
   };
