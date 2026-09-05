@@ -10,6 +10,7 @@ const workflow = read(".github/workflows/staging-main-deploy-eligibility.yml");
 const liveWorkflow = read(".github/workflows/staging-live-certification.yml");
 const activationWorkerWorkflow = workflow;
 const activationWorkerBuilder = read("http-generic-api/scripts/build-staging-worker.mjs");
+const activationPolicyGenerator = read("http-generic-api/scripts/generate-activation-staging-policy.mjs");
 const promotionGates = JSON.parse(read(".github/contracts/production-promotion-supporting-gates.v1.json"));
 const deployScript = read("autopilot-portable-staging/Auto-Deploy-Staging.ps1");
 const pilotScript = read("autopilot-portable-staging/Start-AutoPilot.ps1");
@@ -110,6 +111,10 @@ assert.match(activationWorkerBuilder, /const \{ privateKey: ingressPrivateKey, p
 assert.equal((activationWorkerBuilder.match(/\bingressPrivateKey\b/g) || []).length, 2, "recovery ingress private key must only be generated and exported to an ephemeral JWK");
 assert.equal((activationWorkerBuilder.match(/\bingressPrivateJwk\b/g) || []).length, 2, "recovery ingress private JWK must only be created and written to deployment secrets");
 assert.match(activationWorkerBuilder, /ACTIVATION_GATEWAY_INGRESS_PRIVATE_KEY_JWK: JSON\.stringify\(ingressPrivateJwk\)/);
+assert.match(activationPolicyGenerator, /buildPublicSchemaRoutes/);
+assert.match(activationPolicyGenerator, /path\.basename\(surface\.output_file\)/);
+assert.match(activationPolicyGenerator, /auth_profiles: \["public"\]/);
+assert.match(activationPolicyGenerator, /mutation: false/);
 
 assert.match(dockerfile, /ARG STAGING_BUILD_COMMIT/);
 assert.match(dockerfile, /ARG STAGING_BUILD_BRANCH=main/);
