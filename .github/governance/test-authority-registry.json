@@ -243,6 +243,10 @@
         "http-generic-api/test-recovery-activation-readiness.mjs",
         "http-generic-api/test-staging-recovery-admin-surface.mjs",
         "http-generic-api/test-staging-recovery-route-policy.mjs",
+        "http-generic-api/test-staging-recovery-certification-protocol.mjs",
+        "http-generic-api/test-staging-recovery-certification-public-trust.mjs",
+        "http-generic-api/test-staging-recovery-certification-signing-authority.mjs",
+        "http-generic-api/test-staging-recovery-phase-b-concurrency.mjs",
         "http-generic-api/test-recovery-action-bridge-system-layer.mjs",
         "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
         "http-generic-api/scripts/validate-staging-recovery-admin-openapi.mjs",
@@ -652,7 +656,11 @@
         "http-generic-api/test-server-managed-recovery-binding.mjs",
         "http-generic-api/test-recovery-activation-readiness.mjs",
         "http-generic-api/test-staging-recovery-admin-surface.mjs",
-        "http-generic-api/test-staging-recovery-route-policy.mjs"
+        "http-generic-api/test-staging-recovery-route-policy.mjs",
+        "http-generic-api/test-staging-recovery-certification-protocol.mjs",
+        "http-generic-api/test-staging-recovery-certification-public-trust.mjs",
+        "http-generic-api/test-staging-recovery-certification-signing-authority.mjs",
+        "http-generic-api/test-staging-recovery-phase-b-concurrency.mjs"
       ],
       "protected_by_verifiers": [
         "production_live_fail_closed",

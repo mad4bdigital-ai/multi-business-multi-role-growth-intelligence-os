@@ -694,7 +694,7 @@ async function readAndValidateDeploymentAttestation(deploymentIdentityProvider, 
     attestation,
     expectedSha: plan.expected_sha,
     expectedRepository: RECOVERY_KERNEL_REPOSITORY,
-    expectedBranch: RECOVERY_KERNEL_PRODUCTION_BRANCH,
+    expectedBranch: plan.environment === "staging" ? "main" : RECOVERY_KERNEL_PRODUCTION_BRANCH,
     expectedManifestHash: plan.manifest_hash,
     expectedAttestationHash: plan.runtime_attestation_hash || "",
     expectedTargetFingerprint: step?.target_fingerprint || plan.target_fingerprint,
@@ -941,6 +941,33 @@ export async function createRemediationPlan(input = {}, { recoveryStore, env = p
     for (const finding of findings) await recoveryStore.putFinding(sanitizeEvidence(finding));
   }
   if (recoveryStore && typeof recoveryStore.putPlan === "function") await recoveryStore.putPlan(sanitizeEvidence(plan));
+  return sanitizeEvidence(plan);
+}
+
+export async function createStagingCertificationCanaryPlan({ expected_sha } = {}, {
+  env = process.env, recoveryStore, deploymentIdentityProvider,
+} = {}) {
+  if (!isStagingEnvironment(env)) throw kernelError(403, "RECOVERY_STAGING_CANARY_ENVIRONMENT_DENIED", "The certification canary plan is restricted to Staging.");
+  if (!recoveryStore || typeof recoveryStore.putPlan !== "function"
+    || typeof deploymentIdentityProvider?.readAttestation !== "function") {
+    throw kernelError(503, "RECOVERY_STAGING_CANARY_AUTHORITY_UNAVAILABLE", "Durable Staging plan, deployment, and target authorities are required.");
+  }
+  const expectedSha = requireSha(expected_sha);
+  const attestation = await deploymentIdentityProvider.readAttestation();
+  const target = { environment: "staging", target_fingerprint: attestation.target_fingerprint };
+  if (attestation.environment !== "staging" || attestation.branch !== "main" || attestation.sha !== expectedSha
+    || target.environment !== "staging" || !/^[a-f0-9]{64}$/u.test(target.target_fingerprint || "")
+    || attestation.target_fingerprint !== target.target_fingerprint) {
+    throw kernelError(412, "RECOVERY_STAGING_CANARY_IDENTITY_MISMATCH", "The canary plan is not bound to the exact Staging deployment and target.");
+  }
+  const findingId = `finding:${stableHash({ expected_sha: expectedSha, target_fingerprint: target.target_fingerprint, capability: "staging.certification.canary" }).slice(0, 32)}`;
+  const stepBase = { ordinal: 1, finding_id: findingId, classification: "staging_certification_canary", capability_key: "staging.certification.canary", operation: "staging.certification.canary", target_role: "runtime", ownership_domain: "recovery_control_plane", database_target_role: "runtime", target_fingerprint: target.target_fingerprint, authority_ref: "staging_recovery_authority_binding", mutation_class: "C1", consequential: true, approval_required: true, execution_allowed: false, preconditions: ["staging_identity_match", "plan_hash_match", "target_fingerprint_match", "recovery_lock_available", "single_step_approval", "deployment_attestation_match", "durable_run_identity", "independent_readback_authority", "same_fence_readback"], postconditions: ["canary_record_readback", "zero_production_authority", "zero_database_or_provider_mutation"], deployment_attestation_required: true, baseline_order_proof_required: false, role_bundle_binding_required: false, role_bundle_binding: null, rollback: "not_applicable", role_selection_proof_hash: null, execution_ticket_required: true, approval_binding_required: true, exact_durable_run_id_required: true, verification_before_finalization: true };
+  const step = { ...stepBase, step_id: `step:${stableHash(stepBase).slice(0, 32)}`, step_hash: stableHash(stepBase) };
+  const planId = createPlanId({ expected_sha: expectedSha, target_key: "staging-recovery-certification", finding_ids: [findingId], finding_hash: stableHash([findingId]) });
+  const base = { contract: "mad4b.recovery-remediation-plan.v1", trust_model: "mad4b.recovery-trust-model.v1", plan_id: planId, expected_sha: expectedSha, expected_sha_at_creation: expectedSha, target_key: "staging-recovery-certification", target_fingerprint: target.target_fingerprint, target_fingerprint_at_creation: target.target_fingerprint, target_fingerprints: { composite: target.target_fingerprint }, manifest_hash: attestation.recovery_manifest_hash, runtime_attestation_hash: attestation.attestation_hash, environment: "staging", repository: RECOVERY_KERNEL_REPOSITORY, branch: "main", finding_ids: [findingId], finding_hash: stableHash([findingId]), role_selection_proof: null, role_selection_hash: null, role_bundle_bindings: {}, steps: [step], status: "planned", mutation_scope: [{ step_id: step.step_id, operation: step.operation, target_role: step.target_role, capability_key: step.capability_key }], required_approval: "server_managed_single_step_staging_canary", execution_lifecycle_contract: EXECUTION_LIFECYCLE_CONTRACT, approval_binding_contract: "mad4b.recovery-single-step-approval-binding.v1", database_independent_control_plane: true, proof: { manifest_bound: true, target_fingerprint_bound: true, role_selection_provenance_bound: true, deployment_attestation_bound: true, authority_resolved: true, unknown_drift: false, preconditions_satisfied: true, execution_requires_fresh_trust_and_approval: true }, execution_transport: "server_resolved_capability_executor", execution_allowed: false, production_live_enabled: false, database_mutation_performed: false, provider_mutation_performed: false, secrets_included: false };
+  const plan = { ...base, plan_hash: stableHash(base) };
+  await recoveryStore.putPlan(sanitizeEvidence(plan));
+  PLANS.set(plan.plan_id, plan);
   return sanitizeEvidence(plan);
 }
 
@@ -1207,7 +1234,18 @@ export async function executeRemediationStep(input = {}, { env = process.env, ad
     if (String(env.RECOVERY_MUTATIONS_ENABLED || "").trim().toLowerCase() !== "true") throw kernelError(423, "RECOVERY_MUTATIONS_DISABLED", "Recovery mutations are disabled by the server kill-switch.");
     const targetBinding = step.operation === "apply_migration" ? resolveRuntimeMigrationTargetBinding({ migration: step.authority_ref, ownershipDomain: step.ownership_domain, databaseTargetRole: step.database_target_role || step.target_role }) : { ok: true };
     if (!targetBinding.ok) throw kernelError(409, "RECOVERY_MIGRATION_TARGET_BINDING_INVALID", "The migration ownership domain and database target role are not canonically bound.", { problems: targetBinding.problems });
-    assertTrustForMutation({ expectedSha: plan.expected_sha, env, targetFingerprint: step.target_fingerprint || plan.target_fingerprint, targetRole: step.target_role, adminPrincipal });
+    const stagingCertificationCanary = plan.environment === "staging"
+      && plan.branch === "main"
+      && plan.target_key === "staging-recovery-certification"
+      && step.capability_key === "staging.certification.canary"
+      && step.operation === "staging.certification.canary";
+    if (stagingCertificationCanary) {
+      if (!isStagingEnvironment(env) || adminPrincipal?.verified !== true) {
+        throw kernelError(403, "RECOVERY_STAGING_CANARY_PRINCIPAL_DENIED", "The Staging canary requires the authenticated server-managed admin principal.");
+      }
+    } else {
+      assertTrustForMutation({ expectedSha: plan.expected_sha, env, targetFingerprint: step.target_fingerprint || plan.target_fingerprint, targetRole: step.target_role, adminPrincipal });
+    }
   } catch (error) {
     throw error;
   }

@@ -167,7 +167,7 @@
       ".changes/e2e/pr7824-staging-worker-artifact-import-closure.json",
       ".changes/e2e/staging-git-transport-native-stderr-20260828.json",
       ".changes/e2e/staging-inherited-port-publication-reset.json",
-    ".changes/e2e/staging-cloudflared-cim-service-reconcile-20260902.json",
+      ".changes/e2e/staging-cloudflared-cim-service-reconcile-20260902.json",
       ".changes/e2e/staging-mcp-hostname-rfc-compliance-20260902.json",
       ".changes/e2e/staging-activation-schema-runtime-grants-reconciliation-20260902.json",
       ".changes/e2e/pr7859-recovery-breakglass-workflow-contract.json",
@@ -293,7 +293,11 @@
       ".changes/e2e/staging-dual-tunnel-custom-gpt-mcp-bootstrap-20260830.json",
       ".changes/e2e/domain-family-environment-separation.json",
       ".changes/e2e/local-staging-autopilot-tunnel-hardening.json",
-      "docs/governance/governed-autopilot-production-deployment.md"
+      "docs/governance/governed-autopilot-production-deployment.md",
+      ".changes/e2e/staging-recovery-genuine-certification-phase-b-20260904.json",
+      ".github/scripts/staging-recovery-sign-certification.mjs",
+      ".github/scripts/staging-recovery-verify-and-countersign.mjs",
+      ".github/workflows/staging-post-deploy-verification.yml"
     ],
     "automerge_opt_out_labels": [
       "do-not-auto-merge",
