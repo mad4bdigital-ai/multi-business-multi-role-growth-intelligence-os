@@ -1,0 +1,23 @@
+{
+  "contract": "mad4b.environment-impact-declaration.v1",
+  "change_id": "production-full-schema-metadata-census-20260905",
+  "summary": "Add an authenticated, read-only information_schema census for preliminary fail-closed sanitized-clone classification.",
+  "declared_targets": [
+    "production",
+    "staging"
+  ],
+  "cross_environment_reviewed": true,
+  "production_mutation_allowed": false,
+  "staging_mutation_allowed": false,
+  "database_mutation_allowed": false,
+  "provider_mutation_allowed": false,
+  "dns_mutation_allowed": false,
+  "reads_row_values": false,
+  "reads_secrets": false,
+  "exact_row_counts": false,
+  "rollback": "Revert the route branch and remove the metadata census module.",
+  "evidence": [
+    "node http-generic-api/test-full-schema-metadata-census.mjs"
+  ],
+  "secrets_included": false
+}
