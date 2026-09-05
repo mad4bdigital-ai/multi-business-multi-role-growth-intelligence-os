@@ -1,5 +1,5 @@
 {
-  "content_hash_sha256": "e187b5650643e2c2df861803902e31b8bfdd81ab580431f168320efece97b76b",
+  "content_hash_sha256": "49a7aa45fd93cfe247a62a4543dd0e6b2d486b5d5333f7c4418592056d7d8b57",
   "deployment_signature_required": true,
   "manifest_version": 1,
   "mutation_stale_policy": "deny",
@@ -331,6 +331,44 @@
       "surfaces": [
         "activation_admin_staging",
         "admin_recovery_staging"
+      ],
+      "timeout_ms": 30000
+    },
+    {
+      "allowed_query_parameters": [],
+      "auth_profiles": [
+        "public"
+      ],
+      "freshness_class": "read_strict",
+      "method": "GET",
+      "mutation": false,
+      "operation_ids": [
+        "get_activation_admin_staging_openapi_schema"
+      ],
+      "path": "/openapi.custom-gpt.activation-admin.staging.yaml",
+      "request_body_limit_bytes": 1048576,
+      "response_body_limit_bytes": 5242880,
+      "surfaces": [
+        "activation_admin_staging"
+      ],
+      "timeout_ms": 30000
+    },
+    {
+      "allowed_query_parameters": [],
+      "auth_profiles": [
+        "public"
+      ],
+      "freshness_class": "read_strict",
+      "method": "GET",
+      "mutation": false,
+      "operation_ids": [
+        "get_tenant_activation_staging_openapi_schema"
+      ],
+      "path": "/openapi.tenant-gpt.activation.staging.yaml",
+      "request_body_limit_bytes": 1048576,
+      "response_body_limit_bytes": 5242880,
+      "surfaces": [
+        "tenant_activation_staging"
       ],
       "timeout_ms": 30000
     },
