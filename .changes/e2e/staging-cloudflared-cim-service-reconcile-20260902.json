@@ -14,7 +14,8 @@
       "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
       "autopilot-portable-staging/manifest.json",
       "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs",
-      "http-generic-api/scripts/staging-platform-ready-contract.mjs"
+      "http-generic-api/scripts/staging-platform-ready-contract.mjs",
+      "http-generic-api/test-staging-cloudflared-log-release.mjs"
     ]
   },
   "environment_impact": {
@@ -30,7 +31,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Remove the Windows PowerShell 5.1 native-argument quoting boundary from existing Cloudflared service reconciliation by passing the exact token-file command line through Win32_Service.Change, while preserving LocalSystem, automatic start, bounded recovery, fresh-log proof, loopback-only metrics, and fail-closed readback. Pin the same reconciled Windows service to HTTP/2 when QUIC remote closures otherwise rotate every connector inside the required stability window.",
+      "objective": "Remove the Windows PowerShell 5.1 native-argument quoting boundary from existing Cloudflared service reconciliation by passing the exact token-file command line through Win32_Service.Change, while preserving LocalSystem, automatic start, bounded recovery, fresh-log proof, loopback-only metrics, and fail-closed readback. Pin the same reconciled Windows service to HTTP/2 when QUIC remote closures otherwise rotate every connector inside the required stability window, and acquire exclusive logfile ownership with a bounded retry before truncating fresh-origin evidence after SCM stop.",
       "e2e_journeys": [
         {
           "id": "windows-cloudflared-structured-service-reconcile",
@@ -38,9 +39,10 @@
           "level": "synthetic_runtime",
           "actor": "Local Windows Docker Staging operator",
           "entrypoint": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1 -TunnelMode windows_service",
-          "terminal_outcome": "An existing Cloudflared Windows service is reconciled to the exact token-file/logfile command line without native sc.exe config quoting, starts as LocalSystem in automatic mode, remains stable, and can proceed to remote-origin proof and PLATFORM_READY.",
+          "terminal_outcome": "An existing Cloudflared Windows service is reconciled to the exact token-file/logfile command line without native sc.exe config quoting, obtains bounded exclusive logfile ownership before fresh-log truncation, starts as LocalSystem in automatic mode, remains stable, and can proceed to remote-origin proof and PLATFORM_READY.",
           "steps": [
-            "Stop the existing Cloudflared service before changing its command line.",
+            "Stop the existing namespaced Staging Cloudflared service before changing its command line.",
+            "Acquire exclusive write ownership of the Staging Cloudflared logfile with FileShare.None for up to 15 seconds after SCM reports Stopped, truncate only after ownership is obtained, and fail closed if the logfile remains locked.",
             "Pass PathName, Automatic start mode, and LocalSystem account through Win32_Service.Change using Invoke-CimMethod instead of sc.exe config.",
             "Fail closed with the Win32_Service.Change ReturnValue when Windows rejects reconciliation.",
             "Retain bounded sc.exe failure recovery configuration, start the service, and read back PathName, token-file, logfile, service account, start mode, running state, and process id.",
@@ -48,9 +50,11 @@
           ],
           "assertions": [
             "Existing-service reconciliation does not depend on native sc.exe config binPath quoting.",
+            "Fresh-log reset uses exclusive write ownership and a bounded retry rather than immediate WriteAllText truncation; persistent lock contention fails closed with a diagnostic.",
             "The service readback is bound to the canonical --token-file and Staging logfile and does not contain an inline --token.",
             "The reconciled service account is LocalSystem and StartMode is Auto.",
             "The Cloudflared metrics listener remains loopback-only.",
+            "No generic Cloudflared service is stopped, killed, or reconfigured.",
             "No Cloudflare DNS mutation, Production deployment, Production access, database mutation, schema or migration apply, ruleset mutation, secret rotation, container deletion, or volume deletion is authorized."
           ],
           "tests": [
@@ -60,13 +64,21 @@
               "working_directory": "http-generic-api",
               "path": "scripts/staging-dual-mode-one-click-contract.mjs",
               "args": []
+            },
+            {
+              "id": "staging-cloudflared-log-release-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-cloudflared-log-release.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             ".changes/e2e/staging-cloudflared-cim-service-reconcile-20260902.json",
             "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
             "autopilot-portable-staging/manifest.json",
-            "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs"
+            "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs",
+            "http-generic-api/test-staging-cloudflared-log-release.mjs"
           ]
         },
         {
