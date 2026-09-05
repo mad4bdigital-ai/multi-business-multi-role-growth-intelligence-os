@@ -156,7 +156,7 @@ assert.doesNotMatch(
 assert.match(launcher, /ProcessId -ne \$initialPid/);
 assert.match(launcher, /RequireTunnelToken:\(\$TunnelMode -eq 'docker_sidecar'\)/);
 assert.match(launcher, /'-BuildMode',\$BuildMode,'-AutoDeployTunnelMode',\$TunnelMode,'-NoTunnel'/);
-assert.match(bootstrap, /"AutoDeployTunnelMode", \$AutoDeployTunnelMode/);
+assert.match(bootstrap, /"-AutoDeployTunnelMode", \$AutoDeployTunnelMode/);
 assert.match(oneClick, /"-TunnelMode", \$AutoDeployTunnelMode/);
 assert.match(autoDeployInstaller, /-TunnelMode \$TunnelMode/);
 assert.match(autoDeploy, /provider_mutation_authorized = \$false/);
