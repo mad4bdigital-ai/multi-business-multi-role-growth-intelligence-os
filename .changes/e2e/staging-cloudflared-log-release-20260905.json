@@ -9,6 +9,7 @@
   "scope": {
     "include": [
       ".changes/e2e/staging-cloudflared-log-release-20260905.json",
+      ".github/governance/test-authority-registry.json",
       "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
       "http-generic-api/test-staging-cloudflared-log-release.mjs"
     ]
