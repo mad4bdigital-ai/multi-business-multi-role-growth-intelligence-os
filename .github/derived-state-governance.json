@@ -297,7 +297,8 @@
       ".changes/e2e/staging-recovery-genuine-certification-phase-b-20260904.json",
       ".github/scripts/staging-recovery-sign-certification.mjs",
       ".github/scripts/staging-recovery-verify-and-countersign.mjs",
-      ".github/workflows/staging-post-deploy-verification.yml"
+      ".github/workflows/staging-post-deploy-verification.yml",
+      ".changes/e2e/staging-one-click-loopback-origin-20260905.json"
     ],
     "automerge_opt_out_labels": [
       "do-not-auto-merge",

@@ -1,0 +1,79 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-one-click-loopback-origin-20260905",
+  "title": "Preserve canonical loopback origin during Staging One-Click bootstrap",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-one-click-loopback-origin-20260905.json",
+      "autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1",
+      "http-generic-api/test-staging-one-click-autopilot-core.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prevent the tunnel-disabled bootstrap interval from rewriting the canonical shared loopback origin to the obsolete Docker service hostname.",
+      "e2e_journeys": [
+        {
+          "id": "staging-one-click-bootstrap-loopback-origin",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Windows Docker Staging operator",
+          "entrypoint": "autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1",
+          "terminal_outcome": "One-Click preserves http://127.0.0.1:8080 before Bootstrap-Staging-One-Click invokes Start-AutoPilot, so the exact-origin guard can proceed while tunnel startup remains disabled until the selected mode is restored.",
+          "steps": [
+            "Initialize the canonical Staging environment for the selected tunnel mode.",
+            "Quiesce existing Staging tunnel runtimes.",
+            "Disable tunnel startup for the bootstrap interval without changing the canonical loopback origin.",
+            "Run the exact-commit bootstrap and restore the selected tunnel mode.",
+            "Reject any regression that writes http://app:8080 into CLOUDFLARE_TUNNEL_ORIGIN_APP."
+          ],
+          "assertions": [
+            "The bootstrap interval writes CLOUDFLARE_TUNNEL_ORIGIN_APP exactly as http://127.0.0.1:8080.",
+            "Invoke-Staging-One-Click-Core.ps1 contains no setter that writes the obsolete http://app:8080 origin.",
+            "No Production deployment, database mutation, provider mutation, DNS mutation, or Production activation is authorized."
+          ],
+          "tests": [
+            {
+              "id": "staging-one-click-autopilot-core",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-one-click-autopilot-core.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1",
+            "http-generic-api/test-staging-one-click-autopilot-core.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Preserve shared source compatibility without authorizing Production execution.",
+      "blockers": [
+        "Production remains outside this repair and requires its separate governed promotion lifecycle."
+      ]
+    }
+  ]
+}
