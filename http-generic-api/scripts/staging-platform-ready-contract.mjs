@@ -77,7 +77,10 @@ assert.match(windowsHelper, /service readback is not bound to the canonical Stag
 assert.match(windowsHelper, /Windows service is not bound to LocalSystem after reconciliation/);
 assert.match(windowsHelper, /Windows service is not configured for automatic start after reconciliation/);
 assert.match(windowsHelper, /sc\.exe\s+failure\s+\$serviceName/);
-assert.match(windowsHelper, /WriteAllText\(\$logFile,\s*''/);
+assert.match(windowsHelper, /Reset-StagingCloudflaredLog/);
+assert.match(windowsHelper, /\[IO\.FileShare\]::None/);
+assert.match(windowsHelper, /Reset-StagingCloudflaredLog\s+\$logFile\s+15/);
+assert.doesNotMatch(windowsHelper, /WriteAllText\(\$logFile,\s*''/);
 assert.match(windowsHelper, /REMOTE_MANAGED_TUNNEL_ORIGIN_MISMATCH/);
 assert.match(windowsHelper, /dev\\\.mad4b\\\.com/);
 assert.match(windowsHelper, /mcp-dev\\\.mad4b\\\.com/);

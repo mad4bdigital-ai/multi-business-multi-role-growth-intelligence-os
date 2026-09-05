@@ -29,6 +29,26 @@ function Protect-StagingCloudflaredFile([string]$Path) {
     if ($LASTEXITCODE -ne 0) { throw "Unable to apply SYSTEM/Administrators ACLs for $Path" }
 }
 
+function Reset-StagingCloudflaredLog([string]$Path, [int]$TimeoutSeconds = 15) {
+    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    $lastError = ''
+    do {
+        $stream = $null
+        try {
+            $stream = [IO.File]::Open($Path, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::Write, [IO.FileShare]::None)
+            $stream.SetLength(0)
+            $stream.Flush()
+            return
+        } catch [IO.IOException] {
+            $lastError = $_.Exception.Message
+        } finally {
+            if ($null -ne $stream) { $stream.Dispose() }
+        }
+        Start-Sleep -Milliseconds 250
+    } while ([DateTime]::UtcNow -lt $deadline)
+    throw "Staging Cloudflared logfile did not become exclusively writable within $TimeoutSeconds seconds: $lastError"
+}
+
 function Ensure-StagingCloudflaredTokenFile([string]$EnvFile) {
     $tokenFile = Get-StagingEnvValue $EnvFile 'CLOUDFLARE_TUNNEL_TOKEN_FILE'
     if ([string]::IsNullOrWhiteSpace($tokenFile)) {
@@ -83,10 +103,10 @@ function Ensure-StagingCloudflaredWindowsService([string]$EnvFile) {
         $service.WaitForStatus([System.ServiceProcess.ServiceControllerStatus]::Stopped, [TimeSpan]::FromSeconds(20))
     }
 
-    # Remote-origin proof must belong to this exact service start. Stale log lines
-    # from an earlier app:8080 configuration must never contaminate the readback.
-    $encoding = New-Object Text.UTF8Encoding($false)
-    [IO.File]::WriteAllText($logFile, '', $encoding)
+    # Remote-origin proof must belong to this exact service start. SCM can report
+    # Stopped slightly before cloudflared releases its logfile handle, so acquire
+    # exclusive write ownership with a bounded retry instead of racing WriteAllText.
+    Reset-StagingCloudflaredLog $logFile 15
     Protect-StagingCloudflaredFile $logFile
 
     if ($null -eq $service) {
