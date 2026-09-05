@@ -18,11 +18,19 @@ assert.doesNotMatch(helper, /\[IO\.File\]::WriteAllText\(\$logFile, '', \$encodi
 assert.doesNotMatch(helper, /Stop-Service\s+Cloudflared/);
 assert.doesNotMatch(helper, /Stop-Process[\s\S]{0,120}cloudflared/i);
 
+
+assert.match(helper, /\[wmiclass\]'Win32_Service'/);
+assert.match(helper, /\$serviceClass\.Create\(/);
+assert.match(helper, /Win32_Service\.Create returned \$createCode/);
+assert.match(helper, /reconciliation_transport = if \(\$null -eq \$service\) \{ 'win32_service_create' \}/);
+assert.doesNotMatch(helper, /sc\.exe\s+create\s+\$serviceName/);
+
 console.log(JSON.stringify({
   ok: true,
   contract: "mad4b.staging-cloudflared-log-release-regression.v1",
   bounded_retry: true,
   exclusive_file_ownership: true,
+  structured_service_create: true,
   generic_cloudflared_untouched: true,
   production_mutation: false,
   provider_mutation: false,
