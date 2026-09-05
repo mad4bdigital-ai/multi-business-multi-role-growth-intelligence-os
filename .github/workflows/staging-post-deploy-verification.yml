@@ -4,8 +4,16 @@ on:
   # dev.mad4b.com is intentionally retired; run manually only after an approved staging rebuild.
   workflow_dispatch:
     inputs:
+      operation:
+        description: Verification operation to run
+        required: false
+        default: verify
+        type: choice
+        options:
+          - verify
+          - countersign_recovery
       expected_sha:
-        description: Optional commit SHA expected on staging; defaults to the workflow commit
+        description: Commit SHA expected on staging; required for recovery countersign and defaults to the workflow commit for verification
         required: false
         type: string
       timeout_seconds:
@@ -13,16 +21,29 @@ on:
         required: false
         default: "900"
         type: string
+      evidence_run_id:
+        description: GitHub run containing the no-secret local canary evidence artifact; countersign only
+        required: false
+        type: string
+      expected_target_fingerprint:
+        description: Exact Staging target fingerprint; countersign only
+        required: false
+        type: string
+      confirmation:
+        description: Type COUNTERSIGN_STAGING_RECOVERY for recovery countersign
+        required: false
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: staging-post-deploy-verification
-  cancel-in-progress: true
+  group: ${{ inputs.operation == 'countersign_recovery' && format('staging-recovery-genuine-certification-{0}-{1}', inputs.expected_sha, inputs.expected_target_fingerprint) || 'staging-post-deploy-verification' }}
+  cancel-in-progress: ${{ inputs.operation != 'countersign_recovery' }}
 
 jobs:
   verify-staging:
+    if: inputs.operation != 'countersign_recovery'
     name: Verify main on dev.mad4b.com
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -195,3 +216,76 @@ jobs:
           path: staging-verification-artifacts/
           if-no-files-found: warn
           retention-days: 14
+
+  verify-and-countersign:
+    if: inputs.operation == 'countersign_recovery' && github.ref == 'refs/heads/main' && inputs.confirmation == 'COUNTERSIGN_STAGING_RECOVERY'
+    name: Verify and countersign genuine Staging recovery certification
+    runs-on: ubuntu-latest
+    environment: staging-recovery-certification
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Validate bounded countersign inputs
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
+          EXPECTED_TARGET_FINGERPRINT: ${{ inputs.expected_target_fingerprint }}
+        run: |
+          set -euo pipefail
+          [[ "${EXPECTED_SHA}" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::expected_sha must be a full 40-character SHA."; exit 1; }
+          [[ "${EVIDENCE_RUN_ID}" =~ ^[0-9]+$ ]] || { echo "::error::evidence_run_id must be numeric."; exit 1; }
+          [[ "${EXPECTED_TARGET_FINGERPRINT}" =~ ^[0-9a-f]{64}$ ]] || { echo "::error::expected_target_fingerprint must be a 64-character SHA-256 fingerprint."; exit 1; }
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.expected_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Enforce exact main workflow authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_SHA}" = "${{ inputs.expected_sha }}"
+          test "$(git rev-parse HEAD)" = "${{ inputs.expected_sha }}"
+          test "$(git rev-parse origin/main)" = "${{ inputs.expected_sha }}"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install verifier dependencies
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts
+
+      - name: Download exact no-secret canary evidence
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.evidence_run_id }}
+          name: staging-recovery-canary-${{ inputs.expected_sha }}-${{ inputs.expected_target_fingerprint }}
+          path: ${{ runner.temp }}/staging-recovery-canary
+
+      - name: Independently verify and countersign
+        env:
+          RECOVERY_STAGING_EVIDENCE_DIRECTORY: ${{ runner.temp }}/staging-recovery-canary
+          RECOVERY_STAGING_COUNTERSIGN_OUTPUT_DIRECTORY: ${{ runner.temp }}/staging-recovery-countersign
+          RECOVERY_STAGING_EXPECTED_TARGET_FINGERPRINT: ${{ inputs.expected_target_fingerprint }}
+          RECOVERY_STAGING_CERTIFICATION_PRIVATE_KEY: ${{ secrets.RECOVERY_STAGING_CERTIFICATION_PRIVATE_KEY }}
+          RECOVERY_STAGING_CERTIFICATION_ISSUER: ${{ vars.RECOVERY_STAGING_CERTIFICATION_ISSUER }}
+          RECOVERY_STAGING_CERTIFICATION_KEY_ID: ${{ vars.RECOVERY_STAGING_CERTIFICATION_KEY_ID }}
+          ACTIVATION_GATEWAY_INGRESS_PUBLIC_KEY_SHA256: ${{ vars.ACTIVATION_GATEWAY_INGRESS_PUBLIC_KEY_SHA256 }}
+        run: node .github/scripts/staging-recovery-verify-and-countersign.mjs
+
+      - name: Upload signed bounded certification
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-recovery-signed-certification-${{ inputs.expected_sha }}-${{ inputs.expected_target_fingerprint }}
+          path: ${{ runner.temp }}/staging-recovery-countersign
+          if-no-files-found: error
+          retention-days: 7
