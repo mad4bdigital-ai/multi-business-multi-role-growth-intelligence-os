@@ -6,6 +6,8 @@ param(
     [int]$PollSeconds = 300,
     [int]$HealthIntervalSeconds = 60,
     [switch]$StartTunnel,
+    [ValidateSet("disabled", "windows_service", "docker_sidecar")]
+    [string]$TunnelMode = "disabled",
     [ValidateSet("Smart", "ForceBuild", "SkipBuild")]
     [string]$BuildMode = "Smart",
     [switch]$SkipBuild
@@ -13,6 +15,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+if ($StartTunnel -and $TunnelMode -eq "disabled") { $TunnelMode = "windows_service" }
 if ($SkipBuild) {
     if ($BuildMode -ne "Smart") { Fail "-SkipBuild cannot be combined with an explicit BuildMode" }
     $BuildMode = "SkipBuild"
@@ -35,8 +38,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $RepositoryPath ".git"))) { Fail "Re
 
 $escapedScript = $autoDeployScript.Replace('"', '\"')
 $escapedRepo = $RepositoryPath.Replace('"', '\"')
-$arguments = "-NoLogo -NoProfile -ExecutionPolicy Bypass -File `"$escapedScript`" -RepositoryPath `"$escapedRepo`" -Watch -PollSeconds $PollSeconds -BuildMode $BuildMode"
-if ($StartTunnel) { $arguments += " -StartTunnel" }
+$arguments = "-NoLogo -NoProfile -ExecutionPolicy Bypass -File `"$escapedScript`" -RepositoryPath `"$escapedRepo`" -Watch -PollSeconds $PollSeconds -BuildMode $BuildMode -TunnelMode $TunnelMode"
 
 $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Highest
 $action = New-ScheduledTaskAction -Execute (Join-Path $PSHOME "powershell.exe") -Argument $arguments -WorkingDirectory $scriptRoot
@@ -49,6 +51,6 @@ $healthArguments = "-NoLogo -NoProfile -ExecutionPolicy Bypass -File `"$healthEs
 $healthAction = New-ScheduledTaskAction -Execute (Join-Path $PSHOME "powershell.exe") -Argument $healthArguments -WorkingDirectory $scriptRoot
 $healthTrigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME" -RandomDelay (New-TimeSpan -Minutes 1)
 Register-ScheduledTask -TaskName $HealthTaskName -Action $healthAction -Trigger $healthTrigger -Settings $settings -Principal $principal -Force | Out-Null
-Write-Host "AUTO_DEPLOY_TASK_INSTALLED: task=$TaskName user=$env:USERDOMAIN\$env:USERNAME poll_seconds=$PollSeconds tunnel=$StartTunnel"
+Write-Host "AUTO_DEPLOY_TASK_INSTALLED: task=$TaskName user=$env:USERDOMAIN\$env:USERNAME poll_seconds=$PollSeconds tunnel_mode=$TunnelMode provider_mutation_authorized=False"
 Write-Host "STAGING_HEALTH_TASK_INSTALLED: task=$HealthTaskName interval_seconds=$HealthIntervalSeconds"
 Write-Host "Both tasks run only when this Windows user is logged in and never change Production, DNS, Hostinger, or database state."
