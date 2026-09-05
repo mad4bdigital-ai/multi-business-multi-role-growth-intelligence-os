@@ -4,7 +4,7 @@
   "feature_key": "staging-recovery-genuine-certification-phase-b-20260904",
   "title": "Staging Recovery genuine certification Phase B environment impact",
   "delivery_mode": "single_pr",
-  "current_phase": "operational",
+  "current_phase": "mvp",
   "scope": {
     "include": [
       ".changes/e2e/staging-recovery-genuine-certification-phase-b-20260904.json",
@@ -20,7 +20,7 @@
     ]
   },
   "merge_contract": {
-    "minimum_phase": "operational"
+    "minimum_phase": "mvp"
   },
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
@@ -34,7 +34,7 @@
   },
   "phases": [
     {
-      "id": "operational",
+      "id": "mvp",
       "status": "implemented",
       "objective": "Bind genuine Staging Recovery certification to the real Recovery Kernel, exact deployed main SHA, target fingerprint, independent GitHub countersign, and immutable local publication while keeping Production live activation and mutation disabled.",
       "e2e_journeys": [
