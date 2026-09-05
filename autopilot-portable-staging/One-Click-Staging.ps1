@@ -10,6 +10,8 @@ param(
     [int]$EligibilityWaitSeconds = 1800,
     [int]$EligibilityNoRunGraceSeconds = 600,
     [switch]$NoTunnel,
+    [ValidateSet("disabled", "windows_service", "docker_sidecar")]
+    [string]$AutoDeployTunnelMode = "disabled",
     [switch]$EnableActivationGateway,
     [switch]$NoAutoDeploy,
     [switch]$RequireSchemaBundle,
@@ -500,8 +502,7 @@ function Read-RuntimeCertificationState([string]$RepoPath, [string]$Sha) {
 function Install-AutoDeploy([string]$RepoPath) {
     $installer = Join-Path $RepoPath "autopilot-portable-staging\Install-AutoDeployTask.ps1"
     if (-not (Test-Path $installer)) { Fail "Install-AutoDeployTask.ps1 is missing" }
-    $args = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $installer, "-RepositoryPath", $RepoPath, "-PollSeconds", "$PollSeconds", "-BuildMode", $BuildMode)
-    if (-not $NoTunnel) { $args += "-StartTunnel" }
+    $args = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $installer, "-RepositoryPath", $RepoPath, "-PollSeconds", "$PollSeconds", "-BuildMode", $BuildMode, "-TunnelMode", $AutoDeployTunnelMode)
     Invoke-Native "powershell.exe" $args
 }
 
