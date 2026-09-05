@@ -225,6 +225,14 @@ assert.doesNotMatch(liveWorkflow, /BACKEND_API_KEY|JWT_SECRET|CLOUDFLARE_TUNNEL_
 
 assert.match(installer, /Register-ScheduledTask/);
 assert.match(installer, /BuildMode/);
+assert.match(installer, /ValidateSet\("disabled", "windows_service", "docker_sidecar"\)/);
+assert.match(installer, /-TunnelMode \$TunnelMode/);
+assert.match(installer, /provider_mutation_authorized=False/);
+assert.match(deployScript, /\$TunnelSelected = \$TunnelMode -ne "disabled"/);
+assert.match(deployScript, /tunnel_mode = \$TunnelMode/);
+assert.match(deployScript, /provider_mutation_authorized = \$false/);
+assert.doesNotMatch(installer, /EnableActivationGateway/);
+assert.doesNotMatch(deployScript, /EnableActivationGateway/);
 assert.match(installer, /LogonType Interactive/);
 assert.match(installer, /New-ScheduledTaskTrigger -AtLogOn/);
 assert.match(installer, /RandomDelay/);
