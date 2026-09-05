@@ -39,7 +39,8 @@
             "Only information_schema.TABLES, information_schema.COLUMNS and information_schema.KEY_COLUMN_USAGE are queried.",
             "No application table SELECT, exact COUNT, row-value scan, database mutation, provider mutation, DNS mutation, Production mutation, Staging mutation or secret exposure occurs.",
             "Unknown and opaque surfaces fail closed to manual_review.",
-            "The pre-existing default census response remains unchanged when scope is omitted."
+            "The pre-existing default census response remains unchanged when scope is omitted.",
+            "Every reported row count is explicitly labelled estimated and sourced from information_schema.TABLES.TABLE_ROWS."
           ],
           "tests": [
             {
