@@ -45,6 +45,7 @@ const STAGING_RUNTIME_READ_ONLY_TABLES = Object.freeze([
   "admin_platform_endpoint_tools",
   "tenant_platform_endpoint_tools",
   "sql_cache_runtime_policies",
+  "platform_runtime_config",
   "users",
   "memberships",
   "tenants",
