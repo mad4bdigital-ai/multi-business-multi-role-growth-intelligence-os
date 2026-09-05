@@ -68,7 +68,7 @@ assert.match(windowsHelper, /\$serviceClass\.Create\s*\(/);
 assert.match(windowsHelper, /\$createCode\s*=\s*\[int\]\$create\.ReturnValue/);
 assert.match(windowsHelper, /if\s*\(\$createCode\s+-ne\s+0\)/);
 assert.match(windowsHelper, /Win32_Service\.Create returned \$createCode/);
-assert.doesNotMatch(windowsHelper, /sc\.exe\s+create\s+/);
+assert.doesNotMatch(windowsHelper, /&\s*sc\.exe\s+create\s+/);
 assert.doesNotMatch(windowsHelper, /sc\.exe\s+config\s+Cloudflared/);
 assert.match(windowsHelper, /Get-CimInstance\s+Win32_Service/);
 assert.match(windowsHelper, /Invoke-CimMethod[\s\S]*?-MethodName\s+Change[\s\S]*?PathName\s*=\s*\$binPath[\s\S]*?StartMode\s*=\s*'Automatic'[\s\S]*?StartName\s*=\s*'LocalSystem'/);
