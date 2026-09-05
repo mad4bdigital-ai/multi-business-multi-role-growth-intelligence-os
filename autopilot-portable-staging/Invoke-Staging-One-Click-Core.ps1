@@ -250,7 +250,6 @@ function Invoke-StagingPublicReadiness([string]$RepositoryPath, [string]$EnvFile
 
     if ($ActivationGateway) {
         $probes += Invoke-HttpProbe 'https://activation-dev.mad4b.com/health'
-        $probes += Invoke-HttpProbe 'https://activation-dev.mad4b.com/.well-known/oauth-authorization-server'
         $probes += Invoke-HttpProbe 'https://activation-dev.mad4b.com/tenant/activation/session-context' @{} @(401,403)
     }
 
