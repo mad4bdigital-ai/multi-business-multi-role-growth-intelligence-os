@@ -110,8 +110,28 @@ function Ensure-StagingCloudflaredWindowsService([string]$EnvFile) {
     Protect-StagingCloudflaredFile $logFile
 
     if ($null -eq $service) {
-        & sc.exe create $serviceName "binPath= $binPath" 'start= auto' 'obj= LocalSystem' 'DisplayName= Mad4B Staging Cloudflared Tunnel' | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw "Unable to create the $serviceName Windows service." }
+        # Windows PowerShell 5.1 can corrupt the quoted PathName when sc.exe create
+        # receives a nested command line. Use the structured Win32_Service.Create
+        # method that is available in Windows PowerShell 5.1 and verify ReturnValue.
+        $serviceClass = [wmiclass]'Win32_Service'
+        $create = $serviceClass.Create(
+            $serviceName,
+            'Mad4B Staging Cloudflared Tunnel',
+            $binPath,
+            16,
+            1,
+            'Automatic',
+            $false,
+            'LocalSystem',
+            $null,
+            $null,
+            $null,
+            $null
+        )
+        $createCode = [int]$create.ReturnValue
+        if ($createCode -ne 0) {
+            throw "Unable to create the $serviceName Windows service: Win32_Service.Create returned $createCode."
+        }
     } else {
         # Windows PowerShell 5.1 native argument quoting can corrupt an sc.exe config
         # binPath that itself contains quoted paths. Reconcile the existing service
@@ -153,7 +173,7 @@ function Ensure-StagingCloudflaredWindowsService([string]$EnvFile) {
         transport_protocol = 'http2'
         service_account = [string]$readback.StartName
         service_start_mode = [string]$readback.StartMode
-        reconciliation_transport = if ($null -eq $service) { 'sc_create' } else { 'win32_service_change' }
+        reconciliation_transport = if ($null -eq $service) { 'win32_service_create' } else { 'win32_service_change' }
         inline_token = $false
         fresh_log_evidence = $true
         secrets_included = $false

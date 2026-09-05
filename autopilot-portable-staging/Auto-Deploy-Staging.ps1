@@ -7,6 +7,8 @@ param(
     [int]$PollSeconds = 300,
     [switch]$Watch,
     [switch]$StartTunnel,
+    [ValidateSet("disabled", "windows_service", "docker_sidecar")]
+    [string]$TunnelMode = "disabled",
     [switch]$ValidateOnly,
     [ValidateSet("Smart", "ForceBuild", "SkipBuild")]
     [string]$BuildMode = "Smart",
@@ -15,6 +17,8 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+if ($StartTunnel -and $TunnelMode -eq "disabled") { $TunnelMode = "windows_service" }
+$TunnelSelected = $TunnelMode -ne "disabled"
 if ($SkipBuild) {
     if ($BuildMode -ne "Smart") { throw "-SkipBuild cannot be combined with an explicit BuildMode" }
     $BuildMode = "SkipBuild"
@@ -158,7 +162,8 @@ function Write-AutoDeployState([string]$Sha, $Eligibility, $Runtime, [bool]$Vali
         ref = $Ref
         eligibility_check = $Policy.eligibility_check_name
         eligibility_completed_at = $Eligibility.completed_at
-        tunnel_started = [bool]$StartTunnel
+        tunnel_started = [bool]$TunnelSelected
+        tunnel_mode = $TunnelMode
         validate_only = $false
         certification_contract = [string]$Runtime.certification_contract
         certification_status = [string]$Runtime.certification_status
@@ -214,7 +219,7 @@ while ($true) {
         if (-not $Watch) { Release-AutoPilotRunLock; return }
     } elseif ($sameDeployedCommit -and -not $ValidateOnly -and $eligibility.state -eq "eligible") {
         $certArgs = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $certificationScript, "-RepositoryPath", $RepositoryPath, "-ExpectedCommit", $sha, "-Ref", $Ref, "-StatePath", $runtimeStatePath)
-        if ($StartTunnel) { $certArgs += "-StartTunnel" }
+        if ($TunnelSelected) { $certArgs += "-StartTunnel" }
         Write-Host "> powershell.exe -File Invoke-StagingCertification.ps1 (re-certify exact deployed commit)"
         & powershell.exe @certArgs
         if ($LASTEXITCODE -ne 0) { Fail "Re-certification blocked deployed commit $sha; refusing blind redeploy" }
@@ -229,7 +234,7 @@ while ($true) {
         }
     } elseif ($eligibility.state -eq "eligible") {
         $pilotArgs = @("-RepositoryPath", $RepositoryPath, "-RepositoryUrl", $RepositoryUrl, "-ExpectedRepository", $ExpectedRepository, "-Ref", $Ref, "-ExpectedCommit", $sha, "-BuildMode", $BuildMode)
-        if ($StartTunnel) { $pilotArgs += "-StartTunnel" }
+        if ($TunnelSelected) { $pilotArgs += "-StartTunnel" }
         if ($ValidateOnly) { $pilotArgs += "-ValidateOnly" }
         Write-Host ("> powershell.exe -File Start-AutoPilot.ps1 {0}" -f ($pilotArgs -join " "))
         & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $startScript @pilotArgs
@@ -242,8 +247,8 @@ while ($true) {
         } else {
             $runtimeState = Get-CertificationState $runtimeStatePath $sha
             Write-AutoDeployState $sha $eligibility $runtimeState $false
-            Write-Host "AUTO_DEPLOY_APPLIED: staging commit=$sha tunnel=$StartTunnel certification=$($runtimeState.certification_status)"
-            Write-StagingOperationBoundary -Component $LogComponent -Stage "deploy" -Outcome "success" -Message "eligible Staging commit applied" -Data @{ sha = $sha; tunnel_started = [bool]$StartTunnel; certification_status = $runtimeState.certification_status }
+            Write-Host "AUTO_DEPLOY_APPLIED: staging commit=$sha tunnel_mode=$TunnelMode certification=$($runtimeState.certification_status)"
+            Write-StagingOperationBoundary -Component $LogComponent -Stage "deploy" -Outcome "success" -Message "eligible Staging commit applied" -Data @{ sha = $sha; tunnel_started = [bool]$TunnelSelected; tunnel_mode = $TunnelMode; provider_mutation_authorized = $false; certification_status = $runtimeState.certification_status }
             if ([string]$runtimeState.certification_status -eq "degraded" -and -not $Watch) { Fail "Staging commit $sha is running but not certified ready" }
             if (-not $Watch) { Release-AutoPilotRunLock; return }
             $previous = Read-State $statePath

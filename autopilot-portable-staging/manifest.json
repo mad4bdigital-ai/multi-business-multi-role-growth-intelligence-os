@@ -22,7 +22,7 @@
     },
     {
       "path": "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
-      "sha256": "b3c743f1395340fcd9308c9278454e2d6ffffb635813abb06d26549f5e03db9b"
+      "sha256": "f2013d4415310a95d92b6deb8e98513b73f8f355f6846ba409274f6f51df3580"
     },
     {
       "path": "autopilot-portable-staging/Clone-StagingDatabases.ps1",
@@ -30,11 +30,11 @@
     },
     {
       "path": "autopilot-portable-staging/Install-AutoDeployTask.ps1",
-      "sha256": "d3e44f048c433ee55fbb5a988e1559159ddafe60c3e27f79f656519ceecdf498"
+      "sha256": "d4da50629aedd136794c82ea66969e98ccba0b73255b0976c3d621b134ce014c"
     },
     {
       "path": "autopilot-portable-staging/One-Click-Staging.ps1",
-      "sha256": "8c4b563e415d137585df1b6e84654d41d57aafd14bb31f78c854615655587ef2"
+      "sha256": "0e41e479997feea9e81d605019ea4c5b8d8878c15a1aeb8209889a02945da21c"
     },
     {
       "path": "autopilot-portable-staging/README.md",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "df3b1ebe917fc448c42c9a841d9479836560b1c4bfbba68938bc5f8432993537"
+      "sha256": "867155f1704a31e3a80b388194e60af3d6d90b95a6b8a1cc1af786df115a5727"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -294,7 +294,7 @@
     },
     {
       "path": "http-generic-api/test-staging-auto-deploy-contract.mjs",
-      "sha256": "6275f5119ec9ed7849ad9ca3752157bada6d7896785cafa78bab916b0e05483b"
+      "sha256": "77f1891a28e05cef12232d90810ce1ed5e4e244d8a20cf70a20921101622ea35"
     },
     {
       "path": "http-generic-api/test-staging-environment-certification-contract.mjs",
@@ -302,7 +302,7 @@
     },
     {
       "path": "autopilot-portable-staging/Bootstrap-Staging-One-Click.ps1",
-      "sha256": "bd65347d4656c3ee0f5ac8e345e7b0042abad93cd681b9099628e97ceaac85f5"
+      "sha256": "137f80dc382a51835c298ea2d7b2b2deddc8b67966608b619e1c0b97ba678fe5"
     },
     {
       "path": "autopilot-portable-staging/Staging-GitSafety.ps1",
@@ -342,7 +342,7 @@
     },
     {
       "path": "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
-      "sha256": "f01ccca864c582289b03dd7f632015b199df64b4e56e0e9a135e3f11e983eb74"
+      "sha256": "a40bd1cc4e93682d9cc2fa10d545e4629a35fde5500d73e5cc8435207050d925"
     },
     {
       "path": "http-generic-api/docker-compose.staging.windows-service.yml",
@@ -386,7 +386,7 @@
     },
     {
       "path": "autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1",
-      "sha256": "55508dc68d2efb714053c7a236d0b694b6f9909f62fa5568430a6758bf8f484a"
+      "sha256": "7b8771456ba9a153c0f6b5143311ee629f1f59ff707acc8552fd6cac2d9bc24e"
     },
     {
       "path": "autopilot-portable-staging/Converge-StagingActivationGateway.ps1",

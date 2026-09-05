@@ -8,6 +8,8 @@ param(
     [int]$EligibilityWaitSeconds = 1800,
     [int]$EligibilityNoRunGraceSeconds = 600,
     [switch]$NoTunnel,
+    [ValidateSet("disabled", "windows_service", "docker_sidecar")]
+    [string]$AutoDeployTunnelMode = "disabled",
     [switch]$EnableActivationGateway,
     [switch]$NoAutoDeploy,
     [switch]$RequireSchemaBundle,
@@ -181,7 +183,7 @@ $childArgs = @(
     "-RepositoryPath", $RepositoryPath, "-RepositoryUrl", $RepositoryUrl, "-Ref", $Ref,
     "-ExpectedRepository", $ExpectedRepository, "-PollSeconds", "$PollSeconds",
     "-EligibilityWaitSeconds", "$EligibilityWaitSeconds", "-EligibilityNoRunGraceSeconds", "$EligibilityNoRunGraceSeconds",
-    "-BuildMode", $BuildMode, "-SkipBootstrap", "-InheritedRunLock"
+    "-BuildMode", $BuildMode, "-AutoDeployTunnelMode", $AutoDeployTunnelMode, "-SkipBootstrap", "-InheritedRunLock"
 )
 if ($NoTunnel) { $childArgs += "-NoTunnel" }
 if ($EnableActivationGateway) { $childArgs += "-EnableActivationGateway" }

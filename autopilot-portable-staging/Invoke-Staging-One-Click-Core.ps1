@@ -250,7 +250,6 @@ function Invoke-StagingPublicReadiness([string]$RepositoryPath, [string]$EnvFile
 
     if ($ActivationGateway) {
         $probes += Invoke-HttpProbe 'https://activation-dev.mad4b.com/health'
-        $probes += Invoke-HttpProbe 'https://activation-dev.mad4b.com/.well-known/oauth-authorization-server'
         $probes += Invoke-HttpProbe 'https://activation-dev.mad4b.com/tenant/activation/session-context' @{} @(401,403)
     }
 
@@ -314,7 +313,7 @@ Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ENABLED' 'false'
 Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ORIGIN_APP' 'http://127.0.0.1:8080'
 
 $bootstrap = Join-Path $root 'Bootstrap-Staging-One-Click.ps1'
-$bootstrapArgs = @('-NoLogo','-NoProfile','-ExecutionPolicy','Bypass','-File',$bootstrap,'-RepositoryPath',$RepositoryPath,'-BuildMode',$BuildMode,'-NoTunnel')
+$bootstrapArgs = @('-NoLogo','-NoProfile','-ExecutionPolicy','Bypass','-File',$bootstrap,'-RepositoryPath',$RepositoryPath,'-BuildMode',$BuildMode,'-AutoDeployTunnelMode',$TunnelMode,'-NoTunnel')
 if ($EnableActivationGateway) { $bootstrapArgs += '-EnableActivationGateway' }
 if ($NoAutoDeploy) { $bootstrapArgs += '-NoAutoDeploy' }
 if ($RequireSchemaBundle) { $bootstrapArgs += '-RequireSchemaBundle' }

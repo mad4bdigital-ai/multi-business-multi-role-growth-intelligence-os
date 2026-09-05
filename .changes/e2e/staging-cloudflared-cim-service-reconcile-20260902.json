@@ -39,23 +39,27 @@
           "level": "synthetic_runtime",
           "actor": "Local Windows Docker Staging operator",
           "entrypoint": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1 -TunnelMode windows_service",
-          "terminal_outcome": "An existing Cloudflared Windows service is reconciled to the exact token-file/logfile command line without native sc.exe config quoting, obtains bounded exclusive logfile ownership before fresh-log truncation, starts as LocalSystem in automatic mode, remains stable, and can proceed to remote-origin proof and PLATFORM_READY.",
+          "terminal_outcome": "A missing or existing namespaced Cloudflared Windows service is created or reconciled through structured Win32_Service methods without native sc.exe PathName quoting, obtains bounded exclusive logfile ownership, starts as LocalSystem in automatic mode, remains stable, and can proceed to remote-origin proof and PLATFORM_READY.",
           "steps": [
             "Stop the existing namespaced Staging Cloudflared service before changing its command line.",
             "Acquire exclusive write ownership of the Staging Cloudflared logfile with FileShare.None for up to 15 seconds after SCM reports Stopped, truncate only after ownership is obtained, and fail closed if the logfile remains locked.",
+            "Create a missing namespaced service through Windows PowerShell 5.1-compatible Win32_Service.Create and fail closed on its ReturnValue; never pass the quoted PathName through sc.exe create.",
             "Pass PathName, Automatic start mode, and LocalSystem account through Win32_Service.Change using Invoke-CimMethod instead of sc.exe config.",
             "Fail closed with the Win32_Service.Change ReturnValue when Windows rejects reconciliation.",
             "Retain bounded sc.exe failure recovery configuration, start the service, and read back PathName, token-file, logfile, service account, start mode, running state, and process id.",
-            "Require live Staging certification after merge before treating windows_service mode as platform-ready."
+            "Require live Staging certification after merge before treating windows_service mode as platform-ready.",
+            "Persist the selected tunnel mode into the scheduled Auto Deploy task independently from bootstrap -NoTunnel quiescence, without persisting Activation Gateway provider-mutation authority."
           ],
           "assertions": [
             "Existing-service reconciliation does not depend on native sc.exe config binPath quoting.",
+            "Missing-service creation and existing-service reconciliation both use structured Win32_Service methods for PathName transport.",
             "Fresh-log reset uses exclusive write ownership and a bounded retry rather than immediate WriteAllText truncation; persistent lock contention fails closed with a diagnostic.",
             "The service readback is bound to the canonical --token-file and Staging logfile and does not contain an inline --token.",
             "The reconciled service account is LocalSystem and StartMode is Auto.",
             "The Cloudflared metrics listener remains loopback-only.",
             "No generic Cloudflared service is stopped, killed, or reconfigured.",
-            "No Cloudflare DNS mutation, Production deployment, Production access, database mutation, schema or migration apply, ruleset mutation, secret rotation, container deletion, or volume deletion is authorized."
+            "No Cloudflare DNS mutation, Production deployment, Production access, database mutation, schema or migration apply, ruleset mutation, secret rotation, container deletion, or volume deletion is authorized.",
+            "Scheduled Auto Deploy preserves disabled, windows_service, or docker_sidecar mode, but cannot persist or infer EnableActivationGateway authorization."
           ],
           "tests": [
             {
@@ -78,7 +82,10 @@
             "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
             "autopilot-portable-staging/manifest.json",
             "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs",
-            "http-generic-api/test-staging-cloudflared-log-release.mjs"
+            "http-generic-api/test-staging-cloudflared-log-release.mjs",
+            "autopilot-portable-staging/Install-AutoDeployTask.ps1",
+            "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
+            "autopilot-portable-staging/One-Click-Staging.ps1"
           ]
         },
         {
