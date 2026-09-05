@@ -311,7 +311,7 @@ Quiesce-StagingTunnelRuntimes
 
 # Bootstrap the local stack without a tunnel, then restore the selected canonical mode.
 Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ENABLED' 'false'
-Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ORIGIN_APP' 'http://app:8080'
+Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ORIGIN_APP' 'http://127.0.0.1:8080'
 
 $bootstrap = Join-Path $root 'Bootstrap-Staging-One-Click.ps1'
 $bootstrapArgs = @('-NoLogo','-NoProfile','-ExecutionPolicy','Bypass','-File',$bootstrap,'-RepositoryPath',$RepositoryPath,'-BuildMode',$BuildMode,'-NoTunnel')
