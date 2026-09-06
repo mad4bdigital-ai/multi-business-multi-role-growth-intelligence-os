@@ -16,7 +16,7 @@
       "http-generic-api/scripts/host-breakglass-local.mjs",
       "http-generic-api/stagingRuntimeBootstrapContract.js",
       "http-generic-api/surfaceAuthorityResolver.js",
-      "http-generic-api/test-execution-policy-surface-compatibility.mjs",
+      "http-generic-api/test-staging-independent-schema-contract.mjs",
       "http-generic-api/test-staging-database-readiness-repair.mjs",
       "http-generic-api/test-host-breakglass-catalog.mjs"
     ]
@@ -115,10 +115,10 @@
           ],
           "tests": [
             {
-              "id": "execution-policy-surface-compatibility",
+              "id": "staging-independent-schema-contract",
               "runner": "node",
               "working_directory": "http-generic-api",
-              "path": "test-execution-policy-surface-compatibility.mjs",
+              "path": "test-staging-independent-schema-contract.mjs",
               "args": []
             },
             {
@@ -142,7 +142,7 @@
             "http-generic-api/routes/adminHostBreakglassRoutes.js",
             "http-generic-api/stagingRuntimeBootstrapContract.js",
             "http-generic-api/surfaceAuthorityResolver.js",
-            "http-generic-api/test-execution-policy-surface-compatibility.mjs"
+            "http-generic-api/test-staging-independent-schema-contract.mjs"
           ]
         }
       ]
