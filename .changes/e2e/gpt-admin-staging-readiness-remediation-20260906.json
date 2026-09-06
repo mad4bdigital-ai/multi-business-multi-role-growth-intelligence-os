@@ -9,6 +9,8 @@
   "scope": {
     "include": [
       ".changes/e2e/gpt-admin-staging-readiness-remediation-20260906.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/config/host-breakglass-staging-contract.json",
       "http-generic-api/databasePrivilegeContracts.js",
       "http-generic-api/hostBreakglassCatalog.js",
@@ -79,6 +81,8 @@
             }
           ],
           "evidence_paths": [
+            ".github/derived-state-governance.json",
+            "http-generic-api/config/repository-governance-constitution.json",
             "http-generic-api/config/host-breakglass-staging-contract.json",
             "http-generic-api/databasePrivilegeContracts.js",
             "http-generic-api/hostBreakglassCatalog.js",
@@ -137,6 +141,8 @@
             }
           ],
           "evidence_paths": [
+            ".github/derived-state-governance.json",
+            "http-generic-api/config/repository-governance-constitution.json",
             "http-generic-api/config/host-breakglass-staging-contract.json",
             "http-generic-api/migrations/20260902_staging_actions_runtime_contract_reconciliation.sql",
             "http-generic-api/routes/adminHostBreakglassRoutes.js",
