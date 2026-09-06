@@ -4,6 +4,7 @@ import { stagingRecoveryAuthorityInternals } from "./stagingRecoveryAuthorityBin
 
 export const STAGING_BOOTSTRAP_EXECUTION_AUTHORITY_CONTRACT = "mad4b.staging-bootstrap-execution-authority.v2";
 export const STAGING_BOOTSTRAP_RESERVATION_RECEIPT_CONTRACT = "mad4b.staging-bootstrap-reservation-receipt.v1";
+export const STAGING_BOOTSTRAP_EXECUTION_RECEIPT_CONTRACT = "mad4b.staging-bootstrap-execution-receipt.v1";
 export const STAGING_BOOTSTRAP_READBACK_EVIDENCE_CONTRACT = "mad4b.staging-bootstrap-local-readback-evidence.v1";
 export const STAGING_BOOTSTRAP_READBACK_RECEIPT_CONTRACT = "mad4b.staging-bootstrap-readback-receipt.v1";
 const SHA40 = /^[0-9a-f]{40}$/u;
@@ -216,10 +217,46 @@ export function createStagingBootstrapExecutionAuthority({ env = process.env } =
       return { valid: true, reserved: true, contract: STAGING_BOOTSTRAP_EXECUTION_AUTHORITY_CONTRACT, reservation_generation: reservationGeneration, reservation_fingerprint: digest({ ticket_id: ticketId, ticket_hash: ticketHash, reservation_generation: reservationGeneration, ...binding }), reservation_receipt: reservationReceipt, lifecycle_state: "reserved", reconciliation_required: false, database_mutation_performed: false, secrets_included: false };
     },
 
-    async attestReadbackForBootstrap({ ticket_id, ticket_hash, expected, reservation_receipt, evidence } = {}) {
+    async markExecutingForBootstrap({ ticket_id, ticket_hash, expected, reservation_receipt } = {}) {
       const { ticketId, ticketHash, binding } = await verifyTicketAndBinding({ ticket_id, ticket_hash, expected });
       const reservation = await verifyReceipt(signatureVerifier, reservation_receipt, { contract: STAGING_BOOTSTRAP_RESERVATION_RECEIPT_CONTRACT, domain: STAGING_BOOTSTRAP_RESERVATION_RECEIPT_CONTRACT });
       assertReceiptBinding(reservation, { ticketId, ticketHash, binding });
+      if (reservation.binding_hash !== digest(binding)) fail("RECOVERY_TICKET_BINDING_MISMATCH", "Reservation receipt binding fingerprint is invalid.", { reconciliation_required: true, automatic_rerun_allowed: false }, 409);
+      const now = Date.now();
+      const payload = {
+        contract: STAGING_BOOTSTRAP_EXECUTION_RECEIPT_CONTRACT,
+        purpose: "staging_bootstrap_execution_started",
+        ticket_id: ticketId,
+        execution_ticket_hash: ticketHash,
+        reservation_generation: reservation.reservation_generation,
+        reservation_receipt_hash: reservation_receipt.receipt_hash,
+        expected_sha: binding.production_sha,
+        target_key: binding.target_key,
+        target_fingerprint: binding.target_fingerprint,
+        operation: binding.operation,
+        plan_hash: binding.plan_hash,
+        idempotency_key: binding.idempotency_key,
+        role_selection_hash: binding.role_selection_hash,
+        grant_binding_hash: binding.grant_binding_hash,
+        binding_hash: digest(binding),
+        execution_started_at: new Date(now).toISOString(),
+        receipt_issued_at: new Date(now).toISOString(),
+        receipt_expires_at: reservation.receipt_expires_at,
+        receipt_nonce: randomUUID(),
+      };
+      const executionReceipt = await signReceipt(receiptSigner, payload, STAGING_BOOTSTRAP_EXECUTION_RECEIPT_CONTRACT);
+      await store.appendEvidenceEvent(binding.idempotency_key, { event: "staging_bootstrap_execution_started", phase: "executing", ticket_id: ticketId, reservation_generation: reservation.reservation_generation, expected_sha: binding.production_sha, plan_hash: binding.plan_hash, binding_hash: digest(binding), reservation_receipt_hash: reservation_receipt.receipt_hash, receipt_hash: executionReceipt.receipt_hash, secrets_included: false });
+      return { executing: true, lifecycle_state: "executing", execution_receipt: executionReceipt, reservation_generation: reservation.reservation_generation, reconciliation_required: false, database_mutation_performed: false, secrets_included: false };
+    },
+
+    async attestReadbackForBootstrap({ ticket_id, ticket_hash, expected, reservation_receipt, execution_receipt, evidence } = {}) {
+      const { ticketId, ticketHash, binding } = await verifyTicketAndBinding({ ticket_id, ticket_hash, expected });
+      const reservation = await verifyReceipt(signatureVerifier, reservation_receipt, { contract: STAGING_BOOTSTRAP_RESERVATION_RECEIPT_CONTRACT, domain: STAGING_BOOTSTRAP_RESERVATION_RECEIPT_CONTRACT });
+      assertReceiptBinding(reservation, { ticketId, ticketHash, binding });
+      if (!execution_receipt || execution_receipt.contract !== STAGING_BOOTSTRAP_EXECUTION_RECEIPT_CONTRACT) fail("RECOVERY_READBACK_UNVERIFIED", "Readback attestation requires a server-signed execution-start receipt for the same reservation.", { reconciliation_required: true, automatic_rerun_allowed: false }, 409);
+      const execution = await verifyReceipt(signatureVerifier, execution_receipt, { contract: STAGING_BOOTSTRAP_EXECUTION_RECEIPT_CONTRACT, domain: STAGING_BOOTSTRAP_EXECUTION_RECEIPT_CONTRACT });
+      assertReceiptBinding(execution, { ticketId, ticketHash, binding, reservationGeneration: reservation.reservation_generation });
+      if (execution.reservation_receipt_hash !== reservation_receipt.receipt_hash || execution.binding_hash !== digest(binding)) fail("RECOVERY_READBACK_UNVERIFIED", "Execution-start receipt is not bound to the exact reservation receipt.", { reconciliation_required: true, automatic_rerun_allowed: false }, 409);
       const readback = validateReadbackEvidence(evidence, { ticketId, binding, reservationGeneration: reservation.reservation_generation });
       const now = Date.now();
       const payload = {
@@ -229,6 +266,7 @@ export function createStagingBootstrapExecutionAuthority({ env = process.env } =
         execution_ticket_hash: ticketHash,
         reservation_generation: reservation.reservation_generation,
         reservation_receipt_hash: reservation_receipt.receipt_hash,
+        execution_receipt_hash: execution_receipt.receipt_hash,
         expected_sha: binding.production_sha,
         target_key: binding.target_key,
         target_fingerprint: binding.target_fingerprint,
@@ -245,7 +283,7 @@ export function createStagingBootstrapExecutionAuthority({ env = process.env } =
         receipt_nonce: randomUUID(),
       };
       const receipt = await signReceipt(receiptSigner, payload, STAGING_BOOTSTRAP_READBACK_RECEIPT_CONTRACT);
-      await store.appendEvidenceEvent(binding.idempotency_key, { event: "staging_bootstrap_readback_attested", phase: "verifying", ticket_id: ticketId, reservation_generation: reservation.reservation_generation, expected_sha: binding.production_sha, plan_hash: binding.plan_hash, binding_hash: digest(binding), evidence_hash: readback.evidence_hash, result_fingerprint: readback.result_fingerprint, receipt_hash: receipt.receipt_hash, secrets_included: false });
+      await store.appendEvidenceEvent(binding.idempotency_key, { event: "staging_bootstrap_readback_attested", phase: "verifying", ticket_id: ticketId, reservation_generation: reservation.reservation_generation, expected_sha: binding.production_sha, plan_hash: binding.plan_hash, binding_hash: digest(binding), execution_receipt_hash: execution_receipt.receipt_hash, evidence_hash: readback.evidence_hash, result_fingerprint: readback.result_fingerprint, receipt_hash: receipt.receipt_hash, secrets_included: false });
       return { verified: true, lifecycle_state: "verifying", readback_receipt: receipt, evidence_hash: readback.evidence_hash, result_fingerprint: readback.result_fingerprint, secrets_included: false };
     },
 
@@ -254,14 +292,14 @@ export function createStagingBootstrapExecutionAuthority({ env = process.env } =
       if (!readback_receipt || readback_receipt.contract !== STAGING_BOOTSTRAP_READBACK_RECEIPT_CONTRACT) fail("RECOVERY_READBACK_UNVERIFIED", "Ticket finalization requires a server-signed same-cycle readback receipt; caller booleans and arbitrary hashes are not accepted.", { reconciliation_required: true, automatic_rerun_allowed: false }, 409);
       const receipt = await verifyReceipt(signatureVerifier, readback_receipt, { contract: STAGING_BOOTSTRAP_READBACK_RECEIPT_CONTRACT, domain: STAGING_BOOTSTRAP_READBACK_RECEIPT_CONTRACT });
       assertReceiptBinding(receipt, { ticketId, ticketHash, binding, reservationGeneration: receipt.reservation_generation });
-      if (!SHA256.test(text(receipt.evidence_hash, 128).toLowerCase()) || !SHA256.test(text(receipt.result_fingerprint, 128).toLowerCase()) || receipt.binding_hash !== digest(binding)) fail("RECOVERY_READBACK_UNVERIFIED", "Readback receipt evidence or binding fingerprint is invalid.", { reconciliation_required: true }, 409);
+      if (!SHA256.test(text(receipt.execution_receipt_hash, 128).toLowerCase()) || !SHA256.test(text(receipt.evidence_hash, 128).toLowerCase()) || !SHA256.test(text(receipt.result_fingerprint, 128).toLowerCase()) || receipt.binding_hash !== digest(binding)) fail("RECOVERY_READBACK_UNVERIFIED", "Readback receipt execution, evidence, or binding fingerprint is invalid.", { reconciliation_required: true }, 409);
       const finalizedAt = new Date().toISOString();
       const finalized = await store.finalizeExecutionTicket({ ticket_id: ticketId, ticket_hash: ticketHash, idempotency_key: binding.idempotency_key, plan_hash: binding.plan_hash, target_key: binding.target_key, operation: binding.operation, reservation_generation: receipt.reservation_generation, outcome: "verified", same_cycle_readback: true, readback_evidence_hash: receipt.evidence_hash, result_fingerprint: receipt.result_fingerprint, provider_acknowledged: true, secrets_included: false });
       if (finalized?.finalized !== true) fail("RECOVERY_RECONCILIATION_REQUIRED", "The durable ticket reservation could not be finalized; reconciliation is required and replay is forbidden.", { reconciliation_required: true, automatic_rerun_allowed: false }, 409);
-      const audit = { contract: STAGING_BOOTSTRAP_EXECUTION_AUTHORITY_CONTRACT, status: "finalized", ticket_id: ticketId, run_id: binding.idempotency_key, expected_sha: binding.production_sha, repair_key: binding.operation === "grants" ? "staging_database_access_repair" : binding.operation, target_key: binding.target_key, plan_hash: binding.plan_hash, binding_hash: digest(binding), evidence_hash: receipt.evidence_hash, result_fingerprint: receipt.result_fingerprint, reservation_generation: receipt.reservation_generation, finalized_at: finalizedAt, secrets_included: false };
+      const audit = { contract: STAGING_BOOTSTRAP_EXECUTION_AUTHORITY_CONTRACT, status: "finalized", ticket_id: ticketId, run_id: binding.idempotency_key, expected_sha: binding.production_sha, repair_key: binding.operation === "grants" ? "staging_database_access_repair" : binding.operation, target_key: binding.target_key, plan_hash: binding.plan_hash, binding_hash: digest(binding), execution_receipt_hash: receipt.execution_receipt_hash, evidence_hash: receipt.evidence_hash, result_fingerprint: receipt.result_fingerprint, reservation_generation: receipt.reservation_generation, finalized_at: finalizedAt, secrets_included: false };
       await store.putIdempotencyReceipt(binding.idempotency_key, audit);
       await store.appendEvidenceEvent(binding.idempotency_key, { event: "staging_bootstrap_ticket_finalized", phase: "finalized", ...audit });
-      return { finalized: true, status: "finalized", lifecycle_state: "finalized", readback_evidence_hash: receipt.evidence_hash, result_fingerprint: receipt.result_fingerprint, audit, secrets_included: false };
+      return { finalized: true, status: "finalized", lifecycle_state: "finalized", execution_receipt_hash: receipt.execution_receipt_hash, readback_evidence_hash: receipt.evidence_hash, result_fingerprint: receipt.result_fingerprint, audit, secrets_included: false };
     },
 
     partialReceiptStore: Object.freeze({
