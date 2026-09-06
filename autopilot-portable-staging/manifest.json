@@ -58,7 +58,7 @@
     },
     {
       "path": "autopilot-portable-staging/Staging-Operations-Log.ps1",
-      "sha256": "1175ed43e9e4d51b4792818ba9d3b4270e968577829595294d5367d88c3d6735"
+      "sha256": "d5555e80a79a423e863d96c0c3e3c6fce80d0bdf74f6a6be5cf4c03db381ba5f"
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
