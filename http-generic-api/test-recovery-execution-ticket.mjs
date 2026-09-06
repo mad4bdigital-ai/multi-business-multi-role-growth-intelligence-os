@@ -16,6 +16,7 @@ import { _testingStagingRecoveryAuthorityBinding } from "./stagingRecoveryAuthor
 import { buildStagingRecoveryAdminContract, _testingStagingRecoveryAdminRoutes } from "./routes/stagingRecoveryAdminRoutes.js";
 
 // frontend-surface-operation: POST /admin/recovery/staging/bootstrap-ticket/verify
+// frontend-surface-operation: POST /admin/recovery/staging/bootstrap-readback/attest
 // frontend-surface-operation: POST /admin/recovery/staging/bootstrap-ticket/finalize
 // frontend-surface-operation: POST /admin/recovery/staging/bootstrap-partial-receipt
 
@@ -136,7 +137,7 @@ test("grant repair ticket carries and verifies the exact least-privilege grant b
   );
 });
 
-test("Staging bootstrap authority verifies, atomically reserves, and finalizes the server-issued grant ticket", async () => {
+test("Staging bootstrap authority verifies, atomically reserves, attests readback, and finalizes the server-issued grant ticket", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "staging-bootstrap-ticket-authority-"));
   try {
     const env = stagingEnv(root);
@@ -185,25 +186,59 @@ test("Staging bootstrap authority verifies, atomically reserves, and finalizes t
     assert.equal(first.valid, true);
     assert.equal(first.reserved, true);
     assert.match(first.reservation_fingerprint, /^[a-f0-9]{64}$/u);
+    assert.match(first.reservation_generation, /^[0-9a-f-]{36}$/u);
+    assert.equal(first.reservation_receipt.contract, "mad4b.staging-bootstrap-reservation-receipt.v1");
 
     const replay = await authority.verifyForBootstrap({ ticket_id: ticket.ticket_id, ticket_hash: ticket.ticket_hash, expected });
     assert.equal(replay.valid, false);
+    assert.equal(replay.error_code, "RECOVERY_TICKET_ALREADY_RESERVED");
     assert.equal(replay.reconciliation_required, true);
     assert.equal(replay.automatic_rerun_allowed, false);
 
-    const finalized = await authority.finalizeForBootstrap({
+    await assert.rejects(
+      () => authority.finalizeForBootstrap({
+        ticket_id: ticket.ticket_id,
+        ticket_hash: ticket.ticket_hash,
+        expected,
+        readback: { verified: true, same_cycle: true, database_mutation_performed: true, evidence_hash: "6".repeat(64) },
+      }),
+      (error) => error?.code === "RECOVERY_READBACK_UNVERIFIED",
+    );
+
+    const attested = await authority.attestReadbackForBootstrap({
       ticket_id: ticket.ticket_id,
       ticket_hash: ticket.ticket_hash,
       expected,
-      readback: {
-        verified: true,
+      reservation_receipt: first.reservation_receipt,
+      evidence: {
+        contract: "mad4b.staging-bootstrap-local-readback-evidence.v1",
+        ticket_id: ticket.ticket_id,
+        reservation_generation: first.reservation_generation,
+        expected_sha: SHA,
+        target_key: "staging-runtime",
+        target_fingerprint: targetFingerprint,
+        operation: "grants",
+        plan_hash: planHash,
+        idempotency_key: idempotencyKey,
+        grant_binding_hash: grantBindingHash,
+        role_selection_hash: null,
+        status: "apply_grants_complete",
+        observed_at: new Date().toISOString(),
         same_cycle: true,
         database_mutation_performed: true,
-        evidence_hash: "6".repeat(64),
+        grant_readback_by_role: { runtime: { ready: true, evidence_fingerprint: "6".repeat(64) } },
+        postconditions_fingerprint: null,
+        mutation_evidence_fingerprint: null,
+        secrets_included: false,
       },
     });
+    assert.equal(attested.verified, true);
+    assert.equal(attested.readback_receipt.contract, "mad4b.staging-bootstrap-readback-receipt.v1");
+
+    const finalized = await authority.finalizeForBootstrap({ ticket_id: ticket.ticket_id, ticket_hash: ticket.ticket_hash, expected, readback_receipt: attested.readback_receipt });
     assert.equal(finalized.finalized, true);
-    assert.equal(finalized.status, "verified");
+    assert.equal(finalized.status, "finalized");
+    assert.equal(finalized.audit.repair_key, "staging_database_access_repair");
     assert.equal((await graph.recoveryStore.reserveExecutionTicket({ ticket_id: ticket.ticket_id, ticket_hash: ticket.ticket_hash, idempotency_key: "replay-after-finalize" })).reserved, false);
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -217,6 +252,7 @@ test("Staging Recovery keeps internal bootstrap authority POSTs out of the adver
   assert.equal(contract.paths.length, 3);
   assert.deepEqual(contract.internal_execution_authority_paths, [
     "/admin/recovery/staging/bootstrap-ticket/verify",
+    "/admin/recovery/staging/bootstrap-readback/attest",
     "/admin/recovery/staging/bootstrap-ticket/finalize",
     "/admin/recovery/staging/bootstrap-partial-receipt",
   ]);
