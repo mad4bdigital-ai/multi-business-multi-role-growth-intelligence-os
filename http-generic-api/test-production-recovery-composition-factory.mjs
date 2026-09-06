@@ -17,7 +17,7 @@ function asyncMethod(value = {}) {
   return async () => value;
 }
 
-function makeCompleteAdapters({ independentStore = true } = {}) {
+function makeCompleteAdapters({ independentStore = true, serverApprovalResolver = true } = {}) {
   const executionTicketVerifier = { verify: asyncMethod(true) };
   const recoveryStore = Object.fromEntries(
     _testingRecoveryComposition.STORE_METHODS.map((method) => [method, asyncMethod(true)]),
@@ -26,15 +26,14 @@ function makeCompleteAdapters({ independentStore = true } = {}) {
   recoveryStore.recovery_store_contract = "mad4b.recovery-durable-store.v1";
   recoveryStore.independent_of_target_databases = independentStore;
   recoveryStore.target_database_binding = independentStore ? "forbidden" : "runtime_persistence";
+  const approvalStore = { putChallenge: asyncMethod(true), getChallenge: asyncMethod(null) };
+  if (serverApprovalResolver) approvalStore.resolveApprovedExecutionApproval = asyncMethod({ approval_token: "server-internal-test-token" });
   return {
     deploymentIdentityProvider: { readAttestation: asyncMethod({ manifest_bound: true, secrets_included: false }) },
     recoveryStore,
-    approvalIssuer: {
-      createChallenge: asyncMethod({ issued: true }),
-      resolveApprovedToken: asyncMethod({ approval_token: "server-internal-test-token" }),
-    },
+    approvalIssuer: { createChallenge: asyncMethod({ issued: true }) },
     approvalVerifier: { verify: asyncMethod(true) },
-    approvalStore: { putChallenge: asyncMethod(true), getChallenge: asyncMethod(null) },
+    approvalStore,
     recoveryLock: {
       acquire: asyncMethod({ acquired: true }),
       heartbeat: asyncMethod({ renewed: true }),
@@ -67,7 +66,7 @@ function liveAuthorization(overrides = {}) {
     exact_sha_bound: true,
     single_use_approval: true,
     same_cycle_readback_required: true,
-    server_side_approval_token_resolution: true,
+    server_side_approval_resolution: true,
     bootstrap_evidence_independent: true,
     secrets_included: false,
     ...overrides,
@@ -192,10 +191,21 @@ test("certified Production candidate activates only with independent bootstrap e
   assert.equal(composition.productionRecoveryCompositionFactory.authority_readiness.live_ready, true);
   assert.equal(composition.productionRecoveryCompositionFactory.authority_readiness.activation_eligible, true);
   assert.equal(composition.productionRecoveryCompositionFactory.authority_readiness.bootstrap_evidence_independent, true);
-  assert.equal(composition.productionRecoveryCompositionFactory.authority_readiness.server_side_approval_token_resolution, true);
+  assert.equal(composition.productionRecoveryCompositionFactory.authority_readiness.server_side_approval_resolution, true);
   assert.equal(composition.provider_accessed, false);
   assert.equal(composition.database_connection_performed, false);
   assert.equal(composition.database_mutation_performed, false);
+});
+
+test("certified Production candidate rejects a missing shared approval resolver", () => {
+  const composition = createProductionRecoveryComposition({
+    mode: "injected_non_live",
+    source: "test_missing_server_approval_resolver",
+    serverManagedBindingProvider: () => liveEnvelope({ adapters: makeCompleteAdapters({ serverApprovalResolver: false }) }),
+  });
+  assert.equal(composition.mode, "fail_closed");
+  assert.equal(composition.live_activation, false);
+  assert.equal(composition.productionRecoveryCompositionFactory.live_authorization.problems.includes("server_side_approval_resolver_required"), true);
 });
 
 test("runtime_persistence-coupled recovery store cannot authorize the bootstrap path", () => {
@@ -250,7 +260,7 @@ test("server composition root uses the factory without caller or credential disc
 console.log(JSON.stringify({
   ok: true,
   contract: PRODUCTION_RECOVERY_COMPOSITION_FACTORY_CONTRACT,
-  cases: 11,
+  cases: 12,
   default_live_activation: false,
   certified_server_managed_activation_supported: true,
   provider_accessed: false,
