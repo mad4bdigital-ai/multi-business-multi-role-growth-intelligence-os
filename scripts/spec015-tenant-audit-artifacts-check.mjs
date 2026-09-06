@@ -14,6 +14,7 @@ const snapshotPath = 'docs/spec-portfolio/spec015-candidate-pr-readonly-evidence
 const convergencePath = 'specs/015-tenant-operating-system-studio/candidate-convergence.json';
 const conceptMapPath = 'specs/015-tenant-operating-system-studio/canonical-concept-authority-map.json';
 const validatorPath = path.join(ROOT, 'scripts/spec015-canonical-authority-convergence.mjs');
+const truthfulnessGuardPath = path.join(ROOT, 'specs/015-tenant-operating-system-studio/tools/test-tenant-audit-artifacts.mjs');
 
 const legacy = readJson(legacyPath);
 assert.equal(legacy.schema_version, '1.0.0');
@@ -84,4 +85,11 @@ assert.equal(validatorResult.bounded_implementation_pr_design_authorized, true);
 assert.equal(validatorResult.runtime_mutation_executed, false);
 assert.equal(validatorResult.new_persistence_approved, false);
 
-console.log(JSON.stringify({ok:true,test:'spec015-tenant-audit-artifacts',legacy_matrix_rows:legacy.rows.length,current_main_authority_entities:current.logical_entities.length,canonical_concepts:concepts.concepts.length,candidate_records:rows.length,portfolio_snapshot_base_main_sha:legacy.snapshot_base_main_sha,current_main_authority_inventory_sha:current.current_main_sha,phase0_evidence_complete:['T002','T003'],phase0_owner_decisions_complete:['T006','T008'],owner_decisions_open:[],phase1_authorized:true,runtime_mutation_executed:false,safe_read_only:true,merge_executed:false,secrets_included:false},null,2));
+const truthfulnessResult = JSON.parse(execFileSync(process.execPath, [truthfulnessGuardPath], {cwd:ROOT,encoding:'utf8'}));
+assert.equal(truthfulnessResult.ok, true);
+assert.equal(truthfulnessResult.truthfulness_reconciled, true);
+assert.equal(truthfulnessResult.authority_inventory_snapshot_sha, '0faee775cd0572b737fed8bc74e2580d9fca2878');
+assert.equal(truthfulnessResult.authority_inventory_validated_against_main_sha, '589ab1ec780c1833d1b585fbdc1accaf6cbd8172');
+assert.equal(truthfulnessResult.runtime_mutation_authorized, false);
+
+console.log(JSON.stringify({ok:true,test:'spec015-tenant-audit-artifacts',legacy_matrix_rows:legacy.rows.length,current_main_authority_entities:current.logical_entities.length,canonical_concepts:concepts.concepts.length,candidate_records:rows.length,portfolio_snapshot_base_main_sha:legacy.snapshot_base_main_sha,current_main_authority_inventory_sha:current.current_main_sha,current_main_authority_inventory_validated_against_main_sha:truthfulnessResult.authority_inventory_validated_against_main_sha,truthfulness_reconciled:true,phase0_evidence_complete:['T002','T003'],phase0_owner_decisions_complete:['T006','T008'],owner_decisions_open:[],phase1_authorized:true,runtime_mutation_executed:false,safe_read_only:true,merge_executed:false,secrets_included:false},null,2));
