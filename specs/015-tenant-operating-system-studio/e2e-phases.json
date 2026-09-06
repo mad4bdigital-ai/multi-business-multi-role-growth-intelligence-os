@@ -11,7 +11,7 @@
     {
       "id":"mvp",
       "status":"implemented",
-      "objective":"Provide repository-native convergence contracts for canonical semantics, current-main reuse, T006 identity/cutover decisions, T008 Phase1 owner decisions, portfolio evidence, and truthful no-mutation boundaries.",
+      "objective":"Provide repository-native convergence contracts for canonical semantics, current-main reuse, owner-approved T006 identity/cutover decisions, owner-approved T008 Phase1 decisions, portfolio evidence, and truthful no-mutation boundaries.",
       "e2e_journeys":[
         {
           "id":"spec015-contract-integrity",
@@ -19,24 +19,26 @@
           "level":"synthetic_runtime",
           "actor":"Repository specification maintainer",
           "entrypoint":"Run Spec015 contract, canonical-authority, live-delta, and Tenant-audit validators from the exact candidate tree",
-          "terminal_outcome":"The 30-concept ontology, exact-current-main field-level reuse at 0faee775cd0572b737fed8bc74e2580d9fca2878, seven T006 decisions, thirteen T008 decisions, historical portfolio evidence, Work Map, completion truthfulness, and no-secret boundaries pass while T006/T008 approval and all runtime implementation remain blocked.",
+          "terminal_outcome":"The 30-concept ontology, exact-current-main field-level reuse at 0faee775cd0572b737fed8bc74e2580d9fca2878, seven owner-approved T006 decisions, thirteen owner-approved T008 decisions, historical portfolio evidence, Work Map, completion truthfulness, and no-secret boundaries pass while cutover, concrete persistence, runtime mutation, migration, deployment and Production activation remain blocked.",
           "steps":[
             "Validate exact manifest inventory and specification-only boundaries.",
             "Validate 30 canonical concepts and prohibit authority inference from Tool, Package, Agent, Skill, Installation Revision, Execution Capsule, Effective Runtime Manifest, or projection visibility.",
             "Validate current-main field mappings for package/component/install/capability/operation/tool/agent/skill/workflow/activity-pack/MCP/manifest/legacy-action semantics.",
             "Validate T002/T003 evidence completion without persistence or runtime claims.",
-            "Validate T006 has seven decision candidates with pending owner approval and cutover_executed=false.",
-            "Validate T008 has thirteen owner-decision candidates with phase1_authorized=false and runtime_mutation_authorized=false.",
+            "Validate T006 has seven owner-approved decision entries while cutover_executed=false and physical_table_rename_authorized=false.",
+            "Validate T008 has thirteen owner-approved decisions with phase1_authorized=true, bounded implementation PR design authorized, and runtime_mutation_authorized=false.",
             "Validate T008 covers package/component/install, authorization, data governance, knowledge provenance, model governance, FinOps, agency ownership, portability, external protocols, human approval, and Content Intelligence staging.",
             "Validate canonical_capabilities as target semantic identity while global runtime cutover remains gated by shadow parity and rollback proof.",
+            "Validate exact-head CI remains an external SHA-bound attestation and is never self-attested by the candidate tree.",
             "Validate historical portfolio snapshots independently from the newer current-main authority inventory.",
             "Validate Work Map/completion truthfulness and no-secret boundaries."
           ],
           "assertions":[
             "No new wholesale solution_package_* persistence is approved.",
-            "Current package/version/install authorities are mandatory reuse inputs before Phase1 persistence decisions.",
-            "T006 and T008 are decision-ready but not complete.",
+            "Current package/version/install authorities are mandatory reuse inputs before any additive persistence.",
+            "T006 and T008 are complete as owner decision tasks only; runtime cutover and runtime mutation remain unexecuted.",
             "No physical table rename, capability runtime cutover, migration, provider call, permission grant, candidate merge, deployment, or Production activation occurs.",
+            "Concrete Component or Installation Revision persistence still requires a proven semantic gap and bounded schema review.",
             "MCP and future external protocols remain projections over Context Kernel and governed execution.",
             "Content Intelligence cannot progress to external CMS effects before Package foundation, provenance, model/budget policy, certified provider binding, idempotency, and readback gates."
           ],
@@ -71,13 +73,12 @@
       "status":"blocked",
       "objective":"Implement Package/Component foundation and deterministic installation compilation by reusing or extending current-main authorities before adding higher product layers.",
       "blockers":[
-        "T006 owner approval is pending.",
-        "T008 owner approval is pending.",
         "An external SHA-bound exact-head CI attestation is required for each implementation candidate before phase entry; the source tree cannot self-attest it.",
-        "Package publication semantics and generic Component persistence are not approved.",
-        "Immutable Installation Revision and typed requirement-binding persistence are not approved.",
-        "Required P0 privacy/data-governance boundaries are not implemented.",
-        "Model-governance and commercial-reservation runtime are not implemented.",
+        "No operational Package/Component implementation candidate has been certified yet.",
+        "Concrete generic Component persistence requires a proven cross-family semantic gap and bounded schema review.",
+        "Concrete immutable Installation Revision persistence requires a proven storage gap and bounded schema review.",
+        "Required P0 privacy/data-governance controls are approved architecturally but not implemented.",
+        "Knowledge/provenance, model-governance and commercial-reservation runtime are approved architecturally but not implemented.",
         "Spec016/017 MCP/OAuth/host-isolation gates remain open."
       ],
       "planned_e2e_journey":{"id":"spec015-operational-package-installation","required_level":"synthetic_runtime","actor":"Tenant system designer and package reviewer","entrypoint":"Create and compile a private tenant package through approved extensions of current authorities","terminal_outcome":"One exact Brand sandbox installation resolves to an immutable revision and tenant-safe surfaces without implicit authority.","steps":["Reuse current package/version/install authorities.","Reference canonical Agent/Skill/Workflow/Policy/Activity Pack assets instead of copying payloads.","Compile typed target/requirement bindings with lineage, revision vector and hash.","Prove all execution remains server-authorized and readback-governed."]}
