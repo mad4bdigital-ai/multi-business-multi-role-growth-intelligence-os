@@ -4,7 +4,7 @@
   "feature_key": "windows-staging-bootstrap-supervisor-20260906",
   "title": "Windows Staging Bootstrap Supervisor",
   "delivery_mode": "single_pr",
-  "current_phase": "mvp",
+  "current_phase": "connector_transport_self_heal",
   "scope": {
     "include": [
       ".changes/e2e/windows-staging-bootstrap-supervisor-20260906.json",
@@ -14,6 +14,10 @@
       "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
       "autopilot-portable-staging/Staging-Operations-Log.ps1",
       "autopilot-portable-staging/Converge-StagingActivationGateway.ps1",
+      "autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1",
+      "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
+      "http-generic-api/routes/localConnectorInstallRoutes.js",
+      "local-connector/server.mjs",
       "local-connector/connector-watchdog.ps1",
       "local-connector/install-service.ps1",
       "http-generic-api/test-windows-staging-bootstrap-supervisor.mjs",
@@ -104,6 +108,59 @@
             "autopilot-portable-staging/Staging-Operations-Log.ps1",
             "local-connector/connector-watchdog.ps1",
             "local-connector/install-service.ps1",
+            "http-generic-api/test-windows-staging-bootstrap-supervisor.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "connector_transport_self_heal",
+      "status": "implemented",
+      "objective": "Restore the Staging-required Local Connector transport out-of-band after reboot or Cloudflare 1033 without cross-runtime Cloudflared ownership, Production callback fallback, or dependency on the broken public connector path for the repair action itself.",
+      "e2e_journeys": [
+        {
+          "id": "connector-1033-self-heal",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Windows Staging Bootstrap Supervisor and Local Connector watchdog",
+          "entrypoint": "Local Connector is locally reachable or recoverable while connector.mad4b.com is unavailable or returns Cloudflare 1033.",
+          "terminal_outcome": "The Local Connector runtime and its dedicated Mad4B-LocalConnector-Cloudflared transport are reconciled directly on Windows, environment-bound callbacks remain on the originating control plane, the Staging-owned Mad4B-Staging-Cloudflared runtime is unchanged, and public reachability is re-read before certification continues.",
+          "steps": [
+            "Resolve the originating connector runtime environment using the existing fail-closed runtime environment authority.",
+            "Persist CONNECTOR_ENVIRONMENT, CONNECTOR_CONTROL_PLANE_BASE_URL, CONNECTOR_POLICY_URL and CONNECTOR_HEARTBEAT_URL in generated Local Connector installation state.",
+            "Bind Staging callbacks only to dev.mad4b.com and Production callbacks only to auth.mad4b.com; reject cross-environment control-plane overrides.",
+            "Reconcile Local Connector Cloudflared ownership under Mad4B-LocalConnector-Cloudflared without stopping, deleting or reconfiguring Mad4B-Staging-Cloudflared.",
+            "Detect connector.mad4b.com Cloudflare 1033 separately from local connector process health.",
+            "Restart only the Local Connector-owned runtime out-of-band, then re-read local and public connector health.",
+            "Publish secret-free watchdog/readback state so certification can distinguish recovered, 1033, local-runtime and callback-binding outcomes."
+          ],
+          "assertions": [
+            "Staging does not mutate Production Connector authority.",
+            "Local Connector owns only Mad4B-LocalConnector-Cloudflared for connector transport recovery.",
+            "Staging owns only Mad4B-Staging-Cloudflared for Staging ingress.",
+            "Staging callbacks never resolve to auth.mad4b.com.",
+            "Production callbacks never resolve to dev.mad4b.com.",
+            "Repairing Local Connector transport leaves the Staging Cloudflared runtime unchanged.",
+            "Cloudflare 1033 recovery does not require connector.mad4b.com to be healthy before the local repair is attempted.",
+            "No connector-dev.mad4b.com, DNS redesign, Production recovery redesign or connectorProxyRoutes.js change is introduced by this tranche."
+          ],
+          "tests": [
+            {
+              "id": "windows-staging-bootstrap-supervisor",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-windows-staging-bootstrap-supervisor.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/routes/localConnectorInstallRoutes.js",
+            "local-connector/server.mjs",
+            "local-connector/connector-watchdog.ps1",
+            "local-connector/install-service.ps1",
+            "autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1",
+            "autopilot-portable-staging/Staging-HealthMonitor.ps1",
+            "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
             "http-generic-api/test-windows-staging-bootstrap-supervisor.mjs"
           ]
         }
