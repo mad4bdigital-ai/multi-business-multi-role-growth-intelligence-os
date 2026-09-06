@@ -121,6 +121,8 @@ function stagingBootstrapAuthorityClient(env) {
   const backendApiKey = String(env.STAGING_RECOVERY_BACKEND_API_KEY || env.BACKEND_API_KEY || "").trim();
   if (!backendApiKey) throw Object.assign(new Error("Staging bootstrap execution requires the existing BACKEND_API_KEY for the private Activation Gateway authority."), { code: "host_breakglass_staging_ticket_authority_auth_missing", status: 503 });
   let reservedBinding = null;
+  let reservationReceipt = null;
+  let reservationGeneration = null;
 
   const post = async (pathname, body) => {
     let response;
@@ -140,7 +142,7 @@ function stagingBootstrapAuthorityClient(env) {
     }
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw Object.assign(new Error("Staging bootstrap execution authority rejected the request."), { code: payload?.error?.code || "host_breakglass_staging_ticket_authority_rejected", status: response.status, details: { upstream_status: response.status, reconciliation_required: response.status === 409, secrets_included: false } });
+      throw Object.assign(new Error("Staging bootstrap execution authority rejected the request."), { code: payload?.error?.code || "host_breakglass_staging_ticket_authority_rejected", status: response.status, details: { upstream_status: response.status, requestId: payload?.error?.requestId || payload?.error?.request_id || null, reconciliation_required: response.status === 409, automatic_rerun_allowed: false, secrets_included: false } });
     }
     return payload;
   };
@@ -163,8 +165,10 @@ function stagingBootstrapAuthorityClient(env) {
       async verifyForBootstrap(input = {}) {
         const body = bindingBody(input);
         const result = await post("/admin/recovery/staging/bootstrap-ticket/verify", body);
-        if (result?.valid !== true || result?.reserved !== true) return { valid: false };
+        if (result?.valid !== true || result?.reserved !== true || !result?.reservation_receipt || !result?.reservation_generation) return { valid: false };
         reservedBinding = body;
+        reservationReceipt = result.reservation_receipt;
+        reservationGeneration = result.reservation_generation;
         return { valid: true, reserved: true, reservation_fingerprint: result.reservation_fingerprint || null };
       },
     }),
@@ -176,31 +180,46 @@ function stagingBootstrapAuthorityClient(env) {
       },
     }),
     async finalize(result) {
-      if (!reservedBinding) throw Object.assign(new Error("No server-side Staging ticket reservation exists for this local execution."), { code: "host_breakglass_staging_ticket_reservation_missing", status: 503 });
+      if (!reservedBinding || !reservationReceipt || !reservationGeneration) throw Object.assign(new Error("No server-side Staging ticket reservation receipt exists for this local execution."), { code: "RECOVERY_RECONCILIATION_REQUIRED", status: 409, details: { reconciliation_required: true, automatic_rerun_allowed: false } });
       const roleReadback = result?.grants?.grant_readback_by_role || null;
       const readbackReady = result?.status === "apply_grants_complete"
         ? Boolean(roleReadback && Object.keys(roleReadback).length && Object.values(roleReadback).every((entry) => entry?.ready === true))
         : Boolean(result?.postconditions?.ready === true || result?.role_rebuild_evidence?.verification?.every?.((entry) => entry?.required_tables_present === true));
-      if (!readbackReady) throw Object.assign(new Error("Local bootstrap completed without the canonical same-cycle readback required to finalize its ticket."), { code: "host_breakglass_staging_same_cycle_readback_missing", status: 503, details: { database_mutation_performed: result?.database_mutation_performed === true, reconciliation_required: true } });
+      if (!readbackReady) throw Object.assign(new Error("Local bootstrap completed without the canonical same-cycle readback required to finalize its ticket."), { code: "RECOVERY_READBACK_UNVERIFIED", status: 409, details: { database_mutation_performed: result?.database_mutation_performed === true, reconciliation_required: true, automatic_rerun_allowed: false } });
+      const roleProjection = roleReadback
+        ? Object.fromEntries(Object.entries(roleReadback).map(([role, entry]) => [role, { ready: entry?.ready === true, evidence_fingerprint: evidenceHash(entry) }]))
+        : null;
       const evidence = {
+        contract: "mad4b.staging-bootstrap-local-readback-evidence.v1",
+        ticket_id: reservedBinding.execution_ticket_id,
+        reservation_generation: reservationGeneration,
+        expected_sha: reservedBinding.expected_sha,
+        target_key: reservedBinding.target_key,
+        target_fingerprint: reservedBinding.target_fingerprint,
+        operation: reservedBinding.operation,
+        plan_hash: reservedBinding.plan_hash,
+        idempotency_key: reservedBinding.idempotency_key,
+        grant_binding_hash: reservedBinding.grant_binding_hash || null,
+        role_selection_hash: reservedBinding.role_selection_hash || null,
         status: result.status,
-        operation: result.operation,
-        target_key: result.target_key,
-        plan_sha256: plan.plan_sha256,
-        grant_binding_hash: plan.grant_binding_hash || null,
-        grant_readback_by_role: roleReadback,
-        postconditions: result.postconditions || null,
-        mutation_evidence: result.mutation_evidence || null,
+        observed_at: new Date().toISOString(),
+        same_cycle: true,
         database_mutation_performed: result.database_mutation_performed === true,
+        grant_readback_by_role: roleProjection,
+        postconditions_fingerprint: result?.postconditions ? evidenceHash(result.postconditions) : null,
+        mutation_evidence_fingerprint: result?.mutation_evidence ? evidenceHash(result.mutation_evidence) : null,
         secrets_included: false,
       };
       try {
+        const attestation = await post("/admin/recovery/staging/bootstrap-readback/attest", {
+          ...reservedBinding,
+          reservation_receipt: reservationReceipt,
+          readback_evidence: evidence,
+        });
+        if (attestation?.verified !== true || !attestation?.readback_receipt) throw Object.assign(new Error("Staging readback attestation did not return a server-signed receipt."), { code: "RECOVERY_READBACK_UNVERIFIED", status: 409 });
         return await post("/admin/recovery/staging/bootstrap-ticket/finalize", {
           ...reservedBinding,
-          readback_ready: true,
-          same_cycle: true,
-          database_mutation_performed: result.database_mutation_performed === true,
-          readback_evidence_hash: evidenceHash(evidence),
+          readback_receipt: attestation.readback_receipt,
         });
       } catch (error) {
         error.details = { ...(error.details || {}), database_mutation_performed: result?.database_mutation_performed === true, reconciliation_required: true, automatic_rerun_allowed: false };
