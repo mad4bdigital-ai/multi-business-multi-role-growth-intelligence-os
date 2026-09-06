@@ -1,0 +1,331 @@
+{
+  "schema_version": 1,
+  "artifact_key": "spec015-canonical-concept-authority-map-v1",
+  "spec_owner": "015-tenant-operating-system-studio",
+  "portfolio_role": "product_and_semantic_convergence_projection",
+  "runtime_authority": false,
+  "functional_authority": false,
+  "source_integration_kit": "specs/integration-governed-execution-runtime-composition",
+  "identity_policy": {
+    "canonical_concept_identity": "concept_key_plus_authority_owner",
+    "projection_grants_authority": false,
+    "package_reference_grants_authority": false,
+    "tool_visibility_grants_authority": false,
+    "agent_interpretation_grants_authority": false
+  },
+  "concepts": [
+    {
+      "concept_key": "intent",
+      "canonical_term": "Intent",
+      "semantic_role": "goal_or_request_input",
+      "authority_owner": "none_discovery_input",
+      "runtime_authority": false,
+      "allowed_projections": ["intent_resolution", "ui_request", "agent_request"],
+      "forbidden_authority_inference": "semantic_match_cannot_establish_scope_resource_permission_or_provider_authority"
+    },
+    {
+      "concept_key": "insight",
+      "canonical_term": "Insight",
+      "semantic_role": "evidence_backed_observation",
+      "authority_owner": "domain_product_registry",
+      "runtime_authority": false,
+      "allowed_projections": ["report", "dashboard", "recommendation_input"],
+      "forbidden_authority_inference": "insight_cannot_dispatch_external_effect"
+    },
+    {
+      "concept_key": "recommendation",
+      "canonical_term": "Recommendation",
+      "semantic_role": "proposed_business_response",
+      "authority_owner": "domain_product_layer",
+      "runtime_authority": false,
+      "allowed_projections": ["backlog", "plan_candidate"],
+      "forbidden_authority_inference": "recommendation_is_not_execution_authority"
+    },
+    {
+      "concept_key": "action",
+      "canonical_term": "Action",
+      "semantic_role": "business_level_proposed_or_approved_work_item",
+      "authority_owner": "domain_product_layer",
+      "runtime_authority": false,
+      "allowed_projections": ["growth_backlog", "plan_candidate"],
+      "forbidden_authority_inference": "action_term_is_reserved_from_atomic_provider_invocation"
+    },
+    {
+      "concept_key": "capability",
+      "canonical_term": "Capability",
+      "semantic_role": "provider_independent_semantic_ability",
+      "authority_owner": "existing_canonical_capability_authority",
+      "runtime_authority": true,
+      "allowed_projections": ["package_requirement", "skill_requirement", "tool_discovery", "ui_discovery"],
+      "forbidden_authority_inference": "registration_visibility_or_requirement_does_not_grant_permission"
+    },
+    {
+      "concept_key": "operation",
+      "canonical_term": "Operation",
+      "semantic_role": "bounded_callable_execution_contract",
+      "authority_owner": "011-durable-governed-execution-and-agent-delegation",
+      "runtime_authority": true,
+      "allowed_projections": ["system_tool", "mcp_tool", "rest_operation", "agent_tool", "ui_action"],
+      "forbidden_authority_inference": "client_projection_cannot_bypass_context_policy_or_execution_gates"
+    },
+    {
+      "concept_key": "tool",
+      "canonical_term": "Tool",
+      "semantic_role": "client_or_agent_projection_of_operation_or_bounded_intent",
+      "authority_owner": "013-system-tool-catalog-v2",
+      "runtime_authority": false,
+      "allowed_projections": ["mcp", "custom_gpt", "agent_runtime", "ui"],
+      "forbidden_authority_inference": "tool_visibility_is_not_permission"
+    },
+    {
+      "concept_key": "skill",
+      "canonical_term": "Skill",
+      "semantic_role": "reusable_procedural_or_cognitive_contract",
+      "authority_owner": "existing_agent_skill_authority",
+      "runtime_authority": false,
+      "allowed_projections": ["agent_assignment", "package_ai_use_case", "evaluation"],
+      "forbidden_authority_inference": "skill_required_capabilities_are_requirements_not_grants"
+    },
+    {
+      "concept_key": "agent",
+      "canonical_term": "Agent",
+      "semantic_role": "reasoning_or_orchestration_principal",
+      "authority_owner": "existing_agent_and_delegation_authority",
+      "runtime_authority": false,
+      "allowed_projections": ["task_principal", "handoff_target", "supervision_surface"],
+      "forbidden_authority_inference": "agent_does_not_inherit_full_user_authority_implicitly"
+    },
+    {
+      "concept_key": "workflow",
+      "canonical_term": "Workflow",
+      "semantic_role": "versioned_dependency_graph_definition",
+      "authority_owner": "006_platform_workflow_authority_with_011_execution_compilation",
+      "runtime_authority": false,
+      "allowed_projections": ["package_component", "compiled_plan_input"],
+      "forbidden_authority_inference": "workflow_definition_is_not_durable_run_state"
+    },
+    {
+      "concept_key": "activity_pack",
+      "canonical_term": "Activity Pack",
+      "semantic_role": "reusable_business_methodology_without_tenant_facts",
+      "authority_owner": "011-dynamic-multi-tenant-growth-control-plane",
+      "runtime_authority": false,
+      "allowed_projections": ["package_reference", "brand_activity_binding", "workflow_and_policy_requirements"],
+      "forbidden_authority_inference": "activity_pack_reference_does_not_grant_capability_or_provider_authority"
+    },
+    {
+      "concept_key": "solution_package",
+      "canonical_term": "Solution Package",
+      "semantic_role": "versioned_installable_product_definition",
+      "authority_owner": "015-tenant-operating-system-studio",
+      "runtime_authority": false,
+      "allowed_projections": ["catalog", "installation_plan", "export_manifest"],
+      "forbidden_authority_inference": "package_declares_requirements_not_permissions"
+    },
+    {
+      "concept_key": "component",
+      "canonical_term": "Component",
+      "semantic_role": "typed_versioned_package_building_block",
+      "authority_owner": "015-tenant-operating-system-studio",
+      "runtime_authority": false,
+      "allowed_projections": ["package_composition", "installation_compile_input"],
+      "forbidden_authority_inference": "component_payload_cannot_contain_arbitrary_executable_authority_or_credentials"
+    },
+    {
+      "concept_key": "installation_revision",
+      "canonical_term": "Installation Revision",
+      "semantic_role": "immutable_resolved_package_at_exact_scope",
+      "authority_owner": "015-tenant-operating-system-studio",
+      "runtime_authority": false,
+      "allowed_projections": ["effective_runtime_manifest", "impact_preview", "tenant_ui"],
+      "forbidden_authority_inference": "installation_activation_does_not_authorize_arbitrary_operations"
+    },
+    {
+      "concept_key": "policy",
+      "canonical_term": "Policy",
+      "semantic_role": "deterministic_allow_deny_restrict_require_decision_rule",
+      "authority_owner": "existing_platform_policy_authority",
+      "runtime_authority": true,
+      "allowed_projections": ["compiled_policy_snapshot", "explanation", "package_policy_requirement"],
+      "forbidden_authority_inference": "lower_layer_config_preference_or_prompt_cannot_weaken_mandatory_policy"
+    },
+    {
+      "concept_key": "grant",
+      "canonical_term": "Grant",
+      "semantic_role": "typed_principal_scope_capability_resource_authority_relationship",
+      "authority_owner": "existing_platform_authorization_authority",
+      "runtime_authority": true,
+      "allowed_projections": ["explanation", "effective_authority_snapshot"],
+      "forbidden_authority_inference": "copied_grant_data_in_manifest_prompt_or_cache_is_not_primary_authority"
+    },
+    {
+      "concept_key": "delegation",
+      "canonical_term": "Delegation",
+      "semantic_role": "bounded_narrowing_transfer_of_existing_authority",
+      "authority_owner": "existing_agent_delegation_authority",
+      "runtime_authority": true,
+      "allowed_projections": ["task_authority", "agent_context", "approval_explanation"],
+      "forbidden_authority_inference": "delegation_cannot_broaden_membership_ownership_or_parent_authority"
+    },
+    {
+      "concept_key": "execution_capsule",
+      "canonical_term": "Execution Capsule",
+      "semantic_role": "immutable_exact_principal_scope_resource_connection_context_evidence",
+      "authority_owner": "012-unified-admin-tenant-context-kernel",
+      "runtime_authority": false,
+      "allowed_projections": ["governance_input", "plan_reference", "effective_runtime_manifest"],
+      "forbidden_authority_inference": "capsule_never_grants_execution_by_itself"
+    },
+    {
+      "concept_key": "governance_decision",
+      "canonical_term": "Governance Decision",
+      "semantic_role": "compiled_policy_grant_effect_and_execution_constraint_decision",
+      "authority_owner": "011-durable-governed-execution-and-agent-delegation",
+      "runtime_authority": true,
+      "allowed_projections": ["plan_input", "explanation", "audit"],
+      "forbidden_authority_inference": "compiled_decision_does_not_replace_fresh_mutation_frontier_checks"
+    },
+    {
+      "concept_key": "compiled_plan_snapshot",
+      "canonical_term": "Compiled Plan Snapshot",
+      "semantic_role": "immutable_exact_operation_dependency_and_checkpoint_graph",
+      "authority_owner": "011-durable-governed-execution-and-agent-delegation",
+      "runtime_authority": true,
+      "allowed_projections": ["approval_bundle", "execution_run", "status"],
+      "forbidden_authority_inference": "plan_does_not_substitute_scope_resource_or_connection"
+    },
+    {
+      "concept_key": "approval",
+      "canonical_term": "Approval Grant",
+      "semantic_role": "human_or_governed_decision_bound_to_exact_frontier",
+      "authority_owner": "existing_approval_authority",
+      "runtime_authority": true,
+      "allowed_projections": ["execution_envelope_input", "audit", "ui_status"],
+      "forbidden_authority_inference": "approval_does_not_execute_an_effect"
+    },
+    {
+      "concept_key": "capability_envelope",
+      "canonical_term": "Capability Envelope",
+      "semantic_role": "short_lived_exact_execution_permit_at_mutation_frontier",
+      "authority_owner": "011-durable-governed-execution-and-agent-delegation",
+      "runtime_authority": true,
+      "allowed_projections": ["dispatch_guard", "audit_reference"],
+      "forbidden_authority_inference": "expired_stale_consumed_or_drifted_envelope_cannot_dispatch"
+    },
+    {
+      "concept_key": "pending_receipt",
+      "canonical_term": "Pending Receipt",
+      "semantic_role": "durable_marker_that_mutation_may_be_in_flight",
+      "authority_owner": "011-durable-governed-execution-and-agent-delegation",
+      "runtime_authority": true,
+      "allowed_projections": ["operation_status", "reconciliation"],
+      "forbidden_authority_inference": "pending_receipt_does_not_confirm_success_and_blocks_blind_replay"
+    },
+    {
+      "concept_key": "readback",
+      "canonical_term": "Readback",
+      "semantic_role": "observed_provider_or_repository_state_verification",
+      "authority_owner": "011-durable-governed-execution-and-agent-delegation",
+      "runtime_authority": true,
+      "allowed_projections": ["final_receipt", "audit", "result"],
+      "forbidden_authority_inference": "transport_success_is_not_equivalent_to_readback_confirmation"
+    },
+    {
+      "concept_key": "evidence",
+      "canonical_term": "Evidence",
+      "semantic_role": "append_only_proof_of_decision_execution_and_outcome",
+      "authority_owner": "existing_platform_evidence_authority",
+      "runtime_authority": true,
+      "allowed_projections": ["audit", "compliance", "reporting"],
+      "forbidden_authority_inference": "telemetry_or_projection_cannot_replace_required_evidence"
+    },
+    {
+      "concept_key": "provider_adapter",
+      "canonical_term": "Provider Adapter",
+      "semantic_role": "allowlisted_code_implementation_of_operations",
+      "authority_owner": "existing_provider_adapter_authority",
+      "runtime_authority": true,
+      "allowed_projections": ["provider_binding", "certification", "operation_compatibility"],
+      "forbidden_authority_inference": "registry_rows_cannot_introduce_arbitrary_executable_code_urls_headers_or_secrets"
+    },
+    {
+      "concept_key": "knowledge_snapshot",
+      "canonical_term": "Knowledge Snapshot",
+      "semantic_role": "immutable_authorized_provenance_linked_runtime_context_selection",
+      "authority_owner": "knowledge_and_provenance_authority_to_be_converged",
+      "runtime_authority": false,
+      "allowed_projections": ["agent_context", "content_plan", "effective_runtime_manifest"],
+      "forbidden_authority_inference": "vector_or_search_index_is_not_canonical_knowledge_authority"
+    },
+    {
+      "concept_key": "model_selection_decision",
+      "canonical_term": "Model Selection Decision",
+      "semantic_role": "immutable_capability_first_policy_gated_evidence_ranked_model_choice",
+      "authority_owner": "contextual_model_governance_authority",
+      "runtime_authority": true,
+      "allowed_projections": ["effective_runtime_manifest", "agent_run", "audit"],
+      "forbidden_authority_inference": "model_score_preference_or_provider_order_cannot_override_hard_eligibility_gate"
+    },
+    {
+      "concept_key": "effective_runtime_manifest",
+      "canonical_term": "Effective Runtime Manifest",
+      "semantic_role": "immutable_reference_graph_of_applicable_runtime_decisions",
+      "authority_owner": "cross_plane_composition_evidence",
+      "runtime_authority": false,
+      "allowed_projections": ["execution_candidate", "audit", "future_state_preview"],
+      "forbidden_authority_inference": "manifest_is_not_a_broad_session_permission_token_and_does_not_replace_dynamic_revalidation"
+    },
+    {
+      "concept_key": "projection",
+      "canonical_term": "Projection",
+      "semantic_role": "derived_client_index_report_or_compatibility_representation",
+      "authority_owner": "destination_specific_projection_owner",
+      "runtime_authority": false,
+      "allowed_projections": ["mcp", "ui", "drive", "search", "analytics", "notifications"],
+      "forbidden_authority_inference": "projection_failure_or_visibility_cannot_create_modify_or_replay_provider_effect"
+    }
+  ],
+  "cross_cutting_invariants": [
+    "one_logical_resource_one_primary_authority_owner",
+    "projections_never_grant_authority",
+    "discovery_never_grants_authority",
+    "ai_never_grants_authority",
+    "packages_declare_requirements_not_permissions",
+    "skills_declare_required_capabilities_not_credentials_or_grants",
+    "agents_receive_task_scoped_delegation_not_implicit_full_user_authority",
+    "context_resolution_and_execution_authorization_remain_separate",
+    "approval_never_executes_effect",
+    "unsafe_external_effect_requires_idempotency_and_readback",
+    "unknown_outcome_reconciles_before_retry",
+    "static_evidence_reuse_requires_exact_revision_vector",
+    "volatile_authority_revalidates_at_mutation_frontier",
+    "provider_or_model_fallback_cannot_weaken_hard_constraints",
+    "production_behavior_must_be_reconstructable_from_immutable_references_and_evidence"
+  ],
+  "reference_package_fitness_cases": [
+    {
+      "package_key": "platform.reference.content_intelligence_operations",
+      "status": "candidate_specification_fitness_case",
+      "must_not_require_new_execution_authority": true,
+      "expected_domains": [
+        "research",
+        "knowledge_dispatch",
+        "content_blueprint",
+        "agent_skills",
+        "quality_assurance",
+        "cms_draft_and_publish",
+        "provider_readback",
+        "performance_feedback"
+      ]
+    }
+  ],
+  "boundaries": {
+    "runtime_changes": false,
+    "database_migrations": false,
+    "provider_calls": false,
+    "external_writes": false,
+    "permission_changes": false,
+    "production_activation": false
+  },
+  "secrets_included": false
+}

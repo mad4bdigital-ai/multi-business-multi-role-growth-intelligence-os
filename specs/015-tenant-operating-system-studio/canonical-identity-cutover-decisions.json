@@ -1,0 +1,189 @@
+{
+  "schema_version": 1,
+  "artifact_key": "spec015-canonical-identity-cutover-decisions-v1",
+  "spec_key": "015-tenant-operating-system-studio",
+  "current_main_sha": "0faee775cd0572b737fed8bc74e2580d9fca2878",
+  "task": "T006",
+  "status": "owner_approved_implementation_pending",
+  "approval_status": "approved",
+  "owner_approval_record": {
+    "authority": "repository_owner",
+    "source": "chat",
+    "recorded_on": "2026-09-06",
+    "scope": "approve_all_T006_semantic_dispositions_only",
+    "runtime_mutation_authority_granted": false
+  },
+  "mutation_authority_granted": false,
+  "cutover_executed": false,
+  "decisions": [
+    {
+      "decision_key": "numeric_spec_011_identity",
+      "problem": "Multiple historical/open features use numeric Spec 011 while the current runtime composition assigns durable governed execution and context/product roles by semantic feature identity.",
+      "canonical_identity_rule": "feature_key_plus_canonical_role",
+      "dispositions": [
+        {
+          "feature_key": "011-durable-governed-execution-and-agent-delegation",
+          "canonical_role": "governed_execution_owner",
+          "disposition": "retain_owner_spec"
+        },
+        {
+          "feature_key": "011-database-driven-operation-fabric",
+          "canonical_role": "operation_fabric_subsystem",
+          "disposition": "converge_beneath_governed_execution_owner",
+          "must_not_become": "parallel_execution_kernel"
+        },
+        {
+          "feature_key": "011-tenant-gpt-effective-capability-envelope",
+          "canonical_role": "tenant_application_component",
+          "disposition": "consume_context_and_governed_execution",
+          "must_not_become": "tenant_specific_authorization_kernel"
+        },
+        {
+          "feature_key": "011-dynamic-multi-tenant-growth-control-plane",
+          "canonical_role": "growth_control_plane_authority",
+          "disposition": "retain_domain_control_plane_role",
+          "note": "Numeric labels do not decide ownership; cross-Spec contracts decide the runtime boundary."
+        }
+      ],
+      "owner_decision": "Approve semantic identity and role references; do not use numeric 011 as a unique authority key.",
+      "approval_required": true,
+      "owner_approved": true
+    },
+    {
+      "decision_key": "numeric_spec_014_identity",
+      "problem": "Retail Commerce, Hostinger Storage, and Evidence Intelligence historically share numeric Spec 014 but have different product/service roles.",
+      "canonical_identity_rule": "feature_key_plus_canonical_role",
+      "dispositions": [
+        {
+          "feature_key": "014-retail-commerce-operations-growth-os",
+          "canonical_role": "reference_solution_package_source",
+          "target_package_key": "platform.reference.retail_commerce_operations",
+          "disposition": "extract_bounded_reference_package"
+        },
+        {
+          "feature_key": "014-governed-hostinger-storage-orchestration",
+          "canonical_role": "integration_rollup",
+          "target_package_key": "platform.reference.hostinger_storage_operations",
+          "disposition": "extract_bounded_integration_service_or_package"
+        },
+        {
+          "feature_key": "014-gemini-evidence-intake-automation",
+          "canonical_role": "reference_solution_package_source",
+          "target_package_key": "platform.reference.evidence_intelligence_operations",
+          "disposition": "extract_bounded_reference_package"
+        }
+      ],
+      "owner_decision": "Approve bounded product/package roles and prohibit numeric 014 from acting as universal platform parent identity.",
+      "approval_required": true,
+      "owner_approved": true
+    },
+    {
+      "decision_key": "system_tool_catalog_feature_cluster",
+      "problem": "Multiple historical Draft branches used feature key 013-system-tool-catalog-v2, while current main now contains a merged System Tool Catalog V2 baseline and the Runtime Composition Integration Kit records PR #3260 as merged baseline.",
+      "canonical_target": {
+        "spec_path": "specs/013-system-tool-catalog-v2",
+        "runtime_path": "http-generic-api/systemToolCatalogV2.js",
+        "merged_baseline_pr": 3260,
+        "role": "discovery_and_tool_projection"
+      },
+      "candidate_branch_posture": "historical_or_reconstruction_evidence_only",
+      "disposition": "current_main_merged_baseline_is_canonical_target",
+      "must_not_grant": ["capability_authority", "resource_authority", "permission", "provider_dispatch_authority"],
+      "approval_required": true,
+      "owner_approved": true
+    },
+    {
+      "decision_key": "legacy_actions_semantic_collision",
+      "problem": "The legacy table name actions conflicts with the canonical product term Action.",
+      "current_main_evidence": {
+        "legacy_table": "actions",
+        "documented_role": "provider capability groups and parent-level auth strategy authority",
+        "child_operation_table": "endpoints",
+        "child_operation_role": "exact provider operation contracts",
+        "tool_projection_table": "platform_endpoint_tool_exports",
+        "business_action_surface": "growth_intelligence_actions"
+      },
+      "canonical_semantics": {
+        "Action": "business-level proposed or approved work item",
+        "Provider Capability Group": "legacy actions row grouping provider operations and parent auth strategy",
+        "Provider Operation Contract": "endpoint-level exact provider operation implementation contract",
+        "Operation": "provider-independent or provider-bound bounded callable execution identity compiled through governed execution",
+        "Tool": "curated discovery/client projection of an Operation"
+      },
+      "compatibility": {
+        "actions.action_key": "retain_as_legacy_provider_capability_group_key_during_cutover",
+        "endpoints.parent_action_key": "retain_as_legacy_parent_binding_key",
+        "external_contract_breaking_rename": false
+      },
+      "target_disposition": "semantic_reclassification_before_physical_rename",
+      "physical_table_rename_authorized": false,
+      "approval_required": true,
+      "owner_approved": true
+    },
+    {
+      "decision_key": "capability_authority_alias_cutover",
+      "problem": "Historical Spec 006 evidence prohibited canonical_capabilities while platform_semantic_capabilities remained authoritative, but current main now contains canonical_capabilities/capability_aliases and a runtime repository. Migration 1030 also states legacy action/tool registries remain runtime authority until later cutover phases.",
+      "current_main_target": {
+        "semantic_identity_registry": "canonical_capabilities",
+        "alias_registry": "capability_aliases",
+        "repository": "http-generic-api/src/infrastructure/capability/capabilityRegistryRepository.js"
+      },
+      "legacy_sources": [
+        "platform_semantic_capabilities",
+        "actions",
+        "admin_platform_endpoint_tools",
+        "tenant_platform_endpoint_tools"
+      ],
+      "disposition": "canonical_capabilities_is_target_semantic_identity_domain_but_global_runtime_enforcement_cutover_requires_shadow_parity_and_explicit_evidence",
+      "prohibitions": [
+        "do_not_create_another_capability_registry",
+        "do_not_claim_global_cutover_from_table_existence",
+        "do_not_delete_legacy_alias_sources_before_usage_parity_and_rollback_proof",
+        "do_not_infer_permission_from_capability_registration"
+      ],
+      "cutover_gate": [
+        "all active legacy selectors map to exactly one canonical capability per permitted surface",
+        "zero unexplained capability/permission/effect mismatch in shadow comparison",
+        "state-changing operations preserve approval, credential, resource, idempotency and readback gates",
+        "rollback to legacy resolution remains available during cohort rollout"
+      ],
+      "approval_required": true,
+      "owner_approved": true
+    },
+    {
+      "decision_key": "package_authority_target",
+      "problem": "Spec 015 logical solution_package names could duplicate existing platform package/version/install authorities.",
+      "current_main_target": [
+        "platform_private_packages",
+        "platform_package_versions",
+        "platform_private_package_assets",
+        "tenant_package_installs",
+        "platform_package_variants",
+        "platform_variant_merge_runs"
+      ],
+      "disposition": "reuse_or_bounded_extension_first",
+      "new_solution_package_tables_default": "prohibited_without_proven_semantic_gap_and_T008_approval",
+      "approval_required": true,
+      "owner_approved": true
+    },
+    {
+      "decision_key": "external_protocol_authority",
+      "problem": "MCP and future external agent protocols can be misinterpreted as independent execution/control planes.",
+      "canonical_target": "external_protocols_are_transport_and_projection_adapters",
+      "execution_path": "external client -> tool/operation projection -> Spec012 context -> Spec011 governed execution -> provider/readback",
+      "current_mcp_split_routes": "compatibility_only_until_Spec016_017_conformance",
+      "approval_required": true,
+      "owner_approved": true
+    }
+  ],
+  "owner_approval_complete": true,
+  "closure_requirements": [
+    "portfolio and traceability references updated to canonical semantic identities",
+    "runtime code changes, if any, delivered in separate bounded PRs",
+    "no physical rename or destructive migration in the decision PR",
+    "capability cutover requires shadow parity rather than table-existence inference",
+    "legacy Action/endpoint/tool compatibility remains reversible",
+    "exact-head CI and Spec Kit validation pass"
+  ],
+  "secrets_included": false
+}

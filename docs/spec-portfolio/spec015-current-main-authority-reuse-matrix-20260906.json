@@ -1,0 +1,303 @@
+{
+  "schema_version": "2.0.0",
+  "artifact_key": "spec015-current-main-authority-reuse-matrix-20260906",
+  "spec_key": "015-tenant-operating-system-studio",
+  "current_main_sha": "0faee775cd0572b737fed8bc74e2580d9fca2878",
+  "observed_at": "2026-09-06T08:50:00Z",
+  "status": "convergence_inventory_complete_owner_decisions_pending",
+  "purpose": "Close the repository-inventory and field-level-reuse evidence slices of T002 and T003 without creating runtime authority or approving T006/T008 canonical cutover decisions.",
+  "classification": {
+    "reuse_exact": "Existing authority already owns the required semantic field; reuse without a second authority.",
+    "reuse_with_extension": "Existing authority is the primary migration target but requires bounded additive fields or relations.",
+    "compatibility_only": "Existing field remains migration/legacy input but must not become the final canonical authority.",
+    "projection_only": "Existing surface is discovery/presentation/derived evidence and cannot grant authority.",
+    "gap_requires_owner_decision": "No exact current-main authority was proven; owner review is required before persistence is introduced.",
+    "retire_after_cutover": "Legacy semantic shape should remain only until measured parity and reversible cutover are proven."
+  },
+  "global_decisions": {
+    "new_persistence_approved": false,
+    "new_execution_authority_approved": false,
+    "new_permission_authority_approved": false,
+    "solution_package_tables_wholesale_creation_approved": false,
+    "current_main_reuse_first": true,
+    "owner_review_required_for_gaps": true,
+    "runtime_mutation_executed": false,
+    "migration_applied": false,
+    "provider_call_made": false,
+    "production_activated": false
+  },
+  "logical_entities": [
+    {
+      "logical_entity": "solution_package_definition",
+      "spec_tasks": ["T010", "T011", "T012", "T016"],
+      "target_semantics": "Stable product/package identity, ownership, publication policy, lifecycle and no-secret manifest reference.",
+      "current_main_authorities": [
+        "platform_private_packages",
+        "platform_package_versions",
+        "platform_private_package_assets",
+        "platform_package_variants",
+        "platform_package_variant_patches"
+      ],
+      "evidence_paths": [
+        "http-generic-api/migrations/189_sprint66_platform_private_capability_vault.sql",
+        "docs/work-maps/asset-package-map.md",
+        "specs/004-tenant-asset-federation/current-state.md"
+      ],
+      "field_mappings": [
+        {"target_field":"package_id","current_field":"platform_private_packages.package_id","disposition":"reuse_exact"},
+        {"target_field":"package_key","current_field":"platform_private_packages.package_key","disposition":"reuse_exact"},
+        {"target_field":"source_commit_sha","current_field":"platform_private_packages.source_commit_sha + platform_package_versions.source_commit_sha","disposition":"reuse_exact"},
+        {"target_field":"normalized_manifest","current_field":"platform_private_packages.normalized_manifest_json","disposition":"reuse_with_extension"},
+        {"target_field":"package_version_identity","current_field":"platform_package_versions.package_version_id + version","disposition":"reuse_exact"},
+        {"target_field":"manifest_hash","current_field":"platform_package_versions.normalized_manifest_hash + asset_manifest_hash","disposition":"reuse_exact"},
+        {"target_field":"risk_and_certification","current_field":"platform_private_packages.risk_class + certification_status; platform_package_versions.certification_status","disposition":"reuse_exact"},
+        {"target_field":"package_class","current_field":"platform_private_packages.package_type enum","disposition":"reuse_with_extension","note":"Current enum is intake-oriented: skill_pack, knowledge_pack, tool_candidate, runtime_candidate; Spec015 product classes are broader."},
+        {"target_field":"owner_container_id_and_ownership_class","current_field":null,"disposition":"gap_requires_owner_decision"},
+        {"target_field":"publication_visibility_support_terms","current_field":null,"disposition":"gap_requires_owner_decision"}
+      ],
+      "canonical_disposition": "Do not create solution_package_definitions/versions as an automatic duplicate. Treat current package/version authorities as the migration target and prove only the ownership/publication semantic gaps before additive persistence."
+    },
+    {
+      "logical_entity": "solution_component_definition_and_binding",
+      "spec_tasks": ["T013", "T014", "T015", "T018"],
+      "target_semantics": "Typed package building blocks with immutable versions, dependency graph, compatibility and provenance.",
+      "current_main_authorities": [
+        "platform_private_package_assets",
+        "agents",
+        "agent_skills",
+        "workflows",
+        "actions",
+        "app_integrations",
+        "plugins",
+        "logic_definitions",
+        "execution_policies"
+      ],
+      "evidence_paths": [
+        "specs/004-tenant-asset-federation/data-model.md",
+        "specs/004-tenant-asset-federation/current-state.md",
+        "http-generic-api/migrations/189_sprint66_platform_private_capability_vault.sql"
+      ],
+      "field_mappings": [
+        {"target_field":"component_payload_source","current_field":"existing canonical source tables by component family","disposition":"reuse_exact"},
+        {"target_field":"package_asset_intake_identity","current_field":"platform_private_package_assets.asset_id + package_id + normalized_path","disposition":"compatibility_only"},
+        {"target_field":"content_hash_and_provenance","current_field":"platform_private_package_assets.normalized_hash + semantic_fingerprint + blob_sha","disposition":"reuse_with_extension"},
+        {"target_field":"component_type_registry","current_field":null,"disposition":"gap_requires_owner_decision"},
+        {"target_field":"generic_component_version_identity","current_field":null,"disposition":"gap_requires_owner_decision"},
+        {"target_field":"package_component_dependency_graph","current_field":null,"disposition":"gap_requires_owner_decision"}
+      ],
+      "canonical_disposition": "Do not copy agents/skills/workflows/actions/plugins into generic component rows. A future component registry, if approved, is an identity/composition layer that references canonical source assets and stores only proven cross-family gaps."
+    },
+    {
+      "logical_entity": "package_installation",
+      "spec_tasks": ["T020", "T021", "T022", "T025", "T026", "T027"],
+      "target_semantics": "Exact Tenant/Workspace/Brand/environment installation identity with immutable active revision, requirement bindings, lineage and readiness.",
+      "current_main_authorities": [
+        "tenant_package_installs",
+        "platform_package_variants",
+        "platform_variant_merge_runs",
+        "connections",
+        "installations",
+        "workspace_resource_grants"
+      ],
+      "evidence_paths": [
+        "http-generic-api/migrations/189_sprint66_platform_private_capability_vault.sql",
+        "specs/004-tenant-asset-federation/current-state.md",
+        "specs/012-unified-admin-tenant-context-kernel/architecture.md"
+      ],
+      "field_mappings": [
+        {"target_field":"installation_id","current_field":"tenant_package_installs.install_id","disposition":"reuse_exact"},
+        {"target_field":"tenant_id","current_field":"tenant_package_installs.tenant_id","disposition":"reuse_exact"},
+        {"target_field":"package_id","current_field":"tenant_package_installs.package_id","disposition":"reuse_exact"},
+        {"target_field":"package_version_id","current_field":"tenant_package_installs.package_version_id","disposition":"reuse_exact"},
+        {"target_field":"installation_status","current_field":"tenant_package_installs.install_status","disposition":"reuse_with_extension"},
+        {"target_field":"approval_status","current_field":"tenant_package_installs.approval_status","disposition":"compatibility_only","note":"Approval status is not an execution grant and must migrate to exact approval authority references."},
+        {"target_field":"workspace_brand_client_target","current_field":"enabled_scopes_json + brand_bindings_json","disposition":"compatibility_only","note":"JSON scope hints are insufficient as final exact target authority."},
+        {"target_field":"agent_grants","current_field":"tenant_package_installs.agent_grants_json","disposition":"compatibility_only","note":"Copied grant JSON cannot become primary authorization authority."},
+        {"target_field":"policy_overrides","current_field":"tenant_package_installs.policy_overrides_json","disposition":"compatibility_only","note":"Package-local policy JSON may narrow/configure only through canonical policy authority."},
+        {"target_field":"environment","current_field":null,"disposition":"gap_requires_owner_decision"},
+        {"target_field":"active_immutable_installation_revision","current_field":null,"disposition":"gap_requires_owner_decision"},
+        {"target_field":"requirement_binding_refs","current_field":null,"disposition":"gap_requires_owner_decision"},
+        {"target_field":"version_vector_context_hash_lineage","current_field":null,"disposition":"gap_requires_owner_decision"}
+      ],
+      "canonical_disposition": "Extend or bridge tenant_package_installs rather than create a second live install authority. Preserve current JSON fields only as compatibility inputs until typed references and immutable installation revisions are certified."
+    },
+    {
+      "logical_entity": "capability_and_operation",
+      "spec_tasks": ["T002", "T003", "T010", "T022", "T085"],
+      "target_semantics": "Capability is provider-independent semantic ability; Operation is the bounded callable execution primitive.",
+      "current_main_authorities": [
+        "canonical_capabilities",
+        "capability_aliases",
+        "platform_capability_versions",
+        "execution plan/workflow runtime authorities"
+      ],
+      "evidence_paths": [
+        "http-generic-api/src/infrastructure/capability/capabilityRegistryRepository.js",
+        "http-generic-api/migrations/1030_sprint69_canonical_capability_domain.sql",
+        "http-generic-api/src/domain/growthControlPlane/growthControlAuthorityMap.js",
+        "specs/integration-governed-execution-runtime-composition/README.md"
+      ],
+      "field_mappings": [
+        {"target_field":"capability_key","current_field":"canonical_capabilities.capability_key","disposition":"reuse_exact"},
+        {"target_field":"risk_effect_state_changing","current_field":"canonical_capabilities.risk_level + effect + state_changing","disposition":"reuse_exact"},
+        {"target_field":"credential_device_approval_smoke_policy_refs","current_field":"canonical_capabilities credential_policy_id/device_policy_id/approval_policy_id/smoke_policy_id","disposition":"reuse_exact"},
+        {"target_field":"capability_alias","current_field":"capability_aliases","disposition":"reuse_exact"},
+        {"target_field":"canonical_operation_identity","current_field":"distributed current operation/plan/tool runtime surfaces","disposition":"reuse_with_extension","note":"Spec011/013 composition must establish one operation identity before broad cutover."},
+        {"target_field":"legacy_platform_semantic_capability_conflict","current_field":"historical platform_semantic_capabilities references","disposition":"retire_after_cutover","note":"Current main contains canonical_capabilities; older Spec006 authority text must be reconciled, not revived as a parallel table."}
+      ],
+      "canonical_disposition": "No new capability authority. Reconcile historical platform_semantic_capabilities language and converge callable execution on one canonical Operation contract owned by governed execution."
+    },
+    {
+      "logical_entity": "tool_catalog_projection",
+      "spec_tasks": ["T002", "T003", "T082", "T085"],
+      "target_semantics": "Principal-visible discovery/projection of canonical operations or bounded intent; never permission authority.",
+      "current_main_authorities": ["SystemToolCatalogV2"],
+      "evidence_paths": [
+        "http-generic-api/systemToolCatalogV2.js",
+        "specs/013-system-tool-catalog-v2/manifest.json",
+        "specs/integration-governed-execution-runtime-composition/README.md"
+      ],
+      "field_mappings": [
+        {"target_field":"tool_name","current_field":"SystemToolDescriptor.name","disposition":"reuse_exact"},
+        {"target_field":"description","current_field":"SystemToolDescriptor.description","disposition":"reuse_exact"},
+        {"target_field":"source_key","current_field":"SystemToolDescriptor.source_key","disposition":"reuse_exact"},
+        {"target_field":"capability_key","current_field":"SystemToolDescriptor.capability_key","disposition":"reuse_exact"},
+        {"target_field":"catalog_level_tags_aliases","current_field":"SystemToolDescriptor.catalog_level/tags/aliases","disposition":"reuse_exact"},
+        {"target_field":"input_schema","current_field":"SystemToolDescriptor.inputSchema","disposition":"reuse_exact"},
+        {"target_field":"operation_version_effect_idempotency_readback_metadata","current_field":null,"disposition":"gap_requires_owner_decision","note":"Belongs to Spec013 descriptor extension backed by Spec011 operation authority, not to a second tool runtime."}
+      ],
+      "canonical_disposition": "Keep System Tool Catalog as discovery/projection. Add execution/consequence metadata only as a projection of canonical operations; visibility never grants permission."
+    },
+    {
+      "logical_entity": "agent_skill_workflow",
+      "spec_tasks": ["T002", "T003", "T050", "T051", "T056"],
+      "target_semantics": "Shared Agent/Skill/Workflow definitions consumed under task-scoped delegated authority.",
+      "current_main_authorities": [
+        "agents",
+        "agent_skills",
+        "skill_manifests",
+        "skill_packages",
+        "agent_skill_grants",
+        "agent_workflow_bindings",
+        "workflows"
+      ],
+      "evidence_paths": [
+        "docs/work-maps/agent-skill-plugin-map.md",
+        "specs/004-tenant-asset-federation/current-state.md",
+        "specs/integration-governed-execution-runtime-composition/canonical-semantic-ontology.md"
+      ],
+      "field_mappings": [
+        {"target_field":"agent_definition","current_field":"agents","disposition":"reuse_exact"},
+        {"target_field":"skill_definition","current_field":"agent_skills + skill_manifests + skill_packages","disposition":"reuse_with_extension"},
+        {"target_field":"workflow_definition","current_field":"workflows","disposition":"reuse_exact"},
+        {"target_field":"agent_skill_binding","current_field":"agent_skill_grants","disposition":"reuse_with_extension"},
+        {"target_field":"agent_workflow_binding","current_field":"agent_workflow_bindings","disposition":"reuse_with_extension"},
+        {"target_field":"task_scoped_delegation_and_depth","current_field":"agent_delegations plus existing governance surfaces","disposition":"reuse_with_extension"}
+      ],
+      "canonical_disposition": "Do not copy Agent/Skill/Workflow definitions into packages. Packages reference them or bounded package-owned versions; runtime authority remains task/grant/policy scoped."
+    },
+    {
+      "logical_entity": "activity_pack",
+      "spec_tasks": ["T024", "T080", "T085"],
+      "target_semantics": "Reusable business methodology bound to Tenant/Workspace/Brand/activity scope without embedding Brand facts.",
+      "current_main_authorities": [
+        "growth_control_activity_pack_definitions",
+        "growth_control_activity_pack_versions",
+        "growth control activity bindings"
+      ],
+      "evidence_paths": [
+        "http-generic-api/src/domain/growthControlPlane/growthControlAuthorityMap.js",
+        "http-generic-api/src/infrastructure/growthControlPlane/growthControlPlaneRepository.js",
+        "specs/011-dynamic-multi-tenant-growth-control-plane/data-model.md"
+      ],
+      "field_mappings": [
+        {"target_field":"activity_pack_definition","current_field":"growth_control_activity_pack_definitions","disposition":"reuse_exact"},
+        {"target_field":"activity_pack_version","current_field":"growth_control_activity_pack_versions","disposition":"reuse_exact"},
+        {"target_field":"tenant_workspace_brand_activity_binding","current_field":"growth control activity binding authorities","disposition":"reuse_exact"},
+        {"target_field":"package_reference","current_field":"reference only from Spec015 package composition","disposition":"projection_only"}
+      ],
+      "canonical_disposition": "Spec015 consumes Activity Packs; it must not create a second Activity Pack registry."
+    },
+    {
+      "logical_entity": "external_mcp_surface",
+      "spec_tasks": ["T002", "T003", "T056", "T085", "T095"],
+      "target_semantics": "External protocol projection over canonical tool/operation/context/policy/execution authorities.",
+      "current_main_authorities": [
+        "http-generic-api/routes/mcpRoutes.js",
+        "http-generic-api/mcpRuntime.js",
+        "016-chatgpt-plugin-mcp-integration"
+      ],
+      "evidence_paths": [
+        "http-generic-api/routes/mcpRoutes.js",
+        "http-generic-api/mcpRuntime.js",
+        "specs/016-chatgpt-plugin-mcp-integration/spec.md",
+        "specs/016-chatgpt-plugin-mcp-integration/plan.md"
+      ],
+      "field_mappings": [
+        {"target_field":"legacy_initialize_route","current_field":"POST /mcp/initialize","disposition":"compatibility_only"},
+        {"target_field":"legacy_tool_list_route","current_field":"GET /mcp/tools/list","disposition":"compatibility_only"},
+        {"target_field":"legacy_tool_call_route","current_field":"POST /mcp/tools/call","disposition":"compatibility_only"},
+        {"target_field":"tool_source","current_field":"SystemToolCatalogV2 projection","disposition":"projection_only"},
+        {"target_field":"external_execution_authority","current_field":"Spec012 + Spec011 governed execution","disposition":"reuse_exact"},
+        {"target_field":"protocol_conformance_cutover","current_field":"Spec016/017 staged work","disposition":"gap_requires_owner_decision"}
+      ],
+      "canonical_disposition": "MCP remains transport/projection. Current split routes are compatibility surfaces until Spec016 protocol conformance and OAuth/host isolation are certified; no MCP-specific execution kernel is permitted."
+    },
+    {
+      "logical_entity": "effective_runtime_manifest",
+      "spec_tasks": ["T023", "T025", "T052", "T063"],
+      "target_semantics": "Immutable reference graph tying installation/context/governance/plan/model/commercial/knowledge decisions to an execution candidate.",
+      "current_main_authorities": [
+        "container_effective_context_ledger",
+        "Spec012 Execution Capsule contract",
+        "Spec011 compiled plan/policy/envelope/ledger artifacts"
+      ],
+      "evidence_paths": [
+        "specs/004-tenant-asset-federation/data-model.md",
+        "specs/012-unified-admin-tenant-context-kernel/architecture.md",
+        "specs/integration-governed-execution-runtime-composition/canonical-artifact-authority-reference-graph.md"
+      ],
+      "field_mappings": [
+        {"target_field":"context_identity_and_hash","current_field":"Spec012/context kernel artifacts","disposition":"reuse_exact"},
+        {"target_field":"execution_plan_and_policy_refs","current_field":"Spec011 governed execution artifacts","disposition":"reuse_exact"},
+        {"target_field":"installation_revision_ref","current_field":null,"disposition":"gap_requires_owner_decision"},
+        {"target_field":"model_commercial_knowledge_decision_refs","current_field":"separate design/current authorities by plane","disposition":"reuse_with_extension"},
+        {"target_field":"manifest_storage_shape","current_field":"effective_runtime_manifest_ledger is proposed in Spec004, not proven deployed authority","disposition":"gap_requires_owner_decision"}
+      ],
+      "canonical_disposition": "Implement only as reference-first composition evidence after owner decisions; do not duplicate full grants, credentials, provider records or policy payloads."
+    },
+    {
+      "logical_entity": "legacy_action_semantic_collision",
+      "spec_tasks": ["T006", "T082", "T085"],
+      "target_semantics": "Reserve Action for business-level work item and Operation for bounded technical invocation.",
+      "current_main_authorities": ["actions", "growth_intelligence_actions", "tool/action compatibility surfaces"],
+      "evidence_paths": [
+        "specs/004-tenant-asset-federation/current-state.md",
+        "specs/integration-governed-execution-runtime-composition/canonical-semantic-ontology.md",
+        "docs/work-maps/data-model-domain-map.md"
+      ],
+      "field_mappings": [
+        {"target_field":"growth_business_action","current_field":"growth_intelligence_actions and domain backlog semantics","disposition":"reuse_exact"},
+        {"target_field":"legacy_actions_table","current_field":"actions","disposition":"compatibility_only","note":"Row-family semantics require T006 classification before rename/migration; do not assume every legacy action is a business Action or Operation."},
+        {"target_field":"new_callable_primitives","current_field":"canonical Operation contract","disposition":"reuse_with_extension"}
+      ],
+      "canonical_disposition": "T006 must classify the legacy actions family and publish alias/cutover mappings. No destructive rename or table migration is authorized by this matrix."
+    }
+  ],
+  "phase0_completion": {
+    "T002_inventory_evidence": "complete_for_current_main_sha",
+    "T003_field_level_reuse_evidence": "complete_for_current_main_sha",
+    "T006_identity_and_cutover_approval": "open",
+    "T008_owner_architecture_security_product_approval": "open"
+  },
+  "required_next_decisions": [
+    "Approve or reject bounded extension of current package/version/install authorities for Spec015 product semantics.",
+    "Classify legacy actions rows and aliases against canonical Action versus Operation semantics.",
+    "Reconcile historical platform_semantic_capabilities authority language with current canonical_capabilities runtime.",
+    "Decide the minimal generic component identity/composition persistence gap without copying canonical assets.",
+    "Decide immutable installation revision storage and typed requirement bindings without grant/credential copies.",
+    "Extend Spec013 descriptors only from canonical Operation metadata; keep Tool Catalog non-authoritative.",
+    "Keep current MCP routes compatibility-only until Spec016/017 conformance and authorization gates are certified."
+  ],
+  "secrets_included": false
+}

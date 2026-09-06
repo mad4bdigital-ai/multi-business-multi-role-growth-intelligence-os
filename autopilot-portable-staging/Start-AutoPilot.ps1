@@ -6,6 +6,8 @@ param(
     [string]$Ref = "main",
     [string]$ExpectedCommit = "",
     [switch]$StartTunnel,
+    [ValidateSet("disabled", "windows_service", "docker_sidecar")]
+    [string]$TunnelMode = "disabled",
     [switch]$RequireSchemaBundle,
     [switch]$ApplySchemaBundle,
     [switch]$ValidateOnly,
@@ -18,6 +20,8 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+if ($StartTunnel -and $TunnelMode -eq "disabled") { $TunnelMode = "windows_service" }
+$TunnelSelected = $TunnelMode -ne "disabled"
 . (Join-Path $PSScriptRoot "Staging-Operations-Log.ps1")
 $WindowsPreflightPath = Join-Path $PSScriptRoot "Staging-Windows-Preflight.ps1"
 $GitSafetyPath = Join-Path $PSScriptRoot "Staging-GitSafety.ps1"
@@ -28,8 +32,11 @@ if (-not (Test-Path -LiteralPath $GitSafetyPath)) { throw "Missing shared Git sa
 $GitTransportPath = Join-Path $PSScriptRoot "Staging-GitTransport.ps1"
 if (-not (Test-Path -LiteralPath $GitTransportPath)) { throw "Missing shared Git transport helper: $GitTransportPath" }
 . $GitTransportPath
+$StagingCloudflaredPath = Join-Path $PSScriptRoot "Staging-WindowsCloudflared.ps1"
+if (-not (Test-Path -LiteralPath $StagingCloudflaredPath)) { throw "Missing Staging Cloudflared helper: $StagingCloudflaredPath" }
+. $StagingCloudflaredPath
 $LogComponent = "app-operations"
-Write-StagingOperationBoundary -Component $LogComponent -Stage "process" -Outcome "start" -Message "application operations process started" -Data @{ validate_only = [bool]$ValidateOnly; stop = [bool]$Stop; tunnel = [bool]$StartTunnel; require_schema_bundle = [bool]$RequireSchemaBundle; apply_schema_bundle = [bool]$ApplySchemaBundle }
+Write-StagingOperationBoundary -Component $LogComponent -Stage "process" -Outcome "start" -Message "application operations process started" -Data @{ validate_only = [bool]$ValidateOnly; stop = [bool]$Stop; tunnel = [bool]$TunnelSelected; tunnel_mode = $TunnelMode; require_schema_bundle = [bool]$RequireSchemaBundle; apply_schema_bundle = [bool]$ApplySchemaBundle }
 trap {
     Write-StagingLog -Level error -Component $LogComponent -Stage "unhandled" -Message $_.Exception.Message -Data @{ error_type = $_.Exception.GetType().FullName }
     Write-Host "APP_OPERATIONS_FAILURE_LOGGED: $(Get-StagingLogRoot)" -ForegroundColor Red
@@ -169,6 +176,8 @@ function Ensure-EnvDefault([string]$Path, [string]$Name, [string]$Value) {
     }
     Write-StagingUtf8NoBom $Path $text
 }
+function Get-StagingEnvValue([string]$Path, [string]$Name) { return Read-EnvValue $Path $Name }
+function Set-StagingEnvValue([string]$Path, [string]$Name, [string]$Value) { Set-EnvValue $Path $Name $Value }
 function Set-EnvValue([string]$Path, [string]$Name, [string]$Value) {
     if ($Value -match '[\r\n]') { Fail "Invalid newline in environment value: $Name" }
     $text = Get-Content -LiteralPath $Path -Raw
@@ -219,7 +228,7 @@ function Invoke-SelfUpdate {
         "-RepositoryPath", $RepositoryPath, "-RepositoryUrl", $RepositoryUrl, "-ExpectedRepository", $ExpectedRepository, "-Ref", $Ref,
         "-ExpectedCommit", $ExpectedCommit, "-BuildMode", $childBuildMode, "-SkipSelfUpdate"
     )
-    if ($StartTunnel) { $childArgs += "-StartTunnel" }
+    $childArgs += @("-TunnelMode", $TunnelMode)
     if ($RequireSchemaBundle) { $childArgs += "-RequireSchemaBundle" }
     if ($ApplySchemaBundle) { $childArgs += "-ApplySchemaBundle" }
     if ($ValidateOnly) { $childArgs += "-ValidateOnly" }
@@ -456,10 +465,10 @@ try {
     Set-EnvValue $EnvFile "STAGING_BUILD_CONTEXT_FILE_SET_SHA256" ([string]$buildContextMetadata.context_file_set_sha256)
     Assert-UniqueEnvKeys $EnvFile
     $effectiveEnv = Get-Content -Raw $EnvFile
-    if ($effectiveEnv -match '(?im)^CLOUDFLARE_TUNNEL_TOKEN=\s*$' -and $StartTunnel) { Fail "StartTunnel requested but CLOUDFLARE_TUNNEL_TOKEN is empty" }
+    if ($effectiveEnv -match '(?im)^CLOUDFLARE_TUNNEL_TOKEN=\s*$' -and $TunnelMode -eq "docker_sidecar") { Fail "docker_sidecar requested but CLOUDFLARE_TUNNEL_TOKEN is empty" }
     if ($effectiveEnv -notmatch '(?im)^MIGRATION_APPLIED=false\s*$' -or $effectiveEnv -notmatch '(?im)^DATABASE_MUTATED=false\s*$') { Fail "Mutation safety flags must be present and exactly false" }
-    if ($StartTunnel -and (Read-EnvValue $EnvFile "TENANT_GPT_STAGING_ENABLED") -eq "true" -and [string]::IsNullOrWhiteSpace((Read-EnvValue $EnvFile "TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET"))) { Fail "StartTunnel requires TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET when Staging GPT is enabled" }
-    if ($StartTunnel -and (Read-EnvValue $EnvFile "REMOTE_MCP_ENABLED") -eq "true" -and (Read-EnvValue $EnvFile "REMOTE_MCP_OAUTH_ENABLED") -eq "true" -and [string]::IsNullOrWhiteSpace((Read-EnvValue $EnvFile "REMOTE_MCP_OAUTH_SIGNING_SECRET"))) { Fail "StartTunnel requires REMOTE_MCP_OAUTH_SIGNING_SECRET when Staging MCP OAuth is enabled" }
+    if ($TunnelSelected -and (Read-EnvValue $EnvFile "TENANT_GPT_STAGING_ENABLED") -eq "true" -and [string]::IsNullOrWhiteSpace((Read-EnvValue $EnvFile "TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET"))) { Fail "TunnelMode requires TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET when Staging GPT is enabled" }
+    if ($TunnelSelected -and (Read-EnvValue $EnvFile "REMOTE_MCP_ENABLED") -eq "true" -and (Read-EnvValue $EnvFile "REMOTE_MCP_OAUTH_ENABLED") -eq "true" -and [string]::IsNullOrWhiteSpace((Read-EnvValue $EnvFile "REMOTE_MCP_OAUTH_SIGNING_SECRET"))) { Fail "TunnelMode requires REMOTE_MCP_OAUTH_SIGNING_SECRET when Staging MCP OAuth is enabled" }
     $activationGatewayEnabled = (Read-EnvValue $EnvFile "ACTIVATION_STAGING_GATEWAY_ENABLED").ToLowerInvariant() -eq "true"
     if ($activationGatewayEnabled -and [string]::IsNullOrWhiteSpace((Read-EnvValue $EnvFile "TENANT_GPT_STAGING_ACTIVATION_OAUTH_CLIENT_SECRET"))) { Fail "Activation Staging Gateway requires TENANT_GPT_STAGING_ACTIVATION_OAUTH_CLIENT_SECRET" }
     if ($effectiveEnv -notmatch '(?im)^TENANT_GPT_SSO_COOKIE_MODE=host_only\s*$') { Fail "Staging SSO cookie mode must be host_only" }
@@ -474,13 +483,15 @@ try {
     $composeArgs = @("compose", "-f", $ComposeBase, "-f", $ComposeStage, "--env-file", $EnvFile)
     Invoke-Native "docker" ($composeArgs + @("config", "--quiet"))
     if ($ValidateOnly) {
-        Write-Host "AUTO_PILOT_VALIDATED: commit=$ExpectedCommit context=$context tunnel=$StartTunnel"
+        Write-Host "AUTO_PILOT_VALIDATED: commit=$ExpectedCommit context=$context tunnel_mode=$TunnelMode"
         return
     }
     if ($Stop) {
         Write-StagingLog -Level info -Component $LogComponent -Stage "stop" -Message "stopping local Staging services"
         Invoke-Native "docker" ($composeArgs + @("--profile", "tunnel", "stop"))
-        Write-StagingOperationBoundary -Component $LogComponent -Stage "stop" -Outcome "success" -Message "local Staging services stopped"
+        $stagingService = Get-Service -Name "Mad4B-Staging-Cloudflared" -ErrorAction SilentlyContinue
+        if ($null -ne $stagingService -and $stagingService.Status -ne "Stopped") { Stop-Service -Name "Mad4B-Staging-Cloudflared" -Force -ErrorAction Stop }
+        Write-StagingOperationBoundary -Component $LogComponent -Stage "stop" -Outcome "success" -Message "local Staging services and Staging-owned tunnel runtimes stopped"
         return
     }
     $existingImageId = Find-ExactStagingImageId $ExpectedCommit $buildTree $buildContextMetadata.context_file_set_sha256 $EnvFile
@@ -507,10 +518,33 @@ try {
     Write-StagingLog -Level info -Component $LogComponent -Stage "compose-up" -Message "starting local application topology"
     Invoke-Native "docker" $upArgs
     foreach ($service in @("redis", "runtime-db", "governance-db", "persistence-db", "app")) { Wait-ServiceHealthy $composeArgs $service }
-    if ($StartTunnel) {
-        Write-StagingLog -Level info -Component $LogComponent -Stage "tunnel" -Message "starting explicitly enabled Staging tunnel"
+    if ($TunnelMode -eq "windows_service") {
+        Write-StagingLog -Level info -Component $LogComponent -Stage "tunnel" -Message "reconciling Staging tunnel in windows_service mode"
+        Invoke-Native "docker" ($composeArgs + @("--profile", "tunnel", "stop", "cloudflared"))
+        $service = Get-Service -Name "Mad4B-Staging-Cloudflared" -ErrorAction SilentlyContinue
+        if ($null -eq $service -or $service.Status -ne "Running") { [void](Ensure-StagingCloudflaredWindowsService $EnvFile) }
+        $serviceReadback = Get-CimInstance Win32_Service -Filter "Name='Mad4B-Staging-Cloudflared'" -ErrorAction Stop
+        if ($serviceReadback.State -ne "Running" -or [int]$serviceReadback.ProcessId -le 0) { Fail "windows_service tunnel did not reach Running" }
+        $dockerTunnelId = (& docker @($composeArgs + @("ps", "-q", "cloudflared")) 2>$null | Out-String).Trim()
+        if (-not [string]::IsNullOrWhiteSpace($dockerTunnelId)) {
+            $dockerTunnelRunning = (& docker inspect --format "{{.State.Running}}" $dockerTunnelId 2>$null | Out-String).Trim().ToLowerInvariant()
+            if ($dockerTunnelRunning -eq "true") { Fail "windows_service mode refuses concurrent Docker cloudflared sidecar" }
+        }
+        Write-StagingOperationBoundary -Component $LogComponent -Stage "tunnel" -Outcome "success" -Message "Staging Windows service tunnel is the sole runtime" -Data @{ tunnel_mode = $TunnelMode; service = "Mad4B-Staging-Cloudflared"; pid = [int]$serviceReadback.ProcessId }
+    } elseif ($TunnelMode -eq "docker_sidecar") {
+        Write-StagingLog -Level info -Component $LogComponent -Stage "tunnel" -Message "reconciling Staging tunnel in docker_sidecar mode"
+        $service = Get-Service -Name "Mad4B-Staging-Cloudflared" -ErrorAction SilentlyContinue
+        if ($null -ne $service -and $service.Status -ne "Stopped") {
+            Stop-Service -Name "Mad4B-Staging-Cloudflared" -Force -ErrorAction Stop
+            $service.WaitForStatus([System.ServiceProcess.ServiceControllerStatus]::Stopped, [TimeSpan]::FromSeconds(20))
+        }
         Invoke-Native "docker" ($composeArgs + @("--profile", "tunnel", "up", "-d", "cloudflared"))
-        Write-StagingOperationBoundary -Component $LogComponent -Stage "tunnel" -Outcome "success" -Message "Staging tunnel started" -Data @{ hostnames = "dev.mad4b.com,mcp-dev.mad4b.com" }
+        Write-StagingOperationBoundary -Component $LogComponent -Stage "tunnel" -Outcome "success" -Message "Staging Docker sidecar tunnel is the sole runtime" -Data @{ tunnel_mode = $TunnelMode; hostnames = "dev.mad4b.com,mcp-dev.mad4b.com" }
+    } else {
+        Invoke-Native "docker" ($composeArgs + @("--profile", "tunnel", "stop", "cloudflared"))
+        $service = Get-Service -Name "Mad4B-Staging-Cloudflared" -ErrorAction SilentlyContinue
+        if ($null -ne $service -and $service.Status -ne "Stopped") { Stop-Service -Name "Mad4B-Staging-Cloudflared" -Force -ErrorAction Stop }
+        Write-StagingOperationBoundary -Component $LogComponent -Stage "tunnel" -Outcome "success" -Message "Staging tunnel disabled; no Staging-owned tunnel runtime is running" -Data @{ tunnel_mode = $TunnelMode }
     }
     Invoke-Native "docker" ($composeArgs + @("ps"))
 
@@ -526,7 +560,8 @@ try {
         build_mode = $BuildMode
         build_action = $buildAction
         image_reused = [bool]$imageReused
-        tunnel_started = [bool]$StartTunnel
+        tunnel_started = [bool]$TunnelSelected
+        tunnel_mode = $TunnelMode
         schema_bundle_required = [bool]$RequireSchemaBundle
         schema_bundle_apply_requested = [bool]$ApplySchemaBundle
         schema_seed_status = $schemaSeedStatus
@@ -543,7 +578,7 @@ try {
     Set-Content -Encoding utf8 $StateFile ($baseState | ConvertTo-Json -Depth 8)
 
     $certArgs = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $CertificationScript, "-RepositoryPath", $RepositoryPath, "-ExpectedCommit", $ExpectedCommit, "-Ref", $Ref, "-StatePath", $StateFile)
-    if ($StartTunnel) { $certArgs += "-StartTunnel" }
+    $certArgs += @("-TunnelMode", $TunnelMode)
     Write-StagingLog -Level info -Component $LogComponent -Stage "certification" -Message "same-cycle Staging certification started" -Data @{ commit = $ExpectedCommit; gateway_enabled = [bool]$activationGatewayEnabled }
     & powershell.exe @certArgs
     if ($LASTEXITCODE -ne 0) {
@@ -551,8 +586,10 @@ try {
         $certificationDegradedReasons = @()
         try {
             $failedCertificationState = Get-Content -Raw -LiteralPath $StateFile | ConvertFrom-Json
-            $certificationBlockingFailures = @($failedCertificationState.certification_blocking_failures | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
-            $certificationDegradedReasons = @($failedCertificationState.certification_degraded_reasons | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+            $blockingProperty = $failedCertificationState.PSObject.Properties["certification_blocking_failures"]
+            $degradedProperty = $failedCertificationState.PSObject.Properties["certification_degraded_reasons"]
+            $certificationBlockingFailures = if ($null -ne $blockingProperty) { @($blockingProperty.Value | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }) } else { @() }
+            $certificationDegradedReasons = if ($null -ne $degradedProperty) { @($degradedProperty.Value | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }) } else { @() }
         } catch { }
         $reasonSuffix = if ($certificationBlockingFailures.Count -gt 0) { " reasons=$($certificationBlockingFailures -join ',')" } else { " reasons=unavailable" }
         $failureMessage = "Staging certification blocked exact commit $ExpectedCommit$reasonSuffix"
@@ -569,8 +606,8 @@ try {
         Fail "Unsupported Staging certification state: $($certState.certification_status)"
     }
 
-    Write-Host "AUTO_PILOT_STARTED: local staging is running; tunnel=$StartTunnel; commit=$ExpectedCommit certification=$($certState.certification_status)"
-    Write-StagingOperationBoundary -Component $LogComponent -Stage "complete" -Outcome "success" -Message "local Staging application operations completed" -Data @{ commit = $ExpectedCommit; tunnel_started = [bool]$StartTunnel; services = "redis,runtime-db,governance-db,persistence-db,app"; certification_status = $certState.certification_status }
+    Write-Host "AUTO_PILOT_STARTED: local staging is running; tunnel_mode=$TunnelMode; commit=$ExpectedCommit certification=$($certState.certification_status)"
+    Write-StagingOperationBoundary -Component $LogComponent -Stage "complete" -Outcome "success" -Message "local Staging application operations completed" -Data @{ commit = $ExpectedCommit; tunnel_started = [bool]$TunnelSelected; tunnel_mode = $TunnelMode; services = "redis,runtime-db,governance-db,persistence-db,app"; certification_status = $certState.certification_status }
     Write-Host "APP_OPERATIONS_LOG: $(Get-StagingLogRoot)"
 } finally {
     Pop-Location

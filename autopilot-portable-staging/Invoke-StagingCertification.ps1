@@ -6,11 +6,15 @@ param(
     [string]$ExpectedCommit,
     [string]$Ref = "main",
     [switch]$StartTunnel,
+    [ValidateSet("disabled", "windows_service", "docker_sidecar")]
+    [string]$TunnelMode = "disabled",
     [string]$StatePath = ""
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+if ($StartTunnel -and $TunnelMode -eq "disabled") { $TunnelMode = "windows_service" }
+$TunnelSelected = $TunnelMode -ne "disabled"
 
 function Fail([string]$Message) {
     throw "STAGING_CERTIFICATION_FAIL_CLOSED: $Message"
@@ -73,6 +77,8 @@ function Invoke-LocalConnectorCertificationGate([string]$RepairScript, [string]$
         "connector_cross_runtime_interference"
     } elseif ($repairStatus -eq "ambiguous_legacy_service_requires_reconciliation") {
         "connector_tunnel_ownership_ambiguous"
+    } elseif ($repairStatus -eq "connector_installation_incomplete") {
+        "connector_installation_incomplete"
     } else {
         "connector_tunnel_unhealthy"
     }
@@ -138,7 +144,7 @@ $certArgs = $composeArgs + @(
     "-e", "STAGING_CERT_APP_IMAGE_ID=$imageId",
     "-e", "STAGING_CERT_APP_BASE_URL=http://127.0.0.1:8080",
     "-e", "STAGING_CERT_REQUIRE_GATEWAY=$($gatewayEnabled.ToString().ToLowerInvariant())",
-    "-e", "STAGING_CERT_REQUIRE_GATEWAY_UPSTREAM=$(($gatewayEnabled -and [bool]$StartTunnel).ToString().ToLowerInvariant())",
+    "-e", "STAGING_CERT_REQUIRE_GATEWAY_UPSTREAM=$(($gatewayEnabled -and [bool]$TunnelSelected).ToString().ToLowerInvariant())",
     "-e", "STAGING_CERT_REQUIRE_READY=false",
     "-e", "STAGING_CERT_GATEWAY_POLICY_PATH=/app/staging-route-policy.json",
     "app", "node", "scripts/staging-live-certification.mjs"
@@ -161,6 +167,7 @@ $state["certified_branch"] = [string]$certification.observed.branch
 $state["certification_blocking_failures"] = @($certification.blocking_failures)
 $state["certification_degraded_reasons"] = @($certification.degraded_reasons)
 $state["gateway_required"] = [bool]$gatewayEnabled
+$state["tunnel_mode"] = $TunnelMode
 $state["artifact_set_complete"] = ($certification.artifact_set.complete -eq $true)
 $state["app_image_digest"] = [string]$certification.artifact_set.app.image_digest
 $state["app_tree_sha"] = [string]$certification.artifact_set.app.tree_sha

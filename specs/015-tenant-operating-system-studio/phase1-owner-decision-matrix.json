@@ -1,0 +1,181 @@
+{
+  "schema_version": 1,
+  "artifact_key": "spec015-phase1-owner-decision-matrix-v1",
+  "spec_key": "015-tenant-operating-system-studio",
+  "task": "T008",
+  "current_main_sha": "0faee775cd0572b737fed8bc74e2580d9fca2878",
+  "status": "owner_approved_phase1_design_authorized",
+  "approval_status": "approved",
+  "owner_approval_record": {
+    "authority": "repository_owner",
+    "source": "chat",
+    "recorded_on": "2026-09-06",
+    "scope": "approve_all_T008_recommended_decisions_for_bounded_phase1_implementation_PR_design",
+    "runtime_mutation_authority_granted": false
+  },
+  "phase1_authorized": true,
+  "runtime_mutation_authorized": false,
+  "decisions": [
+    {
+      "decision_key": "package_authority_extension",
+      "domain": "product_and_persistence",
+      "question": "Should Spec015 create new Solution Package definition/version tables or extend current package authorities?",
+      "recommended_decision": "reuse_or_bounded_extension_of_current_package_authorities",
+      "required_reuse": ["platform_private_packages","platform_package_versions","platform_private_package_assets"],
+      "allowed_new_persistence": "only_proven_product_semantic_gaps_after_schema_review",
+      "prohibited": ["wholesale_parallel_solution_package_registry","copying_canonical_asset_payloads_into_package_rows","credentials_in_package_payload"],
+      "owner_approval_required": true,
+      "owner_approved": true
+    },
+    {
+      "decision_key": "generic_component_identity",
+      "domain": "product_and_persistence",
+      "question": "How should a Package compose heterogeneous Agents, Skills, Workflows, Policies, UI definitions and other assets?",
+      "recommended_decision": "thin_typed_component_identity_and_binding_overlay_referencing_canonical_source_assets",
+      "required_reuse": ["agents","agent_skills","workflows","execution_policies","plugins","app_integrations","logic_definitions"],
+      "allowed_new_persistence": "component_identity_version_binding_dependency_metadata_only_if_existing_cross_family_authority_is_insufficient",
+      "prohibited": ["duplicating_agent_skill_workflow_policy_payloads","arbitrary_executable_component_code","unbounded_EAV_component_payloads"],
+      "owner_approval_required": true,
+      "owner_approved": true
+    },
+    {
+      "decision_key": "installation_revision_authority",
+      "domain": "product_and_runtime_boundary",
+      "question": "How should an installed Package be represented without competing with tenant_package_installs or runtime context authority?",
+      "recommended_decision": "tenant_package_installs_remains_installation_identity_and_lifecycle_root_with_immutable_revision_child_authority_if_gap_approved",
+      "required_reuse": ["tenant_package_installs","platform_package_versions","platform_package_variants","platform_variant_merge_runs","Spec012 Context Kernel"],
+      "required_revision_fields": ["installation_id","revision_number","package_version_id","target_scope_refs","component_version_refs","configuration_snapshot_ref","requirement_binding_refs","lineage_parent_revision","revision_vector","content_hash","status","created_at"],
+      "compatibility_only_fields": ["enabled_scopes_json","brand_bindings_json","agent_grants_json","policy_overrides_json"],
+      "prohibited": ["installation_revision_as_permission_token","copied_credentials","copied_grants_as_authority","implicit_target_fallback"],
+      "owner_approval_required": true,
+      "owner_approved": true
+    },
+    {
+      "decision_key": "authorization_and_policy_reference_boundary",
+      "domain": "security",
+      "question": "May Package or Installation payloads contain effective grants or policy decisions?",
+      "recommended_decision": "reference_requirements_and_current_authority_only",
+      "required_runtime_path": "installation_requirement -> current principal/resource/capability/policy resolution -> execution envelope",
+      "prohibited": ["manifest_grants_permission","agent_grants_json_as_primary_authority","policy_overrides_json_weakening_platform_policy","cached_permission_without_revision_revalidation"],
+      "owner_approval_required": true,
+      "owner_approved": true
+    },
+    {
+      "decision_key": "data_governance_minimum",
+      "domain": "privacy_and_compliance",
+      "question": "What data-governance controls are mandatory before consequential autonomous writes or cross-tenant intelligence?",
+      "recommended_decision": "classification_purpose_retention_residency_and_deletion_lineage_are_P0_for_consequential_autonomy",
+      "minimum_controls": ["data_classification","processing_purpose","retention_policy","residency_region_policy","legal_hold_behavior","deletion_propagation_for_derived_data","minimal_audit_retention_separation"],
+      "prohibited": ["cross_tenant_raw_example_reuse","external_model_dispatch_of_restricted_data_without_policy","silent_retention_of_deleted_source_embeddings"],
+      "owner_approval_required": true,
+      "owner_approved": true
+    },
+    {
+      "decision_key": "knowledge_and_provenance",
+      "domain": "knowledge",
+      "question": "What is canonical knowledge versus retrieval projection?",
+      "recommended_decision": "canonical_knowledge_and_provenance_registry_plus_immutable_authorized_context_snapshot",
+      "derived_surfaces": ["vector_index","lexical_index","cache","search_projection"],
+      "required_fields": ["source_identity","content_hash","authority_tier","sensitivity","license_or_usage_rights","freshness","validity","derived_from","verification_status","tenant_brand_scope"],
+      "prohibited": ["vector_database_as_canonical_authority","unauthorized_chunks_entering_model_context","agent_direct_self_modification_of_canonical_knowledge"],
+      "owner_approval_required": true,
+      "owner_approved": true
+    },
+    {
+      "decision_key": "model_governance",
+      "domain": "ai_and_model_runtime",
+      "question": "How are models/providers selected for Package AI use cases?",
+      "recommended_decision": "capability_first_policy_gated_evidence_ranked_model_selection",
+      "required_gates": ["task_capability_contract","tenant_entitlement","data_use","region_residency","risk_safety","tool_and_output_contract","evaluation_floor","provider_readiness","commercial_reservation"],
+      "fallback_rule": "fallback_candidates_must_be_independently_eligible_and_cannot_weaken_hard_gates",
+      "prohibited": ["raw_unregistered_model_id_as_authority","free_first_bypass","model_score_overrides_policy","prompt_selects_credentials_or_hidden_scope"],
+      "owner_approval_required": true,
+      "owner_approved": true
+    },
+    {
+      "decision_key": "commercial_and_finops",
+      "domain": "commercial",
+      "question": "How should Package/Agent/provider costs be bounded and attributed?",
+      "recommended_decision": "estimate_reserve_execute_verify_settle_adjust",
+      "required_dimensions": ["tenant","workspace","brand","activity","package","operation","model_provider","external_provider"],
+      "required_controls": ["hard_ceiling","reservation_concurrency","quota","rate","cost_attribution","refund_or_adjustment_on_failed_effect"],
+      "prohibited": ["check_balance_without_reservation_for_parallel_agents","fallback_using_another_candidate_reservation","hidden_commercial_optimization_as_safety"],
+      "owner_approval_required": true,
+      "owner_approved": true
+    },
+    {
+      "decision_key": "agency_client_ownership",
+      "domain": "agency_and_tenant_model",
+      "question": "How are agency IP, client data, Package ownership, Installation ownership, connections and delegation separated?",
+      "recommended_decision": "independent_ownership_dimensions_with_typed_revocable_delegation",
+      "ownership_dimensions": ["package_definition_IP","installation","client_business_data","brand_knowledge","files","connections","deliverables","derived_insights"],
+      "prohibited": ["agency_package_ownership_implies_client_data_ownership","delegation_becomes_membership","agency_credential_inheritance_by_client_or_reverse","cross_brand_connection_fallback"],
+      "owner_approval_required": true,
+      "owner_approved": true
+    },
+    {
+      "decision_key": "portability_offboarding_and_handover",
+      "domain": "portability_and_lifecycle",
+      "question": "What must remain portable and operational when a client or agency relationship ends?",
+      "recommended_decision": "exportable_definitions_and_client_owned_data_with_reference_only_external_dependencies_and_tested_revocation_handover",
+      "required_export": ["package_or_allowed_definition_refs","installation_configuration","client_data","brand_knowledge","artifacts","lineage","non_secret_connection_metadata","ownership_manifest"],
+      "required_offboarding": ["freeze_high_risk_new_effects","export","transfer","revoke_delegation","revoke_or_rebind_connections","retention_or_legal_hold","erasure","completion_evidence"],
+      "prohibited": ["credential_export","deleting_client_data_on_package_uninstall","agency_departure_breaks_client_owned_runtime_without_handover_path"],
+      "owner_approval_required": true,
+      "owner_approved": true
+    },
+    {
+      "decision_key": "external_protocol_and_tool_projection",
+      "domain": "external_integration",
+      "question": "How may MCP or future external agent protocols expose Package capabilities?",
+      "recommended_decision": "protocol_adapter_over_focused_tool_operation_projection",
+      "required_path": "external_principal -> authenticated transport -> focused System Tool Catalog projection -> Spec012 Context Kernel -> capability/policy -> Spec011 governed execution/readback",
+      "prohibited": ["protocol_specific_execution_kernel","tool_list_grants_permission","external_session_is_tenant_authority","resource_selected_only_from_model_arguments"],
+      "owner_approval_required": true,
+      "owner_approved": true
+    },
+    {
+      "decision_key": "human_approval_and_separation_of_duties",
+      "domain": "human_operations",
+      "question": "How are consequential approval and operator capacity represented?",
+      "recommended_decision": "plan_bound_frontier_approval_with_expiry_escalation_and_optional_separation_of_duties",
+      "required_fields": ["approver_role","exact_plan_hash","context_hash","resource_refs","effect_set","limits","expiry","fallback_approver_or_escalation","consumption_state"],
+      "prohibited": ["approval_executes_effect","broad_session_approval","stale_approval_after_plan_resource_provider_or_cost_drift","agent_self_approval_of_high_risk_effect"],
+      "owner_approval_required": true,
+      "owner_approved": true
+    },
+    {
+      "decision_key": "content_intelligence_reference_activation",
+      "domain": "reference_package",
+      "question": "How far may Content Intelligence progress before Package foundation and governance planes are certified?",
+      "recommended_decision": "staged_reference_fitness_package",
+      "stages": {
+        "CI-0": "research_knowledge_blueprint_internal_draft",
+        "CI-1": "governed_wordpress_draft_with_readback",
+        "CI-2": "approved_or_scheduled_publish",
+        "CI-3": "bounded_low_risk_auto_publish",
+        "CI-4": "performance_feedback_to_improvement_candidate_not_self_modifying_production"
+      },
+      "preconditions": ["package_component_foundation","installation_revision","knowledge_provenance","model_and_budget_policy_for_used_tasks","certified_provider_bindings","idempotency_and_readback_for_CMS_effects"],
+      "owner_approval_required": true,
+      "owner_approved": true
+    }
+  ],
+  "phase1_entry_gate": {
+    "T006_owner_approved": true,
+    "T008_owner_approved": true,
+    "exact_head_ci": {
+      "required": true,
+      "attestation_location": "external",
+      "source_authority": "GitHub Actions exact-candidate checks and canonical CI evidence",
+      "binding": "candidate_head_sha",
+      "source_tree_may_self_attest": false,
+      "status": "must_be_verified_outside_the_candidate_tree"
+    },
+    "new_persistence_decisions_reviewed": true,
+    "bounded_implementation_pr_design_authorized": true,
+    "runtime_mutation_authorized": false
+  },
+  "approval_effect": "Approval authorizes bounded Phase1 implementation PR design only; it does not authorize migration apply, provider writes, deployment, Production activation, protected-branch mutation, permission broadening, or external publication.",
+  "secrets_included": false
+}
