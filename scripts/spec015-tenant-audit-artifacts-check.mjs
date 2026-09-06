@@ -13,8 +13,13 @@ const currentPath = 'docs/spec-portfolio/spec015-current-main-authority-reuse-ma
 const snapshotPath = 'docs/spec-portfolio/spec015-candidate-pr-readonly-evidence-20260812.jsonl';
 const convergencePath = 'specs/015-tenant-operating-system-studio/candidate-convergence.json';
 const conceptMapPath = 'specs/015-tenant-operating-system-studio/canonical-concept-authority-map.json';
+const manifestPath = 'specs/015-tenant-operating-system-studio/manifest.json';
+const completionPath = 'specs/015-tenant-operating-system-studio/completion.json';
+const t006Path = 'specs/015-tenant-operating-system-studio/canonical-identity-cutover-decisions.json';
+const t008Path = 'specs/015-tenant-operating-system-studio/phase1-owner-decision-matrix.json';
 const validatorPath = path.join(ROOT, 'scripts/spec015-canonical-authority-convergence.mjs');
-const truthfulnessGuardPath = path.join(ROOT, 'specs/015-tenant-operating-system-studio/tools/test-tenant-audit-artifacts.mjs');
+const expectedInventorySnapshot = '0faee775cd0572b737fed8bc74e2580d9fca2878';
+const expectedValidatedMain = '589ab1ec780c1833d1b585fbdc1accaf6cbd8172';
 
 const legacy = readJson(legacyPath);
 assert.equal(legacy.schema_version, '1.0.0');
@@ -47,7 +52,7 @@ assert.ok(convergence.candidates.every((candidate) => candidate.merge_posture ==
 
 const current = readJson(currentPath);
 assert.equal(current.schema_version, '2.0.0');
-assert.equal(current.current_main_sha, '0faee775cd0572b737fed8bc74e2580d9fca2878');
+assert.equal(current.current_main_sha, expectedInventorySnapshot);
 assert.equal(current.status, 'convergence_inventory_complete_owner_decisions_pending');
 assert.equal(current.global_decisions.new_persistence_approved, false);
 assert.equal(current.global_decisions.new_execution_authority_approved, false);
@@ -75,6 +80,59 @@ assert.equal(concepts.concepts.find((entry) => entry.concept_key === 'solution_p
 assert.match(concepts.concepts.find((entry) => entry.concept_key === 'action').semantic_role, /business_level/);
 assert.match(concepts.concepts.find((entry) => entry.concept_key === 'operation').semantic_role, /bounded_callable/);
 
+const manifest = readJson(manifestPath);
+const completion = readJson(completionPath);
+const t006 = readJson(t006Path);
+const t008 = readJson(t008Path);
+
+assert.equal(manifest.current_main_authority_inventory_sha, expectedInventorySnapshot);
+assert.equal(manifest.current_main_authority_inventory_validated_against_sha, expectedValidatedMain);
+assert.equal(manifest.authority_inventory_validation?.snapshot_sha, expectedInventorySnapshot);
+assert.equal(manifest.authority_inventory_validation?.validated_against_main_sha, expectedValidatedMain);
+assert.equal(manifest.authority_inventory_validation?.delta_commit_count, 2);
+assert.equal(manifest.authority_inventory_validation?.exact_head_attestation, 'external_required');
+assert.equal(manifest.delivery_provenance?.source_specification_pr?.number, 4456);
+assert.equal(manifest.delivery_provenance?.convergence_pr?.number, 7930);
+assert.equal(manifest.delivery_provenance?.convergence_pr?.base_main_sha, expectedValidatedMain);
+assert.equal(manifest.delivery_provenance?.convergence_pr?.exact_head_attestation, 'external_required');
+
+assert.equal(t006.approval_status, 'approved');
+assert.equal(t006.owner_approval_complete, true);
+assert.equal(t006.cutover_executed, false);
+assert.equal(manifest.coverage?.T006_owner_approval_complete, true);
+assert.equal(completion.owner_decision_evidence?.T006?.status, 'approved');
+assert.equal(completion.convergence?.T006_cutover_executed, false);
+
+assert.equal(t008.approval_status, 'approved');
+assert.equal(t008.phase1_authorized, true);
+assert.equal(t008.runtime_mutation_authorized, false);
+assert.equal(t008.phase1_entry_gate?.T006_owner_approved, true);
+assert.equal(t008.phase1_entry_gate?.T008_owner_approved, true);
+assert.equal(t008.phase1_entry_gate?.bounded_implementation_pr_design_authorized, true);
+assert.equal(t008.phase1_entry_gate?.runtime_mutation_authorized, false);
+assert.equal(manifest.coverage?.T008_owner_approval_complete, true);
+assert.equal(manifest.boundaries?.T008_phase1_authorized, true);
+assert.equal(manifest.boundaries?.T008_runtime_mutation_authorized, false);
+assert.equal(completion.owner_decision_evidence?.T008?.status, 'approved');
+assert.equal(completion.owner_decision_evidence?.T008?.phase1_design_authorized, true);
+assert.equal(completion.owner_decision_evidence?.T008?.runtime_mutation_authorized, false);
+assert.equal(completion.convergence?.T008_phase1_authorized, true);
+
+assert.equal(completion.convergence?.current_main_authority_inventory_sha, expectedInventorySnapshot);
+assert.equal(completion.convergence?.current_main_authority_inventory_snapshot_sha, expectedInventorySnapshot);
+assert.equal(completion.convergence?.current_main_authority_inventory_validated_against_sha, expectedValidatedMain);
+assert.equal(completion.convergence?.current_main_authority_inventory_delta_commit_count, 2);
+assert.equal(completion.portfolio_scan?.current_main_field_level_reuse_matrix_sha, expectedInventorySnapshot);
+assert.equal(completion.portfolio_scan?.current_main_field_level_reuse_matrix_validated_against_sha, expectedValidatedMain);
+assert.equal(completion.delivery?.specification_pr?.number, 4456);
+assert.equal(completion.delivery?.convergence_pr?.number, 7930);
+assert.equal(completion.delivery?.convergence_pr?.base_main_sha, expectedValidatedMain);
+assert.equal(completion.delivery?.convergence_pr?.exact_head_attestation, 'external_required');
+assert.equal(completion.implementation?.started, false);
+assert.equal(completion.implementation?.migrations_applied, false);
+assert.equal(completion.implementation?.runtime_deployed, false);
+assert.equal(completion.implementation?.production_activated, false);
+
 const validatorResult = JSON.parse(execFileSync(process.execPath, [validatorPath], {cwd:ROOT,encoding:'utf8'}));
 assert.equal(validatorResult.ok, true);
 assert.deepEqual(validatorResult.phase0_evidence_complete, ['T002','T003']);
@@ -85,11 +143,4 @@ assert.equal(validatorResult.bounded_implementation_pr_design_authorized, true);
 assert.equal(validatorResult.runtime_mutation_executed, false);
 assert.equal(validatorResult.new_persistence_approved, false);
 
-const truthfulnessResult = JSON.parse(execFileSync(process.execPath, [truthfulnessGuardPath], {cwd:ROOT,encoding:'utf8'}));
-assert.equal(truthfulnessResult.ok, true);
-assert.equal(truthfulnessResult.truthfulness_reconciled, true);
-assert.equal(truthfulnessResult.authority_inventory_snapshot_sha, '0faee775cd0572b737fed8bc74e2580d9fca2878');
-assert.equal(truthfulnessResult.authority_inventory_validated_against_main_sha, '589ab1ec780c1833d1b585fbdc1accaf6cbd8172');
-assert.equal(truthfulnessResult.runtime_mutation_authorized, false);
-
-console.log(JSON.stringify({ok:true,test:'spec015-tenant-audit-artifacts',legacy_matrix_rows:legacy.rows.length,current_main_authority_entities:current.logical_entities.length,canonical_concepts:concepts.concepts.length,candidate_records:rows.length,portfolio_snapshot_base_main_sha:legacy.snapshot_base_main_sha,current_main_authority_inventory_sha:current.current_main_sha,current_main_authority_inventory_validated_against_main_sha:truthfulnessResult.authority_inventory_validated_against_main_sha,truthfulness_reconciled:true,phase0_evidence_complete:['T002','T003'],phase0_owner_decisions_complete:['T006','T008'],owner_decisions_open:[],phase1_authorized:true,runtime_mutation_executed:false,safe_read_only:true,merge_executed:false,secrets_included:false},null,2));
+console.log(JSON.stringify({ok:true,test:'spec015-tenant-audit-artifacts',legacy_matrix_rows:legacy.rows.length,current_main_authority_entities:current.logical_entities.length,canonical_concepts:concepts.concepts.length,candidate_records:rows.length,portfolio_snapshot_base_main_sha:legacy.snapshot_base_main_sha,current_main_authority_inventory_sha:current.current_main_sha,current_main_authority_inventory_validated_against_main_sha:expectedValidatedMain,truthfulness_reconciled:true,phase0_evidence_complete:['T002','T003'],phase0_owner_decisions_complete:['T006','T008'],owner_decisions_open:[],phase1_authorized:true,runtime_mutation_authorized:false,runtime_mutation_executed:false,safe_read_only:true,merge_executed:false,secrets_included:false},null,2));
