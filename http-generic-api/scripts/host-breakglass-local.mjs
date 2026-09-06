@@ -21,18 +21,16 @@ request.environment_key = "staging_local_windows_docker";
 const bootstrapContract = readStagingRuntimeBootstrapContract();
 const plan = buildHostBreakglassPlan(request, { bootstrapContract });
 
-function stagingContract() {
-  return structuredClone(bootstrapContract);
-}
+function stagingContract() { return structuredClone(bootstrapContract); }
+function stable(value) { return Array.isArray(value) ? value.map(stable) : value && typeof value === "object" ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, stable(value[key])])) : value; }
+function evidenceHash(value) { return createHash("sha256").update(JSON.stringify(stable(value))).digest("hex"); }
 
 function publicGrantPolicy(policy) {
   return {
     required_tables: [...(policy.required_tables || [])],
     optional_tables: [...(policy.optional_tables || [])],
     required_operations: [...(policy.required_operations || [])],
-    required_operations_by_table: policy.required_operations_by_table
-      ? Object.fromEntries(Object.entries(policy.required_operations_by_table).map(([table, operations]) => [table, [...operations]]))
-      : null,
+    required_operations_by_table: policy.required_operations_by_table ? Object.fromEntries(Object.entries(policy.required_operations_by_table).map(([table, operations]) => [table, [...operations]])) : null,
     apply_when: policy.apply_when || "always",
   };
 }
@@ -57,7 +55,7 @@ function stagingAccessRepairDryRun() {
     database_readback_performed: false,
     database_mutation_performed: false,
     mutation_ready: false,
-    mutation_blocking_reason: "governed_execution_ticket_verifier_and_same_cycle_local_database_readback_required",
+    mutation_blocking_reason: "server_issued_execution_ticket_required_before_local_database_mutation",
     production_authority: false,
     secrets_included: false,
   };
@@ -97,11 +95,112 @@ function localEnv() {
     BOOTSTRAP_EXECUTION_TICKET_ID: plan.execution_ticket_id || "",
     BOOTSTRAP_EXECUTION_TICKET_HASH: plan.execution_ticket_hash || "",
     HOST_BREAKGLASS_OPERATION: plan.operation_key,
+    HOST_BREAKGLASS_CORRELATION_ID: plan.correlation_id,
     HOST_BREAKGLASS_HOST_LOCAL_ROLE_CREDENTIALS: plan.target_source === overlay.role_target_source ? "true" : "",
     HOST_BREAKGLASS_ENVIRONMENT_KEY: plan.environment_key,
     HOST_BREAKGLASS_CAPSULE_PATH: plan.capsule_path || "",
     HOST_BREAKGLASS_CAPSULE_SHA256: plan.capsule_sha256 || "",
     HOST_BREAKGLASS_CAPSULE_CONFIRMATION: plan.confirmation || ""
+  };
+}
+
+function stagingBootstrapAuthorityClient(env) {
+  const baseUrl = String(env.STAGING_RECOVERY_ADMIN_URL || "https://activation-dev.mad4b.com").trim().replace(/\/+$/u, "");
+  const backendApiKey = String(env.STAGING_RECOVERY_BACKEND_API_KEY || env.BACKEND_API_KEY || "").trim();
+  if (!backendApiKey) throw Object.assign(new Error("Staging bootstrap execution requires the existing BACKEND_API_KEY for the private Activation Gateway authority."), { code: "host_breakglass_staging_ticket_authority_auth_missing", status: 503 });
+  let reservedBinding = null;
+  let reservationReceipt = null;
+  let reservationGeneration = null;
+  let executionReceipt = null;
+
+  const post = async (pathname, body) => {
+    let response;
+    try {
+      response = await fetch(`${baseUrl}${pathname}`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-api-key": backendApiKey, "x-request-id": plan.correlation_id },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(20000),
+      });
+    } catch (error) {
+      throw Object.assign(new Error("Staging bootstrap execution authority is unreachable; no automatic local mutation is allowed."), { code: "host_breakglass_staging_ticket_authority_unreachable", status: 503, cause: error });
+    }
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw Object.assign(new Error("Staging bootstrap execution authority rejected the request."), { code: payload?.error?.code || "host_breakglass_staging_ticket_authority_rejected", status: response.status, details: { upstream_status: response.status, requestId: payload?.error?.requestId || payload?.error?.request_id || null, reconciliation_required: response.status === 409, automatic_rerun_allowed: false, secrets_included: false } });
+    return payload;
+  };
+
+  const bindingBody = ({ ticket_id, ticket_hash, expected }) => ({
+    execution_ticket_id: ticket_id,
+    execution_ticket_hash: ticket_hash,
+    expected_sha: expected.production_sha || plan.expected_sha,
+    target_key: expected.target_key || plan.target_key,
+    target_fingerprint: expected.target_fingerprint,
+    operation: expected.operation,
+    plan_hash: plan.plan_sha256,
+    idempotency_key: plan.correlation_id,
+    role_selection_hash: expected.role_selection_hash || plan.role_selection_proof?.selection_hash || null,
+    grant_binding_hash: expected.grant_binding_hash || plan.grant_binding_hash || null,
+  });
+
+  return {
+    executionTicketVerifier: Object.freeze({
+      async verifyForBootstrap(input = {}) {
+        const body = bindingBody(input);
+        const result = await post("/admin/recovery/staging/bootstrap-ticket/verify", body);
+        if (result?.valid !== true || result?.reserved !== true || !result?.reservation_receipt || !result?.reservation_generation) return { valid: false };
+        reservedBinding = body;
+        reservationReceipt = result.reservation_receipt;
+        reservationGeneration = result.reservation_generation;
+        const started = await post("/admin/recovery/staging/bootstrap-ticket/verify", { ...body, authority_action: "mark_executing", reservation_receipt: reservationReceipt });
+        if (started?.executing !== true || started?.lifecycle_state !== "executing" || !started?.execution_receipt || started?.reservation_generation !== reservationGeneration) throw Object.assign(new Error("Staging execution-start receipt was not issued for the reserved ticket; local mutation is forbidden."), { code: "RECOVERY_RECONCILIATION_REQUIRED", status: 409, details: { reconciliation_required: true, automatic_rerun_allowed: false, database_mutation_performed: false } });
+        executionReceipt = started.execution_receipt;
+        return { valid: true, reserved: true, executing: true, reservation_fingerprint: result.reservation_fingerprint || null };
+      },
+    }),
+    partialReceiptStore: Object.freeze({
+      async putImmutablePartialRebuildReceipt(receipt) {
+        const result = await post("/admin/recovery/staging/bootstrap-partial-receipt", { receipt });
+        if (result?.persisted !== true || result?.durable !== true) throw Object.assign(new Error("Staging partial mutation receipt was not durably persisted."), { code: "host_breakglass_staging_partial_receipt_not_durable", status: 503 });
+        return result;
+      },
+    }),
+    async finalize(result) {
+      if (!reservedBinding || !reservationReceipt || !reservationGeneration || !executionReceipt) throw Object.assign(new Error("No complete server-side Staging reservation/execution-start receipt chain exists for this local execution."), { code: "RECOVERY_RECONCILIATION_REQUIRED", status: 409, details: { reconciliation_required: true, automatic_rerun_allowed: false } });
+      const roleReadback = result?.grants?.grant_readback_by_role || null;
+      const readbackReady = result?.status === "apply_grants_complete"
+        ? Boolean(roleReadback && Object.keys(roleReadback).length && Object.values(roleReadback).every((entry) => entry?.ready === true))
+        : Boolean(result?.postconditions?.ready === true || result?.role_rebuild_evidence?.verification?.every?.((entry) => entry?.required_tables_present === true));
+      if (!readbackReady) throw Object.assign(new Error("Local bootstrap completed without the canonical same-cycle readback required to finalize its ticket."), { code: "RECOVERY_READBACK_UNVERIFIED", status: 409, details: { database_mutation_performed: result?.database_mutation_performed === true, reconciliation_required: true, automatic_rerun_allowed: false } });
+      const roleProjection = roleReadback ? Object.fromEntries(Object.entries(roleReadback).map(([role, entry]) => [role, { ready: entry?.ready === true, evidence_fingerprint: evidenceHash(entry) }])) : null;
+      const evidence = {
+        contract: "mad4b.staging-bootstrap-local-readback-evidence.v1",
+        ticket_id: reservedBinding.execution_ticket_id,
+        reservation_generation: reservationGeneration,
+        expected_sha: reservedBinding.expected_sha,
+        target_key: reservedBinding.target_key,
+        target_fingerprint: reservedBinding.target_fingerprint,
+        operation: reservedBinding.operation,
+        plan_hash: reservedBinding.plan_hash,
+        idempotency_key: reservedBinding.idempotency_key,
+        grant_binding_hash: reservedBinding.grant_binding_hash || null,
+        role_selection_hash: reservedBinding.role_selection_hash || null,
+        status: result.status,
+        observed_at: new Date().toISOString(),
+        same_cycle: true,
+        database_mutation_performed: result.database_mutation_performed === true,
+        grant_readback_by_role: roleProjection,
+        postconditions_fingerprint: result?.postconditions ? evidenceHash(result.postconditions) : null,
+        mutation_evidence_fingerprint: result?.mutation_evidence ? evidenceHash(result.mutation_evidence) : null,
+        secrets_included: false,
+      };
+      try {
+        return await post("/admin/recovery/staging/bootstrap-ticket/finalize", { ...reservedBinding, reservation_receipt: reservationReceipt, execution_receipt: executionReceipt, readback_evidence: evidence });
+      } catch (error) {
+        error.details = { ...(error.details || {}), database_mutation_performed: result?.database_mutation_performed === true, reconciliation_required: true, automatic_rerun_allowed: false };
+        throw error;
+      }
+    },
   };
 }
 
@@ -113,19 +212,6 @@ try {
   if (plan.runbook_key === "database.access_repair" && plan.action === "dry_run") {
     process.stdout.write(`${JSON.stringify(stagingAccessRepairDryRun())}\n`);
     process.exit(0);
-  }
-  if (plan.runbook_key === "database.access_repair" && plan.action === "apply_grants") {
-    throw Object.assign(new Error("Staging access mutation requires a governed server-side execution-ticket verifier before the canonical local repair may run; no database operation was attempted."), {
-      code: "host_breakglass_staging_access_repair_verifier_required",
-      status: 503,
-      details: {
-        canonical_local_repair: overlay.readiness_remediation?.access_repair?.canonical_local_repair || null,
-        execution_ticket_authority_required: true,
-        same_cycle_readback_required: true,
-        database_connection_performed: false,
-        database_mutation_performed: false,
-      },
-    });
   }
   if (process.platform !== overlay.required_platform) throw Object.assign(new Error("Staging Host Breakglass execution requires Windows."), { code: "host_breakglass_windows_required", status: 409 });
   const docker = spawnSync("docker", ["info", "--format", "{{json .ServerVersion}}"], { encoding: "utf8", windowsHide: true, timeout: 15000 });
@@ -147,9 +233,14 @@ try {
     process.stdout.write(`${JSON.stringify({ ok: true, contract: "mad4b.host-breakglass-shell-capsule-result.v1", environment_key: plan.environment_key, capsule_path: plan.capsule_path, capsule_sha256: capsuleHash, exit_code: shell.status, output_sha256: createHash("sha256").update(shell.stdout || "").digest("hex"), output_bytes: Buffer.byteLength(shell.stdout || ""), shell_exception_used: true, database_mutation_performed: "unknown", secrets_included: false })}\n`);
     process.exit(0);
   }
-  const result = await runBootstrap({ env: localEnv(), contract: stagingContract(), repoRoot: path.resolve(API_ROOT, "..") });
-  process.stdout.write(`${JSON.stringify({ ...result, environment_key: plan.environment_key, execution_transport: "local_cli", secrets_included: false })}\n`);
+  const env = localEnv();
+  const authority = stagingBootstrapAuthorityClient(env);
+  const result = await runBootstrap({ env, contract: stagingContract(), repoRoot: path.resolve(API_ROOT, ".."), executionTicketVerifier: authority.executionTicketVerifier, partialReceiptStore: authority.partialReceiptStore });
+  if (["apply_migration", "apply_grants"].includes(plan.action)) await authority.finalize(result);
+  process.stdout.write(`${JSON.stringify({ ...result, environment_key: plan.environment_key, execution_transport: "local_cli", execution_ticket_finalized: ["apply_migration", "apply_grants"].includes(plan.action), secrets_included: false })}\n`);
 } catch (error) {
-  process.stdout.write(`${JSON.stringify({ ok: false, environment_key: "staging_local_windows_docker", error: sanitizeBootstrapError(error), database_mutation_performed: false, secrets_included: false })}\n`);
+  const sanitized = sanitizeBootstrapError(error);
+  const mutationPerformed = sanitized?.details?.database_mutation_performed ?? false;
+  process.stdout.write(`${JSON.stringify({ ok: false, environment_key: "staging_local_windows_docker", error: sanitized, database_mutation_performed: mutationPerformed, reconciliation_required: sanitized?.details?.reconciliation_required === true, automatic_rerun_allowed: sanitized?.details?.automatic_rerun_allowed === false ? false : undefined, secrets_included: false })}\n`);
   process.exitCode = 1;
 }

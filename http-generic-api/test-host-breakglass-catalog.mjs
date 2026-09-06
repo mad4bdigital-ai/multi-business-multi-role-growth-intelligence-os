@@ -373,7 +373,7 @@ test("Production dispatch reuses an exact GitHub run after process-local receipt
   const fetchImpl = async (url, options = {}) => {
     calls.push({ url: String(url), method: options.method || "GET" });
     if (String(url).includes("/actions/workflows/production-runtime-parity-evidence.yml/runs?")) {
-      return new Response(JSON.stringify({ workflow_runs: [{ id: 88, path: "production-runtime-parity-evidence.yml", event: "workflow_dispatch", head_branch: "main", display_title: `runtime-breakglass-${plan.correlation_id}-${plan.expected_sha}-${plan.plan_sha256}`, status: "completed", conclusion: "success", created_at: new Date().toISOString() }] }), { status: 200 });
+      return new Response(JSON.stringify({ workflow_runs: [{ id: 88, path: "production-runtime-parity-evidence.yml", event: "workflow_dispatch", head_branch: "main", display_title: `runtime-breakglass-${plan.correlation_id}-${plan.expected_sha}`, status: "completed", conclusion: "success", created_at: new Date().toISOString() }] }), { status: 200 });
     }
     throw new Error(`unexpected URL: ${url}`);
   };
@@ -399,6 +399,7 @@ test("Production dispatch maps each target source explicitly without downgrade",
   await dispatchHostBreakglassPlan(runtimeEnvPlan, options);
   await dispatchHostBreakglassPlan(repositoryPlan, options);
   assert.deepEqual(posted.map((entry) => entry.bootstrap_target_source), ["hostinger_runtime_env", "repository_allowlist"]);
+  assert.deepEqual(posted.map((entry) => entry.breakglass_correlation_id), ["mapping-runtime-env", "mapping-repository-allowlist"]);
   assert.equal(posted.every((entry) => typeof entry.recovery_envelope === "string"), true);
   const envelope = JSON.parse(posted[0].recovery_envelope);
   assert.equal(envelope.contract, "mad4b.host-breakglass-recovery-envelope.v1");
@@ -412,11 +413,12 @@ test("Production dispatch maps each target source explicitly without downgrade",
 test("Production correlation status survives process-local receipt loss through GitHub run-name readback", async () => {
   const correlation = "durable-status-test";
   __hostBreakglassTest.RUNS.clear();
-  const fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({ workflow_runs: [{ id: 77, path: "production-runtime-parity-evidence.yml", event: "workflow_dispatch", head_branch: "main", display_title: `runtime-breakglass-${correlation}-${SHA}-${"c".repeat(64)}`, status: "completed", conclusion: "success", created_at: new Date().toISOString() }] }) });
+  const fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({ workflow_runs: [{ id: 77, path: "production-runtime-parity-evidence.yml", event: "workflow_dispatch", head_branch: "main", display_title: `runtime-breakglass-${correlation}-${SHA}`, status: "completed", conclusion: "success", created_at: new Date().toISOString() }] }) });
   const result = await readHostBreakglassRun(correlation, { fetchImpl, env: { RUNTIME_BREAKGLASS_GITHUB_TOKEN: "server-side-test-token" }, tokenResolver: async () => { throw new Error("GitHub App must not be used when dedicated token is present"); } });
   assert.equal(result.dispatch_status, "recovered_from_github");
   assert.equal(result.workflow_run_id, "77");
   assert.equal(result.durable_github_readback, true);
+  assert.equal(result.plan_sha256, null);
 });
 test("Production dispatch recovers an existing exact-correlation GitHub run after process restart without a second POST", async () => {
   const correlation = "durable-dispatch-test";
@@ -425,7 +427,7 @@ test("Production dispatch recovers an existing exact-correlation GitHub run afte
   let postCount = 0;
   const fetchImpl = async (_url, options = {}) => {
     if (options.method === "POST") postCount += 1;
-    return { ok: true, status: 200, json: async () => ({ workflow_runs: [{ id: 91, path: "production-runtime-parity-evidence.yml", event: "workflow_dispatch", head_branch: "main", display_title: `runtime-breakglass-${correlation}-${plan.expected_sha}-${plan.plan_sha256}`, created_at: new Date().toISOString() }] }) };
+    return { ok: true, status: 200, json: async () => ({ workflow_runs: [{ id: 91, path: "production-runtime-parity-evidence.yml", event: "workflow_dispatch", head_branch: "main", display_title: `runtime-breakglass-${correlation}-${plan.expected_sha}`, created_at: new Date().toISOString() }] }) };
   };
   const receipt = await dispatchHostBreakglassPlan(plan, { fetchImpl, tokenResolver: async () => "token" });
   assert.equal(postCount, 0);
@@ -438,7 +440,7 @@ test("Production dispatch rejects ambiguous durable correlation matches without 
   const correlation = "ambiguous-dispatch-test";
   __hostBreakglassTest.RUNS.clear();
   const plan = buildHostBreakglassPlan({ operation_key: "database.inspect", action: "dry_run", expected_sha: SHA, migration: MIGRATION, correlation_id: correlation });
-  const fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({ workflow_runs: [1, 2].map((id) => ({ id, path: "production-runtime-parity-evidence.yml", event: "workflow_dispatch", head_branch: "main", display_title: `runtime-breakglass-${correlation}-${plan.expected_sha}-${plan.plan_sha256}` })) }) });
+  const fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({ workflow_runs: [1, 2].map((id) => ({ id, path: "production-runtime-parity-evidence.yml", event: "workflow_dispatch", head_branch: "main", display_title: `runtime-breakglass-${correlation}-${plan.expected_sha}` })) }) });
   await assert.rejects(dispatchHostBreakglassPlan(plan, { fetchImpl, tokenResolver: async () => "token" }), (error) => error.code === "host_breakglass_idempotency_ambiguous");
 });
 test.after(() => { __hostBreakglassTest.RUNS.clear(); __hostBreakglassTest.MIGRATION_DISCOVERY_CACHE.clear(); fs.rmSync(SQL_PATH, { force: true }); fs.rmSync(SHELL_PATH, { force: true }); fs.rmSync(BACKUP_PATH, { force: true }); });

@@ -205,6 +205,7 @@
         "routes/stagingRecoveryAdminRoutes.js",
         "openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
         "test-staging-recovery-admin-surface.mjs",
+        "test-recovery-execution-ticket.mjs",
         "test-staging-recovery-route-policy.mjs",
         "docs/governance/recovery-server-managed-authority-binding.md"
       ]
@@ -2981,6 +2982,99 @@
     }
   ],
   "operation_rules": [
+    {
+      "rule_id": "staging-recovery-bootstrap-ticket-reservation",
+      "operation": "POST /admin/recovery/staging/bootstrap-ticket/verify",
+      "source_file": "routes/stagingRecoveryAdminRoutes.js",
+      "classification": "state_change",
+      "owner": "runtime-operations",
+      "rationale": "Verifies and atomically reserves a server-issued, exact-SHA, single-use Staging grant-repair ticket before the local executor may mutate the bounded Staging databases.",
+      "preflight": {
+        "mode": "signed_ticket_exact_binding_and_staging_authority_preflight"
+      },
+      "approval": {
+        "mode": "server_issued_single_use_execution_ticket"
+      },
+      "readback": {
+        "mode": "inline_post_commit"
+      },
+      "rollback": {
+        "mode": "not_required",
+        "rationale": "Reservation performs no database mutation; an abandoned or unknown reservation remains fail-closed and requires governed reconciliation."
+      },
+      "parameter_bindings": {
+        "ticket_id": "request.body.execution_ticket_id",
+        "ticket_hash": "request.body.execution_ticket_hash",
+        "expected_binding": "request.body.expected"
+      },
+      "evidence_refs": [
+        "routes/stagingRecoveryAdminRoutes.js",
+        "stagingBootstrapExecutionAuthority.js",
+        "recoveryExecutionTicket.js",
+        "test-recovery-execution-ticket.mjs"
+      ]
+    },
+    {
+      "rule_id": "staging-recovery-bootstrap-ticket-finalization",
+      "operation": "POST /admin/recovery/staging/bootstrap-ticket/finalize",
+      "source_file": "routes/stagingRecoveryAdminRoutes.js",
+      "classification": "state_change",
+      "owner": "runtime-operations",
+      "rationale": "Finalizes a previously reserved Staging execution ticket only after the repository-owned local executor supplies canonical same-cycle database grant readback.",
+      "preflight": {
+        "mode": "existing_ticket_reservation_and_exact_binding_preflight"
+      },
+      "approval": {
+        "mode": "reserved_server_issued_single_use_execution_ticket"
+      },
+      "readback": {
+        "mode": "inline_post_commit"
+      },
+      "rollback": {
+        "mode": "not_required",
+        "rationale": "Finalization records an immutable verified outcome after readback; failed or unknown outcomes remain blocked for reconciliation."
+      },
+      "parameter_bindings": {
+        "ticket_id": "request.body.execution_ticket_id",
+        "ticket_hash": "request.body.execution_ticket_hash",
+        "expected_binding": "request.body.expected",
+        "readback": "request.body.readback"
+      },
+      "evidence_refs": [
+        "routes/stagingRecoveryAdminRoutes.js",
+        "stagingBootstrapExecutionAuthority.js",
+        "test-recovery-execution-ticket.mjs"
+      ]
+    },
+    {
+      "rule_id": "staging-recovery-bootstrap-partial-receipt",
+      "operation": "POST /admin/recovery/staging/bootstrap-partial-receipt",
+      "source_file": "routes/stagingRecoveryAdminRoutes.js",
+      "classification": "state_change",
+      "owner": "runtime-operations",
+      "rationale": "Persists an immutable, secret-free Staging reconciliation receipt when a reserved local grant-repair execution has a partial or unknown outcome.",
+      "preflight": {
+        "mode": "staging_only_secret_free_receipt_validation"
+      },
+      "approval": {
+        "mode": "reserved_server_issued_single_use_execution_ticket"
+      },
+      "readback": {
+        "mode": "inline_post_commit"
+      },
+      "rollback": {
+        "mode": "not_required",
+        "rationale": "The immutable receipt is compensating evidence and cannot authorize replay or any Production, provider, or DNS mutation."
+      },
+      "parameter_bindings": {
+        "receipt": "request.body.receipt"
+      },
+      "evidence_refs": [
+        "routes/stagingRecoveryAdminRoutes.js",
+        "stagingBootstrapExecutionAuthority.js",
+        "test-recovery-execution-ticket.mjs"
+      ]
+    },
     {
       "rule_id": "recovery-kernel-call-preflight",
       "operation": "POST /admin/recovery/kernel/call",

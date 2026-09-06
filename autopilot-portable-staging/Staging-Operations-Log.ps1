@@ -116,6 +116,15 @@ function Write-StagingLog {
             pid = $PID
             computer = $env:COMPUTERNAME
         }
+        # Promote the bounded root-cause keys needed by recovery automation so
+        # last-failure.json does not collapse a precise child failure into a
+        # generic parent launcher error. Values remain redacted by the same
+        # serializer as ordinary log data.
+        foreach ($rootKey in @("failure_class", "expected_commit", "observed_commit", "parent_error", "blocking_reason")) {
+            if ($safeData.ContainsKey($rootKey) -and -not [string]::IsNullOrWhiteSpace([string]$safeData[$rootKey])) {
+                $record[$rootKey] = [string]$safeData[$rootKey]
+            }
+        }
         $line = ($record | ConvertTo-Json -Depth 8 -Compress) + [Environment]::NewLine
         Invoke-StagingLogLocked {
             $encoding = New-Object System.Text.UTF8Encoding($false)

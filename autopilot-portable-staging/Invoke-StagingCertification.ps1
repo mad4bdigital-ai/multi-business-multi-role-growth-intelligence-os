@@ -47,17 +47,79 @@ function Write-State([string]$Path, [hashtable]$State) {
     Set-Content -LiteralPath $Path -Encoding utf8 -Value ($State | ConvertTo-Json -Depth 8)
 }
 
+function Invoke-LocalConnectorCertificationGate([string]$RepairScript, [string]$RepairStatePath) {
+    if (-not (Test-Path -LiteralPath $RepairScript -PathType Leaf)) {
+        Fail "Local Connector recovery helper is missing: $RepairScript"
+    }
+    if (Test-Path -LiteralPath $RepairStatePath) {
+        Remove-Item -LiteralPath $RepairStatePath -Force -ErrorAction SilentlyContinue
+    }
+
+    Write-Host "STAGING_CERTIFICATION_CONNECTOR_GATE: status=checking hostname=connector.mad4b.com"
+    & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $RepairScript `
+        -ConnectorEnvironment staging `
+        -StatePath $RepairStatePath
+    $repairExitCode = [int]$LASTEXITCODE
+
+    $repair = $null
+    if (Test-Path -LiteralPath $RepairStatePath -PathType Leaf) {
+        try { $repair = Get-Content -Raw -LiteralPath $RepairStatePath | ConvertFrom-Json -ErrorAction Stop } catch { }
+    }
+    $repairStatus = if ($null -ne $repair) { [string]$repair.status } else { "missing_evidence" }
+    $repairError = if ($null -ne $repair -and $repair.PSObject.Properties.Name -contains "public_error") { [string]$repair.public_error } else { "" }
+    $failureClass = if ($repairStatus -eq "cloudflare_1033" -or $repairError -eq "cloudflare_1033") {
+        "connector_tunnel_cloudflare_1033"
+    } elseif ($repairStatus -eq "cross_runtime_non_interference_failed") {
+        "connector_cross_runtime_interference"
+    } elseif ($repairStatus -eq "ambiguous_legacy_service_requires_reconciliation") {
+        "connector_tunnel_ownership_ambiguous"
+    } else {
+        "connector_tunnel_unhealthy"
+    }
+
+    $state = Read-State $StatePath
+    $state["local_connector_tunnel_required"] = $true
+    $state["local_connector_tunnel_status"] = $repairStatus
+    $state["local_connector_tunnel_failure_class"] = if ($repairStatus -eq "healthy") { "" } else { $failureClass }
+    $state["local_connector_tunnel_checked_at"] = (Get-Date).ToUniversalTime().ToString("o")
+    $state["local_connector_tunnel_hostname"] = "connector.mad4b.com"
+    $state["local_connector_tunnel_secrets_included"] = $false
+
+    if ($repairExitCode -ne 0 -or $repairStatus -ne "healthy") {
+        $state["certification_status"] = "blocked"
+        $state["certification_ready"] = $false
+        $state["certification_blocking_failures"] = @($failureClass)
+        $state["secrets_included"] = $false
+        Write-State $StatePath $state
+        Write-Host "STAGING_CERTIFICATION_BLOCKED: commit=$ExpectedCommit reasons=$failureClass" -ForegroundColor Red
+        exit 1
+    }
+
+    Write-State $StatePath $state
+    Write-Host "STAGING_CERTIFICATION_CONNECTOR_GATE: status=healthy hostname=connector.mad4b.com"
+    return $repair
+}
+
 $RepositoryPath = [IO.Path]::GetFullPath($RepositoryPath)
 if ($ExpectedCommit -notmatch '^[0-9a-fA-F]{40}$') { Fail "ExpectedCommit must be an exact 40-character SHA" }
 if ($Ref -ne "main") { Fail "Portable Staging certification is main-only" }
 
+$scriptRoot = Split-Path -Parent $PSCommandPath
 $apiPath = Join-Path $RepositoryPath "http-generic-api"
 $composeBase = Join-Path $apiPath "docker-compose.yml"
 $composeStage = Join-Path $apiPath "docker-compose.staging.yml"
 $envFile = Join-Path $apiPath ".env.staging"
-foreach ($required in @($composeBase, $composeStage, $envFile)) {
+$connectorRepairScript = Join-Path $scriptRoot "Repair-LocalConnectorTunnel.ps1"
+$connectorRepairStatePath = Join-Path $scriptRoot "logs\local-connector-tunnel-state.json"
+foreach ($required in @($composeBase, $composeStage, $envFile, $connectorRepairScript)) {
     if (-not (Test-Path -LiteralPath $required)) { Fail "Required Staging certification input is missing: $required" }
 }
+
+# Connector recovery is an explicit certification precondition. It is kept
+# independent from the Staging dev/mcp tunnel and may only repair the dedicated
+# Mad4B Local Connector runtime. Persistent 1033 therefore blocks certification
+# with a connector-specific root cause instead of being hidden by Gateway state.
+[void](Invoke-LocalConnectorCertificationGate $connectorRepairScript $connectorRepairStatePath)
 
 $gatewayEnabled = (Read-EnvValue $envFile "ACTIVATION_STAGING_GATEWAY_ENABLED").ToLowerInvariant() -eq "true"
 $expectedTree = Read-EnvValue $envFile "STAGING_BUILD_TREE"
@@ -117,4 +179,4 @@ if ($certification.outcome -eq "degraded") {
     exit 0
 }
 if ($certification.outcome -ne "ready") { Fail "Unsupported certification outcome: $($certification.outcome)" }
-Write-Host "STAGING_CERTIFICATION_READY: commit=$ExpectedCommit gateway=$gatewayEnabled" -ForegroundColor Green
+Write-Host "STAGING_CERTIFICATION_READY: commit=$ExpectedCommit gateway=$gatewayEnabled connector=healthy" -ForegroundColor Green

@@ -18,6 +18,51 @@
     "mcp.mad4b.com",
     "activation.mad4b.com"
   ],
+  "windows_bootstrap_supervisor": {
+    "contract": "mad4b.windows-staging-bootstrap-supervisor.v1",
+    "trigger": "interactive_logon",
+    "default_logon_delay_seconds": 25,
+    "run_level": "highest",
+    "retry_interval_seconds": 60,
+    "multiple_instances": "ignore_new",
+    "docker_readiness_authority": "docker_info",
+    "docker_desktop_auto_start": true,
+    "docker_engine_timeout_seconds": 180,
+    "docker_engine_poll_seconds": 3,
+    "deployment_lease_file": "autopilot-portable-staging/logs/deployment-lease.json",
+    "deployment_lease_contract": "mad4b.staging-deployment-lease.v1",
+    "phase_state_contract": "mad4b.staging-auto-deploy-state.v2",
+    "phases": [
+      "eligibility",
+      "docker",
+      "build",
+      "deployment",
+      "service_health",
+      "staging_tunnel",
+      "local_connector_tunnel",
+      "convergence",
+      "certification"
+    ],
+    "component_aware_recovery": true,
+    "gateway_convergence_helper": "autopilot-portable-staging/Converge-StagingActivationGateway.ps1",
+    "gateway_convergence_preflight": "autopilot-portable-staging/Staging-Schema-Governance-Preflight.ps1",
+    "gateway_only_rebuild_allowed": false,
+    "origin_trust_refresh_build_allowed": false,
+    "allowed_gateway_drift_keys": [
+      "gateway_exact_commit",
+      "gateway_policy_not_stale",
+      "gateway_policy_hash_current",
+      "gateway_policy_key_current",
+      "gateway_recovery_trusted_ingress"
+    ],
+    "structured_failure_keys": [
+      "failure_class",
+      "expected_commit",
+      "observed_commit",
+      "parent_error",
+      "blocking_reason"
+    ]
+  },
   "activation_gateway": {
     "enabled_by_env": "ACTIVATION_STAGING_GATEWAY_ENABLED",
     "required_value": "true",
@@ -57,7 +102,13 @@
     "requires_import_mutex": true,
     "sanitized_data_default": false,
     "required_runtime_registry_table_count": 18,
-    "required_runtime_support_tables": ["connected_systems", "admin_platform_endpoint_tools", "tenant_platform_endpoint_tools", "customer_sessions", "gpt_session_turns"]
+    "required_runtime_support_tables": [
+      "connected_systems",
+      "admin_platform_endpoint_tools",
+      "tenant_platform_endpoint_tools",
+      "customer_sessions",
+      "gpt_session_turns"
+    ]
   },
   "canonical_seed_lifecycle": {
     "contract": "mad4b.staging.canonical-seed-manifest.v1",
@@ -71,23 +122,38 @@
     "production_access_forbidden": true,
     "provider_access_forbidden": true,
     "readback_required": true,
-    "mcp_catalog_columns_required": ["admin_platform_endpoint_tools.mcp_catalog_level", "tenant_platform_endpoint_tools.mcp_catalog_level"],
-    "canonical_rows_required": ["registry_surfaces_catalog", "business_type_profiles", "brand_paths", "business_activity_types.hvac_air_conditioning_services"]
+    "mcp_catalog_columns_required": [
+      "admin_platform_endpoint_tools.mcp_catalog_level",
+      "tenant_platform_endpoint_tools.mcp_catalog_level"
+    ],
+    "canonical_rows_required": [
+      "registry_surfaces_catalog",
+      "business_type_profiles",
+      "brand_paths",
+      "business_activity_types.hvac_air_conditioning_services"
+    ]
   },
   "authority_seed_lifecycle": {
     "contract": "mad4b.staging.authority-seed-manifest.v1",
     "target_role": "runtime",
     "execution_identity": "local_database_root",
-    "seed_files": ["1023_sprint69_sql_cache_runtime_policy.sql"],
+    "seed_files": [
+      "1023_sprint69_sql_cache_runtime_policy.sql"
+    ],
     "explicit_apply_only": true,
     "production_access_forbidden": true,
     "provider_access_forbidden": true,
     "runtime_write_authority_forbidden": true,
     "readback_required": true,
-    "canonical_rows_required": ["sql_cache_runtime_policies.sql_cache_policy_v2"]
+    "canonical_rows_required": [
+      "sql_cache_runtime_policies.sql_cache_policy_v2"
+    ]
   },
   "preflight_lifecycle": {
-    "docker_contexts": ["default", "desktop-linux"],
+    "docker_contexts": [
+      "default",
+      "desktop-linux"
+    ],
     "remote_docker_forbidden": true,
     "required_mariadb_image": "mariadb:11.4",
     "docker_server_required": true,
@@ -101,7 +167,8 @@
     "lock_timeout_ms": 15000,
     "append_retries": 6,
     "atomic_status_writes": true,
-    "secret_redaction_required": true
+    "secret_redaction_required": true,
+    "structured_root_cause_required": true
   },
   "health_monitor_lifecycle": {
     "minimum_interval_seconds": 30,
@@ -109,6 +176,14 @@
     "max_backoff_seconds": 900,
     "single_instance_mutex": "Global\\Mad4bStagingHealthMonitor",
     "docker_server_readiness_required": true,
+    "boot_grace_seconds": 180,
+    "deployment_lease_aware": true,
+    "startup_transients_do_not_increment_failures": true,
+    "split_staging_and_connector_tunnel_health": true,
+    "connector_hostname": "connector.mad4b.com",
+    "connector_cloudflare_1033_classification_required": true,
+    "current_failure_class_cleared_on_recovery": true,
+    "historical_last_failure_class_retained": true,
     "recovery_transition_required": true,
     "repeated_failure_suppression_required": true
   },

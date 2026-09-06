@@ -39,7 +39,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Make Connector routing environment-bound and fail closed while preventing Staging from stopping or reconfiguring the legacy Local Connector cloudflared service. connector.mad4b.com remains one shared Admin Recovery transport whose authority is resolved by the receiving environment runtime/database; no connector-dev hostname is introduced by this change.",
+      "objective": "Make Connector routing environment-bound and fail closed while separating the canonical Local Connector transport Mad4B-LocalConnector-Cloudflared from Mad4B-Staging-Cloudflared and refusing ambiguous legacy generic cloudflared ownership. connector.mad4b.com remains one shared Admin Recovery transport whose authority is resolved by the receiving environment runtime/database; no connector-dev hostname is introduced by this change.",
       "e2e_journeys": [
         {
           "id": "tenant-device-route-never-escalates-to-admin-recovery",
@@ -151,22 +151,22 @@
           "level": "synthetic_runtime",
           "actor": "Local Windows/Docker Staging One-Click operator",
           "entrypoint": "Invoke-Staging-One-Click-Core.ps1 with windows_service, docker_sidecar, or disabled tunnel mode",
-          "terminal_outcome": "Staging manages only Mad4B-Staging-Cloudflared or its own Docker sidecar and never stops, deletes, creates, reconfigures, or performs inactivity checks against the generic Local Connector cloudflared Windows service.",
+          "terminal_outcome": "Staging manages only Mad4B-Staging-Cloudflared or its own Docker sidecar and never stops, deletes, creates, reconfigures, or performs inactivity checks against Mad4B-LocalConnector-Cloudflared; ambiguous legacy generic cloudflared ownership remains untouched and requires reconciliation.",
           "steps": [
             "Resolve the canonical Staging Windows service name as Mad4B-Staging-Cloudflared.",
             "Store the Staging tunnel token and log beneath C:\\ProgramData\\Mad4B\\Staging\\Cloudflared with restricted ACLs.",
             "Quiesce only the Staging-owned Windows service and Staging-owned Docker sidecar before topology transitions.",
             "Create or reconcile only Mad4B-Staging-Cloudflared when windows_service mode is selected.",
             "Verify process stability, LocalSystem ownership, token-file transport, HTTP/2 transport, and remote managed origin on the exact Staging service.",
-            "Leave the generic cloudflared service untouched as the backward-compatible Local Connector ownership boundary until a separately certified Local Connector service migration."
+            "Leave Mad4B-LocalConnector-Cloudflared and any ambiguous legacy generic cloudflared service untouched by Staging; the Local Connector watchdog owns only the canonical Local Connector transport and rejects noncanonical ownership bindings."
           ],
           "assertions": [
             "Staging source contains no Get-Service Cloudflared or Stop-Service Cloudflared mutation path",
             "Staging source does not query Win32_Service Name='Cloudflared'",
             "Staging creates and recovers only Mad4B-Staging-Cloudflared",
             "docker_sidecar selection does not stop the Local Connector Windows tunnel service",
-            "legacy Local Connector cloudflared ownership is preserved during this transition",
-            "Local Connector Watchdog can later consume CONNECTOR_CLOUDFLARED_SERVICE for a separately certified service namespace migration",
+            "Mad4B-LocalConnector-Cloudflared is the canonical Local Connector transport and ambiguous legacy generic cloudflared ownership is not adopted or mutated",
+            "Local Connector Watchdog accepts CONNECTOR_CLOUDFLARED_SERVICE and CONNECTOR_CLOUDFLARED_TASK only when they exactly match Mad4B-LocalConnector-Cloudflared",
             "no Cloudflare DNS/configuration mutation is performed by Staging One-Click"
           ],
           "tests": [

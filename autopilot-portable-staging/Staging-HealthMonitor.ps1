@@ -2,6 +2,8 @@ param(
     [string]$RepositoryPath = "",
     [int]$IntervalSeconds = 60,
     [int]$MaxBackoffSeconds = 900,
+    [ValidateRange(60, 600)]
+    [int]$BootGraceSeconds = 180,
     [switch]$Once
 )
 
@@ -17,7 +19,9 @@ $apiPath = Join-Path $RepositoryPath "http-generic-api"
 $envFile = Join-Path $apiPath ".env.staging"
 $composeBase = Join-Path $apiPath "docker-compose.yml"
 $composeStage = Join-Path $apiPath "docker-compose.staging.yml"
+$runtimeStatePath = Join-Path $PSScriptRoot "autopilot-state.json"
 $script:HealthStatePath = Join-Path (Get-StagingLogRoot) "health-monitor-state.json"
+$deploymentLeasePath = Join-Path (Get-StagingLogRoot) "deployment-lease.json"
 
 function Acquire-HealthMonitorLock {
     try {
@@ -36,12 +40,40 @@ function Release-HealthMonitorLock {
         $script:HealthMonitorMutex = $null
     }
 }
-function Read-HealthState {
-    if (-not (Test-Path -LiteralPath $script:HealthStatePath)) {
-        return [ordered]@{ schema_version = 2; status = "starting"; consecutive_failures = 0; suppressed_failures = 0; last_error = ""; last_logged_error = ""; failure_class = ""; last_failure_at = ""; last_transition_at = (Get-Date).ToUniversalTime().ToString("o") }
+function New-HealthState([string]$Status = "starting") {
+    $now = [DateTime]::UtcNow
+    return @{
+        schema_version = 3
+        status = $Status
+        consecutive_failures = 0
+        suppressed_failures = 0
+        last_error = ""
+        last_logged_error = ""
+        failure_class = ""
+        last_failure_class = ""
+        last_failure_at = ""
+        last_transition_at = $now.ToString("o")
+        monitor_started_at = $now.ToString("o")
+        grace_deadline = $now.AddSeconds($BootGraceSeconds).ToString("o")
     }
-    try { return Get-Content -Raw -LiteralPath $script:HealthStatePath | ConvertFrom-Json }
-    catch { return [ordered]@{ schema_version = 2; status = "recovered_from_invalid_state"; consecutive_failures = 0; suppressed_failures = 0; last_error = "invalid prior health state"; last_logged_error = ""; failure_class = "state_invalid"; last_failure_at = ""; last_transition_at = (Get-Date).ToUniversalTime().ToString("o") } }
+}
+function Read-HealthState {
+    if (-not (Test-Path -LiteralPath $script:HealthStatePath)) { return New-HealthState }
+    try {
+        $parsed = Get-Content -Raw -LiteralPath $script:HealthStatePath | ConvertFrom-Json
+        $state = @{}
+        foreach ($property in $parsed.PSObject.Properties) { $state[$property.Name] = $property.Value }
+        $defaults = New-HealthState
+        foreach ($key in $defaults.Keys) {
+            if (-not $state.ContainsKey($key)) { $state[$key] = $defaults[$key] }
+        }
+        return $state
+    } catch {
+        $state = New-HealthState "recovered_from_invalid_state"
+        $state.last_error = "invalid prior health state"
+        $state.last_failure_class = "state_invalid"
+        return $state
+    }
 }
 function Save-HealthState([object]$State) { Write-StagingAtomicJson $script:HealthStatePath $State 10 }
 function Get-Env([string]$Name) {
@@ -56,7 +88,14 @@ function Get-ObjectProperty([object]$Object, [string]$Name) {
     if ($null -eq $property) { return $null }
     return $property.Value
 }
+function Read-JsonFileSafe([string]$Path) {
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $null }
+    try { return Get-Content -Raw -LiteralPath $Path | ConvertFrom-Json } catch { return $null }
+}
 function Classify-HealthError([string]$Message) {
+    if ($Message -match '(?i)cloudflare[_ -]?1033|\b1033\b') { return "connector_tunnel_cloudflare_1033" }
+    if ($Message -match '(?i)local connector tunnel|connector\.mad4b\.com') { return "connector_tunnel_unhealthy" }
+    if ($Message -match '(?i)staging tunnel|dev\.mad4b\.com|mcp-dev\.mad4b\.com') { return "staging_tunnel_unhealthy" }
     if ($Message -match '(?i)GATEWAY_POLICY_STALE|activation gateway.*stale|gateway.*policy.*stale') { return "activation_policy_stale" }
     if ($Message -match '(?i)activation gateway|gateway health') { return "activation_gateway_unavailable" }
     if ($Message -match '(?i)docker|pipe|daemon|server') { return "docker_unavailable" }
@@ -64,35 +103,215 @@ function Classify-HealthError([string]$Message) {
     if ($Message -match '(?i)service') { return "service_unhealthy" }
     return "health_check_failed"
 }
+function Get-ActiveLifecycleContext([hashtable]$State) {
+    $now = [DateTime]::UtcNow
+    $lease = Read-JsonFileSafe $deploymentLeasePath
+    if ($null -ne $lease) {
+        $expires = [DateTime]::MinValue
+        if ([DateTime]::TryParse([string]$lease.expires_at, [ref]$expires) -and $expires.ToUniversalTime() -gt $now) {
+            return [pscustomobject]@{
+                grace_active = $true
+                source = "deployment_lease"
+                status = if ([string]$lease.status -in @("bootstrapping", "deploying", "converging", "certifying")) { [string]$lease.status } else { "deploying" }
+                stage = [string]$lease.stage
+                expected_commit = [string]$lease.expected_commit
+                deadline = $expires.ToUniversalTime().ToString("o")
+            }
+        }
+    }
+    $deadline = [DateTime]::MinValue
+    if ([DateTime]::TryParse([string]$State.grace_deadline, [ref]$deadline) -and $deadline.ToUniversalTime() -gt $now) {
+        return [pscustomobject]@{
+            grace_active = $true
+            source = "boot_grace"
+            status = "bootstrapping"
+            stage = "windows_logon"
+            expected_commit = ""
+            deadline = $deadline.ToUniversalTime().ToString("o")
+        }
+    }
+    return [pscustomobject]@{ grace_active = $false; source = "none"; status = "steady_state"; stage = "health"; expected_commit = ""; deadline = "" }
+}
 function Write-HealthFailure([string]$Message, [hashtable]$Data = @{}) {
     $state = Read-HealthState
+    $lifecycle = Get-ActiveLifecycleContext $state
+    $failureClass = Classify-HealthError $Message
+    $startupSensitive = $failureClass -in @("docker_unavailable", "service_unhealthy", "staging_tunnel_unhealthy", "connector_tunnel_unhealthy", "connector_tunnel_cloudflare_1033")
+    if ($lifecycle.grace_active -and $startupSensitive) {
+        $previousStatus = [string]$state.status
+        $state.status = [string]$lifecycle.status
+        $state.failure_class = ""
+        $state.last_error = ""
+        $state.last_transition_at = (Get-Date).ToUniversalTime().ToString("o")
+        if ($previousStatus -ne $state.status) {
+            Write-StagingLog -Level info -Component $LogComponent -Stage "lifecycle-grace" -Message "transient startup health state suppressed inside bounded grace" -Data ($Data + @{
+                lifecycle_status = $state.status
+                lifecycle_source = $lifecycle.source
+                lifecycle_stage = $lifecycle.stage
+                grace_deadline = $lifecycle.deadline
+                transient_class = $failureClass
+            })
+        }
+        Save-HealthState $state
+        return $true
+    }
+
     $state.consecutive_failures = [int]$state.consecutive_failures + 1
     $state.last_error = $Message
-    $state.failure_class = Classify-HealthError $Message
+    $state.failure_class = $failureClass
+    $state.last_failure_class = $failureClass
     $state.status = "degraded"
     $state.last_failure_at = (Get-Date).ToUniversalTime().ToString("o")
     $shouldLog = ([int]$state.consecutive_failures -eq 1 -or ([int]$state.consecutive_failures % 5 -eq 0) -or [string]$state.last_logged_error -ne $Message)
     if (-not $shouldLog) { $state.suppressed_failures = [int]$state.suppressed_failures + 1 }
     if ($shouldLog) {
         $state.last_logged_error = $Message
-        Write-StagingLog -Level error -Component $LogComponent -Stage "health-check" -Message $Message -Data ($Data + @{ failure_class = $state.failure_class; consecutive_failures = $state.consecutive_failures; suppressed_failures = $state.suppressed_failures })
-        Write-Host "STAGING_HEALTH_FAILURE_LOGGED: class=$($state.failure_class) consecutive=$($state.consecutive_failures) suppressed=$($state.suppressed_failures)" -ForegroundColor Red
+        Write-StagingLog -Level error -Component $LogComponent -Stage "health-check" -Message $Message -Data ($Data + @{ failure_class = $failureClass; consecutive_failures = $state.consecutive_failures; suppressed_failures = $state.suppressed_failures })
+        Write-Host "STAGING_HEALTH_FAILURE_LOGGED: class=$failureClass consecutive=$($state.consecutive_failures) suppressed=$($state.suppressed_failures)" -ForegroundColor Red
     }
     Save-HealthState $state
+    return $false
+}
+function Get-WebFailureText([object]$ErrorRecord) {
+    $text = [string]$ErrorRecord.Exception.Message
+    try {
+        $response = $ErrorRecord.Exception.Response
+        if ($null -ne $response) {
+            $stream = $response.GetResponseStream()
+            if ($null -ne $stream) {
+                $reader = New-Object System.IO.StreamReader($stream)
+                $body = $reader.ReadToEnd()
+                if (-not [string]::IsNullOrWhiteSpace($body)) { $text += " $body" }
+            }
+        }
+    } catch { }
+    return $text
+}
+function Invoke-RemoteHealthProbe([string]$Uri) {
+    try {
+        $response = Invoke-WebRequest -Uri $Uri -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
+        return [pscustomobject]@{ ok = ([int]$response.StatusCode -eq 200); status_code = [int]$response.StatusCode; error = $null }
+    } catch {
+        $statusCode = $null
+        try { $statusCode = [int]$_.Exception.Response.StatusCode.value__ } catch { }
+        $failureText = Get-WebFailureText $_
+        $errorClass = if ($failureText -match '(?i)\b1033\b' -or $statusCode -eq 530) { "cloudflare_1033" } else { "remote_unavailable" }
+        return [pscustomobject]@{ ok = $false; status_code = $statusCode; error = $errorClass }
+    }
+}
+function Get-StagingTunnelSnapshot([string[]]$ComposeArgs, [object]$RuntimeState) {
+    $expectedFromRuntime = $null -ne $RuntimeState -and (Get-ObjectProperty $RuntimeState "tunnel_started") -eq $true
+    $expectedFromEnv = (Get-Env "CLOUDFLARE_TUNNEL_ENABLED").ToLowerInvariant() -eq "true"
+    $snapshot = [ordered]@{
+        expected = $false
+        hostnames = @("dev.mad4b.com", "mcp-dev.mad4b.com")
+        status = "not_expected"
+        runtime = "none"
+        remote_health = "not_checked"
+        error = $null
+    }
+
+    $dockerRunning = $false
+    $containerId = (& docker @($ComposeArgs + @("ps", "-q", "cloudflared")) 2>$null | Out-String).Trim()
+    if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($containerId)) {
+        $running = (& docker inspect --format "{{.State.Running}}" $containerId 2>$null | Out-String).Trim().ToLowerInvariant()
+        if ($LASTEXITCODE -eq 0 -and $running -eq "true") { $dockerRunning = $true; $snapshot.runtime = "docker" }
+    }
+    if (-not $dockerRunning) {
+        $windowsService = Get-Service -Name "Mad4B-Staging-Cloudflared" -ErrorAction SilentlyContinue
+        if ($null -ne $windowsService -and $windowsService.Status -eq "Running") { $snapshot.runtime = "windows_service" }
+    }
+
+    $runtimeDetected = $snapshot.runtime -ne "none"
+    $snapshot.expected = [bool]($expectedFromRuntime -or $expectedFromEnv -or $runtimeDetected)
+    if (-not $snapshot.expected) { return $snapshot }
+    $snapshot.status = "checking"
+
+    $remote = Invoke-RemoteHealthProbe "https://dev.mad4b.com/health"
+    $snapshot.remote_health = if ($remote.ok) { "healthy" } else { "unhealthy" }
+    if ($runtimeDetected -and $remote.ok) {
+        $snapshot.status = "healthy"
+    } else {
+        $snapshot.status = "unhealthy"
+        $snapshot.error = if (-not $runtimeDetected) { "runtime_not_running" } else { [string]$remote.error }
+    }
+    return $snapshot
+}
+function Get-LocalConnectorTunnelSnapshot {
+    $canonicalTunnelRuntime = "Mad4B-LocalConnector-Cloudflared"
+    $legacyTunnelTaskName = "GrowthIntelligence-CloudflaredTunnel"
+    $nodeService = Get-Service -Name "local-connector" -ErrorAction SilentlyContinue
+    $canonicalTunnelService = Get-Service -Name $canonicalTunnelRuntime -ErrorAction SilentlyContinue
+    $legacyGenericService = Get-Service -Name "cloudflared" -ErrorAction SilentlyContinue
+    $nodeTask = $null
+    $canonicalTunnelTask = $null
+    $legacyTunnelTask = $null
+    if (Get-Command Get-ScheduledTask -ErrorAction SilentlyContinue) {
+        $nodeTask = Get-ScheduledTask -TaskName "GrowthIntelligence-LocalConnector" -ErrorAction SilentlyContinue
+        $canonicalTunnelTask = Get-ScheduledTask -TaskName $canonicalTunnelRuntime -ErrorAction SilentlyContinue
+        $legacyTunnelTask = Get-ScheduledTask -TaskName $legacyTunnelTaskName -ErrorAction SilentlyContinue
+    }
+
+    $nodeRunning = ($null -ne $nodeService -and $nodeService.Status -eq "Running") -or ($null -ne $nodeTask -and [string]$nodeTask.State -eq "Running")
+    $canonicalTunnelRunning = ($null -ne $canonicalTunnelService -and $canonicalTunnelService.Status -eq "Running") -or ($null -ne $canonicalTunnelTask -and [string]$canonicalTunnelTask.State -eq "Running")
+    $remote = Invoke-RemoteHealthProbe "https://connector.mad4b.com/health"
+    $runtimeEvidence = @()
+    if ($null -ne $nodeService) { $runtimeEvidence += "service:local-connector=$($nodeService.Status)" }
+    if ($null -ne $nodeTask) { $runtimeEvidence += "task:GrowthIntelligence-LocalConnector=$($nodeTask.State)" }
+    if ($null -ne $canonicalTunnelService) { $runtimeEvidence += "service:${canonicalTunnelRuntime}=$($canonicalTunnelService.Status)" }
+    if ($null -ne $canonicalTunnelTask) { $runtimeEvidence += "task:${canonicalTunnelRuntime}=$($canonicalTunnelTask.State)" }
+    $legacyEvidence = @()
+    if ($null -ne $legacyGenericService) { $legacyEvidence += "service:cloudflared=$($legacyGenericService.Status)" }
+    if ($null -ne $legacyTunnelTask) { $legacyEvidence += "task:${legacyTunnelTaskName}=$($legacyTunnelTask.State)" }
+
+    $status = "unhealthy"
+    $error = $remote.error
+    if (-not $nodeRunning) {
+        $error = "connector_runtime_not_running"
+    } elseif (-not $canonicalTunnelRunning) {
+        $error = "canonical_tunnel_runtime_not_running"
+    } elseif ($remote.ok) {
+        $status = "healthy"
+        $error = $null
+    }
+
+    return [ordered]@{
+        expected = $true
+        hostname = "connector.mad4b.com"
+        status = $status
+        http_status = $remote.status_code
+        error = $error
+        connector_runtime = if ($null -ne $nodeService) { "service:local-connector" } elseif ($null -ne $nodeTask) { "task:GrowthIntelligence-LocalConnector" } else { "missing" }
+        tunnel_runtime = if ($null -ne $canonicalTunnelService) { "service:$canonicalTunnelRuntime" } elseif ($null -ne $canonicalTunnelTask) { "task:$canonicalTunnelRuntime" } else { "missing" }
+        runtime_evidence = $runtimeEvidence
+        legacy_runtime_evidence = $legacyEvidence
+    }
 }
 function Invoke-HealthCheck {
     $required = @("redis", "runtime-db", "governance-db", "persistence-db", "app")
+    $state = Read-HealthState
+    $lifecycle = Get-ActiveLifecycleContext $state
+    $runtimeState = Read-JsonFileSafe $runtimeStatePath
     $snapshot = [ordered]@{
-        schema_version = 2
+        schema_version = 3
         run_id = Get-StagingRunId
         timestamp = (Get-Date).ToUniversalTime().ToString("o")
         repository_path = $RepositoryPath
         docker_context = "unknown"
+        lifecycle = [ordered]@{
+            status = $lifecycle.status
+            source = $lifecycle.source
+            stage = $lifecycle.stage
+            grace_active = [bool]$lifecycle.grace_active
+            deadline = $lifecycle.deadline
+        }
         services = @()
-        tunnel_expected = ((Get-Env "CLOUDFLARE_TUNNEL_ENABLED") -eq "true")
+        tunnel_expected = $false
+        staging_tunnel = [ordered]@{ expected = $false; hostnames = @("dev.mad4b.com", "mcp-dev.mad4b.com"); status = "not_checked" }
+        local_connector_tunnel = [ordered]@{ expected = $true; hostname = "connector.mad4b.com"; status = "not_checked" }
         ok = $false
+        effective_ok = $false
     }
-    $state = Read-HealthState
     $activationExpected = ((Get-Env "ACTIVATION_STAGING_GATEWAY_ENABLED").ToLowerInvariant() -eq "true")
     $activationHost = Get-Env "ACTIVATION_HOST_GATEWAY_HOST"
     try {
@@ -103,7 +322,7 @@ function Invoke-HealthCheck {
         $server = (& docker info --format "{{.ServerVersion}}" 2>$null | Out-String).Trim()
         if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($server)) { throw "Docker daemon is unavailable" }
         $snapshot.docker_context = $context
-        $snapshot.activation_gateway = [ordered]@{ expected = $activationExpected; host = $activationHost; status = "not_checked"; stale = $null; code = $null; source_commit = $null; policy_hash = $null }
+        $snapshot.activation_gateway = [ordered]@{ expected = $activationExpected; host = $activationHost; status = "not_checked"; stale = $null; code = $null; source_commit = $null; worker_build_sha = $null; policy_hash = $null }
         if ($activationExpected) {
             if ([string]::IsNullOrWhiteSpace($activationHost) -or $activationHost -notmatch '^(?i:activation-dev\.mad4b\.com)$') { throw "Activation Gateway host is missing or outside the Staging allowlist" }
             try {
@@ -113,13 +332,12 @@ function Invoke-HealthCheck {
             $gatewayStale = Get-ObjectProperty $gatewayHealth "stale"
             $gatewayError = Get-ObjectProperty $gatewayHealth "error"
             $gatewayCode = if ($null -ne (Get-ObjectProperty $gatewayHealth "code")) { [string](Get-ObjectProperty $gatewayHealth "code") } elseif ($null -ne (Get-ObjectProperty $gatewayError "code")) { [string](Get-ObjectProperty $gatewayError "code") } else { $null }
-            $gatewaySourceCommit = Get-ObjectProperty $gatewayHealth "sourceCommit"
-            $gatewayPolicyHash = Get-ObjectProperty $gatewayHealth "policyHash"
             $snapshot.activation_gateway.status = if ($gatewayOk -eq $true) { "healthy" } else { "unhealthy" }
             $snapshot.activation_gateway.stale = if ($null -ne $gatewayStale) { [bool]$gatewayStale } else { $null }
             $snapshot.activation_gateway.code = $gatewayCode
-            $snapshot.activation_gateway.source_commit = if ($null -ne $gatewaySourceCommit) { [string]$gatewaySourceCommit } else { $null }
-            $snapshot.activation_gateway.policy_hash = if ($null -ne $gatewayPolicyHash) { [string]$gatewayPolicyHash } else { $null }
+            $snapshot.activation_gateway.source_commit = if ($null -ne (Get-ObjectProperty $gatewayHealth "sourceCommit")) { [string](Get-ObjectProperty $gatewayHealth "sourceCommit") } else { $null }
+            $snapshot.activation_gateway.worker_build_sha = if ($null -ne (Get-ObjectProperty $gatewayHealth "workerBuildSha")) { [string](Get-ObjectProperty $gatewayHealth "workerBuildSha") } else { $null }
+            $snapshot.activation_gateway.policy_hash = if ($null -ne (Get-ObjectProperty $gatewayHealth "policyHash")) { [string](Get-ObjectProperty $gatewayHealth "policyHash") } else { $null }
             if ($gatewayOk -ne $true) { throw "Activation Gateway health is not ready" }
             if ($gatewayStale -eq $true -or [string]$gatewayCode -eq "GATEWAY_POLICY_STALE") { throw "GATEWAY_POLICY_STALE: Activation Gateway policy is stale" }
         }
@@ -134,25 +352,48 @@ function Invoke-HealthCheck {
             $snapshot.services += [ordered]@{ service = $service; state = $status; health = $health }
             if ($health -ne "healthy" -or $status -ne "running") { throw "service is not healthy: $service state=$status health=$health" }
         }
-        $snapshot.ok = $true
-        if ([string]$state.status -eq "degraded") {
-            Write-StagingLog -Level info -Component $LogComponent -Stage "recovery" -Message "Health Monitor recovered after Docker/service failure" -Data @{ previous_error = [string]$state.last_error; consecutive_failures = [int]$state.consecutive_failures; failure_class = [string]$state.failure_class }
+
+        $stagingTunnel = Get-StagingTunnelSnapshot $compose $runtimeState
+        $snapshot.staging_tunnel = $stagingTunnel
+        $snapshot.tunnel_expected = [bool]$stagingTunnel.expected
+        if ($stagingTunnel.expected -and $stagingTunnel.status -ne "healthy") {
+            throw "Staging tunnel is unhealthy: error=$($stagingTunnel.error)"
         }
+
+        $connectorTunnel = Get-LocalConnectorTunnelSnapshot
+        $snapshot.local_connector_tunnel = $connectorTunnel
+        if ($connectorTunnel.expected -and $connectorTunnel.status -ne "healthy") {
+            if ([string]$connectorTunnel.error -eq "cloudflare_1033") { throw "Local connector tunnel connector.mad4b.com is unhealthy: cloudflare_1033" }
+            throw "Local connector tunnel connector.mad4b.com is unhealthy: $($connectorTunnel.error)"
+        }
+
+        $snapshot.ok = $true
+        $snapshot.effective_ok = $true
+        if ([string]$state.status -eq "degraded") {
+            Write-StagingLog -Level info -Component $LogComponent -Stage "recovery" -Message "Health Monitor recovered after component failure" -Data @{ previous_error = [string]$state.last_error; consecutive_failures = [int]$state.consecutive_failures; failure_class = [string]$state.failure_class }
+        }
+        if (-not [string]::IsNullOrWhiteSpace([string]$state.failure_class)) { $state.last_failure_class = [string]$state.failure_class }
         $state.status = "healthy"
         $state.consecutive_failures = 0
         $state.suppressed_failures = 0
         $state.last_error = ""
         $state.last_logged_error = ""
+        $state.failure_class = ""
         $state.last_transition_at = $snapshot.timestamp
         Save-HealthState $state
-        Write-StagingHeartbeat -Component $LogComponent -Stage "health-check" -Data @{ services = ($required -join ","); docker_context = $context; recovery = $true }
-        Write-StagingLog -Level info -Component $LogComponent -Stage "health-check" -Message "all required Staging services are healthy" -Data @{ services = ($required -join ","); docker_context = $context }
+        Write-StagingHeartbeat -Component $LogComponent -Stage "health-check" -Data @{ services = ($required -join ","); docker_context = $context; staging_tunnel = $stagingTunnel.status; local_connector_tunnel = $connectorTunnel.status; recovery = $true }
+        Write-StagingLog -Level info -Component $LogComponent -Stage "health-check" -Message "all required Staging and local-control-plane components are healthy" -Data @{ services = ($required -join ","); docker_context = $context; staging_tunnel = $stagingTunnel.status; local_connector_tunnel = $connectorTunnel.status }
     } catch {
         $snapshot.ok = $false
-        Write-HealthFailure $_.Exception.Message -Data @{ docker_context = $snapshot.docker_context }
+        $suppressed = Write-HealthFailure $_.Exception.Message -Data @{ docker_context = $snapshot.docker_context }
+        $snapshot.effective_ok = [bool]$suppressed
+        if ($suppressed) {
+            $stateAfter = Read-HealthState
+            $snapshot.lifecycle.status = [string]$stateAfter.status
+        }
     }
-    Write-StagingAtomicJson (Get-StagingLogFile "health-snapshot.json") $snapshot 10
-    return [bool]$snapshot.ok
+    Write-StagingAtomicJson (Get-StagingLogFile "health-snapshot.json") $snapshot 12
+    return [bool]$snapshot.effective_ok
 }
 function Get-NextDelay([object]$State) {
     if ([int]$State.consecutive_failures -le 0) { return [Math]::Max(30, $IntervalSeconds) }
@@ -164,7 +405,7 @@ if ($IntervalSeconds -lt 30) { throw "HEALTH_MONITOR_FAIL_CLOSED: interval must 
 if ($MaxBackoffSeconds -lt $IntervalSeconds) { throw "HEALTH_MONITOR_FAIL_CLOSED: MaxBackoffSeconds cannot be below IntervalSeconds" }
 Acquire-HealthMonitorLock
 try {
-    Write-StagingOperationBoundary -Component $LogComponent -Stage "process" -Outcome "start" -Message "health monitor started" -Data @{ interval_seconds = $IntervalSeconds; max_backoff_seconds = $MaxBackoffSeconds; once = [bool]$Once }
+    Write-StagingOperationBoundary -Component $LogComponent -Stage "process" -Outcome "start" -Message "health monitor started" -Data @{ interval_seconds = $IntervalSeconds; max_backoff_seconds = $MaxBackoffSeconds; boot_grace_seconds = $BootGraceSeconds; once = [bool]$Once }
     while ($true) {
         $ok = Invoke-HealthCheck
         if ($Once) { if (-not $ok) { exit 1 }; exit 0 }
