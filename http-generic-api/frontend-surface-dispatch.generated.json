@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "0c4dbccad748292d50ffd9bbf671cc837d49ac9f2ed9baf53b5a5f6f066babc0",
+    "source_digest": "010c0a76ebe1440a6701ef120d7f892ce9c5e1af545452385b8673f601aa7293",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -76,7 +76,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "1d97711876c7018106ddfaa29962965334421c1aa54ab790de7d728488411d7a",
+        "sha256": "a96772bd84cddd7582f2401bff8c23a354c20b8899704493f6874bdadae140b2",
         "present": true
       },
       {
@@ -981,7 +981,7 @@
       },
       {
         "file": "routes/stagingRecoveryAdminRoutes.js",
-        "sha256": "aa19200472b60ed47dc220329721779cf4d6cf2c2b1e1646d4d2b5194aacfc15",
+        "sha256": "0804e3f44e7a145269ddf3cb210ccae71b62b9ce10d25af5c84666866c3c0fa7",
         "present": true
       },
       {
@@ -1174,33 +1174,33 @@
     "mounted_family_count": 173,
     "mounted_route_file_count": 143,
     "mixed_scope_route_file_count": 25,
-    "operation_count": 1062,
-    "openapi_documented_count": 1046,
+    "operation_count": 1065,
+    "openapi_documented_count": 1049,
     "openapi_canonical_documented_count": 731,
-    "openapi_generated_index_count": 315,
+    "openapi_generated_index_count": 318,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 315,
+    "openapi_detail_gap_count": 318,
     "openapi_detail_gap_policy": "accepted_generated_index_only",
     "auth_parity_counts": {
-      "equivalent": 1046,
+      "equivalent": 1049,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 642,
-    "unresolved_operation_class_count": 0,
+    "non_get_candidate_count": 645,
+    "unresolved_operation_class_count": 3,
     "classified_mutation_count": 18,
     "governed_mutation_operation_count": 18,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 0,
-    "test_owned_family_count": 173,
-    "untested_family_count": 0,
+    "test_owned_family_count": 172,
+    "untested_family_count": 1,
     "test_owned_operation_count": 1062,
-    "untested_operation_count": 0,
-    "ready_task_count": 173,
-    "blocked_task_count": 0,
-    "coverage_complete": true
+    "untested_operation_count": 3,
+    "ready_task_count": 172,
+    "blocked_task_count": 1,
+    "coverage_complete": false
   },
   "waves": [
     {
@@ -3728,7 +3728,7 @@
       "family_key": "staging-recovery-admin",
       "label": "staging recovery admin",
       "source_file": "routes/stagingRecoveryAdminRoutes.js",
-      "source_digest": "aa19200472b60ed47dc220329721779cf4d6cf2c2b1e1646d4d2b5194aacfc15",
+      "source_digest": "0804e3f44e7a145269ddf3cb210ccae71b62b9ce10d25af5c84666866c3c0fa7",
       "mount_prefix": "/",
       "mount_order": 13292,
       "split_from_mixed_scope_file": false,
@@ -3937,17 +3937,235 @@
           },
           "mutation_candidate": false,
           "mutation": false
+        },
+        {
+          "method": "POST",
+          "path": "/admin/recovery/staging/bootstrap-ticket/verify",
+          "signature": "POST /admin/recovery/staging/bootstrap-ticket/verify",
+          "source_file": "routes/stagingRecoveryAdminRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "unresolved",
+            "classification_source": "fail_closed",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": null,
+            "blockers": [
+              "operation_classification_gap"
+            ],
+            "rule_id": null
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        },
+        {
+          "method": "POST",
+          "path": "/admin/recovery/staging/bootstrap-ticket/finalize",
+          "signature": "POST /admin/recovery/staging/bootstrap-ticket/finalize",
+          "source_file": "routes/stagingRecoveryAdminRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "unresolved",
+            "classification_source": "fail_closed",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": null,
+            "blockers": [
+              "operation_classification_gap"
+            ],
+            "rule_id": null
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        },
+        {
+          "method": "POST",
+          "path": "/admin/recovery/staging/bootstrap-partial-receipt",
+          "signature": "POST /admin/recovery/staging/bootstrap-partial-receipt",
+          "source_file": "routes/stagingRecoveryAdminRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "unresolved",
+            "classification_source": "fail_closed",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": null,
+            "blockers": [
+              "operation_classification_gap"
+            ],
+            "rule_id": null
+          },
+          "mutation_candidate": true,
+          "mutation": false
         }
       ],
       "openapi_gaps": [],
       "openapi_exemptions": [],
-      "openapi_detail_gaps": [],
+      "openapi_detail_gaps": [
+        "POST /admin/recovery/staging/bootstrap-ticket/verify",
+        "POST /admin/recovery/staging/bootstrap-ticket/finalize",
+        "POST /admin/recovery/staging/bootstrap-partial-receipt"
+      ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
       "tests": [
         "test-staging-recovery-admin-surface.mjs"
       ],
-      "untested_operations": [],
+      "untested_operations": [
+        "POST /admin/recovery/staging/bootstrap-ticket/verify",
+        "POST /admin/recovery/staging/bootstrap-ticket/finalize",
+        "POST /admin/recovery/staging/bootstrap-partial-receipt"
+      ],
       "resources": [],
       "embedded_ui": false,
       "embedded_ui_operations": [],
@@ -3959,6 +4177,7 @@
         "openapi/brand-core-asset-materialization.yaml",
         "openapi/container-authority-override-governance-smoke.yaml",
         "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
@@ -3988,10 +4207,29 @@
           "test-staging-recovery-route-policy.mjs"
         ]
       },
-      "operation_blockers": [],
+      "operation_blockers": [
+        {
+          "signature": "POST /admin/recovery/staging/bootstrap-ticket/verify",
+          "blockers": [
+            "operation_classification_gap"
+          ]
+        },
+        {
+          "signature": "POST /admin/recovery/staging/bootstrap-ticket/finalize",
+          "blockers": [
+            "operation_classification_gap"
+          ]
+        },
+        {
+          "signature": "POST /admin/recovery/staging/bootstrap-partial-receipt",
+          "blockers": [
+            "operation_classification_gap"
+          ]
+        }
+      ],
       "risk": {
-        "score": 5,
-        "class": "medium"
+        "score": 10,
+        "class": "critical"
       },
       "wave": "F3-admin-workspaces"
     },
@@ -97480,53 +97718,6 @@
       ]
     },
     {
-      "task_key": "frontend.staging-recovery-admin",
-      "title": "Resolve and deliver staging recovery admin",
-      "wave": "F3-admin-workspaces",
-      "state": "ready",
-      "blockers": [],
-      "dependencies": [
-        "F0-source-baseline",
-        "F2-admin-bff-session"
-      ],
-      "source_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/brand-core-asset-materialization.yaml",
-        "openapi/container-authority-override-governance-smoke.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/hostinger-storage-tenant-runtime.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
-        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "openapi/support-ticket-admin-brand.yaml",
-        "openapi/support-ticket-admin-execution.yaml",
-        "openapi/support-ticket-admin-remaining.yaml",
-        "openapi/support-ticket-runtime-completion.yaml",
-        "openapi/support-tickets.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/index.js",
-        "routes/stagingRecoveryAdminRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-staging-recovery-admin-surface.mjs"
-      ],
-      "acceptance_gates": [
-        "source_baseline_unchanged",
-        "scope_and_auth_explicit",
-        "openapi_or_explicit_exemption",
-        "surface_policy_resolved",
-        "tests_registered"
-      ],
-      "verification": [
-        "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-staging-recovery-admin-surface.mjs"
-      ]
-    },
-    {
       "task_key": "frontend.support-ticket-lifecycle-integrity.admin",
       "title": "Resolve and deliver support ticket lifecycle integrity (admin)",
       "wave": "F3-admin-workspaces",
@@ -97671,6 +97862,59 @@
         "node scripts/frontend-surface-dispatch.mjs --check",
         "node scripts/resource-api-coverage-audit.mjs --changed",
         "node test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "task_key": "frontend.staging-recovery-admin",
+      "title": "Resolve and deliver staging recovery admin",
+      "wave": "F3-admin-workspaces",
+      "state": "blocked",
+      "blockers": [
+        "test_ownership_gap",
+        "operation_classification_gap"
+      ],
+      "dependencies": [
+        "F0-source-baseline",
+        "F2-admin-bff-session",
+        "operation-classification"
+      ],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/stagingRecoveryAdminRoutes.js",
+        "scripts/test-manifest.mjs",
+        "test-staging-recovery-admin-surface.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered",
+        "operation_classification_explicit"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-staging-recovery-admin-surface.mjs"
       ]
     },
     {
