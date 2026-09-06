@@ -7,7 +7,11 @@ import {
   getRecoveryRun,
   sanitizeEvidence,
 } from "../recoveryKernel.js";
-import { issueAndExecuteApprovedRecoveryStep, sanitizeRecoveryActionBridgeOutput } from "../recoveryActionBridge.js";
+import {
+  buildRecoveryTypedConfirmationRequirements,
+  issueAndExecuteApprovedRecoveryStep,
+  sanitizeRecoveryActionBridgeOutput,
+} from "../recoveryActionBridge.js";
 
 const READ_ONLY_CAPABILITIES = new Set([
   "production_identity",
@@ -211,12 +215,17 @@ export function buildRecoveryKernelRoutes({
 
   const executeApprovedBridge = async (req, res) => {
     try {
-      const body = assertExactKeys(req.body || {}, ["plan_id", "plan_hash", "step_id", "approval_token", "idempotency_key"], ["plan_id", "plan_hash", "step_id", "approval_token", "idempotency_key"]);
+      const body = assertExactKeys(
+        req.body || {},
+        ["plan_id", "plan_hash", "step_id", "approval_token", "approval_id", "expected_sha", "typed_confirmation", "idempotency_key"],
+        ["plan_id", "plan_hash", "step_id", "idempotency_key"],
+      );
       const result = await issueAndExecuteApprovedRecoveryStep(body, {
         env,
         adminPrincipal: requestAdminPrincipal(req),
         recoveryStore,
         executionTicketSigner,
+        approvalIssuer,
         approvalVerifier,
         approvalStore,
         recoveryLock,
@@ -225,7 +234,12 @@ export function buildRecoveryKernelRoutes({
         hostBreakglassMutationExecutor,
         migrationLedger,
       });
-      return res.status(202).json(sanitizeRecoveryActionBridgeOutput({ ok: true, contract: "mad4b.recovery-action-bridge-route-receipt.v1", result, secrets_included: false }));
+      return res.status(202).json(sanitizeRecoveryActionBridgeOutput({
+        ok: true,
+        contract: "mad4b.recovery-action-bridge-route-receipt.v1",
+        result,
+        secrets_included: false,
+      }));
     } catch (error) {
       return errorResponse(res, error, "recovery_action_bridge_failed");
     }
@@ -240,10 +254,15 @@ export function buildRecoveryKernelRoutes({
         approvalIssuer,
         approvalStore,
       });
+      const confirmationRequirements = buildRecoveryTypedConfirmationRequirements(result);
       return res.status(201).json(sanitizeEvidence({
         ok: true,
         contract: "mad4b.recovery-approval-challenge-route-receipt.v1",
-        result,
+        result: {
+          ...result,
+          confirmation_required: true,
+          confirmation_requirements: confirmationRequirements,
+        },
         approval_token_not_returned: true,
         execution_ticket_not_returned: true,
         secrets_included: false,
@@ -254,8 +273,9 @@ export function buildRecoveryKernelRoutes({
   });
 
   router.post("/admin/recovery/kernel/execute-approved", executeApprovedBridge);
-  // Keep the historical path as a server-issued-ticket alias. Caller-supplied
-  // execution_ticket_id/hash/signature fields are rejected by the fixed bridge contract.
+  // Keep the historical path as a compatibility alias. Caller-supplied execution
+  // tickets remain forbidden; the Admin GPT path supplies only the bound approval
+  // reference and exact typed confirmation while the token stays server-side.
   router.post("/admin/recovery/kernel/execute", executeApprovedBridge);
 
   router.get("/admin/recovery/kernel/runs/:run_id", async (req, res) => {
