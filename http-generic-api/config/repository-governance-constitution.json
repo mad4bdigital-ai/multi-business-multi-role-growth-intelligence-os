@@ -160,7 +160,8 @@
       "patterns": [
         "scripts/*.mjs",
         "tools/**/*.mjs",
-        "tools/**/*.js"
+        "tools/**/*.js",
+        "specs/015-tenant-operating-system-studio/tools/validate-spec.mjs"
       ]
     },
     {
