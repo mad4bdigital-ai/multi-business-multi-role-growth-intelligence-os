@@ -1,0 +1,90 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "gpt-admin-staging-readiness-remediation-20260906",
+  "title": "Governed GPT Admin Staging readiness remediation",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/gpt-admin-staging-readiness-remediation-20260906.json",
+      "http-generic-api/databasePrivilegeContracts.js",
+      "http-generic-api/hostBreakglassCatalog.js",
+      "http-generic-api/test-staging-database-readiness-repair.mjs",
+      "http-generic-api/test-host-breakglass-catalog.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Allow GPT Admin to diagnose and issue a governed local Staging access-repair handoff without a fake migration selection, and include the capability-gaps view in bounded optional SELECT reconciliation.",
+      "e2e_journeys": [
+        {
+          "id": "gpt-admin-staging-access-repair",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "GPT Admin",
+          "entrypoint": "hostBreakglassCatalog.database.access_repair",
+          "terminal_outcome": "GPT Admin can plan and dry-run exact-SHA Staging grant repair, then require explicit typed approval and local Windows execution for mutation.",
+          "steps": [
+            "Resolve the repository-owned access-repair runbook.",
+            "Plan or dry-run without requiring a migration.",
+            "Issue local_cli handoff for explicitly approved grant mutation.",
+            "Require same-cycle postcondition readback."
+          ],
+          "assertions": [
+            "No uncataloged migration is required for grant-only plan or dry-run.",
+            "Mutation remains exact-SHA, execution-ticket, typed-confirmation, local-Windows and readback gated.",
+            "v_platform_capability_gaps is optional SELECT-only and missing-object absence cannot widen privileges.",
+            "Production, DNS, provider and secrets remain untouched."
+          ],
+          "tests": [
+            {
+              "id": "host-breakglass-catalog",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-host-breakglass-catalog.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-database-readiness-repair",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-database-readiness-repair.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/databasePrivilegeContracts.js",
+            "http-generic-api/hostBreakglassCatalog.js",
+            "http-generic-api/test-staging-database-readiness-repair.mjs",
+            "http-generic-api/test-host-breakglass-catalog.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "No Production mutation is authorized.",
+      "blockers": [
+        "Production, DNS, provider, database mutation and external-evidence fabrication require separate explicit authority."
+      ]
+    }
+  ]
+}
