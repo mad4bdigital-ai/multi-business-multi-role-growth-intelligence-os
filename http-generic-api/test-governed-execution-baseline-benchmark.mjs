@@ -1,8 +1,13 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   runGovernedExecutionBaselineBenchmark,
   runGovernedExecutionMatchedRuntimeFixtures,
 } from "./scripts/governed-execution-baseline-benchmark.mjs";
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const report = runGovernedExecutionBaselineBenchmark({
   warmup: 20,
@@ -44,6 +49,20 @@ assert.equal(matched.external_send_made, false);
 assert.equal(matched.runtime_routing_changed_by_fixture_harness, false);
 assert.equal(matched.secrets_included, false);
 
+const artifactPath = path.join(ROOT, "specs/011-durable-governed-execution-and-agent-delegation/x0-matched-runtime-fixtures.json");
+const artifact = JSON.parse(fs.readFileSync(artifactPath, "utf8"));
+assert.equal(artifact.schema, matched.schema);
+assert.equal(artifact.base_main_sha, "fdb2000bb81b8d0127ba41c52e39fd8940571dd3");
+assert.deepEqual(artifact.fixture_catalogue, matched.fixture_catalogue);
+assert.equal(artifact.mode, "deterministic_provider_simulator_only");
+assert.equal(artifact.external_exact_head_ci_attestation, "required");
+assert.equal(artifact.secrets_included, false);
+assert.equal(artifact.gate_assertions.all_functional_outcomes_equal, true);
+assert.equal(artifact.gate_assertions.timing_identity_recomputed_in_ci, true);
+assert.equal(artifact.gate_assertions.live_provider_call_made, false);
+assert.equal(artifact.gate_assertions.runtime_behavior_changed, false);
+
+const artifactById = new Map(artifact.fixtures.map((fixture) => [fixture.fixture_id, fixture]));
 for (const fixture of matched.fixtures) {
   assert.equal(fixture.functional_outcome_equal, true, `${fixture.fixture_id} legacy/instrumented result mismatch`);
   assert.equal(fixture.legacy_result_hash, fixture.instrumented_result_hash);
@@ -57,6 +76,17 @@ for (const fixture of matched.fixtures) {
   );
   assert.ok(fixture.telemetry.observed_stages.length > 0);
   assert.ok(fixture.telemetry.observed_counters.length > 0);
+
+  const published = artifactById.get(fixture.fixture_id);
+  assert.ok(published, `published X0 fixture missing: ${fixture.fixture_id}`);
+  assert.equal(published.fixture_key, fixture.fixture_key);
+  assert.equal(published.entry_point, fixture.entry_point);
+  assert.equal(published.legacy_result_hash, fixture.legacy_result_hash);
+  assert.equal(published.instrumented_result_hash, fixture.instrumented_result_hash);
+  assert.equal(published.functional_outcome_equal, true);
+  for (const field of ["authority", "approval", "provider", "readback", "receipt", "projection", "recovery"]) {
+    assert.equal(published[field], fixture.safety_vector[field], `${fixture.fixture_id} ${field} evidence drift`);
+  }
 }
 
 console.log("governed execution baseline benchmark tests passed");
