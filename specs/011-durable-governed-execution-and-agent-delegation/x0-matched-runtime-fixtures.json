@@ -1,7 +1,7 @@
 {
   "schema": "mad4b.governed-execution.x0-matched-runtime-fixtures.v1",
   "baseline_key": "runtime-composition-x0-matched-fixtures-20260906",
-  "base_main_sha": "fdb2000bb81b8d0127ba41c52e39fd8940571dd3",
+  "base_main_sha": "15913bb2c50e18fac7585e4afa95e1c0d6ccc7fe",
   "generated_by": "http-generic-api/scripts/governed-execution-baseline-benchmark.mjs --matched-fixtures",
   "mode": "deterministic_provider_simulator_only",
   "fixture_catalogue": ["F01", "F03", "F04", "F05", "F06"],
