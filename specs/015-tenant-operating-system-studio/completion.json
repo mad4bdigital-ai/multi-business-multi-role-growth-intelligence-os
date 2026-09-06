@@ -18,6 +18,14 @@
       "role": "convergence_specification",
       "status": "open_draft"
     },
+    "convergence_pr": {
+      "number": 7930,
+      "branch": "gpt/spec-kits-canonical-authority-convergence-20260906",
+      "role": "current_convergence_delivery",
+      "status": "open_ready_manual_merge_required",
+      "base_main_sha": "589ab1ec780c1833d1b585fbdc1accaf6cbd8172",
+      "exact_head_attestation": "external_required"
+    },
     "implementation_prs": [],
     "reference_package_prs": [],
     "closeout_pr": null
@@ -55,6 +63,10 @@
     "T008_status": "owner_approved_phase1_design_authorized",
     "T008_phase1_authorized": true,
     "current_main_authority_inventory_sha": "0faee775cd0572b737fed8bc74e2580d9fca2878",
+    "current_main_authority_inventory_snapshot_sha": "0faee775cd0572b737fed8bc74e2580d9fca2878",
+    "current_main_authority_inventory_validated_against_sha": "589ab1ec780c1833d1b585fbdc1accaf6cbd8172",
+    "current_main_authority_inventory_delta_commit_count": 2,
+    "current_main_authority_inventory_delta_classification": "no_change_to_package_version_install_or_canonical_capability_identity_authority_inputs",
     "current_main_authority_inventory_contract": "docs/spec-portfolio/spec015-current-main-authority-reuse-matrix-20260906.json",
     "current_main_authority_inventory_review": "docs/spec-portfolio/spec015-current-main-authority-reuse-matrix-20260906.md",
     "canonical_concept_map": "canonical-concept-authority-map.json",
@@ -83,6 +95,7 @@
     "all_base_snapshot_open_drafts_classified": true,
     "field_level_reuse_matrices_complete": true,
     "current_main_field_level_reuse_matrix_sha": "0faee775cd0572b737fed8bc74e2580d9fca2878",
+    "current_main_field_level_reuse_matrix_validated_against_sha": "589ab1ec780c1833d1b585fbdc1accaf6cbd8172",
     "canonical_paths_finalized": true,
     "close_or_supersede_actions_executed": false
   },
@@ -130,7 +143,7 @@
     "openapi_contract_structure": "external_sha_bound_attestation_required",
     "manifest_inventory": "external_sha_bound_attestation_required",
     "canonical_authority_convergence": "external_sha_bound_attestation_required",
-    "current_main_reuse_matrix": "external_sha_bound_attestation_required",
+    "current_main_reuse_matrix": "snapshot_validated_against_current_main_external_sha_bound_attestation_required",
     "T006_decision_register": "owner_approved_external_sha_bound_attestation_required",
     "T008_decision_matrix": "owner_approved_external_sha_bound_attestation_required",
     "portfolio_base_contract": "external_sha_bound_attestation_required",
@@ -221,10 +234,11 @@
     "chatgpt_mcp_oauth_tool_catalog_and_public_endpoint_gates_open"
   ],
   "notes": [
-    "T002/T003 are complete only as exact-current-main inventory/reuse evidence at 0faee775cd0572b737fed8bc74e2580d9fca2878.",
+    "T002/T003 remain historical inventory/reuse evidence at snapshot 0faee775cd0572b737fed8bc74e2580d9fca2878; the two-commit delta through main 589ab1ec780c1833d1b585fbdc1accaf6cbd8172 was reviewed on 2026-09-06 and did not change the package/version/install or canonical capability identity authority inputs used by the reuse decisions.",
     "T006 and T008 owner approvals were recorded on 2026-09-06. T006 closes semantic identity/cutover decisions only; T008 authorizes bounded Phase1 implementation PR design only.",
     "T006 cutover_executed=false and T008 runtime_mutation_authorized=false remain mandatory.",
     "Exact-head CI is an external SHA-bound attestation requirement. The candidate tree must not claim pending or passed exact-head status for itself.",
+    "PR #4456 remains source-specification provenance; PR #7930 is the current convergence delivery and still requires the independent manual merge decision.",
     "Current package/version/install authorities are mandatory reuse inputs; copied grant/policy JSON is compatibility-only.",
     "The legacy actions table is Provider Capability Group semantics; endpoints are provider operation contracts; Business Action remains domain/product semantics.",
     "canonical_capabilities is a target semantic identity domain but global runtime cutover requires shadow parity because legacy action/tool registries still participate in current runtime.",
