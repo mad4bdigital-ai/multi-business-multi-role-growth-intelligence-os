@@ -12,6 +12,8 @@ const REQUIRED_PORTABLE_STAGING_FILES = [
   "autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1",
   "autopilot-portable-staging/Converge-StagingActivationGateway.ps1",
   "autopilot-portable-staging/activation-gateway-smart-convergence-policy.json",
+  "autopilot-portable-staging/Windows-Staging-Bootstrap-Supervisor.ps1",
+  "autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1",
   "autopilot-portable-staging/Staging-Environment.ps1",
   "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
   "autopilot-portable-staging/Staging-GitTransport.ps1",
