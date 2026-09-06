@@ -13,6 +13,7 @@ $ErrorActionPreference = "Stop"
 $CanonicalTunnelRuntime = "Mad4B-LocalConnector-Cloudflared"
 $StagingTunnelRuntime = "Mad4B-Staging-Cloudflared"
 $LegacyTunnelTask = "GrowthIntelligence-CloudflaredTunnel"
+$ConnectorService = "local-connector"
 $ConnectorTask = "GrowthIntelligence-LocalConnector"
 $WatchdogTask = "GrowthIntelligence-ConnectorWatchdog"
 $EnvPath = Join-Path $ConnectorRoot ".env"
@@ -93,6 +94,36 @@ function Ensure-TaskRunning([string]$Name) {
     return ([string]$task.State -eq "Running")
 }
 
+function Ensure-ConnectorRuntimeRunning {
+    $service = Get-Service -Name $ConnectorService -ErrorAction SilentlyContinue
+    if ($null -ne $service) {
+        if ($service.Status -ne "Running") {
+            Start-Service -Name $ConnectorService -ErrorAction Stop
+            $service.WaitForStatus([System.ServiceProcess.ServiceControllerStatus]::Running, [TimeSpan]::FromSeconds(20))
+        }
+        return $true
+    }
+    return Ensure-TaskRunning $ConnectorTask
+}
+
+function Restart-ConnectorRuntime {
+    $service = Get-Service -Name $ConnectorService -ErrorAction SilentlyContinue
+    if ($null -ne $service) {
+        Restart-Service -Name $ConnectorService -Force -ErrorAction Stop
+        $service = Get-Service -Name $ConnectorService -ErrorAction Stop
+        $service.WaitForStatus([System.ServiceProcess.ServiceControllerStatus]::Running, [TimeSpan]::FromSeconds(20))
+        return $true
+    }
+    $task = Get-ScheduledTask -TaskName $ConnectorTask -ErrorAction SilentlyContinue
+    if ($null -ne $task) {
+        Stop-ScheduledTask -TaskName $ConnectorTask -ErrorAction SilentlyContinue
+        Start-ScheduledTask -TaskName $ConnectorTask -ErrorAction Stop
+        Start-Sleep -Seconds 2
+        return ((Get-TaskState $ConnectorTask) -eq "Running")
+    }
+    return $false
+}
+
 function Restart-LocalTunnelRuntime {
     $service = Get-Service -Name $CanonicalTunnelRuntime -ErrorAction SilentlyContinue
     if ($null -ne $service) {
@@ -116,6 +147,15 @@ function Test-LocalConnectorHealth {
         $response = Invoke-WebRequest -Uri "http://127.0.0.1:7070/health" -UseBasicParsing -TimeoutSec 8 -ErrorAction Stop
         return ([int]$response.StatusCode -eq 200)
     } catch { return $false }
+}
+
+function Wait-LocalConnectorHealth([int]$Seconds) {
+    $deadline = [DateTime]::UtcNow.AddSeconds($Seconds)
+    do {
+        if (Test-LocalConnectorHealth) { return $true }
+        Start-Sleep -Seconds 2
+    } while ([DateTime]::UtcNow -lt $deadline)
+    return $false
 }
 
 function Get-WebFailureText($ErrorRecord) {
@@ -193,6 +233,8 @@ $state = @{
     legacy_generic_service_detected = [bool]$legacyGenericService.exists
     legacy_task_detected = ($legacyTaskState -ne "missing")
     ownership_migration_blocked = $false
+    connector_runtime_ensure_attempted = $false
+    connector_runtime_restart_attempted = $false
     local_health = $false
     public_health = $false
     public_http_status = $null
@@ -224,10 +266,16 @@ if (-not $canonicalService.exists -and $canonicalTaskState -eq "missing") {
     exit 2
 }
 
-[void](Ensure-TaskRunning $ConnectorTask)
-$state.local_health = Test-LocalConnectorHealth
-$public = Get-PublicConnectorHealth
+$state.connector_runtime_ensure_attempted = $true
+[void](Ensure-ConnectorRuntimeRunning)
+$state.local_health = Wait-LocalConnectorHealth ([Math]::Min(10, $RecoveryWaitSeconds))
+if (-not $state.local_health) {
+    $state.connector_runtime_restart_attempted = $true
+    [void](Restart-ConnectorRuntime)
+    $state.local_health = Wait-LocalConnectorHealth ([Math]::Min(15, $RecoveryWaitSeconds))
+}
 
+$public = Get-PublicConnectorHealth
 if ($state.local_health -and -not $public.healthy) {
     $state.tunnel_restart_attempted = $true
     [void](Restart-LocalTunnelRuntime)
