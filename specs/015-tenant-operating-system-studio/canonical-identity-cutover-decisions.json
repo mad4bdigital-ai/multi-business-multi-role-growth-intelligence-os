@@ -4,8 +4,15 @@
   "spec_key": "015-tenant-operating-system-studio",
   "current_main_sha": "0faee775cd0572b737fed8bc74e2580d9fca2878",
   "task": "T006",
-  "status": "decision_ready_pending_owner_approval",
-  "approval_status": "pending_owner_review",
+  "status": "owner_approved_implementation_pending",
+  "approval_status": "approved",
+  "owner_approval_record": {
+    "authority": "repository_owner",
+    "source": "chat",
+    "recorded_on": "2026-09-06",
+    "scope": "approve_all_T006_semantic_dispositions_only",
+    "runtime_mutation_authority_granted": false
+  },
   "mutation_authority_granted": false,
   "cutover_executed": false,
   "decisions": [
@@ -39,7 +46,8 @@
         }
       ],
       "owner_decision": "Approve semantic identity and role references; do not use numeric 011 as a unique authority key.",
-      "approval_required": true
+      "approval_required": true,
+      "owner_approved": true
     },
     {
       "decision_key": "numeric_spec_014_identity",
@@ -66,7 +74,8 @@
         }
       ],
       "owner_decision": "Approve bounded product/package roles and prohibit numeric 014 from acting as universal platform parent identity.",
-      "approval_required": true
+      "approval_required": true,
+      "owner_approved": true
     },
     {
       "decision_key": "system_tool_catalog_feature_cluster",
@@ -80,7 +89,8 @@
       "candidate_branch_posture": "historical_or_reconstruction_evidence_only",
       "disposition": "current_main_merged_baseline_is_canonical_target",
       "must_not_grant": ["capability_authority", "resource_authority", "permission", "provider_dispatch_authority"],
-      "approval_required": true
+      "approval_required": true,
+      "owner_approved": true
     },
     {
       "decision_key": "legacy_actions_semantic_collision",
@@ -107,7 +117,8 @@
       },
       "target_disposition": "semantic_reclassification_before_physical_rename",
       "physical_table_rename_authorized": false,
-      "approval_required": true
+      "approval_required": true,
+      "owner_approved": true
     },
     {
       "decision_key": "capability_authority_alias_cutover",
@@ -136,7 +147,8 @@
         "state-changing operations preserve approval, credential, resource, idempotency and readback gates",
         "rollback to legacy resolution remains available during cohort rollout"
       ],
-      "approval_required": true
+      "approval_required": true,
+      "owner_approved": true
     },
     {
       "decision_key": "package_authority_target",
@@ -151,7 +163,8 @@
       ],
       "disposition": "reuse_or_bounded_extension_first",
       "new_solution_package_tables_default": "prohibited_without_proven_semantic_gap_and_T008_approval",
-      "approval_required": true
+      "approval_required": true,
+      "owner_approved": true
     },
     {
       "decision_key": "external_protocol_authority",
@@ -159,11 +172,12 @@
       "canonical_target": "external_protocols_are_transport_and_projection_adapters",
       "execution_path": "external client -> tool/operation projection -> Spec012 context -> Spec011 governed execution -> provider/readback",
       "current_mcp_split_routes": "compatibility_only_until_Spec016_017_conformance",
-      "approval_required": true
+      "approval_required": true,
+      "owner_approved": true
     }
   ],
+  "owner_approval_complete": true,
   "closure_requirements": [
-    "owner approval of every decision entry",
     "portfolio and traceability references updated to canonical semantic identities",
     "runtime code changes, if any, delivered in separate bounded PRs",
     "no physical rename or destructive migration in the decision PR",
