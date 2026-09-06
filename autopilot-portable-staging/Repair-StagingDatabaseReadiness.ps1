@@ -454,12 +454,23 @@ try {
     $script:State.status = "schema_census_validation"
     Write-JsonAtomic $StatePath $script:State
     $script:State.schema_census = Assert-RoleSchemaCensus $roleConfig
+    $script:State.database_repair_status = "completed"
+    $script:State.runtime_restart_status = "pending"
     Write-JsonAtomic $StatePath $script:State
 
     $script:State.status = "restart_and_certify"
     Write-JsonAtomic $StatePath $script:State
     & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $StartAutoPilot -RepositoryPath $RepositoryPath -ExpectedCommit $ExpectedCommit -BuildMode Smart -SkipSelfUpdate
-    Require ($LASTEXITCODE -eq 0) "Auto Pilot restart failed after local Staging readiness repair"
+    if ($LASTEXITCODE -ne 0) {
+        $script:State.runtime_restart_status = "failed"
+        $script:State.status = "repaired_restart_pending"
+        $script:State.restart_failure = "Auto Pilot restart failed after local Staging readiness repair"
+        $script:State.restart_failed_at = (Get-Date).ToUniversalTime().ToString("o")
+        Write-JsonAtomic $StatePath $script:State
+        Fail "Auto Pilot restart failed after local Staging readiness repair; database repair remains completed and restart is resumable"
+    }
+    $script:State.runtime_restart_status = "completed"
+    Write-JsonAtomic $StatePath $script:State
 
     $autoPilotStatePath = Join-Path $PSScriptRoot "autopilot-state.json"
     Require (Test-Path -LiteralPath $autoPilotStatePath) "Auto Pilot state is missing after readiness repair"
@@ -477,7 +488,11 @@ try {
     Write-Host "No data-directory move, Production/provider/Hostinger/Cloudflare mutation, or backup deletion was performed."
 } catch {
     if ($null -ne $script:State) {
-        $script:State.status = "failed"
+        if ([string]$script:State.database_repair_status -eq "completed" -and [string]$script:State.runtime_restart_status -ne "completed") {
+            $script:State.status = "repaired_restart_pending"
+        } else {
+            $script:State.status = "failed"
+        }
         $script:State.failure = $_.Exception.Message
         $script:State.failed_at = (Get-Date).ToUniversalTime().ToString("o")
         try { Write-JsonAtomic $StatePath $script:State } catch { }
