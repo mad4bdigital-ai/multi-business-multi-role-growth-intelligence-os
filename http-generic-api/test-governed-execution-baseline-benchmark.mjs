@@ -50,9 +50,13 @@ assert.equal(matched.runtime_routing_changed_by_fixture_harness, false);
 assert.equal(matched.secrets_included, false);
 
 const artifactPath = path.join(ROOT, "specs/011-durable-governed-execution-and-agent-delegation/x0-matched-runtime-fixtures.json");
+const manifestPath = path.join(ROOT, "specs/011-durable-governed-execution-and-agent-delegation/x0-evidence-baseline.manifest.json");
 const artifact = JSON.parse(fs.readFileSync(artifactPath, "utf8"));
+const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
 assert.equal(artifact.schema, matched.schema);
-assert.equal(artifact.base_main_sha, "fdb2000bb81b8d0127ba41c52e39fd8940571dd3");
+assert.match(artifact.base_main_sha, /^[0-9a-f]{40}$/);
+assert.equal(artifact.base_main_sha, manifest.base_main_sha, "X0 fixture and manifest base-main provenance must match");
+assert.equal(manifest.base_main_reconciled_after_merge, true);
 assert.deepEqual(artifact.fixture_catalogue, matched.fixture_catalogue);
 assert.equal(artifact.mode, "deterministic_provider_simulator_only");
 assert.equal(artifact.external_exact_head_ci_attestation, "required");
