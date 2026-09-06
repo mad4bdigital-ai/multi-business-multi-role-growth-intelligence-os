@@ -14,13 +14,21 @@
       "http-generic-api/config/host-breakglass-staging-contract.json",
       "http-generic-api/databasePrivilegeContracts.js",
       "http-generic-api/hostBreakglassCatalog.js",
+      "http-generic-api/hostBreakglassRoleSelectionArtifact.js",
+      "http-generic-api/recoveryExecutionTicket.js",
       "http-generic-api/routes/adminHostBreakglassRoutes.js",
+      "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
       "http-generic-api/scripts/host-breakglass-local.mjs",
+      "http-generic-api/stagingBootstrapExecutionAuthority.js",
       "http-generic-api/stagingRuntimeBootstrapContract.js",
       "http-generic-api/surfaceAuthorityResolver.js",
+      "http-generic-api/test-admin-host-breakglass-routes.mjs",
+      "http-generic-api/test-host-breakglass-catalog.mjs",
+      "http-generic-api/test-host-breakglass-role-selection-artifact.mjs",
+      "http-generic-api/test-recovery-execution-ticket.mjs",
+      "http-generic-api/test-staging-bootstrap-readback-attestation.mjs",
       "http-generic-api/test-staging-independent-schema-contract.mjs",
-      "http-generic-api/test-staging-database-readiness-repair.mjs",
-      "http-generic-api/test-host-breakglass-catalog.mjs"
+      "http-generic-api/test-staging-database-readiness-repair.mjs"
     ]
   },
   "environment_impact": {
@@ -40,7 +48,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Give GPT Admin a repository-owned Staging-only remediation contract for access repair, action-schema drift and execution-policy surface compatibility while preserving exact-SHA handoff, server-issued execution-ticket authority and same-cycle readback before any mutation.",
+      "objective": "Give GPT Admin a repository-owned Staging-only remediation contract for access repair, action-schema drift, execution-policy compatibility and governed local execution while preserving exact-SHA, server-issued single-use authority and same-cycle readback before durable completion.",
       "e2e_journeys": [
         {
           "id": "gpt-admin-staging-access-repair",
@@ -149,6 +157,72 @@
             "http-generic-api/stagingRuntimeBootstrapContract.js",
             "http-generic-api/surfaceAuthorityResolver.js",
             "http-generic-api/test-staging-independent-schema-contract.mjs"
+          ]
+        },
+        {
+          "id": "staging-ticket-to-local-readback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging Recovery operator",
+          "entrypoint": "http-generic-api/scripts/host-breakglass-local.mjs",
+          "terminal_outcome": "A server-issued single-use exact-SHA grant-repair ticket is verified and reserved before local mutation, the governed role selection is bound to the approved grant intent, canonical same-cycle readback is attested, and only then is the durable ticket finalized; partial or unknown outcomes remain blocked for reconciliation.",
+          "steps": [
+            "Resolve the exact Staging database.access_repair plan and allowed runtime roles.",
+            "Bind exact SHA, target, operation, idempotency key and grant_binding_hash into the server-issued signed execution ticket.",
+            "Verify and atomically reserve the single-use ticket through the private Recovery authority before mutation.",
+            "Run only the repository-governed local bootstrap roles represented by the role-selection artifact.",
+            "Persist an immutable partial receipt when the mutation outcome is unknown or incomplete.",
+            "Verify canonical same-cycle database readback and bind the readback attestation to the reserved ticket.",
+            "Finalize the durable ticket only after the readback attestation succeeds."
+          ],
+          "assertions": [
+            "Caller-generated tickets, inline SQL, caller-selected database targets, caller-widened roles, replay after unknown mutation, and cross-environment authority are rejected.",
+            "The private bootstrap verification/finalization/partial-receipt transport remains internal and is not advertised as a Custom GPT action.",
+            "The existing BACKEND_API_KEY is reused and no new secret is introduced.",
+            "A ticket cannot be finalized from caller assertion alone; same-cycle repository-owned readback evidence is required.",
+            "Production deployment, Production database mutation, DNS, Cloudflare, Hostinger and provider mutation remain unauthorized.",
+            "Live readiness and Phase B external evidence are not fabricated."
+          ],
+          "tests": [
+            {
+              "id": "recovery-execution-ticket",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-execution-ticket.mjs",
+              "args": []
+            },
+            {
+              "id": "host-breakglass-role-selection-artifact",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-host-breakglass-role-selection-artifact.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-bootstrap-readback-attestation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-bootstrap-readback-attestation.mjs",
+              "args": []
+            },
+            {
+              "id": "admin-host-breakglass-routes",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-admin-host-breakglass-routes.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/hostBreakglassRoleSelectionArtifact.js",
+            "http-generic-api/recoveryExecutionTicket.js",
+            "http-generic-api/routes/adminHostBreakglassRoutes.js",
+            "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
+            "http-generic-api/scripts/host-breakglass-local.mjs",
+            "http-generic-api/stagingBootstrapExecutionAuthority.js",
+            "http-generic-api/test-host-breakglass-role-selection-artifact.mjs",
+            "http-generic-api/test-recovery-execution-ticket.mjs",
+            "http-generic-api/test-staging-bootstrap-readback-attestation.mjs"
           ]
         }
       ]
