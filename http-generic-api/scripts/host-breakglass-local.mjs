@@ -111,6 +111,7 @@ function stagingBootstrapAuthorityClient(env) {
   let reservedBinding = null;
   let reservationReceipt = null;
   let reservationGeneration = null;
+  let executionReceipt = null;
 
   const post = async (pathname, body) => {
     let response;
@@ -151,7 +152,10 @@ function stagingBootstrapAuthorityClient(env) {
         reservedBinding = body;
         reservationReceipt = result.reservation_receipt;
         reservationGeneration = result.reservation_generation;
-        return { valid: true, reserved: true, reservation_fingerprint: result.reservation_fingerprint || null };
+        const started = await post("/admin/recovery/staging/bootstrap-ticket/verify", { ...body, authority_action: "mark_executing", reservation_receipt: reservationReceipt });
+        if (started?.executing !== true || started?.lifecycle_state !== "executing" || !started?.execution_receipt || started?.reservation_generation !== reservationGeneration) throw Object.assign(new Error("Staging execution-start receipt was not issued for the reserved ticket; local mutation is forbidden."), { code: "RECOVERY_RECONCILIATION_REQUIRED", status: 409, details: { reconciliation_required: true, automatic_rerun_allowed: false, database_mutation_performed: false } });
+        executionReceipt = started.execution_receipt;
+        return { valid: true, reserved: true, executing: true, reservation_fingerprint: result.reservation_fingerprint || null };
       },
     }),
     partialReceiptStore: Object.freeze({
@@ -162,7 +166,7 @@ function stagingBootstrapAuthorityClient(env) {
       },
     }),
     async finalize(result) {
-      if (!reservedBinding || !reservationReceipt || !reservationGeneration) throw Object.assign(new Error("No server-side Staging ticket reservation receipt exists for this local execution."), { code: "RECOVERY_RECONCILIATION_REQUIRED", status: 409, details: { reconciliation_required: true, automatic_rerun_allowed: false } });
+      if (!reservedBinding || !reservationReceipt || !reservationGeneration || !executionReceipt) throw Object.assign(new Error("No complete server-side Staging reservation/execution-start receipt chain exists for this local execution."), { code: "RECOVERY_RECONCILIATION_REQUIRED", status: 409, details: { reconciliation_required: true, automatic_rerun_allowed: false } });
       const roleReadback = result?.grants?.grant_readback_by_role || null;
       const readbackReady = result?.status === "apply_grants_complete"
         ? Boolean(roleReadback && Object.keys(roleReadback).length && Object.values(roleReadback).every((entry) => entry?.ready === true))
@@ -191,7 +195,7 @@ function stagingBootstrapAuthorityClient(env) {
         secrets_included: false,
       };
       try {
-        return await post("/admin/recovery/staging/bootstrap-ticket/finalize", { ...reservedBinding, reservation_receipt: reservationReceipt, readback_evidence: evidence });
+        return await post("/admin/recovery/staging/bootstrap-ticket/finalize", { ...reservedBinding, reservation_receipt: reservationReceipt, execution_receipt: executionReceipt, readback_evidence: evidence });
       } catch (error) {
         error.details = { ...(error.details || {}), database_mutation_performed: result?.database_mutation_performed === true, reconciliation_required: true, automatic_rerun_allowed: false };
         throw error;
