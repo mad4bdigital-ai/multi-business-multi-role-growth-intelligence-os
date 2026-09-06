@@ -133,7 +133,7 @@ for (const key of ['runtime_authority','provider_write','database_write','migrat
 
 const e2e = readJson(`${BASE}/e2e-phases.json`);
 assert.equal(e2e.feature_key, manifest.package_key);
-assert.equal(e2e.current_phase, 'operational');
+assert.equal(e2e.current_phase, 'mvp');
 assert.deepEqual(e2e.environment_impact?.declared_targets, ['staging','production']);
 assert.equal(e2e.environment_impact?.cross_environment_reviewed, true);
 assert.equal(e2e.environment_impact?.live_staging_certification_required, true);
