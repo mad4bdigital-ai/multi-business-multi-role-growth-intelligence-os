@@ -56,7 +56,7 @@ assert.match(healthMonitor, /Global\\Mad4bStagingHealthMonitor/);
 assert.match(healthMonitor, /MaxBackoffSeconds/);
 assert.match(healthMonitor, /Get-NextDelay/);
 assert.match(healthMonitor, /Docker daemon is unavailable/);
-assert.match(healthMonitor, /Health Monitor recovered after Docker\/service failure/);
+assert.match(healthMonitor, /Health Monitor recovered after component failure/);
 assert.match(healthMonitor, /suppressed_failures/);
 assert.match(oneClick, /bootstrap-console\.log/);
 assert.match(cmd, /Auto Pilot log directory/);
