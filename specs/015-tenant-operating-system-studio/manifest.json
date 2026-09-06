@@ -6,6 +6,7 @@
   "specification_only": true,
   "created_at": "2026-08-01T14:03:00Z",
   "base_main_sha": "0c82e88d00f2c25d4a22c5ece72e56d82d2d9625",
+  "current_main_authority_inventory_sha": "0faee775cd0572b737fed8bc74e2580d9fca2878",
   "dependencies": [
     "specs/006-platform-dynamic-workflow-runtime",
     "specs/010-unified-platform-frontend",
@@ -41,7 +42,7 @@
     { "pull_request": 4456, "feature_key": "015-tenant-operating-system-studio", "canonical_role": "portfolio_convergence_parent" },
     { "pull_request": 4460, "feature_key": "016-chatgpt-plugin-mcp-integration", "canonical_role": "external_integration_surface" }
   ],
-  "file_count": 38,
+  "file_count": 39,
   "files": [
     "README.md",
     "spec.md",
@@ -78,6 +79,7 @@
     "contracts/draft-spec-portfolio-live-delta.schema.json",
     "contracts/tenant-operating-system-studio.openapi.yaml",
     "tools/validate-spec.mjs",
+    "tools/validate-canonical-authority-convergence.mjs",
     "tools/validate-portfolio-live-delta.mjs",
     "tools/refresh-candidate-pr-readonly-evidence.mjs",
     "tools/test-tenant-audit-artifacts.mjs"
@@ -98,6 +100,8 @@
     "e2e_phases": 5,
     "implemented_spec_e2e_journeys": 1,
     "canonical_concepts_mapped": 30,
+    "current_main_authority_logical_entities_mapped": 10,
+    "phase0_current_main_inventory_tasks_completed": 2,
     "base_open_draft_specs_reviewed": 12,
     "base_related_open_drafts_reviewed": 22,
     "base_total_open_drafts_classified": 34,
@@ -128,6 +132,8 @@
     "production_activation": false,
     "candidate_pr_merge": false,
     "force_push": false,
+    "new_persistence_approved": false,
+    "new_execution_authority_approved": false,
     "secrets_included": false
   }
 }
