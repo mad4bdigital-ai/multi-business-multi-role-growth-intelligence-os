@@ -1,16 +1,19 @@
 # install-service.ps1
-# Installs the local connector (Node.js) and cloudflared tunnel as
-# at-logon Scheduled Tasks for the current user. No admin required.
+# Installs the local connector (Node.js), cloudflared tunnel, and an independent
+# watchdog as Scheduled Tasks for the current user. No admin required.
 
 $ErrorActionPreference = "Stop"
 
 $ConnectorDir   = $PSScriptRoot
 $ConfigPath     = Join-Path $ConnectorDir "cloudflared-config.yml"
-$NodeExe        = (Get-Command node    -ErrorAction Stop).Source
+$WatchdogPath   = Join-Path $ConnectorDir "connector-watchdog.ps1"
+$NodeExe        = (Get-Command node -ErrorAction Stop).Source
 $CfExe          = (Get-Command cloudflared -ErrorAction Stop).Source
+$PowerShellExe  = (Get-Command powershell.exe -ErrorAction Stop).Source
 
-$NodeTask  = "GrowthIntelligence-LocalConnector"
-$TunnelTask = "GrowthIntelligence-CloudflaredTunnel"
+$NodeTask       = "GrowthIntelligence-LocalConnector"
+$TunnelTask     = "GrowthIntelligence-CloudflaredTunnel"
+$WatchdogTask   = "GrowthIntelligence-ConnectorWatchdog"
 
 Write-Host ""
 Write-Host "=== Growth Intelligence Platform - Local Connector Install ==="
@@ -33,21 +36,23 @@ if ($holder -and [int]$holder -gt 0) {
 
 Start-Sleep -Milliseconds 800
 
-# -- 2. Node connector Scheduled Task ----------------------------------------
-Write-Host ""
-Write-Host "[2] Registering Node connector task: $NodeTask"
-
-Unregister-ScheduledTask -TaskName $NodeTask -Confirm:$false -ErrorAction SilentlyContinue
-
-$nodeAction   = New-ScheduledTaskAction -Execute $NodeExe -Argument "server.mjs" -WorkingDirectory $ConnectorDir
+# -- Shared task settings -----------------------------------------------------
 $logonTrigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
-$settings     = New-ScheduledTaskSettingsSet `
+$logonTrigger.Delay = "PT10S"
+$settings = New-ScheduledTaskSettingsSet `
     -ExecutionTimeLimit (New-TimeSpan -Hours 0) `
     -RestartCount 5 `
     -RestartInterval (New-TimeSpan -Minutes 1) `
     -StartWhenAvailable `
     -MultipleInstances IgnoreNew
 
+# -- 2. Node connector Scheduled Task ----------------------------------------
+Write-Host ""
+Write-Host "[2] Registering Node connector task: $NodeTask"
+
+Unregister-ScheduledTask -TaskName $NodeTask -Confirm:$false -ErrorAction SilentlyContinue
+
+$nodeAction = New-ScheduledTaskAction -Execute $NodeExe -Argument "server.mjs" -WorkingDirectory $ConnectorDir
 Register-ScheduledTask `
     -TaskName $NodeTask `
     -Action $nodeAction `
@@ -91,9 +96,36 @@ Write-Host "  Registered [OK]"
 Start-ScheduledTask -TaskName $TunnelTask
 Start-Sleep -Seconds 5
 
-# -- 4. Health check ---------------------------------------------------------
+# -- 4. Independent recurring watchdog --------------------------------------
 Write-Host ""
-Write-Host "[4] End-to-end health check..."
+Write-Host "[4] Registering Connector watchdog task: $WatchdogTask"
+if (-not (Test-Path -LiteralPath $WatchdogPath -PathType Leaf)) {
+    throw "connector-watchdog.ps1 is missing: $WatchdogPath"
+}
+Unregister-ScheduledTask -TaskName $WatchdogTask -Confirm:$false -ErrorAction SilentlyContinue
+$watchdogAction = New-ScheduledTaskAction `
+    -Execute $PowerShellExe `
+    -Argument "-NoLogo -NoProfile -ExecutionPolicy Bypass -File `"$WatchdogPath`" -Root `"$ConnectorDir`" -ConnectorTask `"$NodeTask`" -CloudflaredTask `"$TunnelTask`"" `
+    -WorkingDirectory $ConnectorDir
+$watchdogTrigger = New-ScheduledTaskTrigger `
+    -Once `
+    -At (Get-Date).AddMinutes(1) `
+    -RepetitionInterval (New-TimeSpan -Minutes 1) `
+    -RepetitionDuration (New-TimeSpan -Days 3650)
+Register-ScheduledTask `
+    -TaskName $WatchdogTask `
+    -Action $watchdogAction `
+    -Trigger $watchdogTrigger `
+    -Settings $settings `
+    -Description "Growth Intelligence Platform connector and connector.mad4b.com self-heal watchdog" `
+    -RunLevel Limited `
+    -Force | Out-Null
+Write-Host "  Registered [OK]"
+Start-ScheduledTask -TaskName $WatchdogTask
+
+# -- 5. Health check ---------------------------------------------------------
+Write-Host ""
+Write-Host "[5] End-to-end health check..."
 Start-Sleep -Seconds 3
 
 try {
@@ -105,14 +137,14 @@ try {
     }
 } catch {
     Write-Host "  Health check failed: $($_.Exception.Message)"
-    Write-Host "  Wait 10 seconds and retry: Invoke-RestMethod https://connector.mad4b.com/health"
+    Write-Host "  Watchdog will retry the connector and tunnel every minute."
 }
 
 Write-Host ""
 Write-Host "=== Install complete ==="
-Write-Host "  $NodeTask   -- runs at logon, auto-restarts on failure"
-Write-Host "  $TunnelTask -- runs at logon, auto-restarts on failure"
+Write-Host "  $NodeTask     -- runs at logon, auto-restarts on failure"
+Write-Host "  $TunnelTask   -- runs at logon, auto-restarts on failure"
+Write-Host "  $WatchdogTask -- runs every minute, repairs task/service and public tunnel health"
 Write-Host ""
 Write-Host "To check status:"
-Write-Host "  Get-ScheduledTask -TaskName '$NodeTask' | Select-Object TaskName, State"
-Write-Host "  Get-ScheduledTask -TaskName '$TunnelTask' | Select-Object TaskName, State"
+Write-Host "  Get-ScheduledTask -TaskName '$NodeTask','$TunnelTask','$WatchdogTask' | Select-Object TaskName, State"
