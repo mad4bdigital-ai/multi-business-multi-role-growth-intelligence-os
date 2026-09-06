@@ -3,8 +3,8 @@ import { inflateRawSync } from "node:zlib";
 import { getGitHubAppInstallationToken } from "./githubAppAuth.js";
 import { canonicalizeRoleSelection, computeRoleSelectionProofHash } from "./roleSelectionProof.js";
 
-const HOST_BREAKGLASS_PROTOCOL_CONTRACTS = Object.freeze({ roleSelectionArtifact: "mad4b.host-breakglass-role-selection-proof.v1" });
-export const HOST_BREAKGLASS_ROLE_SELECTION_ARTIFACT_CONTRACT = HOST_BREAKGLASS_PROTOCOL_CONTRACTS.roleSelectionArtifact;
+export const HOST_BREAKGLASS_ROLE_SELECTION_ARTIFACT_CONTRACT =
+  "mad4b.host-breakglass-role-selection-proof.v1";
 const SHA40 = /^[0-9a-f]{40}$/u;
 const SHA256 = /^[0-9a-f]{64}$/u;
 const SAFE_CORRELATION = /^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/u;
