@@ -323,7 +323,7 @@ export function buildHostBreakglassPlan(input = {}, { catalog = readHostBreakgla
   const executionTicketHash = String(input.execution_ticket_hash || "").trim().toLowerCase();
   if (executionTicketId && !SAFE_ID_RE.test(executionTicketId)) fail(400, "host_breakglass_execution_ticket_invalid", "execution_ticket_id is invalid.");
   if (executionTicketHash && !CAPSULE_SHA_RE.test(executionTicketHash)) fail(400, "host_breakglass_execution_ticket_hash_invalid", "execution_ticket_hash must be a full SHA-256 value.");
-  if (!['plan', 'dry_run'].includes(action) && (!executionTicketId || !executionTicketHash)) fail(503, "host_breakglass_execution_ticket_required", "Every Host Breakglass mutation requires a server-issued execution ticket ID and hash reference.");
+  if (!["plan", "dry_run"].includes(action) && (!executionTicketId || !executionTicketHash)) fail(503, "host_breakglass_execution_ticket_required", "Every Host Breakglass mutation requires a server-issued execution ticket ID and hash reference.");
   if (action === "apply_grants" && !CAPSULE_SHA_RE.test(grantBindingHash)) fail(503, "host_breakglass_grant_binding_hash_required", "Grant repair requires a canonical hash binding every role database, principal, host, table set, and operation set.");
   const correlationId = String(input.correlation_id || input.idempotency_key || randomUUID()).trim();
   if (!SAFE_ID_RE.test(correlationId)) fail(400, "host_breakglass_correlation_invalid", "correlation_id is invalid.");
@@ -414,7 +414,7 @@ async function resolveHostBreakglassToken({ env = process.env, fetchImpl = fetch
 }
 
 function expectedHostBreakglassRunName(plan) {
-  return `runtime-breakglass-${plan.correlation_id}-${plan.expected_sha}-${plan.plan_sha256}`;
+  return `runtime-breakglass-${plan.correlation_id}-${plan.expected_sha}`;
 }
 
 function workflowRunsPath(plan) {
@@ -469,7 +469,7 @@ export async function dispatchHostBreakglassPlan(plan, { env = process.env, fetc
       if (!plan.execution_ticket_id || !plan.execution_ticket_hash) fail(503, "host_breakglass_execution_ticket_required", "Host-local mutation requires a server-issued execution ticket ID and hash reference.");
       if (typeof hostLocalMutationExecutor !== "function") fail(503, "host_breakglass_host_local_mutation_executor_unavailable", "No governed Hostinger role-specific mutation executor is configured; no database operation was attempted.");
       const execution = await hostLocalMutationExecutor({ execution_ticket_id: plan.execution_ticket_id, execution_ticket_hash: plan.execution_ticket_hash, plan_hash: plan.plan_sha256, expected_sha: plan.expected_sha, target_key: plan.target_key, operation_key: plan.operation_key, runbook_key: plan.runbook_key, action: plan.action, migration: plan.migration, selected_roles: Array.isArray(plan.selected_rebuild_roles) ? [...plan.selected_rebuild_roles] : [], role_selection_proof_hash: plan.role_selection_proof?.selection_hash || null, grant_binding_hash: plan.grant_binding_hash || null, correlation_id: plan.correlation_id }, { env });
-      return { ok: execution?.ok !== false, contract: "mad4b.host-breakglass-host-local-mutation-receipt.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: execution?.status || "host_local_mutation_submitted", environment_key: plan.environment_key, target_source: plan.target_source, role_credential_source: "existing_hostinger_environment", execution_authority: plan.execution_authority, control_plane_host: plan.control_plane_host,         execution_ticket_id: plan.execution_ticket_id,
+      return { ok: execution?.ok !== false, contract: "mad4b.host-breakglass-host-local-mutation-receipt.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: execution?.status || "host_local_mutation_submitted", environment_key: plan.environment_key, target_source: plan.target_source, role_credential_source: "existing_hostinger_environment", execution_authority: plan.execution_authority, control_plane_host: plan.control_plane_host, execution_ticket_id: plan.execution_ticket_id,
         execution_ticket_hash: plan.execution_ticket_hash,
         selected_rebuild_roles: Array.isArray(plan.selected_rebuild_roles) ? plan.selected_rebuild_roles : [], role_selection_proof_hash: plan.role_selection_proof?.selection_hash || null, grant_binding_hash: plan.grant_binding_hash || null, workflow_dispatch_performed: false, database_mutation_performed: execution?.database_mutation_performed === true, migration_apply_performed: execution?.migration_apply_performed === true, grant_mutation_performed: execution?.grant_mutation_performed === true, readback_required: true, secrets_included: false };
     }
@@ -497,6 +497,7 @@ export async function dispatchHostBreakglassPlan(plan, { env = process.env, fetc
   }
   const dispatchedAt = new Date().toISOString();
   await githubRequest({ token, method: "POST", pathname: `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/actions/workflows/${encodeURIComponent(plan.workflow)}/dispatches`, fetchImpl, body: { ref: plan.dispatch_ref, inputs: {
+    breakglass_correlation_id: plan.correlation_id,
     expected_sha: plan.expected_sha,
     bootstrap_mode: plan.action,
     bootstrap_target_key: plan.target_key,
@@ -542,7 +543,7 @@ export async function readHostBreakglassRun(correlationId, { catalog = readHostB
   if (candidates.length > 1) return { ok: false, contract: "mad4b.host-breakglass-run-status.v1", correlation_id: correlationId, status: "correlation_ambiguous", candidate_count: candidates.length, secrets_included: false };
   // Zero and ambiguity cases returned above; destructuring preserves the proven-unique candidate without positional selection.
   const [run] = candidates;
-  return { ok: true, contract: "mad4b.host-breakglass-run-status.v1", correlation_id: correlationId, plan_sha256: receipt?.plan_sha256 || String(run.display_title || run.run_name || "").split("-").pop() || null, dispatch_status: receipt?.status || "recovered_from_github", workflow_run_id: run?.id ? String(run.id) : null, status: run?.status || "queued", conclusion: run?.conclusion || null, durable_github_readback: true, broker_auth_mode: auth_mode, secrets_included: false };
+  return { ok: true, contract: "mad4b.host-breakglass-run-status.v1", correlation_id: correlationId, plan_sha256: receipt?.plan_sha256 || null, dispatch_status: receipt?.status || "recovered_from_github", workflow_run_id: run?.id ? String(run.id) : null, status: run?.status || "queued", conclusion: run?.conclusion || null, durable_github_readback: true, broker_auth_mode: auth_mode, secrets_included: false };
 }
 
 export const __hostBreakglassTest = { RUNS, MIGRATION_DISCOVERY_CACHE };

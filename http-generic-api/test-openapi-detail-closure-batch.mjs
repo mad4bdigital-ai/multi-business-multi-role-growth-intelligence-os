@@ -26,12 +26,12 @@ assert.deepEqual(artifact.scope_boundary, {
   production_activation: false,
 });
 assert.equal(artifact.source.family_count, dispatch.coverage.mounted_family_count);
-assert.equal(artifact.source.detail_family_count, 74);
+assert.equal(artifact.source.detail_family_count, 75);
 assert.equal(artifact.source.dispatch_operation_count, dispatch.coverage.operation_count);
-assert.equal(artifact.summary.family_count, 74);
+assert.equal(artifact.summary.family_count, 75);
 assert.equal(artifact.summary.dispatch_family_count, dispatch.coverage.mounted_family_count);
-assert.equal(artifact.summary.operation_count, 315);
-assert.equal(artifact.operations.length, 315);
+assert.equal(artifact.summary.operation_count, 318);
+assert.equal(artifact.operations.length, 318);
 
 const signatures = new Set();
 for (const operation of artifact.operations) {

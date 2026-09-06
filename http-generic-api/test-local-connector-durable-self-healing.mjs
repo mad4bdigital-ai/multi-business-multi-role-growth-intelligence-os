@@ -25,19 +25,23 @@ assert(
   !watchdogSource.includes("Restart-ServiceSafe $CloudflaredService | Out-Null")
 );
 assert(
-  "watchdog ensures cloudflared and connector services are running",
-  watchdogSource.includes("Ensure-ServiceRunning $CloudflaredService") &&
-    watchdogSource.includes("Ensure-ServiceRunning $ConnectorService")
+  "watchdog ensures Local Connector-owned transport and connector runtimes are running",
+  watchdogSource.includes("Ensure-RuntimeRunning $CloudflaredService $CloudflaredTask") &&
+    watchdogSource.includes("Ensure-RuntimeRunning $ConnectorService $ConnectorTask")
 );
 assert(
-  "watchdog preserves legacy cloudflared service until live migration is certified",
-  watchdogSource.includes('[string]$CloudflaredService = "cloudflared"') &&
-    watchdogSource.includes('Get-DotEnvValue "CONNECTOR_CLOUDFLARED_SERVICE"')
+  "watchdog binds transport ownership to the canonical Local Connector runtime",
+  watchdogSource.includes('[string]$CloudflaredService = "Mad4B-LocalConnector-Cloudflared"') &&
+    watchdogSource.includes('$CanonicalCloudflaredRuntime = "Mad4B-LocalConnector-Cloudflared"') &&
+    watchdogSource.includes('$CloudflaredService = $CanonicalCloudflaredRuntime') &&
+    watchdogSource.includes('$CloudflaredTask = $CanonicalCloudflaredRuntime') &&
+    !watchdogSource.includes('[string]$CloudflaredService = "cloudflared"')
 );
 assert(
-  "watchdog can bind to a future explicitly owned connector transport service",
-  watchdogSource.includes('$CloudflaredService = $configuredCloudflaredService') &&
-    watchdogSource.includes("^[A-Za-z0-9_.-]{1,128}$")
+  "watchdog rejects noncanonical connector transport ownership",
+  watchdogSource.includes("ownership_binding_rejected field=CONNECTOR_CLOUDFLARED_SERVICE") &&
+    watchdogSource.includes("ownership_binding_rejected field=CONNECTOR_CLOUDFLARED_TASK") &&
+    watchdogSource.includes("Test-TransportOwnershipBinding $CloudflaredService $CloudflaredTask")
 );
 assert(
   "watchdog heartbeat is environment-bound and has no Production fallback",
