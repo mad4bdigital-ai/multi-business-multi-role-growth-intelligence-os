@@ -94,6 +94,13 @@
       ]
     },
     {
+      "id": "governed_execution_x0_evidence_baseline",
+      "test_paths": [
+        "http-generic-api/test-governed-execution-baseline-benchmark.mjs",
+        "http-generic-api/test-governed-execution-baseline-telemetry.mjs"
+      ]
+    },
+    {
       "id": "hostinger_runtime_bootstrap_contract",
       "test_paths": [
         "http-generic-api/test-runtime-bootstrap-contract.mjs",

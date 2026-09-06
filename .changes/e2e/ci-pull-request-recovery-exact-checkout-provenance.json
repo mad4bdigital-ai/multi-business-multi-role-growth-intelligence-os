@@ -9,6 +9,7 @@
     "include": [
       ".github/workflows/ci.yml",
       ".github/workflows/ci-pull-request-recovery.yml",
+      "http-generic-api/scripts/run-test-and-run-adaptive-authorization-verification-manifest.mjs",
       "http-generic-api/test-ci-pull-request-recovery-exact-checkout-provenance.mjs",
       ".changes/e2e/ci-pull-request-recovery-exact-checkout-provenance.json",
       ".specify/work-map-currentness-probe.txt"
@@ -40,6 +41,7 @@
             "Checkout the API-verified candidate SHA and reject any git rev-parse HEAD mismatch.",
             "Before Unit & Integration execution, query the pull request again and reject a head/base change that occurred after syntax verification.",
             "Scope context-kernel differential checks from the verified PR base SHA rather than an unrelated manual-dispatch workflow ref.",
+            "Resolve sequential-suite report identity from git rev-parse HEAD only and fail closed to an unknown report SHA if the checked-out worktree identity cannot be resolved; never substitute an event-level GITHUB_SHA.",
             "Run npm test with process-local GITHUB_SHA bound to the verified checked-out SHA.",
             "Bind deployment/runtime evidence to the verified PR head ref and candidate SHA.",
             "Use the pull-request event predicate as the only cancel-in-progress authority; manual recovery remains non-cancellable.",
@@ -51,6 +53,7 @@
             "A candidate from another pull request, fork repository, wrong base ref or closed pull request fails closed.",
             "A pull-request head/base change between syntax and test jobs fails before test evidence is published.",
             "Recovery reports cannot inherit a different event-level GITHUB_SHA after exact-head checkout.",
+            "Sequential-suite report provenance never substitutes event-level GITHUB_SHA when git HEAD cannot be resolved.",
             "Superseded pull-request runs are cancellable while workflow-dispatch recovery is not unconditionally cancellable.",
             "Recovery adds only read access to pull-request metadata in addition to read-only repository contents.",
             "No empty commit, Draft/Ready toggle, repository write, protected-ref mutation, provider call, deployment, database action, migration, credential access, force push or external send is introduced."
@@ -67,6 +70,7 @@
           "evidence_paths": [
             ".github/workflows/ci.yml",
             ".github/workflows/ci-pull-request-recovery.yml",
+            "http-generic-api/scripts/run-test-and-run-adaptive-authorization-verification-manifest.mjs",
             "http-generic-api/test-ci-pull-request-recovery-exact-checkout-provenance.mjs",
             ".changes/e2e/ci-pull-request-recovery-exact-checkout-provenance.json",
             ".specify/work-map-currentness-probe.txt"

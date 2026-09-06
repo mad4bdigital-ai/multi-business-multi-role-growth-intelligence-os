@@ -1,0 +1,138 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "runtime-composition-x0-evidence-baseline-20260906",
+  "title": "Runtime Composition X0 Governed Execution Evidence Baseline",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/runtime-composition-x0-evidence-baseline-20260906.json",
+      ".github/derived-state-governance.json",
+      ".github/governance/test-authority-registry.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "docs/work-maps/platform-runtime-map.md",
+      "http-generic-api/governedExecutionBaselineTelemetry.js",
+      "http-generic-api/governedExecutionBaselineRuntime.js",
+      "http-generic-api/connectorExecutor.js",
+      "http-generic-api/routes/index.js",
+      "http-generic-api/docker-compose.staging.yml",
+      "http-generic-api/scripts/governed-execution-baseline-benchmark.mjs",
+      "http-generic-api/test-governed-execution-baseline-telemetry.mjs",
+      "http-generic-api/test-governed-execution-baseline-benchmark.mjs",
+      "autopilot-portable-staging/manifest.json",
+      "specs/011-durable-governed-execution-and-agent-delegation/x0-evidence-baseline.manifest.json",
+      "specs/011-durable-governed-execution-and-agent-delegation/x0-evidence-baseline.md",
+      "specs/011-durable-governed-execution-and-agent-delegation/x0-matched-runtime-fixtures.json",
+      "specs/integration-governed-execution-runtime-composition/completion.json",
+      "specs/integration-governed-execution-runtime-composition/e2e-phases.json",
+      "specs/integration-governed-execution-runtime-composition/tasks-and-gates.md",
+      "scripts/runtime-composition-contract-check.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Instrument representative existing governed execution entry points with passive no-secret X0 telemetry, publish reproducible matched-fixture evidence, and make the bounded process-memory emitter reachable in Staging without changing execution decisions or enabling Production mutation.",
+      "e2e_journeys": [
+        {
+          "id": "runtime-composition-x0-passive-evidence-baseline",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed runtime maintainer and Staging certification operator",
+          "entrypoint": "Run the registered X0 telemetry, matched-fixture and runtime-composition validators on the exact candidate and then require the external live-Staging gate.",
+          "terminal_outcome": "GPT Tool, System Tool, Connector Plan, Agent Loop and existing Sequential Plan boundaries produce or support bounded no-secret evidence with identical functional outcomes; Staging can activate the process-memory sink; Production remains disabled by default; X1 remains blocked until exact-head CI and live-Staging certification pass.",
+          "steps": [
+            "Resolve the candidate from exact current main and keep base-main provenance identical in the X0 manifest and matched fixture artifact.",
+            "Instrument GPT/System transport boundaries with bounded correlation, round-trip and response-size evidence while leaving missing internal/provider counters unobserved.",
+            "Instrument Connector Plan context/policy/provider interval/ledger boundaries and count Make MCP provider calls only at the proven network dispatch frontier.",
+            "Instrument Agent Loop model and tool calls by wrapping existing dependencies while preserving return values and exception behavior.",
+            "Regenerate F01/F03/F04/F05/F06 deterministic matched fixtures and require legacy/instrumented result-hash and safety-vector parity.",
+            "Resolve a process-local emitter only when explicitly injected or GOVERNED_EXECUTION_BASELINE_ENABLED=true; keep the default disabled.",
+            "Enable the bounded 500-sample process-memory sink in Staging Compose only; do not enable it in the base Production-capable Compose contract.",
+            "Refresh the portable Staging generated manifest through its canonical generator after the Compose input changes.",
+            "Register the X0 E2E declaration in both Constitution.control_plane_paths and derived-state convergence automation_control_paths.",
+            "Run exact-head repository CI and environment-impact closure; require live-Staging certification externally and prohibit source-tree self-attestation.",
+            "Do not begin X1 until Gate X0 external certification is complete."
+          ],
+          "assertions": [
+            "X0 adds no provider call, database write, migration, external send, permission grant, retry, route, OpenAPI operation, runtime cutover, or Production mutation.",
+            "Instrumentation disabled by configuration remains behavior-neutral and optional trace creation returns no runtime handle.",
+            "Instrumentation/emitter failure cannot fail the measured operation.",
+            "Raw arguments, prompts, headers, JWTs, credentials, provider payloads, result bodies and arbitrary error strings are excluded from X0 snapshots.",
+            "Unobserved counters are never interpreted as observed zeroes.",
+            "A provider-dispatch duration does not prove a provider call; provider_calls increments only at an explicitly observed provider boundary.",
+            "Matched F01/F03/F04/F05/F06 fixtures use deterministic provider simulators and are not represented as live provider certification.",
+            "The X0 process sink is bounded process-lifetime memory, is non-authoritative, and performs no SQL persistence or external send.",
+            "Staging activation is explicit while the base Production-capable Compose file does not enable X0.",
+            "The X0 E2E declaration is registered in both repository-governance control-plane registries; this registration does not create new execution authority.",
+            "The candidate tree records exact-head and live-Staging certification as external requirements only.",
+            "X010 and all X1 implementation remain unstarted until Gate X0 closes."
+          ],
+          "tests": [
+            {
+              "id": "x0-baseline-telemetry",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-execution-baseline-telemetry.mjs",
+              "args": []
+            },
+            {
+              "id": "x0-matched-runtime-benchmark",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-execution-baseline-benchmark.mjs",
+              "args": []
+            },
+            {
+              "id": "runtime-composition-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "scripts/runtime-composition-contract-check.mjs",
+              "args": []
+            },
+            {
+              "id": "environment-impact-closure",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+              "args": ["--check"]
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/runtime-composition-x0-evidence-baseline-20260906.json",
+            ".github/derived-state-governance.json",
+            ".github/governance/test-authority-registry.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "docs/work-maps/platform-runtime-map.md",
+            "http-generic-api/governedExecutionBaselineRuntime.js",
+            "http-generic-api/connectorExecutor.js",
+            "http-generic-api/routes/index.js",
+            "http-generic-api/docker-compose.staging.yml",
+            "http-generic-api/test-governed-execution-baseline-telemetry.mjs",
+            "http-generic-api/test-governed-execution-baseline-benchmark.mjs",
+            "autopilot-portable-staging/manifest.json",
+            "specs/011-durable-governed-execution-and-agent-delegation/x0-evidence-baseline.manifest.json",
+            "specs/011-durable-governed-execution-and-agent-delegation/x0-matched-runtime-fixtures.json",
+            "specs/integration-governed-execution-runtime-composition/completion.json",
+            "specs/integration-governed-execution-runtime-composition/e2e-phases.json",
+            "specs/integration-governed-execution-runtime-composition/tasks-and-gates.md",
+            "scripts/runtime-composition-contract-check.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

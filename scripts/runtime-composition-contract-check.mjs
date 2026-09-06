@@ -6,10 +6,26 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BASE = 'specs/integration-governed-execution-runtime-composition';
+const X0 = 'specs/011-durable-governed-execution-and-agent-delegation';
 const readJson = (p) => JSON.parse(fs.readFileSync(path.join(ROOT, p), 'utf8'));
 const readText = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
 const exists = (p) => fs.existsSync(path.join(ROOT, p));
-const required = [`${BASE}/manifest.json`,`${BASE}/completion.json`,`${BASE}/e2e-phases.json`,`${BASE}/canonical-semantic-ontology.md`,`${BASE}/canonical-artifact-authority-reference-graph.md`,`${BASE}/tasks-and-gates.md`,`${BASE}/wordpress-site-control-plane-provider-profile.json`,`${BASE}/wordpress-site-control-plane-provider-profile.md`];
+const required = [
+  `${BASE}/manifest.json`,
+  `${BASE}/completion.json`,
+  `${BASE}/e2e-phases.json`,
+  `${BASE}/canonical-semantic-ontology.md`,
+  `${BASE}/canonical-artifact-authority-reference-graph.md`,
+  `${BASE}/tasks-and-gates.md`,
+  `${BASE}/wordpress-site-control-plane-provider-profile.json`,
+  `${BASE}/wordpress-site-control-plane-provider-profile.md`,
+  `${X0}/x0-evidence-baseline.manifest.json`,
+  `${X0}/x0-evidence-baseline.md`,
+  `${X0}/x0-matched-runtime-fixtures.json`,
+  'http-generic-api/governedExecutionBaselineRuntime.js',
+  'http-generic-api/test-governed-execution-baseline-telemetry.mjs',
+  'http-generic-api/test-governed-execution-baseline-benchmark.mjs',
+];
 for (const file of required) assert.ok(exists(file), `runtime composition artifact missing: ${file}`);
 
 const manifest = readJson(`${BASE}/manifest.json`);
@@ -68,26 +84,103 @@ assert.equal(wp.provider_write_performed, false);
 assert.equal(wp.production_activated, false);
 assert.equal(wp.secrets_included, false);
 
+const x0 = readJson(`${X0}/x0-evidence-baseline.manifest.json`);
+const fixtures = readJson(`${X0}/x0-matched-runtime-fixtures.json`);
+assert.equal(x0.phase, 'X0_evidence_baseline');
+assert.equal(x0.status, 'candidate_implementation_complete_external_ci_pending');
+assert.match(x0.base_main_sha, /^[0-9a-f]{40}$/);
+assert.equal(x0.base_main_reconciled_after_merge, true);
+assert.equal(x0.external_exact_head_attestation, 'required');
+assert.equal(x0.live_staging_certification, 'required');
+assert.deepEqual(x0.pending_contracts, ['exact_head_ci_evidence','live_staging_certification']);
+for (const contract of ['legacy_gpt_tool_entry_instrumentation','legacy_system_tool_entry_instrumentation','connector_plan_entry_instrumentation','agent_loop_entry_instrumentation','matched_runtime_fixture_artifact','matched_fixture_functional_hash_parity','matched_fixture_safety_vector_parity']) assert.ok(x0.implemented_contracts.includes(contract));
+assert.equal(x0.runtime_authority, false);
+assert.equal(x0.provider_write, false);
+assert.equal(x0.database_write, false);
+assert.equal(x0.migration_apply, false);
+assert.equal(x0.deployment, false);
+assert.equal(x0.secrets_included, false);
+assert.equal(fixtures.schema, 'mad4b.governed-execution.x0-matched-runtime-fixtures.v1');
+assert.equal(fixtures.base_main_sha, x0.base_main_sha);
+assert.deepEqual(fixtures.fixture_catalogue, ['F01','F03','F04','F05','F06']);
+assert.ok(fixtures.fixtures.every((fixture) => fixture.functional_outcome_equal === true && fixture.legacy_result_hash === fixture.instrumented_result_hash));
+assert.equal(fixtures.gate_assertions.all_functional_outcomes_equal, true);
+assert.equal(fixtures.gate_assertions.same_fixture_inputs_and_expected_outcomes_reproducible, true);
+assert.equal(fixtures.gate_assertions.live_provider_call_made, false);
+assert.equal(fixtures.gate_assertions.database_write_performed, false);
+assert.equal(fixtures.gate_assertions.migration_applied, false);
+assert.equal(fixtures.gate_assertions.external_send_made, false);
+assert.equal(fixtures.gate_assertions.runtime_behavior_changed, false);
+assert.equal(fixtures.secrets_included, false);
+
 const completion = readJson(`${BASE}/completion.json`);
 assert.equal(completion.status, 'in_progress');
-assert.equal(completion.current_phase, 'specification_and_owner_registration');
-assert.equal(completion.next_phase, 'X0_evidence_baseline');
+assert.equal(completion.current_phase, 'X0_evidence_baseline_candidate');
+assert.equal(completion.next_phase, 'X1_contract_composition_shadow_after_X0_external_certification');
+assert.equal(completion.evidence?.specification_package?.status, 'merged_baseline');
+assert.equal(completion.evidence?.owner_extension_registration?.status, 'merged_baseline');
+assert.equal(completion.evidence?.x0_evidence_baseline?.status, 'candidate_implementation_complete_external_certification_pending');
+assert.equal(completion.evidence?.x0_evidence_baseline?.exact_head_ci_required, true);
+assert.equal(completion.evidence?.x0_evidence_baseline?.live_staging_certification_required, true);
+assert.equal(completion.evidence?.x0_evidence_baseline?.source_tree_may_self_attest, false);
+assert.equal(completion.evidence?.x0_evidence_baseline?.runtime_cutover, false);
+assert.equal(completion.evidence?.x0_evidence_baseline?.provider_effect_added, false);
+assert.equal(completion.evidence?.x0_evidence_baseline?.database_write_added, false);
+assert.equal(completion.evidence?.x0_evidence_baseline?.migration_added, false);
+assert.equal(completion.evidence?.x0_evidence_baseline?.production_mutation_authorized, false);
+assert.equal(completion.evidence?.ci?.status, 'external_exact_head_pending');
 for (const key of ['runtime_authority','provider_write','database_write','migration_apply','deployment','protected_branch_write','secrets_included']) assert.equal(completion[key], false);
+
 const e2e = readJson(`${BASE}/e2e-phases.json`);
 assert.equal(e2e.feature_key, manifest.package_key);
 assert.equal(e2e.current_phase, 'mvp');
+assert.deepEqual(e2e.environment_impact?.declared_targets, ['staging','production']);
+assert.equal(e2e.environment_impact?.cross_environment_reviewed, true);
+assert.equal(e2e.environment_impact?.live_staging_certification_required, true);
+assert.equal(e2e.environment_impact?.production_mutation_allowed, false);
 const phaseMap = new Map(e2e.phases.map((entry) => [entry.id, entry]));
 assert.equal(phaseMap.get('mvp')?.status, 'implemented');
-for (const id of ['operational','resilient','canary','production']) assert.equal(phaseMap.get(id)?.status, 'blocked');
+assert.equal(phaseMap.get('operational')?.status, 'blocked');
+for (const id of ['resilient','canary','production']) assert.equal(phaseMap.get(id)?.status, 'blocked');
+const operationalBlockers = phaseMap.get('operational')?.blockers ?? [];
+assert.ok(operationalBlockers.some((value) => /external exact-head/i.test(value)));
+assert.ok(operationalBlockers.some((value) => /live Staging certification/i.test(value)));
+assert.ok(operationalBlockers.some((value) => /X1 implementation is prohibited/i.test(value)));
+for (const stale of ['PR #7930 exact-head convergence CI is not yet certified','T006 canonical identity/cutover owner approval remains pending','T008 Phase1 architecture/security/product owner approval remains pending']) assert.ok(!JSON.stringify(e2e).includes(stale), `stale operational blocker remains: ${stale}`);
 const journey = phaseMap.get('mvp').e2e_journeys?.[0];
 assert.equal(journey?.end_to_end, true);
 assert.equal(journey?.level, 'synthetic_runtime');
 assert.ok(journey?.tests?.some((test) => test.path === 'scripts/runtime-composition-contract-check.mjs'));
-assert.ok(journey?.evidence_paths?.includes(`${BASE}/wordpress-site-control-plane-provider-profile.json`));
+assert.ok(journey?.tests?.some((test) => test.path === 'test-governed-execution-baseline-telemetry.mjs'));
+assert.ok(journey?.tests?.some((test) => test.path === 'test-governed-execution-baseline-benchmark.mjs'));
+assert.ok(journey?.evidence_paths?.includes(`${X0}/x0-matched-runtime-fixtures.json`));
+
 const gates = readText(`${BASE}/tasks-and-gates.md`);
-assert.match(gates, /Phase X0 — Evidence baseline/);
+for (const task of ['X001','X002','X003','X004','X005']) assert.match(gates, new RegExp(`- \\[x\\] \\*\\*${task}\\*\\*`));
+assert.match(gates, /Gate X0 external certification state: `pending`/);
 assert.match(gates, /no runtime behavior change/);
 assert.match(gates, /Phase X1 — Contract composition shadow/);
+assert.match(gates, /- \[ \] \*\*X010\*\*/);
 assert.match(gates, /no provider call from the shadow path/);
 assert.match(gates, /zero unexplained authority or target mismatch/);
-console.log(JSON.stringify({schema:'mad4b.runtime-composition.spec-contract-check.v1',ok:true,feature_key:manifest.package_key,wordpress_provider_profile:wp.status,wordpress_pr:6,wordpress_head:wp.observed_source.observed_head_sha,wordpress_repository_ci:'passed',wordpress_mcp_adapter_packaged:'0.5.0',wordpress_mcp_adapter_latest:'v0.6.1',wordpress_mcp_protocol:'2025-11-25',mcp_2026_07_28_upstream_gap:true,current_phase:e2e.current_phase,next_runtime_phase:completion.next_phase,runtime_authority:false,provider_write:false,database_write:false,migration_apply:false,deployment:false,secrets_included:false},null,2));
+
+console.log(JSON.stringify({
+  schema:'mad4b.runtime-composition.spec-contract-check.v2',
+  ok:true,
+  feature_key:manifest.package_key,
+  current_phase:e2e.current_phase,
+  x0_status:x0.status,
+  x0_base_main_sha:x0.base_main_sha,
+  x0_fixture_count:fixtures.fixtures.length,
+  x0_external_exact_head_attestation:x0.external_exact_head_attestation,
+  x0_live_staging_certification:x0.live_staging_certification,
+  next_runtime_phase:completion.next_phase,
+  wordpress_provider_profile:wp.status,
+  runtime_authority:false,
+  provider_write:false,
+  database_write:false,
+  migration_apply:false,
+  deployment:false,
+  production_mutation_authorized:false,
+  secrets_included:false
+},null,2));

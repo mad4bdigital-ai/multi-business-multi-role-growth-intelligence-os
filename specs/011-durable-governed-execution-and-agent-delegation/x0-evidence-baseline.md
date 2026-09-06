@@ -2,124 +2,152 @@
 
 ## Status
 
-`in_progress`
+`candidate_implementation_complete_external_ci_pending`
 
-This is PR A of the governed execution runtime composition program. It implements the canonical instrumentation contract, isolated benchmark evidence, and the first optional legacy adapter for Sequential Plan execution.
+X0 establishes passive, no-secret evidence instrumentation for the existing governed execution runtime before any X1 shadow composition or later optimization. The candidate is implemented in source, but Gate X0 remains externally open until exact-head CI and required live Staging certification both pass.
 
-It does not change routing, context selection, authority, approval decisions, provider dispatch behavior, retries, readback, persistence authority, deployment, or Production behavior.
+The candidate does not change routing decisions, context selection, authority, approval, provider selection, retries, readback semantics, operation outcomes, database persistence authority, or Production rollout.
 
 ## Objective
 
-Create a canonical, no-secret, failure-isolated baseline telemetry contract before optimizing the execution path.
+Measure the legacy path truthfully enough to compare later composed execution without turning missing observations into fabricated zeroes.
 
-The baseline must distinguish:
+Every snapshot distinguishes:
 
-- measurements that were actually observed;
-- counters or stages that are not yet instrumented;
-- wall-clock duration;
-- summed stage duration;
-- unattributed time;
-- concurrent-stage overlap;
-- instrumentation or clock anomalies.
+- observed versus unobserved stages and counters;
+- wall-clock duration versus summed stage time;
+- unattributed time versus concurrent-stage overlap;
+- instrumentation and clock anomalies;
+- provider-call evidence only where a provider boundary is actually observed.
 
-A zero value must never be interpreted as proof that an event did not occur when its counter was not observed.
-
-## Current slice
-
-### Canonical collector
+## Canonical collector
 
 `http-generic-api/governedExecutionBaselineTelemetry.js`
 
-Provides:
+The collector provides bounded entry points, stages, counters, outcomes, safe correlation identifiers, immutable snapshots, timing reconciliation, no-secret validation, a bounded process-lifetime memory sink, and non-throwing emission.
 
-- bounded entry-point, stage, counter, outcome, and result-classification contracts;
-- trace, request, correlation, operation, plan, run, and step references;
-- monotonic stage timing;
-- repeated non-overlapping observations of the same stage;
-- explicit coverage partitions for observed and unobserved stages/counters;
-- wall time, summed stage time, unattributed time, and overlap time;
-- increment, set, and maximum counter operations;
-- secret-like identifier rejection;
-- immutable finalized snapshots;
-- snapshot validation;
-- bounded process-lifetime in-memory sink;
-- non-throwing optional emitter behavior.
+No X0 sample contains raw arguments, prompts, headers, JWTs, credentials, provider payloads, result bodies, or arbitrary error messages.
 
-### Sequential Plan legacy adapter
+## Runtime activation model
 
-`http-generic-api/sequentialPlanOrchestrator.js`
+`http-generic-api/governedExecutionBaselineRuntime.js`
 
-The adapter is inactive unless the caller provides `baselineEmitter`. When no emitter is provided, no trace is created and the existing execution path and result shape remain unchanged.
+The runtime adapter supports two emitter modes:
 
-When enabled, the adapter records only bounded metadata:
+1. an explicit injected emitter for deterministic tests or bounded integrations;
+2. a shared bounded process-memory emitter only when `GOVERNED_EXECUTION_BASELINE_ENABLED=true`.
 
-- `plan_steps` as the observed plan-size gauge;
-- maximum observed `ready_set_width`;
-- executed `critical_path_steps`;
-- ledger time around claim and finalization boundaries;
-- trace/request/correlation/plan references supplied through `baselineTraceInput`.
+Default behavior remains disabled. If the flag is absent or false, optional traces return no handle and the measured execution continues unchanged.
 
-Provider timing is intentionally stricter:
+Staging enables X0 explicitly in `http-generic-api/docker-compose.staging.yml`:
 
-- the default Sequential executor automatically records `provider_dispatch` only around workflow steps it owns;
-- a custom executor does not receive an automatic provider-stage claim;
-- a custom caller may set `baselineProviderDispatch=true` only when the whole custom workflow executor is a verified provider boundary;
-- `baselineTrace` is passed into the custom executor context so a more precise nested provider boundary can be recorded directly;
-- `provider_calls` is never inferred from stage timing and remains unobserved until a precise provider-call counter is connected.
+```text
+GOVERNED_EXECUTION_BASELINE_ENABLED=true
+GOVERNED_EXECUTION_BASELINE_MAX_SAMPLES=500
+```
 
-The same slice removes three legacy first-candidate assumptions in the modified runtime file:
+The base/Production-capable Compose contract does not enable X0. The process sink is bounded to 500 samples in Staging, is lost on process restart, writes no SQL, performs no external send, and is not an execution/audit authority.
 
-- compiled-plan identity lookup reads at most two rows and fails closed on ambiguity;
-- plan claim identity lookup reads at most two rows and fails closed on ambiguity;
-- claimed-step lookup reads at most two rows and fails closed on ambiguity.
+This activation is intentionally sufficient for X0 measurement but not suitable as durable governance evidence. Durable telemetry or projection storage requires a separate later review covering schema, retention, sampling, isolation, and query cost.
 
-A shared tested helper returns `null` for no row, returns the only row for an exact match, and raises a stable `409` ambiguity error for multiple rows.
+## Legacy entry points
 
-### Tests
+### GPT Tool and System Tool
 
-`test-governed-execution-baseline-telemetry.mjs` certifies:
+`http-generic-api/routes/index.js` mounts the passive middleware ahead of the existing route tree. It adds no route and changes no OpenAPI contract.
 
-- deterministic stage and total timing;
-- timing reconciliation;
-- overlapping-stage accounting;
-- observed/unobserved coverage;
-- no-secret identifier handling;
-- immutable snapshots;
-- clock regression classification;
-- duplicate finish and invalid-label isolation;
-- bounded sink retention;
-- emitter failure isolation;
-- invalid snapshot rejection.
+Observed legacy shells:
 
-`test-governed-execution-baseline-benchmark.mjs` certifies the isolated benchmark contract and proves the instrumented fixture preserves the legacy fixture result.
+- `POST /gpt/tools/call` → `gpt_tool`;
+- `POST /system/tools/call` → `system_tool`;
+- `POST /admin/system/tools/call` → `system_tool`.
 
-`test-sequential-plan-orchestrator.mjs` certifies:
+The HTTP shell records a bounded request/correlation identity, one public tool round trip, explicit continuation count for `response_chunk_read`, response bytes only when `Content-Length` is available, and HTTP outcome classification.
 
-- the existing Sequential Plan response shape and plan-state transitions remain unchanged;
-- telemetry is emitted only when explicitly configured;
-- observed and unobserved coverage is accurate;
-- provider timing for a custom executor requires an explicit boundary declaration;
-- no provider-call count is claimed without precise coverage;
-- plan and claim identity ambiguity fails closed;
-- raw claim tokens remain excluded from evidence.
+It does not infer SQL count, provider count, internal stages, or provider success from the transport response.
 
-All three tests are registered in the complete platform test manifest without removing existing commands.
+### Connector Plan
 
-### Benchmark
+`http-generic-api/connectorExecutor.js` creates a `connector_plan` trace through the runtime emitter resolver. Therefore normal callers do not need to be rewritten solely to pass telemetry dependencies when Staging has enabled X0.
 
-`scripts/governed-execution-baseline-benchmark.mjs`
+Observed boundaries include:
 
-The benchmark:
+- context resolution;
+- policy/preflight and capability/skill gating;
+- plan claim/final ledger work;
+- the existing provider-dispatch interval;
+- plan step count where available.
 
-- uses an in-process deterministic workload;
-- performs warmup and bounded iterations;
-- compares the same checksum with and without telemetry;
-- reports mean, p50, p95, and maximum durations;
-- reports collector overhead without claiming production acceleration;
-- performs no database access, provider call, external send, or runtime route call;
-- emits no secret-bearing data.
+`provider_dispatch` timing is not itself treated as proof of a provider call.
 
-## Canonical stage names
+The precise provider-call counter is currently wired only to the proven Make MCP network boundary, immediately before the existing Make MCP `fetch`. Other provider counts remain unobserved rather than inferred.
+
+### Agent Loop
+
+Content-workflow dispatch creates an `agent_loop` trace and wraps existing dependencies without changing their outputs:
+
+- each actual `callModel` call increments `model_round_trips`;
+- each selected model callable increments the same counter when actually invoked;
+- each actual `engineExecutorRegistry.dispatch` increments `tool_round_trips`;
+- original exceptions and return values are preserved;
+- final telemetry emission is failure-isolated.
+
+### Sequential Plan
+
+The pre-existing Sequential Plan adapter remains explicit-caller opt-in through its own `baselineEmitter` contract. It records plan size, ready-set width, critical-path steps, ledger boundaries and explicitly declared provider timing without claiming provider-call counts it cannot prove.
+
+Its existing ambiguity hardening also remains fail-closed for compiled-plan, plan-claim and claimed-step identity selection.
+
+## Matched X0 fixtures
+
+`http-generic-api/scripts/governed-execution-baseline-benchmark.mjs --matched-fixtures`
+
+The registered deterministic harness reproduces:
+
+- F01 — exact single read;
+- F03 — reversible single mutation;
+- F04 — six-step mixed plan;
+- F05 — repository workflow to PR;
+- F06 — durable external wait.
+
+These are deterministic provider simulators, not live provider certification.
+
+For each fixture the published artifact records:
+
+- legacy and instrumented SHA-256 result hashes;
+- authority disposition;
+- approval state;
+- provider-simulator result;
+- readback;
+- receipt;
+- projection;
+- recovery behavior.
+
+The legacy and instrumented functional hashes must match. Timing identity is regenerated in CI:
+
+```text
+total_stage_ms + unattributed_ms - overlap_ms = total_ms
+```
+
+The fixture harness performs no live provider call, Production database access, database write, migration, external send, deployment, or Production mutation.
+
+Published artifact:
+
+`specs/011-durable-governed-execution-and-agent-delegation/x0-matched-runtime-fixtures.json`
+
+Its recorded base-main provenance is the exact current-main base used by the candidate and must equal the X0 manifest base SHA.
+
+## Registered tests
+
+`test-governed-execution-baseline-telemetry.mjs` verifies collector semantics, secret rejection, immutable snapshots, timing/coverage, emitter failure isolation, GPT/System partial coverage, Agent model/tool counting, and exact MCP provider-call observation.
+
+`test-governed-execution-baseline-benchmark.mjs` verifies collector overhead measurement, F01/F03/F04/F05/F06 functional and safety parity, artifact provenance, process-emitter disabled/enabled behavior, bounded in-memory runtime reachability, actual GPT/System route ownership, Connector/Agent wiring, Staging activation, and the absence of implicit activation in the base Compose file.
+
+`test-sequential-plan-orchestrator.mjs` verifies the existing Sequential Plan behavior and explicit instrumentation boundary.
+
+These tests remain in the existing platform test authority; X0 does not introduce a parallel test runner.
+
+## Canonical stages
 
 - `intent_resolution`
 - `descriptor_resolution`
@@ -146,62 +174,40 @@ The benchmark:
 - `instrumentation_errors`
 - `clock_regressions`
 
-## Coverage semantics
+A zero value is meaningful only when that counter appears in `coverage.counters.observed`. Otherwise the value must be treated as unobserved.
 
-Every finalized snapshot contains two complete partitions:
+## X0 implementation closure
 
-```text
-coverage.stages.observed
-coverage.stages.unobserved
-coverage.counters.observed
-coverage.counters.unobserved
-```
+Implemented in the candidate tree:
 
-The union of observed and unobserved values must exactly equal the published stage or counter registry. The two sets must not overlap.
+- X001 — GPT/System entry-point instrumentation and correlation;
+- X002 — bounded counters with explicit observed/unobserved semantics and precise provider/model/tool counts where proven;
+- X003 — representative F01/F03/F04/F05/F06 fixtures;
+- X004 — matched authority/approval/provider/readback/receipt/projection/recovery evidence;
+- X005 — no-secret published baseline artifact;
+- process-local bounded emitter reachable without rewriting every `dispatchPlan` caller;
+- Staging-only activation with base/Production-capable Compose disabled by default;
+- runtime wiring and activation regression tests.
 
-`provider_call_made` is:
+Still external and intentionally not self-attested by source:
 
-- `true` when `provider_calls` was observed and greater than zero;
-- `false` when it was observed and remained zero;
-- `null` when provider-call coverage was not instrumented.
+- exact-head GitHub Actions certification;
+- live Staging certification on the exact candidate.
 
-## Timing semantics
-
-```text
-total_stage_ms + unattributed_ms - overlap_ms = total_ms
-```
-
-- `total_ms` is wall-clock duration.
-- `total_stage_ms` is the sum of observed stage durations.
-- `unattributed_ms` is wall time not covered by observed stages.
-- `overlap_ms` is the amount by which concurrent stage sums exceed wall time.
-
-The baseline does not label unattributed time as instrumentation overhead. Production instrumentation overhead must be estimated through matched benchmark fixtures, not inferred from one trace.
-
-## Persistence decision
-
-No migration or automatic SQL persistence is introduced in this slice.
-
-The repository already has `telemetry_spans`, but current generic span intake accepts broad attributes. X0 first establishes a bounded schema and a failure-isolated emitter. A later PR may add a governed projection adapter after schema, retention, sampling, tenant isolation, and query-cost evidence are approved.
-
-## Remaining X0 work
-
-- instrument the legacy GPT Tool entry point with explicit partial coverage;
-- instrument the legacy System Tool entry point with explicit partial coverage;
-- instrument the Connector Plan entry point with precise provider-call coverage;
-- instrument the Agent Loop entry point with precise model/tool round-trip coverage;
-- publish matched runtime-fixture evidence for the selected entry points;
-- update exact-head CI evidence without claiming the broader X0 program complete.
+X1 contract-composition shadow must not begin until both external Gate X0 conditions pass.
 
 ## Safety boundaries
 
-- no provider call added;
+- no new provider call;
 - no database write or migration;
 - no external send;
-- no route or OpenAPI change;
-- no authority, approval, or context change;
+- no route or OpenAPI contract change;
+- no authority, approval, target, context, or connection decision change;
 - no new retry behavior;
-- no deployment or Production synchronization;
+- no Production activation or runtime cutover;
 - no protected-branch mutation;
+- no durable telemetry persistence;
 - no secret-bearing telemetry;
-- collector and emitter failures cannot fail the measured operation.
+- collector/emitter failure cannot fail the measured operation;
+- deterministic provider fixtures are never represented as live provider certification;
+- source files never self-attest exact-head CI or live Staging success.

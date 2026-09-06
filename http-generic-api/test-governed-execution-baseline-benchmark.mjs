@@ -1,5 +1,21 @@
 import assert from "node:assert/strict";
-import { runGovernedExecutionBaselineBenchmark } from "./scripts/governed-execution-baseline-benchmark.mjs";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import {
+  runGovernedExecutionBaselineBenchmark,
+  runGovernedExecutionMatchedRuntimeFixtures,
+} from "./scripts/governed-execution-baseline-benchmark.mjs";
+import {
+  createOptionalGovernedExecutionBaselineTrace,
+  finalizeOptionalGovernedExecutionBaselineTrace,
+  getGovernedExecutionBaselineRuntimeStatus,
+  governedExecutionBaselineEnabled,
+  resolveGovernedExecutionBaselineEmitter,
+} from "./governedExecutionBaselineRuntime.js";
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const read = (relative) => fs.readFileSync(path.join(ROOT, relative), "utf8");
 
 const report = runGovernedExecutionBaselineBenchmark({
   warmup: 20,
@@ -24,5 +40,123 @@ assert.equal(report.sample_contract.stage_key_count, 9);
 assert.equal(report.sample_contract.counter_key_count, 12);
 assert.equal(report.sample_contract.secrets_included, false);
 assert.equal(report.secrets_included, false);
+
+const matched = runGovernedExecutionMatchedRuntimeFixtures();
+assert.equal(matched.ok, true);
+assert.equal(matched.schema, "mad4b.governed-execution.x0-matched-runtime-fixtures.v1");
+assert.deepEqual(matched.fixture_catalogue, ["F01", "F03", "F04", "F05", "F06"]);
+assert.equal(matched.fixture_count, 5);
+assert.equal(matched.all_functional_outcomes_equal, true);
+assert.equal(matched.all_timing_identities_reconciled, true);
+assert.equal(matched.live_provider_call_made, false);
+assert.equal(matched.provider_mode, "deterministic_simulator_only");
+assert.equal(matched.production_database_touched, false);
+assert.equal(matched.database_write_performed, false);
+assert.equal(matched.migration_applied, false);
+assert.equal(matched.external_send_made, false);
+assert.equal(matched.runtime_routing_changed_by_fixture_harness, false);
+assert.equal(matched.secrets_included, false);
+
+const artifactPath = path.join(ROOT, "specs/011-durable-governed-execution-and-agent-delegation/x0-matched-runtime-fixtures.json");
+const manifestPath = path.join(ROOT, "specs/011-durable-governed-execution-and-agent-delegation/x0-evidence-baseline.manifest.json");
+const artifact = JSON.parse(fs.readFileSync(artifactPath, "utf8"));
+const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+assert.equal(artifact.schema, matched.schema);
+assert.match(artifact.base_main_sha, /^[0-9a-f]{40}$/);
+assert.equal(artifact.base_main_sha, manifest.base_main_sha, "X0 fixture and manifest base-main provenance must match");
+assert.equal(manifest.base_main_reconciled_after_merge, true);
+assert.deepEqual(artifact.fixture_catalogue, matched.fixture_catalogue);
+assert.equal(artifact.mode, "deterministic_provider_simulator_only");
+assert.equal(artifact.external_exact_head_ci_attestation, "required");
+assert.equal(artifact.secrets_included, false);
+assert.equal(artifact.gate_assertions.all_functional_outcomes_equal, true);
+assert.equal(artifact.gate_assertions.timing_identity_recomputed_in_ci, true);
+assert.equal(artifact.gate_assertions.live_provider_call_made, false);
+assert.equal(artifact.gate_assertions.runtime_behavior_changed, false);
+
+const artifactById = new Map(artifact.fixtures.map((fixture) => [fixture.fixture_id, fixture]));
+for (const fixture of matched.fixtures) {
+  assert.equal(fixture.functional_outcome_equal, true, `${fixture.fixture_id} legacy/instrumented result mismatch`);
+  assert.equal(fixture.legacy_result_hash, fixture.instrumented_result_hash);
+  assert.match(fixture.legacy_result_hash, /^sha256:[0-9a-f]{64}$/);
+  assert.equal(fixture.safety_vector.result_hash, fixture.legacy_result_hash);
+  assert.equal(fixture.safety_vector.secrets_included, false);
+  assert.equal(fixture.telemetry.timing_identity_reconciled, true);
+  assert.equal(
+    fixture.telemetry.total_stage_ms + fixture.telemetry.unattributed_ms - fixture.telemetry.overlap_ms,
+    fixture.telemetry.total_ms,
+  );
+  assert.ok(fixture.telemetry.observed_stages.length > 0);
+  assert.ok(fixture.telemetry.observed_counters.length > 0);
+
+  const published = artifactById.get(fixture.fixture_id);
+  assert.ok(published, `published X0 fixture missing: ${fixture.fixture_id}`);
+  assert.equal(published.fixture_key, fixture.fixture_key);
+  assert.equal(published.entry_point, fixture.entry_point);
+  assert.equal(published.legacy_result_hash, fixture.legacy_result_hash);
+  assert.equal(published.instrumented_result_hash, fixture.instrumented_result_hash);
+  assert.equal(published.functional_outcome_equal, true);
+  for (const field of ["authority", "approval", "provider", "readback", "receipt", "projection", "recovery"]) {
+    assert.equal(published[field], fixture.safety_vector[field], `${fixture.fixture_id} ${field} evidence drift`);
+  }
+}
+
+// Runtime reachability: the process emitter is fail-closed disabled unless explicitly enabled.
+const disabledEnv = Object.freeze({ GOVERNED_EXECUTION_BASELINE_ENABLED: "false" });
+const enabledEnv = Object.freeze({
+  GOVERNED_EXECUTION_BASELINE_ENABLED: "true",
+  GOVERNED_EXECUTION_BASELINE_MAX_SAMPLES: "500",
+});
+assert.equal(governedExecutionBaselineEnabled(disabledEnv), false);
+assert.equal(governedExecutionBaselineEnabled(enabledEnv), true);
+assert.equal(resolveGovernedExecutionBaselineEmitter(null, disabledEnv), null);
+assert.equal(typeof resolveGovernedExecutionBaselineEmitter(null, enabledEnv), "function");
+const explicitEmitter = async () => {};
+assert.equal(resolveGovernedExecutionBaselineEmitter(explicitEmitter, disabledEnv), explicitEmitter, "explicit test/integration emitter must remain injectable");
+
+const beforeStatus = getGovernedExecutionBaselineRuntimeStatus(enabledEnv);
+assert.equal(beforeStatus.enabled, true);
+assert.equal(beforeStatus.emitter_mode, "process_lifetime_memory");
+assert.equal(beforeStatus.persistence, "process_lifetime_memory");
+assert.equal(beforeStatus.database_write, false);
+assert.equal(beforeStatus.external_send, false);
+assert.equal(beforeStatus.secrets_included, false);
+const runtimeHandle = createOptionalGovernedExecutionBaselineTrace({
+  entry_point: "connector_plan",
+  plan_id: "x0-runtime-reachability",
+}, { env: enabledEnv });
+assert.ok(runtimeHandle, "enabled runtime flag must create a process-local trace without caller-supplied emitter");
+runtimeHandle.trace.observeCounter("provider_calls");
+await finalizeOptionalGovernedExecutionBaselineTrace(runtimeHandle, {
+  outcome: "success",
+  result_classification: "runtime_reachability_fixture",
+});
+const afterStatus = getGovernedExecutionBaselineRuntimeStatus(enabledEnv);
+assert.equal(afterStatus.sample_count, beforeStatus.sample_count + 1);
+assert.equal(afterStatus.database_write, false);
+assert.equal(afterStatus.external_send, false);
+
+// Source wiring: real entry-point owners must remain connected to the passive runtime adapter.
+const routeIndex = read("http-generic-api/routes/index.js");
+const gptRoutes = read("http-generic-api/routes/gptToolsRoutes.js");
+const systemRoutes = read("http-generic-api/routes/systemLayerRoutes.js");
+const connectorExecutor = read("http-generic-api/connectorExecutor.js");
+const stagingCompose = read("http-generic-api/docker-compose.staging.yml");
+const baseCompose = read("http-generic-api/docker-compose.yml");
+
+assert.match(routeIndex, /createGovernedExecutionBaselineHttpMiddleware/);
+assert.match(routeIndex, /governedExecutionBaselineEmitter/);
+assert.match(gptRoutes, /router\.post\("\/gpt\/tools\/call"/);
+assert.match(systemRoutes, /router\.post\("\/system\/tools\/call"/);
+assert.match(connectorExecutor, /entry_point:\s*"connector_plan"/);
+assert.match(connectorExecutor, /entry_point:\s*"agent_loop"/);
+assert.match(connectorExecutor, /createOptionalGovernedExecutionBaselineTrace/);
+assert.match(connectorExecutor, /instrumentAgentLoopDependencies/);
+assert.match(connectorExecutor, /observeMcpProviderDispatch\(baselineTrace\)/);
+assert.match(connectorExecutor, /dispatchMcpConnector\(plan, baselineTrace\)/);
+assert.match(connectorExecutor, /governedExecutionBaselineEmitter/);
+assert.match(stagingCompose, /GOVERNED_EXECUTION_BASELINE_ENABLED:\s*"true"/);
+assert.match(stagingCompose, /GOVERNED_EXECUTION_BASELINE_MAX_SAMPLES:\s*"500"/);
+assert.doesNotMatch(baseCompose, /GOVERNED_EXECUTION_BASELINE_ENABLED/, "base/Production-capable compose must not enable X0 baseline implicitly");
 
 console.log("governed execution baseline benchmark tests passed");
