@@ -1,97 +1,83 @@
 # WordPress Site Control Plane Provider Profile
 
-This profile makes `mad4bdigital-ai/WordPress` PR #6 a first-class **provider-side integration candidate** for the MAD4B governed operating kernel without allowing WordPress, the MCP Adapter, a WordPress Ability, or a custom MCP server to become a second platform authorization or execution authority.
+`mad4bdigital-ai/WordPress` PR #6 is supported as a first-class **provider-side integration candidate** for the MAD4B governed operating kernel. WordPress, the official MCP Adapter, a WordPress Ability, a native plugin MCP surface, or a custom WordPress MCP server never become a second platform authorization or execution authority.
 
-## Observed implementation
+## Exact observed candidate
 
-The observed WordPress candidate is PR #6 at `d838847997e8f7788e321b5e43e8f517077f1194`, plugin version `0.3.0`. It builds on the official WordPress Abilities API and `WordPress/mcp-adapter`, defines isolated `mad4b-read`, `mad4b-content`, `mad4b-admin`, and disabled-by-default `mad4b-breakglass` MCP servers, and implements optimistic stale-state guards for content, files, media, several plugin adapters, Bit Flows, and structured database repairs.
+The current observed WordPress candidate is PR #6 at `937aa507b8b2d0ff94050395e3cbb704673d85ed`, plugin version `0.3.0`. Its exact-head repository workflow `MAD4B Site Control Plane` passed. This proves repository contract/lint/package evidence only; the PR remains Draft and target-site runtime certification is still pending.
 
-The latest observed official `WordPress/mcp-adapter` release is `v0.6.1`. That release fixes the packaged ZIP and retains the current HTTP transport architecture. Its HTTP transport baseline is MCP `2025-11-25`. Upstream support for MCP `2026-07-28` is still an open compatibility item, so this integration MUST NOT claim that the WordPress endpoint itself implements the 2026 protocol profile until that is proven.
+PR #6 now carries `mad4b.site-control-plane.certified-providers.v1` evidence for the exact packaged providers: MCP Adapter `0.5.0`, Elementor `4.1.4`, JetEngine `3.8.11.2`, JetSmartFilters `3.8.3.1`, and Bit Flows `1.24.0`. This provider registry is compatibility/drift evidence, not platform authorization.
 
-This does not block the MAD4B platform: the external MAD4B MCP surface and the downstream WordPress provider transport are separate protocol hops. The MAD4B provider adapter may speak the WordPress-supported MCP version internally while the platform-facing transport evolves independently.
+The packaged official MCP Adapter is `0.5.0`, which supports protocol negotiation for `2025-11-25`, `2025-06-18`, and `2024-11-05`. The latest observed upstream release is `v0.6.1`. Release `v0.6.1` repairs a packaging defect in the `v0.6.0` ZIP; therefore the current tested `0.5.0` package is not rejected merely for being older, but the `v0.6.0` release ZIP must not be promoted and upgrade to `v0.6.1` should be reviewed before Production provider certification.
+
+Upstream MCP `2026-07-28` support remains unproven/open. This does not block the platform architecture: the external MAD4B MCP ingress and downstream WordPress provider transport are independent protocol hops.
 
 ## Two supported modes
 
-### 1. Standalone site-admin mode
+### Standalone site-admin mode
 
-Direct use of the WordPress custom MCP servers is acceptable for site-local diagnostics, development, manual administrator maintenance, and explicitly enabled local recovery. WordPress authentication and capabilities are authoritative only for that site-local session. This mode is not the multi-tenant MAD4B platform authorization path.
+Direct use of `mad4b-read`, `mad4b-content`, `mad4b-admin`, and explicitly enabled `mad4b-breakglass` WordPress MCP servers is acceptable for site-local diagnostics, development, manual administrator maintenance, and local recovery. WordPress authentication and capabilities are authoritative only for that site-local session. This is not the multi-tenant MAD4B platform path.
 
-### 2. Governed platform-provider mode
+### Governed platform-provider mode
 
-Content Intelligence and the wider MAD4B platform must use the canonical path:
+Content Intelligence and the wider MAD4B platform use:
 
 `external principal -> MAD4B authenticated transport -> focused System Tool Catalog projection -> Spec 012 exact context -> capability/policy/provider resolution -> Spec 011 operation/envelope/approval/idempotency -> WordPress provider binding -> Site Control Plane Ability -> provider readback -> canonical evidence ledger`
 
-The WordPress connection identity is a bounded provider identity. `current_user_can()` remains mandatory defense in depth, but it does not replace the Tenant/Workspace/Brand/resource/capability/policy decision made by the platform.
+`current_user_can()` remains provider-side defense in depth. It does not replace Tenant/Workspace/Brand/resource/capability/policy resolution.
 
-## WordPress Ability is not a canonical Capability
+## Capability, Operation, Ability and MCP are different layers
 
-The vocabulary is intentionally different:
-
-- **Capability** is the platform semantic authorization domain, such as `cms.content.update`.
+- **Capability** is the platform semantic authorization domain, for example `cms.content.update`.
 - **Operation** is the bounded canonical invocation with effect, idempotency and readback semantics.
-- **WordPress Ability** is the provider-side typed endpoint that an adapter invokes.
+- **WordPress Ability** is the provider-side typed endpoint.
 - **WordPress MCP tool** is a transport projection of that Ability.
+- **Native Elementor/JetEngine MCP or Abilities** are provider-internal dependencies that the Site Control Plane may prefer or wrap; they are not parallel MAD4B external tool authorities.
 
-Therefore `mad4b/content-update-post` may implement a `cms.content.update` operation, but discovery of that Ability does not grant permission and does not define the platform resource scope.
+Therefore discovering `mad4b/content-update-post`, an Elementor Ability, or a JetEngine MCP tool never grants platform permission or chooses the Tenant/resource.
 
-## Required governed binding not yet proven by PR #6
+## Required governed binding still missing
 
-Before the WordPress candidate can be projected as a normal MAD4B production provider, the provider hop must carry and verify references for the canonical operation, capability, exact resource scope, environment, effect class, idempotency key, execution envelope/capsule, provider connection, expected resource revision/hash, approval when required, readback contract, and correlation ID.
+Before normal Production projection, the provider hop must verify references for canonical `operation_id`, Capability, Tenant/Workspace/Brand/resource, environment, effect, idempotency key, execution envelope/capsule, provider connection, expected resource revision/hash, approval when required, readback contract, and correlation ID.
 
-Authority-bearing broker assertions should travel as authenticated transport metadata or server-side references, not as model-visible Ability arguments. WordPress must fail closed when the binding is missing, stale, expired, consumed, or selects a different resource/connection than the canonical operation.
+Authority-bearing broker assertions belong in authenticated transport metadata or server-side references, not model-visible Ability arguments. WordPress must fail closed when a binding is missing, stale, expired, consumed, or selects a different target/connection from the canonical Operation.
 
-The existing `expected_modified_gmt`, SHA-256, thumbnail/language preconditions and Bit Flows flow fingerprint are valuable **provider concurrency guards**. They do not replace the platform-wide idempotency key and operation identity.
+PR #6 stale-state guards—`modified_gmt`, SHA-256, language/thumbnail state and Bit Flows flow fingerprints—are strong provider concurrency checks, but they do not replace the platform operation identity and idempotency key.
+
+## Provider versions and drift
+
+The exact packaged provider registry is useful evidence for eligibility and runtime drift detection. The MAD4B provider resolver should consume this evidence alongside target-site runtime readback, certification status, health and policy. It must not infer authorization from package presence or version match.
+
+JetEngine `3.8.11.2` is important here: the packaged build exposes `jet_engine()` and native MCP-tools evidence but does not define the legacy `JET_ENGINE_VERSION` constant. The provider scanner now uses real runtime/package contracts and Plugin Header version rather than falsely requiring that historical constant.
 
 ## Readback and evidence
 
-A successful MCP/HTTP response is not enough for a state-changing operation. The WordPress adapter must return provider-specific readback and the MAD4B runtime must normalize it into `confirmed`, `pending`, `rejected`, `blocked`, `failed_known`, `unknown`, `diverged`, or `compensated`.
+A successful MCP/HTTP response never confirms a state-changing business effect on its own. Normalize outcomes to `confirmed`, `pending`, `rejected`, `blocked`, `failed_known`, `unknown`, `diverged`, or `compensated`. Unknown outcomes are reconciled before retry.
 
-The WordPress hash-chained option log is useful provider-local evidence and correlation data, but it is bounded and mutable under WordPress database authority. It must be forwarded into or referenced by the canonical MAD4B evidence/readback ledger rather than becoming the audit source of truth.
+The WordPress hash-chained option log and provider-version registry may contribute correlation/evidence, but they do not replace the canonical MAD4B execution receipt/readback ledger.
+
+## Filesystem boundary
+
+Filesystem operations need two different risk classes. Upload/content files can use a certified provider operation when exact path/root/hash policy is satisfied. Mutation of WordPress Core, plugin or theme source code is a stronger **code mutation** effect and should normally use repository patch/deploy authority or Host Breakglass according to resource ownership and recovery context. WordPress never receives arbitrary shell/PHP execution authority.
 
 ## Breakglass boundary
 
-The observed WordPress plugin includes a disabled-by-default raw SQL Ability. That surface is explicitly **not** a normal System Tool Catalog projection in the MAD4B platform.
-
-- WordPress raw SQL may remain a local emergency mechanism only while explicitly enabled and independently audited.
-- Normal Agent/Package/Content Intelligence execution cannot discover or invoke it.
-- Platform raw SQL and shell exception authority remains **Host Breakglass**.
-- WordPress must never expose arbitrary shell/PHP execution.
-- Host files outside PHP permissions and hosting/service administration remain a separate MAD4B Host Connector concern.
-
-This preserves the existing MAD4B rule that raw SQL/shell are exceptional survival-plane capabilities rather than ordinary agent tools.
+The disabled-by-default WordPress raw SQL Ability is explicitly excluded from normal System Tool Catalog projection. Ordinary Agents, Packages and Content Intelligence cannot discover or invoke it. Platform raw SQL/shell exception authority remains **Host Breakglass**. Host files outside PHP permissions, services and hosting APIs remain a MAD4B Host Connector concern.
 
 ## Content Intelligence readiness
 
-The WordPress candidate already provides a strong provider foundation, but it is not yet the full publishing adapter required by Content Intelligence:
+- **CI-0** compatible: research, knowledge, blueprint and internal draft require no WordPress mutation.
+- **CI-1** partial: existing-post update, media metadata/featured image, Rank Math, Elementor, JetEngine/JetSmartFilters and Bit Flows foundations exist. Missing: dedicated governed `content-create-draft`, canonical provider binding/idempotency and readback forwarding.
+- **CI-2** blocked: dedicated schedule/publish Operations plus exact plan approval and readback are missing.
+- **CI-3** blocked: bounded autonomous publish still needs canary, rollback and unknown-outcome certification.
+- **CI-4** remains an improvement-candidate loop; no self-modifying Production.
 
-- **CI-0** is compatible: research, knowledge, blueprint and internal draft do not need WordPress mutation.
-- **CI-1** is partial: read/update of an existing post, Media metadata/featured-image changes, Rank Math, Elementor, JetEngine/JetSmartFilters surfaces and Bit Flows foundations exist; a dedicated governed `content-create-draft` operation and canonical platform binding/readback remain missing.
-- **CI-2** remains blocked until dedicated schedule and publish operations exist and are bound to exact plan approval, idempotency and readback.
-- **CI-3** remains blocked until bounded production autonomous publishing is certified by canary, rollback and unknown-outcome tests.
-- **CI-4** remains a platform feedback loop that proposes improvements but does not self-modify Production.
+The Media adapter still lacks upload, so media ingestion remains an explicit provider gap.
 
-The observed Media adapter also lacks a governed upload Ability, so Content Intelligence media ingestion remains a specific provider gap rather than an assumed capability.
+## Upstream strategy
 
-## Provider-specific mapping examples
-
-| Provider Ability | Canonical Capability | Effect | Additional platform requirement |
-| --- | --- | --- | --- |
-| `mad4b/content-get-post` | `cms.content.read` | read | exact site/post resource binding |
-| `mad4b/content-update-post` | `cms.content.update` | state change | platform idempotency + `modified_gmt` readback |
-| `media/update-metadata` | `cms.media.metadata.update` | state change | idempotency + SHA readback |
-| `elementor/update-widget-settings` | `cms.elementor.document.update` | state change | native-first certification + exact document hash |
-| `bitflows/run-flow` | `automation.bitflows.execution.start` | external/state change | flow fingerprint + execution-ID readback |
-| `mad4b/filesystem-patch` | `site.filesystem.patch` | high-risk state change | exact resource, approved root, backup and readback |
-| `mad4b/database-update` | `site.database.structured_update` | high-risk state change | structured policy, max affected, transaction/readback |
-| `mad4b/database-raw-query` | none in normal catalog | breakglass | excluded from ordinary platform projection |
-
-## Upstream MCP strategy
-
-Do not fork `WordPress/mcp-adapter` merely to add Elementor, JetEngine, database, files, or Content Intelligence logic. Those remain Site Control Plane adapters/Abilities. Keep upstream pinned and upgradeable.
-
-A bounded fork or custom transport is justified only if the official extension points cannot satisfy a proven requirement such as platform broker authentication, fail-closed transport binding, required observability, or protocol compatibility. Protocol compatibility should be isolated at the transport edge rather than leaking into domain Abilities.
+Do not fork `WordPress/mcp-adapter` to add Elementor, JetEngine, database, filesystem or Content Intelligence logic. Those remain Site Control Plane adapters/Abilities. A bounded fork/custom transport is justified only when a proven broker-authentication, fail-closed binding, observability, or protocol requirement cannot be met through upstream extension points.
 
 ## Certification gate
 
-PR #6 is therefore **supported as an integration target**, not yet certified as the platform production provider. Promotion requires target-site runtime evidence, dedicated bounded WordPress identity, server-isolation proof, canonical operation/envelope binding, platform idempotency, same-cycle readback, evidence forwarding, provider-specific adapter acceptance, Breakglass non-projection, and protocol compatibility testing.
+PR #6 is **repository-CI-supported but not runtime-certified**. Production provider promotion still requires target-site version readback, dedicated bounded WordPress identity, custom-server isolation, governed operation/envelope binding, platform idempotency, same-cycle readback, canonical evidence forwarding, provider-specific live acceptance, source-code mutation policy, structured-DB negative tests, Breakglass non-projection, protocol compatibility, and rollback/reconciliation evidence.
