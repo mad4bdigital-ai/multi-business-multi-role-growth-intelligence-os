@@ -40,6 +40,7 @@ const upstreamCommands = [
   "node test-fixed-host-local-system-tool.mjs",
   "node test-migration-execution-safety.mjs",
   "node test-recovery-execution-binding.mjs",
+  "node test-recovery-execution-ticket.mjs",
 ];
 
 // Some repository guards intentionally verify canonical manifest membership from

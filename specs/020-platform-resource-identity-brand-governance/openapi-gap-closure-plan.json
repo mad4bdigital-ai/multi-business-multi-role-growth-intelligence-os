@@ -6,8 +6,8 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "32fbc5e3d32367a410714303dbc76fb10f71f7e39403b0d5e4e922638b769adb",
-    "dispatch_artifact_sha256": "75141f4b86fe484bb7d24d20c65aef5f1423336f39a365c3a314f73b2caec17e"
+    "dispatch_source_digest": "f51687c5eb0a0c95a1e91388b5208b2232d9052d5f2fcbc6b9810c1fdefe2850",
+    "dispatch_artifact_sha256": "4da4dc10a872895fc2db119356512bba915b9b5e8114a33f443d9c3251ef375d"
   },
   "coverage": {
     "operation_count": 1065,
@@ -17,9 +17,9 @@
     "openapi_detail_gap_count": 318,
     "unresolved_surface_decision_count": 0,
     "unresolved_operation_class_count": 0,
-    "untested_family_count": 1,
-    "untested_operation_count": 3,
-    "coverage_complete": false
+    "untested_family_count": 0,
+    "untested_operation_count": 0,
+    "coverage_complete": true
   },
   "closure_summary": {
     "blocking_contract_gaps": 0,
@@ -1420,7 +1420,7 @@
       "priority": "P2_detail_traceability",
       "detail_gap_count": 3,
       "operation_count": 6,
-      "untested_operation_count": 3,
+      "untested_operation_count": 0,
       "unresolved_operation_count": 0,
       "next_action": "add_detail_evidence_without_claiming_canonical_coverage",
       "activation_allowed": false,
@@ -1447,6 +1447,7 @@
         "routes/index.js",
         "routes/stagingRecoveryAdminRoutes.js",
         "scripts/test-manifest.mjs",
+        "test-recovery-execution-ticket.mjs",
         "test-staging-recovery-admin-surface.mjs"
       ]
     },

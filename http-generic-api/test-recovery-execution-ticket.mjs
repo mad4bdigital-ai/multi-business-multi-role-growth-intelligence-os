@@ -15,6 +15,10 @@ import { createStagingBootstrapExecutionAuthority } from "./stagingBootstrapExec
 import { _testingStagingRecoveryAuthorityBinding } from "./stagingRecoveryAuthorityBinding.js";
 import { buildStagingRecoveryAdminContract, _testingStagingRecoveryAdminRoutes } from "./routes/stagingRecoveryAdminRoutes.js";
 
+// frontend-surface-operation: POST /admin/recovery/staging/bootstrap-ticket/verify
+// frontend-surface-operation: POST /admin/recovery/staging/bootstrap-ticket/finalize
+// frontend-surface-operation: POST /admin/recovery/staging/bootstrap-partial-receipt
+
 const SHA = "a".repeat(40);
 const HASH = "b".repeat(64);
 const ROLE_FP = { governance: "c".repeat(64), runtime_persistence: "d".repeat(64) };
