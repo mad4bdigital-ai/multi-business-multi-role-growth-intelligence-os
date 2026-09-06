@@ -407,6 +407,8 @@ try {
         sql_cache_runtime_policy = [ordered]@{ status = "pending"; policy_key = "sql_cache_policy_v2"; row_inserted = $false }
         grants = [ordered]@{ status = "pending"; readback = @() }
         schema_census = [ordered]@{ status = "pending"; readback = @() }
+        database_repair_status = "pending"
+        runtime_restart_status = "not_started"
         destructive_reset = $false
         schema_replay = $false
         data_directory_moved = $false
