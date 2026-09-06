@@ -234,7 +234,12 @@ export function buildRecoveryKernelRoutes({
         hostBreakglassMutationExecutor,
         migrationLedger,
       });
-      return res.status(202).json(sanitizeRecoveryActionBridgeOutput({ ok: true, contract: "mad4b.recovery-action-bridge-route-receipt.v2", result, approval_token_not_returned: true, execution_ticket_not_returned: true, secrets_included: false }));
+      return res.status(202).json(sanitizeRecoveryActionBridgeOutput({
+        ok: true,
+        contract: "mad4b.recovery-action-bridge-route-receipt.v1",
+        result,
+        secrets_included: false,
+      }));
     } catch (error) {
       return errorResponse(res, error, "recovery_action_bridge_failed");
     }
@@ -252,7 +257,7 @@ export function buildRecoveryKernelRoutes({
       const confirmationRequirements = buildRecoveryTypedConfirmationRequirements(result);
       return res.status(201).json(sanitizeEvidence({
         ok: true,
-        contract: "mad4b.recovery-approval-challenge-route-receipt.v2",
+        contract: "mad4b.recovery-approval-challenge-route-receipt.v1",
         result: {
           ...result,
           confirmation_required: true,
