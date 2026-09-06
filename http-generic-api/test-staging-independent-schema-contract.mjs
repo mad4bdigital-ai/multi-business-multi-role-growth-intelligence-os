@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import express from "express";
 import YAML from "yaml";
+import { resolveSurfaceAuthority, SURFACE_KEYS } from "./surfaceAuthorityResolver.js";
 
 process.env.DEPLOYMENT_ENVIRONMENT = "staging";
 process.env.REMOTE_MCP_ENVIRONMENT = "staging";
@@ -137,6 +138,95 @@ try {
   await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
 }
 
+function executionPolicySurfaceRow(overrides = {}) {
+  return {
+    surface_id: "surface.execution_policy_sheet",
+    logical_surface_key: null,
+    surface_name: "Execution Policy Registry",
+    surface_type: null,
+    surface_scope: null,
+    storage_type: null,
+    active_status: "active",
+    authority_status: "authoritative",
+    required_for_execution: "TRUE",
+    resolution_rule: null,
+    owner_layer: null,
+    schema_ref: "row_audit_schema:Execution Policy Registry",
+    schema_version: "v1",
+    binding_mode: "gid_based",
+    sheet_role: "authority_surface",
+    source_surface_id: null,
+    source_surface_role: null,
+    retired_replacement_surface_id: null,
+    backend_type: null,
+    backend_adapter: null,
+    authority_model: null,
+    portability_class: null,
+    repair_candidate_types: null,
+    repair_priority: null,
+    updated_at: null,
+    ...overrides,
+  };
+}
+
+function executionPolicyPool({ canonical = null, legacy = executionPolicySurfaceRow() } = {}) {
+  return {
+    async query(_sql, params) {
+      const key = params?.[0];
+      if (key === SURFACE_KEYS.EXECUTION_POLICY_REGISTRY) return [canonical ? [canonical] : []];
+      if (key === "surface.execution_policy_sheet") return [legacy ? [legacy] : []];
+      return [[]];
+    },
+  };
+}
+
+const legacyExecutionPolicy = await resolveSurfaceAuthority(
+  SURFACE_KEYS.EXECUTION_POLICY_REGISTRY,
+  { requireExecution: true },
+  { pool: executionPolicyPool() },
+);
+assert.equal(legacyExecutionPolicy.ok, true);
+assert.equal(legacyExecutionPolicy.code, "surface_authorized");
+assert.equal(legacyExecutionPolicy.requested_surface_key, SURFACE_KEYS.EXECUTION_POLICY_REGISTRY);
+assert.equal(legacyExecutionPolicy.resolved_surface_key, "surface.execution_policy_sheet");
+assert.equal(legacyExecutionPolicy.compatibility_alias_used, true);
+assert.equal(legacyExecutionPolicy.compatibility_alias_key, "surface.execution_policy_sheet");
+assert.deepEqual(legacyExecutionPolicy.resolution_chain, ["surface.execution_policy_sheet"]);
+assert.equal(legacyExecutionPolicy.secrets_included, false);
+
+const canonicalExecutionPolicyRow = executionPolicySurfaceRow({
+  surface_id: SURFACE_KEYS.EXECUTION_POLICY_REGISTRY,
+  authority_model: "sql_runtime_authority",
+  backend_adapter: "governance_validation_engine.execution_policies",
+});
+const canonicalExecutionPolicy = await resolveSurfaceAuthority(
+  SURFACE_KEYS.EXECUTION_POLICY_REGISTRY,
+  { requireExecution: true },
+  { pool: executionPolicyPool({ canonical: canonicalExecutionPolicyRow }) },
+);
+assert.equal(canonicalExecutionPolicy.ok, true);
+assert.equal(canonicalExecutionPolicy.resolved_surface_key, SURFACE_KEYS.EXECUTION_POLICY_REGISTRY);
+assert.equal(canonicalExecutionPolicy.compatibility_alias_used, false);
+assert.equal(canonicalExecutionPolicy.compatibility_alias_key, null);
+
+const missingExecutionPolicyAlias = await resolveSurfaceAuthority(
+  SURFACE_KEYS.EXECUTION_POLICY_REGISTRY,
+  { requireExecution: true },
+  { pool: executionPolicyPool({ legacy: null }) },
+);
+assert.equal(missingExecutionPolicyAlias.ok, false);
+assert.equal(missingExecutionPolicyAlias.code, "surface_not_found");
+assert.equal(missingExecutionPolicyAlias.compatibility_alias_used, false);
+
+const unknownExecutionPolicySurface = await resolveSurfaceAuthority(
+  "surface.not_registered_anywhere",
+  { requireExecution: true },
+  { pool: executionPolicyPool() },
+);
+assert.equal(unknownExecutionPolicySurface.ok, false);
+assert.equal(unknownExecutionPolicySurface.code, "surface_not_found");
+assert.equal(unknownExecutionPolicySurface.compatibility_alias_used, false);
+
 console.log(JSON.stringify({
   ok: true,
   registration_graph: "admin_activation_staging_composite_plus_tenant_activation_staging",
@@ -146,6 +236,7 @@ console.log(JSON.stringify({
   recovery_routes_embedded_get_only: true,
   production_recovery_surface_standalone: true,
   discovery_isolation: true,
+  execution_policy_surface_compatibility_verified: true,
   production_hosts_included: false,
   secrets_included: false,
 }));

@@ -1,5 +1,9 @@
 import { getPool } from "./db.js";
 
+const LEGACY_SURFACE_ALIASES = Object.freeze({
+  "surface.execution_policy_registry_sheet": "surface.execution_policy_sheet",
+});
+
 function normalizeToken(value = "") {
   return String(value || "").trim().toLowerCase();
 }
@@ -71,6 +75,20 @@ async function findSurfaceRow(pool, surfaceKey) {
   return rows[0] || null;
 }
 
+async function findSurfaceRowWithLegacyAlias(pool, surfaceKey) {
+  const requestedKey = String(surfaceKey || "").trim();
+  const canonical = await findSurfaceRow(pool, requestedKey);
+  if (canonical) return { row: canonical, compatibilityAliasUsed: false, compatibilityAliasKey: null };
+  const aliasKey = LEGACY_SURFACE_ALIASES[requestedKey] || null;
+  if (!aliasKey) return { row: null, compatibilityAliasUsed: false, compatibilityAliasKey: null };
+  const alias = await findSurfaceRow(pool, aliasKey);
+  return {
+    row: alias,
+    compatibilityAliasUsed: Boolean(alias),
+    compatibilityAliasKey: alias ? aliasKey : null,
+  };
+}
+
 function evaluateSurface(row, { requireExecution = false } = {}) {
   if (!row) {
     return {
@@ -122,9 +140,18 @@ export async function resolveSurfaceAuthority(surfaceKey, options = {}, deps = {
   const visited = [];
   let currentKey = surfaceKey;
   let row = null;
+  let compatibilityAliasUsed = false;
+  let compatibilityAliasKey = null;
 
   for (let depth = 0; depth < maxDepth; depth += 1) {
-    row = await findSurfaceRow(pool, currentKey);
+    const resolved = depth === 0
+      ? await findSurfaceRowWithLegacyAlias(pool, currentKey)
+      : { row: await findSurfaceRow(pool, currentKey), compatibilityAliasUsed: false, compatibilityAliasKey: null };
+    row = resolved.row;
+    if (resolved.compatibilityAliasUsed) {
+      compatibilityAliasUsed = true;
+      compatibilityAliasKey = resolved.compatibilityAliasKey;
+    }
     if (!row) break;
     visited.push(row.surface_id || currentKey);
     const replacement = String(row.retired_replacement_surface_id || "").trim();
@@ -142,6 +169,8 @@ export async function resolveSurfaceAuthority(surfaceKey, options = {}, deps = {
     requested_surface_key: surfaceKey,
     resolved_surface_key: sanitized?.surface_id || null,
     resolution_chain: visited,
+    compatibility_alias_used: compatibilityAliasUsed,
+    compatibility_alias_key: compatibilityAliasKey,
     surface: sanitized,
     secrets_included: false,
   };

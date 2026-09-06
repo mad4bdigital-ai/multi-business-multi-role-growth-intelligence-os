@@ -150,7 +150,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "0940e6f04573489572140cfd132bea52e4a5d4ced72e1f4519e0d30c7ffeb894"
+      "sha256": "a1d82d6b9b4be0ae7ea5d058480fa7a27743bc8e394ab92195ffa4576c4e6677"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "192d14cf39b745fd240e0384bcc41195e6f4b99a4142693323b8e48919dbca43"
+      "sha256": "110f73f1d57967742328809c22dd4acb92aa97b039218fe6fc54def7ef2bbeee"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -250,7 +250,7 @@
     },
     {
       "path": "http-generic-api/test-staging-independent-schema-contract.mjs",
-      "sha256": "38f529d42c9c53fafe46844871514d2af2e26f99bf41f9ea8cd819bd428ee296"
+      "sha256": "6a942364aa70e9725d79430124dc05da5253af238cee589c48901f567eede63f"
     },
     {
       "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",

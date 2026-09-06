@@ -36,6 +36,51 @@
   "rebuild_confirmation_prefix": "APPLY_STAGING_RUNTIME_BASELINE_REBUILD",
   "role_credentials_require_windows_docker": true,
   "cross_environment_credential_reuse": false,
+  "readiness_remediation": {
+    "contract": "mad4b.staging-readiness-remediation.v1",
+    "schema_repair_migrations": [
+      {
+        "file": "20260902_staging_actions_runtime_contract_reconciliation.sql",
+        "sha256": "6ca8879ec300b5970f6ddc3d9eeded38eda8dee12abd6bdeb7ba7d2ffa53ee2c",
+        "statement_count": 1,
+        "role": "runtime",
+        "requires_tables": ["actions"],
+        "allowed_modes": ["dry_run", "apply_migration"],
+        "postconditions": [
+          {"type": "column", "table": "actions", "column": "allowed_actor_roles"},
+          {"type": "column", "table": "actions", "column": "allowed_governance_levels"},
+          {"type": "column", "table": "actions", "column": "oauth_secret_storage_type"},
+          {"type": "column", "table": "actions", "column": "oauth_last_validated_at"}
+        ]
+      }
+    ],
+    "surface_authority_compatibility": {
+      "runtime_resolver": "surfaceAuthorityResolver.js",
+      "requested_surface_key": "surface.execution_policy_registry_sheet",
+      "sql_authority_alias_key": "surface.execution_policy_sheet",
+      "authority_source": "registry_surfaces_catalog",
+      "canonical_key_preferred": true,
+      "legacy_alias_allowed_only_when_canonical_missing": true,
+      "unknown_aliases_fail_closed": true,
+      "database_mutation_required": false,
+      "production_authority": false
+    },
+    "access_repair": {
+      "grant_policy_source": "databasePrivilegeContracts.js#STAGING_ROLE_GRANT_POLICIES",
+      "grant_plan_helper": "scripts/staging-role-grant-plan.mjs",
+      "canonical_local_repair": "../autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1",
+      "optional_surface_absence_is_blocking": false,
+      "required_surface_absence_is_blocking": true,
+      "same_cycle_readback_required": true,
+      "execution_ticket_authority_required_for_admin_mutation": true,
+      "inline_sql_allowed": false,
+      "production_authority": false
+    },
+    "external_evidence": {
+      "fabrication_allowed": false,
+      "separate_workflow_required": true
+    }
+  },
   "empty_database_reconstruction": {
     "scope": "existing_zero_object_set_only",
     "object_kinds": ["tables", "views", "triggers", "routines", "events"],

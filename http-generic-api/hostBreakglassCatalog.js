@@ -275,7 +275,9 @@ export function buildHostBreakglassPlan(input = {}, { catalog = readHostBreakgla
   const governanceEvidence = migrationGovernanceEvidence(catalog, bootstrapContract, environmentKey);
   const executionGraph = buildRunbookExecutionGraph({ runbookKey, action, toolChain, databaseRoleTopology: catalog.database_role_topology || {}, bootstrapContract, selectedRoles: selectedRoles.length ? selectedRoles : null });
   const migration = String(input.migration || "").trim();
-  const migrationOptional = (operationKey === "database.inspect" && runbookKey === "database.full_inspection" && action === "dry_run") || (operationKey === "database.rebuild_empty" && runbookKey === "database.empty_rebuild" && !migration);
+  const migrationOptional = (operationKey === "database.inspect" && runbookKey === "database.full_inspection" && action === "dry_run")
+    || (operationKey === "database.repair" && runbookKey === "database.access_repair" && action !== "apply_migration")
+    || (operationKey === "database.rebuild_empty" && runbookKey === "database.empty_rebuild" && !migration);
   if (["dry_run", "apply_migration"].includes(action) && !migrationOptional && !migrationFiles(bootstrapContract).has(migration)) {
     fail(400, "host_breakglass_migration_not_cataloged", "Migration is not present in the repository-owned bootstrap contract.", { migration });
   }

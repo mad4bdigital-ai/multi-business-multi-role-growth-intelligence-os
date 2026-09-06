@@ -307,6 +307,26 @@ test("Windows/Docker role recovery uses Staging-only grant and migration approva
   assert.equal(grants.capability_grants.includes("migration_contract.apply"), false);
 });
 
+test("GPT Admin can plan and dry-run Staging access repair without selecting a migration", () => {
+  const input = {
+    environment_key: "staging_local_windows_docker",
+    operation_key: "database.repair",
+    runbook_key: "database.access_repair",
+    expected_sha: SHA,
+    target_source: "staging_local_role_env",
+    target_key: "staging-runtime",
+  };
+  const planned = buildHostBreakglassPlan({ ...input, action: "plan" });
+  const dryRun = buildHostBreakglassPlan({ ...input, action: "dry_run" });
+  assert.equal(planned.migration, null);
+  assert.equal(dryRun.migration, null);
+  assert.equal(planned.migration_selected, false);
+  assert.equal(dryRun.migration_selected, false);
+  assert.equal(dryRun.capability_grants.includes("grant_contract.inspect"), true);
+  assert.equal(dryRun.capability_grants.includes("grant_contract.apply"), false);
+  assert.equal(dryRun.execution_transport, "local_cli");
+});
+
 test("Staging and Production reject each other's role-bound source and typed approval", () => {
   assert.throws(() => buildHostBreakglassPlan({
     environment_key: "staging_local_windows_docker", operation_key: "database.repair", action: "dry_run", expected_sha: SHA, target_source: "host_local_role_env", migration: MIGRATION,

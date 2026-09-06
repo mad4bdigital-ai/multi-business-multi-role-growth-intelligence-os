@@ -5,7 +5,9 @@ import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { buildHostBreakglassPlan } from "../hostBreakglassCatalog.js";
-import { readRuntimeBootstrapContract, runBootstrap, sanitizeBootstrapError } from "../runtimeBootstrapContract.js";
+import { runBootstrap, sanitizeBootstrapError } from "../runtimeBootstrapContract.js";
+import { readStagingRuntimeBootstrapContract } from "../stagingRuntimeBootstrapContract.js";
+import { STAGING_ROLE_GRANT_POLICIES } from "../databasePrivilegeContracts.js";
 import { runSqlCapsule } from "./host-breakglass-capsule-executor.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -16,21 +18,49 @@ if (requestIndex < 0 || !process.argv[requestIndex + 1]) throw new Error("--requ
 const requestPath = path.resolve(process.cwd(), process.argv[requestIndex + 1]);
 const request = JSON.parse(fs.readFileSync(requestPath, "utf8"));
 request.environment_key = "staging_local_windows_docker";
-const plan = buildHostBreakglassPlan(request);
+const bootstrapContract = readStagingRuntimeBootstrapContract();
+const plan = buildHostBreakglassPlan(request, { bootstrapContract });
 
 function stagingContract() {
-  const base = structuredClone(readRuntimeBootstrapContract());
-  base.contract = overlay.contract;
-  base.source_binding.branch = overlay.source_branch;
-  base.target_binding.required_branch = overlay.source_branch;
-  base.target_binding.required_environment = overlay.target_environment;
-  base.target_binding.default_target_key = overlay.default_target_key;
-  if (plan.target_source === overlay.role_target_source) {
-    base.execution_policy.apply_migration_confirmation_prefix = overlay.apply_migration_confirmation_prefix;
-    base.execution_policy.apply_grants_confirmation_prefix = overlay.apply_grants_confirmation_prefix;
-    base.execution_policy.rebuild_confirmation_prefix = overlay.rebuild_confirmation_prefix;
-  }
-  return base;
+  return structuredClone(bootstrapContract);
+}
+
+function publicGrantPolicy(policy) {
+  return {
+    required_tables: [...(policy.required_tables || [])],
+    optional_tables: [...(policy.optional_tables || [])],
+    required_operations: [...(policy.required_operations || [])],
+    required_operations_by_table: policy.required_operations_by_table
+      ? Object.fromEntries(Object.entries(policy.required_operations_by_table).map(([table, operations]) => [table, [...operations]]))
+      : null,
+    apply_when: policy.apply_when || "always",
+  };
+}
+
+function stagingAccessRepairDryRun() {
+  const access = overlay.readiness_remediation?.access_repair || {};
+  return {
+    ok: true,
+    contract: "mad4b.staging-access-repair-repository-dry-run.v1",
+    status: "repository_dry_run_complete",
+    environment_key: plan.environment_key,
+    expected_sha: plan.expected_sha,
+    target_key: plan.target_key,
+    operation_key: plan.operation_key,
+    runbook_key: plan.runbook_key,
+    grant_policies: Object.fromEntries(Object.entries(STAGING_ROLE_GRANT_POLICIES).map(([role, policy]) => [role, publicGrantPolicy(policy)])),
+    optional_surface_absence_is_blocking: access.optional_surface_absence_is_blocking === true,
+    required_surface_absence_is_blocking: access.required_surface_absence_is_blocking !== false,
+    same_cycle_readback_required: access.same_cycle_readback_required !== false,
+    canonical_local_repair: access.canonical_local_repair || null,
+    database_connection_performed: false,
+    database_readback_performed: false,
+    database_mutation_performed: false,
+    mutation_ready: false,
+    mutation_blocking_reason: "governed_execution_ticket_verifier_and_same_cycle_local_database_readback_required",
+    production_authority: false,
+    secrets_included: false,
+  };
 }
 
 function localEnv() {
@@ -63,12 +93,15 @@ function localEnv() {
     BOOTSTRAP_ROLE_SELECTION_HASH: plan.role_selection_proof?.selection_hash || "",
     BOOTSTRAP_ROLE_OBJECT_COUNT_FINGERPRINTS: plan.role_selection_proof?.role_object_count_fingerprints ? JSON.stringify(plan.role_selection_proof.role_object_count_fingerprints) : "",
     BOOTSTRAP_GRANTS_CONFIRMATION: plan.action === "apply_grants" ? plan.confirmation || "" : "",
-    HOST_BREAKGLASS_OPERATION: plan.operation_key
-    ,HOST_BREAKGLASS_HOST_LOCAL_ROLE_CREDENTIALS: plan.target_source === overlay.role_target_source ? "true" : ""
-    ,HOST_BREAKGLASS_ENVIRONMENT_KEY: plan.environment_key
-    ,HOST_BREAKGLASS_CAPSULE_PATH: plan.capsule_path || ""
-    ,HOST_BREAKGLASS_CAPSULE_SHA256: plan.capsule_sha256 || ""
-    ,HOST_BREAKGLASS_CAPSULE_CONFIRMATION: plan.confirmation || ""
+    BOOTSTRAP_GRANT_BINDING_HASH: plan.grant_binding_hash || "",
+    BOOTSTRAP_EXECUTION_TICKET_ID: plan.execution_ticket_id || "",
+    BOOTSTRAP_EXECUTION_TICKET_HASH: plan.execution_ticket_hash || "",
+    HOST_BREAKGLASS_OPERATION: plan.operation_key,
+    HOST_BREAKGLASS_HOST_LOCAL_ROLE_CREDENTIALS: plan.target_source === overlay.role_target_source ? "true" : "",
+    HOST_BREAKGLASS_ENVIRONMENT_KEY: plan.environment_key,
+    HOST_BREAKGLASS_CAPSULE_PATH: plan.capsule_path || "",
+    HOST_BREAKGLASS_CAPSULE_SHA256: plan.capsule_sha256 || "",
+    HOST_BREAKGLASS_CAPSULE_CONFIRMATION: plan.confirmation || ""
   };
 }
 
@@ -76,6 +109,23 @@ try {
   if (plan.action === "plan") {
     process.stdout.write(`${JSON.stringify({ ok: true, ...plan, local_execution_performed: false, secrets_included: false })}\n`);
     process.exit(0);
+  }
+  if (plan.runbook_key === "database.access_repair" && plan.action === "dry_run") {
+    process.stdout.write(`${JSON.stringify(stagingAccessRepairDryRun())}\n`);
+    process.exit(0);
+  }
+  if (plan.runbook_key === "database.access_repair" && plan.action === "apply_grants") {
+    throw Object.assign(new Error("Staging access mutation requires a governed server-side execution-ticket verifier before the canonical local repair may run; no database operation was attempted."), {
+      code: "host_breakglass_staging_access_repair_verifier_required",
+      status: 503,
+      details: {
+        canonical_local_repair: overlay.readiness_remediation?.access_repair?.canonical_local_repair || null,
+        execution_ticket_authority_required: true,
+        same_cycle_readback_required: true,
+        database_connection_performed: false,
+        database_mutation_performed: false,
+      },
+    });
   }
   if (process.platform !== overlay.required_platform) throw Object.assign(new Error("Staging Host Breakglass execution requires Windows."), { code: "host_breakglass_windows_required", status: 409 });
   const docker = spawnSync("docker", ["info", "--format", "{{json .ServerVersion}}"], { encoding: "utf8", windowsHide: true, timeout: 15000 });

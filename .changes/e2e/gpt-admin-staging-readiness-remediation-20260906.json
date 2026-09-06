@@ -1,0 +1,166 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "gpt-admin-staging-readiness-remediation-20260906",
+  "title": "Governed GPT Admin Staging readiness remediation",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/gpt-admin-staging-readiness-remediation-20260906.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/config/host-breakglass-staging-contract.json",
+      "http-generic-api/databasePrivilegeContracts.js",
+      "http-generic-api/hostBreakglassCatalog.js",
+      "http-generic-api/routes/adminHostBreakglassRoutes.js",
+      "http-generic-api/scripts/host-breakglass-local.mjs",
+      "http-generic-api/stagingRuntimeBootstrapContract.js",
+      "http-generic-api/surfaceAuthorityResolver.js",
+      "http-generic-api/test-staging-independent-schema-contract.mjs",
+      "http-generic-api/test-staging-database-readiness-repair.mjs",
+      "http-generic-api/test-host-breakglass-catalog.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Give GPT Admin a repository-owned Staging-only remediation contract for access repair, action-schema drift and execution-policy surface compatibility while preserving exact-SHA handoff, server-issued execution-ticket authority and same-cycle readback before any mutation.",
+      "e2e_journeys": [
+        {
+          "id": "gpt-admin-staging-access-repair",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "GPT Admin",
+          "entrypoint": "hostBreakglassCatalog.database.access_repair",
+          "terminal_outcome": "GPT Admin can plan and repository-dry-run the exact Staging grant repair without a fake migration selection, issue the canonical local Windows handoff, and remain fail-closed until a governed execution-ticket verifier and same-cycle local database readback authorize mutation.",
+          "steps": [
+            "Resolve the repository-owned access-repair runbook.",
+            "Plan or repository-dry-run without requiring a migration.",
+            "Expose the exact Staging grant policy including optional SELECT-only operational surfaces.",
+            "Issue local_cli handoff for explicitly approved mutation.",
+            "Require a governed server-side execution-ticket verifier before local grant mutation.",
+            "Require same-cycle postcondition readback."
+          ],
+          "assertions": [
+            "No uncataloged migration is required for grant-only plan or dry-run.",
+            "v_platform_capability_gaps is optional SELECT-only and missing-object absence cannot widen privileges.",
+            "Mutation remains exact-SHA, execution-ticket, typed-confirmation, local-Windows and readback gated.",
+            "The local CLI does not silently fall back to the Production bootstrap grant contract for Staging access repair.",
+            "Production, DNS, provider and secrets remain untouched."
+          ],
+          "tests": [
+            {
+              "id": "host-breakglass-catalog",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-host-breakglass-catalog.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-database-readiness-repair",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-database-readiness-repair.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/derived-state-governance.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "http-generic-api/config/host-breakglass-staging-contract.json",
+            "http-generic-api/databasePrivilegeContracts.js",
+            "http-generic-api/hostBreakglassCatalog.js",
+            "http-generic-api/routes/adminHostBreakglassRoutes.js",
+            "http-generic-api/scripts/host-breakglass-local.mjs",
+            "http-generic-api/stagingRuntimeBootstrapContract.js"
+          ]
+        },
+        {
+          "id": "gpt-admin-staging-schema-and-surface-repair",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "GPT Admin",
+          "entrypoint": "hostBreakglassCatalog.database.schema_repair",
+          "terminal_outcome": "Staging-only schema repair can select the exact repository-owned actions metadata migration, while execution-policy authority resolves through an explicit SQL-backed legacy alias only when the canonical key is absent, without widening Production authority or changing the canonical baseline migration chain.",
+          "steps": [
+            "Load the Staging remediation overlay instead of widening the shared Production bootstrap catalog.",
+            "Verify the actions metadata remediation migration exists at the exact repository path and matches its pinned SHA-256 and statement count.",
+            "Catalog the additive actions metadata reconciliation migration.",
+            "Resolve surface.execution_policy_registry_sheet canonically first.",
+            "When and only when that canonical SQL row is absent, consult the repository-declared legacy SQL authority row surface.execution_policy_sheet.",
+            "Fail closed for unknown aliases or a missing legacy authority row.",
+            "Require exact-SHA typed approval and execution-ticket verification before apply_migration.",
+            "Verify declared schema postconditions in the same cycle."
+          ],
+          "assertions": [
+            "The actions repair adds allowed_actor_roles, allowed_governance_levels, oauth_secret_storage_type and oauth_last_validated_at only when absent.",
+            "Execution-policy compatibility remains backed by registry_surfaces_catalog rather than an in-memory authority override.",
+            "A present canonical surface.execution_policy_registry_sheet row always wins over the legacy alias.",
+            "Only the explicitly declared surface.execution_policy_sheet compatibility alias is accepted; unknown aliases remain fail-closed.",
+            "No new repair migration is injected into the canonical schema-bundle chain for the surface-key rename.",
+            "External Phase B evidence cannot be fabricated by this remediation path.",
+            "No Production, provider, Hostinger or Cloudflare mutation is authorized."
+          ],
+          "tests": [
+            {
+              "id": "staging-independent-schema-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-independent-schema-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "host-breakglass-catalog",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-host-breakglass-catalog.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-database-readiness-repair",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-database-readiness-repair.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/derived-state-governance.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "http-generic-api/config/host-breakglass-staging-contract.json",
+            "http-generic-api/migrations/20260902_staging_actions_runtime_contract_reconciliation.sql",
+            "http-generic-api/routes/adminHostBreakglassRoutes.js",
+            "http-generic-api/stagingRuntimeBootstrapContract.js",
+            "http-generic-api/surfaceAuthorityResolver.js",
+            "http-generic-api/test-staging-independent-schema-contract.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "No Production mutation is authorized.",
+      "blockers": [
+        "Production, DNS, provider, database mutation and external-evidence fabrication require separate explicit authority.",
+        "Genuine Phase B external evidence and countersigning remain a separate live workflow and are not synthesized by this remediation contract."
+      ]
+    }
+  ]
+}

@@ -454,6 +454,7 @@
     ".changes/e2e/connector-environment-isolation-20260903.json",
     ".changes/e2e/staging-activation-recovery-trusted-ingress-provisioning-20260903.json",
     ".changes/e2e/staging-recovery-authority-certification-20260903.json",
+    ".changes/e2e/gpt-admin-staging-readiness-remediation-20260906.json",
     "http-generic-api/config/repository-governance-constitution.json",
     "http-generic-api/config/deployment-branch-policy.json",
     "http-generic-api/config/domain-family-policy.json",
