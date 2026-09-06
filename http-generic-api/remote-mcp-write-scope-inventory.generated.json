@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7541,
+  "file_count": 7548,
   "route_count": 1100,
   "write_route_count": 667,
   "classified_write_surface_count": 42,
@@ -508,8 +508,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#GET:/admin/runtime-bootstrap/catalog:0",
-      "source_line": 22,
-      "source_offset": 1510,
+      "source_line": 52,
+      "source_offset": 2937,
       "method": "GET",
       "path": "/admin/runtime-bootstrap/catalog",
       "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
@@ -517,8 +517,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/plan:1",
-      "source_line": 27,
-      "source_offset": 1750,
+      "source_line": 57,
+      "source_offset": 3177,
       "method": "POST",
       "path": "/admin/runtime-bootstrap/plan",
       "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
@@ -526,8 +526,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/runs:2",
-      "source_line": 28,
-      "source_offset": 2022,
+      "source_line": 58,
+      "source_offset": 3422,
       "method": "POST",
       "path": "/admin/runtime-bootstrap/runs",
       "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
@@ -535,8 +535,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#GET:/admin/runtime-bootstrap/runs/:correlation_id:3",
-      "source_line": 29,
-      "source_offset": 2411,
+      "source_line": 59,
+      "source_offset": 3787,
       "method": "GET",
       "path": "/admin/runtime-bootstrap/runs/:correlation_id",
       "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
@@ -7951,8 +7951,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#GET:/admin/recovery/staging/contract:0",
-      "source_line": 296,
-      "source_offset": 13155,
+      "source_line": 148,
+      "source_offset": 16509,
       "method": "GET",
       "path": "/admin/recovery/staging/contract",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -7960,8 +7960,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#GET:/admin/recovery/staging/readiness:1",
-      "source_line": 298,
-      "source_offset": 13308,
+      "source_line": 149,
+      "source_offset": 16661,
       "method": "GET",
       "path": "/admin/recovery/staging/readiness",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -7969,8 +7969,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#GET:/admin/recovery/staging/certification:2",
-      "source_line": 314,
-      "source_offset": 14028,
+      "source_line": 153,
+      "source_offset": 17303,
       "method": "GET",
       "path": "/admin/recovery/staging/certification",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -7978,8 +7978,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-ticket/verify:3",
-      "source_line": 340,
-      "source_offset": 15153,
+      "source_line": 158,
+      "source_offset": 18272,
       "method": "POST",
       "path": "/admin/recovery/staging/bootstrap-ticket/verify",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -7987,8 +7987,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-ticket/finalize:4",
-      "source_line": 350,
-      "source_offset": 15926,
+      "source_line": 172,
+      "source_offset": 20492,
       "method": "POST",
       "path": "/admin/recovery/staging/bootstrap-ticket/finalize",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -7996,8 +7996,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-partial-receipt:5",
-      "source_line": 371,
-      "source_offset": 17116,
+      "source_line": 187,
+      "source_offset": 22952,
       "method": "POST",
       "path": "/admin/recovery/staging/bootstrap-partial-receipt",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -11965,10 +11965,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
-        "source_line": 27,
+        "source_line": 57,
         "handler_window_lines": [
-          27,
-          27
+          57,
+          57
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -12028,10 +12028,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
-        "source_line": 28,
+        "source_line": 58,
         "handler_window_lines": [
-          28,
-          28
+          58,
+          58
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -44780,10 +44780,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
-        "source_line": 340,
+        "source_line": 158,
         "handler_window_lines": [
-          340,
-          348
+          158,
+          170
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -44791,7 +44791,7 @@
           "db_registry_signal": false,
           "authority_signal": true,
           "readback_signal": true,
-          "mutation_signal": false
+          "mutation_signal": true
         },
         "signals": {
           "provider": [],
@@ -44806,7 +44806,9 @@
             "response",
             "verify"
           ],
-          "mutation": []
+          "mutation": [
+            "delete"
+          ]
         },
         "static_only": true,
         "secrets_included": false
@@ -44846,10 +44848,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
-        "source_line": 350,
+        "source_line": 172,
         "handler_window_lines": [
-          350,
-          369
+          172,
+          185
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -44869,7 +44871,9 @@
           ],
           "readback": [
             "readback",
-            "response"
+            "response",
+            "readback",
+            "readback"
           ],
           "mutation": [
             "delete"
@@ -44913,10 +44917,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
-        "source_line": 371,
+        "source_line": 187,
         "handler_window_lines": [
-          371,
-          398
+          187,
+          195
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -44937,7 +44941,9 @@
             "admin"
           ],
           "readback": [
-            "response"
+            "response",
+            "readback",
+            "readback"
           ],
           "mutation": []
         },
@@ -53244,7 +53250,7 @@
       "route_to_db_registry_signal": 0,
       "route_to_authority_signal": 419,
       "route_to_readback_signal": 376,
-      "route_to_mutation_signal": 382,
+      "route_to_mutation_signal": 383,
       "route_to_explicit_scope_candidate": 42
     },
     "execution_edges_are_non_authorizing": true,
