@@ -33,6 +33,7 @@ import { buildLegalRoutes } from "./legalRoutes.js";
 import { buildAuthRoutes } from "./authRoutes.js";
 import { buildTenantGptOAuthMetadataRoutes } from "./tenantGptOAuthMetadataRoutes.js";
 import { createOpenApiMutationGovernanceMiddleware } from "../openApiMutationGovernance.js";
+import { createGovernedExecutionBaselineHttpMiddleware } from "../governedExecutionBaselineRuntime.js";
 import { buildAdminCliRoutes, buildAdminControlHandler, buildSessionContinuityHandler, requireAdminPrincipal } from "./adminCliRoutes.js";
 import { buildAgentRegistryRoutes } from "./agentRegistryRoutes.js";
 import { buildOutputSinkRoutes } from "./outputSinkRoutes.js";
@@ -165,6 +166,7 @@ function registerOptionalSqlEndpointRegistryRoutes(app, deps) {
 }
 
 export function registerRoutes(app, deps) {
+  app.use(createGovernedExecutionBaselineHttpMiddleware({ emitter: deps?.governedExecutionBaselineEmitter }));
   app.use(createOpenApiMutationGovernanceMiddleware({ env: deps?.env || process.env }));
   app.use(buildTenantGptOAuthMetadataRoutes(deps));
   app.use(buildActivationHostGatewayRoutes({ env: deps?.env || process.env, ingressReplayStore: deps?.ingressReplayStore, deploymentAttestationReader: deps?.deploymentAttestationReader }));
