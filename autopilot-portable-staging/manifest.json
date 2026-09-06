@@ -150,7 +150,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "4da4dc10a872895fc2db119356512bba915b9b5e8114a33f443d9c3251ef375d"
+      "sha256": "ededd3a9999929500484df3ed3575c42b8b4ab4a5d9bf348c93558c41e154f22"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -278,7 +278,7 @@
     },
     {
       "path": "autopilot-portable-staging/Invoke-StagingCertification.ps1",
-      "sha256": "7b0b5c8e0b9d7f46d97126bddb1d163d77414c0cd208b27be067498db022f233"
+      "sha256": "c77d7e1c11d2dd77545b2ea720470c3dcda3a3c2f00db17949a3048f593656ab"
     },
     {
       "path": "http-generic-api/deploymentManifest.js",

@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "f51687c5eb0a0c95a1e91388b5208b2232d9052d5f2fcbc6b9810c1fdefe2850",
+    "source_digest": "00c3b28b9e5d5e48d06e01c411d7bd2dff54d04138b940f07318d810a46e8626",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -396,7 +396,7 @@
       },
       {
         "file": "routes/adminHostBreakglassRoutes.js",
-        "sha256": "427cbe94e9dca3e7707e1ed333887892e6a4caed9c9fe2d951598e578aff0c0b",
+        "sha256": "2f75fcee2aeec63855ef5d8a52b9e3446187abbd5bec49efc73dc673dd5533ef",
         "present": true
       },
       {
@@ -981,7 +981,7 @@
       },
       {
         "file": "routes/stagingRecoveryAdminRoutes.js",
-        "sha256": "0804e3f44e7a145269ddf3cb210ccae71b62b9ce10d25af5c84666866c3c0fa7",
+        "sha256": "c925f478f8f9b6cd6432b901ebeef46dea6ced2ed683968d20765676079cd278",
         "present": true
       },
       {
@@ -1091,7 +1091,7 @@
       },
       {
         "file": "test-admin-host-breakglass-routes.mjs",
-        "sha256": "1eae08f6df8a7da9b5f7cb5d838afb0abf82d29e929938d97000d17c8d5e5339",
+        "sha256": "1c3e27ffce6b6950288aaf62d2d7f4a71e6aead53a1f047287a087d839f20496",
         "present": true
       },
       {
@@ -1116,7 +1116,7 @@
       },
       {
         "file": "test-recovery-execution-ticket.mjs",
-        "sha256": "55597b8140e22690ae7f5066606e0f7e9aea139f2fbd1e848fcf1011c6d0ac08",
+        "sha256": "932f2166c0b3955fae399ae83303dc670e8f80a10a3907e755adfb5959f7769a",
         "present": true
       },
       {
@@ -2746,7 +2746,7 @@
       "family_key": "admin-host-breakglass",
       "label": "admin host breakglass",
       "source_file": "routes/adminHostBreakglassRoutes.js",
-      "source_digest": "427cbe94e9dca3e7707e1ed333887892e6a4caed9c9fe2d951598e578aff0c0b",
+      "source_digest": "2f75fcee2aeec63855ef5d8a52b9e3446187abbd5bec49efc73dc673dd5533ef",
       "mount_prefix": "/",
       "mount_order": 13139,
       "split_from_mixed_scope_file": false,
@@ -3733,7 +3733,7 @@
       "family_key": "staging-recovery-admin",
       "label": "staging recovery admin",
       "source_file": "routes/stagingRecoveryAdminRoutes.js",
-      "source_digest": "0804e3f44e7a145269ddf3cb210ccae71b62b9ce10d25af5c84666866c3c0fa7",
+      "source_digest": "c925f478f8f9b6cd6432b901ebeef46dea6ced2ed683968d20765676079cd278",
       "mount_prefix": "/",
       "mount_order": 13292,
       "split_from_mixed_scope_file": false,
