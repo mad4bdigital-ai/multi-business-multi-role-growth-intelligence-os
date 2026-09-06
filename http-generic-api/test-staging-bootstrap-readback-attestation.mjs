@@ -95,6 +95,20 @@ function evidence(ticketId, idempotencyKey, reservationGeneration, overrides = {
   };
 }
 
+async function markExecuting(authority, ticket, idempotencyKey, reservation) {
+  const executing = await authority.markExecutingForBootstrap({
+    ticket_id: ticket.ticket_id,
+    ticket_hash: ticket.ticket_hash,
+    expected: expected(idempotencyKey),
+    reservation_receipt: reservation.reservation_receipt,
+  });
+  assert.equal(executing.executing, true);
+  assert.equal(executing.lifecycle_state, "executing");
+  assert.equal(executing.reservation_generation, reservation.reservation_generation);
+  assert.equal(executing.execution_receipt.contract, "mad4b.staging-bootstrap-execution-receipt.v1");
+  return executing;
+}
+
 test("reserved ticket rejects fabricated booleans and arbitrary readback SHA", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "staging-readback-attestation-"));
   try {
@@ -123,7 +137,31 @@ test("reserved ticket rejects fabricated booleans and arbitrary readback SHA", a
   }
 });
 
-test("server attests canonical same-cycle readback and finalizes with durable audit metadata", async () => {
+test("reserved ticket cannot skip execution-start and jump directly to readback verification", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "staging-readback-execution-start-"));
+  try {
+    const env = stagingEnv(root);
+    const roots = _testingStagingRecoveryAuthorityBinding.roots(env);
+    const graph = _testingStagingRecoveryAuthorityBinding.adapters(roots.readiness, env).adapters;
+    const { ticket, idempotencyKey } = await createGrantTicket(graph, "execution-start-required");
+    const authority = createStagingBootstrapExecutionAuthority({ env });
+    const reservation = await authority.verifyForBootstrap({ ticket_id: ticket.ticket_id, ticket_hash: ticket.ticket_hash, expected: expected(idempotencyKey) });
+    await assert.rejects(
+      () => authority.attestReadbackForBootstrap({
+        ticket_id: ticket.ticket_id,
+        ticket_hash: ticket.ticket_hash,
+        expected: expected(idempotencyKey),
+        reservation_receipt: reservation.reservation_receipt,
+        evidence: evidence(ticket.ticket_id, idempotencyKey, reservation.reservation_generation),
+      }),
+      (error) => error?.code === "RECOVERY_READBACK_UNVERIFIED",
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("server records executing, attests canonical same-cycle readback, and finalizes with durable audit metadata", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "staging-readback-attestation-"));
   try {
     const env = stagingEnv(root);
@@ -132,17 +170,20 @@ test("server attests canonical same-cycle readback and finalizes with durable au
     const { ticket, idempotencyKey } = await createGrantTicket(graph, "success");
     const authority = createStagingBootstrapExecutionAuthority({ env });
     const reservation = await authority.verifyForBootstrap({ ticket_id: ticket.ticket_id, ticket_hash: ticket.ticket_hash, expected: expected(idempotencyKey) });
+    const executing = await markExecuting(authority, ticket, idempotencyKey, reservation);
     const attested = await authority.attestReadbackForBootstrap({
       ticket_id: ticket.ticket_id,
       ticket_hash: ticket.ticket_hash,
       expected: expected(idempotencyKey),
       reservation_receipt: reservation.reservation_receipt,
+      execution_receipt: executing.execution_receipt,
       evidence: evidence(ticket.ticket_id, idempotencyKey, reservation.reservation_generation),
     });
     assert.equal(attested.verified, true);
     assert.equal(attested.lifecycle_state, "verifying");
     assert.match(attested.evidence_hash, /^[0-9a-f]{64}$/u);
     assert.match(attested.result_fingerprint, /^[0-9a-f]{64}$/u);
+    assert.equal(attested.readback_receipt.execution_receipt_hash, executing.execution_receipt.receipt_hash);
 
     const tampered = { ...attested.readback_receipt, evidence_hash: "0".repeat(64) };
     await assert.rejects(
@@ -164,6 +205,7 @@ test("server attests canonical same-cycle readback and finalizes with durable au
     assert.equal(finalized.audit.repair_key, "staging_database_access_repair");
     assert.equal(finalized.audit.plan_hash, PLAN_HASH);
     assert.match(finalized.audit.binding_hash, /^[0-9a-f]{64}$/u);
+    assert.equal(finalized.audit.execution_receipt_hash, executing.execution_receipt.receipt_hash);
     assert.equal(finalized.audit.evidence_hash, attested.evidence_hash);
     assert.equal(finalized.audit.result_fingerprint, attested.result_fingerprint);
     assert.ok(Date.parse(finalized.audit.finalized_at) > 0);
@@ -182,12 +224,14 @@ test("wrong-SHA and stale readback evidence fail closed before finalization", as
     const first = await createGrantTicket(graph, "wrong-sha");
     const firstAuthority = createStagingBootstrapExecutionAuthority({ env });
     const firstReservation = await firstAuthority.verifyForBootstrap({ ticket_id: first.ticket.ticket_id, ticket_hash: first.ticket.ticket_hash, expected: expected(first.idempotencyKey) });
+    const firstExecuting = await markExecuting(firstAuthority, first.ticket, first.idempotencyKey, firstReservation);
     await assert.rejects(
       () => firstAuthority.attestReadbackForBootstrap({
         ticket_id: first.ticket.ticket_id,
         ticket_hash: first.ticket.ticket_hash,
         expected: expected(first.idempotencyKey),
         reservation_receipt: firstReservation.reservation_receipt,
+        execution_receipt: firstExecuting.execution_receipt,
         evidence: evidence(first.ticket.ticket_id, first.idempotencyKey, firstReservation.reservation_generation, { expected_sha: "b".repeat(40) }),
       }),
       (error) => error?.code === "STAGING_SHA_MISMATCH",
@@ -196,12 +240,14 @@ test("wrong-SHA and stale readback evidence fail closed before finalization", as
     const second = await createGrantTicket(graph, "stale");
     const secondAuthority = createStagingBootstrapExecutionAuthority({ env });
     const secondReservation = await secondAuthority.verifyForBootstrap({ ticket_id: second.ticket.ticket_id, ticket_hash: second.ticket.ticket_hash, expected: expected(second.idempotencyKey) });
+    const secondExecuting = await markExecuting(secondAuthority, second.ticket, second.idempotencyKey, secondReservation);
     await assert.rejects(
       () => secondAuthority.attestReadbackForBootstrap({
         ticket_id: second.ticket.ticket_id,
         ticket_hash: second.ticket.ticket_hash,
         expected: expected(second.idempotencyKey),
         reservation_receipt: secondReservation.reservation_receipt,
+        execution_receipt: secondExecuting.execution_receipt,
         evidence: evidence(second.ticket.ticket_id, second.idempotencyKey, secondReservation.reservation_generation, { observed_at: new Date(Date.now() - 30 * 60 * 1000).toISOString() }),
       }),
       (error) => error?.code === "RECOVERY_READBACK_STALE",
