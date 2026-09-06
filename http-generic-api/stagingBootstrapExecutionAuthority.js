@@ -14,9 +14,7 @@ const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$/u;
 const ROLE = /^(runtime|governance|runtime_persistence)$/u;
 const ALLOWED_OPERATIONS = new Set(["grants", "migration", "database.rebuild_empty"]);
 const SENSITIVE_KEY_RE = /(password|secret|credential|authorization|private[_-]?key|connection[_-]?string|database[_-]?name|db[_-]?(?:user|password)|hostname|username|raw[_-]?sql|command)/iu;
-const RESERVATION_TTL_MS = 10 * 60 * 1000;
-const READBACK_TTL_MS = 5 * 60 * 1000;
-const CLOCK_SKEW_MS = 60 * 1000;
+const PROTOCOL_WINDOWS_MS = Object.freeze({ reservation: 10 * 60 * 1000, readback: 5 * 60 * 1000, clockSkew: 60 * 1000 });
 
 const text = (value, max = 512) => String(value ?? "").trim().slice(0, max);
 const isObject = (value) => Boolean(value && typeof value === "object" && !Array.isArray(value));
@@ -92,7 +90,7 @@ async function verifyReceipt(verifier, receipt, { contract, domain, now = Date.n
   if (valid !== true) fail("RECOVERY_READBACK_UNVERIFIED", "Server receipt signature verification failed.", {}, 409);
   const issuedAt = Date.parse(payload.receipt_issued_at || "");
   const expiresAt = Date.parse(payload.receipt_expires_at || "");
-  if (!Number.isFinite(issuedAt) || !Number.isFinite(expiresAt) || issuedAt > Number(now) + CLOCK_SKEW_MS || expiresAt <= Number(now)) fail("RECOVERY_READBACK_STALE", "Server receipt is stale or has an invalid timestamp.", { reconciliation_required: true, automatic_rerun_allowed: false }, 409);
+  if (!Number.isFinite(issuedAt) || !Number.isFinite(expiresAt) || issuedAt > Number(now) + PROTOCOL_WINDOWS_MS.clockSkew || expiresAt <= Number(now)) fail("RECOVERY_READBACK_STALE", "Server receipt is stale or has an invalid timestamp.", { reconciliation_required: true, automatic_rerun_allowed: false }, 409);
   return payload;
 }
 
@@ -130,7 +128,7 @@ function validateReadbackEvidence(evidence, { ticketId, binding, reservationGene
   if (mismatch) fail(wrongSha ? "STAGING_SHA_MISMATCH" : "RECOVERY_TICKET_BINDING_MISMATCH", "Readback evidence is not bound to the reserved ticket and exact plan.", { reconciliation_required: true, automatic_rerun_allowed: false }, 409);
   if (evidence.same_cycle !== true || evidence.database_mutation_performed !== true) fail("RECOVERY_READBACK_UNVERIFIED", "Readback evidence must prove same-cycle verification after the reserved mutation.", { reconciliation_required: true, automatic_rerun_allowed: false }, 409);
   const observedAt = Date.parse(evidence.observed_at || "");
-  if (!Number.isFinite(observedAt) || Number(now) - observedAt > READBACK_TTL_MS || observedAt > Number(now) + CLOCK_SKEW_MS) fail("RECOVERY_READBACK_STALE", "Readback evidence is stale or has an invalid observation time.", { reconciliation_required: true, automatic_rerun_allowed: false }, 409);
+  if (!Number.isFinite(observedAt) || Number(now) - observedAt > PROTOCOL_WINDOWS_MS.readback || observedAt > Number(now) + PROTOCOL_WINDOWS_MS.clockSkew) fail("RECOVERY_READBACK_STALE", "Readback evidence is stale or has an invalid observation time.", { reconciliation_required: true, automatic_rerun_allowed: false }, 409);
   if (binding.operation === "grants") {
     if (!isObject(evidence.grant_readback_by_role) || !Object.keys(evidence.grant_readback_by_role).length) fail("RECOVERY_READBACK_UNVERIFIED", "Grant repair requires canonical role readback evidence.", { reconciliation_required: true }, 409);
     for (const [role, entry] of Object.entries(evidence.grant_readback_by_role)) {
@@ -209,7 +207,7 @@ export function createStagingBootstrapExecutionAuthority({ env = process.env } =
         grant_binding_hash: binding.grant_binding_hash,
         binding_hash: digest(binding),
         receipt_issued_at: new Date(now).toISOString(),
-        receipt_expires_at: new Date(now + RESERVATION_TTL_MS).toISOString(),
+        receipt_expires_at: new Date(now + PROTOCOL_WINDOWS_MS.reservation).toISOString(),
         receipt_nonce: randomUUID(),
       };
       const reservationReceipt = await signReceipt(receiptSigner, payload, STAGING_BOOTSTRAP_RESERVATION_RECEIPT_CONTRACT);
@@ -279,7 +277,7 @@ export function createStagingBootstrapExecutionAuthority({ env = process.env } =
         evidence_hash: readback.evidence_hash,
         result_fingerprint: readback.result_fingerprint,
         receipt_issued_at: new Date(now).toISOString(),
-        receipt_expires_at: new Date(now + READBACK_TTL_MS).toISOString(),
+        receipt_expires_at: new Date(now + PROTOCOL_WINDOWS_MS.readback).toISOString(),
         receipt_nonce: randomUUID(),
       };
       const receipt = await signReceipt(receiptSigner, payload, STAGING_BOOTSTRAP_READBACK_RECEIPT_CONTRACT);
