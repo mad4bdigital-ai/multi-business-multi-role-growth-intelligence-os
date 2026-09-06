@@ -55,9 +55,21 @@ function safeHeader(req, name) {
 }
 
 function responseBytes(res) {
-  const value = typeof res?.getHeader === "function" ? res.getHeader("content-length") : null;
-  const parsed = Number(Array.isArray(value) ? value[0] : value);
-  return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : undefined;
+  const value = typeof res?.getHeader === "function" ? res.getHeader("content-length") : undefined;
+  const candidate = Array.isArray(value)
+    ? (value.length === 1 ? value[0] : undefined)
+    : value;
+
+  // Missing Content-Length is unknown, not observed zero. Avoid Number(null/"") coercion.
+  if (typeof candidate === "number") {
+    return Number.isSafeInteger(candidate) && candidate >= 0 ? candidate : undefined;
+  }
+  if (typeof candidate !== "string") return undefined;
+
+  const normalized = candidate.trim();
+  if (!/^\d+$/u.test(normalized)) return undefined;
+  const parsed = Number(normalized);
+  return Number.isSafeInteger(parsed) ? parsed : undefined;
 }
 
 function httpOutcome(statusCode) {
