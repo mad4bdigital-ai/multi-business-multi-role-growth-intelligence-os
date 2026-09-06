@@ -238,27 +238,53 @@ function Get-StagingTunnelSnapshot([string[]]$ComposeArgs, [object]$RuntimeState
     return $snapshot
 }
 function Get-LocalConnectorTunnelSnapshot {
+    $canonicalTunnelRuntime = "Mad4B-LocalConnector-Cloudflared"
+    $legacyTunnelTaskName = "GrowthIntelligence-CloudflaredTunnel"
     $nodeService = Get-Service -Name "local-connector" -ErrorAction SilentlyContinue
-    $cloudflaredService = Get-Service -Name "cloudflared" -ErrorAction SilentlyContinue
+    $canonicalTunnelService = Get-Service -Name $canonicalTunnelRuntime -ErrorAction SilentlyContinue
+    $legacyGenericService = Get-Service -Name "cloudflared" -ErrorAction SilentlyContinue
     $nodeTask = $null
-    $tunnelTask = $null
+    $canonicalTunnelTask = $null
+    $legacyTunnelTask = $null
     if (Get-Command Get-ScheduledTask -ErrorAction SilentlyContinue) {
         $nodeTask = Get-ScheduledTask -TaskName "GrowthIntelligence-LocalConnector" -ErrorAction SilentlyContinue
-        $tunnelTask = Get-ScheduledTask -TaskName "GrowthIntelligence-CloudflaredTunnel" -ErrorAction SilentlyContinue
+        $canonicalTunnelTask = Get-ScheduledTask -TaskName $canonicalTunnelRuntime -ErrorAction SilentlyContinue
+        $legacyTunnelTask = Get-ScheduledTask -TaskName $legacyTunnelTaskName -ErrorAction SilentlyContinue
     }
+
+    $nodeRunning = ($null -ne $nodeService -and $nodeService.Status -eq "Running") -or ($null -ne $nodeTask -and [string]$nodeTask.State -eq "Running")
+    $canonicalTunnelRunning = ($null -ne $canonicalTunnelService -and $canonicalTunnelService.Status -eq "Running") -or ($null -ne $canonicalTunnelTask -and [string]$canonicalTunnelTask.State -eq "Running")
     $remote = Invoke-RemoteHealthProbe "https://connector.mad4b.com/health"
     $runtimeEvidence = @()
     if ($null -ne $nodeService) { $runtimeEvidence += "service:local-connector=$($nodeService.Status)" }
-    if ($null -ne $cloudflaredService) { $runtimeEvidence += "service:cloudflared=$($cloudflaredService.Status)" }
     if ($null -ne $nodeTask) { $runtimeEvidence += "task:GrowthIntelligence-LocalConnector=$($nodeTask.State)" }
-    if ($null -ne $tunnelTask) { $runtimeEvidence += "task:GrowthIntelligence-CloudflaredTunnel=$($tunnelTask.State)" }
+    if ($null -ne $canonicalTunnelService) { $runtimeEvidence += "service:${canonicalTunnelRuntime}=$($canonicalTunnelService.Status)" }
+    if ($null -ne $canonicalTunnelTask) { $runtimeEvidence += "task:${canonicalTunnelRuntime}=$($canonicalTunnelTask.State)" }
+    $legacyEvidence = @()
+    if ($null -ne $legacyGenericService) { $legacyEvidence += "service:cloudflared=$($legacyGenericService.Status)" }
+    if ($null -ne $legacyTunnelTask) { $legacyEvidence += "task:${legacyTunnelTaskName}=$($legacyTunnelTask.State)" }
+
+    $status = "unhealthy"
+    $error = $remote.error
+    if (-not $nodeRunning) {
+        $error = "connector_runtime_not_running"
+    } elseif (-not $canonicalTunnelRunning) {
+        $error = "canonical_tunnel_runtime_not_running"
+    } elseif ($remote.ok) {
+        $status = "healthy"
+        $error = $null
+    }
+
     return [ordered]@{
         expected = $true
         hostname = "connector.mad4b.com"
-        status = if ($remote.ok) { "healthy" } else { "unhealthy" }
+        status = $status
         http_status = $remote.status_code
-        error = $remote.error
+        error = $error
+        connector_runtime = if ($null -ne $nodeService) { "service:local-connector" } elseif ($null -ne $nodeTask) { "task:GrowthIntelligence-LocalConnector" } else { "missing" }
+        tunnel_runtime = if ($null -ne $canonicalTunnelService) { "service:$canonicalTunnelRuntime" } elseif ($null -ne $canonicalTunnelTask) { "task:$canonicalTunnelRuntime" } else { "missing" }
         runtime_evidence = $runtimeEvidence
+        legacy_runtime_evidence = $legacyEvidence
     }
 }
 function Invoke-HealthCheck {
