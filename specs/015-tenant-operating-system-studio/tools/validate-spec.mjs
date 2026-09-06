@@ -255,12 +255,17 @@ function validateCompletion() {
   assert(completion.portfolio_scan?.open_draft_specs_reviewed === 12, 'COMPLETION_PRIMARY_COUNT', 'Completion must record 12 primary Specs');
   assert(completion.portfolio_scan?.related_open_drafts_reviewed === 22, 'COMPLETION_RELATED_COUNT', 'Completion must record 22 related Drafts');
   assert(completion.portfolio_scan?.total_open_drafts_classified === 34, 'COMPLETION_TOTAL_COUNT', 'Completion must record 34 classified Drafts');
-  assert(completion.portfolio_scan?.canonical_paths_finalized === false, 'COMPLETION_CANONICAL_PATHS', 'Canonical paths must remain pending');
+  assert(completion.portfolio_scan?.canonical_paths_finalized === true, 'COMPLETION_CANONICAL_PATHS', 'Canonical paths must reflect the owner-approved Phase 0 decision state');
   assert(completion.portfolio_scan?.close_or_supersede_actions_executed === false, 'COMPLETION_PORTFOLIO_MUTATION', 'No close or supersede action may be claimed');
   assert(completion.implementation?.started === false, 'IMPLEMENTATION_STARTED', 'Spec 015 runtime implementation must remain not started');
   assert(completion.implementation?.migrations_applied === false, 'COMPLETION_MIGRATION', 'No migration may be claimed');
   assert(completion.implementation?.runtime_deployed === false, 'COMPLETION_DEPLOYMENT', 'No deployment may be claimed');
-  assert(completion.convergence?.duplicate_spec_identity_resolved === false, 'DUPLICATE_SPEC_IDENTITY', 'Duplicate numeric identity must remain a blocker');
+  assert(completion.convergence?.duplicate_spec_identity_resolved === true, 'DUPLICATE_SPEC_IDENTITY', 'Duplicate numeric identity must reflect the owner-approved semantic resolution');
+  assert(completion.convergence?.T006_cutover_executed === false, 'COMPLETION_T006_CUTOVER', 'T006 semantic approval must not claim cutover execution');
+  assert(completion.convergence?.T008_phase1_authorized === true, 'COMPLETION_T008_PHASE1', 'T008 owner approval must authorize bounded Phase 1 design');
+  assert(completion.owner_decision_evidence?.T006?.status === 'approved', 'COMPLETION_T006_APPROVAL', 'T006 owner decision evidence must remain approved');
+  assert(completion.owner_decision_evidence?.T008?.status === 'approved', 'COMPLETION_T008_APPROVAL', 'T008 owner decision evidence must remain approved');
+  assert(completion.owner_decision_evidence?.T008?.runtime_mutation_authorized === false, 'COMPLETION_RUNTIME_AUTHORITY', 'T008 owner approval must not grant runtime mutation authority');
   assert(completion.secrets_included === false, 'COMPLETION_SECRET_FLAG', 'Completion must declare secrets_included=false');
 }
 
