@@ -40,10 +40,7 @@ function resolveCheckedOutCommitSha() {
   const checkedOutSha = !resolved.error && resolved.status === 0
     ? String(resolved.stdout || "").trim().toLowerCase()
     : "";
-  if (/^[a-f0-9]{40}$/u.test(checkedOutSha)) return checkedOutSha;
-
-  const eventSha = String(process.env.GITHUB_SHA || "").trim().toLowerCase();
-  return /^[a-f0-9]{40}$/u.test(eventSha) ? eventSha : null;
+  return /^[a-f0-9]{40}$/u.test(checkedOutSha) ? checkedOutSha : null;
 }
 
 function writeReport(file, report) {
