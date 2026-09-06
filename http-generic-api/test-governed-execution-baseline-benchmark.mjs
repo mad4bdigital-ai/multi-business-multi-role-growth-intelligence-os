@@ -6,8 +6,16 @@ import {
   runGovernedExecutionBaselineBenchmark,
   runGovernedExecutionMatchedRuntimeFixtures,
 } from "./scripts/governed-execution-baseline-benchmark.mjs";
+import {
+  createOptionalGovernedExecutionBaselineTrace,
+  finalizeOptionalGovernedExecutionBaselineTrace,
+  getGovernedExecutionBaselineRuntimeStatus,
+  governedExecutionBaselineEnabled,
+  resolveGovernedExecutionBaselineEmitter,
+} from "./governedExecutionBaselineRuntime.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const read = (relative) => fs.readFileSync(path.join(ROOT, relative), "utf8");
 
 const report = runGovernedExecutionBaselineBenchmark({
   warmup: 20,
@@ -92,5 +100,63 @@ for (const fixture of matched.fixtures) {
     assert.equal(published[field], fixture.safety_vector[field], `${fixture.fixture_id} ${field} evidence drift`);
   }
 }
+
+// Runtime reachability: the process emitter is fail-closed disabled unless explicitly enabled.
+const disabledEnv = Object.freeze({ GOVERNED_EXECUTION_BASELINE_ENABLED: "false" });
+const enabledEnv = Object.freeze({
+  GOVERNED_EXECUTION_BASELINE_ENABLED: "true",
+  GOVERNED_EXECUTION_BASELINE_MAX_SAMPLES: "500",
+});
+assert.equal(governedExecutionBaselineEnabled(disabledEnv), false);
+assert.equal(governedExecutionBaselineEnabled(enabledEnv), true);
+assert.equal(resolveGovernedExecutionBaselineEmitter(null, disabledEnv), null);
+assert.equal(typeof resolveGovernedExecutionBaselineEmitter(null, enabledEnv), "function");
+const explicitEmitter = async () => {};
+assert.equal(resolveGovernedExecutionBaselineEmitter(explicitEmitter, disabledEnv), explicitEmitter, "explicit test/integration emitter must remain injectable");
+
+const beforeStatus = getGovernedExecutionBaselineRuntimeStatus(enabledEnv);
+assert.equal(beforeStatus.enabled, true);
+assert.equal(beforeStatus.emitter_mode, "process_lifetime_memory");
+assert.equal(beforeStatus.persistence, "process_lifetime_memory");
+assert.equal(beforeStatus.database_write, false);
+assert.equal(beforeStatus.external_send, false);
+assert.equal(beforeStatus.secrets_included, false);
+const runtimeHandle = createOptionalGovernedExecutionBaselineTrace({
+  entry_point: "connector_plan",
+  plan_id: "x0-runtime-reachability",
+}, { env: enabledEnv });
+assert.ok(runtimeHandle, "enabled runtime flag must create a process-local trace without caller-supplied emitter");
+runtimeHandle.trace.observeCounter("provider_calls");
+await finalizeOptionalGovernedExecutionBaselineTrace(runtimeHandle, {
+  outcome: "success",
+  result_classification: "runtime_reachability_fixture",
+});
+const afterStatus = getGovernedExecutionBaselineRuntimeStatus(enabledEnv);
+assert.equal(afterStatus.sample_count, beforeStatus.sample_count + 1);
+assert.equal(afterStatus.database_write, false);
+assert.equal(afterStatus.external_send, false);
+
+// Source wiring: real entry-point owners must remain connected to the passive runtime adapter.
+const routeIndex = read("http-generic-api/routes/index.js");
+const gptRoutes = read("http-generic-api/routes/gptToolsRoutes.js");
+const systemRoutes = read("http-generic-api/routes/systemLayerRoutes.js");
+const connectorExecutor = read("http-generic-api/connectorExecutor.js");
+const stagingCompose = read("http-generic-api/docker-compose.staging.yml");
+const baseCompose = read("http-generic-api/docker-compose.yml");
+
+assert.match(routeIndex, /createGovernedExecutionBaselineHttpMiddleware/);
+assert.match(routeIndex, /governedExecutionBaselineEmitter/);
+assert.match(gptRoutes, /router\.post\("\/gpt\/tools\/call"/);
+assert.match(systemRoutes, /router\.post\("\/system\/tools\/call"/);
+assert.match(connectorExecutor, /entry_point:\s*"connector_plan"/);
+assert.match(connectorExecutor, /entry_point:\s*"agent_loop"/);
+assert.match(connectorExecutor, /createOptionalGovernedExecutionBaselineTrace/);
+assert.match(connectorExecutor, /instrumentAgentLoopDependencies/);
+assert.match(connectorExecutor, /observeMcpProviderDispatch\(baselineTrace\)/);
+assert.match(connectorExecutor, /dispatchMcpConnector\(plan, baselineTrace\)/);
+assert.match(connectorExecutor, /governedExecutionBaselineEmitter/);
+assert.match(stagingCompose, /GOVERNED_EXECUTION_BASELINE_ENABLED:\s*"true"/);
+assert.match(stagingCompose, /GOVERNED_EXECUTION_BASELINE_MAX_SAMPLES:\s*"500"/);
+assert.doesNotMatch(baseCompose, /GOVERNED_EXECUTION_BASELINE_ENABLED/, "base/Production-capable compose must not enable X0 baseline implicitly");
 
 console.log("governed execution baseline benchmark tests passed");
