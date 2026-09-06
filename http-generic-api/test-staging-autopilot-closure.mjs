@@ -172,10 +172,14 @@ assert.doesNotMatch(connectorConfig, /credentials-file:/);
 assert.doesNotMatch(connectorConfig, /C:\\Users\\IT/i);
 assert.doesNotMatch(connectorConfig, /^tunnel:/m);
 
-assert.match(connectorProvisioning, /mad4b\.staging-local-connector-token-provisioning\.v1/);
+assert.match(connectorProvisioning, /mad4b\.staging-local-connector-token-provisioning\.v2/);
+assert.match(connectorProvisioning, /desired_tunnel_management = "remote"/);
 assert.match(connectorProvisioning, /CONNECTOR_CLOUDFLARED_TUNNEL_TOKEN/);
 assert.match(connectorProvisioning, /CONNECTOR_CLOUDFLARED_TOKEN_FILE/);
 assert.match(connectorProvisioning, /RecoverExistingTunnelToken/);
+assert.match(connectorProvisioning, /config_src/);
+assert.match(connectorProvisioning, /\$configSource -ne "cloudflare"/);
+assert.match(connectorProvisioning, /connector_tunnel_remote_migration_required/);
 assert.match(connectorProvisioning, /Invoke-RestMethod -Method Get/);
 assert.match(connectorProvisioning, /\/token"/);
 assert.match(connectorProvisioning, /provider_mutation = \$false/);
