@@ -4,7 +4,7 @@
   "feature_key": "windows-staging-bootstrap-supervisor-20260906",
   "title": "Windows Staging Bootstrap Supervisor",
   "delivery_mode": "single_pr",
-  "current_phase": "connector_transport_self_heal",
+  "current_phase": "resilient",
   "scope": {
     "include": [
       ".changes/e2e/windows-staging-bootstrap-supervisor-20260906.json",
@@ -112,7 +112,7 @@
       ]
     },
     {
-      "id": "connector_transport_self_heal",
+      "id": "resilient",
       "status": "implemented",
       "objective": "Restore the Staging-required Local Connector transport out-of-band after reboot or Cloudflare 1033 without cross-runtime Cloudflared ownership, Production callback fallback, or dependency on the broken public connector path for the repair action itself.",
       "e2e_journeys": [
