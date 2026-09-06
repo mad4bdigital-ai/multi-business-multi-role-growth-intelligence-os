@@ -18,6 +18,14 @@
       "role": "convergence_specification",
       "status": "open_draft"
     },
+    "convergence_pr": {
+      "number": 7930,
+      "branch": "gpt/spec-kits-canonical-authority-convergence-20260906",
+      "role": "current_convergence_delivery",
+      "status": "open_ready_manual_merge_required",
+      "base_main_sha": "589ab1ec780c1833d1b585fbdc1accaf6cbd8172",
+      "exact_head_attestation": "external_required"
+    },
     "implementation_prs": [],
     "reference_package_prs": [],
     "closeout_pr": null
@@ -25,8 +33,8 @@
   "specification": {
     "complete": true,
     "review_state": "draft",
-    "file_count_expected": 36,
-    "file_count_recorded": 36,
+    "file_count_expected": 42,
+    "file_count_recorded": 42,
     "functional_requirements": 74,
     "non_functional_requirements": 15,
     "success_criteria": 12,
@@ -37,19 +45,39 @@
     "tasks": 74,
     "e2e_phase_contract": "e2e-phases.json",
     "implemented_spec_e2e_journeys": 1,
-    "completed_phase0_tasks": ["T001", "T004", "T005", "T007", "T009"]
+    "completed_phase0_tasks": ["T001", "T002", "T003", "T004", "T005", "T006", "T007", "T008", "T009"]
   },
   "convergence": {
     "candidate_prs": [3922, 4432],
     "classification_contract": "candidate-convergence.json",
-    "status": "classified_pending_review",
+    "status": "phase0_owner_approved_external_exact_head_attestation_required",
     "candidate_pr_comments_added": true,
-    "duplicate_spec_identity_resolved": false,
+    "duplicate_spec_identity_resolved": true,
+    "canonical_semantic_paths_approved": true,
+    "T006_decision_register": "canonical-identity-cutover-decisions.json",
+    "T006_human_review": "canonical-identity-cutover-decisions.md",
+    "T006_status": "owner_approved_cutover_not_executed",
+    "T006_cutover_executed": false,
+    "T008_decision_matrix": "phase1-owner-decision-matrix.json",
+    "T008_human_review": "phase1-owner-decision-matrix.md",
+    "T008_status": "owner_approved_phase1_design_authorized",
+    "T008_phase1_authorized": true,
+    "current_main_authority_inventory_sha": "0faee775cd0572b737fed8bc74e2580d9fca2878",
+    "current_main_authority_inventory_snapshot_sha": "0faee775cd0572b737fed8bc74e2580d9fca2878",
+    "current_main_authority_inventory_validated_against_sha": "589ab1ec780c1833d1b585fbdc1accaf6cbd8172",
+    "current_main_authority_inventory_delta_commit_count": 2,
+    "current_main_authority_inventory_delta_classification": "no_change_to_package_version_install_or_canonical_capability_identity_authority_inputs",
+    "current_main_authority_inventory_contract": "docs/spec-portfolio/spec015-current-main-authority-reuse-matrix-20260906.json",
+    "current_main_authority_inventory_review": "docs/spec-portfolio/spec015-current-main-authority-reuse-matrix-20260906.md",
+    "canonical_concept_map": "canonical-concept-authority-map.json",
+    "runtime_composition_addendum": "package-runtime-convergence-addendum.md",
     "current_main_reconstruction_started": false,
-    "candidate_branches_merged": false
+    "candidate_branches_merged": false,
+    "new_persistence_approved": false,
+    "new_execution_authority_approved": false
   },
   "portfolio_scan": {
-    "status": "base_snapshot_complete_with_live_delta_pending_exact_head_ci",
+    "status": "base_snapshot_complete_external_exact_head_attestation_required",
     "observed_at": "2026-08-01T15:48:00Z",
     "main_sha": "0c82e88d00f2c25d4a22c5ece72e56d82d2d9625",
     "registry": "draft-spec-portfolio.json",
@@ -60,22 +88,19 @@
     "total_open_drafts_classified": 34,
     "duplicate_numeric_identities": [11, 14],
     "duplicate_feature_clusters": ["013-system-tool-catalog-v2"],
-    "implementation_trains_registered": [
-      "operation-fabric-stack",
-      "hostinger-storage-workstreams",
-      "system-tool-catalog-v2-reconciliation",
-      "chatgpt-mcp-integration"
-    ],
+    "implementation_trains_registered": ["operation-fabric-stack", "hostinger-storage-workstreams", "system-tool-catalog-v2-reconciliation", "chatgpt-mcp-integration"],
     "new_primary_specs_added_after_initial_scan": [4460],
     "new_implementation_children_added_after_initial_scan": [4462],
     "truthfulness_findings_recorded": true,
     "all_base_snapshot_open_drafts_classified": true,
     "field_level_reuse_matrices_complete": true,
-    "canonical_paths_finalized": false,
+    "current_main_field_level_reuse_matrix_sha": "0faee775cd0572b737fed8bc74e2580d9fca2878",
+    "current_main_field_level_reuse_matrix_validated_against_sha": "589ab1ec780c1833d1b585fbdc1accaf6cbd8172",
+    "canonical_paths_finalized": true,
     "close_or_supersede_actions_executed": false
   },
   "portfolio_live_delta": {
-    "status": "registered_pending_exact_head_ci",
+    "status": "registered_external_exact_head_attestation_required",
     "registry": "draft-spec-portfolio-live-delta.json",
     "human_review": "draft-spec-portfolio-live-delta.md",
     "schema": "contracts/draft-spec-portfolio-live-delta.schema.json",
@@ -90,28 +115,56 @@
     "updated_delivery_trains": ["hostinger-storage-workstreams"],
     "all_current_observed_open_drafts_classified": true
   },
+  "owner_decision_evidence": {
+    "T006": {
+      "status": "approved",
+      "recorded_on": "2026-09-06",
+      "cutover_executed": false
+    },
+    "T008": {
+      "status": "approved",
+      "recorded_on": "2026-09-06",
+      "phase1_design_authorized": true,
+      "runtime_mutation_authorized": false
+    }
+  },
+  "external_attestation_requirements": {
+    "exact_head_ci": {
+      "required": true,
+      "attestation_location": "external",
+      "source_authority": "GitHub Actions exact-candidate checks and canonical CI evidence",
+      "binding": "candidate_head_sha",
+      "source_tree_may_self_attest": false
+    }
+  },
   "verification": {
-    "json_parse": "pending_final_head_ci_after_live_delta",
-    "schema_contract_structure": "pending_final_head_ci_after_live_delta",
-    "openapi_contract_structure": "pending_final_head_ci_after_live_delta",
-    "manifest_inventory": "pending_final_head_ci_after_live_delta",
-    "portfolio_base_contract": "pending_final_head_ci_after_live_delta",
-    "portfolio_live_delta_contract": "pending_final_head_ci_after_live_delta",
-    "e2e_phase_contract": "pending_final_head_ci_after_live_delta",
-    "spec_local_contract_integrity": "pending_final_head_ci_after_live_delta",
-    "repository_ci": "pending_final_head_ci_after_live_delta",
-    "e2e_phase_governance": "pending_final_head_ci_after_live_delta",
-    "docs_agent": "pending_final_head_ci_after_live_delta",
-    "repository_tool_lifecycle_governance": "pending_final_head_ci_after_live_delta",
-    "platform_remaining_scope_scorecard": "pending_final_head_ci_after_live_delta",
-    "platform_completion_cleanup_readback": "pending_final_head_ci_after_live_delta",
+    "json_parse": "external_sha_bound_attestation_required",
+    "schema_contract_structure": "external_sha_bound_attestation_required",
+    "openapi_contract_structure": "external_sha_bound_attestation_required",
+    "manifest_inventory": "external_sha_bound_attestation_required",
+    "canonical_authority_convergence": "external_sha_bound_attestation_required",
+    "current_main_reuse_matrix": "snapshot_validated_against_current_main_external_sha_bound_attestation_required",
+    "T006_decision_register": "owner_approved_external_sha_bound_attestation_required",
+    "T008_decision_matrix": "owner_approved_external_sha_bound_attestation_required",
+    "portfolio_base_contract": "external_sha_bound_attestation_required",
+    "portfolio_live_delta_contract": "external_sha_bound_attestation_required",
+    "e2e_phase_contract": "external_sha_bound_attestation_required",
+    "spec_local_contract_integrity": "external_sha_bound_attestation_required",
+    "repository_ci": "external_sha_bound_attestation_required",
+    "e2e_phase_governance": "external_sha_bound_attestation_required",
+    "docs_agent": "external_sha_bound_attestation_required",
+    "repository_tool_lifecycle_governance": "external_sha_bound_attestation_required",
+    "platform_remaining_scope_scorecard": "external_sha_bound_attestation_required",
+    "platform_completion_cleanup_readback": "external_sha_bound_attestation_required",
     "work_map_review": "pending_pr_review",
     "traceability_review": "pending_pr_review",
     "architecture_review": "pending_pr_review",
     "security_review": "pending_pr_review",
     "agency_client_ownership_review": "pending_pr_review",
     "portfolio_disposition_review": "pending_pr_review",
-    "external_integration_review": "pending_pr_review"
+    "external_integration_review": "pending_pr_review",
+    "package_authority_extension_review": "owner_approved_bounded_extension_policy_specific_schema_review_still_required",
+    "installation_revision_authority_review": "owner_approved_bounded_gap_policy_specific_schema_review_still_required"
   },
   "implementation": {
     "started": false,
@@ -132,39 +185,20 @@
     "production_activated": false
   },
   "reference_packages": {
-    "evidence_intelligence": {
-      "source_pr": 4432,
-      "status": "not_reconstructed",
-      "target_package_key": "platform.reference.evidence_intelligence_operations"
-    },
-    "retail_commerce": {
-      "source_pr": 3922,
-      "status": "not_reconstructed",
-      "target_package_key": "platform.reference.retail_commerce_operations"
-    },
-    "hostinger_storage": {
-      "source_pr": 4386,
-      "related_open_workstreams": [4455, 4464],
-      "status": "integration_rollup_not_reconstructed_as_package",
-      "target_package_key": "platform.reference.hostinger_storage_operations"
-    },
-    "local_connector_recovery": {
-      "source_pr": 2385,
-      "status": "not_reconstructed",
-      "target_package_key": "platform.reference.local_connector_recovery"
-    }
+    "evidence_intelligence": {"source_pr": 4432, "status": "not_reconstructed", "target_package_key": "platform.reference.evidence_intelligence_operations"},
+    "retail_commerce": {"source_pr": 3922, "status": "not_reconstructed", "target_package_key": "platform.reference.retail_commerce_operations"},
+    "hostinger_storage": {"source_pr": 4386, "related_open_workstreams": [4455, 4464], "status": "integration_rollup_not_reconstructed_as_package", "target_package_key": "platform.reference.hostinger_storage_operations"},
+    "local_connector_recovery": {"source_pr": 2385, "status": "not_reconstructed", "target_package_key": "platform.reference.local_connector_recovery"},
+    "content_intelligence": {"source_pr": null, "status": "candidate_architecture_fitness_case_not_implemented", "target_package_key": "platform.reference.content_intelligence_operations", "activation_stages": ["CI-0", "CI-1", "CI-2", "CI-3", "CI-4"]}
   },
   "external_surfaces": {
-    "chatgpt_mcp": {
-      "source_pr": 4460,
-      "implementation_prs": [4462],
-      "status": "specification_and_read_only_adapter_draft",
-      "authority_posture": "transport_and_tool_projection_only"
-    }
+    "chatgpt_mcp": {"source_pr": 4460, "implementation_prs": [4462], "status": "specification_and_read_only_adapter_draft", "authority_posture": "transport_and_tool_projection_only"}
   },
   "required_closeout_evidence": [
     "field_level_current_main_reuse_matrix",
     "canonical_spec_identity_resolution",
+    "canonical_action_operation_semantic_resolution",
+    "canonical_capability_alias_cutover_resolution",
     "draft_spec_portfolio_disposition_review",
     "truthful_completion_ledger_reconciliation",
     "system_tool_catalog_single_canonical_resolution",
@@ -179,40 +213,37 @@
     "client_owned_tenant_delegation_and_revocation",
     "handover_continuity",
     "reference_package_validation",
+    "content_intelligence_reference_fitness_validation",
     "migration_apply_and_readback",
     "backup_restore_and_rollback_rehearsal",
     "production_canary_and_parity",
     "post_merge_audit"
   ],
   "blocking_reasons": [
-    "work_map_and_architecture_review_pending",
-    "field_level_reuse_matrix_review_pending",
-    "duplicate_spec_011_identity_not_resolved",
-    "duplicate_spec_014_identity_not_resolved",
-    "duplicate_feature_013_reconciliation_not_resolved",
-    "stale_completion_ledgers_require_reconciliation",
-    "open_related_draft_dispositions_not_approved",
-    "hostinger_repository_provenance_workstream_pending_ci",
-    "package_registry_mapping_open",
+    "capability_authority_cutover_not_certified",
+    "package_authority_extension_implementation_not_started",
+    "concrete_generic_component_persistence_requires_proven_gap_and_schema_review",
+    "concrete_installation_revision_persistence_requires_proven_gap_and_schema_review",
+    "data_governance_P0_not_implemented",
+    "knowledge_provenance_runtime_not_implemented",
+    "model_governance_runtime_not_implemented",
+    "commercial_reservation_runtime_not_implemented",
+    "agency_client_ownership_and_portability_runtime_not_implemented",
     "custom_entity_persistence_open",
     "candidate_pr_reconstruction_not_started",
     "chatgpt_mcp_oauth_tool_catalog_and_public_endpoint_gates_open"
   ],
   "notes": [
-    "Specification completion does not authorize implementation, candidate PR merge, migration, provider execution, or Production activation.",
-    "Feature key plus canonical role is the portfolio identity; numeric Spec numbers are not unique authorities.",
-    "The immutable base snapshot classifies 34 Draft PRs as 12 primary Specs and 22 related delivery/repair PRs.",
-    "The append-only live delta adds PR 4464, producing a current classified total of 35 Draft PRs and 23 related Drafts.",
-    "Spec 006 remains workflow/runtime authority; current Spec 011 remains dynamic control-plane authority; Spec 012 remains context authority.",
-    "PRs 3922, 4386, and 4432 are bounded package or service sources, not competing universal parent Specs.",
-    "PRs 2949 and 2950 have distinct subsystem and tenant-application roles and must not compete for numeric Spec 011 identity.",
-    "PRs 3139, 3145, and 3159 form one unresolved System Tool Catalog v2 feature cluster.",
-    "PR 4460 is the canonical external ChatGPT/MCP integration specification and PR 4462 is its first read-only implementation child; neither creates independent execution authority.",
-    "PR 4464 is a Hostinger repository-provenance workstream correction and does not create a new Spec or execution authority.",
-    "The MVP E2E journey validates specification, base portfolio, and live delta contracts only and grants no runtime mutation authority.",
-    "The current-main field-level reuse matrix is present as audit evidence; owner review and canonical authority decisions remain pending.",
-    "The candidate PR read-only snapshot was refreshed against current origin/main; candidate reconstruction and runtime integration remain unstarted.",
-    "Status remains in_progress until portfolio decisions, runtime, isolation, handover, migration, Production, rollback, and post-merge evidence are complete."
+    "T002/T003 remain historical inventory/reuse evidence at snapshot 0faee775cd0572b737fed8bc74e2580d9fca2878; the two-commit delta through main 589ab1ec780c1833d1b585fbdc1accaf6cbd8172 was reviewed on 2026-09-06 and did not change the package/version/install or canonical capability identity authority inputs used by the reuse decisions.",
+    "T006 and T008 owner approvals were recorded on 2026-09-06. T006 closes semantic identity/cutover decisions only; T008 authorizes bounded Phase1 implementation PR design only.",
+    "T006 cutover_executed=false and T008 runtime_mutation_authorized=false remain mandatory.",
+    "Exact-head CI is an external SHA-bound attestation requirement. The candidate tree must not claim pending or passed exact-head status for itself.",
+    "PR #4456 remains source-specification provenance; PR #7930 is the current convergence delivery and still requires the independent manual merge decision.",
+    "Current package/version/install authorities are mandatory reuse inputs; copied grant/policy JSON is compatibility-only.",
+    "The legacy actions table is Provider Capability Group semantics; endpoints are provider operation contracts; Business Action remains domain/product semantics.",
+    "canonical_capabilities is a target semantic identity domain but global runtime cutover requires shadow parity because legacy action/tool registries still participate in current runtime.",
+    "Concrete new persistence still requires a proven semantic gap and bounded schema review even though the reuse/extension policy is owner-approved.",
+    "No runtime, migration, provider, Production, permission, or protected-branch mutation is authorized by this Spec-only PR."
   ],
   "secrets_included": false
 }
