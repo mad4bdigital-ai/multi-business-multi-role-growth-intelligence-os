@@ -5,7 +5,7 @@
   "status":"in_progress",
   "requirements":{"migration":true,"production_verification":true,"post_merge_audit":true,"handover_continuity":true,"reference_package_validation":true,"draft_spec_portfolio_governance":true},
   "delivery":{"specification_pr":{"number":4456,"branch":"gpt/spec-015-tenant-operating-system-studio-20260801","role":"convergence_specification","status":"open_draft"},"implementation_prs":[],"reference_package_prs":[],"closeout_pr":null},
-  "specification":{"complete":true,"review_state":"draft","file_count_expected":43,"file_count_recorded":43,"functional_requirements":74,"non_functional_requirements":15,"success_criteria":12,"user_scenarios":8,"operation_paths":16,"acceptance_cases":50,"risks":25,"tasks":74,"e2e_phase_contract":"e2e-phases.json","implemented_spec_e2e_journeys":1,"completed_phase0_tasks":["T001","T002","T003","T004","T005","T007","T009"]},
+  "specification":{"complete":true,"review_state":"draft","file_count_expected":42,"file_count_recorded":42,"functional_requirements":74,"non_functional_requirements":15,"success_criteria":12,"user_scenarios":8,"operation_paths":16,"acceptance_cases":50,"risks":25,"tasks":74,"e2e_phase_contract":"e2e-phases.json","implemented_spec_e2e_journeys":1,"completed_phase0_tasks":["T001","T002","T003","T004","T005","T007","T009"]},
   "convergence":{
     "candidate_prs":[3922,4432],"classification_contract":"candidate-convergence.json","status":"phase0_decision_ready_owner_approval_pending","candidate_pr_comments_added":true,
     "duplicate_spec_identity_resolved":false,"canonical_semantic_paths_approved":false,
