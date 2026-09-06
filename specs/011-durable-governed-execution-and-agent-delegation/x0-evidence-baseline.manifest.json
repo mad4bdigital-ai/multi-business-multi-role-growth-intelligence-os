@@ -14,6 +14,16 @@
   "base_main_reconciled_after_merge": true,
   "external_exact_head_attestation": "required",
   "live_staging_certification": "required",
+  "runtime_activation": {
+    "default_enabled": false,
+    "staging_enabled": true,
+    "staging_source": "../../http-generic-api/docker-compose.staging.yml",
+    "production_default_enabled": false,
+    "sink": "bounded_process_lifetime_memory",
+    "max_samples": 500,
+    "sql_persistence": false,
+    "external_send": false
+  },
   "artifacts": [
     "x0-evidence-baseline.md",
     "x0-matched-runtime-fixtures.json",
@@ -22,6 +32,7 @@
     "../../http-generic-api/sequentialPlanOrchestrator.js",
     "../../http-generic-api/connectorExecutor.js",
     "../../http-generic-api/routes/index.js",
+    "../../http-generic-api/docker-compose.staging.yml",
     "../../http-generic-api/test-governed-execution-baseline-telemetry.mjs",
     "../../http-generic-api/test-governed-execution-baseline-benchmark.mjs",
     "../../http-generic-api/test-sequential-plan-orchestrator.mjs",
@@ -55,7 +66,11 @@
     "matched_runtime_fixture_artifact",
     "matched_fixture_functional_hash_parity",
     "matched_fixture_safety_vector_parity",
-    "matched_fixture_timing_identity_reconciliation"
+    "matched_fixture_timing_identity_reconciliation",
+    "runtime_default_disabled_process_emitter",
+    "staging_only_process_memory_emitter_activation",
+    "production_capable_base_compose_does_not_enable_x0",
+    "runtime_emitter_reachability_regression_guard"
   ],
   "pending_contracts": [
     "exact_head_ci_evidence",
@@ -71,7 +86,8 @@
     "no_performance_claim_without_matched_evidence",
     "unobserved_runtime_counters_must_not_be_fabricated_as_zero",
     "matched_fixture_provider_calls_are_deterministic_simulator_evidence_only",
-    "candidate_tree_cannot_self_attest_exact_head_or_live_staging"
+    "candidate_tree_cannot_self_attest_exact_head_or_live_staging",
+    "production_runtime_must_not_enable_x0_without_separate_explicit_configuration"
   ],
   "secrets_included": false
 }
