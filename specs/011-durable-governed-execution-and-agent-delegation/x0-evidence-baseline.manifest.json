@@ -10,7 +10,8 @@
   "database_write": false,
   "migration_apply": false,
   "deployment": false,
-  "base_main_sha": "fdb2000bb81b8d0127ba41c52e39fd8940571dd3",
+  "base_main_sha": "15913bb2c50e18fac7585e4afa95e1c0d6ccc7fe",
+  "base_main_reconciled_after_merge": true,
   "external_exact_head_attestation": "required",
   "live_staging_certification": "required",
   "artifacts": [
