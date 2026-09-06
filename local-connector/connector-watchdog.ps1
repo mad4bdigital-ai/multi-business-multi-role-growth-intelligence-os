@@ -1,23 +1,25 @@
 # Mad4B Local Connector Watchdog
-# Runs independently from server.mjs. Keeps the connector-owned cloudflared runtime
-# and local-connector alive, publishes authenticated runtime health only to the
-# environment-bound control plane, and rolls back server.mjs if a bad upgrade
-# prevents local health from returning. Both Windows-service and legacy Scheduled
-# Task installations are supported so reboot recovery does not depend on one installer.
+# Runs independently from server.mjs. Keeps only the Local Connector-owned
+# cloudflared runtime and local-connector alive, publishes authenticated runtime
+# health only to the environment-bound control plane, and rolls back server.mjs
+# if a bad upgrade prevents local health from returning. It never owns or mutates
+# the independent Mad4B-Staging-Cloudflared runtime.
 
 param(
   [string]$Root = "C:\mad4b-connector\local-connector",
   [string]$ConnectorService = "local-connector",
-  [string]$CloudflaredService = "cloudflared",
+  [string]$CloudflaredService = "Mad4B-LocalConnector-Cloudflared",
   [string]$ConnectorTask = "GrowthIntelligence-LocalConnector",
-  [string]$CloudflaredTask = "GrowthIntelligence-CloudflaredTunnel",
+  [string]$CloudflaredTask = "Mad4B-LocalConnector-Cloudflared",
   [int]$Port = 7070,
   [int]$HealthTimeoutSeconds = 8
 )
 
 $ErrorActionPreference = "Continue"
-$WatchdogVersion = "2026.09.06.1"
+$WatchdogVersion = "2026.09.06.2"
 $AgentVersion = "2026.05.28.1"
+$CanonicalCloudflaredRuntime = "Mad4B-LocalConnector-Cloudflared"
+$StagingCloudflaredRuntime = "Mad4B-Staging-Cloudflared"
 $LogPath = Join-Path $Root "watchdog.log"
 $StatePath = Join-Path $Root "connector-runtime-state.json"
 $EnvPath = Join-Path $Root ".env"
@@ -97,6 +99,15 @@ function Test-HeartbeatBinding([string]$HeartbeatUrl) {
   }
 }
 
+function Test-TransportOwnershipBinding([string]$ServiceName, [string]$TaskName) {
+  return (
+    $ServiceName -eq $CanonicalCloudflaredRuntime -and
+    $TaskName -eq $CanonicalCloudflaredRuntime -and
+    $ServiceName -ne $StagingCloudflaredRuntime -and
+    $TaskName -ne $StagingCloudflaredRuntime
+  )
+}
+
 function Write-RuntimeState($Stage, [bool]$LocalHealth, $Details = "", [bool]$HeartbeatSent = $false, $PublicHealth = $null) {
   try {
     $binding = Get-ConnectorEnvironmentBinding
@@ -108,6 +119,8 @@ function Write-RuntimeState($Stage, [bool]$LocalHealth, $Details = "", [bool]$He
       watchdog_version = $WatchdogVersion
       agent_version = $AgentVersion
       connector_environment = $binding.environment
+      connector_control_plane_host = $binding.expected_host
+      transport_ownership = $CanonicalCloudflaredRuntime
       cloudflared_service = $CloudflaredService
       cloudflared_status = Get-ServiceState $CloudflaredService
       cloudflared_task = $CloudflaredTask
@@ -116,6 +129,8 @@ function Write-RuntimeState($Stage, [bool]$LocalHealth, $Details = "", [bool]$He
       connector_task = $ConnectorTask
       connector_task_status = Get-TaskState $ConnectorTask
       public_connector_health = if ($null -ne $PublicHealth) { [ordered]@{ ok = [bool]$PublicHealth.ok; http_status = $PublicHealth.http_status; error = $PublicHealth.error } } else { $null }
+      cross_runtime_mutation = $false
+      staging_cloudflared_runtime = $StagingCloudflaredRuntime
       details = [string]$Details
       secrets_included = $false
     }
@@ -157,11 +172,14 @@ function Publish-Heartbeat(
       metadata = [ordered]@{
         local_health = $LocalHealth
         connector_environment = $binding.environment
+        connector_control_plane_host = $binding.expected_host
         connector_status = Get-ServiceState $ConnectorService
         connector_task_status = Get-TaskState $ConnectorTask
         cloudflared_service = $CloudflaredService
         cloudflared_status = Get-ServiceState $CloudflaredService
         cloudflared_task_status = Get-TaskState $CloudflaredTask
+        transport_ownership = $CanonicalCloudflaredRuntime
+        cross_runtime_mutation = $false
         secrets_included = $false
       }
     }
@@ -320,14 +338,41 @@ function Restore-StableServer {
 
 try {
   if (-not (Test-Path $Root)) { New-Item -ItemType Directory -Path $Root -Force | Out-Null }
+
   $configuredCloudflaredService = Get-DotEnvValue "CONNECTOR_CLOUDFLARED_SERVICE"
-  if ($configuredCloudflaredService -and $configuredCloudflaredService -match '^[A-Za-z0-9_.-]{1,128}$') { $CloudflaredService = $configuredCloudflaredService }
+  if ($configuredCloudflaredService -and $configuredCloudflaredService -ne $CanonicalCloudflaredRuntime) {
+    Write-WatchdogLog "ownership_binding_rejected field=CONNECTOR_CLOUDFLARED_SERVICE value=$configuredCloudflaredService"
+    Write-RuntimeState "ownership_binding_invalid" $false "CONNECTOR_CLOUDFLARED_SERVICE must equal $CanonicalCloudflaredRuntime"
+    exit 5
+  }
+  $CloudflaredService = $CanonicalCloudflaredRuntime
+
   $configuredConnectorTask = Get-DotEnvValue "CONNECTOR_SCHEDULED_TASK"
   if ($configuredConnectorTask) { $ConnectorTask = $configuredConnectorTask }
-  $configuredTunnelTask = Get-DotEnvValue "CONNECTOR_CLOUDFLARED_TASK"
-  if ($configuredTunnelTask) { $CloudflaredTask = $configuredTunnelTask }
 
-  Write-WatchdogLog "watchdog_tick root=$Root port=$Port cloudflared_service=$CloudflaredService cloudflared_task=$CloudflaredTask connector_task=$ConnectorTask"
+  $configuredTunnelTask = Get-DotEnvValue "CONNECTOR_CLOUDFLARED_TASK"
+  if ($configuredTunnelTask -and $configuredTunnelTask -ne $CanonicalCloudflaredRuntime) {
+    Write-WatchdogLog "ownership_binding_rejected field=CONNECTOR_CLOUDFLARED_TASK value=$configuredTunnelTask"
+    Write-RuntimeState "ownership_binding_invalid" $false "CONNECTOR_CLOUDFLARED_TASK must equal $CanonicalCloudflaredRuntime"
+    exit 5
+  }
+  $CloudflaredTask = $CanonicalCloudflaredRuntime
+
+  if (-not (Test-TransportOwnershipBinding $CloudflaredService $CloudflaredTask)) {
+    Write-WatchdogLog "ownership_binding_rejected reason=canonical_runtime_mismatch"
+    Write-RuntimeState "ownership_binding_invalid" $false "Local Connector transport ownership is not canonical"
+    exit 5
+  }
+
+  $binding = Get-ConnectorEnvironmentBinding
+  $heartbeatUrl = Get-DotEnvValue "CONNECTOR_HEARTBEAT_URL"
+  if (-not $binding.expected_host -or -not (Test-HeartbeatBinding $heartbeatUrl)) {
+    Write-WatchdogLog "environment_binding_rejected environment=$($binding.environment)"
+    Write-RuntimeState "environment_binding_invalid" $false "Connector environment/heartbeat binding is missing or cross-environment"
+    exit 5
+  }
+
+  Write-WatchdogLog "watchdog_tick root=$Root port=$Port environment=$($binding.environment) cloudflared_service=$CloudflaredService cloudflared_task=$CloudflaredTask connector_task=$ConnectorTask"
 
   $cloudflaredReady = Ensure-RuntimeRunning $CloudflaredService $CloudflaredTask
   $connectorReady = Ensure-RuntimeRunning $ConnectorService $ConnectorTask
@@ -339,7 +384,7 @@ try {
     if ($cloudflaredReady) {
       $publicHealth = Test-PublicConnectorHealth
       if (-not $publicHealth.ok) {
-        Write-WatchdogLog "public_tunnel_failed error=$($publicHealth.error) action=restart_tunnel"
+        Write-WatchdogLog "public_tunnel_failed error=$($publicHealth.error) action=restart_local_connector_tunnel"
         [void](Restart-RuntimeSafe $CloudflaredService $CloudflaredTask)
         Start-Sleep -Seconds 5
         $publicHealth = Test-PublicConnectorHealth
@@ -357,9 +402,9 @@ try {
       Write-RuntimeState "public_tunnel_unavailable" $true "error=$($publicHealth.error)" $heartbeatSent $publicHealth
       exit 3
     }
-    $heartbeatSent = Publish-Heartbeat "failed" "health_failed" $true "cloudflared_unavailable" "Connector cloudflared runtime is not running."
+    $heartbeatSent = Publish-Heartbeat "failed" "health_failed" $true "cloudflared_unavailable" "$CanonicalCloudflaredRuntime is not running."
     Write-WatchdogLog "health_ok tunnel_runtime=false heartbeat_sent=$heartbeatSent"
-    Write-RuntimeState "tunnel_runtime_unavailable" $true "connector cloudflared runtime is not running" $heartbeatSent
+    Write-RuntimeState "tunnel_runtime_unavailable" $true "$CanonicalCloudflaredRuntime is not running" $heartbeatSent
     exit 3
   }
 
