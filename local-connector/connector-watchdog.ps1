@@ -1,20 +1,22 @@
 # Mad4B Local Connector Watchdog
-# Runs independently from server.mjs. Keeps the connector-owned cloudflared service
+# Runs independently from server.mjs. Keeps the connector-owned cloudflared runtime
 # and local-connector alive, publishes authenticated runtime health only to the
 # environment-bound control plane, and rolls back server.mjs if a bad upgrade
-# prevents local health from returning. A healthy running service is never
-# restarted during a normal watchdog tick.
+# prevents local health from returning. Both Windows-service and legacy Scheduled
+# Task installations are supported so reboot recovery does not depend on one installer.
 
 param(
   [string]$Root = "C:\mad4b-connector\local-connector",
   [string]$ConnectorService = "local-connector",
   [string]$CloudflaredService = "cloudflared",
+  [string]$ConnectorTask = "GrowthIntelligence-LocalConnector",
+  [string]$CloudflaredTask = "GrowthIntelligence-CloudflaredTunnel",
   [int]$Port = 7070,
   [int]$HealthTimeoutSeconds = 8
 )
 
 $ErrorActionPreference = "Continue"
-$WatchdogVersion = "2026.07.31.1"
+$WatchdogVersion = "2026.09.06.1"
 $AgentVersion = "2026.05.28.1"
 $LogPath = Join-Path $Root "watchdog.log"
 $StatePath = Join-Path $Root "connector-runtime-state.json"
@@ -22,6 +24,7 @@ $EnvPath = Join-Path $Root ".env"
 $ServerPath = Join-Path $Root "server.mjs"
 $StablePath = Join-Path $Root "server.mjs.stable"
 $LastGoodPath = Join-Path $Root "server.mjs.lastgood"
+$PublicHealthUrl = "https://connector.mad4b.com/health"
 
 function Write-WatchdogLog($Message) {
   $line = "{0} {1}" -f (Get-Date).ToUniversalTime().ToString("s"), $Message
@@ -33,6 +36,16 @@ function Get-ServiceState($Name) {
     $svc = Get-Service -Name $Name -ErrorAction SilentlyContinue
     if (-not $svc) { return "missing" }
     return $svc.Status.ToString().ToLowerInvariant()
+  } catch {
+    return "unknown"
+  }
+}
+
+function Get-TaskState($Name) {
+  try {
+    $task = Get-ScheduledTask -TaskName $Name -ErrorAction SilentlyContinue
+    if (-not $task) { return "missing" }
+    return ([string]$task.State).ToLowerInvariant()
   } catch {
     return "unknown"
   }
@@ -84,7 +97,7 @@ function Test-HeartbeatBinding([string]$HeartbeatUrl) {
   }
 }
 
-function Write-RuntimeState($Stage, [bool]$LocalHealth, $Details = "", [bool]$HeartbeatSent = $false) {
+function Write-RuntimeState($Stage, [bool]$LocalHealth, $Details = "", [bool]$HeartbeatSent = $false, $PublicHealth = $null) {
   try {
     $binding = Get-ConnectorEnvironmentBinding
     $state = [ordered]@{
@@ -97,11 +110,16 @@ function Write-RuntimeState($Stage, [bool]$LocalHealth, $Details = "", [bool]$He
       connector_environment = $binding.environment
       cloudflared_service = $CloudflaredService
       cloudflared_status = Get-ServiceState $CloudflaredService
+      cloudflared_task = $CloudflaredTask
+      cloudflared_task_status = Get-TaskState $CloudflaredTask
       connector_status = Get-ServiceState $ConnectorService
+      connector_task = $ConnectorTask
+      connector_task_status = Get-TaskState $ConnectorTask
+      public_connector_health = if ($null -ne $PublicHealth) { [ordered]@{ ok = [bool]$PublicHealth.ok; http_status = $PublicHealth.http_status; error = $PublicHealth.error } } else { $null }
       details = [string]$Details
       secrets_included = $false
     }
-    $state | ConvertTo-Json -Depth 4 | Set-Content -Path $StatePath -Encoding UTF8
+    $state | ConvertTo-Json -Depth 5 | Set-Content -Path $StatePath -Encoding UTF8
   } catch {
     Write-WatchdogLog "state_write_failed"
   }
@@ -140,8 +158,10 @@ function Publish-Heartbeat(
         local_health = $LocalHealth
         connector_environment = $binding.environment
         connector_status = Get-ServiceState $ConnectorService
+        connector_task_status = Get-TaskState $ConnectorTask
         cloudflared_service = $CloudflaredService
         cloudflared_status = Get-ServiceState $CloudflaredService
+        cloudflared_task_status = Get-TaskState $CloudflaredTask
         secrets_included = $false
       }
     }
@@ -171,6 +191,35 @@ function Test-LocalHealth {
   }
 }
 
+function Get-WebFailureText($ErrorRecord) {
+  $text = [string]$ErrorRecord.Exception.Message
+  try {
+    $response = $ErrorRecord.Exception.Response
+    if ($null -ne $response) {
+      $stream = $response.GetResponseStream()
+      if ($null -ne $stream) {
+        $reader = New-Object System.IO.StreamReader($stream)
+        $body = $reader.ReadToEnd()
+        if ($body) { $text += " $body" }
+      }
+    }
+  } catch {}
+  return $text
+}
+
+function Test-PublicConnectorHealth {
+  try {
+    $res = Invoke-WebRequest -Uri $PublicHealthUrl -UseBasicParsing -TimeoutSec 15 -ErrorAction Stop
+    return [pscustomobject]@{ ok = ([int]$res.StatusCode -eq 200); http_status = [int]$res.StatusCode; error = $null }
+  } catch {
+    $statusCode = $null
+    try { $statusCode = [int]$_.Exception.Response.StatusCode.value__ } catch {}
+    $failureText = Get-WebFailureText $_
+    $errorClass = if ($failureText -match '(?i)\b1033\b' -or $statusCode -eq 530) { "cloudflare_1033" } else { "public_tunnel_unavailable" }
+    return [pscustomobject]@{ ok = $false; http_status = $statusCode; error = $errorClass }
+  }
+}
+
 function Ensure-ServiceRunning($Name) {
   try {
     $svc = Get-Service -Name $Name -ErrorAction SilentlyContinue
@@ -188,6 +237,33 @@ function Ensure-ServiceRunning($Name) {
   }
 }
 
+function Ensure-TaskRunning($Name) {
+  try {
+    $task = Get-ScheduledTask -TaskName $Name -ErrorAction SilentlyContinue
+    if (-not $task) { Write-WatchdogLog "task_missing name=$Name"; return $false }
+    if ([string]$task.State -eq 'Running') { return $true }
+    Start-ScheduledTask -TaskName $Name -ErrorAction SilentlyContinue
+    for ($attempt = 0; $attempt -lt 10; $attempt++) {
+      Start-Sleep -Seconds 1
+      $task = Get-ScheduledTask -TaskName $Name -ErrorAction SilentlyContinue
+      if ($null -ne $task -and [string]$task.State -eq 'Running') {
+        Write-WatchdogLog "task_ensure name=$Name running=true"
+        return $true
+      }
+    }
+    Write-WatchdogLog "task_ensure name=$Name running=false"
+    return $false
+  } catch {
+    Write-WatchdogLog "task_ensure_failed name=$Name"
+    return $false
+  }
+}
+
+function Ensure-RuntimeRunning($ServiceName, $TaskName) {
+  if ((Get-ServiceState $ServiceName) -ne 'missing') { return Ensure-ServiceRunning $ServiceName }
+  return Ensure-TaskRunning $TaskName
+}
+
 function Restart-ServiceSafe($Name) {
   try {
     $svc = Get-Service -Name $Name -ErrorAction SilentlyContinue
@@ -200,6 +276,25 @@ function Restart-ServiceSafe($Name) {
     Write-WatchdogLog "service_restart_failed name=$Name"
     return $false
   }
+}
+
+function Restart-TaskSafe($Name) {
+  try {
+    $task = Get-ScheduledTask -TaskName $Name -ErrorAction SilentlyContinue
+    if (-not $task) { Write-WatchdogLog "task_missing name=$Name"; return $false }
+    Stop-ScheduledTask -TaskName $Name -ErrorAction SilentlyContinue
+    Start-Sleep -Milliseconds 500
+    Start-ScheduledTask -TaskName $Name -ErrorAction SilentlyContinue
+    return Ensure-TaskRunning $Name
+  } catch {
+    Write-WatchdogLog "task_restart_failed name=$Name"
+    return $false
+  }
+}
+
+function Restart-RuntimeSafe($ServiceName, $TaskName) {
+  if ((Get-ServiceState $ServiceName) -ne 'missing') { return Restart-ServiceSafe $ServiceName }
+  return Restart-TaskSafe $TaskName
 }
 
 function Restore-StableServer {
@@ -226,59 +321,88 @@ function Restore-StableServer {
 try {
   if (-not (Test-Path $Root)) { New-Item -ItemType Directory -Path $Root -Force | Out-Null }
   $configuredCloudflaredService = Get-DotEnvValue "CONNECTOR_CLOUDFLARED_SERVICE"
-  if ($configuredCloudflaredService -and $configuredCloudflaredService -match '^[A-Za-z0-9_.-]{1,128}$') {
-    $CloudflaredService = $configuredCloudflaredService
-  }
-  Write-WatchdogLog "watchdog_tick root=$Root port=$Port cloudflared_service=$CloudflaredService"
+  if ($configuredCloudflaredService -and $configuredCloudflaredService -match '^[A-Za-z0-9_.-]{1,128}$') { $CloudflaredService = $configuredCloudflaredService }
+  $configuredConnectorTask = Get-DotEnvValue "CONNECTOR_SCHEDULED_TASK"
+  if ($configuredConnectorTask) { $ConnectorTask = $configuredConnectorTask }
+  $configuredTunnelTask = Get-DotEnvValue "CONNECTOR_CLOUDFLARED_TASK"
+  if ($configuredTunnelTask) { $CloudflaredTask = $configuredTunnelTask }
 
-  $cloudflaredReady = Ensure-ServiceRunning $CloudflaredService
-  $connectorReady = Ensure-ServiceRunning $ConnectorService
+  Write-WatchdogLog "watchdog_tick root=$Root port=$Port cloudflared_service=$CloudflaredService cloudflared_task=$CloudflaredTask connector_task=$ConnectorTask"
+
+  $cloudflaredReady = Ensure-RuntimeRunning $CloudflaredService $CloudflaredTask
+  $connectorReady = Ensure-RuntimeRunning $ConnectorService $ConnectorTask
+  if ($connectorReady) { Start-Sleep -Seconds 2 }
   $initialHealth = Test-LocalHealth
 
   if ($initialHealth) {
     if (Test-Path $ServerPath) { Copy-Item -LiteralPath $ServerPath -Destination $LastGoodPath -Force -ErrorAction SilentlyContinue }
     if ($cloudflaredReady) {
-      $heartbeatSent = Publish-Heartbeat "ok" "health_ok" $true
-      Write-WatchdogLog "health_ok initial=true tunnel_service=true heartbeat_sent=$heartbeatSent"
-      Write-RuntimeState "healthy" $true "tunnel_service=true" $heartbeatSent
-      if ($heartbeatSent) { exit 0 }
-      exit 4
+      $publicHealth = Test-PublicConnectorHealth
+      if (-not $publicHealth.ok) {
+        Write-WatchdogLog "public_tunnel_failed error=$($publicHealth.error) action=restart_tunnel"
+        [void](Restart-RuntimeSafe $CloudflaredService $CloudflaredTask)
+        Start-Sleep -Seconds 5
+        $publicHealth = Test-PublicConnectorHealth
+      }
+      if ($publicHealth.ok) {
+        $heartbeatSent = Publish-Heartbeat "ok" "health_ok" $true
+        Write-WatchdogLog "health_ok initial=true tunnel_runtime=true public_tunnel=true heartbeat_sent=$heartbeatSent"
+        Write-RuntimeState "healthy" $true "tunnel_runtime=true public_tunnel=true" $heartbeatSent $publicHealth
+        if ($heartbeatSent) { exit 0 }
+        exit 4
+      }
+      $errorCode = if ($publicHealth.error -eq 'cloudflare_1033') { 'cloudflare_1033' } else { 'connector_public_tunnel_unavailable' }
+      $heartbeatSent = Publish-Heartbeat "failed" "health_failed" $true $errorCode "connector.mad4b.com public tunnel is unavailable."
+      Write-WatchdogLog "public_tunnel_unavailable error=$($publicHealth.error) heartbeat_sent=$heartbeatSent"
+      Write-RuntimeState "public_tunnel_unavailable" $true "error=$($publicHealth.error)" $heartbeatSent $publicHealth
+      exit 3
     }
-    $heartbeatSent = Publish-Heartbeat "failed" "health_failed" $true "cloudflared_unavailable" "$CloudflaredService service is not running."
-    Write-WatchdogLog "health_ok tunnel_service=false heartbeat_sent=$heartbeatSent"
-    Write-RuntimeState "tunnel_service_unavailable" $true "$CloudflaredService service is not running" $heartbeatSent
+    $heartbeatSent = Publish-Heartbeat "failed" "health_failed" $true "cloudflared_unavailable" "Connector cloudflared runtime is not running."
+    Write-WatchdogLog "health_ok tunnel_runtime=false heartbeat_sent=$heartbeatSent"
+    Write-RuntimeState "tunnel_runtime_unavailable" $true "connector cloudflared runtime is not running" $heartbeatSent
     exit 3
   }
 
   Write-WatchdogLog "health_failed action=restart_connector"
-  Restart-ServiceSafe $ConnectorService | Out-Null
+  [void](Restart-RuntimeSafe $ConnectorService $ConnectorTask)
+  Start-Sleep -Seconds 2
   $healthAfterRestart = Test-LocalHealth
   if ($healthAfterRestart) {
     if (Test-Path $ServerPath) { Copy-Item -LiteralPath $ServerPath -Destination $LastGoodPath -Force -ErrorAction SilentlyContinue }
-    $status = if ($cloudflaredReady) { "ok" } else { "failed" }
-    $errorCode = if ($cloudflaredReady) { "" } else { "cloudflared_unavailable" }
-    $errorMessage = if ($cloudflaredReady) { "" } else { "$CloudflaredService service is not running." }
+    $publicHealth = if ($cloudflaredReady) { Test-PublicConnectorHealth } else { $null }
+    if ($cloudflaredReady -and $null -ne $publicHealth -and -not $publicHealth.ok) {
+      [void](Restart-RuntimeSafe $CloudflaredService $CloudflaredTask)
+      Start-Sleep -Seconds 5
+      $publicHealth = Test-PublicConnectorHealth
+    }
+    $publicReady = $cloudflaredReady -and $null -ne $publicHealth -and $publicHealth.ok
+    $status = if ($publicReady) { "ok" } else { "failed" }
+    $errorCode = if ($publicReady) { "" } elseif ($null -ne $publicHealth -and $publicHealth.error -eq 'cloudflare_1033') { "cloudflare_1033" } else { "cloudflared_unavailable" }
+    $errorMessage = if ($publicReady) { "" } else { "Connector public tunnel is not ready." }
     $heartbeatSent = Publish-Heartbeat $status "service_restart" $true $errorCode $errorMessage
-    Write-WatchdogLog "health_ok after_restart=true tunnel_service=$cloudflaredReady heartbeat_sent=$heartbeatSent"
-    Write-RuntimeState "healthy_after_restart" $true "tunnel_service=$cloudflaredReady" $heartbeatSent
-    if ($cloudflaredReady -and $heartbeatSent) { exit 0 }
-    if (-not $cloudflaredReady) { exit 3 }
+    Write-WatchdogLog "health_ok after_restart=true public_tunnel=$publicReady heartbeat_sent=$heartbeatSent"
+    Write-RuntimeState "healthy_after_restart" $true "public_tunnel=$publicReady" $heartbeatSent $publicHealth
+    if ($publicReady -and $heartbeatSent) { exit 0 }
+    if (-not $publicReady) { exit 3 }
     exit 4
   }
 
   Write-WatchdogLog "health_failed action=rollback"
   if (Restore-StableServer) {
-    Restart-ServiceSafe $ConnectorService | Out-Null
+    [void](Restart-RuntimeSafe $ConnectorService $ConnectorTask)
+    Start-Sleep -Seconds 2
     $healthAfterRollback = Test-LocalHealth
     if ($healthAfterRollback) {
-      $status = if ($cloudflaredReady) { "ok" } else { "failed" }
-      $errorCode = if ($cloudflaredReady) { "" } else { "cloudflared_unavailable" }
-      $errorMessage = if ($cloudflaredReady) { "" } else { "$CloudflaredService service is not running." }
+      $publicHealth = if ($cloudflaredReady) { Test-PublicConnectorHealth } else { $null }
+      $publicReady = $cloudflaredReady -and $null -ne $publicHealth -and $publicHealth.ok
+      $status = if ($publicReady) { "ok" } else { "failed" }
+      $errorCode = if ($publicReady) { "" } elseif ($null -ne $publicHealth -and $publicHealth.error -eq 'cloudflare_1033') { "cloudflare_1033" } else { "cloudflared_unavailable" }
+      $errorMessage = if ($publicReady) { "" } else { "Connector public tunnel is not ready." }
       $heartbeatSent = Publish-Heartbeat $status "rollback" $true $errorCode $errorMessage
-      Write-WatchdogLog "health_ok after_rollback=true tunnel_service=$cloudflaredReady heartbeat_sent=$heartbeatSent"
-      Write-RuntimeState "healthy_after_rollback" $true "tunnel_service=$cloudflaredReady" $heartbeatSent
-      if ($cloudflaredReady -and $heartbeatSent) { exit 0 }
-      if (-not $cloudflaredReady) { exit 3 }
+      Write-WatchdogLog "health_ok after_rollback=true public_tunnel=$publicReady heartbeat_sent=$heartbeatSent"
+      Write-RuntimeState "healthy_after_rollback" $true "public_tunnel=$publicReady" $heartbeatSent $publicHealth
+      if ($publicReady -and $heartbeatSent) { exit 0 }
+      if (-not $publicReady) { exit 3 }
       exit 4
     }
   }
