@@ -27,9 +27,16 @@ assert.match(preflight, /reason=docker_engine_start_timeout/);
 assert.match(preflight, /DOCKER_HOST/);
 assert.match(preflight, /DOCKER_CONTEXT/);
 
-// Task Scheduler starts only after an interactive logon, is delayed, retries, and never overlaps.
+// Task Scheduler restores Docker independently from deployment eligibility, then
+// starts Auto Deploy after its own delay. The Docker task cannot select/deploy a commit.
+assert.match(installer, /DockerBootstrapTaskName = "MAD4B Staging Docker Bootstrap"/);
+assert.match(installer, /Staging-Windows-Preflight\.ps1/);
+assert.match(installer, /Ensure-StagingDockerDesktopReady -TimeoutSeconds \$BootGraceSeconds -PollSeconds 3/);
+assert.match(installer, /EncodedCommand \$encodedDockerBootstrapCommand/);
+assert.match(installer, /local_runtime_bootstrap_only=True deployment_authorized=False/);
 assert.match(installer, /New-ScheduledTaskPrincipal[^\n]+LogonType Interactive[^\n]+RunLevel Highest/);
 assert.match(installer, /New-ScheduledTaskTrigger -AtLogOn/);
+assert.match(installer, /\$dockerTrigger\.Delay = "PT\$\{dockerDelaySeconds\}S"/);
 assert.match(installer, /\$trigger\.Delay = "PT\$\{LogonDelaySeconds\}S"/);
 assert.match(installer, /RestartCount 3/);
 assert.match(installer, /RestartInterval \(New-TimeSpan -Minutes 1\)/);
@@ -161,6 +168,7 @@ console.log(JSON.stringify({
   ok: true,
   contract: "mad4b.windows-staging-bootstrap-supervisor.v1",
   docker_desktop_auto_start: true,
+  docker_logon_recovery_independent_of_deployment_eligibility: true,
   deployment_grace_lease: true,
   split_tunnel_health: true,
   component_aware_gateway_convergence: true,
