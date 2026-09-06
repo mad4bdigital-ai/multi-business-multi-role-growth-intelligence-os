@@ -8,7 +8,9 @@
   "scope": {
     "include": [
       ".changes/e2e/runtime-composition-x0-evidence-baseline-20260906.json",
+      ".github/derived-state-governance.json",
       ".github/governance/test-authority-registry.json",
+      "http-generic-api/config/repository-governance-constitution.json",
       "docs/work-maps/platform-runtime-map.md",
       "http-generic-api/governedExecutionBaselineTelemetry.js",
       "http-generic-api/governedExecutionBaselineRuntime.js",
@@ -60,6 +62,7 @@
             "Resolve a process-local emitter only when explicitly injected or GOVERNED_EXECUTION_BASELINE_ENABLED=true; keep the default disabled.",
             "Enable the bounded 500-sample process-memory sink in Staging Compose only; do not enable it in the base Production-capable Compose contract.",
             "Refresh the portable Staging generated manifest through its canonical generator after the Compose input changes.",
+            "Register the X0 E2E declaration in both Constitution.control_plane_paths and derived-state convergence automation_control_paths.",
             "Run exact-head repository CI and environment-impact closure; require live-Staging certification externally and prohibit source-tree self-attestation.",
             "Do not begin X1 until Gate X0 external certification is complete."
           ],
@@ -73,6 +76,7 @@
             "Matched F01/F03/F04/F05/F06 fixtures use deterministic provider simulators and are not represented as live provider certification.",
             "The X0 process sink is bounded process-lifetime memory, is non-authoritative, and performs no SQL persistence or external send.",
             "Staging activation is explicit while the base Production-capable Compose file does not enable X0.",
+            "The X0 E2E declaration is registered in both repository-governance control-plane registries; this registration does not create new execution authority.",
             "The candidate tree records exact-head and live-Staging certification as external requirements only.",
             "X010 and all X1 implementation remain unstarted until Gate X0 closes."
           ],
@@ -108,7 +112,9 @@
           ],
           "evidence_paths": [
             ".changes/e2e/runtime-composition-x0-evidence-baseline-20260906.json",
+            ".github/derived-state-governance.json",
             ".github/governance/test-authority-registry.json",
+            "http-generic-api/config/repository-governance-constitution.json",
             "docs/work-maps/platform-runtime-map.md",
             "http-generic-api/governedExecutionBaselineRuntime.js",
             "http-generic-api/connectorExecutor.js",
