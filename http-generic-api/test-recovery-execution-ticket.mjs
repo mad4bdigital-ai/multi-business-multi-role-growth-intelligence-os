@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -219,4 +220,14 @@ test("Staging Recovery keeps internal bootstrap authority POSTs out of the adver
     () => _testingStagingRecoveryAdminRoutes.exactBootstrapBinding({ execution_ticket_id: "ticket:12345678", raw_sql: "GRANT ALL" }),
     (error) => error?.code === "RECOVERY_STAGING_BOOTSTRAP_FIELD_FORBIDDEN",
   );
+
+  const frontendPolicy = JSON.parse(fs.readFileSync(new URL("./frontend-surface-policy.json", import.meta.url), "utf8"));
+  const governedOperations = new Set(
+    frontendPolicy.operation_rules
+      .filter((rule) => rule.source_file === "routes/stagingRecoveryAdminRoutes.js")
+      .map((rule) => rule.operation),
+  );
+  for (const internalPath of contract.internal_execution_authority_paths) {
+    assert.equal(governedOperations.has(`POST ${internalPath}`), true);
+  }
 });
