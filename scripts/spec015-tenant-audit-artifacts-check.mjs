@@ -77,7 +77,11 @@ assert.match(concepts.concepts.find((entry) => entry.concept_key === 'operation'
 const validatorResult = JSON.parse(execFileSync(process.execPath, [validatorPath], {cwd:ROOT,encoding:'utf8'}));
 assert.equal(validatorResult.ok, true);
 assert.deepEqual(validatorResult.phase0_evidence_complete, ['T002','T003']);
-assert.deepEqual(validatorResult.owner_decisions_open, ['T006','T008']);
+assert.deepEqual(validatorResult.phase0_owner_decisions_complete, ['T006','T008']);
+assert.deepEqual(validatorResult.owner_decisions_open, []);
+assert.equal(validatorResult.phase1_authorized, true);
+assert.equal(validatorResult.bounded_implementation_pr_design_authorized, true);
+assert.equal(validatorResult.runtime_mutation_executed, false);
 assert.equal(validatorResult.new_persistence_approved, false);
 
-console.log(JSON.stringify({ok:true,test:'spec015-tenant-audit-artifacts',legacy_matrix_rows:legacy.rows.length,current_main_authority_entities:current.logical_entities.length,canonical_concepts:concepts.concepts.length,candidate_records:rows.length,portfolio_snapshot_base_main_sha:legacy.snapshot_base_main_sha,current_main_authority_inventory_sha:current.current_main_sha,phase0_evidence_complete:['T002','T003'],owner_decisions_open:['T006','T008'],safe_read_only:true,merge_executed:false,secrets_included:false},null,2));
+console.log(JSON.stringify({ok:true,test:'spec015-tenant-audit-artifacts',legacy_matrix_rows:legacy.rows.length,current_main_authority_entities:current.logical_entities.length,canonical_concepts:concepts.concepts.length,candidate_records:rows.length,portfolio_snapshot_base_main_sha:legacy.snapshot_base_main_sha,current_main_authority_inventory_sha:current.current_main_sha,phase0_evidence_complete:['T002','T003'],phase0_owner_decisions_complete:['T006','T008'],owner_decisions_open:[],phase1_authorized:true,runtime_mutation_executed:false,safe_read_only:true,merge_executed:false,secrets_included:false},null,2));
