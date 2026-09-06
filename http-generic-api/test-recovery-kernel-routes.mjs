@@ -82,14 +82,14 @@ function validLegacyBody() {
 }
 
 function validServerBody() {
-  const approvalId = "approval:1234567890abcdef";
+  const challengeRef = "approval:1234567890abcdef";
   return {
     plan_id: PLAN_ID,
     plan_hash: PLAN_HASH,
     step_id: STEP_ID,
-    approval_id: approvalId,
+    approval_id: challengeRef,
     expected_sha: EXACT_SHA,
-    typed_confirmation: `APPROVE PRODUCTION RECOVERY ${approvalId} ${STEP_ID} ${EXACT_SHA}`,
+    typed_confirmation: `APPROVE PRODUCTION RECOVERY ${challengeRef} ${STEP_ID} ${EXACT_SHA}`,
     idempotency_key: "idempotency:route-test-server-001",
   };
 }
