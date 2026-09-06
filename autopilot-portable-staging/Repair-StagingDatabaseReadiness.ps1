@@ -281,6 +281,25 @@ function Reconcile-RoleGrant([object]$Role) {
     $password = Read-Env $script:EnvFile $Role.Password
     $plan = Get-RoleGrantPlan $Role.Key
 
+    # Resolve the exact object set before revoking anything. Required surfaces
+    # fail closed before mutation; optional version-dependent surfaces are
+    # granted only when present and recorded as degraded evidence when absent.
+    $effectiveGrants = @()
+    $missingOptionalSurfaces = @()
+    foreach ($grant in @($plan.grants)) {
+        $surface = [string]$grant.table
+        $surfaceCount = [int](Invoke-RootQuery $Role "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = $(Sql-String $database) AND TABLE_NAME = $(Sql-String $surface)")
+        $required = $true
+        if ($null -ne $grant.PSObject.Properties["required"]) { $required = [bool]$grant.required }
+        if ($surfaceCount -eq 1) {
+            $effectiveGrants += $grant
+        } elseif ($required) {
+            Fail "$($Role.Key) required grant surface is missing before authority mutation: $surface"
+        } else {
+            $missingOptionalSurfaces += $surface
+        }
+    }
+
     $account = "$(Sql-String $user)@'%'"
     $databaseIdentifier = Sql-Identifier $database
     $passwordLiteral = Sql-String $password
@@ -288,7 +307,7 @@ function Reconcile-RoleGrant([object]$Role) {
     $sql.Add("CREATE USER IF NOT EXISTS $account IDENTIFIED BY $passwordLiteral;")
     $sql.Add("ALTER USER $account IDENTIFIED BY $passwordLiteral;")
     $sql.Add("REVOKE ALL PRIVILEGES, GRANT OPTION FROM $account;")
-    foreach ($grant in @($plan.grants)) {
+    foreach ($grant in @($effectiveGrants)) {
         $tableIdentifier = Sql-Identifier ([string]$grant.table)
         $operations = @($grant.operations | ForEach-Object { ([string]$_).ToUpperInvariant() })
         Require ($operations.Count -gt 0) "Empty Staging grant operation set"
@@ -305,7 +324,7 @@ function Reconcile-RoleGrant([object]$Role) {
     $actualText = Invoke-RootQuery $Role "SELECT CONCAT(TABLE_SCHEMA, '.', TABLE_NAME, ':', PRIVILEGE_TYPE) FROM information_schema.TABLE_PRIVILEGES WHERE GRANTEE = $granteeLiteral ORDER BY TABLE_SCHEMA, TABLE_NAME, PRIVILEGE_TYPE"
     $actual = @($actualText -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     $expected = @()
-    foreach ($grant in @($plan.grants)) {
+    foreach ($grant in @($effectiveGrants)) {
         foreach ($operation in @($grant.operations)) { $expected += "$database.$([string]$grant.table):$([string]$operation)" }
     }
     Assert-ExactStringSet $expected $actual "$($Role.Key) table privilege"
@@ -325,6 +344,11 @@ function Reconcile-RoleGrant([object]$Role) {
         role = $Role.Key
         required_table_privilege_count = $expected.Count
         observed_table_privilege_count = $actual.Count
+        optional_surface_count = @($plan.grants | Where-Object { $_.required -eq $false }).Count
+        missing_optional_surface_count = $missingOptionalSurfaces.Count
+        missing_optional_surfaces = @($missingOptionalSurfaces)
+        missing_optional_surface_is_blocking = $false
+        required_surface_preflight_completed = $true
         no_global_privileges = $true
         no_schema_wide_privileges = $true
         no_column_privileges = $true

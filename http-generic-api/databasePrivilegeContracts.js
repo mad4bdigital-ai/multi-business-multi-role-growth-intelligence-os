@@ -5,8 +5,9 @@ const normalizeOperationsByTable = (value) => Object.freeze(Object.fromEntries(
   ]),
 ));
 
-const buildGrantSpec = (required_tables, required_operations, apply_when = "always", required_operations_by_table = null) => Object.freeze({
+const buildGrantSpec = (required_tables, required_operations, apply_when = "always", required_operations_by_table = null, optional_tables = []) => Object.freeze({
   required_tables: Object.freeze([...required_tables]),
+  optional_tables: Object.freeze([...optional_tables]),
   required_operations: Object.freeze([...required_operations]),
   ...(required_operations_by_table ? { required_operations_by_table: normalizeOperationsByTable(required_operations_by_table) } : {}),
   apply_when,
@@ -75,9 +76,12 @@ const STAGING_RUNTIME_READ_ONLY_TABLES = Object.freeze([
   "activation_freshness_policy_registry",
   "activation_signal_subscription_registry",
   "activation_connector_pack_registry",
-  // Operational read surfaces observed by Activation awareness and readiness.
-  // Views remain SELECT-only and are reconciled through the same exact-object
-  // grant plan; no schema-wide authority is introduced.
+]);
+
+const STAGING_RUNTIME_OPTIONAL_READ_SURFACES = Object.freeze([
+  // These surfaces are version-dependent views/tables. Grant them only when
+  // present; absence is reported as degraded evidence and never triggers a
+  // schema-wide privilege expansion.
   "v_activation_pending_tasks",
   "v_activation_agent_catalog",
   "v_activation_agent_skill_grants",
@@ -90,7 +94,8 @@ const STAGING_RUNTIME_READ_ONLY_TABLES = Object.freeze([
 ]);
 
 const STAGING_RUNTIME_READ_ONLY_MATRIX = Object.freeze(Object.fromEntries(
-  STAGING_RUNTIME_READ_ONLY_TABLES.map((table) => [table, Object.freeze(["SELECT"])]),
+  [...STAGING_RUNTIME_READ_ONLY_TABLES, ...STAGING_RUNTIME_OPTIONAL_READ_SURFACES]
+    .map((table) => [table, Object.freeze(["SELECT"])]),
 ));
 
 // Local Staging keeps the production bootstrap grant surface unchanged while
@@ -113,6 +118,7 @@ export const STAGING_ROLE_GRANT_POLICIES = Object.freeze({
     ["SELECT", "INSERT", "UPDATE"],
     "always",
     STAGING_RUNTIME_READ_ONLY_MATRIX,
+    STAGING_RUNTIME_OPTIONAL_READ_SURFACES,
   ),
   governance: BOOTSTRAP_ROLE_GRANT_POLICIES.governance,
   runtime_persistence: BOOTSTRAP_ROLE_GRANT_POLICIES.runtime_persistence,
