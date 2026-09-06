@@ -1,0 +1,114 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "windows-staging-bootstrap-supervisor-20260906",
+  "title": "Windows Staging Bootstrap Supervisor",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/windows-staging-bootstrap-supervisor-20260906.json",
+      "autopilot-portable-staging/Staging-Windows-Preflight.ps1",
+      "autopilot-portable-staging/Install-AutoDeployTask.ps1",
+      "autopilot-portable-staging/Staging-HealthMonitor.ps1",
+      "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
+      "autopilot-portable-staging/Staging-Operations-Log.ps1",
+      "autopilot-portable-staging/Converge-StagingActivationGateway.ps1",
+      "local-connector/connector-watchdog.ps1",
+      "local-connector/install-service.ps1",
+      "http-generic-api/test-windows-staging-bootstrap-supervisor.mjs",
+      "autopilot-portable-staging/auto-deploy-policy.json",
+      "autopilot-portable-staging/manifest.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "autopilot-portable-staging/auto-deploy-policy.json",
+    "declared_targets": ["staging"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make Windows reboot and local Staging startup self-healing, phase-aware and exact-SHA convergent without treating normal boot transients as incidents or rebuilding a healthy local application for Gateway-only drift.",
+      "e2e_journeys": [
+        {
+          "id": "windows-reboot-to-exact-staging-certification",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Windows Staging Bootstrap Supervisor",
+          "entrypoint": "Interactive Windows logon after a reboot with Docker Desktop and local connector runtimes initially stopped.",
+          "terminal_outcome": "Docker Desktop is started and proven ready by docker info, local services recover under a bounded deployment lease, Staging and Connector tunnels are classified independently, exact-SHA Gateway drift is repaired component-wise without rebuilding the healthy app, and certification resumes from the convergence boundary with structured state and root-cause evidence.",
+          "steps": [
+            "Start Auto Deploy at interactive logon after a bounded delay with highest privileges, one-minute failure retry and IgnoreNew overlap protection.",
+            "Use docker info as the local Docker Engine authority; start Docker Desktop when needed and poll for at most 180 seconds before emitting docker_engine_start_timeout.",
+            "Publish a bounded boot/deployment lease so the Health Monitor represents Docker/service starting states as bootstrapping or deploying rather than consecutive incidents.",
+            "Verify the five required Compose services and maintain current failure_class separately from last_failure_class historical evidence.",
+            "Classify dev.mad4b.com/mcp-dev.mad4b.com Staging ingress independently from connector.mad4b.com Admin Recovery ingress and preserve Cloudflare 1033 as a dedicated connector failure.",
+            "Recover legacy connector Scheduled Tasks or service-based connector runtimes through the independent recurring watchdog.",
+            "Persist eligibility/build/deployment/service-health/tunnel/convergence/certification phases instead of reducing the run to deployed/certified booleans.",
+            "When the local exact-SHA deployment is healthy and only Gateway drift remains, run the read-only schema/governance preflight and the existing governed Activation Worker converger instead of rebuilding the app.",
+            "Refresh the app only with --no-build when non-secret Worker origin trust changed, then re-run exact-SHA certification.",
+            "Promote failure_class, expected_commit, observed_commit, parent_error and blocking_reason into last-failure.json so the original component failure is not overwritten by a generic launcher error."
+          ],
+          "assertions": [
+            "Docker Desktop process existence is never treated as Docker readiness; docker info must succeed.",
+            "A normal starting health state within the active lease or boot grace does not increment consecutive_failures.",
+            "Current failure_class is cleared after recovery while last_failure_class may preserve historical diagnostics.",
+            "Staging cloudflared health does not imply connector.mad4b.com health and Connector 1033 remains independently visible.",
+            "Gateway-only drift may invoke only the pre-existing exact-SHA Staging Worker workflow authority and cannot authorize Production, DNS, database, migration or Hostinger mutation.",
+            "A healthy exact-SHA local app is not rebuilt solely because Activation Gateway is stale.",
+            "Unknown local deployment failures remain fail-closed rather than being reclassified as Gateway-only recovery.",
+            "Production mutation remains false and secrets_included remains false."
+          ],
+          "tests": [
+            {
+              "id": "windows-staging-bootstrap-supervisor",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-windows-staging-bootstrap-supervisor.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-auto-deploy-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-auto-deploy-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-smart-gateway-convergence-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-smart-gateway-convergence-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "portable-staging-manifest-check",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/generate-portable-staging-manifest.mjs",
+              "args": ["--check"]
+            }
+          ],
+          "evidence_paths": [
+            "autopilot-portable-staging/Staging-Windows-Preflight.ps1",
+            "autopilot-portable-staging/Install-AutoDeployTask.ps1",
+            "autopilot-portable-staging/Staging-HealthMonitor.ps1",
+            "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
+            "autopilot-portable-staging/Staging-Operations-Log.ps1",
+            "local-connector/connector-watchdog.ps1",
+            "local-connector/install-service.ps1",
+            "http-generic-api/test-windows-staging-bootstrap-supervisor.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
