@@ -7,10 +7,19 @@
   "current_phase": "mvp",
   "scope": {
     "include": [
+      ".github/governance/test-authority-registry.json",
+      "autopilot-portable-staging/manifest.json",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/fullSchemaMetadataCensus.js",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "http-generic-api/routes/adminCliRoutes.js",
+      "http-generic-api/scripts/test-manifest.mjs",
       "http-generic-api/test-full-schema-metadata-census.mjs",
-      "http-generic-api/scripts/test-manifest.mjs"
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json"
     ]
   },
   "merge_contract": {
@@ -55,7 +64,16 @@
             "http-generic-api/fullSchemaMetadataCensus.js",
             "http-generic-api/routes/adminCliRoutes.js",
             "http-generic-api/test-full-schema-metadata-census.mjs",
-            "http-generic-api/scripts/test-manifest.mjs"
+            "http-generic-api/scripts/test-manifest.mjs",
+            ".github/governance/test-authority-registry.json",
+            "autopilot-portable-staging/manifest.json",
+            "docs/remote-mcp-write-scope-inventory.md",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+            "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
+            "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
+            "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json"
           ]
         }
       ]
