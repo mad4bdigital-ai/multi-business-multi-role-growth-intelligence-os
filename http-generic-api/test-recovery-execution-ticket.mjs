@@ -16,7 +16,6 @@ import { _testingStagingRecoveryAuthorityBinding } from "./stagingRecoveryAuthor
 import { buildStagingRecoveryAdminContract, _testingStagingRecoveryAdminRoutes } from "./routes/stagingRecoveryAdminRoutes.js";
 
 // frontend-surface-operation: POST /admin/recovery/staging/bootstrap-ticket/verify
-// frontend-surface-operation: POST /admin/recovery/staging/bootstrap-readback/attest
 // frontend-surface-operation: POST /admin/recovery/staging/bootstrap-ticket/finalize
 // frontend-surface-operation: POST /admin/recovery/staging/bootstrap-partial-receipt
 
@@ -252,7 +251,6 @@ test("Staging Recovery keeps internal bootstrap authority POSTs out of the adver
   assert.equal(contract.paths.length, 3);
   assert.deepEqual(contract.internal_execution_authority_paths, [
     "/admin/recovery/staging/bootstrap-ticket/verify",
-    "/admin/recovery/staging/bootstrap-readback/attest",
     "/admin/recovery/staging/bootstrap-ticket/finalize",
     "/admin/recovery/staging/bootstrap-partial-receipt",
   ]);
