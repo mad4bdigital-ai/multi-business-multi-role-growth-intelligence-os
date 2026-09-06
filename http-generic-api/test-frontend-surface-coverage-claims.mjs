@@ -1060,7 +1060,7 @@ assert.equal(generatedGapOperations.filter((operation) => ["state_change", "exte
 const governedMutations = operations.filter((operation) => ["state_change", "external_effect"].includes(operation.governance?.classification));
 assert.ok(governedMutations.every((operation) => operation.governance?.governed === true), "every mutation operation must be fully governed");
 assert.ok(governedMutations.every((operation) => ["preflight", "approval", "readback", "rollback"].every((key) => operation.governance?.controls?.[key]?.mode)), "every mutation operation must expose all four control modes");
-assert.equal(governedMutations.length, 18, "the governed mutation set includes the bounded Host Breakglass workflow dispatch, plan-bound Recovery execution, approval challenge issuer, and server-issued Recovery bridge");
+assert.equal(governedMutations.length, 21, "the governed mutation set includes the bounded Host Breakglass workflow dispatch, plan-bound Recovery execution, approval challenge issuer, and server-issued Recovery bridge");
 assert.ok(governedMutations.some((operation) => operation.signature === "POST /admin/recovery/kernel/execute"), "plan-bound Recovery execution must remain explicitly governed");
 assert.ok(governedMutations.some((operation) => operation.signature === "POST /admin/recovery/kernel/execute-approved"), "server-issued Recovery bridge must remain explicitly governed");
 assert.ok(governedMutations.some((operation) => operation.signature === "POST /admin/recovery/kernel/approval-challenge"), "approval challenge issuer must remain explicitly governed");
