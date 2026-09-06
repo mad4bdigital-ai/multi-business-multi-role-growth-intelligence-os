@@ -9,6 +9,7 @@ $ErrorActionPreference = "Stop"
 $ConnectorDir   = $PSScriptRoot
 $ConfigPath     = Join-Path $ConnectorDir "cloudflared-config.yml"
 $WatchdogPath   = Join-Path $ConnectorDir "connector-watchdog.ps1"
+$EnvPath        = Join-Path $ConnectorDir ".env"
 $NodeExe        = (Get-Command node -ErrorAction Stop).Source
 $CfExe          = (Get-Command cloudflared -ErrorAction Stop).Source
 $PowerShellExe  = (Get-Command powershell.exe -ErrorAction Stop).Source
@@ -19,8 +20,50 @@ $LegacyTunnelTask = "GrowthIntelligence-CloudflaredTunnel"
 $WatchdogTask     = "GrowthIntelligence-ConnectorWatchdog"
 $StagingTunnel    = "Mad4B-Staging-Cloudflared"
 
+function Get-DotEnvValue([string]$Name) {
+    if (-not (Test-Path -LiteralPath $EnvPath -PathType Leaf)) { return "" }
+    $prefix = "$Name="
+    foreach ($line in Get-Content -LiteralPath $EnvPath -ErrorAction Stop) {
+        $text = [string]$line
+        if ($text.StartsWith($prefix, [System.StringComparison]::Ordinal)) {
+            return $text.Substring($prefix.Length).Trim()
+        }
+    }
+    return ""
+}
+
+function Assert-ConnectorEnvironmentBinding {
+    $environment = (Get-DotEnvValue "CONNECTOR_ENVIRONMENT").ToLowerInvariant()
+    $expectedHost = switch ($environment) {
+        "staging" { "dev.mad4b.com" }
+        "production" { "auth.mad4b.com" }
+        default { throw "CONNECTOR_ENVIRONMENT must be staging or production before Local Connector installation." }
+    }
+    $expectedBase = "https://$expectedHost"
+    $expected = @{
+        CONNECTOR_CONTROL_PLANE_BASE_URL = $expectedBase
+        CONNECTOR_POLICY_URL = "$expectedBase/connector-agent/policy"
+        CONNECTOR_HEARTBEAT_URL = "$expectedBase/connector-agent/heartbeat"
+    }
+    foreach ($name in $expected.Keys) {
+        $actual = Get-DotEnvValue $name
+        if ($actual -ne $expected[$name]) {
+            throw "$name is not bound to $environment. expected=$($expected[$name])"
+        }
+    }
+    foreach ($name in @("CONNECTOR_CLOUDFLARED_SERVICE", "CONNECTOR_CLOUDFLARED_TASK")) {
+        $actual = Get-DotEnvValue $name
+        if ($actual -and $actual -ne $TunnelTask) {
+            throw "$name must equal $TunnelTask."
+        }
+    }
+    return [pscustomobject]@{ environment = $environment; control_plane_host = $expectedHost }
+}
+
 Write-Host ""
 Write-Host "=== Growth Intelligence Platform - Local Connector Install ==="
+$environmentBinding = Assert-ConnectorEnvironmentBinding
+Write-Host "  Environment binding: $($environmentBinding.environment) -> $($environmentBinding.control_plane_host) [OK]"
 
 # -- 1. Stop only Local Connector-owned legacy/current runtimes ---------------
 Write-Host ""
