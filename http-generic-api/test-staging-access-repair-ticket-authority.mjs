@@ -39,7 +39,7 @@ function stagingEnv(root) {
   };
 }
 
-test("high-level Staging access-repair approval issues one exact signed grant ticket that the bootstrap authority can reserve", async () => {
+test("high-level Staging access-repair approval issues one exact signed grant ticket that reaches executing only through the bootstrap authority", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "staging-access-repair-ticket-"));
   try {
     const env = stagingEnv(root);
@@ -119,18 +119,19 @@ test("high-level Staging access-repair approval issues one exact signed grant ti
     assert.equal(typeof ticket.signature, "string");
     assert.ok(ticket.signature.length > 0);
 
+    const expected = {
+      production_sha: SHA,
+      target_key: "staging-runtime",
+      target_fingerprint: targetFingerprint,
+      operation: "grants",
+      plan_hash: prepared.plan_hash,
+      step_id: prepared.step_id,
+      idempotency_key: "staging-access-repair-execute-001",
+      grant_binding_hash: GRANT_BINDING_HASH,
+    };
     const verified = await verifyExecutionTicket(ticket, {
       verifier: graph.executionTicketVerifier,
-      expected: {
-        production_sha: SHA,
-        target_key: "staging-runtime",
-        target_fingerprint: targetFingerprint,
-        operation: "grants",
-        plan_hash: prepared.plan_hash,
-        step_id: prepared.step_id,
-        idempotency_key: "staging-access-repair-execute-001",
-        grant_binding_hash: GRANT_BINDING_HASH,
-      },
+      expected,
     });
     assert.equal(verified.valid, true);
 
@@ -146,20 +147,24 @@ test("high-level Staging access-repair approval issues one exact signed grant ti
     const reservation = await bootstrap.verifyForBootstrap({
       ticket_id: issued.ticket_id,
       ticket_hash: issued.ticket_hash,
-      expected: {
-        production_sha: SHA,
-        target_key: "staging-runtime",
-        target_fingerprint: targetFingerprint,
-        operation: "grants",
-        plan_hash: prepared.plan_hash,
-        idempotency_key: "staging-access-repair-execute-001",
-        grant_binding_hash: GRANT_BINDING_HASH,
-      },
+      expected,
     });
     assert.equal(reservation.valid, true);
     assert.equal(reservation.reserved, true);
     assert.equal(reservation.lifecycle_state, "reserved");
     assert.equal(reservation.reservation_receipt.ticket_id, issued.ticket_id);
+
+    const executing = await bootstrap.markExecutingForBootstrap({
+      ticket_id: issued.ticket_id,
+      ticket_hash: issued.ticket_hash,
+      expected,
+      reservation_receipt: reservation.reservation_receipt,
+    });
+    assert.equal(executing.executing, true);
+    assert.equal(executing.lifecycle_state, "executing");
+    assert.equal(executing.reservation_generation, reservation.reservation_generation);
+    assert.equal(executing.execution_receipt.contract, "mad4b.staging-bootstrap-execution-receipt.v1");
+    assert.equal(executing.execution_receipt.reservation_receipt_hash, reservation.reservation_receipt.receipt_hash);
 
     await assert.rejects(
       () => authority.approveAndIssue({
@@ -176,7 +181,7 @@ test("high-level Staging access-repair approval issues one exact signed grant ti
   }
 });
 
-test("access-repair route binding rejects raw SQL, commands, and caller-selected operations", () => {
+test("access-repair and execution-start route binding reject raw SQL, commands, and caller-selected operations", () => {
   assert.throws(
     () => _testingStagingRecoveryAdminRoutes.exactAccessRepairPrepare({
       authority_action: "prepare_access_repair",
@@ -210,6 +215,24 @@ test("access-repair route binding rejects raw SQL, commands, and caller-selected
       grant_binding_hash: GRANT_BINDING_HASH,
       idempotency_key: "staging-access-repair-prepare-003",
       command: "do-something",
+    }),
+    (error) => error?.code === "RECOVERY_STAGING_BOOTSTRAP_FIELD_FORBIDDEN",
+  );
+  assert.throws(
+    () => _testingStagingRecoveryAdminRoutes.exactBootstrapExecutionStart({
+      authority_action: "mark_executing",
+      execution_ticket_id: `ticket:${"1".repeat(32)}`,
+      execution_ticket_hash: "2".repeat(64),
+      expected_sha: SHA,
+      target_key: "staging-runtime",
+      target_fingerprint: "3".repeat(64),
+      operation: "grants",
+      plan_hash: "4".repeat(64),
+      idempotency_key: "staging-execution-start-001",
+      role_selection_hash: null,
+      grant_binding_hash: GRANT_BINDING_HASH,
+      reservation_receipt: { contract: "mad4b.staging-bootstrap-reservation-receipt.v1", secrets_included: false },
+      raw_sql: "GRANT ALL",
     }),
     (error) => error?.code === "RECOVERY_STAGING_BOOTSTRAP_FIELD_FORBIDDEN",
   );
