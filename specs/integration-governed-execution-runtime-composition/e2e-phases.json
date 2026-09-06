@@ -5,18 +5,13 @@
   "title": "Governed Execution Runtime Composition Integration Contracts",
   "delivery_mode": "multi_pr",
   "current_phase": "mvp",
-  "scope": {
-    "include": [
-      "specs/integration-governed-execution-runtime-composition/**",
-      "scripts/runtime-composition-contract-check.mjs"
-    ]
-  },
+  "scope": {"include": ["specs/integration-governed-execution-runtime-composition/**","scripts/runtime-composition-contract-check.mjs"]},
   "merge_contract": {"minimum_phase": "mvp"},
   "phases": [
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Certify the cross-Spec composition contract and ownership boundaries without creating runtime authority, dispatching providers, applying migrations, deploying code, or beginning X0 instrumentation.",
+      "objective": "Certify the cross-Spec composition and provider-projection contracts without creating runtime authority, dispatching providers, applying migrations, deploying code, or beginning X0 instrumentation.",
       "e2e_journeys": [
         {
           "id": "runtime-composition-specification-boundary",
@@ -24,28 +19,35 @@
           "level": "synthetic_runtime",
           "actor": "Repository runtime architecture maintainer",
           "entrypoint": "Run the registered repository automation validator against the exact candidate tree",
-          "terminal_outcome": "Specs 011, 012, and 013 remain the execution, context, and catalog owners; the integration kit is non-authoritative; X0 remains the next instrumentation-only phase; all runtime and external effects stay disabled.",
+          "terminal_outcome": "Specs 011, 012, and 013 remain execution/context/catalog owners; the integration kit and WordPress Site Control Plane are non-authoritative provider composition surfaces; X0 remains next; runtime/external effects stay disabled.",
           "steps": [
-            "Validate the integration manifest, completion ledger, ontology, artifact authority graph, and phase gates from the exact candidate tree.",
-            "Prove the integration kit owns composition and certification only while execution, context, and catalog authority remain with Specs 011, 012, and 013.",
+            "Validate the integration manifest, completion ledger, ontology, authority graph, WordPress provider profile, and phase gates from the exact candidate tree.",
+            "Prove the integration kit owns composition/certification only while Specs 011/012/013 retain execution/context/catalog authority.",
+            "Prove WordPress Abilities and custom MCP servers are provider-side operation/transport projections and cannot bypass the MAD4B Context Kernel or governed execution path.",
+            "Prove WordPress raw SQL Breakglass is excluded from the normal System Tool Catalog and Host Breakglass remains the platform raw SQL/shell exception authority.",
             "Prove X0 is evidence-baseline instrumentation with no runtime behavior change and X1 is a no-provider-call shadow comparison.",
             "Prove provider writes, database writes, migrations, deployment, runtime cutover, protected-branch writes, and secrets remain disabled."
           ],
           "assertions": [
             "The integration kit never becomes a fourth execution, context, catalog, policy, grant, or provider authority.",
+            "WordPress Site Control Plane is supported as a provider candidate, not as the platform authorization kernel.",
+            "Direct ChatGPT-to-WordPress MCP may be used only for bounded standalone site-admin mode and is not the governed multi-tenant platform path.",
+            "WordPress stale-state hashes/revisions are provider concurrency guards and do not replace canonical operation idempotency.",
+            "WordPress raw SQL Breakglass is not projected to normal Agents/Packages/Content Intelligence.",
+            "MCP 2026-07-28 compatibility is not claimed for the observed WordPress upstream while its HTTP transport remains on the 2025-11-25 profile.",
             "X0 may measure existing behavior but may not change dispatch semantics or provider effects.",
             "X1 may compare canonical composition against legacy behavior but may not call providers from the shadow path.",
             "Unknown outcomes are reconciled before retry and context or connection substitution remains fail-closed.",
             "No runtime, database, migration, deployment, external-send, permission, merge, or Production effect is authorized by this MVP contract."
           ],
-          "tests": [
-            {"id":"validate-runtime-composition-contract","runner":"node","working_directory":".","path":"scripts/runtime-composition-contract-check.mjs","args":[]}
-          ],
+          "tests": [{"id":"validate-runtime-composition-contract","runner":"node","working_directory":".","path":"scripts/runtime-composition-contract-check.mjs","args":[]}],
           "evidence_paths": [
             "specs/integration-governed-execution-runtime-composition/manifest.json",
             "specs/integration-governed-execution-runtime-composition/completion.json",
             "specs/integration-governed-execution-runtime-composition/canonical-semantic-ontology.md",
             "specs/integration-governed-execution-runtime-composition/canonical-artifact-authority-reference-graph.md",
+            "specs/integration-governed-execution-runtime-composition/wordpress-site-control-plane-provider-profile.json",
+            "specs/integration-governed-execution-runtime-composition/wordpress-site-control-plane-provider-profile.md",
             "specs/integration-governed-execution-runtime-composition/tasks-and-gates.md",
             "scripts/runtime-composition-contract-check.mjs"
           ]
@@ -56,42 +58,12 @@
       "id": "operational",
       "status": "blocked",
       "objective": "Implement X0 evidence baseline and X1 contract-composition shadow in a separate bounded runtime PR after convergence approval.",
-      "blockers": [
-        "PR #7930 exact-head convergence CI is not yet certified.",
-        "T006 canonical identity/cutover owner approval remains pending.",
-        "T008 Phase1 architecture/security/product owner approval remains pending.",
-        "X0 instrumentation implementation is intentionally outside this specification-only PR."
-      ],
-      "planned_e2e_journey": {
-        "id": "runtime-composition-x0-x1-shadow",
-        "required_level": "synthetic_runtime",
-        "actor": "Authorized runtime engineer",
-        "entrypoint": "Instrument representative existing executions and compile canonical composition in shadow mode",
-        "terminal_outcome": "Baseline evidence is reproducible and the shadow composition has zero unexplained authority, target, tenant, or connection mismatch without provider calls from the shadow path.",
-        "steps": ["Capture no-secret legacy baseline evidence and stage timing.","Compile and compare canonical execution context, operation, policy, approval, provider, and readback decisions without dispatch."]
-      }
+      "blockers": ["PR #7930 exact-head convergence CI is not yet certified.","T006 canonical identity/cutover owner approval remains pending.","T008 Phase1 architecture/security/product owner approval remains pending.","WordPress PR #6 governed platform binding and runtime certification are not implemented.","X0 instrumentation implementation is intentionally outside this specification-only PR."],
+      "planned_e2e_journey": {"id":"runtime-composition-x0-x1-shadow","required_level":"synthetic_runtime","actor":"Authorized runtime engineer","entrypoint":"Instrument representative existing executions and compile canonical composition in shadow mode","terminal_outcome":"Baseline evidence is reproducible and the shadow composition has zero unexplained authority, target, tenant, connection, provider, or WordPress binding mismatch without provider calls from the shadow path.","steps":["Capture no-secret legacy baseline evidence and stage timing.","Compile and compare canonical context, operation, policy, approval, provider and readback decisions without dispatch.","Compile the WordPress provider binding in shadow mode and prove no direct Ability invocation occurs."]}
     },
-    {
-      "id": "resilient",
-      "status": "blocked",
-      "objective": "Certify X2 through X7 read, DAG, approval, ledger/projection, mutation, and durable execution resilience.",
-      "blockers": ["Operational X0/X1 certification is incomplete."],
-      "planned_e2e_journey": {"id":"runtime-composition-resilience","required_level":"live_non_production","actor":"Authorized staging operator","entrypoint":"Exercise selected composed read, preparation, mutation, and durable workflows in non-Production","terminal_outcome":"Idempotency, locks, approvals, readback, unknown-outcome reconciliation, restart recovery, and rollback remain equivalent or stronger than legacy execution.","steps":["Certify read and DAG preparation paths.","Certify approval frontier, ledger/projection split, bounded mutation, and durable recovery with fault injection."]}
-    },
-    {
-      "id": "canary",
-      "status": "blocked",
-      "objective": "Expose the certified execution surface to bounded internal/tenant cohorts while retaining legacy fallback.",
-      "blockers": ["Resilient certification through the selected X2-X7 gates is incomplete."],
-      "planned_e2e_journey": {"id":"runtime-composition-canary","required_level":"live_non_production","actor":"Authorized pilot cohort","entrypoint":"Use certified composed execution adapters under bounded rollout flags","terminal_outcome":"Semantic parity, readback, latency, duplicate-mutation, rollback, and isolation metrics remain within declared gates.","steps":["Enable selected read and low-risk operation cohorts.","Measure parity and rollback readiness before each expansion."]}
-    },
-    {
-      "id": "production",
-      "status": "blocked",
-      "objective": "Complete X8/X9 public-surface and percent-rollout closeout only after governed Production authority exists.",
-      "blockers": ["Canary acceptance, Production promotion authority, and reversible cutover evidence are absent."],
-      "planned_e2e_journey": {"id":"runtime-composition-production-readback","required_level":"production_readback","actor":"Authorized release operator","entrypoint":"Promote an exact certified composed execution release through governed Production promotion","terminal_outcome":"Production runs the intended revisions with equivalent-or-stronger authorization, readback, evidence, recovery, and reversible legacy retirement.","steps":["Verify exact release identity and promotion authority.","Run bounded Production readback, rollback drill, and post-merge audit before retirement decisions."]}
-    }
+    {"id":"resilient","status":"blocked","objective":"Certify X2 through X7 read, DAG, approval, ledger/projection, mutation, provider and durable execution resilience.","blockers":["Operational X0/X1 certification is incomplete."],"planned_e2e_journey":{"id":"runtime-composition-resilience","required_level":"live_non_production","actor":"Authorized staging operator","entrypoint":"Exercise selected composed read, preparation, provider, mutation, and durable workflows in non-Production","terminal_outcome":"Idempotency, locks, approvals, readback, unknown-outcome reconciliation, provider binding, restart recovery, and rollback remain equivalent or stronger than legacy execution.","steps":["Certify read and DAG preparation paths.","Certify provider binding, approval frontier, ledger/projection split, bounded mutation, and durable recovery with fault injection."]}},
+    {"id":"canary","status":"blocked","objective":"Expose the certified execution surface to bounded internal/tenant cohorts while retaining legacy fallback.","blockers":["Resilient certification through selected X2-X7 gates is incomplete."],"planned_e2e_journey":{"id":"runtime-composition-canary","required_level":"live_non_production","actor":"Authorized pilot cohort","entrypoint":"Use certified composed execution adapters under bounded rollout flags","terminal_outcome":"Semantic parity, provider readback, latency, duplicate-mutation, rollback, isolation and WordPress provider evidence remain within declared gates.","steps":["Enable selected read and low-risk operation cohorts.","Measure parity and rollback readiness before each expansion."]}},
+    {"id":"production","status":"blocked","objective":"Complete X8/X9 public-surface and percent-rollout closeout only after governed Production authority exists.","blockers":["Canary acceptance, Production promotion authority, and reversible cutover evidence are absent."],"planned_e2e_journey":{"id":"runtime-composition-production-readback","required_level":"production_readback","actor":"Authorized release operator","entrypoint":"Promote an exact certified composed execution release through governed Production promotion","terminal_outcome":"Production runs intended revisions with equivalent-or-stronger authorization, provider binding, readback, evidence, recovery, and reversible legacy retirement.","steps":["Verify exact release identity and promotion authority.","Run bounded Production readback, provider certification readback, rollback drill, and post-merge audit before retirement decisions."]}}
   ],
   "secrets_included": false
 }

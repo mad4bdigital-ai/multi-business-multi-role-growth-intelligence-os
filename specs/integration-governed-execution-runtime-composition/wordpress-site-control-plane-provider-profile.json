@@ -1,0 +1,174 @@
+{
+  "schema_version": 1,
+  "profile_key": "mad4b.wordpress-site-control-plane.provider-profile.v1",
+  "status": "candidate_supported_with_governed_platform_binding_gaps",
+  "purpose": "Define how the MAD4B Site Control Plane and the official WordPress MCP Adapter may participate in the governed MAD4B execution architecture without becoming a parallel platform authority.",
+  "observed_source": {
+    "repository": "mad4bdigital-ai/WordPress",
+    "pull_request": 6,
+    "observed_head_sha": "d838847997e8f7788e321b5e43e8f517077f1194",
+    "plugin": "mad4b-site-control-plane",
+    "plugin_version": "0.3.0",
+    "pull_request_state": "open_draft",
+    "runtime_certified": false
+  },
+  "upstream_mcp_adapter": {
+    "repository": "WordPress/mcp-adapter",
+    "observed_latest_release": "v0.6.1",
+    "observed_release_commit": "23cb53e0b82f39238eec1c38cb055e28aa30fa7c",
+    "minimum_release_baseline_for_packaged_zip": "v0.6.1",
+    "wordpress_minimum": "6.9",
+    "http_transport_protocol_baseline": "2025-11-25",
+    "mcp_2026_07_28_status": "not_yet_upstream_supported_at_observation_time",
+    "mcp_2026_07_28_tracking_issue": 268,
+    "fork_required_now": false,
+    "fork_trigger": "only_if_required_governed_transport_or_observability_extension_cannot_be_implemented_through_supported_hooks_or_a_bounded_compatibility_transport"
+  },
+  "authority_boundary": {
+    "wordpress_ability_role": "provider_side_typed_operation_endpoint",
+    "wordpress_custom_mcp_server_role": "provider_transport_projection",
+    "wordpress_user_capability_role": "provider_local_ceiling_and_defense_in_depth",
+    "wordpress_local_audit_role": "provider_local_evidence_projection_not_canonical_execution_ledger",
+    "stale_hash_or_revision_guard_role": "provider_concurrency_precondition_not_platform_idempotency_authority",
+    "canonical_platform_authorities": [
+      "Spec012 Context Kernel",
+      "canonical_capability_and_policy_resolution",
+      "Spec011 governed execution_plan_operation_envelope_idempotency_approval_readback_evidence",
+      "Spec013 System Tool Catalog focused projection"
+    ],
+    "direct_chatgpt_to_wordpress_is_governed_platform_path": false,
+    "tool_or_ability_visibility_grants_permission": false,
+    "package_or_agent_can_bypass_kernel": false
+  },
+  "integration_modes": {
+    "standalone_site_admin": {
+      "allowed": true,
+      "platform_authority": false,
+      "transport": "WordPress custom MCP servers",
+      "principal": "authenticated WordPress operator identity",
+      "appropriate_use": [
+        "site-local diagnostics",
+        "manual administrator maintenance",
+        "development and bounded runtime acceptance",
+        "emergency site-local recovery when explicitly enabled"
+      ],
+      "not_valid_for": [
+        "multi-tenant platform authorization",
+        "Package-derived permissions",
+        "global agent delegation",
+        "Production autonomous publishing without MAD4B governed execution"
+      ]
+    },
+    "governed_platform_provider": {
+      "required_for_mad4b_platform_and_content_intelligence": true,
+      "external_principal_ingress": "MAD4B governed MCP/API surface",
+      "canonical_path": [
+        "external principal",
+        "authenticated MAD4B transport",
+        "focused System Tool Catalog projection",
+        "Spec012 exact tenant_workspace_brand_resource_context",
+        "canonical capability_policy_provider_resolution",
+        "Spec011 execution operation/envelope/approval/idempotency",
+        "WordPress provider binding",
+        "MAD4B Site Control Plane WordPress Ability",
+        "provider-side readback",
+        "Spec011 canonical evidence/readback ledger"
+      ],
+      "wordpress_connection_identity": "dedicated bounded service identity or explicitly delegated operator identity",
+      "wordpress_permissions": "defense_in_depth_only",
+      "direct_external_model_selection_of_wordpress_resource": false,
+      "direct_external_model_selection_of_wordpress_credentials": false,
+      "provider_transport_may_use_mcp_2025_11_25_internally": true,
+      "external_mad4b_mcp_protocol_can_evolve_independently": true
+    }
+  },
+  "required_governed_binding_contract": {
+    "implementation_status": "not_yet_proven_by_wordpress_pr6",
+    "required_request_bindings": [
+      "operation_id",
+      "capability_key",
+      "tenant_id",
+      "workspace_id",
+      "brand_or_resource_scope_ref",
+      "environment",
+      "effect_class",
+      "idempotency_key",
+      "execution_envelope_or_capsule_ref",
+      "provider_connection_ref",
+      "expected_resource_revision_or_hash_when_applicable",
+      "approval_ref_when_required",
+      "readback_contract_ref",
+      "correlation_id"
+    ],
+    "transport_rule": "authority-bearing broker assertions belong in authenticated transport headers or server-side references and must not be copied into model-visible Ability arguments",
+    "execution_rule": "WordPress must fail closed if the governed binding is absent, stale, mismatched, expired, already consumed where single-use applies, or selects a different tenant/resource/connection than the canonical operation",
+    "revalidation_rule": "provider-local WordPress permission and target checks remain mandatory in addition to platform authorization",
+    "secret_rule": "no credential_token_password_or_secret_in_ability_schema_plan_context_or_canonical_evidence"
+  },
+  "outcome_contract": {
+    "canonical_states": ["confirmed","pending","rejected","blocked","failed_known","unknown","diverged","compensated"],
+    "success_rule": "state-changing operations are not confirmed only because the MCP or HTTP call returned success",
+    "readback_rule": "the provider adapter must return operation-specific same-cycle readback when deterministic readback is available",
+    "unknown_rule": "unknown outcome never receives an automatic blind retry",
+    "local_audit_forwarding": "provider request_id and local audit hash may be attached as evidence but never replace the canonical operation receipt and readback ledger"
+  },
+  "surface_mapping": [
+    {"wordpress_ability":"mad4b/site-info","capability":"site.wordpress.inspect","effect":"read","platform_projection":"eligible_after_provider_certification"},
+    {"wordpress_ability":"mad4b/list-post-types","capability":"cms.content_types.list","effect":"read","platform_projection":"eligible_after_provider_certification"},
+    {"wordpress_ability":"mad4b/content-get-post","capability":"cms.content.read","effect":"read","platform_projection":"eligible_after_provider_certification"},
+    {"wordpress_ability":"mad4b/content-update-post","capability":"cms.content.update","effect":"state_change","provider_precondition":"expected_modified_gmt","readback":"modified_gmt","platform_projection":"requires_governed_binding_idempotency_and_readback"},
+    {"wordpress_ability":"media/search","capability":"cms.media.search","effect":"read","platform_projection":"eligible_after_provider_certification"},
+    {"wordpress_ability":"media/update-metadata","capability":"cms.media.metadata.update","effect":"state_change","provider_precondition":"expected_sha256","platform_projection":"requires_governed_binding_idempotency_and_readback"},
+    {"wordpress_ability":"media/set-featured","capability":"cms.media.featured.set","effect":"state_change","provider_precondition":"expected_thumbnail_id","platform_projection":"requires_governed_binding_idempotency_and_readback"},
+    {"wordpress_ability":"elementor/update-widget-settings","capability":"cms.elementor.document.update","effect":"state_change","provider_precondition":"expected_document_sha256","platform_projection":"requires_native_first_provider_certification"},
+    {"wordpress_ability":"jetengine/get-post-meta","capability":"cms.jetengine.meta.read","effect":"read","platform_projection":"runtime_contract_evidence_required"},
+    {"wordpress_ability":"jetsmartfilters/update-filter","capability":"cms.jetsmartfilters.filter.update","effect":"state_change","platform_projection":"runtime_contract_evidence_required"},
+    {"wordpress_ability":"bitflows/run-flow","capability":"automation.bitflows.execution.start","effect":"external_or_state_change","provider_precondition":"expected_flow_sha256_and_explicit_opt_in","platform_projection":"requires_execution_id_readback_and_governed_binding"},
+    {"wordpress_ability":"mad4b/filesystem-read","capability":"site.filesystem.read","effect":"read","platform_projection":"restricted_resource_roots_and_provider_certification"},
+    {"wordpress_ability":"mad4b/filesystem-patch","capability":"site.filesystem.patch","effect":"state_change_high_risk","provider_precondition":"expected_sha256_and_protected_backup","platform_projection":"admin_only_governed_operation_with_exact_resource_binding"},
+    {"wordpress_ability":"mad4b/database-select","capability":"site.database.structured_read","effect":"read","platform_projection":"restricted_structured_database_profile"},
+    {"wordpress_ability":"mad4b/database-update","capability":"site.database.structured_update","effect":"state_change_high_risk","provider_precondition":"non_empty_where_max_affected_locked_preflight","platform_projection":"admin_only_governed_operation_with_same_cycle_readback"},
+    {"wordpress_ability":"mad4b/plugin-activate","capability":"site.wordpress.plugin.activate","effect":"state_change_high_risk","platform_projection":"admin_only_governed_operation_with_plugin_state_readback"},
+    {"wordpress_ability":"mad4b/plugin-deactivate","capability":"site.wordpress.plugin.deactivate","effect":"state_change_high_risk","platform_projection":"admin_only_governed_operation_with_dependency_protection_and_readback"},
+    {"wordpress_ability":"mad4b/database-raw-query","capability":null,"effect":"breakglass","platform_projection":"forbidden_from_normal_system_tool_catalog"}
+  ],
+  "breakglass_boundary": {
+    "wordpress_raw_sql_surface_may_exist_local_disabled": true,
+    "wordpress_raw_sql_default_enabled": false,
+    "normal_platform_projection": false,
+    "canonical_mad4b_raw_sql_and_shell_exception_authority": "Host Breakglass",
+    "raw_shell_in_wordpress_plugin": false,
+    "privilege_grant_user_role_password_changes": "hard_denied_in_wordpress_profile",
+    "host_files_outside_php_permissions": "MAD4B Host Connector concern"
+  },
+  "content_intelligence_fit": {
+    "CI-0": {"status":"compatible","reason":"research_knowledge_blueprint_and_internal_draft do not require WordPress effects"},
+    "CI-1": {"status":"partial_gap","available":"read/update existing post plus media metadata/featured and Rank Math paths","missing":["dedicated governed content-create-draft ability","platform operation/envelope/idempotency binding","canonical readback forwarding"]},
+    "CI-2": {"status":"blocked","missing":["dedicated schedule operation","dedicated publish operation","plan-bound approval binding","schedule/publish readback contract"]},
+    "CI-3": {"status":"blocked","missing":["certified bounded autonomous publish policy","production canary evidence","rollback and unknown-outcome certification"]},
+    "CI-4": {"status":"future_platform_loop","rule":"performance feedback may create improvement candidates but cannot self-modify Production behavior"},
+    "additional_media_gap": "media upload is not yet exposed by the observed PR6 Media adapter"
+  },
+  "runtime_acceptance_required_before_platform_projection": [
+    "exact target WordPress version and mcp-adapter release readback",
+    "custom-server isolation and default-server non-exposure",
+    "dedicated service identity and bounded capability profile",
+    "signed or otherwise authenticated governed binding verification",
+    "operation_id and correlation_id propagation",
+    "platform idempotency binding in addition to stale-resource guards",
+    "same-cycle readback normalization",
+    "canonical evidence forwarding",
+    "Elementor exact installed native Ability verification",
+    "JetEngine exact commercial schema/type contract verification",
+    "JetSmartFilters exact provider/query contract verification",
+    "Bit Flows benign execution with exact flow fingerprint and execution-history readback",
+    "filesystem protected-backup host verification",
+    "structured database denial and bounded repair tests",
+    "normal platform inability to discover or invoke WordPress raw SQL breakglass",
+    "protocol compatibility test between MAD4B external MCP profile and downstream WordPress MCP 2025-11-25 transport"
+  ],
+  "runtime_authority": false,
+  "provider_write_performed": false,
+  "production_activated": false,
+  "secrets_included": false
+}
