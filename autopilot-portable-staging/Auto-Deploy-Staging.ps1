@@ -164,15 +164,35 @@ function New-PhaseState([string]$EligibilityStatus) {
     }
 }
 
+function Get-OptionalPropertyValue([object]$Object, [string]$Name) {
+    if ($null -eq $Object) { return $null }
+    if ($Object -is [System.Collections.IDictionary]) {
+        if ($Object.Contains($Name)) { return $Object[$Name] }
+        return $null
+    }
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property) { return $null }
+    return $property.Value
+}
+
 function Update-TunnelPhasesFromHealthSnapshot([object]$Phases) {
     $snapshotPath = Join-Path (Get-StagingLogRoot) "health-snapshot.json"
     $snapshot = Read-State $snapshotPath
     if ($null -eq $snapshot) { return }
-    if ($null -ne $snapshot.staging_tunnel -and -not [string]::IsNullOrWhiteSpace([string]$snapshot.staging_tunnel.status)) {
-        $Phases.staging_tunnel = [string]$snapshot.staging_tunnel.status
+
+    # Split tunnel fields were introduced after the original health snapshot
+    # contract. Missing fields are optional historical evidence, not a deployment
+    # failure, including while Set-StrictMode is enabled.
+    $stagingTunnel = Get-OptionalPropertyValue $snapshot "staging_tunnel"
+    $stagingStatus = Get-OptionalPropertyValue $stagingTunnel "status"
+    if (-not [string]::IsNullOrWhiteSpace([string]$stagingStatus)) {
+        $Phases.staging_tunnel = [string]$stagingStatus
     }
-    if ($null -ne $snapshot.local_connector_tunnel -and -not [string]::IsNullOrWhiteSpace([string]$snapshot.local_connector_tunnel.status)) {
-        $Phases.local_connector_tunnel = [string]$snapshot.local_connector_tunnel.status
+
+    $connectorTunnel = Get-OptionalPropertyValue $snapshot "local_connector_tunnel"
+    $connectorStatus = Get-OptionalPropertyValue $connectorTunnel "status"
+    if (-not [string]::IsNullOrWhiteSpace([string]$connectorStatus)) {
+        $Phases.local_connector_tunnel = [string]$connectorStatus
     }
 }
 
