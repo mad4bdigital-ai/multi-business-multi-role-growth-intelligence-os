@@ -71,7 +71,9 @@ function Invoke-LocalConnectorCertificationGate([string]$RepairScript, [string]$
     }
     $repairStatus = if ($null -ne $repair) { [string]$repair.status } else { "missing_evidence" }
     $repairError = if ($null -ne $repair -and $repair.PSObject.Properties.Name -contains "public_error") { [string]$repair.public_error } else { "" }
-    $failureClass = if ($repairStatus -eq "cloudflare_1033" -or $repairError -eq "cloudflare_1033") {
+    $failureClass = if ($repairStatus -eq "connector_tunnel_provisioning_required") {
+        "connector_tunnel_provisioning_required"
+    } elseif ($repairStatus -eq "cloudflare_1033" -or $repairError -eq "cloudflare_1033") {
         "connector_tunnel_cloudflare_1033"
     } elseif ($repairStatus -eq "cross_runtime_non_interference_failed") {
         "connector_cross_runtime_interference"
@@ -90,6 +92,12 @@ function Invoke-LocalConnectorCertificationGate([string]$RepairScript, [string]$
     $state["local_connector_tunnel_checked_at"] = (Get-Date).ToUniversalTime().ToString("o")
     $state["local_connector_tunnel_hostname"] = "connector.mad4b.com"
     $state["local_connector_tunnel_secrets_included"] = $false
+    if ($null -ne $repair -and $repair.PSObject.Properties.Name -contains "required_next_action") {
+        $state["local_connector_tunnel_required_next_action"] = [string]$repair.required_next_action
+    }
+    if ($null -ne $repair -and $repair.PSObject.Properties.Name -contains "accepted_provisioning_sources") {
+        $state["local_connector_tunnel_accepted_provisioning_sources"] = @($repair.accepted_provisioning_sources)
+    }
 
     if ($repairExitCode -ne 0 -or $repairStatus -ne "healthy") {
         $state["certification_status"] = "blocked"
@@ -123,8 +131,8 @@ foreach ($required in @($composeBase, $composeStage, $envFile, $connectorRepairS
 
 # Connector recovery is an explicit certification precondition. It is kept
 # independent from the Staging dev/mcp tunnel and may only repair the dedicated
-# Mad4B Local Connector runtime. Persistent 1033 therefore blocks certification
-# with a connector-specific root cause instead of being hidden by Gateway state.
+# Mad4B Local Connector runtime. Missing Connector-specific credential material
+# is a provisioning interruption, not a reason to reuse the Staging tunnel token.
 [void](Invoke-LocalConnectorCertificationGate $connectorRepairScript $connectorRepairStatePath)
 
 $gatewayEnabled = (Read-EnvValue $envFile "ACTIVATION_STAGING_GATEWAY_ENABLED").ToLowerInvariant() -eq "true"
