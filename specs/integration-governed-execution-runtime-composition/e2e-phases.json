@@ -4,7 +4,7 @@
   "feature_key": "integration-governed-execution-runtime-composition",
   "title": "Governed Execution Runtime Composition Integration Contracts",
   "delivery_mode": "multi_pr",
-  "current_phase": "operational",
+  "current_phase": "mvp",
   "scope": {
     "include": [
       "specs/integration-governed-execution-runtime-composition/**",
