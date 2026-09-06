@@ -8,6 +8,8 @@
   "scope": {
     "include": [
       ".changes/e2e/runtime-composition-x0-evidence-baseline-20260906.json",
+      ".github/governance/test-authority-registry.json",
+      "docs/work-maps/platform-runtime-map.md",
       "http-generic-api/governedExecutionBaselineTelemetry.js",
       "http-generic-api/governedExecutionBaselineRuntime.js",
       "http-generic-api/connectorExecutor.js",
@@ -106,6 +108,8 @@
           ],
           "evidence_paths": [
             ".changes/e2e/runtime-composition-x0-evidence-baseline-20260906.json",
+            ".github/governance/test-authority-registry.json",
+            "docs/work-maps/platform-runtime-map.md",
             "http-generic-api/governedExecutionBaselineRuntime.js",
             "http-generic-api/connectorExecutor.js",
             "http-generic-api/routes/index.js",
