@@ -28,7 +28,9 @@
   },
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
-    "declared_targets": ["staging"],
+    "declared_targets": [
+      "staging"
+    ],
     "cross_environment_reviewed": true,
     "live_staging_certification_required": true,
     "production_mutation_allowed": false
@@ -66,7 +68,8 @@
             "Gateway-only drift may invoke only the pre-existing exact-SHA Staging Worker workflow authority and cannot authorize Production, DNS, database, migration or Hostinger mutation.",
             "A healthy exact-SHA local app is not rebuilt solely because Activation Gateway is stale.",
             "Unknown local deployment failures remain fail-closed rather than being reclassified as Gateway-only recovery.",
-            "Production mutation remains false and secrets_included remains false."
+            "Production mutation remains false and secrets_included remains false.",
+            "Legacy health snapshots that predate split tunnel fields are treated as missing optional evidence and cannot crash Auto Deploy under PowerShell StrictMode."
           ],
           "tests": [
             {
@@ -95,7 +98,9 @@
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "scripts/generate-portable-staging-manifest.mjs",
-              "args": ["--check"]
+              "args": [
+                "--check"
+              ]
             }
           ],
           "evidence_paths": [

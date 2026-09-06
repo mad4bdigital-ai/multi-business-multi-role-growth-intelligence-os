@@ -94,6 +94,12 @@ assert.match(autoDeploy, /refusing blind redeploy/);
 assert.match(autoDeploy, /Test-LocalDeploymentHealthy/);
 assert.match(autoDeploy, /Get-GatewayOnlyRecovery/);
 assert.match(autoDeploy, /Invoke-GatewayConvergence/);
+assert.match(autoDeploy, /function Get-OptionalPropertyValue/);
+assert.match(autoDeploy, /PSObject\.Properties\[\$Name\]/);
+assert.match(autoDeploy, /Get-OptionalPropertyValue \$snapshot "staging_tunnel"/);
+assert.match(autoDeploy, /Get-OptionalPropertyValue \$snapshot "local_connector_tunnel"/);
+assert.doesNotMatch(autoDeploy, /\$snapshot\.staging_tunnel/);
+assert.doesNotMatch(autoDeploy, /\$snapshot\.local_connector_tunnel/);
 
 // Every certification path is now connector-gated. The exact repair evidence is
 // persisted into runtime state before the live certification process can run.
