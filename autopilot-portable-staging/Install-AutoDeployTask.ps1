@@ -9,8 +9,6 @@ param(
     [int]$LogonDelaySeconds = 25,
     [ValidateRange(60, 600)]
     [int]$BootGraceSeconds = 180,
-    [ValidateRange(30, 600)]
-    [int]$DockerTimeoutSeconds = 180,
     [switch]$StartTunnel,
     [ValidateSet("disabled", "windows_service", "docker_sidecar")]
     [string]$TunnelMode = "disabled",
@@ -34,19 +32,17 @@ if ($HealthIntervalSeconds -lt 30) { Fail "HealthIntervalSeconds must be at leas
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 if ([string]::IsNullOrWhiteSpace($RepositoryPath)) { $RepositoryPath = (Resolve-Path (Join-Path $scriptRoot "..")).Path }
 $RepositoryPath = [IO.Path]::GetFullPath($RepositoryPath)
-$supervisorScript = Join-Path $scriptRoot "Windows-Staging-Bootstrap-Supervisor.ps1"
 $autoDeployScript = Join-Path $scriptRoot "Auto-Deploy-Staging.ps1"
 $policyPath = Join-Path $scriptRoot "auto-deploy-policy.json"
 $healthScript = Join-Path $scriptRoot "Staging-HealthMonitor.ps1"
-if (-not (Test-Path -LiteralPath $supervisorScript)) { Fail "Windows-Staging-Bootstrap-Supervisor.ps1 is missing" }
 if (-not (Test-Path -LiteralPath $autoDeployScript)) { Fail "Auto-Deploy-Staging.ps1 is missing" }
 if (-not (Test-Path -LiteralPath $policyPath)) { Fail "auto-deploy-policy.json is missing" }
 if (-not (Test-Path -LiteralPath $healthScript)) { Fail "Staging-HealthMonitor.ps1 is missing" }
 if (-not (Test-Path -LiteralPath (Join-Path $RepositoryPath ".git"))) { Fail "RepositoryPath is not a Git repository: $RepositoryPath" }
 
-$escapedScript = $supervisorScript.Replace('"', '\"')
+$escapedScript = $autoDeployScript.Replace('"', '\"')
 $escapedRepo = $RepositoryPath.Replace('"', '\"')
-$arguments = "-NoLogo -NoProfile -ExecutionPolicy Bypass -File `"$escapedScript`" -RepositoryPath `"$escapedRepo`" -Watch -PollSeconds $PollSeconds -BuildMode $BuildMode -TunnelMode $TunnelMode -DockerTimeoutSeconds $DockerTimeoutSeconds"
+$arguments = "-NoLogo -NoProfile -ExecutionPolicy Bypass -File `"$escapedScript`" -RepositoryPath `"$escapedRepo`" -Watch -PollSeconds $PollSeconds -BuildMode $BuildMode -TunnelMode $TunnelMode"
 
 $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Highest
 $action = New-ScheduledTaskAction -Execute (Join-Path $PSHOME "powershell.exe") -Argument $arguments -WorkingDirectory $scriptRoot
@@ -64,6 +60,6 @@ $healthDelaySeconds = [Math]::Min(300, [Math]::Max($LogonDelaySeconds + 10, 35))
 $healthTrigger.Delay = "PT${healthDelaySeconds}S"
 Register-ScheduledTask -TaskName $HealthTaskName -Action $healthAction -Trigger $healthTrigger -Settings $settings -Principal $principal -Force | Out-Null
 
-Write-Host "AUTO_DEPLOY_TASK_INSTALLED: task=$TaskName user=$env:USERDOMAIN\$env:USERNAME entrypoint=Windows-Staging-Bootstrap-Supervisor.ps1 poll_seconds=$PollSeconds tunnel_mode=$TunnelMode logon_delay_seconds=$LogonDelaySeconds docker_timeout_seconds=$DockerTimeoutSeconds multiple_instances=IgnoreNew provider_mutation_authorized=staging_gateway_convergence_only"
+Write-Host "AUTO_DEPLOY_TASK_INSTALLED: task=$TaskName user=$env:USERDOMAIN\$env:USERNAME poll_seconds=$PollSeconds tunnel_mode=$TunnelMode logon_delay_seconds=$LogonDelaySeconds multiple_instances=IgnoreNew provider_mutation_authorized=False"
 Write-Host "STAGING_HEALTH_TASK_INSTALLED: task=$HealthTaskName interval_seconds=$HealthIntervalSeconds boot_grace_seconds=$BootGraceSeconds logon_delay_seconds=$healthDelaySeconds"
-Write-Host "Both tasks run only when this Windows user is logged in. Production, Hostinger, DNS, migration and Production database mutation remain forbidden."
+Write-Host "Both tasks run only when this Windows user is logged in and never change Production, DNS, Hostinger, or database state."
