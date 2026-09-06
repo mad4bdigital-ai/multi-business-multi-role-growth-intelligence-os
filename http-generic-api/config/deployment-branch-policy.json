@@ -267,6 +267,7 @@
           "specs/015-tenant-operating-system-studio/canonical-concept-authority-map.json",
           "specs/015-tenant-operating-system-studio/canonical-identity-cutover-decisions.json",
           "specs/015-tenant-operating-system-studio/phase1-owner-decision-matrix.json",
+          "specs/015-tenant-operating-system-studio/tools/validate-spec.mjs",
           "specs/integration-governed-execution-runtime-composition/wordpress-site-control-plane-provider-profile.json",
           "specs/021-portable-staging-autopilot/e2e-phases.json",
           "http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs",
