@@ -377,8 +377,11 @@ test("server-derived deployment identity ignores caller expected_sha and rejects
   );
 });
 
-test("production_live remains explicitly hard-denied", () => {
-  assert.throws(() => createProductionRecoveryComposition({ mode: "production_live", serverManagedBindingProvider: () => createValidEnvelope() }), (error) => error.code === "RECOVERY_PRODUCTION_LIVE_DISABLED");
+test("direct production_live construction remains explicitly forbidden", () => {
+  assert.throws(
+    () => createProductionRecoveryComposition({ mode: "production_live", serverManagedBindingProvider: () => createValidEnvelope() }),
+    (error) => error.code === "RECOVERY_PRODUCTION_LIVE_DIRECT_CONSTRUCTION_FORBIDDEN" && error.status === 503,
+  );
 });
 
 test("readiness construction performs no adapter, provider, database, or mutation calls", () => {

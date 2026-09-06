@@ -5,7 +5,8 @@ import {
   SERVER_MANAGED_RECOVERY_COMPOSITION_CONTRACT,
 } from "./recoveryComposition.js";
 
-export const PRODUCTION_RECOVERY_COMPOSITION_FACTORY_CONTRACT = "mad4b.production-recovery-composition-factory.v1";
+export const PRODUCTION_RECOVERY_COMPOSITION_FACTORY_CONTRACT = "mad4b.production-recovery-composition-factory.v2";
+export const PRODUCTION_RECOVERY_LIVE_AUTHORIZATION_CONTRACT = "mad4b.production-recovery-live-authorization.v1";
 export const PRODUCTION_RECOVERY_COMPOSITION_MODES = Object.freeze([
   "disabled",
   "injected_non_live",
@@ -18,6 +19,15 @@ const SERVER_MANAGED_CONTEXT = Object.freeze({
   requested_by_caller: false,
 });
 
+const REQUIRED_LIVE_AUTHORIZATION_FLAGS = Object.freeze([
+  "exact_sha_bound",
+  "single_use_approval",
+  "same_cycle_readback_required",
+  "server_side_approval_resolution",
+  "bootstrap_evidence_independent",
+]);
+const SERVER_RESOLVER_METHOD = "resolveApprovedExecutionApproval";
+
 function factoryError(code, message, details = {}) {
   const error = new Error(message);
   error.code = code;
@@ -26,12 +36,87 @@ function factoryError(code, message, details = {}) {
   return error;
 }
 
-function buildLiveAuthorityReadiness(composition, serverManagedBindingResolved, bindingCapabilities = {}) {
+function independentBootstrapEvidenceStore(recoveryStore) {
+  return Boolean(
+    recoveryStore
+    && recoveryStore.recovery_store_contract === "mad4b.recovery-durable-store.v1"
+    && recoveryStore.independent_of_target_databases === true
+    && recoveryStore.target_database_binding === "forbidden"
+    && typeof recoveryStore.appendEvidenceEvent === "function"
+    && typeof recoveryStore.putRun === "function"
+    && typeof recoveryStore.getRunByIdempotency === "function",
+  );
+}
+
+function independentReadbackAuthority(readbackVerifier) {
+  return Boolean(
+    readbackVerifier
+    && typeof readbackVerifier.verify === "function"
+    && readbackVerifier.independent_authority === true
+    && readbackVerifier.role_aware === true
+    && readbackVerifier.mutation_authority !== true,
+  );
+}
+
+function serverSideApprovalResolver(approvalStore) {
+  return Boolean(approvalStore && typeof approvalStore[SERVER_RESOLVER_METHOD] === "function");
+}
+
+function validateLiveAuthorization(envelope, composition) {
+  const authorization = envelope?.live_authorization;
+  const problems = [];
+  if (!authorization || typeof authorization !== "object" || Array.isArray(authorization)) {
+    problems.push("live_authorization_missing");
+  } else {
+    if (authorization.contract !== PRODUCTION_RECOVERY_LIVE_AUTHORIZATION_CONTRACT) problems.push("live_authorization_contract_invalid");
+    if (authorization.authorized !== true) problems.push("production_mutation_not_authorized");
+    if (authorization.environment !== "production") problems.push("environment_not_production");
+    if (authorization.runtime_class !== "hostinger_autodeploy") problems.push("runtime_class_not_hostinger_autodeploy");
+    if (authorization.admin_surface !== "auth.mad4b.com") problems.push("admin_surface_not_canonical");
+    if (authorization.secrets_included !== false) problems.push("authorization_secrets_forbidden");
+    for (const flag of REQUIRED_LIVE_AUTHORIZATION_FLAGS) {
+      if (authorization[flag] !== true) problems.push(`${flag}_required`);
+    }
+  }
+
+  const capabilities = envelope?.capabilities || {};
+  if (capabilities.adapter_present !== true) problems.push("adapter_present_required");
+  if (capabilities.durability_capable !== true) problems.push("durability_capable_required");
+  if (capabilities.attestation_capable !== true) problems.push("attestation_capable_required");
+  if (composition?.configured !== true) problems.push("composition_incomplete");
+  if (!independentBootstrapEvidenceStore(composition?.components?.recoveryStore)) problems.push("bootstrap_evidence_store_not_independent");
+  if (!independentReadbackAuthority(composition?.components?.readbackVerifier)) problems.push("independent_role_aware_readback_required");
+  // The fixed private System Tool receives approvalStore but does not receive the
+  // approval issuer. Requiring the resolver on approvalStore therefore certifies
+  // both the HTTP Recovery route and the fixed System Tool path.
+  if (!serverSideApprovalResolver(composition?.components?.approvalStore)) problems.push("server_side_approval_resolver_required");
+
+  return Object.freeze({
+    ok: problems.length === 0,
+    contract: PRODUCTION_RECOVERY_LIVE_AUTHORIZATION_CONTRACT,
+    problems: Object.freeze(problems),
+    exact_sha_bound: authorization?.exact_sha_bound === true,
+    single_use_approval: authorization?.single_use_approval === true,
+    same_cycle_readback_required: authorization?.same_cycle_readback_required === true,
+    server_side_approval_resolution: authorization?.server_side_approval_resolution === true,
+    bootstrap_evidence_independent: authorization?.bootstrap_evidence_independent === true && independentBootstrapEvidenceStore(composition?.components?.recoveryStore),
+    secrets_included: false,
+  });
+}
+
+function buildLiveAuthorityReadiness(composition, serverManagedBindingResolved, bindingCapabilities = {}, liveAuthorization = null) {
   const componentStatus = composition.component_status || {};
   const configuredComponents = RECOVERY_LIVE_AUTHORITY_COMPONENT_KEYS.filter((key) => componentStatus[key]?.configured === true);
   const missingComponents = RECOVERY_LIVE_AUTHORITY_COMPONENT_KEYS.filter((key) => componentStatus[key]?.configured !== true);
+  const authorizationOk = liveAuthorization?.ok === true;
+  const liveReady = missingComponents.length === 0
+    && serverManagedBindingResolved
+    && bindingCapabilities.adapter_present === true
+    && bindingCapabilities.durability_capable === true
+    && bindingCapabilities.attestation_capable === true
+    && authorizationOk;
   return Object.freeze({
-    contract: "mad4b.recovery-live-authority-readiness.v1",
+    contract: "mad4b.recovery-live-authority-readiness.v2",
     required_components: [...RECOVERY_LIVE_AUTHORITY_COMPONENT_KEYS],
     configured_components: configuredComponents,
     missing_components: missingComponents,
@@ -40,9 +125,14 @@ function buildLiveAuthorityReadiness(composition, serverManagedBindingResolved, 
     adapter_present: bindingCapabilities.adapter_present === true,
     durability_capable: bindingCapabilities.durability_capable === true,
     attestation_capable: bindingCapabilities.attestation_capable === true,
-    live_ready: false,
-    activation_eligible: false,
-    live_activation: false,
+    bootstrap_evidence_independent: liveAuthorization?.bootstrap_evidence_independent === true,
+    exact_sha_bound: liveAuthorization?.exact_sha_bound === true,
+    single_use_approval: liveAuthorization?.single_use_approval === true,
+    same_cycle_readback_required: liveAuthorization?.same_cycle_readback_required === true,
+    server_side_approval_resolution: liveAuthorization?.server_side_approval_resolution === true,
+    live_ready: liveReady,
+    activation_eligible: liveReady,
+    live_activation: liveReady,
     provider_accessed: false,
     database_connection_performed: false,
     database_mutation_performed: false,
@@ -50,20 +140,22 @@ function buildLiveAuthorityReadiness(composition, serverManagedBindingResolved, 
   });
 }
 
-function failClosedComposition(source, reason) {
+function failClosedComposition(source, reason, { candidate = null, envelope = null, liveAuthorization = null } = {}) {
   const composition = createRecoveryComposition({ source });
   return Object.freeze({
     ...composition,
     productionRecoveryCompositionFactory: Object.freeze({
       contract: PRODUCTION_RECOVERY_COMPOSITION_FACTORY_CONTRACT,
       recoveryCompositionContract: SERVER_MANAGED_RECOVERY_COMPOSITION_CONTRACT,
-      mode: "disabled",
+      mode: envelope?.requested_mode === "production_live" ? "production_live" : "disabled",
       registered: true,
-      activation_requested: false,
+      activation_requested: envelope?.requested_mode === "production_live",
       live_activation: false,
       adapter_factory_wired: true,
-      server_managed_binding_resolved: false,
-      authority_readiness: buildLiveAuthorityReadiness(composition, false),
+      server_managed_binding_resolved: Boolean(candidate),
+      authority_readiness: buildLiveAuthorityReadiness(candidate || composition, Boolean(candidate), envelope?.capabilities || {}, liveAuthorization),
+      ...(candidate ? { activation_candidate: candidateMetadata(candidate, envelope) } : {}),
+      ...(liveAuthorization ? { live_authorization: liveAuthorization } : {}),
       provider_accessed: false,
       database_connection_performed: false,
       database_mutation_performed: false,
@@ -96,7 +188,7 @@ function validateServerManagedEnvelope(envelope) {
   if (!envelope.adapters || typeof envelope.adapters !== "object" || Array.isArray(envelope.adapters)) {
     throw factoryError(
       "RECOVERY_SERVER_MANAGED_BINDING_ADAPTERS_MISSING",
-      "The server-managed composition provider did not supply an adapter bundle.",
+      "The server-managed binding resolver did not supply an adapter bundle.",
     );
   }
   return envelope;
@@ -104,14 +196,52 @@ function validateServerManagedEnvelope(envelope) {
 
 function candidateMetadata(composition, envelope) {
   return Object.freeze({
-    requested_mode: "production_live",
+    requested_mode: envelope?.requested_mode || "injected_non_live",
     graph_contract: composition.contract,
     configured: composition.configured === true,
     component_status: composition.component_status,
     mutation_authority_exposed: false,
     live_activation: false,
-    binding_module_id_hash: envelope.module_id_hash || null,
+    binding_module_id_hash: envelope?.module_id_hash || null,
     secrets_included: false,
+  });
+}
+
+function activateCertifiedProductionComposition(candidate, envelope, liveAuthorization) {
+  const authorityReadiness = buildLiveAuthorityReadiness(candidate, true, envelope.capabilities, liveAuthorization);
+  if (!authorityReadiness.activation_eligible) {
+    return failClosedComposition("server_composition_root", "production_live_authority_not_ready", { candidate, envelope, liveAuthorization });
+  }
+  return Object.freeze({
+    ...candidate,
+    mode: "production_live",
+    live_activation: true,
+    mutation_authority_available: true,
+    authority_inventory: Object.freeze({
+      ...candidate.authority_inventory,
+      live_activation: true,
+      production_live_authorization_contract: PRODUCTION_RECOVERY_LIVE_AUTHORIZATION_CONTRACT,
+      bootstrap_evidence_independent: true,
+      server_side_approval_resolution: true,
+    }),
+    productionRecoveryCompositionFactory: Object.freeze({
+      contract: PRODUCTION_RECOVERY_COMPOSITION_FACTORY_CONTRACT,
+      recoveryCompositionContract: SERVER_MANAGED_RECOVERY_COMPOSITION_CONTRACT,
+      mode: "production_live",
+      registered: true,
+      activation_requested: true,
+      live_activation: true,
+      adapter_factory_wired: true,
+      server_managed_binding_resolved: true,
+      authority_readiness: authorityReadiness,
+      live_authorization: liveAuthorization,
+      activation_candidate: candidateMetadata(candidate, envelope),
+      provider_accessed: false,
+      database_connection_performed: false,
+      database_mutation_performed: false,
+      denial_reason: null,
+      secrets_included: false,
+    }),
   });
 }
 
@@ -132,13 +262,13 @@ export function createProductionRecoveryComposition({
     return failClosedComposition(source, "production_live_activation_not_requested");
   }
 
-  // A direct factory production_live call remains forbidden. The only Production
-  // candidate path is a deployment-owned server-managed provider that is loaded by
-  // the existing non-live composition root and explicitly reports requested_mode.
+  // Direct production_live construction remains forbidden. Production can activate
+  // only through the deployment-owned provider path used by the server composition
+  // root, where caller/GPT credentials and provider controls are unavailable.
   if (mode === "production_live") {
     throw factoryError(
-      "RECOVERY_PRODUCTION_LIVE_DISABLED",
-      "production_live remains disabled until a separately certified live authority release enables it; this factory performs no live provider wiring or activation.",
+      "RECOVERY_PRODUCTION_LIVE_DIRECT_CONSTRUCTION_FORBIDDEN",
+      "production_live cannot be constructed directly; only the server-managed deployment provider may present a certified Production live authorization envelope.",
       {
         factory_contract: PRODUCTION_RECOVERY_COMPOSITION_FACTORY_CONTRACT,
         live_activation: false,
@@ -166,28 +296,11 @@ export function createProductionRecoveryComposition({
   const productionCandidateRequested = envelope.requested_mode === "production_live";
 
   if (productionCandidateRequested) {
-    const failClosed = failClosedComposition(source, "production_live_candidate_requires_certification_and_activation");
-    return Object.freeze({
-      ...failClosed,
-      productionRecoveryCompositionFactory: Object.freeze({
-        ...failClosed.productionRecoveryCompositionFactory,
-        contract: PRODUCTION_RECOVERY_COMPOSITION_FACTORY_CONTRACT,
-        recoveryCompositionContract: SERVER_MANAGED_RECOVERY_COMPOSITION_CONTRACT,
-        mode: "production_live",
-        registered: true,
-        activation_requested: true,
-        live_activation: false,
-        adapter_factory_wired: true,
-        server_managed_binding_resolved: true,
-        authority_readiness: buildLiveAuthorityReadiness(candidate, true, envelope.capabilities),
-        activation_candidate: candidateMetadata(candidate, envelope),
-        provider_accessed: false,
-        database_connection_performed: false,
-        database_mutation_performed: false,
-        denial_reason: "production_live_candidate_requires_certification_and_activation",
-        secrets_included: false,
-      }),
-    });
+    const liveAuthorization = validateLiveAuthorization(envelope, candidate);
+    if (!liveAuthorization.ok) {
+      return failClosedComposition(source, "production_live_authorization_incomplete", { candidate, envelope, liveAuthorization });
+    }
+    return activateCertifiedProductionComposition(candidate, envelope, liveAuthorization);
   }
 
   return Object.freeze({
@@ -214,7 +327,14 @@ export function createProductionRecoveryComposition({
 
 export const _testingProductionRecoveryCompositionFactory = Object.freeze({
   SERVER_MANAGED_CONTEXT,
+  REQUIRED_LIVE_AUTHORIZATION_FLAGS,
+  SERVER_APPROVAL_RESOLVER_METHOD: SERVER_RESOLVER_METHOD,
   validateServerManagedEnvelope,
+  validateLiveAuthorization,
+  independentBootstrapEvidenceStore,
+  independentReadbackAuthority,
+  serverSideApprovalResolver,
   failClosedComposition,
   candidateMetadata,
+  activateCertifiedProductionComposition,
 });
