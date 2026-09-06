@@ -23,9 +23,10 @@ const REQUIRED_LIVE_AUTHORIZATION_FLAGS = Object.freeze([
   "exact_sha_bound",
   "single_use_approval",
   "same_cycle_readback_required",
-  "server_side_approval_token_resolution",
+  "server_side_approval_resolution",
   "bootstrap_evidence_independent",
 ]);
+const SERVER_APPROVAL_RESOLVER_METHOD = "resolveApprovedExecutionApproval";
 
 function factoryError(code, message, details = {}) {
   const error = new Error(message);
@@ -57,8 +58,8 @@ function independentReadbackAuthority(readbackVerifier) {
   );
 }
 
-function serverSideApprovalResolver(approvalIssuer) {
-  return Boolean(approvalIssuer && typeof approvalIssuer.resolveApprovedToken === "function");
+function serverSideApprovalResolver(approvalStore) {
+  return Boolean(approvalStore && typeof approvalStore[SERVER_APPROVAL_RESOLVER_METHOD] === "function");
 }
 
 function validateLiveAuthorization(envelope, composition) {
@@ -85,7 +86,10 @@ function validateLiveAuthorization(envelope, composition) {
   if (composition?.configured !== true) problems.push("composition_incomplete");
   if (!independentBootstrapEvidenceStore(composition?.components?.recoveryStore)) problems.push("bootstrap_evidence_store_not_independent");
   if (!independentReadbackAuthority(composition?.components?.readbackVerifier)) problems.push("independent_role_aware_readback_required");
-  if (!serverSideApprovalResolver(composition?.components?.approvalIssuer)) problems.push("server_side_approval_token_resolver_required");
+  // The fixed private System Tool receives approvalStore but does not receive the
+  // approval issuer. Requiring the resolver on approvalStore therefore certifies
+  // both the HTTP Recovery route and the fixed System Tool path.
+  if (!serverSideApprovalResolver(composition?.components?.approvalStore)) problems.push("server_side_approval_resolver_required");
 
   return Object.freeze({
     ok: problems.length === 0,
@@ -94,7 +98,7 @@ function validateLiveAuthorization(envelope, composition) {
     exact_sha_bound: authorization?.exact_sha_bound === true,
     single_use_approval: authorization?.single_use_approval === true,
     same_cycle_readback_required: authorization?.same_cycle_readback_required === true,
-    server_side_approval_token_resolution: authorization?.server_side_approval_token_resolution === true,
+    server_side_approval_resolution: authorization?.server_side_approval_resolution === true,
     bootstrap_evidence_independent: authorization?.bootstrap_evidence_independent === true && independentBootstrapEvidenceStore(composition?.components?.recoveryStore),
     secrets_included: false,
   });
@@ -125,7 +129,7 @@ function buildLiveAuthorityReadiness(composition, serverManagedBindingResolved, 
     exact_sha_bound: liveAuthorization?.exact_sha_bound === true,
     single_use_approval: liveAuthorization?.single_use_approval === true,
     same_cycle_readback_required: liveAuthorization?.same_cycle_readback_required === true,
-    server_side_approval_token_resolution: liveAuthorization?.server_side_approval_token_resolution === true,
+    server_side_approval_resolution: liveAuthorization?.server_side_approval_resolution === true,
     live_ready: liveReady,
     activation_eligible: liveReady,
     live_activation: liveReady,
@@ -218,7 +222,7 @@ function activateCertifiedProductionComposition(candidate, envelope, liveAuthori
       live_activation: true,
       production_live_authorization_contract: PRODUCTION_RECOVERY_LIVE_AUTHORIZATION_CONTRACT,
       bootstrap_evidence_independent: true,
-      server_side_approval_token_resolution: true,
+      server_side_approval_resolution: true,
     }),
     productionRecoveryCompositionFactory: Object.freeze({
       contract: PRODUCTION_RECOVERY_COMPOSITION_FACTORY_CONTRACT,
@@ -324,6 +328,7 @@ export function createProductionRecoveryComposition({
 export const _testingProductionRecoveryCompositionFactory = Object.freeze({
   SERVER_MANAGED_CONTEXT,
   REQUIRED_LIVE_AUTHORIZATION_FLAGS,
+  SERVER_APPROVAL_RESOLVER_METHOD,
   validateServerManagedEnvelope,
   validateLiveAuthorization,
   independentBootstrapEvidenceStore,
