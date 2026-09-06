@@ -201,7 +201,7 @@ function Invoke-SelfUpdate {
         Repair-ManifestLineEndings $RepositoryPath
         $dirty = @(git status --porcelain --untracked-files=all)
         if ($dirty.Count -gt 0) { Fail "Working tree is not clean; refusing bootstrap checkout before Auto Pilot self-update" }
-        Invoke-Native "git" @("fetch", "origin", $Ref, "--depth=1")
+        Invoke-Native "git" @("fetch", "origin", $Ref, "--depth=2")
         $remoteCommit = Get-NativeText "git" @("rev-parse", "origin/$Ref")
         if ($remoteCommit.ToLowerInvariant() -ne $targetCommit) { Fail "Self-update pinned commit mismatch: origin/$Ref resolved to $remoteCommit, expected $ExpectedCommit" }
         $currentCommit = Get-NativeText "git" @("rev-parse", "HEAD")
@@ -384,7 +384,7 @@ try {
     Repair-ManifestLineEndings $RepositoryPath
     $dirty = @(git status --porcelain --untracked-files=all)
     if ($dirty.Count -gt 0) { Fail "Working tree is not clean after protected line-ending normalization; Auto Pilot will not overwrite local work" }
-    Invoke-Native "git" @("fetch", "origin", $Ref, "--depth=1")
+    Invoke-Native "git" @("fetch", "origin", $Ref, "--depth=2")
     $remoteCommit = Get-NativeText "git" @("rev-parse", "origin/$Ref")
     if ($remoteCommit.ToLowerInvariant() -ne $ExpectedCommit.ToLowerInvariant()) {
         Fail "Pinned commit mismatch: origin/$Ref resolved to $remoteCommit, expected $ExpectedCommit"
