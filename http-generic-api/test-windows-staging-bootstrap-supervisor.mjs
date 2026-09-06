@@ -9,6 +9,7 @@ const preflight = read("autopilot-portable-staging/Staging-Windows-Preflight.ps1
 const installer = read("autopilot-portable-staging/Install-AutoDeployTask.ps1");
 const monitor = read("autopilot-portable-staging/Staging-HealthMonitor.ps1");
 const autoDeploy = read("autopilot-portable-staging/Auto-Deploy-Staging.ps1");
+const startAutoPilot = read("autopilot-portable-staging/Start-AutoPilot.ps1");
 const certification = read("autopilot-portable-staging/Invoke-StagingCertification.ps1");
 const operationsLog = read("autopilot-portable-staging/Staging-Operations-Log.ps1");
 const converger = read("autopilot-portable-staging/Converge-StagingActivationGateway.ps1");
@@ -66,6 +67,11 @@ assert.match(monitor, /cloudflare_1033/);
 assert.match(monitor, /Mad4B-Staging-Cloudflared/);
 assert.match(monitor, /Mad4B-LocalConnector-Cloudflared/);
 assert.match(monitor, /legacy_runtime_evidence/);
+assert.match(monitor, /remote_attempts/);
+assert.match(monitor, /last_http_status/);
+assert.match(monitor, /local_runtime_state/);
+assert.match(monitor, /Invoke-RemoteHealthProbe "https:\/\/dev\.mad4b\.com\/health" 3/);
+assert.match(monitor, /runtime_ownership_conflict/);
 
 // Auto Deploy is now a resumable phase machine rather than deployed/certified booleans.
 assert.match(autoDeploy, /mad4b\.staging-auto-deploy-state\.v2/);
@@ -100,6 +106,21 @@ assert.match(autoDeploy, /Get-OptionalPropertyValue \$snapshot "staging_tunnel"/
 assert.match(autoDeploy, /Get-OptionalPropertyValue \$snapshot "local_connector_tunnel"/);
 assert.doesNotMatch(autoDeploy, /\$snapshot\.staging_tunnel/);
 assert.doesNotMatch(autoDeploy, /\$snapshot\.local_connector_tunnel/);
+assert.match(autoDeploy, /\$pilotArgs \+= @\("-TunnelMode", \$TunnelMode\)/);
+assert.match(autoDeploy, /Get-OptionalPropertyValue \$Runtime "certification_degraded_reasons"/);
+assert.match(autoDeploy, /Get-OptionalPropertyValue \$Runtime "certification_blocking_failures"/);
+assert.match(autoDeploy, /Connector failure[\s\S]*cannot prevent repair/);
+assert.doesNotMatch(autoDeploy, /\$pilotArgs \+= "-StartTunnel"/);
+assert.equal((autoDeploy.match(/function Enter-DeploymentLease/g) || []).length, 1);
+assert.equal((autoDeploy.match(/function Get-GatewayHealthEvidence/g) || []).length, 1);
+assert.equal((autoDeploy.match(/function Invoke-ReadOnlyConvergencePreflight/g) || []).length, 1);
+assert.doesNotMatch(autoDeploy, /function [A-Za-z0-9_-]+function /);
+assert.doesNotMatch(startAutoPilot, /function [A-Za-z0-9_-]+function /);
+assert.doesNotMatch(startAutoPilot, /Invoke-Native[^\n]+Invoke-Native/);
+assert.doesNotMatch(startAutoPilot, /\}\s+-and \$TunnelMode/);
+assert.match(startAutoPilot, /ValidateSet\("disabled", "windows_service", "docker_sidecar"\)/);
+assert.match(startAutoPilot, /windows_service mode refuses concurrent Docker cloudflared sidecar/);
+assert.match(startAutoPilot, /Staging Windows service tunnel is the sole runtime/);
 
 // Every certification path is now connector-gated. The exact repair evidence is
 // persisted into runtime state before the live certification process can run.
@@ -143,6 +164,9 @@ assert.match(connectorInstaller, /\$StagingTunnel\s+=\s+"Mad4B-Staging-Cloudflar
 assert.match(connectorInstaller, /Cross-runtime non-interference failed/);
 assert.doesNotMatch(connectorInstaller, /Get-Process -Name "cloudflared"/);
 assert.doesNotMatch(connectorInstaller, /cloudflared service uninstall/);
+assert.doesNotMatch(connectorInstaller, /sc\.exe\s+delete\s+cloudflared/i);
+assert.match(connectorRepair, /staging_pid_before/);
+assert.match(connectorRepair, /staging_pid_after/);
 
 // Installer and watchdog callbacks fail closed on the originating environment.
 assert.match(connectorInstaller, /CONNECTOR_ENVIRONMENT/);
@@ -169,6 +193,12 @@ assert.match(connectorRepair, /cloudflare_1033/);
 assert.match(connectorRepair, /Restart-LocalTunnelRuntime/);
 assert.match(connectorRepair, /staging_runtime_unchanged/);
 assert.match(connectorRepair, /ambiguous_legacy_service_requires_reconciliation/);
+assert.match(connectorRepair, /quarantined_staging_alias/);
+assert.match(connectorRepair, /connector_installation_incomplete/);
+assert.match(connectorRepair, /missing_assets/);
+assert.match(connectorRepair, /CONNECTOR_MANIFEST_URL/);
+assert.match(connectorRepair, /repository_package_copied/);
+assert.match(connectorRepair, /legacy_service_mutated = \$false/);
 assert.match(connectorRepair, /production_callback_fallback = \$false/);
 assert.match(connectorRepair, /production_mutation = \$false/);
 assert.match(connectorRepair, /provider_mutation = \$false/);
