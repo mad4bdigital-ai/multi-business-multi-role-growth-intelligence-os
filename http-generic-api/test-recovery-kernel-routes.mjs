@@ -30,11 +30,12 @@ async function postJson(baseUrl, body, pathname = "/admin/recovery/kernel/execut
 const PLAN_ID = "plan:1234567890abcdef";
 const PLAN_HASH = "a".repeat(64);
 const STEP_ID = "step:1234567890abcdef";
+const EXACT_SHA = "b".repeat(40);
 const PLAN = {
   plan_id: PLAN_ID,
   plan_hash: PLAN_HASH,
-  expected_sha: "b".repeat(40),
-  expected_sha_at_creation: "b".repeat(40),
+  expected_sha: EXACT_SHA,
+  expected_sha_at_creation: EXACT_SHA,
   target_key: "production-runtime",
   target_fingerprint: "c".repeat(64),
   target_fingerprint_at_creation: "c".repeat(64),
@@ -70,7 +71,7 @@ function buildTestApp({ recoveryStore, approvalIssuer, approvalStore, mutationEx
   return app;
 }
 
-function validBody() {
+function validLegacyBody() {
   return {
     plan_id: PLAN_ID,
     plan_hash: PLAN_HASH,
@@ -80,25 +81,42 @@ function validBody() {
   };
 }
 
-test("private bridge route rejects caller-generated ticket fields and requires only the server-issued contract", async () => {
+function validServerBody() {
+  const approvalId = "approval:1234567890abcdef";
+  return {
+    plan_id: PLAN_ID,
+    plan_hash: PLAN_HASH,
+    step_id: STEP_ID,
+    approval_id: approvalId,
+    expected_sha: EXACT_SHA,
+    typed_confirmation: `APPROVE PRODUCTION RECOVERY ${approvalId} ${STEP_ID} ${EXACT_SHA}`,
+    idempotency_key: "idempotency:route-test-server-001",
+  };
+}
+
+test("private bridge route rejects caller-generated ticket fields and accepts only bounded approval modes", async () => {
   const app = buildTestApp({ recoveryStore: { getPlan: async () => PLAN } });
   const { server, baseUrl } = await startServer(app);
   try {
-    const extraFieldResponse = await postJson(baseUrl, { ...validBody(), execution_ticket_id: "ticket:caller-made" });
+    const extraFieldResponse = await postJson(baseUrl, { ...validLegacyBody(), execution_ticket_id: "ticket:caller-made" });
     assert.equal(extraFieldResponse.status, 400);
     assert.equal(extraFieldResponse.body.error.code, "recovery_kernel_input_field_forbidden");
 
-    const missingApproval = validBody();
+    const missingApproval = validLegacyBody();
     delete missingApproval.approval_token;
     const missingResponse = await postJson(baseUrl, missingApproval);
     assert.equal(missingResponse.status, 400);
-    assert.equal(missingResponse.body.error.code, "recovery_kernel_required_field_missing");
+    assert.equal(missingResponse.body.error.code, "recovery_action_bridge_server_approval_required");
+
+    const serverModeResponse = await postJson(baseUrl, validServerBody());
+    assert.equal(serverModeResponse.status, 503);
+    assert.equal(serverModeResponse.body.error.code, "recovery_action_bridge_authority_unavailable");
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
 });
 
-test("approval challenge route is admin-scoped, step-bound, and never returns an approval token or execution ticket", async () => {
+test("approval challenge returns exact typed-confirmation requirements without token or ticket material", async () => {
   let issuerCalls = 0;
   const app = buildTestApp({
     recoveryStore: {
@@ -123,6 +141,11 @@ test("approval challenge route is admin-scoped, step-bound, and never returns an
     assert.equal(response.body.ok, true);
     assert.equal(response.body.approval_token_not_returned, true);
     assert.equal(response.body.execution_ticket_not_returned, true);
+    assert.equal(response.body.result.confirmation_required, true);
+    assert.equal(response.body.result.confirmation_requirements.expected_sha, EXACT_SHA);
+    assert.equal(response.body.result.confirmation_requirements.step_id, STEP_ID);
+    assert.match(response.body.result.confirmation_requirements.confirmation_phrase, /^APPROVE PRODUCTION RECOVERY approval:/u);
+    assert.equal(response.body.result.confirmation_requirements.case_sensitive, true);
     assert.equal(Object.hasOwn(response.body.result, "approval_token"), false);
     assert.equal(Object.hasOwn(response.body.result, "execution_ticket_id"), false);
     assert.equal(Object.hasOwn(response.body.result, "execution_ticket_hash"), false);
@@ -149,7 +172,7 @@ test("historical execute alias uses the same server-issued bridge and fails clos
   });
   const { server, baseUrl } = await startServer(app);
   try {
-    const response = await postJson(baseUrl, validBody(), "/admin/recovery/kernel/execute");
+    const response = await postJson(baseUrl, validLegacyBody(), "/admin/recovery/kernel/execute");
     assert.equal(response.status, 503);
     assert.equal(response.body.error.code, "recovery_action_bridge_authority_unavailable");
     assert.equal(providerCalls, 0);
