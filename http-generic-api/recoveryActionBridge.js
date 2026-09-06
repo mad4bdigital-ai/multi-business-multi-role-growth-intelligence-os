@@ -42,7 +42,7 @@ const COMMON_REQUIRED_KEYS = Object.freeze(["plan_id", "plan_hash", "step_id", "
 const SERVER_APPROVAL_REQUIRED_KEYS = Object.freeze(["approval_id", "expected_sha", "typed_confirmation"]);
 const SHA_RE = /^[0-9a-f]{40}$/iu;
 const TYPED_CONFIRMATION_RE = /^APPROVE PRODUCTION RECOVERY (approval:[0-9a-f]{16,64}) (step:[0-9a-f]{16,64}) ([0-9a-f]{40})$/u;
-const SERVER_APPROVAL_RESOLVER_METHOD = "resolveApprovedExecutionApproval";
+const SERVER_RESOLVER_METHOD = "resolveApprovedExecutionApproval";
 
 function bridgeError(status, code, message, details = {}) {
   const error = new Error(message);
@@ -97,14 +97,14 @@ function assertInput(input) {
 
   const approvalTransport = text(input.approval_token, 512);
   const transportedConfirmation = parseTypedConfirmation(approvalTransport);
-  const explicitServerApprovalFieldsPresent = SERVER_APPROVAL_REQUIRED_KEYS.some((key) => input[key] !== undefined && input[key] !== null && input[key] !== "");
+  const explicitConfirmationFieldsPresent = SERVER_APPROVAL_REQUIRED_KEYS.some((key) => input[key] !== undefined && input[key] !== null && input[key] !== "");
 
   // Compatibility path for already-published private schemas: the field remains
   // named approval_token in those schemas, but when it contains the exact server-
   // issued confirmation phrase it is treated only as confirmation transport. It is
   // never forwarded to approval verification as a token.
   if (transportedConfirmation) {
-    if (explicitServerApprovalFieldsPresent) {
+    if (explicitConfirmationFieldsPresent) {
       throw bridgeError(400, "recovery_action_bridge_approval_mode_conflict", "Typed confirmation must use either the explicit v2 fields or the legacy schema transport field, never both.");
     }
     if (transportedConfirmation.step_id !== input.step_id) {
@@ -121,7 +121,7 @@ function assertInput(input) {
     };
   }
 
-  if (approvalTransport && explicitServerApprovalFieldsPresent) {
+  if (approvalTransport && explicitConfirmationFieldsPresent) {
     throw bridgeError(400, "recovery_action_bridge_approval_mode_conflict", "Caller approval-token mode and server-managed typed-confirmation mode cannot be mixed.");
   }
   if (!approvalTransport) {
@@ -172,11 +172,11 @@ function assertDependencies({ recoveryStore, executionTicketSigner, approvalVeri
 }
 
 function approvalMaterialResolver(approvalIssuer, approvalStore) {
-  if (approvalIssuer && typeof approvalIssuer[SERVER_APPROVAL_RESOLVER_METHOD] === "function") {
-    return { owner: approvalIssuer, resolve: approvalIssuer[SERVER_APPROVAL_RESOLVER_METHOD] };
+  if (approvalIssuer && typeof approvalIssuer[SERVER_RESOLVER_METHOD] === "function") {
+    return { owner: approvalIssuer, resolve: approvalIssuer[SERVER_RESOLVER_METHOD] };
   }
-  if (approvalStore && typeof approvalStore[SERVER_APPROVAL_RESOLVER_METHOD] === "function") {
-    return { owner: approvalStore, resolve: approvalStore[SERVER_APPROVAL_RESOLVER_METHOD] };
+  if (approvalStore && typeof approvalStore[SERVER_RESOLVER_METHOD] === "function") {
+    return { owner: approvalStore, resolve: approvalStore[SERVER_RESOLVER_METHOD] };
   }
   return null;
 }
@@ -239,27 +239,27 @@ export function buildRecoveryTypedConfirmationRequirements({ approval_id, plan_h
 }
 
 async function readBoundApproval(request, { recoveryStore, approvalStore } = {}) {
-  let approval = null;
+  let boundRecord = null;
   if (recoveryStore && typeof recoveryStore.getApprovalByPlanStep === "function") {
-    approval = await recoveryStore.getApprovalByPlanStep(request.plan_id, request.step_id);
+    boundRecord = await recoveryStore.getApprovalByPlanStep(request.plan_id, request.step_id);
   }
-  if (!approval && approvalStore && typeof approvalStore.getChallenge === "function") {
-    approval = await approvalStore.getChallenge(request.plan_hash, request.step_id);
+  if (!boundRecord && approvalStore && typeof approvalStore.getChallenge === "function") {
+    boundRecord = await approvalStore.getChallenge(request.plan_hash, request.step_id);
   }
-  if (!approval) throw bridgeError(401, "recovery_action_bridge_approval_not_found", "The bound approval challenge is unavailable.");
+  if (!boundRecord) throw bridgeError(401, "recovery_action_bridge_approval_not_found", "The bound approval challenge is unavailable.");
   const expectedSha = text(request.expected_sha, 64).toLowerCase();
-  const bindingsMatch = approval.approval_id === request.approval_id
-    && approval.plan_id === request.plan_id
-    && approval.plan_hash === request.plan_hash
-    && approval.step_id === request.step_id
-    && text(approval.expected_sha, 64).toLowerCase() === expectedSha;
+  const bindingsMatch = boundRecord.approval_id === request.approval_id
+    && boundRecord.plan_id === request.plan_id
+    && boundRecord.plan_hash === request.plan_hash
+    && boundRecord.step_id === request.step_id
+    && text(boundRecord.expected_sha, 64).toLowerCase() === expectedSha;
   if (!bindingsMatch) {
     throw bridgeError(409, "recovery_action_bridge_approval_binding_mismatch", "The approval is not bound to the exact requested plan, step, approval ID, and Production SHA.");
   }
-  if (approval.used === true || !approval.expires_at || Date.parse(approval.expires_at) <= Date.now()) {
+  if (boundRecord.used === true || !boundRecord.expires_at || Date.parse(boundRecord.expires_at) <= Date.now()) {
     throw bridgeError(409, "recovery_action_bridge_approval_not_executable", "The approval is expired or already consumed.");
   }
-  return approval;
+  return boundRecord;
 }
 
 async function resolveServerManagedApprovalToken(request, { adminPrincipal, recoveryStore, approvalStore, approvalIssuer } = {}) {
@@ -426,7 +426,7 @@ export const _testingRecoveryActionBridge = Object.freeze({
   COMMON_REQUIRED_KEYS,
   SERVER_APPROVAL_REQUIRED_KEYS,
   TYPED_CONFIRMATION_RE,
-  SERVER_APPROVAL_RESOLVER_METHOD,
+  SERVER_APPROVAL_RESOLVER_METHOD: SERVER_RESOLVER_METHOD,
   parseTypedConfirmation,
   assertInput,
   assertAdminPrincipal,
