@@ -265,6 +265,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-execution-preparation-schema-overlay.mjs`
 - `http-generic-api/test-expand-schema-logic.mjs`
 - `http-generic-api/test-frontend-auth-openapi-parity.mjs`
+- `http-generic-api/test-full-schema-metadata-census.mjs`
 - `http-generic-api/test-github-issue-label-response-schema-alignment.mjs`
 - `http-generic-api/test-github-rerun-workflow-response-schema-alignment.mjs`
 - `http-generic-api/test-github-tooling-schema-contracts.mjs`
@@ -338,8 +339,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-staging-openapi-mcp-db-boundary.mjs`
 - `http-generic-api/test-staging-schema-bundle-builder.mjs`
 - `http-generic-api/test-staging-schema-governance-powershell-revision-contract.mjs`
-- `http-generic-api/test-support-ticket-admin-openapi-precise-contracts.mjs`
-- ...and 17 more
+- ...and 18 more
 
 ## Maintenance Contract
 
