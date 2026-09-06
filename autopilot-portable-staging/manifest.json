@@ -138,7 +138,7 @@
     },
     {
       "path": "http-generic-api/docker-compose.staging.yml",
-      "sha256": "696de729b589de93c5927c43d4344d53cc556c1df55501c7bcec7787e844466c"
+      "sha256": "1388ab1e6d1155b9859a8626524253d4805831a0193cdd8ec40c9321499d319b"
     },
     {
       "path": "http-generic-api/docker-compose.yml",
