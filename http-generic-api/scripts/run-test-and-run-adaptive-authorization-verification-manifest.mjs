@@ -31,6 +31,21 @@ function reportFile() {
   return directory ? path.join(directory, "test-suite.json") : null;
 }
 
+function resolveCheckedOutCommitSha() {
+  const resolved = spawnSync("git", ["rev-parse", "HEAD"], {
+    cwd: root,
+    encoding: "utf8",
+    shell: false,
+  });
+  const checkedOutSha = !resolved.error && resolved.status === 0
+    ? String(resolved.stdout || "").trim().toLowerCase()
+    : "";
+  if (/^[a-f0-9]{40}$/u.test(checkedOutSha)) return checkedOutSha;
+
+  const eventSha = String(process.env.GITHUB_SHA || "").trim().toLowerCase();
+  return /^[a-f0-9]{40}$/u.test(eventSha) ? eventSha : null;
+}
+
 function writeReport(file, report) {
   if (!file) return;
   const resolved = path.resolve(root, file);
@@ -45,6 +60,7 @@ function escapedAnnotation(value) {
 }
 
 const outputFile = reportFile();
+const testedCommitSha = resolveCheckedOutCommitSha();
 const report = {
   contract: "mad4b.sequential-test-suite-progress-report.v1",
   generatedAt: new Date().toISOString(),
@@ -52,7 +68,7 @@ const report = {
   ref: process.env.GITHUB_REF || null,
   headRef: process.env.GITHUB_HEAD_REF || null,
   baseRef: process.env.GITHUB_BASE_REF || null,
-  commitSha: process.env.GITHUB_SHA || null,
+  commitSha: testedCommitSha,
   status: "running",
   currentPhase: null,
   lastPassed: null,
@@ -71,6 +87,7 @@ for (let phaseIndex = 0; phaseIndex < phases.length; phaseIndex += 1) {
 
   const startedAt = Date.now();
   const childEnvironment = { ...process.env };
+  if (testedCommitSha) childEnvironment.GITHUB_SHA = testedCommitSha;
   const directory = reportDirectory();
   if (directory && !childEnvironment.TEST_MANIFEST_REPORT_FILE) {
     childEnvironment.TEST_MANIFEST_REPORT_FILE = path.join(directory, "test-manifest.json");

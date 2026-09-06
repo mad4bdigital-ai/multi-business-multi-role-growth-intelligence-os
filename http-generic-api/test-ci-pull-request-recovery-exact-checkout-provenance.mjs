@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 const ciWorkflow = readFileSync("../.github/workflows/ci.yml", "utf8");
 const recoveryWorkflow = readFileSync("../.github/workflows/ci-pull-request-recovery.yml", "utf8");
+const sequentialSuiteRunner = readFileSync("./scripts/run-test-and-run-adaptive-authorization-verification-manifest.mjs", "utf8");
 
 for (const input of ["pull_request_number", "candidate_sha", "expected_base_ref", "expected_base_sha"]) {
   assert.match(
@@ -58,6 +59,24 @@ assert.doesNotMatch(
   recoveryWorkflow,
   /- name: Run tests\s+[\s\S]*?run: npm test/u,
   "Recovery must not emit test reports under an unverified event-level GITHUB_SHA.",
+);
+
+assert.match(
+  ciWorkflow,
+  /ref: \$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/u,
+  "Primary CI checkout must remain bound to the pull-request head when a PR event is present.",
+);
+assert.match(
+  sequentialSuiteRunner,
+  /spawnSync\("git", \["rev-parse", "HEAD"\]/u,
+  "Sequential suite provenance must derive the tested commit from the checked-out worktree.",
+);
+assert.match(sequentialSuiteRunner, /commitSha: testedCommitSha/u);
+assert.match(sequentialSuiteRunner, /if \(testedCommitSha\) childEnvironment\.GITHUB_SHA = testedCommitSha;/u);
+assert.match(
+  sequentialSuiteRunner,
+  /const eventSha = String\(process\.env\.GITHUB_SHA \|\| ""\)/u,
+  "Event-level GITHUB_SHA may only remain a fallback when git checkout identity is unavailable.",
 );
 
 const pullRequestOnlyCancellation = /cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}/u;
