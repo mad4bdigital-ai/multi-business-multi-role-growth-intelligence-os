@@ -73,10 +73,10 @@ assert.match(
 );
 assert.match(sequentialSuiteRunner, /commitSha: testedCommitSha/u);
 assert.match(sequentialSuiteRunner, /if \(testedCommitSha\) childEnvironment\.GITHUB_SHA = testedCommitSha;/u);
-assert.match(
+assert.doesNotMatch(
   sequentialSuiteRunner,
   /const eventSha = String\(process\.env\.GITHUB_SHA \|\| ""\)/u,
-  "Event-level GITHUB_SHA may only remain a fallback when git checkout identity is unavailable.",
+  "Sequential suite provenance must fail closed instead of falling back to event-level GITHUB_SHA.",
 );
 
 const pullRequestOnlyCancellation = /cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}/u;
