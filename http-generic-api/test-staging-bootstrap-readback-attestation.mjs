@@ -8,7 +8,6 @@ import { createStagingBootstrapExecutionAuthority } from "./stagingBootstrapExec
 import { _testingStagingRecoveryAuthorityBinding } from "./stagingRecoveryAuthorityBinding.js";
 
 // frontend-surface-operation: POST /admin/recovery/staging/bootstrap-ticket/verify
-// frontend-surface-operation: POST /admin/recovery/staging/bootstrap-readback/attest
 // frontend-surface-operation: POST /admin/recovery/staging/bootstrap-ticket/finalize
 
 const SHA = "a".repeat(40);
