@@ -138,7 +138,7 @@
     },
     {
       "path": "http-generic-api/docker-compose.staging.yml",
-      "sha256": "f7a97c06afd385e821bf81142c62e9c2798344f5c07dbe6f95620467dbb152b4"
+      "sha256": "dd5ff0e008f01c836b7515f416d48db7b5262e2842e2f34febfec6c8e0a00cd3"
     },
     {
       "path": "http-generic-api/docker-compose.yml",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "0160b8c9b322fa381f00d7f32f96bc7fd76d370c91c3b8abb8e36415f625a3ab"
+      "sha256": "671f290494133553d5b4552c4ebeb0605b017a37de41435f2f5dcd42ed0be9b1"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
