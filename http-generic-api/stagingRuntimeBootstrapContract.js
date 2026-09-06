@@ -93,6 +93,7 @@ export function publicStagingReadinessRemediationContract() {
     schema_repair_migrations: Object.entries(contract.migrations)
       .filter(([file]) => (contract.staging_readiness_remediation?.schema_repair_migrations || []).some((entry) => entry.file === file))
       .map(([file, spec]) => ({ file, sha256: spec.sha256, statement_count: spec.statement_count, allowed_modes: [...spec.allowed_modes], role: spec.role })),
+    surface_authority_compatibility: structuredClone(contract.staging_readiness_remediation?.surface_authority_compatibility || {}),
     access_repair: structuredClone(contract.staging_readiness_remediation?.access_repair || {}),
     external_evidence: structuredClone(contract.staging_readiness_remediation?.external_evidence || {}),
     production_mutation_allowed: false,
