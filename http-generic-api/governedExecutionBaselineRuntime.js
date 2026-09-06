@@ -1,5 +1,6 @@
 import {
   createGovernedExecutionBaselineTrace,
+  createInMemoryGovernedExecutionBaselineSink,
   emitGovernedExecutionBaselineSnapshot,
 } from "./governedExecutionBaselineTelemetry.js";
 
@@ -8,6 +9,44 @@ const HTTP_ENTRY_POINTS = new Map([
   ["POST /system/tools/call", "system_tool"],
   ["POST /admin/system/tools/call", "system_tool"],
 ]);
+
+function trueFlag(value) {
+  return String(value || "").trim().toLowerCase() === "true";
+}
+
+function configuredMaxSamples(env = process.env) {
+  const parsed = Number.parseInt(env?.GOVERNED_EXECUTION_BASELINE_MAX_SAMPLES || "500", 10);
+  return Number.isFinite(parsed) ? Math.max(1, Math.min(10_000, parsed)) : 500;
+}
+
+const PROCESS_BASELINE_SINK = createInMemoryGovernedExecutionBaselineSink({
+  max_samples: configuredMaxSamples(process.env),
+});
+
+const PROCESS_BASELINE_EMITTER = (snapshot) => PROCESS_BASELINE_SINK.emit(snapshot);
+
+export function governedExecutionBaselineEnabled(env = process.env) {
+  return trueFlag(env?.GOVERNED_EXECUTION_BASELINE_ENABLED);
+}
+
+export function resolveGovernedExecutionBaselineEmitter(explicitEmitter = null, env = process.env) {
+  if (typeof explicitEmitter === "function") return explicitEmitter;
+  return governedExecutionBaselineEnabled(env) ? PROCESS_BASELINE_EMITTER : null;
+}
+
+export function getGovernedExecutionBaselineRuntimeStatus(env = process.env) {
+  const sinkStatus = PROCESS_BASELINE_SINK.status();
+  return Object.freeze({
+    enabled: governedExecutionBaselineEnabled(env),
+    emitter_mode: governedExecutionBaselineEnabled(env) ? "process_lifetime_memory" : "disabled",
+    max_samples: sinkStatus.max_samples,
+    sample_count: sinkStatus.sample_count,
+    persistence: sinkStatus.persistence,
+    database_write: false,
+    external_send: false,
+    secrets_included: false,
+  });
+}
 
 function safeHeader(req, name) {
   const value = req?.headers?.[name] ?? req?.headers?.[name.toLowerCase()];
@@ -35,7 +74,7 @@ function httpResultClassification(statusCode) {
 }
 
 export function createGovernedExecutionBaselineHttpMiddleware(options = {}) {
-  const emitter = options.emitter;
+  const emitter = resolveGovernedExecutionBaselineEmitter(options.emitter, options.env || process.env);
   const dependencies = options.dependencies || {};
 
   return function governedExecutionBaselineHttpMiddleware(req, res, next) {
@@ -82,10 +121,11 @@ export function createGovernedExecutionBaselineHttpMiddleware(options = {}) {
 }
 
 export function createOptionalGovernedExecutionBaselineTrace(input = {}, options = {}) {
-  if (typeof options.emitter !== "function") return null;
+  const emitter = resolveGovernedExecutionBaselineEmitter(options.emitter, options.env || process.env);
+  if (typeof emitter !== "function") return null;
   return Object.freeze({
     trace: createGovernedExecutionBaselineTrace(input, options.dependencies || {}),
-    emitter: options.emitter,
+    emitter,
   });
 }
 
