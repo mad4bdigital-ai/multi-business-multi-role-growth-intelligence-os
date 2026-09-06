@@ -125,7 +125,7 @@ function makeStore() {
     async claimExecution() { return { claimed: true, claim_id: "claim:bridge-001" }; },
     async releaseExecutionClaim() {},
     async getApprovalByPlanStep() { return structuredClone(approval); },
-    async resolveApprovedToken({ approval_id, admin_principal_verified }) {
+    async resolveApprovedExecutionApproval({ approval_id, admin_principal_verified }) {
       return approval_id === APPROVAL_ID && admin_principal_verified === true ? { approval_token: FIXTURE_VALUE } : null;
     },
     async reserveApproval() { return { reserved: true }; },
@@ -200,7 +200,7 @@ const LOCK = {
 };
 const APPROVAL_VERIFIER = { verify: async ({ token }) => token === FIXTURE_VALUE };
 const APPROVAL_ISSUER = {
-  resolveApprovedToken: async ({ approval_id, admin_principal_verified }) => (
+  resolveApprovedExecutionApproval: async ({ approval_id, admin_principal_verified }) => (
     approval_id === APPROVAL_ID && admin_principal_verified === true ? { approval_token: FIXTURE_VALUE } : null
   ),
 };
@@ -306,7 +306,7 @@ test("Admin GPT typed confirmation resolves approval material only inside the se
   assert.equal(result.contract, "mad4b.recovery-action-bridge.v2");
   assert.equal(result.approval_mode, "server_managed_confirmation");
   assert.equal(result.confirmation_transport, "explicit_v2_fields");
-  assert.equal(result.approval_token_resolved_server_side, true);
+  assert.equal(result.approval_material_resolved_server_side, true);
   assert.equal(result.approval_token_returned, false);
   assert.equal(JSON.stringify(result).includes(FIXTURE_VALUE), false);
   assert.equal(typeof forwarded.execution_ticket_id, "string");
@@ -334,7 +334,7 @@ test("published legacy approval_token schema can transport the typed phrase with
   assert.equal(result.ok, true);
   assert.equal(result.approval_mode, "server_managed_confirmation");
   assert.equal(result.confirmation_transport, "legacy_schema_field");
-  assert.equal(result.approval_token_resolved_server_side, true);
+  assert.equal(result.approval_material_resolved_server_side, true);
   assert.equal(result.approval_token_returned, false);
   assert.equal(JSON.stringify(result).includes(FIXTURE_VALUE), false);
   assert.equal(JSON.stringify(result).includes(confirmation.confirmation_phrase), false);
