@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { issueAndExecuteApprovedRecoveryStep } from "./recoveryActionBridge.js";
-import { deriveRoleTargetFingerprints, stableHash } from "./recoveryKernel.js";
+import { buildRecoveryTypedConfirmationRequirements, issueAndExecuteApprovedRecoveryStep } from "./recoveryActionBridge.js";
+import { deriveRoleTargetFingerprints } from "./recoveryKernel.js";
 
 const PLAN_ID = "plan:1234567890abcdef";
 const PLAN_HASH = "a".repeat(64);
 const STEP_ID = "step:1234567890abcdef";
 const STEP_HASH = "b".repeat(64);
 const SHA = "c".repeat(40);
+const APPROVAL_ID = "approval:1234567890abcdef";
 const FIXTURE_VALUE = "bound-approval-token-bridge-001";
 const IDEMPOTENCY_KEY = "idempotency:bridge-001";
 
@@ -22,6 +23,25 @@ function baseInput(overrides = {}) {
   };
 }
 
+function serverManagedInput(overrides = {}) {
+  const confirmation = buildRecoveryTypedConfirmationRequirements({
+    approval_id: APPROVAL_ID,
+    plan_hash: PLAN_HASH,
+    step_id: STEP_ID,
+    expected_sha: SHA,
+  });
+  return {
+    plan_id: PLAN_ID,
+    plan_hash: PLAN_HASH,
+    step_id: STEP_ID,
+    approval_id: APPROVAL_ID,
+    expected_sha: SHA,
+    typed_confirmation: confirmation.confirmation_phrase,
+    idempotency_key: "idempotency:bridge-server-managed-001",
+    ...overrides,
+  };
+}
+
 function makeStore() {
   const targetFingerprint = deriveRoleTargetFingerprints({ env: ENV }).runtime;
   const tickets = new Map();
@@ -30,7 +50,7 @@ function makeStore() {
   const receipts = new Map();
   const findings = new Map([["finding:1234567890abcdef", { finding_id: "finding:1234567890abcdef" }]]);
   const approval = {
-    approval_id: "approval:1234567890abcdef",
+    approval_id: APPROVAL_ID,
     plan_id: PLAN_ID,
     plan_hash: PLAN_HASH,
     step_id: STEP_ID,
@@ -172,6 +192,11 @@ const LOCK = {
   release: async () => {},
 };
 const APPROVAL_VERIFIER = { verify: async ({ token }) => token === FIXTURE_VALUE };
+const APPROVAL_ISSUER = {
+  resolveApprovedToken: async ({ approval_id, admin_principal_verified }) => (
+    approval_id === APPROVAL_ID && admin_principal_verified === true ? { approval_token: FIXTURE_VALUE } : null
+  ),
+};
 const READBACK = { independent_authority: true, role_aware: true, verify: async () => ({ postconditions_passed: true, structural_postconditions_passed: true, data_postconditions_passed: true, behavioral_probe_passed: true }) };
 const MIGRATION_LEDGER = { contract: "mad4b.governance-migration-ledger.v1", finalize: async () => ({ finalized: true }) };
 
@@ -182,6 +207,7 @@ function authorities(store, executor) {
     deploymentIdentityProvider: DEPLOYMENT_IDENTITY_PROVIDER,
     recoveryStore: store,
     executionTicketSigner: SIGNER,
+    approvalIssuer: APPROVAL_ISSUER,
     approvalVerifier: APPROVAL_VERIFIER,
     recoveryLock: LOCK,
     readbackVerifier: READBACK,
@@ -228,7 +254,7 @@ test("bridge requires fenced lock and same-cycle readback authority before issui
   assert.equal(store._testing.tickets.size, 0);
 });
 
-test("bridge issues ticket server-side and forwards ticket references to the injected Host Breakglass boundary", async () => {
+test("legacy bridge still issues a server-side execution ticket without returning it", async () => {
   const store = makeStore();
   let forwarded = null;
   const executor = {
@@ -239,7 +265,9 @@ test("bridge issues ticket server-side and forwards ticket references to the inj
   };
   const result = await issueAndExecuteApprovedRecoveryStep(baseInput(), authorities(store, executor));
   assert.equal(result.ok, true);
-  assert.equal(result.contract, "mad4b.recovery-action-bridge.v1");
+  assert.equal(result.contract, "mad4b.recovery-action-bridge.v2");
+  assert.equal(result.approval_mode, "caller_token_legacy");
+  assert.equal(result.approval_token_returned, false);
   assert.equal(result.server_issued_execution_ticket, true);
   assert.equal(result.execution_ticket_forwarded_internally, true);
   assert.equal(result.execution_ticket_returned, false);
@@ -256,6 +284,38 @@ test("bridge issues ticket server-side and forwards ticket references to the inj
   }));
   assert.equal(replay.execution.idempotent_replay, true);
   assert.equal(store._testing.tickets.size, 1);
+});
+
+test("Admin GPT typed confirmation resolves approval material only inside the server", async () => {
+  const store = makeStore();
+  let forwarded = null;
+  const result = await issueAndExecuteApprovedRecoveryStep(serverManagedInput(), authorities(store, {
+    execute: async (payload) => {
+      forwarded = payload;
+      return { status: "host_breakglass_server_approved_handoff", database_mutation_performed: false, secrets_included: false };
+    },
+  }));
+  assert.equal(result.ok, true);
+  assert.equal(result.contract, "mad4b.recovery-action-bridge.v2");
+  assert.equal(result.approval_mode, "server_managed_confirmation");
+  assert.equal(result.approval_token_resolved_server_side, true);
+  assert.equal(result.approval_token_returned, false);
+  assert.equal(JSON.stringify(result).includes(FIXTURE_VALUE), false);
+  assert.equal(typeof forwarded.execution_ticket_id, "string");
+  assert.equal(store._testing.tickets.size, 1);
+});
+
+test("typed confirmation is exact, SHA-bound, and fails before ticket or executor", async () => {
+  const store = makeStore();
+  let executorCalls = 0;
+  await assert.rejects(
+    issueAndExecuteApprovedRecoveryStep(serverManagedInput({ typed_confirmation: "APPROVE SOMETHING ELSE", idempotency_key: "idempotency:bridge-server-reject" }), authorities(store, {
+      execute: async () => { executorCalls += 1; },
+    })),
+    (error) => error.code === "recovery_action_bridge_typed_confirmation_invalid" && error.status === 401,
+  );
+  assert.equal(executorCalls, 0);
+  assert.equal(store._testing.tickets.size, 0);
 });
 
 console.log("recovery action bridge contract tests loaded");
