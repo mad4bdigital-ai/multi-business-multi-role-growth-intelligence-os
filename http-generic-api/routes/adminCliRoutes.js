@@ -3,6 +3,7 @@ import { spawn } from "child_process";
 import { fileURLToPath } from "url";
 import { writeAuditLogAsync } from "../auditLogger.js";
 import { getPool } from "../db.js";
+import { collectFullSchemaMetadataCensus } from "../fullSchemaMetadataCensus.js";
 import { transitionCapabilityEnvelopeLifecycle } from "../capabilityResolutionEnvelopeGuard.js";
 import { finalizeCloudflareEnvelopeLifecycle } from "../cloudflareEnvelopeLifecycle.js";
 import { decryptCredentials } from "../tokenEncryption.js";
@@ -3121,10 +3122,15 @@ export function buildAdminCliRoutes(deps) {
     }
   });
 
-  router.get("/data-source/census", requireBackendApiKey, requireAdminPrincipal, async (_req, res) => {
+  router.get("/data-source/census", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
     try {
-      const { TABLE_MAP } = await import("../sqlAdapter.js");
       const pool = getPool();
+      if (String(req.query?.scope || "").trim().toLowerCase() === "full_schema_metadata") {
+        const census = await collectFullSchemaMetadataCensus(pool);
+        return res.status(200).json({ ok: true, ...census });
+      }
+
+      const { TABLE_MAP } = await import("../sqlAdapter.js");
       const tables = [];
 
       for (const [sheetName, sqlTable] of Object.entries(TABLE_MAP)) {

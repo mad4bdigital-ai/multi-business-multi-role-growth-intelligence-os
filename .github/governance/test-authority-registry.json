@@ -57,16 +57,6 @@
       ]
     },
     {
-      "id": "local_connector_environment_and_transport_isolation",
-      "test_paths": [
-        "http-generic-api/test-local-connector-durable-self-healing.mjs",
-        "http-generic-api/test-local-manager-tool-release-owner.mjs",
-        "local-connector/connector-watchdog.ps1",
-        "http-generic-api/routes/connectorAgentRoutes.js",
-        "http-generic-api/routes/connectorProxyRoutes.js"
-      ]
-    },
-    {
       "id": "generated_artifact_refresh_scope",
       "test_paths": [
         "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
@@ -171,6 +161,16 @@
       ]
     },
     {
+      "id": "local_connector_environment_and_transport_isolation",
+      "test_paths": [
+        "http-generic-api/test-local-connector-durable-self-healing.mjs",
+        "http-generic-api/test-local-manager-tool-release-owner.mjs",
+        "local-connector/connector-watchdog.ps1",
+        "http-generic-api/routes/connectorAgentRoutes.js",
+        "http-generic-api/routes/connectorProxyRoutes.js"
+      ]
+    },
+    {
       "id": "platform_admin_email_default_baseline_contract",
       "test_paths": [
         "http-generic-api/test-platform-admin-email-default.mjs",
@@ -204,6 +204,12 @@
         "http-generic-api/test-postmerge-observability-advisory-contract.mjs",
         ".github/workflows/repository-inventory.yml",
         ".github/workflows/repository-evaluation.yml"
+      ]
+    },
+    {
+      "id": "production_full_schema_metadata_census",
+      "test_paths": [
+        "http-generic-api/test-full-schema-metadata-census.mjs"
       ]
     },
     {
