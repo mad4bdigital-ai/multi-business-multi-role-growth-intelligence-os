@@ -41,6 +41,7 @@ const INPUT_KEYS = new Set([
 const COMMON_REQUIRED_KEYS = Object.freeze(["plan_id", "plan_hash", "step_id", "idempotency_key"]);
 const SERVER_APPROVAL_REQUIRED_KEYS = Object.freeze(["approval_id", "expected_sha", "typed_confirmation"]);
 const SHA_RE = /^[0-9a-f]{40}$/iu;
+const TYPED_CONFIRMATION_RE = /^APPROVE PRODUCTION RECOVERY (approval:[0-9a-f]{16,64}) (step:[0-9a-f]{16,64}) ([0-9a-f]{40})$/u;
 
 function bridgeError(status, code, message, details = {}) {
   const error = new Error(message);
@@ -66,6 +67,18 @@ function missingKeys(input, keys) {
   return keys.filter((key) => input[key] === undefined || input[key] === null || input[key] === "");
 }
 
+function parseTypedConfirmation(value) {
+  const candidate = text(value, 512);
+  const match = TYPED_CONFIRMATION_RE.exec(candidate);
+  if (!match) return null;
+  return Object.freeze({
+    typed_confirmation: candidate,
+    approval_id: match[1],
+    step_id: match[2],
+    expected_sha: match[3].toLowerCase(),
+  });
+}
+
 function assertInput(input) {
   if (!isObject(input)) throw bridgeError(400, "recovery_action_bridge_input_invalid", "Recovery Action bridge input must be a JSON object.");
   const unexpected = Object.keys(input).filter((key) => !INPUT_KEYS.has(key));
@@ -74,19 +87,43 @@ function assertInput(input) {
     throw bridgeError(
       400,
       ticketFields.length ? "recovery_action_bridge_caller_ticket_forbidden" : "recovery_action_bridge_input_field_forbidden",
-      ticketFields.length ? "Execution ticket identifiers, hashes, and signatures are server-issued and cannot be supplied by the caller." : "Recovery Action bridge accepts only immutable plan/step references, approval confirmation references, and idempotency.",
+      ticketFields.length ? "Execution ticket identifiers, hashes, and signatures are server-issued and cannot be supplied by the caller." : "Recovery Action bridge accepts only plan, step, approval confirmation references, and idempotency.",
       { fields: unexpected },
     );
   }
   const missingCommon = missingKeys(input, COMMON_REQUIRED_KEYS);
   if (missingCommon.length) throw bridgeError(400, "recovery_action_bridge_required_field_missing", "Recovery Action bridge input is missing required fields.", { fields: missingCommon });
 
-  const legacyApprovalToken = text(input.approval_token, 512);
-  const serverApprovalFieldsPresent = SERVER_APPROVAL_REQUIRED_KEYS.some((key) => input[key] !== undefined && input[key] !== null && input[key] !== "");
-  if (legacyApprovalToken && serverApprovalFieldsPresent) {
+  const approvalTransport = text(input.approval_token, 512);
+  const transportedConfirmation = parseTypedConfirmation(approvalTransport);
+  const explicitServerApprovalFieldsPresent = SERVER_APPROVAL_REQUIRED_KEYS.some((key) => input[key] !== undefined && input[key] !== null && input[key] !== "");
+
+  // Compatibility path for already-published private schemas: the field remains
+  // named approval_token in those schemas, but when it contains the exact server-
+  // issued confirmation phrase it is treated only as confirmation transport. It is
+  // never forwarded to approval verification as a token.
+  if (transportedConfirmation) {
+    if (explicitServerApprovalFieldsPresent) {
+      throw bridgeError(400, "recovery_action_bridge_approval_mode_conflict", "Typed confirmation must use either the explicit v2 fields or the legacy schema transport field, never both.");
+    }
+    if (transportedConfirmation.step_id !== input.step_id) {
+      throw bridgeError(409, "recovery_action_bridge_confirmation_step_mismatch", "The transported typed confirmation is bound to a different recovery step.");
+    }
+    return {
+      ...input,
+      approval_token: undefined,
+      approval_id: transportedConfirmation.approval_id,
+      expected_sha: transportedConfirmation.expected_sha,
+      typed_confirmation: transportedConfirmation.typed_confirmation,
+      approval_mode: "server_managed_confirmation",
+      confirmation_transport: "legacy_schema_field",
+    };
+  }
+
+  if (approvalTransport && explicitServerApprovalFieldsPresent) {
     throw bridgeError(400, "recovery_action_bridge_approval_mode_conflict", "Caller approval-token mode and server-managed typed-confirmation mode cannot be mixed.");
   }
-  if (!legacyApprovalToken) {
+  if (!approvalTransport) {
     const missingServerApproval = missingKeys(input, SERVER_APPROVAL_REQUIRED_KEYS);
     if (missingServerApproval.length) {
       throw bridgeError(400, "recovery_action_bridge_server_approval_required", "Production Admin GPT execution requires approval_id, expected_sha, and the exact typed confirmation; approval tokens are resolved only inside the server.", { fields: missingServerApproval });
@@ -95,7 +132,11 @@ function assertInput(input) {
       throw bridgeError(400, "recovery_action_bridge_expected_sha_invalid", "expected_sha must be a full 40-character Git SHA.");
     }
   }
-  return { ...input, approval_mode: legacyApprovalToken ? "caller_token_legacy" : "server_managed_confirmation" };
+  return {
+    ...input,
+    approval_mode: approvalTransport ? "caller_token_legacy" : "server_managed_confirmation",
+    confirmation_transport: approvalTransport ? null : "explicit_v2_fields",
+  };
 }
 
 function assertAdminPrincipal(adminPrincipal) {
@@ -129,10 +170,22 @@ function assertDependencies({ recoveryStore, executionTicketSigner, approvalVeri
   if (missing.length) throw bridgeError(503, "recovery_action_bridge_authority_unavailable", "The private Recovery Action bridge is fail-closed until durable ticket, approval, deployment identity, lock, executor, and readback authorities are all configured.", { missing_components: missing });
 }
 
-function assertServerApprovalResolver(approvalIssuer) {
-  if (!approvalIssuer || typeof approvalIssuer.resolveApprovedToken !== "function") {
-    throw bridgeError(503, "recovery_action_bridge_server_approval_resolver_unavailable", "Server-managed typed confirmation requires an approval issuer that can resolve the already-approved single-use token internally; no token may be supplied by the GPT.");
+function approvalTokenResolver(approvalIssuer, approvalStore) {
+  if (approvalIssuer && typeof approvalIssuer.resolveApprovedToken === "function") {
+    return { owner: approvalIssuer, resolve: approvalIssuer.resolveApprovedToken };
   }
+  if (approvalStore && typeof approvalStore.resolveApprovedToken === "function") {
+    return { owner: approvalStore, resolve: approvalStore.resolveApprovedToken };
+  }
+  return null;
+}
+
+function assertServerApprovalResolver(approvalIssuer, approvalStore) {
+  const resolver = approvalTokenResolver(approvalIssuer, approvalStore);
+  if (!resolver) {
+    throw bridgeError(503, "recovery_action_bridge_server_approval_resolver_unavailable", "Server-managed typed confirmation requires a server authority that can resolve the already-approved single-use token internally; no token may be supplied by the GPT.");
+  }
+  return resolver;
 }
 
 function asExecutor(value) {
@@ -179,6 +232,7 @@ export function buildRecoveryTypedConfirmationRequirements({ approval_id, plan_h
     single_use: true,
     ...(expires_at ? { expires_at: text(expires_at, 64) } : {}),
     approval_token_not_returned: true,
+    legacy_schema_transport_supported: true,
     secrets_included: false,
   });
 }
@@ -208,7 +262,7 @@ async function readBoundApproval(request, { recoveryStore, approvalStore } = {})
 }
 
 async function resolveServerManagedApprovalToken(request, { adminPrincipal, recoveryStore, approvalStore, approvalIssuer } = {}) {
-  assertServerApprovalResolver(approvalIssuer);
+  const resolver = assertServerApprovalResolver(approvalIssuer, approvalStore);
   const approval = await readBoundApproval(request, { recoveryStore, approvalStore });
   const requirements = buildRecoveryTypedConfirmationRequirements(approval);
   if (request.typed_confirmation !== requirements.confirmation_phrase) {
@@ -217,7 +271,7 @@ async function resolveServerManagedApprovalToken(request, { adminPrincipal, reco
       approval_id: approval.approval_id,
     });
   }
-  const resolved = await approvalIssuer.resolveApprovedToken(sanitizeEvidence({
+  const resolved = await resolver.resolve.call(resolver.owner, sanitizeEvidence({
     approval_id: approval.approval_id,
     plan_id: approval.plan_id,
     plan_hash: approval.plan_hash,
@@ -255,6 +309,7 @@ function bridgeReceipt(execution, request, { ticketIssueState = "not_issued", fo
     idempotency_key: execution?.idempotency_key || request.idempotency_key,
     execution,
     approval_mode: approvalMode,
+    confirmation_transport: request.confirmation_transport || null,
     approval_token_resolved_server_side: approvalMode === "server_managed_confirmation",
     approval_token_returned: false,
     ticket_issue_state: normalizedTicketIssueState,
@@ -314,9 +369,8 @@ export async function issueAndExecuteApprovedRecoveryStep(input = {}, {
   }
 
   let approvalToken = request.approval_token;
-  let serverApproval = null;
   if (request.approval_mode === "server_managed_confirmation") {
-    serverApproval = await resolveServerManagedApprovalToken(request, { adminPrincipal, recoveryStore, approvalStore, approvalIssuer });
+    const serverApproval = await resolveServerManagedApprovalToken(request, { adminPrincipal, recoveryStore, approvalStore, approvalIssuer });
     approvalToken = serverApproval.token;
   }
 
@@ -359,7 +413,6 @@ export async function issueAndExecuteApprovedRecoveryStep(input = {}, {
     ticketIssueState: "issued_now",
     forwarded: true,
     approvalMode: request.approval_mode,
-    confirmationBindingHash: serverApproval?.requirements?.confirmation_binding_hash || null,
   });
 }
 
@@ -371,9 +424,12 @@ export const _testingRecoveryActionBridge = Object.freeze({
   INPUT_KEYS,
   COMMON_REQUIRED_KEYS,
   SERVER_APPROVAL_REQUIRED_KEYS,
+  TYPED_CONFIRMATION_RE,
+  parseTypedConfirmation,
   assertInput,
   assertAdminPrincipal,
   assertDependencies,
+  approvalTokenResolver,
   stripTicketOutput,
   readBoundApproval,
 });
