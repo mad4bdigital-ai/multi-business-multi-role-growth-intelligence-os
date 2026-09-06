@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 import {
   buildExecutionTicketPayload,
@@ -7,6 +10,9 @@ import {
   verifyExecutionTicket,
 } from "./recoveryExecutionTicket.js";
 import { buildRoleBundleBinding } from "./recoveryExecutionBinding.js";
+import { createStagingBootstrapExecutionAuthority } from "./stagingBootstrapExecutionAuthority.js";
+import { _testingStagingRecoveryAuthorityBinding } from "./stagingRecoveryAuthorityBinding.js";
+import { buildStagingRecoveryAdminContract, _testingStagingRecoveryAdminRoutes } from "./routes/stagingRecoveryAdminRoutes.js";
 
 const SHA = "a".repeat(40);
 const HASH = "b".repeat(64);
@@ -46,6 +52,16 @@ const verifier = { verify: async ({ ticket_hash, ticket }) => ticket.signature =
 
 async function makeTicket(overrides = {}) {
   return issueExecutionTicket({ ...BASE, ...overrides }, { signer });
+}
+
+function stagingEnv(root) {
+  return {
+    NODE_ENV: "staging",
+    DEPLOYMENT_ENVIRONMENT: "staging_local_windows_docker",
+    REMOTE_MCP_ENVIRONMENT: "staging",
+    RECOVERY_STAGING_READINESS_DIRECTORY: path.join(root, "recovery-readiness"),
+    RECOVERY_STAGING_INGRESS_REPLAY_DIRECTORY: path.join(root, "recovery-ingress"),
+  };
 }
 
 test("execution ticket is signed, hash-addressed, single-use, and role-provenance bound", async () => {
@@ -102,4 +118,105 @@ test("role-bundle binding tampering changes the signed payload and fails verific
   const ticket = await makeTicket();
   const tampered = { ...ticket, role_bundle_bindings: { ...ticket.role_bundle_bindings, governance: { ...ticket.role_bundle_bindings.governance, role_bundle_sha256: "a".repeat(64) } } };
   await assert.rejects(() => verifyExecutionTicket(tampered, { verifier }), /hash mismatch|role-bundle|invalid/u);
+});
+
+test("grant repair ticket carries and verifies the exact least-privilege grant binding hash", async () => {
+  const grantBindingHash = "7".repeat(64);
+  const ticket = await makeTicket({ grant_binding_hash: grantBindingHash });
+  assert.equal(ticket.grant_binding_hash, grantBindingHash);
+  assert.equal((await verifyExecutionTicket(ticket, { verifier, expected: { grant_binding_hash: grantBindingHash } })).valid, true);
+  await assert.rejects(
+    () => verifyExecutionTicket(ticket, { verifier, expected: { grant_binding_hash: "8".repeat(64) } }),
+    /grant_binding_hash binding mismatch/u,
+  );
+});
+
+test("Staging bootstrap authority verifies, atomically reserves, and finalizes the server-issued grant ticket", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "staging-bootstrap-ticket-authority-"));
+  try {
+    const env = stagingEnv(root);
+    const roots = _testingStagingRecoveryAuthorityBinding.roots(env);
+    const graph = _testingStagingRecoveryAuthorityBinding.adapters(roots.readiness, env).adapters;
+    const targetFingerprint = "c".repeat(64);
+    const grantBindingHash = "d".repeat(64);
+    const planHash = "e".repeat(64);
+    const idempotencyKey = "host-breakglass-correlation-001";
+    const ticket = await issueExecutionTicket({
+      finding_ids: [`finding:${"1".repeat(32)}`],
+      selected_roles: ["composite"],
+      role_selection_required: false,
+      role_object_count_fingerprints: {},
+      role_bundle_bindings: {},
+      approval_id: `approval:${"2".repeat(32)}`,
+      approval_hash: "3".repeat(64),
+      approval_version: "v1",
+      operation: "grants",
+      target_fingerprints: { composite: targetFingerprint },
+      target_fingerprint: targetFingerprint,
+      production_sha: SHA,
+      target_key: "staging-runtime",
+      plan_hash: planHash,
+      step_hash: "4".repeat(64),
+      step_id: `step:${"5".repeat(32)}`,
+      target_role: "composite",
+      idempotency_key: idempotencyKey,
+      grant_binding_hash: grantBindingHash,
+      expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+      nonce: "nonce:staging-bootstrap-grants-001",
+    }, { signer: graph.executionTicketSigner });
+    await graph.recoveryStore.putExecutionTicket(ticket);
+
+    const authority = createStagingBootstrapExecutionAuthority({ env });
+    const expected = {
+      production_sha: SHA,
+      target_key: "staging-runtime",
+      target_fingerprint: targetFingerprint,
+      operation: "grants",
+      plan_hash: planHash,
+      idempotency_key: idempotencyKey,
+      grant_binding_hash: grantBindingHash,
+    };
+    const first = await authority.verifyForBootstrap({ ticket_id: ticket.ticket_id, ticket_hash: ticket.ticket_hash, expected });
+    assert.equal(first.valid, true);
+    assert.equal(first.reserved, true);
+    assert.match(first.reservation_fingerprint, /^[a-f0-9]{64}$/u);
+
+    const replay = await authority.verifyForBootstrap({ ticket_id: ticket.ticket_id, ticket_hash: ticket.ticket_hash, expected });
+    assert.equal(replay.valid, false);
+    assert.equal(replay.reconciliation_required, true);
+    assert.equal(replay.automatic_rerun_allowed, false);
+
+    const finalized = await authority.finalizeForBootstrap({
+      ticket_id: ticket.ticket_id,
+      ticket_hash: ticket.ticket_hash,
+      expected,
+      readback: {
+        verified: true,
+        same_cycle: true,
+        database_mutation_performed: true,
+        evidence_hash: "6".repeat(64),
+      },
+    });
+    assert.equal(finalized.finalized, true);
+    assert.equal(finalized.status, "verified");
+    assert.equal((await graph.recoveryStore.reserveExecutionTicket({ ticket_id: ticket.ticket_id, ticket_hash: ticket.ticket_hash, idempotency_key: "replay-after-finalize" })).reserved, false);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("Staging Recovery keeps internal bootstrap authority POSTs out of the advertised GPT operation set", () => {
+  const contract = buildStagingRecoveryAdminContract();
+  assert.deepEqual(contract.operation_policy.advertised_methods, ["GET"]);
+  assert.deepEqual(contract.operation_policy.internal_execution_authority_methods, ["POST"]);
+  assert.equal(contract.paths.length, 3);
+  assert.deepEqual(contract.internal_execution_authority_paths, [
+    "/admin/recovery/staging/bootstrap-ticket/verify",
+    "/admin/recovery/staging/bootstrap-ticket/finalize",
+    "/admin/recovery/staging/bootstrap-partial-receipt",
+  ]);
+  assert.throws(
+    () => _testingStagingRecoveryAdminRoutes.exactBootstrapBinding({ execution_ticket_id: "ticket:12345678", raw_sql: "GRANT ALL" }),
+    (error) => error?.code === "RECOVERY_STAGING_BOOTSTRAP_FIELD_FORBIDDEN",
+  );
 });
