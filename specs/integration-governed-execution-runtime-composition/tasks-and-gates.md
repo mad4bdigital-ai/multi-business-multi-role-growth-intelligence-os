@@ -2,13 +2,15 @@
 
 ## Phase X0 — Evidence baseline
 
-- [ ] **X001** Instrument legacy GPT/system tool dispatch with stage durations and correlation IDs.
-- [ ] **X002** Record SQL query count, provider-call count, internal HTTP hops, model/tool round trips, continuation calls, and response size.
-- [ ] **X003** Select representative fixtures: single read, single mutation, 3-6 step workflow, repository PR workflow, and long-running external wait.
-- [ ] **X004** Capture authority, approval, provider, readback, receipt, result-hash, projection, and recovery outcomes for every fixture.
-- [ ] **X005** Publish a no-secret baseline artifact. No speed target may be claimed without this baseline.
+- [x] **X001** Instrument legacy GPT/system tool dispatch with stage durations and correlation IDs.
+- [x] **X002** Record SQL query count, provider-call count, internal HTTP hops, model/tool round trips, continuation calls, and response size, preserving explicit `unobserved` coverage wherever a runtime boundary is not yet precise.
+- [x] **X003** Select representative fixtures: single read, single mutation, 3-6 step workflow, repository PR workflow, and long-running external wait.
+- [x] **X004** Capture authority, approval, provider, readback, receipt, result-hash, projection, and recovery outcomes for every selected fixture.
+- [x] **X005** Publish a no-secret baseline artifact. No speed target may be claimed without this baseline.
 
 ### Gate X0
+
+Candidate implementation evidence is present; **external exact-head CI and required live Staging certification remain pending and cannot be self-attested by this tree**.
 
 - same fixture inputs and expected functional outcomes are reproducible;
 - telemetry excludes secrets, raw JWTs, credentials, and unbounded payloads;
