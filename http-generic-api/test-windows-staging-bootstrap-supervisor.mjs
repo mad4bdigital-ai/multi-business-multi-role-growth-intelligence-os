@@ -9,6 +9,7 @@ const preflight = read("autopilot-portable-staging/Staging-Windows-Preflight.ps1
 const installer = read("autopilot-portable-staging/Install-AutoDeployTask.ps1");
 const monitor = read("autopilot-portable-staging/Staging-HealthMonitor.ps1");
 const autoDeploy = read("autopilot-portable-staging/Auto-Deploy-Staging.ps1");
+const certification = read("autopilot-portable-staging/Invoke-StagingCertification.ps1");
 const operationsLog = read("autopilot-portable-staging/Staging-Operations-Log.ps1");
 const converger = read("autopilot-portable-staging/Converge-StagingActivationGateway.ps1");
 const connectorRepair = read("autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1");
@@ -63,6 +64,8 @@ assert.match(monitor, /mcp-dev\.mad4b\.com/);
 assert.match(monitor, /connector\.mad4b\.com/);
 assert.match(monitor, /cloudflare_1033/);
 assert.match(monitor, /Mad4B-Staging-Cloudflared/);
+assert.match(monitor, /Mad4B-LocalConnector-Cloudflared/);
+assert.match(monitor, /legacy_runtime_evidence/);
 
 // Auto Deploy is now a resumable phase machine rather than deployed/certified booleans.
 assert.match(autoDeploy, /mad4b\.staging-auto-deploy-state\.v2/);
@@ -91,6 +94,24 @@ assert.match(autoDeploy, /refusing blind redeploy/);
 assert.match(autoDeploy, /Test-LocalDeploymentHealthy/);
 assert.match(autoDeploy, /Get-GatewayOnlyRecovery/);
 assert.match(autoDeploy, /Invoke-GatewayConvergence/);
+
+// Every certification path is now connector-gated. The exact repair evidence is
+// persisted into runtime state before the live certification process can run.
+assert.match(certification, /Repair-LocalConnectorTunnel\.ps1/);
+assert.match(certification, /Invoke-LocalConnectorCertificationGate/);
+assert.match(certification, /STAGING_CERTIFICATION_CONNECTOR_GATE: status=checking/);
+assert.match(certification, /-ConnectorEnvironment staging/);
+assert.match(certification, /local_connector_tunnel_required/);
+assert.match(certification, /local_connector_tunnel_status/);
+assert.match(certification, /local_connector_tunnel_failure_class/);
+assert.match(certification, /connector_tunnel_cloudflare_1033/);
+assert.match(certification, /connector_cross_runtime_interference/);
+assert.match(certification, /connector_tunnel_ownership_ambiguous/);
+assert.ok(
+  certification.indexOf("Invoke-LocalConnectorCertificationGate") < certification.indexOf("scripts/staging-live-certification.mjs"),
+  "Local Connector recovery must be a hard precondition of live certification",
+);
+assert.match(certification, /STAGING_CERTIFICATION_READY: commit=\$ExpectedCommit gateway=\$gatewayEnabled connector=healthy/);
 
 // Reuse the existing bounded exact-SHA Worker authority instead of direct local Cloudflare calls.
 assert.match(converger, /operation=deploy_activation_worker/);
@@ -176,6 +197,7 @@ console.log(JSON.stringify({
   deployment_grace_lease: true,
   split_tunnel_health: true,
   component_aware_gateway_convergence: true,
+  certification_connector_gate: true,
   structured_root_cause: true,
   phased_state_machine: true,
   connector_reboot_recovery: true,
