@@ -196,6 +196,21 @@ CI-4 Performance -> Improvement Candidate -> Eval -> Promotion
 
 It may not skip Package foundation, provenance, model/budget policy, certified provider binding, idempotency or readback.
 
+## Exact-head CI attestation boundary
+
+Exact-head CI is an external attestation bound to the candidate Git SHA. The candidate tree must not persist a boolean claiming that it has already passed its own future checks, because changing that boolean would itself create a new SHA requiring a new attestation.
+
+The machine-readable entry gate therefore records:
+
+```text
+exact_head_ci.required = true
+exact_head_ci.attestation_location = external
+exact_head_ci.binding = candidate_head_sha
+exact_head_ci.source_tree_may_self_attest = false
+```
+
+GitHub Actions exact-candidate checks and the canonical CI evidence publisher provide the attestation. Any commit after an attestation invalidates that attestation for the new head and requires a fresh exact-head run.
+
 ## What T008 approval would mean
 
 Approval would authorize **bounded Phase 1 implementation PR design** only.
