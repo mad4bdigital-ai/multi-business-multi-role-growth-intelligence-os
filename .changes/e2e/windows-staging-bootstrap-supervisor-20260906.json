@@ -12,6 +12,8 @@
       "autopilot-portable-staging/Install-AutoDeployTask.ps1",
       "autopilot-portable-staging/Staging-HealthMonitor.ps1",
       "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
+      "autopilot-portable-staging/Start-AutoPilot.ps1",
+      "autopilot-portable-staging/Invoke-StagingCertification.ps1",
       "autopilot-portable-staging/Staging-Operations-Log.ps1",
       "autopilot-portable-staging/Converge-StagingActivationGateway.ps1",
       "autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1",
@@ -69,7 +71,12 @@
             "A healthy exact-SHA local app is not rebuilt solely because Activation Gateway is stale.",
             "Unknown local deployment failures remain fail-closed rather than being reclassified as Gateway-only recovery.",
             "Production mutation remains false and secrets_included remains false.",
-            "Legacy health snapshots that predate split tunnel fields are treated as missing optional evidence and cannot crash Auto Deploy under PowerShell StrictMode."
+            "Legacy health snapshots that predate split tunnel fields are treated as missing optional evidence and cannot crash Auto Deploy under PowerShell StrictMode.",
+            "TunnelMode is preserved end-to-end so windows_service never starts the Docker cloudflared sidecar and only one Staging tunnel runtime may be active.",
+            "A stopped/disabled generic Cloudflared service with Staging logfile/token evidence is classified as quarantined_staging_alias and is never mutated or adopted as Local Connector ownership.",
+            "A missing canonical Local Connector runtime is classified as connector_installation_incomplete; repository-owned Staging package assets may be copied while the existing .env and its secrets remain preserved.",
+            "Connector failure can still block final certification but cannot block independent exact-SHA Activation Gateway inspection/convergence for an otherwise healthy local deployment.",
+            "This Staging feature does not claim platform-wide Connector closure: general localConnectorInstallRoutes.js binding, server.mjs Production fallback removal, generic installer transport ownership, and a signed Admin Recovery envelope remain separate follow-ups."
           ],
           "tests": [
             {

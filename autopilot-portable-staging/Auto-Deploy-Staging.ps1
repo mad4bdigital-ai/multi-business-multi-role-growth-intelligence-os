@@ -226,16 +226,16 @@ function Write-AutoDeployState([string]$Sha, $Eligibility, $Runtime, [bool]$Vali
         $state["validated_commit"] = $Sha
     } elseif ($null -ne $Runtime) {
         $state["deployed_commit"] = $Sha
-        $state["certification_contract"] = [string]$Runtime.certification_contract
-        $state["certification_status"] = [string]$Runtime.certification_status
-        $state["certification_ready"] = ($Runtime.certification_ready -eq $true)
-        $state["certified_commit"] = [string]$Runtime.certified_commit
-        $state["certified_branch"] = [string]$Runtime.certified_branch
-        $state["certification_degraded_reasons"] = @($Runtime.certification_degraded_reasons)
-        $state["certification_blocking_failures"] = @($Runtime.certification_blocking_failures)
-        $state["database_readiness"] = [string]$Runtime.database_readiness
-        $state["build_action"] = [string]$Runtime.build_action
-        $state["app_image_digest"] = [string]$Runtime.app_image_digest
+        $state["certification_contract"] = [string](Get-OptionalPropertyValue $Runtime "certification_contract")
+        $state["certification_status"] = [string](Get-OptionalPropertyValue $Runtime "certification_status")
+        $state["certification_ready"] = ((Get-OptionalPropertyValue $Runtime "certification_ready") -eq $true)
+        $state["certified_commit"] = [string](Get-OptionalPropertyValue $Runtime "certified_commit")
+        $state["certified_branch"] = [string](Get-OptionalPropertyValue $Runtime "certified_branch")
+        $state["certification_degraded_reasons"] = @((Get-OptionalPropertyValue $Runtime "certification_degraded_reasons"))
+        $state["certification_blocking_failures"] = @((Get-OptionalPropertyValue $Runtime "certification_blocking_failures"))
+        $state["database_readiness"] = [string](Get-OptionalPropertyValue $Runtime "database_readiness")
+        $state["build_action"] = [string](Get-OptionalPropertyValue $Runtime "build_action")
+        $state["app_image_digest"] = [string](Get-OptionalPropertyValue $Runtime "app_image_digest")
     }
     foreach ($key in $Failure.Keys) { $state[$key] = $Failure[$key] }
     Write-State $statePath $state
@@ -244,10 +244,30 @@ function Write-AutoDeployState([string]$Sha, $Eligibility, $Runtime, [bool]$Vali
 function Get-CertificationState([string]$RuntimeStatePath, [string]$Sha) {
     $runtime = Read-State $RuntimeStatePath
     if (-not $runtime) { Fail "Staging runtime state is missing after deployment/certification" }
-    if ([string]$runtime.commit -ne $Sha) { Fail "Staging runtime state commit mismatch after deployment/certification" }
-    if ([string]$runtime.certified_commit -and ([string]$runtime.certified_commit).ToLowerInvariant() -ne $Sha) { Fail "Staging certified commit mismatch" }
-    if ([string]$runtime.certified_branch -and [string]$runtime.certified_branch -ne $Ref) { Fail "Staging certified branch mismatch" }
-    if ([string]$runtime.certification_status -notin @("ready", "degraded")) { Fail "Staging runtime state has unsupported certification status" }
+    $runtimeCommit = ([string](Get-OptionalPropertyValue $runtime "commit")).Trim().ToLowerInvariant()
+    if ([string]::IsNullOrWhiteSpace($runtimeCommit) -or $runtimeCommit -ne $Sha) { Fail "Staging runtime state commit mismatch after deployment/certification" }
+    $certifiedCommit = ([string](Get-OptionalPropertyValue $runtime "certified_commit")).Trim().ToLowerInvariant()
+    $certifiedBranch = [string](Get-OptionalPropertyValue $runtime "certified_branch")
+    $certificationStatus = [string](Get-OptionalPropertyValue $runtime "certification_status")
+    if ($certifiedCommit -and $certifiedCommit -ne $Sha) { Fail "Staging certified commit mismatch" }
+    if ($certifiedBranch -and $certifiedBranch -ne $Ref) { Fail "Staging certified branch mismatch" }
+    if ($certificationStatus -and $certificationStatus -notin @("ready", "degraded", "blocked", "pending")) { Fail "Staging runtime state has unsupported certification status" }
+    foreach ($optional in @{
+        certification_contract = ""
+        certification_status = ""
+        certification_ready = $false
+        certified_commit = ""
+        certified_branch = ""
+        certification_degraded_reasons = @()
+        certification_blocking_failures = @()
+        database_readiness = ""
+        build_action = ""
+        app_image_digest = ""
+    }.GetEnumerator()) {
+        if ($null -eq $runtime.PSObject.Properties[$optional.Key]) {
+            $runtime | Add-Member -NotePropertyName $optional.Key -NotePropertyValue $optional.Value
+        }
+    }
     return $runtime
 }
 
@@ -274,8 +294,11 @@ function Exit-DeploymentLease {
 }
 
 function Test-LocalDeploymentHealthy([string]$Sha, $Runtime) {
-    if ($null -eq $Runtime -or ([string]$Runtime.commit).ToLowerInvariant() -ne $Sha) { return $false }
-    if ([string]$Runtime.app_image_digest -notmatch '^sha256:[0-9a-fA-F]{64}$') { return $false }
+    if ($null -eq $Runtime) { return $false }
+    $runtimeCommit = ([string](Get-OptionalPropertyValue $Runtime "commit")).Trim().ToLowerInvariant()
+    $imageDigest = [string](Get-OptionalPropertyValue $Runtime "app_image_digest")
+    if ($runtimeCommit -ne $Sha) { return $false }
+    if ($imageDigest -notmatch '^sha256:[0-9a-fA-F]{64}$') { return $false }
     $compose = @("compose", "-f", $composeBase, "-f", $composeStage, "--env-file", $envFile)
     foreach ($service in @("redis", "runtime-db", "governance-db", "persistence-db", "app")) {
         $id = (& docker @compose ps -q $service 2>$null | Out-String).Trim()
@@ -306,17 +329,18 @@ function Get-GatewayHealthEvidence([string]$Sha) {
 }
 
 function Get-GatewayOnlyRecovery($Runtime, [string]$Sha) {
-    if ($null -eq $Runtime -or ([string]$Runtime.commit).ToLowerInvariant() -ne $Sha) { return $null }
-    $blocking = @($Runtime.certification_blocking_failures | ForEach-Object { [string]$_ } | Where-Object { $_ })
-    $degraded = @($Runtime.certification_degraded_reasons | ForEach-Object { [string]$_ } | Where-Object { $_ })
-    $reasons = @($blocking + $degraded | Select-Object -Unique)
-    $allowed = @("gateway_exact_commit", "gateway_policy_not_stale", "gateway_policy_hash_current", "gateway_policy_key_current", "gateway_recovery_trusted_ingress")
-    $gatewayHealth = Get-GatewayHealthEvidence $Sha
-    if (-not $gatewayHealth.exact -and $gatewayHealth.reachable -and $reasons.Count -eq 0) { $reasons = @("gateway_exact_commit") }
-    if ($reasons.Count -eq 0) { return $null }
-    if (@($reasons | Where-Object { $_ -notin $allowed }).Count -gt 0) { return $null }
+    if ($null -eq $Runtime) { return $null }
+    $runtimeCommit = ([string](Get-OptionalPropertyValue $Runtime "commit")).Trim().ToLowerInvariant()
+    if ($runtimeCommit -ne $Sha) { return $null }
     if (-not (Test-LocalDeploymentHealthy $Sha $Runtime)) { return $null }
-    return [pscustomobject]@{ reasons = $reasons; gateway = $gatewayHealth }
+
+    # Connector evidence is intentionally independent here. A Connector failure
+    # may block final certification, but cannot prevent repair of an independently
+    # stale or unavailable Activation Gateway for the same exact local commit.
+    $gatewayHealth = Get-GatewayHealthEvidence $Sha
+    if ($gatewayHealth.exact) { return $null }
+    $reason = if ($gatewayHealth.reachable) { "gateway_exact_commit" } else { "gateway_health_reachable" }
+    return [pscustomobject]@{ reasons = @($reason); gateway = $gatewayHealth }
 }
 
 function Invoke-ReadOnlyConvergencePreflight([string]$Sha) {
@@ -380,7 +404,7 @@ function Invoke-GatewayConvergence([string]$Sha, $Recovery) {
 function Invoke-CertificationOnly([string]$Sha) {
     Enter-DeploymentLease "certification" $Sha "certifying" 600
     $certArgs = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $certificationScript, "-RepositoryPath", $RepositoryPath, "-ExpectedCommit", $Sha, "-Ref", $Ref, "-StatePath", $runtimeStatePath)
-    if ($TunnelSelected) { $certArgs += "-StartTunnel" }
+    $certArgs += @("-TunnelMode", $TunnelMode)
     Write-Host "> powershell.exe -File Invoke-StagingCertification.ps1 (re-certify exact deployed commit)"
     & powershell.exe @certArgs
     if ($LASTEXITCODE -ne 0) {
@@ -388,7 +412,7 @@ function Invoke-CertificationOnly([string]$Sha) {
         $runtime = Read-State $runtimeStatePath
         $recovery = Get-GatewayOnlyRecovery $runtime $Sha
         $failureClass = if ($null -ne $recovery) { "gateway_exact_commit_mismatch" } else { "certification_blocked" }
-        Fail "Re-certification blocked deployed commit $Sha; refusing blind redeploy" @{ stage = "certification"; failure_class = $failureClass; expected_commit = $Sha; observed_commit = [string]$gateway.source_commit; blocking_reason = if ($null -ne $runtime) { (@($runtime.certification_blocking_failures) -join ",") } else { "unavailable" } }
+        Fail "Re-certification blocked deployed commit $Sha; refusing blind redeploy" @{ stage = "certification"; failure_class = $failureClass; expected_commit = $Sha; observed_commit = [string]$gateway.source_commit; blocking_reason = if ($null -ne $runtime) { (@((Get-OptionalPropertyValue $runtime "certification_blocking_failures")) -join ",") } else { "unavailable" } }
     }
     return Get-CertificationState $runtimeStatePath $Sha
 }
@@ -501,7 +525,7 @@ while ($true) {
         Write-AutoDeployState $sha $eligibility $null $ValidateOnly $phaseState "running"
         Enter-DeploymentLease "local_deployment" $sha "deploying" 1200
         $pilotArgs = @("-RepositoryPath", $RepositoryPath, "-RepositoryUrl", $RepositoryUrl, "-ExpectedRepository", $ExpectedRepository, "-Ref", $Ref, "-ExpectedCommit", $sha, "-BuildMode", $BuildMode)
-        if ($TunnelSelected) { $pilotArgs += "-StartTunnel" }
+        $pilotArgs += @("-TunnelMode", $TunnelMode)
         if ($ValidateOnly) { $pilotArgs += "-ValidateOnly" }
         Write-Host ("> powershell.exe -File Start-AutoPilot.ps1 {0}" -f ($pilotArgs -join " "))
         & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $startScript @pilotArgs
@@ -535,7 +559,7 @@ while ($true) {
                     $runtimeState = Invoke-CertificationOnly $sha
                 } else {
                     $gateway = Get-GatewayHealthEvidence $sha
-                    $blocking = if ($null -ne $runtimeCandidate) { @($runtimeCandidate.certification_blocking_failures) -join "," } else { "unavailable" }
+                    $blocking = if ($null -ne $runtimeCandidate) { @((Get-OptionalPropertyValue $runtimeCandidate "certification_blocking_failures")) -join "," } else { "unavailable" }
                     $failureClass = if (-not $localHealthy) { "local_deployment_failed" } elseif ($blocking) { "certification_blocked" } else { "autopilot_failed" }
                     $phaseState.deployment = if ($localHealthy) { "succeeded" } else { "failed" }
                     $phaseState.service_health = if ($localHealthy) { "healthy" } else { "unknown" }

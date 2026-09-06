@@ -187,56 +187,81 @@ function Get-WebFailureText([object]$ErrorRecord) {
     } catch { }
     return $text
 }
-function Invoke-RemoteHealthProbe([string]$Uri) {
-    try {
-        $response = Invoke-WebRequest -Uri $Uri -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
-        return [pscustomobject]@{ ok = ([int]$response.StatusCode -eq 200); status_code = [int]$response.StatusCode; error = $null }
-    } catch {
-        $statusCode = $null
-        try { $statusCode = [int]$_.Exception.Response.StatusCode.value__ } catch { }
-        $failureText = Get-WebFailureText $_
-        $errorClass = if ($failureText -match '(?i)\b1033\b' -or $statusCode -eq 530) { "cloudflare_1033" } else { "remote_unavailable" }
-        return [pscustomobject]@{ ok = $false; status_code = $statusCode; error = $errorClass }
+function Invoke-RemoteHealthProbe([string]$Uri, [ValidateRange(1, 5)][int]$MaxAttempts = 3) {
+    $last = [pscustomobject]@{ ok = $false; status_code = $null; error = "remote_unavailable"; attempts = 0 }
+    for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
+        try {
+            $response = Invoke-WebRequest -Uri $Uri -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
+            $last = [pscustomobject]@{ ok = ([int]$response.StatusCode -eq 200); status_code = [int]$response.StatusCode; error = $null; attempts = $attempt }
+        } catch {
+            $statusCode = $null
+            try { $statusCode = [int]$_.Exception.Response.StatusCode.value__ } catch { }
+            $failureText = Get-WebFailureText $_
+            $errorClass = if ($failureText -match '(?i)\b1033\b' -or $statusCode -eq 530) { "cloudflare_1033" } else { "remote_unavailable" }
+            $last = [pscustomobject]@{ ok = $false; status_code = $statusCode; error = $errorClass; attempts = $attempt }
+        }
+        if ($last.ok) { return $last }
+        if ($attempt -lt $MaxAttempts) { Start-Sleep -Seconds 2 }
     }
+    return $last
 }
+
 function Get-StagingTunnelSnapshot([string[]]$ComposeArgs, [object]$RuntimeState) {
-    $expectedFromRuntime = $null -ne $RuntimeState -and (Get-ObjectProperty $RuntimeState "tunnel_started") -eq $true
-    $expectedFromEnv = (Get-Env "CLOUDFLARE_TUNNEL_ENABLED").ToLowerInvariant() -eq "true"
+    $requestedMode = ([string](Get-ObjectProperty $RuntimeState "tunnel_mode")).Trim().ToLowerInvariant()
+    if ($requestedMode -notin @("disabled", "windows_service", "docker_sidecar")) {
+        $legacyRequested = $null -ne $RuntimeState -and (Get-ObjectProperty $RuntimeState "tunnel_started") -eq $true
+        $requestedMode = if ($legacyRequested -or (Get-Env "CLOUDFLARE_TUNNEL_ENABLED").ToLowerInvariant() -eq "true") { "legacy_detect" } else { "disabled" }
+    }
+    $windowsService = Get-Service -Name "Mad4B-Staging-Cloudflared" -ErrorAction SilentlyContinue
+    $windowsState = if ($null -eq $windowsService) { "missing" } else { [string]$windowsService.Status }
+    $windowsRunning = $null -ne $windowsService -and $windowsService.Status -eq "Running"
+    $containerId = (& docker @($ComposeArgs + @("ps", "-q", "cloudflared")) 2>$null | Out-String).Trim()
+    $dockerRunning = $false
+    $dockerState = "missing"
+    if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($containerId)) {
+        $dockerState = (& docker inspect --format "{{.State.Status}}" $containerId 2>$null | Out-String).Trim()
+        $running = (& docker inspect --format "{{.State.Running}}" $containerId 2>$null | Out-String).Trim().ToLowerInvariant()
+        $dockerRunning = ($LASTEXITCODE -eq 0 -and $running -eq "true")
+    }
     $snapshot = [ordered]@{
-        expected = $false
+        expected = ($requestedMode -ne "disabled")
+        mode = $requestedMode
         hostnames = @("dev.mad4b.com", "mcp-dev.mad4b.com")
         status = "not_expected"
-        runtime = "none"
+        runtime = if ($requestedMode -eq "legacy_detect") { "none" } else { $requestedMode }
+        local_runtime_state = "windows_service=$windowsState;docker_sidecar=$dockerState"
         remote_health = "not_checked"
+        remote_attempts = 0
+        last_http_status = $null
+        failure_class = ""
         error = $null
     }
-
-    $dockerRunning = $false
-    $containerId = (& docker @($ComposeArgs + @("ps", "-q", "cloudflared")) 2>$null | Out-String).Trim()
-    if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($containerId)) {
-        $running = (& docker inspect --format "{{.State.Running}}" $containerId 2>$null | Out-String).Trim().ToLowerInvariant()
-        if ($LASTEXITCODE -eq 0 -and $running -eq "true") { $dockerRunning = $true; $snapshot.runtime = "docker" }
+    if ($requestedMode -eq "disabled") {
+        if ($windowsRunning -or $dockerRunning) { $snapshot.status = "unhealthy"; $snapshot.error = "unexpected_staging_tunnel_runtime"; $snapshot.failure_class = "staging_tunnel_unhealthy" }
+        return $snapshot
     }
-    if (-not $dockerRunning) {
-        $windowsService = Get-Service -Name "Mad4B-Staging-Cloudflared" -ErrorAction SilentlyContinue
-        if ($null -ne $windowsService -and $windowsService.Status -eq "Running") { $snapshot.runtime = "windows_service" }
-    }
-
-    $runtimeDetected = $snapshot.runtime -ne "none"
-    $snapshot.expected = [bool]($expectedFromRuntime -or $expectedFromEnv -or $runtimeDetected)
-    if (-not $snapshot.expected) { return $snapshot }
-    $snapshot.status = "checking"
-
-    $remote = Invoke-RemoteHealthProbe "https://dev.mad4b.com/health"
-    $snapshot.remote_health = if ($remote.ok) { "healthy" } else { "unhealthy" }
-    if ($runtimeDetected -and $remote.ok) {
-        $snapshot.status = "healthy"
+    if ($requestedMode -eq "windows_service") {
+        if ($dockerRunning) { $snapshot.status = "unhealthy"; $snapshot.error = "runtime_ownership_conflict"; $snapshot.failure_class = "staging_tunnel_unhealthy"; return $snapshot }
+        if (-not $windowsRunning) { $snapshot.status = "unhealthy"; $snapshot.error = "runtime_not_running"; $snapshot.failure_class = "staging_tunnel_unhealthy"; return $snapshot }
+    } elseif ($requestedMode -eq "docker_sidecar") {
+        if ($windowsRunning) { $snapshot.status = "unhealthy"; $snapshot.error = "runtime_ownership_conflict"; $snapshot.failure_class = "staging_tunnel_unhealthy"; return $snapshot }
+        if (-not $dockerRunning) { $snapshot.status = "unhealthy"; $snapshot.error = "runtime_not_running"; $snapshot.failure_class = "staging_tunnel_unhealthy"; return $snapshot }
     } else {
-        $snapshot.status = "unhealthy"
-        $snapshot.error = if (-not $runtimeDetected) { "runtime_not_running" } else { [string]$remote.error }
+        if ($windowsRunning -and $dockerRunning) { $snapshot.status = "unhealthy"; $snapshot.error = "runtime_ownership_conflict"; $snapshot.failure_class = "staging_tunnel_unhealthy"; return $snapshot }
+        if ($windowsRunning) { $snapshot.runtime = "windows_service" }
+        elseif ($dockerRunning) { $snapshot.runtime = "docker_sidecar" }
+        else { $snapshot.status = "unhealthy"; $snapshot.error = "runtime_not_running"; $snapshot.failure_class = "staging_tunnel_unhealthy"; return $snapshot }
     }
+    $snapshot.status = "checking"
+    $remote = Invoke-RemoteHealthProbe "https://dev.mad4b.com/health" 3
+    $snapshot.remote_attempts = [int]$remote.attempts
+    $snapshot.last_http_status = $remote.status_code
+    $snapshot.remote_health = if ($remote.ok) { "healthy" } else { "unhealthy" }
+    if ($remote.ok) { $snapshot.status = "healthy" }
+    else { $snapshot.status = "unhealthy"; $snapshot.error = [string]$remote.error; $snapshot.failure_class = "staging_tunnel_unhealthy" }
     return $snapshot
 }
+
 function Get-LocalConnectorTunnelSnapshot {
     $canonicalTunnelRuntime = "Mad4B-LocalConnector-Cloudflared"
     $legacyTunnelTaskName = "GrowthIntelligence-CloudflaredTunnel"
@@ -356,7 +381,7 @@ function Invoke-HealthCheck {
         $stagingTunnel = Get-StagingTunnelSnapshot $compose $runtimeState
         $snapshot.staging_tunnel = $stagingTunnel
         $snapshot.tunnel_expected = [bool]$stagingTunnel.expected
-        if ($stagingTunnel.expected -and $stagingTunnel.status -ne "healthy") {
+        if ($stagingTunnel.status -eq "unhealthy") {
             throw "Staging tunnel is unhealthy: error=$($stagingTunnel.error)"
         }
 
