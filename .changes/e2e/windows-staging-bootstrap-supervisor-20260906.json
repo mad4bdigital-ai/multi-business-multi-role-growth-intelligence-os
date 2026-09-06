@@ -16,8 +16,6 @@
       "autopilot-portable-staging/Converge-StagingActivationGateway.ps1",
       "autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1",
       "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
-      "http-generic-api/routes/localConnectorInstallRoutes.js",
-      "local-connector/server.mjs",
       "local-connector/connector-watchdog.ps1",
       "local-connector/install-service.ps1",
       "http-generic-api/test-windows-staging-bootstrap-supervisor.mjs",
@@ -124,11 +122,11 @@
           "level": "synthetic_runtime",
           "actor": "Windows Staging Bootstrap Supervisor and Local Connector watchdog",
           "entrypoint": "Local Connector is locally reachable or recoverable while connector.mad4b.com is unavailable or returns Cloudflare 1033.",
-          "terminal_outcome": "The Local Connector runtime and its dedicated Mad4B-LocalConnector-Cloudflared transport are reconciled directly on Windows, environment-bound callbacks remain on the originating control plane, the Staging-owned Mad4B-Staging-Cloudflared runtime is unchanged, and public reachability is re-read before certification continues.",
+          "terminal_outcome": "The Local Connector runtime and its dedicated Mad4B-LocalConnector-Cloudflared transport are reconciled directly on Windows, Staging callbacks are rebound to dev.mad4b.com before restart, the Staging-owned Mad4B-Staging-Cloudflared runtime is unchanged, and public reachability is re-read before certification continues.",
           "steps": [
-            "Resolve the originating connector runtime environment using the existing fail-closed runtime environment authority.",
-            "Persist CONNECTOR_ENVIRONMENT, CONNECTOR_CONTROL_PLANE_BASE_URL, CONNECTOR_POLICY_URL and CONNECTOR_HEARTBEAT_URL in generated Local Connector installation state.",
-            "Bind Staging callbacks only to dev.mad4b.com and Production callbacks only to auth.mad4b.com; reject cross-environment control-plane overrides.",
+            "Reuse the environment-bound connector-agent installer contract already present on main rather than introducing a second Connector environment architecture.",
+            "Before Staging self-heal starts any Local Connector runtime, persist CONNECTOR_ENVIRONMENT=staging with exact dev.mad4b.com control-plane, policy and heartbeat URLs in the local .env file.",
+            "Require install-service.ps1 and the watchdog to fail closed when environment/callback bindings are missing, unknown or cross-environment.",
             "Reconcile Local Connector Cloudflared ownership under Mad4B-LocalConnector-Cloudflared without stopping, deleting or reconfiguring Mad4B-Staging-Cloudflared.",
             "Detect connector.mad4b.com Cloudflare 1033 separately from local connector process health.",
             "Restart only the Local Connector-owned runtime out-of-band, then re-read local and public connector health.",
@@ -138,10 +136,11 @@
             "Staging does not mutate Production Connector authority.",
             "Local Connector owns only Mad4B-LocalConnector-Cloudflared for connector transport recovery.",
             "Staging owns only Mad4B-Staging-Cloudflared for Staging ingress.",
-            "Staging callbacks never resolve to auth.mad4b.com.",
-            "Production callbacks never resolve to dev.mad4b.com.",
+            "The Staging repair path writes only dev.mad4b.com callback authority before Local Connector restart and never falls back to auth.mad4b.com.",
+            "The local installer accepts production only when its complete callback binding resolves consistently to auth.mad4b.com and accepts staging only when it resolves consistently to dev.mad4b.com.",
             "Repairing Local Connector transport leaves the Staging Cloudflared runtime unchanged.",
             "Cloudflare 1033 recovery does not require connector.mad4b.com to be healthy before the local repair is attempted.",
+            "An ambiguous legacy generic cloudflared Windows service is reported for reconciliation instead of being stopped or deleted by Staging.",
             "No connector-dev.mad4b.com, DNS redesign, Production recovery redesign or connectorProxyRoutes.js change is introduced by this tranche."
           ],
           "tests": [
@@ -154,8 +153,6 @@
             }
           ],
           "evidence_paths": [
-            "http-generic-api/routes/localConnectorInstallRoutes.js",
-            "local-connector/server.mjs",
             "local-connector/connector-watchdog.ps1",
             "local-connector/install-service.ps1",
             "autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1",
