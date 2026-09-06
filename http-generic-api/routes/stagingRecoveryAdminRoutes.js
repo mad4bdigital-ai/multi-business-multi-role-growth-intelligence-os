@@ -16,13 +16,19 @@ export const STAGING_RECOVERY_ADMIN_SERVER_URI = "https://activation-dev.mad4b.c
 export const STAGING_RECOVERY_ADMIN_HOST = "activation-dev.mad4b.com";
 
 const STAGING_ENVIRONMENT_KEYS = new Set(["staging", "staging_local_windows_docker"]);
-const STAGING_RECOVERY_PATHS = Object.freeze([
+const STAGING_RECOVERY_ADVERTISED_PATHS = Object.freeze([
   "/admin/recovery/staging/contract",
   "/admin/recovery/staging/readiness",
   "/admin/recovery/staging/certification",
+]);
+const STAGING_RECOVERY_INTERNAL_EXECUTION_PATHS = Object.freeze([
   "/admin/recovery/staging/bootstrap-ticket/verify",
   "/admin/recovery/staging/bootstrap-ticket/finalize",
   "/admin/recovery/staging/bootstrap-partial-receipt",
+]);
+const STAGING_RECOVERY_PATHS = Object.freeze([
+  ...STAGING_RECOVERY_ADVERTISED_PATHS,
+  ...STAGING_RECOVERY_INTERNAL_EXECUTION_PATHS,
 ]);
 const BOOTSTRAP_BINDING_KEYS = Object.freeze([
   "execution_ticket_id",
@@ -129,8 +135,9 @@ export function buildStagingRecoveryAdminContract() {
       local_connector_production_authority: false,
     },
     operation_policy: {
-      advertised_methods: ["GET", "POST"],
-      readiness_only: false,
+      advertised_methods: ["GET"],
+      readiness_only: true,
+      internal_execution_authority_methods: ["POST"],
       consequential_staging_execution: "local_cli_requires_server_ticket_reservation_and_same_cycle_readback",
       target_database_mutation_on_this_surface: false,
       bootstrap_ticket_reservation: "server_managed_single_use",
@@ -141,7 +148,8 @@ export function buildStagingRecoveryAdminContract() {
       raw_sql_allowed: false,
       caller_target_selection: false,
     },
-    paths: [...STAGING_RECOVERY_PATHS],
+    paths: [...STAGING_RECOVERY_ADVERTISED_PATHS],
+    internal_execution_authority_paths: [...STAGING_RECOVERY_INTERNAL_EXECUTION_PATHS],
     certification_contract: RECOVERY_STAGING_CERTIFICATION_CONTRACT,
     required_evidence: [
       "server_derived_deployment_attestation",
@@ -176,17 +184,11 @@ export async function buildStagingRecoveryAdminReadiness({
     adapterProvenance: recoveryReadinessEvidenceReader ? snapshot?.adapterProvenance || {} : null,
   });
   let certification = snapshot?.stagingCertification || null;
-  if (!recoveryReadinessEvidenceReader && typeof stagingCertificationReader === "function") {
-    certification = await stagingCertificationReader();
-  }
+  if (!recoveryReadinessEvidenceReader && typeof stagingCertificationReader === "function") certification = await stagingCertificationReader();
   let attestation = snapshot?.deploymentAttestation || null;
-  if (!recoveryReadinessEvidenceReader && typeof deploymentAttestationReader === "function") {
-    attestation = await deploymentAttestationReader();
-  }
+  if (!recoveryReadinessEvidenceReader && typeof deploymentAttestationReader === "function") attestation = await deploymentAttestationReader();
   let currentTargetFingerprint = snapshot?.candidateTargetFingerprint || expectedTargetFingerprint;
-  if (!recoveryReadinessEvidenceReader && typeof targetFingerprintReader === "function") {
-    currentTargetFingerprint = await targetFingerprintReader();
-  }
+  if (!recoveryReadinessEvidenceReader && typeof targetFingerprintReader === "function") currentTargetFingerprint = await targetFingerprintReader();
   const currentSha = expectedSha || attestation?.sha || attestation?.commit_sha || null;
   const attestationValid = isObject(attestation)
     && attestation.environment === "staging"
@@ -233,11 +235,7 @@ export async function buildStagingRecoveryAdminReadiness({
       fingerprint: certificationResult.certification_fingerprint || null,
     },
     deployment_attestation: publicAttestation(attestation),
-    production_live: {
-      requested: false,
-      eligible: false,
-      enabled: false,
-    },
+    production_live: { requested: false, eligible: false, enabled: false },
     live_certification: {
       status: "not_run_by_readiness_surface",
       separate_workflow_required: true,
@@ -279,9 +277,6 @@ export function buildStagingRecoveryAdminRoutes({
   const guards = [requireBackendApiKey, requireAdminPrincipal];
 
   router.use((req, res, next) => {
-    // Scope the environment isolation guard to this surface's exact paths.
-    // A router-level deny-all would intercept unrelated public health routes
-    // such as /version when the application is running outside Staging.
     if (!STAGING_RECOVERY_PATHS.includes(String(req?.path || ""))) return next();
     if (!staging) return errorResponse(res, req, 404, "RECOVERY_STAGING_SURFACE_UNAVAILABLE", "The Staging Recovery surface is not available outside a declared Staging runtime.");
     const requestHost = typeof trustedHostResolver === "function" ? trustedHostResolver(req, env) : "";
@@ -298,9 +293,7 @@ export function buildStagingRecoveryAdminRoutes({
     return next();
   });
 
-  router.get("/admin/recovery/staging/contract", ...guards, (_req, res) => {
-    res.status(200).json({ ok: true, ...buildStagingRecoveryAdminContract() });
-  });
+  router.get("/admin/recovery/staging/contract", ...guards, (_req, res) => res.status(200).json({ ok: true, ...buildStagingRecoveryAdminContract() }));
 
   router.get("/admin/recovery/staging/readiness", ...guards, async (req, res) => {
     try {
@@ -378,9 +371,7 @@ export function buildStagingRecoveryAdminRoutes({
   router.post("/admin/recovery/staging/bootstrap-partial-receipt", ...guards, async (req, res) => {
     try {
       const receipt = req.body?.receipt;
-      if (!isObject(receipt) || hasSensitiveReceiptKey(receipt)) {
-        return errorResponse(res, req, 400, "RECOVERY_STAGING_PARTIAL_RECEIPT_INVALID", "Partial mutation evidence is invalid or contains forbidden sensitive fields.");
-      }
+      if (!isObject(receipt) || hasSensitiveReceiptKey(receipt)) return errorResponse(res, req, 400, "RECOVERY_STAGING_PARTIAL_RECEIPT_INVALID", "Partial mutation evidence is invalid or contains forbidden sensitive fields.");
       const authority = stagingBootstrapExecutionAuthorityFactory({ env });
       const result = await authority.partialReceiptStore.putImmutablePartialRebuildReceipt(receipt);
       return res.status(202).json({ ok: true, persisted: result?.persisted === true, durable: result?.durable === true, evidence_hash: result?.evidence_hash || null, environment: "staging", production_authority: false, database_mutation_performed: false, secrets_included: false });
@@ -395,6 +386,8 @@ export function buildStagingRecoveryAdminRoutes({
 export const _testingStagingRecoveryAdminRoutes = Object.freeze({
   STAGING_ENVIRONMENT_KEYS,
   STAGING_RECOVERY_PATHS,
+  STAGING_RECOVERY_ADVERTISED_PATHS,
+  STAGING_RECOVERY_INTERNAL_EXECUTION_PATHS,
   STAGING_RECOVERY_ADMIN_HOST,
   BOOTSTRAP_BINDING_KEYS,
   isStagingEnvironment,
