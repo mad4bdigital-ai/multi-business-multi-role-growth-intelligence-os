@@ -25,8 +25,8 @@
   "specification": {
     "complete": true,
     "review_state": "draft",
-    "file_count_expected": 36,
-    "file_count_recorded": 36,
+    "file_count_expected": 39,
+    "file_count_recorded": 39,
     "functional_requirements": 74,
     "non_functional_requirements": 15,
     "success_criteria": 12,
@@ -37,16 +37,24 @@
     "tasks": 74,
     "e2e_phase_contract": "e2e-phases.json",
     "implemented_spec_e2e_journeys": 1,
-    "completed_phase0_tasks": ["T001", "T004", "T005", "T007", "T009"]
+    "completed_phase0_tasks": ["T001", "T002", "T003", "T004", "T005", "T007", "T009"]
   },
   "convergence": {
     "candidate_prs": [3922, 4432],
     "classification_contract": "candidate-convergence.json",
-    "status": "classified_pending_review",
+    "status": "inventory_and_reuse_evidence_complete_owner_decisions_pending",
     "candidate_pr_comments_added": true,
     "duplicate_spec_identity_resolved": false,
+    "canonical_semantic_paths_approved": false,
+    "current_main_authority_inventory_sha": "0faee775cd0572b737fed8bc74e2580d9fca2878",
+    "current_main_authority_inventory_contract": "docs/spec-portfolio/spec015-current-main-authority-reuse-matrix-20260906.json",
+    "current_main_authority_inventory_review": "docs/spec-portfolio/spec015-current-main-authority-reuse-matrix-20260906.md",
+    "canonical_concept_map": "canonical-concept-authority-map.json",
+    "runtime_composition_addendum": "package-runtime-convergence-addendum.md",
     "current_main_reconstruction_started": false,
-    "candidate_branches_merged": false
+    "candidate_branches_merged": false,
+    "new_persistence_approved": false,
+    "new_execution_authority_approved": false
   },
   "portfolio_scan": {
     "status": "base_snapshot_complete_with_live_delta_pending_exact_head_ci",
@@ -71,6 +79,7 @@
     "truthfulness_findings_recorded": true,
     "all_base_snapshot_open_drafts_classified": true,
     "field_level_reuse_matrices_complete": true,
+    "current_main_field_level_reuse_matrix_sha": "0faee775cd0572b737fed8bc74e2580d9fca2878",
     "canonical_paths_finalized": false,
     "close_or_supersede_actions_executed": false
   },
@@ -91,27 +100,31 @@
     "all_current_observed_open_drafts_classified": true
   },
   "verification": {
-    "json_parse": "pending_final_head_ci_after_live_delta",
-    "schema_contract_structure": "pending_final_head_ci_after_live_delta",
-    "openapi_contract_structure": "pending_final_head_ci_after_live_delta",
-    "manifest_inventory": "pending_final_head_ci_after_live_delta",
-    "portfolio_base_contract": "pending_final_head_ci_after_live_delta",
-    "portfolio_live_delta_contract": "pending_final_head_ci_after_live_delta",
-    "e2e_phase_contract": "pending_final_head_ci_after_live_delta",
-    "spec_local_contract_integrity": "pending_final_head_ci_after_live_delta",
-    "repository_ci": "pending_final_head_ci_after_live_delta",
-    "e2e_phase_governance": "pending_final_head_ci_after_live_delta",
-    "docs_agent": "pending_final_head_ci_after_live_delta",
-    "repository_tool_lifecycle_governance": "pending_final_head_ci_after_live_delta",
-    "platform_remaining_scope_scorecard": "pending_final_head_ci_after_live_delta",
-    "platform_completion_cleanup_readback": "pending_final_head_ci_after_live_delta",
+    "json_parse": "pending_exact_head_ci",
+    "schema_contract_structure": "pending_exact_head_ci",
+    "openapi_contract_structure": "pending_exact_head_ci",
+    "manifest_inventory": "pending_exact_head_ci",
+    "canonical_authority_convergence": "pending_exact_head_ci",
+    "current_main_reuse_matrix": "pending_exact_head_ci",
+    "portfolio_base_contract": "pending_exact_head_ci",
+    "portfolio_live_delta_contract": "pending_exact_head_ci",
+    "e2e_phase_contract": "pending_exact_head_ci",
+    "spec_local_contract_integrity": "pending_exact_head_ci",
+    "repository_ci": "pending_exact_head_ci",
+    "e2e_phase_governance": "pending_exact_head_ci",
+    "docs_agent": "pending_exact_head_ci",
+    "repository_tool_lifecycle_governance": "pending_exact_head_ci",
+    "platform_remaining_scope_scorecard": "pending_exact_head_ci",
+    "platform_completion_cleanup_readback": "pending_exact_head_ci",
     "work_map_review": "pending_pr_review",
     "traceability_review": "pending_pr_review",
     "architecture_review": "pending_pr_review",
     "security_review": "pending_pr_review",
     "agency_client_ownership_review": "pending_pr_review",
     "portfolio_disposition_review": "pending_pr_review",
-    "external_integration_review": "pending_pr_review"
+    "external_integration_review": "pending_pr_review",
+    "package_authority_extension_review": "pending_pr_review",
+    "installation_revision_authority_review": "pending_pr_review"
   },
   "implementation": {
     "started": false,
@@ -152,6 +165,12 @@
       "source_pr": 2385,
       "status": "not_reconstructed",
       "target_package_key": "platform.reference.local_connector_recovery"
+    },
+    "content_intelligence": {
+      "source_pr": null,
+      "status": "candidate_architecture_fitness_case_not_implemented",
+      "target_package_key": "platform.reference.content_intelligence_operations",
+      "activation_stages": ["CI-0", "CI-1", "CI-2", "CI-3", "CI-4"]
     }
   },
   "external_surfaces": {
@@ -165,6 +184,8 @@
   "required_closeout_evidence": [
     "field_level_current_main_reuse_matrix",
     "canonical_spec_identity_resolution",
+    "canonical_action_operation_semantic_resolution",
+    "canonical_capability_alias_cutover_resolution",
     "draft_spec_portfolio_disposition_review",
     "truthful_completion_ledger_reconciliation",
     "system_tool_catalog_single_canonical_resolution",
@@ -179,6 +200,7 @@
     "client_owned_tenant_delegation_and_revocation",
     "handover_continuity",
     "reference_package_validation",
+    "content_intelligence_reference_fitness_validation",
     "migration_apply_and_readback",
     "backup_restore_and_rollback_rehearsal",
     "production_canary_and_parity",
@@ -186,33 +208,35 @@
   ],
   "blocking_reasons": [
     "work_map_and_architecture_review_pending",
-    "field_level_reuse_matrix_review_pending",
+    "field_level_reuse_matrix_owner_review_pending",
     "duplicate_spec_011_identity_not_resolved",
     "duplicate_spec_014_identity_not_resolved",
     "duplicate_feature_013_reconciliation_not_resolved",
+    "legacy_action_operation_semantics_not_resolved",
+    "historical_capability_authority_alias_not_resolved",
     "stale_completion_ledgers_require_reconciliation",
     "open_related_draft_dispositions_not_approved",
     "hostinger_repository_provenance_workstream_pending_ci",
-    "package_registry_mapping_open",
+    "package_authority_extension_decision_open",
+    "generic_component_persistence_decision_open",
+    "installation_revision_authority_decision_open",
     "custom_entity_persistence_open",
     "candidate_pr_reconstruction_not_started",
     "chatgpt_mcp_oauth_tool_catalog_and_public_endpoint_gates_open"
   ],
   "notes": [
     "Specification completion does not authorize implementation, candidate PR merge, migration, provider execution, or Production activation.",
+    "T002 and T003 are complete only as current-main repository inventory and field-level reuse evidence at SHA 0faee775cd0572b737fed8bc74e2580d9fca2878.",
+    "T006 and T008 remain open; no canonical cutover, persistence, permission, or architecture approval is inferred from the inventory.",
     "Feature key plus canonical role is the portfolio identity; numeric Spec numbers are not unique authorities.",
-    "The immutable base snapshot classifies 34 Draft PRs as 12 primary Specs and 22 related delivery/repair PRs.",
-    "The append-only live delta adds PR 4464, producing a current classified total of 35 Draft PRs and 23 related Drafts.",
-    "Spec 006 remains workflow/runtime authority; current Spec 011 remains dynamic control-plane authority; Spec 012 remains context authority.",
-    "PRs 3922, 4386, and 4432 are bounded package or service sources, not competing universal parent Specs.",
-    "PRs 2949 and 2950 have distinct subsystem and tenant-application roles and must not compete for numeric Spec 011 identity.",
-    "PRs 3139, 3145, and 3159 form one unresolved System Tool Catalog v2 feature cluster.",
-    "PR 4460 is the canonical external ChatGPT/MCP integration specification and PR 4462 is its first read-only implementation child; neither creates independent execution authority.",
-    "PR 4464 is a Hostinger repository-provenance workstream correction and does not create a new Spec or execution authority.",
-    "The MVP E2E journey validates specification, base portfolio, and live delta contracts only and grants no runtime mutation authority.",
-    "The current-main field-level reuse matrix is present as audit evidence; owner review and canonical authority decisions remain pending.",
-    "The candidate PR read-only snapshot was refreshed against current origin/main; candidate reconstruction and runtime integration remain unstarted.",
-    "Status remains in_progress until portfolio decisions, runtime, isolation, handover, migration, Production, rollback, and post-merge evidence are complete."
+    "Spec 006 remains workflow/runtime authority; current Spec 011 remains dynamic control-plane/governed-execution authority; Spec 012 remains context authority.",
+    "Current main already contains platform_private_packages, platform_package_versions, tenant_package_installs, package variants, canonical_capabilities, Agent/Skill/Workflow definitions, Growth Control Activity Packs, and System Tool Catalog V2; Phase 1 must reuse these before proposing new persistence.",
+    "Legacy tenant_package_installs agent_grants_json and policy_overrides_json are compatibility inputs only and cannot become primary authorization/policy authority.",
+    "The legacy actions family requires explicit T006 semantic classification against canonical Action versus Operation meanings.",
+    "Historical platform_semantic_capabilities authority language requires reconciliation with current canonical_capabilities runtime rather than creation of a second capability registry.",
+    "PR 4460 is the canonical external ChatGPT/MCP integration specification; MCP remains transport/tool projection and does not create independent execution authority.",
+    "Content Intelligence is registered only as a reference architecture fitness case and does not start package runtime implementation.",
+    "Status remains in_progress until owner decisions, runtime, isolation, handover, migration, Production, rollback, and post-merge evidence are complete."
   ],
   "secrets_included": false
 }
