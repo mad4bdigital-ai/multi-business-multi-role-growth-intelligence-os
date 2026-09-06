@@ -69,12 +69,14 @@ for (const operationalReadSurface of [
   "operational_alerts",
   "v_platform_evolution_activation_card",
 ]) {
-  assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes(operationalReadSurface), true);
+  assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes(operationalReadSurface), false);
+  assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.optional_tables.includes(operationalReadSurface), true);
   assert.deepEqual(
     STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table[operationalReadSurface],
     ["SELECT"],
   );
   assert.equal(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_tables.includes(operationalReadSurface), false);
+  assert.equal(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.optional_tables.includes(operationalReadSurface), false);
 }
 for (const identityTable of ["users", "memberships", "tenants"]) {
   assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes(identityTable), true);
@@ -88,6 +90,9 @@ assert.match(grantPlan, /STAGING_ROLE_GRANT_POLICIES/);
 assert.doesNotMatch(grantPlan, /const spec = BOOTSTRAP_ROLE_GRANT_POLICIES\[role\]/);
 assert.match(grantPlan, /broad_schema_grants_allowed: false/);
 assert.match(grantPlan, /grant_option_allowed: false/);
+assert.match(grantPlan, /required: !optionalSet\.has\(table\)/);
+assert.match(grantPlan, /missing_optional_surface_is_blocking: false/);
+assert.match(grantPlan, /missing_required_surface_is_blocking: true/);
 
 const composeCollationCount = (compose.match(/--collation-server=utf8mb4_unicode_ci/g) || []).length;
 const composeCharsetCount = (compose.match(/--character-set-server=utf8mb4/g) || []).length;
@@ -187,6 +192,14 @@ assert.match(repair, /immutable endpoints denylist/);
 assert.match(repair, /root_identity_used_for_seed = \$inserted/);
 assert.match(repair, /runtime_write_authority_required = \$false/);
 assert.match(repair, /REVOKE ALL PRIVILEGES, GRANT OPTION/);
+assert.match(repair, /required grant surface is missing before authority mutation/);
+assert.match(repair, /missingOptionalSurfaces/);
+assert.match(repair, /missing_optional_surface_is_blocking = \$false/);
+assert.match(repair, /required_surface_preflight_completed = \$true/);
+const requiredPreflightIndex = repair.indexOf("required grant surface is missing before authority mutation");
+const revokeIndex = repair.indexOf("REVOKE ALL PRIVILEGES, GRANT OPTION");
+assert.ok(requiredPreflightIndex >= 0);
+assert.ok(revokeIndex > requiredPreflightIndex);
 assert.match(repair, /TABLE_PRIVILEGES/);
 assert.match(repair, /SCHEMA_PRIVILEGES/);
 assert.match(repair, /COLUMN_PRIVILEGES/);
@@ -236,6 +249,8 @@ console.log(JSON.stringify({
   staging_sql_cache_policy_select_only: true,
   staging_runtime_config_select_only: true,
   staging_operational_read_surfaces_select_only: true,
+  staging_optional_surface_absence_non_blocking: true,
+  required_surface_preflight_before_revoke: true,
   repaired_restart_state_resumable: true,
   staging_identity_lookup_select_only: true,
   staging_sql_cache_policy_seed_reconciled_by_root_only: true,
