@@ -317,8 +317,7 @@ function response(statusCode = 200, contentLength = null) {
 // Agent-loop wrappers count only actual model/tool calls and preserve outputs.
 {
   const snapshots = [];
-  let modelCalls = 0;
-  let toolCalls = 0;
+  const callCounts = { model: 0, tool: 0 };
   const handle = createOptionalGovernedExecutionBaselineTrace({
     entry_point: "agent_loop",
     run_id: "run-x0-agent",
@@ -326,19 +325,19 @@ function response(statusCode = 200, contentLength = null) {
   }, { emitter: async (snapshot) => snapshots.push(snapshot) });
   assert.ok(handle);
   const deps = instrumentAgentLoopDependencies({
-    callModel: async (value) => { modelCalls += 1; return { value }; },
-    getCallModelForClass: () => async (value) => { modelCalls += 1; return { class_value: value }; },
+    callModel: async (value) => { callCounts.model += 1; return { value }; },
+    getCallModelForClass: () => async (value) => { callCounts.model += 1; return { class_value: value }; },
     engineExecutorRegistry: {
       marker: "preserved",
-      dispatch: async (name, args) => { toolCalls += 1; return { ok: true, name, args }; },
+      dispatch: async (name, args) => { callCounts.tool += 1; return { ok: true, name, args }; },
     },
   }, handle.trace);
   assert.deepEqual(await deps.callModel("one"), { value: "one" });
   assert.deepEqual(await deps.getCallModelForClass("standard")("two"), { class_value: "two" });
   assert.deepEqual(await deps.engineExecutorRegistry.dispatch("engine.demo", { x: 1 }), { ok: true, name: "engine.demo", args: { x: 1 } });
   assert.equal(deps.engineExecutorRegistry.marker, "preserved");
-  assert.equal(modelCalls, 2);
-  assert.equal(toolCalls, 1);
+  assert.equal(callCounts.model, 2);
+  assert.equal(callCounts.tool, 1);
   await finalizeOptionalGovernedExecutionBaselineTrace(handle, { outcome: "success", result_classification: "agent_loop_fixture" });
   assert.equal(snapshots[0].counters.model_round_trips, 2);
   assert.equal(snapshots[0].counters.tool_round_trips, 1);
