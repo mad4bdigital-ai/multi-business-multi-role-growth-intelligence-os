@@ -123,6 +123,9 @@ export function buildExecutionTicketPayload(input = {}) {
     expires_at: new Date(input.expires_at || 0).toISOString(),
     nonce: text(input.nonce, 160),
   };
+  // Grant repair tickets carry the canonical least-privilege grant binding. Keep
+  // the field conditional so tickets issued before this capability remain hash-compatible.
+  if (text(input.grant_binding_hash, 128)) payload.grant_binding_hash = requireSha(input.grant_binding_hash, "grant_binding_hash");
   if (!payload.target_key) throw new Error("target_key is required.");
   if (!payload.finding_ids.length) throw new Error("finding_ids must not be empty.");
   if (!payload.approval_id || !payload.approval_hash || !payload.approval_version || !payload.operation) throw new Error("Single-step approval binding is required.");
