@@ -20,8 +20,7 @@
       "http-generic-api/test-server-managed-recovery-binding.mjs",
       "http-generic-api/test-recovery-activation-readiness.mjs",
       "http-generic-api/test-recovery-action-bridge.mjs",
-      "http-generic-api/test-recovery-kernel-routes.mjs",
-      "docs/production-recovery-approved-execution.md"
+      "http-generic-api/test-recovery-kernel-routes.mjs"
     ]
   },
   "merge_contract": {
@@ -175,7 +174,6 @@
           ],
           "evidence_paths": [
             ".changes/e2e/production-recovery-certified-live-authority-20260902.json",
-            "docs/production-recovery-approved-execution.md",
             "http-generic-api/productionRecoveryCompositionFactory.js",
             "http-generic-api/recoveryActionBridge.js",
             "http-generic-api/routes/recoveryKernelRoutes.js",
