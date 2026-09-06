@@ -42,6 +42,7 @@ const COMMON_REQUIRED_KEYS = Object.freeze(["plan_id", "plan_hash", "step_id", "
 const SERVER_APPROVAL_REQUIRED_KEYS = Object.freeze(["approval_id", "expected_sha", "typed_confirmation"]);
 const SHA_RE = /^[0-9a-f]{40}$/iu;
 const TYPED_CONFIRMATION_RE = /^APPROVE PRODUCTION RECOVERY (approval:[0-9a-f]{16,64}) (step:[0-9a-f]{16,64}) ([0-9a-f]{40})$/u;
+const SERVER_APPROVAL_RESOLVER_METHOD = "resolveApprovedExecutionApproval";
 
 function bridgeError(status, code, message, details = {}) {
   const error = new Error(message);
@@ -126,7 +127,7 @@ function assertInput(input) {
   if (!approvalTransport) {
     const missingServerApproval = missingKeys(input, SERVER_APPROVAL_REQUIRED_KEYS);
     if (missingServerApproval.length) {
-      throw bridgeError(400, "recovery_action_bridge_server_approval_required", "Production Admin GPT execution requires approval_id, expected_sha, and the exact typed confirmation; approval tokens are resolved only inside the server.", { fields: missingServerApproval });
+      throw bridgeError(400, "recovery_action_bridge_server_approval_required", "Production Admin GPT execution requires approval_id, expected_sha, and the exact typed confirmation; approval material is resolved only inside the server.", { fields: missingServerApproval });
     }
     if (!SHA_RE.test(text(input.expected_sha, 64))) {
       throw bridgeError(400, "recovery_action_bridge_expected_sha_invalid", "expected_sha must be a full 40-character Git SHA.");
@@ -170,20 +171,20 @@ function assertDependencies({ recoveryStore, executionTicketSigner, approvalVeri
   if (missing.length) throw bridgeError(503, "recovery_action_bridge_authority_unavailable", "The private Recovery Action bridge is fail-closed until durable ticket, approval, deployment identity, lock, executor, and readback authorities are all configured.", { missing_components: missing });
 }
 
-function approvalTokenResolver(approvalIssuer, approvalStore) {
-  if (approvalIssuer && typeof approvalIssuer.resolveApprovedToken === "function") {
-    return { owner: approvalIssuer, resolve: approvalIssuer.resolveApprovedToken };
+function approvalMaterialResolver(approvalIssuer, approvalStore) {
+  if (approvalIssuer && typeof approvalIssuer[SERVER_APPROVAL_RESOLVER_METHOD] === "function") {
+    return { owner: approvalIssuer, resolve: approvalIssuer[SERVER_APPROVAL_RESOLVER_METHOD] };
   }
-  if (approvalStore && typeof approvalStore.resolveApprovedToken === "function") {
-    return { owner: approvalStore, resolve: approvalStore.resolveApprovedToken };
+  if (approvalStore && typeof approvalStore[SERVER_APPROVAL_RESOLVER_METHOD] === "function") {
+    return { owner: approvalStore, resolve: approvalStore[SERVER_APPROVAL_RESOLVER_METHOD] };
   }
   return null;
 }
 
 function assertServerApprovalResolver(approvalIssuer, approvalStore) {
-  const resolver = approvalTokenResolver(approvalIssuer, approvalStore);
+  const resolver = approvalMaterialResolver(approvalIssuer, approvalStore);
   if (!resolver) {
-    throw bridgeError(503, "recovery_action_bridge_server_approval_resolver_unavailable", "Server-managed typed confirmation requires a server authority that can resolve the already-approved single-use token internally; no token may be supplied by the GPT.");
+    throw bridgeError(503, "recovery_action_bridge_server_approval_resolver_unavailable", "Server-managed typed confirmation requires a server authority that can resolve the already-approved execution approval internally; no approval token may be supplied by the GPT.");
   }
   return resolver;
 }
@@ -288,7 +289,7 @@ async function resolveServerManagedApprovalToken(request, { adminPrincipal, reco
   }));
   const token = typeof resolved === "string" ? resolved : text(resolved?.approval_token, 512);
   if (!token || token.length < 16) {
-    throw bridgeError(401, "recovery_action_bridge_server_approval_unresolved", "The server approval authority did not resolve a usable approval token for the exact approved step.");
+    throw bridgeError(401, "recovery_action_bridge_server_approval_unresolved", "The server approval authority did not resolve usable approval material for the exact approved step.");
   }
   return { token, approval, requirements };
 }
@@ -310,7 +311,7 @@ function bridgeReceipt(execution, request, { ticketIssueState = "not_issued", fo
     execution,
     approval_mode: approvalMode,
     confirmation_transport: request.confirmation_transport || null,
-    approval_token_resolved_server_side: approvalMode === "server_managed_confirmation",
+    approval_material_resolved_server_side: approvalMode === "server_managed_confirmation",
     approval_token_returned: false,
     ticket_issue_state: normalizedTicketIssueState,
     server_issued_execution_ticket: normalizedTicketIssueState !== "not_issued",
@@ -425,11 +426,12 @@ export const _testingRecoveryActionBridge = Object.freeze({
   COMMON_REQUIRED_KEYS,
   SERVER_APPROVAL_REQUIRED_KEYS,
   TYPED_CONFIRMATION_RE,
+  SERVER_APPROVAL_RESOLVER_METHOD,
   parseTypedConfirmation,
   assertInput,
   assertAdminPrincipal,
   assertDependencies,
-  approvalTokenResolver,
+  approvalMaterialResolver,
   stripTicketOutput,
   readBoundApproval,
 });
