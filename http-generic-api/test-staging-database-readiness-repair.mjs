@@ -58,6 +58,24 @@ assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_tabl
 assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes("platform_runtime_config"), true);
 assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.platform_runtime_config, ["SELECT"]);
 assert.equal(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_tables.includes("platform_runtime_config"), false);
+for (const operationalReadSurface of [
+  "v_activation_pending_tasks",
+  "v_activation_agent_catalog",
+  "v_activation_agent_skill_grants",
+  "activation_freshness_ledger",
+  "activation_signal_inbox",
+  "readiness_checks",
+  "telemetry_spans",
+  "operational_alerts",
+  "v_platform_evolution_activation_card",
+]) {
+  assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes(operationalReadSurface), true);
+  assert.deepEqual(
+    STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table[operationalReadSurface],
+    ["SELECT"],
+  );
+  assert.equal(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_tables.includes(operationalReadSurface), false);
+}
 for (const identityTable of ["users", "memberships", "tenants"]) {
   assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes(identityTable), true);
   assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table[identityTable], ["SELECT"]);
@@ -181,6 +199,11 @@ assert.match(repair, /runtime_exclusion_violation_is_blocking/);
 assert.match(repair, /TABLE_TYPE = 'BASE TABLE'/);
 assert.match(repair, /required schema census is incomplete/);
 assert.match(repair, /schema census has unexpected base tables/);
+assert.match(repair, /database_repair_status = "completed"/);
+assert.match(repair, /runtime_restart_status = "pending"/);
+assert.match(repair, /runtime_restart_status = "failed"/);
+assert.match(repair, /status = "repaired_restart_pending"/);
+assert.match(repair, /database repair remains completed and restart is resumable/);
 assert.match(repair, /runtime schema census contains excluded role tables/);
 assert.match(repair, /root_identity_used_for_census = \$true/);
 assert.match(repair, /\$script:State\.schema_census = Assert-RoleSchemaCensus \$roleConfig/);
@@ -212,6 +235,8 @@ console.log(JSON.stringify({
   staging_mcp_catalog_select_only: true,
   staging_sql_cache_policy_select_only: true,
   staging_runtime_config_select_only: true,
+  staging_operational_read_surfaces_select_only: true,
+  repaired_restart_state_resumable: true,
   staging_identity_lookup_select_only: true,
   staging_sql_cache_policy_seed_reconciled_by_root_only: true,
   staging_sql_cache_authority_seed_separated: true,

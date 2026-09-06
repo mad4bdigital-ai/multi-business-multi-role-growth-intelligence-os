@@ -12,7 +12,8 @@
       "http-generic-api/config/staging-database-role-migration-manifest.json",
       "http-generic-api/databasePrivilegeContracts.js",
       "http-generic-api/migrations/20260902_staging_actions_runtime_contract_reconciliation.sql",
-      "http-generic-api/test-staging-database-readiness-repair.mjs"
+      "http-generic-api/test-staging-database-readiness-repair.mjs",
+      "autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1"
     ]
   },
   "environment_impact": {
@@ -50,7 +51,9 @@
             "Preserve existing bounded write authority only on the pre-existing runtime bootstrap tables.",
             "Run schema/grant readback and same-cycle Staging certification.",
             "Grant the Staging runtime principal SELECT-only access to users, memberships and tenants so authenticated principal discovery and OAuth issuance can resolve active identities.",
-            "Grant the Staging runtime principal SELECT-only access to platform_runtime_config so startup schedulers and governed configuration readers can resolve runtime controls without expanding write authority."
+            "Grant the Staging runtime principal SELECT-only access to platform_runtime_config so startup schedulers and governed configuration readers can resolve runtime controls without expanding write authority.",
+            "Grant SELECT only to the nine operational Activation/readiness tables and views proven necessary by live Staging degradation evidence.",
+            "Persist database_repair_status independently from runtime_restart_status so a restart failure remains resumable without obscuring completed database repair."
           ],
           "assertions": [
             "The eight Activation hard-run registry tables are required by the local Staging runtime schema census.",
@@ -59,7 +62,9 @@
             "Every newly introduced Staging runtime surface is constrained to SELECT in required_operations_by_table.",
             "No schema-wide grant, GRANT ALL, CREATE, ALTER, DROP, GRANT OPTION, Production DB access, provider call, Hostinger mutation, Cloudflare mutation, or secret value is introduced.",
             "users, memberships and tenants are present only in the Staging runtime overlay and each is constrained to SELECT; Production bootstrap grants and identity-table write authority remain unchanged.",
-            "platform_runtime_config exists only in the Staging runtime read overlay and remains constrained to SELECT; Production bootstrap grants and configuration write authority remain unchanged."
+            "platform_runtime_config exists only in the Staging runtime read overlay and remains constrained to SELECT; Production bootstrap grants and configuration write authority remain unchanged.",
+            "Operational Activation/readiness surfaces are present only in the Staging SELECT overlay and never expand Production bootstrap authority.",
+            "A post-repair Auto Pilot restart failure records repaired_restart_pending while preserving database_repair_status=completed."
           ],
           "tests": [
             {
@@ -82,7 +87,8 @@
             "http-generic-api/databasePrivilegeContracts.js",
             "http-generic-api/migrations/20260902_staging_actions_runtime_contract_reconciliation.sql",
             "http-generic-api/test-staging-database-readiness-repair.mjs",
-            "http-generic-api/test-staging-schema-bundle-builder.mjs"
+            "http-generic-api/test-staging-schema-bundle-builder.mjs",
+            "autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1"
           ]
         }
       ]
