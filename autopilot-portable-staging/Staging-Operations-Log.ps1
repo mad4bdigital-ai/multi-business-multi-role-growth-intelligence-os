@@ -1,8 +1,13 @@
 $script:StagingLogSchemaVersion = 2
 $script:StagingLogWriteFailureAt = $null
+# A PowerShell host may invoke Auto Deploy repeatedly in the same process. A
+# global run id that is only initialized once collapses separate invocations into
+# one evidence stream. Dot-sourcing this helper starts a fresh invocation scope;
+# child processes receive their own run id and never inherit stale parent state.
+$script:StagingLogInvocationRunId = [guid]::NewGuid().ToString("N")
+$global:Mad4bStagingRunId = $script:StagingLogInvocationRunId
 
 function Get-StagingRunId {
-    # StrictMode throws when an unset global variable is read directly.
     $current = Get-Variable -Name Mad4bStagingRunId -Scope Global -ValueOnly -ErrorAction SilentlyContinue
     if ([string]::IsNullOrWhiteSpace([string]$current)) {
         $global:Mad4bStagingRunId = [guid]::NewGuid().ToString("N")
