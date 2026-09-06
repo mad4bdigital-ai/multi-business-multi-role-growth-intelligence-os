@@ -3,10 +3,12 @@
 ## Status
 
 ```text
-T008 = decision-ready, pending owner approval
-Phase 1 authorized = false
+T008 = owner approved
+Phase 1 bounded implementation PR design = authorized
 runtime mutation authorized = false
 ```
+
+Owner approval was recorded on `2026-09-06` for all thirteen recommended decisions in this matrix. This approval authorizes bounded Phase 1 implementation PR design only. It does not authorize migration apply, provider writes, Production deployment, protected-branch mutation, external publication, permission broadening, or any live runtime effect.
 
 Machine-readable companion:
 
@@ -14,177 +16,46 @@ Machine-readable companion:
 phase1-owner-decision-matrix.json
 ```
 
-This matrix exists so Phase 1 implementation cannot quietly make product, persistence, security, privacy, commercial, agency, knowledge, model, or external-integration decisions while writing code.
-
-## Decisions proposed for owner approval
+## Approved decisions
 
 ### 1. Package authority
-
-Use current authorities first:
-
-```text
-platform_private_packages
-platform_package_versions
-platform_private_package_assets
-```
-
-New persistence is allowed only for proven Product semantics that cannot be represented safely by bounded extension. A complete parallel `solution_package_*` authority is not the default.
+Use current authorities first: `platform_private_packages`, `platform_package_versions`, and `platform_private_package_assets`. New persistence is allowed only for proven Product semantics that cannot be represented safely by bounded extension. A complete parallel `solution_package_*` authority is prohibited by default.
 
 ### 2. Generic Component model
-
-A Component layer is permitted only as a thin typed identity/composition layer referencing canonical assets.
-
-It must not copy Agent, Skill, Workflow, Policy, Plugin, App or Logic payloads into a second source of truth.
+A Component layer is permitted only as a thin typed identity/composition layer referencing canonical assets. It must not copy Agent, Skill, Workflow, Policy, Plugin, App or Logic payloads into a second source of truth.
 
 ### 3. Installation Revision
-
-`tenant_package_installs` remains the installation identity/lifecycle root unless owner review proves otherwise.
-
-The likely bounded semantic gap is an immutable revision child that pins:
-
-```text
-package version
-exact target scope refs
-component version refs
-configuration snapshot
-requirement bindings
-lineage
-revision vector
-content hash
-```
-
-Legacy JSON fields such as `agent_grants_json` and `policy_overrides_json` remain compatibility inputs only.
+`tenant_package_installs` remains the installation identity/lifecycle root. An immutable revision child may be introduced only for a proven storage gap and bounded schema review. It may pin package version, exact target refs, component refs, configuration snapshot, requirement bindings, lineage, revision vector, and content hash. Legacy grant/policy JSON remains compatibility-only.
 
 ### 4. Authorization / policy boundary
-
-Package and Installation payloads declare requirements and references.
-
-They never become the final permission decision.
-
-Runtime path remains:
-
-```text
-requirement
- -> exact principal/resource/context
- -> capability/policy/grant resolution
- -> approval where required
- -> execution envelope
- -> dispatch/readback
-```
+Package and Installation payloads declare requirements and references. They never become the final permission decision. Runtime remains principal/resource/context -> capability/policy/grant -> approval where required -> execution envelope -> dispatch/readback.
 
 ### 5. Data governance
-
-Before consequential autonomy, minimum P0 controls are:
-
-```text
-data classification
-processing purpose
-retention
-region/residency
-legal hold
-deletion propagation into derived data
-minimal audit retention separation
-```
-
-Cross-Tenant raw examples and silent retention of deleted embeddings are prohibited.
+Before consequential autonomy, P0 controls are data classification, processing purpose, retention, region/residency, legal hold, deletion propagation into derived data, and minimal audit-retention separation. Cross-Tenant raw example reuse and silent retention of deleted embeddings are prohibited.
 
 ### 6. Knowledge and provenance
-
-Canonical knowledge and provenance are distinct from retrieval projections.
-
-```text
-Canonical Knowledge / Provenance
-  -> authorized immutable Context Snapshot
-  -> vector / lexical / search projections
-```
-
-Vector storage is rebuildable and never becomes canonical authority.
+Canonical knowledge/provenance is separate from vector, lexical, cache and search projections. Runtime model context must come from an authorized immutable context snapshot; derived indexes are rebuildable and non-authoritative.
 
 ### 7. Model governance
-
-Model selection follows:
-
-```text
-registered task/capability
- -> hard policy/data/region/risk/tool/output gates
- -> evaluation/readiness floors
- -> eligible candidates only
- -> optimization
- -> candidate-specific commercial reservation
-```
-
-Fallback cannot weaken a hard gate.
+Model selection is capability-first, policy-gated, and evidence-ranked. Hard data/region/risk/tool/output/evaluation/readiness/commercial gates cannot be weakened by fallback.
 
 ### 8. Commercial / FinOps
-
-Execution economics follow:
-
-```text
-Estimate -> Reserve -> Execute -> Verify -> Settle -> Adjust/Refund
-```
-
-A balance check without reservation is insufficient for parallel Agents.
+Execution economics follow `Estimate -> Reserve -> Execute -> Verify -> Settle -> Adjust/Refund`, with tenant/workspace/brand/activity/package/operation/model/provider attribution. Parallel Agents require reservation, not a balance check alone.
 
 ### 9. Agency/client ownership
-
-Treat these ownership dimensions separately:
-
-```text
-Package IP
-Installation
-Client business data
-Brand knowledge
-Files
-Connections
-Deliverables
-Derived insights
-```
-
-Delegation never silently changes membership or ownership.
+Package IP, Installation, client business data, Brand knowledge, files, connections, deliverables and derived insights are independent ownership dimensions. Delegation does not silently become membership or ownership.
 
 ### 10. Portability/offboarding
-
-A client or agency relationship ending must not strand the operating system.
-
-Required lifecycle:
-
-```text
-freeze consequential new effects
- -> export
- -> transfer/rebind
- -> revoke delegation
- -> revoke/rebind connections
- -> retention/legal hold
- -> erasure where applicable
- -> completion evidence
-```
-
-Credentials are never exported.
+Required lifecycle is freeze consequential new effects -> export -> transfer/rebind -> revoke delegation -> revoke/rebind connections -> retention/legal hold -> erasure where applicable -> completion evidence. Credentials are never exported.
 
 ### 11. External protocols
-
-MCP or future external agent protocols remain transport/projection adapters:
-
-```text
-external principal
- -> authenticated transport
- -> focused Tool/Operation projection
- -> Context Kernel
- -> capability/policy
- -> governed execution/readback
-```
-
-No external protocol gets its own execution kernel.
+MCP and future external agent protocols remain transport/projection adapters over focused Tool/Operation projections, Spec 012 Context Kernel, and Spec 011 governed execution/readback. No protocol-specific execution kernel is authorized.
 
 ### 12. Human approval
-
-Consequential approval is bound to an exact frontier, not a broad session.
-
-It includes exact plan/context/resources/effects/limits/expiry and may require separation of requester/approver/executor for high-risk operations.
+Consequential approval is plan/context/resource/effect/limit/expiry bound and may require separation of requester/approver/executor for high-risk operations. Approval never executes the effect itself.
 
 ### 13. Content Intelligence reference package
-
-Content Intelligence remains a staged architecture fitness package:
+Content Intelligence remains staged:
 
 ```text
 CI-0 Research / Knowledge / Blueprint / Internal Draft
@@ -198,9 +69,7 @@ It may not skip Package foundation, provenance, model/budget policy, certified p
 
 ## Exact-head CI attestation boundary
 
-Exact-head CI is an external attestation bound to the candidate Git SHA. The candidate tree must not persist a boolean claiming that it has already passed its own future checks, because changing that boolean would itself create a new SHA requiring a new attestation.
-
-The machine-readable entry gate therefore records:
+Exact-head CI remains an external attestation bound to the candidate Git SHA. The candidate tree does not claim that it has passed its own checks.
 
 ```text
 exact_head_ci.required = true
@@ -209,21 +78,10 @@ exact_head_ci.binding = candidate_head_sha
 exact_head_ci.source_tree_may_self_attest = false
 ```
 
-GitHub Actions exact-candidate checks and the canonical CI evidence publisher provide the attestation. Any commit after an attestation invalidates that attestation for the new head and requires a fresh exact-head run.
+Every new implementation candidate still requires its own external exact-head evidence.
 
-## What T008 approval would mean
+## T008 closure boundary
 
-Approval would authorize **bounded Phase 1 implementation PR design** only.
+T008 is complete as an **owner decision task**. `phase1_authorized=true` means the approved architecture may now be used to design bounded implementation PRs. `runtime_mutation_authorized=false` remains mandatory.
 
-It would not authorize:
-
-```text
-migration apply
-provider writes
-Production deployment
-protected-branch mutation
-external publication
-permission broadening
-```
-
-T008 therefore stays unchecked until owner approval is explicit and exact-head CI is clean.
+The approval does not approve a specific migration or a specific new table. Any persistence addition still requires a proven semantic gap, schema review, compatibility/rollback path, exact-head CI, and the relevant implementation evidence.
