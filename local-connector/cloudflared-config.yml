@@ -1,6 +1,11 @@
-tunnel: 95e4ba8c-782b-4819-9f80-04af4457ce73
-credentials-file: C:\Users\IT\.cloudflared\95e4ba8c-782b-4819-9f80-04af4457ce73.json
-
+# Legacy local-managed ingress reference only.
+#
+# The canonical Local Connector runtime no longer reads tunnel identity or
+# credentials from this repository file. It runs as a remotely managed tunnel
+# using CONNECTOR_CLOUDFLARED_TOKEN_FILE so no device-specific credential path,
+# tunnel credential, or secret is committed to the repository.
+#
+# Keep these host mappings as documentation for provider-side ingress policy.
 ingress:
   - hostname: connector.mad4b.com
     service: http://localhost:7070

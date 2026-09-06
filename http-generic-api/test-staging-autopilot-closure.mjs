@@ -43,6 +43,11 @@ const deploymentPolicy = JSON.parse(read("http-generic-api/config/deployment-bra
 const autopilot = read("autopilot-portable-staging/Start-AutoPilot.ps1");
 const certification = read("autopilot-portable-staging/Invoke-StagingCertification.ps1");
 const gitTransport = read("autopilot-portable-staging/Staging-GitTransport.ps1");
+const operationsLog = read("autopilot-portable-staging/Staging-Operations-Log.ps1");
+const connectorRepair = read("autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1");
+const connectorInstaller = read("local-connector/install-service.ps1");
+const connectorConfig = read("local-connector/cloudflared-config.yml");
+const connectorProvisioning = read("autopilot-portable-staging/Provision-LocalConnectorTunnelToken.ps1");
 const oneClickCmd = read("autopilot-portable-staging/Start-Staging-One-Click.cmd");
 const authorityClosure = read("http-generic-api/scripts/staging-environment-authority-closure.mjs");
 const liveCertification = read("http-generic-api/scripts/staging-live-certification.mjs");
@@ -53,6 +58,7 @@ assert.deepEqual(tunnel.profiles, ["tunnel"]);
 assert.match(String(tunnel.image), /@sha256:/);
 assert.equal(tunnel.depends_on.app.condition, "service_healthy");
 assert.match(String(tunnel.command), /\$\{CLOUDFLARE_TUNNEL_TOKEN:-\}/);
+assert.equal(compose.services.app.environment.CLOUDFLARE_TUNNEL_TOKEN, "");
 assert.match(env, /^CLOUDFLARE_TUNNEL_HOSTNAMES=dev\.mad4b\.com,mcp-dev\.mad4b\.com\s*$/m);
 assert.doesNotMatch(env, /^CLOUDFLARE_TUNNEL_HOSTNAMES=.*activation-dev/m);
 assert.match(env, /^REMOTE_MCP_ENABLED=true\s*$/m);
@@ -108,6 +114,9 @@ assert.match(certification, /STAGING_CERT_EXPECTED_COMMIT/);
 assert.match(certification, /STAGING_CERT_REQUIRE_READY=false/);
 assert.match(certification, /STAGING_CERTIFICATION_BLOCKED/);
 assert.match(certification, /STAGING_CERTIFICATION_DEGRADED/);
+assert.match(certification, /connector_tunnel_provisioning_required/);
+assert.match(certification, /local_connector_tunnel_required_next_action/);
+assert.match(certification, /local_connector_tunnel_accepted_provisioning_sources/);
 
 assert.match(gitTransport, /System\.Diagnostics\.ProcessStartInfo/);
 assert.match(gitTransport, /System\.Diagnostics\.Process/);
@@ -118,6 +127,9 @@ assert.match(gitTransport, /ReadToEndAsync\(\)/);
 assert.match(gitTransport, /\$process\.ExitCode/);
 assert.match(gitTransport, /ConvertTo-StagingProcessArgument/);
 assert.match(gitTransport, /Join-StagingProcessArguments/);
+assert.match(gitTransport, /\$startInfo\.WorkingDirectory = \$workingDirectory/);
+assert.match(gitTransport, /STAGING_GIT_WORKING_DIRECTORY_INVALID/);
+assert.match(gitTransport, /process_working_directory = "current_filesystem_location"/);
 assert.doesNotMatch(gitTransport, /\$nativeOutput = @\(& git @transportArguments 2>&1\)/);
 assert.doesNotMatch(gitTransport, /\$nativeExitCode = \$LASTEXITCODE/);
 assert.match(gitTransport, /__staging_git_exit_marker/);
@@ -133,6 +145,47 @@ assert.match(gitTransport, /native_capture = "system_diagnostics_process_exitcod
 assert.match(gitTransport, /process_shell_execute = \$false/);
 assert.match(gitTransport, /process_stdout_stderr_redirected = \$true/);
 assert.match(gitTransport, /ls_remote_nonzero_ref_policy = "bounded_retry_never_accept_nonzero"/);
+
+assert.match(operationsLog, /StagingLogInvocationRunId = \[guid\]::NewGuid/);
+assert.match(operationsLog, /function Repair-StagingLegacyAutoDeployState/);
+assert.match(operationsLog, /deployed_commit = ""/);
+assert.match(operationsLog, /certification_status = ""/);
+assert.match(operationsLog, /function Test-StagingPreserveFreshChildFailure/);
+assert.match(operationsLog, /\$age -lt 0 -or \$age -gt 180/);
+assert.match(operationsLog, /Repair-StagingLegacyAutoDeployState\s*$/m);
+
+assert.match(connectorRepair, /mad4b\.staging-local-connector-1033-recovery\.v3/);
+assert.match(connectorRepair, /connector_tunnel_provisioning_required/);
+assert.match(connectorRepair, /CONNECTOR_CLOUDFLARED_TOKEN_FILE/);
+assert.match(connectorRepair, /connector_tunnel_token_file/);
+assert.match(connectorRepair, /accepted_provisioning_sources/);
+assert.doesNotMatch(connectorRepair, /Get-DotEnvValue "CLOUDFLARE_TUNNEL_TOKEN"/);
+assert.doesNotMatch(connectorRepair, /Restart-Service -Name \$StagingTunnelRuntime/);
+assert.doesNotMatch(connectorRepair, /Stop-Service -Name \$StagingTunnelRuntime/);
+
+assert.match(connectorInstaller, /CONNECTOR_CLOUDFLARED_TOKEN_FILE/);
+assert.match(connectorInstaller, /--token-file/);
+assert.doesNotMatch(connectorInstaller, /--config/);
+assert.doesNotMatch(connectorInstaller, /cloudflared service uninstall/);
+assert.doesNotMatch(connectorInstaller, /Get-Process -Name "cloudflared"/);
+assert.doesNotMatch(connectorConfig, /credentials-file:/);
+assert.doesNotMatch(connectorConfig, /C:\\Users\\IT/i);
+assert.doesNotMatch(connectorConfig, /^tunnel:/m);
+
+assert.match(connectorProvisioning, /mad4b\.staging-local-connector-token-provisioning\.v2/);
+assert.match(connectorProvisioning, /desired_tunnel_management = "remote"/);
+assert.match(connectorProvisioning, /CONNECTOR_CLOUDFLARED_TUNNEL_TOKEN/);
+assert.match(connectorProvisioning, /CONNECTOR_CLOUDFLARED_TOKEN_FILE/);
+assert.match(connectorProvisioning, /RecoverExistingTunnelToken/);
+assert.match(connectorProvisioning, /config_src/);
+assert.match(connectorProvisioning, /\$configSource -ne "cloudflare"/);
+assert.match(connectorProvisioning, /connector_tunnel_remote_migration_required/);
+assert.match(connectorProvisioning, /Invoke-RestMethod -Method Get/);
+assert.match(connectorProvisioning, /\/token"/);
+assert.match(connectorProvisioning, /provider_mutation = \$false/);
+assert.match(connectorProvisioning, /dns_mutation = \$false/);
+assert.match(connectorProvisioning, /production_mutation = \$false/);
+assert.doesNotMatch(connectorProvisioning, /Invoke-RestMethod -Method (Post|Put|Patch|Delete)/i);
 
 assert.match(authorityClosure, /deployment-branch-policy\.json/);
 assert.match(authorityClosure, /runtime-environment-invariant-contract\.json/);
