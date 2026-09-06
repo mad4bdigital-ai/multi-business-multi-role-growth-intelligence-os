@@ -1,6 +1,8 @@
 # install-service.ps1
-# Installs the local connector (Node.js), cloudflared tunnel, and an independent
-# watchdog as Scheduled Tasks for the current user. No admin required.
+# Installs the local connector (Node.js), its dedicated cloudflared tunnel, and an
+# independent watchdog as Scheduled Tasks for the current user. No admin required.
+# The Local Connector transport never stops or reconfigures the Staging-owned
+# Mad4B-Staging-Cloudflared runtime.
 
 $ErrorActionPreference = "Stop"
 
@@ -11,27 +13,41 @@ $NodeExe        = (Get-Command node -ErrorAction Stop).Source
 $CfExe          = (Get-Command cloudflared -ErrorAction Stop).Source
 $PowerShellExe  = (Get-Command powershell.exe -ErrorAction Stop).Source
 
-$NodeTask       = "GrowthIntelligence-LocalConnector"
-$TunnelTask     = "GrowthIntelligence-CloudflaredTunnel"
-$WatchdogTask   = "GrowthIntelligence-ConnectorWatchdog"
+$NodeTask         = "GrowthIntelligence-LocalConnector"
+$TunnelTask       = "Mad4B-LocalConnector-Cloudflared"
+$LegacyTunnelTask = "GrowthIntelligence-CloudflaredTunnel"
+$WatchdogTask     = "GrowthIntelligence-ConnectorWatchdog"
+$StagingTunnel    = "Mad4B-Staging-Cloudflared"
 
 Write-Host ""
 Write-Host "=== Growth Intelligence Platform - Local Connector Install ==="
 
-# -- 1. Stop any running instances -------------------------------------------
+# -- 1. Stop only Local Connector-owned legacy/current runtimes ---------------
 Write-Host ""
-Write-Host "[1] Stopping running instances..."
+Write-Host "[1] Reconciling Local Connector-owned runtimes..."
 
-Get-Process -Name "cloudflared" -ErrorAction SilentlyContinue | ForEach-Object {
-    Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
-    Write-Host "  Stopped cloudflared PID $($_.Id)"
+# Never terminate cloudflared by process name: another cloudflared process may be
+# the independently owned Staging transport. Only known Local Connector tasks are
+# eligible for migration or replacement.
+foreach ($taskName in @($LegacyTunnelTask, $TunnelTask)) {
+    $task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+    if ($null -ne $task) {
+        Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+        if ($taskName -eq $LegacyTunnelTask) {
+            Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+            Write-Host "  Migrated legacy Local Connector tunnel task: $taskName"
+        }
+    }
 }
+
+$stagingService = Get-Service -Name $StagingTunnel -ErrorAction SilentlyContinue
+$stagingStateBefore = if ($null -eq $stagingService) { "missing" } else { $stagingService.Status.ToString() }
 
 $holder = (netstat -ano | Select-String "127.0.0.1:7070\s" |
     ForEach-Object { ($_ -split "\s+")[-1] } | Select-Object -First 1)
 if ($holder -and [int]$holder -gt 0) {
     Stop-Process -Id ([int]$holder) -Force -ErrorAction SilentlyContinue
-    Write-Host "  Freed port 7070 (PID $holder)"
+    Write-Host "  Freed Local Connector port 7070 (PID $holder)"
 }
 
 Start-Sleep -Milliseconds 800
@@ -73,28 +89,36 @@ if ($portCheck) {
     Write-Host "  WARNING: port 7070 not yet listening"
 }
 
-# -- 3. Cloudflared tunnel Scheduled Task ------------------------------------
+# -- 3. Local Connector-owned Cloudflared Scheduled Task ----------------------
 Write-Host ""
-Write-Host "[3] Registering Cloudflared tunnel task: $TunnelTask"
+Write-Host "[3] Registering Local Connector Cloudflared task: $TunnelTask"
 
 Unregister-ScheduledTask -TaskName $TunnelTask -Confirm:$false -ErrorAction SilentlyContinue
 
 $cfAction = New-ScheduledTaskAction `
     -Execute $CfExe `
-    -Argument "tunnel --config `"$ConfigPath`" run"
+    -Argument "tunnel --protocol http2 --no-autoupdate --config `"$ConfigPath`" run"
 
 Register-ScheduledTask `
     -TaskName $TunnelTask `
     -Action $cfAction `
     -Trigger $logonTrigger `
     -Settings $settings `
-    -Description "Growth Intelligence Platform Cloudflare Tunnel (connector.mad4b.com -> localhost:7070)" `
+    -Description "Mad4B Local Connector Cloudflare Tunnel (connector.mad4b.com -> localhost:7070)" `
     -RunLevel Limited `
     -Force | Out-Null
 
 Write-Host "  Registered [OK]"
 Start-ScheduledTask -TaskName $TunnelTask
 Start-Sleep -Seconds 5
+
+# Prove that Local Connector migration did not change the independent Staging
+# service state. This is a readback only; no Staging service mutation is allowed.
+$stagingServiceAfter = Get-Service -Name $StagingTunnel -ErrorAction SilentlyContinue
+$stagingStateAfter = if ($null -eq $stagingServiceAfter) { "missing" } else { $stagingServiceAfter.Status.ToString() }
+if ($stagingStateAfter -ne $stagingStateBefore) {
+    throw "Cross-runtime non-interference failed: $StagingTunnel changed state from $stagingStateBefore to $stagingStateAfter."
+}
 
 # -- 4. Independent recurring watchdog --------------------------------------
 Write-Host ""
@@ -137,14 +161,14 @@ try {
     }
 } catch {
     Write-Host "  Health check failed: $($_.Exception.Message)"
-    Write-Host "  Watchdog will retry the connector and tunnel every minute."
+    Write-Host "  Watchdog will retry the Local Connector-owned transport every minute."
 }
 
 Write-Host ""
 Write-Host "=== Install complete ==="
 Write-Host "  $NodeTask     -- runs at logon, auto-restarts on failure"
-Write-Host "  $TunnelTask   -- runs at logon, auto-restarts on failure"
-Write-Host "  $WatchdogTask -- runs every minute, repairs task/service and public tunnel health"
+Write-Host "  $TunnelTask   -- Local Connector-only tunnel ownership"
+Write-Host "  $WatchdogTask -- runs every minute, repairs only Local Connector-owned runtime"
 Write-Host ""
 Write-Host "To check status:"
 Write-Host "  Get-ScheduledTask -TaskName '$NodeTask','$TunnelTask','$WatchdogTask' | Select-Object TaskName, State"
