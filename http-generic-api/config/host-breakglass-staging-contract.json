@@ -52,20 +52,19 @@
           {"type": "column", "table": "actions", "column": "oauth_secret_storage_type"},
           {"type": "column", "table": "actions", "column": "oauth_last_validated_at"}
         ]
-      },
-      {
-        "file": "20260906_execution_policy_surface_authority_reconciliation.sql",
-        "sha256": "906e623af28268fabdbdd38467e3b623f1b6e78d3095357f98182fd602382055",
-        "statement_count": 1,
-        "role": "runtime",
-        "requires_tables": ["registry_surfaces_catalog", "execution_policies"],
-        "allowed_modes": ["dry_run", "apply_migration"],
-        "postconditions": [
-          {"type": "row", "table": "registry_surfaces_catalog", "key_column": "surface_id", "key_value": "surface.execution_policy_registry_sheet", "value_column": "authority_model", "expected_value": "sql_runtime_authority"},
-          {"type": "row", "table": "registry_surfaces_catalog", "key_column": "surface_id", "key_value": "surface.execution_policy_registry_sheet", "value_column": "backend_adapter", "expected_value": "governance_validation_engine.execution_policies"}
-        ]
       }
     ],
+    "surface_authority_compatibility": {
+      "runtime_resolver": "surfaceAuthorityResolver.js",
+      "requested_surface_key": "surface.execution_policy_registry_sheet",
+      "sql_authority_alias_key": "surface.execution_policy_sheet",
+      "authority_source": "registry_surfaces_catalog",
+      "canonical_key_preferred": true,
+      "legacy_alias_allowed_only_when_canonical_missing": true,
+      "unknown_aliases_fail_closed": true,
+      "database_mutation_required": false,
+      "production_authority": false
+    },
     "access_repair": {
       "grant_policy_source": "databasePrivilegeContracts.js#STAGING_ROLE_GRANT_POLICIES",
       "grant_plan_helper": "scripts/staging-role-grant-plan.mjs",
