@@ -13,6 +13,8 @@
       "specs/015-tenant-operating-system-studio/e2e-phases.json",
       "specs/015-tenant-operating-system-studio/candidate-convergence.json",
       "specs/015-tenant-operating-system-studio/canonical-concept-authority-map.json",
+      "specs/015-tenant-operating-system-studio/canonical-identity-cutover-decisions.json",
+      "specs/015-tenant-operating-system-studio/canonical-identity-cutover-decisions.md",
       "specs/015-tenant-operating-system-studio/package-runtime-convergence-addendum.md",
       "specs/015-tenant-operating-system-studio/manifest.json",
       "specs/015-tenant-operating-system-studio/completion.json",
@@ -30,68 +32,50 @@
       "docs/spec-portfolio/summarize-candidate-pr-evidence.py"
     ]
   },
-  "merge_contract": {
-    "minimum_phase": "mvp"
-  },
+  "merge_contract": {"minimum_phase":"mvp"},
   "phases": [
     {
-      "id": "mvp",
-      "status": "implemented",
-      "objective": "Validate immutable historical portfolio/candidate evidence and a separate exact-current-main semantic/authority reuse inventory without reconstructing candidates, creating duplicate persistence, or granting runtime mutation authority.",
+      "id":"mvp",
+      "status":"implemented",
+      "objective":"Validate historical portfolio/candidate evidence, exact-current-main field-level reuse, canonical semantic ownership, and a decision-ready but unapproved T006 cutover register without reconstructing candidates, creating duplicate persistence, or granting runtime authority.",
       "e2e_journeys": [
         {
-          "id": "spec015-tenant-audit-artifact-integrity",
-          "end_to_end": true,
-          "level": "synthetic_runtime",
-          "actor": "Spec 015 convergence reviewer",
-          "entrypoint": "Run the Spec 015 audit artifact regression and canonical authority convergence validator from the exact candidate tree",
-          "terminal_outcome": "The immutable 2026-08-12 portfolio/candidate snapshot remains internally consistent, while the additive 2026-09-06 current-main authority matrix maps canonical concepts and field-level reuse against exact main SHA 0faee775cd0572b737fed8bc74e2580d9fca2878 with T002/T003 evidence complete, T006/T008 owner decisions open, and no persistence/runtime/provider/Production authority granted.",
+          "id":"spec015-tenant-audit-artifact-integrity",
+          "end_to_end":true,
+          "level":"synthetic_runtime",
+          "actor":"Spec 015 convergence reviewer",
+          "entrypoint":"Run the Spec 015 audit regression and canonical authority convergence validator from the exact candidate tree",
+          "terminal_outcome":"Historical evidence remains immutable; the current-main matrix is anchored to 0faee775cd0572b737fed8bc74e2580d9fca2878; T002/T003 evidence is complete; seven T006 cutover decisions are machine-readable and pending owner approval; T006/T008 stay open; no runtime, migration, provider, permission, persistence, or Production authority is granted.",
           "steps": [
-            "Parse the immutable 2026-08-12 reuse matrix and verify all legacy audit rows retain allowed statuses and evidence paths.",
-            "Parse the nine-record candidate PR snapshot and verify its own shared historical snapshot base SHA, read-only flags, and no secrets.",
-            "Parse the additive 2026-09-06 current-main authority matrix and verify package, component, installation, capability/operation, tool, Agent/Skill/Workflow, Activity Pack, MCP, Effective Runtime Manifest, and legacy Action semantic mappings.",
-            "Verify every current-main field mapping uses an allowed disposition: reuse_exact, reuse_with_extension, compatibility_only, projection_only, gap_requires_owner_decision, or retire_after_cutover.",
-            "Verify platform_private_packages, platform_package_versions, tenant_package_installs, canonical_capabilities, Growth Control Activity Packs, and SystemToolCatalogV2 are mandatory reuse evidence rather than silently duplicated authorities.",
-            "Verify copied installation grant/policy JSON is compatibility-only and immutable Installation Revision remains an owner-approved semantic gap.",
-            "Verify canonical Action is business work while Operation is the bounded callable primitive; legacy actions remain unresolved compatibility input for T006.",
-            "Verify T002/T003 are complete only as repository inventory/reuse evidence while T006/T008 remain open.",
-            "Run Spec 015 contract validation and the tenant audit regression without database, provider, Cloudflare, migration, or Production access."
+            "Validate the immutable 2026-08-12 portfolio/candidate audit and its own historical snapshot SHA.",
+            "Validate the additive 2026-09-06 current-main authority matrix and every field-level disposition.",
+            "Validate canonical concepts separate Business Action, Provider Capability Group, Operation, Tool, Package, context, execution and projection semantics.",
+            "Validate current package/version/install/capability/Activity Pack/System Tool Catalog authorities are reused or explicitly classified as compatibility/projection inputs.",
+            "Validate the T006 decision register classifies numeric Spec 011/014, the System Tool Catalog cluster, legacy actions, capability authority transition, package reuse, and external protocol boundaries.",
+            "Verify the T006 register is decision-ready but approval_status remains pending_owner_review and cutover_executed=false.",
+            "Verify canonical_capabilities is a semantic target while global runtime cutover still requires shadow parity because legacy action/tool registries remain part of current execution authority.",
+            "Verify T002/T003 are evidence-complete and T006/T008 remain unchecked.",
+            "Run Spec 015 contract and E2E validators without database, provider, Cloudflare, migration, or Production access."
           ],
           "assertions": [
-            "The historical candidate snapshot and the current-main authority inventory are distinct evidence artifacts and need not share one SHA.",
-            "The current-main authority inventory is anchored exactly to 0faee775cd0572b737fed8bc74e2580d9fca2878.",
+            "Historical candidate evidence and the newer current-main authority inventory remain distinct evidence artifacts.",
             "No wholesale solution_package_* persistence, new execution authority, or new permission authority is approved.",
-            "Tool visibility, Package references, Skills, Agents, Installation Revisions, Execution Capsules, Effective Runtime Manifests, and projections do not independently grant execution authority.",
-            "T002 and T003 are evidence-complete while T006 and T008 remain explicitly open.",
-            "Candidate convergence remains draft_review_required and reconstruct-on-current-main rather than blindly merged.",
-            "No database migration, provider write, Cloudflare change, Production mutation, candidate merge, or secret access is executed."
+            "The legacy actions table is semantically a Provider Capability Group authority, not a Business Action authority.",
+            "The legacy actions/endpoints keys remain compatibility identifiers; no physical rename is authorized.",
+            "canonical_capabilities cannot be declared globally cut over from table existence alone; shadow parity and rollback proof remain required.",
+            "Tool visibility, Packages, Skills, Agents, Installation Revisions, Execution Capsules, Effective Runtime Manifests, and external protocols cannot independently grant execution authority.",
+            "No database migration, provider write, Production mutation, candidate merge, or secret access is executed."
           ],
           "tests": [
-            {
-              "id": "validate-spec015-tenant-audit-artifacts",
-              "runner": "node",
-              "working_directory": "specs/015-tenant-operating-system-studio",
-              "path": "tools/test-tenant-audit-artifacts.mjs",
-              "args": []
-            },
-            {
-              "id": "validate-spec015-canonical-authority-convergence",
-              "runner": "node",
-              "working_directory": "specs/015-tenant-operating-system-studio",
-              "path": "tools/validate-canonical-authority-convergence.mjs",
-              "args": []
-            },
-            {
-              "id": "validate-spec015-contract-integrity",
-              "runner": "node",
-              "working_directory": "specs/015-tenant-operating-system-studio",
-              "path": "tools/validate-spec.mjs",
-              "args": ["--only", "all"]
-            }
+            {"id":"validate-spec015-tenant-audit-artifacts","runner":"node","working_directory":"specs/015-tenant-operating-system-studio","path":"tools/test-tenant-audit-artifacts.mjs","args":[]},
+            {"id":"validate-spec015-canonical-authority-convergence","runner":"node","working_directory":"specs/015-tenant-operating-system-studio","path":"tools/validate-canonical-authority-convergence.mjs","args":[]},
+            {"id":"validate-spec015-contract-integrity","runner":"node","working_directory":"specs/015-tenant-operating-system-studio","path":"tools/validate-spec.mjs","args":["--only","all"]}
           ],
           "evidence_paths": [
             ".changes/e2e/spec015-tenant-audit-convergence.json",
             "specs/015-tenant-operating-system-studio/canonical-concept-authority-map.json",
+            "specs/015-tenant-operating-system-studio/canonical-identity-cutover-decisions.json",
+            "specs/015-tenant-operating-system-studio/canonical-identity-cutover-decisions.md",
             "specs/015-tenant-operating-system-studio/package-runtime-convergence-addendum.md",
             "specs/015-tenant-operating-system-studio/manifest.json",
             "specs/015-tenant-operating-system-studio/completion.json",
@@ -101,8 +85,7 @@
             "docs/spec-portfolio/spec015-tenant-reuse-matrix-20260812.json",
             "docs/spec-portfolio/spec015-current-main-authority-reuse-matrix-20260906.json",
             "docs/spec-portfolio/spec015-current-main-authority-reuse-matrix-20260906.md",
-            "docs/spec-portfolio/spec015-candidate-pr-readonly-evidence-20260812.jsonl",
-            "docs/spec-portfolio/spec015-candidate-convergence-readiness-20260812.md"
+            "docs/spec-portfolio/spec015-candidate-pr-readonly-evidence-20260812.jsonl"
           ]
         }
       ]
