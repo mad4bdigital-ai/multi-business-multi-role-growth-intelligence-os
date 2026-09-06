@@ -68,6 +68,7 @@ for (const operationalReadSurface of [
   "telemetry_spans",
   "operational_alerts",
   "v_platform_evolution_activation_card",
+  "v_platform_capability_gaps",
 ]) {
   assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes(operationalReadSurface), false);
   assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.optional_tables.includes(operationalReadSurface), true);
