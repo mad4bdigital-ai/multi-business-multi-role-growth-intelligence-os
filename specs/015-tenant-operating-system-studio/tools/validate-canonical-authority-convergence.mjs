@@ -21,11 +21,12 @@ function exists(relativePath) {
 
 const conceptMapPath = 'specs/015-tenant-operating-system-studio/canonical-concept-authority-map.json';
 const cutoverPath = 'specs/015-tenant-operating-system-studio/canonical-identity-cutover-decisions.json';
+const ownerDecisionPath = 'specs/015-tenant-operating-system-studio/phase1-owner-decision-matrix.json';
 const reuseMatrixPath = 'docs/spec-portfolio/spec015-current-main-authority-reuse-matrix-20260906.json';
 const tasksPath = 'specs/015-tenant-operating-system-studio/tasks.md';
 const completionPath = 'specs/015-tenant-operating-system-studio/completion.json';
 
-for (const file of [conceptMapPath, cutoverPath, reuseMatrixPath, tasksPath, completionPath]) {
+for (const file of [conceptMapPath, cutoverPath, ownerDecisionPath, reuseMatrixPath, tasksPath, completionPath]) {
   assert.ok(exists(file), `required convergence artifact missing: ${file}`);
 }
 
@@ -40,7 +41,6 @@ assert.ok(Array.isArray(concepts.concepts) && concepts.concepts.length === 30);
 const conceptKeys = concepts.concepts.map((entry) => entry.concept_key);
 assert.equal(new Set(conceptKeys).size, conceptKeys.length, 'canonical concept keys must be unique');
 const byConcept = new Map(concepts.concepts.map((entry) => [entry.concept_key, entry]));
-
 for (const key of ['tool','skill','agent','workflow','solution_package','component','installation_revision','execution_capsule','effective_runtime_manifest','projection']) {
   assert.equal(byConcept.get(key)?.runtime_authority, false, `${key} must not independently grant runtime authority`);
 }
@@ -88,27 +88,22 @@ const byEntity = new Map(matrix.logical_entities.map((entry) => [entry.logical_e
 const packageEntity = byEntity.get('solution_package_definition');
 for (const table of ['platform_private_packages','platform_package_versions']) assert.ok(packageEntity?.current_main_authorities.includes(table));
 assert.ok(packageEntity.field_mappings.some((field) => field.target_field === 'owner_container_id_and_ownership_class' && field.disposition === 'gap_requires_owner_decision'));
-
 const installationEntity = byEntity.get('package_installation');
 assert.ok(installationEntity?.current_main_authorities.includes('tenant_package_installs'));
 for (const field of ['agent_grants','policy_overrides','workspace_brand_client_target']) {
   assert.ok(installationEntity.field_mappings.some((entry) => entry.target_field === field && entry.disposition === 'compatibility_only'), `${field} must remain compatibility-only`);
 }
 assert.ok(installationEntity.field_mappings.some((entry) => entry.target_field === 'active_immutable_installation_revision' && entry.disposition === 'gap_requires_owner_decision'));
-
 const capabilityEntity = byEntity.get('capability_and_operation');
 assert.ok(capabilityEntity?.current_main_authorities.includes('canonical_capabilities'));
 assert.ok(capabilityEntity?.current_main_authorities.includes('capability_aliases'));
 assert.ok(capabilityEntity.field_mappings.some((entry) => entry.target_field === 'legacy_platform_semantic_capability_conflict' && entry.disposition === 'retire_after_cutover'));
-
 const toolEntity = byEntity.get('tool_catalog_projection');
 assert.ok(toolEntity?.current_main_authorities.includes('SystemToolCatalogV2'));
 assert.ok(toolEntity.field_mappings.some((entry) => entry.target_field === 'operation_version_effect_idempotency_readback_metadata' && entry.disposition === 'gap_requires_owner_decision'));
-
 const activityEntity = byEntity.get('activity_pack');
 assert.ok(activityEntity?.current_main_authorities.includes('growth_control_activity_pack_definitions'));
 assert.ok(activityEntity?.current_main_authorities.includes('growth_control_activity_pack_versions'));
-
 const mcpEntity = byEntity.get('external_mcp_surface');
 assert.ok(mcpEntity.field_mappings.filter((entry) => entry.target_field.startsWith('legacy_')).every((entry) => entry.disposition === 'compatibility_only'));
 const actionCollision = byEntity.get('legacy_action_semantic_collision');
@@ -141,6 +136,40 @@ assert.equal(byDecision.get('package_authority_target')?.new_solution_package_ta
 assert.match(byDecision.get('external_protocol_authority')?.execution_path ?? '', /Spec012 context -> Spec011 governed execution/);
 assert.ok(cutover.decisions.every((entry) => entry.approval_required === true));
 
+const phase1 = readJson(ownerDecisionPath);
+assert.equal(phase1.schema_version, 1);
+assert.equal(phase1.task, 'T008');
+assert.equal(phase1.current_main_sha, matrix.current_main_sha);
+assert.equal(phase1.status, 'decision_ready_pending_owner_approval');
+assert.equal(phase1.approval_status, 'pending_owner_review');
+assert.equal(phase1.phase1_authorized, false);
+assert.equal(phase1.runtime_mutation_authorized, false);
+assert.equal(phase1.secrets_included, false);
+assert.equal(phase1.decisions.length, 13);
+assert.ok(phase1.decisions.every((entry) => entry.owner_approval_required === true));
+const byOwnerDecision = new Map(phase1.decisions.map((entry) => [entry.decision_key, entry]));
+assert.equal(byOwnerDecision.get('package_authority_extension')?.recommended_decision, 'reuse_or_bounded_extension_of_current_package_authorities');
+for (const table of ['platform_private_packages','platform_package_versions','platform_private_package_assets']) {
+  assert.ok(byOwnerDecision.get('package_authority_extension')?.required_reuse?.includes(table));
+}
+assert.match(byOwnerDecision.get('generic_component_identity')?.recommended_decision ?? '', /referencing_canonical_source_assets/);
+assert.ok(byOwnerDecision.get('installation_revision_authority')?.compatibility_only_fields?.includes('agent_grants_json'));
+assert.ok(byOwnerDecision.get('installation_revision_authority')?.compatibility_only_fields?.includes('policy_overrides_json'));
+assert.match(byOwnerDecision.get('authorization_and_policy_reference_boundary')?.required_runtime_path ?? '', /current principal\/resource\/capability\/policy resolution/);
+assert.ok(byOwnerDecision.get('data_governance_minimum')?.minimum_controls?.includes('data_classification'));
+assert.ok(byOwnerDecision.get('data_governance_minimum')?.minimum_controls?.includes('deletion_propagation_for_derived_data'));
+assert.ok(byOwnerDecision.get('knowledge_and_provenance')?.derived_surfaces?.includes('vector_index'));
+assert.match(byOwnerDecision.get('model_governance')?.recommended_decision ?? '', /capability_first_policy_gated/);
+assert.equal(byOwnerDecision.get('commercial_and_finops')?.recommended_decision, 'estimate_reserve_execute_verify_settle_adjust');
+assert.match(byOwnerDecision.get('agency_client_ownership')?.recommended_decision ?? '', /independent_ownership_dimensions/);
+assert.ok(byOwnerDecision.get('portability_offboarding_and_handover')?.prohibited?.includes('credential_export'));
+assert.match(byOwnerDecision.get('external_protocol_and_tool_projection')?.required_path ?? '', /Spec012 Context Kernel -> capability\/policy -> Spec011 governed execution\/readback/);
+assert.match(byOwnerDecision.get('human_approval_and_separation_of_duties')?.recommended_decision ?? '', /plan_bound_frontier_approval/);
+assert.equal(byOwnerDecision.get('content_intelligence_reference_activation')?.stages?.['CI-4'], 'performance_feedback_to_improvement_candidate_not_self_modifying_production');
+assert.equal(phase1.phase1_entry_gate?.T006_owner_approved, false);
+assert.equal(phase1.phase1_entry_gate?.T008_owner_approved, false);
+assert.equal(phase1.phase1_entry_gate?.runtime_implementation_authorized, false);
+
 const tasks = readText(tasksPath);
 assert.match(tasks, /- \[x\] T002 /);
 assert.match(tasks, /- \[x\] T003 /);
@@ -157,9 +186,12 @@ assert.equal(completion.implementation?.production_activated, false);
 assert.equal(completion.convergence?.duplicate_spec_identity_resolved, false);
 assert.equal(completion.convergence?.T006_status, 'decision_ready_pending_owner_approval');
 assert.equal(completion.convergence?.T006_cutover_executed, false);
+assert.equal(completion.convergence?.T008_status, 'decision_ready_pending_owner_approval');
+assert.equal(completion.convergence?.T008_phase1_authorized, false);
 assert.ok(completion.specification?.completed_phase0_tasks?.includes('T002'));
 assert.ok(completion.specification?.completed_phase0_tasks?.includes('T003'));
 assert.ok(!completion.specification?.completed_phase0_tasks?.includes('T006'));
+assert.ok(!completion.specification?.completed_phase0_tasks?.includes('T008'));
 assert.equal(completion.convergence?.current_main_authority_inventory_sha, matrix.current_main_sha);
 
 console.log(JSON.stringify({
@@ -170,7 +202,9 @@ console.log(JSON.stringify({
   logical_entities: matrix.logical_entities.length,
   phase0_evidence_complete: ['T002','T003'],
   T006_decisions_prepared: cutover.decisions.length,
+  T008_decisions_prepared: phase1.decisions.length,
   owner_decisions_open: ['T006','T008'],
+  phase1_authorized: false,
   new_persistence_approved: false,
   cutover_executed: false,
   runtime_mutation_executed: false,
