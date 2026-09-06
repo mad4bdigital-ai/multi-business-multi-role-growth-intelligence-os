@@ -10,6 +10,8 @@
 
 ### Gate X0
 
+Gate X0 external certification state: `pending`.
+
 Candidate implementation evidence is present; **external exact-head CI and required live Staging certification remain pending and cannot be self-attested by this tree**.
 
 - same fixture inputs and expected functional outcomes are reproducible;
