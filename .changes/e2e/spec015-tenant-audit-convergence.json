@@ -8,7 +8,11 @@
   "scope":{"include":[
     ".changes/e2e/spec015-tenant-audit-convergence.json",
     ".specify/spec-kit-work-map-integration-policy.json",
+    ".specify/schemas/e2e-phases.schema.json",
+    ".github/derived-state-governance.json",
     ".github/workflows/repository-inventory-autofix-dispatch.yml",
+    "http-generic-api/config/repository-governance-constitution.json",
+    "http-generic-api/config/deployment-branch-policy.json",
     "specs/015-tenant-operating-system-studio/e2e-phases.json",
     "specs/015-tenant-operating-system-studio/candidate-convergence.json",
     "specs/015-tenant-operating-system-studio/canonical-concept-authority-map.json",
@@ -32,18 +36,25 @@
     "docs/spec-portfolio/spec015-candidate-convergence-readiness-20260812.md",
     "docs/spec-portfolio/summarize-candidate-pr-evidence.py"
   ]},
+  "environment_impact":{
+    "source_of_truth":"http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets":[],
+    "cross_environment_reviewed":false,
+    "live_staging_certification_required":false,
+    "production_mutation_allowed":false
+  },
   "merge_contract":{"minimum_phase":"mvp"},
   "phases":[{
     "id":"mvp",
     "status":"implemented",
-    "objective":"Validate historical portfolio evidence, exact-current-main reuse, canonical semantic ownership, seven T006 decisions, and thirteen T008 Phase1 owner decisions without creating duplicate authority or granting runtime mutation.",
+    "objective":"Validate historical portfolio evidence, exact-current-main reuse, canonical semantic ownership, seven T006 decisions, thirteen T008 Phase1 owner decisions, and repository-only governance closure without creating duplicate authority or granting runtime mutation.",
     "e2e_journeys":[{
       "id":"spec015-tenant-audit-artifact-integrity",
       "end_to_end":true,
       "level":"synthetic_runtime",
       "actor":"Spec 015 convergence reviewer",
       "entrypoint":"Run the Spec015 audit regression and canonical-authority validator from the exact candidate tree",
-      "terminal_outcome":"Historical evidence remains immutable; current-main reuse is anchored to 0faee775cd0572b737fed8bc74e2580d9fca2878; T002/T003 are evidence-complete; T006 and T008 are decision-ready but unapproved; Phase1/runtime authorization stays false.",
+      "terminal_outcome":"Historical evidence remains immutable; current-main reuse is anchored to 0faee775cd0572b737fed8bc74e2580d9fca2878; T002/T003 are evidence-complete; T006 and T008 are decision-ready but unapproved; repository-only impact targets remain empty; Phase1/runtime authorization stays false.",
       "steps":[
         "Validate the historical 2026-08-12 portfolio/candidate evidence separately from the 2026-09-06 authority inventory.",
         "Validate every field-level reuse disposition and canonical semantic boundary.",
@@ -52,6 +63,8 @@
         "Verify current package/version/install/capability/Activity-Pack/System-Tool-Catalog authorities are reused or explicitly compatibility/projection inputs.",
         "Verify copied grant/policy JSON is compatibility-only.",
         "Verify T002/T003 checked while T006/T008 remain unchecked.",
+        "Declare repository-only environment impact with no staging or production target and preserve fail-closed target derivation for any actual environment path.",
+        "Register this critical E2E declaration in both canonical control-plane registries while preserving manual-merge governance.",
         "Run all validation with no database, provider, migration, credential, Cloudflare, external-send, or Production access."
       ],
       "assertions":[
@@ -61,6 +74,8 @@
         "canonical_capabilities is the semantic target but global runtime cutover requires shadow parity and rollback proof.",
         "T008 approval is required before Phase1 runtime implementation design is authorized.",
         "Content Intelligence cannot skip Package foundation, provenance, model/budget, provider certification, idempotency, or readback.",
+        "Repository-only declarations may use an empty target set; actual staging/production paths remain target-enforced by environment-impact closure.",
+        "Critical control-plane registration does not waive the independent/manual merge requirement.",
         "No candidate merge, migration, provider write, Production mutation, or secret access occurs."
       ],
       "tests":[
@@ -70,6 +85,10 @@
       ],
       "evidence_paths":[
         ".changes/e2e/spec015-tenant-audit-convergence.json",
+        ".specify/schemas/e2e-phases.schema.json",
+        ".github/derived-state-governance.json",
+        "http-generic-api/config/repository-governance-constitution.json",
+        "http-generic-api/config/deployment-branch-policy.json",
         "specs/015-tenant-operating-system-studio/canonical-concept-authority-map.json",
         "specs/015-tenant-operating-system-studio/canonical-identity-cutover-decisions.json",
         "specs/015-tenant-operating-system-studio/phase1-owner-decision-matrix.json",
