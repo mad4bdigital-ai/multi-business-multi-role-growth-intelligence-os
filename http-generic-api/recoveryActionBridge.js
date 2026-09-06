@@ -206,8 +206,27 @@ function stripTicketOutput(value, depth = 0) {
   );
 }
 
+function restoreBridgeBooleanMetadata(original, sanitized, depth = 0) {
+  if (depth > 8 || !original || typeof original !== "object" || !sanitized || typeof sanitized !== "object") return sanitized;
+  if (Array.isArray(original) && Array.isArray(sanitized)) {
+    return sanitized.map((item, index) => restoreBridgeBooleanMetadata(original[index], item, depth + 1));
+  }
+  if (Array.isArray(original) || Array.isArray(sanitized)) return sanitized;
+  const restored = { ...sanitized };
+  for (const [key, originalValue] of Object.entries(original)) {
+    if (key === "approval_token_returned" && typeof originalValue === "boolean") {
+      restored[key] = originalValue;
+      continue;
+    }
+    if (Object.hasOwn(restored, key)) {
+      restored[key] = restoreBridgeBooleanMetadata(originalValue, restored[key], depth + 1);
+    }
+  }
+  return restored;
+}
+
 export function sanitizeRecoveryActionBridgeOutput(value) {
-  return stripTicketOutput(sanitizeEvidence(value));
+  return restoreBridgeBooleanMetadata(value, stripTicketOutput(sanitizeEvidence(value)));
 }
 
 export function buildRecoveryTypedConfirmationRequirements({ approval_id, plan_hash, step_id, expected_sha, expires_at = null } = {}) {
