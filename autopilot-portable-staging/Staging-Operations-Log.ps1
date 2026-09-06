@@ -8,6 +8,7 @@ $script:StagingLogInvocationRunId = [guid]::NewGuid().ToString("N")
 $global:Mad4bStagingRunId = $script:StagingLogInvocationRunId
 
 function Get-StagingRunId {
+    # StrictMode throws when an unset global variable is read directly; resolve it safely.
     $current = Get-Variable -Name Mad4bStagingRunId -Scope Global -ValueOnly -ErrorAction SilentlyContinue
     if ([string]::IsNullOrWhiteSpace([string]$current)) {
         $global:Mad4bStagingRunId = [guid]::NewGuid().ToString("N")
