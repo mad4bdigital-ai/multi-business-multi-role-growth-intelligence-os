@@ -129,11 +129,15 @@ assert.match(connectorWatchdog, /environment_binding_rejected/);
 assert.match(connectorWatchdog, /ownership_binding_rejected/);
 assert.match(connectorWatchdog, /cross_runtime_mutation = \$false/);
 
-// 1033 recovery is out-of-band: bind Staging callbacks before runtime restart,
-// restart only the Local Connector-owned transport, then prove Staging unchanged.
+// 1033 recovery is out-of-band: bind Staging callbacks before any runtime restart,
+// self-heal the connector process first, repair only its tunnel, then prove Staging unchanged.
 assert.match(connectorRepair, /Bind-StagingConnectorEnvironment/);
-assert.match(connectorRepair, /CONNECTOR_CONTROL_PLANE_BASE_URL" "https:\/\/dev\.mad4b\.com"/);
+assert.match(connectorRepair, /\$base = "https:\/\/dev\.mad4b\.com"/);
+assert.match(connectorRepair, /CONNECTOR_CONTROL_PLANE_BASE_URL" \$base/);
 assert.match(connectorRepair, /CONNECTOR_HEARTBEAT_URL" "\$base\/connector-agent\/heartbeat"/);
+assert.match(connectorRepair, /function Ensure-ConnectorRuntimeRunning/);
+assert.match(connectorRepair, /function Restart-ConnectorRuntime/);
+assert.match(connectorRepair, /connector_runtime_restart_attempted/);
 assert.match(connectorRepair, /cloudflare_1033/);
 assert.match(connectorRepair, /Restart-LocalTunnelRuntime/);
 assert.match(connectorRepair, /staging_runtime_unchanged/);
@@ -177,6 +181,7 @@ console.log(JSON.stringify({
   connector_reboot_recovery: true,
   connector_transport_ownership_isolated: true,
   connector_environment_binding: true,
+  connector_runtime_self_heal: true,
   connector_1033_reconciliation: true,
   cross_runtime_non_interference: true,
   production_mutation: false,
