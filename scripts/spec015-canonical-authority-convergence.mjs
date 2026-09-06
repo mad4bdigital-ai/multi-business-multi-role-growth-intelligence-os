@@ -15,8 +15,9 @@ const ownerDecisionPath = 'specs/015-tenant-operating-system-studio/phase1-owner
 const reuseMatrixPath = 'docs/spec-portfolio/spec015-current-main-authority-reuse-matrix-20260906.json';
 const tasksPath = 'specs/015-tenant-operating-system-studio/tasks.md';
 const completionPath = 'specs/015-tenant-operating-system-studio/completion.json';
+const e2ePath = 'specs/015-tenant-operating-system-studio/e2e-phases.json';
 
-for (const file of [conceptMapPath, cutoverPath, ownerDecisionPath, reuseMatrixPath, tasksPath, completionPath]) {
+for (const file of [conceptMapPath, cutoverPath, ownerDecisionPath, reuseMatrixPath, tasksPath, completionPath, e2ePath]) {
   assert.ok(exists(file), `required convergence artifact missing: ${file}`);
 }
 
@@ -123,7 +124,8 @@ assert.match(tasks, /- \[x\] T002 /);
 assert.match(tasks, /- \[x\] T003 /);
 assert.match(tasks, /- \[ \] T006 /);
 assert.match(tasks, /- \[ \] T008 /);
-const completion = readJson(completionPath);
+const completionRaw = readText(completionPath);
+const completion = JSON.parse(completionRaw);
 assert.equal(completion.status, 'in_progress');
 assert.equal(completion.implementation?.started, false);
 assert.equal(completion.implementation?.migrations_applied, false);
@@ -133,5 +135,18 @@ assert.equal(completion.implementation?.production_activated, false);
 assert.equal(completion.convergence?.duplicate_spec_identity_resolved, false);
 assert.equal(completion.convergence?.T006_cutover_executed, false);
 assert.equal(completion.convergence?.T008_phase1_authorized, false);
+assert.equal(completion.external_attestation_requirements?.exact_head_ci?.required, true);
+assert.equal(completion.external_attestation_requirements?.exact_head_ci?.attestation_location, 'external');
+assert.equal(completion.external_attestation_requirements?.exact_head_ci?.binding, 'candidate_head_sha');
+assert.equal(completion.external_attestation_requirements?.exact_head_ci?.source_tree_may_self_attest, false);
+assert.equal(completion.blocking_reasons?.includes('exact_head_ci_pending'), false);
+assert.doesNotMatch(completionRaw, /pending_exact_head_ci|exact_head_ci_pending/, 'completion ledger must express exact-head CI as an external requirement, not candidate-tree pending state');
+for (const [key, value] of Object.entries(completion.verification ?? {})) {
+  if (key.endsWith('_review')) continue;
+  assert.match(value, /external_sha_bound_attestation_required|pending_owner_review_and_external_sha_bound_attestation_required/, `${key} must use external SHA-bound attestation semantics`);
+}
+const e2eRaw = readText(e2ePath);
+assert.doesNotMatch(e2eRaw, /Exact-head CI is not yet certified|pending_exact_head_ci|exact_head_ci_pending/, 'E2E contract must not self-report dynamic exact-head CI state');
+assert.match(e2eRaw, /external SHA-bound exact-head CI attestation is required/i);
 
-console.log(JSON.stringify({schema:'mad4b.spec015.canonical-authority-convergence.v1',ok:true,current_main_sha:matrix.current_main_sha,canonical_concepts:concepts.concepts.length,logical_entities:matrix.logical_entities.length,phase0_evidence_complete:['T002','T003'],T006_decisions_prepared:cutover.decisions.length,T008_decisions_prepared:phase1.decisions.length,owner_decisions_open:['T006','T008'],exact_head_ci_attestation:'external_sha_bound',phase1_authorized:false,new_persistence_approved:false,cutover_executed:false,runtime_mutation_executed:false,secrets_included:false},null,2));
+console.log(JSON.stringify({schema:'mad4b.spec015.canonical-authority-convergence.v1',ok:true,current_main_sha:matrix.current_main_sha,canonical_concepts:concepts.concepts.length,logical_entities:matrix.logical_entities.length,phase0_evidence_complete:['T002','T003'],T006_decisions_prepared:cutover.decisions.length,T008_decisions_prepared:phase1.decisions.length,owner_decisions_open:['T006','T008'],exact_head_ci_attestation:'external_sha_bound',completion_exact_head_state:'external_requirement_not_self_state',phase1_authorized:false,new_persistence_approved:false,cutover_executed:false,runtime_mutation_executed:false,secrets_included:false},null,2));
