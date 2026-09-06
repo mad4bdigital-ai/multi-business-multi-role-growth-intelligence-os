@@ -137,7 +137,7 @@ async function attestExactDeployment(graph, binding) {
 export function createStagingAccessRepairTicketAuthority({ env = process.env } = {}) {
   const graph = graphFor(env);
   const store = graph.recoveryStore;
-  if (!store?.putPlan || !store?.getPlan || !store?.putFinding || !store?.getApprovalByPlanStep || !store?.putExecutionTicket || !graph.approvalIssuer?.createChallenge || !graph.approvalVerifier?.verify || !graph.executionTicketSigner?.sign) {
+  if (!store?.putPlan || !store?.getPlan || !store?.putFinding || !store?.getApprovalByPlanStep || !store?.putExecutionTicket || !store?.reserveApproval || !store?.releaseApprovalReservation || !store?.markApprovalUsed || !graph.approvalIssuer?.createChallenge || !graph.approvalVerifier?.verify || !graph.executionTicketSigner?.sign) {
     fail("RECOVERY_APPROVAL_CHALLENGE_AUTHORITY_UNAVAILABLE", "Staging access-repair approval/ticket authorities are incomplete.", {}, 503);
   }
   return Object.freeze({
@@ -213,6 +213,7 @@ export function createStagingAccessRepairTicketAuthority({ env = process.env } =
       const reservationContext = { ...approvalContext, approval_hash: approvalBinding.approval_hash, approval_binding_hash: approvalBinding.binding_hash, idempotency_key: idempotencyKey, execution_ticket_id: null };
       const reserved = await store.reserveApproval(reservationContext);
       if (reserved?.reserved !== true) fail("RECOVERY_APPROVAL_INVALID", "The approval challenge is already reserved or consumed.", { reconciliation_required: true }, 409);
+      let ticketPersisted = false;
       try {
         const ticket = await issueExecutionTicket({
           inspection_run_id: `run:${digest({ plan_hash: plan.plan_hash, approval_id: approval.approval_id }).slice(0, 32)}`,
@@ -243,7 +244,55 @@ export function createStagingAccessRepairTicketAuthority({ env = process.env } =
           nonce: randomUUID(),
         }, { signer: graph.executionTicketSigner });
         await store.putExecutionTicket(ticket);
-        await store.markApprovalUsed(approval.approval_id);
+        ticketPersisted = true;
+        try {
+          await store.markApprovalUsed(approval.approval_id);
+        } catch (error) {
+          await store.appendEvidenceEvent?.(idempotencyKey, {
+            event: "staging_access_repair_ticket_issuance_reconciliation_required",
+            phase: "issued_unreconciled",
+            ticket_id: ticket.ticket_id,
+            ticket_hash: ticket.ticket_hash,
+            plan_id: plan.plan_id,
+            plan_hash: plan.plan_hash,
+            step_id: step.step_id,
+            approval_id: approval.approval_id,
+            expected_sha: plan.expected_sha,
+            target_key: plan.target_key,
+            target_fingerprint: plan.target_fingerprint,
+            grant_binding_hash: plan.grant_binding_hash,
+            reconciliation_required: true,
+            automatic_rerun_allowed: false,
+            secrets_included: false,
+          }).catch(() => {});
+          fail("RECOVERY_RECONCILIATION_REQUIRED", "Execution ticket was durably persisted but approval consumption could not be finalized; reconciliation is required and automatic re-issuance is forbidden.", {
+            ticket_id: ticket.ticket_id,
+            ticket_hash: ticket.ticket_hash,
+            plan_id: plan.plan_id,
+            approval_id: approval.approval_id,
+            ticket_persisted: true,
+            reconciliation_required: true,
+            automatic_rerun_allowed: false,
+            cause_code: text(error?.code || error?.name || "mark_approval_used_failed", 128),
+          }, 409);
+        }
+        await store.appendEvidenceEvent?.(idempotencyKey, {
+          event: "staging_access_repair_ticket_issued",
+          phase: "issued",
+          ticket_id: ticket.ticket_id,
+          ticket_hash: ticket.ticket_hash,
+          plan_id: plan.plan_id,
+          plan_hash: plan.plan_hash,
+          step_id: step.step_id,
+          approval_id: approval.approval_id,
+          expected_sha: plan.expected_sha,
+          target_key: plan.target_key,
+          target_fingerprint: plan.target_fingerprint,
+          grant_binding_hash: plan.grant_binding_hash,
+          single_use: true,
+          automatic_rerun_allowed: false,
+          secrets_included: false,
+        }).catch(() => {});
         return {
           ok: true,
           contract: STAGING_ACCESS_REPAIR_TICKET_AUTHORITY_CONTRACT,
@@ -268,7 +317,7 @@ export function createStagingAccessRepairTicketAuthority({ env = process.env } =
           secrets_included: false,
         };
       } catch (error) {
-        await store.releaseApprovalReservation(reservationContext).catch(() => {});
+        if (!ticketPersisted) await store.releaseApprovalReservation(reservationContext).catch(() => {});
         throw error;
       }
     },
