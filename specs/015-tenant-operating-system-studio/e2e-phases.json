@@ -1,42 +1,44 @@
 {
-  "$schema": "../../../.specify/schemas/e2e-phases.schema.json",
-  "schema_version": 1,
-  "feature_key": "015-tenant-operating-system-studio",
-  "title": "Tenant Operating System Studio Convergence Contracts",
-  "delivery_mode": "multi_pr",
-  "current_phase": "mvp",
-  "scope": {"include":["specs/015-tenant-operating-system-studio/**"]},
-  "merge_contract": {"minimum_phase":"mvp"},
-  "phases": [
+  "$schema":"../../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version":1,
+  "feature_key":"015-tenant-operating-system-studio",
+  "title":"Tenant Operating System Studio Convergence Contracts",
+  "delivery_mode":"multi_pr",
+  "current_phase":"mvp",
+  "scope":{"include":["specs/015-tenant-operating-system-studio/**"]},
+  "merge_contract":{"minimum_phase":"mvp"},
+  "phases":[
     {
       "id":"mvp",
       "status":"implemented",
-      "objective":"Provide repository-native convergence contracts for package/install semantics, canonical authority ownership, exact-current-main reuse evidence, Draft portfolio evidence, and decision-ready T006 identity/cutover proposals without granting runtime mutation authority.",
+      "objective":"Provide repository-native convergence contracts for canonical semantics, current-main reuse, T006 identity/cutover decisions, T008 Phase1 owner decisions, portfolio evidence, and truthful no-mutation boundaries.",
       "e2e_journeys":[
         {
           "id":"spec015-contract-integrity",
           "end_to_end":true,
           "level":"synthetic_runtime",
           "actor":"Repository specification maintainer",
-          "entrypoint":"Run Spec015 contract, canonical authority, live-delta, and Tenant audit validators from the exact candidate tree",
-          "terminal_outcome":"Manifest inventory, semantic ontology, current-main field-level reuse at 0faee775cd0572b737fed8bc74e2580d9fca2878, seven T006 decision candidates, historical portfolio evidence, Work Map, completion truthfulness, and no-secret boundaries pass while T006/T008 approval and all runtime implementation remain blocked.",
+          "entrypoint":"Run Spec015 contract, canonical-authority, live-delta, and Tenant-audit validators from the exact candidate tree",
+          "terminal_outcome":"The 30-concept ontology, exact-current-main field-level reuse at 0faee775cd0572b737fed8bc74e2580d9fca2878, seven T006 decisions, thirteen T008 decisions, historical portfolio evidence, Work Map, completion truthfulness, and no-secret boundaries pass while T006/T008 approval and all runtime implementation remain blocked.",
           "steps":[
             "Validate exact manifest inventory and specification-only boundaries.",
-            "Validate the 30 canonical concepts and prohibit authority inference from Tool, Package, Agent, Skill, Installation Revision, Execution Capsule, Effective Runtime Manifest, or projection visibility.",
+            "Validate 30 canonical concepts and prohibit authority inference from Tool, Package, Agent, Skill, Installation Revision, Execution Capsule, Effective Runtime Manifest, or projection visibility.",
             "Validate current-main field mappings for package/component/install/capability/operation/tool/agent/skill/workflow/activity-pack/MCP/manifest/legacy-action semantics.",
             "Validate T002/T003 evidence completion without persistence or runtime claims.",
-            "Validate the T006 decision register has seven decisions, approval_status=pending_owner_review and cutover_executed=false.",
-            "Validate legacy actions as Provider Capability Group semantics, endpoints as provider operation contracts, and Business Action as a separate product/domain semantic.",
-            "Validate canonical_capabilities as the target semantic identity domain while global runtime cutover remains blocked on shadow parity and rollback proof.",
-            "Validate historical 34-PR base and append-only 35-PR live-delta portfolio evidence independently from the newer authority inventory.",
-            "Validate Work Map/completion state and scan the Spec directory for prohibited secret patterns."
+            "Validate T006 has seven decision candidates with pending owner approval and cutover_executed=false.",
+            "Validate T008 has thirteen owner-decision candidates with phase1_authorized=false and runtime_mutation_authorized=false.",
+            "Validate T008 covers package/component/install, authorization, data governance, knowledge provenance, model governance, FinOps, agency ownership, portability, external protocols, human approval, and Content Intelligence staging.",
+            "Validate canonical_capabilities as target semantic identity while global runtime cutover remains gated by shadow parity and rollback proof.",
+            "Validate historical portfolio snapshots independently from the newer current-main authority inventory.",
+            "Validate Work Map/completion truthfulness and no-secret boundaries."
           ],
           "assertions":[
-            "No new solution_package_* persistence is approved by inventory evidence.",
-            "Current package/version/install authorities are mandatory reuse inputs before Phase 1 persistence decisions.",
-            "T006 is decision-ready but not complete; no physical table rename, capability cutover, candidate merge, or runtime route switch occurs.",
-            "Specification completion is not runtime, migration, provider, deployment, or Production completion.",
-            "MCP remains transport/tool projection and cannot create independent execution authority."
+            "No new wholesale solution_package_* persistence is approved.",
+            "Current package/version/install authorities are mandatory reuse inputs before Phase1 persistence decisions.",
+            "T006 and T008 are decision-ready but not complete.",
+            "No physical table rename, capability runtime cutover, migration, provider call, permission grant, candidate merge, deployment, or Production activation occurs.",
+            "MCP and future external protocols remain projections over Context Kernel and governed execution.",
+            "Content Intelligence cannot progress to external CMS effects before Package foundation, provenance, model/budget policy, certified provider binding, idempotency, and readback gates."
           ],
           "tests":[
             {"id":"validate-spec015-base-contracts","runner":"node","working_directory":"specs/015-tenant-operating-system-studio","path":"tools/validate-spec.mjs","args":["--only","all"]},
@@ -49,6 +51,8 @@
             "specs/015-tenant-operating-system-studio/canonical-concept-authority-map.json",
             "specs/015-tenant-operating-system-studio/canonical-identity-cutover-decisions.json",
             "specs/015-tenant-operating-system-studio/canonical-identity-cutover-decisions.md",
+            "specs/015-tenant-operating-system-studio/phase1-owner-decision-matrix.json",
+            "specs/015-tenant-operating-system-studio/phase1-owner-decision-matrix.md",
             "specs/015-tenant-operating-system-studio/package-runtime-convergence-addendum.md",
             "specs/015-tenant-operating-system-studio/completion.json",
             "specs/015-tenant-operating-system-studio/tasks.md",
@@ -65,50 +69,21 @@
     {
       "id":"operational",
       "status":"blocked",
-      "objective":"Implement Package/Component foundation and deterministic installation compilation by extending or bridging current-main authorities before adding higher product layers.",
+      "objective":"Implement Package/Component foundation and deterministic installation compilation by reusing or extending current-main authorities before adding higher product layers.",
       "blockers":[
-        "T006 owner approval is pending for semantic identities and cutover targets.",
-        "T008 owner approval is pending for package authority extension, component gaps, installation revision, security/privacy/product/external boundaries.",
-        "Package publication semantics are not approved.",
-        "Generic Component identity/dependency persistence is not approved.",
+        "T006 owner approval is pending.",
+        "T008 owner approval is pending.",
+        "Exact-head CI is not yet certified.",
+        "Package publication semantics and generic Component persistence are not approved.",
         "Immutable Installation Revision and typed requirement-binding persistence are not approved.",
-        "Custom entity persistence is not approved.",
+        "Required P0 privacy/data-governance boundaries are not implemented.",
+        "Model-governance and commercial-reservation runtime are not implemented.",
         "Spec016/017 MCP/OAuth/host-isolation gates remain open."
       ],
-      "planned_e2e_journey":{
-        "id":"spec015-operational-package-installation",
-        "required_level":"synthetic_runtime",
-        "actor":"Tenant system designer and package reviewer",
-        "entrypoint":"Create and compile a private tenant package through approved extensions of current package/version/install authorities",
-        "terminal_outcome":"The package validates, installs for one exact Brand in sandbox, produces a deterministic immutable installation revision, and exposes tenant-safe surfaces without implicit authority.",
-        "steps":[
-          "Reuse or extend platform package/version/install authorities instead of creating parallel truth.",
-          "Reference canonical Agent/Skill/Workflow/Policy/Activity Pack assets rather than copying them into generic components.",
-          "Compile exact scope and typed requirement bindings with lineage, revision vector and deterministic hash.",
-          "Prove UI/MCP/resource/operation authority remains server-enforced."
-        ]
-      }
+      "planned_e2e_journey":{"id":"spec015-operational-package-installation","required_level":"synthetic_runtime","actor":"Tenant system designer and package reviewer","entrypoint":"Create and compile a private tenant package through approved extensions of current authorities","terminal_outcome":"One exact Brand sandbox installation resolves to an immutable revision and tenant-safe surfaces without implicit authority.","steps":["Reuse current package/version/install authorities.","Reference canonical Agent/Skill/Workflow/Policy/Activity Pack assets instead of copying payloads.","Compile typed target/requirement bindings with lineage, revision vector and hash.","Prove all execution remains server-authorized and readback-governed."]}
     },
-    {
-      "id":"resilient",
-      "status":"blocked",
-      "objective":"Prove upgrades, rollback, provider/manual fallback, backup/restore, delegation revocation, export and handover continuity.",
-      "blockers":["Operational package/install runtime is not implemented.","Reference packages and agency/client/external journeys are not reconstructed."],
-      "planned_e2e_journey":{"id":"spec015-resilient-upgrade-handover","required_level":"live_non_production","actor":"Agency operator and client owner","entrypoint":"Upgrade an installation with local overrides and revoke delegated/external access","terminal_outcome":"Conflicts are explicit, rollback is verified, access is revoked, and client-owned operation continues.","steps":["Run three-way package upgrade.","Exercise fallback/restore/rollback.","Revoke and hand over dependencies with denial readback."]}
-    },
-    {
-      "id":"canary",
-      "status":"blocked",
-      "objective":"Run bounded freelancer, agency/client, reference-package including Content Intelligence, and read-only MCP cohorts.",
-      "blockers":["Operational/resilient suites incomplete.","Pilot scopes/effects/budgets/stop rules unapproved."],
-      "planned_e2e_journey":{"id":"spec015-canary-tenant-studio","required_level":"live_non_production","actor":"Authorized pilot tenants and operators","entrypoint":"Operate bounded package installations and approved external reads","terminal_outcome":"Isolation, health/cost, fallback, rollback, revocation and handover readiness are proven.","steps":["Pilot freelancer and two isolated agency client Brands.","Pilot client-owned Tenant delegation/revocation.","Run approved reference packages only after foundation certification.","Verify read-only MCP scoped discovery/denial/disable/revocation."]}
-    },
-    {
-      "id":"production",
-      "status":"blocked",
-      "objective":"Verify governed migration, Production runtime, generated/external parity, health, isolation, recovery and truthful closeout.",
-      "blockers":["Canary acceptance and Production authority absent.","No package migration/deployment/Production canary/post-merge audit executed."],
-      "planned_e2e_journey":{"id":"spec015-production-readback","required_level":"production_readback","actor":"Authorized release operator","entrypoint":"Promote an exact verified release through governed paths","terminal_outcome":"Production runs intended revisions with complete readback and rollback evidence.","steps":["Verify exact-head CI/migration/main parity.","Run bounded Production readback and isolation checks.","Complete post-merge audit."]}
-    }
+    {"id":"resilient","status":"blocked","objective":"Prove upgrades, rollback, fallback, backup/restore, delegation revocation, export and handover continuity.","blockers":["Operational package/install runtime is not implemented."],"planned_e2e_journey":{"id":"spec015-resilient-upgrade-handover","required_level":"live_non_production","actor":"Agency operator and client owner","entrypoint":"Upgrade, degrade, revoke and hand over one installation","terminal_outcome":"Conflicts, rollback, revocation and continuity are proven.","steps":["Three-way upgrade.","Fallback/restore/rollback.","Delegation/connection revocation and handover readback."]}},
+    {"id":"canary","status":"blocked","objective":"Run bounded freelancer, agency/client, reference-package and read-only external cohorts.","blockers":["Operational/resilient certification incomplete."],"planned_e2e_journey":{"id":"spec015-canary-tenant-studio","required_level":"live_non_production","actor":"Authorized pilot tenants and operators","entrypoint":"Operate bounded Package installations","terminal_outcome":"Isolation, cost, fallback, rollback, revocation and handover readiness are proven.","steps":["Pilot freelancer and isolated agency client Brands.","Pilot client-owned Tenant delegation/revocation.","Run approved reference packages only after foundation certification.","Verify read-only MCP discovery/denial/disable/revocation."]}},
+    {"id":"production","status":"blocked","objective":"Verify governed migration, Production runtime, generated/external parity, health, isolation, recovery and truthful closeout.","blockers":["Canary acceptance and Production authority absent."],"planned_e2e_journey":{"id":"spec015-production-readback","required_level":"production_readback","actor":"Authorized release operator","entrypoint":"Promote an exact verified release through governed paths","terminal_outcome":"Production runs intended revisions with complete readback and rollback evidence.","steps":["Verify exact-head CI/migration/main parity.","Run bounded Production readback and isolation checks.","Complete post-merge audit."]}}
   ]
 }
