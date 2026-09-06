@@ -110,6 +110,12 @@ assert.ok(byOwner.get('knowledge_and_provenance')?.derived_surfaces?.includes('v
 assert.equal(byOwner.get('content_intelligence_reference_activation')?.stages?.['CI-4'], 'performance_feedback_to_improvement_candidate_not_self_modifying_production');
 assert.equal(phase1.phase1_entry_gate?.T006_owner_approved, false);
 assert.equal(phase1.phase1_entry_gate?.T008_owner_approved, false);
+assert.equal(Object.hasOwn(phase1.phase1_entry_gate ?? {}, 'exact_head_ci_passed'), false, 'candidate tree must not self-attest exact-head CI success');
+assert.equal(phase1.phase1_entry_gate?.exact_head_ci?.required, true);
+assert.equal(phase1.phase1_entry_gate?.exact_head_ci?.attestation_location, 'external');
+assert.equal(phase1.phase1_entry_gate?.exact_head_ci?.binding, 'candidate_head_sha');
+assert.equal(phase1.phase1_entry_gate?.exact_head_ci?.source_tree_may_self_attest, false);
+assert.match(phase1.phase1_entry_gate?.exact_head_ci?.source_authority ?? '', /GitHub Actions.*canonical CI evidence/i);
 assert.equal(phase1.phase1_entry_gate?.runtime_implementation_authorized, false);
 
 const tasks = readText(tasksPath);
@@ -128,4 +134,4 @@ assert.equal(completion.convergence?.duplicate_spec_identity_resolved, false);
 assert.equal(completion.convergence?.T006_cutover_executed, false);
 assert.equal(completion.convergence?.T008_phase1_authorized, false);
 
-console.log(JSON.stringify({schema:'mad4b.spec015.canonical-authority-convergence.v1',ok:true,current_main_sha:matrix.current_main_sha,canonical_concepts:concepts.concepts.length,logical_entities:matrix.logical_entities.length,phase0_evidence_complete:['T002','T003'],T006_decisions_prepared:cutover.decisions.length,T008_decisions_prepared:phase1.decisions.length,owner_decisions_open:['T006','T008'],phase1_authorized:false,new_persistence_approved:false,cutover_executed:false,runtime_mutation_executed:false,secrets_included:false},null,2));
+console.log(JSON.stringify({schema:'mad4b.spec015.canonical-authority-convergence.v1',ok:true,current_main_sha:matrix.current_main_sha,canonical_concepts:concepts.concepts.length,logical_entities:matrix.logical_entities.length,phase0_evidence_complete:['T002','T003'],T006_decisions_prepared:cutover.decisions.length,T008_decisions_prepared:phase1.decisions.length,owner_decisions_open:['T006','T008'],exact_head_ci_attestation:'external_sha_bound',phase1_authorized:false,new_persistence_approved:false,cutover_executed:false,runtime_mutation_executed:false,secrets_included:false},null,2));
