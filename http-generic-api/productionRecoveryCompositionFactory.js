@@ -26,7 +26,7 @@ const REQUIRED_LIVE_AUTHORIZATION_FLAGS = Object.freeze([
   "server_side_approval_resolution",
   "bootstrap_evidence_independent",
 ]);
-const SERVER_APPROVAL_RESOLVER_METHOD = "resolveApprovedExecutionApproval";
+const SERVER_RESOLVER_METHOD = "resolveApprovedExecutionApproval";
 
 function factoryError(code, message, details = {}) {
   const error = new Error(message);
@@ -59,7 +59,7 @@ function independentReadbackAuthority(readbackVerifier) {
 }
 
 function serverSideApprovalResolver(approvalStore) {
-  return Boolean(approvalStore && typeof approvalStore[SERVER_APPROVAL_RESOLVER_METHOD] === "function");
+  return Boolean(approvalStore && typeof approvalStore[SERVER_RESOLVER_METHOD] === "function");
 }
 
 function validateLiveAuthorization(envelope, composition) {
@@ -328,7 +328,7 @@ export function createProductionRecoveryComposition({
 export const _testingProductionRecoveryCompositionFactory = Object.freeze({
   SERVER_MANAGED_CONTEXT,
   REQUIRED_LIVE_AUTHORIZATION_FLAGS,
-  SERVER_APPROVAL_RESOLVER_METHOD,
+  SERVER_APPROVAL_RESOLVER_METHOD: SERVER_RESOLVER_METHOD,
   validateServerManagedEnvelope,
   validateLiveAuthorization,
   independentBootstrapEvidenceStore,
