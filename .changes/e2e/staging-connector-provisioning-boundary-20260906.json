@@ -26,7 +26,8 @@
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
     "declared_targets": [
-      "staging"
+      "staging",
+      "production"
     ],
     "cross_environment_reviewed": true,
     "live_staging_certification_required": true,
