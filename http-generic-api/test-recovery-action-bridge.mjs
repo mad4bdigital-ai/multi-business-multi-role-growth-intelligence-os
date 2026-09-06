@@ -8,7 +8,7 @@ const PLAN_HASH = "a".repeat(64);
 const STEP_ID = "step:1234567890abcdef";
 const STEP_HASH = "b".repeat(64);
 const SHA = "c".repeat(40);
-const APPROVAL_ID = "approval:1234567890abcdef";
+const CHALLENGE_REF = "approval:1234567890abcdef";
 const FIXTURE_VALUE = "bound-approval-token-bridge-001";
 const IDEMPOTENCY_KEY = "idempotency:bridge-001";
 
@@ -25,7 +25,7 @@ function baseInput(overrides = {}) {
 
 function confirmationRequirements() {
   return buildRecoveryTypedConfirmationRequirements({
-    approval_id: APPROVAL_ID,
+    approval_id: CHALLENGE_REF,
     plan_hash: PLAN_HASH,
     step_id: STEP_ID,
     expected_sha: SHA,
@@ -38,7 +38,7 @@ function serverManagedInput(overrides = {}) {
     plan_id: PLAN_ID,
     plan_hash: PLAN_HASH,
     step_id: STEP_ID,
-    approval_id: APPROVAL_ID,
+    approval_id: CHALLENGE_REF,
     expected_sha: SHA,
     typed_confirmation: confirmation.confirmation_phrase,
     idempotency_key: "idempotency:bridge-server-managed-001",
@@ -54,7 +54,7 @@ function makeStore() {
   const receipts = new Map();
   const findings = new Map([["finding:1234567890abcdef", { finding_id: "finding:1234567890abcdef" }]]);
   const approval = {
-    approval_id: APPROVAL_ID,
+    approval_id: CHALLENGE_REF,
     plan_id: PLAN_ID,
     plan_hash: PLAN_HASH,
     step_id: STEP_ID,
@@ -126,7 +126,7 @@ function makeStore() {
     async releaseExecutionClaim() {},
     async getApprovalByPlanStep() { return structuredClone(approval); },
     async resolveApprovedExecutionApproval({ approval_id, admin_principal_verified }) {
-      return approval_id === APPROVAL_ID && admin_principal_verified === true ? { approval_token: FIXTURE_VALUE } : null;
+      return approval_id === CHALLENGE_REF && admin_principal_verified === true ? { approval_token: FIXTURE_VALUE } : null;
     },
     async reserveApproval() { return { reserved: true }; },
     async releaseApprovalReservation() { return { released: true }; },
@@ -201,7 +201,7 @@ const LOCK = {
 const APPROVAL_VERIFIER = { verify: async ({ token }) => token === FIXTURE_VALUE };
 const APPROVAL_ISSUER = {
   resolveApprovedExecutionApproval: async ({ approval_id, admin_principal_verified }) => (
-    approval_id === APPROVAL_ID && admin_principal_verified === true ? { approval_token: FIXTURE_VALUE } : null
+    approval_id === CHALLENGE_REF && admin_principal_verified === true ? { approval_token: FIXTURE_VALUE } : null
   ),
 };
 const READBACK = { independent_authority: true, role_aware: true, verify: async () => ({ postconditions_passed: true, structural_postconditions_passed: true, data_postconditions_passed: true, behavioral_probe_passed: true }) };
@@ -216,6 +216,7 @@ function authorities(store, executor) {
     executionTicketSigner: SIGNER,
     approvalIssuer: APPROVAL_ISSUER,
     approvalVerifier: APPROVAL_VERIFIER,
+    approvalStore: store,
     recoveryLock: LOCK,
     readbackVerifier: READBACK,
     hostBreakglassMutationExecutor: executor,
