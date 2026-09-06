@@ -35,7 +35,13 @@ function hasSensitiveKey(value, depth = 0) {
   if (depth > 8 || value == null) return false;
   if (Array.isArray(value)) return value.some((item) => hasSensitiveKey(item, depth + 1));
   if (!isObject(value)) return false;
-  return Object.entries(value).some(([key, child]) => SENSITIVE_KEY_RE.test(key) || hasSensitiveKey(child, depth + 1));
+  return Object.entries(value).some(([key, child]) => {
+    // `secrets_included: false` is the mandatory redaction attestation carried by
+    // every governed evidence envelope. Treat only that exact sentinel as safe;
+    // truthy or malformed variants must continue to fail closed.
+    if (key === "secrets_included" && child === false) return false;
+    return SENSITIVE_KEY_RE.test(key) || hasSensitiveKey(child, depth + 1);
+  });
 }
 
 function normalizeExpected(expected = {}) {
