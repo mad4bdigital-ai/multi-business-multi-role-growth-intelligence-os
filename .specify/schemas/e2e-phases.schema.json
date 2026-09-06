@@ -54,7 +54,7 @@
         "source_of_truth": { "const": "http-generic-api/config/deployment-branch-policy.json" },
         "declared_targets": {
           "type": "array",
-          "minItems": 1,
+          "minItems": 0,
           "uniqueItems": true,
           "items": { "enum": ["staging", "production"] }
         },
