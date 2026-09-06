@@ -75,6 +75,18 @@ const STAGING_RUNTIME_READ_ONLY_TABLES = Object.freeze([
   "activation_freshness_policy_registry",
   "activation_signal_subscription_registry",
   "activation_connector_pack_registry",
+  // Operational read surfaces observed by Activation awareness and readiness.
+  // Views remain SELECT-only and are reconciled through the same exact-object
+  // grant plan; no schema-wide authority is introduced.
+  "v_activation_pending_tasks",
+  "v_activation_agent_catalog",
+  "v_activation_agent_skill_grants",
+  "activation_freshness_ledger",
+  "activation_signal_inbox",
+  "readiness_checks",
+  "telemetry_spans",
+  "operational_alerts",
+  "v_platform_evolution_activation_card",
 ]);
 
 const STAGING_RUNTIME_READ_ONLY_MATRIX = Object.freeze(Object.fromEntries(
