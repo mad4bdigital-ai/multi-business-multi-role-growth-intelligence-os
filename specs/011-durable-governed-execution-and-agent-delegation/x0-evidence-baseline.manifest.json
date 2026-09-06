@@ -4,16 +4,23 @@
   "parent_extension": "spec-011-runtime-composition-performance-closure",
   "phase": "X0_evidence_baseline",
   "delivery_slice": "RC0_instrumentation",
-  "status": "in_progress",
+  "status": "candidate_implementation_complete_external_ci_pending",
   "runtime_authority": false,
   "provider_write": false,
   "database_write": false,
   "migration_apply": false,
   "deployment": false,
+  "base_main_sha": "fdb2000bb81b8d0127ba41c52e39fd8940571dd3",
+  "external_exact_head_attestation": "required",
+  "live_staging_certification": "required",
   "artifacts": [
     "x0-evidence-baseline.md",
+    "x0-matched-runtime-fixtures.json",
     "../../http-generic-api/governedExecutionBaselineTelemetry.js",
+    "../../http-generic-api/governedExecutionBaselineRuntime.js",
     "../../http-generic-api/sequentialPlanOrchestrator.js",
+    "../../http-generic-api/connectorExecutor.js",
+    "../../http-generic-api/routes/index.js",
     "../../http-generic-api/test-governed-execution-baseline-telemetry.mjs",
     "../../http-generic-api/test-governed-execution-baseline-benchmark.mjs",
     "../../http-generic-api/test-sequential-plan-orchestrator.mjs",
@@ -37,15 +44,21 @@
     "sequential_compile_identity_ambiguity_fail_closed",
     "sequential_claim_identity_ambiguity_fail_closed",
     "sequential_step_claim_ambiguity_fail_closed",
-    "explicit_custom_provider_telemetry_boundary"
-  ],
-  "pending_contracts": [
+    "explicit_custom_provider_telemetry_boundary",
     "legacy_gpt_tool_entry_instrumentation",
     "legacy_system_tool_entry_instrumentation",
     "connector_plan_entry_instrumentation",
     "agent_loop_entry_instrumentation",
+    "precise_make_mcp_provider_call_count",
+    "precise_agent_model_tool_round_trip_count",
     "matched_runtime_fixture_artifact",
-    "exact_head_ci_evidence"
+    "matched_fixture_functional_hash_parity",
+    "matched_fixture_safety_vector_parity",
+    "matched_fixture_timing_identity_reconciliation"
+  ],
+  "pending_contracts": [
+    "exact_head_ci_evidence",
+    "live_staging_certification"
   ],
   "constraints": [
     "no_runtime_decision_change",
@@ -54,7 +67,10 @@
     "no_arbitrary_error_messages",
     "no_automatic_sql_persistence",
     "collector_failure_never_fails_measured_operation",
-    "no_performance_claim_without_matched_evidence"
+    "no_performance_claim_without_matched_evidence",
+    "unobserved_runtime_counters_must_not_be_fabricated_as_zero",
+    "matched_fixture_provider_calls_are_deterministic_simulator_evidence_only",
+    "candidate_tree_cannot_self_attest_exact_head_or_live_staging"
   ],
   "secrets_included": false
 }
