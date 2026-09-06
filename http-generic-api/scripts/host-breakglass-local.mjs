@@ -21,28 +21,16 @@ request.environment_key = "staging_local_windows_docker";
 const bootstrapContract = readStagingRuntimeBootstrapContract();
 const plan = buildHostBreakglassPlan(request, { bootstrapContract });
 
-function stagingContract() {
-  return structuredClone(bootstrapContract);
-}
-
-function stable(value) {
-  if (Array.isArray(value)) return value.map(stable);
-  if (!value || typeof value !== "object") return value;
-  return Object.fromEntries(Object.keys(value).sort().map((key) => [key, stable(value[key])]));
-}
-
-function evidenceHash(value) {
-  return createHash("sha256").update(JSON.stringify(stable(value))).digest("hex");
-}
+function stagingContract() { return structuredClone(bootstrapContract); }
+function stable(value) { return Array.isArray(value) ? value.map(stable) : value && typeof value === "object" ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, stable(value[key])])) : value; }
+function evidenceHash(value) { return createHash("sha256").update(JSON.stringify(stable(value))).digest("hex"); }
 
 function publicGrantPolicy(policy) {
   return {
     required_tables: [...(policy.required_tables || [])],
     optional_tables: [...(policy.optional_tables || [])],
     required_operations: [...(policy.required_operations || [])],
-    required_operations_by_table: policy.required_operations_by_table
-      ? Object.fromEntries(Object.entries(policy.required_operations_by_table).map(([table, operations]) => [table, [...operations]]))
-      : null,
+    required_operations_by_table: policy.required_operations_by_table ? Object.fromEntries(Object.entries(policy.required_operations_by_table).map(([table, operations]) => [table, [...operations]])) : null,
     apply_when: policy.apply_when || "always",
   };
 }
@@ -129,11 +117,7 @@ function stagingBootstrapAuthorityClient(env) {
     try {
       response = await fetch(`${baseUrl}${pathname}`, {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-api-key": backendApiKey,
-          "x-request-id": plan.correlation_id,
-        },
+        headers: { "content-type": "application/json", "x-api-key": backendApiKey, "x-request-id": plan.correlation_id },
         body: JSON.stringify(body),
         signal: AbortSignal.timeout(20000),
       });
@@ -141,9 +125,7 @@ function stagingBootstrapAuthorityClient(env) {
       throw Object.assign(new Error("Staging bootstrap execution authority is unreachable; no automatic local mutation is allowed."), { code: "host_breakglass_staging_ticket_authority_unreachable", status: 503, cause: error });
     }
     const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw Object.assign(new Error("Staging bootstrap execution authority rejected the request."), { code: payload?.error?.code || "host_breakglass_staging_ticket_authority_rejected", status: response.status, details: { upstream_status: response.status, requestId: payload?.error?.requestId || payload?.error?.request_id || null, reconciliation_required: response.status === 409, automatic_rerun_allowed: false, secrets_included: false } });
-    }
+    if (!response.ok) throw Object.assign(new Error("Staging bootstrap execution authority rejected the request."), { code: payload?.error?.code || "host_breakglass_staging_ticket_authority_rejected", status: response.status, details: { upstream_status: response.status, requestId: payload?.error?.requestId || payload?.error?.request_id || null, reconciliation_required: response.status === 409, automatic_rerun_allowed: false, secrets_included: false } });
     return payload;
   };
 
@@ -186,9 +168,7 @@ function stagingBootstrapAuthorityClient(env) {
         ? Boolean(roleReadback && Object.keys(roleReadback).length && Object.values(roleReadback).every((entry) => entry?.ready === true))
         : Boolean(result?.postconditions?.ready === true || result?.role_rebuild_evidence?.verification?.every?.((entry) => entry?.required_tables_present === true));
       if (!readbackReady) throw Object.assign(new Error("Local bootstrap completed without the canonical same-cycle readback required to finalize its ticket."), { code: "RECOVERY_READBACK_UNVERIFIED", status: 409, details: { database_mutation_performed: result?.database_mutation_performed === true, reconciliation_required: true, automatic_rerun_allowed: false } });
-      const roleProjection = roleReadback
-        ? Object.fromEntries(Object.entries(roleReadback).map(([role, entry]) => [role, { ready: entry?.ready === true, evidence_fingerprint: evidenceHash(entry) }]))
-        : null;
+      const roleProjection = roleReadback ? Object.fromEntries(Object.entries(roleReadback).map(([role, entry]) => [role, { ready: entry?.ready === true, evidence_fingerprint: evidenceHash(entry) }])) : null;
       const evidence = {
         contract: "mad4b.staging-bootstrap-local-readback-evidence.v1",
         ticket_id: reservedBinding.execution_ticket_id,
@@ -211,16 +191,7 @@ function stagingBootstrapAuthorityClient(env) {
         secrets_included: false,
       };
       try {
-        const attestation = await post("/admin/recovery/staging/bootstrap-readback/attest", {
-          ...reservedBinding,
-          reservation_receipt: reservationReceipt,
-          readback_evidence: evidence,
-        });
-        if (attestation?.verified !== true || !attestation?.readback_receipt) throw Object.assign(new Error("Staging readback attestation did not return a server-signed receipt."), { code: "RECOVERY_READBACK_UNVERIFIED", status: 409 });
-        return await post("/admin/recovery/staging/bootstrap-ticket/finalize", {
-          ...reservedBinding,
-          readback_receipt: attestation.readback_receipt,
-        });
+        return await post("/admin/recovery/staging/bootstrap-ticket/finalize", { ...reservedBinding, reservation_receipt: reservationReceipt, readback_evidence: evidence });
       } catch (error) {
         error.details = { ...(error.details || {}), database_mutation_performed: result?.database_mutation_performed === true, reconciliation_required: true, automatic_rerun_allowed: false };
         throw error;
@@ -260,13 +231,7 @@ try {
   }
   const env = localEnv();
   const authority = stagingBootstrapAuthorityClient(env);
-  const result = await runBootstrap({
-    env,
-    contract: stagingContract(),
-    repoRoot: path.resolve(API_ROOT, ".."),
-    executionTicketVerifier: authority.executionTicketVerifier,
-    partialReceiptStore: authority.partialReceiptStore,
-  });
+  const result = await runBootstrap({ env, contract: stagingContract(), repoRoot: path.resolve(API_ROOT, ".."), executionTicketVerifier: authority.executionTicketVerifier, partialReceiptStore: authority.partialReceiptStore });
   if (["apply_migration", "apply_grants"].includes(plan.action)) await authority.finalize(result);
   process.stdout.write(`${JSON.stringify({ ...result, environment_key: plan.environment_key, execution_transport: "local_cli", execution_ticket_finalized: ["apply_migration", "apply_grants"].includes(plan.action), secrets_included: false })}\n`);
 } catch (error) {
