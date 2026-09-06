@@ -12,10 +12,11 @@
       "http-generic-api/config/host-breakglass-staging-contract.json",
       "http-generic-api/databasePrivilegeContracts.js",
       "http-generic-api/hostBreakglassCatalog.js",
-      "http-generic-api/migrations/20260906_execution_policy_surface_authority_reconciliation.sql",
       "http-generic-api/routes/adminHostBreakglassRoutes.js",
       "http-generic-api/scripts/host-breakglass-local.mjs",
       "http-generic-api/stagingRuntimeBootstrapContract.js",
+      "http-generic-api/surfaceAuthorityResolver.js",
+      "http-generic-api/test-execution-policy-surface-compatibility.mjs",
       "http-generic-api/test-staging-database-readiness-repair.mjs",
       "http-generic-api/test-host-breakglass-catalog.mjs"
     ]
@@ -37,7 +38,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Give GPT Admin a repository-owned Staging-only remediation contract for access repair, action-schema drift and execution-policy surface authority while preserving exact-SHA handoff, server-issued execution-ticket authority and same-cycle readback before any mutation.",
+      "objective": "Give GPT Admin a repository-owned Staging-only remediation contract for access repair, action-schema drift and execution-policy surface compatibility while preserving exact-SHA handoff, server-issued execution-ticket authority and same-cycle readback before any mutation.",
       "e2e_journeys": [
         {
           "id": "gpt-admin-staging-access-repair",
@@ -92,25 +93,34 @@
           "level": "synthetic_runtime",
           "actor": "GPT Admin",
           "entrypoint": "hostBreakglassCatalog.database.schema_repair",
-          "terminal_outcome": "Staging-only schema repair can select exact repository-owned migrations for the proven action metadata drift and missing canonical execution-policy authority surface, with pinned checksums and same-cycle postconditions, without granting Production execution authority.",
+          "terminal_outcome": "Staging-only schema repair can select the exact repository-owned actions metadata migration, while execution-policy authority resolves through an explicit SQL-backed legacy alias only when the canonical key is absent, without widening Production authority or changing the canonical baseline migration chain.",
           "steps": [
             "Load the Staging remediation overlay instead of widening the shared Production bootstrap catalog.",
-            "Verify each remediation migration exists at the exact repository path and matches its pinned SHA-256 and statement count.",
+            "Verify the actions metadata remediation migration exists at the exact repository path and matches its pinned SHA-256 and statement count.",
             "Catalog the additive actions metadata reconciliation migration.",
-            "Catalog the idempotent execution-policy surface authority reconciliation migration.",
-            "Expose the Staging migration catalog through the authenticated Admin Host Breakglass surface.",
+            "Resolve surface.execution_policy_registry_sheet canonically first.",
+            "When and only when that canonical SQL row is absent, consult the repository-declared legacy SQL authority row surface.execution_policy_sheet.",
+            "Fail closed for unknown aliases or a missing legacy authority row.",
             "Require exact-SHA typed approval and execution-ticket verification before apply_migration.",
-            "Verify declared postconditions in the same cycle."
+            "Verify declared schema postconditions in the same cycle."
           ],
           "assertions": [
             "The actions repair adds allowed_actor_roles, allowed_governance_levels, oauth_secret_storage_type and oauth_last_validated_at only when absent.",
-            "The canonical surface key is surface.execution_policy_registry_sheet and remains SQL runtime authority backed by governance_validation_engine.execution_policies.",
-            "The legacy surface row is not deleted by the remediation migration.",
-            "The Staging overlay does not add these remediation migrations to the shared Production bootstrap contract.",
+            "Execution-policy compatibility remains backed by registry_surfaces_catalog rather than an in-memory authority override.",
+            "A present canonical surface.execution_policy_registry_sheet row always wins over the legacy alias.",
+            "Only the explicitly declared surface.execution_policy_sheet compatibility alias is accepted; unknown aliases remain fail-closed.",
+            "No new repair migration is injected into the canonical schema-bundle chain for the surface-key rename.",
             "External Phase B evidence cannot be fabricated by this remediation path.",
             "No Production, provider, Hostinger or Cloudflare mutation is authorized."
           ],
           "tests": [
+            {
+              "id": "execution-policy-surface-compatibility",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-execution-policy-surface-compatibility.mjs",
+              "args": []
+            },
             {
               "id": "host-breakglass-catalog",
               "runner": "node",
@@ -129,9 +139,10 @@
           "evidence_paths": [
             "http-generic-api/config/host-breakglass-staging-contract.json",
             "http-generic-api/migrations/20260902_staging_actions_runtime_contract_reconciliation.sql",
-            "http-generic-api/migrations/20260906_execution_policy_surface_authority_reconciliation.sql",
             "http-generic-api/routes/adminHostBreakglassRoutes.js",
-            "http-generic-api/stagingRuntimeBootstrapContract.js"
+            "http-generic-api/stagingRuntimeBootstrapContract.js",
+            "http-generic-api/surfaceAuthorityResolver.js",
+            "http-generic-api/test-execution-policy-surface-compatibility.mjs"
           ]
         }
       ]
