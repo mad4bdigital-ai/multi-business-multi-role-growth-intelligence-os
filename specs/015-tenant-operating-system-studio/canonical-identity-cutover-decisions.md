@@ -3,19 +3,19 @@
 ## Status
 
 ```text
-T006 = decision-ready, pending owner approval
+T006 = owner approved
 cutover executed = false
 runtime mutation = false
 migration = false
 ```
+
+Owner approval was recorded on `2026-09-06` for all seven semantic dispositions in this register. The approval resolves the identity/semantic decision task only; it does not authorize runtime cutover, physical rename, migration, provider effects, permission changes, deployment, or Production activation.
 
 Machine-readable companion:
 
 ```text
 canonical-identity-cutover-decisions.json
 ```
-
-This register converts the duplicate/legacy identity problem into explicit decisions without pretending that review or runtime cutover has happened.
 
 ## 1. Numeric Spec numbers stop being authority identities
 
@@ -29,7 +29,7 @@ Numeric values such as `011` and `014` remain historical labels only.
 
 ### 011 family
 
-The target roles are distinct:
+The approved roles are distinct:
 
 ```text
 011-durable-governed-execution-and-agent-delegation
@@ -73,27 +73,9 @@ http-generic-api/systemToolCatalogV2.js
 
 The Runtime Composition Integration Kit records PR #3260 as the merged baseline.
 
-Therefore historical Drafts in the `013-system-tool-catalog-v2` cluster are reconstruction/history evidence, not independent authorities to merge blindly.
+Historical Drafts in the `013-system-tool-catalog-v2` cluster are reconstruction/history evidence, not independent authorities to merge blindly.
 
-The Catalog owns:
-
-```text
-discovery
-principal-visible descriptors
-exact lookup
-bounded intent discovery
-client/tool projection
-```
-
-It does **not** own:
-
-```text
-permission
-resource authority
-provider credentials
-execution authority
-readback authority
-```
+The Catalog owns discovery, principal-visible descriptors, exact lookup, bounded intent discovery, and client/tool projection. It does **not** own permission, resource authority, provider credentials, execution authority, or readback authority.
 
 ## 3. The `actions` table is not canonical Business Action
 
@@ -111,16 +93,7 @@ platform_endpoint_tool_exports
   = curated tool exposure
 ```
 
-Examples of legacy `actions.action_key` values include provider/runtime families such as GitHub, Google Drive, WordPress, Hostinger, MCP and native controllers.
-
-That is technically useful, but the word `Action` conflicts with the product semantic we need for Growth Intelligence:
-
-```text
-Action
-  = business-level proposed or approved work item
-```
-
-The proposed canonical terminology is therefore:
+Canonical terminology is approved as:
 
 ```text
 Business Action
@@ -141,28 +114,11 @@ Tool
 
 ### Migration posture
 
-Do **not** rename the SQL table in this PR.
-
-Keep:
-
-```text
-actions.action_key
-endpoints.parent_action_key
-```
-
-as compatibility identifiers until callers, generated artifacts, policies, connectors and external contracts are inventoried.
-
-The first cutover is **semantic**, not physical.
+Do **not** rename the SQL table in this PR. Keep `actions.action_key` and `endpoints.parent_action_key` as compatibility identifiers until callers, generated artifacts, policies, connectors and external contracts are inventoried. The first cutover is semantic, not physical.
 
 ## 4. Capability authority is in transition, not magically complete
 
-Older Spec 006 evidence stated:
-
-```text
-Do not create canonical_capabilities while platform_semantic_capabilities remains authoritative.
-```
-
-Current main has since added:
+Current main contains:
 
 ```text
 canonical_capabilities
@@ -170,15 +126,9 @@ capability_aliases
 capabilityRegistryRepository.js
 ```
 
-But the migration that introduced them also says existing action/tool registries remain runtime authority until later phases route through the canonical domain.
-
-Therefore the truthful disposition is:
+The approved disposition is:
 
 > `canonical_capabilities` is the target canonical semantic identity domain, but existence of the table does not prove universal runtime-enforcement cutover.
-
-We must not revive `platform_semantic_capabilities` as another permanent authority, and we also must not claim the migration already replaced every legacy resolver.
-
-### Required capability cutover gate
 
 Before declaring canonical capability resolution globally authoritative:
 
@@ -188,7 +138,7 @@ Before declaring canonical capability resolution globally authoritative:
 4. legacy rollback remains available during staged rollout;
 5. usage evidence proves the old resolver can be retired.
 
-This aligns directly with Runtime Composition X1/X2 rather than creating another migration-only authority claim.
+This aligns with Runtime Composition X1/X2 and does not authorize a migration-only authority claim.
 
 ## 5. Package authority disposition
 
@@ -203,19 +153,7 @@ platform_package_variants
 platform_variant_merge_runs
 ```
 
-So the default Phase 1 decision is:
-
-```text
-reuse or bounded extension
-```
-
-not:
-
-```text
-create a complete parallel solution_package_* model
-```
-
-A new persistence object is justified only where the current-main field-level matrix proves a semantic gap and T008 approves that gap.
+The approved Phase 1 posture is `reuse or bounded extension`, not creation of a complete parallel `solution_package_*` model. New persistence still requires a proven semantic gap and bounded schema review; T006 approval does not approve a concrete migration.
 
 ## 6. External protocol disposition
 
@@ -234,11 +172,9 @@ External client
 
 The existing split MCP routes are compatibility surfaces until Spec 016/017 conformance gates are met.
 
-## 7. Why T006 remains open
+## 7. T006 closure boundary
 
-This register provides the **decision candidate**. It does not provide owner approval.
-
-T006 stays unchecked until the owner review confirms:
+T006 is now complete as an **owner decision task**. The approval confirms:
 
 - the 011/014 semantic roles;
 - current-main System Tool Catalog baseline as canonical target;
@@ -247,4 +183,16 @@ T006 stays unchecked until the owner review confirms:
 - package reuse/extension posture;
 - external protocol non-authority boundary.
 
-Only after that approval should bounded implementation PRs update aliases, generated contracts, diagnostics or runtime routing.
+The following remain explicitly unexecuted:
+
+```text
+physical table rename
+capability runtime cutover
+migration apply
+provider write
+permission mutation
+deployment
+Production activation
+```
+
+Any implementation of the approved dispositions must occur in separate bounded PRs with exact-head evidence and the declared cutover/readback gates.
