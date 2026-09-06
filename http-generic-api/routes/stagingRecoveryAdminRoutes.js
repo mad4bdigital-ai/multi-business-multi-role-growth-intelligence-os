@@ -9,6 +9,7 @@ import { resolveRuntimeEnvironment } from "../runtimeEnvironmentResolver.js";
 import { resolveActivationGatewayHostProfile } from "../activationGatewayHostProfile.js";
 import { resolveTrustedRequestHost } from "../trustedRequestHost.js";
 import { evaluateExternalStagingEvidence } from "../recoveryReadinessEvidence.js";
+import { createStagingBootstrapExecutionAuthority } from "../stagingBootstrapExecutionAuthority.js";
 
 export const STAGING_RECOVERY_ADMIN_SURFACE_CONTRACT = "mad4b.staging-recovery-admin-surface.v1";
 export const STAGING_RECOVERY_ADMIN_SERVER_URI = "https://activation-dev.mad4b.com";
@@ -19,7 +20,23 @@ const STAGING_RECOVERY_PATHS = Object.freeze([
   "/admin/recovery/staging/contract",
   "/admin/recovery/staging/readiness",
   "/admin/recovery/staging/certification",
+  "/admin/recovery/staging/bootstrap-ticket/verify",
+  "/admin/recovery/staging/bootstrap-ticket/finalize",
+  "/admin/recovery/staging/bootstrap-partial-receipt",
 ]);
+const BOOTSTRAP_BINDING_KEYS = Object.freeze([
+  "execution_ticket_id",
+  "execution_ticket_hash",
+  "expected_sha",
+  "target_key",
+  "target_fingerprint",
+  "operation",
+  "plan_hash",
+  "idempotency_key",
+  "role_selection_hash",
+  "grant_binding_hash",
+]);
+const SENSITIVE_KEY_RE = /(password|secret|credential|authorization|private[_-]?key|connection[_-]?string|database[_-]?name|db[_-]?(?:user|password)|hostname|username)/iu;
 
 function isObject(value) {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
@@ -70,6 +87,33 @@ function publicAttestation(attestation) {
   };
 }
 
+function exactBootstrapBinding(input = {}) {
+  if (!isObject(input)) throw Object.assign(new Error("Staging bootstrap ticket request must be an object."), { code: "RECOVERY_STAGING_BOOTSTRAP_REQUEST_INVALID", status: 400 });
+  const unexpected = Object.keys(input).filter((key) => !BOOTSTRAP_BINDING_KEYS.includes(key));
+  if (unexpected.length) throw Object.assign(new Error("Staging bootstrap ticket request contains fields outside the fixed contract."), { code: "RECOVERY_STAGING_BOOTSTRAP_FIELD_FORBIDDEN", status: 400 });
+  return {
+    ticket_id: input.execution_ticket_id,
+    ticket_hash: input.execution_ticket_hash,
+    expected: {
+      production_sha: input.expected_sha,
+      target_key: input.target_key,
+      target_fingerprint: input.target_fingerprint,
+      operation: input.operation,
+      plan_hash: input.plan_hash,
+      idempotency_key: input.idempotency_key,
+      role_selection_hash: input.role_selection_hash || null,
+      grant_binding_hash: input.grant_binding_hash || null,
+    },
+  };
+}
+
+function hasSensitiveReceiptKey(value, depth = 0) {
+  if (depth > 8 || value == null) return false;
+  if (Array.isArray(value)) return value.some((item) => hasSensitiveReceiptKey(item, depth + 1));
+  if (!isObject(value)) return false;
+  return Object.entries(value).some(([key, child]) => SENSITIVE_KEY_RE.test(key) || hasSensitiveReceiptKey(child, depth + 1));
+}
+
 export function buildStagingRecoveryAdminContract() {
   return {
     contract: STAGING_RECOVERY_ADMIN_SURFACE_CONTRACT,
@@ -85,9 +129,12 @@ export function buildStagingRecoveryAdminContract() {
       local_connector_production_authority: false,
     },
     operation_policy: {
-      advertised_methods: ["GET"],
-      readiness_only: true,
-      consequential_staging_execution: "separate_certification_workflow_required",
+      advertised_methods: ["GET", "POST"],
+      readiness_only: false,
+      consequential_staging_execution: "local_cli_requires_server_ticket_reservation_and_same_cycle_readback",
+      target_database_mutation_on_this_surface: false,
+      bootstrap_ticket_reservation: "server_managed_single_use",
+      partial_receipt_persistence: "server_managed_durable",
       production_live_enabled: false,
       production_target_allowed: false,
       mutation_allowed: false,
@@ -214,6 +261,7 @@ export function buildStagingRecoveryAdminRoutes({
   targetFingerprintReader = null,
   recoveryReadinessEvidenceReader = null,
   trustedHostResolver = resolveTrustedRequestHost,
+  stagingBootstrapExecutionAuthorityFactory = createStagingBootstrapExecutionAuthority,
 } = {}) {
   const router = Router({ caseSensitive: true, strict: true });
   const hostProfile = resolveActivationGatewayHostProfile(env);
@@ -296,6 +344,51 @@ export function buildStagingRecoveryAdminRoutes({
     }
   });
 
+  router.post("/admin/recovery/staging/bootstrap-ticket/verify", ...guards, async (req, res) => {
+    try {
+      const authority = stagingBootstrapExecutionAuthorityFactory({ env });
+      const result = await authority.verifyForBootstrap(exactBootstrapBinding(req.body || {}));
+      return res.status(result.valid === true ? 200 : 409).json({ ok: result.valid === true, ...result, environment: "staging", production_authority: false, database_mutation_performed: false, secrets_included: false });
+    } catch (error) {
+      return errorResponse(res, req, Number(error?.status || 503), error?.code || "RECOVERY_STAGING_BOOTSTRAP_TICKET_VERIFY_FAILED", "Staging bootstrap execution-ticket verification failed closed; no database operation was attempted.");
+    }
+  });
+
+  router.post("/admin/recovery/staging/bootstrap-ticket/finalize", ...guards, async (req, res) => {
+    try {
+      const input = isObject(req.body) ? { ...req.body } : {};
+      const readback = {
+        verified: input.readback_ready === true,
+        same_cycle: input.same_cycle === true,
+        database_mutation_performed: input.database_mutation_performed === true,
+        evidence_hash: input.readback_evidence_hash,
+      };
+      delete input.readback_ready;
+      delete input.same_cycle;
+      delete input.database_mutation_performed;
+      delete input.readback_evidence_hash;
+      const authority = stagingBootstrapExecutionAuthorityFactory({ env });
+      const result = await authority.finalizeForBootstrap({ ...exactBootstrapBinding(input), readback });
+      return res.status(200).json({ ok: result.finalized === true, ...result, environment: "staging", production_authority: false, secrets_included: false });
+    } catch (error) {
+      return errorResponse(res, req, Number(error?.status || 503), error?.code || "RECOVERY_STAGING_BOOTSTRAP_TICKET_FINALIZE_FAILED", "Staging bootstrap ticket finalization failed closed; reconciliation is required.");
+    }
+  });
+
+  router.post("/admin/recovery/staging/bootstrap-partial-receipt", ...guards, async (req, res) => {
+    try {
+      const receipt = req.body?.receipt;
+      if (!isObject(receipt) || hasSensitiveReceiptKey(receipt)) {
+        return errorResponse(res, req, 400, "RECOVERY_STAGING_PARTIAL_RECEIPT_INVALID", "Partial mutation evidence is invalid or contains forbidden sensitive fields.");
+      }
+      const authority = stagingBootstrapExecutionAuthorityFactory({ env });
+      const result = await authority.partialReceiptStore.putImmutablePartialRebuildReceipt(receipt);
+      return res.status(202).json({ ok: true, persisted: result?.persisted === true, durable: result?.durable === true, evidence_hash: result?.evidence_hash || null, environment: "staging", production_authority: false, database_mutation_performed: false, secrets_included: false });
+    } catch (error) {
+      return errorResponse(res, req, Number(error?.status || 503), error?.code || "RECOVERY_STAGING_PARTIAL_RECEIPT_FAILED", "Partial mutation evidence could not be persisted; automatic replay remains forbidden.");
+    }
+  });
+
   return router;
 }
 
@@ -303,6 +396,9 @@ export const _testingStagingRecoveryAdminRoutes = Object.freeze({
   STAGING_ENVIRONMENT_KEYS,
   STAGING_RECOVERY_PATHS,
   STAGING_RECOVERY_ADMIN_HOST,
+  BOOTSTRAP_BINDING_KEYS,
   isStagingEnvironment,
   publicAttestation,
+  exactBootstrapBinding,
+  hasSensitiveReceiptKey,
 });
