@@ -29,6 +29,7 @@ const STAGING_RECOVERY_INTERNAL_EXECUTION_PATHS = Object.freeze([
 ]);
 const STAGING_RECOVERY_PATHS = Object.freeze([...STAGING_RECOVERY_ADVERTISED_PATHS, ...STAGING_RECOVERY_INTERNAL_EXECUTION_PATHS]);
 const BOOTSTRAP_BINDING_KEYS = Object.freeze(["execution_ticket_id", "execution_ticket_hash", "expected_sha", "target_key", "target_fingerprint", "operation", "plan_hash", "idempotency_key", "role_selection_hash", "grant_binding_hash"]);
+const BOOTSTRAP_EXECUTION_START_KEYS = Object.freeze(["authority_action", ...BOOTSTRAP_BINDING_KEYS, "reservation_receipt"]);
 const ACCESS_REPAIR_PREPARE_KEYS = Object.freeze(["authority_action", "expected_sha", "target_key", "target_fingerprint", "grant_binding_hash", "idempotency_key"]);
 const ACCESS_REPAIR_APPROVE_KEYS = Object.freeze(["authority_action", "plan_id", "plan_hash", "step_id", "idempotency_key", "approval_confirmation"]);
 const SENSITIVE_KEY_RE = /(password|secret|credential|authorization|private[_-]?key|connection[_-]?string|database[_-]?name|db[_-]?(?:user|password)|hostname|username|raw[_-]?sql|command)/iu;
@@ -62,6 +63,16 @@ function exactBootstrapBinding(input = {}) {
   exactKeys(input, BOOTSTRAP_BINDING_KEYS, "Staging bootstrap ticket request must be an object.");
   return { ticket_id: input.execution_ticket_id, ticket_hash: input.execution_ticket_hash, expected: { production_sha: input.expected_sha, target_key: input.target_key, target_fingerprint: input.target_fingerprint, operation: input.operation, plan_hash: input.plan_hash, idempotency_key: input.idempotency_key, role_selection_hash: input.role_selection_hash || null, grant_binding_hash: input.grant_binding_hash || null } };
 }
+function exactBootstrapExecutionStart(input = {}) {
+  exactKeys(input, BOOTSTRAP_EXECUTION_START_KEYS, "Staging bootstrap execution-start request must be an object.");
+  if (input.authority_action !== "mark_executing") throw Object.assign(new Error("Unknown Staging ticket authority action."), { code: "RECOVERY_STAGING_BOOTSTRAP_ACTION_INVALID", status: 400 });
+  if (!isObject(input.reservation_receipt) || hasSensitiveReceiptKey(input.reservation_receipt)) throw Object.assign(new Error("A valid server-signed reservation receipt is required before execution can start."), { code: "RECOVERY_STAGING_BOOTSTRAP_FIELD_FORBIDDEN", status: 400 });
+  const body = { ...input };
+  const reservationReceipt = body.reservation_receipt;
+  delete body.authority_action;
+  delete body.reservation_receipt;
+  return { ...exactBootstrapBinding(body), reservation_receipt: reservationReceipt };
+}
 function exactAccessRepairPrepare(input = {}) {
   exactKeys(input, ACCESS_REPAIR_PREPARE_KEYS, "Staging access-repair preparation request must be an object.");
   if (input.authority_action !== "prepare_access_repair") throw Object.assign(new Error("Unknown Staging ticket authority action."), { code: "RECOVERY_STAGING_BOOTSTRAP_ACTION_INVALID", status: 400 });
@@ -83,13 +94,13 @@ export function buildStagingRecoveryAdminContract() {
     production_authority: false,
     authorization: { scope: "private_admin", server_managed: true, caller_credentials_accepted: false, gpt_credentials_accepted: false, local_connector_production_authority: false },
     operation_policy: {
-      advertised_methods: ["GET"], readiness_only: true, internal_execution_authority_methods: ["POST"], consequential_staging_execution: "local_cli_requires_server_ticket_reservation_and_same_cycle_readback", target_database_mutation_on_this_surface: false,
-      bootstrap_ticket_authority_modes: ["verify_existing_ticket", "prepare_access_repair", "approve_access_repair"], approval_to_ticket_flow: "fixed_staging_database_access_repair_plan_challenge_typed_approval_server_issued_ticket", caller_selected_operation_on_issuance: false,
-      bootstrap_ticket_reservation: "server_managed_single_use_signed_receipt", bootstrap_readback_attestation: "server_verified_and_signed_inside_finalization_transaction", bootstrap_finalization: "signed_readback_receipt_required", caller_readback_booleans_or_hashes_authoritative: false,
+      advertised_methods: ["GET"], readiness_only: true, internal_execution_authority_methods: ["POST"], consequential_staging_execution: "local_cli_requires_server_ticket_reservation_execution_start_and_same_cycle_readback", target_database_mutation_on_this_surface: false,
+      bootstrap_ticket_authority_modes: ["verify_existing_ticket", "mark_executing", "prepare_access_repair", "approve_access_repair"], approval_to_ticket_flow: "fixed_staging_database_access_repair_plan_challenge_typed_approval_server_issued_ticket", caller_selected_operation_on_issuance: false,
+      bootstrap_ticket_reservation: "server_managed_single_use_signed_receipt", bootstrap_execution_start: "server_signed_receipt_required_before_local_mutation", bootstrap_readback_attestation: "server_verified_and_signed_inside_finalization_transaction_after_execution_start", bootstrap_finalization: "signed_readback_receipt_required", caller_readback_booleans_or_hashes_authoritative: false,
       partial_receipt_persistence: "server_managed_durable", automatic_replay_after_unknown_outcome: false, production_live_enabled: false, production_target_allowed: false, mutation_allowed: false, raw_sql_allowed: false, caller_target_selection: false,
     },
     paths: [...STAGING_RECOVERY_ADVERTISED_PATHS], internal_execution_authority_paths: [...STAGING_RECOVERY_INTERNAL_EXECUTION_PATHS], certification_contract: RECOVERY_STAGING_CERTIFICATION_CONTRACT,
-    required_evidence: ["server_derived_deployment_attestation", "complete_staging_authority_graph", "exact_target_fingerprint", "durable_certification_record", "plan_bound_access_repair_approval", "server_issued_access_repair_ticket", "signed_ticket_reservation_receipt", "signed_same_cycle_readback_receipt", "unknown_outcome_reconciliation_evidence"],
+    required_evidence: ["server_derived_deployment_attestation", "complete_staging_authority_graph", "exact_target_fingerprint", "durable_certification_record", "plan_bound_access_repair_approval", "server_issued_access_repair_ticket", "signed_ticket_reservation_receipt", "signed_execution_start_receipt", "signed_same_cycle_readback_receipt", "unknown_outcome_reconciliation_evidence"],
     forbidden_fallbacks: ["production_authority", "local_connector", "in_memory", "mock_adapter", "caller_generated_ticket", "caller_selected_sql", "caller_selected_command", "caller_asserted_readback", "automatic_replay"],
     database_mutation_performed: false, provider_accessed: false, provider_mutation_performed: false, secrets_included: false,
   };
@@ -149,6 +160,7 @@ export function buildStagingRecoveryAdminRoutes({ env = process.env, requireBack
       const authorityAction = String(req.body?.authority_action || "verify_existing_ticket").trim();
       if (authorityAction === "prepare_access_repair") { const authority = stagingAccessRepairTicketAuthorityFactory({ env }); const result = await authority.prepare(exactAccessRepairPrepare(req.body || {})); return res.status(201).json({ ...result, environment: "staging", production_authority: false, secrets_included: false }); }
       if (authorityAction === "approve_access_repair") { const authority = stagingAccessRepairTicketAuthorityFactory({ env }); const result = await authority.approveAndIssue(exactAccessRepairApprove(req.body || {})); return res.status(201).json({ ...result, environment: "staging", production_authority: false, secrets_included: false }); }
+      if (authorityAction === "mark_executing") { const authority = stagingBootstrapExecutionAuthorityFactory({ env }); const result = await authority.markExecutingForBootstrap(exactBootstrapExecutionStart(req.body || {})); return res.status(result.executing === true ? 200 : 409).json({ ok: result.executing === true, ...result, environment: "staging", production_authority: false, database_mutation_performed: false, secrets_included: false }); }
       if (authorityAction !== "verify_existing_ticket") return errorResponse(res, req, 400, "RECOVERY_STAGING_BOOTSTRAP_ACTION_INVALID", "Unknown Staging ticket authority action.");
       const body = { ...(req.body || {}) }; delete body.authority_action;
       const authority = stagingBootstrapExecutionAuthorityFactory({ env });
@@ -162,10 +174,10 @@ export function buildStagingRecoveryAdminRoutes({ env = process.env, requireBack
       const input = isObject(req.body) ? { ...req.body } : {};
       const legacy = legacyReadbackAssertions(input);
       if (legacy.length) return errorResponse(res, req, 409, "RECOVERY_READBACK_UNVERIFIED", "Caller readback booleans or hashes cannot finalize a reserved ticket.");
-      let readbackReceipt = input.readback_receipt; const reservationReceipt = input.reservation_receipt; const readbackEvidence = input.readback_evidence;
-      delete input.readback_receipt; delete input.reservation_receipt; delete input.readback_evidence;
+      let readbackReceipt = input.readback_receipt; const reservationReceipt = input.reservation_receipt; const executionReceipt = input.execution_receipt; const readbackEvidence = input.readback_evidence;
+      delete input.readback_receipt; delete input.reservation_receipt; delete input.execution_receipt; delete input.readback_evidence;
       const binding = exactBootstrapBinding(input); const authority = stagingBootstrapExecutionAuthorityFactory({ env });
-      if (!readbackReceipt) { if (!isObject(reservationReceipt) || !isObject(readbackEvidence) || hasSensitiveReceiptKey(reservationReceipt) || hasSensitiveReceiptKey(readbackEvidence)) return errorResponse(res, req, 409, "RECOVERY_READBACK_UNVERIFIED", "Finalization requires the signed reservation receipt plus canonical, non-sensitive same-cycle readback evidence."); const attested = await authority.attestReadbackForBootstrap({ ...binding, reservation_receipt: reservationReceipt, evidence: readbackEvidence }); if (attested?.verified !== true || !isObject(attested.readback_receipt)) return errorResponse(res, req, 409, "RECOVERY_READBACK_UNVERIFIED", "Server readback attestation failed closed."); readbackReceipt = attested.readback_receipt; }
+      if (!readbackReceipt) { if (!isObject(reservationReceipt) || !isObject(executionReceipt) || !isObject(readbackEvidence) || hasSensitiveReceiptKey(reservationReceipt) || hasSensitiveReceiptKey(executionReceipt) || hasSensitiveReceiptKey(readbackEvidence)) return errorResponse(res, req, 409, "RECOVERY_READBACK_UNVERIFIED", "Finalization requires signed reservation and execution-start receipts plus canonical, non-sensitive same-cycle readback evidence."); const attested = await authority.attestReadbackForBootstrap({ ...binding, reservation_receipt: reservationReceipt, execution_receipt: executionReceipt, evidence: readbackEvidence }); if (attested?.verified !== true || !isObject(attested.readback_receipt)) return errorResponse(res, req, 409, "RECOVERY_READBACK_UNVERIFIED", "Server readback attestation failed closed."); readbackReceipt = attested.readback_receipt; }
       if (!isObject(readbackReceipt) || hasSensitiveReceiptKey(readbackReceipt)) return errorResponse(res, req, 409, "RECOVERY_READBACK_UNVERIFIED", "A valid server-signed readback receipt is required before finalization.");
       const result = await authority.finalizeForBootstrap({ ...binding, readback_receipt: readbackReceipt });
       return res.status(200).json({ ok: result.finalized === true, ...result, environment: "staging", production_authority: false, secrets_included: false });
@@ -179,4 +191,4 @@ export function buildStagingRecoveryAdminRoutes({ env = process.env, requireBack
   return router;
 }
 
-export const _testingStagingRecoveryAdminRoutes = Object.freeze({ STAGING_ENVIRONMENT_KEYS, STAGING_RECOVERY_PATHS, STAGING_RECOVERY_ADVERTISED_PATHS, STAGING_RECOVERY_INTERNAL_EXECUTION_PATHS, STAGING_RECOVERY_ADMIN_HOST, BOOTSTRAP_BINDING_KEYS, ACCESS_REPAIR_PREPARE_KEYS, ACCESS_REPAIR_APPROVE_KEYS, LEGACY_READBACK_ASSERTION_KEYS, isStagingEnvironment, publicAttestation, exactBootstrapBinding, exactAccessRepairPrepare, exactAccessRepairApprove, hasSensitiveReceiptKey, legacyReadbackAssertions });
+export const _testingStagingRecoveryAdminRoutes = Object.freeze({ STAGING_ENVIRONMENT_KEYS, STAGING_RECOVERY_PATHS, STAGING_RECOVERY_ADVERTISED_PATHS, STAGING_RECOVERY_INTERNAL_EXECUTION_PATHS, STAGING_RECOVERY_ADMIN_HOST, BOOTSTRAP_BINDING_KEYS, BOOTSTRAP_EXECUTION_START_KEYS, ACCESS_REPAIR_PREPARE_KEYS, ACCESS_REPAIR_APPROVE_KEYS, LEGACY_READBACK_ASSERTION_KEYS, isStagingEnvironment, publicAttestation, exactBootstrapBinding, exactBootstrapExecutionStart, exactAccessRepairPrepare, exactAccessRepairApprove, hasSensitiveReceiptKey, legacyReadbackAssertions });
