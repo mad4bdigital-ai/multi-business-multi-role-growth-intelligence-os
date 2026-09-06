@@ -39,6 +39,9 @@ $script:DeploymentLeasePath = $null
 $script:PhaseState = $null
 $script:CurrentSha = ""
 $script:CurrentEligibility = $null
+$script:ProviderMutationPerformed = $false
+$script:ProviderMutationInitiated = $false
+$script:ProviderMutationScope = "none"
 Write-StagingOperationBoundary -Component $LogComponent -Stage "process" -Outcome "start" -Message "auto-deploy process started" -Data @{ watch = [bool]$Watch; ref = $Ref; poll_seconds = $PollSeconds }
 
 function Acquire-AutoPilotRunLock {
@@ -161,8 +164,21 @@ function New-PhaseState([string]$EligibilityStatus) {
     }
 }
 
+function Update-TunnelPhasesFromHealthSnapshot([object]$Phases) {
+    $snapshotPath = Join-Path (Get-StagingLogRoot) "health-snapshot.json"
+    $snapshot = Read-State $snapshotPath
+    if ($null -eq $snapshot) { return }
+    if ($null -ne $snapshot.staging_tunnel -and -not [string]::IsNullOrWhiteSpace([string]$snapshot.staging_tunnel.status)) {
+        $Phases.staging_tunnel = [string]$snapshot.staging_tunnel.status
+    }
+    if ($null -ne $snapshot.local_connector_tunnel -and -not [string]::IsNullOrWhiteSpace([string]$snapshot.local_connector_tunnel.status)) {
+        $Phases.local_connector_tunnel = [string]$snapshot.local_connector_tunnel.status
+    }
+}
+
 function Write-AutoDeployState([string]$Sha, $Eligibility, $Runtime, [bool]$ValidatedOnly, [object]$Phases = $null, [string]$Overall = "running", [hashtable]$Failure = @{}) {
     if ($null -eq $Phases) { $Phases = New-PhaseState $(if ($Eligibility.state -eq "eligible") { "passed" } else { [string]$Eligibility.state }) }
+    Update-TunnelPhasesFromHealthSnapshot $Phases
     $state = [ordered]@{
         contract = "mad4b.staging-auto-deploy-state.v2"
         desired_commit = $Sha
@@ -177,7 +193,10 @@ function Write-AutoDeployState([string]$Sha, $Eligibility, $Runtime, [bool]$Vali
         production_deploy = $false
         database_mutated = $false
         migration_applied = $false
-        provider_mutation = $false
+        provider_mutation = [bool]$script:ProviderMutationPerformed
+        provider_mutation_initiated = [bool]$script:ProviderMutationInitiated
+        provider_mutation_scope = [string]$script:ProviderMutationScope
+        provider_mutation_delegated = [bool]$script:ProviderMutationPerformed
         provider_mutation_authorized = $false
         ruleset_mutation = $false
         secrets_included = $false
@@ -331,6 +350,9 @@ function Invoke-GatewayConvergence([string]$Sha, $Recovery) {
     if ($report.production_mutation -ne $false -or $report.production_deploy -ne $false -or $report.cloudflare_dns_mutation -ne $false -or $report.database_mutation -ne $false -or $report.migration_apply -ne $false) {
         Fail "Activation Gateway convergence crossed a forbidden boundary" @{ stage = "convergence"; failure_class = "gateway_convergence_safety_violation"; expected_commit = $Sha }
     }
+    $script:ProviderMutationPerformed = [bool]$report.provider_mutation
+    $script:ProviderMutationInitiated = [bool]$report.provider_mutation_initiated
+    $script:ProviderMutationScope = if ([string]::IsNullOrWhiteSpace([string]$report.provider_mutation_scope)) { "none" } else { [string]$report.provider_mutation_scope }
     if ($report.origin_trust_updated -eq $true) { Refresh-AppAfterOriginTrustChange $Sha }
     return $report
 }
@@ -509,7 +531,7 @@ while ($true) {
             $phaseState.certification = [string]$runtimeState.certification_status
             Write-AutoDeployState $sha $eligibility $runtimeState $false $phaseState $(if ($runtimeState.certification_status -eq "ready") { "ready" } else { "degraded" })
             Write-Host "AUTO_DEPLOY_APPLIED: staging commit=$sha tunnel_mode=$TunnelMode certification=$($runtimeState.certification_status) phases=eligibility:$($phaseState.eligibility),build:$($phaseState.build),deployment:$($phaseState.deployment),service_health:$($phaseState.service_health),convergence:$($phaseState.convergence),certification:$($phaseState.certification)"
-            Write-StagingOperationBoundary -Component $LogComponent -Stage "deploy" -Outcome "success" -Message "eligible Staging commit applied" -Data @{ sha = $sha; tunnel_started = [bool]$TunnelSelected; tunnel_mode = $TunnelMode; provider_mutation_authorized = $false; certification_status = $runtimeState.certification_status; deployment = $phaseState.deployment; convergence = $phaseState.convergence }
+            Write-StagingOperationBoundary -Component $LogComponent -Stage "deploy" -Outcome "success" -Message "eligible Staging commit applied" -Data @{ sha = $sha; tunnel_started = [bool]$TunnelSelected; tunnel_mode = $TunnelMode; provider_mutation_authorized = $false; provider_mutation = [bool]$script:ProviderMutationPerformed; provider_mutation_scope = [string]$script:ProviderMutationScope; certification_status = $runtimeState.certification_status; deployment = $phaseState.deployment; convergence = $phaseState.convergence }
             Exit-DeploymentLease
             if ([string]$runtimeState.certification_status -eq "degraded" -and -not $Watch) { Fail "Staging commit $sha is running but not certified ready" @{ stage = "certification"; failure_class = "certification_degraded"; expected_commit = $sha } }
             if (-not $Watch) { Release-AutoPilotRunLock; return }
