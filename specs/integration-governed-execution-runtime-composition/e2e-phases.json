@@ -21,7 +21,7 @@
         {
           "id": "runtime-composition-specification-boundary",
           "end_to_end": true,
-          "level": "component",
+          "level": "synthetic_runtime",
           "actor": "Repository runtime architecture maintainer",
           "entrypoint": "Run the registered repository automation validator against the exact candidate tree",
           "terminal_outcome": "Specs 011, 012, and 013 remain the execution, context, and catalog owners; the integration kit is non-authoritative; X0 remains the next instrumentation-only phase; all runtime and external effects stay disabled.",
