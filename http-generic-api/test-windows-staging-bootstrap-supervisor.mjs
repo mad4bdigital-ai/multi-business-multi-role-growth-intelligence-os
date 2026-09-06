@@ -11,6 +11,8 @@ const monitor = read("autopilot-portable-staging/Staging-HealthMonitor.ps1");
 const autoDeploy = read("autopilot-portable-staging/Auto-Deploy-Staging.ps1");
 const operationsLog = read("autopilot-portable-staging/Staging-Operations-Log.ps1");
 const converger = read("autopilot-portable-staging/Converge-StagingActivationGateway.ps1");
+const connectorRepair = read("autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1");
+const stagingCloudflared = read("autopilot-portable-staging/Staging-WindowsCloudflared.ps1");
 const connectorWatchdog = read("local-connector/connector-watchdog.ps1");
 const connectorInstaller = read("local-connector/install-service.ps1");
 
@@ -54,7 +56,6 @@ assert.match(monitor, /mcp-dev\.mad4b\.com/);
 assert.match(monitor, /connector\.mad4b\.com/);
 assert.match(monitor, /cloudflare_1033/);
 assert.match(monitor, /Mad4B-Staging-Cloudflared/);
-assert.match(monitor, /GrowthIntelligence-CloudflaredTunnel/);
 
 // Auto Deploy is now a resumable phase machine rather than deployed/certified booleans.
 assert.match(autoDeploy, /mad4b\.staging-auto-deploy-state\.v2/);
@@ -98,14 +99,53 @@ for (const key of ["failure_class", "expected_commit", "observed_commit", "paren
   assert.match(operationsLog, new RegExp(`"${key}"`));
 }
 
-// Connector self-heal supports both service-based and Scheduled-Task installations.
+// Local Connector transport has a dedicated ownership boundary distinct from Staging.
+for (const source of [connectorWatchdog, connectorInstaller, connectorRepair]) {
+  assert.match(source, /Mad4B-LocalConnector-Cloudflared/);
+}
+assert.match(stagingCloudflared, /return 'Mad4B-Staging-Cloudflared'/);
+assert.doesNotMatch(stagingCloudflared, /Mad4B-LocalConnector-Cloudflared/);
+assert.match(connectorInstaller, /\$StagingTunnel\s+=\s+"Mad4B-Staging-Cloudflared"/);
+assert.match(connectorInstaller, /Cross-runtime non-interference failed/);
+assert.doesNotMatch(connectorInstaller, /Get-Process -Name "cloudflared"/);
+assert.doesNotMatch(connectorInstaller, /cloudflared service uninstall/);
+
+// Installer and watchdog callbacks fail closed on the originating environment.
+assert.match(connectorInstaller, /CONNECTOR_ENVIRONMENT/);
+assert.match(connectorInstaller, /"staging" \{ "dev\.mad4b\.com" \}/);
+assert.match(connectorInstaller, /"production" \{ "auth\.mad4b\.com" \}/);
+assert.match(connectorInstaller, /CONNECTOR_CONTROL_PLANE_BASE_URL/);
+assert.match(connectorInstaller, /CONNECTOR_POLICY_URL/);
+assert.match(connectorInstaller, /CONNECTOR_HEARTBEAT_URL/);
+assert.match(connectorWatchdog, /function Test-HeartbeatBinding/);
+assert.match(connectorWatchdog, /environment_binding_rejected/);
+assert.match(connectorWatchdog, /ownership_binding_rejected/);
+assert.match(connectorWatchdog, /cross_runtime_mutation = \$false/);
+
+// 1033 recovery is out-of-band: bind Staging callbacks before runtime restart,
+// restart only the Local Connector-owned transport, then prove Staging unchanged.
+assert.match(connectorRepair, /Bind-StagingConnectorEnvironment/);
+assert.match(connectorRepair, /CONNECTOR_CONTROL_PLANE_BASE_URL" "https:\/\/dev\.mad4b\.com"/);
+assert.match(connectorRepair, /CONNECTOR_HEARTBEAT_URL" "\$base\/connector-agent\/heartbeat"/);
+assert.match(connectorRepair, /cloudflare_1033/);
+assert.match(connectorRepair, /Restart-LocalTunnelRuntime/);
+assert.match(connectorRepair, /staging_runtime_unchanged/);
+assert.match(connectorRepair, /ambiguous_legacy_service_requires_reconciliation/);
+assert.match(connectorRepair, /production_callback_fallback = \$false/);
+assert.match(connectorRepair, /production_mutation = \$false/);
+assert.match(connectorRepair, /provider_mutation = \$false/);
+assert.match(connectorRepair, /dns_mutation = \$false/);
+assert.doesNotMatch(connectorRepair, /Restart-Service -Name \$StagingTunnelRuntime/);
+assert.doesNotMatch(connectorRepair, /Stop-Service -Name \$StagingTunnelRuntime/);
+
+// Connector watchdog supports service/task runtime recovery but can mutate only
+// the canonical Local Connector tunnel ownership boundary.
 assert.match(connectorWatchdog, /function Ensure-RuntimeRunning/);
 assert.match(connectorWatchdog, /function Restart-RuntimeSafe/);
 assert.match(connectorWatchdog, /GrowthIntelligence-LocalConnector/);
-assert.match(connectorWatchdog, /GrowthIntelligence-CloudflaredTunnel/);
 assert.match(connectorWatchdog, /https:\/\/connector\.mad4b\.com\/health/);
 assert.match(connectorWatchdog, /cloudflare_1033/);
-assert.match(connectorWatchdog, /action=restart_tunnel/);
+assert.match(connectorWatchdog, /action=restart_local_connector_tunnel/);
 assert.match(connectorInstaller, /GrowthIntelligence-ConnectorWatchdog/);
 assert.match(connectorInstaller, /RepetitionInterval \(New-TimeSpan -Minutes 1\)/);
 assert.match(connectorInstaller, /connector-watchdog\.ps1/);
@@ -127,6 +167,10 @@ console.log(JSON.stringify({
   structured_root_cause: true,
   phased_state_machine: true,
   connector_reboot_recovery: true,
+  connector_transport_ownership_isolated: true,
+  connector_environment_binding: true,
+  connector_1033_reconciliation: true,
+  cross_runtime_non_interference: true,
   production_mutation: false,
   secrets_included: false,
 }));
