@@ -5,6 +5,7 @@ import test from "node:test";
 import { _testingRecoveryComposition } from "./recoveryComposition.js";
 import {
   PRODUCTION_RECOVERY_COMPOSITION_FACTORY_CONTRACT,
+  PRODUCTION_RECOVERY_LIVE_AUTHORIZATION_CONTRACT,
   createProductionRecoveryComposition,
 } from "./productionRecoveryCompositionFactory.js";
 
@@ -16,16 +17,22 @@ function asyncMethod(value = {}) {
   return async () => value;
 }
 
-function makeCompleteAdapters() {
+function makeCompleteAdapters({ independentStore = true } = {}) {
   const executionTicketVerifier = { verify: asyncMethod(true) };
   const recoveryStore = Object.fromEntries(
     _testingRecoveryComposition.STORE_METHODS.map((method) => [method, asyncMethod(true)]),
   );
   recoveryStore.executionTicketVerifier = executionTicketVerifier;
+  recoveryStore.recovery_store_contract = "mad4b.recovery-durable-store.v1";
+  recoveryStore.independent_of_target_databases = independentStore;
+  recoveryStore.target_database_binding = independentStore ? "forbidden" : "runtime_persistence";
   return {
     deploymentIdentityProvider: { readAttestation: asyncMethod({ manifest_bound: true, secrets_included: false }) },
     recoveryStore,
-    approvalIssuer: { createChallenge: asyncMethod({ issued: true }) },
+    approvalIssuer: {
+      createChallenge: asyncMethod({ issued: true }),
+      resolveApprovedToken: asyncMethod({ approval_token: "server-internal-test-token" }),
+    },
     approvalVerifier: { verify: asyncMethod(true) },
     approvalStore: { putChallenge: asyncMethod(true), getChallenge: asyncMethod(null) },
     recoveryLock: {
@@ -36,12 +43,49 @@ function makeCompleteAdapters() {
     },
     mutationExecutor: { execute: asyncMethod({ provider_mutation_performed: false }) },
     hostLocalMutationExecutor: asyncMethod({ provider_mutation_performed: false }),
-    readbackVerifier: { verify: asyncMethod({ postconditions_passed: true }) },
+    readbackVerifier: {
+      independent_authority: true,
+      role_aware: true,
+      mutation_authority: false,
+      verify: asyncMethod({ postconditions_passed: true }),
+    },
     executionTicketSigner: { sign: asyncMethod("test-signature") },
     executionTicketVerifier,
     partialReceiptStore: { putImmutablePartialRebuildReceipt: asyncMethod({ persisted: true }) },
     proofResolver: () => ({ source: "durable_full_inspection", selected_roles: ["runtime"] }),
     migrationLedger: { finalize: asyncMethod({ finalized: true }) },
+  };
+}
+
+function liveAuthorization(overrides = {}) {
+  return {
+    contract: PRODUCTION_RECOVERY_LIVE_AUTHORIZATION_CONTRACT,
+    authorized: true,
+    environment: "production",
+    runtime_class: "hostinger_autodeploy",
+    admin_surface: "auth.mad4b.com",
+    exact_sha_bound: true,
+    single_use_approval: true,
+    same_cycle_readback_required: true,
+    server_side_approval_token_resolution: true,
+    bootstrap_evidence_independent: true,
+    secrets_included: false,
+    ...overrides,
+  };
+}
+
+function liveEnvelope({ adapters = makeCompleteAdapters(), authorization = liveAuthorization() } = {}) {
+  return {
+    binding_source: "server_managed",
+    secrets_included: false,
+    requested_mode: "production_live",
+    adapters,
+    capabilities: {
+      adapter_present: true,
+      durability_capable: true,
+      attestation_capable: true,
+    },
+    live_authorization: authorization,
   };
 }
 
@@ -77,13 +121,13 @@ test("missing server-managed binding provider fails closed rather than discoveri
   assert.equal(composition.productionRecoveryCompositionFactory.provider_accessed, false);
 });
 
-test("production_live remains hard-denied even when a provider callback is supplied", () => {
+test("direct production_live construction remains forbidden even with adapters", () => {
   assert.throws(
     () => createProductionRecoveryComposition({
       mode: "production_live",
-      serverManagedBindingProvider: () => ({ binding_source: "server_managed", secrets_included: false, adapters: makeCompleteAdapters() }),
+      serverManagedBindingProvider: () => liveEnvelope(),
     }),
-    (error) => error.code === "RECOVERY_PRODUCTION_LIVE_DISABLED" && error.status === 503,
+    (error) => error.code === "RECOVERY_PRODUCTION_LIVE_DIRECT_CONSTRUCTION_FORBIDDEN" && error.status === 503,
   );
 });
 
@@ -96,7 +140,13 @@ test("only a server-managed, secret-free envelope can resolve the non-live graph
     serverManagedBindingProvider: (context) => {
       providerCalls += 1;
       receivedContext = context;
-      return { binding_source: "server_managed", secrets_included: false, adapters: makeCompleteAdapters() };
+      return {
+        binding_source: "server_managed",
+        secrets_included: false,
+        requested_mode: "injected_non_live",
+        adapters: makeCompleteAdapters(),
+        capabilities: { adapter_present: true, durability_capable: true, attestation_capable: true },
+      };
     },
   });
   assert.equal(providerCalls, 1);
@@ -113,6 +163,51 @@ test("only a server-managed, secret-free envelope can resolve the non-live graph
   assert.equal(composition.mutation_authority_available, true);
   assert.equal(composition.provider_accessed, false);
   assert.equal(composition.database_connection_performed, false);
+});
+
+test("Production candidate without explicit live authorization remains fail-closed", () => {
+  const composition = createProductionRecoveryComposition({
+    mode: "injected_non_live",
+    source: "test_uncertified_production_candidate",
+    serverManagedBindingProvider: () => liveEnvelope({ authorization: null }),
+  });
+  assert.equal(composition.mode, "fail_closed");
+  assert.equal(composition.live_activation, false);
+  assert.equal(composition.productionRecoveryCompositionFactory.activation_requested, true);
+  assert.equal(composition.productionRecoveryCompositionFactory.denial_reason, "production_live_authorization_incomplete");
+  assert.equal(composition.productionRecoveryCompositionFactory.live_authorization.ok, false);
+  assert.equal(composition.productionRecoveryCompositionFactory.live_authorization.problems.includes("live_authorization_missing"), true);
+});
+
+test("certified Production candidate activates only with independent bootstrap evidence and server-side approval resolution", () => {
+  const composition = createProductionRecoveryComposition({
+    mode: "injected_non_live",
+    source: "test_certified_production_candidate",
+    serverManagedBindingProvider: () => liveEnvelope(),
+  });
+  assert.equal(composition.mode, "production_live");
+  assert.equal(composition.live_activation, true);
+  assert.equal(composition.mutation_authority_available, true);
+  assert.equal(composition.productionRecoveryCompositionFactory.denial_reason, null);
+  assert.equal(composition.productionRecoveryCompositionFactory.authority_readiness.live_ready, true);
+  assert.equal(composition.productionRecoveryCompositionFactory.authority_readiness.activation_eligible, true);
+  assert.equal(composition.productionRecoveryCompositionFactory.authority_readiness.bootstrap_evidence_independent, true);
+  assert.equal(composition.productionRecoveryCompositionFactory.authority_readiness.server_side_approval_token_resolution, true);
+  assert.equal(composition.provider_accessed, false);
+  assert.equal(composition.database_connection_performed, false);
+  assert.equal(composition.database_mutation_performed, false);
+});
+
+test("runtime_persistence-coupled recovery store cannot authorize the bootstrap path", () => {
+  const composition = createProductionRecoveryComposition({
+    mode: "injected_non_live",
+    source: "test_coupled_bootstrap_store",
+    serverManagedBindingProvider: () => liveEnvelope({ adapters: makeCompleteAdapters({ independentStore: false }) }),
+  });
+  assert.equal(composition.mode, "fail_closed");
+  assert.equal(composition.live_activation, false);
+  assert.equal(composition.productionRecoveryCompositionFactory.denial_reason, "production_live_authorization_incomplete");
+  assert.equal(composition.productionRecoveryCompositionFactory.live_authorization.problems.includes("bootstrap_evidence_store_not_independent"), true);
 });
 
 test("caller-sourced binding metadata is rejected", () => {
@@ -135,26 +230,14 @@ test("secret-bearing binding metadata is rejected before adapter validation", ()
   );
 });
 
-test("manifest and bootstrap contract distinguish factory wiring from live activation", () => {
+test("manifest keeps Production disabled by default while the certified server-managed path is repository-supported", () => {
   assert.equal(manifest.production_live_composition.enabled, false);
   assert.equal(manifest.production_live_composition.repository_live_adapter_wiring, false);
   assert.equal(manifest.production_live_composition.server_managed_adapter_factory_wired, true);
   assert.equal(manifest.production_live_composition.live_provider_authority_configured, false);
-  assert.equal(manifest.production_live_composition.live_authority_readiness_contract, "mad4b.recovery-live-authority-readiness.v1");
-  assert.deepEqual(manifest.production_live_composition.required_live_authority_components, [
-    "recoveryStore",
-    "executionTicketSigner",
-    "approvalVerifier",
-    "recoveryLock",
-    "readbackVerifier",
-    "hostLocalMutationExecutor",
-    "deploymentIdentityProvider",
-  ]);
   assert.equal(runtimeBootstrapContract.mutation_authority.production_live_composition_enabled, false);
   assert.equal(runtimeBootstrapContract.mutation_authority.provider_wiring_in_repository, false);
   assert.equal(runtimeBootstrapContract.mutation_authority.server_managed_adapter_factory_wired, true);
-  assert.equal(runtimeBootstrapContract.mutation_authority.live_authority_readiness_contract, "mad4b.recovery-live-authority-readiness.v1");
-  assert.deepEqual(runtimeBootstrapContract.mutation_authority.required_live_authority_components, manifest.production_live_composition.required_live_authority_components);
 });
 
 test("server composition root uses the factory without caller or credential discovery", () => {
@@ -167,8 +250,9 @@ test("server composition root uses the factory without caller or credential disc
 console.log(JSON.stringify({
   ok: true,
   contract: PRODUCTION_RECOVERY_COMPOSITION_FACTORY_CONTRACT,
-  cases: 8,
-  live_activation: false,
+  cases: 11,
+  default_live_activation: false,
+  certified_server_managed_activation_supported: true,
   provider_accessed: false,
   database_mutation_performed: false,
   secrets_included: false,
