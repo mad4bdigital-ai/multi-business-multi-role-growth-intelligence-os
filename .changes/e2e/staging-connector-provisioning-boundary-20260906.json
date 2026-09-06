@@ -1,0 +1,105 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-connector-provisioning-boundary-20260906",
+  "title": "Staging Local Connector Provisioning Boundary",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-connector-provisioning-boundary-20260906.json",
+      "autopilot-portable-staging/Invoke-StagingCertification.ps1",
+      "autopilot-portable-staging/Provision-LocalConnectorTunnelToken.ps1",
+      "autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1",
+      "autopilot-portable-staging/Staging-GitTransport.ps1",
+      "autopilot-portable-staging/Staging-Operations-Log.ps1",
+      "autopilot-portable-staging/manifest.json",
+      "http-generic-api/scripts/generate-portable-staging-manifest.mjs",
+      "http-generic-api/test-staging-autopilot-closure.mjs",
+      "local-connector/cloudflared-config.yml",
+      "local-connector/install-service.ps1"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Separate Local Connector tunnel provisioning authority from the Staging ingress credential, preserve exact Windows runtime ownership, and fail closed with actionable no-secret evidence when Connector-specific credential material is absent.",
+      "e2e_journeys": [
+        {
+          "id": "connector-provisioning-to-certification-resume",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Windows Staging AutoPilot and Local Connector recovery",
+          "entrypoint": "The Local Connector is healthy on localhost while connector.mad4b.com is unavailable and no Connector-specific tunnel credential is installed.",
+          "terminal_outcome": "Certification records connector_tunnel_provisioning_required without reusing the Staging tunnel token; an explicitly supplied or read-only recovered remotely-managed Connector tunnel token is stored in a protected token file, the canonical Local Connector Cloudflared task uses token-file transport, and the independent Staging Cloudflared runtime remains unchanged.",
+          "steps": [
+            "Bind Git child processes to an explicit filesystem working directory so repository-relative remotes are deterministic under Windows PowerShell.",
+            "Normalize legacy optional Auto Deploy state and preserve current child failure evidence without inventing deployment or certification success.",
+            "Reject the Staging CLOUDFLARE_TUNNEL_TOKEN as a Local Connector provisioning source.",
+            "Classify a missing Local Connector token file as connector_tunnel_provisioning_required before attempting a futile tunnel restart.",
+            "Accept only Connector-specific token-file/process input or GET-only recovery of an existing remotely-managed Cloudflare tunnel when explicit provider authority is supplied.",
+            "Store Connector tunnel material in a restricted token file and keep it out of Scheduled Task arguments and logs.",
+            "Run only Mad4B-LocalConnector-Cloudflared for Connector transport and prove Mad4B-Staging-Cloudflared state and PID are unchanged.",
+            "Resume exact-SHA Staging certification only after the public Connector health gate becomes healthy."
+          ],
+          "assertions": [
+            "Production mutation, DNS mutation, database mutation, schema mutation and grant widening remain false.",
+            "The generic Staging CLOUDFLARE_TUNNEL_TOKEN is never used as Connector credential fallback.",
+            "Device-specific credentials-file paths are not part of the portable Local Connector package.",
+            "A locally-managed Cloudflare tunnel is not silently treated as remotely-managed token transport; migration is reported explicitly.",
+            "No raw Connector or Cloudflare secret is committed, logged, returned in state evidence, or embedded in Scheduled Task arguments.",
+            "Local Connector repair cannot stop, restart, delete or reconfigure Mad4B-Staging-Cloudflared.",
+            "Missing provisioning authority blocks certification truthfully instead of collapsing into Cloudflare 1033 after a deterministic failed restart."
+          ],
+          "tests": [
+            {
+              "id": "staging-autopilot-closure",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-autopilot-closure.mjs",
+              "args": []
+            },
+            {
+              "id": "windows-staging-bootstrap-supervisor",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-windows-staging-bootstrap-supervisor.mjs",
+              "args": []
+            },
+            {
+              "id": "portable-staging-manifest-check",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/generate-portable-staging-manifest.mjs",
+              "args": [
+                "--check"
+              ]
+            }
+          ],
+          "evidence_paths": [
+            "autopilot-portable-staging/Provision-LocalConnectorTunnelToken.ps1",
+            "autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1",
+            "autopilot-portable-staging/Invoke-StagingCertification.ps1",
+            "local-connector/install-service.ps1",
+            "local-connector/cloudflared-config.yml",
+            "http-generic-api/test-staging-autopilot-closure.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
