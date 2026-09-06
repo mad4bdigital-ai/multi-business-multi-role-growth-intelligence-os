@@ -262,7 +262,7 @@
     },
     {
       "path": "http-generic-api/test-staging-operations-logging-contract.mjs",
-      "sha256": "652251e520c01baac2c678b1c0d9de1930e70ff5b4a86a80e4cc8ad7d5dba98b"
+      "sha256": "affe85934ad7aaa71cedcc9ad78483ff16ca0627fef91eb8db3f231db5e3559f"
     },
     {
       "path": "http-generic-api/test-staging-runtime-oauth-profile.mjs",
