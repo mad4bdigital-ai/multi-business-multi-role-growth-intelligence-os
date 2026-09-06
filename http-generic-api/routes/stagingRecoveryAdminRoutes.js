@@ -23,7 +23,6 @@ const STAGING_RECOVERY_ADVERTISED_PATHS = Object.freeze([
 ]);
 const STAGING_RECOVERY_INTERNAL_EXECUTION_PATHS = Object.freeze([
   "/admin/recovery/staging/bootstrap-ticket/verify",
-  "/admin/recovery/staging/bootstrap-readback/attest",
   "/admin/recovery/staging/bootstrap-ticket/finalize",
   "/admin/recovery/staging/bootstrap-partial-receipt",
 ]);
@@ -148,7 +147,7 @@ export function buildStagingRecoveryAdminContract() {
       consequential_staging_execution: "local_cli_requires_server_ticket_reservation_and_same_cycle_readback",
       target_database_mutation_on_this_surface: false,
       bootstrap_ticket_reservation: "server_managed_single_use_signed_receipt",
-      bootstrap_readback_attestation: "server_signed_evidence_receipt_bound_to_reservation_generation",
+      bootstrap_readback_attestation: "server_verified_and_signed_inside_finalization_transaction",
       bootstrap_finalization: "signed_readback_receipt_required",
       caller_readback_booleans_or_hashes_authoritative: false,
       partial_receipt_persistence: "server_managed_durable",
@@ -359,32 +358,27 @@ export function buildStagingRecoveryAdminRoutes({
     }
   });
 
-  router.post("/admin/recovery/staging/bootstrap-readback/attest", ...guards, async (req, res) => {
-    try {
-      const input = isObject(req.body) ? { ...req.body } : {};
-      const reservationReceipt = input.reservation_receipt;
-      const evidence = input.readback_evidence;
-      delete input.reservation_receipt;
-      delete input.readback_evidence;
-      if (!isObject(reservationReceipt) || !isObject(evidence) || hasSensitiveReceiptKey(reservationReceipt) || hasSensitiveReceiptKey(evidence)) return errorResponse(res, req, 400, "RECOVERY_READBACK_UNVERIFIED", "Readback attestation requires non-sensitive reservation and evidence envelopes.");
-      const authority = stagingBootstrapExecutionAuthorityFactory({ env });
-      const result = await authority.attestReadbackForBootstrap({ ...exactBootstrapBinding(input), reservation_receipt: reservationReceipt, evidence });
-      return res.status(200).json({ ok: result.verified === true, ...result, environment: "staging", production_authority: false, secrets_included: false });
-    } catch (error) {
-      return errorResponse(res, req, Number(error?.status || 503), error?.code || "RECOVERY_READBACK_UNVERIFIED", "Staging bootstrap readback evidence could not be attested; reconciliation is required.");
-    }
-  });
-
   router.post("/admin/recovery/staging/bootstrap-ticket/finalize", ...guards, async (req, res) => {
     try {
       const input = isObject(req.body) ? { ...req.body } : {};
       const legacy = legacyReadbackAssertions(input);
       if (legacy.length) return errorResponse(res, req, 409, "RECOVERY_READBACK_UNVERIFIED", "Caller readback booleans or hashes cannot finalize a reserved ticket.");
-      const readbackReceipt = input.readback_receipt;
+      let readbackReceipt = input.readback_receipt;
+      const reservationReceipt = input.reservation_receipt;
+      const readbackEvidence = input.readback_evidence;
       delete input.readback_receipt;
-      if (!isObject(readbackReceipt) || hasSensitiveReceiptKey(readbackReceipt)) return errorResponse(res, req, 409, "RECOVERY_READBACK_UNVERIFIED", "A valid server-signed readback receipt is required before finalization.");
+      delete input.reservation_receipt;
+      delete input.readback_evidence;
+      const binding = exactBootstrapBinding(input);
       const authority = stagingBootstrapExecutionAuthorityFactory({ env });
-      const result = await authority.finalizeForBootstrap({ ...exactBootstrapBinding(input), readback_receipt: readbackReceipt });
+      if (!readbackReceipt) {
+        if (!isObject(reservationReceipt) || !isObject(readbackEvidence) || hasSensitiveReceiptKey(reservationReceipt) || hasSensitiveReceiptKey(readbackEvidence)) return errorResponse(res, req, 409, "RECOVERY_READBACK_UNVERIFIED", "Finalization requires the signed reservation receipt plus canonical, non-sensitive same-cycle readback evidence.");
+        const attested = await authority.attestReadbackForBootstrap({ ...binding, reservation_receipt: reservationReceipt, evidence: readbackEvidence });
+        if (attested?.verified !== true || !isObject(attested.readback_receipt)) return errorResponse(res, req, 409, "RECOVERY_READBACK_UNVERIFIED", "Server readback attestation failed closed.");
+        readbackReceipt = attested.readback_receipt;
+      }
+      if (!isObject(readbackReceipt) || hasSensitiveReceiptKey(readbackReceipt)) return errorResponse(res, req, 409, "RECOVERY_READBACK_UNVERIFIED", "A valid server-signed readback receipt is required before finalization.");
+      const result = await authority.finalizeForBootstrap({ ...binding, readback_receipt: readbackReceipt });
       return res.status(200).json({ ok: result.finalized === true, ...result, environment: "staging", production_authority: false, secrets_included: false });
     } catch (error) {
       return errorResponse(res, req, Number(error?.status || 503), error?.code || "RECOVERY_RECONCILIATION_REQUIRED", "Staging bootstrap ticket finalization failed closed; reconciliation is required.");
