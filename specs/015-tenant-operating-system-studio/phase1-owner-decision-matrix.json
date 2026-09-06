@@ -144,7 +144,14 @@
   "phase1_entry_gate": {
     "T006_owner_approved": false,
     "T008_owner_approved": false,
-    "exact_head_ci_passed": false,
+    "exact_head_ci": {
+      "required": true,
+      "attestation_location": "external",
+      "source_authority": "GitHub Actions exact-candidate checks and canonical CI evidence",
+      "binding": "candidate_head_sha",
+      "source_tree_may_self_attest": false,
+      "status": "must_be_verified_outside_the_candidate_tree"
+    },
     "new_persistence_decisions_reviewed": false,
     "runtime_implementation_authorized": false
   },
