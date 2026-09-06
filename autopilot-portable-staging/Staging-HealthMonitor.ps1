@@ -63,8 +63,9 @@ function Read-HealthState {
         $parsed = Get-Content -Raw -LiteralPath $script:HealthStatePath | ConvertFrom-Json
         $state = @{}
         foreach ($property in $parsed.PSObject.Properties) { $state[$property.Name] = $property.Value }
-        foreach ($key in (New-HealthState).Keys) {
-            if (-not $state.ContainsKey($key)) { $state[$key] = (New-HealthState)[$key] }
+        $defaults = New-HealthState
+        foreach ($key in $defaults.Keys) {
+            if (-not $state.ContainsKey($key)) { $state[$key] = $defaults[$key] }
         }
         return $state
     } catch {
@@ -201,16 +202,14 @@ function Invoke-RemoteHealthProbe([string]$Uri) {
 function Get-StagingTunnelSnapshot([string[]]$ComposeArgs, [object]$RuntimeState) {
     $expectedFromRuntime = $null -ne $RuntimeState -and (Get-ObjectProperty $RuntimeState "tunnel_started") -eq $true
     $expectedFromEnv = (Get-Env "CLOUDFLARE_TUNNEL_ENABLED").ToLowerInvariant() -eq "true"
-    $expected = [bool]($expectedFromRuntime -or $expectedFromEnv)
     $snapshot = [ordered]@{
-        expected = $expected
+        expected = $false
         hostnames = @("dev.mad4b.com", "mcp-dev.mad4b.com")
-        status = if ($expected) { "checking" } else { "not_expected" }
+        status = "not_expected"
         runtime = "none"
         remote_health = "not_checked"
         error = $null
     }
-    if (-not $expected) { return $snapshot }
 
     $dockerRunning = $false
     $containerId = (& docker @($ComposeArgs + @("ps", "-q", "cloudflared")) 2>$null | Out-String).Trim()
@@ -222,22 +221,31 @@ function Get-StagingTunnelSnapshot([string[]]$ComposeArgs, [object]$RuntimeState
         $windowsService = Get-Service -Name "Mad4B-Staging-Cloudflared" -ErrorAction SilentlyContinue
         if ($null -ne $windowsService -and $windowsService.Status -eq "Running") { $snapshot.runtime = "windows_service" }
     }
-    $runtimeReady = $snapshot.runtime -ne "none"
+
+    $runtimeDetected = $snapshot.runtime -ne "none"
+    $snapshot.expected = [bool]($expectedFromRuntime -or $expectedFromEnv -or $runtimeDetected)
+    if (-not $snapshot.expected) { return $snapshot }
+    $snapshot.status = "checking"
+
     $remote = Invoke-RemoteHealthProbe "https://dev.mad4b.com/health"
     $snapshot.remote_health = if ($remote.ok) { "healthy" } else { "unhealthy" }
-    if ($runtimeReady -and $remote.ok) {
+    if ($runtimeDetected -and $remote.ok) {
         $snapshot.status = "healthy"
     } else {
         $snapshot.status = "unhealthy"
-        $snapshot.error = if (-not $runtimeReady) { "runtime_not_running" } else { [string]$remote.error }
+        $snapshot.error = if (-not $runtimeDetected) { "runtime_not_running" } else { [string]$remote.error }
     }
     return $snapshot
 }
 function Get-LocalConnectorTunnelSnapshot {
     $nodeService = Get-Service -Name "local-connector" -ErrorAction SilentlyContinue
     $cloudflaredService = Get-Service -Name "cloudflared" -ErrorAction SilentlyContinue
-    $nodeTask = Get-ScheduledTask -TaskName "GrowthIntelligence-LocalConnector" -ErrorAction SilentlyContinue
-    $tunnelTask = Get-ScheduledTask -TaskName "GrowthIntelligence-CloudflaredTunnel" -ErrorAction SilentlyContinue
+    $nodeTask = $null
+    $tunnelTask = $null
+    if (Get-Command Get-ScheduledTask -ErrorAction SilentlyContinue) {
+        $nodeTask = Get-ScheduledTask -TaskName "GrowthIntelligence-LocalConnector" -ErrorAction SilentlyContinue
+        $tunnelTask = Get-ScheduledTask -TaskName "GrowthIntelligence-CloudflaredTunnel" -ErrorAction SilentlyContinue
+    }
     $remote = Invoke-RemoteHealthProbe "https://connector.mad4b.com/health"
     $runtimeEvidence = @()
     if ($null -ne $nodeService) { $runtimeEvidence += "service:local-connector=$($nodeService.Status)" }
