@@ -2,11 +2,13 @@
 
 ## Status
 
-`in_progress`
+`candidate_implementation_complete_external_ci_pending`
 
-This is PR A of the governed execution runtime composition program. It implements the canonical instrumentation contract, isolated benchmark evidence, and the first optional legacy adapter for Sequential Plan execution.
+This is the X0 evidence-baseline slice of the governed execution runtime composition program. It implements the canonical instrumentation contract, isolated benchmark evidence, passive legacy entry-point adapters, precise Connector/Agent counters where the runtime boundary is provable, and a reproducible matched-fixture baseline.
 
-It does not change routing, context selection, authority, approval decisions, provider dispatch behavior, retries, readback, persistence authority, deployment, or Production behavior.
+It does not change routing decisions, context selection, authority, approval decisions, provider dispatch behavior, retries, readback semantics, persistence authority, deployment, or Production behavior.
+
+External exact-head CI and live Staging certification remain evidence gates; the candidate tree does not self-attest them.
 
 ## Objective
 
@@ -75,6 +77,40 @@ The same slice removes three legacy first-candidate assumptions in the modified 
 
 A shared tested helper returns `null` for no row, returns the only row for an exact match, and raises a stable `409` ambiguity error for multiple rows.
 
+### Passive GPT/System entry-point adapters
+
+`http-generic-api/governedExecutionBaselineRuntime.js`
+
+`http-generic-api/routes/index.js`
+
+The HTTP adapter is registered ahead of the existing route tree but is a no-op unless `deps.governedExecutionBaselineEmitter` is a function. It does not add a new route or alter an OpenAPI contract.
+
+When enabled it observes only the exact legacy entry points:
+
+- `POST /gpt/tools/call` → `gpt_tool`;
+- `POST /system/tools/call` → `system_tool`;
+- `POST /admin/system/tools/call` → `system_tool`.
+
+The adapter records only bounded request/correlation identifiers, one public tool-call round trip, an explicit continuation count for `response_chunk_read`, response byte count only when `Content-Length` is available, and HTTP outcome classification. It does not copy request arguments, headers, credentials, result bodies, provider payloads, or arbitrary error text.
+
+Unobserved SQL/provider/internal-stage counters remain explicitly unobserved rather than being fabricated as zero.
+
+### Connector Plan and Agent Loop adapters
+
+`http-generic-api/connectorExecutor.js`
+
+Connector Plan creates a trace only when an emitter is explicitly injected. The adapter observes existing context, policy, provider-dispatch, and ledger boundaries without adding a provider call or changing dispatch selection.
+
+Precise provider-call counting is connected only at the currently provable Make MCP fetch boundary: one attempted MCP dispatch records one provider call immediately before the existing `fetch`. Other connector/provider counts remain unobserved rather than inferred.
+
+Content workflows wrap the existing Agent Loop dependencies without changing their outputs:
+
+- every actual `callModel` invocation increments `model_round_trips` once;
+- every actual model callable returned by `getCallModelForClass` increments `model_round_trips` once when invoked;
+- every actual `engineExecutorRegistry.dispatch` increments `tool_round_trips` once;
+- wrapper exceptions preserve the original exception path;
+- trace emission is fire-and-forget and failure-isolated.
+
 ### Tests
 
 `test-governed-execution-baseline-telemetry.mjs` certifies:
@@ -89,9 +125,14 @@ A shared tested helper returns `null` for no row, returns the only row for an ex
 - duplicate finish and invalid-label isolation;
 - bounded sink retention;
 - emitter failure isolation;
-- invalid snapshot rejection.
+- invalid snapshot rejection;
+- disabled GPT/System instrumentation remains transparent;
+- GPT/System bounded partial coverage and no-argument capture;
+- emitter failure cannot fail the measured HTTP path;
+- Agent Loop model/tool wrappers preserve outputs and count only actual calls;
+- the MCP provider boundary records one precise provider call.
 
-`test-governed-execution-baseline-benchmark.mjs` certifies the isolated benchmark contract and proves the instrumented fixture preserves the legacy fixture result.
+`test-governed-execution-baseline-benchmark.mjs` certifies the isolated benchmark contract, proves the instrumented fixture preserves the legacy fixture result, regenerates the matched X0 fixture catalogue, and binds the regenerated functional/safety hashes to the published baseline artifact.
 
 `test-sequential-plan-orchestrator.mjs` certifies:
 
@@ -103,13 +144,13 @@ A shared tested helper returns `null` for no row, returns the only row for an ex
 - plan and claim identity ambiguity fails closed;
 - raw claim tokens remain excluded from evidence.
 
-All three tests are registered in the complete platform test manifest without removing existing commands.
+All three tests remain registered in the complete platform test manifest without removing existing commands.
 
 ### Benchmark
 
 `scripts/governed-execution-baseline-benchmark.mjs`
 
-The benchmark:
+The collector-overhead benchmark:
 
 - uses an in-process deterministic workload;
 - performs warmup and bounded iterations;
@@ -118,6 +159,24 @@ The benchmark:
 - reports collector overhead without claiming production acceleration;
 - performs no database access, provider call, external send, or runtime route call;
 - emits no secret-bearing data.
+
+The same registered executable also exposes `--matched-fixtures`. It uses the protocol-approved deterministic provider-simulator mode to reproduce F01, F03, F04, F05, and F06 with identical legacy/instrumented functional results and explicit safety vectors.
+
+### Published matched fixture baseline
+
+`x0-matched-runtime-fixtures.json`
+
+The artifact records, for each selected fixture:
+
+- canonical fixture and entry-point identity;
+- legacy and instrumented SHA-256 result hashes;
+- authority and approval disposition;
+- provider-simulator outcome;
+- readback and receipt outcome;
+- projection outcome;
+- recovery outcome.
+
+CI regenerates the fixture results and timing identity and rejects drift from the published hashes or safety vector. The fixture harness performs no live provider call, database write, migration, external send, deployment, or Production mutation.
 
 ## Canonical stage names
 
@@ -184,24 +243,34 @@ No migration or automatic SQL persistence is introduced in this slice.
 
 The repository already has `telemetry_spans`, but current generic span intake accepts broad attributes. X0 first establishes a bounded schema and a failure-isolated emitter. A later PR may add a governed projection adapter after schema, retention, sampling, tenant isolation, and query-cost evidence are approved.
 
-## Remaining X0 work
+## Candidate implementation closure
 
-- instrument the legacy GPT Tool entry point with explicit partial coverage;
-- instrument the legacy System Tool entry point with explicit partial coverage;
-- instrument the Connector Plan entry point with precise provider-call coverage;
-- instrument the Agent Loop entry point with precise model/tool round-trip coverage;
-- publish matched runtime-fixture evidence for the selected entry points;
-- update exact-head CI evidence without claiming the broader X0 program complete.
+Implemented in the candidate tree:
+
+- legacy GPT Tool entry instrumentation with explicit partial coverage;
+- legacy System Tool entry instrumentation with explicit partial coverage;
+- Connector Plan instrumentation with precise Make MCP provider-call coverage and explicit unobserved semantics elsewhere;
+- Agent Loop instrumentation with precise model/tool round-trip coverage;
+- matched runtime-fixture artifact for F01/F03/F04/F05/F06;
+- deterministic CI regeneration of functional result hashes, safety vectors, and timing identity.
+
+Still external and intentionally not self-attested by the candidate tree:
+
+- exact-head GitHub Actions certification;
+- required live Staging certification for this runtime-impacting source change.
+
+X1 contract-composition shadow must not begin until both external X0 gates pass.
 
 ## Safety boundaries
 
 - no provider call added;
 - no database write or migration;
-- no external send;
-- no route or OpenAPI change;
-- no authority, approval, or context change;
+- no external send added;
+- no route or OpenAPI contract change;
+- no authority, approval, or context decision change;
 - no new retry behavior;
-- no deployment or Production synchronization;
+- no deployment or Production synchronization performed by this slice;
 - no protected-branch mutation;
 - no secret-bearing telemetry;
-- collector and emitter failures cannot fail the measured operation.
+- collector and emitter failures cannot fail the measured operation;
+- candidate-tree files cannot self-attest exact-head CI or live Staging certification.
