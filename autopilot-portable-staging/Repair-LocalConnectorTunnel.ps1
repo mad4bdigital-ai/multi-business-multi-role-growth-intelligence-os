@@ -19,7 +19,8 @@ $LegacyWatchdogTask = "Mad4B-LocalConnector-Watchdog"
 $EnvPath = Join-Path $ConnectorRoot ".env"
 $PackageSource = Join-Path (Split-Path -Parent $PSScriptRoot) "local-connector"
 $InstallerPath = Join-Path $ConnectorRoot "install-service.ps1"
-$RequiredAssets = @("server.mjs", "browser4-adapter.mjs", "local-agent-runtime.mjs", "install-service.ps1", "connector-watchdog.ps1", "cloudflared-config.yml")
+$DefaultTunnelTokenFile = Join-Path $ConnectorRoot "secrets\cloudflared-token.txt"
+$RequiredAssets = @("server.mjs", "browser4-adapter.mjs", "local-agent-runtime.mjs", "install-service.ps1", "connector-watchdog.ps1")
 if ([string]::IsNullOrWhiteSpace($StatePath)) { $StatePath = Join-Path $PSScriptRoot "logs\local-connector-tunnel-state.json" }
 
 function Write-State([hashtable]$State) {
@@ -67,6 +68,30 @@ function Bind-StagingConnectorEnvironment {
         if ($value -notmatch '^https://dev\.mad4b\.com(?:/|$)') { throw "Staging Connector callback binding is outside dev.mad4b.com for $name." }
     }
 }
+function Resolve-ConnectorTunnelTokenFile {
+    $configured = (Get-DotEnvValue "CONNECTOR_CLOUDFLARED_TOKEN_FILE").Trim()
+    if (-not [string]::IsNullOrWhiteSpace($configured)) {
+        try { return [IO.Path]::GetFullPath($configured) } catch { return $configured }
+    }
+    return $DefaultTunnelTokenFile
+}
+function Test-ConnectorTunnelTokenFile([string]$Path) {
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $false }
+    try {
+        $value = [IO.File]::ReadAllText($Path).Trim()
+        return ($value.Length -gt 20)
+    } catch { return $false }
+}
+function Test-CanonicalTunnelTaskUsesTokenFile([string]$ExpectedTokenFile) {
+    try {
+        $task = Get-ScheduledTask -TaskName $CanonicalTunnelRuntime -ErrorAction SilentlyContinue
+        if ($null -eq $task) { return $false }
+        $arguments = [string]$task.Actions.Arguments
+        if ($arguments -notmatch '(?i)--token-file') { return $false }
+        if (-not [string]::IsNullOrWhiteSpace($ExpectedTokenFile) -and $arguments -notlike "*$ExpectedTokenFile*") { return $false }
+        return $true
+    } catch { return $false }
+}
 function Get-ServiceSnapshot([string]$Name) {
     try {
         $svc = Get-CimInstance Win32_Service -Filter "Name='$Name'" -ErrorAction Stop
@@ -112,8 +137,6 @@ function Restart-ConnectorRuntime {
     return $false
 }
 function Restart-LocalTunnelRuntime {
-    $service = Get-Service -Name $CanonicalTunnelRuntime -ErrorAction SilentlyContinue
-    if ($null -ne $service) { Restart-Service -Name $CanonicalTunnelRuntime -Force -ErrorAction Stop; return $true }
     $task = Get-ScheduledTask -TaskName $CanonicalTunnelRuntime -ErrorAction SilentlyContinue
     if ($null -ne $task) { Stop-ScheduledTask -TaskName $CanonicalTunnelRuntime -ErrorAction SilentlyContinue; Start-ScheduledTask -TaskName $CanonicalTunnelRuntime -ErrorAction Stop; Start-Sleep -Seconds 2; return ((Get-TaskState $CanonicalTunnelRuntime) -eq "Running") }
     return $false
@@ -125,6 +148,12 @@ function Get-PublicConnectorHealth {
     catch { $status = $null; try { $status = [int]$_.Exception.Response.StatusCode.value__ } catch { }; $text = [string]$_.Exception.Message; $errorCode = if ($status -eq 530 -or $text -match '(?i)\b1033\b') { "cloudflare_1033" } else { "remote_unavailable" }; return [pscustomobject]@{ healthy = $false; http_status = $status; error = $errorCode } }
 }
 function Wait-PublicHealth([int]$Seconds) { $deadline = [DateTime]::UtcNow.AddSeconds($Seconds); $last = Get-PublicConnectorHealth; while ([DateTime]::UtcNow -lt $deadline) { if ($last.healthy) { return $last }; Start-Sleep -Seconds 3; $last = Get-PublicConnectorHealth }; return $last }
+function Complete-StagingReadback([hashtable]$State, [object]$Before) {
+    $after = Get-ServiceSnapshot $StagingTunnelRuntime
+    $State.staging_state_after = $after.state
+    $State.staging_pid_after = $after.process_id
+    $State.staging_runtime_unchanged = ($after.state -eq $Before.state -and $after.process_id -eq $Before.process_id)
+}
 
 if (-not (Test-Path -LiteralPath $ConnectorRoot -PathType Container)) { throw "Local Connector root is missing: $ConnectorRoot" }
 $stagingBefore = Get-ServiceSnapshot $StagingTunnelRuntime
@@ -132,11 +161,16 @@ $legacyGenericService = Get-ServiceSnapshot "cloudflared"
 $legacyServiceClass = Get-LegacyServiceClass $legacyGenericService
 $legacyTaskState = Get-TaskState $LegacyTunnelTask
 $state = @{
-    contract = "mad4b.staging-local-connector-1033-recovery.v2"
+    contract = "mad4b.staging-local-connector-1033-recovery.v3"
     connector_environment = "staging"
     control_plane_host = "dev.mad4b.com"
     canonical_tunnel_runtime = $CanonicalTunnelRuntime
     staging_tunnel_runtime = $StagingTunnelRuntime
+    credential_mode = "token_file"
+    token_file_configured = $false
+    token_file_present = $false
+    required_next_action = $null
+    accepted_provisioning_sources = @()
     legacy_generic_service_detected = [bool]$legacyGenericService.exists
     legacy_service_class = $legacyServiceClass
     legacy_service_mutated = $false
@@ -166,7 +200,10 @@ $state = @{
 }
 if ($state.ownership_migration_blocked) {
     $state.status = "ambiguous_legacy_service_requires_reconciliation"
-    $after = Get-ServiceSnapshot $StagingTunnelRuntime; $state.staging_state_after = $after.state; $state.staging_pid_after = $after.process_id; $state.staging_runtime_unchanged = ($after.state -eq $stagingBefore.state -and $after.process_id -eq $stagingBefore.process_id); Write-State $state; Write-Host "LOCAL_CONNECTOR_RECOVERY_BLOCKED: status=$($state.status)"; exit 2
+    Complete-StagingReadback $state $stagingBefore
+    Write-State $state
+    Write-Host "LOCAL_CONNECTOR_RECOVERY_BLOCKED: status=$($state.status)"
+    exit 2
 }
 
 $missingRuntimeAssets = @($RequiredAssets | Where-Object { -not (Test-Path -LiteralPath (Join-Path $ConnectorRoot $_) -PathType Leaf) })
@@ -176,16 +213,37 @@ if ($missingRuntimeAssets.Count -gt 0) {
     if (-not $copyResult.copied) {
         $state.missing_assets = @($copyResult.missing)
         $state.status = "connector_installation_incomplete"
-        $after = Get-ServiceSnapshot $StagingTunnelRuntime; $state.staging_state_after = $after.state; $state.staging_pid_after = $after.process_id; $state.staging_runtime_unchanged = ($after.state -eq $stagingBefore.state -and $after.process_id -eq $stagingBefore.process_id); Write-State $state; Write-Host "LOCAL_CONNECTOR_RECOVERY_BLOCKED: status=$($state.status) missing_assets=$($state.missing_assets -join ',')"; exit 2
+        Complete-StagingReadback $state $stagingBefore
+        Write-State $state
+        Write-Host "LOCAL_CONNECTOR_RECOVERY_BLOCKED: status=$($state.status) missing_assets=$($state.missing_assets -join ',')"
+        exit 2
     }
 }
 
 Bind-StagingConnectorEnvironment
-$canonicalService = Get-ServiceSnapshot $CanonicalTunnelRuntime
+$tokenFile = Resolve-ConnectorTunnelTokenFile
+$state.token_file_configured = -not [string]::IsNullOrWhiteSpace((Get-DotEnvValue "CONNECTOR_CLOUDFLARED_TOKEN_FILE"))
+$state.token_file_present = Test-ConnectorTunnelTokenFile $tokenFile
+if ($state.token_file_present -and -not $state.token_file_configured) {
+    Set-DotEnvValue "CONNECTOR_CLOUDFLARED_TOKEN_FILE" $tokenFile
+    $state.token_file_configured = $true
+}
+if (-not $state.token_file_present) {
+    $state.status = "connector_tunnel_provisioning_required"
+    $state.required_next_action = "provision_tunnel_token"
+    $state.accepted_provisioning_sources = @("CONNECTOR_CLOUDFLARED_TOKEN_FILE", "governed_provider_recovery")
+    $state.missing_assets = @("connector_tunnel_token_file")
+    Complete-StagingReadback $state $stagingBefore
+    Write-State $state
+    Write-Host "LOCAL_CONNECTOR_RECOVERY_BLOCKED: status=$($state.status) required_next_action=$($state.required_next_action)"
+    exit 2
+}
+
 $canonicalTaskState = Get-TaskState $CanonicalTunnelRuntime
 $connectorTaskState = Get-TaskState $ConnectorTask
 $watchdogTaskState = Get-TaskState $WatchdogTask
-if (-not $canonicalService.exists -and $canonicalTaskState -eq "missing" -or $connectorTaskState -eq "missing" -or $watchdogTaskState -eq "missing") {
+$canonicalBindingReady = Test-CanonicalTunnelTaskUsesTokenFile $tokenFile
+if ($canonicalTaskState -eq "missing" -or $connectorTaskState -eq "missing" -or $watchdogTaskState -eq "missing" -or -not $canonicalBindingReady) {
     try {
         & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $InstallerPath
         if ($LASTEXITCODE -ne 0) { throw "installer_exit_code_$LASTEXITCODE" }
@@ -193,14 +251,20 @@ if (-not $canonicalService.exists -and $canonicalTaskState -eq "missing" -or $co
         $state.status = "connector_installation_incomplete"
         $state.missing_assets = @("canonical_runtime_installation")
         $state["install_error"] = $_.Exception.Message
-        $after = Get-ServiceSnapshot $StagingTunnelRuntime; $state.staging_state_after = $after.state; $state.staging_pid_after = $after.process_id; $state.staging_runtime_unchanged = ($after.state -eq $stagingBefore.state -and $after.process_id -eq $stagingBefore.process_id); Write-State $state; Write-Host "LOCAL_CONNECTOR_RECOVERY_BLOCKED: status=$($state.status)"; exit 2
+        Complete-StagingReadback $state $stagingBefore
+        Write-State $state
+        Write-Host "LOCAL_CONNECTOR_RECOVERY_BLOCKED: status=$($state.status)"
+        exit 2
     }
 }
 
-$canonicalService = Get-ServiceSnapshot $CanonicalTunnelRuntime
 $canonicalTaskState = Get-TaskState $CanonicalTunnelRuntime
-if (-not $canonicalService.exists -and $canonicalTaskState -eq "missing") {
-    $state.status = "connector_installation_incomplete"; $state.missing_assets = @($CanonicalTunnelRuntime); $after = Get-ServiceSnapshot $StagingTunnelRuntime; $state.staging_state_after = $after.state; $state.staging_pid_after = $after.process_id; $state.staging_runtime_unchanged = ($after.state -eq $stagingBefore.state -and $after.process_id -eq $stagingBefore.process_id); Write-State $state; exit 2
+if ($canonicalTaskState -eq "missing" -or -not (Test-CanonicalTunnelTaskUsesTokenFile $tokenFile)) {
+    $state.status = "connector_installation_incomplete"
+    $state.missing_assets = @($CanonicalTunnelRuntime)
+    Complete-StagingReadback $state $stagingBefore
+    Write-State $state
+    exit 2
 }
 
 $state.connector_runtime_ensure_attempted = $true
@@ -213,10 +277,7 @@ $state.public_health = [bool]$public.healthy
 $state.public_http_status = $public.http_status
 $state.public_error = $public.error
 $state.status = if ($state.local_health -and $state.public_health) { "healthy" } elseif ($state.local_health -and $state.public_error -eq "cloudflare_1033") { "cloudflare_1033" } elseif ($state.local_health) { "tunnel_unhealthy" } else { "connector_unhealthy" }
-$stagingAfter = Get-ServiceSnapshot $StagingTunnelRuntime
-$state.staging_state_after = $stagingAfter.state
-$state.staging_pid_after = $stagingAfter.process_id
-$state.staging_runtime_unchanged = ($stagingAfter.state -eq $stagingBefore.state -and $stagingAfter.process_id -eq $stagingBefore.process_id)
+Complete-StagingReadback $state $stagingBefore
 if (-not $state.staging_runtime_unchanged) { $state.status = "cross_runtime_non_interference_failed" }
 Write-State $state
 if ($state.status -eq "healthy") { Write-Host "LOCAL_CONNECTOR_RECOVERY_READY: environment=staging tunnel=$CanonicalTunnelRuntime staging_unchanged=true"; exit 0 }

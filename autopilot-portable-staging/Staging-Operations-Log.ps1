@@ -1,8 +1,14 @@
 $script:StagingLogSchemaVersion = 2
 $script:StagingLogWriteFailureAt = $null
+# A PowerShell host may invoke Auto Deploy repeatedly in the same process. A
+# global run id that is only initialized once collapses separate invocations into
+# one evidence stream. Dot-sourcing this helper starts a fresh invocation scope;
+# child processes receive their own run id and never inherit stale parent state.
+$script:StagingLogInvocationRunId = [guid]::NewGuid().ToString("N")
+$global:Mad4bStagingRunId = $script:StagingLogInvocationRunId
 
 function Get-StagingRunId {
-    # StrictMode throws when an unset global variable is read directly.
+    # StrictMode throws when an unset global variable is read directly; resolve it safely.
     $current = Get-Variable -Name Mad4bStagingRunId -Scope Global -ValueOnly -ErrorAction SilentlyContinue
     if ([string]::IsNullOrWhiteSpace([string]$current)) {
         $global:Mad4bStagingRunId = [guid]::NewGuid().ToString("N")
@@ -68,6 +74,34 @@ function Write-StagingAtomicJson([string]$Path, [object]$Value, [int]$Depth = 10
     Invoke-StagingLogLocked { Write-StagingUtf8Atomic $Path $json }
 }
 
+function Repair-StagingLegacyAutoDeployState {
+    # Runtime state is intentionally untracked and can outlive schema evolution.
+    # Add only optional compatibility fields; never infer deployment/certification
+    # success and never replace an invalid JSON file that Auto Deploy should reject.
+    $path = Join-Path $PSScriptRoot "auto-deploy-state.json"
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return }
+    try { $state = Get-Content -Raw -LiteralPath $path | ConvertFrom-Json -ErrorAction Stop }
+    catch { return }
+    if ($null -eq $state) { return }
+
+    $defaults = [ordered]@{
+        deployed_commit = ""
+        certification_status = ""
+        certified_commit = ""
+        certified_branch = ""
+        certification_degraded_reasons = @()
+        certification_blocking_failures = @()
+    }
+    $changed = $false
+    foreach ($name in $defaults.Keys) {
+        if ($null -eq $state.PSObject.Properties[$name]) {
+            $state | Add-Member -NotePropertyName $name -NotePropertyValue $defaults[$name]
+            $changed = $true
+        }
+    }
+    if ($changed) { Write-StagingAtomicJson $path $state 12 }
+}
+
 function Rotate-StagingOperationsLog {
     $active = Get-StagingLogFile
     if (-not (Test-Path $active)) { return }
@@ -90,6 +124,26 @@ function ConvertTo-StagingSafeText([AllowNull()][object]$Value) {
     $text = $text -replace '(?i)(ghp_|github_pat_|sk-[A-Za-z0-9_-]{8,})[A-Za-z0-9._~+/=-]*', '$1REDACTED'
     if ($text.Length -gt 4000) { $text = $text.Substring(0, 4000) + "...TRUNCATED" }
     return $text
+}
+
+function Test-StagingPreserveFreshChildFailure([string]$FailurePath, [object]$Record, [hashtable]$SafeData) {
+    if ([string]$Record.component -ne "auto-deploy") { return $false }
+    if (-not $SafeData.ContainsKey("parent_error") -or [string]$SafeData.parent_error -ne "AUTO_DEPLOY_FAIL_CLOSED") { return $false }
+    if (-not (Test-Path -LiteralPath $FailurePath -PathType Leaf)) { return $false }
+    try { $existing = Get-Content -Raw -LiteralPath $FailurePath | ConvertFrom-Json -ErrorAction Stop }
+    catch { return $false }
+    if ($null -eq $existing -or [string]$existing.level -ne "error" -or [string]$existing.component -eq "auto-deploy") { return $false }
+    try {
+        $existingAt = [DateTime]::Parse([string]$existing.timestamp).ToUniversalTime()
+        $recordAt = [DateTime]::Parse([string]$Record.timestamp).ToUniversalTime()
+        $age = ($recordAt - $existingAt).TotalSeconds
+        if ($age -lt 0 -or $age -gt 180) { return $false }
+    } catch { return $false }
+
+    $currentExpected = if ($SafeData.ContainsKey("expected_commit")) { [string]$SafeData.expected_commit } else { "" }
+    $existingExpected = if ($existing.PSObject.Properties.Name -contains "expected_commit") { [string]$existing.expected_commit } else { "" }
+    if ($currentExpected -and $existingExpected -and $currentExpected -ne $existingExpected) { return $false }
+    return $true
 }
 
 function Write-StagingLog {
@@ -143,7 +197,9 @@ function Write-StagingLog {
             Write-StagingUtf8Atomic $latest ($record | ConvertTo-Json -Depth 8)
             if ($Level -eq "error") {
                 $failure = Join-Path (Get-StagingLogRoot) "last-failure.json"
-                Write-StagingUtf8Atomic $failure ($record | ConvertTo-Json -Depth 8)
+                if (-not (Test-StagingPreserveFreshChildFailure $failure $record $safeData)) {
+                    Write-StagingUtf8Atomic $failure ($record | ConvertTo-Json -Depth 8)
+                }
             }
         }
     } catch {
@@ -190,3 +246,5 @@ function Write-StagingOperationBoundary {
     $effectiveData["outcome"] = $Outcome
     Write-StagingLog -Level $level -Component $Component -Stage $Stage -Message $effectiveMessage -Data $effectiveData
 }
+
+Repair-StagingLegacyAutoDeployState

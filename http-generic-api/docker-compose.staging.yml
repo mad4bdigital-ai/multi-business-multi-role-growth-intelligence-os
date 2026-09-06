@@ -90,6 +90,10 @@ services:
       STAGING_BUILD_TREE: ${STAGING_BUILD_TREE:?set STAGING_BUILD_TREE in .env.staging}
       STAGING_BUILD_CONTEXT_FILE_SET_SHA256: ${STAGING_BUILD_CONTEXT_FILE_SET_SHA256:?set STAGING_BUILD_CONTEXT_FILE_SET_SHA256 in .env.staging}
       STAGING_APP_IMAGE_ID: ${STAGING_APP_IMAGE_ID:-}
+      # The Staging tunnel token belongs exclusively to the Staging ingress
+      # runtime. Do not expose it to application routes where it could be
+      # mistaken for a Local Connector tunnel credential.
+      CLOUDFLARE_TUNNEL_TOKEN: ""
       DB_HOST: runtime-db
       DB_PORT: 3306
       DB_NAME: ${DB_NAME:?set DB_NAME in .env.staging}
@@ -107,8 +111,6 @@ services:
       RUNTIME_PERSISTENCE_DB_PASSWORD: ${RUNTIME_PERSISTENCE_DB_PASSWORD:?set RUNTIME_PERSISTENCE_DB_PASSWORD in .env.staging}
       REDIS_URL: redis://redis:6379
       QUEUE_WORKER_ENABLED: "FALSE"
-      GOVERNED_EXECUTION_BASELINE_ENABLED: "true"
-      GOVERNED_EXECUTION_BASELINE_MAX_SAMPLES: "500"
       MIGRATION_APPLIED: "false"
       DATABASE_MUTATED: "false"
       PRODUCTION_MUTATION_AUTHORIZED: "false"
