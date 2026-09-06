@@ -37,23 +37,23 @@
     "tasks": 74,
     "e2e_phase_contract": "e2e-phases.json",
     "implemented_spec_e2e_journeys": 1,
-    "completed_phase0_tasks": ["T001", "T002", "T003", "T004", "T005", "T007", "T009"]
+    "completed_phase0_tasks": ["T001", "T002", "T003", "T004", "T005", "T006", "T007", "T008", "T009"]
   },
   "convergence": {
     "candidate_prs": [3922, 4432],
     "classification_contract": "candidate-convergence.json",
-    "status": "phase0_decision_ready_owner_approval_pending",
+    "status": "phase0_owner_approved_external_exact_head_attestation_required",
     "candidate_pr_comments_added": true,
-    "duplicate_spec_identity_resolved": false,
-    "canonical_semantic_paths_approved": false,
+    "duplicate_spec_identity_resolved": true,
+    "canonical_semantic_paths_approved": true,
     "T006_decision_register": "canonical-identity-cutover-decisions.json",
     "T006_human_review": "canonical-identity-cutover-decisions.md",
-    "T006_status": "decision_ready_pending_owner_approval",
+    "T006_status": "owner_approved_cutover_not_executed",
     "T006_cutover_executed": false,
     "T008_decision_matrix": "phase1-owner-decision-matrix.json",
     "T008_human_review": "phase1-owner-decision-matrix.md",
-    "T008_status": "decision_ready_pending_owner_approval",
-    "T008_phase1_authorized": false,
+    "T008_status": "owner_approved_phase1_design_authorized",
+    "T008_phase1_authorized": true,
     "current_main_authority_inventory_sha": "0faee775cd0572b737fed8bc74e2580d9fca2878",
     "current_main_authority_inventory_contract": "docs/spec-portfolio/spec015-current-main-authority-reuse-matrix-20260906.json",
     "current_main_authority_inventory_review": "docs/spec-portfolio/spec015-current-main-authority-reuse-matrix-20260906.md",
@@ -83,7 +83,7 @@
     "all_base_snapshot_open_drafts_classified": true,
     "field_level_reuse_matrices_complete": true,
     "current_main_field_level_reuse_matrix_sha": "0faee775cd0572b737fed8bc74e2580d9fca2878",
-    "canonical_paths_finalized": false,
+    "canonical_paths_finalized": true,
     "close_or_supersede_actions_executed": false
   },
   "portfolio_live_delta": {
@@ -102,6 +102,19 @@
     "updated_delivery_trains": ["hostinger-storage-workstreams"],
     "all_current_observed_open_drafts_classified": true
   },
+  "owner_decision_evidence": {
+    "T006": {
+      "status": "approved",
+      "recorded_on": "2026-09-06",
+      "cutover_executed": false
+    },
+    "T008": {
+      "status": "approved",
+      "recorded_on": "2026-09-06",
+      "phase1_design_authorized": true,
+      "runtime_mutation_authorized": false
+    }
+  },
   "external_attestation_requirements": {
     "exact_head_ci": {
       "required": true,
@@ -118,8 +131,8 @@
     "manifest_inventory": "external_sha_bound_attestation_required",
     "canonical_authority_convergence": "external_sha_bound_attestation_required",
     "current_main_reuse_matrix": "external_sha_bound_attestation_required",
-    "T006_decision_register": "pending_owner_review_and_external_sha_bound_attestation_required",
-    "T008_decision_matrix": "pending_owner_review_and_external_sha_bound_attestation_required",
+    "T006_decision_register": "owner_approved_external_sha_bound_attestation_required",
+    "T008_decision_matrix": "owner_approved_external_sha_bound_attestation_required",
     "portfolio_base_contract": "external_sha_bound_attestation_required",
     "portfolio_live_delta_contract": "external_sha_bound_attestation_required",
     "e2e_phase_contract": "external_sha_bound_attestation_required",
@@ -137,8 +150,8 @@
     "agency_client_ownership_review": "pending_pr_review",
     "portfolio_disposition_review": "pending_pr_review",
     "external_integration_review": "pending_pr_review",
-    "package_authority_extension_review": "pending_pr_review",
-    "installation_revision_authority_review": "pending_pr_review"
+    "package_authority_extension_review": "owner_approved_bounded_extension_policy_specific_schema_review_still_required",
+    "installation_revision_authority_review": "owner_approved_bounded_gap_policy_specific_schema_review_still_required"
   },
   "implementation": {
     "started": false,
@@ -173,7 +186,6 @@
     "canonical_spec_identity_resolution",
     "canonical_action_operation_semantic_resolution",
     "canonical_capability_alias_cutover_resolution",
-    "T008_owner_architecture_product_security_privacy_approval",
     "draft_spec_portfolio_disposition_review",
     "truthful_completion_ledger_reconciliation",
     "system_tool_catalog_single_canonical_resolution",
@@ -195,31 +207,28 @@
     "post_merge_audit"
   ],
   "blocking_reasons": [
-    "T006_owner_approval_pending",
-    "T008_owner_approval_pending",
-    "duplicate_spec_roles_not_approved",
-    "legacy_action_operation_semantics_not_approved",
     "capability_authority_cutover_not_certified",
-    "package_authority_extension_not_approved",
-    "generic_component_persistence_not_approved",
-    "installation_revision_authority_not_approved",
-    "data_governance_P0_not_approved",
-    "knowledge_provenance_boundary_not_approved",
+    "package_authority_extension_implementation_not_started",
+    "concrete_generic_component_persistence_requires_proven_gap_and_schema_review",
+    "concrete_installation_revision_persistence_requires_proven_gap_and_schema_review",
+    "data_governance_P0_not_implemented",
+    "knowledge_provenance_runtime_not_implemented",
     "model_governance_runtime_not_implemented",
     "commercial_reservation_runtime_not_implemented",
-    "agency_client_ownership_and_portability_not_approved",
+    "agency_client_ownership_and_portability_runtime_not_implemented",
     "custom_entity_persistence_open",
     "candidate_pr_reconstruction_not_started",
     "chatgpt_mcp_oauth_tool_catalog_and_public_endpoint_gates_open"
   ],
   "notes": [
     "T002/T003 are complete only as exact-current-main inventory/reuse evidence at 0faee775cd0572b737fed8bc74e2580d9fca2878.",
-    "T006 and T008 are decision-ready but remain unchecked pending owner approval; no cutover or Phase1 runtime authorization is implied.",
+    "T006 and T008 owner approvals were recorded on 2026-09-06. T006 closes semantic identity/cutover decisions only; T008 authorizes bounded Phase1 implementation PR design only.",
+    "T006 cutover_executed=false and T008 runtime_mutation_authorized=false remain mandatory.",
     "Exact-head CI is an external SHA-bound attestation requirement. The candidate tree must not claim pending or passed exact-head status for itself.",
     "Current package/version/install authorities are mandatory reuse inputs; copied grant/policy JSON is compatibility-only.",
     "The legacy actions table is Provider Capability Group semantics; endpoints are provider operation contracts; Business Action remains domain/product semantics.",
     "canonical_capabilities is a target semantic identity domain but global runtime cutover requires shadow parity because legacy action/tool registries still participate in current runtime.",
-    "Phase1 owner decisions cover package/component/install, authorization, privacy/data governance, knowledge provenance, model governance, FinOps, agency/client ownership, portability, external protocols, human approval, and Content Intelligence staging.",
+    "Concrete new persistence still requires a proven semantic gap and bounded schema review even though the reuse/extension policy is owner-approved.",
     "No runtime, migration, provider, Production, permission, or protected-branch mutation is authorized by this Spec-only PR."
   ],
   "secrets_included": false
