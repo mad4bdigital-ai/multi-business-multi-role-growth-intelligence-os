@@ -582,7 +582,8 @@
     ".github/workflows/staging-post-deploy-verification.yml",
     ".changes/e2e/staging-one-click-loopback-origin-20260905.json",
     ".changes/e2e/staging-activation-public-schema-routes-20260905.json",
-    ".changes/e2e/production-full-schema-metadata-census-20260905.json"
+    ".changes/e2e/production-full-schema-metadata-census-20260905.json",
+    ".changes/e2e/staging-connector-provisioning-boundary-20260906.json"
   ],
   "derived_state": {
     "registry": ".github/derived-state-governance.json",
