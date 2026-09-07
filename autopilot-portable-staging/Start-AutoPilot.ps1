@@ -323,23 +323,19 @@ function Find-ExactStagingImageId([string]$ExpectedCommit, [string]$ExpectedTree
         $fromEnv = ($fromEnvLine -replace '^STAGING_APP_IMAGE_ID=', '').Trim().ToLowerInvariant()
         if ($fromEnv -match '^sha256:[0-9a-f]{64}$') { $candidateIds += $fromEnv }
     }
-    # Compose owns the effective app image name. Query it so an image built by a
-    # previous successful Auto Pilot run remains reusable if cached discovery is stale.
+    # Compose owns the effective app image name. Resolve it from the interpolated
+    # model instead of `compose images -q`: that command dereferences the image of
+    # an existing container and exits nonzero when Docker GC has removed it, which
+    # is a normal pre-build condition rather than an Auto Pilot failure.
     if ($null -ne $ComposeArgs -and $ComposeArgs.Count -gt 0) {
-        $composeImageQuery = (& docker @($ComposeArgs + @("images", "-q", "app")) 2>$null | Out-String).Trim()
-        if ($LASTEXITCODE -eq 0) {
-            $candidateIds += @($composeImageQuery -split "\s+" | Where-Object { $_ -match '^sha256:[0-9a-fA-F]{64}$' })
-        }
-        # Immediately after `compose build`, there may be no new app container yet,
-        # so `compose images -q app` can still resolve the previous container image.
-        # Resolve the effective app image reference from the fully interpolated
-        # Compose model, inspect that local tag, and feed only its immutable ID into
-        # the same exact-provenance validator below.
         try {
             $composeModelJson = (& docker @($ComposeArgs + @("config", "--format", "json")) 2>$null | Out-String).Trim()
             if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($composeModelJson)) {
                 $composeModel = $composeModelJson | ConvertFrom-Json
                 $effectiveImageRef = [string]$composeModel.services.app.image
+                if ([string]::IsNullOrWhiteSpace($effectiveImageRef) -and -not [string]::IsNullOrWhiteSpace([string]$composeModel.name)) {
+                    $effectiveImageRef = "{0}-app:latest" -f [string]$composeModel.name
+                }
                 if (-not [string]::IsNullOrWhiteSpace($effectiveImageRef)) {
                     $effectiveImageId = (& docker image inspect --format '{{.Id}}' $effectiveImageRef 2>$null | Out-String).Trim()
                     if ($LASTEXITCODE -eq 0 -and $effectiveImageId -match '^sha256:[0-9a-fA-F]{64}$') {

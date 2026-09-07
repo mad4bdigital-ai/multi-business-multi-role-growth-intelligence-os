@@ -6,8 +6,11 @@ const finder = source.slice(source.indexOf("function Find-ExactStagingImageId"),
 
 assert.match(finder, /config", "--format", "json"/);
 assert.match(finder, /composeModel\.services\.app\.image/);
+assert.match(finder, /composeModel\.name/);
+assert.match(finder, /-app:latest/);
 assert.match(finder, /docker image inspect --format '\{\{\.Id\}\}' \$effectiveImageRef/);
 assert.match(finder, /Test-ExactStagingImage/);
+assert.doesNotMatch(finder, /"images", "-q", "app"/);
 
 for (const label of [
   "org.mad4b.staging.provenance.contract",

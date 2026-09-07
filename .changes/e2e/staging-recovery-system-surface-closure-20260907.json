@@ -19,6 +19,7 @@
       "http-generic-api/test-recovery-system-tool-overlay.mjs",
       "http-generic-api/test-local-connector-convergence-inspector.mjs",
       "http-generic-api/test-staging-post-build-image-discovery.mjs",
+      "http-generic-api/test-staging-auto-deploy-contract.mjs",
       "http-generic-api/scripts/generate-portable-staging-manifest.mjs",
       "autopilot-portable-staging/manifest.json",
       "autopilot-portable-staging/Start-AutoPilot.ps1",
@@ -74,7 +75,7 @@
             "Live Staging certification is required after merge because runtime routing and Recovery System Tool composition change.",
             "The convergence inspector reports duplicate owners, runtime-root drift, missing identity, and cross-runtime binding while performing no restart, install, credential-value read, provider call, DNS write, or database mutation.",
             "DNS resolution failures and HTTP 401/403 identity failures never trigger a cloudflared restart; only the classified Cloudflare 1033 edge failure may do so.",
-            "Post-build image discovery works before a new app container exists and never accepts a tag directly: contract, commit, tree, context-file-set hash, secrets=false, and immutable sha256 ID remain mandatory."
+            "Post-build image discovery works before a new app container exists, treats a garbage-collected stale container image as a normal cache miss, and never accepts a tag directly: contract, commit, tree, context-file-set hash, secrets=false, and immutable sha256 ID remain mandatory."
           ],
           "tests": [
             {
