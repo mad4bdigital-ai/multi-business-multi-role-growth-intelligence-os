@@ -17,6 +17,8 @@ internal sealed class SignedInstallerCoordinator
     private readonly string _updatesRoot;
     private readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web);
 
+    internal int? LastExitCode { get; private set; }
+
     internal SignedInstallerCoordinator(string baseUrl, string updatesRoot)
     {
         _baseUri = new Uri(baseUrl, UriKind.Absolute);
@@ -107,6 +109,7 @@ internal sealed class SignedInstallerCoordinator
         SignedInstallerDownload download,
         CancellationToken cancellationToken = default)
     {
+        LastExitCode = null;
         var ownedPath = Path.GetFullPath(download.InstallerPath);
         AssertOwnedInstallerPath(ownedPath);
         if (!File.Exists(ownedPath)) throw new FileNotFoundException("Installer file was not found.", ownedPath);
@@ -137,6 +140,7 @@ internal sealed class SignedInstallerCoordinator
         try
         {
             await process.WaitForExitAsync(cancellationToken);
+            LastExitCode = process.ExitCode;
             return process.ExitCode == 0
                 ? SignedInstallerRunResult.Completed
                 : SignedInstallerRunResult.Failed;
