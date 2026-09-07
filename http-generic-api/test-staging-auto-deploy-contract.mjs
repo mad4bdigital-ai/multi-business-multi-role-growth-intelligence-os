@@ -180,6 +180,7 @@ assert.match(pilotScript, /SkipBuild requested but no local app image matches ex
 assert.match(pilotScript, /prepare-staging-build-context\.mjs/);
 assert.match(pilotScript, /STAGING_BUILD_CONTEXT_FILE_SET_SHA256/);
 assert.match(pilotScript, /STAGING_APP_IMAGE_ID/);
+assert.match(pilotScript, /ComposeArgs \\+ @\\("images", "[-]q", "app"\\)/, "SkipBuild must discover the effective Compose app image before relying on cached env provenance");
 assert.match(pilotScript, /content-addressed sha256 digest/);
 assert.match(pilotScript, /git_archive_exact_commit/);
 assert.match(pilotScript, /Invoke-StagingCertification\.ps1/);
