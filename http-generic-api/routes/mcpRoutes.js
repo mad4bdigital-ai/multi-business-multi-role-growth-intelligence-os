@@ -1,8 +1,10 @@
 import { Router } from "express";
 import { buildMcpHandlers } from "../mcpRuntime.js";
 import { remoteMcpOAuthEnabled } from "../remoteMcpOAuthProfile.js";
+import { wordpressStagingMcpOAuthConfigured } from "../wordpressStagingMcpOAuthProfile.js";
 import { buildRemoteMcpConnectorRoutes } from "./remoteMcpConnectorRoutes.js";
 import { buildRemoteMcpOAuthRoutes } from "./remoteMcpOAuthRoutes.js";
+import { buildWordpressStagingMcpOAuthRoutes } from "./wordpressStagingMcpOAuthRoutes.js";
 
 export function buildMcpRoutes(deps) {
   const {
@@ -23,6 +25,14 @@ export function buildMcpRoutes(deps) {
   // endpoints still fail closed through the platform 404 boundary.
   if (remoteMcpOAuthEnabled(env)) {
     router.use(buildRemoteMcpOAuthRoutes(deps));
+  }
+
+  // Staging-only WordPress federation is a separate path-scoped issuer on the
+  // same authorization service. It reuses the governed client/grant ledgers,
+  // but its access tokens are RS256 and bound only to the exact WordPress
+  // mad4b-read resource. Production and mutation surfaces are not inherited.
+  if (wordpressStagingMcpOAuthConfigured(env)) {
+    router.use(buildWordpressStagingMcpOAuthRoutes(deps));
   }
 
   // Standards-oriented remote MCP surface for ChatGPT, Claude, Codex, and
