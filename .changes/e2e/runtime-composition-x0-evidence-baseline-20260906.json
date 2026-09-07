@@ -17,6 +17,8 @@
       "http-generic-api/connectorExecutor.js",
       "http-generic-api/routes/index.js",
       "http-generic-api/docker-compose.staging.yml",
+      "http-generic-api/stagingRecoveryAuthorityBindingPhaseB.js",
+      "http-generic-api/test-staging-pr-head-recovery-readiness.mjs",
       "http-generic-api/scripts/governed-execution-baseline-benchmark.mjs",
       "http-generic-api/test-governed-execution-baseline-telemetry.mjs",
       "http-generic-api/test-governed-execution-baseline-benchmark.mjs",
@@ -71,6 +73,8 @@
             "Refresh the portable Staging generated manifest through its canonical generator after the Compose input changes.",
             "Register the X0 E2E declaration in both Constitution.control_plane_paths and derived-state convergence automation_control_paths.",
             "Use the bounded one-shot Windows PR-head certification bridge only after same-repository open non-draft pull-request readback binds base=main, head ref and exact head SHA; revalidate the same authority inside the certifier and after the live run.",
+            "Propagate only non-secret PR-head certification markers into the local Staging app runtime so the read-only Recovery readiness authority can bind the exact PR manifest without changing the execution binding.",
+            "Ignore any persisted main/release certification pointer in PR-head readiness mode and return a pre-certification read-only snapshot whose Production authority eligibility is explicitly false.",
             "Keep PR-head certification scoped to the exact local Windows Compose runtime; external Activation Gateway authority is explicitly excluded so the bridge cannot deploy or attest a PR-head Worker.",
             "Run exact-head repository CI and environment-impact closure; require live-Staging certification externally and prohibit source-tree self-attestation.",
             "Do not begin X1 until Gate X0 external certification is complete."
@@ -88,6 +92,7 @@
             "The X0 E2E declaration is registered in both repository-governance control-plane registries; this registration does not create new execution authority.",
             "The candidate tree records exact-head and live-Staging certification as external requirements only.",
             "PR-head live certification requires a same-repository open non-draft pull request targeting main with exact head ref/SHA readback before and after the run; the certifier revalidates the same authority immediately before live certification.",
+            "PR-head Recovery readiness accepts only the exact governed PR manifest and non-secret certification markers, ignores any persisted release certification pointer, remains pre-certification/read-only, and explicitly reports Production authority eligibility=false.",
             "Existing main-only Auto Deploy and One-Click supervisors remain main-only; the bridge is a one-shot local Windows certification path and does not broaden Production or main deployment authority.",
             "Gate X0 accepts only certification_status=ready with exact certified commit/ref and a complete local runtime artifact set; degraded or stale evidence cannot close the gate.",
             "PR-head Gate X0 certification is scoped to the local Windows Compose runtime and explicitly excludes external Activation Gateway authority; it is not release certification and performs no external Gateway mutation.",
@@ -123,6 +128,13 @@
               "args": []
             },
             {
+              "id": "staging-pr-head-recovery-readiness",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-pr-head-recovery-readiness.mjs",
+              "args": []
+            },
+            {
               "id": "environment-impact-closure",
               "runner": "node",
               "working_directory": ".",
@@ -142,6 +154,8 @@
             "http-generic-api/connectorExecutor.js",
             "http-generic-api/routes/index.js",
             "http-generic-api/docker-compose.staging.yml",
+            "http-generic-api/stagingRecoveryAuthorityBindingPhaseB.js",
+            "http-generic-api/test-staging-pr-head-recovery-readiness.mjs",
             "http-generic-api/test-governed-execution-baseline-telemetry.mjs",
             "http-generic-api/test-governed-execution-baseline-benchmark.mjs",
             "autopilot-portable-staging/manifest.json",
