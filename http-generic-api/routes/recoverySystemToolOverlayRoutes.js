@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { SYSTEM_LAYER_TOOLS } from "./systemLayerRoutes.js";
+import { getRecoveryCapabilities } from "../recoveryKernel.js";
 import {
   STAGING_RECOVERY_SYSTEM_SOURCE_KEY,
   buildStagingRecoverySystemTools,
@@ -84,6 +85,39 @@ export function synchronizeRecoverySystemToolDescriptors(env = process.env) {
   };
 }
 
+export function projectRecoveryCapabilitiesForSystemSurface(env = process.env) {
+  const kernel = getRecoveryCapabilities({ env });
+  if (!isStagingRecoverySystemEnvironment(env)) return kernel;
+  return {
+    ...kernel,
+    environment_view: "staging_bounded_control_plane",
+    kernel_environment_view: kernel.environment_view,
+    system_surface_contract: RECOVERY_SYSTEM_TOOL_OVERLAY_CONTRACT,
+    system_surface_extensions: [
+      {
+        capability_key: "staging_certification_canary_plan_create",
+        risk_class: "C1",
+        state_scope: "durable_recovery_control_plane",
+        target_database_mutation: false,
+        provider_mutation: false,
+        production_authority: false,
+      },
+      {
+        capability_key: "staging_database_access_repair",
+        risk_class: "C2",
+        state_scope: "plan_approval_ticket_only",
+        target_database_mutation: false,
+        provider_mutation: false,
+        production_authority: false,
+      },
+    ],
+    control_plane_state_write_capabilities: ["staging_certification_canary_plan_create", "staging_database_access_repair"],
+    target_database_mutation_capabilities: [],
+    production_authority: false,
+    secrets_included: false,
+  };
+}
+
 function toolArgs(req) {
   return req.body?.tool_args && typeof req.body.tool_args === "object" && !Array.isArray(req.body.tool_args)
     ? req.body.tool_args
@@ -131,6 +165,14 @@ function validateBridgeArgs(args = {}) {
 
 async function executeOverlayTool(name, args, deps = {}) {
   const runtimeEnv = deps.recoveryKernelEnv || deps.env || process.env;
+
+  if (name === "recovery_kernel_capabilities") {
+    return projectRecoveryCapabilitiesForSystemSurface(runtimeEnv);
+  }
+  if (name === "recovery_kernel_call" && String(args?.capability_key || "").trim() === "recovery_capabilities") {
+    return projectRecoveryCapabilitiesForSystemSurface(runtimeEnv);
+  }
+
   if (STAGING_TOOL_NAMES.has(name)) {
     if (!isStagingRecoverySystemEnvironment(runtimeEnv)) {
       throw Object.assign(new Error("Staging Recovery System Tools are not available outside Staging."), {
@@ -207,9 +249,12 @@ export function buildRecoverySystemToolOverlayRoutes({
 
   const handler = async (req, res, next) => {
     const name = String(req.body?.name || "").trim();
-    if (name !== BRIDGE_TOOL_NAME && !STAGING_TOOL_NAMES.has(name)) return next();
+    const args = toolArgs(req);
+    const capabilityProjection = name === "recovery_kernel_capabilities"
+      || (name === "recovery_kernel_call" && String(args?.capability_key || "").trim() === "recovery_capabilities");
+    if (name !== BRIDGE_TOOL_NAME && !STAGING_TOOL_NAMES.has(name) && !capabilityProjection) return next();
     try {
-      const result = await executeOverlayTool(name, toolArgs(req), deps);
+      const result = await executeOverlayTool(name, args, deps);
       return res.status(200).json(result);
     } catch (error) {
       return sendError(res, error);
