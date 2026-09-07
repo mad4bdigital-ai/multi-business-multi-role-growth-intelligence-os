@@ -4,7 +4,7 @@
   "feature_key": "recovery-phase-b-certification-closure-20260907",
   "title": "Staging Recovery Phase B genuine certification closure",
   "delivery_mode": "single_pr",
-  "current_phase": "operational",
+  "current_phase": "mvp",
   "scope": {
     "include": [
       ".changes/e2e/recovery-phase-b-certification-closure-20260907.json",
@@ -14,11 +14,13 @@
       "apps/local-manager-windows/LocalManagerAutopilot.cs",
       "autopilot-portable-staging/Invoke-StagingRecoveryCertificationCanary.ps1",
       "autopilot-portable-staging/Invoke-StagingRecoveryCertificationPublish.ps1",
+      "docs/runbooks/recovery-phase-b-pr-delivery.md",
       "docs/runbooks/staging-recovery-phase-b-certification.md",
       "http-generic-api/scripts/staging-recovery-genuine-canary.mjs",
       "http-generic-api/scripts/staging-recovery-publish-countersign.mjs",
       "http-generic-api/stagingRecoveryCertificationProtocol.js",
-      "http-generic-api/test-staging-recovery-certification-protocol.mjs"
+      "http-generic-api/test-staging-recovery-certification-protocol.mjs",
+      "http-generic-api/test-staging-recovery-certification-script-surface.mjs"
     ]
   },
   "merge_contract": { "minimum_phase": "mvp" },
@@ -44,7 +46,7 @@
           "level": "synthetic_runtime",
           "actor": "Governed Staging operator",
           "entrypoint": "Invoke-StagingRecoveryCertificationCanary.ps1",
-          "terminal_outcome": "A real local Phase B canary bundle bound to exact main is transported without secrets to GitHub, independently re-verifies the Kernel artifacts and exact-SHA negative suites, and produces a Production-consumable signed certification record.",
+          "terminal_outcome": "A real local Phase B canary bundle bound to exact main is transported without secrets to GitHub, independently re-verifies the Kernel artifacts and exact-SHA negative suites, and produces a Production-consumable signed certification record that can be independently published back to Staging readiness.",
           "steps": [
             "Require local main to equal exact origin/main before canary execution.",
             "Require real registration, OAuth, network-isolation, Worker provenance, and ingress-build JSON evidence instead of synthesizing external claims.",
@@ -57,12 +59,14 @@
           "assertions": [
             "The six external-evidence checks remain evidence-driven and are never converted to true by repository defaults.",
             "The countersign workflow checks out and verifies the same exact main SHA as the local canary.",
-            "A missing/failing/cross-SHA negative-test envelope blocks certification.",
+            "A missing, failing, or cross-SHA negative-test envelope blocks certification.",
             "No approval token, credential, raw SQL, provider secret, or Production mutation authority is included in the transported bundle.",
-            "Production live activation remains false during Staging canary, countersign, and publication."
+            "Production live activation remains false during Staging canary, countersign, and publication.",
+            "A merged repository change is only a prerequisite; live evidence collection and countersign publication must run again on the post-merge exact main SHA."
           ],
           "tests": [
             {"id":"certification-protocol","runner":"node","working_directory":"http-generic-api","path":"test-staging-recovery-certification-protocol.mjs","args":[]},
+            {"id":"certification-script-surface","runner":"node","working_directory":"http-generic-api","path":"test-staging-recovery-certification-script-surface.mjs","args":[]},
             {"id":"execution-ticket-negatives","runner":"node","working_directory":"http-generic-api","path":"test-recovery-execution-ticket.mjs","args":[]},
             {"id":"kernel-negatives","runner":"node","working_directory":"http-generic-api","path":"test-recovery-kernel.mjs","args":[]},
             {"id":"activation-readiness","runner":"node","working_directory":"http-generic-api","path":"test-recovery-activation-readiness.mjs","args":[]}
@@ -71,8 +75,10 @@
             ".github/workflows/staging-post-deploy-verification.yml",
             "autopilot-portable-staging/Invoke-StagingRecoveryCertificationCanary.ps1",
             "autopilot-portable-staging/Invoke-StagingRecoveryCertificationPublish.ps1",
+            "docs/runbooks/recovery-phase-b-pr-delivery.md",
             "docs/runbooks/staging-recovery-phase-b-certification.md",
-            "http-generic-api/stagingRecoveryCertificationProtocol.js"
+            "http-generic-api/stagingRecoveryCertificationProtocol.js",
+            "http-generic-api/test-staging-recovery-certification-script-surface.mjs"
           ]
         },
         {
@@ -94,10 +100,10 @@
       ],
       "tests": [
         {"id":"certification-protocol","runner":"node","working_directory":"http-generic-api","path":"test-staging-recovery-certification-protocol.mjs","args":[]},
+        {"id":"certification-script-surface","runner":"node","working_directory":"http-generic-api","path":"test-staging-recovery-certification-script-surface.mjs","args":[]},
         {"id":"local-manager-release-owner","runner":"node","working_directory":"http-generic-api","path":"test-local-manager-tool-release-owner.mjs","args":[]}
       ]
-    },
-    {"id":"operational","status":"implemented","objective":"Provide the exact-main local runner, independent GitHub countersign transport, and durable local publication handoff needed to close live Staging certification after deployment."}
+    }
   ],
   "safety": {
     "repository_only": true,
