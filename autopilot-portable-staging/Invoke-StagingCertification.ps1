@@ -20,6 +20,24 @@ function Fail([string]$Message) {
     throw "STAGING_CERTIFICATION_FAIL_CLOSED: $Message"
 }
 
+function Get-StagingComposeArgs([string]$ApiPath, [string]$EnvPath, [string]$Mode) {
+    $arguments = @(
+        "compose",
+        "-f", (Join-Path $ApiPath "docker-compose.yml"),
+        "-f", (Join-Path $ApiPath "docker-compose.staging.yml")
+    )
+    $override = switch ($Mode) {
+        "windows_service" { Join-Path $ApiPath "docker-compose.staging.windows-service.yml" }
+        "docker_sidecar" { Join-Path $ApiPath "docker-compose.staging.docker-sidecar.yml" }
+        default { $null }
+    }
+    if ($null -ne $override) {
+        if (-not (Test-Path -LiteralPath $override -PathType Leaf)) { Fail "Required Staging Compose topology override is missing: $override" }
+        $arguments += @("-f", $override)
+    }
+    return @($arguments + @("--env-file", $EnvPath))
+}
+
 function Read-EnvValue([string]$Path, [string]$Name) {
     $line = Get-Content -LiteralPath $Path | Where-Object { $_ -match "^$([regex]::Escape($Name))=(.*)$" } | Select-Object -First 1
     if (-not $line) { return "" }
@@ -138,7 +156,7 @@ foreach ($required in @($composeBase, $composeStage, $envFile, $connectorRepairS
 $gatewayEnabled = (Read-EnvValue $envFile "ACTIVATION_STAGING_GATEWAY_ENABLED").ToLowerInvariant() -eq "true"
 $expectedTree = Read-EnvValue $envFile "STAGING_BUILD_TREE"
 $expectedContextFileSet = Read-EnvValue $envFile "STAGING_BUILD_CONTEXT_FILE_SET_SHA256"
-$composeArgs = @("compose", "-f", $composeBase, "-f", $composeStage, "--env-file", $envFile)
+$composeArgs = @(Get-StagingComposeArgs $apiPath $envFile $TunnelMode)
 $appContainerId = ((& docker @composeArgs ps -q app 2>$null | Out-String).Trim()).ToLowerInvariant()
 if ($appContainerId -notmatch '^[0-9a-fA-F]{64}$') { Fail "Staging app container is not running with a full container ID" }
 $imageId = ((& docker inspect --format '{{.Image}}' $appContainerId 2>$null | Out-String).Trim()).ToLowerInvariant()

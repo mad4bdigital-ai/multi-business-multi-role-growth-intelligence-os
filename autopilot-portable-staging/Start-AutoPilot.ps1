@@ -48,6 +48,24 @@ function Fail([string]$Message) {
     throw "AUTO_PILOT_FAIL_CLOSED: $Message"
 }
 
+function Get-StagingComposeArgs([string]$ApiPath, [string]$EnvPath, [string]$Mode) {
+    $arguments = @(
+        "compose",
+        "-f", (Join-Path $ApiPath "docker-compose.yml"),
+        "-f", (Join-Path $ApiPath "docker-compose.staging.yml")
+    )
+    $override = switch ($Mode) {
+        "windows_service" { Join-Path $ApiPath "docker-compose.staging.windows-service.yml" }
+        "docker_sidecar" { Join-Path $ApiPath "docker-compose.staging.docker-sidecar.yml" }
+        default { $null }
+    }
+    if ($null -ne $override) {
+        if (-not (Test-Path -LiteralPath $override -PathType Leaf)) { Fail "Required Staging Compose topology override is missing: $override" }
+        $arguments += @("-f", $override)
+    }
+    return @($arguments + @("--env-file", $EnvPath))
+}
+
 function Invoke-Native([string]$File, [string[]]$Arguments, [switch]$AllowFailure) {
     Write-Host ("> {0} {1}" -f $File, ($Arguments -join " "))
     Write-StagingOperationBoundary -Component $LogComponent -Stage "native:$File" -Outcome "start" -Message "application command started" -Data @{ command = $File; arguments = ($Arguments -join " ") }
@@ -480,7 +498,7 @@ try {
     if ($effectiveEnv -notmatch '(?im)^CLOUDFLARE_TUNNEL_GRACE_PERIOD=30s\s*$') { Fail "Staging tunnel grace period must remain 30s" }
     if ($effectiveEnv -match '(?im)^CLOUDFLARE_TUNNEL_HOSTNAMES=.*(auth\.mad4b\.com|mcp\.mad4b\.com|activation\.mad4b\.com)') { Fail "Forbidden Production hostname found in staging tunnel list" }
 
-    $composeArgs = @("compose", "-f", $ComposeBase, "-f", $ComposeStage, "--env-file", $EnvFile)
+    $composeArgs = @(Get-StagingComposeArgs $ApiPath $EnvFile $TunnelMode)
     Invoke-Native "docker" ($composeArgs + @("config", "--quiet"))
     if ($ValidateOnly) {
         Write-Host "AUTO_PILOT_VALIDATED: commit=$ExpectedCommit context=$context tunnel_mode=$TunnelMode"
@@ -588,10 +606,14 @@ try {
             $failedCertificationState = Get-Content -Raw -LiteralPath $StateFile | ConvertFrom-Json
             $blockingProperty = $failedCertificationState.PSObject.Properties["certification_blocking_failures"]
             $degradedProperty = $failedCertificationState.PSObject.Properties["certification_degraded_reasons"]
-            $certificationBlockingFailures = if ($null -ne $blockingProperty) { @($blockingProperty.Value | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }) } else { @() }
-            $certificationDegradedReasons = if ($null -ne $degradedProperty) { @($degradedProperty.Value | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }) } else { @() }
+            if ($null -ne $blockingProperty) {
+                $certificationBlockingFailures = @($blockingProperty.Value | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+            }
+            if ($null -ne $degradedProperty) {
+                $certificationDegradedReasons = @($degradedProperty.Value | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+            }
         } catch { }
-        $reasonSuffix = if ($certificationBlockingFailures.Count -gt 0) { " reasons=$($certificationBlockingFailures -join ',')" } else { " reasons=unavailable" }
+        $reasonSuffix = if (@($certificationBlockingFailures).Count -gt 0) { " reasons=$($certificationBlockingFailures -join ',')" } else { " reasons=unavailable" }
         $failureMessage = "Staging certification blocked exact commit $ExpectedCommit$reasonSuffix"
         Write-StagingOperationBoundary -Component $LogComponent -Stage "certification" -Outcome "failure" -Message $failureMessage -Data @{ commit = $ExpectedCommit; blocking_failures = $certificationBlockingFailures; degraded_reasons = $certificationDegradedReasons }
         Fail $failureMessage
