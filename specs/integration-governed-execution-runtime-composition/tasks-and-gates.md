@@ -10,14 +10,16 @@
 
 ### Gate X0
 
-Gate X0 external certification state: `pending`.
+Gate X0 external certification state: `complete_external`.
 
-Candidate implementation evidence is present; **external exact-head CI and required live Staging certification remain pending and cannot be self-attested by this tree**.
+External exact-head CI and live Windows Staging certification completed on PR #7942 at exact head `0def70177fb741d39e6624445506d5537c145808`; that tree was merged unchanged as `main@c6295a2ecc495ab4ab8155d541a8c538ef31289b`. The repository records only a reference to that external evidence in `x0-external-certification-reference.json`; this source tree does not self-attest certification.
 
 - same fixture inputs and expected functional outcomes are reproducible;
 - telemetry excludes secrets, raw JWTs, credentials, and unbounded payloads;
 - stage totals reconcile to total duration within declared instrumentation overhead;
 - no runtime behavior change.
+
+X1 entry is now permitted. This does not authorize runtime cutover, provider dispatch, database writes, migrations, or Production mutation.
 
 ## Phase X1 — Contract composition shadow
 

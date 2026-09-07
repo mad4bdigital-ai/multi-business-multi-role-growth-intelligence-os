@@ -272,6 +272,7 @@
           "specs/015-tenant-operating-system-studio/phase1-owner-decision-matrix.json",
           "specs/015-tenant-operating-system-studio/tools/validate-spec.mjs",
           "specs/integration-governed-execution-runtime-composition/wordpress-site-control-plane-provider-profile.json",
+          "specs/integration-governed-execution-runtime-composition/x0-external-certification-reference.json",
           "specs/021-portable-staging-autopilot/e2e-phases.json",
           "http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs",
           "http-generic-api/scripts/test-protected-branch-validation-triggers.mjs",

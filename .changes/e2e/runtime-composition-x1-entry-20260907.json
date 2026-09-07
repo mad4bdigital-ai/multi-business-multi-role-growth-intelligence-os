@@ -1,0 +1,85 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "runtime-composition-x1-entry-20260907",
+  "title": "Runtime Composition X0 external closure and X1 shadow entry",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/runtime-composition-x1-entry-20260907.json",
+      "specs/integration-governed-execution-runtime-composition/manifest.json",
+      "specs/integration-governed-execution-runtime-composition/completion.json",
+      "specs/integration-governed-execution-runtime-composition/e2e-phases.json",
+      "specs/integration-governed-execution-runtime-composition/tasks-and-gates.md",
+      "specs/integration-governed-execution-runtime-composition/x0-external-certification-reference.json",
+      "scripts/runtime-composition-contract-check.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [],
+    "cross_environment_reviewed": false,
+    "live_staging_certification_required": false,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Consume the externally completed X0 exact-head/live-Staging certification by immutable reference and open X1 shadow-composition entry without changing runtime behavior, authority, provider dispatch, persistence, deployment, or Production state.",
+      "e2e_journeys": [
+        {
+          "id": "runtime-composition-x0-closure-x1-entry",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Runtime composition governance reviewer",
+          "entrypoint": "Run the runtime-composition contract validator on the exact candidate tree and verify the external X0 closure reference before allowing X1 implementation work to begin.",
+          "terminal_outcome": "The repository truthfully records Gate X0 as externally complete on PR #7942 exact head 0def70177fb741d39e6624445506d5537c145808, preserves source_tree_may_self_attest=false, and advances only to X1 shadow entry while X010-X014 remain unimplemented and all runtime/mutation authorities remain false.",
+          "steps": [
+            "Read the external X0 certification reference and verify its certified PR head, base, tree, merge commit, workflow run identifiers, manual objection disposition, and live Staging no-secret/read-only evidence.",
+            "Verify the X0 merge commit tree is identical to the certified PR-head tree so the manual merge did not alter the certified candidate content.",
+            "Update the integration completion and phase ledgers to consume external closure evidence without rewriting the historical X0 candidate manifest.",
+            "Remove only stale X0-pending blockers and replace them with truthful X1 implementation and exact-head certification blockers.",
+            "Keep X010 through X014 unchecked; this transition does not claim Execution Capsule composition, descriptor compilation, parity comparison, mismatch taxonomy, or cross-spec identifier closure is implemented.",
+            "Declare repository-only environment impact because every path in this transition is classified as repository governance/specification evidence by the canonical deployment branch policy.",
+            "Run the runtime composition contract validator with no provider call, database write, migration, deployment, runtime cutover, credential access, external send, or Production mutation."
+          ],
+          "assertions": [
+            "The external X0 certification reference is evidence metadata only and is not a source-tree self-attestation mechanism.",
+            "The exact certified tree and merge tree are equal.",
+            "X1 entry is permitted only because X0 exact-head CI and live Staging certification completed externally before the manual merge.",
+            "X010-X014 remain unimplemented in this transition.",
+            "No provider call is made from any shadow or transition path.",
+            "No database write, migration apply, deployment, runtime cutover, permission widening, retry behavior change, or Production mutation is authorized or performed.",
+            "Repository-only declarations use an empty target set; any later shared-runtime X1 implementation must declare its actual staging/production impact and satisfy the corresponding live certification gate.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "runtime-composition-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "scripts/runtime-composition-contract-check.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/runtime-composition-x1-entry-20260907.json",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "specs/integration-governed-execution-runtime-composition/manifest.json",
+            "specs/integration-governed-execution-runtime-composition/completion.json",
+            "specs/integration-governed-execution-runtime-composition/e2e-phases.json",
+            "specs/integration-governed-execution-runtime-composition/tasks-and-gates.md",
+            "specs/integration-governed-execution-runtime-composition/x0-external-certification-reference.json",
+            "scripts/runtime-composition-contract-check.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
