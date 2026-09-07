@@ -1,0 +1,67 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "local-manager-installer-origin-diagnostics-20260907",
+  "title": "Local Manager Cloudflare origin and signed-installer diagnostics",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/local-manager-installer-origin-diagnostics-20260907.json",
+      "apps/local-manager-windows/LocalManagerAutopilot.cs",
+      "apps/local-manager-windows/SignedInstallerCoordinator.cs",
+      "docs/runbooks/local-manager-capability-installer-diagnostics.md",
+      "http-generic-api/test-local-manager-cloudflare-origin-classification.mjs",
+      "http-generic-api/test-local-manager-signed-installer-exit-code.mjs"
+    ]
+  },
+  "merge_contract": {"minimum_phase":"mvp"},
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": false,
+    "production_mutation_allowed": false,
+    "live_migration_executed": false,
+    "live_grant_executed": false,
+    "deployment_or_restart_executed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Distinguish Cloudflare 520-527 platform-origin availability failures from signed local-installer child failures and preserve the exact child exit code without exposing credentials.",
+      "e2e_journeys": [
+        {
+          "id": "cloudflare-522-retry-classification",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Mad4B Local Manager polling loop",
+          "entrypoint": "auth.mad4b.com command polling response",
+          "terminal_outcome": "HTTP 522 is classified as retryable platform_origin_unavailable with a Cloudflare origin diagnostic.",
+          "steps": ["Parse HTTP status once.", "Classify 502/503/504 and 520-527 as origin unavailable.", "Keep bounded polling retry."],
+          "assertions": ["HTTP 522 is not an opaque generic HTTP failure.", "No token or credential is added to the diagnostic."],
+          "tests": [{"id":"cloudflare-origin-classification","runner":"node","working_directory":"http-generic-api","path":"test-local-manager-cloudflare-origin-classification.mjs","args":[]}],
+          "evidence_paths": ["apps/local-manager-windows/LocalManagerAutopilot.cs"]
+        },
+        {
+          "id": "signed-installer-exact-exit-code",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Mad4B Local Manager signed installer coordinator",
+          "entrypoint": "elevated signed BAT child process",
+          "terminal_outcome": "A non-zero child exit preserves and surfaces the exact numeric code through the existing outer UI exception boundary instead of collapsing it to installer_exit_nonzero=true only.",
+          "steps": ["Wait for the governed child process.", "Capture process.ExitCode.", "Throw a bounded SignedInstallerExitCodeException on non-zero exit.", "Let the existing UI catch display the exact code while keeping token material absent."],
+          "assertions": ["UAC cancellation remains distinct.", "Zero exit still proceeds to post-install verification.", "The exception message contains only the numeric child status and no secret material."],
+          "tests": [{"id":"signed-installer-exit-code","runner":"node","working_directory":"http-generic-api","path":"test-local-manager-signed-installer-exit-code.mjs","args":[]}],
+          "evidence_paths": ["apps/local-manager-windows/SignedInstallerCoordinator.cs", "docs/runbooks/local-manager-capability-installer-diagnostics.md"]
+        }
+      ],
+      "tests": [
+        {"id":"cloudflare-origin-classification","runner":"node","working_directory":"http-generic-api","path":"test-local-manager-cloudflare-origin-classification.mjs","args":[]},
+        {"id":"signed-installer-exit-code","runner":"node","working_directory":"http-generic-api","path":"test-local-manager-signed-installer-exit-code.mjs","args":[]}
+      ]
+    }
+  ],
+  "safety": {"repository_only":true,"production_mutation_allowed":false,"database_mutation":false,"provider_call":false,"secrets_included":false}
+}
