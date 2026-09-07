@@ -1,0 +1,13 @@
+{
+  "$schema":"../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version":1,
+  "feature_key":"recovery-phase-b-closure-marker-20260907",
+  "title":"Recovery Phase B closure marker",
+  "delivery_mode":"single_pr",
+  "current_phase":"mvp",
+  "scope":{"include":[".changes/e2e/recovery-phase-b-closure-marker-20260907.json","docs/runbooks/README.recovery-phase-b-closure.txt"]},
+  "merge_contract":{"minimum_phase":"mvp"},
+  "environment_impact":{"source_of_truth":"http-generic-api/config/deployment-branch-policy.json","declared_targets":["staging","production"],"cross_environment_reviewed":true,"production_mutation_allowed":false},
+  "phases":[{"id":"mvp","status":"implemented","objective":"Point operators to the bounded Recovery Phase B closure runbooks.","e2e_journeys":[],"tests":[]}],
+  "safety":{"repository_only":true,"production_mutation_allowed":false,"database_mutation":false,"secrets_included":false}
+}
