@@ -330,6 +330,13 @@
       ]
     },
     {
+      "id": "wordpress_staging_mcp_oauth_federation",
+      "test_paths": [
+        "http-generic-api/test-wordpress-staging-mcp-oauth-federation.mjs",
+        "http-generic-api/test-wordpress-staging-mcp-oauth-key-bootstrap.mjs"
+      ]
+    },
+    {
       "id": "repository_derived_state",
       "test_paths": [
         ".github/tests/derived-state-closure.test.mjs"
