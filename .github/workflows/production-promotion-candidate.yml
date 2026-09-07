@@ -107,6 +107,19 @@ jobs:
             esac
           }
 
+          candidate_has_exact_topology() {
+            local candidate="$1"
+            local expected_cut="$2"
+            local expected_production="$3"
+            local parents=""
+            local parent_list=()
+            parents="$(git show -s --format=%P "$candidate" 2>/dev/null || true)"
+            read -r -a parent_list <<< "$parents"
+            [[ "${#parent_list[@]}" -eq 2 ]] \
+              && [[ "${parent_list[0]}" == "$expected_cut" ]] \
+              && [[ "${parent_list[1]}" == "$expected_production" ]]
+          }
+
           require_sha RELEASE_CUT_SHA "$RELEASE_CUT_SHA"
           require_sha TRUSTED_WORKFLOW_SHA "$TRUSTED_WORKFLOW_SHA"
           require_sha EXPECTED_PRODUCTION_SHA "$EXPECTED_PRODUCTION_SHA"
@@ -162,14 +175,13 @@ jobs:
           CANDIDATE_SHA=""
           CANDIDATE_MODE="created"
           if [[ -n "$PREVIOUS_RELEASE" ]] \
-            && [[ "$(git rev-parse "${PREVIOUS_RELEASE}^1" 2>/dev/null || true)" == "$RELEASE_CUT_SHA" ]] \
-            && git merge-base --is-ancestor "$ACTUAL_PRODUCTION_SHA" "$PREVIOUS_RELEASE" \
+            && candidate_has_exact_topology "$PREVIOUS_RELEASE" "$RELEASE_CUT_SHA" "$ACTUAL_PRODUCTION_SHA" \
             && git diff --quiet "$RELEASE_CUT_SHA" "$PREVIOUS_RELEASE"; then
             CANDIDATE_SHA="$PREVIOUS_RELEASE"
             CANDIDATE_MODE="reused"
           else
             if [[ -n "$PREVIOUS_RELEASE" ]]; then
-              echo "::error::existing release branch is not the exact reusable release-cut candidate; refusing history rewrite"
+              echo "::error::existing release branch is not the exact reusable two-parent release-cut candidate; refusing history rewrite"
               exit 1
             fi
             CANDIDATE_DATE="$(git show -s --format=%cI "$RELEASE_CUT_SHA")"
@@ -190,7 +202,10 @@ jobs:
             )"
           fi
 
-          [[ "$(git rev-parse "${CANDIDATE_SHA}^1")" == "$RELEASE_CUT_SHA" ]] || { echo "::error::candidate first parent is not the release cut"; exit 1; }
+          candidate_has_exact_topology "$CANDIDATE_SHA" "$RELEASE_CUT_SHA" "$ACTUAL_PRODUCTION_SHA" || {
+            echo "::error::candidate must have exactly two parents: release cut first and pinned Production second"
+            exit 1
+          }
           git diff --quiet "$RELEASE_CUT_SHA" "$CANDIDATE_SHA" || { echo "::error::candidate tree differs from release cut"; exit 1; }
           git merge-base --is-ancestor "$RELEASE_CUT_SHA" "$CANDIDATE_SHA" || { echo "::error::candidate does not contain release cut"; exit 1; }
           git merge-base --is-ancestor "$ACTUAL_PRODUCTION_SHA" "$CANDIDATE_SHA" || { echo "::error::candidate does not contain pinned Production"; exit 1; }
@@ -203,6 +218,10 @@ jobs:
           [[ "$PRODUCTION_READBACK" == "$ACTUAL_PRODUCTION_SHA" ]] || { echo "::error::Production moved during candidate construction"; exit 1; }
           git merge-base --is-ancestor "$RELEASE_CUT_SHA" "$MAIN_READBACK" || { echo "::error::main no longer contains the release cut"; exit 1; }
           git merge-base --is-ancestor "$PRODUCTION_READBACK" "$RELEASE_CUT_SHA" || { echo "::error::Production is no longer contained by the release cut"; exit 1; }
+          candidate_has_exact_topology "$CANDIDATE_SHA" "$RELEASE_CUT_SHA" "$PRODUCTION_READBACK" || {
+            echo "::error::candidate topology changed before ref publication"
+            exit 1
+          }
 
           push_fast_forward_only() {
             local branch="$1"
@@ -236,6 +255,9 @@ jobs:
             echo "production_sha=$ACTUAL_PRODUCTION_SHA"
             echo "candidate_sha=$CANDIDATE_SHA"
             echo "candidate_tree=$CANDIDATE_TREE"
+            echo "candidate_parent_count=2"
+            echo "candidate_first_parent_is_release_cut=true"
+            echo "candidate_second_parent_is_pinned_production=true"
             echo "release_branch=$RELEASE_BRANCH"
             echo "validation_branch=$VALIDATION_BRANCH"
             echo "validation_base_branch=$VALIDATION_BASE_BRANCH"
@@ -252,7 +274,7 @@ jobs:
             --arg validation_branch "$VALIDATION_BRANCH" \
             --arg validation_base_branch "$VALIDATION_BASE_BRANCH" \
             --arg candidate_mode "$CANDIDATE_MODE" \
-            '{schema_version:"production_promotion_candidate.v3",ok:true,release_mode:"certified_release_cut",release_cut_sha:$release_cut_sha,current_main_sha:$main_sha,production_sha:$production_sha,candidate_sha:$candidate_sha,candidate_tree:$candidate_tree,release_branch:$release_branch,validation_branch:$validation_branch,validation_base_branch:$validation_base_branch,candidate_mode:$candidate_mode,tree_policy:"exact_release_cut_tree",main_tip_may_advance:true,production_must_remain_stable:true,merge_executed:false,deployment_executed:false,migration_executed:false,provider_call_executed:false,credential_payload_read:false,secrets_included:false}' \
+            '{schema_version:"production_promotion_candidate.v3",ok:true,release_mode:"certified_release_cut",release_cut_sha:$release_cut_sha,current_main_sha:$main_sha,production_sha:$production_sha,candidate_sha:$candidate_sha,candidate_tree:$candidate_tree,candidate_parent_count:2,candidate_first_parent_is_release_cut:true,candidate_second_parent_is_pinned_production:true,release_branch:$release_branch,validation_branch:$validation_branch,validation_base_branch:$validation_base_branch,candidate_mode:$candidate_mode,tree_policy:"exact_release_cut_tree",main_tip_may_advance:true,production_must_remain_stable:true,merge_executed:false,deployment_executed:false,migration_executed:false,provider_call_executed:false,credential_payload_read:false,secrets_included:false}' \
             > "$RUNNER_TEMP/production-promotion-candidate.json"
 
       - name: Upload candidate evidence
@@ -300,7 +322,7 @@ jobs:
           cat > "$RUNNER_TEMP/validation-pr.md" <<EOF
           Certified immutable release-cut validation surface for \`$CANDIDATE_SHA\`.
 
-          Candidate first parent and validation base are pinned to release cut \`$RELEASE_CUT_SHA\`. Candidate tree must remain identical to that cut. Current main may advance only while retaining the cut as an ancestor; Production must remain \`$PRODUCTION_SHA\`.
+          Candidate first parent and validation base are pinned to release cut \`$RELEASE_CUT_SHA\`. Candidate second parent is pinned to Production \`$PRODUCTION_SHA\`. Candidate tree must remain identical to the cut. Current main may advance only while retaining the cut as an ancestor; Production must remain exact.
 
           Close without merge after evidence readback. No deployment, migration, grant, provider mutation, credential read, or Production mutation is authorized.
           EOF
@@ -330,6 +352,9 @@ jobs:
           - Production: \`${{ steps.prepare.outputs.production_sha }}\`
           - candidate: \`${{ steps.prepare.outputs.candidate_sha }}\`
           - candidate mode: \`${{ steps.prepare.outputs.candidate_mode }}\`
+          - candidate parent count: \`2\`
+          - candidate first parent: release cut
+          - candidate second parent: pinned Production
           - main tip may advance: \`true\`
           - Production must remain stable: \`true\`
           - merge executed: false
