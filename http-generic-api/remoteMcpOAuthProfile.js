@@ -128,6 +128,10 @@ export function generateRemoteMcpClientId(env = process.env) {
 export function isRemoteMcpClientIdForEnvironment(clientId, env = process.env) {
   const normalizedClientId = String(clientId || "").trim();
   if (!/^mcp_[A-Za-z0-9_-]{4,128}$/u.test(normalizedClientId)) return false;
+  // Dedicated resource profiles own their syntactic namespaces. Generic Remote
+  // MCP flows must not accept those client identities even when the environment
+  // prefix itself matches.
+  if (/^mcp_(?:stg|prd)_wp_/u.test(normalizedClientId)) return false;
   const environment = resolveRemoteMcpEnvironment(env);
   if (environment === "unknown") return true;
   if (normalizedClientId.startsWith("mcp_stg_") || normalizedClientId.startsWith("mcp_prd_")) {
