@@ -10,6 +10,9 @@ const certification = read("autopilot-portable-staging/Invoke-StagingCertificati
 const oneClick = read("autopilot-portable-staging/One-Click-Staging.ps1");
 const autoDeploy = read("autopilot-portable-staging/Auto-Deploy-Staging.ps1");
 const generator = read("http-generic-api/scripts/generate-portable-staging-manifest.mjs");
+const compose = read("http-generic-api/docker-compose.staging.yml");
+const phaseB = read("http-generic-api/stagingRecoveryAuthorityBindingPhaseB.js");
+const prHeadReadinessTest = read("http-generic-api/test-staging-pr-head-recovery-readiness.mjs");
 const declaration = JSON.parse(read(".changes/e2e/runtime-composition-x0-evidence-baseline-20260906.json"));
 
 assert.match(bridge, /CERTIFY_STAGING_PR_HEAD/);
@@ -53,6 +56,17 @@ assert.match(certification, /STAGING_CERTIFICATION_PR_HEAD_AUTHORITY/);
 assert.match(certification, /gatewayCertificationScope = if \(\$script:CertificationAuthorityMode -eq "pull_request_head"\) \{ "excluded_external_gateway" \}/);
 assert.doesNotMatch(certification, /if \(\$Ref -ne "main"\) \{ Fail "Portable Staging certification is main-only" \}/);
 
+assert.match(compose, /STAGING_CERT_AUTHORITY_MODE: "\$\{STAGING_CERT_AUTHORITY_MODE:-\}"/);
+assert.match(compose, /STAGING_CERT_PR_NUMBER: "\$\{STAGING_CERT_PR_NUMBER:-\}"/);
+assert.match(compose, /STAGING_CERT_PR_REPOSITORY: "\$\{STAGING_CERT_PR_REPOSITORY:-\}"/);
+assert.match(phaseB, /STAGING_PR_HEAD_READINESS_CONTRACT/);
+assert.match(phaseB, /prHeadReadinessContext/);
+assert.match(phaseB, /getCurrentCertificationId: async \(\) => null/);
+assert.match(phaseB, /pr_head_certification_only: true/);
+assert.match(phaseB, /production_authority_eligible: false/);
+assert.match(prHeadReadinessTest, /stale_release_pointer_ignored/);
+assert.match(prHeadReadinessTest, /production_authority_expanded: false/);
+
 assert.match(oneClick, /if \(\$Ref -ne "main"\) \{ Fail "One-click Auto Pilot is main-only" \}/);
 assert.match(autoDeploy, /Only the policy ref/);
 assert.match(generator, /autopilot-portable-staging\/Invoke-StagingPrHeadCertification\.ps1/);
@@ -61,6 +75,9 @@ const scope = new Set(declaration.scope?.include || []);
 for (const required of [
   "autopilot-portable-staging/Invoke-StagingCertification.ps1",
   "autopilot-portable-staging/Invoke-StagingPrHeadCertification.ps1",
+  "http-generic-api/docker-compose.staging.yml",
+  "http-generic-api/stagingRecoveryAuthorityBindingPhaseB.js",
+  "http-generic-api/test-staging-pr-head-recovery-readiness.mjs",
   "http-generic-api/scripts/generate-portable-staging-manifest.mjs",
   "scripts/staging-pr-head-certification-contract-check.mjs",
 ]) {
@@ -77,6 +94,12 @@ assert.equal(
   "X0 must execute the PR-head certification bridge contract check",
 );
 assert.equal(
+  x0.tests?.some((entry) =>
+    entry.path === "test-staging-pr-head-recovery-readiness.mjs"),
+  true,
+  "X0 must execute the PR-head Recovery readiness isolation test",
+);
+assert.equal(
   x0.assertions?.some((entry) => entry.includes("same-repository open non-draft pull request")),
   true,
   "X0 must declare the exact PR-head authority invariant",
@@ -86,6 +109,11 @@ assert.equal(
   true,
   "X0 must preserve main-only deployment supervisors",
 );
+assert.equal(
+  x0.assertions?.some((entry) => entry.includes("release certification pointer")),
+  true,
+  "X0 must keep PR-head readiness isolated from release certification state",
+);
 
 console.log(JSON.stringify({
   ok: true,
@@ -94,6 +122,8 @@ console.log(JSON.stringify({
   exact_pr_head_revalidated_postflight: true,
   certifier_revalidates_authority: true,
   main_only_supervisors_preserved: true,
+  pr_head_readiness_isolated_from_release_certification: true,
+  pr_head_production_authority_expanded: false,
   gate_x0_requires_ready: true,
   external_gateway_excluded_from_pr_head_authority: true,
   release_certification: false,
