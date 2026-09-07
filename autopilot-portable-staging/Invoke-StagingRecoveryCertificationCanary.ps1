@@ -19,7 +19,13 @@ param(
     [string]$IngressBuildIdentityFile,
 
     [Parameter(Mandatory = $false)]
-    [string]$OutputDirectory = ""
+    [string]$OutputDirectory = "",
+
+    [Parameter(Mandatory = $false)]
+    [switch]$DispatchCountersign,
+
+    [Parameter(Mandatory = $false)]
+    [string]$CountersignConfirmation = ""
 )
 
 Set-StrictMode -Version 2.0
@@ -49,6 +55,73 @@ function Resolve-RequiredFile {
         throw "$Label is not valid JSON: $($resolved.Path)"
     }
     return $resolved.Path
+}
+
+function Invoke-CountersignDispatch {
+    param(
+        [Parameter(Mandatory = $true)][string]$ExactSha,
+        [Parameter(Mandatory = $true)][string]$TargetFingerprint,
+        [Parameter(Mandatory = $true)][string]$EvidenceDirectory,
+        [Parameter(Mandatory = $true)][string]$Confirmation
+    )
+
+    if ($Confirmation -cne "COUNTERSIGN_STAGING_RECOVERY") {
+        throw "DispatchCountersign requires -CountersignConfirmation COUNTERSIGN_STAGING_RECOVERY."
+    }
+    if ($TargetFingerprint -notmatch '^[0-9a-f]{64}$') {
+        throw "The canary summary did not contain a valid 64-character target fingerprint."
+    }
+    $gh = Get-Command gh -ErrorAction SilentlyContinue
+    if (-not $gh) {
+        throw "GitHub CLI (gh) is required only for -DispatchCountersign. Generate-only mode remains available without it."
+    }
+
+    $requiredNames = @(
+        "canary-evidence.json",
+        "kernel-plan.json",
+        "kernel-approval.json",
+        "kernel-ticket.json",
+        "kernel-receipt.json",
+        "kernel-run.json"
+    )
+    $bundleFiles = @()
+    foreach ($name in $requiredNames) {
+        $file = Join-Path $EvidenceDirectory $name
+        if (-not (Test-Path -LiteralPath $file -PathType Leaf)) {
+            throw "Countersign evidence bundle is incomplete: $file"
+        }
+        $bundleFiles += $file
+    }
+
+    $zipPath = Join-Path $EvidenceDirectory "staging-recovery-canary-countersign.zip"
+    if (Test-Path -LiteralPath $zipPath) { Remove-Item -LiteralPath $zipPath -Force }
+    Compress-Archive -LiteralPath $bundleFiles -DestinationPath $zipPath -CompressionLevel Optimal -Force
+    try {
+        $bundleBase64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes($zipPath))
+        if ($bundleBase64.Length -gt 58000) {
+            throw ("The no-secret canary bundle is too large for bounded workflow_dispatch transport ({0} characters). Use the evidence_run_id artifact fallback." -f $bundleBase64.Length)
+        }
+        $dispatch = @{
+            ref = "main"
+            inputs = @{
+                operation = "countersign_recovery"
+                expected_sha = $ExactSha
+                expected_target_fingerprint = $TargetFingerprint
+                confirmation = "COUNTERSIGN_STAGING_RECOVERY"
+                evidence_bundle_zip_base64 = $bundleBase64
+            }
+        } | ConvertTo-Json -Depth 6 -Compress
+
+        $dispatch | & $gh.Source api --method POST `
+            "repos/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/actions/workflows/staging-post-deploy-verification.yml/dispatches" `
+            --input - | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            throw "GitHub rejected the exact-main Staging Recovery countersign dispatch."
+        }
+    }
+    finally {
+        if (Test-Path -LiteralPath $zipPath) { Remove-Item -LiteralPath $zipPath -Force }
+    }
 }
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -146,6 +219,11 @@ try {
     Write-Host ("Target fingerprint: {0}" -f $summary.target_fingerprint)
     Write-Host ("Evidence directory: {0}" -f $OutputDirectory)
     Write-Host "No Production, provider, or database mutation was requested by this runner."
+
+    if ($DispatchCountersign) {
+        Invoke-CountersignDispatch -ExactSha $ExpectedSha -TargetFingerprint ([string]$summary.target_fingerprint) -EvidenceDirectory $OutputDirectory -Confirmation $CountersignConfirmation
+        Write-Host "Exact-main GitHub countersign workflow dispatched with the no-secret canary bundle."
+    }
 }
 finally {
     Pop-Location
