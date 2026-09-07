@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "7e1d851c0b42fb8f6cfae60e9cc56c3c9d756b53f53dbcf867d6d4de533ac465",
+    "source_digest": "a291976b8caf7f4114ecfa5dcbc1875387d53a1999de60ef73484f6eef6d35cf",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -381,7 +381,7 @@
       },
       {
         "file": "routes/activationHostGatewayRoutes.js",
-        "sha256": "b98ba3fe8daab9ab8b8c611abbb42866f23c584c9d5ea1cff54d43ca7b5dc952",
+        "sha256": "2e86925108a91a2748d872a1d52dfda9f9affa0aede8c02694eb47da1639fa5e",
         "present": true
       },
       {
@@ -571,7 +571,7 @@
       },
       {
         "file": "routes/deviceToolsRoutes.js",
-        "sha256": "e0eea44c7c90e35c64c322068526b55341fcfecd64b2144719e740fd2b79db13",
+        "sha256": "b4eacff76824cce7134139eeed56295cf43ae8f4ef4d7d75419615cab7a2b6dd",
         "present": true
       },
       {
@@ -90741,7 +90741,7 @@
       "family_key": "device-tools",
       "label": "device tools",
       "source_file": "routes/deviceToolsRoutes.js",
-      "source_digest": "e0eea44c7c90e35c64c322068526b55341fcfecd64b2144719e740fd2b79db13",
+      "source_digest": "b4eacff76824cce7134139eeed56295cf43ae8f4ef4d7d75419615cab7a2b6dd",
       "mount_prefix": "/",
       "mount_order": 23259,
       "split_from_mixed_scope_file": false,
