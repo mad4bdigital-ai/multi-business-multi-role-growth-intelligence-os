@@ -3,6 +3,7 @@ import test from "node:test";
 import { SYSTEM_LAYER_TOOLS } from "./routes/systemLayerRoutes.js";
 import {
   _testingRecoverySystemToolOverlay,
+  projectRecoveryCapabilitiesForSystemSurface,
   synchronizeRecoverySystemToolDescriptors,
 } from "./routes/recoverySystemToolOverlayRoutes.js";
 
@@ -53,6 +54,23 @@ test("Staging Recovery tools are absent from Production catalog and present only
 
   synchronizeRecoverySystemToolDescriptors(PRODUCTION_ENV);
   assert.equal(SYSTEM_LAYER_TOOLS.some((entry) => entry.source_key === "staging_recovery_system_surface_v1"), false);
+});
+
+test("Staging capability reporting separates kernel discovery from bounded System control-plane writes", () => {
+  const staging = projectRecoveryCapabilitiesForSystemSurface(STAGING_ENV);
+  assert.equal(staging.environment_view, "staging_bounded_control_plane");
+  assert.equal(staging.kernel_environment_view, "staging_discovery_only");
+  assert.deepEqual(staging.control_plane_state_write_capabilities, [
+    "staging_certification_canary_plan_create",
+    "staging_database_access_repair",
+  ]);
+  assert.deepEqual(staging.target_database_mutation_capabilities, []);
+  assert.equal(staging.production_authority, false);
+  assert.equal(staging.secrets_included, false);
+
+  const production = projectRecoveryCapabilitiesForSystemSurface(PRODUCTION_ENV);
+  assert.equal(production.environment_view, "production_private_recovery");
+  assert.equal(Object.hasOwn(production, "system_surface_extensions"), false);
 });
 
 test("Bridge v2 validator accepts explicit server-managed confirmation fields and rejects caller tickets", () => {
