@@ -5,6 +5,13 @@
   "title": "Governed Production promotion identity and certified release-cut classifier adapter",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [],
+    "cross_environment_reviewed": false,
+    "live_staging_certification_required": false,
+    "production_mutation_allowed": false
+  },
   "scope": {
     "include": [
       ".changes/e2e/certified-release-cut-production-classifier-adapter.json",
