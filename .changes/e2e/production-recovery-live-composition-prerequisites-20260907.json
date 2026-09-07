@@ -1,0 +1,69 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-recovery-live-composition-prerequisites-20260907",
+  "title": "Production Recovery live composition prerequisites and fail-closed release boundary",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/production-recovery-live-composition-prerequisites-20260907.json",
+      "docs/runbooks/production-recovery-live-composition-prerequisites.md"
+    ]
+  },
+  "merge_contract": { "minimum_phase": "mvp" },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false,
+    "live_migration_executed": false,
+    "live_grant_executed": false,
+    "deployment_or_restart_executed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Pin the exact fail-closed release sequence from fresh Staging certification through independent Production Recovery Store, complete server-managed authority graph, deployment attestation, artifact parity, activation eligibility, human approval, single-use ticket, fencing and same-cycle readback.",
+      "e2e_journeys": [
+        {
+          "id": "staging-certification-to-production-live-prerequisite-chain",
+          "end_to_end": true,
+          "level": "contract",
+          "actor": "Production Recovery release operator",
+          "entrypoint": "Fresh signed Staging Recovery certification",
+          "terminal_outcome": "Production remains fail-closed until all independent live-authority prerequisites are satisfied; no database mutation is authorized by this change.",
+          "steps": [
+            "Require a fresh Production-consumable Staging certification.",
+            "Require an independent durable Recovery Store outside runtime, governance and runtime_persistence.",
+            "Require the complete server-managed Production Recovery adapter graph and exact deployment attestation.",
+            "Require Staging-to-Production artifact parity and target binding before activation eligibility.",
+            "Require a fresh typed human approval, server-side approval resolution, single-use execution ticket, fenced execution and independent same-cycle readback for every consequential step."
+          ],
+          "assertions": [
+            "Empty target databases do not authorize rebuild without durable exact-SHA inspection evidence and immutable plan binding.",
+            "Runtime is never selected for empty rebuild when it contains objects.",
+            "Grant repair remains separate from schema rebuild.",
+            "Local Connector is never a Production Recovery authority or fallback.",
+            "Unknown provider outcome is reconciliation-only and cannot auto-replay."
+          ],
+          "tests": [],
+          "evidence_paths": ["docs/runbooks/production-recovery-live-composition-prerequisites.md"]
+        }
+      ],
+      "tests": []
+    }
+  ],
+  "safety": {
+    "repository_only": true,
+    "production_mutation_allowed": false,
+    "database_mutation": false,
+    "migration_apply": false,
+    "grant_execution": false,
+    "provider_call": false,
+    "production_deploy": false,
+    "secrets_included": false
+  }
+}
