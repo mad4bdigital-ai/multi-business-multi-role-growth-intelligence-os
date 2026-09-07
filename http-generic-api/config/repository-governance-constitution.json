@@ -267,7 +267,8 @@
         "http-generic-api/**",
         "src/**",
         "edge/**",
-        "wordpress/**"
+        "wordpress/**",
+        "apps/local-manager-windows/**"
       ]
     },
     {
