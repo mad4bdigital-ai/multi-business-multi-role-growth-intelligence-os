@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "recovery-phase-b-certification-closure-20260907",
-  "title": "Staging Recovery Phase B genuine certification closure",
+  "title": "Staging Recovery Phase B certification transport, authority, and diagnostics closure",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
@@ -16,11 +16,22 @@
       "autopilot-portable-staging/Invoke-StagingRecoveryCertificationPublish.ps1",
       "docs/runbooks/recovery-phase-b-pr-delivery.md",
       "docs/runbooks/staging-recovery-phase-b-certification.md",
+      "edge/activation-gateway/src/gateway.mjs",
+      "edge/activation-gateway/test-ingress-signing-diagnostics.mjs",
+      "http-generic-api/activation-gateway-runtime/src/gateway.mjs",
+      "http-generic-api/databasePrivilegeContracts.js",
+      "http-generic-api/githubAppAuth.js",
+      "http-generic-api/routes/activationHostGatewayRoutes.js",
+      "http-generic-api/routes/deviceToolsRoutes.js",
       "http-generic-api/scripts/staging-recovery-genuine-canary.mjs",
       "http-generic-api/scripts/staging-recovery-publish-countersign.mjs",
       "http-generic-api/stagingRecoveryCertificationProtocol.js",
+      "http-generic-api/test-device-tools-diagnostics.mjs",
+      "http-generic-api/test-github-app-installation-discovery.mjs",
+      "http-generic-api/test-staging-execution-policies-grant.mjs",
       "http-generic-api/test-staging-recovery-certification-protocol.mjs",
-      "http-generic-api/test-staging-recovery-certification-script-surface.mjs"
+      "http-generic-api/test-staging-recovery-certification-script-surface.mjs",
+      "http-generic-api/test-staging-trusted-ingress-diagnostics.mjs"
     ]
   },
   "merge_contract": { "minimum_phase": "mvp" },
@@ -38,7 +49,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Close the repository-side gap between genuine local Staging Recovery canary evidence and the independently countersigned certification consumed by Production readiness, without synthesizing any external evidence or enabling Production mutation.",
+      "objective": "Close the repository-side gap between genuine local Staging Recovery canary evidence and independently countersigned certification, while also restoring the bounded read authority and safe diagnostics needed to identify live Phase B blockers without synthesizing evidence, widening execution authority, or enabling Production mutation.",
       "e2e_journeys": [
         {
           "id": "exact-main-local-canary-to-independent-countersign",
@@ -93,15 +104,63 @@
             "Classify 502/503/504 and Cloudflare 520-527 as platform_origin_unavailable.",
             "Preserve bounded automatic polling retry and a diagnostic that identifies Cloudflare origin-side failure."
           ],
-          "assertions": ["HTTP 522 is retryable and not treated as an unknown Local Manager defect.", "No credential or token material is added to diagnostics."],
-          "tests": [{"id":"local-manager-release-owner","runner":"node","working_directory":"http-generic-api","path":"test-local-manager-tool-release-owner.mjs","args":[]}],
+          "assertions": [
+            "HTTP 522 is retryable and not treated as an unknown Local Manager defect.",
+            "No credential or token material is added to diagnostics."
+          ],
+          "tests": [
+            {"id":"local-manager-release-owner","runner":"node","working_directory":"http-generic-api","path":"test-local-manager-tool-release-owner.mjs","args":[]}
+          ],
           "evidence_paths": ["apps/local-manager-windows/LocalManagerAutopilot.cs"]
+        },
+        {
+          "id": "staging-recovery-authority-and-safe-diagnostics",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Admin GPT through the governed Staging Recovery transport",
+          "entrypoint": "Activation Gateway and Staging runtime catalog",
+          "terminal_outcome": "Staging can distinguish missing read authority, read-only recovery snapshots, empty SQL device projection, trusted-ingress verification failures, Gateway signing failures, and GitHub App installation resolution without weakening fail-closed recovery rules or accepting caller-selected repository authority.",
+          "steps": [
+            "Grant the Staging runtime role SELECT-only authority to execution_policies while keeping Production bootstrap grants unchanged.",
+            "Expose the Device Tools catalog source, dispatch availability, and a bounded empty-projection or read-only-snapshot reason code.",
+            "Preserve RECOVERY_TRUSTED_INGRESS_REQUIRED while returning the verifier's safe reason code without secret material.",
+            "Classify missing Gateway ingress authority and invalid signing keys as explicit 503 conditions rather than generic upstream 502 failures.",
+            "Resolve a missing GitHub App installation id from the server-owned activation bootstrap repository binding before token-cache lookup.",
+            "Defer any Device Tool reconciliation migration until live SQL readback specifically proves device_tool_projection_empty."
+          ],
+          "assertions": [
+            "execution_policies receives SELECT and never UPDATE through the Staging runtime grant overlay.",
+            "No connected_systems row count is treated as the causal source of Device Tools projection state.",
+            "Trusted ingress remains mandatory and no local_connector or connector_ps fallback is introduced.",
+            "Gateway signing diagnostics never return JWK, signing key, approval token, or other credential material.",
+            "GitHub repository owner/repo used for installation discovery comes from server-owned activation bootstrap authority, not request input.",
+            "No live grant, migration, provider call, deployment, restart, or Production mutation is performed by this repository change."
+          ],
+          "tests": [
+            {"id":"staging-execution-policies-grant","runner":"node","working_directory":"http-generic-api","path":"test-staging-execution-policies-grant.mjs","args":[]},
+            {"id":"device-tools-diagnostics","runner":"node","working_directory":"http-generic-api","path":"test-device-tools-diagnostics.mjs","args":[]},
+            {"id":"github-app-installation-discovery","runner":"node","working_directory":"http-generic-api","path":"test-github-app-installation-discovery.mjs","args":[]},
+            {"id":"staging-trusted-ingress-diagnostics","runner":"node","working_directory":"http-generic-api","path":"test-staging-trusted-ingress-diagnostics.mjs","args":[]},
+            {"id":"gateway-ingress-signing-diagnostics","runner":"node","working_directory":"edge/activation-gateway","path":"test-ingress-signing-diagnostics.mjs","args":[]}
+          ],
+          "evidence_paths": [
+            "http-generic-api/databasePrivilegeContracts.js",
+            "http-generic-api/routes/deviceToolsRoutes.js",
+            "http-generic-api/routes/activationHostGatewayRoutes.js",
+            "edge/activation-gateway/src/gateway.mjs",
+            "http-generic-api/githubAppAuth.js"
+          ]
         }
       ],
       "tests": [
         {"id":"certification-protocol","runner":"node","working_directory":"http-generic-api","path":"test-staging-recovery-certification-protocol.mjs","args":[]},
         {"id":"certification-script-surface","runner":"node","working_directory":"http-generic-api","path":"test-staging-recovery-certification-script-surface.mjs","args":[]},
-        {"id":"local-manager-release-owner","runner":"node","working_directory":"http-generic-api","path":"test-local-manager-tool-release-owner.mjs","args":[]}
+        {"id":"local-manager-release-owner","runner":"node","working_directory":"http-generic-api","path":"test-local-manager-tool-release-owner.mjs","args":[]},
+        {"id":"staging-execution-policies-grant","runner":"node","working_directory":"http-generic-api","path":"test-staging-execution-policies-grant.mjs","args":[]},
+        {"id":"device-tools-diagnostics","runner":"node","working_directory":"http-generic-api","path":"test-device-tools-diagnostics.mjs","args":[]},
+        {"id":"github-app-installation-discovery","runner":"node","working_directory":"http-generic-api","path":"test-github-app-installation-discovery.mjs","args":[]},
+        {"id":"staging-trusted-ingress-diagnostics","runner":"node","working_directory":"http-generic-api","path":"test-staging-trusted-ingress-diagnostics.mjs","args":[]},
+        {"id":"gateway-ingress-signing-diagnostics","runner":"node","working_directory":"edge/activation-gateway","path":"test-ingress-signing-diagnostics.mjs","args":[]}
       ]
     }
   ],
