@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7588,
+  "file_count": 7593,
   "route_count": 1100,
   "write_route_count": 667,
   "classified_write_surface_count": 42,
@@ -3019,8 +3019,8 @@
     },
     {
       "route_id": "http-generic-api/routes/deviceToolsRoutes.js#GET:/device/tools:0",
-      "source_line": 33,
-      "source_offset": 1161,
+      "source_line": 50,
+      "source_offset": 1713,
       "method": "GET",
       "path": "/device/tools",
       "file": "http-generic-api/routes/deviceToolsRoutes.js",
@@ -3028,8 +3028,8 @@
     },
     {
       "route_id": "http-generic-api/routes/deviceToolsRoutes.js#POST:/device/tools/call:1",
-      "source_line": 51,
-      "source_offset": 1802,
+      "source_line": 71,
+      "source_offset": 2535,
       "method": "POST",
       "path": "/device/tools/call",
       "file": "http-generic-api/routes/deviceToolsRoutes.js",
@@ -22912,10 +22912,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/deviceToolsRoutes.js",
-        "source_line": 51,
+        "source_line": 71,
         "handler_window_lines": [
-          51,
-          92
+          71,
+          112
         ],
         "evidence_flags": {
           "handler_window_present": true,
