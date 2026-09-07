@@ -1,0 +1,115 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-recovery-system-surface-closure-20260907",
+  "title": "Staging Recovery System Tool surface closure",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-recovery-system-surface-closure-20260907.json",
+      "http-generic-api/stagingRecoverySystemTools.js",
+      "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
+      "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
+      "http-generic-api/test-staging-recovery-system-tools.mjs",
+      "http-generic-api/test-recovery-system-tool-overlay.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Expose the already-governed Staging Recovery canary planning and access-repair authorities through bounded Admin System Tools, close Recovery Action bridge v2 schema/handler parity in composed runtime, and keep Production free of Staging-only tool advertisement or mutation authority.",
+      "e2e_journeys": [
+        {
+          "id": "staging-recovery-governed-system-tool-surface",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Platform Admin",
+          "entrypoint": "Discover or call the fixed Admin System Tool surface through the composed runtime.",
+          "terminal_outcome": "Staging advertises bounded Recovery planning/approval tools backed by existing server-managed authorities; Production does not advertise those tools; Recovery execution bridge accepts the v2 server-managed confirmation contract and never exposes caller-controlled execution tickets, SQL, commands, credentials, or Production authority.",
+          "steps": [
+            "Synchronize the Recovery Action bridge descriptor to its existing v2 implementation contract before System Layer requests are served.",
+            "Advertise the Staging Recovery canary-plan, access-repair prepare/approve, and readiness tools only when the runtime is Staging.",
+            "Create canary plans through the durable Staging Recovery store without executing the canary or mutating target databases/providers.",
+            "Create access-repair plans/challenges and issue server-signed single-use tickets through the existing Staging access-repair authority without accepting caller SQL, commands, target selection, credentials, signatures, or tickets.",
+            "Project Staging capability reporting as a bounded control-plane surface while preserving the kernel's discovery-only subview.",
+            "Keep Production Recovery behavior available through the same v2 bridge while Staging-only descriptors remain absent from Production discovery."
+          ],
+          "assertions": [
+            "Staging Recovery System Tool descriptors are Admin-only, fixed-schema, private-recovery tools and are not advertised outside Staging.",
+            "The certification canary plan operation may write durable Recovery control-plane state but performs no target-database, provider, DNS, deployment, or Production mutation.",
+            "Access-repair System Tools delegate to createStagingAccessRepairTicketAuthority and do not reimplement grant, approval, signing, or execution-ticket authority.",
+            "Recovery Action bridge v2 accepts approval_id, expected_sha, typed_confirmation, and idempotency while keeping execution ticket identifiers/hashes/signatures server-controlled.",
+            "Production mutation is not enabled by this change and Production never receives Staging target authority.",
+            "Live Staging certification is required after merge because runtime routing and Recovery System Tool composition change."
+          ],
+          "tests": [
+            {
+              "id": "staging-recovery-system-tools-contract",
+              "runner": "node",
+              "path": "http-generic-api/test-staging-recovery-system-tools.mjs"
+            },
+            {
+              "id": "recovery-system-tool-overlay",
+              "runner": "node",
+              "path": "http-generic-api/test-recovery-system-tool-overlay.mjs"
+            },
+            {
+              "id": "staging-access-repair-ticket-authority",
+              "runner": "node",
+              "path": "http-generic-api/test-staging-access-repair-ticket-authority.mjs"
+            },
+            {
+              "id": "recovery-action-bridge",
+              "runner": "node",
+              "path": "http-generic-api/test-recovery-action-bridge.mjs"
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-recovery-system-surface-closure-20260907.json",
+            "http-generic-api/stagingRecoverySystemTools.js",
+            "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
+            "http-generic-api/routes/stagingRecoveryAdminRoutes.js"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "staging-recovery-system-tools-contract",
+          "runner": "node",
+          "path": "http-generic-api/test-staging-recovery-system-tools.mjs"
+        },
+        {
+          "id": "recovery-system-tool-overlay",
+          "runner": "node",
+          "path": "http-generic-api/test-recovery-system-tool-overlay.mjs"
+        },
+        {
+          "id": "staging-access-repair-ticket-authority",
+          "runner": "node",
+          "path": "http-generic-api/test-staging-access-repair-ticket-authority.mjs"
+        },
+        {
+          "id": "recovery-action-bridge",
+          "runner": "node",
+          "path": "http-generic-api/test-recovery-action-bridge.mjs"
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
