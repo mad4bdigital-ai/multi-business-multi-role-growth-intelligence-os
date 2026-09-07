@@ -19,6 +19,11 @@ const PRODUCTION_ENV = Object.freeze({
   DEPLOYMENT_ENVIRONMENT: "production",
   REMOTE_MCP_ENVIRONMENT: "production",
 });
+const CONFLICTING_ENV = Object.freeze({
+  NODE_ENV: "production",
+  DEPLOYMENT_ENVIRONMENT: "staging_local_windows_docker",
+  REMOTE_MCP_ENVIRONMENT: "staging",
+});
 
 const BUSINESS_TOOLS = [
   "staging_recovery_certification_canary_plan_create",
@@ -27,6 +32,7 @@ const BUSINESS_TOOLS = [
 ];
 const FORBIDDEN_CALLER_FIELDS = new Set([
   "target_key",
+  "target_fingerprint",
   "operation",
   "raw_sql",
   "sql",
@@ -43,10 +49,12 @@ const FORBIDDEN_CALLER_FIELDS = new Set([
   "ref",
 ]);
 
-test("Staging Recovery System Tool descriptors are advertised only for Staging", () => {
+test("Staging Recovery System Tool descriptors are advertised only for unambiguous Staging", () => {
   assert.equal(isStagingRecoverySystemEnvironment(STAGING_ENV), true);
   assert.equal(isStagingRecoverySystemEnvironment(PRODUCTION_ENV), false);
+  assert.equal(isStagingRecoverySystemEnvironment(CONFLICTING_ENV), false);
   assert.deepEqual(buildStagingRecoverySystemTools(PRODUCTION_ENV), []);
+  assert.deepEqual(buildStagingRecoverySystemTools(CONFLICTING_ENV), []);
 
   const tools = buildStagingRecoverySystemTools(STAGING_ENV);
   assert.deepEqual(tools.map((tool) => tool.name), [
@@ -60,7 +68,7 @@ test("Staging Recovery System Tool descriptors are advertised only for Staging",
   }
 });
 
-test("bounded Staging Recovery schemas never accept caller-selected execution authority", () => {
+test("bounded Staging Recovery schemas never accept caller-selected execution or target authority", () => {
   const tools = buildStagingRecoverySystemTools(STAGING_ENV);
   for (const name of BUSINESS_TOOLS) {
     const tool = tools.find((entry) => entry.name === name);
@@ -71,27 +79,30 @@ test("bounded Staging Recovery schemas never accept caller-selected execution au
       assert.equal(properties.has(forbidden), false, `${name} must not expose ${forbidden}`);
     }
   }
+  const prepare = tools.find((entry) => entry.name === "staging_recovery_access_repair_prepare");
+  assert.deepEqual(prepare.inputSchema.required, ["expected_sha", "grant_binding_hash", "idempotency_key"]);
 });
 
-test("Production calls fail before any Staging recovery authority can be constructed", async () => {
-  const attempts = [
-    () => stagingRecoveryCertificationCanaryPlanCreate({ expected_sha: "a".repeat(40) }, { env: PRODUCTION_ENV }),
-    () => stagingRecoveryAccessRepairPrepare({
-      expected_sha: "a".repeat(40),
-      target_fingerprint: "b".repeat(64),
-      grant_binding_hash: "c".repeat(64),
-      idempotency_key: "staging-recovery-test-001",
-    }, { env: PRODUCTION_ENV }),
-    () => stagingRecoveryAccessRepairApprove({
-      plan_id: `plan:${"1".repeat(32)}`,
-      plan_hash: "2".repeat(64),
-      step_id: `step:${"3".repeat(32)}`,
-      idempotency_key: "staging-recovery-test-002",
-      approval_confirmation: "APPROVE_STAGING_DATABASE_ACCESS_REPAIR:bounded",
-    }, { env: PRODUCTION_ENV }),
-  ];
-  for (const attempt of attempts) {
-    await assert.rejects(attempt, (error) => error?.code === "STAGING_RECOVERY_SYSTEM_SURFACE_UNAVAILABLE" && error?.status === 404);
+test("Production and conflicting-environment calls fail before any Staging recovery authority can be constructed", async () => {
+  for (const env of [PRODUCTION_ENV, CONFLICTING_ENV]) {
+    const attempts = [
+      () => stagingRecoveryCertificationCanaryPlanCreate({ expected_sha: "a".repeat(40) }, { env }),
+      () => stagingRecoveryAccessRepairPrepare({
+        expected_sha: "a".repeat(40),
+        grant_binding_hash: "c".repeat(64),
+        idempotency_key: "staging-recovery-test-001",
+      }, { env }),
+      () => stagingRecoveryAccessRepairApprove({
+        plan_id: `plan:${"1".repeat(32)}`,
+        plan_hash: "2".repeat(64),
+        step_id: `step:${"3".repeat(32)}`,
+        idempotency_key: "staging-recovery-test-002",
+        approval_confirmation: "APPROVE_STAGING_DATABASE_ACCESS_REPAIR:bounded",
+      }, { env }),
+    ];
+    for (const attempt of attempts) {
+      await assert.rejects(attempt, (error) => error?.code === "STAGING_RECOVERY_SYSTEM_SURFACE_UNAVAILABLE" && error?.status === 404);
+    }
   }
 });
 
