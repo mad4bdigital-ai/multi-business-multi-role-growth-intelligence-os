@@ -139,8 +139,17 @@ assert.match(autoDeploy, /Get-OptionalPropertyValue \$runtimeState "certificatio
 assert.doesNotMatch(autoDeploy, /\$runtimeState\.certification_status/);
 assert.match(startAutoPilot, /docker @\(\$ComposeArgs \+ @\("port", "app", "8080"\)\)/);
 assert.match(startAutoPilot, /http:\/\/127\.0\.0\.1:8080\/health/);
+assert.match(startAutoPilot, /Add-Type -AssemblyName System\.Net\.Http -ErrorAction Stop/);
+assert.match(startAutoPilot, /failure_class = "origin_probe_runtime_error"/);
+assert.match(startAutoPilot, /reason = "http_client_runtime_unavailable"/);
 assert.match(startAutoPilot, /failure_class = "staging_origin_unreachable"/);
+assert.match(startAutoPilot, /bootstrap-child-failure/);
+assert.match(startAutoPilot, /RELOADED_AUTO_PILOT_FAILED/);
+assert.doesNotMatch(startAutoPilot, /Fail "Reloaded Start-AutoPilot\.ps1 exited with code \$exitCode"/);
 assert.match(startAutoPilot, /Assert-WindowsHostOriginReachable \$composeArgs \$TunnelMode/);
+assert.match(certification, /Add-Type -AssemblyName System\.Net\.Http -ErrorAction Stop/);
+assert.match(certification, /certification_blocking_failures"\] = @\("origin_probe_runtime_error"\)/);
+assert.match(certification, /staging_origin_probe_reason"\] = "http_client_runtime_unavailable"/);
 assert.match(certification, /STAGING_CERTIFICATION_HOST_ORIGIN_READY/);
 assert.match(certification, /certification_blocking_failures"\] = @\("staging_origin_unreachable"\)/);
 assert.ok(
