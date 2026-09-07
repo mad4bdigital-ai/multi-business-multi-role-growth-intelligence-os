@@ -3,6 +3,7 @@ import {
   createPrivateKey,
   createPublicKey,
 } from "node:crypto";
+import { readFileSync } from "node:fs";
 import {
   envFlag,
   remoteMcpOAuthEnabled,
@@ -11,9 +12,15 @@ import {
 } from "./remoteMcpOAuthProfile.js";
 
 export const WORDPRESS_STAGING_MCP_SCOPE = "mad4b:read";
+export const WORDPRESS_STAGING_MCP_OFFLINE_SCOPE = "offline_access";
+export const WORDPRESS_STAGING_MCP_AUTHORIZATION_SCOPES = Object.freeze([
+  WORDPRESS_STAGING_MCP_SCOPE,
+  WORDPRESS_STAGING_MCP_OFFLINE_SCOPE,
+]);
 export const WORDPRESS_STAGING_MCP_RESOURCE = "https://staging.egypttourgates.com/wp-json/mcp/mad4b-read";
 export const WORDPRESS_STAGING_MCP_ISSUER_SUFFIX = "/wordpress-staging";
 export const WORDPRESS_STAGING_MCP_ACCESS_TOKEN_ALG = "RS256";
+export const WORDPRESS_STAGING_MCP_PRIVATE_KEY_FILE = "/app/data/oauth/wordpress-staging-rs256-private.pem";
 
 function normalizeHttpsUrlWithPath(value) {
   const raw = String(value || "").trim();
@@ -40,6 +47,11 @@ export function resolveWordpressStagingMcpIssuer(env = process.env) {
   return normalizeHttpsUrlWithPath(`${base}${WORDPRESS_STAGING_MCP_ISSUER_SUFFIX}`);
 }
 
+export function resolveWordpressStagingMcpPrivateKeyFile(env = process.env) {
+  const configured = String(env.REMOTE_MCP_WORDPRESS_RS256_PRIVATE_KEY_FILE || "").trim();
+  return configured || WORDPRESS_STAGING_MCP_PRIVATE_KEY_FILE;
+}
+
 export function wordpressStagingMcpOAuthConfigured(env = process.env) {
   return remoteMcpOAuthEnabled(env)
     && envFlag(env.REMOTE_MCP_WORDPRESS_STAGING_OAUTH_ENABLED)
@@ -48,7 +60,17 @@ export function wordpressStagingMcpOAuthConfigured(env = process.env) {
     && Boolean(resolveWordpressStagingMcpResource(env));
 }
 
-function decodePrivateKeyPem(env = process.env) {
+function privateKeyPemFromFile(env = process.env) {
+  const path = resolveWordpressStagingMcpPrivateKeyFile(env);
+  if (!path) return "";
+  try {
+    return readFileSync(path, "utf8").trim();
+  } catch {
+    return "";
+  }
+}
+
+function privateKeyPemFromBase64(env = process.env) {
   const encoded = String(env.REMOTE_MCP_WORDPRESS_RS256_PRIVATE_KEY_B64 || "").trim();
   if (!encoded) return "";
   try {
@@ -59,7 +81,10 @@ function decodePrivateKeyPem(env = process.env) {
 }
 
 export function resolveWordpressStagingMcpPrivateKey(env = process.env) {
-  const pem = decodePrivateKeyPem(env);
+  // Runtime prefers the persistent private-key file under /app/data. Base64 is
+  // retained only as a bounded CI/emergency compatibility input and is never
+  // emitted through status or metadata.
+  const pem = privateKeyPemFromFile(env) || privateKeyPemFromBase64(env);
   if (!pem) return null;
   try {
     const key = createPrivateKey({ key: pem, format: "pem" });
@@ -117,24 +142,26 @@ export function buildWordpressStagingMcpJwks(env = process.env) {
 
 export function wordpressStagingMcpOAuthReady(env = process.env) {
   if (!wordpressStagingMcpOAuthConfigured(env)) return false;
-  const privateKey = resolveWordpressStagingMcpPrivateKey(env);
-  const kid = resolveWordpressStagingMcpKeyId(env);
-  return Boolean(privateKey && kid);
+  return Boolean(resolveWordpressStagingMcpPrivateKey(env) && resolveWordpressStagingMcpKeyId(env));
 }
 
 export function getWordpressStagingMcpOAuthStatus(env = process.env) {
   const issuer = resolveWordpressStagingMcpIssuer(env);
   const resource = resolveWordpressStagingMcpResource(env);
   const kid = resolveWordpressStagingMcpKeyId(env);
+  const keyFile = resolveWordpressStagingMcpPrivateKeyFile(env);
   return {
     configured: wordpressStagingMcpOAuthConfigured(env),
     ready: wordpressStagingMcpOAuthReady(env),
     environment: resolveRemoteMcpEnvironment(env),
     issuer,
     resource,
-    scope: WORDPRESS_STAGING_MCP_SCOPE,
+    resource_scope: WORDPRESS_STAGING_MCP_SCOPE,
+    authorization_scopes: [...WORDPRESS_STAGING_MCP_AUTHORIZATION_SCOPES],
+    refresh_token_supported: true,
     access_token_alg: WORDPRESS_STAGING_MCP_ACCESS_TOKEN_ALG,
-    private_key_configured: Boolean(String(env.REMOTE_MCP_WORDPRESS_RS256_PRIVATE_KEY_B64 || "").trim()),
+    private_key_file_configured: Boolean(keyFile),
+    private_key_loaded: Boolean(resolveWordpressStagingMcpPrivateKey(env)),
     jwks_ready: Boolean(kid),
     kid: kid || null,
     secrets_included: false,
