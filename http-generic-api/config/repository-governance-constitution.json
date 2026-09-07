@@ -591,7 +591,11 @@
     ".changes/e2e/staging-one-click-loopback-origin-20260905.json",
     ".changes/e2e/staging-activation-public-schema-routes-20260905.json",
     ".changes/e2e/production-full-schema-metadata-census-20260905.json",
-    ".changes/e2e/staging-connector-provisioning-boundary-20260906.json"
+    ".changes/e2e/staging-connector-provisioning-boundary-20260906.json",
+    ".changes/e2e/certified-release-cut-production-classifier-adapter.json",
+    ".github/scripts/production-promotion-identity.mjs",
+    ".github/scripts/production-promotion-operation-state.mjs",
+    ".github/workflows/production-certified-release-cut-validation.yml"
   ],
   "derived_state": {
     "registry": ".github/derived-state-governance.json",
