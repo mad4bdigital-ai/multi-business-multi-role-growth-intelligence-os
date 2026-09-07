@@ -73,6 +73,11 @@ function Assert-WindowsHostOriginReachable([string[]]$ComposeArgs, [string]$Mode
     if ($LASTEXITCODE -ne 0 -or $published -notmatch '^(?:127\.0\.0\.1|localhost):8080$') {
         Fail "Windows Staging host origin binding is missing from the effective Compose topology" @{ failure_class = "staging_origin_unreachable"; tunnel_mode = $Mode; origin = $origin; reason = "host_binding_missing"; observed_binding = $published }
     }
+    try {
+        Add-Type -AssemblyName System.Net.Http -ErrorAction Stop
+    } catch {
+        Fail "Windows Staging host origin probe runtime is unavailable" @{ failure_class = "origin_probe_runtime_error"; tunnel_mode = $Mode; origin = $origin; reason = "http_client_runtime_unavailable"; error = $_.Exception.Message }
+    }
     $lastError = ""
     for ($attempt = 1; $attempt -le 5; $attempt++) {
         $client = $null
@@ -286,7 +291,10 @@ function Invoke-SelfUpdate {
     if ($SkipBuild) { $childArgs += "-SkipBuild" }
     & powershell.exe @childArgs
     $exitCode = $LASTEXITCODE
-    if ($exitCode -ne 0) { Fail "Reloaded Start-AutoPilot.ps1 exited with code $exitCode" }
+    if ($exitCode -ne 0) {
+        Write-StagingLog -Level warning -Component $LogComponent -Stage "bootstrap-child-failure" -Message "Reloaded Auto Pilot failed; preserving the child process root failure" -Data @{ parent_error = "RELOADED_AUTO_PILOT_FAILED"; expected_commit = $ExpectedCommit; child_exit_code = $exitCode }
+        exit $exitCode
+    }
     exit 0
 }
 
