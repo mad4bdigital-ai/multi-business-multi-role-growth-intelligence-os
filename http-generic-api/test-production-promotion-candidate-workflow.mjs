@@ -28,18 +28,27 @@ assert.match(workflow, /current Production contains commits not present in the a
 assert.match(workflow, /Production moved before candidate construction/u);
 assert.match(workflow, /release, validation, and validation-base branches must be distinct/u);
 
+assert.match(workflow, /candidate_has_exact_topology\(\)/u, "candidate builder must centralize exact-parent validation");
+assert.match(workflow, /\$\{#parent_list\[@\]\}[^\n]*-eq 2/u, "candidate builder must require exactly two parents");
+assert.match(workflow, /parent_list\[0\][^\n]*expected_cut/u, "candidate first parent must be the release cut");
+assert.match(workflow, /parent_list\[1\][^\n]*expected_production/u, "candidate second parent must be pinned Production");
 assert.match(workflow, /RELEASE_TREE=.*\^\{tree\}/u, "candidate tree must be sourced from the release cut");
 assert.match(workflow, /git commit-tree "\$RELEASE_TREE" -p "\$RELEASE_CUT_SHA" -p "\$ACTUAL_PRODUCTION_SHA"/u, "candidate parents must be release cut then Production");
-assert.match(workflow, /candidate first parent is not the release cut/u);
+assert.match(workflow, /candidate_has_exact_topology "\$PREVIOUS_RELEASE" "\$RELEASE_CUT_SHA" "\$ACTUAL_PRODUCTION_SHA"/u, "reused candidates must satisfy exact topology before reuse");
+assert.match(workflow, /existing release branch is not the exact reusable two-parent release-cut candidate; refusing history rewrite/u);
+assert.match(workflow, /candidate must have exactly two parents: release cut first and pinned Production second/u);
+assert.match(workflow, /candidate topology changed before ref publication/u);
 assert.match(workflow, /git diff --quiet "\$RELEASE_CUT_SHA" "\$CANDIDATE_SHA"/u, "candidate tree must equal release cut");
 assert.match(workflow, /git merge-base --is-ancestor "\$RELEASE_CUT_SHA" "\$CANDIDATE_SHA"/u, "candidate must contain release-cut ancestry");
 assert.match(workflow, /git merge-base --is-ancestor "\$ACTUAL_PRODUCTION_SHA" "\$CANDIDATE_SHA"/u, "candidate must contain Production ancestry");
-assert.match(workflow, /existing release branch is not the exact reusable release-cut candidate; refusing history rewrite/u);
 
 assert.match(workflow, /push_fast_forward_only "\$VALIDATION_BASE_BRANCH" "\$RELEASE_CUT_SHA"/u, "validation base must point to release cut");
 assert.match(workflow, /push_fast_forward_only "\$RELEASE_BRANCH" "\$CANDIDATE_SHA"/u);
 assert.match(workflow, /push_fast_forward_only "\$VALIDATION_BRANCH" "\$CANDIDATE_SHA"/u);
 assert.match(workflow, /VALIDATION_BASE_READBACK/u);
+assert.match(workflow, /candidate_parent_count:2/u, "candidate evidence must attest exact parent count");
+assert.match(workflow, /candidate_first_parent_is_release_cut:true/u, "candidate evidence must attest first-parent binding");
+assert.match(workflow, /candidate_second_parent_is_pinned_production:true/u, "candidate evidence must attest second-parent binding");
 assert.match(workflow, /upsert_pr "\$VALIDATION_BRANCH" "\$VALIDATION_BASE_BRANCH"/u);
 assert.match(workflow, /test\(release\): certify immutable Production candidate/u, "validation surface must invoke the certified release-cut contract");
 assert.match(workflow, /release_cut_mode: true/u);
