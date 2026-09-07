@@ -8,7 +8,7 @@ The launcher also embedded the supporting-workflow inventory and per-workflow di
 
 ## Release identity
 
-The controller now separates two identities:
+The controller separates two protected-ref identities:
 
 - **release cut** — the exact `main` commit explicitly authorized by the governed request;
 - **current main** — the moving development tip observed during build, validation, and final readback.
@@ -17,13 +17,29 @@ A release remains valid when current `main` advances only if the release cut is 
 
 `Production` is stricter. It must remain exactly equal to the SHA pinned when the request was authorized. The pinned Production SHA must already be an ancestor of the release cut and of the candidate. If Production moves, the old authorization is not reused.
 
+## Promotion session identity
+
+`.github/scripts/production-promotion-identity.mjs` is the shared source for deterministic operation/session identity and Production candidate surface parsing.
+
+The durable session identity is derived from exact repository, release-cut SHA, and pinned Production SHA. GitHub workflow run IDs and run attempts are evidence metadata; they are not promotion-session authority.
+
+The current governed launcher surface remains deterministic and idempotent:
+
+`release/production-candidate-<release-cut-12>-<Production-12>`
+
+The branch prefixes are routing hints only. Acceptance always requires the exact 40-character SHAs and the Git graph checks below. Older run-bound certified surfaces and legacy bridge/push surfaces remain compatibility paths and do not broaden the canonical namespace.
+
+Repeated execution for the same release-cut/Production pair must converge on the same operation identity rather than minting a new promotion merely because GitHub assigned a new workflow run ID.
+
 ## Candidate contract
 
-The candidate is a merge commit with:
+The candidate is a merge commit with exactly two parents:
 
 1. first parent = certified release cut;
 2. second parent = pinned Production;
 3. tree = exact release-cut tree.
+
+A third parent is invalid even when it happens to preserve both required ancestors. Merely proving that Production is somewhere in candidate ancestry is insufficient; the exact second-parent binding is part of the release identity.
 
 The validation base branch points to the release cut. Candidate, release, validation, and validation-base refs are moved only by fast-forward. No force push is permitted.
 
@@ -34,13 +50,17 @@ The candidate opens a validation PR titled `test(release): certify immutable Pro
 That workflow requires:
 
 - exact same-repository candidate identity;
+- exactly two candidate parents;
 - candidate first-parent binding to the release cut;
+- candidate second-parent binding to the exact pinned Production SHA;
 - byte-identical candidate/release-cut trees;
 - release cut contained by current `main` before and after direct CI;
-- pinned Production contained by the candidate and unchanged during validation;
+- pinned Production contained by the release cut and unchanged during validation;
 - successful Syntax, Unit & Integration, Execution Resolver, and Architecture Drift jobs.
 
-The certified evidence explicitly records `main_tip_may_advance: true`.
+The final validation readback repeats the parent-count, first-parent, second-parent, tree, main-ancestry, and Production-stability checks before evidence is emitted.
+
+The certified evidence explicitly records `main_tip_may_advance: true` and the exact two-parent topology assertions.
 
 ## Declarative supporting gates
 
@@ -58,7 +78,7 @@ The canonical convergence artifact is `governed_production_promotion_convergence
 
 It records the release cut, current main, pinned Production, candidate, certified validation run, gate-registry digest, exact supporting run IDs, ancestry assertions, and explicit non-mutation flags.
 
-PR comments are observability surfaces only after canonical evidence exists. A comment transport failure is reported as degraded observability; it cannot convert valid canonical evidence into a false promotion failure or authorize a mutation.
+PR comments and branch-name prefixes are observability/routing surfaces only after canonical evidence exists. A comment transport failure cannot convert valid canonical evidence into a false promotion failure or authorize a mutation, and a syntactically plausible branch name cannot replace exact graph validation.
 
 ## Final guards
 
@@ -67,7 +87,7 @@ PR comments are observability surfaces only after canonical evidence exists. A c
 - descendant movement of `main` is allowed;
 - release-cut ancestry loss is blocking;
 - Production movement is blocking;
-- candidate tree or first-parent drift is blocking;
+- candidate tree or parent drift is blocking;
 - loss of Production ancestry is blocking.
 
 A truly invalid release cut requires a new authorization. The post-finalization guard does not blindly reopen and reuse an authorization after Production or ancestry has changed.
