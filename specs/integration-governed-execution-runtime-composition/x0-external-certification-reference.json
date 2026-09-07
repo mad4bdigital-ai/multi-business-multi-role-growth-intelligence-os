@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "reference_key": "mad4b.runtime-composition.x0-external-certification-reference.v1",
+  "gate": "X0",
+  "status": "complete_external",
+  "evidence_authority": "external",
+  "source_tree_may_self_attest": false,
+  "repository": "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+  "pull_request": 7942,
+  "certified_head_sha": "0def70177fb741d39e6624445506d5537c145808",
+  "certified_base_sha": "b08afded2f39939aea9ab724e65a375fd02c01ea",
+  "certified_tree_sha": "932f928dea0ac032b06c4d6ce318d015da02418b",
+  "merge_commit_sha": "c6295a2ecc495ab4ab8155d541a8c538ef31289b",
+  "merge_commit_tree_sha": "932f928dea0ac032b06c4d6ce318d015da02418b",
+  "external_evidence": {
+    "pr_comment_id": 5568862727,
+    "pr_comment_url": "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/pull/7942#issuecomment-5568862727",
+    "workflow_runs": {
+      "ci": 34118930893,
+      "ci_pull_request_recovery": 34118930912,
+      "derived_state_closure": 34118931012,
+      "policy_objection_ci": 34118930995,
+      "pr_generated_artifact_refresh": 34118930987,
+      "e2e_phase_governance": 34118930920,
+      "repository_tool_lifecycle_governance": 34118930905,
+      "branch_test_diagnostic_shards": 34118931008
+    },
+    "policy_objection": {
+      "workflow_status": "success",
+      "blocking_count": 0,
+      "manual_count": 1,
+      "manual_objection": "control-plane-self-amendment:manual-merge-required"
+    },
+    "live_staging": {
+      "status": "ready",
+      "contract": "mad4b.staging-pr-head-live-certification.v1",
+      "tracked_files": 7572,
+      "build_context_sha256": "fe591d298a844a00f82132666d725a9cad0e5ea0b468d982a4a0ae27fe1536a0",
+      "local_ignored_files_included": false,
+      "secrets_included": false,
+      "all_compose_services_healthy": true,
+      "host_origin_http_status": 200,
+      "connector_health": "healthy",
+      "production_mutation_performed": false
+    }
+  },
+  "closure_semantics": {
+    "x1_entry_permitted": true,
+    "runtime_cutover_authorized": false,
+    "production_mutation_authorized": false,
+    "provider_write_authorized": false,
+    "database_write_authorized": false,
+    "migration_apply_authorized": false
+  },
+  "secrets_included": false
+}

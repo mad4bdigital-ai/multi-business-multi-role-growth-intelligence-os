@@ -33,7 +33,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Preserve the merged cross-Spec composition and provider-projection contracts while X0 adds passive no-secret evidence instrumentation without creating a new runtime authority.",
+      "objective": "Preserve the merged cross-Spec composition and provider-projection contracts, consume the externally completed X0 evidence gate, and keep X1 limited to a non-dispatching shadow entry until its own implementation is certified.",
       "e2e_journeys": [
         {
           "id": "runtime-composition-specification-boundary",
@@ -41,17 +41,19 @@
           "level": "synthetic_runtime",
           "actor": "Repository runtime architecture maintainer",
           "entrypoint": "Run the registered repository automation validator against the exact candidate tree",
-          "terminal_outcome": "Specs 011, 012, and 013 remain execution/context/catalog owners; X0 telemetry remains passive and non-authoritative; X1 remains gated behind external exact-head and live-Staging certification.",
+          "terminal_outcome": "Specs 011, 012, and 013 remain execution/context/catalog owners; X0 external exact-head and live-Staging certification is recorded only by reference; X1 entry is allowed but no shadow implementation, provider dispatch, runtime cutover, or Production mutation is implied by this source transition.",
           "steps": [
-            "Validate the integration manifest, completion ledger, ontology, authority graph, WordPress provider profile, X0 manifest, matched fixtures, and phase gates from the exact candidate tree.",
+            "Validate the integration manifest, completion ledger, ontology, authority graph, WordPress provider profile, X0 manifest, matched fixtures, external certification reference, and phase gates from the exact candidate tree.",
             "Prove the integration kit owns composition/certification only while Specs 011/012/013 retain execution/context/catalog authority.",
             "Prove X0 instruments GPT Tool, System Tool, Connector Plan, Agent Loop, and the pre-existing Sequential Plan adapter without changing routing, authority, provider dispatch, retries, readback, or result shape.",
             "Prove matched F01/F03/F04/F05/F06 fixtures preserve functional and safety outcomes with no live provider or Production mutation benchmark.",
+            "Consume the external X0 certification reference bound to PR #7942 exact head 0def70177fb741d39e6624445506d5537c145808 and unchanged merge tree c6295a2ecc495ab4ab8155d541a8c538ef31289b without treating this tree as certification authority.",
             "Prove WordPress Abilities and custom MCP servers remain provider-side projections and WordPress raw SQL Breakglass remains excluded from normal System Tool projection.",
-            "Prove X1 cannot begin until external exact-head CI and required live-Staging certification close Gate X0."
+            "Prove X1 may now begin only as a shadow composition phase with no provider call from the shadow path."
           ],
           "assertions": [
             "The integration kit never becomes a fourth execution, context, catalog, policy, grant, or provider authority.",
+            "The X0 closure record is an external-evidence reference and source_tree_may_self_attest remains false.",
             "Telemetry absence or emitter failure cannot change the measured operation outcome.",
             "Unobserved counters remain unobserved rather than being converted into false zero evidence.",
             "X0 adds no provider call, database write, migration, retry, permission grant, runtime cutover, external send, or Production mutation.",
@@ -68,6 +70,7 @@
             "specs/integration-governed-execution-runtime-composition/manifest.json",
             "specs/integration-governed-execution-runtime-composition/completion.json",
             "specs/integration-governed-execution-runtime-composition/tasks-and-gates.md",
+            "specs/integration-governed-execution-runtime-composition/x0-external-certification-reference.json",
             "specs/011-durable-governed-execution-and-agent-delegation/x0-evidence-baseline.manifest.json",
             "specs/011-durable-governed-execution-and-agent-delegation/x0-evidence-baseline.md",
             "specs/011-durable-governed-execution-and-agent-delegation/x0-matched-runtime-fixtures.json",
@@ -82,27 +85,26 @@
     {
       "id": "operational",
       "status": "blocked",
-      "objective": "Close X0 external certification, then implement X1 contract-composition shadow with zero provider calls from the shadow path.",
+      "objective": "Implement and certify X1 contract-composition shadow with zero provider calls from the shadow path.",
       "blockers": [
-        "The X0 candidate requires external exact-head GitHub Actions certification; the source tree cannot self-attest success.",
-        "The declared runtime impact requires live Staging certification before Gate X0 can close.",
-        "X1 implementation is prohibited until Gate X0 is externally certified."
+        "X1 Execution Capsule, descriptor-to-governed-input composition, parity comparison, typed mismatch evidence, and cross-spec identifier guards are not yet complete.",
+        "Operational phase requires exact-head X1 CI and any environment certification declared by the X1 implementation PR before promotion."
       ],
       "planned_e2e_journey": {
-        "id": "runtime-composition-x0-x1-shadow",
+        "id": "runtime-composition-x1-shadow",
         "required_level": "live_non_production",
         "actor": "Authorized runtime engineer",
-        "entrypoint": "Certify passive X0 telemetry on the exact candidate, then compile canonical composition in shadow mode",
-        "terminal_outcome": "X0 preserves runtime behavior and produces reproducible no-secret evidence; after Gate X0 closes, X1 reaches zero unexplained authority, target, tenant, connection, provider, or WordPress binding mismatch without provider calls from the shadow path.",
+        "entrypoint": "Compile canonical descriptor, context, authority, approval and readback composition beside the legacy path without dispatch",
+        "terminal_outcome": "X1 reaches zero unexplained authority, target, tenant, connection, provider, or WordPress binding mismatch without provider calls from the shadow path.",
         "steps": [
-          "Run exact-head repository CI and the registered X0 deterministic fixture suites.",
-          "Run required live-Staging certification without Production mutation or runtime cutover.",
-          "Only after Gate X0 closes, compile and compare canonical context, operation, policy, approval, provider and readback decisions without dispatch.",
+          "Reuse the existing Spec 012 Execution Capsule contract and shadow adapter rather than creating another context authority.",
+          "Compile Spec 013 descriptor metadata into the Spec 011 governed execution input without provider dispatch.",
+          "Compare canonical context, operation, policy, approval, provider and readback decisions against legacy behavior.",
           "Compile the WordPress provider binding in shadow mode and prove no direct Ability invocation occurs."
         ]
       }
     },
-    {"id":"resilient","status":"blocked","objective":"Certify X2 through X7 read, DAG, approval, ledger/projection, mutation, provider and durable execution resilience.","blockers":["Operational X0/X1 certification is incomplete."],"planned_e2e_journey":{"id":"runtime-composition-resilience","required_level":"live_non_production","actor":"Authorized staging operator","entrypoint":"Exercise selected composed read, preparation, provider, mutation, and durable workflows in non-Production","terminal_outcome":"Idempotency, locks, approvals, readback, unknown-outcome reconciliation, provider binding, restart recovery, and rollback remain equivalent or stronger than legacy execution.","steps":["Certify read and DAG preparation paths.","Certify provider binding, approval frontier, ledger/projection split, bounded mutation, and durable recovery with fault injection."]}},
+    {"id":"resilient","status":"blocked","objective":"Certify X2 through X7 read, DAG, approval, ledger/projection, mutation, provider and durable execution resilience.","blockers":["Operational X1 certification is incomplete."],"planned_e2e_journey":{"id":"runtime-composition-resilience","required_level":"live_non_production","actor":"Authorized staging operator","entrypoint":"Exercise selected composed read, preparation, provider, mutation, and durable workflows in non-Production","terminal_outcome":"Idempotency, locks, approvals, readback, unknown-outcome reconciliation, provider binding, restart recovery, and rollback remain equivalent or stronger than legacy execution.","steps":["Certify read and DAG preparation paths.","Certify provider binding, approval frontier, ledger/projection split, bounded mutation, and durable recovery with fault injection."]}},
     {"id":"canary","status":"blocked","objective":"Expose the certified execution surface to bounded internal/tenant cohorts while retaining legacy fallback.","blockers":["Resilient certification through selected X2-X7 gates is incomplete."],"planned_e2e_journey":{"id":"runtime-composition-canary","required_level":"live_non_production","actor":"Authorized pilot cohort","entrypoint":"Use certified composed execution adapters under bounded rollout flags","terminal_outcome":"Semantic parity, provider readback, latency, duplicate-mutation, rollback, isolation and WordPress provider evidence remain within declared gates.","steps":["Enable selected read and low-risk operation cohorts.","Measure parity and rollback readiness before each expansion."]}},
     {"id":"production","status":"blocked","objective":"Complete X8/X9 public-surface and percent-rollout closeout only after governed Production authority exists.","blockers":["Canary acceptance, Production promotion authority, and reversible cutover evidence are absent."],"planned_e2e_journey":{"id":"runtime-composition-production-readback","required_level":"production_readback","actor":"Authorized release operator","entrypoint":"Promote an exact certified composed execution release through governed Production promotion","terminal_outcome":"Production runs intended revisions with equivalent-or-stronger authorization, provider binding, readback, evidence, recovery, and reversible legacy retirement.","steps":["Verify exact release identity and promotion authority.","Run bounded Production readback, provider certification readback, rollback drill, and post-merge audit before retirement decisions."]}}
   ],
