@@ -80,6 +80,7 @@
       ".changes/e2e/configuration-drift-guard-20260815.json",
       ".changes/e2e/governed-generated-artifact-refresh-pr-target-bridge.json",
       ".changes/e2e/governed-generated-refresh-apply-context-availability.json",
+      ".changes/e2e/wordpress-staging-mcp-oauth-federation-20260907.json",
       ".github/governance/generated-artifact-registry.json",
       ".github/ops/generated-artifact-governance.mjs",
       ".github/ops/github-followup-automerge-readiness.mjs",
