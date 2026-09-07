@@ -7,6 +7,7 @@ import { readFileSync } from "node:fs";
 import {
   envFlag,
   remoteMcpOAuthEnabled,
+  resolveRemoteMcpAllowedRedirectOrigins,
   resolveRemoteMcpAuthorizationIssuer,
   resolveRemoteMcpEnvironment,
 } from "./remoteMcpOAuthProfile.js";
@@ -58,6 +59,17 @@ export function wordpressStagingMcpOAuthConfigured(env = process.env) {
     && resolveRemoteMcpEnvironment(env) === "staging"
     && Boolean(resolveWordpressStagingMcpIssuer(env))
     && Boolean(resolveWordpressStagingMcpResource(env));
+}
+
+export function wordpressStagingMcpDcrEnabled(env = process.env) {
+  return wordpressStagingMcpOAuthConfigured(env)
+    && envFlag(env.REMOTE_MCP_WORDPRESS_STAGING_DCR_ENABLED);
+}
+
+export function wordpressStagingMcpDcrAdvertised(env = process.env) {
+  if (!wordpressStagingMcpDcrEnabled(env)) return false;
+  return resolveRemoteMcpAllowedRedirectOrigins(env).size > 0
+    || envFlag(env.REMOTE_MCP_OAUTH_ALLOW_LOOPBACK);
 }
 
 function privateKeyPemFromFile(env = process.env) {
@@ -153,6 +165,8 @@ export function getWordpressStagingMcpOAuthStatus(env = process.env) {
   return {
     configured: wordpressStagingMcpOAuthConfigured(env),
     ready: wordpressStagingMcpOAuthReady(env),
+    dcr_enabled: wordpressStagingMcpDcrEnabled(env),
+    dcr_advertised: wordpressStagingMcpDcrAdvertised(env),
     environment: resolveRemoteMcpEnvironment(env),
     issuer,
     resource,
