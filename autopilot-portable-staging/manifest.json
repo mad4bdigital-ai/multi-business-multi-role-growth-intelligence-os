@@ -62,7 +62,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "3350b37bc1e834719eea263b7911016cc6932ee6d2eeafca865f8e5d4db7e5b1"
+      "sha256": "ceed27ac2819bbbe8c159504ff1d5e7abf08e9467f55495c6c78674ff36b39e3"
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "3e9aadb9e13eaa45d815a7608de330bd002609702a3e446e9419ecb68a389404"
+      "sha256": "5130a214c62a303fded6192f73a7ea614693bf61c9e4c99ebd461a7f2b8559d5"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
@@ -150,7 +150,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "7d3b7a1f42850a7e9311fc6f95397ae606d7f3388a9adfe3176fdce53656e3d3"
+      "sha256": "59f8cc578d4785f7e8b0cd2cd0ef7cbb9957218b7b65c76f65f24fa708f4cf3d"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "98fabd76fad2ec6dd94f8895b2ab95c1814c812f1bde82820a7871dd31f6fd96"
+      "sha256": "2cae65dea3b26b2d6ded2b5f84c35b3c3540e6dd621128c11037a5cf77577b7d"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -242,7 +242,7 @@
     },
     {
       "path": "http-generic-api/test-staging-autopilot-closure.mjs",
-      "sha256": "4aed9ea886007bbffa4068c082af2e931be41c50e5c18044ee3acc8cd4ec038f"
+      "sha256": "b8c968aa683f199e00224a9ec74c73edc035d9da9fee9c2b990d3a9b480de178"
     },
     {
       "path": "http-generic-api/test-staging-build-context-provenance.mjs",
@@ -294,7 +294,7 @@
     },
     {
       "path": "http-generic-api/test-staging-auto-deploy-contract.mjs",
-      "sha256": "7b8721b42cc14fd25b403f7409bb9080b6123463c1c38c9c6771dbc03917acd8"
+      "sha256": "5b8a2fb344d84daa20a484e1f7f60e090b600eea270ed18fa202a143717c2129"
     },
     {
       "path": "http-generic-api/test-staging-environment-certification-contract.mjs",
@@ -402,7 +402,7 @@
     },
     {
       "path": "autopilot-portable-staging/Provision-LocalConnectorTunnelToken.ps1",
-      "sha256": "19d9759a7e4eb826e9952a2643c98b79964953ead2c8761920421660d41eece8"
+      "sha256": "4d03b8b3d0316dfb88696621c332a52e0dfe3e5cc77c5685ae70245fc00e36ad"
     },
     {
       "path": "local-connector/install-service.ps1",

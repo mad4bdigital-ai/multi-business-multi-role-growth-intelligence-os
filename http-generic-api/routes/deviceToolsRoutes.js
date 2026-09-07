@@ -20,10 +20,27 @@ import {
   fetchToolsForCaller,
   dispatchToolForCaller,
 } from "./gptToolsRoutes.js";
+import {
+  resolveRuntimeRecoverySourceMode,
+} from "../runtimeRecoverySnapshot.js";
 
 function isDeviceTagged(tool) {
   const tags = Array.isArray(tool?.tags) ? tool.tags : [];
   return tags.some((tag) => String(tag).trim().toLowerCase() === "device");
+}
+
+export function deviceToolsDiagnostics(catalogSourceMode, count) {
+  const sqlCatalog = catalogSourceMode === "sql";
+  const hasDeviceTools = Number(count) > 0;
+  return {
+    catalog_source: sqlCatalog ? "sql_registry" : "runtime_recovery_snapshot",
+    dispatch_available: sqlCatalog && hasDeviceTools,
+    reason_code: hasDeviceTools
+      ? null
+      : sqlCatalog
+        ? "device_tool_projection_empty"
+        : "runtime_recovery_snapshot_read_only",
+  };
 }
 
 export function buildDeviceToolsRoutes(deps) {
@@ -33,13 +50,16 @@ export function buildDeviceToolsRoutes(deps) {
   router.get("/device/tools", requireBackendApiKey, async (req, res) => {
     try {
       const callerType = resolveCallerTypeForRequest(req);
+      const catalogSourceMode = resolveRuntimeRecoverySourceMode();
       const allTools = await fetchToolsForCaller(callerType);
       const deviceTools = allTools.filter(isDeviceTagged);
+      const diagnostics = deviceToolsDiagnostics(catalogSourceMode, deviceTools.length);
       return res.status(200).json({
         ok: true,
         protocol: "openapi-mcp-facade",
         surface: "device",
         caller_type: callerType,
+        ...diagnostics,
         count: deviceTools.length,
         tools: deviceTools,
       });
