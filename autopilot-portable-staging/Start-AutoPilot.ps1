@@ -328,8 +328,11 @@ function Find-ExactStagingImageId([string]$ExpectedCommit, [string]$ExpectedTree
     if ($null -ne $ComposeArgs -and $ComposeArgs.Count -gt 0) {
         $composeImageQuery = (& docker @($ComposeArgs + @("images", "-q", "app")) 2>$null | Out-String).Trim()
         if ($LASTEXITCODE -eq 0) {
-            $candidateIds += @($composeImageQuery -split "\s+" | Where-Object { $_ -match '^sha256:[0-9a-fA-F]{64}
-    $candidateIds += @($labelQuery -split "\s+" | Where-Object { $_ -match '^sha256:[0-9a-fA-F]{64}$' })
+            $candidateIds += @($composeImageQuery -split "\\s+" | Where-Object { $_ -match '^sha256:[0-9a-fA-F]{64}$' })
+        }
+    }
+    $labelQuery = (Get-NativeText "docker" @("image", "ls", "--no-trunc", "--filter", "label=org.mad4b.staging.provenance.contract=mad4b.staging-build-provenance.v1", "--format", "{{.ID}}")).Trim()
+    $candidateIds += @($labelQuery -split "\\s+" | Where-Object { $_ -match '^sha256:[0-9a-fA-F]{64}$' })
     foreach ($candidate in @($candidateIds | Select-Object -Unique)) {
         if (Test-ExactStagingImage ([string]$candidate) $ExpectedCommit $ExpectedTree $ExpectedContextFileSet) { return ([string]$candidate).ToLowerInvariant() }
     }
