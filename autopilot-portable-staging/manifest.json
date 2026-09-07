@@ -22,7 +22,7 @@
     },
     {
       "path": "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
-      "sha256": "24e04311365a500ac150a7fc745cf3f6c9248bb0dc8a1c99604954dd3ba68d3d"
+      "sha256": "9db2af651460c27af77831741ed475173a3596c9154716b9fa9fe08379178ae0"
     },
     {
       "path": "autopilot-portable-staging/Clone-StagingDatabases.ps1",
@@ -50,7 +50,7 @@
     },
     {
       "path": "autopilot-portable-staging/Staging-HealthMonitor.ps1",
-      "sha256": "ed6a65164dc09810850da459faaffcb71b5240f2cd6e2b2d2796b0612c94ef8c"
+      "sha256": "725a8a0e6be3c478fade2ebacc621d90cca908a31f82323b43c41d9546be1795"
     },
     {
       "path": "autopilot-portable-staging/Staging-Maintenance.cmd",
@@ -62,7 +62,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "3c301e7ed044c99f59d26599966ac8282dc9ea33ae0ceb16d73b0328f80fcdb9"
+      "sha256": "23d130ff1e28a9364488ac064db4e151c3026d5c1089efa84e7e1c12b6a8a6f1"
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
@@ -278,7 +278,7 @@
     },
     {
       "path": "autopilot-portable-staging/Invoke-StagingCertification.ps1",
-      "sha256": "102b798b9cd1d5d621de9c7a3ebed62b57c2c5c9bce66bf2789baae65479bfb8"
+      "sha256": "9d9309d6245f7a202c1fe2fb731e5be161612a44cbfc2ae6d6783b9a44d08a08"
     },
     {
       "path": "http-generic-api/deploymentManifest.js",

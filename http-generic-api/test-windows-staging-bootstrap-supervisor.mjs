@@ -122,6 +122,33 @@ assert.match(startAutoPilot, /ValidateSet\("disabled", "windows_service", "docke
 assert.match(startAutoPilot, /windows_service mode refuses concurrent Docker cloudflared sidecar/);
 assert.match(startAutoPilot, /Staging Windows service tunnel is the sole runtime/);
 
+// Deployment, recovery, certification, and health evidence must resolve the
+// same Compose topology from the selected tunnel mode.
+for (const script of [startAutoPilot, autoDeploy, certification, monitor]) {
+  assert.match(script, /function Get-StagingComposeArgs/);
+  assert.match(script, /docker-compose\.staging\.windows-service\.yml/);
+  assert.match(script, /docker-compose\.staging\.docker-sidecar\.yml/);
+}
+assert.match(startAutoPilot, /Get-StagingComposeArgs \$ApiPath \$EnvFile \$TunnelMode/);
+assert.match(autoDeploy, /Get-StagingComposeArgs \$apiPath \$envFile \$TunnelMode/);
+assert.match(certification, /Get-StagingComposeArgs \$apiPath \$envFile \$TunnelMode/);
+assert.match(monitor, /Get-StagingComposeArgs \$apiPath \$envFile \$runtimeTunnelMode/);
+assert.match(startAutoPilot, /@\(\$certificationBlockingFailures\)\.Count/);
+assert.match(autoDeploy, /Write-Output -NoEnumerate \$certificationState/);
+assert.match(autoDeploy, /Get-OptionalPropertyValue \$runtimeState "certification_status"/);
+assert.doesNotMatch(autoDeploy, /\$runtimeState\.certification_status/);
+assert.match(startAutoPilot, /docker @\(\$ComposeArgs \+ @\("port", "app", "8080"\)\)/);
+assert.match(startAutoPilot, /http:\/\/127\.0\.0\.1:8080\/health/);
+assert.match(startAutoPilot, /failure_class = "staging_origin_unreachable"/);
+assert.match(startAutoPilot, /Assert-WindowsHostOriginReachable \$composeArgs \$TunnelMode/);
+assert.match(certification, /STAGING_CERTIFICATION_HOST_ORIGIN_READY/);
+assert.match(certification, /certification_blocking_failures"\] = @\("staging_origin_unreachable"\)/);
+assert.ok(
+  certification.indexOf("Assert-WindowsHostOriginReachable $composeArgs $TunnelMode")
+    < certification.indexOf("Invoke-LocalConnectorCertificationGate $connectorRepairScript $connectorRepairStatePath"),
+  "Windows host origin must be proven before Connector recovery and live certification",
+);
+
 // Every certification path is now connector-gated. The exact repair evidence is
 // persisted into runtime state before the live certification process can run.
 assert.match(certification, /Repair-LocalConnectorTunnel\.ps1/);

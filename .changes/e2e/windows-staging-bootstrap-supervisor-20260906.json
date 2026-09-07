@@ -60,6 +60,9 @@
             "Persist eligibility/build/deployment/service-health/tunnel/convergence/certification phases instead of reducing the run to deployed/certified booleans.",
             "When the local exact-SHA deployment is healthy and only Gateway drift remains, run the read-only schema/governance preflight and the existing governed Activation Worker converger instead of rebuilding the app.",
             "Refresh the app only with --no-build when non-secret Worker origin trust changed, then re-run exact-SHA certification.",
+            "Resolve the same TunnelMode-specific Compose override for deployment, post-convergence app refresh, certification, and health monitoring.",
+            "Normalize certification failure collections and return one certification state object before reading certification_status under PowerShell StrictMode.",
+            "Probe the effective app port binding and http://127.0.0.1:8080/health from the Windows host before tunnel reconciliation and before Connector-gated live certification.",
             "Promote failure_class, expected_commit, observed_commit, parent_error and blocking_reason into last-failure.json so the original component failure is not overwritten by a generic launcher error."
           ],
           "assertions": [
@@ -73,6 +76,11 @@
             "Production mutation remains false and secrets_included remains false.",
             "Legacy health snapshots that predate split tunnel fields are treated as missing optional evidence and cannot crash Auto Deploy under PowerShell StrictMode.",
             "TunnelMode is preserved end-to-end so windows_service never starts the Docker cloudflared sidecar and only one Staging tunnel runtime may be active.",
+            "windows_service uses docker-compose.staging.windows-service.yml so the external Windows Cloudflared runtime reaches the loopback-only 127.0.0.1:8080 origin.",
+            "docker_sidecar uses docker-compose.staging.docker-sidecar.yml while disabled mode adds no tunnel-specific override.",
+            "Deployment, recovery refresh, certification and health evidence cannot silently evaluate different Compose topologies for the same TunnelMode.",
+            "Empty, one-item and multi-item certification failure collections remain arrays before Count evaluation, and missing certification_status fails as certification_contract_invalid.",
+            "windows_service certification cannot begin unless the effective Compose model publishes 127.0.0.1:8080 and the Windows host receives a 2xx response from the app health origin; failure is classified as staging_origin_unreachable.",
             "A stopped/disabled generic Cloudflared service with Staging logfile/token evidence is classified as quarantined_staging_alias and is never mutated or adopted as Local Connector ownership.",
             "A missing canonical Local Connector runtime is classified as connector_installation_incomplete; repository-owned Staging package assets may be copied while the existing .env and its secrets remain preserved.",
             "Connector failure can still block final certification but cannot block independent exact-SHA Activation Gateway inspection/convergence for an otherwise healthy local deployment.",
