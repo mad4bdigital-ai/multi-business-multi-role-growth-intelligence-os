@@ -14,15 +14,14 @@
       "apps/local-manager-windows/LocalManagerAutopilot.cs",
       "autopilot-portable-staging/Invoke-StagingRecoveryCertificationCanary.ps1",
       "autopilot-portable-staging/Invoke-StagingRecoveryCertificationPublish.ps1",
+      "docs/runbooks/staging-recovery-phase-b-certification.md",
       "http-generic-api/scripts/staging-recovery-genuine-canary.mjs",
       "http-generic-api/scripts/staging-recovery-publish-countersign.mjs",
       "http-generic-api/stagingRecoveryCertificationProtocol.js",
       "http-generic-api/test-staging-recovery-certification-protocol.mjs"
     ]
   },
-  "merge_contract": {
-    "minimum_phase": "mvp"
-  },
+  "merge_contract": { "minimum_phase": "mvp" },
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
     "declared_targets": ["staging", "production"],
@@ -63,15 +62,16 @@
             "Production live activation remains false during Staging canary, countersign, and publication."
           ],
           "tests": [
-            {"id": "certification-protocol", "runner": "node", "working_directory": "http-generic-api", "path": "test-staging-recovery-certification-protocol.mjs", "args": []},
-            {"id": "execution-ticket-negatives", "runner": "node", "working_directory": "http-generic-api", "path": "test-recovery-execution-ticket.mjs", "args": []},
-            {"id": "kernel-negatives", "runner": "node", "working_directory": "http-generic-api", "path": "test-recovery-kernel.mjs", "args": []},
-            {"id": "activation-readiness", "runner": "node", "working_directory": "http-generic-api", "path": "test-recovery-activation-readiness.mjs", "args": []}
+            {"id":"certification-protocol","runner":"node","working_directory":"http-generic-api","path":"test-staging-recovery-certification-protocol.mjs","args":[]},
+            {"id":"execution-ticket-negatives","runner":"node","working_directory":"http-generic-api","path":"test-recovery-execution-ticket.mjs","args":[]},
+            {"id":"kernel-negatives","runner":"node","working_directory":"http-generic-api","path":"test-recovery-kernel.mjs","args":[]},
+            {"id":"activation-readiness","runner":"node","working_directory":"http-generic-api","path":"test-recovery-activation-readiness.mjs","args":[]}
           ],
           "evidence_paths": [
             ".github/workflows/staging-post-deploy-verification.yml",
             "autopilot-portable-staging/Invoke-StagingRecoveryCertificationCanary.ps1",
             "autopilot-portable-staging/Invoke-StagingRecoveryCertificationPublish.ps1",
+            "docs/runbooks/staging-recovery-phase-b-certification.md",
             "http-generic-api/stagingRecoveryCertificationProtocol.js"
           ]
         },
@@ -87,26 +87,17 @@
             "Classify 502/503/504 and Cloudflare 520-527 as platform_origin_unavailable.",
             "Preserve bounded automatic polling retry and a diagnostic that identifies Cloudflare origin-side failure."
           ],
-          "assertions": [
-            "HTTP 522 is retryable and not treated as an unknown Local Manager defect.",
-            "No credential or token material is added to diagnostics."
-          ],
-          "tests": [
-            {"id": "local-manager-release-owner", "runner": "node", "working_directory": "http-generic-api", "path": "test-local-manager-tool-release-owner.mjs", "args": []}
-          ],
+          "assertions": ["HTTP 522 is retryable and not treated as an unknown Local Manager defect.", "No credential or token material is added to diagnostics."],
+          "tests": [{"id":"local-manager-release-owner","runner":"node","working_directory":"http-generic-api","path":"test-local-manager-tool-release-owner.mjs","args":[]}],
           "evidence_paths": ["apps/local-manager-windows/LocalManagerAutopilot.cs"]
         }
       ],
       "tests": [
-        {"id": "certification-protocol", "runner": "node", "working_directory": "http-generic-api", "path": "test-staging-recovery-certification-protocol.mjs", "args": []},
-        {"id": "local-manager-release-owner", "runner": "node", "working_directory": "http-generic-api", "path": "test-local-manager-tool-release-owner.mjs", "args": []}
+        {"id":"certification-protocol","runner":"node","working_directory":"http-generic-api","path":"test-staging-recovery-certification-protocol.mjs","args":[]},
+        {"id":"local-manager-release-owner","runner":"node","working_directory":"http-generic-api","path":"test-local-manager-tool-release-owner.mjs","args":[]}
       ]
     },
-    {
-      "id": "operational",
-      "status": "implemented",
-      "objective": "Provide the exact-main local runner, independent GitHub countersign transport, and durable local publication handoff needed to close live Staging certification after deployment."
-    }
+    {"id":"operational","status":"implemented","objective":"Provide the exact-main local runner, independent GitHub countersign transport, and durable local publication handoff needed to close live Staging certification after deployment."}
   ],
   "safety": {
     "repository_only": true,
