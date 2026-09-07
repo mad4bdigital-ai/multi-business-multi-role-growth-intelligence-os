@@ -5,6 +5,7 @@ import {
   randomBytes,
 } from "node:crypto";
 import { readFileSync } from "node:fs";
+import wordpressStagingMcpOAuthPolicy from "./config/wordpress-staging-mcp-oauth-policy.json" with { type: "json" };
 import {
   envFlag,
   remoteMcpOAuthEnabled,
@@ -13,12 +14,13 @@ import {
   resolveRemoteMcpEnvironment,
 } from "./remoteMcpOAuthProfile.js";
 
-export const WORDPRESS_STAGING_MCP_SCOPE = "mad4b:read";
-export const WORDPRESS_STAGING_MCP_OFFLINE_SCOPE = "offline_access";
-export const WORDPRESS_STAGING_MCP_AUTHORIZATION_SCOPES = Object.freeze([
-  WORDPRESS_STAGING_MCP_SCOPE,
-  WORDPRESS_STAGING_MCP_OFFLINE_SCOPE,
-]);
+export const WORDPRESS_STAGING_MCP_SCOPE = String(wordpressStagingMcpOAuthPolicy.required_scope || "").trim();
+export const WORDPRESS_STAGING_MCP_OFFLINE_SCOPE = String(wordpressStagingMcpOAuthPolicy.offline_access_scope || "").trim();
+export const WORDPRESS_STAGING_MCP_AUTHORIZATION_SCOPES = Object.freeze(
+  Array.isArray(wordpressStagingMcpOAuthPolicy.authorization_scopes)
+    ? [...wordpressStagingMcpOAuthPolicy.authorization_scopes]
+    : [],
+);
 export const WORDPRESS_STAGING_MCP_RESOURCE = "https://staging.egypttourgates.com/wp-json/mcp/mad4b-read";
 export const WORDPRESS_STAGING_MCP_ISSUER_SUFFIX = "/wordpress-staging";
 export const WORDPRESS_STAGING_MCP_ACCESS_TOKEN_ALG = "RS256";

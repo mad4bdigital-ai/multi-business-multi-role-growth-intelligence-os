@@ -8,6 +8,7 @@
   "scope": {
     "include": [
       "http-generic-api/wordpressStagingMcpOAuthProfile.js",
+      "http-generic-api/config/wordpress-staging-mcp-oauth-policy.json",
       "http-generic-api/wordpressStagingMcpOAuthTokens.js",
       "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
       "http-generic-api/routes/mcpRoutes.js",
@@ -70,6 +71,7 @@
           ],
           "evidence_paths": [
             "http-generic-api/wordpressStagingMcpOAuthProfile.js",
+            "http-generic-api/config/wordpress-staging-mcp-oauth-policy.json",
             "http-generic-api/wordpressStagingMcpOAuthTokens.js",
             "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
             "http-generic-api/test-wordpress-staging-mcp-oauth-federation.mjs"
