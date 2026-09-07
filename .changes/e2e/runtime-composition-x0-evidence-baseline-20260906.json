@@ -21,6 +21,10 @@
       "http-generic-api/test-governed-execution-baseline-telemetry.mjs",
       "http-generic-api/test-governed-execution-baseline-benchmark.mjs",
       "autopilot-portable-staging/manifest.json",
+      "autopilot-portable-staging/Invoke-StagingCertification.ps1",
+      "autopilot-portable-staging/Invoke-StagingPrHeadCertification.ps1",
+      "http-generic-api/scripts/generate-portable-staging-manifest.mjs",
+      "scripts/staging-pr-head-certification-contract-check.mjs",
       "specs/011-durable-governed-execution-and-agent-delegation/x0-evidence-baseline.manifest.json",
       "specs/011-durable-governed-execution-and-agent-delegation/x0-evidence-baseline.md",
       "specs/011-durable-governed-execution-and-agent-delegation/x0-matched-runtime-fixtures.json",
@@ -32,7 +36,10 @@
   },
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
-    "declared_targets": ["staging", "production"],
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
     "cross_environment_reviewed": true,
     "live_staging_certification_required": true,
     "production_mutation_allowed": false
@@ -63,6 +70,8 @@
             "Enable the bounded 500-sample process-memory sink in Staging Compose only; do not enable it in the base Production-capable Compose contract.",
             "Refresh the portable Staging generated manifest through its canonical generator after the Compose input changes.",
             "Register the X0 E2E declaration in both Constitution.control_plane_paths and derived-state convergence automation_control_paths.",
+            "Use the bounded one-shot Windows PR-head certification bridge only after same-repository open non-draft pull-request readback binds base=main, head ref and exact head SHA; revalidate the same authority inside the certifier and after the live run.",
+            "Keep PR-head certification scoped to the exact local Windows Compose runtime; external Activation Gateway authority is explicitly excluded so the bridge cannot deploy or attest a PR-head Worker.",
             "Run exact-head repository CI and environment-impact closure; require live-Staging certification externally and prohibit source-tree self-attestation.",
             "Do not begin X1 until Gate X0 external certification is complete."
           ],
@@ -78,6 +87,10 @@
             "Staging activation is explicit while the base Production-capable Compose file does not enable X0.",
             "The X0 E2E declaration is registered in both repository-governance control-plane registries; this registration does not create new execution authority.",
             "The candidate tree records exact-head and live-Staging certification as external requirements only.",
+            "PR-head live certification requires a same-repository open non-draft pull request targeting main with exact head ref/SHA readback before and after the run; the certifier revalidates the same authority immediately before live certification.",
+            "Existing main-only Auto Deploy and One-Click supervisors remain main-only; the bridge is a one-shot local Windows certification path and does not broaden Production or main deployment authority.",
+            "Gate X0 accepts only certification_status=ready with exact certified commit/ref and a complete local runtime artifact set; degraded or stale evidence cannot close the gate.",
+            "PR-head Gate X0 certification is scoped to the local Windows Compose runtime and explicitly excludes external Activation Gateway authority; it is not release certification and performs no external Gateway mutation.",
             "X010 and all X1 implementation remain unstarted until Gate X0 closes."
           ],
           "tests": [
@@ -103,11 +116,20 @@
               "args": []
             },
             {
+              "id": "staging-pr-head-certification-bridge",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "scripts/staging-pr-head-certification-contract-check.mjs",
+              "args": []
+            },
+            {
               "id": "environment-impact-closure",
               "runner": "node",
               "working_directory": ".",
               "path": "http-generic-api/scripts/environment-impact-closure.mjs",
-              "args": ["--check"]
+              "args": [
+                "--check"
+              ]
             }
           ],
           "evidence_paths": [
@@ -123,6 +145,10 @@
             "http-generic-api/test-governed-execution-baseline-telemetry.mjs",
             "http-generic-api/test-governed-execution-baseline-benchmark.mjs",
             "autopilot-portable-staging/manifest.json",
+            "autopilot-portable-staging/Invoke-StagingCertification.ps1",
+            "autopilot-portable-staging/Invoke-StagingPrHeadCertification.ps1",
+            "http-generic-api/scripts/generate-portable-staging-manifest.mjs",
+            "scripts/staging-pr-head-certification-contract-check.mjs",
             "specs/011-durable-governed-execution-and-agent-delegation/x0-evidence-baseline.manifest.json",
             "specs/011-durable-governed-execution-and-agent-delegation/x0-matched-runtime-fixtures.json",
             "specs/integration-governed-execution-runtime-composition/completion.json",
