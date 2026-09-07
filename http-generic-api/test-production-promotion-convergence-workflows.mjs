@@ -53,15 +53,21 @@ for (const required of [
   /trusted workflow source must be tree-identical to the authorized release cut/u,
   /authorized release cut is no longer an ancestor of current main/u,
   /current Production contains commits not present in the authorized release cut/u,
+  /candidate_has_exact_topology\(\)/u,
   /git commit-tree "\$RELEASE_TREE" -p "\$RELEASE_CUT_SHA" -p "\$ACTUAL_PRODUCTION_SHA"/u,
-  /candidate first parent is not the release cut/u,
+  /candidate_has_exact_topology "\$PREVIOUS_RELEASE" "\$RELEASE_CUT_SHA" "\$ACTUAL_PRODUCTION_SHA"/u,
+  /candidate must have exactly two parents: release cut first and pinned Production second/u,
+  /candidate topology changed before ref publication/u,
+  /candidate_parent_count:2/u,
+  /candidate_first_parent_is_release_cut:true/u,
+  /candidate_second_parent_is_pinned_production:true/u,
   /tree_policy:"exact_release_cut_tree"/u,
   /main_tip_may_advance:true/u,
   /production_must_remain_stable:true/u,
   /test\(release\): certify immutable Production candidate/u,
 ]) assert.match(candidate, required);
 assert.doesNotMatch(candidate, /ACTUAL_MAIN" != "\$EXPECTED_MAIN_SHA/u);
-assert.doesNotMatch(candidate, /force/u);
+assert.doesNotMatch(candidate, /--force(?:-with-lease)?|\s-f\s/u);
 
 for (const required of [
   /mad4b\.governed-production-main-source-pin-guard\.v3/u,
@@ -105,14 +111,23 @@ assert.doesNotMatch(postFinalizationGuard, /gh pr reopen/u);
 
 for (const required of [
   /name: Certified Production Release Cut Validation/u,
+  /candidate must have exactly two parents: certified release cut first and pinned Production second/u,
   /candidate first parent must be the certified release cut/u,
+  /candidate second parent must be the exact pinned Production SHA/u,
   /candidate tree differs from certified release cut/u,
   /certified release cut is not contained by current main/u,
+  /current Production is not contained by the certified release cut/u,
   /Production moved during certified-cut validation/u,
+  /candidate parent count drifted during certified-cut validation/u,
+  /candidate second parent drifted from pinned Production/u,
   /schema_version: "certified_production_release_cut\.v1"/u,
   /exact_full_ci_success: true/u,
+  /candidate_parent_count: 2/u,
+  /candidate_first_parent_is_certified_cut: true/u,
+  /candidate_second_parent_is_pinned_production: true/u,
   /candidate_tree_matches_certified_cut: true/u,
   /certified_cut_is_ancestor_of_current_main: true/u,
+  /production_is_ancestor_of_certified_cut: true/u,
   /candidate_contains_production: true/u,
   /production_ref_stable_during_validation: true/u,
   /main_tip_may_advance: true/u,
@@ -124,11 +139,6 @@ for (const required of [
 assert.doesNotMatch(certifiedReleaseCut, /contents:\s*write/u);
 assert.doesNotMatch(certifiedReleaseCut, /JWT_SECRET\s*:|TENANT_GPT_SSO_SIGNING_SECRET\s*:/u);
 
-// Startup proof must remain hermetic even when CI and Certified use different
-// orchestration surfaces. Both direct callers reach the same smoke harness, and
-// the structured workflow reaches the same environment helper through the
-// structured evidence reporter. This prevents workflow-level auth-env drift
-// from reintroducing false-negative certification failures.
 for (const directCaller of [ci, certifiedReleaseCut]) {
   assert.match(directCaller, /node test-server-startup-smoke\.mjs/u);
 }
@@ -184,6 +194,8 @@ console.log(JSON.stringify({
   contract: "mad4b.production-promotion-release-cut-convergence.v1",
   ok: true,
   release_mode: "certified_release_cut",
+  exact_candidate_parent_count: 2,
+  exact_second_parent_pinned_production: true,
   main_tip_may_advance: true,
   production_must_remain_stable: true,
   supporting_gate_source: "declarative_registry",
