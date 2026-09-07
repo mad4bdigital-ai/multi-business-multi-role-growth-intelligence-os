@@ -8,7 +8,13 @@
   "scope": {
     "include": [
       ".changes/e2e/production-recovery-live-composition-prerequisites-20260907.json",
-      "docs/runbooks/production-recovery-live-composition-prerequisites.md"
+      "docs/runbooks/production-recovery-live-composition-prerequisites.md",
+      "http-generic-api/productionRecoveryCompositionFactory.js",
+      "http-generic-api/recoveryActivationReadiness.js",
+      "http-generic-api/config/runtime-bootstrap-contract.json",
+      "http-generic-api/test-production-recovery-composition-factory.mjs",
+      "http-generic-api/test-recovery-activation-readiness.mjs",
+      "http-generic-api/test-runtime-bootstrap-contract.mjs"
     ]
   },
   "merge_contract": { "minimum_phase": "mvp" },
@@ -26,20 +32,21 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Pin the exact fail-closed release sequence from fresh Staging certification through independent Production Recovery Store, complete server-managed authority graph, deployment attestation, artifact parity, activation eligibility, human approval, single-use ticket, fencing and same-cycle readback.",
+      "objective": "Pin and execute the fail-closed contract checks for the release sequence from fresh Staging certification through independent Production Recovery Store, complete server-managed authority graph, deployment attestation, artifact parity, activation eligibility, human approval, single-use ticket, fencing and same-cycle readback.",
       "e2e_journeys": [
         {
           "id": "staging-certification-to-production-live-prerequisite-chain",
           "end_to_end": true,
-          "level": "contract",
+          "level": "synthetic_runtime",
           "actor": "Production Recovery release operator",
-          "entrypoint": "Fresh signed Staging Recovery certification",
+          "entrypoint": "Fresh signed Staging Recovery certification evaluated by Production Recovery composition/readiness",
           "terminal_outcome": "Production remains fail-closed until all independent live-authority prerequisites are satisfied; no database mutation is authorized by this change.",
           "steps": [
             "Require a fresh Production-consumable Staging certification.",
             "Require an independent durable Recovery Store outside runtime, governance and runtime_persistence.",
             "Require the complete server-managed Production Recovery adapter graph and exact deployment attestation.",
             "Require Staging-to-Production artifact parity and target binding before activation eligibility.",
+            "Reject direct caller construction of Production live authority and preserve the separate server-managed release gate.",
             "Require a fresh typed human approval, server-side approval resolution, single-use execution ticket, fenced execution and independent same-cycle readback for every consequential step."
           ],
           "assertions": [
@@ -47,13 +54,27 @@
             "Runtime is never selected for empty rebuild when it contains objects.",
             "Grant repair remains separate from schema rebuild.",
             "Local Connector is never a Production Recovery authority or fallback.",
-            "Unknown provider outcome is reconciliation-only and cannot auto-replay."
+            "Unknown provider outcome is reconciliation-only and cannot auto-replay.",
+            "Direct production_live construction remains forbidden and incomplete server-managed candidates remain fail-closed."
           ],
-          "tests": [],
-          "evidence_paths": ["docs/runbooks/production-recovery-live-composition-prerequisites.md"]
+          "tests": [
+            {"id":"production-composition-fail-closed","runner":"node","working_directory":"http-generic-api","path":"test-production-recovery-composition-factory.mjs","args":[]},
+            {"id":"production-activation-readiness","runner":"node","working_directory":"http-generic-api","path":"test-recovery-activation-readiness.mjs","args":[]},
+            {"id":"runtime-bootstrap-boundary","runner":"node","working_directory":"http-generic-api","path":"test-runtime-bootstrap-contract.mjs","args":[]}
+          ],
+          "evidence_paths": [
+            "docs/runbooks/production-recovery-live-composition-prerequisites.md",
+            "http-generic-api/productionRecoveryCompositionFactory.js",
+            "http-generic-api/recoveryActivationReadiness.js",
+            "http-generic-api/config/runtime-bootstrap-contract.json"
+          ]
         }
       ],
-      "tests": []
+      "tests": [
+        {"id":"production-composition-fail-closed","runner":"node","working_directory":"http-generic-api","path":"test-production-recovery-composition-factory.mjs","args":[]},
+        {"id":"production-activation-readiness","runner":"node","working_directory":"http-generic-api","path":"test-recovery-activation-readiness.mjs","args":[]},
+        {"id":"runtime-bootstrap-boundary","runner":"node","working_directory":"http-generic-api","path":"test-runtime-bootstrap-contract.mjs","args":[]}
+      ]
     }
   ],
   "safety": {
