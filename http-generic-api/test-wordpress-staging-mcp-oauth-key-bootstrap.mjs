@@ -3,7 +3,7 @@ import { createPrivateKey } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { ensureWordpressStagingMcpOAuthKey } from "./scripts/ensure-wordpress-staging-mcp-oauth-key.mjs";
+import { ensureWordpressStagingMcpOAuthKey } from "./scripts/staging-wordpress-mcp-oauth-key.mjs";
 
 const root = mkdtempSync(join(tmpdir(), "mad4b-wp-oauth-key-"));
 const keyFile = join(root, "wordpress-staging-rs256-private.pem");

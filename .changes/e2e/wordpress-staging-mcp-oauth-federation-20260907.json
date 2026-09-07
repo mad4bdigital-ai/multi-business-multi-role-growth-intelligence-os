@@ -11,7 +11,7 @@
       "http-generic-api/wordpressStagingMcpOAuthTokens.js",
       "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
       "http-generic-api/routes/mcpRoutes.js",
-      "http-generic-api/scripts/ensure-wordpress-staging-mcp-oauth-key.mjs",
+      "http-generic-api/scripts/staging-wordpress-mcp-oauth-key.mjs",
       "http-generic-api/docker-compose.staging.yml",
       "http-generic-api/Dockerfile.staging",
       "http-generic-api/test-wordpress-staging-mcp-oauth-key-bootstrap.mjs",
@@ -23,7 +23,7 @@
   },
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
-    "declared_targets": ["staging"],
+    "declared_targets": ["staging", "production"],
     "cross_environment_reviewed": true,
     "live_staging_certification_required": true,
     "production_mutation_allowed": false
@@ -120,7 +120,7 @@
             }
           ],
           "evidence_paths": [
-            "http-generic-api/scripts/ensure-wordpress-staging-mcp-oauth-key.mjs",
+            "http-generic-api/scripts/staging-wordpress-mcp-oauth-key.mjs",
             "http-generic-api/docker-compose.staging.yml",
             "http-generic-api/Dockerfile.staging",
             "http-generic-api/test-wordpress-staging-mcp-oauth-key-bootstrap.mjs",

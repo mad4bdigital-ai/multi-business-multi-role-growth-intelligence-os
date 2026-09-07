@@ -51,4 +51,4 @@ ENV RECOVERY_STAGING_INGRESS_REPLAY_DIRECTORY=/app/data/recovery-ingress
 # The private RSA key is generated only at runtime after the persistent /app/data
 # volume is mounted. It never enters the Git tree, build context, image layer, or
 # WordPress resource server; WordPress receives only the public JWKS.
-CMD ["sh", "-c", "node scripts/ensure-wordpress-staging-mcp-oauth-key.mjs && npm start"]
+CMD ["sh", "-c", "node scripts/staging-wordpress-mcp-oauth-key.mjs && npm start"]
