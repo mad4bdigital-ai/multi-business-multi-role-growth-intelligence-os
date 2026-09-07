@@ -24,8 +24,18 @@
       "http-generic-api/test-spec011-t141-readiness-canary-contract.mjs",
       "http-generic-api/test-spec011-t141-readiness-canary-schema.mjs",
       "http-generic-api/test-delegation-execution-policy-runtime.mjs",
+      "http-generic-api/governedExecutionBaselineTelemetry.js",
+      "http-generic-api/governedExecutionBaselineRuntime.js",
+      "http-generic-api/connectorExecutor.js",
+      "http-generic-api/routes/index.js",
+      "http-generic-api/scripts/governed-execution-baseline-benchmark.mjs",
+      "http-generic-api/test-governed-execution-baseline-telemetry.mjs",
+      "http-generic-api/test-governed-execution-baseline-benchmark.mjs",
       "specs/011-durable-governed-execution-and-agent-delegation/e2e-phases.json",
       "specs/011-durable-governed-execution-and-agent-delegation/tasks.md",
+      "specs/011-durable-governed-execution-and-agent-delegation/x0-evidence-baseline.manifest.json",
+      "specs/011-durable-governed-execution-and-agent-delegation/x0-evidence-baseline.md",
+      "specs/011-durable-governed-execution-and-agent-delegation/x0-matched-runtime-fixtures.json",
       "specs/011-durable-governed-execution-and-agent-delegation/phase6-managed-delivery-lifecycle-closeout.json",
       "specs/011-durable-governed-execution-and-agent-delegation/phase6-managed-delivery-lifecycle-delivery.json",
       "specs/011-durable-governed-execution-and-agent-delegation/phase6-managed-delivery-lifecycle.md",
@@ -49,7 +59,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Prove governed managed PR and release delivery, evidence closeout, goal-filtered operational intelligence, and non-mutating T141 canary readiness through executable synthetic-runtime journeys without force push, protected-branch bypass, secret exposure, provider mutation, or automatic mutation retry after an unknown outcome.",
+      "objective": "Prove governed managed PR and release delivery, evidence closeout, goal-filtered operational intelligence, non-mutating T141 canary readiness, and passive X0 execution-baseline evidence through executable synthetic-runtime journeys without force push, protected-branch bypass, secret exposure, provider mutation, automatic mutation retry after an unknown outcome, or runtime cutover.",
       "e2e_journeys": [
         {
           "id": "govern-managed-pr-and-release-lifecycle",
@@ -261,6 +271,57 @@
             "http-generic-api/test-delegation-execution-policy-runtime.mjs",
             "http-generic-api/delegationExecutionPolicyService.js",
             "specs/011-durable-governed-execution-and-agent-delegation/e2e-phases.json"
+          ]
+        },
+        {
+          "id": "x0-governed-execution-evidence-baseline",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed execution runtime maintainer",
+          "entrypoint": "Run the registered X0 baseline telemetry and matched-runtime fixture suites against the exact candidate tree",
+          "terminal_outcome": "GPT Tool, System Tool, Connector Plan, Agent Loop and Sequential Plan baseline boundaries preserve functional outcomes and no-secret safety evidence while external exact-head and live-Staging certification remain separate Gate X0 requirements.",
+          "steps": [
+            "Validate bounded baseline schema, observed/unobserved coverage, failure-isolated emission, and no-secret snapshot semantics.",
+            "Validate passive GPT/System transport instrumentation and Connector/Agent model-tool-provider counters only at proven boundaries.",
+            "Regenerate deterministic F01/F03/F04/F05/F06 fixtures and require identical legacy/instrumented functional hashes plus safety-vector parity.",
+            "Prove runtime baseline activation is disabled by default and an explicitly enabled process-memory emitter remains bounded and non-durable.",
+            "Keep X1 implementation blocked until exact-head CI and live-Staging certification close Gate X0 externally."
+          ],
+          "assertions": [
+            "X0 telemetry changes no execution authority, context, approval, provider selection, retry, readback, result, database persistence, or Production mutation semantics.",
+            "Unobserved counters remain unobserved and provider-dispatch duration is not treated as provider-call proof.",
+            "The matched fixtures use deterministic simulators and do not claim live provider certification.",
+            "The process-memory sink contains no secrets, performs no SQL persistence or external send, and cannot become canonical execution evidence authority.",
+            "The source tree does not self-attest exact-head CI or live-Staging success."
+          ],
+          "tests": [
+            {
+              "id": "spec011-x0-baseline-telemetry",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-execution-baseline-telemetry.mjs",
+              "args": []
+            },
+            {
+              "id": "spec011-x0-matched-runtime-benchmark",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-execution-baseline-benchmark.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/governedExecutionBaselineTelemetry.js",
+            "http-generic-api/governedExecutionBaselineRuntime.js",
+            "http-generic-api/connectorExecutor.js",
+            "http-generic-api/routes/index.js",
+            "http-generic-api/scripts/governed-execution-baseline-benchmark.mjs",
+            "http-generic-api/test-governed-execution-baseline-telemetry.mjs",
+            "http-generic-api/test-governed-execution-baseline-benchmark.mjs",
+            "specs/011-durable-governed-execution-and-agent-delegation/e2e-phases.json",
+            "specs/011-durable-governed-execution-and-agent-delegation/x0-evidence-baseline.manifest.json",
+            "specs/011-durable-governed-execution-and-agent-delegation/x0-evidence-baseline.md",
+            "specs/011-durable-governed-execution-and-agent-delegation/x0-matched-runtime-fixtures.json"
           ]
         }
       ]

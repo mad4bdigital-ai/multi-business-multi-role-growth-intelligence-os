@@ -9,17 +9,24 @@
     "post_merge_audit": true
   },
   "delivery": {
-    "implementation_prs": [],
+    "implementation_prs": [
+      {
+        "phase": "X0_evidence_baseline",
+        "branch": "feat/runtime-composition-x0-evidence-baseline-20260906",
+        "status": "candidate_implementation_complete_external_certification_pending",
+        "exact_head_attestation": "external_required"
+      }
+    ],
     "closeout_pr": {
       "number": "current",
       "branch": "gpt/spec-011-012-013-runtime-composition-addenda-20260730",
       "role": "completion",
-      "status": "current_pr"
+      "status": "historical_specification_delivery"
     }
   },
   "evidence": {
     "specification_package": {
-      "status": "implemented_pending_ci",
+      "status": "merged_baseline",
       "owner_specs": [
         "011-durable-governed-execution-and-agent-delegation",
         "012-unified-admin-tenant-context-kernel",
@@ -32,30 +39,51 @@
       "merge_sha": "0de0cdd6727040a2670821025c32615991cb3251"
     },
     "owner_extension_registration": {
-      "status": "implemented_pending_ci"
+      "status": "merged_baseline"
+    },
+    "x0_evidence_baseline": {
+      "status": "candidate_implementation_complete_external_certification_pending",
+      "entry_points": [
+        "gpt_tool",
+        "system_tool",
+        "connector_plan",
+        "agent_loop",
+        "sequential_plan"
+      ],
+      "matched_fixture_catalogue": ["F01", "F03", "F04", "F05", "F06"],
+      "matched_fixture_artifact": "../011-durable-governed-execution-and-agent-delegation/x0-matched-runtime-fixtures.json",
+      "candidate_manifest": "../011-durable-governed-execution-and-agent-delegation/x0-evidence-baseline.manifest.json",
+      "exact_head_ci_required": true,
+      "live_staging_certification_required": true,
+      "source_tree_may_self_attest": false,
+      "runtime_cutover": false,
+      "provider_effect_added": false,
+      "database_write_added": false,
+      "migration_added": false,
+      "production_mutation_authorized": false
     },
     "ci": {
-      "status": "pending",
+      "status": "external_exact_head_pending",
       "head_sha": null
     },
     "release_readiness": {
-      "status": "pending"
+      "status": "blocked_until_x0_external_certification"
     },
     "migration": {
       "status": "not_started",
-      "reason": "Future implementation may require additive persistence changes; no migration is included or authorized by this specification PR."
+      "reason": "X0 introduces no migration or automatic telemetry persistence. Later phases may require separately reviewed additive persistence."
     },
     "production_verification": {
       "status": "not_started",
-      "reason": "Runtime authority and deployment remain disabled until later certified phases."
+      "reason": "X0 is passive evidence instrumentation only; Production mutation and runtime cutover remain unauthorized."
     },
     "post_merge_audit": {
       "status": "not_started",
-      "reason": "Required only after implementation, rollout, and closeout evidence exist."
+      "reason": "Required only after later implementation, rollout, and closeout evidence exist."
     }
   },
-  "current_phase": "specification_and_owner_registration",
-  "next_phase": "X0_evidence_baseline",
+  "current_phase": "X0_evidence_baseline_candidate",
+  "next_phase": "X1_contract_composition_shadow_after_X0_external_certification",
   "runtime_authority": false,
   "provider_write": false,
   "database_write": false,
