@@ -5,18 +5,21 @@ import jwt from "jsonwebtoken";
 import { buildWordpressStagingMcpOAuthRoutes } from "./routes/wordpressStagingMcpOAuthRoutes.js";
 import {
   WORDPRESS_STAGING_MCP_AUTHORIZATION_SCOPES,
+  WORDPRESS_STAGING_MCP_CLIENT_PROFILE_PREFIX,
   WORDPRESS_STAGING_MCP_OFFLINE_SCOPE,
   WORDPRESS_STAGING_MCP_SCOPE,
   getWordpressStagingMcpOAuthStatus,
+  isWordpressStagingMcpClientId,
   wordpressStagingMcpDcrAdvertised,
   wordpressStagingMcpOAuthConfigured,
   wordpressStagingMcpOAuthReady,
 } from "./wordpressStagingMcpOAuthProfile.js";
-import { sha256 } from "./remoteMcpOAuthProfile.js";
+import { isRemoteMcpClientIdForEnvironment, sha256 } from "./remoteMcpOAuthProfile.js";
 
 const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
 const privatePem = privateKey.export({ type: "pkcs8", format: "pem" });
 
+const approvedSubject = "tenant:workspace-1:user:user-1";
 const env = {
   JWT_SECRET: "wordpress-staging-user-session-test-secret",
   REMOTE_MCP_ENVIRONMENT: "staging",
@@ -30,6 +33,7 @@ const env = {
   REMOTE_MCP_AUTHORIZATION_SERVER_URL: "https://dev.example.test/auth/mcp",
   REMOTE_MCP_WORDPRESS_STAGING_OAUTH_ENABLED: "true",
   REMOTE_MCP_WORDPRESS_STAGING_RESOURCE_URL: "https://staging.example.test/wp-json/mcp/mad4b-read",
+  REMOTE_MCP_WORDPRESS_STAGING_ALLOWED_SUBJECTS: approvedSubject,
   REMOTE_MCP_WORDPRESS_RS256_PRIVATE_KEY_B64: Buffer.from(privatePem, "utf8").toString("base64"),
 };
 // mcpRoutes projects the dedicated DCR flag into this isolated router only.
@@ -63,8 +67,8 @@ const pool = {
     if (sql.includes("FROM remote_mcp_oauth_clients")) {
       return [[[clients.get(params[0])].filter(Boolean)[0]].filter(Boolean), []];
     }
-    if (sql.includes("FROM users")) return [[{ user_id: "user-1", status: "active" }], []];
-    if (sql.includes("FROM memberships m") && sql.includes("JOIN tenants")) return [[{ tenant_id: "workspace-1" }], []];
+    if (sql.includes("FROM users")) return [[{ user_id: params[0], status: "active" }], []];
+    if (sql.includes("FROM memberships m") && sql.includes("JOIN tenants")) return [[{ tenant_id: params[1] }], []];
     if (sql.includes("INSERT INTO remote_mcp_oauth_authorization_codes")) {
       codes.set(params[0], {
         code_hash: params[0], client_id: params[1], user_id: params[2], tenant_id: params[3],
@@ -143,9 +147,13 @@ assert.equal(profileStatus.resource_scope, WORDPRESS_STAGING_MCP_SCOPE);
 assert.deepEqual(profileStatus.authorization_scopes, WORDPRESS_STAGING_MCP_AUTHORIZATION_SCOPES);
 assert.equal(profileStatus.refresh_token_supported, true);
 assert.equal(profileStatus.access_token_alg, "RS256");
+assert.equal(profileStatus.subject_authorization_required, true);
+assert.equal(profileStatus.subject_authorization_configured, true);
+assert.equal(profileStatus.allowed_subject_count, 1);
 assert.equal(profileStatus.secrets_included, false);
 assert.equal(wordpressStagingMcpOAuthConfigured({ ...env, REMOTE_MCP_ENVIRONMENT: "production" }), false);
 assert.equal(wordpressStagingMcpOAuthReady({ ...env, REMOTE_MCP_WORDPRESS_RS256_PRIVATE_KEY_B64: "" }), false);
+assert.equal(wordpressStagingMcpOAuthReady({ ...env, REMOTE_MCP_WORDPRESS_STAGING_ALLOWED_SUBJECTS: "" }), false);
 
 const app = express();
 app.use(express.json());
@@ -174,6 +182,7 @@ try {
   assert.deepEqual(metadata.scopes_supported, WORDPRESS_STAGING_MCP_AUTHORIZATION_SCOPES);
   assert.deepEqual(metadata.grant_types_supported, ["authorization_code", "refresh_token"]);
   assert.deepEqual(metadata.code_challenge_methods_supported, ["S256"]);
+  assert.equal(metadata["x-mad4b-resource-profile"].subject_authorization_required, true);
   assert.equal(metadata["x-mad4b-resource-profile"].mutation_authority, false);
 
   const jwksResponse = await fetch(`${baseUrl}/auth/mcp/wordpress-staging/oauth/jwks`, { headers: hostHeaders });
@@ -200,10 +209,13 @@ try {
   });
   const registered = await json(registerResponse);
   assert.equal(registerResponse.status, 201);
-  assert.match(registered.client_id, /^mcp_stg_/u);
+  assert.match(registered.client_id, /^mcp_stg_wp_/u);
+  assert.equal(isWordpressStagingMcpClientId(registered.client_id, env), true);
+  assert.equal(isRemoteMcpClientIdForEnvironment(registered.client_id, env), false, "generic Remote MCP must reject the WordPress client namespace");
   assert.equal(registered.scope, `${WORDPRESS_STAGING_MCP_SCOPE} ${WORDPRESS_STAGING_MCP_OFFLINE_SCOPE}`);
   assert.equal(registered.client_secret, undefined);
   assert.deepEqual(JSON.parse(clients.get(registered.client_id).allowed_scopes_json), WORDPRESS_STAGING_MCP_AUTHORIZATION_SCOPES);
+  assert.match(clients.get(registered.client_id).client_profile_key, new RegExp(`^${WORDPRESS_STAGING_MCP_CLIENT_PROFILE_PREFIX}`));
 
   const invalidScopeRegistration = await fetch(`${baseUrl}/auth/mcp/wordpress-staging/oauth/register`, {
     method: "POST",
@@ -228,8 +240,19 @@ try {
   const authorizeHtml = await authorizeResponse.text();
   assert.equal(authorizeResponse.status, 200);
   assert(authorizeHtml.includes("mad4b:read"));
+  assert.equal(authorizeHtml.includes("Create account"), false, "dedicated resource consent must not advertise self-registration");
   const requestMatch = authorizeHtml.match(/"authorization_request":"([^"]+)"/u);
   assert(requestMatch?.[1]);
+
+  const unapprovedToken = jwt.sign({ user_id: "user-2", tenant_id: "workspace-1" }, env.JWT_SECRET, { algorithm: "HS256", expiresIn: 3600 });
+  const deniedCodeResponse = await fetch(`${baseUrl}/auth/mcp/wordpress-staging/oauth/code`, {
+    method: "POST",
+    headers: { ...hostHeaders, "content-type": "application/json", authorization: `Bearer ${unapprovedToken}` },
+    body: JSON.stringify({ authorization_request: requestMatch[1], consent: true }),
+  });
+  assert.equal(deniedCodeResponse.status, 403);
+  assert.equal((await json(deniedCodeResponse)).error, "access_denied");
+  assert.equal(codes.size, 0, "unapproved subjects must not receive authorization codes");
 
   const userToken = jwt.sign({ user_id: "user-1", tenant_id: "workspace-1" }, env.JWT_SECRET, { algorithm: "HS256", expiresIn: 3600 });
   const codeResponse = await fetch(`${baseUrl}/auth/mcp/wordpress-staging/oauth/code`, {
@@ -264,9 +287,22 @@ try {
   const publicKey = createPublicKey({ key: jwks.keys[0], format: "jwk" });
   const claims = jwt.verify(tokens.access_token, publicKey, { algorithms: ["RS256"], issuer: metadata.issuer, audience: env.REMOTE_MCP_WORDPRESS_STAGING_RESOURCE_URL });
   assert.equal(claims.resource, env.REMOTE_MCP_WORDPRESS_STAGING_RESOURCE_URL);
+  assert.equal(claims.sub, approvedSubject);
   assert.equal(claims.scope, `${WORDPRESS_STAGING_MCP_SCOPE} ${WORDPRESS_STAGING_MCP_OFFLINE_SCOPE}`);
   assert.equal(claims.purpose, "wordpress_staging_mcp_access");
   assert.throws(() => jwt.verify(tokens.access_token, env.REMOTE_MCP_OAUTH_SIGNING_SECRET, { algorithms: ["HS256"] }));
+
+  // Removing the subject from the allowlist invalidates refresh authority even
+  // while the durable grant itself is still active.
+  routeEnv.REMOTE_MCP_WORDPRESS_STAGING_ALLOWED_SUBJECTS = "tenant:workspace-1:user:user-9";
+  const deauthorizedRefresh = await fetch(`${baseUrl}/auth/mcp/wordpress-staging/oauth/token`, {
+    method: "POST",
+    headers: { ...hostHeaders, "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "refresh_token", client_id: registered.client_id, refresh_token: tokens.refresh_token }),
+  });
+  assert.equal(deauthorizedRefresh.status, 400);
+  assert.equal((await json(deauthorizedRefresh)).error, "invalid_grant");
+  routeEnv.REMOTE_MCP_WORDPRESS_STAGING_ALLOWED_SUBJECTS = approvedSubject;
 
   // ChatGPT can refresh without having to resend the protected resource. The
   // durable grant itself remains the authoritative resource binding.
