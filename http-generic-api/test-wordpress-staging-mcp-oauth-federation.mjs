@@ -40,6 +40,7 @@ const env = {
 const routeEnv = {
   ...env,
   REMOTE_MCP_OAUTH_DCR_ENABLED: env.REMOTE_MCP_WORDPRESS_STAGING_DCR_ENABLED,
+  REMOTE_MCP_TRUST_PROXY_HOST_HEADERS: "true",
 };
 
 const clients = new Map();
@@ -162,7 +163,7 @@ const server = await new Promise((resolve) => {
   const started = app.listen(0, () => resolve(started));
 });
 const baseUrl = `http://127.0.0.1:${server.address().port}`;
-const hostHeaders = { host: "dev.example.test" };
+const hostHeaders = { "x-original-host": "dev.example.test" };
 
 async function json(response) {
   const body = await response.text();
