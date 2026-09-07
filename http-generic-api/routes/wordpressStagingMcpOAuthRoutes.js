@@ -20,6 +20,7 @@ import {
   verifyPkceS256,
 } from "../remoteMcpOAuthProfile.js";
 import {
+  WORDPRESS_STAGING_MCP_AUTHORIZATION_SCOPES,
   WORDPRESS_STAGING_MCP_SCOPE,
   buildWordpressStagingMcpJwks,
   resolveWordpressStagingMcpIssuer,
@@ -160,12 +161,13 @@ function exactResource(value, env) {
 }
 
 function normalizeScope(value) {
+  const allowed = new Set(WORDPRESS_STAGING_MCP_AUTHORIZATION_SCOPES);
   const raw = Array.isArray(value) ? value : String(value || "").split(/\s+/u);
   const scopes = [...new Set(raw.map((scope) => String(scope || "").trim()).filter(Boolean))];
-  if (!scopes.length) return { ok: true, scopes: [WORDPRESS_STAGING_MCP_SCOPE] };
-  return scopes.length === 1 && scopes[0] === WORDPRESS_STAGING_MCP_SCOPE
-    ? { ok: true, scopes }
-    : { ok: false, scopes: [] };
+  const effective = scopes.length ? scopes : [...WORDPRESS_STAGING_MCP_AUTHORIZATION_SCOPES];
+  if (!effective.includes(WORDPRESS_STAGING_MCP_SCOPE)) return { ok: false, scopes: [] };
+  if (effective.some((scope) => !allowed.has(scope))) return { ok: false, scopes: [] };
+  return { ok: true, scopes: effective };
 }
 
 function issuerHost(env) {
@@ -198,11 +200,13 @@ function metadata(env) {
     grant_types_supported: ["authorization_code", "refresh_token"],
     token_endpoint_auth_methods_supported: ["none", "client_secret_basic", "client_secret_post"],
     code_challenge_methods_supported: ["S256"],
-    scopes_supported: [WORDPRESS_STAGING_MCP_SCOPE],
+    scopes_supported: [...WORDPRESS_STAGING_MCP_AUTHORIZATION_SCOPES],
     resource_parameter_supported: true,
     "x-mad4b-resource-profile": {
       environment: "staging",
       resource,
+      resource_scope: WORDPRESS_STAGING_MCP_SCOPE,
+      refresh_token_supported: true,
       access_token_alg: "RS256",
       asymmetric_resource_server_verification: true,
       mutation_authority: false,
@@ -218,7 +222,7 @@ function authorizePage({ client, authorizationRequest }) {
 <title>Connect ${name}</title><style>
 body{font-family:Arial,sans-serif;margin:0;background:#07111f;color:#eef4ff;display:grid;min-height:100vh;place-items:center}main{width:min(480px,calc(100vw - 32px));background:#101a30;border:1px solid #2d3f62;border-radius:22px;padding:26px}label{display:block;margin:12px 0 5px;color:#a8b6d8;font-size:13px}input{width:100%;box-sizing:border-box;border-radius:14px;border:1px solid #2d3f62;padding:12px;background:#0b1428;color:#f0f5ff}button{border-radius:14px;border:1px solid #87a0ff;padding:12px 16px;color:white;background:#6383ff;font-weight:800;margin-top:14px;cursor:pointer}button.secondary{background:#17233e}.consent{display:flex;gap:10px;align-items:flex-start;margin:16px 0;color:#eef4ff}.consent input{width:auto}pre{white-space:pre-wrap;background:#0b1428;border:1px solid #2d3f62;border-radius:14px;padding:12px}.muted{color:#a8b6d8;font-size:13px}
 </style></head><body><main><h1>Connect ${name}</h1>
-<p class="muted">This client requests read-only WordPress Staging access: ${WORDPRESS_STAGING_MCP_SCOPE}. No mutation authority is granted by this OAuth connection.</p>
+<p class="muted">This client requests read-only WordPress Staging access: ${WORDPRESS_STAGING_MCP_SCOPE}. Refresh access carries no additional mutation authority.</p>
 <label>Email</label><input id="email" type="email" autocomplete="username"/>
 <label>Password</label><input id="password" type="password" autocomplete="current-password"/>
 <label id="name-label" hidden>Display name</label><input id="display-name" hidden autocomplete="name"/>
@@ -272,7 +276,7 @@ export function buildWordpressStagingMcpOAuthRoutes(deps = {}) {
       const authMethod = normalizeTokenEndpointAuthMethod(req.body?.token_endpoint_auth_method || "none");
       if (!authMethod) return oauthError(res, 400, "invalid_client_metadata", "Unsupported token endpoint authentication method.");
       const scopes = normalizeScope(req.body?.scope);
-      if (!scopes.ok) return oauthError(res, 400, "invalid_scope", "Only mad4b:read is available for the WordPress staging resource.");
+      if (!scopes.ok) return oauthError(res, 400, "invalid_scope", "Only mad4b:read and offline_access are available for the WordPress staging OAuth client.");
       const clientName = text(req.body?.client_name || "WordPress Staging MCP client", 255);
       const clientSecret = authMethod === "none" ? "" : createOpaqueToken(32);
       const registered = await registerRemoteMcpOAuthClient({
@@ -284,7 +288,7 @@ export function buildWordpressStagingMcpOAuthRoutes(deps = {}) {
         tokenEndpointAuthMethod: authMethod,
         clientSecret,
         redirectUris,
-        allowedScopes: [WORDPRESS_STAGING_MCP_SCOPE],
+        allowedScopes: [...WORDPRESS_STAGING_MCP_AUTHORIZATION_SCOPES],
       });
       noStore(res);
       return res.status(201).json({
@@ -295,7 +299,7 @@ export function buildWordpressStagingMcpOAuthRoutes(deps = {}) {
         token_endpoint_auth_method: authMethod,
         grant_types: ["authorization_code", "refresh_token"],
         response_types: ["code"],
-        scope: WORDPRESS_STAGING_MCP_SCOPE,
+        scope: scopes.scopes.join(" "),
         client_name: clientName,
       });
     } catch {
@@ -319,7 +323,7 @@ export function buildWordpressStagingMcpOAuthRoutes(deps = {}) {
       const resource = exactResource(req.query?.resource, env);
       if (!resource) return res.status(400).type("text/plain").send("resource is invalid.");
       const scopes = normalizeScope(req.query?.scope);
-      if (!scopes.ok) return res.status(400).type("text/plain").send("scope is invalid.");
+      if (!scopes.ok || scopes.scopes.some((scope) => !client.allowed_scopes.includes(scope))) return res.status(400).type("text/plain").send("scope is invalid.");
       const challenge = text(req.query?.code_challenge, 128);
       if (req.query?.code_challenge_method !== "S256" || !/^[A-Za-z0-9_-]{43}$/u.test(challenge)) return res.status(400).type("text/plain").send("PKCE S256 code_challenge is required.");
       const authorizationRequest = issueWordpressStagingMcpAuthorizationRequest({
@@ -355,7 +359,7 @@ export function buildWordpressStagingMcpOAuthRoutes(deps = {}) {
       const resource = exactResource(request?.resource, env);
       if (!resource) return oauthError(res, 400, "invalid_target", "resource is invalid.");
       const scopes = normalizeScope(request?.scope);
-      if (!scopes.ok) return oauthError(res, 400, "invalid_scope", "scope is invalid.");
+      if (!scopes.ok || scopes.scopes.some((scope) => !client.allowed_scopes.includes(scope))) return oauthError(res, 400, "invalid_scope", "scope is invalid.");
       const challenge = text(request?.code_challenge, 128);
       if (request?.code_challenge_method !== "S256" || !/^[A-Za-z0-9_-]{43}$/u.test(challenge)) return oauthError(res, 400, "invalid_request", "PKCE S256 code_challenge is required.");
       const context = await activeUserContext(pool, verified.claims);
@@ -367,7 +371,7 @@ export function buildWordpressStagingMcpOAuthRoutes(deps = {}) {
         tenantId: context.tenant_id,
         redirectUri,
         resource,
-        scopes: [WORDPRESS_STAGING_MCP_SCOPE],
+        scopes: scopes.scopes,
         codeChallenge: challenge,
       });
       noStore(res);
@@ -400,7 +404,7 @@ export function buildWordpressStagingMcpOAuthRoutes(deps = {}) {
         const record = await readRemoteMcpAuthorizationCode({ pool, code: req.body?.code, clientId: client.client_id, redirectUri });
         if (!record || record.resource !== resource || record.code_challenge_method !== "S256") return oauthError(res, 400, "invalid_grant", "Authorization code is invalid, expired, or already used.");
         const scopes = normalizeScope(record.scopes);
-        if (!scopes.ok) return oauthError(res, 400, "invalid_grant", "Authorization code scope is invalid.");
+        if (!scopes.ok || scopes.scopes.some((scope) => !client.allowed_scopes.includes(scope))) return oauthError(res, 400, "invalid_grant", "Authorization code scope is invalid.");
         if (!verifyPkceS256(req.body?.code_verifier, record.code_challenge)) return oauthError(res, 400, "invalid_grant", "PKCE verification failed.");
         const subject = await activeUserContext(pool, { user_id: record.user_id, tenant_id: record.tenant_id });
         if (!exactSubjectContext(subject, record.user_id, record.tenant_id)) return oauthError(res, 400, "invalid_grant", "The authorization subject is no longer active.");
@@ -411,7 +415,7 @@ export function buildWordpressStagingMcpOAuthRoutes(deps = {}) {
         const accessToken = issueWordpressStagingMcpAccessToken({ env, client, userId: record.user_id, tenantId: record.tenant_id, scopes: scopes.scopes, resource, jti });
         const grant = await createRemoteMcpOAuthGrant({ pool, accessJti: jti, clientId: client.client_id, userId: record.user_id, tenantId: record.tenant_id, resource, scopes: scopes.scopes, accessExpiresAt });
         noStore(res);
-        return res.status(200).json({ access_token: accessToken, token_type: "Bearer", expires_in: REMOTE_MCP_ACCESS_TOKEN_TTL_SECONDS, refresh_token: grant.refresh_token, refresh_token_expires_in: REMOTE_MCP_REFRESH_TOKEN_TTL_SECONDS, scope: WORDPRESS_STAGING_MCP_SCOPE });
+        return res.status(200).json({ access_token: accessToken, token_type: "Bearer", expires_in: REMOTE_MCP_ACCESS_TOKEN_TTL_SECONDS, refresh_token: grant.refresh_token, refresh_token_expires_in: REMOTE_MCP_REFRESH_TOKEN_TTL_SECONDS, scope: scopes.scopes.join(" ") });
       }
 
       if (grantType === "refresh_token") {
@@ -427,7 +431,7 @@ export function buildWordpressStagingMcpOAuthRoutes(deps = {}) {
         if (!rotated) return oauthError(res, 400, "invalid_grant", "Refresh token is invalid, expired, or revoked.");
         const accessToken = issueWordpressStagingMcpAccessToken({ env, client, userId: current.user_id, tenantId: current.tenant_id, scopes: currentScopes.scopes, resource, jti });
         noStore(res);
-        return res.status(200).json({ access_token: accessToken, token_type: "Bearer", expires_in: REMOTE_MCP_ACCESS_TOKEN_TTL_SECONDS, refresh_token: rotated.next.refresh_token, scope: WORDPRESS_STAGING_MCP_SCOPE });
+        return res.status(200).json({ access_token: accessToken, token_type: "Bearer", expires_in: REMOTE_MCP_ACCESS_TOKEN_TTL_SECONDS, refresh_token: rotated.next.refresh_token, scope: currentScopes.scopes.join(" ") });
       }
 
       return oauthError(res, 400, "unsupported_grant_type", "Only authorization_code and refresh_token are supported.");
