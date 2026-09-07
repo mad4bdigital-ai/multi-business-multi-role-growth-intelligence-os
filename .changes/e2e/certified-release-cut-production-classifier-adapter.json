@@ -15,7 +15,8 @@
       "http-generic-api/scripts/e2e-parallel-pr-gate-legacy.mjs",
       "http-generic-api/scripts/e2e-certified-release-cut-candidate-self-test.mjs",
       "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
-      "http-generic-api/scripts/test-configuration-candidate-discovery.mjs"
+      "http-generic-api/scripts/test-configuration-candidate-discovery.mjs",
+      "http-generic-api/test-production-promotion-candidate-workflow.mjs"
     ]
   },
   "merge_contract": {
@@ -71,6 +72,13 @@
               "args": []
             },
             {
+              "id": "certified-release-cut-workflow-topology-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-promotion-candidate-workflow.mjs",
+              "args": []
+            },
+            {
               "id": "reviewed-immutable-legacy-mirror-discovery-regression",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -87,7 +95,8 @@
             "http-generic-api/scripts/e2e-parallel-pr-gate-legacy.mjs",
             "http-generic-api/scripts/e2e-certified-release-cut-candidate-self-test.mjs",
             "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
-            "http-generic-api/scripts/test-configuration-candidate-discovery.mjs"
+            "http-generic-api/scripts/test-configuration-candidate-discovery.mjs",
+            "http-generic-api/test-production-promotion-candidate-workflow.mjs"
           ]
         }
       ]
