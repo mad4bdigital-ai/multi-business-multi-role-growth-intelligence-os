@@ -171,12 +171,14 @@
     {
       "id": "local_connector_environment_and_transport_isolation",
       "test_paths": [
+        "http-generic-api/test-local-connector-convergence-inspector.mjs",
         "http-generic-api/test-local-connector-durable-self-healing.mjs",
         "http-generic-api/test-windows-staging-bootstrap-supervisor.mjs",
         "http-generic-api/test-local-manager-tool-release-owner.mjs",
         "http-generic-api/test-local-manager-cloudflare-origin-classification.mjs",
         "http-generic-api/test-local-manager-signed-installer-coordinator.mjs",
         "http-generic-api/test-local-manager-signed-installer-exit-code.mjs",
+        "local-connector/Get-LocalConnectorConvergence.ps1",
         "local-connector/connector-watchdog.ps1",
         "http-generic-api/routes/connectorAgentRoutes.js",
         "http-generic-api/routes/connectorProxyRoutes.js"

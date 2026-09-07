@@ -23,6 +23,7 @@ const REQUIRED_PORTABLE_STAGING_FILES = [
   "autopilot-portable-staging/Staging-Schema-Governance-Preflight.ps1",
   "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1",
   "local-connector/install-service.ps1",
+  "local-connector/Get-LocalConnectorConvergence.ps1",
   "local-connector/connector-watchdog.ps1",
   "local-connector/server.mjs",
   "http-generic-api/docker-compose.staging.yml",
