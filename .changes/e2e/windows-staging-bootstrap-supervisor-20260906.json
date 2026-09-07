@@ -81,6 +81,8 @@
             "Deployment, recovery refresh, certification and health evidence cannot silently evaluate different Compose topologies for the same TunnelMode.",
             "Empty, one-item and multi-item certification failure collections remain arrays before Count evaluation, and missing certification_status fails as certification_contract_invalid.",
             "windows_service certification cannot begin unless the effective Compose model publishes 127.0.0.1:8080 and the Windows host receives a 2xx response from the app health origin; failure is classified as staging_origin_unreachable.",
+            "Windows PowerShell 5.1 explicitly loads System.Net.Http before the host-origin probe; probe runtime initialization failures are classified as origin_probe_runtime_error rather than origin reachability failures.",
+            "Exact-commit Auto Pilot reload preserves the child process root failure in last-failure.json and records the parent observation as a warning.",
             "A stopped/disabled generic Cloudflared service with Staging logfile/token evidence is classified as quarantined_staging_alias and is never mutated or adopted as Local Connector ownership.",
             "A missing canonical Local Connector runtime is classified as connector_installation_incomplete; repository-owned Staging package assets may be copied while the existing .env and its secrets remain preserved.",
             "Connector failure can still block final certification but cannot block independent exact-SHA Activation Gateway inspection/convergence for an otherwise healthy local deployment.",

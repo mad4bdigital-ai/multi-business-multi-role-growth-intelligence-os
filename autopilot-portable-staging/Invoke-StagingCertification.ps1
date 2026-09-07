@@ -42,6 +42,21 @@ function Assert-WindowsHostOriginReachable([string[]]$ComposeArgs, [string]$Mode
     if ($Mode -ne "windows_service") { return }
     $origin = "http://127.0.0.1:8080/health"
     $published = (& docker @($ComposeArgs + @("port", "app", "8080")) 2>$null | Out-String).Trim()
+    try {
+        Add-Type -AssemblyName System.Net.Http -ErrorAction Stop
+    } catch {
+        $state = Read-State $StatePath
+        $state["certification_status"] = "blocked"
+        $state["certification_ready"] = $false
+        $state["certification_blocking_failures"] = @("origin_probe_runtime_error")
+        $state["staging_origin"] = $origin
+        $state["staging_origin_tunnel_mode"] = $Mode
+        $state["staging_origin_probe_reason"] = "http_client_runtime_unavailable"
+        $state["secrets_included"] = $false
+        Write-State $StatePath $state
+        Write-Host "STAGING_CERTIFICATION_BLOCKED: commit=$ExpectedCommit reasons=origin_probe_runtime_error tunnel_mode=$Mode origin=$origin" -ForegroundColor Red
+        exit 1
+    }
     $lastError = ""
     if ($LASTEXITCODE -eq 0 -and $published -match '^(?:127\.0\.0\.1|localhost):8080$') {
         $client = $null
