@@ -1,1 +1,0 @@
-Recovery Phase B repository closure marker. See staging-recovery-phase-b-certification.md, production-recovery-live-composition-prerequisites.md, and recovery-phase-b-pr-delivery.md. No live Production mutation is authorized by this marker.
