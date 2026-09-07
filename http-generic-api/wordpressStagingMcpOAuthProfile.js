@@ -2,6 +2,7 @@ import {
   createHash,
   createPrivateKey,
   createPublicKey,
+  randomBytes,
 } from "node:crypto";
 import { readFileSync } from "node:fs";
 import {
@@ -22,6 +23,8 @@ export const WORDPRESS_STAGING_MCP_RESOURCE = "https://staging.egypttourgates.co
 export const WORDPRESS_STAGING_MCP_ISSUER_SUFFIX = "/wordpress-staging";
 export const WORDPRESS_STAGING_MCP_ACCESS_TOKEN_ALG = "RS256";
 export const WORDPRESS_STAGING_MCP_PRIVATE_KEY_FILE = "/app/data/oauth/wordpress-staging-rs256-private.pem";
+export const WORDPRESS_STAGING_MCP_CLIENT_ID_PREFIX = "mcp_stg_wp_";
+export const WORDPRESS_STAGING_MCP_CLIENT_PROFILE_PREFIX = "wordpress_staging_mcp:";
 
 function normalizeHttpsUrlWithPath(value) {
   const raw = String(value || "").trim();
@@ -34,6 +37,64 @@ function normalizeHttpsUrlWithPath(value) {
   } catch {
     return "";
   }
+}
+
+function boundedSubjectComponent(value) {
+  const normalized = String(value || "").trim();
+  if (!normalized || normalized.length > 128 || /[\s,]/u.test(normalized)) return "";
+  return normalized;
+}
+
+export function buildWordpressStagingMcpSubject(userId, tenantId = null) {
+  const user = boundedSubjectComponent(userId);
+  if (!user) return "";
+  const tenant = boundedSubjectComponent(tenantId);
+  return tenant ? `tenant:${tenant}:user:${user}` : `user:${user}`;
+}
+
+export function resolveWordpressStagingMcpAllowedSubjects(env = process.env) {
+  const entries = String(env.REMOTE_MCP_WORDPRESS_STAGING_ALLOWED_SUBJECTS || "")
+    .split(/[\s,]+/u)
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .filter((value) => value.length <= 512 && (value.startsWith("user:") || value.startsWith("tenant:")));
+  return new Set(entries);
+}
+
+export function wordpressStagingMcpSubjectAuthorizationConfigured(env = process.env) {
+  return resolveWordpressStagingMcpAllowedSubjects(env).size > 0;
+}
+
+export function wordpressStagingMcpSubjectAllowed({ userId, tenantId = null } = {}, env = process.env) {
+  const subject = buildWordpressStagingMcpSubject(userId, tenantId);
+  return Boolean(subject) && resolveWordpressStagingMcpAllowedSubjects(env).has(subject);
+}
+
+export function generateWordpressStagingMcpClientId(env = process.env) {
+  if (resolveRemoteMcpEnvironment(env) !== "staging") return "";
+  return `${WORDPRESS_STAGING_MCP_CLIENT_ID_PREFIX}${randomBytes(18).toString("base64url")}`;
+}
+
+export function isWordpressStagingMcpClientId(clientId, env = process.env) {
+  if (resolveRemoteMcpEnvironment(env) !== "staging") return false;
+  const normalized = String(clientId || "").trim();
+  if (!normalized.startsWith(WORDPRESS_STAGING_MCP_CLIENT_ID_PREFIX)) return false;
+  const suffix = normalized.slice(WORDPRESS_STAGING_MCP_CLIENT_ID_PREFIX.length);
+  return suffix.length >= 16 && suffix.length <= 128 && /^[A-Za-z0-9_-]+$/u.test(suffix);
+}
+
+export function wordpressStagingMcpClientProfileKey(baseProfileKey) {
+  const base = String(baseProfileKey || "generic_remote_mcp_client").trim().toLowerCase();
+  const normalized = /^[a-z0-9_-]{1,96}$/u.test(base) ? base : "generic_remote_mcp_client";
+  return `${WORDPRESS_STAGING_MCP_CLIENT_PROFILE_PREFIX}${normalized}`;
+}
+
+export function isWordpressStagingMcpClientRecord(client, env = process.env) {
+  return Boolean(client)
+    && isWordpressStagingMcpClientId(client.client_id, env)
+    && String(client.client_profile_key || "").startsWith(WORDPRESS_STAGING_MCP_CLIENT_PROFILE_PREFIX)
+    && Array.isArray(client.allowed_scopes)
+    && client.allowed_scopes.includes(WORDPRESS_STAGING_MCP_SCOPE);
 }
 
 export function resolveWordpressStagingMcpResource(env = process.env) {
@@ -154,7 +215,11 @@ export function buildWordpressStagingMcpJwks(env = process.env) {
 
 export function wordpressStagingMcpOAuthReady(env = process.env) {
   if (!wordpressStagingMcpOAuthConfigured(env)) return false;
-  return Boolean(resolveWordpressStagingMcpPrivateKey(env) && resolveWordpressStagingMcpKeyId(env));
+  return Boolean(
+    resolveWordpressStagingMcpPrivateKey(env)
+    && resolveWordpressStagingMcpKeyId(env)
+    && wordpressStagingMcpSubjectAuthorizationConfigured(env)
+  );
 }
 
 export function getWordpressStagingMcpOAuthStatus(env = process.env) {
@@ -162,6 +227,7 @@ export function getWordpressStagingMcpOAuthStatus(env = process.env) {
   const resource = resolveWordpressStagingMcpResource(env);
   const kid = resolveWordpressStagingMcpKeyId(env);
   const keyFile = resolveWordpressStagingMcpPrivateKeyFile(env);
+  const allowedSubjects = resolveWordpressStagingMcpAllowedSubjects(env);
   return {
     configured: wordpressStagingMcpOAuthConfigured(env),
     ready: wordpressStagingMcpOAuthReady(env),
@@ -178,6 +244,12 @@ export function getWordpressStagingMcpOAuthStatus(env = process.env) {
     private_key_loaded: Boolean(resolveWordpressStagingMcpPrivateKey(env)),
     jwks_ready: Boolean(kid),
     kid: kid || null,
+    subject_authorization_required: true,
+    subject_authorization_configured: allowedSubjects.size > 0,
+    allowed_subject_count: allowedSubjects.size,
+    subject_authorization_mode: "exact-subject-allowlist",
+    client_id_namespace: WORDPRESS_STAGING_MCP_CLIENT_ID_PREFIX,
+    client_profile_namespace: WORDPRESS_STAGING_MCP_CLIENT_PROFILE_PREFIX,
     secrets_included: false,
   };
 }
