@@ -94,6 +94,13 @@
       ]
     },
     {
+      "id": "governed_execution_x0_evidence_baseline",
+      "test_paths": [
+        "http-generic-api/test-governed-execution-baseline-benchmark.mjs",
+        "http-generic-api/test-governed-execution-baseline-telemetry.mjs"
+      ]
+    },
+    {
       "id": "hostinger_runtime_bootstrap_contract",
       "test_paths": [
         "http-generic-api/test-runtime-bootstrap-contract.mjs",
@@ -248,6 +255,7 @@
         "http-generic-api/test-production-recovery-composition-factory.mjs",
         "http-generic-api/test-server-managed-recovery-binding.mjs",
         "http-generic-api/test-staging-recovery-authority-binding.mjs",
+        "http-generic-api/test-staging-pr-head-recovery-readiness.mjs",
         "http-generic-api/test-staging-access-repair-ticket-authority.mjs",
         "http-generic-api/test-staging-bootstrap-readback-attestation.mjs",
         "http-generic-api/test-recovery-activation-readiness.mjs",

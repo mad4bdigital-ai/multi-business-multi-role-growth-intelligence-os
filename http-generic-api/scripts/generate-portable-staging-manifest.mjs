@@ -17,6 +17,7 @@ const REQUIRED_PORTABLE_STAGING_FILES = [
   "autopilot-portable-staging/Staging-GitTransport.ps1",
   "autopilot-portable-staging/Staging-Operations-Log.ps1",
   "autopilot-portable-staging/Invoke-StagingCertification.ps1",
+  "autopilot-portable-staging/Invoke-StagingPrHeadCertification.ps1",
   "autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1",
   "autopilot-portable-staging/Provision-LocalConnectorTunnelToken.ps1",
   "autopilot-portable-staging/Staging-Schema-Governance-Preflight.ps1",

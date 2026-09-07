@@ -15,6 +15,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 if ($StartTunnel -and $TunnelMode -eq "disabled") { $TunnelMode = "windows_service" }
 $TunnelSelected = $TunnelMode -ne "disabled"
+$script:CertificationAuthorityMode = "main"
 
 function Fail([string]$Message) {
     throw "STAGING_CERTIFICATION_FAIL_CLOSED: $Message"
@@ -123,6 +124,81 @@ function Write-State([string]$Path, [hashtable]$State) {
     Set-Content -LiteralPath $Path -Encoding utf8 -Value ($State | ConvertTo-Json -Depth 8)
 }
 
+function Assert-CertificationAuthority {
+    $mode = ([string]$env:STAGING_CERT_AUTHORITY_MODE).Trim().ToLowerInvariant()
+    if ($Ref -eq "main") {
+        if (-not [string]::IsNullOrWhiteSpace($mode) -and $mode -ne "main") {
+            Fail "main certification cannot use a non-main certification authority mode"
+        }
+        return
+    }
+
+    if ($mode -ne "pull_request_head") {
+        Fail "Non-main certification requires STAGING_CERT_AUTHORITY_MODE=pull_request_head"
+    }
+    if ($Ref -notmatch '^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$') {
+        Fail "Non-main certification ref is not an approved governed work branch"
+    }
+
+    $repository = ([string]$env:STAGING_CERT_PR_REPOSITORY).Trim()
+    if ($repository -ne "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os") {
+        Fail "PR-head certification repository authority is missing or invalid"
+    }
+
+    $prNumberText = ([string]$env:STAGING_CERT_PR_NUMBER).Trim()
+    $prNumber = 0
+    if (-not [int]::TryParse($prNumberText, [ref]$prNumber) -or $prNumber -lt 1) {
+        Fail "PR-head certification requires a positive STAGING_CERT_PR_NUMBER"
+    }
+    if (-not (Get-Command "gh" -ErrorAction SilentlyContinue)) {
+        Fail "GitHub CLI is required for PR-head certification authority readback"
+    }
+    if (-not (Get-Command "git" -ErrorAction SilentlyContinue)) {
+        Fail "Git is required for PR-head certification authority readback"
+    }
+
+    $localHead = ((& git -C $RepositoryPath rev-parse HEAD 2>$null | Out-String).Trim()).ToLowerInvariant()
+    if ($LASTEXITCODE -ne 0 -or $localHead -ne $ExpectedCommit.ToLowerInvariant()) {
+        Fail "Local repository HEAD is not the exact PR head during certification"
+    }
+
+    $raw = & gh api `
+        -H "Accept: application/vnd.github+json" `
+        -H "X-GitHub-Api-Version: 2022-11-28" `
+        "repos/$repository/pulls/$prNumber" 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        Fail "GitHub pull-request authority readback failed"
+    }
+    try {
+        $pr = ($raw | Out-String) | ConvertFrom-Json -ErrorAction Stop
+    } catch {
+        Fail "GitHub pull-request authority readback was not valid JSON"
+    }
+
+    if ([string]$pr.state -ne "open") { Fail "PR-head certification requires an open pull request" }
+    if ([bool]$pr.draft) { Fail "PR-head certification refuses draft pull requests" }
+    if ([string]$pr.base.ref -ne "main") { Fail "PR-head certification requires base=main" }
+    if ([string]$pr.head.repo.full_name -ne $repository) { Fail "Cross-repository PR-head certification is forbidden" }
+    if ([string]$pr.head.ref -ne $Ref) { Fail "Pull-request head ref no longer matches the requested ref" }
+    if (([string]$pr.head.sha).ToLowerInvariant() -ne $ExpectedCommit.ToLowerInvariant()) {
+        Fail "Pull-request head SHA no longer matches ExpectedCommit"
+    }
+
+    $script:CertificationAuthorityMode = "pull_request_head"
+    $state = Read-State $StatePath
+    $state["certification_authority_mode"] = "pull_request_head"
+    $state["certification_pr_number"] = $prNumber
+    $state["certification_pr_repository"] = $repository
+    $state["certification_pr_base_ref"] = [string]$pr.base.ref
+    $state["certification_pr_head_ref"] = [string]$pr.head.ref
+    $state["certification_pr_head_sha"] = ([string]$pr.head.sha).ToLowerInvariant()
+    $state["certification_pr_authority_checked_at"] = (Get-Date).ToUniversalTime().ToString("o")
+    $state["secrets_included"] = $false
+    Write-State $StatePath $state
+
+    Write-Host "STAGING_CERTIFICATION_PR_HEAD_AUTHORITY: pr=$prNumber ref=$Ref commit=$ExpectedCommit status=exact"
+}
+
 function Invoke-LocalConnectorCertificationGate([string]$RepairScript, [string]$RepairStatePath) {
     if (-not (Test-Path -LiteralPath $RepairScript -PathType Leaf)) {
         Fail "Local Connector recovery helper is missing: $RepairScript"
@@ -188,7 +264,7 @@ function Invoke-LocalConnectorCertificationGate([string]$RepairScript, [string]$
 
 $RepositoryPath = [IO.Path]::GetFullPath($RepositoryPath)
 if ($ExpectedCommit -notmatch '^[0-9a-fA-F]{40}$') { Fail "ExpectedCommit must be an exact 40-character SHA" }
-if ($Ref -ne "main") { Fail "Portable Staging certification is main-only" }
+Assert-CertificationAuthority
 
 $scriptRoot = Split-Path -Parent $PSCommandPath
 $apiPath = Join-Path $RepositoryPath "http-generic-api"
@@ -201,7 +277,9 @@ foreach ($required in @($composeBase, $composeStage, $envFile, $connectorRepairS
     if (-not (Test-Path -LiteralPath $required)) { Fail "Required Staging certification input is missing: $required" }
 }
 
-$gatewayEnabled = (Read-EnvValue $envFile "ACTIVATION_STAGING_GATEWAY_ENABLED").ToLowerInvariant() -eq "true"
+$gatewayConfigured = (Read-EnvValue $envFile "ACTIVATION_STAGING_GATEWAY_ENABLED").ToLowerInvariant() -eq "true"
+$gatewayEnabled = $gatewayConfigured -and $script:CertificationAuthorityMode -ne "pull_request_head"
+$gatewayCertificationScope = if ($script:CertificationAuthorityMode -eq "pull_request_head") { "excluded_external_gateway" } else { "configured_runtime_scope" }
 $expectedTree = Read-EnvValue $envFile "STAGING_BUILD_TREE"
 $expectedContextFileSet = Read-EnvValue $envFile "STAGING_BUILD_CONTEXT_FILE_SET_SHA256"
 $composeArgs = @(Get-StagingComposeArgs $apiPath $envFile $TunnelMode)
@@ -248,6 +326,9 @@ $state["certified_branch"] = [string]$certification.observed.branch
 $state["certification_blocking_failures"] = @($certification.blocking_failures)
 $state["certification_degraded_reasons"] = @($certification.degraded_reasons)
 $state["gateway_required"] = [bool]$gatewayEnabled
+$state["gateway_configured"] = [bool]$gatewayConfigured
+$state["gateway_certification_scope"] = $gatewayCertificationScope
+$state["certification_authority_mode"] = $script:CertificationAuthorityMode
 $state["tunnel_mode"] = $TunnelMode
 $state["artifact_set_complete"] = ($certification.artifact_set.complete -eq $true)
 $state["app_image_digest"] = [string]$certification.artifact_set.app.image_digest
