@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { resolveActivationBootstrapConfig } from "./activationBootstrapConfig.js";
 
 const cachedInstallationTokens = new Map();
 
@@ -36,7 +37,7 @@ function normalizePemText(value = "") {
     .replace(/\\r\\n/g, "\n")
     .replace(/\\n/g, "\n")
     .replace(/\r\n/g, "\n")
-    .trim(); // second trim: newline expansion can leave leading/trailing whitespace
+    .trim();
 }
 
 function tryDecodeBase64(value = "") {
@@ -54,14 +55,7 @@ function tryDecodeJsonWrappedSecret(value = "") {
     const parsed = JSON.parse(stripCommonEnvAssignment(value));
     if (typeof parsed === "string") return parsed;
     if (parsed && typeof parsed === "object") {
-      return (
-        parsed.private_key ||
-        parsed.privateKey ||
-        parsed.pem ||
-        parsed.key ||
-        parsed.value ||
-        ""
-      );
+      return parsed.private_key || parsed.privateKey || parsed.pem || parsed.key || parsed.value || "";
     }
   } catch {
     // Not JSON-wrapped.
@@ -72,28 +66,21 @@ function tryDecodeJsonWrappedSecret(value = "") {
 function buildPemCandidates(value = "") {
   const raw = stripCommonEnvAssignment(String(value || "").trim());
   const candidates = [];
-
   const push = (candidate) => {
     const normalized = normalizePemText(candidate);
     if (normalized && !candidates.includes(normalized)) candidates.push(normalized);
   };
-
   push(raw);
-
   const jsonCandidate = tryDecodeJsonWrappedSecret(raw);
   if (jsonCandidate) push(jsonCandidate);
-
   const decoded = tryDecodeBase64(raw);
   if (decoded) {
     push(decoded);
-
     const decodedJsonCandidate = tryDecodeJsonWrappedSecret(decoded);
     if (decodedJsonCandidate) push(decodedJsonCandidate);
-
     const decodedTwice = tryDecodeBase64(decoded);
     if (decodedTwice) push(decodedTwice);
   }
-
   return candidates;
 }
 
@@ -136,65 +123,105 @@ function createInvalidPrivateKeyError(cause, privateKey) {
 export function createGitHubAppJwt({ appId, privateKey, nowSeconds = Math.floor(Date.now() / 1000) }) {
   const iss = String(appId || "").trim();
   const key = decodeGitHubAppPrivateKey(privateKey);
-
   if (!iss) {
     const err = new Error("Missing GitHub App id.");
     err.code = "github_app_auth_missing_app_id";
     err.status = 500;
     throw err;
   }
-
   if (!key) {
     const err = new Error("Missing GitHub App private key.");
     err.code = "github_app_auth_missing_private_key";
     err.status = 500;
     throw err;
   }
-
   const header = { alg: "RS256", typ: "JWT" };
-  const payload = {
-    iat: nowSeconds - 60,
-    exp: nowSeconds + 540,
-    iss,
-  };
-
+  const payload = { iat: nowSeconds - 60, exp: nowSeconds + 540, iss };
   const signingInput = `${base64Url(JSON.stringify(header))}.${base64Url(JSON.stringify(payload))}`;
-
   let signature;
   try {
     signature = crypto.createSign("RSA-SHA256").update(signingInput).sign(key);
   } catch (error) {
     throw createInvalidPrivateKeyError(error, privateKey);
   }
-
   return `${signingInput}.${base64Url(signature)}`;
 }
 
 export function resolveGitHubAppConfig(action = {}) {
   return {
-    appId:
-      String(action.github_app_id || "").trim() ||
-      String(process.env.GITHUB_APP_ID || "").trim(),
-    installationId:
-      String(action.github_app_installation_id || "").trim() ||
-      String(process.env.GITHUB_APP_INSTALLATION_ID || "").trim(),
-    privateKey:
-      envSecretFromReference(action.secret_store_ref) ||
-      String(process.env.GITHUB_APP_PRIVATE_KEY || "").trim(),
+    appId: String(action.github_app_id || "").trim() || String(process.env.GITHUB_APP_ID || "").trim(),
+    installationId: String(action.github_app_installation_id || "").trim() || String(process.env.GITHUB_APP_INSTALLATION_ID || "").trim(),
+    privateKey: envSecretFromReference(action.secret_store_ref) || String(process.env.GITHUB_APP_PRIVATE_KEY || "").trim(),
   };
 }
 
-export async function getGitHubAppInstallationToken({ action = {}, fetchImpl = fetch } = {}) {
+export async function discoverGitHubAppInstallationId({ appId, privateKey, owner, repo, fetchImpl = fetch } = {}) {
+  if (!owner || !repo) {
+    const err = new Error("Repository binding is required to discover the GitHub App installation.");
+    err.code = "github_app_repository_binding_required";
+    err.status = 500;
+    throw err;
+  }
+  const jwt = createGitHubAppJwt({ appId, privateKey });
+  const response = await fetchImpl(
+    `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/installation`,
+    {
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${jwt}`,
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "mad4b-growth-os-github-app",
+      },
+    },
+  );
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok || !body?.id) {
+    const err = new Error(`GitHub App installation discovery failed with status ${response.status}.`);
+    err.code = "github_app_installation_discovery_failed";
+    err.status = 500;
+    err.details = { upstream_status: response.status, message: body?.message || "" };
+    throw err;
+  }
+  return String(body.id);
+}
+
+async function resolveServerOwnedRepositoryBinding(repository, repositoryResolver) {
+  const suppliedOwner = String(repository?.owner || "").trim();
+  const suppliedRepo = String(repository?.repo || "").trim();
+  if (suppliedOwner && suppliedRepo) return { owner: suppliedOwner, repo: suppliedRepo };
+  if (typeof repositoryResolver !== "function") return null;
+  try {
+    const bootstrap = await repositoryResolver({});
+    const owner = String(bootstrap?.config?.github_owner || "").trim();
+    const repo = String(bootstrap?.config?.github_repo || "").trim();
+    return bootstrap?.ok && owner && repo ? { owner, repo } : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function getGitHubAppInstallationToken({
+  action = {},
+  repository = null,
+  repositoryResolver = resolveActivationBootstrapConfig,
+  fetchImpl = fetch,
+} = {}) {
   const nowMs = Date.now();
-  const { appId, installationId, privateKey } = resolveGitHubAppConfig(action);
-  const cacheKey = `${appId}:${installationId}`;
-  const cachedInstallationToken = cachedInstallationTokens.get(cacheKey);
-  if (
-    cachedInstallationToken?.token &&
-    cachedInstallationToken?.expiresAtMs &&
-    cachedInstallationToken.expiresAtMs - 60_000 > nowMs
-  ) {
-    return cachedInstallationToken.token;
+  const config = resolveGitHubAppConfig(action);
+  const { appId, privateKey } = config;
+  let installationId = config.installationId;
+
+  if (!installationId) {
+    const binding = await resolveServerOwnedRepositoryBinding(repository, repositoryResolver);
+    if (binding) {
+      installationId = await discoverGitHubAppInstallationId({
+        appId,
+        privateKey,
+        owner: binding.owner,
+        repo: binding.repo,
+        fetchImpl,
+      });
+    }
   }
 
   if (!installationId) {
@@ -202,6 +229,12 @@ export async function getGitHubAppInstallationToken({ action = {}, fetchImpl = f
     err.code = "github_app_auth_missing_installation_id";
     err.status = 500;
     throw err;
+  }
+
+  const cacheKey = `${appId}:${installationId}`;
+  const cachedInstallationToken = cachedInstallationTokens.get(cacheKey);
+  if (cachedInstallationToken?.token && cachedInstallationToken?.expiresAtMs && cachedInstallationToken.expiresAtMs - 60_000 > nowMs) {
+    return cachedInstallationToken.token;
   }
 
   const jwt = createGitHubAppJwt({ appId, privateKey });
@@ -214,7 +247,6 @@ export async function getGitHubAppInstallationToken({ action = {}, fetchImpl = f
       "User-Agent": "mad4b-growth-os-github-app",
     },
   });
-
   const body = await response.json().catch(() => ({}));
   if (!response.ok || !body?.token) {
     const err = new Error(`GitHub App installation token request failed with status ${response.status}.`);
@@ -223,13 +255,11 @@ export async function getGitHubAppInstallationToken({ action = {}, fetchImpl = f
     err.details = { upstream_status: response.status, message: body?.message || "" };
     throw err;
   }
-
   const expiresAtMs = body.expires_at ? Date.parse(body.expires_at) : nowMs + 55 * 60_000;
   const nextCachedInstallationToken = {
     token: body.token,
     expiresAtMs: Number.isFinite(expiresAtMs) ? expiresAtMs : nowMs + 55 * 60_000,
   };
-
   cachedInstallationTokens.set(cacheKey, nextCachedInstallationToken);
   return nextCachedInstallationToken.token;
 }

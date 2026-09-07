@@ -50,6 +50,9 @@ test("static system_tool_get and system_tools_search do not query the database",
   assert.equal(search.catalog_mode, "repository_static_system_layer");
   assert.equal(search.database_query_performed, false);
   assert.ok(search.items.some((item) => item.name === "recovery_kernel_capabilities"));
+  const phaseBSearch = await callSystemLayerTool("system_tools_search", { q: "phase b certification" }, ADMIN);
+  assert.ok(phaseBSearch.items.some((item) => item.name === "recovery_kernel_capabilities"));
+  assert.equal(phaseBSearch.items[0].capability_key, "recovery_capabilities");
   assert.equal(search.secrets_included, false);
 });
 

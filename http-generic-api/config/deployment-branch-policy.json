@@ -138,6 +138,7 @@
       {
         "id": "shared_runtime",
         "patterns": [
+          "apps/local-manager-windows/**",
           "local-connector/**",
           "http-generic-api/routes/**",
           "http-generic-api/schema.sql",
@@ -192,6 +193,7 @@
           ".gitattributes",
           "docs/staging-sql-line-ending-contract.md",
           "docs/governance/**",
+          "docs/runbooks/**",
           "docs/recovery-*.md",
           "docs/surface-contract-**",
           "Updating Registry Patch Index.md",

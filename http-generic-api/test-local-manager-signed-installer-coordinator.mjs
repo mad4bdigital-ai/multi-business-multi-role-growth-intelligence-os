@@ -40,16 +40,15 @@ assert.match(coordinator, /allowDownloadExtension && string\.Equals\(extension, 
 assert.match(coordinator, /Verb = "runas"/);
 assert.match(coordinator, /NativeErrorCode == 1223/);
 assert.match(coordinator, /WaitForExitAsync\(cancellationToken\)/);
-assert.match(coordinator, /process\.ExitCode == 0/);
-assert.match(coordinator, /SignedInstallerRunResult\.Failed/);
+assert.match(coordinator, /LastExitCode = process\.ExitCode/);
+assert.match(coordinator, /process\.ExitCode != 0/);
+assert.match(coordinator, /SignedInstallerExitCodeException\(process\.ExitCode\)/);
 assert.match(coordinator, /Guid\.NewGuid\(\):N/);
 assert.match(coordinator, /SHA256\.HashDataAsync/);
 assert.match(coordinator, /Installer file changed after governed download/);
 assert.doesNotMatch(coordinator, /ProcessStartInfo[\s\S]*Arguments\s*=/);
 assert.doesNotMatch(coordinator, /HttpMethod\.Put|HttpMethod\.Delete|ProtectedData/);
 
-assert.match(program, /runResult == SignedInstallerRunResult\.Failed/);
-assert.match(program, /installer_exit_nonzero/);
 const portAssignment = installerRoutes.indexOf('`$Port = ${Number(port)}`');
 const healthUrl = installerRoutes.indexOf("\"$HealthUrl = 'http://127.0.0.1:' + $Port + '/health'\"");
 assert.ok(portAssignment >= 0, "PowerShell installer must define the generated connector port");

@@ -17,6 +17,8 @@ internal sealed class SignedInstallerCoordinator
     private readonly string _updatesRoot;
     private readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web);
 
+    internal int? LastExitCode { get; private set; }
+
     internal SignedInstallerCoordinator(string baseUrl, string updatesRoot)
     {
         _baseUri = new Uri(baseUrl, UriKind.Absolute);
@@ -107,6 +109,7 @@ internal sealed class SignedInstallerCoordinator
         SignedInstallerDownload download,
         CancellationToken cancellationToken = default)
     {
+        LastExitCode = null;
         var ownedPath = Path.GetFullPath(download.InstallerPath);
         AssertOwnedInstallerPath(ownedPath);
         if (!File.Exists(ownedPath)) throw new FileNotFoundException("Installer file was not found.", ownedPath);
@@ -137,9 +140,15 @@ internal sealed class SignedInstallerCoordinator
         try
         {
             await process.WaitForExitAsync(cancellationToken);
-            return process.ExitCode == 0
-                ? SignedInstallerRunResult.Completed
-                : SignedInstallerRunResult.Failed;
+            LastExitCode = process.ExitCode;
+            if (process.ExitCode != 0)
+            {
+                // Propagate the exact bounded child status to the existing outer UI
+                // exception handler. Do not collapse it into the boolean-only Failed
+                // enum path, and do not include installer/token content in the message.
+                throw new SignedInstallerExitCodeException(process.ExitCode);
+            }
+            return SignedInstallerRunResult.Completed;
         }
         catch (InvalidOperationException)
         {
@@ -255,6 +264,17 @@ internal sealed class SignedInstallerCoordinator
         var chars = value.Select(ch => char.IsLetterOrDigit(ch) || ch is '-' or '_' or '.' ? ch : '-').ToArray();
         var safe = new string(chars).Trim('-');
         return string.IsNullOrWhiteSpace(safe) ? "device" : safe;
+    }
+}
+
+internal sealed class SignedInstallerExitCodeException : Exception
+{
+    internal int ExitCode { get; }
+
+    internal SignedInstallerExitCodeException(int exitCode)
+        : base($"Signed connector installer exited with code {exitCode}.")
+    {
+        ExitCode = exitCode;
     }
 }
 
