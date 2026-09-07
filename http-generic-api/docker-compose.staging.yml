@@ -84,6 +84,11 @@ services:
     environment:
       NODE_ENV: staging
       RECOVERY_SERVER_MANAGED_BINDING_MODULE: ./stagingRecoveryAuthorityBindingPhaseB.js
+      # These PR-head markers are non-secret certification context only. They
+      # never grant Recovery mutation authority and default to empty on main.
+      STAGING_CERT_AUTHORITY_MODE: "${STAGING_CERT_AUTHORITY_MODE:-}"
+      STAGING_CERT_PR_NUMBER: "${STAGING_CERT_PR_NUMBER:-}"
+      STAGING_CERT_PR_REPOSITORY: "${STAGING_CERT_PR_REPOSITORY:-}"
       DEPLOYMENT_EXPECTED_COMMIT_SHA: ${DEPLOYMENT_EXPECTED_COMMIT_SHA:?set DEPLOYMENT_EXPECTED_COMMIT_SHA in .env.staging}
       DEPLOY_COMMIT: ${DEPLOY_COMMIT:?set DEPLOY_COMMIT in .env.staging}
       DEPLOY_BRANCH: ${DEPLOY_BRANCH:-main}
@@ -143,7 +148,7 @@ services:
       TUNNEL_ORIGIN_APP: ${CLOUDFLARE_TUNNEL_ORIGIN_APP:-http://app:8080}
       TUNNEL_HOSTNAME: ${CLOUDFLARE_TUNNEL_HOSTNAME:-dev.mad4b.com}
       TUNNEL_LOGLEVEL: ${CLOUDFLARE_TUNNEL_LOGLEVEL:-info}
-      TUNNEL_GRACE_PERIOD: ${CLOUDFLARE_TUNNEL_GRACE_PERIOD:-30s}
+      TUNNEL_GRACE_PERIOD: ${TUNNEL_GRACE_PERIOD:-30s}
     depends_on:
       app:
         condition: service_healthy
