@@ -17,6 +17,7 @@ const required = [
   `${BASE}/canonical-semantic-ontology.md`,
   `${BASE}/canonical-artifact-authority-reference-graph.md`,
   `${BASE}/tasks-and-gates.md`,
+  `${BASE}/x0-external-certification-reference.json`,
   `${BASE}/wordpress-site-control-plane-provider-profile.json`,
   `${BASE}/wordpress-site-control-plane-provider-profile.md`,
   `${X0}/x0-evidence-baseline.manifest.json`,
@@ -37,7 +38,7 @@ assert.equal(manifest.secrets_included, false);
 assert.equal(manifest.owner_specs.durable_execution_and_orchestration, '011-durable-governed-execution-and-agent-delegation');
 assert.equal(manifest.owner_specs.execution_context, '012-unified-admin-tenant-context-kernel');
 assert.equal(manifest.owner_specs.catalog_and_execution_surface, '013-system-tool-catalog-v2');
-for (const artifact of ['e2e-phases.json','wordpress-site-control-plane-provider-profile.json','wordpress-site-control-plane-provider-profile.md']) assert.ok(manifest.artifacts.includes(artifact));
+for (const artifact of ['e2e-phases.json','x0-external-certification-reference.json','wordpress-site-control-plane-provider-profile.json','wordpress-site-control-plane-provider-profile.md']) assert.ok(manifest.artifacts.includes(artifact));
 for (const invariant of ['no_provider_call','no_external_send','no_database_write','no_migration_apply','no_deployment','no_runtime_cutover','no_parallel_semantic_authority','no_automatic_retry_after_unknown_outcome','no_silent_context_or_connection_substitution']) assert.ok(manifest.constraints.includes(invariant));
 
 const wp = readJson(`${BASE}/wordpress-site-control-plane-provider-profile.json`);
@@ -86,6 +87,7 @@ assert.equal(wp.secrets_included, false);
 
 const x0 = readJson(`${X0}/x0-evidence-baseline.manifest.json`);
 const fixtures = readJson(`${X0}/x0-matched-runtime-fixtures.json`);
+const x0External = readJson(`${BASE}/x0-external-certification-reference.json`);
 assert.equal(x0.phase, 'X0_evidence_baseline');
 assert.equal(x0.status, 'candidate_implementation_complete_external_ci_pending');
 assert.match(x0.base_main_sha, /^[0-9a-f]{40}$/);
@@ -113,22 +115,55 @@ assert.equal(fixtures.gate_assertions.external_send_made, false);
 assert.equal(fixtures.gate_assertions.runtime_behavior_changed, false);
 assert.equal(fixtures.secrets_included, false);
 
+assert.equal(x0External.reference_key, 'mad4b.runtime-composition.x0-external-certification-reference.v1');
+assert.equal(x0External.gate, 'X0');
+assert.equal(x0External.status, 'complete_external');
+assert.equal(x0External.evidence_authority, 'external');
+assert.equal(x0External.source_tree_may_self_attest, false);
+assert.equal(x0External.repository, 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os');
+assert.equal(x0External.pull_request, 7942);
+assert.equal(x0External.certified_head_sha, '0def70177fb741d39e6624445506d5537c145808');
+assert.equal(x0External.certified_base_sha, 'b08afded2f39939aea9ab724e65a375fd02c01ea');
+assert.equal(x0External.certified_tree_sha, '932f928dea0ac032b06c4d6ce318d015da02418b');
+assert.equal(x0External.merge_commit_sha, 'c6295a2ecc495ab4ab8155d541a8c538ef31289b');
+assert.equal(x0External.merge_commit_tree_sha, x0External.certified_tree_sha);
+assert.equal(x0External.external_evidence?.pr_comment_id, 5568862727);
+for (const runId of Object.values(x0External.external_evidence?.workflow_runs ?? {})) assert.ok(Number.isInteger(runId) && runId > 0);
+assert.equal(x0External.external_evidence?.policy_objection?.workflow_status, 'success');
+assert.equal(x0External.external_evidence?.policy_objection?.blocking_count, 0);
+assert.equal(x0External.external_evidence?.policy_objection?.manual_count, 1);
+assert.equal(x0External.external_evidence?.live_staging?.status, 'ready');
+assert.equal(x0External.external_evidence?.live_staging?.local_ignored_files_included, false);
+assert.equal(x0External.external_evidence?.live_staging?.secrets_included, false);
+assert.equal(x0External.external_evidence?.live_staging?.all_compose_services_healthy, true);
+assert.equal(x0External.external_evidence?.live_staging?.host_origin_http_status, 200);
+assert.equal(x0External.external_evidence?.live_staging?.production_mutation_performed, false);
+assert.equal(x0External.closure_semantics?.x1_entry_permitted, true);
+for (const key of ['runtime_cutover_authorized','production_mutation_authorized','provider_write_authorized','database_write_authorized','migration_apply_authorized']) assert.equal(x0External.closure_semantics?.[key], false);
+assert.equal(x0External.secrets_included, false);
+
 const completion = readJson(`${BASE}/completion.json`);
 assert.equal(completion.status, 'in_progress');
-assert.equal(completion.current_phase, 'X0_evidence_baseline_candidate');
-assert.equal(completion.next_phase, 'X1_contract_composition_shadow_after_X0_external_certification');
+assert.equal(completion.current_phase, 'X1_contract_composition_shadow_entry');
+assert.equal(completion.next_phase, 'X1_contract_composition_shadow_implementation');
 assert.equal(completion.evidence?.specification_package?.status, 'merged_baseline');
 assert.equal(completion.evidence?.owner_extension_registration?.status, 'merged_baseline');
-assert.equal(completion.evidence?.x0_evidence_baseline?.status, 'candidate_implementation_complete_external_certification_pending');
+assert.equal(completion.evidence?.x0_evidence_baseline?.status, 'merged_external_certification_complete');
 assert.equal(completion.evidence?.x0_evidence_baseline?.exact_head_ci_required, true);
+assert.equal(completion.evidence?.x0_evidence_baseline?.exact_head_ci_complete, true);
 assert.equal(completion.evidence?.x0_evidence_baseline?.live_staging_certification_required, true);
+assert.equal(completion.evidence?.x0_evidence_baseline?.live_staging_certification_complete, true);
 assert.equal(completion.evidence?.x0_evidence_baseline?.source_tree_may_self_attest, false);
+assert.equal(completion.evidence?.x0_evidence_baseline?.external_certification_reference, 'x0-external-certification-reference.json');
+assert.equal(completion.evidence?.x0_evidence_baseline?.certified_head_sha, x0External.certified_head_sha);
+assert.equal(completion.evidence?.x0_evidence_baseline?.merge_sha, x0External.merge_commit_sha);
 assert.equal(completion.evidence?.x0_evidence_baseline?.runtime_cutover, false);
 assert.equal(completion.evidence?.x0_evidence_baseline?.provider_effect_added, false);
 assert.equal(completion.evidence?.x0_evidence_baseline?.database_write_added, false);
 assert.equal(completion.evidence?.x0_evidence_baseline?.migration_added, false);
 assert.equal(completion.evidence?.x0_evidence_baseline?.production_mutation_authorized, false);
-assert.equal(completion.evidence?.ci?.status, 'external_exact_head_pending');
+assert.equal(completion.evidence?.ci?.status, 'external_exact_head_complete');
+assert.equal(completion.evidence?.ci?.head_sha, x0External.certified_head_sha);
 for (const key of ['runtime_authority','provider_write','database_write','migration_apply','deployment','protected_branch_write','secrets_included']) assert.equal(completion[key], false);
 
 const e2e = readJson(`${BASE}/e2e-phases.json`);
@@ -143,9 +178,10 @@ assert.equal(phaseMap.get('mvp')?.status, 'implemented');
 assert.equal(phaseMap.get('operational')?.status, 'blocked');
 for (const id of ['resilient','canary','production']) assert.equal(phaseMap.get(id)?.status, 'blocked');
 const operationalBlockers = phaseMap.get('operational')?.blockers ?? [];
-assert.ok(operationalBlockers.some((value) => /external exact-head/i.test(value)));
-assert.ok(operationalBlockers.some((value) => /live Staging certification/i.test(value)));
-assert.ok(operationalBlockers.some((value) => /X1 implementation is prohibited/i.test(value)));
+assert.ok(operationalBlockers.some((value) => /X1 Execution Capsule/i.test(value)));
+assert.ok(operationalBlockers.some((value) => /exact-head X1 CI/i.test(value)));
+assert.ok(!operationalBlockers.some((value) => /X0 candidate requires external exact-head/i.test(value)));
+assert.ok(!operationalBlockers.some((value) => /X1 implementation is prohibited/i.test(value)));
 for (const stale of ['PR #7930 exact-head convergence CI is not yet certified','T006 canonical identity/cutover owner approval remains pending','T008 Phase1 architecture/security/product owner approval remains pending']) assert.ok(!JSON.stringify(e2e).includes(stale), `stale operational blocker remains: ${stale}`);
 const journey = phaseMap.get('mvp').e2e_journeys?.[0];
 assert.equal(journey?.end_to_end, true);
@@ -154,10 +190,13 @@ assert.ok(journey?.tests?.some((test) => test.path === 'scripts/runtime-composit
 assert.ok(journey?.tests?.some((test) => test.path === 'test-governed-execution-baseline-telemetry.mjs'));
 assert.ok(journey?.tests?.some((test) => test.path === 'test-governed-execution-baseline-benchmark.mjs'));
 assert.ok(journey?.evidence_paths?.includes(`${X0}/x0-matched-runtime-fixtures.json`));
+assert.ok(journey?.evidence_paths?.includes(`${BASE}/x0-external-certification-reference.json`));
 
 const gates = readText(`${BASE}/tasks-and-gates.md`);
 for (const task of ['X001','X002','X003','X004','X005']) assert.match(gates, new RegExp(`- \\[x\\] \\*\\*${task}\\*\\*`));
-assert.match(gates, /Gate X0 external certification state: `pending`/);
+assert.match(gates, /Gate X0 external certification state: `complete_external`/);
+assert.match(gates, /source tree does not self-attest certification/);
+assert.match(gates, /X1 entry is now permitted/);
 assert.match(gates, /no runtime behavior change/);
 assert.match(gates, /Phase X1 — Contract composition shadow/);
 assert.match(gates, /- \[ \] \*\*X010\*\*/);
@@ -165,15 +204,16 @@ assert.match(gates, /no provider call from the shadow path/);
 assert.match(gates, /zero unexplained authority or target mismatch/);
 
 console.log(JSON.stringify({
-  schema:'mad4b.runtime-composition.spec-contract-check.v2',
+  schema:'mad4b.runtime-composition.spec-contract-check.v3',
   ok:true,
   feature_key:manifest.package_key,
   current_phase:e2e.current_phase,
-  x0_status:x0.status,
-  x0_base_main_sha:x0.base_main_sha,
+  x0_candidate_status:x0.status,
+  x0_gate_status:x0External.status,
+  x0_certified_head_sha:x0External.certified_head_sha,
+  x0_merge_sha:x0External.merge_commit_sha,
   x0_fixture_count:fixtures.fixtures.length,
-  x0_external_exact_head_attestation:x0.external_exact_head_attestation,
-  x0_live_staging_certification:x0.live_staging_certification,
+  x1_entry_permitted:x0External.closure_semantics.x1_entry_permitted,
   next_runtime_phase:completion.next_phase,
   wordpress_provider_profile:wp.status,
   runtime_authority:false,

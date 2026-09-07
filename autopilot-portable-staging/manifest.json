@@ -106,7 +106,7 @@
     },
     {
       "path": "http-generic-api/Dockerfile.staging",
-      "sha256": "20b5069d2f4f49dacbbce1498a7d22f5430df05d1c30bb1d5112832086eaa6b4"
+      "sha256": "763e2fbed99d2d2e6e452ec10ce3ecdc618dcee536269beab1625892abaa5c8b"
     },
     {
       "path": "http-generic-api/canonical-business-operation-parity.generated.json",
@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "1d7a74f5d0ba307c770a0bc87af1e0c58d754ac30825c7c4bd129056aaf4f1be"
+      "sha256": "3e9aadb9e13eaa45d815a7608de330bd002609702a3e446e9419ecb68a389404"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
@@ -138,7 +138,7 @@
     },
     {
       "path": "http-generic-api/docker-compose.staging.yml",
-      "sha256": "2c8c5c5cf7f76f3fb821c4f9cb48de62843a49e6cefb619a3249e2a0bf3b5080"
+      "sha256": "7a5bfb4cdf8f0539a47f3f31ec4e5e1144a223eaa92b2db98e4e29fc28a5c790"
     },
     {
       "path": "http-generic-api/docker-compose.yml",
@@ -150,7 +150,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "1ed756a396577f585cd80664894824e5086e1416e2bd9d537f899fb38ae72f05"
+      "sha256": "3c627fe46cb800ea6ffbc920c4d43f8eed3131fdfde2cb58e578eb8da8eaf6f1"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "a4ca1f207ce7352f59e190a23b7a4a598a2a74beeec5f3b147d55cafacbbc6a5"
+      "sha256": "64d2141c8ac2de3537b5d39ccbe7262110c2cc2acad9af93435b19ccc41ba8cf"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",

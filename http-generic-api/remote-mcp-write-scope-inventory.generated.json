@@ -8,14 +8,14 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7579,
-  "route_count": 1109,
-  "write_route_count": 671,
+  "file_count": 7574,
+  "route_count": 1100,
+  "write_route_count": 667,
   "classified_write_surface_count": 42,
-  "classified_write_route_count": 671,
+  "classified_write_route_count": 667,
   "unclassified_write_route_count": 0,
-  "intentionally_unmapped_write_route_count": 629,
-  "sensitive_intentionally_unmapped_write_route_count": 629,
+  "intentionally_unmapped_write_route_count": 625,
+  "sensitive_intentionally_unmapped_write_route_count": 625,
   "migration_count": 447,
   "registry_evidence_count": 110,
   "write_scope_count": 6,
@@ -4711,8 +4711,8 @@
     },
     {
       "route_id": "http-generic-api/routes/mcpRoutes.js#POST:/mcp/initialize:0",
-      "source_line": 50,
-      "source_offset": 2298,
+      "source_line": 36,
+      "source_offset": 1558,
       "method": "POST",
       "path": "/mcp/initialize",
       "file": "http-generic-api/routes/mcpRoutes.js",
@@ -4720,8 +4720,8 @@
     },
     {
       "route_id": "http-generic-api/routes/mcpRoutes.js#GET:/mcp/tools/list:1",
-      "source_line": 51,
-      "source_offset": 2388,
+      "source_line": 37,
+      "source_offset": 1648,
       "method": "GET",
       "path": "/mcp/tools/list",
       "file": "http-generic-api/routes/mcpRoutes.js",
@@ -4729,8 +4729,8 @@
     },
     {
       "route_id": "http-generic-api/routes/mcpRoutes.js#POST:/mcp/tools/call:2",
-      "source_line": 52,
-      "source_offset": 2476,
+      "source_line": 38,
+      "source_offset": 1736,
       "method": "POST",
       "path": "/mcp/tools/call",
       "file": "http-generic-api/routes/mcpRoutes.js",
@@ -9792,87 +9792,6 @@
       "method": "DELETE",
       "path": "/uploads/:upload_id",
       "file": "http-generic-api/routes/uploadRoutes.js",
-      "write": true
-    },
-    {
-      "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#GET:/.well-known/oauth-authorization-server/auth/mcp/wordpress-staging:0",
-      "source_line": 251,
-      "source_offset": 11928,
-      "method": "GET",
-      "path": "/.well-known/oauth-authorization-server/auth/mcp/wordpress-staging",
-      "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
-      "write": false
-    },
-    {
-      "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#GET:/.well-known/openid-configuration/auth/mcp/wordpress-staging:1",
-      "source_line": 252,
-      "source_offset": 12027,
-      "method": "GET",
-      "path": "/.well-known/openid-configuration/auth/mcp/wordpress-staging",
-      "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
-      "write": false
-    },
-    {
-      "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#GET:/auth/mcp/wordpress-staging/.well-known/oauth-authorization-server:2",
-      "source_line": 253,
-      "source_offset": 12120,
-      "method": "GET",
-      "path": "/auth/mcp/wordpress-staging/.well-known/oauth-authorization-server",
-      "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
-      "write": false
-    },
-    {
-      "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#GET:/auth/mcp/wordpress-staging/oauth/jwks:3",
-      "source_line": 255,
-      "source_offset": 12220,
-      "method": "GET",
-      "path": "/auth/mcp/wordpress-staging/oauth/jwks",
-      "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
-      "write": false
-    },
-    {
-      "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#POST:/auth/mcp/wordpress-staging/oauth/register:4",
-      "source_line": 263,
-      "source_offset": 12724,
-      "method": "POST",
-      "path": "/auth/mcp/wordpress-staging/oauth/register",
-      "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
-      "write": true
-    },
-    {
-      "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#GET:/auth/mcp/wordpress-staging/oauth/authorize:5",
-      "source_line": 310,
-      "source_offset": 15453,
-      "method": "GET",
-      "path": "/auth/mcp/wordpress-staging/oauth/authorize",
-      "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
-      "write": false
-    },
-    {
-      "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#POST:/auth/mcp/wordpress-staging/oauth/code:6",
-      "source_line": 347,
-      "source_offset": 18221,
-      "method": "POST",
-      "path": "/auth/mcp/wordpress-staging/oauth/code",
-      "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
-      "write": true
-    },
-    {
-      "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#POST:/auth/mcp/wordpress-staging/oauth/token:7",
-      "source_line": 391,
-      "source_offset": 21451,
-      "method": "POST",
-      "path": "/auth/mcp/wordpress-staging/oauth/token",
-      "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
-      "write": true
-    },
-    {
-      "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#POST:/auth/mcp/wordpress-staging/oauth/revoke:8",
-      "source_line": 444,
-      "source_offset": 26797,
-      "method": "POST",
-      "path": "/auth/mcp/wordpress-staging/oauth/revoke",
-      "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
       "write": true
     },
     {
@@ -30049,10 +29968,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/mcpRoutes.js",
-        "source_line": 50,
+        "source_line": 36,
         "handler_window_lines": [
-          50,
-          50
+          36,
+          36
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -30107,10 +30026,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/mcpRoutes.js",
-        "source_line": 52,
+        "source_line": 38,
         "handler_window_lines": [
-          52,
-          56
+          38,
+          42
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -52624,272 +52543,6 @@
       "reason": "registry_mutation_requires_live_schema_and_policy_contract"
     },
     {
-      "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#POST:/auth/mcp/wordpress-staging/oauth/register:4",
-      "classification": "intentionally_unmapped",
-      "mapping_status": "blocked",
-      "domain": "identity",
-      "operation_class": "create_or_request",
-      "evidence": {
-        "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
-        "source_line": 263,
-        "handler_window_lines": [
-          263,
-          308
-        ],
-        "evidence_flags": {
-          "handler_window_present": true,
-          "provider_signal": false,
-          "db_registry_signal": false,
-          "authority_signal": true,
-          "readback_signal": true,
-          "mutation_signal": true
-        },
-        "signals": {
-          "provider": [],
-          "db_registry": [],
-          "authority": [
-            "authority",
-            "scope",
-            "scope",
-            "scope"
-          ],
-          "readback": [
-            "response"
-          ],
-          "mutation": [
-            "create"
-          ]
-        },
-        "static_only": true,
-        "secrets_included": false
-      },
-      "evidence_confidence": {
-        "level": "low_static",
-        "basis": "handler_window_signals_only",
-        "authorizes": false
-      },
-      "promotion_prerequisites": [
-        "explicit_resource_operation_scope_binding",
-        "live_resource_authority_binding",
-        "approval_policy_evidence",
-        "capability_envelope_evidence",
-        "lease_evidence",
-        "staging_environment",
-        "same_cycle_readback_contract"
-      ],
-      "promotion_status": "blocked",
-      "scope_keys": [],
-      "resource_candidate": "identity",
-      "resource_key": null,
-      "operation_key": null,
-      "authority_required": true,
-      "provider_mutation_allowed": false,
-      "readback_required": true,
-      "owner": "identity-governance",
-      "classification_confidence": "heuristic_requires_manual_confirmation",
-      "risk_class": "critical",
-      "reason": "credential_or_identity_mutation_requires_security_contract"
-    },
-    {
-      "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#POST:/auth/mcp/wordpress-staging/oauth/code:6",
-      "classification": "intentionally_unmapped",
-      "mapping_status": "blocked",
-      "domain": "identity",
-      "operation_class": "create_or_request",
-      "evidence": {
-        "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
-        "source_line": 347,
-        "handler_window_lines": [
-          347,
-          389
-        ],
-        "evidence_flags": {
-          "handler_window_present": true,
-          "provider_signal": true,
-          "db_registry_signal": false,
-          "authority_signal": true,
-          "readback_signal": true,
-          "mutation_signal": false
-        },
-        "signals": {
-          "provider": [
-            "request("
-          ],
-          "db_registry": [],
-          "authority": [
-            "authority",
-            "scope",
-            "scope",
-            "scope"
-          ],
-          "readback": [
-            "verify"
-          ],
-          "mutation": []
-        },
-        "static_only": true,
-        "secrets_included": false
-      },
-      "evidence_confidence": {
-        "level": "low_static",
-        "basis": "handler_window_signals_only",
-        "authorizes": false
-      },
-      "promotion_prerequisites": [
-        "explicit_resource_operation_scope_binding",
-        "live_resource_authority_binding",
-        "approval_policy_evidence",
-        "capability_envelope_evidence",
-        "lease_evidence",
-        "staging_environment",
-        "same_cycle_readback_contract",
-        "provider_adapter_allowlist",
-        "provider_idempotency",
-        "provider_rollback_or_compensation"
-      ],
-      "promotion_status": "blocked",
-      "scope_keys": [],
-      "resource_candidate": "identity",
-      "resource_key": null,
-      "operation_key": null,
-      "authority_required": true,
-      "provider_mutation_allowed": false,
-      "readback_required": true,
-      "owner": "identity-governance",
-      "classification_confidence": "heuristic_requires_manual_confirmation",
-      "risk_class": "critical",
-      "reason": "credential_or_identity_mutation_requires_security_contract"
-    },
-    {
-      "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#POST:/auth/mcp/wordpress-staging/oauth/token:7",
-      "classification": "intentionally_unmapped",
-      "mapping_status": "blocked",
-      "domain": "identity",
-      "operation_class": "create_or_request",
-      "evidence": {
-        "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
-        "source_line": 391,
-        "handler_window_lines": [
-          391,
-          442
-        ],
-        "evidence_flags": {
-          "handler_window_present": true,
-          "provider_signal": false,
-          "db_registry_signal": false,
-          "authority_signal": true,
-          "readback_signal": true,
-          "mutation_signal": true
-        },
-        "signals": {
-          "provider": [],
-          "db_registry": [],
-          "authority": [
-            "authority",
-            "scope",
-            "scope",
-            "scope"
-          ],
-          "readback": [
-            "verify"
-          ],
-          "mutation": [
-            "create"
-          ]
-        },
-        "static_only": true,
-        "secrets_included": false
-      },
-      "evidence_confidence": {
-        "level": "low_static",
-        "basis": "handler_window_signals_only",
-        "authorizes": false
-      },
-      "promotion_prerequisites": [
-        "explicit_resource_operation_scope_binding",
-        "live_resource_authority_binding",
-        "approval_policy_evidence",
-        "capability_envelope_evidence",
-        "lease_evidence",
-        "staging_environment",
-        "same_cycle_readback_contract"
-      ],
-      "promotion_status": "blocked",
-      "scope_keys": [],
-      "resource_candidate": "identity",
-      "resource_key": null,
-      "operation_key": null,
-      "authority_required": true,
-      "provider_mutation_allowed": false,
-      "readback_required": true,
-      "owner": "identity-governance",
-      "classification_confidence": "heuristic_requires_manual_confirmation",
-      "risk_class": "critical",
-      "reason": "credential_or_identity_mutation_requires_security_contract"
-    },
-    {
-      "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#POST:/auth/mcp/wordpress-staging/oauth/revoke:8",
-      "classification": "intentionally_unmapped",
-      "mapping_status": "blocked",
-      "domain": "identity",
-      "operation_class": "create_or_request",
-      "evidence": {
-        "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
-        "source_line": 444,
-        "handler_window_lines": [
-          444,
-          469
-        ],
-        "evidence_flags": {
-          "handler_window_present": true,
-          "provider_signal": false,
-          "db_registry_signal": false,
-          "authority_signal": true,
-          "readback_signal": true,
-          "mutation_signal": false
-        },
-        "signals": {
-          "provider": [],
-          "db_registry": [],
-          "authority": [
-            "authority"
-          ],
-          "readback": [
-            "verify"
-          ],
-          "mutation": []
-        },
-        "static_only": true,
-        "secrets_included": false
-      },
-      "evidence_confidence": {
-        "level": "low_static",
-        "basis": "handler_window_signals_only",
-        "authorizes": false
-      },
-      "promotion_prerequisites": [
-        "explicit_resource_operation_scope_binding",
-        "live_resource_authority_binding",
-        "approval_policy_evidence",
-        "capability_envelope_evidence",
-        "lease_evidence",
-        "staging_environment",
-        "same_cycle_readback_contract"
-      ],
-      "promotion_status": "blocked",
-      "scope_keys": [],
-      "resource_candidate": "identity",
-      "resource_key": null,
-      "operation_key": null,
-      "authority_required": true,
-      "provider_mutation_allowed": false,
-      "readback_required": true,
-      "owner": "identity-governance",
-      "classification_confidence": "heuristic_requires_manual_confirmation",
-      "risk_class": "critical",
-      "reason": "credential_or_identity_mutation_requires_security_contract"
-    },
-    {
       "route_id": "http-generic-api/routes/workflowOrchestrationLegacyRoutes.js#POST:/workflow-runs:0",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
@@ -53588,18 +53241,18 @@
   ],
   "evidence_graph": {
     "node_counts": {
-      "routes": 671,
+      "routes": 667,
       "domains": 11,
-      "handler_files": 134
+      "handler_files": 133
     },
     "edge_counts": {
-      "route_to_handler_file": 671,
-      "route_to_domain": 671,
-      "route_to_provider_signal": 100,
+      "route_to_handler_file": 667,
+      "route_to_domain": 667,
+      "route_to_provider_signal": 99,
       "route_to_db_registry_signal": 0,
-      "route_to_authority_signal": 423,
-      "route_to_readback_signal": 380,
-      "route_to_mutation_signal": 385,
+      "route_to_authority_signal": 419,
+      "route_to_readback_signal": 376,
+      "route_to_mutation_signal": 383,
       "route_to_explicit_scope_candidate": 42
     },
     "execution_edges_are_non_authorizing": true,
@@ -60042,8 +59695,8 @@
     {
       "severity": "high",
       "code": "INTENTIONALLY_UNMAPPED_WRITE_ROUTES_BLOCKED",
-      "count": 629,
-      "sensitive_count": 629
+      "count": 625,
+      "sensitive_count": 625
     },
     {
       "severity": "medium",
