@@ -763,6 +763,17 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": "http-generic-api/test-github-app-installation-discovery.mjs|TEST_GITHUB_APP_PRIVATE_KEY|environment_reference|test.github.app.private.key",
+      "owner": "test-governance",
+      "reason": "Synthetic GitHub App private-key credential reference used only by the installation-discovery regression test; no credential value is committed and it grants no runtime, repository, provider, database, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "credential_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": "http-generic-api/test-mariadb-collation-ci-guard.mjs|sha2Default|literal_declaration|sha2default",
       "owner": "repository-governance",
       "reason": "The SHA2 default fixture is a non-secret static regression input proving omitted required ordinary columns are rejected without the exact sentinel default; it grants no runtime, database, provider, protected-ref, or Production mutation authority.",
