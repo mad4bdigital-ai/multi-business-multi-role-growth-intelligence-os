@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "c4dd9e4f1f5bb6a0d8d7476e2ef528610f4595923ec28aac670c5c9cd711697c",
+    "source_digest": "6794b8f5763229f9c0d048744c6e64087c5b8c6f048267866e3fc4b1936c219a",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -981,7 +981,7 @@
       },
       {
         "file": "routes/stagingRecoveryAdminRoutes.js",
-        "sha256": "c925f478f8f9b6cd6432b901ebeef46dea6ced2ed683968d20765676079cd278",
+        "sha256": "7d1ca3bc85b41563efe5d0255e17fabc54c0f5766e7f4b9e0897e342910bdb5d",
         "present": true
       },
       {
@@ -3733,7 +3733,7 @@
       "family_key": "staging-recovery-admin",
       "label": "staging recovery admin",
       "source_file": "routes/stagingRecoveryAdminRoutes.js",
-      "source_digest": "c925f478f8f9b6cd6432b901ebeef46dea6ced2ed683968d20765676079cd278",
+      "source_digest": "7d1ca3bc85b41563efe5d0255e17fabc54c0f5766e7f4b9e0897e342910bdb5d",
       "mount_prefix": "/",
       "mount_order": 13507,
       "split_from_mixed_scope_file": false,
@@ -3765,6 +3765,8 @@
               "requireBackendApiKey"
             ],
             "evidence": [
+              "router.use:requireAdminPrincipal",
+              "router.use:requireBackendApiKey",
               "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
@@ -3832,6 +3834,8 @@
               "requireBackendApiKey"
             ],
             "evidence": [
+              "router.use:requireAdminPrincipal",
+              "router.use:requireBackendApiKey",
               "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
@@ -3899,6 +3903,8 @@
               "requireBackendApiKey"
             ],
             "evidence": [
+              "router.use:requireAdminPrincipal",
+              "router.use:requireBackendApiKey",
               "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
@@ -3966,6 +3972,8 @@
               "requireBackendApiKey"
             ],
             "evidence": [
+              "router.use:requireAdminPrincipal",
+              "router.use:requireBackendApiKey",
               "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
@@ -4063,6 +4071,8 @@
               "requireBackendApiKey"
             ],
             "evidence": [
+              "router.use:requireAdminPrincipal",
+              "router.use:requireBackendApiKey",
               "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
@@ -4160,6 +4170,8 @@
               "requireBackendApiKey"
             ],
             "evidence": [
+              "router.use:requireAdminPrincipal",
+              "router.use:requireBackendApiKey",
               "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
