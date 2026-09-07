@@ -85,6 +85,24 @@ function Require-Command([string]$Name) {
     if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) { Fail "Required command is missing: $Name" }
 }
 
+function Get-StagingComposeArgs([string]$ApiPath, [string]$EnvPath, [string]$Mode) {
+    $arguments = @(
+        "compose",
+        "-f", (Join-Path $ApiPath "docker-compose.yml"),
+        "-f", (Join-Path $ApiPath "docker-compose.staging.yml")
+    )
+    $override = switch ($Mode) {
+        "windows_service" { Join-Path $ApiPath "docker-compose.staging.windows-service.yml" }
+        "docker_sidecar" { Join-Path $ApiPath "docker-compose.staging.docker-sidecar.yml" }
+        default { $null }
+    }
+    if ($null -ne $override) {
+        if (-not (Test-Path -LiteralPath $override -PathType Leaf)) { Fail "Required Staging Compose topology override is missing: $override" }
+        $arguments += @("-f", $override)
+    }
+    return @($arguments + @("--env-file", $EnvPath))
+}
+
 function Invoke-NativeText([string]$File, [string[]]$Arguments) {
     if ($File -ieq "git") {
         try {
@@ -299,7 +317,7 @@ function Test-LocalDeploymentHealthy([string]$Sha, $Runtime) {
     $imageDigest = [string](Get-OptionalPropertyValue $Runtime "app_image_digest")
     if ($runtimeCommit -ne $Sha) { return $false }
     if ($imageDigest -notmatch '^sha256:[0-9a-fA-F]{64}$') { return $false }
-    $compose = @("compose", "-f", $composeBase, "-f", $composeStage, "--env-file", $envFile)
+    $compose = @(Get-StagingComposeArgs $apiPath $envFile $TunnelMode)
     foreach ($service in @("redis", "runtime-db", "governance-db", "persistence-db", "app")) {
         $id = (& docker @compose ps -q $service 2>$null | Out-String).Trim()
         if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($id)) { return $false }
@@ -359,7 +377,7 @@ function Invoke-ReadOnlyConvergencePreflight([string]$Sha) {
 }
 
 function Refresh-AppAfterOriginTrustChange([string]$Sha) {
-    $compose = @("compose", "-f", $composeBase, "-f", $composeStage, "--env-file", $envFile)
+    $compose = @(Get-StagingComposeArgs $apiPath $envFile $TunnelMode)
     Enter-DeploymentLease "app_origin_trust_refresh" $Sha "deploying" 300
     & docker @($compose + @("up", "-d", "--no-build", "app"))
     if ($LASTEXITCODE -ne 0) { Fail "App runtime refresh after Gateway trust convergence failed" @{ stage = "convergence"; failure_class = "app_origin_trust_refresh_failed"; expected_commit = $Sha } }
@@ -402,11 +420,11 @@ function Invoke-GatewayConvergence([string]$Sha, $Recovery) {
 }
 
 function Invoke-CertificationOnly([string]$Sha) {
-    Enter-DeploymentLease "certification" $Sha "certifying" 600
+    [void](Enter-DeploymentLease "certification" $Sha "certifying" 600)
     $certArgs = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $certificationScript, "-RepositoryPath", $RepositoryPath, "-ExpectedCommit", $Sha, "-Ref", $Ref, "-StatePath", $runtimeStatePath)
     $certArgs += @("-TunnelMode", $TunnelMode)
     Write-Host "> powershell.exe -File Invoke-StagingCertification.ps1 (re-certify exact deployed commit)"
-    & powershell.exe @certArgs
+    & powershell.exe @certArgs | ForEach-Object { Write-Host $_ }
     if ($LASTEXITCODE -ne 0) {
         $gateway = Get-GatewayHealthEvidence $Sha
         $runtime = Read-State $runtimeStatePath
@@ -414,7 +432,8 @@ function Invoke-CertificationOnly([string]$Sha) {
         $failureClass = if ($null -ne $recovery) { "gateway_exact_commit_mismatch" } else { "certification_blocked" }
         Fail "Re-certification blocked deployed commit $Sha; refusing blind redeploy" @{ stage = "certification"; failure_class = $failureClass; expected_commit = $Sha; observed_commit = [string]$gateway.source_commit; blocking_reason = if ($null -ne $runtime) { (@((Get-OptionalPropertyValue $runtime "certification_blocking_failures")) -join ",") } else { "unavailable" } }
     }
-    return Get-CertificationState $runtimeStatePath $Sha
+    $certificationState = Get-CertificationState $runtimeStatePath $Sha
+    Write-Output -NoEnumerate $certificationState
 }
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -509,11 +528,13 @@ while ($true) {
             }
         }
         $runtimeState = Invoke-CertificationOnly $sha
-        $phaseState.certification = [string]$runtimeState.certification_status
-        Write-AutoDeployState $sha $eligibility $runtimeState $false $phaseState $(if ($runtimeState.certification_status -eq "ready") { "ready" } else { "degraded" })
+        $certificationStatus = [string](Get-OptionalPropertyValue $runtimeState "certification_status")
+        if ([string]::IsNullOrWhiteSpace($certificationStatus)) { Fail "Re-certification returned no certification_status" @{ stage = "certification"; failure_class = "certification_contract_invalid"; expected_commit = $sha } }
+        $phaseState.certification = $certificationStatus
+        Write-AutoDeployState $sha $eligibility $runtimeState $false $phaseState $(if ($certificationStatus -eq "ready") { "ready" } else { "degraded" })
         $previous = Read-State $statePath
         Exit-DeploymentLease
-        if ([string]$runtimeState.certification_status -eq "ready") {
+        if ($certificationStatus -eq "ready") {
             Write-Host "AUTO_DEPLOY_CERTIFIED: staging commit=$sha"
         } else {
             Write-StagingLog -Level warning -Component $LogComponent -Stage "certification" -Message "deployed commit remains degraded; watcher will re-certify without redeploy" -Data @{ sha = $sha; reasons = @($runtimeState.certification_degraded_reasons) }
@@ -572,12 +593,14 @@ while ($true) {
                 $phaseState.convergence = "succeeded"
             }
 
-            $phaseState.certification = [string]$runtimeState.certification_status
-            Write-AutoDeployState $sha $eligibility $runtimeState $false $phaseState $(if ($runtimeState.certification_status -eq "ready") { "ready" } else { "degraded" })
-            Write-Host "AUTO_DEPLOY_APPLIED: staging commit=$sha tunnel_mode=$TunnelMode certification=$($runtimeState.certification_status) phases=eligibility:$($phaseState.eligibility),build:$($phaseState.build),deployment:$($phaseState.deployment),service_health:$($phaseState.service_health),convergence:$($phaseState.convergence),certification:$($phaseState.certification)"
-            Write-StagingOperationBoundary -Component $LogComponent -Stage "deploy" -Outcome "success" -Message "eligible Staging commit applied" -Data @{ sha = $sha; tunnel_started = [bool]$TunnelSelected; tunnel_mode = $TunnelMode; provider_mutation_authorized = $false; provider_mutation = [bool]$script:ProviderMutationPerformed; provider_mutation_scope = [string]$script:ProviderMutationScope; certification_status = $runtimeState.certification_status; deployment = $phaseState.deployment; convergence = $phaseState.convergence }
+            $certificationStatus = [string](Get-OptionalPropertyValue $runtimeState "certification_status")
+            if ([string]::IsNullOrWhiteSpace($certificationStatus)) { Fail "Deployment returned no certification_status" @{ stage = "certification"; failure_class = "certification_contract_invalid"; expected_commit = $sha } }
+            $phaseState.certification = $certificationStatus
+            Write-AutoDeployState $sha $eligibility $runtimeState $false $phaseState $(if ($certificationStatus -eq "ready") { "ready" } else { "degraded" })
+            Write-Host "AUTO_DEPLOY_APPLIED: staging commit=$sha tunnel_mode=$TunnelMode certification=$certificationStatus phases=eligibility:$($phaseState.eligibility),build:$($phaseState.build),deployment:$($phaseState.deployment),service_health:$($phaseState.service_health),convergence:$($phaseState.convergence),certification:$($phaseState.certification)"
+            Write-StagingOperationBoundary -Component $LogComponent -Stage "deploy" -Outcome "success" -Message "eligible Staging commit applied" -Data @{ sha = $sha; tunnel_started = [bool]$TunnelSelected; tunnel_mode = $TunnelMode; provider_mutation_authorized = $false; provider_mutation = [bool]$script:ProviderMutationPerformed; provider_mutation_scope = [string]$script:ProviderMutationScope; certification_status = $certificationStatus; deployment = $phaseState.deployment; convergence = $phaseState.convergence }
             Exit-DeploymentLease
-            if ([string]$runtimeState.certification_status -eq "degraded" -and -not $Watch) { Fail "Staging commit $sha is running but not certified ready" @{ stage = "certification"; failure_class = "certification_degraded"; expected_commit = $sha } }
+            if ($certificationStatus -eq "degraded" -and -not $Watch) { Fail "Staging commit $sha is running but not certified ready" @{ stage = "certification"; failure_class = "certification_degraded"; expected_commit = $sha } }
             if (-not $Watch) { Release-AutoPilotRunLock; return }
             $previous = Read-State $statePath
         }
