@@ -26,7 +26,6 @@ const envKeys = [
   "RECOVERY_STAGING_READINESS_DIRECTORY",
   "RECOVERY_STAGING_INGRESS_REPLAY_DIRECTORY",
   "DEPLOYMENT_MANIFEST_JSON",
-  "DEPLOYMENT_MANIFEST_PATH",
   "DEPLOY_BRANCH",
   "DEPLOY_COMMIT",
   "DEPLOYMENT_EXPECTED_COMMIT_SHA",
@@ -88,7 +87,6 @@ try {
       secrets_included: false,
     }),
   });
-  delete process.env.DEPLOYMENT_MANIFEST_PATH;
 
   // A stale or invalid release-certification pointer must not poison bounded
   // PR-head readiness. PR-head certification is not release certification.
