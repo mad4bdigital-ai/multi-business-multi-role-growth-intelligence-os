@@ -1,0 +1,151 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "wordpress-staging-mcp-oauth-federation-20260907",
+  "title": "WordPress Staging MCP OAuth federation",
+  "delivery_mode": "single_pr",
+  "current_phase": "operational",
+  "scope": {
+    "include": [
+      "http-generic-api/wordpressStagingMcpOAuthProfile.js",
+      "http-generic-api/wordpressStagingMcpOAuthTokens.js",
+      "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
+      "http-generic-api/routes/mcpRoutes.js",
+      "http-generic-api/scripts/ensure-wordpress-staging-mcp-oauth-key.mjs",
+      "http-generic-api/docker-compose.staging.yml",
+      "http-generic-api/Dockerfile.staging",
+      "http-generic-api/test-wordpress-staging-mcp-oauth-key-bootstrap.mjs",
+      "http-generic-api/test-wordpress-staging-mcp-oauth-federation.mjs",
+      "http-generic-api/scripts/manifests/test-manifest-spec017.mjs",
+      ".changes/e2e/wordpress-staging-mcp-oauth-federation-20260907.json"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "secrets_included": false,
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Expose a Staging-only path-scoped OAuth issuer for the exact WordPress mad4b-read resource without changing the primary Remote MCP resource or Production authority.",
+      "e2e_journeys": [
+        {
+          "id": "wordpress-staging-oauth-asymmetric-resource-binding",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "ChatGPT-compatible public OAuth client",
+          "entrypoint": "RFC 8414 discovery followed by DCR, PKCE authorization code, token exchange, refresh, and JWKS verification",
+          "terminal_outcome": "The client receives only resource-bound RS256 mad4b-read access while the WordPress resource server needs no private signing authority.",
+          "steps": [
+            "Discover the dedicated path-scoped Staging authorization server and public JWKS.",
+            "Register an allowlisted ChatGPT callback without enabling DCR on the primary MCP issuer.",
+            "Authorize the exact WordPress mad4b-read resource with PKCE S256 and explicit consent.",
+            "Exchange the single-use code for an RS256 access token and opaque refresh token.",
+            "Verify issuer, audience, resource, scope, kid and RSA signature using only the public JWK."
+          ],
+          "assertions": [
+            "The access token is RS256 and cannot be validated by the primary HS256 OAuth signing secret.",
+            "The exact WordPress resource is the JWT audience and resource claim.",
+            "mad4b:write and alternate resources fail closed.",
+            "Primary Remote MCP DCR remains disabled when only the WordPress Staging DCR switch is enabled.",
+            "No Production or mutation authority is introduced."
+          ],
+          "tests": [
+            {
+              "id": "wordpress-staging-mcp-oauth-federation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-wordpress-staging-mcp-oauth-federation.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/wordpressStagingMcpOAuthProfile.js",
+            "http-generic-api/wordpressStagingMcpOAuthTokens.js",
+            "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
+            "http-generic-api/test-wordpress-staging-mcp-oauth-federation.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "implemented",
+      "objective": "Persist the dedicated RSA signing key across Staging container restarts and support refresh-token continuity with offline_access while preserving resource isolation.",
+      "e2e_journeys": [
+        {
+          "id": "wordpress-staging-oauth-key-and-refresh-continuity",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging authorization-server runtime",
+          "entrypoint": "Staging container startup followed by OAuth authorization and refresh",
+          "terminal_outcome": "A persistent 3072-bit RSA key is generated once under the Staging data volume, restart preserves it, and refresh rotation remains bound to the exact WordPress resource.",
+          "steps": [
+            "Generate the private RSA key only when the Staging-only OAuth federation is enabled and no key exists.",
+            "Persist the key under the mounted /app/data OAuth directory with private file permissions.",
+            "Validate and reuse the same key on subsequent startup rather than rotating implicitly.",
+            "Advertise offline_access plus refresh_token support without granting any mutation scope.",
+            "Rotate refresh tokens and reject replay while retaining exact resource and read scope binding."
+          ],
+          "assertions": [
+            "Key bootstrap refuses Production runtime.",
+            "The private key never enters Git, the image, WordPress, JWKS, logs or tool output.",
+            "The public JWKS contains standard RSA n/e material and no x5c requirement.",
+            "Refresh succeeds without requiring the client to resend resource and cannot move to another resource.",
+            "offline_access is a refresh capability only and does not imply write authority."
+          ],
+          "tests": [
+            {
+              "id": "wordpress-staging-mcp-oauth-key-bootstrap",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-wordpress-staging-mcp-oauth-key-bootstrap.mjs",
+              "args": []
+            },
+            {
+              "id": "wordpress-staging-mcp-oauth-federation-refresh",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-wordpress-staging-mcp-oauth-federation.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/scripts/ensure-wordpress-staging-mcp-oauth-key.mjs",
+            "http-generic-api/docker-compose.staging.yml",
+            "http-generic-api/Dockerfile.staging",
+            "http-generic-api/test-wordpress-staging-mcp-oauth-key-bootstrap.mjs",
+            "http-generic-api/test-wordpress-staging-mcp-oauth-federation.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise external dependency faults, signing-key recovery and refresh races against the real Staging ingress."
+    },
+    {
+      "id": "canary",
+      "status": "blocked",
+      "objective": "Complete the real ChatGPT to WordPress Staging OAuth handshake and MCP tool scan.",
+      "blockers": [
+        "Requires deployment of the exact PR head to the local Staging runtime and exact WordPress candidate package.",
+        "Requires a real external ChatGPT OAuth session and subject-bridge readback."
+      ]
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "Production federation is explicitly outside this change and remains separately gated."
+    }
+  ]
+}
