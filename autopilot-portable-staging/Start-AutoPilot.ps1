@@ -330,6 +330,27 @@ function Find-ExactStagingImageId([string]$ExpectedCommit, [string]$ExpectedTree
         if ($LASTEXITCODE -eq 0) {
             $candidateIds += @($composeImageQuery -split "\s+" | Where-Object { $_ -match '^sha256:[0-9a-fA-F]{64}$' })
         }
+        # Immediately after `compose build`, there may be no new app container yet,
+        # so `compose images -q app` can still resolve the previous container image.
+        # Resolve the effective app image reference from the fully interpolated
+        # Compose model, inspect that local tag, and feed only its immutable ID into
+        # the same exact-provenance validator below.
+        try {
+            $composeModelJson = (& docker @($ComposeArgs + @("config", "--format", "json")) 2>$null | Out-String).Trim()
+            if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($composeModelJson)) {
+                $composeModel = $composeModelJson | ConvertFrom-Json
+                $effectiveImageRef = [string]$composeModel.services.app.image
+                if (-not [string]::IsNullOrWhiteSpace($effectiveImageRef)) {
+                    $effectiveImageId = (& docker image inspect --format '{{.Id}}' $effectiveImageRef 2>$null | Out-String).Trim()
+                    if ($LASTEXITCODE -eq 0 -and $effectiveImageId -match '^sha256:[0-9a-fA-F]{64}$') {
+                        $candidateIds += $effectiveImageId.ToLowerInvariant()
+                    }
+                }
+            }
+        } catch {
+            # Continue to the label-index fallback. Candidate acceptance remains
+            # fail-closed in Test-ExactStagingImage.
+        }
     }
     $labelQuery = (Get-NativeText "docker" @("image", "ls", "--no-trunc", "--filter", "label=org.mad4b.staging.provenance.contract=mad4b.staging-build-provenance.v1", "--format", "{{.ID}}")).Trim()
     $candidateIds += @($labelQuery -split "\s+" | Where-Object { $_ -match '^sha256:[0-9a-fA-F]{64}$' })

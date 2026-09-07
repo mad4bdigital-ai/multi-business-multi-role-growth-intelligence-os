@@ -10,6 +10,7 @@ const MANIFEST_PATH = path.join(REPO_ROOT, MANIFEST_RELATIVE_PATH);
 const REQUIRED_PORTABLE_STAGING_FILES = [
   "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
   "autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1",
+  "autopilot-portable-staging/Start-AutoPilot.ps1",
   "autopilot-portable-staging/Converge-StagingActivationGateway.ps1",
   "autopilot-portable-staging/activation-gateway-smart-convergence-policy.json",
   "autopilot-portable-staging/Staging-Environment.ps1",

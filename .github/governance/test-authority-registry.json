@@ -425,6 +425,7 @@
     {
       "id": "staging_autopilot_git_transport_resilience",
       "test_paths": [
+        "http-generic-api/test-staging-post-build-image-discovery.mjs",
         "http-generic-api/test-staging-autopilot-closure.mjs",
         "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
         "http-generic-api/test-staging-one-click-autopilot-core.mjs",
@@ -432,7 +433,8 @@
         "http-generic-api/test-staging-schema-governance-powershell-revision-contract.mjs",
         "http-generic-api/test-staging-auto-deploy-contract.mjs",
         "http-generic-api/test-staging-cloudflared-log-release.mjs",
-        "autopilot-portable-staging/Staging-GitTransport.ps1"
+        "autopilot-portable-staging/Staging-GitTransport.ps1",
+        "autopilot-portable-staging/Start-AutoPilot.ps1"
       ]
     },
     {
