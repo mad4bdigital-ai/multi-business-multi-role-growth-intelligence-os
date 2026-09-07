@@ -9,8 +9,6 @@ import {
   classifyRemoteMcpClientProfile,
   createOpaqueToken,
   fixedTimeSecretEqual,
-  generateRemoteMcpClientId,
-  isRemoteMcpClientIdForEnvironment,
   normalizeRemoteMcpRedirectUri,
   normalizeTokenEndpointAuthMethod,
   remoteMcpDynamicClientRegistrationAdvertised,
@@ -21,12 +19,18 @@ import {
 } from "../remoteMcpOAuthProfile.js";
 import {
   WORDPRESS_STAGING_MCP_AUTHORIZATION_SCOPES,
+  WORDPRESS_STAGING_MCP_CLIENT_ID_PREFIX,
   WORDPRESS_STAGING_MCP_SCOPE,
   buildWordpressStagingMcpJwks,
+  generateWordpressStagingMcpClientId,
+  isWordpressStagingMcpClientId,
+  isWordpressStagingMcpClientRecord,
   resolveWordpressStagingMcpIssuer,
   resolveWordpressStagingMcpResource,
+  wordpressStagingMcpClientProfileKey,
   wordpressStagingMcpOAuthConfigured,
   wordpressStagingMcpOAuthReady,
+  wordpressStagingMcpSubjectAllowed,
 } from "../wordpressStagingMcpOAuthProfile.js";
 import {
   issueWordpressStagingMcpAccessToken,
@@ -112,9 +116,9 @@ function requestCredentials(req) {
 
 async function authenticateClient(req, pool, env) {
   const credentials = requestCredentials(req);
-  if (!credentials.client_id || !isRemoteMcpClientIdForEnvironment(credentials.client_id, env)) return null;
+  if (!credentials.client_id || !isWordpressStagingMcpClientId(credentials.client_id, env)) return null;
   const client = await readRemoteMcpOAuthClient(credentials.client_id, { pool });
-  if (!client) return null;
+  if (!isWordpressStagingMcpClientRecord(client, env)) return null;
   if (client.token_endpoint_auth_method === "none") {
     return credentials.method === "none" && !credentials.client_secret ? client : null;
   }
@@ -209,6 +213,8 @@ function metadata(env) {
       refresh_token_supported: true,
       access_token_alg: "RS256",
       asymmetric_resource_server_verification: true,
+      subject_authorization_required: true,
+      client_id_namespace: WORDPRESS_STAGING_MCP_CLIENT_ID_PREFIX,
       mutation_authority: false,
     },
   };
@@ -220,19 +226,18 @@ function authorizePage({ client, authorizationRequest }) {
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Connect ${name}</title><style>
-body{font-family:Arial,sans-serif;margin:0;background:#07111f;color:#eef4ff;display:grid;min-height:100vh;place-items:center}main{width:min(480px,calc(100vw - 32px));background:#101a30;border:1px solid #2d3f62;border-radius:22px;padding:26px}label{display:block;margin:12px 0 5px;color:#a8b6d8;font-size:13px}input{width:100%;box-sizing:border-box;border-radius:14px;border:1px solid #2d3f62;padding:12px;background:#0b1428;color:#f0f5ff}button{border-radius:14px;border:1px solid #87a0ff;padding:12px 16px;color:white;background:#6383ff;font-weight:800;margin-top:14px;cursor:pointer}button.secondary{background:#17233e}.consent{display:flex;gap:10px;align-items:flex-start;margin:16px 0;color:#eef4ff}.consent input{width:auto}pre{white-space:pre-wrap;background:#0b1428;border:1px solid #2d3f62;border-radius:14px;padding:12px}.muted{color:#a8b6d8;font-size:13px}
+body{font-family:Arial,sans-serif;margin:0;background:#07111f;color:#eef4ff;display:grid;min-height:100vh;place-items:center}main{width:min(480px,calc(100vw - 32px));background:#101a30;border:1px solid #2d3f62;border-radius:22px;padding:26px}label{display:block;margin:12px 0 5px;color:#a8b6d8;font-size:13px}input{width:100%;box-sizing:border-box;border-radius:14px;border:1px solid #2d3f62;padding:12px;background:#0b1428;color:#f0f5ff}button{border-radius:14px;border:1px solid #87a0ff;padding:12px 16px;color:white;background:#6383ff;font-weight:800;margin-top:14px;cursor:pointer}.consent{display:flex;gap:10px;align-items:flex-start;margin:16px 0;color:#eef4ff}.consent input{width:auto}pre{white-space:pre-wrap;background:#0b1428;border:1px solid #2d3f62;border-radius:14px;padding:12px}.muted{color:#a8b6d8;font-size:13px}
 </style></head><body><main><h1>Connect ${name}</h1>
-<p class="muted">This client requests read-only WordPress Staging access: ${WORDPRESS_STAGING_MCP_SCOPE}. Refresh access carries no additional mutation authority.</p>
+<p class="muted">This client requests read-only WordPress Staging access: ${WORDPRESS_STAGING_MCP_SCOPE}. Only pre-approved Staging subjects can complete authorization. Refresh access carries no additional mutation authority.</p>
 <label>Email</label><input id="email" type="email" autocomplete="username"/>
 <label>Password</label><input id="password" type="password" autocomplete="current-password"/>
-<label id="name-label" hidden>Display name</label><input id="display-name" hidden autocomplete="name"/>
 <label class="consent"><input id="consent" type="checkbox"/><span>I authorize this client to use the read-only scope shown above and understand that I can revoke access later.</span></label>
-<button id="login">Sign in and connect</button><button id="register" class="secondary">Create account</button><pre id="out">Waiting for sign-in and consent.</pre>
+<button id="login">Sign in and connect</button><pre id="out">Waiting for sign-in and consent.</pre>
 <script>
 const request=${request};const out=document.getElementById('out');
 async function finish(token){const response=await fetch('/auth/mcp/wordpress-staging/oauth/code',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+token},body:JSON.stringify({...request,consent:true})});const data=await response.json();if(!response.ok)throw new Error(data?.error?.message||data?.error_description||'Authorization failed.');location.assign(data.redirect_to)}
-async function authenticate(kind){if(!document.getElementById('consent').checked)throw new Error('Consent is required before connecting this client.');const body={email:document.getElementById('email').value,password:document.getElementById('password').value};if(kind==='register')body.display_name=document.getElementById('display-name').value||body.email;const response=await fetch('/auth/'+kind,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});const data=await response.json();if(!response.ok||!data.token)throw new Error(data?.error?.message||'Sign-in failed.');await finish(data.token)}
-document.getElementById('login').onclick=()=>authenticate('login').catch(error=>out.textContent=error.message);document.getElementById('register').onclick=()=>{const field=document.getElementById('display-name');if(field.hidden){document.getElementById('name-label').hidden=false;field.hidden=false;out.textContent='Enter a display name, confirm consent, then click Create account again.';return}authenticate('register').catch(error=>out.textContent=error.message)};
+async function authenticate(){if(!document.getElementById('consent').checked)throw new Error('Consent is required before connecting this client.');const body={email:document.getElementById('email').value,password:document.getElementById('password').value};const response=await fetch('/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});const data=await response.json();if(!response.ok||!data.token)throw new Error(data?.error?.message||'Sign-in failed.');await finish(data.token)}
+document.getElementById('login').onclick=()=>authenticate().catch(error=>out.textContent=error.message);
 </script></main></body></html>`;
 }
 
@@ -243,7 +248,7 @@ export function buildWordpressStagingMcpOAuthRoutes(deps = {}) {
 
   const serveMetadata = (req, res) => {
     if (!wordpressStagingMcpOAuthConfigured(env) || !requestUsesIssuerHost(req, env)) return notFound(res);
-    if (!wordpressStagingMcpOAuthReady(env)) return oauthError(res, 503, "temporarily_unavailable", "WordPress staging OAuth signing authority is not ready.");
+    if (!wordpressStagingMcpOAuthReady(env)) return oauthError(res, 503, "temporarily_unavailable", "WordPress staging OAuth signing authority or subject policy is not ready.");
     res.setHeader("Cache-Control", "public, max-age=300");
     return res.status(200).json(metadata(env));
   };
@@ -255,14 +260,14 @@ export function buildWordpressStagingMcpOAuthRoutes(deps = {}) {
   router.get("/auth/mcp/wordpress-staging/oauth/jwks", (req, res) => {
     if (!wordpressStagingMcpOAuthConfigured(env) || !requestUsesIssuerHost(req, env)) return notFound(res);
     const jwks = buildWordpressStagingMcpJwks(env);
-    if (!wordpressStagingMcpOAuthReady(env) || !jwks.keys.length) return oauthError(res, 503, "temporarily_unavailable", "WordPress staging OAuth JWKS is not ready.");
+    if (!wordpressStagingMcpOAuthReady(env) || !jwks.keys.length) return oauthError(res, 503, "temporarily_unavailable", "WordPress staging OAuth signing authority or subject policy is not ready.");
     res.setHeader("Cache-Control", "public, max-age=300");
     return res.status(200).json(jwks);
   });
 
   router.post("/auth/mcp/wordpress-staging/oauth/register", async (req, res) => {
     if (!wordpressStagingMcpOAuthConfigured(env) || !requestUsesIssuerHost(req, env)) return notFound(res);
-    if (!wordpressStagingMcpOAuthReady(env)) return oauthError(res, 503, "temporarily_unavailable", "WordPress staging OAuth signing authority is not ready.");
+    if (!wordpressStagingMcpOAuthReady(env)) return oauthError(res, 503, "temporarily_unavailable", "WordPress staging OAuth signing authority or subject policy is not ready.");
     if (!remoteMcpDynamicClientRegistrationEnabled(env)) return notFound(res);
     try {
       const suppliedRedirects = Array.isArray(req.body?.redirect_uris) ? req.body.redirect_uris : [];
@@ -279,12 +284,14 @@ export function buildWordpressStagingMcpOAuthRoutes(deps = {}) {
       if (!scopes.ok) return oauthError(res, 400, "invalid_scope", "Only mad4b:read and offline_access are available for the WordPress staging OAuth client.");
       const clientName = text(req.body?.client_name || "WordPress Staging MCP client", 255);
       const clientSecret = authMethod === "none" ? "" : createOpaqueToken(32);
+      const clientId = generateWordpressStagingMcpClientId(env);
+      if (!clientId) return oauthError(res, 503, "temporarily_unavailable", "WordPress staging client namespace is unavailable.");
       const registered = await registerRemoteMcpOAuthClient({
         pool,
-        clientId: generateRemoteMcpClientId(env),
+        clientId,
         env,
         clientName,
-        clientProfileKey: classifyRemoteMcpClientProfile({ clientName, redirectUris }),
+        clientProfileKey: wordpressStagingMcpClientProfileKey(classifyRemoteMcpClientProfile({ clientName, redirectUris })),
         tokenEndpointAuthMethod: authMethod,
         clientSecret,
         redirectUris,
@@ -309,12 +316,12 @@ export function buildWordpressStagingMcpOAuthRoutes(deps = {}) {
 
   router.get("/auth/mcp/wordpress-staging/oauth/authorize", async (req, res) => {
     if (!wordpressStagingMcpOAuthConfigured(env) || !requestUsesIssuerHost(req, env)) return notFound(res);
-    if (!wordpressStagingMcpOAuthReady(env)) return oauthError(res, 503, "temporarily_unavailable", "WordPress staging OAuth signing authority is not ready.");
+    if (!wordpressStagingMcpOAuthReady(env)) return oauthError(res, 503, "temporarily_unavailable", "WordPress staging OAuth signing authority or subject policy is not ready.");
     try {
       const requestedClientId = text(req.query?.client_id, 128);
-      if (!isRemoteMcpClientIdForEnvironment(requestedClientId, env)) return res.status(400).type("text/plain").send("OAuth client is not registered for this environment.");
+      if (!isWordpressStagingMcpClientId(requestedClientId, env)) return res.status(400).type("text/plain").send("OAuth client is not registered for the WordPress staging profile.");
       const client = await readRemoteMcpOAuthClient(requestedClientId, { pool });
-      if (!client || !client.allowed_scopes.includes(WORDPRESS_STAGING_MCP_SCOPE)) return res.status(400).type("text/plain").send("OAuth client is not registered for the WordPress staging resource.");
+      if (!isWordpressStagingMcpClientRecord(client, env)) return res.status(400).type("text/plain").send("OAuth client is not registered for the WordPress staging resource.");
       if (String(req.query?.response_type || "") !== "code") return res.status(400).type("text/plain").send("response_type must be code.");
       const state = text(req.query?.state, 512);
       if (!state) return res.status(400).type("text/plain").send("state is required.");
@@ -346,14 +353,14 @@ export function buildWordpressStagingMcpOAuthRoutes(deps = {}) {
 
   router.post("/auth/mcp/wordpress-staging/oauth/code", async (req, res) => {
     if (!wordpressStagingMcpOAuthConfigured(env) || !requestUsesIssuerHost(req, env)) return notFound(res);
-    if (!wordpressStagingMcpOAuthReady(env)) return oauthError(res, 503, "temporarily_unavailable", "WordPress staging OAuth signing authority is not ready.");
+    if (!wordpressStagingMcpOAuthReady(env)) return oauthError(res, 503, "temporarily_unavailable", "WordPress staging OAuth signing authority or subject policy is not ready.");
     const verified = verifyUserJwtAuthorization(req.headers?.authorization, { env });
     if (!verified.ok) return res.status(verified.status).json({ ok: false, error: { code: verified.code, message: verified.message }, secrets_included: false });
     if (req.body?.consent !== true) return oauthError(res, 400, "consent_required", "Explicit user consent is required.");
     try {
       const request = verifyWordpressStagingMcpAuthorizationRequest(text(req.body?.authorization_request, 8192), { env });
       const client = await readRemoteMcpOAuthClient(text(request?.client_id, 128), { pool });
-      if (!client || !client.allowed_scopes.includes(WORDPRESS_STAGING_MCP_SCOPE)) return oauthError(res, 400, "invalid_client", "OAuth client is not active for the WordPress staging resource.");
+      if (!isWordpressStagingMcpClientRecord(client, env)) return oauthError(res, 400, "invalid_client", "OAuth client is not active for the WordPress staging resource.");
       const redirectUri = normalizeRemoteMcpRedirectUri(request?.redirect_uri, env);
       if (!redirectUri || !client.redirect_uris.includes(redirectUri)) return oauthError(res, 400, "invalid_redirect_uri", "redirect_uri is not registered.");
       const resource = exactResource(request?.resource, env);
@@ -364,6 +371,7 @@ export function buildWordpressStagingMcpOAuthRoutes(deps = {}) {
       if (request?.code_challenge_method !== "S256" || !/^[A-Za-z0-9_-]{43}$/u.test(challenge)) return oauthError(res, 400, "invalid_request", "PKCE S256 code_challenge is required.");
       const context = await activeUserContext(pool, verified.claims);
       if (!context) return oauthError(res, 403, "inactive_user", "The signed-in user or requested tenant context is not active.");
+      if (!wordpressStagingMcpSubjectAllowed({ userId: context.user_id, tenantId: context.tenant_id }, env)) return oauthError(res, 403, "access_denied", "The signed-in subject is not approved for the WordPress staging MCP resource.");
       const issued = await issueRemoteMcpAuthorizationCode({
         pool,
         clientId: client.client_id,
@@ -390,10 +398,10 @@ export function buildWordpressStagingMcpOAuthRoutes(deps = {}) {
 
   router.post("/auth/mcp/wordpress-staging/oauth/token", express.urlencoded({ extended: false }), async (req, res) => {
     if (!wordpressStagingMcpOAuthConfigured(env) || !requestUsesIssuerHost(req, env)) return notFound(res);
-    if (!wordpressStagingMcpOAuthReady(env)) return oauthError(res, 503, "temporarily_unavailable", "WordPress staging OAuth signing authority is not ready.");
+    if (!wordpressStagingMcpOAuthReady(env)) return oauthError(res, 503, "temporarily_unavailable", "WordPress staging OAuth signing authority or subject policy is not ready.");
     try {
       const client = await authenticateClient(req, pool, env);
-      if (!client || !client.allowed_scopes.includes(WORDPRESS_STAGING_MCP_SCOPE)) return oauthError(res, 401, "invalid_client", "OAuth client authentication failed.");
+      if (!client) return oauthError(res, 401, "invalid_client", "OAuth client authentication failed.");
       const resource = resolveWordpressStagingMcpResource(env);
       if (req.body?.resource && !exactResource(req.body.resource, env)) return oauthError(res, 400, "invalid_target", "resource is invalid.");
       const grantType = text(req.body?.grant_type, 64);
@@ -408,6 +416,7 @@ export function buildWordpressStagingMcpOAuthRoutes(deps = {}) {
         if (!verifyPkceS256(req.body?.code_verifier, record.code_challenge)) return oauthError(res, 400, "invalid_grant", "PKCE verification failed.");
         const subject = await activeUserContext(pool, { user_id: record.user_id, tenant_id: record.tenant_id });
         if (!exactSubjectContext(subject, record.user_id, record.tenant_id)) return oauthError(res, 400, "invalid_grant", "The authorization subject is no longer active.");
+        if (!wordpressStagingMcpSubjectAllowed({ userId: record.user_id, tenantId: record.tenant_id }, env)) return oauthError(res, 400, "invalid_grant", "The authorization subject is not approved for this resource.");
         const consumed = await consumeRemoteMcpAuthorizationCode({ pool, code: req.body?.code, clientId: client.client_id, redirectUri });
         if (!consumed) return oauthError(res, 400, "invalid_grant", "Authorization code is invalid, expired, or already used.");
         const jti = randomUUID();
@@ -425,6 +434,7 @@ export function buildWordpressStagingMcpOAuthRoutes(deps = {}) {
         if (!current || current.client_id !== client.client_id || current.resource !== resource || !currentScopes.ok) return oauthError(res, 400, "invalid_grant", "Refresh token is invalid, expired, revoked, or bound to another resource.");
         const subject = await activeUserContext(pool, { user_id: current.user_id, tenant_id: current.tenant_id });
         if (!exactSubjectContext(subject, current.user_id, current.tenant_id)) return oauthError(res, 400, "invalid_grant", "The refresh subject is no longer active.");
+        if (!wordpressStagingMcpSubjectAllowed({ userId: current.user_id, tenantId: current.tenant_id }, env)) return oauthError(res, 400, "invalid_grant", "The refresh subject is no longer approved for this resource.");
         const jti = randomUUID();
         const accessExpiresAt = new Date(Date.now() + REMOTE_MCP_ACCESS_TOKEN_TTL_SECONDS * 1000);
         const rotated = await rotateRemoteMcpOAuthGrant({ pool, refreshToken, accessJti: jti, accessExpiresAt });
@@ -443,7 +453,7 @@ export function buildWordpressStagingMcpOAuthRoutes(deps = {}) {
 
   router.post("/auth/mcp/wordpress-staging/oauth/revoke", express.urlencoded({ extended: false }), async (req, res) => {
     if (!wordpressStagingMcpOAuthConfigured(env) || !requestUsesIssuerHost(req, env)) return notFound(res);
-    if (!wordpressStagingMcpOAuthReady(env)) return oauthError(res, 503, "temporarily_unavailable", "WordPress staging OAuth signing authority is not ready.");
+    if (!wordpressStagingMcpOAuthReady(env)) return oauthError(res, 503, "temporarily_unavailable", "WordPress staging OAuth signing authority or subject policy is not ready.");
     try {
       const client = await authenticateClient(req, pool, env);
       if (!client) return oauthError(res, 401, "invalid_client", "OAuth client authentication failed.");
