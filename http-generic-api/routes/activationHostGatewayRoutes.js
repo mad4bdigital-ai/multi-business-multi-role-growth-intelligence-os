@@ -139,14 +139,22 @@ async function readActivationSchemaFile(schemaFile) {
   }
 }
 
-function errorResponse(code, message, req) {
+function errorResponse(code, message, req, details = null) {
   return {
     ok: false,
     error: {
       code,
       message,
       requestId: requestId(req),
+      ...(details ? { details } : {}),
     },
+    secrets_included: false,
+  };
+}
+
+export function trustedIngressFailureDetails(recoveryIngress = {}) {
+  return {
+    reason_code: recoveryIngress?.code || "ingress_unverified",
     secrets_included: false,
   };
 }
@@ -201,14 +209,9 @@ export function buildActivationHostGatewayRoutes({
 
   async function serveActivationSchema(req, res, schemaFile) {
     delete req.headers.cookie;
-
     try {
       const schema = await readActivationSchemaFile(schemaFile);
-      res
-        .status(200)
-        .type("application/yaml")
-        .set("Cache-Control", "public, max-age=300")
-        .send(schema);
+      res.status(200).type("application/yaml").set("Cache-Control", "public, max-age=300").send(schema);
     } catch {
       res.status(404).json(errorResponse(
         "schema_file_missing",
@@ -220,11 +223,9 @@ export function buildActivationHostGatewayRoutes({
 
   router.use(async (req, res, next) => {
     if (!gatewayEnabled || !["GET", "HEAD"].includes(req.method)) return next();
-
     const pathname = requestPath(req);
     const schemaFile = config.schemaFilesByPath.get(pathname);
     if (!schemaFile) return next();
-
     const host = requestHost(req, config.activationHost, env);
     if (!host && hasTrustedProxyHostClaim(req, env)) {
       return res.status(404).json(errorResponse(
@@ -234,14 +235,12 @@ export function buildActivationHostGatewayRoutes({
       ));
     }
     if (!isActivationSchemaHost(host, config)) return next();
-
     await serveActivationSchema(req, res, schemaFile);
     return undefined;
   });
 
   router.use(async (req, res, next) => {
     if (!gatewayEnabled) return next();
-
     const host = requestHost(req, config.activationHost, env);
     if (!host && hasTrustedProxyHostClaim(req, env)) {
       return res.status(404).json(errorResponse(
@@ -268,7 +267,10 @@ export function buildActivationHostGatewayRoutes({
     if (config.staging && pathname.startsWith("/admin/recovery/staging/")) {
       recoveryIngress = await verifyRecoveryGatewayIngress({ env, request: req, policy: stagingPolicy, replayStore: effectiveIngressReplayStore });
       if (!recoveryIngress.ok) return res.status(403).json(errorResponse(
-        "RECOVERY_TRUSTED_INGRESS_REQUIRED", "A fresh signed Gateway request and durable replay claim are required.", req,
+        "RECOVERY_TRUSTED_INGRESS_REQUIRED",
+        "A fresh signed Gateway request and durable replay claim are required.",
+        req,
+        trustedIngressFailureDetails(recoveryIngress),
       ));
     }
 
@@ -278,8 +280,6 @@ export function buildActivationHostGatewayRoutes({
     // route remain unavailable through activation.mad4b.com.
     const oauthHandoff = tenantGptOAuthHandoff(req.method, pathname);
     if (oauthHandoff) {
-      // Cookie forwarding is limited to the browser-facing authorize/code handoff.
-      // The token endpoint and every non-handoff route remain cookie-free.
       if (routeKey(req.method, pathname) === "POST /auth/oauth/token") delete req.headers.cookie;
       req.activationHostGateway = {
         host,
@@ -297,7 +297,6 @@ export function buildActivationHostGatewayRoutes({
     }
 
     delete req.headers.cookie;
-
     if (isAuthPath(pathname) || !isActivationHostAllowedPath(pathname, req.method, config)) {
       return res.status(404).json(errorResponse(
         "ACTIVATION_HOST_ROUTE_NOT_ALLOWED",
@@ -323,7 +322,6 @@ export function buildActivationHostGatewayRoutes({
     if (isTenantGptProtectedPath(pathname, req.method, config)) {
       return requireActivationTenantGptAccessToken(req, res, next);
     }
-
     return next();
   });
 
