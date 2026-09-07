@@ -38,6 +38,45 @@ function Get-StagingComposeArgs([string]$ApiPath, [string]$EnvPath, [string]$Mod
     return @($arguments + @("--env-file", $EnvPath))
 }
 
+function Assert-WindowsHostOriginReachable([string[]]$ComposeArgs, [string]$Mode) {
+    if ($Mode -ne "windows_service") { return }
+    $origin = "http://127.0.0.1:8080/health"
+    $published = (& docker @($ComposeArgs + @("port", "app", "8080")) 2>$null | Out-String).Trim()
+    $lastError = ""
+    if ($LASTEXITCODE -eq 0 -and $published -match '^(?:127\.0\.0\.1|localhost):8080$') {
+        $client = $null
+        try {
+            $client = New-Object System.Net.Http.HttpClient
+            $client.Timeout = [TimeSpan]::FromSeconds(10)
+            $response = $client.GetAsync($origin).GetAwaiter().GetResult()
+            if ($response.IsSuccessStatusCode) {
+                Write-Host "STAGING_CERTIFICATION_HOST_ORIGIN_READY: tunnel_mode=$Mode origin=$origin status=$([int]$response.StatusCode)"
+                $response.Dispose()
+                $client.Dispose()
+                return
+            }
+            $lastError = "http_status_$([int]$response.StatusCode)"
+            $response.Dispose()
+            $client.Dispose()
+        } catch {
+            if ($null -ne $client) { $client.Dispose() }
+            $lastError = $_.Exception.Message
+        }
+    } else {
+        $lastError = "host_binding_missing observed=$published"
+    }
+    $state = Read-State $StatePath
+    $state["certification_status"] = "blocked"
+    $state["certification_ready"] = $false
+    $state["certification_blocking_failures"] = @("staging_origin_unreachable")
+    $state["staging_origin"] = $origin
+    $state["staging_origin_tunnel_mode"] = $Mode
+    $state["secrets_included"] = $false
+    Write-State $StatePath $state
+    Write-Host "STAGING_CERTIFICATION_BLOCKED: commit=$ExpectedCommit reasons=staging_origin_unreachable tunnel_mode=$Mode origin=$origin error=$lastError" -ForegroundColor Red
+    exit 1
+}
+
 function Read-EnvValue([string]$Path, [string]$Name) {
     $line = Get-Content -LiteralPath $Path | Where-Object { $_ -match "^$([regex]::Escape($Name))=(.*)$" } | Select-Object -First 1
     if (-not $line) { return "" }
@@ -147,16 +186,17 @@ foreach ($required in @($composeBase, $composeStage, $envFile, $connectorRepairS
     if (-not (Test-Path -LiteralPath $required)) { Fail "Required Staging certification input is missing: $required" }
 }
 
-# Connector recovery is an explicit certification precondition. It is kept
-# independent from the Staging dev/mcp tunnel and may only repair the dedicated
-# Mad4B Local Connector runtime. Missing Connector-specific credential material
-# is a provisioning interruption, not a reason to reuse the Staging tunnel token.
-[void](Invoke-LocalConnectorCertificationGate $connectorRepairScript $connectorRepairStatePath)
-
 $gatewayEnabled = (Read-EnvValue $envFile "ACTIVATION_STAGING_GATEWAY_ENABLED").ToLowerInvariant() -eq "true"
 $expectedTree = Read-EnvValue $envFile "STAGING_BUILD_TREE"
 $expectedContextFileSet = Read-EnvValue $envFile "STAGING_BUILD_CONTEXT_FILE_SET_SHA256"
 $composeArgs = @(Get-StagingComposeArgs $apiPath $envFile $TunnelMode)
+[void](Assert-WindowsHostOriginReachable $composeArgs $TunnelMode)
+
+# Connector recovery is an explicit certification precondition after the local
+# host origin is proven. A broken application topology must fail before any
+# independent Connector recovery action is attempted.
+[void](Invoke-LocalConnectorCertificationGate $connectorRepairScript $connectorRepairStatePath)
+
 $appContainerId = ((& docker @composeArgs ps -q app 2>$null | Out-String).Trim()).ToLowerInvariant()
 if ($appContainerId -notmatch '^[0-9a-fA-F]{64}$') { Fail "Staging app container is not running with a full container ID" }
 $imageId = ((& docker inspect --format '{{.Image}}' $appContainerId 2>$null | Out-String).Trim()).ToLowerInvariant()

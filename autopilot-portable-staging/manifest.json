@@ -62,7 +62,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "667fb28ff7b04fa4f1eac2b71c73f7b08453af210e2bb01fec49bf36efba5f09"
+      "sha256": "23d130ff1e28a9364488ac064db4e151c3026d5c1089efa84e7e1c12b6a8a6f1"
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
@@ -278,7 +278,7 @@
     },
     {
       "path": "autopilot-portable-staging/Invoke-StagingCertification.ps1",
-      "sha256": "b36969328e18a975b7d0b4cf5b1d5724d3180b52126a7877ae36c70ee51cf9a1"
+      "sha256": "9d9309d6245f7a202c1fe2fb731e5be161612a44cbfc2ae6d6783b9a44d08a08"
     },
     {
       "path": "http-generic-api/deploymentManifest.js",

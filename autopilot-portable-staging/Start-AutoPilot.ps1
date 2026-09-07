@@ -43,8 +43,8 @@ trap {
     exit 1
 }
 
-function Fail([string]$Message) {
-    Write-StagingLog -Level error -Component $LogComponent -Stage "fail_closed" -Message $Message
+function Fail([string]$Message, [hashtable]$Data = @{}) {
+    Write-StagingLog -Level error -Component $LogComponent -Stage "fail_closed" -Message $Message -Data $Data
     throw "AUTO_PILOT_FAIL_CLOSED: $Message"
 }
 
@@ -64,6 +64,38 @@ function Get-StagingComposeArgs([string]$ApiPath, [string]$EnvPath, [string]$Mod
         $arguments += @("-f", $override)
     }
     return @($arguments + @("--env-file", $EnvPath))
+}
+
+function Assert-WindowsHostOriginReachable([string[]]$ComposeArgs, [string]$Mode) {
+    if ($Mode -ne "windows_service") { return }
+    $origin = "http://127.0.0.1:8080/health"
+    $published = (& docker @($ComposeArgs + @("port", "app", "8080")) 2>$null | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or $published -notmatch '^(?:127\.0\.0\.1|localhost):8080$') {
+        Fail "Windows Staging host origin binding is missing from the effective Compose topology" @{ failure_class = "staging_origin_unreachable"; tunnel_mode = $Mode; origin = $origin; reason = "host_binding_missing"; observed_binding = $published }
+    }
+    $lastError = ""
+    for ($attempt = 1; $attempt -le 5; $attempt++) {
+        $client = $null
+        try {
+            $client = New-Object System.Net.Http.HttpClient
+            $client.Timeout = [TimeSpan]::FromSeconds(10)
+            $response = $client.GetAsync($origin).GetAwaiter().GetResult()
+            if ($response.IsSuccessStatusCode) {
+                Write-StagingOperationBoundary -Component $LogComponent -Stage "host-origin" -Outcome "success" -Message "Windows host can reach the loopback-only Staging origin" -Data @{ tunnel_mode = $Mode; origin = $origin; http_status = [int]$response.StatusCode; attempt = $attempt }
+                $response.Dispose()
+                $client.Dispose()
+                return
+            }
+            $lastError = "http_status_$([int]$response.StatusCode)"
+            $response.Dispose()
+            $client.Dispose()
+        } catch {
+            if ($null -ne $client) { $client.Dispose() }
+            $lastError = $_.Exception.Message
+        }
+        if ($attempt -lt 5) { Start-Sleep -Seconds 2 }
+    }
+    Fail "Windows Staging host cannot reach the loopback-only app origin" @{ failure_class = "staging_origin_unreachable"; tunnel_mode = $Mode; origin = $origin; reason = "host_health_unreachable"; error = $lastError }
 }
 
 function Invoke-Native([string]$File, [string[]]$Arguments, [switch]$AllowFailure) {
@@ -536,6 +568,7 @@ try {
     Write-StagingLog -Level info -Component $LogComponent -Stage "compose-up" -Message "starting local application topology"
     Invoke-Native "docker" $upArgs
     foreach ($service in @("redis", "runtime-db", "governance-db", "persistence-db", "app")) { Wait-ServiceHealthy $composeArgs $service }
+    Assert-WindowsHostOriginReachable $composeArgs $TunnelMode
     if ($TunnelMode -eq "windows_service") {
         Write-StagingLog -Level info -Component $LogComponent -Stage "tunnel" -Message "reconciling Staging tunnel in windows_service mode"
         Invoke-Native "docker" ($composeArgs + @("--profile", "tunnel", "stop", "cloudflared"))
