@@ -148,7 +148,7 @@ services:
       TUNNEL_ORIGIN_APP: ${CLOUDFLARE_TUNNEL_ORIGIN_APP:-http://app:8080}
       TUNNEL_HOSTNAME: ${CLOUDFLARE_TUNNEL_HOSTNAME:-dev.mad4b.com}
       TUNNEL_LOGLEVEL: ${CLOUDFLARE_TUNNEL_LOGLEVEL:-info}
-      TUNNEL_GRACE_PERIOD: ${TUNNEL_GRACE_PERIOD:-30s}
+      TUNNEL_GRACE_PERIOD: ${CLOUDFLARE_TUNNEL_GRACE_PERIOD:-30s}
     depends_on:
       app:
         condition: service_healthy
