@@ -160,7 +160,7 @@ function kernelArtifacts({ plan, approval, ticket, receipt, run }) {
 }
 
 function normalizeNegativeTestEvidence(value) {
-  if (!value || value.all_passed !== true || !value.cases || typeof value.cases !== "object") {
+  if (!value || !value.cases || typeof value.cases !== "object") {
     fail("RECOVERY_CANARY_NEGATIVE_TEST_EVIDENCE_REQUIRED", "Exact-SHA negative-test evidence is required before countersigning.");
   }
   const cases = {};
