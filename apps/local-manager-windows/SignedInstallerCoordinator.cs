@@ -141,9 +141,14 @@ internal sealed class SignedInstallerCoordinator
         {
             await process.WaitForExitAsync(cancellationToken);
             LastExitCode = process.ExitCode;
-            return process.ExitCode == 0
-                ? SignedInstallerRunResult.Completed
-                : SignedInstallerRunResult.Failed;
+            if (process.ExitCode != 0)
+            {
+                // Propagate the exact bounded child status to the existing outer UI
+                // exception handler. Do not collapse it into the boolean-only Failed
+                // enum path, and do not include installer/token content in the message.
+                throw new SignedInstallerExitCodeException(process.ExitCode);
+            }
+            return SignedInstallerRunResult.Completed;
         }
         catch (InvalidOperationException)
         {
@@ -259,6 +264,17 @@ internal sealed class SignedInstallerCoordinator
         var chars = value.Select(ch => char.IsLetterOrDigit(ch) || ch is '-' or '_' or '.' ? ch : '-').ToArray();
         var safe = new string(chars).Trim('-');
         return string.IsNullOrWhiteSpace(safe) ? "device" : safe;
+    }
+}
+
+internal sealed class SignedInstallerExitCodeException : Exception
+{
+    internal int ExitCode { get; }
+
+    internal SignedInstallerExitCodeException(int exitCode)
+        : base($"Signed connector installer exited with code {exitCode}.")
+    {
+        ExitCode = exitCode;
     }
 }
 
