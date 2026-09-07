@@ -6,6 +6,7 @@ import {
 } from "./remoteMcpOAuthProfile.js";
 import {
   WORDPRESS_STAGING_MCP_ACCESS_TOKEN_ALG,
+  WORDPRESS_STAGING_MCP_AUTHORIZATION_SCOPES,
   WORDPRESS_STAGING_MCP_SCOPE,
   resolveWordpressStagingMcpIssuer,
   resolveWordpressStagingMcpKeyId,
@@ -17,6 +18,14 @@ import {
 function exactResource(value, env = process.env) {
   const expected = resolveWordpressStagingMcpResource(env);
   return String(value || "").trim().replace(/\/+$/u, "") === expected ? expected : "";
+}
+
+function normalizeWordpressScopes(scopes) {
+  const allowed = new Set(WORDPRESS_STAGING_MCP_AUTHORIZATION_SCOPES);
+  const normalized = [...new Set((scopes || []).map((scope) => String(scope || "").trim()).filter(Boolean))];
+  if (!normalized.includes(WORDPRESS_STAGING_MCP_SCOPE)) return [];
+  if (normalized.some((scope) => !allowed.has(scope))) return [];
+  return normalized;
 }
 
 function authorizationRequestConfiguration(env = process.env) {
@@ -61,8 +70,8 @@ export function issueWordpressStagingMcpAuthorizationRequest({
     error.code = "invalid_target";
     throw error;
   }
-  const normalizedScopes = [...new Set((scopes || []).map((scope) => String(scope || "").trim()).filter(Boolean))];
-  if (normalizedScopes.length !== 1 || normalizedScopes[0] !== WORDPRESS_STAGING_MCP_SCOPE) {
+  const normalizedScopes = normalizeWordpressScopes(scopes);
+  if (!normalizedScopes.length) {
     const error = new Error("WordPress staging OAuth authorization request scope is invalid.");
     error.code = "invalid_scope";
     throw error;
@@ -73,7 +82,7 @@ export function issueWordpressStagingMcpAuthorizationRequest({
       redirect_uri: redirectUri,
       state,
       resource: configuration.resource,
-      scope: WORDPRESS_STAGING_MCP_SCOPE,
+      scope: normalizedScopes.join(" "),
       code_challenge: codeChallenge,
       code_challenge_method: "S256",
       purpose: "wordpress_staging_mcp_authorization_request",
@@ -96,16 +105,17 @@ export function verifyWordpressStagingMcpAuthorizationRequest(token, { env = pro
     issuer: configuration.issuer,
     audience: configuration.resource,
   });
+  const scopes = normalizeWordpressScopes(String(claims?.scope || "").split(/\s+/u));
   if (
     claims?.purpose !== "wordpress_staging_mcp_authorization_request"
     || claims?.resource !== configuration.resource
-    || claims?.scope !== WORDPRESS_STAGING_MCP_SCOPE
+    || !scopes.length
   ) {
     const error = new Error("WordPress staging OAuth authorization request is invalid.");
     error.code = "invalid_authorization_request";
     throw error;
   }
-  return claims;
+  return { ...claims, scope: scopes.join(" ") };
 }
 
 export function issueWordpressStagingMcpAccessToken({
@@ -123,8 +133,8 @@ export function issueWordpressStagingMcpAccessToken({
     error.code = "invalid_target";
     throw error;
   }
-  const normalizedScopes = [...new Set((scopes || []).map((scope) => String(scope || "").trim()).filter(Boolean))];
-  if (normalizedScopes.length !== 1 || normalizedScopes[0] !== WORDPRESS_STAGING_MCP_SCOPE) {
+  const normalizedScopes = normalizeWordpressScopes(scopes);
+  if (!normalizedScopes.length) {
     const error = new Error("WordPress staging OAuth access token scope is invalid.");
     error.code = "invalid_scope";
     throw error;
@@ -138,7 +148,7 @@ export function issueWordpressStagingMcpAccessToken({
       sub: tenantId ? `tenant:${tenantId}:user:${userId}` : `user:${userId}`,
       user_id: userId,
       tenant_id: tenantId || null,
-      scope: WORDPRESS_STAGING_MCP_SCOPE,
+      scope: normalizedScopes.join(" "),
       purpose: "wordpress_staging_mcp_access",
     },
     configuration.privateKey,
@@ -160,14 +170,15 @@ export function verifyWordpressStagingMcpAccessTokenForRevocation(token, { env =
     issuer: configuration.issuer,
     audience: configuration.resource,
   });
+  const scopes = normalizeWordpressScopes(String(claims?.scope || "").split(/\s+/u));
   if (
     claims?.purpose !== "wordpress_staging_mcp_access"
     || claims?.resource !== configuration.resource
-    || claims?.scope !== WORDPRESS_STAGING_MCP_SCOPE
+    || !scopes.length
   ) {
     const error = new Error("WordPress staging OAuth access token is invalid.");
     error.code = "invalid_access_token";
     throw error;
   }
-  return claims;
+  return { ...claims, scope: scopes.join(" ") };
 }
