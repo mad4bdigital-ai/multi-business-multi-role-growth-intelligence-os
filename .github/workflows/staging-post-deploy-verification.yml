@@ -22,7 +22,11 @@ on:
         default: "900"
         type: string
       evidence_run_id:
-        description: GitHub run containing the no-secret local canary evidence artifact; countersign only
+        description: Optional GitHub run containing the no-secret local canary evidence artifact; countersign fallback transport
+        required: false
+        type: string
+      evidence_bundle_zip_base64:
+        description: Optional base64 ZIP containing the exact no-secret local canary bundle; preferred local-to-GitHub countersign transport
         required: false
         type: string
       expected_target_fingerprint:
@@ -231,12 +235,16 @@ jobs:
         env:
           EXPECTED_SHA: ${{ inputs.expected_sha }}
           EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
+          EVIDENCE_BUNDLE_PRESENT: ${{ inputs.evidence_bundle_zip_base64 != '' && 'true' || 'false' }}
           EXPECTED_TARGET_FINGERPRINT: ${{ inputs.expected_target_fingerprint }}
         run: |
           set -euo pipefail
           [[ "${EXPECTED_SHA}" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::expected_sha must be a full 40-character SHA."; exit 1; }
-          [[ "${EVIDENCE_RUN_ID}" =~ ^[0-9]+$ ]] || { echo "::error::evidence_run_id must be numeric."; exit 1; }
           [[ "${EXPECTED_TARGET_FINGERPRINT}" =~ ^[0-9a-f]{64}$ ]] || { echo "::error::expected_target_fingerprint must be a 64-character SHA-256 fingerprint."; exit 1; }
+          if [[ "${EVIDENCE_BUNDLE_PRESENT}" != "true" && ! "${EVIDENCE_RUN_ID}" =~ ^[0-9]+$ ]]; then
+            echo "::error::Provide either evidence_bundle_zip_base64 or a numeric evidence_run_id."
+            exit 1
+          fi
 
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -262,7 +270,8 @@ jobs:
         working-directory: http-generic-api
         run: npm ci --ignore-scripts
 
-      - name: Download exact no-secret canary evidence
+      - name: Download exact no-secret canary evidence artifact
+        if: inputs.evidence_bundle_zip_base64 == ''
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           github-token: ${{ github.token }}
@@ -271,10 +280,45 @@ jobs:
           name: staging-recovery-canary-${{ inputs.expected_sha }}-${{ inputs.expected_target_fingerprint }}
           path: ${{ runner.temp }}/staging-recovery-canary
 
+      - name: Decode exact no-secret local canary bundle
+        if: inputs.evidence_bundle_zip_base64 != ''
+        shell: bash
+        env:
+          EVIDENCE_BUNDLE_ZIP_BASE64: ${{ inputs.evidence_bundle_zip_base64 }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/staging-recovery-canary"
+          printf '%s' "${EVIDENCE_BUNDLE_ZIP_BASE64}" | base64 --decode > "${RUNNER_TEMP}/staging-recovery-canary.zip"
+          unzip -qq "${RUNNER_TEMP}/staging-recovery-canary.zip" -d "${RUNNER_TEMP}/staging-recovery-canary"
+          rm -f "${RUNNER_TEMP}/staging-recovery-canary.zip"
+          for file in canary-evidence.json kernel-plan.json kernel-approval.json kernel-ticket.json kernel-receipt.json kernel-run.json; do
+            test -s "${RUNNER_TEMP}/staging-recovery-canary/${file}" || { echo "::error::Missing ${file} from local canary bundle."; exit 1; }
+          done
+
+      - name: Run exact-SHA Recovery negative regression suites
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          node --test \
+            test-recovery-execution-ticket.mjs \
+            test-recovery-kernel.mjs \
+            test-recovery-action-bridge.mjs \
+            test-recovery-activation-readiness.mjs \
+            test-staging-recovery-certification-protocol.mjs \
+            test-staging-recovery-phase-b-concurrency.mjs \
+            test-staging-recovery-certification-public-trust.mjs
+
+      - name: Bind negative-test evidence to exact workflow SHA
+        env:
+          RECOVERY_STAGING_NEGATIVE_TEST_SUITES_PASSED: "true"
+          RECOVERY_STAGING_NEGATIVE_TEST_EVIDENCE_FILE: ${{ runner.temp }}/staging-recovery-negative-tests.json
+        run: node .github/scripts/staging-recovery-negative-test-evidence.mjs
+
       - name: Independently verify and countersign
         env:
           RECOVERY_STAGING_EVIDENCE_DIRECTORY: ${{ runner.temp }}/staging-recovery-canary
           RECOVERY_STAGING_COUNTERSIGN_OUTPUT_DIRECTORY: ${{ runner.temp }}/staging-recovery-countersign
+          RECOVERY_STAGING_NEGATIVE_TEST_EVIDENCE_FILE: ${{ runner.temp }}/staging-recovery-negative-tests.json
           RECOVERY_STAGING_EXPECTED_TARGET_FINGERPRINT: ${{ inputs.expected_target_fingerprint }}
           RECOVERY_STAGING_CERTIFICATION_PRIVATE_KEY: ${{ secrets.RECOVERY_STAGING_CERTIFICATION_PRIVATE_KEY }}
           RECOVERY_STAGING_CERTIFICATION_ISSUER: ${{ vars.RECOVERY_STAGING_CERTIFICATION_ISSUER }}
