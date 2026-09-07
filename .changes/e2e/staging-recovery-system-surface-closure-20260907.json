@@ -8,6 +8,7 @@
   "scope": {
     "include": [
       ".changes/e2e/staging-recovery-system-surface-closure-20260907.json",
+      ".github/governance/test-authority-registry.json",
       "http-generic-api/stagingRecoverySystemTools.js",
       "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
       "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
