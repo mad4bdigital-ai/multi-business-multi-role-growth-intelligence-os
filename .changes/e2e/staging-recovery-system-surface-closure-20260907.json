@@ -8,7 +8,10 @@
   "scope": {
     "include": [
       ".changes/e2e/staging-recovery-system-surface-closure-20260907.json",
+      ".github/derived-state-governance.json",
       ".github/governance/test-authority-registry.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/stagingAccessRepairTicketAuthority.js",
       "http-generic-api/stagingRecoverySystemTools.js",
       "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
       "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -54,6 +57,7 @@
             "Staging Recovery System Tool descriptors are Admin-only, fixed-schema, private-recovery tools and are not advertised outside Staging.",
             "The certification canary plan operation may write durable Recovery control-plane state but performs no target-database, provider, DNS, deployment, or Production mutation.",
             "Access-repair System Tools delegate to createStagingAccessRepairTicketAuthority and do not reimplement grant, approval, signing, or execution-ticket authority.",
+            "Access-repair plans are bound to the server-observed repository-owned Recovery Manifest hash and fail closed when the deployment attestation does not prove that manifest binding.",
             "Recovery Action bridge v2 accepts approval_id, expected_sha, typed_confirmation, and idempotency while keeping execution ticket identifiers/hashes/signatures server-controlled.",
             "Production mutation is not enabled by this change and Production never receives Staging target authority.",
             "Live Staging certification is required after merge because runtime routing and Recovery System Tool composition change."
@@ -82,6 +86,7 @@
           ],
           "evidence_paths": [
             ".changes/e2e/staging-recovery-system-surface-closure-20260907.json",
+            "http-generic-api/stagingAccessRepairTicketAuthority.js",
             "http-generic-api/stagingRecoverySystemTools.js",
             "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
             "http-generic-api/routes/stagingRecoveryAdminRoutes.js"
