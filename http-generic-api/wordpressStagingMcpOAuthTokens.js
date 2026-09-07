@@ -8,11 +8,13 @@ import {
   WORDPRESS_STAGING_MCP_ACCESS_TOKEN_ALG,
   WORDPRESS_STAGING_MCP_AUTHORIZATION_SCOPES,
   WORDPRESS_STAGING_MCP_SCOPE,
+  buildWordpressStagingMcpSubject,
   resolveWordpressStagingMcpIssuer,
   resolveWordpressStagingMcpKeyId,
   resolveWordpressStagingMcpPrivateKey,
   resolveWordpressStagingMcpPublicKey,
   resolveWordpressStagingMcpResource,
+  wordpressStagingMcpSubjectAllowed,
 } from "./wordpressStagingMcpOAuthProfile.js";
 
 function exactResource(value, env = process.env) {
@@ -133,6 +135,17 @@ export function issueWordpressStagingMcpAccessToken({
     error.code = "invalid_target";
     throw error;
   }
+  if (!wordpressStagingMcpSubjectAllowed({ userId, tenantId }, env)) {
+    const error = new Error("WordPress staging OAuth subject is not approved for this resource.");
+    error.code = "invalid_grant";
+    throw error;
+  }
+  const subject = buildWordpressStagingMcpSubject(userId, tenantId);
+  if (!subject) {
+    const error = new Error("WordPress staging OAuth subject is invalid.");
+    error.code = "invalid_grant";
+    throw error;
+  }
   const normalizedScopes = normalizeWordpressScopes(scopes);
   if (!normalizedScopes.length) {
     const error = new Error("WordPress staging OAuth access token scope is invalid.");
@@ -145,7 +158,7 @@ export function issueWordpressStagingMcpAccessToken({
       client_id: client.client_id,
       client_profile_key: client.client_profile_key,
       resource: configuration.resource,
-      sub: tenantId ? `tenant:${tenantId}:user:${userId}` : `user:${userId}`,
+      sub: subject,
       user_id: userId,
       tenant_id: tenantId || null,
       scope: normalizedScopes.join(" "),
