@@ -2,6 +2,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { createServerManagedRecoveryBinding } from "../stagingRecoveryAuthorityBindingPhaseB.js";
 import { readDeploymentManifest } from "../deploymentManifest.js";
 import { runGenuineStagingRecoveryCanary } from "../stagingRecoveryCertificationProtocol.js";
@@ -103,7 +104,7 @@ export async function produceStagingRecoveryCanaryArtifacts({ env = process.env 
   return summary;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname)) {
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const summary = await produceStagingRecoveryCanaryArtifacts();
   process.stdout.write(`${JSON.stringify(summary)}\n`);
 }
