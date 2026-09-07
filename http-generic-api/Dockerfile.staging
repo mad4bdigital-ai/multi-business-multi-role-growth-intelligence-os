@@ -48,4 +48,7 @@ ENV RECOVERY_SERVER_MANAGED_BINDING_MODE=injected_non_live
 ENV RECOVERY_SERVER_MANAGED_BINDING_MODULE=./stagingRecoveryAuthorityBinding.js
 ENV RECOVERY_STAGING_READINESS_DIRECTORY=/app/data/recovery-readiness
 ENV RECOVERY_STAGING_INGRESS_REPLAY_DIRECTORY=/app/data/recovery-ingress
-CMD ["npm", "start"]
+# The private RSA key is generated only at runtime after the persistent /app/data
+# volume is mounted. It never enters the Git tree, build context, image layer, or
+# WordPress resource server; WordPress receives only the public JWKS.
+CMD ["sh", "-c", "node scripts/ensure-wordpress-staging-mcp-oauth-key.mjs && npm start"]
