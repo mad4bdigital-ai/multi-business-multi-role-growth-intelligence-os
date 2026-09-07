@@ -7,7 +7,7 @@ const workflow = readFileSync("../.github/workflows/staging-post-deploy-verifica
 const verifier = readFileSync("../.github/scripts/staging-recovery-verify-and-countersign.mjs", "utf8");
 const negative = readFileSync("../.github/scripts/staging-recovery-negative-test-evidence.mjs", "utf8");
 
-assert.match(canaryPs, /git\" -Arguments @\("fetch", "origin", "main"\)/u);
+assert.match(canaryPs, /git" -Arguments @\("fetch", "origin", "main"\)/u);
 assert.match(canaryPs, /\$branch -ne "main"/u);
 assert.match(canaryPs, /\$head -ne \$originMain/u);
 assert.match(canaryPs, /RECOVERY_STAGING_REGISTRATION_EVIDENCE_FILE/u);
@@ -23,7 +23,7 @@ assert.match(workflow, /evidence_bundle_zip_base64:/u);
 assert.match(workflow, /Run exact-SHA Recovery negative regression suites/u);
 assert.match(workflow, /staging-recovery-negative-test-evidence\.mjs/u);
 assert.match(workflow, /RECOVERY_STAGING_NEGATIVE_TEST_EVIDENCE_FILE/u);
-assert.match(workflow, /test \"\$\(git rev-parse origin\/main\)\" = \"\$\{\{ inputs\.expected_sha \}\}\"/u);
+assert.match(workflow, /test "\$\(git rev-parse origin\/main\)" = "\$\{\{ inputs\.expected_sha \}\}"/u);
 
 assert.match(verifier, /negativeTestEvidence/u);
 assert.match(verifier, /RECOVERY_STAGING_NEGATIVE_TEST_EVIDENCE_FILE/u);
