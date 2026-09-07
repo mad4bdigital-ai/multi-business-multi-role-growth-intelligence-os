@@ -17,7 +17,8 @@
       "http-generic-api/scripts/e2e-certified-release-cut-candidate-self-test.mjs",
       "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
       "http-generic-api/scripts/test-configuration-candidate-discovery.mjs",
-      "http-generic-api/test-production-promotion-candidate-workflow.mjs"
+      "http-generic-api/test-production-promotion-candidate-workflow.mjs",
+      "http-generic-api/test-production-promotion-convergence-workflows.mjs"
     ]
   },
   "merge_contract": {
@@ -49,6 +50,7 @@
             "Allow current main to advance only while the certified release cut remains its ancestor.",
             "Evaluate the candidate through an isolated temporary Git clone whose local canonical-main ref is pinned to the certified release cut, preserving the reviewed legacy semantic evaluator without altering remote refs.",
             "Require the certified validation workflow to enforce and re-read the same exact two-parent topology rather than accepting an arbitrary third parent.",
+            "Require both direct candidate-workflow and promotion-convergence contract tests to consume the same exact topology invariants rather than matching superseded error text.",
             "Reject stale Production, release-cut ancestry loss, wrong trees, malformed prefixes, wrong parent order/count, malformed branch identities, session-prefix mismatch, and legacy mirror content drift fail closed."
           ],
           "assertions": [
@@ -56,6 +58,7 @@
             "GitHub run IDs and run attempts are evidence metadata and are not required to identify a deterministic promotion session.",
             "Existing release surfaces are reused only when their parent count/order and tree exactly match the authorized release cut and pinned Production.",
             "Candidate evidence explicitly attests parent count two, release-cut first-parent binding, and pinned-Production second-parent binding.",
+            "The candidate workflow test and convergence workflow test both require the same exact two-parent builder/certifier invariants.",
             "The adapter does not broaden legacy SHA-bound or bridge candidate namespaces.",
             "Remote main, Production, candidate, and protected refs are never mutated by classifier or tests; the builder writes only bounded non-protected candidate/validation refs by fast-forward.",
             "Current main equality with the release cut is not required; release-cut ancestry is required instead.",
@@ -84,6 +87,13 @@
               "args": []
             },
             {
+              "id": "production-promotion-convergence-topology-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-promotion-convergence-workflows.mjs",
+              "args": []
+            },
+            {
               "id": "reviewed-immutable-legacy-mirror-discovery-regression",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -102,7 +112,8 @@
             "http-generic-api/scripts/e2e-certified-release-cut-candidate-self-test.mjs",
             "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
             "http-generic-api/scripts/test-configuration-candidate-discovery.mjs",
-            "http-generic-api/test-production-promotion-candidate-workflow.mjs"
+            "http-generic-api/test-production-promotion-candidate-workflow.mjs",
+            "http-generic-api/test-production-promotion-convergence-workflows.mjs"
           ]
         }
       ]
