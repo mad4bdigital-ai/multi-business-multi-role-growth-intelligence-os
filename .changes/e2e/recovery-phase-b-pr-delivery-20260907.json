@@ -1,0 +1,13 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "recovery-phase-b-pr-delivery-20260907",
+  "title": "Combined Recovery Phase B PR delivery boundary",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {"include":[".changes/e2e/recovery-phase-b-pr-delivery-20260907.json","docs/runbooks/recovery-phase-b-pr-delivery.md"]},
+  "merge_contract":{"minimum_phase":"mvp"},
+  "environment_impact":{"source_of_truth":"http-generic-api/config/deployment-branch-policy.json","declared_targets":["staging","production"],"cross_environment_reviewed":true,"live_staging_certification_required":true,"production_mutation_allowed":false,"live_migration_executed":false,"live_grant_executed":false,"deployment_or_restart_executed":false},
+  "phases":[{"id":"mvp","status":"implemented","objective":"Document the post-merge operational boundary without claiming live evidence, certification, Production activation or database mutation inside the PR.","e2e_journeys":[{"id":"repository-merge-to-live-certification-handoff","end_to_end":true,"level":"contract","actor":"Recovery release operator","entrypoint":"merged repository change","terminal_outcome":"Operational work begins only after merge on the new exact main SHA and remains fail-closed before Production activation eligibility.","steps":["Deploy new exact main to Staging.","Collect genuine external evidence.","Run canary and countersign.","Publish signed certificate.","Re-read Staging readiness.","Complete separate Production live-authority release before any database mutation."],"assertions":["No live evidence or Production mutation is claimed by the PR."],"tests":[],"evidence_paths":["docs/runbooks/recovery-phase-b-pr-delivery.md"]}],"tests":[]}],
+  "safety":{"repository_only":true,"production_mutation_allowed":false,"database_mutation":false,"provider_call":false,"workflow_dispatch_performed":false,"secrets_included":false}
+}
