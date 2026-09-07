@@ -10,6 +10,8 @@ const SHA256_RE = /^[0-9a-f]{64}$/u;
 const PLAN_ID_RE = /^plan:[0-9a-f]{32}$/u;
 const STEP_ID_RE = /^step:[0-9a-f]{32}$/u;
 const SAFE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$/u;
+const STAGING_ENVIRONMENT_VALUES = new Set(["staging", "stage", "staging_local_windows_docker"]);
+const PRODUCTION_ENVIRONMENT_VALUES = new Set(["production", "prod", "production_hostinger_autodeploy"]);
 
 function text(value, max = 512) {
   return String(value ?? "").trim().slice(0, max);
@@ -23,11 +25,16 @@ function systemError(status, code, message, details = {}) {
   });
 }
 
-export function isStagingRecoverySystemEnvironment(env = process.env) {
-  const values = [env.DEPLOYMENT_ENVIRONMENT, env.REMOTE_MCP_ENVIRONMENT, env.NODE_ENV]
+function environmentSignals(env = process.env) {
+  return [env.DEPLOYMENT_ENVIRONMENT, env.REMOTE_MCP_ENVIRONMENT, env.NODE_ENV]
     .map((value) => text(value, 96).toLowerCase())
     .filter(Boolean);
-  return values.some((value) => ["staging", "stage", "staging_local_windows_docker"].includes(value));
+}
+
+export function isStagingRecoverySystemEnvironment(env = process.env) {
+  const values = environmentSignals(env);
+  if (values.some((value) => PRODUCTION_ENVIRONMENT_VALUES.has(value))) return false;
+  return values.some((value) => STAGING_ENVIRONMENT_VALUES.has(value));
 }
 
 function requireStagingEnvironment(env = process.env) {
@@ -108,18 +115,30 @@ export async function stagingRecoveryAccessRepairPrepare(input = {}, { env = pro
   requireStagingEnvironment(env);
   requireObject(
     input,
-    ["expected_sha", "target_fingerprint", "grant_binding_hash", "idempotency_key"],
-    ["expected_sha", "target_fingerprint", "grant_binding_hash", "idempotency_key"],
+    ["expected_sha", "grant_binding_hash", "idempotency_key"],
+    ["expected_sha", "grant_binding_hash", "idempotency_key"],
     "STAGING_RECOVERY_ACCESS_REPAIR_PREPARE_INPUT_INVALID",
   );
+  const graph = graphFor(env);
+  const attestation = await graph.deploymentIdentityProvider.readAttestation();
+  const targetFingerprint = requireSha256(attestation?.target_fingerprint, "target_fingerprint");
   const authority = createStagingAccessRepairTicketAuthority({ env });
-  return authority.prepare({
+  const result = await authority.prepare({
     expected_sha: requireSha40(input.expected_sha, "expected_sha"),
     target_key: "staging-runtime",
-    target_fingerprint: requireSha256(input.target_fingerprint, "target_fingerprint"),
+    target_fingerprint: targetFingerprint,
     grant_binding_hash: requireSha256(input.grant_binding_hash, "grant_binding_hash"),
     idempotency_key: requireSafeId(input.idempotency_key, "idempotency_key"),
   });
+  return {
+    ...result,
+    target_fingerprint_source: "server_derived_deployment_attestation",
+    caller_selected_target_fingerprint: false,
+    target_database_mutation_performed: false,
+    provider_mutation_performed: false,
+    production_authority: false,
+    secrets_included: false,
+  };
 }
 
 export async function stagingRecoveryAccessRepairApprove(input = {}, { env = process.env } = {}) {
@@ -161,8 +180,10 @@ export async function stagingRecoverySystemSurfaceReadiness(_input = {}, { env =
     available: true,
     environment: "staging",
     target_key: "staging-runtime",
-    production_authority: false,
+    target_fingerprint_source: "server_derived_deployment_attestation",
     caller_selected_target: false,
+    caller_selected_target_fingerprint: false,
+    production_authority: false,
     raw_sql_allowed: false,
     caller_command_allowed: false,
     mutations_executed: false,
@@ -190,7 +211,7 @@ const descriptors = Object.freeze([
   {
     name: "staging_recovery_access_repair_prepare",
     handler: "stagingRecoveryAccessRepairPrepare",
-    description: "Staging-only Admin Recovery operation. Creates the fixed database-access-repair plan and server-managed approval challenge for staging-runtime. Caller-selected SQL, commands, operation, target key, credentials, and execution tickets are forbidden.",
+    description: "Staging-only Admin Recovery operation. Creates the fixed database-access-repair plan and server-managed approval challenge for staging-runtime using the server-derived deployment target fingerprint. Caller-selected target identity, SQL, commands, operation, target key, credentials, and execution tickets are forbidden.",
     source_key: STAGING_RECOVERY_SYSTEM_SOURCE_KEY,
     capability_key: "staging_database_access_repair",
     catalog_level: "private_recovery",
@@ -199,10 +220,9 @@ const descriptors = Object.freeze([
     inputSchema: {
       type: "object",
       additionalProperties: false,
-      required: ["expected_sha", "target_fingerprint", "grant_binding_hash", "idempotency_key"],
+      required: ["expected_sha", "grant_binding_hash", "idempotency_key"],
       properties: {
         expected_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
-        target_fingerprint: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
         grant_binding_hash: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
         idempotency_key: { type: "string", minLength: 8, maxLength: 160 },
       },
