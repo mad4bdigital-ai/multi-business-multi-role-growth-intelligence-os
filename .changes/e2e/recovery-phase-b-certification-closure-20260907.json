@@ -1,0 +1,123 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "recovery-phase-b-certification-closure-20260907",
+  "title": "Staging Recovery Phase B genuine certification closure",
+  "delivery_mode": "single_pr",
+  "current_phase": "operational",
+  "scope": {
+    "include": [
+      ".changes/e2e/recovery-phase-b-certification-closure-20260907.json",
+      ".github/scripts/staging-recovery-negative-test-evidence.mjs",
+      ".github/scripts/staging-recovery-verify-and-countersign.mjs",
+      ".github/workflows/staging-post-deploy-verification.yml",
+      "apps/local-manager-windows/LocalManagerAutopilot.cs",
+      "autopilot-portable-staging/Invoke-StagingRecoveryCertificationCanary.ps1",
+      "autopilot-portable-staging/Invoke-StagingRecoveryCertificationPublish.ps1",
+      "http-generic-api/scripts/staging-recovery-genuine-canary.mjs",
+      "http-generic-api/scripts/staging-recovery-publish-countersign.mjs",
+      "http-generic-api/stagingRecoveryCertificationProtocol.js",
+      "http-generic-api/test-staging-recovery-certification-protocol.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false,
+    "live_migration_executed": false,
+    "live_grant_executed": false,
+    "deployment_or_restart_executed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Close the repository-side gap between genuine local Staging Recovery canary evidence and the independently countersigned certification consumed by Production readiness, without synthesizing any external evidence or enabling Production mutation.",
+      "e2e_journeys": [
+        {
+          "id": "exact-main-local-canary-to-independent-countersign",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed Staging operator",
+          "entrypoint": "Invoke-StagingRecoveryCertificationCanary.ps1",
+          "terminal_outcome": "A real local Phase B canary bundle bound to exact main is transported without secrets to GitHub, independently re-verifies the Kernel artifacts and exact-SHA negative suites, and produces a Production-consumable signed certification record.",
+          "steps": [
+            "Require local main to equal exact origin/main before canary execution.",
+            "Require real registration, OAuth, network-isolation, Worker provenance, and ingress-build JSON evidence instead of synthesizing external claims.",
+            "Execute the genuine Staging-only Recovery Kernel canary and persist the complete plan, approval, ticket, run, receipt, lifecycle, target, and server-identity bindings.",
+            "Transport only the bounded no-secret evidence bundle to the manual exact-main GitHub countersign workflow.",
+            "Run exact-SHA negative regression suites in the countersign job and bind their pass evidence to GITHUB_SHA.",
+            "Emit a canonical staging certification with complete lifecycle trace, negative tests, server identity fingerprint, artifact integrity, freshness, and canonical payload hash.",
+            "Download the successful countersign artifact on Staging, verify it again against dedicated public trust, and publish it immutably to the local readiness evidence store."
+          ],
+          "assertions": [
+            "The six external-evidence checks remain evidence-driven and are never converted to true by repository defaults.",
+            "The countersign workflow checks out and verifies the same exact main SHA as the local canary.",
+            "A missing/failing/cross-SHA negative-test envelope blocks certification.",
+            "No approval token, credential, raw SQL, provider secret, or Production mutation authority is included in the transported bundle.",
+            "Production live activation remains false during Staging canary, countersign, and publication."
+          ],
+          "tests": [
+            {"id": "certification-protocol", "runner": "node", "working_directory": "http-generic-api", "path": "test-staging-recovery-certification-protocol.mjs", "args": []},
+            {"id": "execution-ticket-negatives", "runner": "node", "working_directory": "http-generic-api", "path": "test-recovery-execution-ticket.mjs", "args": []},
+            {"id": "kernel-negatives", "runner": "node", "working_directory": "http-generic-api", "path": "test-recovery-kernel.mjs", "args": []},
+            {"id": "activation-readiness", "runner": "node", "working_directory": "http-generic-api", "path": "test-recovery-activation-readiness.mjs", "args": []}
+          ],
+          "evidence_paths": [
+            ".github/workflows/staging-post-deploy-verification.yml",
+            "autopilot-portable-staging/Invoke-StagingRecoveryCertificationCanary.ps1",
+            "autopilot-portable-staging/Invoke-StagingRecoveryCertificationPublish.ps1",
+            "http-generic-api/stagingRecoveryCertificationProtocol.js"
+          ]
+        },
+        {
+          "id": "local-manager-cloudflare-origin-failure-classification",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Mad4B Local Manager",
+          "entrypoint": "desktop command polling",
+          "terminal_outcome": "Cloudflare 520-527 origin failures such as HTTP 522 are classified as retryable platform-origin outages instead of opaque generic HTTP errors.",
+          "steps": [
+            "Parse the platform HTTP status exactly once.",
+            "Classify 502/503/504 and Cloudflare 520-527 as platform_origin_unavailable.",
+            "Preserve bounded automatic polling retry and a diagnostic that identifies Cloudflare origin-side failure."
+          ],
+          "assertions": [
+            "HTTP 522 is retryable and not treated as an unknown Local Manager defect.",
+            "No credential or token material is added to diagnostics."
+          ],
+          "tests": [
+            {"id": "local-manager-release-owner", "runner": "node", "working_directory": "http-generic-api", "path": "test-local-manager-tool-release-owner.mjs", "args": []}
+          ],
+          "evidence_paths": ["apps/local-manager-windows/LocalManagerAutopilot.cs"]
+        }
+      ],
+      "tests": [
+        {"id": "certification-protocol", "runner": "node", "working_directory": "http-generic-api", "path": "test-staging-recovery-certification-protocol.mjs", "args": []},
+        {"id": "local-manager-release-owner", "runner": "node", "working_directory": "http-generic-api", "path": "test-local-manager-tool-release-owner.mjs", "args": []}
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "implemented",
+      "objective": "Provide the exact-main local runner, independent GitHub countersign transport, and durable local publication handoff needed to close live Staging certification after deployment."
+    }
+  ],
+  "safety": {
+    "repository_only": true,
+    "production_mutation_allowed": false,
+    "database_mutation": false,
+    "migration_apply": false,
+    "grant_execution": false,
+    "provider_call": false,
+    "production_deploy": false,
+    "workflow_dispatch_performed": false,
+    "external_evidence_synthesized": false,
+    "secrets_included": false
+  }
+}
