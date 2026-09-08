@@ -13,7 +13,10 @@
       ".github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml",
       "http-generic-api/scripts/e2e-parallel-pr-gate.mjs",
       "http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl.mjs",
-      "http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs"
+      "http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs",
+      ".github/derived-state-governance.json",
+      ".github/governance/test-authority-registry.json",
+      "http-generic-api/config/repository-governance-constitution.json"
     ]
   },
   "environment_impact": {
@@ -80,7 +83,10 @@
             ".github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml",
             "http-generic-api/scripts/e2e-parallel-pr-gate.mjs",
             "http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl.mjs",
-            "http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs"
+            "http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs",
+            ".github/derived-state-governance.json",
+            ".github/governance/test-authority-registry.json",
+            "http-generic-api/config/repository-governance-constitution.json"
           ]
         }
       ]
