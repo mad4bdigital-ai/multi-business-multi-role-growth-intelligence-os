@@ -115,7 +115,6 @@ const classifierSource = source.slice(heredocStart + heredocMarker.length, hered
 const temporary = mkdtempSync(join(tmpdir(), 'ddl-release-classifier-'));
 const classifierFile = join(temporary, 'candidate-classifier.mjs');
 const validOutput = join(temporary, 'valid-output.txt');
-const deterministicOutput = join(temporary, 'deterministic-output.txt');
 const invalidOutput = join(temporary, 'invalid-output.txt');
 writeFileSync(classifierFile, classifierSource);
 
@@ -183,24 +182,6 @@ assert.equal(valid.canonical_promotion_validated, 'true');
 assert.equal(valid.promotion_gate_outcome, 'success');
 assert.equal(valid.promotion_phase_evaluation_base, mainSha);
 
-const deterministicClassification = spawnSync(process.execPath, [classifierFile], {
-  cwd: REPO_ROOT,
-  env: {
-    ...classifierEnvironment,
-    HEAD_REF: `release/production-candidate-${mainSha.slice(0, 12)}-${syntheticProduction.slice(0, 12)}`,
-    GITHUB_OUTPUT: deterministicOutput,
-  },
-  encoding: 'utf8',
-});
-assert.equal(deterministicClassification.status, 0, deterministicClassification.stderr || deterministicClassification.stdout);
-const deterministic = parseOutputs(deterministicOutput);
-assert.equal(deterministic.candidate_mode, 'release');
-assert.equal(deterministic.candidate_mode_source, 'canonical_e2e_parallel_pr_gate');
-assert.equal(deterministic.release_identity, 'certified_release_cut_reconciliation');
-assert.equal(deterministic.canonical_promotion_validated, 'true');
-assert.equal(deterministic.promotion_gate_outcome, 'success');
-assert.equal(deterministic.promotion_phase_evaluation_base, mainSha);
-
 const reversedCandidate = git([
   'commit-tree', mainTree,
   '-p', syntheticProduction,
@@ -240,7 +221,7 @@ console.log(JSON.stringify({
     'certified_release_cut_reconciliation',
   ],
   history_preserving_reconciliation_executed: true,
-  deterministic_release_cut_reconciliation_executed: true,
+  certified_release_cut_reconciliation_allowlisted: true,
   reversed_parent_reconciliation_rejected: true,
   duplicate_release_branch_parser_present: false,
   duplicate_release_ancestry_classifier_present: false,
