@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
+import { selectReusableBuilderRun } from "../scripts/production-promotion-release-cut-evidence.mjs";
 
 const root = process.cwd();
 const launcher = fs.readFileSync(`${root}/.github/workflows/governed-production-promotion-request-launcher.yml`, "utf8");
 const mainSourcePin = fs.readFileSync(`${root}/.github/workflows/governed-production-main-source-pin-guard.yml`, "utf8");
 const releaseSourcePin = fs.readFileSync(`${root}/.github/workflows/governed-production-release-source-pin-gate.yml`, "utf8");
+const releaseCutEvidence = fs.readFileSync(`${root}/.github/scripts/production-promotion-release-cut-evidence.mjs`, "utf8");
 const schema = JSON.parse(fs.readFileSync(`${root}/.github/contracts/governed-command-parameters/production-promotion-request.v1.json`, "utf8"));
 const registry = JSON.parse(fs.readFileSync(`${root}/.github/contracts/production-promotion-supporting-gates.v1.json`, "utf8"));
 
@@ -63,6 +65,42 @@ test("comment transport is observability only after canonical promotion evidence
   assert.match(launcher, /validation evidence comment transport degraded/u);
   assert.match(launcher, /Upload convergence evidence/u);
   assert.match(launcher, /if-no-files-found: error/u);
+});
+
+test("reused builder provenance resolves only one successful exact-head candidate artifact", () => {
+  const requestHeadSha = "1".repeat(40);
+  const otherHeadSha = "3".repeat(40);
+  const candidateSha = "2".repeat(40);
+  const artifactName = `production-promotion-candidate-${candidateSha}`;
+  const runs = [
+    { id: 9101, head_sha: requestHeadSha, event: "workflow_dispatch", status: "completed", conclusion: "success" },
+    { id: 9102, head_sha: otherHeadSha, event: "workflow_dispatch", status: "completed", conclusion: "success" },
+    { id: 9103, head_sha: requestHeadSha, event: "workflow_dispatch", status: "completed", conclusion: "failure" },
+  ];
+  const artifactsByRun = {
+    9101: [{ name: artifactName, expired: false }],
+    9102: [{ name: artifactName, expired: false }],
+    9103: [{ name: artifactName, expired: false }],
+  };
+
+  assert.equal(selectReusableBuilderRun({ requestHeadSha, candidateSha, runs, artifactsByRun }), "9101");
+
+  assert.throws(() => selectReusableBuilderRun({
+    requestHeadSha,
+    candidateSha,
+    runs: [...runs, { id: 9104, head_sha: requestHeadSha, event: "workflow_dispatch", status: "completed", conclusion: "success" }],
+    artifactsByRun: { ...artifactsByRun, 9104: [{ name: artifactName, expired: false }] },
+  }), /expected exactly one reusable builder run/u);
+
+  assert.throws(() => selectReusableBuilderRun({
+    requestHeadSha,
+    candidateSha,
+    runs: [runs[0]],
+    artifactsByRun: { 9101: [{ name: artifactName, expired: true }] },
+  }), /expected exactly one reusable builder run/u);
+
+  assert.match(releaseCutEvidence, /builder_run_id: requireString\(String\(input\.builder_run_id\), "builder_run_id", POSITIVE_INT\)/u);
+  assert.match(releaseCutEvidence, /input\.builder_run_id = await resolveReusedBuilderRunId\(input\)/u);
 });
 
 console.log(JSON.stringify({
