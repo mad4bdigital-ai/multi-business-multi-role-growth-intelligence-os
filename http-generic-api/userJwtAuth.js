@@ -16,6 +16,42 @@ export function resolveUserJwtSecret(env = process.env) {
   return String(env?.JWT_SECRET || "").trim();
 }
 
+export function resolveUserTenantContextTtlSeconds(
+  {
+    parentExp = null,
+    maxTtlSeconds = 60 * 60,
+  } = {},
+  {
+    nowSeconds = Math.floor(Date.now() / 1000),
+  } = {},
+) {
+  const configuredMax = Number(maxTtlSeconds);
+  const maxTtl = Number.isFinite(configuredMax) && configuredMax > 0
+    ? Math.floor(configuredMax)
+    : 60 * 60;
+
+  const parentMissing = parentExp === null || parentExp === undefined || parentExp === "";
+  if (parentMissing) return maxTtl;
+
+  const parsedParentExp = Number(parentExp);
+  if (!Number.isFinite(parsedParentExp)) {
+    const error = new Error("Tenant context parent expiry is invalid.");
+    error.code = "tenant_context_parent_expiry_invalid";
+    error.status = 401;
+    throw error;
+  }
+
+  const parentRemaining = Math.floor(parsedParentExp - nowSeconds);
+  if (parentRemaining <= 0) {
+    const error = new Error("The parent user session has expired and cannot mint a tenant context.");
+    error.code = "tenant_context_parent_expired";
+    error.status = 401;
+    throw error;
+  }
+
+  return Math.min(maxTtl, parentRemaining);
+}
+
 export function issueUserTenantContextJwt(
   {
     userId,
@@ -49,13 +85,10 @@ export function issueUserTenantContextJwt(
     throw error;
   }
 
-  const configuredMax = Number(maxTtlSeconds);
-  const maxTtl = Number.isFinite(configuredMax) && configuredMax > 0 ? Math.floor(configuredMax) : 60 * 60;
-  const parsedParentExp = Number(parentExp);
-  const parentRemaining = Number.isFinite(parsedParentExp)
-    ? Math.max(1, Math.floor(parsedParentExp - nowSeconds))
-    : maxTtl;
-  const ttlSeconds = Math.max(1, Math.min(maxTtl, parentRemaining));
+  const ttlSeconds = resolveUserTenantContextTtlSeconds(
+    { parentExp, maxTtlSeconds },
+    { nowSeconds },
+  );
 
   return signToken(
     {
