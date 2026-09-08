@@ -8,8 +8,8 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7603,
-  "route_count": 1102,
+  "file_count": 7612,
+  "route_count": 1103,
   "write_route_count": 669,
   "classified_write_surface_count": 42,
   "classified_write_route_count": 669,
@@ -1993,8 +1993,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorAgentRoutes.js#GET:/connector-agent/version:0",
-      "source_line": 764,
-      "source_offset": 35723,
+      "source_line": 836,
+      "source_offset": 40719,
       "method": "GET",
       "path": "/connector-agent/version",
       "file": "http-generic-api/routes/connectorAgentRoutes.js",
@@ -2002,8 +2002,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorAgentRoutes.js#GET:/connector-agent/manifest.json:1",
-      "source_line": 794,
-      "source_offset": 36875,
+      "source_line": 866,
+      "source_offset": 41871,
       "method": "GET",
       "path": "/connector-agent/manifest.json",
       "file": "http-generic-api/routes/connectorAgentRoutes.js",
@@ -2011,8 +2011,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorAgentRoutes.js#GET:/connector-agent/installer.ps1:2",
-      "source_line": 840,
-      "source_offset": 38496,
+      "source_line": 912,
+      "source_offset": 43492,
       "method": "GET",
       "path": "/connector-agent/installer.ps1",
       "file": "http-generic-api/routes/connectorAgentRoutes.js",
@@ -2020,8 +2020,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorAgentRoutes.js#GET:/connector-agent/files/:fileName:3",
-      "source_line": 875,
-      "source_offset": 40774,
+      "source_line": 947,
+      "source_offset": 45770,
       "method": "GET",
       "path": "/connector-agent/files/:fileName",
       "file": "http-generic-api/routes/connectorAgentRoutes.js",
@@ -2029,8 +2029,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorAgentRoutes.js#GET:/connector-agent/policy:4",
-      "source_line": 892,
-      "source_offset": 41583,
+      "source_line": 964,
+      "source_offset": 46579,
       "method": "GET",
       "path": "/connector-agent/policy",
       "file": "http-generic-api/routes/connectorAgentRoutes.js",
@@ -2038,8 +2038,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorAgentRoutes.js#POST:/connector-agent/heartbeat:5",
-      "source_line": 966,
-      "source_offset": 45008,
+      "source_line": 1037,
+      "source_offset": 49954,
       "method": "POST",
       "path": "/connector-agent/heartbeat",
       "file": "http-generic-api/routes/connectorAgentRoutes.js",
@@ -4177,6 +4177,15 @@
       "path": "/local-connector/uninstall",
       "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
       "write": true
+    },
+    {
+      "route_id": "http-generic-api/routes/localConnectorInstallerDelegationRoutes.js#GET:/local-connector/install/download:0",
+      "source_line": 84,
+      "source_offset": 3550,
+      "method": "GET",
+      "path": "/local-connector/install/download",
+      "file": "http-generic-api/routes/localConnectorInstallerDelegationRoutes.js",
+      "write": false
     },
     {
       "route_id": "http-generic-api/routes/localConnectorRoutes.js#POST:/local-connector/shell:0",
@@ -18409,10 +18418,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/connectorAgentRoutes.js",
-        "source_line": 966,
+        "source_line": 1037,
         "handler_window_lines": [
-          966,
-          985
+          1037,
+          1055
         ],
         "evidence_flags": {
           "handler_window_present": true,
