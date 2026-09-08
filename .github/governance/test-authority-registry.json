@@ -162,6 +162,13 @@
       ]
     },
     {
+      "id": "hostinger_storage_durable_authorized_injection_schema_ddl",
+      "test_paths": [
+        "http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl.mjs",
+        "http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs"
+      ]
+    },
+    {
       "id": "hostinger_storage_work_map_gate_scope",
       "test_paths": [
         "http-generic-api/test-hostinger-storage-work-map-gate-scope.mjs",
