@@ -72,3 +72,5 @@ jobs:
           git diff --cached --check
           git commit -m 'fix(frontend): classify signed installer delegation surface'
           git push origin HEAD:fix/admin-recovery-mcp-local-connector-ownership-20260908
+
+# retrigger: policy repair after n8n fixture isolation
