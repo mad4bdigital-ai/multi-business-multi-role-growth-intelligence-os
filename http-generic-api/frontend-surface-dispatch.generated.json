@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "a8785fdd4157613a88bb5c6df16e53856114e3f949bab296dbad4a1d7b267e0f",
+    "source_digest": "ec287e8971d2ed095f8ab7b92c2c8b1eb96fb6c66c37b186ba7aeb17e3fa781f",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -381,7 +381,7 @@
       },
       {
         "file": "routes/activationHostGatewayRoutes.js",
-        "sha256": "b98ba3fe8daab9ab8b8c611abbb42866f23c584c9d5ea1cff54d43ca7b5dc952",
+        "sha256": "2e86925108a91a2748d872a1d52dfda9f9affa0aede8c02694eb47da1639fa5e",
         "present": true
       },
       {
@@ -571,7 +571,7 @@
       },
       {
         "file": "routes/deviceToolsRoutes.js",
-        "sha256": "e0eea44c7c90e35c64c322068526b55341fcfecd64b2144719e740fd2b79db13",
+        "sha256": "b4eacff76824cce7134139eeed56295cf43ae8f4ef4d7d75419615cab7a2b6dd",
         "present": true
       },
       {
@@ -696,7 +696,7 @@
       },
       {
         "file": "routes/mcpRoutes.js",
-        "sha256": "decca5c5a122bd0d279b4e1215806ada44a8095ae80a1cbe249697e5e13c104d",
+        "sha256": "84cc4b4ac585eb77874891456e0f10db5fd2ce90358a32ab5497a850a163ecf2",
         "present": true
       },
       {
@@ -981,7 +981,7 @@
       },
       {
         "file": "routes/stagingRecoveryAdminRoutes.js",
-        "sha256": "c925f478f8f9b6cd6432b901ebeef46dea6ced2ed683968d20765676079cd278",
+        "sha256": "7d1ca3bc85b41563efe5d0255e17fabc54c0f5766e7f4b9e0897e342910bdb5d",
         "present": true
       },
       {
@@ -1001,7 +1001,7 @@
       },
       {
         "file": "routes/systemLayerRoutes.js",
-        "sha256": "09ebc35053c457bf13885ab6a79b4e8727c03bab708a394a0ec548009cd3885c",
+        "sha256": "85787769992d6554a0480d21b9d25c14aef4db5d603cdc000eca151b6e1bf70d",
         "present": true
       },
       {
@@ -3733,7 +3733,7 @@
       "family_key": "staging-recovery-admin",
       "label": "staging recovery admin",
       "source_file": "routes/stagingRecoveryAdminRoutes.js",
-      "source_digest": "c925f478f8f9b6cd6432b901ebeef46dea6ced2ed683968d20765676079cd278",
+      "source_digest": "7d1ca3bc85b41563efe5d0255e17fabc54c0f5766e7f4b9e0897e342910bdb5d",
       "mount_prefix": "/",
       "mount_order": 13507,
       "split_from_mixed_scope_file": false,
@@ -3765,6 +3765,8 @@
               "requireBackendApiKey"
             ],
             "evidence": [
+              "router.use:requireAdminPrincipal",
+              "router.use:requireBackendApiKey",
               "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
@@ -3832,6 +3834,8 @@
               "requireBackendApiKey"
             ],
             "evidence": [
+              "router.use:requireAdminPrincipal",
+              "router.use:requireBackendApiKey",
               "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
@@ -3899,6 +3903,8 @@
               "requireBackendApiKey"
             ],
             "evidence": [
+              "router.use:requireAdminPrincipal",
+              "router.use:requireBackendApiKey",
               "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
@@ -3966,6 +3972,8 @@
               "requireBackendApiKey"
             ],
             "evidence": [
+              "router.use:requireAdminPrincipal",
+              "router.use:requireBackendApiKey",
               "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
@@ -4063,6 +4071,8 @@
               "requireBackendApiKey"
             ],
             "evidence": [
+              "router.use:requireAdminPrincipal",
+              "router.use:requireBackendApiKey",
               "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
@@ -4160,6 +4170,8 @@
               "requireBackendApiKey"
             ],
             "evidence": [
+              "router.use:requireAdminPrincipal",
+              "router.use:requireBackendApiKey",
               "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
@@ -12229,7 +12241,7 @@
       "family_key": "system-layer.admin",
       "label": "system layer (admin)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "09ebc35053c457bf13885ab6a79b4e8727c03bab708a394a0ec548009cd3885c",
+      "source_digest": "85787769992d6554a0480d21b9d25c14aef4db5d603cdc000eca151b6e1bf70d",
       "mount_prefix": "/",
       "mount_order": 15057,
       "split_from_mixed_scope_file": true,
@@ -13005,7 +13017,7 @@
       "family_key": "system-layer.developer",
       "label": "system layer (developer)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "09ebc35053c457bf13885ab6a79b4e8727c03bab708a394a0ec548009cd3885c",
+      "source_digest": "85787769992d6554a0480d21b9d25c14aef4db5d603cdc000eca151b6e1bf70d",
       "mount_prefix": "/",
       "mount_order": 15057,
       "split_from_mixed_scope_file": true,
@@ -21684,7 +21696,7 @@
       "family_key": "mcp",
       "label": "mcp",
       "source_file": "routes/mcpRoutes.js",
-      "source_digest": "decca5c5a122bd0d279b4e1215806ada44a8095ae80a1cbe249697e5e13c104d",
+      "source_digest": "84cc4b4ac585eb77874891456e0f10db5fd2ce90358a32ab5497a850a163ecf2",
       "mount_prefix": "/",
       "mount_order": 16441,
       "split_from_mixed_scope_file": false,
@@ -90741,7 +90753,7 @@
       "family_key": "device-tools",
       "label": "device tools",
       "source_file": "routes/deviceToolsRoutes.js",
-      "source_digest": "e0eea44c7c90e35c64c322068526b55341fcfecd64b2144719e740fd2b79db13",
+      "source_digest": "b4eacff76824cce7134139eeed56295cf43ae8f4ef4d7d75419615cab7a2b6dd",
       "mount_prefix": "/",
       "mount_order": 23259,
       "split_from_mixed_scope_file": false,

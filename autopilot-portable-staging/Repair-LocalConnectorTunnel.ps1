@@ -144,8 +144,10 @@ function Restart-LocalTunnelRuntime {
 function Test-LocalConnectorHealth { try { $response = Invoke-WebRequest -Uri "http://127.0.0.1:7070/health" -UseBasicParsing -TimeoutSec 8 -ErrorAction Stop; return ([int]$response.StatusCode -eq 200) } catch { return $false } }
 function Wait-LocalConnectorHealth([int]$Seconds) { $deadline = [DateTime]::UtcNow.AddSeconds($Seconds); do { if (Test-LocalConnectorHealth) { return $true }; Start-Sleep -Seconds 2 } while ([DateTime]::UtcNow -lt $deadline); return $false }
 function Get-PublicConnectorHealth {
-    try { $response = Invoke-WebRequest -Uri "https://connector.mad4b.com/health" -UseBasicParsing -TimeoutSec 12 -ErrorAction Stop; return [pscustomobject]@{ healthy = ([int]$response.StatusCode -eq 200); http_status = [int]$response.StatusCode; error = $null } }
-    catch { $status = $null; try { $status = [int]$_.Exception.Response.StatusCode.value__ } catch { }; $text = [string]$_.Exception.Message; $errorCode = if ($status -eq 530 -or $text -match '(?i)\b1033\b') { "cloudflare_1033" } else { "remote_unavailable" }; return [pscustomobject]@{ healthy = $false; http_status = $status; error = $errorCode } }
+    try { $dns = @(Resolve-DnsName -Name "connector.mad4b.com" -ErrorAction Stop | Where-Object { $_.IPAddress -or $_.NameHost }); if ($dns.Count -eq 0) { return [pscustomobject]@{ healthy = $false; http_status = $null; error = "dns_empty"; tunnel_restart_allowed = $false } } }
+    catch { return [pscustomobject]@{ healthy = $false; http_status = $null; error = "dns_resolution_failed"; tunnel_restart_allowed = $false } }
+    try { $response = Invoke-WebRequest -Uri "https://connector.mad4b.com/health" -UseBasicParsing -TimeoutSec 12 -ErrorAction Stop; return [pscustomobject]@{ healthy = ([int]$response.StatusCode -eq 200); http_status = [int]$response.StatusCode; error = $null; tunnel_restart_allowed = $false } }
+    catch { $status = $null; try { $status = [int]$_.Exception.Response.StatusCode.value__ } catch { }; $text = [string]$_.Exception.Message; $errorCode = if ($status -eq 530 -or $text -match '(?i)\b1033\b') { "cloudflare_1033" } elseif ($status -eq 401) { "identity_invalid" } elseif ($status -eq 403) { "identity_binding_mismatch" } else { "public_route_unavailable" }; return [pscustomobject]@{ healthy = $false; http_status = $status; error = $errorCode; tunnel_restart_allowed = ($errorCode -eq "cloudflare_1033") } }
 }
 function Wait-PublicHealth([int]$Seconds) { $deadline = [DateTime]::UtcNow.AddSeconds($Seconds); $last = Get-PublicConnectorHealth; while ([DateTime]::UtcNow -lt $deadline) { if ($last.healthy) { return $last }; Start-Sleep -Seconds 3; $last = Get-PublicConnectorHealth }; return $last }
 function Complete-StagingReadback([hashtable]$State, [object]$Before) {
@@ -272,7 +274,7 @@ $state.connector_runtime_ensure_attempted = $true
 $state.local_health = Wait-LocalConnectorHealth ([Math]::Min(10, $RecoveryWaitSeconds))
 if (-not $state.local_health) { $state.connector_runtime_restart_attempted = $true; [void](Restart-ConnectorRuntime); $state.local_health = Wait-LocalConnectorHealth ([Math]::Min(15, $RecoveryWaitSeconds)) }
 $public = Get-PublicConnectorHealth
-if ($state.local_health -and -not $public.healthy) { $state.tunnel_restart_attempted = $true; [void](Restart-LocalTunnelRuntime); $public = Wait-PublicHealth $RecoveryWaitSeconds }
+if ($state.local_health -and -not $public.healthy -and $public.tunnel_restart_allowed) { $state.tunnel_restart_attempted = $true; [void](Restart-LocalTunnelRuntime); $public = Wait-PublicHealth $RecoveryWaitSeconds }
 $state.public_health = [bool]$public.healthy
 $state.public_http_status = $public.http_status
 $state.public_error = $public.error

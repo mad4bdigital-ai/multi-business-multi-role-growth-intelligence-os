@@ -11,6 +11,7 @@ import { resolveTrustedRequestHost } from "../trustedRequestHost.js";
 import { evaluateExternalStagingEvidence } from "../recoveryReadinessEvidence.js";
 import { createStagingBootstrapExecutionAuthority } from "../stagingBootstrapExecutionAuthority.js";
 import { createStagingAccessRepairTicketAuthority } from "../stagingAccessRepairTicketAuthority.js";
+import { buildRecoverySystemToolOverlayRoutes } from "./recoverySystemToolOverlayRoutes.js";
 
 export const STAGING_RECOVERY_ADMIN_SURFACE_CONTRACT = "mad4b.staging-recovery-admin-surface.v1";
 export const STAGING_RECOVERY_ADMIN_SERVER_URI = "https://activation-dev.mad4b.com";
@@ -127,13 +128,53 @@ export async function buildStagingRecoveryAdminReadiness({ recoveryComposition =
   };
 }
 
-export function buildStagingRecoveryAdminRoutes({ env = process.env, requireBackendApiKey, requireAdminPrincipal, recoveryComposition = null, stagingCertificationReader = null, deploymentAttestationReader = null, targetFingerprintReader = null, recoveryReadinessEvidenceReader = null, trustedHostResolver = resolveTrustedRequestHost, stagingBootstrapExecutionAuthorityFactory = createStagingBootstrapExecutionAuthority, stagingAccessRepairTicketAuthorityFactory = createStagingAccessRepairTicketAuthority } = {}) {
+export function buildStagingRecoveryAdminRoutes({
+  env = process.env,
+  recoveryKernelEnv = null,
+  requireBackendApiKey,
+  requireAdminPrincipal,
+  recoveryComposition = null,
+  stagingCertificationReader = null,
+  deploymentAttestationReader = null,
+  targetFingerprintReader = null,
+  recoveryReadinessEvidenceReader = null,
+  trustedHostResolver = resolveTrustedRequestHost,
+  stagingBootstrapExecutionAuthorityFactory = createStagingBootstrapExecutionAuthority,
+  stagingAccessRepairTicketAuthorityFactory = createStagingAccessRepairTicketAuthority,
+  recoveryStore = null,
+  executionTicketSigner = null,
+  approvalIssuer = null,
+  approvalVerifier = null,
+  approvalStore = null,
+  recoveryLock = null,
+  readbackVerifier = null,
+  deploymentIdentityProvider = null,
+  hostBreakglassMutationExecutor = null,
+  migrationLedger = null,
+} = {}) {
   const router = Router({ caseSensitive: true, strict: true });
   const hostProfile = resolveActivationGatewayHostProfile(env);
   const staging = isStagingEnvironment(env) && hostProfile.ok && hostProfile.profile?.gateway_key === "activation_gateway_staging";
   const missingGuards = [["requireBackendApiKey", requireBackendApiKey], ["requireAdminPrincipal", requireAdminPrincipal]].filter(([, guard]) => typeof guard !== "function").map(([name]) => name);
   if (missingGuards.length) throw Object.assign(new Error(`Staging Recovery requires all server-managed guards: ${missingGuards.join(", ")}`), { code: "RECOVERY_STAGING_GUARD_MISSING", missing_guards: missingGuards });
   const guards = [requireBackendApiKey, requireAdminPrincipal];
+
+  router.use(buildRecoverySystemToolOverlayRoutes({
+    env,
+    recoveryKernelEnv,
+    requireBackendApiKey,
+    requireAdminPrincipal,
+    recoveryStore,
+    executionTicketSigner,
+    approvalIssuer,
+    approvalVerifier,
+    approvalStore,
+    recoveryLock,
+    readbackVerifier,
+    deploymentIdentityProvider,
+    hostBreakglassMutationExecutor,
+    migrationLedger,
+  }));
 
   router.use((req, res, next) => {
     if (!STAGING_RECOVERY_PATHS.includes(String(req?.path || ""))) return next();

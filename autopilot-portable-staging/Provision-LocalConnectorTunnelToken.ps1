@@ -3,6 +3,7 @@ param(
     [string]$ConnectorRoot = "C:\mad4b-connector\local-connector",
     [string]$SourceTokenPath = "",
     [string]$TunnelId = "",
+    [string]$ExpectedHostname = "connector.mad4b.com",
     [switch]$RecoverExistingTunnelToken,
     [string]$CloudflareAccountId = $env:CLOUDFLARE_ACCOUNT_ID,
     [string]$CloudflareApiToken = $env:CLOUDFLARE_API_TOKEN,
@@ -89,6 +90,39 @@ function Get-ExistingRemoteTunnelToken([string]$AccountId, [string]$ApiToken, [s
     }
 
     $headers = @{ Authorization = "Bearer $ApiToken"; "Content-Type" = "application/json" }
+
+    if (-not [string]::IsNullOrWhiteSpace($ExpectedHostname)) {
+        $normalizedHostname = $ExpectedHostname.Trim().ToLowerInvariant()
+        $owners = @()
+        try {
+            $tunnelsResult = Invoke-RestMethod -Method Get -Uri "https://api.cloudflare.com/client/v4/accounts/$AccountId/cfd_tunnel?is_deleted=false&per_page=100" -Headers $headers -TimeoutSec 15 -ErrorAction Stop
+            foreach ($candidate in @($tunnelsResult.result)) {
+                if ($null -eq $candidate -or [string]::IsNullOrWhiteSpace([string]$candidate.id)) { continue }
+                $configurationResult = Invoke-RestMethod -Method Get -Uri "https://api.cloudflare.com/client/v4/accounts/$AccountId/cfd_tunnel/$($candidate.id)/configurations" -Headers $headers -TimeoutSec 15 -ErrorAction Stop
+                foreach ($route in @($configurationResult.result.config.ingress)) {
+                    if ($null -ne $route -and ([string]$route.hostname).Trim().ToLowerInvariant() -eq $normalizedHostname) {
+                        $owners += [pscustomobject]@{
+                            tunnel_id = [string]$candidate.id
+                            tunnel_name = [string]$candidate.name
+                            service = [string]$route.service
+                        }
+                    }
+                }
+            }
+        } catch {
+            throw "connector_tunnel_hostname_ownership_unverified: Cloudflare tunnel ingress ownership lookup failed."
+        }
+
+        $distinctOwnerIds = @($owners | Select-Object -ExpandProperty tunnel_id -Unique)
+        if ($distinctOwnerIds.Count -ne 1 -or $distinctOwnerIds[0] -ne $Id) {
+            $observed = if ($distinctOwnerIds.Count -eq 0) { "none" } else { $distinctOwnerIds -join "," }
+            throw "connector_tunnel_hostname_owner_conflict: hostname=$normalizedHostname expected_tunnel_id=$Id observed_tunnel_ids=$observed"
+        }
+        $state["hostname_ownership_verified"] = $true
+        $state["expected_hostname"] = $normalizedHostname
+        $state["observed_hostname_owner_tunnel_ids"] = $distinctOwnerIds
+    }
+
     $base = "https://api.cloudflare.com/client/v4/accounts/$AccountId/cfd_tunnel/$Id"
     try {
         $tunnel = Invoke-RestMethod -Method Get -Uri $base -Headers $headers -TimeoutSec 15 -ErrorAction Stop
@@ -131,6 +165,9 @@ $state = @{
     token_file_written = $false
     token_file_acl_restricted = $false
     provider_lookup_attempted = $false
+    hostname_ownership_verified = $false
+    expected_hostname = if ([string]::IsNullOrWhiteSpace($ExpectedHostname)) { $null } else { $ExpectedHostname.Trim().ToLowerInvariant() }
+    observed_hostname_owner_tunnel_ids = @()
     provider_mutation = $false
     dns_mutation = $false
     production_mutation = $false
@@ -195,6 +232,12 @@ try {
     if ($message -match '^connector_tunnel_remote_migration_required:') {
         $state.status = "connector_tunnel_remote_migration_required"
         $state.required_next_action = "migrate_or_create_remote_managed_tunnel"
+    } elseif ($message -match '^connector_tunnel_hostname_owner_conflict:') {
+        $state.status = "connector_tunnel_hostname_owner_conflict"
+        $state.required_next_action = "remove_duplicate_hostname_route_then_retry"
+    } elseif ($message -match '^connector_tunnel_hostname_ownership_unverified:') {
+        $state.status = "connector_tunnel_hostname_ownership_unverified"
+        $state.required_next_action = "restore_read_only_cloudflare_tunnel_visibility"
     } elseif ($message -match '^connector_tunnel_provisioning_required:') {
         $state.status = "connector_tunnel_provisioning_required"
         $state.required_next_action = "provision_remote_tunnel_token"

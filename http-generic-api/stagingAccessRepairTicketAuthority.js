@@ -97,6 +97,7 @@ function buildPlan(binding, attestation) {
     target_fingerprint: binding.target_fingerprint,
     target_fingerprint_at_creation: binding.target_fingerprint,
     target_fingerprints: { composite: binding.target_fingerprint },
+    manifest_hash: attestation.recovery_manifest_hash,
     runtime_attestation_hash: attestation.attestation_hash,
     finding_ids: [findingId],
     finding_hash: findingHash,
@@ -104,6 +105,7 @@ function buildPlan(binding, attestation) {
     role_selection_hash: null,
     role_selection_proof: null,
     role_bundle_bindings: {},
+    proof: { manifest_bound: true },
     steps: [step],
     status: "planned",
     repair_key: STAGING_ACCESS_REPAIR_CAPABILITY,
@@ -131,7 +133,11 @@ async function attestExactDeployment(graph, binding) {
   if (attestation.environment !== "staging" || attestation.branch !== "main" || attestation.sha !== binding.expected_sha || attestation.target_fingerprint !== binding.target_fingerprint) {
     fail(attestation.sha !== binding.expected_sha ? "STAGING_SHA_MISMATCH" : "RECOVERY_TICKET_BINDING_MISMATCH", "Staging access-repair approval is not bound to the exact deployment and target.", { deployment_sha: attestation.sha, target_match: attestation.target_fingerprint === binding.target_fingerprint }, 412);
   }
-  return attestation;
+  const recoveryManifestHash = text(attestation.recovery_manifest_hash, 128).toLowerCase();
+  if (attestation.manifest_bound !== true || !SHA256.test(recoveryManifestHash)) {
+    fail("RECOVERY_MANIFEST_BINDING_MISSING", "Staging access-repair approval requires a valid repository-owned Recovery Manifest binding.", { manifest_bound: attestation.manifest_bound === true }, 412);
+  }
+  return { ...attestation, recovery_manifest_hash: recoveryManifestHash };
 }
 
 export function createStagingAccessRepairTicketAuthority({ env = process.env } = {}) {

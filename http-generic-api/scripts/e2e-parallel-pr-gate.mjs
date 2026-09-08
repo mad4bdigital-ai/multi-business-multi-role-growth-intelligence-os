@@ -4,22 +4,32 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  parseProductionCandidateSurfaceRef,
+  validateProductionCandidateSurfaceHint,
+} from "../../.github/scripts/production-promotion-identity.mjs";
 
 export { resolveParallelMaintenanceScope } from "./e2e-parallel-pr-gate-legacy.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, "..", "..");
 const LEGACY_GATE = path.join(HERE, "e2e-parallel-pr-gate-legacy.mjs");
-const CERTIFIED_RELEASE_CUT_REF = /^release\/production-candidate-([0-9a-f]{12})-([0-9a-f]{12})-([1-9]\d*)-([1-9]\d*)$/;
+const CERTIFIED_RELEASE_CUT_SURFACE_KINDS = new Set([
+  "canonical_v2",
+  "deterministic_release_cut_v1",
+  "certified_run_v1",
+]);
 
 export function parseCertifiedReleaseCutRef(headRef) {
-  const match = CERTIFIED_RELEASE_CUT_REF.exec(String(headRef || ""));
-  if (!match) return null;
+  const parsed = parseProductionCandidateSurfaceRef(headRef);
+  if (!parsed || !CERTIFIED_RELEASE_CUT_SURFACE_KINDS.has(parsed.kind)) return null;
   return Object.freeze({
-    release_cut_prefix: match[1],
-    production_prefix: match[2],
-    launcher_run_id: match[3],
-    launcher_run_attempt: match[4]
+    release_cut_prefix: parsed.release_cut_prefix,
+    production_prefix: parsed.production_prefix,
+    session_prefix: parsed.session_prefix ?? null,
+    launcher_run_id: parsed.launcher_run_id ?? null,
+    launcher_run_attempt: parsed.launcher_run_attempt ?? null,
+    surface_kind: parsed.kind,
   });
 }
 
@@ -109,7 +119,7 @@ function resolveLiveProtectedSha(root, name) {
   const githubReadContext = resolveGitHubReadContext();
   if (githubReadContext.token) {
     if (!githubReadContext.repositoryValid) return null;
-    const childEnv = { ...process.env, GH_TOKEN: githubReadContext.token };
+    const childEnv = { ...process.env, GH_TOKEN: tokenValue(githubReadContext.token) };
     delete childEnv.GITHUB_TOKEN_FOR_REF_LOOKUP;
     const result = spawnSync(
       "gh",
@@ -140,6 +150,10 @@ function resolveLiveProtectedSha(root, name) {
   return sha;
 }
 
+function tokenValue(value) {
+  return String(value || "");
+}
+
 function remoteAncestorProof(root, ancestor, descendant) {
   if (ancestor === descendant) return true;
   if (isAncestor(root, ancestor, descendant)) return true;
@@ -147,7 +161,7 @@ function remoteAncestorProof(root, ancestor, descendant) {
   const githubReadContext = resolveGitHubReadContext();
   if (!githubReadContext.token || !githubReadContext.repositoryValid) return false;
 
-  const childEnv = { ...process.env, GH_TOKEN: githubReadContext.token };
+  const childEnv = { ...process.env, GH_TOKEN: tokenValue(githubReadContext.token) };
   delete childEnv.GITHUB_TOKEN_FOR_REF_LOOKUP;
   const result = spawnSync(
     "gh",
@@ -185,10 +199,15 @@ export function validateCertifiedReleaseCutCandidate({ root, headRef, baseRef, h
   const parents = resolveParents(root, headSha);
   if (parents.length !== 2) return Object.freeze({ ok: false, reason: "candidate_parent_count" });
   const [releaseCutSha, productionParentSha] = parents;
-  if (!releaseCutSha.startsWith(ref.release_cut_prefix)) {
-    return Object.freeze({ ok: false, reason: "release_cut_prefix_mismatch" });
-  }
   if (productionParentSha !== baseSha) return Object.freeze({ ok: false, reason: "production_parent_mismatch" });
+
+  const surfaceHint = validateProductionCandidateSurfaceHint({
+    headRef,
+    releaseCutSha,
+    productionSha: baseSha,
+    repository: resolveGitHubReadContext().repository,
+  });
+  if (!surfaceHint.ok) return Object.freeze({ ok: false, reason: surfaceHint.reason });
 
   const headTree = resolveTree(root, headSha);
   const releaseCutTree = resolveTree(root, releaseCutSha);
@@ -208,7 +227,8 @@ export function validateCertifiedReleaseCutCandidate({ root, headRef, baseRef, h
     liveMainSha,
     liveProductionSha,
     launcherRunId: ref.launcher_run_id,
-    launcherRunAttempt: ref.launcher_run_attempt
+    launcherRunAttempt: ref.launcher_run_attempt,
+    surfaceKind: ref.surface_kind,
   });
 }
 
@@ -283,6 +303,7 @@ function invokeCertifiedReleaseCutAdapter(options, validation) {
 
     report.production_promotion = true;
     report.production_promotion_identity = "certified_release_cut_reconciliation";
+    report.production_promotion_surface_kind = validation.surfaceKind;
     report.phase_evaluation_base = validation.releaseCutSha;
     report.production_promotion_anchor_sha = options.head;
     report.production_promotion_rearm_depth = 0;
@@ -300,6 +321,7 @@ function invokeCertifiedReleaseCutAdapter(options, validation) {
       workstream_id: report.workstream_id || "",
       production_promotion: true,
       production_promotion_identity: report.production_promotion_identity,
+      production_promotion_surface_kind: validation.surfaceKind,
       phase_evaluation_base: validation.releaseCutSha,
       production_promotion_anchor_sha: options.head,
       production_promotion_rearm_depth: 0,

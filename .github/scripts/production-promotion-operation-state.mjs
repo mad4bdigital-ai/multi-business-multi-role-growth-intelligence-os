@@ -1,32 +1,16 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
+import {
+  buildOperationId,
+  buildPromotionSessionId,
+  buildPromotionSurfaceNames,
+  requireSha,
+} from "./production-promotion-identity.mjs";
 
-const SHA_RE = /^[0-9a-f]{40}$/u;
-const RUN_RE = /^[1-9][0-9]*$/u;
+export { buildOperationId, requireSha };
 
-export function requireSha(name, value) {
-  if (!SHA_RE.test(String(value ?? ""))) throw new Error(`${name} must be an exact lowercase SHA`);
-  return value;
-}
-
-export function buildOperationId({ releaseCutSha, productionSha }) {
-  requireSha("releaseCutSha", releaseCutSha);
-  requireSha("productionSha", productionSha);
-  return `promo-${releaseCutSha.slice(0, 12)}-${productionSha.slice(0, 12)}`;
-}
-
-export function buildSurfaceNames({ releaseBranchPrefix, validationBranchPrefix, validationBaseBranchPrefix, releaseCutSha, productionSha }) {
-  const operationId = buildOperationId({ releaseCutSha, productionSha });
-  const safe = (value, name) => {
-    if (!/^[a-z0-9]+(?:[/-][a-z0-9.-]+)*$/u.test(value)) throw new Error(`${name} contains unsafe branch characters`);
-    return value;
-  };
-  return {
-    operationId,
-    releaseBranch: `${safe(releaseBranchPrefix, "releaseBranchPrefix")}-${releaseCutSha.slice(0, 12)}-${productionSha.slice(0, 12)}`,
-    validationBranch: `${safe(validationBranchPrefix, "validationBranchPrefix")}-${releaseCutSha.slice(0, 12)}-${productionSha.slice(0, 12)}`,
-    validationBaseBranch: `${safe(validationBaseBranchPrefix, "validationBaseBranchPrefix")}-${releaseCutSha.slice(0, 12)}-${productionSha.slice(0, 12)}`,
-  };
+export function buildSurfaceNames(input) {
+  return buildPromotionSurfaceNames(input);
 }
 
 export function buildStateEnvelope(input) {
@@ -42,6 +26,12 @@ export function buildStateEnvelope(input) {
   if (!allowedStates.has(state)) throw new Error(`unsupported promotion state: ${state}`);
   return {
     schema_version: "governed_production_promotion_operation.v1",
+    identity_schema_version: "governed_production_promotion_identity.v2",
+    promotion_session_id: buildPromotionSessionId({
+      repository: input.repository ?? "",
+      releaseCutSha,
+      productionSha,
+    }),
     operation_id: buildOperationId({ releaseCutSha, productionSha }),
     state,
     release_cut_sha: releaseCutSha,
@@ -70,6 +60,8 @@ export function buildApprovalManifest({ operation, requiredRuns = [] }) {
   }
   return {
     schema_version: "governed_production_promotion_approval_manifest.v1",
+    identity_schema_version: operation.identity_schema_version ?? "governed_production_promotion_identity.v2",
+    promotion_session_id: operation.promotion_session_id ?? null,
     operation_id: operation.operation_id,
     idempotency_key: operation.idempotency_key,
     state: operation.state,
@@ -93,10 +85,10 @@ export function writeJsonAtomic(path, value) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const [command, output, releaseCutSha, productionSha] = process.argv.slice(2);
+  const [command, output, releaseCutSha, productionSha, repository = ""] = process.argv.slice(2);
   if (command !== "operation" || !output) {
-    console.error("usage: node production-promotion-operation-state.mjs operation <output> <release_cut_sha> <production_sha>");
+    console.error("usage: node production-promotion-operation-state.mjs operation <output> <release_cut_sha> <production_sha> [repository]");
     process.exit(2);
   }
-  writeJsonAtomic(output, buildStateEnvelope({ releaseCutSha, productionSha }));
+  writeJsonAtomic(output, buildStateEnvelope({ repository, releaseCutSha, productionSha }));
 }

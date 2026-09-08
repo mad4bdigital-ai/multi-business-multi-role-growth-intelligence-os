@@ -316,12 +316,37 @@ function Test-ExactStagingImage([string]$ImageId, [string]$ExpectedCommit, [stri
         return $false
     }
 }
-function Find-ExactStagingImageId([string]$ExpectedCommit, [string]$ExpectedTree, [string]$ExpectedContextFileSet, [string]$EnvPath) {
+function Find-ExactStagingImageId([string]$ExpectedCommit, [string]$ExpectedTree, [string]$ExpectedContextFileSet, [string]$EnvPath, [object[]]$ComposeArgs) {
     $candidateIds = @()
     $fromEnvLine = Get-Content -LiteralPath $EnvPath | Where-Object { $_ -match '^STAGING_APP_IMAGE_ID=(.*)$' } | Select-Object -First 1
     if ($fromEnvLine) {
         $fromEnv = ($fromEnvLine -replace '^STAGING_APP_IMAGE_ID=', '').Trim().ToLowerInvariant()
         if ($fromEnv -match '^sha256:[0-9a-f]{64}$') { $candidateIds += $fromEnv }
+    }
+    # Compose owns the effective app image name. Resolve it from the interpolated
+    # model instead of `compose images -q`: that command dereferences the image of
+    # an existing container and exits nonzero when Docker GC has removed it, which
+    # is a normal pre-build condition rather than an Auto Pilot failure.
+    if ($null -ne $ComposeArgs -and $ComposeArgs.Count -gt 0) {
+        try {
+            $composeModelJson = (& docker @($ComposeArgs + @("config", "--format", "json")) 2>$null | Out-String).Trim()
+            if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($composeModelJson)) {
+                $composeModel = $composeModelJson | ConvertFrom-Json
+                $effectiveImageRef = [string]$composeModel.services.app.image
+                if ([string]::IsNullOrWhiteSpace($effectiveImageRef) -and -not [string]::IsNullOrWhiteSpace([string]$composeModel.name)) {
+                    $effectiveImageRef = "{0}-app:latest" -f [string]$composeModel.name
+                }
+                if (-not [string]::IsNullOrWhiteSpace($effectiveImageRef)) {
+                    $effectiveImageId = (& docker image inspect --format '{{.Id}}' $effectiveImageRef 2>$null | Out-String).Trim()
+                    if ($LASTEXITCODE -eq 0 -and $effectiveImageId -match '^sha256:[0-9a-fA-F]{64}$') {
+                        $candidateIds += $effectiveImageId.ToLowerInvariant()
+                    }
+                }
+            }
+        } catch {
+            # Continue to the label-index fallback. Candidate acceptance remains
+            # fail-closed in Test-ExactStagingImage.
+        }
     }
     $labelQuery = (Get-NativeText "docker" @("image", "ls", "--no-trunc", "--filter", "label=org.mad4b.staging.provenance.contract=mad4b.staging-build-provenance.v1", "--format", "{{.ID}}")).Trim()
     $candidateIds += @($labelQuery -split "\s+" | Where-Object { $_ -match '^sha256:[0-9a-fA-F]{64}$' })
@@ -552,7 +577,7 @@ try {
         Write-StagingOperationBoundary -Component $LogComponent -Stage "stop" -Outcome "success" -Message "local Staging services and Staging-owned tunnel runtimes stopped"
         return
     }
-    $existingImageId = Find-ExactStagingImageId $ExpectedCommit $buildTree $buildContextMetadata.context_file_set_sha256 $EnvFile
+    $existingImageId = Find-ExactStagingImageId $ExpectedCommit $buildTree $buildContextMetadata.context_file_set_sha256 $EnvFile $composeArgs
     $imageReused = $false
     $buildAction = "built"
     $imageMatchesExactProvenance = $existingImageId -match '^sha256:[0-9a-f]{64}$'
@@ -567,7 +592,7 @@ try {
         Write-StagingLog -Level info -Component $LogComponent -Stage "compose-build" -Message "building Staging app from exact Git context" -Data @{ mode = $BuildMode; previous_image_id = $existingImageId; previous_image_exact = [bool]$imageMatchesExactProvenance }
         Invoke-Native "docker" ($composeArgs + @("build", "app"))
     }
-    $imageId = Find-ExactStagingImageId $ExpectedCommit $buildTree $buildContextMetadata.context_file_set_sha256 $EnvFile
+    $imageId = Find-ExactStagingImageId $ExpectedCommit $buildTree $buildContextMetadata.context_file_set_sha256 $EnvFile $composeArgs
     if ($imageId -notmatch '^sha256:[0-9a-fA-F]{64}$') { Fail "Staging app image ID is not a content-addressed sha256 digest with exact provenance" }
     Set-EnvValue $EnvFile "STAGING_APP_IMAGE_ID" $imageId.ToLowerInvariant()
     Assert-UniqueEnvKeys $EnvFile

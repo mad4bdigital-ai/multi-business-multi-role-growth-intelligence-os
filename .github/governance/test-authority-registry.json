@@ -171,9 +171,14 @@
     {
       "id": "local_connector_environment_and_transport_isolation",
       "test_paths": [
+        "http-generic-api/test-local-connector-convergence-inspector.mjs",
         "http-generic-api/test-local-connector-durable-self-healing.mjs",
         "http-generic-api/test-windows-staging-bootstrap-supervisor.mjs",
         "http-generic-api/test-local-manager-tool-release-owner.mjs",
+        "http-generic-api/test-local-manager-cloudflare-origin-classification.mjs",
+        "http-generic-api/test-local-manager-signed-installer-coordinator.mjs",
+        "http-generic-api/test-local-manager-signed-installer-exit-code.mjs",
+        "local-connector/Get-LocalConnectorConvergence.ps1",
         "local-connector/connector-watchdog.ps1",
         "http-generic-api/routes/connectorAgentRoutes.js",
         "http-generic-api/routes/connectorProxyRoutes.js"
@@ -232,6 +237,8 @@
       "id": "production_promotion_runtime",
       "test_paths": [
         ".github/tests/production-promotion-runtime.test.mjs",
+        "http-generic-api/test-production-promotion-candidate-workflow.mjs",
+        "http-generic-api/test-production-promotion-convergence-workflows.mjs",
         ".github/workflows/governed-production-promotion-request-launcher.yml"
       ]
     },
@@ -265,7 +272,14 @@
         "http-generic-api/test-staging-recovery-certification-public-trust.mjs",
         "http-generic-api/test-staging-recovery-certification-signing-authority.mjs",
         "http-generic-api/test-staging-recovery-phase-b-concurrency.mjs",
+        "http-generic-api/test-device-tools-diagnostics.mjs",
+        "http-generic-api/test-github-app-installation-discovery.mjs",
+        "http-generic-api/test-staging-recovery-certification-script-surface.mjs",
+        "http-generic-api/test-staging-recovery-phase-b-approval-single-issuance.mjs",
+        "http-generic-api/test-staging-trusted-ingress-diagnostics.mjs",
         "http-generic-api/test-recovery-action-bridge-system-layer.mjs",
+        "http-generic-api/test-recovery-system-tool-overlay.mjs",
+        "http-generic-api/test-staging-recovery-system-tools.mjs",
         "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
         "http-generic-api/scripts/validate-staging-recovery-admin-openapi.mjs",
         "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
@@ -327,13 +341,6 @@
       "id": "remote_mcp_oauth_path_format_guard",
       "test_paths": [
         "http-generic-api/test-remote-mcp-oauth-path-format-guard.mjs"
-      ]
-    },
-    {
-      "id": "wordpress_staging_mcp_oauth_federation",
-      "test_paths": [
-        "http-generic-api/test-wordpress-staging-mcp-oauth-federation.mjs",
-        "http-generic-api/test-wordpress-staging-mcp-oauth-key-bootstrap.mjs"
       ]
     },
     {
@@ -420,6 +427,7 @@
     {
       "id": "staging_autopilot_git_transport_resilience",
       "test_paths": [
+        "http-generic-api/test-staging-post-build-image-discovery.mjs",
         "http-generic-api/test-staging-autopilot-closure.mjs",
         "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
         "http-generic-api/test-staging-one-click-autopilot-core.mjs",
@@ -427,13 +435,15 @@
         "http-generic-api/test-staging-schema-governance-powershell-revision-contract.mjs",
         "http-generic-api/test-staging-auto-deploy-contract.mjs",
         "http-generic-api/test-staging-cloudflared-log-release.mjs",
-        "autopilot-portable-staging/Staging-GitTransport.ps1"
+        "autopilot-portable-staging/Staging-GitTransport.ps1",
+        "autopilot-portable-staging/Start-AutoPilot.ps1"
       ]
     },
     {
       "id": "staging_database_readiness_repair",
       "test_paths": [
         "http-generic-api/test-staging-database-readiness-repair.mjs",
+        "http-generic-api/test-staging-execution-policies-grant.mjs",
         "http-generic-api/test-runtime-persistence-operational-readiness.mjs",
         "autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1",
         "http-generic-api/databasePrivilegeContracts.js",

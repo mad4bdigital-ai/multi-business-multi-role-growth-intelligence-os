@@ -8,14 +8,14 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7581,
-  "route_count": 1109,
-  "write_route_count": 671,
+  "file_count": 7603,
+  "route_count": 1102,
+  "write_route_count": 669,
   "classified_write_surface_count": 42,
-  "classified_write_route_count": 671,
+  "classified_write_route_count": 669,
   "unclassified_write_route_count": 0,
-  "intentionally_unmapped_write_route_count": 629,
-  "sensitive_intentionally_unmapped_write_route_count": 629,
+  "intentionally_unmapped_write_route_count": 627,
+  "sensitive_intentionally_unmapped_write_route_count": 627,
   "migration_count": 447,
   "registry_evidence_count": 110,
   "write_scope_count": 6,
@@ -3019,8 +3019,8 @@
     },
     {
       "route_id": "http-generic-api/routes/deviceToolsRoutes.js#GET:/device/tools:0",
-      "source_line": 33,
-      "source_offset": 1161,
+      "source_line": 50,
+      "source_offset": 1713,
       "method": "GET",
       "path": "/device/tools",
       "file": "http-generic-api/routes/deviceToolsRoutes.js",
@@ -3028,8 +3028,8 @@
     },
     {
       "route_id": "http-generic-api/routes/deviceToolsRoutes.js#POST:/device/tools/call:1",
-      "source_line": 51,
-      "source_offset": 1802,
+      "source_line": 71,
+      "source_offset": 2535,
       "method": "POST",
       "path": "/device/tools/call",
       "file": "http-generic-api/routes/deviceToolsRoutes.js",
@@ -4711,8 +4711,8 @@
     },
     {
       "route_id": "http-generic-api/routes/mcpRoutes.js#POST:/mcp/initialize:0",
-      "source_line": 50,
-      "source_offset": 2298,
+      "source_line": 36,
+      "source_offset": 1558,
       "method": "POST",
       "path": "/mcp/initialize",
       "file": "http-generic-api/routes/mcpRoutes.js",
@@ -4720,8 +4720,8 @@
     },
     {
       "route_id": "http-generic-api/routes/mcpRoutes.js#GET:/mcp/tools/list:1",
-      "source_line": 51,
-      "source_offset": 2388,
+      "source_line": 37,
+      "source_offset": 1648,
       "method": "GET",
       "path": "/mcp/tools/list",
       "file": "http-generic-api/routes/mcpRoutes.js",
@@ -4729,8 +4729,8 @@
     },
     {
       "route_id": "http-generic-api/routes/mcpRoutes.js#POST:/mcp/tools/call:2",
-      "source_line": 52,
-      "source_offset": 2476,
+      "source_line": 38,
+      "source_offset": 1736,
       "method": "POST",
       "path": "/mcp/tools/call",
       "file": "http-generic-api/routes/mcpRoutes.js",
@@ -6256,6 +6256,24 @@
       "path": "/admin/recovery/kernel/evidence/:run_id",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
       "write": false
+    },
+    {
+      "route_id": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js#POST:/system/tools/call:0",
+      "source_line": 264,
+      "source_offset": 10556,
+      "method": "POST",
+      "path": "/system/tools/call",
+      "file": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
+      "write": true
+    },
+    {
+      "route_id": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js#POST:/admin/system/tools/call:1",
+      "source_line": 265,
+      "source_offset": 10638,
+      "method": "POST",
+      "path": "/admin/system/tools/call",
+      "file": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
+      "write": true
     },
     {
       "route_id": "http-generic-api/routes/registryDataManagementRoutes.js#GET:/admin/data-tables:0",
@@ -7951,8 +7969,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#GET:/admin/recovery/staging/contract:0",
-      "source_line": 148,
-      "source_offset": 16509,
+      "source_line": 189,
+      "source_offset": 17320,
       "method": "GET",
       "path": "/admin/recovery/staging/contract",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -7960,8 +7978,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#GET:/admin/recovery/staging/readiness:1",
-      "source_line": 149,
-      "source_offset": 16661,
+      "source_line": 190,
+      "source_offset": 17472,
       "method": "GET",
       "path": "/admin/recovery/staging/readiness",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -7969,8 +7987,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#GET:/admin/recovery/staging/certification:2",
-      "source_line": 153,
-      "source_offset": 17303,
+      "source_line": 194,
+      "source_offset": 18114,
       "method": "GET",
       "path": "/admin/recovery/staging/certification",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -7978,8 +7996,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-ticket/verify:3",
-      "source_line": 158,
-      "source_offset": 18272,
+      "source_line": 199,
+      "source_offset": 19083,
       "method": "POST",
       "path": "/admin/recovery/staging/bootstrap-ticket/verify",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -7987,8 +8005,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-ticket/finalize:4",
-      "source_line": 172,
-      "source_offset": 20492,
+      "source_line": 213,
+      "source_offset": 21303,
       "method": "POST",
       "path": "/admin/recovery/staging/bootstrap-ticket/finalize",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -7996,8 +8014,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-partial-receipt:5",
-      "source_line": 187,
-      "source_offset": 22952,
+      "source_line": 228,
+      "source_offset": 23763,
       "method": "POST",
       "path": "/admin/recovery/staging/bootstrap-partial-receipt",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -8815,8 +8833,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/system/tools:0",
-      "source_line": 2765,
-      "source_offset": 114614,
+      "source_line": 2768,
+      "source_offset": 114844,
       "method": "GET",
       "path": "/system/tools",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8824,8 +8842,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/system/tools/catalog-observability:1",
-      "source_line": 2785,
-      "source_offset": 115256,
+      "source_line": 2788,
+      "source_offset": 115486,
       "method": "GET",
       "path": "/system/tools/catalog-observability",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8833,8 +8851,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/system/tools/:toolName:2",
-      "source_line": 2796,
-      "source_offset": 115608,
+      "source_line": 2799,
+      "source_offset": 115838,
       "method": "GET",
       "path": "/system/tools/:toolName",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8842,8 +8860,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#POST:/system/capabilities/resolve:3",
-      "source_line": 2807,
-      "source_offset": 115969,
+      "source_line": 2810,
+      "source_offset": 116199,
       "method": "POST",
       "path": "/system/capabilities/resolve",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8851,8 +8869,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#POST:/system/tools/call:4",
-      "source_line": 2818,
-      "source_offset": 116333,
+      "source_line": 2821,
+      "source_offset": 116563,
       "method": "POST",
       "path": "/system/tools/call",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8860,8 +8878,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/system/connectors:5",
-      "source_line": 2874,
-      "source_offset": 118288,
+      "source_line": 2877,
+      "source_offset": 118518,
       "method": "GET",
       "path": "/system/connectors",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8869,8 +8887,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/system/connectors/:system_id:6",
-      "source_line": 2883,
-      "source_offset": 118642,
+      "source_line": 2886,
+      "source_offset": 118872,
       "method": "GET",
       "path": "/system/connectors/:system_id",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8878,8 +8896,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/admin/system/connectors:7",
-      "source_line": 2892,
-      "source_offset": 118988,
+      "source_line": 2895,
+      "source_offset": 119218,
       "method": "GET",
       "path": "/admin/system/connectors",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8887,8 +8905,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/admin/system/connectors/:system_id:8",
-      "source_line": 2901,
-      "source_offset": 119344,
+      "source_line": 2904,
+      "source_offset": 119574,
       "method": "GET",
       "path": "/admin/system/connectors/:system_id",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8896,8 +8914,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/admin/system/tools:9",
-      "source_line": 2910,
-      "source_offset": 119692,
+      "source_line": 2913,
+      "source_offset": 119922,
       "method": "GET",
       "path": "/admin/system/tools",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8905,8 +8923,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#POST:/admin/system/tools/call:10",
-      "source_line": 2925,
-      "source_offset": 120182,
+      "source_line": 2928,
+      "source_offset": 120412,
       "method": "POST",
       "path": "/admin/system/tools/call",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8914,8 +8932,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/admin/apis-services/google-auth-platform:11",
-      "source_line": 2980,
-      "source_offset": 122130,
+      "source_line": 2983,
+      "source_offset": 122360,
       "method": "GET",
       "path": "/admin/apis-services/google-auth-platform",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8923,8 +8941,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/admin/apis-services/google-auth-platform/:tab:12",
-      "source_line": 2989,
-      "source_offset": 122459,
+      "source_line": 2992,
+      "source_offset": 122689,
       "method": "GET",
       "path": "/admin/apis-services/google-auth-platform/:tab",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8932,8 +8950,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#POST:/admin/apis-services/google-auth-platform/:tab:13",
-      "source_line": 2998,
-      "source_offset": 122823,
+      "source_line": 3001,
+      "source_offset": 123053,
       "method": "POST",
       "path": "/admin/apis-services/google-auth-platform/:tab",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8941,8 +8959,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/admin/apis-services/credentials:14",
-      "source_line": 3007,
-      "source_offset": 123193,
+      "source_line": 3010,
+      "source_offset": 123423,
       "method": "GET",
       "path": "/admin/apis-services/credentials",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8950,8 +8968,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#POST:/admin/apis-services/credentials:15",
-      "source_line": 3016,
-      "source_offset": 123541,
+      "source_line": 3019,
+      "source_offset": 123771,
       "method": "POST",
       "path": "/admin/apis-services/credentials",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -9792,87 +9810,6 @@
       "method": "DELETE",
       "path": "/uploads/:upload_id",
       "file": "http-generic-api/routes/uploadRoutes.js",
-      "write": true
-    },
-    {
-      "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#GET:/.well-known/oauth-authorization-server/auth/mcp/wordpress-staging:0",
-      "source_line": 256,
-      "source_offset": 11651,
-      "method": "GET",
-      "path": "/.well-known/oauth-authorization-server/auth/mcp/wordpress-staging",
-      "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
-      "write": false
-    },
-    {
-      "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#GET:/.well-known/openid-configuration/auth/mcp/wordpress-staging:1",
-      "source_line": 257,
-      "source_offset": 11750,
-      "method": "GET",
-      "path": "/.well-known/openid-configuration/auth/mcp/wordpress-staging",
-      "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
-      "write": false
-    },
-    {
-      "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#GET:/auth/mcp/wordpress-staging/.well-known/oauth-authorization-server:2",
-      "source_line": 258,
-      "source_offset": 11843,
-      "method": "GET",
-      "path": "/auth/mcp/wordpress-staging/.well-known/oauth-authorization-server",
-      "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
-      "write": false
-    },
-    {
-      "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#GET:/auth/mcp/wordpress-staging/oauth/jwks:3",
-      "source_line": 260,
-      "source_offset": 11943,
-      "method": "GET",
-      "path": "/auth/mcp/wordpress-staging/oauth/jwks",
-      "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
-      "write": false
-    },
-    {
-      "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#POST:/auth/mcp/wordpress-staging/oauth/register:4",
-      "source_line": 268,
-      "source_offset": 12478,
-      "method": "POST",
-      "path": "/auth/mcp/wordpress-staging/oauth/register",
-      "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
-      "write": true
-    },
-    {
-      "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#GET:/auth/mcp/wordpress-staging/oauth/authorize:5",
-      "source_line": 317,
-      "source_offset": 15426,
-      "method": "GET",
-      "path": "/auth/mcp/wordpress-staging/oauth/authorize",
-      "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
-      "write": false
-    },
-    {
-      "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#POST:/auth/mcp/wordpress-staging/oauth/code:6",
-      "source_line": 354,
-      "source_offset": 18197,
-      "method": "POST",
-      "path": "/auth/mcp/wordpress-staging/oauth/code",
-      "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
-      "write": true
-    },
-    {
-      "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#POST:/auth/mcp/wordpress-staging/oauth/token:7",
-      "source_line": 399,
-      "source_offset": 21657,
-      "method": "POST",
-      "path": "/auth/mcp/wordpress-staging/oauth/token",
-      "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
-      "write": true
-    },
-    {
-      "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#POST:/auth/mcp/wordpress-staging/oauth/revoke:8",
-      "source_line": 454,
-      "source_offset": 27397,
-      "method": "POST",
-      "path": "/auth/mcp/wordpress-staging/oauth/revoke",
-      "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
       "write": true
     },
     {
@@ -22993,10 +22930,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/deviceToolsRoutes.js",
-        "source_line": 51,
+        "source_line": 71,
         "handler_window_lines": [
-          51,
-          92
+          71,
+          112
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -30049,10 +29986,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/mcpRoutes.js",
-        "source_line": 50,
+        "source_line": 36,
         "handler_window_lines": [
-          50,
-          50
+          36,
+          36
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -30107,10 +30044,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/mcpRoutes.js",
-        "source_line": 52,
+        "source_line": 38,
         "handler_window_lines": [
-          52,
-          56
+          38,
+          42
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -37394,6 +37331,130 @@
           "provider": [],
           "db_registry": [],
           "authority": [
+            "admin"
+          ],
+          "readback": [],
+          "mutation": [
+            "execute"
+          ]
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "low_static",
+        "basis": "handler_window_signals_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract",
+        "live_db_registry_readback"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [],
+      "resource_candidate": "platform_control_plane",
+      "resource_key": null,
+      "operation_key": null,
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "platform-control-plane-governance",
+      "classification_confidence": "heuristic_requires_manual_confirmation",
+      "risk_class": "high",
+      "reason": "registry_mutation_requires_live_schema_and_policy_contract"
+    },
+    {
+      "route_id": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js#POST:/system/tools/call:0",
+      "classification": "intentionally_unmapped",
+      "mapping_status": "blocked",
+      "domain": "application_domain",
+      "operation_class": "create_or_request",
+      "evidence": {
+        "file": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
+        "source_line": 264,
+        "handler_window_lines": [
+          264,
+          264
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": false,
+          "db_registry_signal": false,
+          "authority_signal": true,
+          "readback_signal": false,
+          "mutation_signal": false
+        },
+        "signals": {
+          "provider": [],
+          "db_registry": [],
+          "authority": [
+            "admin"
+          ],
+          "readback": [],
+          "mutation": []
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "low_static",
+        "basis": "handler_window_signals_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [],
+      "resource_candidate": "application_domain",
+      "resource_key": null,
+      "operation_key": null,
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "application-domain-governance",
+      "classification_confidence": "heuristic_requires_manual_confirmation",
+      "risk_class": "high",
+      "reason": "registry_mutation_requires_live_schema_and_policy_contract"
+    },
+    {
+      "route_id": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js#POST:/admin/system/tools/call:1",
+      "classification": "intentionally_unmapped",
+      "mapping_status": "blocked",
+      "domain": "platform_control_plane",
+      "operation_class": "create_or_request",
+      "evidence": {
+        "file": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
+        "source_line": 265,
+        "handler_window_lines": [
+          265,
+          277
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": false,
+          "db_registry_signal": false,
+          "authority_signal": true,
+          "readback_signal": false,
+          "mutation_signal": true
+        },
+        "signals": {
+          "provider": [],
+          "db_registry": [],
+          "authority": [
+            "admin",
             "admin"
           ],
           "readback": [],
@@ -44863,10 +44924,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
-        "source_line": 158,
+        "source_line": 199,
         "handler_window_lines": [
-          158,
-          170
+          199,
+          211
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -44931,10 +44992,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
-        "source_line": 172,
+        "source_line": 213,
         "handler_window_lines": [
-          172,
-          185
+          213,
+          226
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -45000,10 +45061,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
-        "source_line": 187,
+        "source_line": 228,
         "handler_window_lines": [
-          187,
-          195
+          228,
+          235
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -49249,10 +49310,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/systemLayerRoutes.js",
-        "source_line": 2807,
+        "source_line": 2810,
         "handler_window_lines": [
-          2807,
-          2816
+          2810,
+          2819
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -49309,10 +49370,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/systemLayerRoutes.js",
-        "source_line": 2818,
+        "source_line": 2821,
         "handler_window_lines": [
-          2818,
-          2872
+          2821,
+          2875
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -49379,10 +49440,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/systemLayerRoutes.js",
-        "source_line": 2925,
+        "source_line": 2928,
         "handler_window_lines": [
-          2925,
-          2978
+          2928,
+          2981
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -49451,10 +49512,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/systemLayerRoutes.js",
-        "source_line": 2998,
+        "source_line": 3001,
         "handler_window_lines": [
-          2998,
-          3005
+          3001,
+          3008
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -49511,10 +49572,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/systemLayerRoutes.js",
-        "source_line": 3016,
+        "source_line": 3019,
         "handler_window_lines": [
-          3016,
-          3038
+          3019,
+          3041
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -52624,270 +52685,6 @@
       "reason": "registry_mutation_requires_live_schema_and_policy_contract"
     },
     {
-      "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#POST:/auth/mcp/wordpress-staging/oauth/register:4",
-      "classification": "intentionally_unmapped",
-      "mapping_status": "blocked",
-      "domain": "identity",
-      "operation_class": "create_or_request",
-      "evidence": {
-        "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
-        "source_line": 268,
-        "handler_window_lines": [
-          268,
-          315
-        ],
-        "evidence_flags": {
-          "handler_window_present": true,
-          "provider_signal": false,
-          "db_registry_signal": false,
-          "authority_signal": true,
-          "readback_signal": true,
-          "mutation_signal": true
-        },
-        "signals": {
-          "provider": [],
-          "db_registry": [],
-          "authority": [
-            "authority",
-            "scope",
-            "scope",
-            "scope"
-          ],
-          "readback": [
-            "response"
-          ],
-          "mutation": [
-            "create"
-          ]
-        },
-        "static_only": true,
-        "secrets_included": false
-      },
-      "evidence_confidence": {
-        "level": "low_static",
-        "basis": "handler_window_signals_only",
-        "authorizes": false
-      },
-      "promotion_prerequisites": [
-        "explicit_resource_operation_scope_binding",
-        "live_resource_authority_binding",
-        "approval_policy_evidence",
-        "capability_envelope_evidence",
-        "lease_evidence",
-        "staging_environment",
-        "same_cycle_readback_contract"
-      ],
-      "promotion_status": "blocked",
-      "scope_keys": [],
-      "resource_candidate": "identity",
-      "resource_key": null,
-      "operation_key": null,
-      "authority_required": true,
-      "provider_mutation_allowed": false,
-      "readback_required": true,
-      "owner": "identity-governance",
-      "classification_confidence": "heuristic_requires_manual_confirmation",
-      "risk_class": "critical",
-      "reason": "credential_or_identity_mutation_requires_security_contract"
-    },
-    {
-      "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#POST:/auth/mcp/wordpress-staging/oauth/code:6",
-      "classification": "intentionally_unmapped",
-      "mapping_status": "blocked",
-      "domain": "identity",
-      "operation_class": "create_or_request",
-      "evidence": {
-        "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
-        "source_line": 354,
-        "handler_window_lines": [
-          354,
-          397
-        ],
-        "evidence_flags": {
-          "handler_window_present": true,
-          "provider_signal": true,
-          "db_registry_signal": false,
-          "authority_signal": true,
-          "readback_signal": true,
-          "mutation_signal": false
-        },
-        "signals": {
-          "provider": [
-            "request("
-          ],
-          "db_registry": [],
-          "authority": [
-            "authority",
-            "scope",
-            "scope"
-          ],
-          "readback": [
-            "verify"
-          ],
-          "mutation": []
-        },
-        "static_only": true,
-        "secrets_included": false
-      },
-      "evidence_confidence": {
-        "level": "low_static",
-        "basis": "handler_window_signals_only",
-        "authorizes": false
-      },
-      "promotion_prerequisites": [
-        "explicit_resource_operation_scope_binding",
-        "live_resource_authority_binding",
-        "approval_policy_evidence",
-        "capability_envelope_evidence",
-        "lease_evidence",
-        "staging_environment",
-        "same_cycle_readback_contract",
-        "provider_adapter_allowlist",
-        "provider_idempotency",
-        "provider_rollback_or_compensation"
-      ],
-      "promotion_status": "blocked",
-      "scope_keys": [],
-      "resource_candidate": "identity",
-      "resource_key": null,
-      "operation_key": null,
-      "authority_required": true,
-      "provider_mutation_allowed": false,
-      "readback_required": true,
-      "owner": "identity-governance",
-      "classification_confidence": "heuristic_requires_manual_confirmation",
-      "risk_class": "critical",
-      "reason": "credential_or_identity_mutation_requires_security_contract"
-    },
-    {
-      "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#POST:/auth/mcp/wordpress-staging/oauth/token:7",
-      "classification": "intentionally_unmapped",
-      "mapping_status": "blocked",
-      "domain": "identity",
-      "operation_class": "create_or_request",
-      "evidence": {
-        "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
-        "source_line": 399,
-        "handler_window_lines": [
-          399,
-          452
-        ],
-        "evidence_flags": {
-          "handler_window_present": true,
-          "provider_signal": false,
-          "db_registry_signal": false,
-          "authority_signal": true,
-          "readback_signal": true,
-          "mutation_signal": true
-        },
-        "signals": {
-          "provider": [],
-          "db_registry": [],
-          "authority": [
-            "authority",
-            "scope",
-            "scope"
-          ],
-          "readback": [
-            "verify"
-          ],
-          "mutation": [
-            "create"
-          ]
-        },
-        "static_only": true,
-        "secrets_included": false
-      },
-      "evidence_confidence": {
-        "level": "low_static",
-        "basis": "handler_window_signals_only",
-        "authorizes": false
-      },
-      "promotion_prerequisites": [
-        "explicit_resource_operation_scope_binding",
-        "live_resource_authority_binding",
-        "approval_policy_evidence",
-        "capability_envelope_evidence",
-        "lease_evidence",
-        "staging_environment",
-        "same_cycle_readback_contract"
-      ],
-      "promotion_status": "blocked",
-      "scope_keys": [],
-      "resource_candidate": "identity",
-      "resource_key": null,
-      "operation_key": null,
-      "authority_required": true,
-      "provider_mutation_allowed": false,
-      "readback_required": true,
-      "owner": "identity-governance",
-      "classification_confidence": "heuristic_requires_manual_confirmation",
-      "risk_class": "critical",
-      "reason": "credential_or_identity_mutation_requires_security_contract"
-    },
-    {
-      "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#POST:/auth/mcp/wordpress-staging/oauth/revoke:8",
-      "classification": "intentionally_unmapped",
-      "mapping_status": "blocked",
-      "domain": "identity",
-      "operation_class": "create_or_request",
-      "evidence": {
-        "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
-        "source_line": 454,
-        "handler_window_lines": [
-          454,
-          478
-        ],
-        "evidence_flags": {
-          "handler_window_present": true,
-          "provider_signal": false,
-          "db_registry_signal": false,
-          "authority_signal": true,
-          "readback_signal": true,
-          "mutation_signal": false
-        },
-        "signals": {
-          "provider": [],
-          "db_registry": [],
-          "authority": [
-            "authority"
-          ],
-          "readback": [
-            "verify"
-          ],
-          "mutation": []
-        },
-        "static_only": true,
-        "secrets_included": false
-      },
-      "evidence_confidence": {
-        "level": "low_static",
-        "basis": "handler_window_signals_only",
-        "authorizes": false
-      },
-      "promotion_prerequisites": [
-        "explicit_resource_operation_scope_binding",
-        "live_resource_authority_binding",
-        "approval_policy_evidence",
-        "capability_envelope_evidence",
-        "lease_evidence",
-        "staging_environment",
-        "same_cycle_readback_contract"
-      ],
-      "promotion_status": "blocked",
-      "scope_keys": [],
-      "resource_candidate": "identity",
-      "resource_key": null,
-      "operation_key": null,
-      "authority_required": true,
-      "provider_mutation_allowed": false,
-      "readback_required": true,
-      "owner": "identity-governance",
-      "classification_confidence": "heuristic_requires_manual_confirmation",
-      "risk_class": "critical",
-      "reason": "credential_or_identity_mutation_requires_security_contract"
-    },
-    {
       "route_id": "http-generic-api/routes/workflowOrchestrationLegacyRoutes.js#POST:/workflow-runs:0",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
@@ -53586,18 +53383,18 @@
   ],
   "evidence_graph": {
     "node_counts": {
-      "routes": 671,
+      "routes": 669,
       "domains": 11,
       "handler_files": 134
     },
     "edge_counts": {
-      "route_to_handler_file": 671,
-      "route_to_domain": 671,
-      "route_to_provider_signal": 100,
+      "route_to_handler_file": 669,
+      "route_to_domain": 669,
+      "route_to_provider_signal": 99,
       "route_to_db_registry_signal": 0,
-      "route_to_authority_signal": 423,
-      "route_to_readback_signal": 380,
-      "route_to_mutation_signal": 385,
+      "route_to_authority_signal": 421,
+      "route_to_readback_signal": 376,
+      "route_to_mutation_signal": 384,
       "route_to_explicit_scope_candidate": 42
     },
     "execution_edges_are_non_authorizing": true,
@@ -60040,8 +59837,8 @@
     {
       "severity": "high",
       "code": "INTENTIONALLY_UNMAPPED_WRITE_ROUTES_BLOCKED",
-      "count": 629,
-      "sensitive_count": 629
+      "count": 627,
+      "sensitive_count": 627
     },
     {
       "severity": "medium",
