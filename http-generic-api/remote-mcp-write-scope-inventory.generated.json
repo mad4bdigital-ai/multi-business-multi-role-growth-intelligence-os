@@ -9,13 +9,13 @@
   ],
   "db_catalog_fingerprint_match": true,
   "file_count": 7613,
-  "route_count": 1111,
-  "write_route_count": 673,
+  "route_count": 1117,
+  "write_route_count": 677,
   "classified_write_surface_count": 42,
-  "classified_write_route_count": 673,
+  "classified_write_route_count": 677,
   "unclassified_write_route_count": 0,
-  "intentionally_unmapped_write_route_count": 631,
-  "sensitive_intentionally_unmapped_write_route_count": 631,
+  "intentionally_unmapped_write_route_count": 635,
+  "sensitive_intentionally_unmapped_write_route_count": 635,
   "migration_count": 447,
   "registry_evidence_count": 110,
   "write_scope_count": 6,
@@ -9090,6 +9090,60 @@
       "method": "PUT",
       "path": "/tenants/:id/commercial-profile",
       "file": "http-generic-api/routes/tenantCommercialRoutes.js",
+      "write": true
+    },
+    {
+      "route_id": "http-generic-api/routes/tenantConnectionSelfRepairRoutes.js#GET:/connect/api/contexts:0",
+      "source_line": 463,
+      "source_offset": 17114,
+      "method": "GET",
+      "path": "/connect/api/contexts",
+      "file": "http-generic-api/routes/tenantConnectionSelfRepairRoutes.js",
+      "write": false
+    },
+    {
+      "route_id": "http-generic-api/routes/tenantConnectionSelfRepairRoutes.js#POST:/connect/api/active-context:1",
+      "source_line": 486,
+      "source_offset": 17974,
+      "method": "POST",
+      "path": "/connect/api/active-context",
+      "file": "http-generic-api/routes/tenantConnectionSelfRepairRoutes.js",
+      "write": true
+    },
+    {
+      "route_id": "http-generic-api/routes/tenantConnectionSelfRepairRoutes.js#GET:/connect/api/connections/lifecycle:2",
+      "source_line": 524,
+      "source_offset": 19410,
+      "method": "GET",
+      "path": "/connect/api/connections/lifecycle",
+      "file": "http-generic-api/routes/tenantConnectionSelfRepairRoutes.js",
+      "write": false
+    },
+    {
+      "route_id": "http-generic-api/routes/tenantConnectionSelfRepairRoutes.js#POST:/connect/api/wordpress-mcp/prepare:3",
+      "source_line": 543,
+      "source_offset": 20139,
+      "method": "POST",
+      "path": "/connect/api/wordpress-mcp/prepare",
+      "file": "http-generic-api/routes/tenantConnectionSelfRepairRoutes.js",
+      "write": true
+    },
+    {
+      "route_id": "http-generic-api/routes/tenantConnectionSelfRepairRoutes.js#POST:/connect/api/wordpress-mcp/validate:4",
+      "source_line": 628,
+      "source_offset": 24031,
+      "method": "POST",
+      "path": "/connect/api/wordpress-mcp/validate",
+      "file": "http-generic-api/routes/tenantConnectionSelfRepairRoutes.js",
+      "write": true
+    },
+    {
+      "route_id": "http-generic-api/routes/tenantConnectionSelfRepairRoutes.js#DELETE:/connect/api/connections/:connection_id:5",
+      "source_line": 679,
+      "source_offset": 26367,
+      "method": "DELETE",
+      "path": "/connect/api/connections/:connection_id",
+      "file": "http-generic-api/routes/tenantConnectionSelfRepairRoutes.js",
       "write": true
     },
     {
@@ -50037,6 +50091,266 @@
       "reason": "connector_or_local_execution_requires_device_capability"
     },
     {
+      "route_id": "http-generic-api/routes/tenantConnectionSelfRepairRoutes.js#POST:/connect/api/active-context:1",
+      "classification": "intentionally_unmapped",
+      "mapping_status": "blocked",
+      "domain": "identity",
+      "operation_class": "create_or_request",
+      "evidence": {
+        "file": "http-generic-api/routes/tenantConnectionSelfRepairRoutes.js",
+        "source_line": 486,
+        "handler_window_lines": [
+          486,
+          523
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": false,
+          "db_registry_signal": false,
+          "authority_signal": true,
+          "readback_signal": true,
+          "mutation_signal": false
+        },
+        "signals": {
+          "provider": [],
+          "db_registry": [],
+          "authority": [
+            "membership",
+            "membership"
+          ],
+          "readback": [
+            "res.json"
+          ],
+          "mutation": []
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "low_static",
+        "basis": "handler_window_signals_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [],
+      "resource_candidate": "identity",
+      "resource_key": null,
+      "operation_key": null,
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "identity-governance",
+      "classification_confidence": "heuristic_requires_manual_confirmation",
+      "risk_class": "high",
+      "reason": "tenant_domain_write_requires_resource_authority_binding"
+    },
+    {
+      "route_id": "http-generic-api/routes/tenantConnectionSelfRepairRoutes.js#POST:/connect/api/wordpress-mcp/prepare:3",
+      "classification": "intentionally_unmapped",
+      "mapping_status": "blocked",
+      "domain": "identity",
+      "operation_class": "create_or_request",
+      "evidence": {
+        "file": "http-generic-api/routes/tenantConnectionSelfRepairRoutes.js",
+        "source_line": 543,
+        "handler_window_lines": [
+          543,
+          626
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": false,
+          "db_registry_signal": false,
+          "authority_signal": true,
+          "readback_signal": true,
+          "mutation_signal": true
+        },
+        "signals": {
+          "provider": [],
+          "db_registry": [],
+          "authority": [
+            "scope"
+          ],
+          "readback": [
+            "select",
+            "select"
+          ],
+          "mutation": [
+            "update",
+            "insert"
+          ]
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "low_static",
+        "basis": "handler_window_signals_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [],
+      "resource_candidate": "identity",
+      "resource_key": null,
+      "operation_key": null,
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "identity-governance",
+      "classification_confidence": "heuristic_requires_manual_confirmation",
+      "risk_class": "high",
+      "reason": "tenant_domain_write_requires_resource_authority_binding"
+    },
+    {
+      "route_id": "http-generic-api/routes/tenantConnectionSelfRepairRoutes.js#POST:/connect/api/wordpress-mcp/validate:4",
+      "classification": "intentionally_unmapped",
+      "mapping_status": "blocked",
+      "domain": "identity",
+      "operation_class": "create_or_request",
+      "evidence": {
+        "file": "http-generic-api/routes/tenantConnectionSelfRepairRoutes.js",
+        "source_line": 628,
+        "handler_window_lines": [
+          628,
+          678
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": false,
+          "db_registry_signal": false,
+          "authority_signal": true,
+          "readback_signal": true,
+          "mutation_signal": true
+        },
+        "signals": {
+          "provider": [],
+          "db_registry": [],
+          "authority": [
+            "authority"
+          ],
+          "readback": [
+            "select",
+            "readback"
+          ],
+          "mutation": [
+            "update",
+            "deploy"
+          ]
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "low_static",
+        "basis": "handler_window_signals_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [],
+      "resource_candidate": "identity",
+      "resource_key": null,
+      "operation_key": null,
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "identity-governance",
+      "classification_confidence": "heuristic_requires_manual_confirmation",
+      "risk_class": "high",
+      "reason": "tenant_domain_write_requires_resource_authority_binding"
+    },
+    {
+      "route_id": "http-generic-api/routes/tenantConnectionSelfRepairRoutes.js#DELETE:/connect/api/connections/:connection_id:5",
+      "classification": "intentionally_unmapped",
+      "mapping_status": "blocked",
+      "domain": "identity",
+      "operation_class": "delete",
+      "evidence": {
+        "file": "http-generic-api/routes/tenantConnectionSelfRepairRoutes.js",
+        "source_line": 679,
+        "handler_window_lines": [
+          679,
+          772
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": false,
+          "db_registry_signal": false,
+          "authority_signal": true,
+          "readback_signal": true,
+          "mutation_signal": true
+        },
+        "signals": {
+          "provider": [],
+          "db_registry": [],
+          "authority": [
+            "capability"
+          ],
+          "readback": [
+            "select"
+          ],
+          "mutation": [
+            "delete",
+            "write"
+          ]
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "low_static",
+        "basis": "handler_window_signals_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [],
+      "resource_candidate": "identity",
+      "resource_key": null,
+      "operation_key": null,
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "identity-governance",
+      "classification_confidence": "heuristic_requires_manual_confirmation",
+      "risk_class": "high",
+      "reason": "tenant_domain_write_requires_resource_authority_binding"
+    },
+    {
       "route_id": "http-generic-api/routes/tenantEvolutionRoutes.js#POST:/tenant/evolution/checkpoints:1",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
@@ -53728,18 +54042,18 @@
   ],
   "evidence_graph": {
     "node_counts": {
-      "routes": 673,
+      "routes": 677,
       "domains": 11,
-      "handler_files": 135
+      "handler_files": 136
     },
     "edge_counts": {
-      "route_to_handler_file": 673,
-      "route_to_domain": 673,
+      "route_to_handler_file": 677,
+      "route_to_domain": 677,
       "route_to_provider_signal": 100,
       "route_to_db_registry_signal": 0,
-      "route_to_authority_signal": 425,
-      "route_to_readback_signal": 380,
-      "route_to_mutation_signal": 386,
+      "route_to_authority_signal": 429,
+      "route_to_readback_signal": 384,
+      "route_to_mutation_signal": 389,
       "route_to_explicit_scope_candidate": 42
     },
     "execution_edges_are_non_authorizing": true,
@@ -60182,8 +60496,8 @@
     {
       "severity": "high",
       "code": "INTENTIONALLY_UNMAPPED_WRITE_ROUTES_BLOCKED",
-      "count": 631,
-      "sensitive_count": 631
+      "count": 635,
+      "sensitive_count": 635
     },
     {
       "severity": "medium",
