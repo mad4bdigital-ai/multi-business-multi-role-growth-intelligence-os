@@ -9814,8 +9814,8 @@
     },
     {
       "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#GET:/.well-known/oauth-authorization-server/auth/mcp/wordpress-staging:0",
-      "source_line": 259,
-      "source_offset": 11759,
+      "source_line": 310,
+      "source_offset": 14505,
       "method": "GET",
       "path": "/.well-known/oauth-authorization-server/auth/mcp/wordpress-staging",
       "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
@@ -9823,8 +9823,8 @@
     },
     {
       "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#GET:/.well-known/openid-configuration/auth/mcp/wordpress-staging:1",
-      "source_line": 260,
-      "source_offset": 11858,
+      "source_line": 311,
+      "source_offset": 14604,
       "method": "GET",
       "path": "/.well-known/openid-configuration/auth/mcp/wordpress-staging",
       "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
@@ -9832,8 +9832,8 @@
     },
     {
       "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#GET:/auth/mcp/wordpress-staging/.well-known/oauth-authorization-server:2",
-      "source_line": 261,
-      "source_offset": 11951,
+      "source_line": 312,
+      "source_offset": 14697,
       "method": "GET",
       "path": "/auth/mcp/wordpress-staging/.well-known/oauth-authorization-server",
       "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
@@ -9841,8 +9841,8 @@
     },
     {
       "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#GET:/auth/mcp/wordpress-staging/oauth/jwks:3",
-      "source_line": 263,
-      "source_offset": 12051,
+      "source_line": 314,
+      "source_offset": 14797,
       "method": "GET",
       "path": "/auth/mcp/wordpress-staging/oauth/jwks",
       "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
@@ -9850,8 +9850,8 @@
     },
     {
       "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#POST:/auth/mcp/wordpress-staging/oauth/register:4",
-      "source_line": 271,
-      "source_offset": 12586,
+      "source_line": 322,
+      "source_offset": 15332,
       "method": "POST",
       "path": "/auth/mcp/wordpress-staging/oauth/register",
       "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
@@ -9859,8 +9859,8 @@
     },
     {
       "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#GET:/auth/mcp/wordpress-staging/oauth/authorize:5",
-      "source_line": 320,
-      "source_offset": 15522,
+      "source_line": 371,
+      "source_offset": 18234,
       "method": "GET",
       "path": "/auth/mcp/wordpress-staging/oauth/authorize",
       "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
@@ -9868,8 +9868,8 @@
     },
     {
       "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#POST:/auth/mcp/wordpress-staging/oauth/code:6",
-      "source_line": 357,
-      "source_offset": 18293,
+      "source_line": 408,
+      "source_offset": 21005,
       "method": "POST",
       "path": "/auth/mcp/wordpress-staging/oauth/code",
       "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
@@ -9877,8 +9877,8 @@
     },
     {
       "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#POST:/auth/mcp/wordpress-staging/oauth/token:7",
-      "source_line": 406,
-      "source_offset": 21836,
+      "source_line": 458,
+      "source_offset": 24740,
       "method": "POST",
       "path": "/auth/mcp/wordpress-staging/oauth/token",
       "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
@@ -9886,8 +9886,8 @@
     },
     {
       "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#POST:/auth/mcp/wordpress-staging/oauth/revoke:8",
-      "source_line": 461,
-      "source_offset": 27576,
+      "source_line": 513,
+      "source_offset": 30480,
       "method": "POST",
       "path": "/auth/mcp/wordpress-staging/oauth/revoke",
       "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
@@ -52773,10 +52773,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
-        "source_line": 271,
+        "source_line": 322,
         "handler_window_lines": [
-          271,
-          318
+          322,
+          369
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -52791,7 +52791,6 @@
           "db_registry": [],
           "authority": [
             "authority",
-            "scope",
             "scope",
             "scope"
           ],
@@ -52840,10 +52839,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
-        "source_line": 357,
+        "source_line": 408,
         "handler_window_lines": [
-          357,
-          404
+          408,
+          456
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -52864,7 +52863,9 @@
             "scope"
           ],
           "readback": [
-            "verify"
+            "verify",
+            "select",
+            "select"
           ],
           "mutation": []
         },
@@ -52909,10 +52910,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
-        "source_line": 406,
+        "source_line": 458,
         "handler_window_lines": [
-          406,
-          459
+          458,
+          511
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -52975,10 +52976,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
-        "source_line": 461,
+        "source_line": 513,
         "handler_window_lines": [
-          461,
-          486
+          513,
+          538
         ],
         "evidence_flags": {
           "handler_window_present": true,
