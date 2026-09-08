@@ -1014,6 +1014,17 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": "local-connector/connector-runtime-bootstrap.mjs|policyEnabled|literal_declaration|policyenabled",
+      "owner": "local-connector",
+      "reason": "The boolean derives whether the environment-bound connector policy pull is active; it is fixed fail-closed bootstrap logic, contains no configured value, and grants no runtime or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {
