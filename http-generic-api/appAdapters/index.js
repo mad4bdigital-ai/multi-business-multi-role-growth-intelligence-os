@@ -97,11 +97,24 @@ export function getOAuthConfig(app_key) {
   };
 }
 
-// ── Token refresh (shared) ────────────────────────────────────────────────────
-// Checks expiry and refreshes if needed. Updates DB and returns fresh creds.
+function credentialPersistenceConflict() {
+  const error = new Error("Refreshed OAuth credentials lost their durable ownership race. Reauthorization or a fresh connection readback is required before further use.");
+  error.code = "credential_refresh_persistence_conflict";
+  error.status = 503;
+  return error;
+}
 
-export async function ensureFreshCredentials(connection) {
-  const creds = decryptCredentials(connection.encrypted_credentials);
+// ── Token refresh (shared) ────────────────────────────────────────────────────
+// Checks expiry and refreshes if needed. A rotated credential is not usable until
+// its new authority has been durably persisted. Persistence is compare-and-swap
+// against the credential snapshot that initiated the provider refresh so a late
+// refresh can never resurrect a connection that was disconnected or refreshed by
+// another actor while the provider request was in flight.
+
+export async function ensureFreshCredentials(connection, options = {}) {
+  const pool = options.pool || getPool();
+  const originalCiphertext = connection.encrypted_credentials;
+  const creds = decryptCredentials(originalCiphertext);
   if (!creds) throw new Error("No credentials stored for this connection");
 
   if (!creds.refresh_token) return creds; // non-OAuth — no refresh needed
@@ -113,10 +126,10 @@ export async function ensureFreshCredentials(connection) {
 
   if (expiresAt && Date.now() < expiresAt - BUFFER_MS) return creds; // still valid
 
-  const adapter = getAdapter(connection.app_key);
+  const adapter = options.adapter || getAdapter(connection.app_key);
   if (!adapter?.refreshAccessToken) return creds;
 
-  const config    = getOAuthConfig(connection.app_key);
+  const config = options.oauthConfig || getOAuthConfig(connection.app_key);
   const refreshed = await adapter.refreshAccessToken(creds, config);
 
   const newCreds = { ...creds, ...refreshed };
@@ -124,16 +137,52 @@ export async function ensureFreshCredentials(connection) {
     ? new Date(Date.now() + refreshed.expires_in * 1000)
     : null;
 
-  await getPool().query(
-    `UPDATE \`user_app_connections\`
-       SET encrypted_credentials = ?,
-           token_expires_at = ?,
-           last_used_at = NOW(),
-           last_validated_at = NOW(),
-           validation_status = 'validated'
-     WHERE connection_id = ?`,
-    [encryptCredentials(newCreds), newExpiry?.toISOString().slice(0, 19).replace("T", " ") || null, connection.connection_id]
-  ).catch(() => {}); // non-blocking — don't fail the call if DB update fails
+  try {
+    const [writeResult] = await pool.query(
+      `UPDATE \`user_app_connections\`
+         SET encrypted_credentials = ?,
+             token_expires_at = ?,
+             last_used_at = NOW(),
+             last_validated_at = NOW(),
+             validation_status = 'validated',
+             status = 'active'
+       WHERE connection_id = ?
+         AND status <> 'revoked'
+         AND encrypted_credentials = ?`,
+      [
+        encryptCredentials(newCreds),
+        newExpiry?.toISOString().slice(0, 19).replace("T", " ") || null,
+        connection.connection_id,
+        originalCiphertext,
+      ]
+    );
+    if (Number(writeResult?.affectedRows || 0) !== 1) {
+      throw credentialPersistenceConflict();
+    }
+  } catch (cause) {
+    // A provider may rotate the refresh token. Returning the fresh credential while
+    // durable storage still contains the old token would make the current call appear
+    // healthy and strand the next call. Mark reauth only if this process still owns
+    // the exact original credential snapshot; never overwrite a concurrent disconnect
+    // or another successful refresh.
+    try {
+      await pool.query(
+        `UPDATE \`user_app_connections\`
+            SET status = 'error', validation_status = 'reauth_required', last_used_at = NOW()
+          WHERE connection_id = ?
+            AND status <> 'revoked'
+            AND encrypted_credentials = ?`,
+        [connection.connection_id, originalCiphertext]
+      );
+    } catch {}
+    const error = cause?.code === "credential_refresh_persistence_conflict"
+      ? cause
+      : new Error("Refreshed OAuth credentials could not be durably persisted. Reauthorization is required before further use.");
+    if (!error.code) error.code = "credential_refresh_persistence_uncertain";
+    error.status = 503;
+    if (error !== cause) error.cause = cause;
+    throw error;
+  }
 
   return newCreds;
 }
