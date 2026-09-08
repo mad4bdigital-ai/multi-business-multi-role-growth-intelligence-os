@@ -1,7 +1,10 @@
 import { Router } from "express";
 import { randomUUID } from "node:crypto";
 import { TENANT_CONNECTION_SELF_REPAIR_ROUTE_CONTRACTS } from "../tenantConnectionSelfRepairService.js";
-import { issueUserTenantContextJwt } from "../userJwtAuth.js";
+import {
+  issueUserTenantContextJwt,
+  resolveUserTenantContextTtlSeconds,
+} from "../userJwtAuth.js";
 
 const CONNECT_CONTEXT_TTL_SECONDS = 60 * 60;
 const WORDPRESS_STAGING_ORIGIN = "https://staging.egypttourgates.com";
@@ -156,14 +159,21 @@ async function enforceUnambiguousTenantContext(pool, req, res, next) {
 }
 
 function issueTenantContextToken(req, membership, env = process.env) {
-  return issueUserTenantContextJwt({
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const parentExp = req.auth?.claims?.exp ?? null;
+  const expiresIn = resolveUserTenantContextTtlSeconds(
+    { parentExp, maxTtlSeconds: CONNECT_CONTEXT_TTL_SECONDS },
+    { nowSeconds },
+  );
+  const token = issueUserTenantContextJwt({
     userId: req.auth?.user_id,
     tenantId: membership?.tenant_id,
     email: req.auth?.email || req.auth?.claims?.email || null,
     role: membership?.role || "member",
-    parentExp: req.auth?.claims?.exp ?? null,
+    parentExp,
     maxTtlSeconds: CONNECT_CONTEXT_TTL_SECONDS,
-  }, { env });
+  }, { env, nowSeconds });
+  return { token, expires_in: expiresIn };
 }
 
 function dateMs(value) {
@@ -502,12 +512,12 @@ export function buildTenantConnectionSelfRepairRoutes(deps = {}) {
           secrets_included: false,
         });
       }
-      const token = issueTenantContextToken(req, membership, env);
+      const issued = issueTenantContextToken(req, membership, env);
       return res.json({
         ok: true,
-        token,
+        token: issued.token,
         tenant: membershipView(membership),
-        expires_in: CONNECT_CONTEXT_TTL_SECONDS,
+        expires_in: issued.expires_in,
         context_revalidated: true,
         secrets_included: false,
       });
