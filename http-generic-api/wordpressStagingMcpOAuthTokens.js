@@ -2,7 +2,6 @@ import jwt from "jsonwebtoken";
 import {
   REMOTE_MCP_ACCESS_TOKEN_TTL_SECONDS,
   REMOTE_MCP_AUTHORIZATION_REQUEST_TTL_SECONDS,
-  resolveRemoteMcpOAuthSigningSecret,
 } from "./remoteMcpOAuthProfile.js";
 import {
   WORDPRESS_STAGING_MCP_ACCESS_TOKEN_ALG,
@@ -31,15 +30,17 @@ function normalizeWordpressScopes(scopes) {
 }
 
 function authorizationRequestConfiguration(env = process.env) {
-  const secret = resolveRemoteMcpOAuthSigningSecret(env);
+  const privateKey = resolveWordpressStagingMcpPrivateKey(env);
+  const publicKey = resolveWordpressStagingMcpPublicKey(env);
+  const kid = resolveWordpressStagingMcpKeyId(env);
   const issuer = resolveWordpressStagingMcpIssuer(env);
   const resource = resolveWordpressStagingMcpResource(env);
-  if (!secret || !issuer || !resource) {
+  if (!privateKey || !publicKey || !kid || !issuer || !resource) {
     const error = new Error("WordPress staging OAuth authorization-request signing configuration is unavailable.");
     error.code = "wordpress_staging_oauth_request_signing_unavailable";
     throw error;
   }
-  return { secret, issuer, resource };
+  return { privateKey, publicKey, kid, issuer, resource };
 }
 
 function accessTokenConfiguration(env = process.env) {
@@ -89,9 +90,10 @@ export function issueWordpressStagingMcpAuthorizationRequest({
       code_challenge_method: "S256",
       purpose: "wordpress_staging_mcp_authorization_request",
     },
-    configuration.secret,
+    configuration.privateKey,
     {
-      algorithm: "HS256",
+      algorithm: WORDPRESS_STAGING_MCP_ACCESS_TOKEN_ALG,
+      keyid: configuration.kid,
       issuer: configuration.issuer,
       audience: configuration.resource,
       expiresIn: REMOTE_MCP_AUTHORIZATION_REQUEST_TTL_SECONDS,
@@ -102,8 +104,8 @@ export function issueWordpressStagingMcpAuthorizationRequest({
 
 export function verifyWordpressStagingMcpAuthorizationRequest(token, { env = process.env } = {}) {
   const configuration = authorizationRequestConfiguration(env);
-  const claims = jwt.verify(String(token || ""), configuration.secret, {
-    algorithms: ["HS256"],
+  const claims = jwt.verify(String(token || ""), configuration.publicKey, {
+    algorithms: [WORDPRESS_STAGING_MCP_ACCESS_TOKEN_ALG],
     issuer: configuration.issuer,
     audience: configuration.resource,
   });
