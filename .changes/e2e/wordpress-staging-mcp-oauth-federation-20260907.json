@@ -17,6 +17,7 @@
       "http-generic-api/Dockerfile.staging",
       "http-generic-api/test-wordpress-staging-mcp-oauth-key-bootstrap.mjs",
       "http-generic-api/test-wordpress-staging-mcp-oauth-federation.mjs",
+      "http-generic-api/test-wordpress-staging-mcp-oauth-issuer-binding.mjs",
       "http-generic-api/scripts/manifests/test-manifest-spec017.mjs",
       ".github/governance/test-authority-registry.json",
       ".changes/e2e/wordpress-staging-mcp-oauth-federation-20260907.json"
@@ -56,6 +57,7 @@
           "assertions": [
             "The access token is RS256 and cannot be validated by the primary HS256 OAuth signing secret.",
             "The exact WordPress resource is the JWT audience and resource claim.",
+            "The authorization response identifies the exact isolated issuer and metadata cross-binds the exact protected resource.",
             "mad4b:write and alternate resources fail closed.",
             "Primary Remote MCP DCR remains disabled when only the WordPress Staging DCR switch is enabled.",
             "No Production or mutation authority is introduced."
@@ -67,6 +69,13 @@
               "working_directory": "http-generic-api",
               "path": "test-wordpress-staging-mcp-oauth-federation.mjs",
               "args": []
+            },
+            {
+              "id": "wordpress-staging-mcp-oauth-issuer-binding",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-wordpress-staging-mcp-oauth-issuer-binding.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -74,7 +83,8 @@
             "http-generic-api/config/wordpress-staging-mcp-oauth-policy.json",
             "http-generic-api/wordpressStagingMcpOAuthTokens.js",
             "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
-            "http-generic-api/test-wordpress-staging-mcp-oauth-federation.mjs"
+            "http-generic-api/test-wordpress-staging-mcp-oauth-federation.mjs",
+            "http-generic-api/test-wordpress-staging-mcp-oauth-issuer-binding.mjs"
           ]
         }
       ]
