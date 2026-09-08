@@ -77,11 +77,31 @@ assert.doesNotMatch(
 const dcrBaseEnv = {
   REMOTE_MCP_ENVIRONMENT: "staging",
   REMOTE_MCP_OAUTH_ENABLED: "true",
-  REMOTE_MCP_AUTHORIZATION_SERVER_URL: "https://dev.example.test/auth/mcp",
+  REMOTE_MCP_AUTHORIZATION_SERVER_URL: "https://dev.mad4b.com/auth/mcp",
   REMOTE_MCP_WORDPRESS_STAGING_OAUTH_ENABLED: "true",
-  REMOTE_MCP_WORDPRESS_STAGING_RESOURCE_URL: "https://staging.example.test/wp-json/mcp/mad4b-read",
+  REMOTE_MCP_WORDPRESS_STAGING_RESOURCE_URL: "https://staging.egypttourgates.com/wp-json/mcp/mad4b-read",
   REMOTE_MCP_OAUTH_ALLOWED_REDIRECT_ORIGINS: "https://chatgpt.com",
 };
+
+assert.equal(
+  wordpressStagingMcpDcrEnabled({
+    ...dcrBaseEnv,
+    REMOTE_MCP_WORDPRESS_STAGING_DCR_ENABLED: "true",
+    REMOTE_MCP_AUTHORIZATION_SERVER_URL: "https://dev.example.test/auth/mcp",
+  }),
+  false,
+  "WordPress staging DCR must fail closed when the authorization-server base drifts from the canonical issuer.",
+);
+assert.equal(
+  wordpressStagingMcpDcrEnabled({
+    ...dcrBaseEnv,
+    REMOTE_MCP_WORDPRESS_STAGING_DCR_ENABLED: "true",
+    REMOTE_MCP_WORDPRESS_STAGING_RESOURCE_URL: "https://staging.example.test/wp-json/mcp/mad4b-read",
+  }),
+  false,
+  "WordPress staging DCR must fail closed when the protected resource drifts from the canonical resource.",
+);
+
 const primaryOnlyDcrEnv = {
   ...dcrBaseEnv,
   REMOTE_MCP_OAUTH_DCR_ENABLED: "true",
