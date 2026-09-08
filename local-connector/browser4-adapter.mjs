@@ -1,3 +1,4 @@
+import './connector-runtime-bootstrap.mjs';
 import path from 'node:path';
 
 const DEFAULT_CHECKS = ['snapshot'];
