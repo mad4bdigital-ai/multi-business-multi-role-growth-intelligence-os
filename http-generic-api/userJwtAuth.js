@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import jwt from "jsonwebtoken";
 
 export const USER_JWT_ALLOWED_ALGORITHMS = Object.freeze(["HS256"]);
@@ -13,6 +14,61 @@ function bearerToken(authorization) {
 
 export function resolveUserJwtSecret(env = process.env) {
   return String(env?.JWT_SECRET || "").trim();
+}
+
+export function issueUserTenantContextJwt(
+  {
+    userId,
+    tenantId,
+    email = null,
+    role = "member",
+    parentExp = null,
+    maxTtlSeconds = 60 * 60,
+  } = {},
+  {
+    env = process.env,
+    signToken = jwt.sign,
+    nowSeconds = Math.floor(Date.now() / 1000),
+    newId = randomUUID,
+  } = {},
+) {
+  const normalizedUserId = String(userId || "").trim();
+  const normalizedTenantId = String(tenantId || "").trim();
+  if (!normalizedUserId || !normalizedTenantId) {
+    const error = new Error("Tenant context requires an authenticated user and active tenant.");
+    error.code = "tenant_context_identity_required";
+    error.status = 401;
+    throw error;
+  }
+
+  const secret = resolveUserJwtSecret(env);
+  if (secret.length < 32) {
+    const error = new Error("Tenant context signing authority is unavailable.");
+    error.code = "tenant_context_signing_unavailable";
+    error.status = 503;
+    throw error;
+  }
+
+  const configuredMax = Number(maxTtlSeconds);
+  const maxTtl = Number.isFinite(configuredMax) && configuredMax > 0 ? Math.floor(configuredMax) : 60 * 60;
+  const parsedParentExp = Number(parentExp);
+  const parentRemaining = Number.isFinite(parsedParentExp)
+    ? Math.max(1, Math.floor(parsedParentExp - nowSeconds))
+    : maxTtl;
+  const ttlSeconds = Math.max(1, Math.min(maxTtl, parentRemaining));
+
+  return signToken(
+    {
+      user_id: normalizedUserId,
+      tenant_id: normalizedTenantId,
+      email: email ? String(email).trim() : undefined,
+      purpose: "connect_tenant_context",
+      context_role: String(role || "member").trim() || "member",
+      context_version: newId(),
+    },
+    secret,
+    { algorithm: "HS256", expiresIn: ttlSeconds, jwtid: newId() },
+  );
 }
 
 export function verifyUserJwtAuthorization(
