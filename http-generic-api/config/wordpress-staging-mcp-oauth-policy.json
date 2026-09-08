@@ -1,0 +1,13 @@
+{
+  "contract": "mad4b.wordpress-staging-mcp-oauth-policy.v1",
+  "profile": "wordpress_staging_mcp",
+  "environment": "staging",
+  "required_scope": "mad4b:read",
+  "offline_access_scope": "offline_access",
+  "authorization_scopes": [
+    "mad4b:read",
+    "offline_access"
+  ],
+  "mutation_authority": false,
+  "production_enabled": false
+}
