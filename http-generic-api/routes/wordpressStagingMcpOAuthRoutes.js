@@ -206,6 +206,8 @@ function metadata(env) {
     code_challenge_methods_supported: ["S256"],
     scopes_supported: [...WORDPRESS_STAGING_MCP_AUTHORIZATION_SCOPES],
     resource_parameter_supported: true,
+    authorization_response_iss_parameter_supported: true,
+    protected_resources: [resource],
     "x-mad4b-resource-profile": {
       environment: "staging",
       resource,
@@ -213,6 +215,7 @@ function metadata(env) {
       refresh_token_supported: true,
       access_token_alg: "RS256",
       asymmetric_resource_server_verification: true,
+      authorization_response_issuer_bound: true,
       subject_authorization_required: true,
       client_id_namespace: WORDPRESS_STAGING_MCP_CLIENT_ID_PREFIX,
       mutation_authority: false,
@@ -387,7 +390,11 @@ export function buildWordpressStagingMcpOAuthRoutes(deps = {}) {
         ok: true,
         code: issued.code,
         expires_in: REMOTE_MCP_AUTHORIZATION_CODE_TTL_SECONDS,
-        redirect_to: appendQuery(redirectUri, { code: issued.code, state: text(request?.state, 512) }),
+        redirect_to: appendQuery(redirectUri, {
+          code: issued.code,
+          state: text(request?.state, 512),
+          iss: resolveWordpressStagingMcpIssuer(env),
+        }),
         secrets_included: false,
       });
     } catch (error) {
@@ -470,7 +477,7 @@ export function buildWordpressStagingMcpOAuthRoutes(deps = {}) {
       noStore(res);
       return res.status(200).end();
     } catch {
-      return res.status(200).end();
+      return oauthError(res, 503, "temporarily_unavailable", "WordPress staging revocation service is temporarily unavailable.");
     }
   });
 
