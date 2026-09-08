@@ -27,32 +27,50 @@ jobs:
           const file = 'http-generic-api/frontend-surface-policy.json';
           const policy = JSON.parse(fs.readFileSync(file, 'utf8'));
           const misplacedId = 'local-connector-installer-delegation-signed-query-auth';
-          const sourceFile = 'routes/localConnectorInstallerDelegationRoutes.js';
-          const misplacedIndex = policy.rules.findIndex((rule) => rule.rule_id === misplacedId);
-          if (misplacedIndex < 0) throw new Error(`missing_expected_misplaced_rule:${misplacedId}`);
-          const [authRule] = policy.rules.splice(misplacedIndex, 1);
-          if (!Array.isArray(policy.auth_rules)) throw new Error('auth_rules_missing');
-          if (!policy.auth_rules.some((rule) => rule.rule_id === misplacedId)) {
-            policy.auth_rules.push(authRule);
-          }
           const surfaceId = 'local-connector-installer-delegation-api-only';
-          if (!policy.rules.some((rule) => rule.rule_id === surfaceId)) {
-            policy.rules.push({
-              rule_id: surfaceId,
-              family_key: 'local-connector-installer-delegation',
-              source_file: sourceFile,
-              scope: 'developer',
-              decision: 'api_only',
-              owner: 'local-connector',
-              rationale: 'The signed-query canonical installer delegation endpoints are machine-consumed API delivery surfaces. They do not render or authorize a browser UI, widen installer authority, or expose generic execution.',
-              evidence_refs: [
-                sourceFile,
-                'routes/index.js',
-                'test-local-connector-durable-self-healing.mjs',
-                'openapi.yaml'
-              ]
-            });
+          const sourceFile = 'routes/localConnectorInstallerDelegationRoutes.js';
+          const signature = 'GET /local-connector/install/download';
+
+          if (!Array.isArray(policy.rules)) throw new Error('surface_rules_missing');
+          if (!Array.isArray(policy.auth_rules)) throw new Error('auth_rules_missing');
+          if (!policy.rules.some((rule) => rule.rule_id === misplacedId)) {
+            throw new Error(`missing_expected_misplaced_rule:${misplacedId}`);
           }
+
+          // The operation already has canonical signed-query auth authority through
+          // signed-artifact-download-auth. The misplaced rule must be deleted from
+          // surface policy, not copied into auth_rules where it would create an
+          // ambiguous duplicate auth override.
+          policy.rules = policy.rules.filter((rule) => rule.rule_id !== misplacedId && rule.rule_id !== surfaceId);
+          policy.auth_rules = policy.auth_rules.filter((rule) => rule.rule_id !== misplacedId);
+
+          const matchingSignedAuthRules = policy.auth_rules.filter((rule) => {
+            const operations = [rule.operation, ...(Array.isArray(rule.operations) ? rule.operations : [])].filter(Boolean);
+            if (!operations.includes(signature)) return false;
+            if (rule.source_file && rule.source_file !== sourceFile) return false;
+            return rule.profile === 'signed_query_token';
+          });
+          if (matchingSignedAuthRules.length !== 1) {
+            throw new Error(`signed_query_auth_authority_cardinality:${matchingSignedAuthRules.length}:expected_1`);
+          }
+
+          // Source + scope is the stable surface identity. Avoid over-constraining
+          // the rule to a generated family key that may gain a partition suffix.
+          policy.rules.push({
+            rule_id: surfaceId,
+            source_file: sourceFile,
+            scope: 'developer',
+            decision: 'api_only',
+            owner: 'local-connector',
+            rationale: 'The signed-query canonical installer delegation endpoint is a machine-consumed API delivery surface. It redirects or materializes the canonical installer only after existing signed-link verification and does not render a browser UI, widen installer authority, or expose generic execution.',
+            evidence_refs: [
+              sourceFile,
+              'routes/index.js',
+              'test-local-connector-durable-self-healing.mjs',
+              'openapi.yaml'
+            ]
+          });
+
           fs.writeFileSync(file, `${JSON.stringify(policy, null, 2)}\n`);
           NODE
 
@@ -63,6 +81,32 @@ jobs:
       - name: Generate bounded frontend projection
         working-directory: http-generic-api
         run: npm run frontend:dispatch:generate -- --baseline-ref=main
+
+      - name: Invariant - installer delegation family is classified
+        if: always()
+        working-directory: http-generic-api
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const plan = JSON.parse(fs.readFileSync('frontend-surface-dispatch.generated.json', 'utf8'));
+          const sourceFile = 'routes/localConnectorInstallerDelegationRoutes.js';
+          const families = (plan.families || []).filter((family) => family.source_file === sourceFile);
+          if (!families.length) throw new Error('installer_delegation_family_missing');
+          const blocked = families.filter((family) => family.surface_decision?.decision === 'requires_review');
+          if (blocked.length) throw new Error(`installer_delegation_requires_review:${blocked.map((family) => family.family_key).join(',')}`);
+          NODE
+
+      - name: Invariant - no non-installer family requires review
+        if: always()
+        working-directory: http-generic-api
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const plan = JSON.parse(fs.readFileSync('frontend-surface-dispatch.generated.json', 'utf8'));
+          const sourceFile = 'routes/localConnectorInstallerDelegationRoutes.js';
+          const blocked = (plan.families || []).filter((family) => family.source_file !== sourceFile && family.surface_decision?.decision === 'requires_review');
+          if (blocked.length) throw new Error(`non_installer_families_require_review:${blocked.map((family) => family.family_key).join(',')}`);
+          NODE
 
       - name: Invariant - no unresolved operation classifications
         if: always()
@@ -95,6 +139,18 @@ jobs:
           import fs from 'node:fs';
           const plan = JSON.parse(fs.readFileSync('frontend-surface-dispatch.generated.json', 'utf8'));
           if (plan.coverage?.coverage_complete !== true) throw new Error(`frontend_coverage_incomplete:${JSON.stringify(plan.coverage)}`);
+          NODE
+
+      - name: Invariant - OpenAPI and auth gap counts remain zero
+        if: always()
+        working-directory: http-generic-api
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const plan = JSON.parse(fs.readFileSync('frontend-surface-dispatch.generated.json', 'utf8'));
+          const coverage = plan.coverage || {};
+          if (coverage.openapi_gap_count !== 0) throw new Error(`openapi_gap_count:${coverage.openapi_gap_count}`);
+          if (coverage.auth_contract_gap_count !== 0) throw new Error(`auth_contract_gap_count:${coverage.auth_contract_gap_count}`);
           NODE
 
       - name: Invariant - generated gaps grant no mutation authority
