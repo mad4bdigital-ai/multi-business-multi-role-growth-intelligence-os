@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import {
+  wordpressStagingMcpDcrAdvertised,
+  wordpressStagingMcpDcrEnabled,
+} from "./wordpressStagingMcpOAuthProfile.js";
 
 const source = readFileSync(
   new URL("./routes/wordpressStagingMcpOAuthRoutes.js", import.meta.url),
@@ -49,6 +53,46 @@ assert.doesNotMatch(
   source,
   /client_id_metadata_document_supported:\s*true/u,
   "CIMD must not be advertised until URL client identifiers are safely persisted and resolved.",
+);
+
+const dcrBaseEnv = {
+  REMOTE_MCP_ENVIRONMENT: "staging",
+  REMOTE_MCP_OAUTH_ENABLED: "true",
+  REMOTE_MCP_AUTHORIZATION_SERVER_URL: "https://dev.example.test/auth/mcp",
+  REMOTE_MCP_WORDPRESS_STAGING_OAUTH_ENABLED: "true",
+  REMOTE_MCP_WORDPRESS_STAGING_RESOURCE_URL: "https://staging.example.test/wp-json/mcp/mad4b-read",
+  REMOTE_MCP_OAUTH_ALLOWED_REDIRECT_ORIGINS: "https://chatgpt.com",
+};
+const primaryOnlyDcrEnv = {
+  ...dcrBaseEnv,
+  REMOTE_MCP_OAUTH_DCR_ENABLED: "true",
+  REMOTE_MCP_WORDPRESS_STAGING_DCR_ENABLED: "false",
+};
+assert.equal(
+  wordpressStagingMcpDcrEnabled(primaryOnlyDcrEnv),
+  false,
+  "Primary Remote MCP DCR must not enable WordPress staging DCR.",
+);
+assert.equal(
+  wordpressStagingMcpDcrAdvertised(primaryOnlyDcrEnv),
+  false,
+  "Primary Remote MCP DCR must not make the WordPress registration endpoint discoverable.",
+);
+
+const wordpressOnlyDcrEnv = {
+  ...dcrBaseEnv,
+  REMOTE_MCP_OAUTH_DCR_ENABLED: "false",
+  REMOTE_MCP_WORDPRESS_STAGING_DCR_ENABLED: "true",
+};
+assert.equal(
+  wordpressStagingMcpDcrEnabled(wordpressOnlyDcrEnv),
+  true,
+  "WordPress staging DCR must be independently enabled by its dedicated switch.",
+);
+assert.equal(
+  wordpressStagingMcpDcrAdvertised(wordpressOnlyDcrEnv),
+  true,
+  "WordPress staging DCR must be independently advertised when an approved redirect origin exists.",
 );
 
 console.log("WordPress staging MCP OAuth issuer binding contract passed.");
