@@ -1,10 +1,10 @@
 #!/usr/bin/env node
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 
 const SHA = /^[0-9a-f]{40}$/u;
 const SHA256 = /^[0-9a-f]{64}$/u;
 const POSITIVE_INT = /^[1-9][0-9]*$/u;
-const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u;
 const MODES = new Set(["human", "ai_policy"]);
 const CANDIDATE_WORKFLOW = "production-promotion-candidate.yml";
 const MAX_RUN_PAGES = 20;
@@ -23,16 +23,33 @@ function requireObject(value, label) {
   return value;
 }
 
-async function githubJson(path, { repository, token, fetchImpl }) {
-  const response = await fetchImpl(`https://api.github.com/repos/${repository}${path}`, {
-    headers: {
-      Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${token}`,
-      "X-GitHub-Api-Version": "2022-11-28",
-    },
-  });
-  if (!response.ok) fail(`GitHub API ${path} failed with HTTP ${response.status}`);
-  return response.json();
+function defaultGitHubJson(path) {
+  const endpoint = `repos/{owner}/{repo}${path}`;
+  let raw;
+  try {
+    raw = execFileSync(
+      "gh",
+      [
+        "api",
+        "--method",
+        "GET",
+        endpoint,
+        "-H",
+        "Accept: application/vnd.github+json",
+        "-H",
+        "X-GitHub-Api-Version: 2022-11-28",
+      ],
+      { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 },
+    );
+  } catch (error) {
+    const detail = String(error?.stderr ?? error?.message ?? "unknown GitHub CLI failure").trim();
+    fail(`GitHub API ${path} failed: ${detail}`);
+  }
+  try {
+    return JSON.parse(raw);
+  } catch {
+    fail(`GitHub API ${path} returned invalid JSON`);
+  }
 }
 
 export function selectReusableBuilderRun({ requestHeadSha, candidateSha, runs, artifactsByRun }) {
@@ -69,24 +86,16 @@ export async function resolveReusedBuilderRunId(input, options = {}) {
 
   const candidateSha = requireString(input.candidate_sha, "candidate_sha", SHA);
   const requestPr = requireString(String(input.request_pr), "request_pr", POSITIVE_INT);
-  const repository = requireString(
-    String(options.repository ?? process.env.REPOSITORY ?? process.env.GITHUB_REPOSITORY ?? ""),
-    "repository",
-    REPOSITORY,
-  );
-  const token = String(options.token ?? process.env.GH_TOKEN ?? "");
-  if (token.length === 0) fail("GitHub token is required to resolve reused builder provenance");
-  const fetchImpl = options.fetchImpl ?? globalThis.fetch;
-  if (typeof fetchImpl !== "function") fail("fetch implementation is required to resolve reused builder provenance");
+  const githubJson = options.githubJson ?? defaultGitHubJson;
+  if (typeof githubJson !== "function") fail("GitHub JSON reader is required to resolve reused builder provenance");
 
-  const request = await githubJson(`/pulls/${requestPr}`, { repository, token, fetchImpl });
+  const request = await githubJson(`/pulls/${requestPr}`);
   const requestHeadSha = requireString(request?.head?.sha, "request_head_sha", SHA);
 
   const runs = [];
   for (let page = 1; page <= MAX_RUN_PAGES; page += 1) {
     const payload = await githubJson(
       `/actions/workflows/${CANDIDATE_WORKFLOW}/runs?event=workflow_dispatch&status=success&per_page=100&page=${page}`,
-      { repository, token, fetchImpl },
     );
     const batch = payload?.workflow_runs;
     if (!Array.isArray(batch)) fail("candidate workflow run response is invalid");
@@ -99,7 +108,7 @@ export async function resolveReusedBuilderRunId(input, options = {}) {
   for (const run of runs) {
     if (run?.head_sha !== requestHeadSha || run?.event !== "workflow_dispatch" || run?.status !== "completed" || run?.conclusion !== "success") continue;
     const runId = requireString(String(run.id), "candidate builder run id", POSITIVE_INT);
-    const payload = await githubJson(`/actions/runs/${runId}/artifacts?per_page=100`, { repository, token, fetchImpl });
+    const payload = await githubJson(`/actions/runs/${runId}/artifacts?per_page=100`);
     const artifacts = payload?.artifacts;
     if (!Array.isArray(artifacts)) fail(`candidate builder artifact response is invalid for run ${runId}`);
     if (Number(payload?.total_count ?? artifacts.length) > artifacts.length) {
