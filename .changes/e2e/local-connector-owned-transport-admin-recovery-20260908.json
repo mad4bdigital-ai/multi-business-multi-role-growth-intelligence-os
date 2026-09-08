@@ -146,7 +146,7 @@
         {
           "id": "bounded-admin-recovery-chatgpt-connection",
           "end_to_end": true,
-          "level": "contract",
+          "level": "synthetic_runtime",
           "actor": "MAD4B Admin Recovery ChatGPT connection",
           "entrypoint": "existing admin_recovery_production private projection",
           "terminal_outcome": "ChatGPT can register/use the bounded Admin Recovery projection while workflow dispatch, execution-ticket resolution, target selection, credentials, SQL, shell, and provider authority remain server-side and outside caller control.",
