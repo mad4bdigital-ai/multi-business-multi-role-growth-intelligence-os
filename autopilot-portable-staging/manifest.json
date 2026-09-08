@@ -62,7 +62,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "ceed27ac2819bbbe8c159504ff1d5e7abf08e9467f55495c6c78674ff36b39e3"
+      "sha256": "850af619709912a448997758ba1a660534b81a3449469cb9ebf0f0e61e6d33ac"
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
@@ -150,7 +150,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "6a63a816fdaadfecc8ab08b32bb103a0c6cbb87623091bb4424075f5f1343fbf"
+      "sha256": "59f8cc578d4785f7e8b0cd2cd0ef7cbb9957218b7b65c76f65f24fa708f4cf3d"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "24b391efbfa1b4b3c3c8ab6ff8d4277027a99f537e3eed420d48e2578e6c4d36"
+      "sha256": "d5bb620b89b8b02e53f1631bcf7d042d46aec631e75c450d37a8d658be8e1ea5"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -294,7 +294,7 @@
     },
     {
       "path": "http-generic-api/test-staging-auto-deploy-contract.mjs",
-      "sha256": "5b8a2fb344d84daa20a484e1f7f60e090b600eea270ed18fa202a143717c2129"
+      "sha256": "41573314373b78ae68ecd31076492fe032c56453b66f98f5ab92e179f9104b12"
     },
     {
       "path": "http-generic-api/test-staging-environment-certification-contract.mjs",
@@ -354,7 +354,7 @@
     },
     {
       "path": "http-generic-api/scripts/generate-portable-staging-manifest.mjs",
-      "sha256": "5e40884897e91b2c7e862a2822ef1983045e10355fe3907f1cce492502e865fe"
+      "sha256": "34e83ba7c92ec161f6766ed344004cc2f3cc8dff295e4a44580bf135ff54362e"
     },
     {
       "path": "http-generic-api/scripts/provision-remote-mcp-client.mjs",
@@ -398,7 +398,7 @@
     },
     {
       "path": "autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1",
-      "sha256": "7f5ec3f7a2cc7c56276f431d21b8dae4a9c5d4a3de8e090c94b8b3aac8a3e2ff"
+      "sha256": "dc7dd365c9a328d0df38780b2e5f3f340d849ce8bfdfe3c34826db100946db8f"
     },
     {
       "path": "autopilot-portable-staging/Provision-LocalConnectorTunnelToken.ps1",
@@ -410,7 +410,7 @@
     },
     {
       "path": "local-connector/connector-watchdog.ps1",
-      "sha256": "af7716a2160cb0dedd5cbe489fb78c2cd82d2cb22f4753f6767c47816d81bdc5"
+      "sha256": "8a6f41290aea8e839aa4832f0e98b5d0cb96e63054c75ed540d0588c055b2171"
     },
     {
       "path": "local-connector/server.mjs",
@@ -419,6 +419,10 @@
     {
       "path": "autopilot-portable-staging/Invoke-StagingPrHeadCertification.ps1",
       "sha256": "4c6a8a9afca5e64415c78a61bcb7ae12aad95548b47cf62c629a55eac44f8a56"
+    },
+    {
+      "path": "local-connector/Get-LocalConnectorConvergence.ps1",
+      "sha256": "4b3d93cd57aba94010c77b9b8d17886d4240fb91a84980789b098873093a0413"
     }
   ],
   "safety": {

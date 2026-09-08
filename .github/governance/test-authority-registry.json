@@ -171,12 +171,14 @@
     {
       "id": "local_connector_environment_and_transport_isolation",
       "test_paths": [
+        "http-generic-api/test-local-connector-convergence-inspector.mjs",
         "http-generic-api/test-local-connector-durable-self-healing.mjs",
         "http-generic-api/test-windows-staging-bootstrap-supervisor.mjs",
         "http-generic-api/test-local-manager-tool-release-owner.mjs",
         "http-generic-api/test-local-manager-cloudflare-origin-classification.mjs",
         "http-generic-api/test-local-manager-signed-installer-coordinator.mjs",
         "http-generic-api/test-local-manager-signed-installer-exit-code.mjs",
+        "local-connector/Get-LocalConnectorConvergence.ps1",
         "local-connector/connector-watchdog.ps1",
         "http-generic-api/routes/connectorAgentRoutes.js",
         "http-generic-api/routes/connectorProxyRoutes.js"
@@ -276,6 +278,8 @@
         "http-generic-api/test-staging-recovery-phase-b-approval-single-issuance.mjs",
         "http-generic-api/test-staging-trusted-ingress-diagnostics.mjs",
         "http-generic-api/test-recovery-action-bridge-system-layer.mjs",
+        "http-generic-api/test-recovery-system-tool-overlay.mjs",
+        "http-generic-api/test-staging-recovery-system-tools.mjs",
         "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
         "http-generic-api/scripts/validate-staging-recovery-admin-openapi.mjs",
         "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
@@ -423,6 +427,7 @@
     {
       "id": "staging_autopilot_git_transport_resilience",
       "test_paths": [
+        "http-generic-api/test-staging-post-build-image-discovery.mjs",
         "http-generic-api/test-staging-autopilot-closure.mjs",
         "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
         "http-generic-api/test-staging-one-click-autopilot-core.mjs",
@@ -430,7 +435,8 @@
         "http-generic-api/test-staging-schema-governance-powershell-revision-contract.mjs",
         "http-generic-api/test-staging-auto-deploy-contract.mjs",
         "http-generic-api/test-staging-cloudflared-log-release.mjs",
-        "autopilot-portable-staging/Staging-GitTransport.ps1"
+        "autopilot-portable-staging/Staging-GitTransport.ps1",
+        "autopilot-portable-staging/Start-AutoPilot.ps1"
       ]
     },
     {
