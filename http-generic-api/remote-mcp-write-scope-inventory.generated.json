@@ -4711,8 +4711,8 @@
     },
     {
       "route_id": "http-generic-api/routes/mcpRoutes.js#POST:/mcp/initialize:0",
-      "source_line": 50,
-      "source_offset": 2298,
+      "source_line": 46,
+      "source_offset": 2176,
       "method": "POST",
       "path": "/mcp/initialize",
       "file": "http-generic-api/routes/mcpRoutes.js",
@@ -4720,8 +4720,8 @@
     },
     {
       "route_id": "http-generic-api/routes/mcpRoutes.js#GET:/mcp/tools/list:1",
-      "source_line": 51,
-      "source_offset": 2388,
+      "source_line": 47,
+      "source_offset": 2266,
       "method": "GET",
       "path": "/mcp/tools/list",
       "file": "http-generic-api/routes/mcpRoutes.js",
@@ -4729,8 +4729,8 @@
     },
     {
       "route_id": "http-generic-api/routes/mcpRoutes.js#POST:/mcp/tools/call:2",
-      "source_line": 52,
-      "source_offset": 2476,
+      "source_line": 48,
+      "source_offset": 2354,
       "method": "POST",
       "path": "/mcp/tools/call",
       "file": "http-generic-api/routes/mcpRoutes.js",
@@ -9815,7 +9815,7 @@
     {
       "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#GET:/.well-known/oauth-authorization-server/auth/mcp/wordpress-staging:0",
       "source_line": 259,
-      "source_offset": 11795,
+      "source_offset": 11759,
       "method": "GET",
       "path": "/.well-known/oauth-authorization-server/auth/mcp/wordpress-staging",
       "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
@@ -9824,7 +9824,7 @@
     {
       "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#GET:/.well-known/openid-configuration/auth/mcp/wordpress-staging:1",
       "source_line": 260,
-      "source_offset": 11894,
+      "source_offset": 11858,
       "method": "GET",
       "path": "/.well-known/openid-configuration/auth/mcp/wordpress-staging",
       "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
@@ -9833,7 +9833,7 @@
     {
       "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#GET:/auth/mcp/wordpress-staging/.well-known/oauth-authorization-server:2",
       "source_line": 261,
-      "source_offset": 11987,
+      "source_offset": 11951,
       "method": "GET",
       "path": "/auth/mcp/wordpress-staging/.well-known/oauth-authorization-server",
       "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
@@ -9842,7 +9842,7 @@
     {
       "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#GET:/auth/mcp/wordpress-staging/oauth/jwks:3",
       "source_line": 263,
-      "source_offset": 12087,
+      "source_offset": 12051,
       "method": "GET",
       "path": "/auth/mcp/wordpress-staging/oauth/jwks",
       "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
@@ -9851,7 +9851,7 @@
     {
       "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#POST:/auth/mcp/wordpress-staging/oauth/register:4",
       "source_line": 271,
-      "source_offset": 12622,
+      "source_offset": 12586,
       "method": "POST",
       "path": "/auth/mcp/wordpress-staging/oauth/register",
       "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
@@ -9860,7 +9860,7 @@
     {
       "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#GET:/auth/mcp/wordpress-staging/oauth/authorize:5",
       "source_line": 320,
-      "source_offset": 15570,
+      "source_offset": 15522,
       "method": "GET",
       "path": "/auth/mcp/wordpress-staging/oauth/authorize",
       "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
@@ -9869,7 +9869,7 @@
     {
       "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#POST:/auth/mcp/wordpress-staging/oauth/code:6",
       "source_line": 357,
-      "source_offset": 18341,
+      "source_offset": 18293,
       "method": "POST",
       "path": "/auth/mcp/wordpress-staging/oauth/code",
       "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
@@ -9878,7 +9878,7 @@
     {
       "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#POST:/auth/mcp/wordpress-staging/oauth/token:7",
       "source_line": 406,
-      "source_offset": 21884,
+      "source_offset": 21836,
       "method": "POST",
       "path": "/auth/mcp/wordpress-staging/oauth/token",
       "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
@@ -9887,7 +9887,7 @@
     {
       "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#POST:/auth/mcp/wordpress-staging/oauth/revoke:8",
       "source_line": 461,
-      "source_offset": 27624,
+      "source_offset": 27576,
       "method": "POST",
       "path": "/auth/mcp/wordpress-staging/oauth/revoke",
       "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
@@ -30067,10 +30067,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/mcpRoutes.js",
-        "source_line": 50,
+        "source_line": 46,
         "handler_window_lines": [
-          50,
-          50
+          46,
+          46
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -30125,10 +30125,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/mcpRoutes.js",
-        "source_line": 52,
+        "source_line": 48,
         "handler_window_lines": [
-          52,
-          56
+          48,
+          52
         ],
         "evidence_flags": {
           "handler_window_present": true,
