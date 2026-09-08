@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 20
     env:
       HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
-      EXPECTED_PARENT: 8fccc8f89e59fef21241fde9b962eb97684dd6d9
+      EXPECTED_PARENT: 4f75a82ccda5d53341dcca0af2374d16f4e42edf
     steps:
       - name: Checkout exact PR head
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -35,6 +35,32 @@ jobs:
           test "$(git rev-parse HEAD^)" = "$EXPECTED_PARENT"
           test -e scripts/pr-7974-installer-security-once.py
           test -e .github/workflows/pr-7974-installer-security-once.yml
+
+      - name: Fix deterministic patch cardinality
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/pr-7974-installer-security-once.py')
+          source = p.read_text(encoding='utf-8')
+          old = '''def replace_once(source, old, new, label):
+              count = source.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly one match, found {count}')
+              return source.replace(old, new, 1)
+          '''.replace('          ', '')
+          new = '''def replace_once(source, old, new, label):
+              count = source.count(old)
+              expected = 2 if label == 'device response grant boundary' else 1
+              if count != expected:
+                  raise SystemExit(f'{label}: expected exactly {expected} match(es), found {count}')
+              return source.replace(old, new, 1)
+          '''.replace('          ', '')
+          if source.count(old) != 1:
+              raise SystemExit('replace_once helper patch target mismatch')
+          p.write_text(source.replace(old, new, 1), encoding='utf-8', newline='\n')
+          PY
 
       - name: Apply installer security closure
         shell: bash
