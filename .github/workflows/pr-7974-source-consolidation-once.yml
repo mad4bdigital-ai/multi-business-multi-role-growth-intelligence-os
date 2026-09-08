@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 20
     env:
       HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
-      EXPECTED_PARENT: 641c70f6781d7481d0be2f7ccbb9a34b23820555
+      EXPECTED_PARENT: 3718b662c97bffe344f3c62f8e6cf047787c4410
     steps:
       - name: Checkout exact PR head
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -37,7 +37,20 @@ jobs:
           test -e .github/workflows/pr-7974-source-consolidation-once.yml
 
       - name: Apply canonical source patch
-        run: python scripts/pr-7974-source-consolidation-once.py
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/pr-7974-source-consolidation-once.py')
+          source = p.read_text(encoding='utf-8')
+          old = 'source, count = production_test.subn(staging_tests, source, count=1)'
+          new = 'source, count = production_test.subn(lambda _match: staging_tests, source, count=1)'
+          if source.count(old) != 1:
+              raise SystemExit('patch-runner replacement target mismatch')
+          p.write_text(source.replace(old, new), encoding='utf-8', newline='\n')
+          PY
+          python scripts/pr-7974-source-consolidation-once.py
 
       - name: Validate focused source contracts
         shell: bash
