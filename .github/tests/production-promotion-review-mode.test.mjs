@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
-import { selectReusableBuilderRun } from "../scripts/production-promotion-release-cut-evidence.mjs";
+import { resolveReusedBuilderRunId, selectReusableBuilderRun } from "../scripts/production-promotion-release-cut-evidence.mjs";
 
 const root = process.cwd();
 const launcher = fs.readFileSync(`${root}/.github/workflows/governed-production-promotion-request-launcher.yml`, "utf8");
@@ -101,6 +101,43 @@ test("reused builder provenance resolves only one successful exact-head candidat
 
   assert.match(releaseCutEvidence, /builder_run_id: requireString\(String\(input\.builder_run_id\), "builder_run_id", POSITIVE_INT\)/u);
   assert.match(releaseCutEvidence, /input\.builder_run_id = await resolveReusedBuilderRunId\(input\)/u);
+  assert.match(releaseCutEvidence, /execFileSync\(\s*"gh"/u);
+  assert.doesNotMatch(releaseCutEvidence, /process\.env\.(?:REPOSITORY|GITHUB_REPOSITORY|GH_TOKEN)/u);
+});
+
+test("reused builder resolver consumes bounded GitHub readback without new environment configuration", async () => {
+  const requestHeadSha = "4".repeat(40);
+  const candidateSha = "5".repeat(40);
+  const artifactName = `production-promotion-candidate-${candidateSha}`;
+  const seen = [];
+  const githubJson = async (path) => {
+    seen.push(path);
+    if (path === "/pulls/7979") return { head: { sha: requestHeadSha } };
+    if (path.startsWith("/actions/workflows/production-promotion-candidate.yml/runs?")) {
+      return {
+        workflow_runs: [
+          { id: 9201, head_sha: requestHeadSha, event: "workflow_dispatch", status: "completed", conclusion: "success" },
+        ],
+      };
+    }
+    if (path === "/actions/runs/9201/artifacts?per_page=100") {
+      return { total_count: 1, artifacts: [{ name: artifactName, expired: false }] };
+    }
+    throw new Error(`unexpected GitHub read path: ${path}`);
+  };
+
+  const resolved = await resolveReusedBuilderRunId({
+    builder_run_id: "reused",
+    request_pr: "7979",
+    candidate_sha: candidateSha,
+  }, { githubJson });
+
+  assert.equal(resolved, "9201");
+  assert.deepEqual(seen, [
+    "/pulls/7979",
+    "/actions/workflows/production-promotion-candidate.yml/runs?event=workflow_dispatch&status=success&per_page=100&page=1",
+    "/actions/runs/9201/artifacts?per_page=100",
+  ]);
 });
 
 console.log(JSON.stringify({
