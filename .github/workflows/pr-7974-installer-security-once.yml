@@ -1,0 +1,85 @@
+name: PR 7974 installer security once
+
+on:
+  pull_request:
+    branches: [main]
+    types: [edited]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pr-7974-installer-security-once
+  cancel-in-progress: false
+
+jobs:
+  close-installer-authority:
+    if: github.event.pull_request.number == 7974 && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+      EXPECTED_PARENT: f7763a4d890a45d2db62599b96be36541318daab
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
+
+      - name: Guard exact parent and branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$HEAD_BRANCH" = "fix/admin-recovery-mcp-local-connector-ownership-20260908"
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_PARENT"
+          test -e scripts/pr-7974-installer-security-once.py
+          test -e .github/workflows/pr-7974-installer-security-once.yml
+
+      - name: Apply installer security closure
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/pr-7974-installer-security-once.py
+
+      - name: Validate syntax and source invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/localConnectorInstallerCapability.js
+          node --check http-generic-api/routes/localConnectorInstallRoutes.js
+          node --check http-generic-api/routes/connectorAgentRoutes.js
+          node --check http-generic-api/services/localManagerDeviceLinkService.js
+          node --check local-connector/connector-runtime-bootstrap.mjs
+          node --check http-generic-api/test-local-connector-installer-capability.mjs
+          node --check http-generic-api/test-local-connector-durable-self-healing.mjs
+          node --check local-connector/test-connector-runtime-bootstrap.mjs
+          test "$(grep -R --include='*.js' -F 'router.get("/local-connector/install/download"' http-generic-api/routes | wc -l | tr -d ' ')" = "1"
+          ! grep -F 'mergePermissionGrants(dbGrants, payload.permission_grants' http-generic-api/routes/connectorAgentRoutes.js
+          ! grep -F '`CONNECTOR_SECRET=${connectorSecret}`' http-generic-api/routes/connectorAgentRoutes.js
+          grep -F 'WHERE config_id = ? AND user_id = ? AND tenant_id = ? AND device_id = ?' http-generic-api/routes/connectorAgentRoutes.js
+          grep -F 'installer_capability_replayed' http-generic-api/routes/connectorAgentRoutes.js
+          grep -F 'cloudflared_token_file_unsupported_version' http-generic-api/routes/connectorAgentRoutes.js
+          git diff --check
+
+      - name: Run focused regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd http-generic-api
+          node test-local-connector-installer-capability.mjs
+          node test-local-connector-durable-self-healing.mjs
+          node ../local-connector/test-connector-runtime-bootstrap.mjs
+
+      - name: Commit closure and self-delete
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/pr-7974-installer-security-once.yml
+          rm scripts/pr-7974-installer-security-once.py
+          git add -A
+          git diff --cached --check
+          git config user.name "mad4bdigital-ai"
+          git config user.email "mad4b.digital@gmail.com"
+          git commit -m "fix(connector): close installer capability and secret lifecycle"
+          git push origin "HEAD:${HEAD_BRANCH}"
