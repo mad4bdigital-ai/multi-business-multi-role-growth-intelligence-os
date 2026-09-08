@@ -44,6 +44,7 @@ requireFragment("'--report-file', promotionReportPath", 'structured canonical ga
 requireFragment("'protected_main'", 'protected main release identity');
 requireFragment("'immutable_main_snapshot'", 'immutable main snapshot identity');
 requireFragment("'history_preserving_main_reconciliation'", 'history-preserving reconciliation identity');
+requireFragment("'certified_release_cut_reconciliation'", 'certified release-cut reconciliation identity');
 requireFragment('promotionReport.production_promotion === true', 'canonical Production promotion requirement');
 requireFragment('acceptedReleaseIdentities.has(releaseIdentity)', 'bounded canonical identity allowlist');
 requireFragment("? 'canonical_e2e_parallel_pr_gate'", 'canonical gate evidence source');
@@ -217,8 +218,10 @@ console.log(JSON.stringify({
     'protected_main',
     'immutable_main_snapshot',
     'history_preserving_main_reconciliation',
+    'certified_release_cut_reconciliation',
   ],
   history_preserving_reconciliation_executed: true,
+  certified_release_cut_reconciliation_allowlisted: true,
   reversed_parent_reconciliation_rejected: true,
   duplicate_release_branch_parser_present: false,
   duplicate_release_ancestry_classifier_present: false,
