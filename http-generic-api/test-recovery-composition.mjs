@@ -12,6 +12,15 @@ import {
 
 const serverSource = readFileSync(new URL("./server.js", import.meta.url), "utf8");
 const routesSource = readFileSync(new URL("./routes/recoveryKernelRoutes.js", import.meta.url), "utf8");
+const systemLayerSource = readFileSync(new URL("./routes/systemLayerRoutes.js", import.meta.url), "utf8");
+const breakglassBrokerSource = readFileSync(new URL("./runtimeBreakglassBroker.js", import.meta.url), "utf8");
+const adminRecoveryConnection = JSON.parse(
+  readFileSync(new URL("./config/admin-recovery-chatgpt-connection.json", import.meta.url), "utf8"),
+);
+const customGptSurfaces = readFileSync(
+  new URL("../canonicals/openapi/custom-gpt-surfaces.yaml", import.meta.url),
+  "utf8",
+);
 
 function asyncMethod(value = {}) {
   return async () => value;
@@ -125,6 +134,60 @@ test("composition root wires the contract without auto-discovering credentials o
   assert.match(routesSource, /executionTicketSigner,[\s\S]*hostBreakglassMutationExecutor,[\s\S]*productionActivationReadinessExecutor/u);
   assert.doesNotMatch(serverSource, /RECOVERY_COMPOSITION_LIVE_ENABLED/u);
   assert.doesNotMatch(serverSource, /RUNTIME_BREAKGLASS_GITHUB_TOKEN/u);
+});
+
+test("Admin Recovery connection is pinned to the existing private Production Recovery projection", () => {
+  assert.equal(adminRecoveryConnection.contract, "mad4b.admin-recovery-chatgpt-connection.v1");
+  assert.equal(adminRecoveryConnection.environment, "production");
+  assert.equal(adminRecoveryConnection.server_uri, "https://auth.mad4b.com");
+  assert.equal(adminRecoveryConnection.principal_class, "admin_gpt");
+  assert.equal(adminRecoveryConnection.projection.surface_key, "admin_recovery_production");
+  assert.equal(adminRecoveryConnection.projection.registration_set, "production_recovery");
+  assert.equal(adminRecoveryConnection.projection.private_only, true);
+  assert.equal(adminRecoveryConnection.projection.shared_admin_core_member, false);
+  assert.match(customGptSurfaces, /production_recovery:/);
+  assert.match(customGptSurfaces, /admin_recovery_production/);
+  assert.match(customGptSurfaces, /action_slot:\s*recovery_kernel/);
+});
+
+test("Admin Recovery challenge and approved-step execution remain fixed server routes", () => {
+  assert.match(routesSource, /\/admin\/recovery\/kernel\/approval-challenge/);
+  assert.match(routesSource, /\/admin\/recovery\/kernel\/execute-approved/);
+  assert.match(systemLayerSource, /recovery_kernel_create_approval_challenge/);
+  assert.match(systemLayerSource, /recovery_kernel_execute_approved_step/);
+});
+
+test("Admin Recovery connection never exposes generic GitHub dispatch, shell, SQL, tickets, or credentials", () => {
+  const boundary = adminRecoveryConnection.execution_boundary;
+  assert.equal(boundary.generic_workflow_dispatch_exposed, false);
+  assert.equal(boundary.generic_shell_exposed, false);
+  assert.equal(boundary.caller_supplied_execution_ticket_allowed, false);
+  assert.equal(boundary.caller_supplied_repository_allowed, false);
+  assert.equal(boundary.caller_supplied_workflow_allowed, false);
+  assert.equal(boundary.caller_supplied_ref_allowed, false);
+  assert.equal(boundary.caller_supplied_github_token_allowed, false);
+  assert.equal(boundary.caller_supplied_database_identifier_allowed, false);
+  assert.equal(boundary.caller_supplied_database_credentials_allowed, false);
+  assert.equal(boundary.caller_supplied_sql_allowed, false);
+});
+
+test("runtime Breakglass broker keeps repo workflow ref and credential fields server-controlled", () => {
+  for (const forbidden of [
+    "github_token",
+    "repository",
+    "workflow",
+    "workflow_file",
+    "ref",
+    "dispatch_ref",
+    "database",
+    "db_user",
+    "db_password",
+    "credential",
+  ]) {
+    assert.match(breakglassBrokerSource, new RegExp(`\\"${forbidden}\\"`));
+  }
+  assert.match(breakglassBrokerSource, /runtime_breakglass_production_sha_mismatch/);
+  assert.match(breakglassBrokerSource, /actions\/workflows\/\$\{encodeURIComponent\(canonicalWorkflow\(\)\.file\)\}\/dispatches/);
 });
 
 console.log("recovery composition contract tests passed");
