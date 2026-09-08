@@ -84,15 +84,20 @@ jobs:
           [[ "$CURRENT_MAIN_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$CURRENT_PRODUCTION_SHA" =~ ^[0-9a-f]{40}$ ]]
 
-          FIRST_PARENT="$(git rev-parse "${HEAD_SHA}^1")"
+          PARENTS="$(git show -s --format=%P "$HEAD_SHA")"
+          read -r -a PARENT_LIST <<< "$PARENTS"
+          (( ${#PARENT_LIST[@]} == 2 )) || {
+            echo "::error::candidate must have exactly two parents: certified release cut first and pinned Production second"
+            exit 1
+          }
+          FIRST_PARENT="${PARENT_LIST[0]}"
+          SECOND_PARENT="${PARENT_LIST[1]}"
           [[ "$FIRST_PARENT" == "$BASE_SHA" ]] || {
             echo "::error::candidate first parent must be the certified release cut"
             exit 1
           }
-
-          PARENT_COUNT="$(git rev-list --parents -n 1 "$HEAD_SHA" | awk '{print NF-1}')"
-          (( PARENT_COUNT >= 2 )) || {
-            echo "::error::candidate must preserve certified cut and Production ancestry"
+          [[ "$SECOND_PARENT" == "$CURRENT_PRODUCTION_SHA" ]] || {
+            echo "::error::candidate second parent must be the exact pinned Production SHA"
             exit 1
           }
 
@@ -106,8 +111,8 @@ jobs:
             echo "::error::certified release cut is not contained by current main"
             exit 1
           }
-          git merge-base --is-ancestor "$CURRENT_PRODUCTION_SHA" "$HEAD_SHA" || {
-            echo "::error::candidate does not contain current Production ancestry"
+          git merge-base --is-ancestor "$CURRENT_PRODUCTION_SHA" "$BASE_SHA" || {
+            echo "::error::current Production is not contained by the certified release cut"
             exit 1
           }
 
@@ -486,13 +491,26 @@ jobs:
             echo "::error::Production moved during certified-cut validation"
             exit 1
           }
-          [[ "$(git rev-parse "${HEAD_SHA}^1")" == "$BASE_SHA" ]]
+          FINAL_PARENTS="$(git show -s --format=%P "$HEAD_SHA")"
+          read -r -a FINAL_PARENT_LIST <<< "$FINAL_PARENTS"
+          (( ${#FINAL_PARENT_LIST[@]} == 2 )) || {
+            echo "::error::candidate parent count drifted during certified-cut validation"
+            exit 1
+          }
+          [[ "${FINAL_PARENT_LIST[0]}" == "$BASE_SHA" ]] || {
+            echo "::error::candidate first parent drifted from the certified release cut"
+            exit 1
+          }
+          [[ "${FINAL_PARENT_LIST[1]}" == "$PRODUCTION_SHA" ]] || {
+            echo "::error::candidate second parent drifted from pinned Production"
+            exit 1
+          }
           git diff --quiet "$BASE_SHA" "$HEAD_SHA"
           git merge-base --is-ancestor "$BASE_SHA" "$MAIN_SHA_FINAL" || {
             echo "::error::current main no longer contains certified release cut"
             exit 1
           }
-          git merge-base --is-ancestor "$PRODUCTION_SHA" "$HEAD_SHA"
+          git merge-base --is-ancestor "$PRODUCTION_SHA" "$BASE_SHA"
 
           jq -n \
             --arg candidate_sha "$HEAD_SHA" \
@@ -538,8 +556,12 @@ jobs:
               execution_mode: "direct_arm",
               runner_pool: "ubuntu-24.04-arm",
               exact_full_ci_success: true,
+              candidate_parent_count: 2,
+              candidate_first_parent_is_certified_cut: true,
+              candidate_second_parent_is_pinned_production: true,
               candidate_tree_matches_certified_cut: true,
               certified_cut_is_ancestor_of_current_main: true,
+              production_is_ancestor_of_certified_cut: true,
               candidate_contains_production: true,
               candidate_and_base_refs_immutable_during_validation: true,
               production_ref_stable_during_validation: true,
