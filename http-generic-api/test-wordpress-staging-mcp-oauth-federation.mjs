@@ -162,8 +162,8 @@ app.use(buildWordpressStagingMcpOAuthRoutes({ env: routeEnv, pool }));
 const server = await new Promise((resolve) => {
   const started = app.listen(0, () => resolve(started));
 });
-const baseUrl = `http://127.0.0.1:${server.address().port}`;
-const hostHeaders = { "x-original-host": "dev.example.test" };
+const origin = `http://127.0.0.1:${server.address().port}`;
+const requestHeaders = { "x-original-host": "dev.example.test" };
 
 async function json(response) {
   const body = await response.text();
@@ -171,10 +171,10 @@ async function json(response) {
 }
 
 try {
-  const wrongHost = await fetch(`${baseUrl}/.well-known/oauth-authorization-server/auth/mcp/wordpress-staging`);
+  const wrongHost = await fetch(`${origin}/.well-known/oauth-authorization-server/auth/mcp/wordpress-staging`);
   assert.equal(wrongHost.status, 404);
 
-  const metadataResponse = await fetch(`${baseUrl}/.well-known/oauth-authorization-server/auth/mcp/wordpress-staging`, { headers: hostHeaders });
+  const metadataResponse = await fetch(`${origin}/.well-known/oauth-authorization-server/auth/mcp/wordpress-staging`, { headers: requestHeaders });
   const metadata = await json(metadataResponse);
   assert.equal(metadataResponse.status, 200);
   assert.equal(metadata.issuer, `${env.REMOTE_MCP_AUTHORIZATION_SERVER_URL}/wordpress-staging`);
@@ -183,10 +183,12 @@ try {
   assert.deepEqual(metadata.scopes_supported, WORDPRESS_STAGING_MCP_AUTHORIZATION_SCOPES);
   assert.deepEqual(metadata.grant_types_supported, ["authorization_code", "refresh_token"]);
   assert.deepEqual(metadata.code_challenge_methods_supported, ["S256"]);
+  assert.equal(metadata.authorization_response_iss_parameter_supported, true);
+  assert.deepEqual(metadata.protected_resources, [env.REMOTE_MCP_WORDPRESS_STAGING_RESOURCE_URL]);
   assert.equal(metadata["x-mad4b-resource-profile"].subject_authorization_required, true);
   assert.equal(metadata["x-mad4b-resource-profile"].mutation_authority, false);
 
-  const jwksResponse = await fetch(`${baseUrl}/auth/mcp/wordpress-staging/oauth/jwks`, { headers: hostHeaders });
+  const jwksResponse = await fetch(`${origin}/auth/mcp/wordpress-staging/oauth/jwks`, { headers: requestHeaders });
   const jwks = await json(jwksResponse);
   assert.equal(jwksResponse.status, 200);
   assert.equal(jwks.keys.length, 1);
@@ -196,9 +198,9 @@ try {
   assert.equal(jwks.keys[0].x5c, undefined);
 
   const redirectUri = "https://chatgpt.com/connector_platform_oauth_redirect";
-  const registerResponse = await fetch(`${baseUrl}/auth/mcp/wordpress-staging/oauth/register`, {
+  const registerResponse = await fetch(`${origin}/auth/mcp/wordpress-staging/oauth/register`, {
     method: "POST",
-    headers: { ...hostHeaders, "content-type": "application/json" },
+    headers: { ...requestHeaders, "content-type": "application/json" },
     body: JSON.stringify({
       client_name: "ChatGPT WordPress Staging",
       redirect_uris: [redirectUri],
@@ -218,9 +220,9 @@ try {
   assert.deepEqual(JSON.parse(clients.get(registered.client_id).allowed_scopes_json), WORDPRESS_STAGING_MCP_AUTHORIZATION_SCOPES);
   assert.match(clients.get(registered.client_id).client_profile_key, new RegExp(`^${WORDPRESS_STAGING_MCP_CLIENT_PROFILE_PREFIX}`));
 
-  const invalidScopeRegistration = await fetch(`${baseUrl}/auth/mcp/wordpress-staging/oauth/register`, {
+  const invalidScopeRegistration = await fetch(`${origin}/auth/mcp/wordpress-staging/oauth/register`, {
     method: "POST",
-    headers: { ...hostHeaders, "content-type": "application/json" },
+    headers: { ...requestHeaders, "content-type": "application/json" },
     body: JSON.stringify({ client_name: "Invalid writer", redirect_uris: [redirectUri], token_endpoint_auth_method: "none", scope: "mad4b:write" }),
   });
   assert.equal(invalidScopeRegistration.status, 400);
@@ -228,7 +230,7 @@ try {
 
   const verifier = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~";
   const challenge = createHash("sha256").update(verifier, "ascii").digest("base64url");
-  const authorizeUrl = new URL(`${baseUrl}/auth/mcp/wordpress-staging/oauth/authorize`);
+  const authorizeUrl = new URL(`${origin}/auth/mcp/wordpress-staging/oauth/authorize`);
   authorizeUrl.searchParams.set("client_id", registered.client_id);
   authorizeUrl.searchParams.set("response_type", "code");
   authorizeUrl.searchParams.set("redirect_uri", redirectUri);
@@ -237,7 +239,7 @@ try {
   authorizeUrl.searchParams.set("resource", env.REMOTE_MCP_WORDPRESS_STAGING_RESOURCE_URL);
   authorizeUrl.searchParams.set("code_challenge", challenge);
   authorizeUrl.searchParams.set("code_challenge_method", "S256");
-  const authorizeResponse = await fetch(authorizeUrl, { headers: hostHeaders });
+  const authorizeResponse = await fetch(authorizeUrl, { headers: requestHeaders });
   const authorizeHtml = await authorizeResponse.text();
   assert.equal(authorizeResponse.status, 200);
   assert(authorizeHtml.includes("mad4b:read"));
@@ -246,9 +248,9 @@ try {
   assert(requestMatch?.[1]);
 
   const unapprovedToken = jwt.sign({ user_id: "user-2", tenant_id: "workspace-1" }, env.JWT_SECRET, { algorithm: "HS256", expiresIn: 3600 });
-  const deniedCodeResponse = await fetch(`${baseUrl}/auth/mcp/wordpress-staging/oauth/code`, {
+  const deniedCodeResponse = await fetch(`${origin}/auth/mcp/wordpress-staging/oauth/code`, {
     method: "POST",
-    headers: { ...hostHeaders, "content-type": "application/json", authorization: `Bearer ${unapprovedToken}` },
+    headers: { ...requestHeaders, "content-type": "application/json", authorization: `Bearer ${unapprovedToken}` },
     body: JSON.stringify({ authorization_request: requestMatch[1], consent: true }),
   });
   assert.equal(deniedCodeResponse.status, 403);
@@ -256,26 +258,29 @@ try {
   assert.equal(codes.size, 0, "unapproved subjects must not receive authorization codes");
 
   const userToken = jwt.sign({ user_id: "user-1", tenant_id: "workspace-1" }, env.JWT_SECRET, { algorithm: "HS256", expiresIn: 3600 });
-  const codeResponse = await fetch(`${baseUrl}/auth/mcp/wordpress-staging/oauth/code`, {
+  const codeResponse = await fetch(`${origin}/auth/mcp/wordpress-staging/oauth/code`, {
     method: "POST",
-    headers: { ...hostHeaders, "content-type": "application/json", authorization: `Bearer ${userToken}` },
+    headers: { ...requestHeaders, "content-type": "application/json", authorization: `Bearer ${userToken}` },
     body: JSON.stringify({ authorization_request: requestMatch[1], consent: true }),
   });
   const codeResult = await json(codeResponse);
   assert.equal(codeResponse.status, 200);
+  const redirectResult = new URL(codeResult.redirect_to);
+  assert.equal(redirectResult.searchParams.get("iss"), metadata.issuer);
+  assert.equal(redirectResult.searchParams.get("state"), "state-wp-1");
 
-  const wrongResourceResponse = await fetch(`${baseUrl}/auth/mcp/wordpress-staging/oauth/token`, {
+  const wrongResourceResponse = await fetch(`${origin}/auth/mcp/wordpress-staging/oauth/token`, {
     method: "POST",
-    headers: { ...hostHeaders, "content-type": "application/x-www-form-urlencoded" },
+    headers: { ...requestHeaders, "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ grant_type: "authorization_code", client_id: registered.client_id, code: codeResult.code, redirect_uri: redirectUri, code_verifier: verifier, resource: "https://staging.example.test/wp-json/mcp/mad4b-write" }),
   });
   assert.equal(wrongResourceResponse.status, 400);
   assert.equal((await json(wrongResourceResponse)).error, "invalid_target");
   assert.equal(codes.get(sha256(codeResult.code)).status, "issued");
 
-  const tokenResponse = await fetch(`${baseUrl}/auth/mcp/wordpress-staging/oauth/token`, {
+  const tokenResponse = await fetch(`${origin}/auth/mcp/wordpress-staging/oauth/token`, {
     method: "POST",
-    headers: { ...hostHeaders, "content-type": "application/x-www-form-urlencoded" },
+    headers: { ...requestHeaders, "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ grant_type: "authorization_code", client_id: registered.client_id, code: codeResult.code, redirect_uri: redirectUri, code_verifier: verifier, resource: env.REMOTE_MCP_WORDPRESS_STAGING_RESOURCE_URL }),
   });
   const tokens = await json(tokenResponse);
@@ -296,9 +301,9 @@ try {
   // Removing the subject from the allowlist invalidates refresh authority even
   // while the durable grant itself is still active.
   routeEnv.REMOTE_MCP_WORDPRESS_STAGING_ALLOWED_SUBJECTS = "tenant:workspace-1:user:user-9";
-  const deauthorizedRefresh = await fetch(`${baseUrl}/auth/mcp/wordpress-staging/oauth/token`, {
+  const deauthorizedRefresh = await fetch(`${origin}/auth/mcp/wordpress-staging/oauth/token`, {
     method: "POST",
-    headers: { ...hostHeaders, "content-type": "application/x-www-form-urlencoded" },
+    headers: { ...requestHeaders, "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ grant_type: "refresh_token", client_id: registered.client_id, refresh_token: tokens.refresh_token }),
   });
   assert.equal(deauthorizedRefresh.status, 400);
@@ -307,9 +312,9 @@ try {
 
   // ChatGPT can refresh without having to resend the protected resource. The
   // durable grant itself remains the authoritative resource binding.
-  const refreshResponse = await fetch(`${baseUrl}/auth/mcp/wordpress-staging/oauth/token`, {
+  const refreshResponse = await fetch(`${origin}/auth/mcp/wordpress-staging/oauth/token`, {
     method: "POST",
-    headers: { ...hostHeaders, "content-type": "application/x-www-form-urlencoded" },
+    headers: { ...requestHeaders, "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ grant_type: "refresh_token", client_id: registered.client_id, refresh_token: tokens.refresh_token }),
   });
   const refreshed = await json(refreshResponse);
@@ -318,9 +323,9 @@ try {
   const refreshedClaims = jwt.verify(refreshed.access_token, publicKey, { algorithms: ["RS256"], issuer: metadata.issuer, audience: env.REMOTE_MCP_WORDPRESS_STAGING_RESOURCE_URL });
   assert.equal(refreshedClaims.scope, `${WORDPRESS_STAGING_MCP_SCOPE} ${WORDPRESS_STAGING_MCP_OFFLINE_SCOPE}`);
 
-  const replayResponse = await fetch(`${baseUrl}/auth/mcp/wordpress-staging/oauth/token`, {
+  const replayResponse = await fetch(`${origin}/auth/mcp/wordpress-staging/oauth/token`, {
     method: "POST",
-    headers: { ...hostHeaders, "content-type": "application/x-www-form-urlencoded" },
+    headers: { ...requestHeaders, "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ grant_type: "refresh_token", client_id: registered.client_id, refresh_token: tokens.refresh_token }),
   });
   assert.equal(replayResponse.status, 400);
