@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const inspector = readFileSync("../local-connector/Get-LocalConnectorConvergence.ps1", "utf8");
+const inspector = readFileSync(new URL("../local-connector/Get-LocalConnectorConvergence.ps1", import.meta.url), "utf8");
 
 for (const marker of [
   "duplicate_agent_runtime",
@@ -20,8 +20,8 @@ for (const forbidden of ["Restart-Service", "Start-Service", "Stop-Service", "Re
 
 console.log("local connector convergence inspector contract tests passed");
 
-const watchdog = readFileSync("../local-connector/connector-watchdog.ps1", "utf8");
-const stagingRepair = readFileSync("../autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1", "utf8");
+const watchdog = readFileSync(new URL("../local-connector/connector-watchdog.ps1", import.meta.url), "utf8");
+const stagingRepair = readFileSync(new URL("../autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1", import.meta.url), "utf8");
 for (const source of [watchdog, stagingRepair]) {
   for (const marker of ["dns_resolution_failed", "identity_invalid", "identity_binding_mismatch", "tunnel_restart_allowed"])
     assert.ok(source.includes(marker), `component-aware health classifier missing ${marker}`);
