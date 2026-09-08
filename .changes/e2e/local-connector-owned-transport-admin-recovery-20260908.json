@@ -20,9 +20,9 @@
       "http-generic-api/test-local-connector-installer-delegation.mjs",
       "http-generic-api/test-local-connector-installer-routing-closure.mjs",
       "local-connector/README.md",
-      "local-connector/browser4-adapter.mjs",
       "local-connector/connector-environment-policy.mjs",
       "local-connector/connector-runtime-bootstrap.mjs",
+      "local-connector/server.mjs",
       "local-connector/test-connector-environment-policy.mjs",
       "local-connector/test-connector-runtime-bootstrap.mjs"
     ]
@@ -100,13 +100,14 @@
           "entrypoint": "local-connector/server.mjs startup",
           "terminal_outcome": "The runtime accepts only the policy host that matches CONNECTOR_ENVIRONMENT, blocks Staging missing/mismatched policy configuration, and permits the historical Production fallback only behind an explicit Production compatibility flag.",
           "steps": [
-            "Load the connector .env before runtime configuration is constructed.",
-            "Resolve CONNECTOR_ENVIRONMENT and the expected control-plane hostname.",
+            "Import connector-runtime-bootstrap.mjs directly from server.mjs before runtime configuration is constructed.",
+            "Load the connector .env and resolve CONNECTOR_ENVIRONMENT plus the expected control-plane hostname.",
             "Validate CONNECTOR_POLICY_URL against the environment-bound hostname.",
             "Reject Staging with a missing or Production policy URL.",
             "Allow the historical Production default only when the explicit compatibility flag is enabled in Production."
           ],
           "assertions": [
+            "server.mjs directly owns the environment-policy bootstrap; Browser4 or another feature adapter is not used as an import side effect.",
             "production maps to auth.mad4b.com.",
             "staging maps to dev.mad4b.com.",
             "Staging cannot fall back to auth.mad4b.com.",
@@ -127,9 +128,17 @@
               "working_directory": "local-connector",
               "path": "test-connector-runtime-bootstrap.mjs",
               "args": []
+            },
+            {
+              "id": "local-connector-installer-routing-closure",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-local-connector-installer-routing-closure.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
+            "local-connector/server.mjs",
             "local-connector/connector-environment-policy.mjs",
             "local-connector/connector-runtime-bootstrap.mjs",
             "local-connector/test-connector-environment-policy.mjs",
