@@ -1,0 +1,81 @@
+name: PR 7974 one-shot control-plane registration repair
+
+on:
+  push:
+    branches:
+      - fix/admin-recovery-mcp-local-connector-ownership-20260908
+    paths:
+      - .github/workflows/pr-7974-control-plane-registration-repair-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: fix/admin-recovery-mcp-local-connector-ownership-20260908
+          fetch-depth: 0
+
+      - name: Register bounded critical control-plane paths
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+
+          const constitutionFile = 'http-generic-api/config/repository-governance-constitution.json';
+          const derivedFile = '.github/derived-state-governance.json';
+          const paths = [
+            '.changes/e2e/local-connector-owned-transport-admin-recovery-20260908.json',
+            'docs/governance/admin-recovery-chatgpt-connection.md',
+          ];
+
+          const constitution = JSON.parse(fs.readFileSync(constitutionFile, 'utf8'));
+          const derived = JSON.parse(fs.readFileSync(derivedFile, 'utf8'));
+          if (!Array.isArray(constitution.control_plane_paths)) throw new Error('constitution_control_plane_paths_missing');
+          if (!Array.isArray(derived?.convergence?.automation_control_paths)) throw new Error('derived_automation_control_paths_missing');
+
+          for (const path of paths) {
+            if (!constitution.control_plane_paths.includes(path)) constitution.control_plane_paths.push(path);
+            if (!derived.convergence.automation_control_paths.includes(path)) derived.convergence.automation_control_paths.push(path);
+          }
+
+          fs.writeFileSync(constitutionFile, `${JSON.stringify(constitution, null, 2)}\n`);
+          fs.writeFileSync(derivedFile, `${JSON.stringify(derived, null, 2)}\n`);
+          NODE
+
+      - name: Verify canonical registration parity
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const constitution = JSON.parse(fs.readFileSync('http-generic-api/config/repository-governance-constitution.json', 'utf8'));
+          const derived = JSON.parse(fs.readFileSync('.github/derived-state-governance.json', 'utf8'));
+          const required = [
+            '.changes/e2e/local-connector-owned-transport-admin-recovery-20260908.json',
+            'docs/governance/admin-recovery-chatgpt-connection.md',
+          ];
+          const control = new Set(constitution.control_plane_paths || []);
+          const automation = new Set(derived?.convergence?.automation_control_paths || []);
+          for (const path of required) {
+            if (!control.has(path)) throw new Error(`constitution_registration_missing:${path}`);
+            if (!automation.has(path)) throw new Error(`automation_registration_missing:${path}`);
+          }
+          const unprotected = [...control].filter((path) => !automation.has(path));
+          if (unprotected.length) throw new Error(`control_plane_convergence_gap:${unprotected.join(',')}`);
+          NODE
+          node --check scripts/repository-governance-objection-gate.mjs
+          git diff --check
+
+      - name: Commit bounded registration repair and remove one-shot workflow
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/pr-7974-control-plane-registration-repair-once.yml
+          git add http-generic-api/config/repository-governance-constitution.json .github/derived-state-governance.json
+          git diff --cached --check
+          git commit -m 'fix(governance): register PR 7974 critical control-plane paths'
+          git push origin HEAD:fix/admin-recovery-mcp-local-connector-ownership-20260908
