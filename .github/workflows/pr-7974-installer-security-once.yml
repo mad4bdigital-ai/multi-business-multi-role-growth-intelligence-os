@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 20
     env:
       HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
-      EXPECTED_PARENT: 9a710d02af7174e6d9f11f939c91bdf0d664d25b
+      EXPECTED_PARENT: c0e0d9bdc57afe35c50c8806845f44bfd3679139
     steps:
       - name: Checkout exact PR head
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -112,22 +112,37 @@ jobs:
       - name: Validate syntax and source invariants
         shell: bash
         run: |
-          set -euo pipefail
-          node --check http-generic-api/localConnectorInstallerCapability.js
-          node --check http-generic-api/routes/localConnectorInstallRoutes.js
-          node --check http-generic-api/routes/connectorAgentRoutes.js
-          node --check http-generic-api/services/localManagerDeviceLinkService.js
-          node --check local-connector/connector-runtime-bootstrap.mjs
-          node --check http-generic-api/test-local-connector-installer-capability.mjs
-          node --check http-generic-api/test-local-connector-durable-self-healing.mjs
-          node --check local-connector/test-connector-runtime-bootstrap.mjs
-          test "$(grep -R --include='*.js' -F 'router.get("/local-connector/install/download"' http-generic-api/routes | wc -l | tr -d ' ')" = "1"
-          ! grep -F 'mergePermissionGrants(dbGrants, payload.permission_grants' http-generic-api/routes/connectorAgentRoutes.js
-          ! grep -F '`CONNECTOR_SECRET=${connectorSecret}`' http-generic-api/routes/connectorAgentRoutes.js
-          grep -F 'WHERE config_id = ? AND user_id = ? AND tenant_id = ? AND device_id = ?' http-generic-api/routes/connectorAgentRoutes.js
-          grep -F 'installer_capability_replayed' http-generic-api/routes/connectorAgentRoutes.js
-          grep -F 'cloudflared_token_file_unsupported_version' http-generic-api/routes/connectorAgentRoutes.js
-          git diff --check
+          set +e
+          {
+            set -x
+            node --check http-generic-api/localConnectorInstallerCapability.js &&
+            node --check http-generic-api/routes/localConnectorInstallRoutes.js &&
+            node --check http-generic-api/routes/connectorAgentRoutes.js &&
+            node --check http-generic-api/services/localManagerDeviceLinkService.js &&
+            node --check local-connector/connector-runtime-bootstrap.mjs &&
+            node --check http-generic-api/test-local-connector-installer-capability.mjs &&
+            node --check http-generic-api/test-local-connector-durable-self-healing.mjs &&
+            node --check local-connector/test-connector-runtime-bootstrap.mjs &&
+            test "$(grep -R --include='*.js' -F 'router.get("/local-connector/install/download"' http-generic-api/routes | wc -l | tr -d ' ')" = "1" &&
+            ! grep -F 'mergePermissionGrants(dbGrants, payload.permission_grants' http-generic-api/routes/connectorAgentRoutes.js &&
+            ! grep -F '`CONNECTOR_SECRET=${connectorSecret}`' http-generic-api/routes/connectorAgentRoutes.js &&
+            grep -F 'WHERE config_id = ? AND user_id = ? AND tenant_id = ? AND device_id = ?' http-generic-api/routes/connectorAgentRoutes.js &&
+            grep -F 'installer_capability_replayed' http-generic-api/routes/connectorAgentRoutes.js &&
+            grep -F 'cloudflared_token_file_unsupported_version' http-generic-api/routes/connectorAgentRoutes.js &&
+            git diff --check
+          } > installer-validation-diagnostic.txt 2>&1
+          status=$?
+          cat installer-validation-diagnostic.txt
+          exit $status
+
+      - name: Upload validation diagnostic
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: pr-7974-installer-validation-diagnostic-${{ github.run_id }}
+          path: installer-validation-diagnostic.txt
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Run focused regressions
         shell: bash
