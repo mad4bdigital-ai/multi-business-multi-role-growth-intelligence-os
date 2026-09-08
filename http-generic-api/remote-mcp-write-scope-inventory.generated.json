@@ -9815,7 +9815,7 @@
     {
       "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#GET:/.well-known/oauth-authorization-server/auth/mcp/wordpress-staging:0",
       "source_line": 310,
-      "source_offset": 14505,
+      "source_offset": 14619,
       "method": "GET",
       "path": "/.well-known/oauth-authorization-server/auth/mcp/wordpress-staging",
       "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
@@ -9824,7 +9824,7 @@
     {
       "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#GET:/.well-known/openid-configuration/auth/mcp/wordpress-staging:1",
       "source_line": 311,
-      "source_offset": 14604,
+      "source_offset": 14718,
       "method": "GET",
       "path": "/.well-known/openid-configuration/auth/mcp/wordpress-staging",
       "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
@@ -9833,7 +9833,7 @@
     {
       "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#GET:/auth/mcp/wordpress-staging/.well-known/oauth-authorization-server:2",
       "source_line": 312,
-      "source_offset": 14697,
+      "source_offset": 14811,
       "method": "GET",
       "path": "/auth/mcp/wordpress-staging/.well-known/oauth-authorization-server",
       "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
@@ -9842,7 +9842,7 @@
     {
       "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#GET:/auth/mcp/wordpress-staging/oauth/jwks:3",
       "source_line": 314,
-      "source_offset": 14797,
+      "source_offset": 14911,
       "method": "GET",
       "path": "/auth/mcp/wordpress-staging/oauth/jwks",
       "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
@@ -9851,7 +9851,7 @@
     {
       "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#POST:/auth/mcp/wordpress-staging/oauth/register:4",
       "source_line": 322,
-      "source_offset": 15332,
+      "source_offset": 15446,
       "method": "POST",
       "path": "/auth/mcp/wordpress-staging/oauth/register",
       "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
@@ -9860,7 +9860,7 @@
     {
       "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#GET:/auth/mcp/wordpress-staging/oauth/authorize:5",
       "source_line": 371,
-      "source_offset": 18234,
+      "source_offset": 18348,
       "method": "GET",
       "path": "/auth/mcp/wordpress-staging/oauth/authorize",
       "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
@@ -9869,7 +9869,7 @@
     {
       "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#POST:/auth/mcp/wordpress-staging/oauth/code:6",
       "source_line": 408,
-      "source_offset": 21005,
+      "source_offset": 21119,
       "method": "POST",
       "path": "/auth/mcp/wordpress-staging/oauth/code",
       "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
@@ -9878,7 +9878,7 @@
     {
       "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#POST:/auth/mcp/wordpress-staging/oauth/token:7",
       "source_line": 458,
-      "source_offset": 24740,
+      "source_offset": 24854,
       "method": "POST",
       "path": "/auth/mcp/wordpress-staging/oauth/token",
       "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
@@ -9887,7 +9887,7 @@
     {
       "route_id": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js#POST:/auth/mcp/wordpress-staging/oauth/revoke:8",
       "source_line": 513,
-      "source_offset": 30480,
+      "source_offset": 30594,
       "method": "POST",
       "path": "/auth/mcp/wordpress-staging/oauth/revoke",
       "file": "http-generic-api/routes/wordpressStagingMcpOAuthRoutes.js",
