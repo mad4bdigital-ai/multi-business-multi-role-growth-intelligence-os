@@ -153,6 +153,11 @@ components:
       in: query
       name: token
       description: Short-lived signed or hashed artifact token validated before download.
+    installerRedeemBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: One-time installer redemption capability
+      description: Five-minute purpose-, audience-, environment-, config-, user-, tenant-, and device-bound capability consumed atomically on first use.
 
   schemas:
 
@@ -17269,6 +17274,24 @@ paths:
       summary: Download connector agent PowerShell installer
       responses:
         "200": { description: Connector agent installer script, content: { text/plain: { schema: { type: string } } } }
+
+  /connector-agent/installer/redeem:
+    post:
+      x-openai-isConsequential: true
+      tags: [local-connector]
+      security: [{ installerRedeemBearerAuth: [] }]
+      operationId: redeemConnectorAgentInstallerSecrets
+      summary: Redeem one-time connector installer credentials
+      description: Atomically consumes a five-minute capability and returns the exact bound device credentials once for immediate ACL-restricted local materialization.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        "200": { description: One-time credential material for the bound installer, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { description: Capability missing, invalid, or expired, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "409": { description: Capability already consumed, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
   /connector-agent/files/{fileName}:
     get:

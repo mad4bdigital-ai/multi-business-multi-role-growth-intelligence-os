@@ -130,7 +130,8 @@ nodeAssert.match(installerSource, /assertNoInstallerAuthorityOverrides/);
 nodeAssert.match(installerSource, /config_id: config\.config_id/);
 nodeAssert.match(downloadHandlerSource, /WHERE config_id = \? AND user_id = \? AND tenant_id = \? AND device_id = \?/);
 nodeAssert.doesNotMatch(installerSource, /permission_grants:\s*permissionGrants/);
-nodeAssert.match(installerCapabilitySource, /purpose:\s*"local_connector_installer"/);
+nodeAssert.match(installerCapabilitySource, /LOCAL_CONNECTOR_INSTALLER_DOWNLOAD_PURPOSE = "local_connector_installer_download"/);
+nodeAssert.match(installerCapabilitySource, /LOCAL_CONNECTOR_INSTALLER_REDEEM_PURPOSE = "local_connector_installer_secret_redeem"/);
 nodeAssert.match(installerCapabilitySource, /aud:\s*"connector_agent"/);
 nodeAssert.match(installerCapabilitySource, /jti:\s*randomUUID\(\)/);
 nodeAssert.match(installerCapabilitySource, /LOCAL_CONNECTOR_INSTALLER_CAPABILITY_MAX_TTL_SECONDS = 10 \* 60/);
@@ -138,7 +139,9 @@ nodeAssert.match(installerCapabilitySource, /installer_permission_grants_server_
 nodeAssert.match(agentSource, /claimInstallerCapability/);
 nodeAssert.match(agentSource, /local_connector_recovery_events/);
 nodeAssert.match(agentSource, /installer_capability_replayed/);
-nodeAssert.match(agentSource, /material=runtime_credentials/);
+nodeAssert.match(agentSource, /router\.post\("\/connector-agent\/installer\/redeem"/);
+nodeAssert.match(agentSource, /Authorization = \\"Bearer \$RedeemToken/);
+nodeAssert.doesNotMatch(agentSource, /material=runtime_credentials/);
 nodeAssert.match(agentSource, /permissionGrants:\s*dbGrants/);
 nodeAssert.doesNotMatch(agentSource, /mergePermissionGrants\(dbGrants,\s*payload\.permission_grants/);
 nodeAssert.match(agentSource, /WHERE config_id = \? AND user_id = \? AND tenant_id = \? AND device_id = \? AND is_enabled = 1/);
@@ -160,6 +163,7 @@ nodeAssert.match(agentSource, /CONNECTOR_CLOUDFLARED_SERVICE=Mad4B-LocalConnecto
 nodeAssert.match(agentSource, /CONNECTOR_CLOUDFLARED_METRICS=127\.0\.0\.1:49313/);
 nodeAssert.match(agentSource, /cloudflared-token\.txt/);
 nodeAssert.doesNotMatch(agentSource, /cloudflared service install/);
+nodeAssert.doesNotMatch(installerSource, /CONNECTOR_SECRET=|CONNECTOR_LOCAL_API_KEY=|cloudflared service install ["'`]?\s*\+?\s*(?:cfToken|tunnelToken)/);
 nodeAssert.match(agentSource, /connector-environment-policy\.mjs/);
 nodeAssert.match(agentSource, /connector-runtime-bootstrap\.mjs/);
 nodeAssert.match(connectorServerSource, /import ['"]\.\/connector-runtime-bootstrap\.mjs['"];?/);

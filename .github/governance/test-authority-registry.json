@@ -180,6 +180,7 @@
       "test_paths": [
         "http-generic-api/test-local-connector-convergence-inspector.mjs",
         "http-generic-api/test-local-connector-durable-self-healing.mjs",
+        "http-generic-api/test-local-connector-installer-capability.mjs",
         "http-generic-api/test-windows-staging-bootstrap-supervisor.mjs",
         "http-generic-api/test-local-manager-tool-release-owner.mjs",
         "http-generic-api/test-local-manager-cloudflare-origin-classification.mjs",

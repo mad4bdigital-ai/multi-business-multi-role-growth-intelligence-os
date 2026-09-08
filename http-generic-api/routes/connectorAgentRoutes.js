@@ -10,7 +10,11 @@ import {
 } from "../connectorSchemaCompatibility.js";
 import { resolveRuntimeEnvironmentStrict } from "../runtimeEnvironmentResolver.js";
 import {
+  LOCAL_CONNECTOR_INSTALLER_DOWNLOAD_PURPOSE,
+  LOCAL_CONNECTOR_INSTALLER_REDEEM_PURPOSE,
+  createInstallerCapability,
   installerControlPlaneBinding,
+  signInstallerDownloadToken,
   verifyInstallerDownloadToken,
 } from "../localConnectorInstallerCapability.js";
 
@@ -469,7 +473,7 @@ function buildConnectorEnv({ aliases, port, capabilities = [], permissionGrants 
   ].join("\r\n");
 }
 
-function buildInstallPowerShell({ credentialUrl, tunnelUrl, aliases, port, capabilities = [], permissionGrants = {}, environment, controlPlaneBaseUrl }) {
+function buildInstallPowerShell({ redeemToken, tunnelUrl, aliases, port, capabilities = [], permissionGrants = {}, environment, controlPlaneBaseUrl }) {
   const envText = buildConnectorEnv({ aliases, port, capabilities, permissionGrants, environment, controlPlaneBaseUrl });
   return [
     "# Mad4B Local Connector — run once as Administrator",
@@ -496,7 +500,8 @@ function buildInstallPowerShell({ credentialUrl, tunnelUrl, aliases, port, capab
     "$CfTokenFile = Join-Path $SecretsRoot 'cloudflared-token.txt'",
     "$ConnectorSecretFile = Join-Path $SecretsRoot 'connector-secret.txt'",
     "$ConnectorLocalApiKeyFile = Join-Path $SecretsRoot 'connector-local-api-key.txt'",
-    `$CredentialUrl = '${psQuote(credentialUrl)}'`,
+    `$RedeemUrl = '${psQuote(controlPlaneBaseUrl)}/connector-agent/installer/redeem'`,
+    `$RedeemToken = '${psQuote(redeemToken)}'`,
     "$CfStdout = Join-Path $Root 'cloudflared.log'",
     "$CfStderr = Join-Path $Root 'cloudflared-error.log'",
     "",
@@ -560,8 +565,11 @@ function buildInstallPowerShell({ credentialUrl, tunnelUrl, aliases, port, capab
     "$StagingBefore = Get-ServiceSnapshot $StagingCfService",
     "",
     "Protect-ConnectorSecretDirectory $SecretsRoot",
-    "if ([string]::IsNullOrWhiteSpace($CredentialUrl)) { throw 'Installer credential redemption URL is missing.' }",
-    "$CredentialBundle = Invoke-RestMethod -Uri $CredentialUrl -Method Get -Headers @{ Accept = 'application/json' } -TimeoutSec 60",
+    "if ([string]::IsNullOrWhiteSpace($RedeemToken)) { throw 'Installer credential redemption capability is missing.' }",
+    "$RedeemHeaders = @{ Accept = 'application/json'; Authorization = \"Bearer $RedeemToken\" }",
+    "$CredentialBundle = Invoke-RestMethod -Uri $RedeemUrl -Method Post -Headers $RedeemHeaders -ContentType 'application/json' -Body '{}' -TimeoutSec 60",
+    "$RedeemToken = $null",
+    "$RedeemHeaders = $null",
     "if (-not $CredentialBundle.ok) { throw 'Installer credential redemption failed.' }",
     "$CfToken = [string]$CredentialBundle.cf_token",
     "$ConnectorSecret = [string]$CredentialBundle.connector_secret",
@@ -646,6 +654,7 @@ function buildInstallPowerShell({ credentialUrl, tunnelUrl, aliases, port, capab
     "if ($LegacyAfter.exists) { Write-Warning 'Legacy generic cloudflared service remains present but was not stopped, reconfigured, renamed, or reused by this installer.' }",
     `Write-Host 'Done. Tunnel: ${psQuote(tunnelUrl)}'`,
     "Write-Host 'Owned transport: Mad4B-LocalConnector-Cloudflared; credential_mode=token_file; metrics=127.0.0.1:49313'",
+    "if ($PSCommandPath) { Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue }",
   ].join("\r\n");
 }
 
@@ -944,11 +953,10 @@ export function buildConnectorAgentRoutes() {
   router.get("/connector-agent/installer.ps1", async (req, res) => {
     try {
       const token = String(req.query.token || "");
-      const payload = verifyInstallerDownloadToken(token, { expectedFormat: "ps1" });
-      const material = String(req.query.material || "").trim().toLowerCase();
-      if (material && material !== "runtime_credentials") {
-        throw httpError(400, "installer_material_invalid", "Unknown installer material request.");
-      }
+      const payload = verifyInstallerDownloadToken(token, {
+        expectedFormat: "ps1",
+        expectedPurpose: LOCAL_CONNECTOR_INSTALLER_DOWNLOAD_PURPOSE,
+      });
       const [[config]] = await getPool().query(
         `SELECT config_id, user_id, tenant_id, device_id, COALESCE(device_runtime_url, tunnel_url) AS tunnel_url
            FROM \`local_connector_user_configs\`
@@ -957,32 +965,7 @@ export function buildConnectorAgentRoutes() {
         [payload.config_id, payload.user_id, payload.tenant_id, payload.device_id]
       );
       if (!config) throw httpError(404, "connector_config_not_found", "No exact active connector config was found for this installer capability.");
-
-      if (material === "runtime_credentials") {
-        await claimInstallerCapability(config, payload);
-        const connectorLocalApiKeySelect = await connectorLocalApiKeySelectFragment();
-        const [[credentials]] = await getPool().query(
-          `SELECT connector_secret, ${connectorLocalApiKeySelect}, cf_token
-             FROM \`local_connector_user_configs\`
-            WHERE config_id = ? AND user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1
-            LIMIT 1`,
-          [payload.config_id, payload.user_id, payload.tenant_id, payload.device_id]
-        );
-        if (!credentials?.cf_token || !credentials?.connector_secret) {
-          throw httpError(409, "connector_config_incomplete", "Connector config is missing canonical runtime credentials.");
-        }
-        res.setHeader("Cache-Control", "no-store, max-age=0");
-        res.setHeader("Pragma", "no-cache");
-        res.setHeader("X-Mad4B-Installer-Material", "one-time-runtime-credentials");
-        return res.status(200).json({
-          ok: true,
-          cf_token: credentials.cf_token,
-          connector_secret: credentials.connector_secret,
-          connector_local_api_key: credentials.connector_local_api_key || "",
-          one_time: true,
-          secrets_included: true,
-        });
-      }
+      await claimInstallerCapability(config, payload);
 
       const dbGrants = await loadConnectorGrantPolicy(config.config_id);
       const binding = resolveConnectorEnvironmentBinding();
@@ -990,9 +973,17 @@ export function buildConnectorAgentRoutes() {
       if (capabilityBinding.environment !== binding.environment || capabilityBinding.baseUrl !== binding.baseUrl) {
         throw httpError(503, "installer_control_plane_binding_mismatch", "Installer capability and Connector control-plane bindings do not match.");
       }
-      const credentialUrl = `${binding.baseUrl}/connector-agent/installer.ps1?material=runtime_credentials&token=${encodeURIComponent(token)}`;
+      const redeemToken = signInstallerDownloadToken(createInstallerCapability({
+        config_id: config.config_id,
+        user_id: config.user_id,
+        tenant_id: config.tenant_id,
+        device_id: config.device_id,
+        format: "ps1",
+        purpose: LOCAL_CONNECTOR_INSTALLER_REDEEM_PURPOSE,
+        ttl_minutes: 5,
+      }));
       const installer = buildInstallPowerShell({
-        credentialUrl,
+        redeemToken,
         tunnelUrl: config.tunnel_url,
         aliases: DEFAULT_WINDOWS_ALIASES,
         port: CONNECTOR_PORT,
@@ -1008,6 +999,51 @@ export function buildConnectorAgentRoutes() {
       return res.status(200).send(installer);
     } catch (err) {
       return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "connector_agent_installer_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  router.post("/connector-agent/installer/redeem", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store, max-age=0");
+    res.setHeader("Pragma", "no-cache");
+    try {
+      const authorization = String(req.headers.authorization || "");
+      const token = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
+      if (!token) throw httpError(401, "installer_redeem_capability_required", "Bearer installer redemption capability is required.");
+      const payload = verifyInstallerDownloadToken(token, {
+        expectedFormat: "ps1",
+        expectedPurpose: LOCAL_CONNECTOR_INSTALLER_REDEEM_PURPOSE,
+      });
+      const [[config]] = await getPool().query(
+        `SELECT config_id, user_id, tenant_id, device_id
+           FROM \`local_connector_user_configs\`
+          WHERE config_id = ? AND user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1
+          LIMIT 1`,
+        [payload.config_id, payload.user_id, payload.tenant_id, payload.device_id]
+      );
+      if (!config) throw httpError(404, "connector_config_not_found", "No exact active connector config was found for this redemption capability.");
+      await claimInstallerCapability(config, payload);
+      const connectorLocalApiKeySelect = await connectorLocalApiKeySelectFragment();
+      const [[credentials]] = await getPool().query(
+        `SELECT connector_secret, ${connectorLocalApiKeySelect}, cf_token
+           FROM \`local_connector_user_configs\`
+          WHERE config_id = ? AND user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1
+          LIMIT 1`,
+        [payload.config_id, payload.user_id, payload.tenant_id, payload.device_id]
+      );
+      if (!credentials?.cf_token || !credentials?.connector_secret) {
+        throw httpError(409, "connector_config_incomplete", "Connector config is missing canonical runtime credentials.");
+      }
+      res.setHeader("X-Mad4B-Installer-Material", "one-time-runtime-credentials");
+      return res.status(200).json({
+        ok: true,
+        cf_token: credentials.cf_token,
+        connector_secret: credentials.connector_secret,
+        connector_local_api_key: credentials.connector_local_api_key || "",
+        one_time: true,
+        secrets_included: true,
+      });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "connector_agent_installer_redeem_failed", message: err.message }, secrets_included: false });
     }
   });
 

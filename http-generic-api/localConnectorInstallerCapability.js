@@ -4,6 +4,8 @@ import { resolveRuntimeEnvironmentStrict } from "./runtimeEnvironmentResolver.js
 export const LOCAL_CONNECTOR_INSTALLER_CAPABILITY_CONTRACT = "mad4b.local-connector-installer-capability.v1";
 export const LOCAL_CONNECTOR_INSTALLER_CAPABILITY_MAX_TTL_SECONDS = 10 * 60;
 export const LOCAL_CONNECTOR_INSTALLER_CAPABILITY_MIN_TTL_SECONDS = 5 * 60;
+export const LOCAL_CONNECTOR_INSTALLER_DOWNLOAD_PURPOSE = "local_connector_installer_download";
+export const LOCAL_CONNECTOR_INSTALLER_REDEEM_PURPOSE = "local_connector_installer_secret_redeem";
 
 function capabilityError(status, code, message) {
   const err = new Error(message || code);
@@ -70,12 +72,16 @@ export function createInstallerCapability({
   device_id,
   format = "ps1",
   app_managed = false,
+  purpose = LOCAL_CONNECTOR_INSTALLER_DOWNLOAD_PURPOSE,
   ttl_minutes = 10,
   env = process.env,
   now_seconds = Math.floor(Date.now() / 1000),
 } = {}) {
   const binding = installerControlPlaneBinding(env);
   const normalizedFormat = compact(format, 16).toLowerCase();
+  if (![LOCAL_CONNECTOR_INSTALLER_DOWNLOAD_PURPOSE, LOCAL_CONNECTOR_INSTALLER_REDEEM_PURPOSE].includes(purpose)) {
+    throw capabilityError(400, "installer_capability_purpose_invalid", "Installer capability purpose is not supported.");
+  }
   if (!["ps1", "bat"].includes(normalizedFormat)) {
     throw capabilityError(400, "unsupported_format", "Only ps1 or bat installer capabilities are supported.");
   }
@@ -95,7 +101,7 @@ export function createInstallerCapability({
   return Object.freeze({
     version: 1,
     contract: LOCAL_CONNECTOR_INSTALLER_CAPABILITY_CONTRACT,
-    purpose: "local_connector_installer",
+    purpose,
     aud: "connector_agent",
     environment: binding.environment,
     config_id: configId,
@@ -116,7 +122,7 @@ export function signInstallerDownloadToken(payload, { env = process.env } = {}) 
   return `${body}.${sig}`;
 }
 
-export function verifyInstallerDownloadToken(token, { env = process.env, expectedFormat = null, now_seconds = Math.floor(Date.now() / 1000) } = {}) {
+export function verifyInstallerDownloadToken(token, { env = process.env, expectedFormat = null, expectedPurpose = LOCAL_CONNECTOR_INSTALLER_DOWNLOAD_PURPOSE, now_seconds = Math.floor(Date.now() / 1000) } = {}) {
   const [body, sig] = String(token || "").split(".");
   if (!body || !sig) throw capabilityError(401, "invalid_download_token", "Invalid installer capability.");
   const expected = createHmac("sha256", installerTokenSecret(env)).update(body).digest("base64url");
@@ -140,7 +146,7 @@ export function verifyInstallerDownloadToken(token, { env = process.env, expecte
   if (
     payload?.version !== 1 ||
     payload?.contract !== LOCAL_CONNECTOR_INSTALLER_CAPABILITY_CONTRACT ||
-    payload?.purpose !== "local_connector_installer" ||
+    payload?.purpose !== expectedPurpose ||
     payload?.aud !== "connector_agent" ||
     payload?.environment !== binding.environment ||
     !requiredStrings ||

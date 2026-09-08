@@ -21,11 +21,11 @@ Do not treat a generic Windows service named `cloudflared` as Connector-owned. D
 
 ### Option A — Local Manager / GPT-assisted (recommended)
 
-1. Request a short-lived installer link through the Local Manager/Admin connector install flow.
+1. Request a purpose- and device-bound installer link. Its lifetime is limited to 5–10 minutes.
 2. `format=ps1` resolves directly to `/connector-agent/installer.ps1`.
 3. `format=bat` returns a small bootstrap only; the BAT downloads and executes that same canonical PowerShell installer.
 4. Run the resulting installer as Administrator.
-5. The canonical installer verifies the connector-agent manifest and SHA256 values, writes the environment-bound `.env`, installs/updates the Connector-owned Node service and `Mad4B-LocalConnector-Cloudflared`, then requires local health before success.
+5. The canonical installer creates a separate five-minute redemption capability, exchanges it once through POST bearer auth, writes credentials directly into an ACL-restricted directory, verifies the connector-agent manifest and SHA256 values, writes a secretless environment-bound `.env`, installs/updates the Connector-owned Node service and `Mad4B-LocalConnector-Cloudflared`, then requires local health before success.
 
 The canonical installer is the only supported installer implementation. Legacy download routes delegate to it and must not contain an independently executable Cloudflare service installer.
 
@@ -46,10 +46,14 @@ CONNECTOR_CLOUDFLARED_SERVICE=Mad4B-LocalConnector-Cloudflared
 CONNECTOR_CLOUDFLARED_TASK=Mad4B-LocalConnector-Cloudflared
 CONNECTOR_CLOUDFLARED_MANAGEMENT=remote
 CONNECTOR_CLOUDFLARED_TOKEN_FILE=<restricted local token file>
+CONNECTOR_SECRET_FILE=<restricted local connector secret file>
+CONNECTOR_LOCAL_API_KEY_FILE=<restricted optional local API key file>
 CONNECTOR_CLOUDFLARED_METRICS=127.0.0.1:49313
 ```
 
-The token file ACL is restricted to the installing identity/System as appropriate to the installer contract. Tokens must not be placed inline in service command lines, logs, metrics, heartbeat payloads, or runtime-state evidence.
+The secrets directory is ACL-restricted before materialization. Long-lived credentials must not appear in the PS1/BAT, `.env`, service command lines, logs, metrics, heartbeat payloads, or runtime-state evidence. Download and redemption capabilities are temporary bearer secrets and must be redacted from proxy query logs and never copied into tickets or chats.
+
+The installer requires `cloudflared >= 2025.4.0` for `--token-file` and fails closed with `cloudflared_token_file_unsupported_version` when the installed version is older.
 
 ### Environment binding
 
@@ -228,6 +232,9 @@ Do not manually copy a generic cloudflared service definition or reuse another e
 - The Node server binds to `127.0.0.1` only.
 - The Connector-owned tunnel runtime is `Mad4B-LocalConnector-Cloudflared`; the watchdog rejects a different configured ownership name.
 - Tunnel credentials are stored in a restricted token file rather than an inline `cloudflared service install <token>` command.
+- Connector credentials are file-backed; `.env` contains restricted file paths rather than raw credentials.
+- Download and secret-redemption capabilities have separate signed purposes; the five-minute redemption capability is sent only as a POST bearer and its JTI is claimed atomically in the durable recovery ledger.
+- `cloudflared --version` must resolve to at least `2025.4.0` before token-file service configuration.
 - Cloudflared metrics are loopback-only.
 - Installer/recovery flows must not mutate generic `cloudflared` or `Mad4B-Staging-Cloudflared`.
 - Environment ↔ policy-host mismatch fails closed; Staging must not fall back to Production policy.

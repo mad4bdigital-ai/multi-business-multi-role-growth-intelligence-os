@@ -708,7 +708,7 @@ function buildInstallScript({ cfToken, connectorSecret, connectorLocalApiKey = '
     "timeout /t 2 /nobreak >nul",
     "sc query %CF_SERVICE% >nul 2>&1 && sc delete %CF_SERVICE% >nul 2>&1",
     "timeout /t 2 /nobreak >nul",
-    "cloudflared service install " + cfToken,
+    "REM Legacy inline installer retired; use the canonical token-file installer.",
     "if %ERRORLEVEL% neq 0 (echo ERROR: cloudflared service install failed. & exit /b 1)",
     "net start %CF_SERVICE% >nul 2>&1",
     "if %ERRORLEVEL% neq 0 (echo ERROR: cloudflared service did not start. & exit /b 1)",
@@ -756,18 +756,15 @@ function buildInstallScript({ cfToken, connectorSecret, connectorLocalApiKey = '
   ].join("\r\n");
 }
 
-function buildConnectorEnv({ connectorSecret, connectorLocalApiKey = '', aliases, port, capabilities = [], permissionGrants = {} }) {
+function buildConnectorEnv({ aliases, port, capabilities = [], permissionGrants = {} }) {
   const grants = normalizePermissionGrants(permissionGrants);
   const allAliases = [...aliases, ...grants.shell_aliases];
   const allowlistVal = buildAllowlistEnvValue(allAliases);
   const appAllowlistLine = Object.keys(grants.apps).length ? [envJsonLine("CONNECTOR_APP_ALLOWLIST", grants.apps)] : [];
   const filePathLine = grants.allowed_paths.length ? [`CONNECTOR_FILE_PATHS=${grants.allowed_paths.join(",")}`] : [];
-  const connectorLocalApiKeyLine = String(connectorLocalApiKey || '').trim()
-    ? [`CONNECTOR_LOCAL_API_KEY=${String(connectorLocalApiKey).trim()}`]
-    : [];
   return [
-    `CONNECTOR_SECRET=${connectorSecret}`,
-    ...connectorLocalApiKeyLine,
+    "CONNECTOR_SECRET_FILE=D:\\Mad4B\\LocalManager\\updates\\secrets\\connector-secret.txt",
+    "CONNECTOR_LOCAL_API_KEY_FILE=D:\\Mad4B\\LocalManager\\updates\\secrets\\connector-local-api-key.txt",
     "MAIN_API_URL=https://api.mad4b.com",
     `CONNECTOR_PORT=${port}`,
     "CONNECTOR_SHELL_ENABLED=true",
@@ -893,7 +890,7 @@ function buildInstallPowerShell({ cfToken, connectorSecret, connectorLocalApiKey
     "    Start-Sleep -Seconds 2",
     "  }",
     "}",
-    `& cloudflared service install ${cfToken}`,
+    "throw 'legacy_inline_installer_retired_use_connector_agent_canonical_installer'",
     "if ($LASTEXITCODE -ne 0) { throw \"cloudflared service install failed with exit code $LASTEXITCODE.\" }",
     "$cfSvc = Get-Service -Name $CfService -ErrorAction SilentlyContinue",
     "if (-not $cfSvc) { throw 'cloudflared service was not created.' }",
@@ -1359,7 +1356,7 @@ export function buildLocalConnectorInstallRoutes(deps) {
   // The token is HMAC-signed and contains no connector credentials itself.
   router.post("/local-connector/install/download-link", requireBackendApiKey, async (req, res) => {
     try {
-      const { user_id, tenant_id, device_id, ttl_minutes = 30 } = req.body || {};
+      const { user_id, tenant_id, device_id, ttl_minutes = 10 } = req.body || {};
       const format = String(req.body?.format || "ps1").trim().toLowerCase();
       if (!device_id) return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "device_id is required." } });
       if (!["ps1", "bat"].includes(format)) return res.status(400).json({ ok: false, error: { code: "unsupported_format", message: "format must be ps1 or bat." } });
@@ -1592,7 +1589,7 @@ export function buildLocalConnectorInstallRoutes(deps) {
         credential_source: provisioningCredentials.source,
         server_env: {
           CONNECTOR_LOCAL_API_KEY: connectorSecret,
-          instruction: `Set CONNECTOR_LOCAL_API_KEY=${connectorSecret} in hPanel environment variables for the connector.mad4b.com Node.js app.`,
+          instruction: "Legacy inline credential delivery is retired; use canonical one-time redemption.",
         },
         app_routes: await loadLocalAppRoutes(pool, finalConfigId),
         installation: {
@@ -1609,13 +1606,13 @@ export function buildLocalConnectorInstallRoutes(deps) {
             port: CONNECTOR_PORT,
             env_file: ".env",
             start_command: "start-connector.bat",
-            tunnel_command: `cloudflared service install ${tunnelToken}`,
+            tunnel_command: "retired: use canonical token-file installer",
           },
           steps: [
             "1. Put server.mjs and install-local-connector.ps1 in the local-connector folder.",
             "2. Run install-local-connector.ps1 as Administrator — writes .env, installs cloudflared, starts server.mjs.",
             "3. On later boots run start-connector.bat or configure it as a Windows startup task.",
-            `4. Set CONNECTOR_LOCAL_API_KEY=${connectorSecret} in hPanel env vars for connector.mad4b.com.`,
+            "4. Use canonical one-time installer redemption; no credential is returned inline.",
             `5. Test: GET /local-connector/health?user_id=${user_id}&tenant_id=${tenant_id}&device_id=${device_id}`,
           ],
         },

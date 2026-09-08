@@ -2768,6 +2768,20 @@
       ]
     },
     {
+      "rule_id": "local-connector-installer-redeem-auth",
+      "operation": "POST /connector-agent/installer/redeem",
+      "source_file": "routes/connectorAgentRoutes.js",
+      "profile": "installer_redeem",
+      "owner": "local-connector",
+      "rationale": "The route accepts a separate server-issued five-minute redemption bearer whose signed purpose and exact environment/config/user/tenant/device binding are verified before atomic JTI claim.",
+      "evidence_refs": [
+        "routes/connectorAgentRoutes.js",
+        "localConnectorInstallerCapability.js",
+        "test-local-connector-installer-capability.mjs",
+        "openapi.yaml"
+      ]
+    },
+    {
       "rule_id": "connector-heartbeat-bearer-auth",
       "operation": "POST /connector-agent/heartbeat",
       "profile": "connector_bearer",
@@ -2982,6 +2996,32 @@
     }
   ],
   "operation_rules": [
+    {
+      "rule_id": "local-connector-installer-redeem-external-effect",
+      "operation": "POST /connector-agent/installer/redeem",
+      "source_file": "routes/connectorAgentRoutes.js",
+      "classification": "external_effect",
+      "owner": "local-connector",
+      "rationale": "The route atomically consumes a one-time purpose-bound capability and returns the exact bound device credentials once for protected local materialization.",
+      "preflight": { "mode": "signed_exact_capability_binding" },
+      "approval": { "mode": "server_issued_one_time_capability" },
+      "readback": { "mode": "inline_post_commit", "same_cycle": true },
+      "rollback": { "mode": "not_required", "rationale": "Consumption is intentionally irreversible; failure requires a newly issued capability and replay is denied." },
+      "parameter_bindings": {
+        "authorization": "request.header.authorization.bearer",
+        "purpose": "server.local_connector_installer_secret_redeem",
+        "audience": "server.connector_agent",
+        "environment": "server.runtime_environment",
+        "config_id": "signed_capability.config_id",
+        "device_id": "signed_capability.device_id"
+      },
+      "evidence_refs": [
+        "routes/connectorAgentRoutes.js",
+        "localConnectorInstallerCapability.js",
+        "test-local-connector-installer-capability.mjs",
+        "openapi.yaml"
+      ]
+    },
     {
       "rule_id": "staging-recovery-bootstrap-ticket-reservation",
       "operation": "POST /admin/recovery/staging/bootstrap-ticket/verify",
