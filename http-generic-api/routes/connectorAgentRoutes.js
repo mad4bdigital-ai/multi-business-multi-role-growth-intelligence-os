@@ -41,6 +41,16 @@ const FILES = {
     contentType: "text/javascript; charset=utf-8",
     executable: false,
   },
+  "connector-environment-policy.mjs": {
+    relativePath: "local-connector/connector-environment-policy.mjs",
+    contentType: "text/javascript; charset=utf-8",
+    executable: false,
+  },
+  "connector-runtime-bootstrap.mjs": {
+    relativePath: "local-connector/connector-runtime-bootstrap.mjs",
+    contentType: "text/javascript; charset=utf-8",
+    executable: false,
+  },
   "browser4-adapter.mjs": {
     relativePath: "local-connector/browser4-adapter.mjs",
     contentType: "text/javascript; charset=utf-8",
@@ -61,7 +71,7 @@ const LOCAL_TOOL_RELEASES = [
     install_kind: "connector_agent_manifest",
     status: "active",
     platform: "windows",
-    files: ["browser4-adapter.mjs", "server.mjs"],
+    files: ["browser4-adapter.mjs", "connector-runtime-bootstrap.mjs", "connector-environment-policy.mjs", "server.mjs"],
     env: {
       CONNECTOR_BROWSER4_ENABLED: "true",
       BROWSER4_ALLOWED_HOSTS: "mad4b.com,n8n.mad4b.com",
@@ -477,6 +487,8 @@ function buildInstallPowerShell({ cfToken, connectorSecret, connectorLocalApiKey
     "$SafeUpgradePs1 = Join-Path $Root 'connector-safe-upgrade.ps1'",
     "$DbRestoreCertifier = Join-Path $Root 'db-restore-certifier.mjs'",
     "$N8nRestoreCertifier = Join-Path $Root 'n8n-restore-certifier.mjs'",
+    "$ConnectorEnvironmentPolicy = Join-Path $Root 'connector-environment-policy.mjs'",
+    "$ConnectorRuntimeBootstrap = Join-Path $Root 'connector-runtime-bootstrap.mjs'",
     "$Browser4Adapter = Join-Path $Root 'browser4-adapter.mjs'",
     "$LocalAgentRuntime = Join-Path $Root 'local-agent-runtime.mjs'",
     "$SecretsRoot = Join-Path $Root 'secrets'",
@@ -527,6 +539,8 @@ function buildInstallPowerShell({ cfToken, connectorSecret, connectorLocalApiKey
     "Get-Mad4BManifestFile -Name 'connector-safe-upgrade.ps1' -OutFile $SafeUpgradePs1",
     "Get-Mad4BManifestFile -Name 'db-restore-certifier.mjs' -OutFile $DbRestoreCertifier",
     "Get-Mad4BManifestFile -Name 'n8n-restore-certifier.mjs' -OutFile $N8nRestoreCertifier",
+    "Get-Mad4BManifestFile -Name 'connector-environment-policy.mjs' -OutFile $ConnectorEnvironmentPolicy",
+    "Get-Mad4BManifestFile -Name 'connector-runtime-bootstrap.mjs' -OutFile $ConnectorRuntimeBootstrap",
     "Get-Mad4BManifestFile -Name 'browser4-adapter.mjs' -OutFile $Browser4Adapter",
     "Get-Mad4BManifestFile -Name 'local-agent-runtime.mjs' -OutFile $LocalAgentRuntime",
     "Copy-Item -LiteralPath $ServerMjs -Destination (Join-Path $Root 'server.mjs.stable') -Force",
@@ -972,7 +986,6 @@ export function buildConnectorAgentRoutes() {
         `SELECT alias, command_template, allow_extra_args, description,
                 COALESCE(status, 'active') AS status,
                 COALESCE(risk_class, 'read_only') AS risk_class,
-                COALESCE(source, 'db') AS source,
                 updated_at
            FROM \`local_connector_shell_allowlists\`
           WHERE config_id = ?
