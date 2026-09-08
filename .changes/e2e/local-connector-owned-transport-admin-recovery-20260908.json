@@ -16,8 +16,8 @@
       "http-generic-api/config/admin-recovery-chatgpt-connection.json",
       "http-generic-api/frontend-surface-policy.json",
       "http-generic-api/routes/connectorAgentRoutes.js",
+      "http-generic-api/routes/localConnectorInstallRoutes.js",
       "http-generic-api/routes/index.js",
-      "http-generic-api/routes/localConnectorInstallerDelegationRoutes.js",
       "http-generic-api/test-local-connector-durable-self-healing.mjs",
       "http-generic-api/test-recovery-composition.mjs",
       "local-connector/README.md",
@@ -54,19 +54,21 @@
           "terminal_outcome": "The canonical connector-agent installer owns only Mad4B-LocalConnector-Cloudflared, uses a restricted token file plus loopback-only metrics/logs, leaves generic cloudflared and Mad4B-Staging-Cloudflared unchanged, and the watchdog certifies the same runtime name.",
           "steps": [
             "Resolve a current short-lived Local Connector installer link.",
-            "Route PS1 directly to /connector-agent/installer.ps1 and route BAT through a bootstrap that downloads the same canonical PS1.",
+            "Keep /local-connector/install/download owned only by localConnectorInstallRoutes.js.",
+            "Route PS1 through a 307 delegation to /connector-agent/installer.ps1 and route BAT through a bootstrap that downloads the same canonical PS1.",
             "Verify the connector-agent manifest and SHA256 entries before installing runtime files.",
             "Persist the canonical Connector cloudflared ownership, management mode, token-file, and metrics binding in .env.",
             "Install or reconcile Mad4B-LocalConnector-Cloudflared without stopping, uninstalling, renaming, or reconfiguring generic cloudflared or Mad4B-Staging-Cloudflared.",
             "Require local connector health and allow the watchdog to certify the same canonical runtime."
           ],
           "assertions": [
-            "The active installer path never invokes cloudflared service install with an inline token.",
+            "GET /local-connector/install/download has exactly one route owner: localConnectorInstallRoutes.js.",
+            "The download handler never reads connector_secret or cf_token and cannot execute the historical inline installer implementation.",
+            "PS1 requests redirect only to /connector-agent/installer.ps1 and BAT requests bootstrap that same canonical PS1.",
             "The Connector-owned Cloudflared service name is exactly Mad4B-LocalConnector-Cloudflared.",
             "The tunnel token is stored in a restricted local token file and is not included in runtime evidence.",
             "Cloudflared metrics remain loopback-only on a Connector-dedicated listener.",
-            "The generic cloudflared service and Mad4B-Staging-Cloudflared are non-interference boundaries.",
-            "Legacy installer download routes are preceded by the canonical delegation router and cannot execute their historical inline installer implementation.",
+            "The generic cloudflared service and Mad4B-Staging-Cloudflared are non-interference boundaries and cannot become Connector mutation targets.",
             "No Cloudflare DNS/provider mutation, Production deployment, database mutation, migration apply, ruleset mutation, or secret rotation is authorized by this change."
           ],
           "tests": [
@@ -81,8 +83,8 @@
           "evidence_paths": [
             ".changes/e2e/local-connector-owned-transport-admin-recovery-20260908.json",
             "http-generic-api/routes/connectorAgentRoutes.js",
+            "http-generic-api/routes/localConnectorInstallRoutes.js",
             "http-generic-api/routes/index.js",
-            "http-generic-api/routes/localConnectorInstallerDelegationRoutes.js",
             "http-generic-api/test-local-connector-durable-self-healing.mjs",
             "local-connector/connector-watchdog.ps1",
             "local-connector/README.md"
@@ -148,20 +150,24 @@
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "MAD4B Admin Recovery ChatGPT connection",
-          "entrypoint": "existing admin_recovery_production private projection",
-          "terminal_outcome": "ChatGPT can register/use the bounded Admin Recovery projection while workflow dispatch, execution-ticket resolution, target selection, credentials, SQL, shell, and provider authority remain server-side and outside caller control.",
+          "entrypoint": "existing admin_recovery_staging projection embedded in admin_activation_staging through https://activation-dev.mad4b.com",
+          "terminal_outcome": "ChatGPT uses the trusted Staging ingress and bounded embedded Recovery projection for read/readiness/certification and Gateway preflight semantics while consequential Gateway Apply, credentials, tickets, generic dispatch, provider authority, Production targets, and cross-environment fallback remain server-side or unexposed.",
           "steps": [
-            "Bind the connection contract to the existing admin_recovery_production standalone projection.",
-            "Expose only the existing private Recovery Kernel operation set selected by the projection.",
-            "Keep workflow dispatch and approval-token/execution-ticket resolution server-side.",
-            "Reject generic repository/ref/workflow selection and caller-supplied GitHub/DB credentials or execution tickets."
+            "Bind the connection contract to admin_recovery_staging embedded in admin_activation_staging.",
+            "Use https://activation-dev.mad4b.com as the only ChatGPT registration ingress; keep https://dev.mad4b.com as upstream origin only.",
+            "Advertise only Staging Recovery contract/readiness/certification reads on the current projection.",
+            "Document Gateway rollout plan, forced dry-run, exact-SHA verification, and same-cycle readback as the bounded convergence set.",
+            "Keep consequential Activation Gateway Apply behind the certified server-side workflow while the generic admin tool still accepts caller-selected capability_envelope_id/resource_binding_id.",
+            "Reject generic repository/ref/workflow selection and caller-supplied GitHub/DB/provider credentials, execution tickets, capability envelopes, or resource bindings."
           ],
           "assertions": [
-            "No generic GitHub Actions dispatcher is exposed.",
+            "No direct ChatGPT registration is created on dev.mad4b.com.",
+            "No generic GitHub Actions dispatcher or generic Cloudflare operation is exposed.",
             "No raw shell or raw SQL surface is added.",
-            "No new break-glass secret or database migration is introduced.",
-            "The connection reuses admin_recovery_production rather than widening Admin Core.",
-            "No signed recovery envelope is required or introduced by this patch."
+            "No DNS or custom-domain mutation is exposed.",
+            "No Production target or cross-environment fallback is allowed.",
+            "Consequential Gateway Apply is not exposed through this Staging Recovery connection.",
+            "No new break-glass secret or database migration is introduced."
           ],
           "tests": [
             {
@@ -176,7 +182,10 @@
             "http-generic-api/config/admin-recovery-chatgpt-connection.json",
             "docs/governance/admin-recovery-chatgpt-connection.md",
             "http-generic-api/test-recovery-composition.mjs",
-            "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml",
+            "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
+            "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
+            "http-generic-api/activationGatewayRolloutTool.js",
+            "http-generic-api/capabilityResolutionEnvelopeGuard.js",
             "canonicals/openapi/custom-gpt-surfaces.yaml"
           ]
         }

@@ -1,7 +1,5 @@
 import nodeAssert from "node:assert/strict";
-import { createHmac } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { _testingLocalConnectorInstallerDelegation as installerDelegation } from "./routes/localConnectorInstallerDelegationRoutes.js";
 
 const installerSource = readFileSync("routes/localConnectorInstallRoutes.js", "utf8");
 const watchdogSource = readFileSync("../local-connector/connector-watchdog.ps1", "utf8");
@@ -107,57 +105,22 @@ assert(
     installerSource.includes("secrets_included = $false")
 );
 
-const delegationEnv = { BACKEND_API_KEY: "test-backend-key" };
-function signInstallerPayload(payload) {
-  const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
-  const sig = createHmac("sha256", delegationEnv.BACKEND_API_KEY).update(body).digest("base64url");
-  return `${body}.${sig}`;
-}
-
-const installerToken = signInstallerPayload({
-  user_id: "u1",
-  tenant_id: "t1",
-  device_id: "device-1",
-  format: "bat",
-  capabilities: ["windows_control"],
-  permission_grants: { allowed_paths: ["C:\\work"] },
-  app_managed: true,
-  exp: Math.floor(Date.now() / 1000) + 600,
-});
-const installerPayload = installerDelegation.decodeAndVerifyInstallerToken(installerToken, delegationEnv);
-nodeAssert.equal(installerPayload.format, "bat");
-nodeAssert.equal(installerPayload.device_id, "device-1");
-
-const ps1Token = installerDelegation.signInstallerToken({ ...installerPayload, format: "ps1" }, delegationEnv);
-const ps1Payload = installerDelegation.decodeAndVerifyInstallerToken(ps1Token, delegationEnv);
-nodeAssert.equal(ps1Payload.format, "ps1");
-nodeAssert.deepEqual(ps1Payload.permission_grants, installerPayload.permission_grants);
-nodeAssert.deepEqual(ps1Payload.capabilities, installerPayload.capabilities);
-nodeAssert.equal(ps1Payload.exp, installerPayload.exp);
-
-const canonicalBootstrapBat = installerDelegation.buildCanonicalBootstrapBat({
-  ps1Url: `https://dev.mad4b.com/connector-agent/installer.ps1?token=${encodeURIComponent(ps1Token)}`,
-  deviceId: installerPayload.device_id,
-  appManaged: true,
-});
-nodeAssert.match(canonicalBootstrapBat, /connector-agent\/installer\.ps1/);
-nodeAssert.match(canonicalBootstrapBat, /Canonical Local Connector installer/);
-nodeAssert.doesNotMatch(canonicalBootstrapBat, /cloudflared service install/i);
-nodeAssert.doesNotMatch(canonicalBootstrapBat, /nssm install Mad4B-LocalConnector-Cloudflared/i);
-nodeAssert.doesNotMatch(canonicalBootstrapBat, /Start-Service cloudflared/i);
-nodeAssert.throws(
-  () => installerDelegation.decodeAndVerifyInstallerToken(`${installerToken}tampered`, delegationEnv),
-  /Invalid installer download token/,
-);
-nodeAssert.throws(
-  () => installerDelegation.decodeAndVerifyInstallerToken(signInstallerPayload({ format: "bat", exp: 1 }), delegationEnv),
-  /expired/,
-);
-
-const delegationMount = indexSource.indexOf("app.use(buildLocalConnectorInstallerDelegationRoutes");
-const legacyMount = indexSource.indexOf("app.use(buildLocalConnectorInstallRoutes(deps))");
-nodeAssert.ok(delegationMount >= 0, "canonical delegation router must be mounted");
-nodeAssert.ok(legacyMount > delegationMount, "canonical delegation router must precede legacy installer routes");
+const downloadRouteOccurrences = installerSource.match(/router\.get\("\/local-connector\/install\/download"/g) || [];
+nodeAssert.equal(downloadRouteOccurrences.length, 1, "installer download path must have exactly one route owner");
+nodeAssert.doesNotMatch(indexSource, /localConnectorInstallerDelegationRoutes|buildLocalConnectorInstallerDelegationRoutes/);
+const downloadStart = installerSource.indexOf('// ── GET /local-connector/install/download');
+const downloadEnd = installerSource.indexOf('// ── POST /local-connector/install', downloadStart);
+nodeAssert.ok(downloadStart >= 0 && downloadEnd > downloadStart, "canonical installer download handler must be discoverable");
+const downloadHandlerSource = installerSource.slice(downloadStart, downloadEnd);
+nodeAssert.match(downloadHandlerSource, /connector-agent\/installer\.ps1/);
+nodeAssert.match(downloadHandlerSource, /res\.redirect\(307, canonicalUrl\)/);
+nodeAssert.match(downloadHandlerSource, /buildInstallPowerShellBootstrapBat/);
+nodeAssert.match(downloadHandlerSource, /X-Mad4B-Installer-Delegation/);
+nodeAssert.doesNotMatch(downloadHandlerSource, /connector_secret|cf_token/);
+nodeAssert.doesNotMatch(downloadHandlerSource, /buildInstallPowerShell\s*\(/);
+nodeAssert.doesNotMatch(downloadHandlerSource, /cloudflared service install/i);
+nodeAssert.match(downloadHandlerSource, /SELECT config_id, device_id/);
+nodeAssert.doesNotMatch(downloadHandlerSource, /SELECT[^\n]*(?:connector_secret|cf_token)/i);
 nodeAssert.match(agentSource, /\$CfService = 'Mad4B-LocalConnector-Cloudflared'/);
 nodeAssert.match(agentSource, /CONNECTOR_CLOUDFLARED_SERVICE=Mad4B-LocalConnector-Cloudflared/);
 nodeAssert.match(agentSource, /CONNECTOR_CLOUDFLARED_METRICS=127\.0\.0\.1:49313/);

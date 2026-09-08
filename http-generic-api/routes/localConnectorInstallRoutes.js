@@ -1438,48 +1438,48 @@ export function buildLocalConnectorInstallRoutes(deps) {
   });
 
   // ── GET /local-connector/install/download ─────────────────────────────────
-  // Public token-gated download. Use only with short-lived signed links.
+  // Public token-gated compatibility entrypoint. This file is the sole owner
+  // of the route; both formats converge on the canonical connector-agent PS1.
   router.get("/local-connector/install/download", async (req, res) => {
     try {
-      const payload = verifyInstallerDownloadToken(req.query.token);
-      if (!["ps1", "bat"].includes(payload.format)) throw httpError(400, "unsupported_format", "Only ps1 or bat installer downloads are supported.");
+      const token = String(req.query.token || "");
+      const payload = verifyInstallerDownloadToken(token);
+      if (!["ps1", "bat"].includes(payload.format)) {
+        throw httpError(400, "unsupported_format", "Only ps1 or bat installer downloads are supported.");
+      }
       const [[config]] = await getPool().query(
-        "SELECT config_id, user_id, tenant_id, device_id, COALESCE(device_runtime_url, tunnel_url) AS tunnel_url, connector_secret, cf_token FROM `local_connector_user_configs` WHERE user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
+        "SELECT config_id, device_id FROM `local_connector_user_configs` WHERE user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
         [payload.user_id, payload.tenant_id, payload.device_id]
       );
       if (!config) throw httpError(404, "connector_config_not_found", "No active connector config was found for this download token.");
-      if (!config.cf_token || !config.connector_secret) throw httpError(409, "connector_config_incomplete", "Connector config is missing recovery token or connector secret.");
-      const permissionGrants = normalizePermissionGrants(payload.permission_grants || { capabilities: payload.capabilities || [] });
-      const capabilities = permissionGrants.capabilities;
-      const ps1Token = signInstallerDownloadToken({
-        user_id: payload.user_id,
-        tenant_id: payload.tenant_id,
-        device_id: payload.device_id,
-        format: "ps1",
-        capabilities,
-        permission_grants: permissionGrants,
-        exp: payload.exp,
-      });
-      const ps1Url = `${publicBaseUrl(req)}/connector-agent/installer.ps1?token=${encodeURIComponent(ps1Token)}`;
-      const installer = payload.format === "bat"
-        ? buildInstallPowerShellBootstrapBat({ ps1Url, deviceId: config.device_id, appManaged: payload.app_managed === true || payload.suppress_pause === true || payload.no_pause === true })
-        : buildInstallPowerShell({
-            cfToken: config.cf_token,
-            connectorSecret: config.connector_secret,
-            tunnelUrl: config.tunnel_url,
-            aliases: DEFAULT_WINDOWS_ALIASES,
-            port: CONNECTOR_PORT,
-            capabilities,
-            permissionGrants,
-          });
-      const safeDeviceId = String(config.device_id).replace(/[^a-zA-Z0-9_-]+/g, "-");
-      const filename = `install-local-connector-${safeDeviceId}.${payload.format}`;
-      res.setHeader("Content-Type", "text/plain; charset=utf-8");
+
+      const ps1Token = payload.format === "ps1"
+        ? token
+        : signInstallerDownloadToken({ ...payload, format: "ps1" });
+      const canonicalUrl = `${publicBaseUrl(req)}/connector-agent/installer.ps1?token=${encodeURIComponent(ps1Token)}`;
       res.setHeader("Cache-Control", "no-store");
-      res.setHeader("Content-Disposition", `attachment; filename=\"${filename}\"`);
+      res.setHeader("X-Mad4B-Installer-Delegation", "connector-agent-canonical");
+
+      if (payload.format === "ps1") {
+        return res.redirect(307, canonicalUrl);
+      }
+
+      const installer = buildInstallPowerShellBootstrapBat({
+        ps1Url: canonicalUrl,
+        deviceId: config.device_id,
+        appManaged: payload.app_managed === true || payload.suppress_pause === true || payload.no_pause === true,
+      });
+      const safeDeviceId = String(config.device_id).replace(/[^a-zA-Z0-9_-]+/g, "-");
+      const filename = `install-local-connector-${safeDeviceId}.bat`;
+      res.setHeader("Content-Type", "text/plain; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
       return res.status(200).send(installer);
     } catch (err) {
-      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "installer_download_failed", message: err.message } });
+      return res.status(err.status || 500).json({
+        ok: false,
+        error: { code: err.code || "installer_download_failed", message: err.message },
+        secrets_included: false,
+      });
     }
   });
 

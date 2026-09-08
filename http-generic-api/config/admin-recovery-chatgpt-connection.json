@@ -3,36 +3,45 @@
   "status": "registered",
   "connection_key": "mad4b_admin_recovery",
   "display_name": "MAD4B Admin Recovery",
-  "environment": "production",
-  "server_uri": "https://auth.mad4b.com",
+  "environment": "staging",
+  "server_uri": "https://activation-dev.mad4b.com",
+  "upstream_origin": "https://dev.mad4b.com",
   "principal_class": "admin_gpt",
   "audience": "admin_service",
   "projection": {
-    "surface_key": "admin_recovery_production",
-    "registration_set": "production_recovery",
-    "action_slot": "recovery_kernel",
+    "surface_key": "admin_recovery_staging",
+    "registration_set": "admin_activation_staging",
+    "action_slot": "admin_activation",
+    "registration_status": "embedded",
+    "embed_into": "activation_admin_staging",
     "private_only": true,
     "shared_admin_core_member": false
   },
   "allowed_operations": [
-    "getAdminRecoveryKernelIdentity",
-    "getAdminRecoveryManifest",
-    "getAdminRecoveryCapabilities",
-    "inspectAdminRecoveryDatabase",
-    "createAdminRecoveryRemediationPlan",
-    "previewAdminRecoveryRemediationPlan",
-    "createAdminRecoveryApprovalChallenge",
-    "executeApprovedAdminRecoveryKernelStep",
-    "verifyAdminRecoveryRemediationStep",
-    "getAdminRecoveryRun",
-    "getAdminRecoveryEvidence"
+    "getStagingRecoveryAdminContract",
+    "getStagingRecoveryAdminReadiness",
+    "getStagingRecoveryCertificationStatus"
   ],
+  "gateway_convergence": {
+    "trusted_ingress": "https://activation-dev.mad4b.com",
+    "upstream_origin": "https://dev.mad4b.com",
+    "direct_upstream_registration_allowed": false,
+    "safe_read_or_preflight_operations": [
+      "activation_gateway_rollout_plan",
+      "activation_gateway_dark_deploy_dry_run",
+      "gateway_exact_sha_verification",
+      "gateway_same_cycle_readback"
+    ],
+    "consequential_apply_exposed": false,
+    "apply_authority": "certified_server_side_workflow_only",
+    "apply_exposure_blocker": "caller_selected_capability_envelope_id_not_permitted_on_staging_recovery_surface"
+  },
   "execution_boundary": {
-    "approval_challenge_required_for_consequential_step": true,
-    "execution_ticket_issued_server_side": true,
-    "workflow_dispatch_issued_server_side": true,
-    "exact_production_sha_binding_required": true,
+    "trusted_gateway_required": true,
+    "exact_staging_sha_binding_required": true,
     "same_cycle_readback_required": true,
+    "caller_supplied_capability_envelope_id_allowed": false,
+    "caller_supplied_resource_binding_id_allowed": false,
     "caller_supplied_execution_ticket_allowed": false,
     "caller_supplied_repository_allowed": false,
     "caller_supplied_workflow_allowed": false,
@@ -42,20 +51,26 @@
     "caller_supplied_database_credentials_allowed": false,
     "caller_supplied_sql_allowed": false,
     "generic_workflow_dispatch_exposed": false,
+    "generic_cloudflare_operations_exposed": false,
+    "dns_mutation_exposed": false,
+    "custom_domain_mutation_exposed": false,
+    "production_target_allowed": false,
+    "cross_environment_fallback_allowed": false,
     "generic_shell_exposed": false
   },
   "credential_boundary": {
     "oauth_or_admin_principal_session": "connection_front_door",
     "github_broker_credential": "server_side_only",
-    "recovery_approval_token": "server_side_only",
+    "cloudflare_credential": "server_side_only",
+    "capability_envelope": "server_side_only_for_consequential_apply",
     "database_credentials": "server_side_only",
     "secrets_in_responses": false
   },
   "source_authorities": [
     "canonicals/openapi/custom-gpt-surfaces.yaml",
-    "http-generic-api/routes/recoveryKernelRoutes.js",
-    "http-generic-api/routes/systemLayerRoutes.js",
-    "http-generic-api/recoveryActionBridge.js",
-    "http-generic-api/runtimeBreakglassBroker.js"
+    "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
+    "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
+    "http-generic-api/activationGatewayRolloutTool.js",
+    "http-generic-api/capabilityResolutionEnvelopeGuard.js"
   ]
 }

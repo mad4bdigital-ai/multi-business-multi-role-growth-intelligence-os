@@ -1,28 +1,32 @@
 # MAD4B Admin Recovery ChatGPT connection
 
-The repository registers one bounded ChatGPT/Admin Recovery connection contract at `http-generic-api/config/admin-recovery-chatgpt-connection.json`.
+The repository registers one bounded Staging Admin Recovery connection contract at `http-generic-api/config/admin-recovery-chatgpt-connection.json`.
 
-It reuses the existing private Production projection `admin_recovery_production` from `canonicals/openapi/custom-gpt-surfaces.yaml`; it does not add a second Recovery API and it does not add a generic GitHub Actions connector.
+It reuses the existing `admin_recovery_staging` projection embedded in `admin_activation_staging`. The ChatGPT registration ingress is `https://activation-dev.mad4b.com`; `https://dev.mad4b.com` remains the upstream origin behind the trusted Activation Gateway and is not a direct ChatGPT registration target.
 
-## Connection boundary
+## Current connection boundary
 
-The connection front door is `https://auth.mad4b.com` with the `admin_gpt` / `admin_service` principal class already assigned to the Production Recovery registration set. Consequential execution remains the existing sequence:
+The current Staging Recovery schema advertises only three non-consequential reads:
 
-1. inspect or create a bounded remediation plan;
-2. issue the existing principal-scoped approval challenge;
-3. consume the exact human confirmation through the approved-step bridge;
-4. issue the execution ticket server-side;
-5. let the fixed Runtime Breakglass broker dispatch only the repository-owned recovery workflow;
-6. verify the exact Production SHA and publish same-cycle bounded readback.
+1. `getStagingRecoveryAdminContract`;
+2. `getStagingRecoveryAdminReadiness`;
+3. `getStagingRecoveryCertificationStatus`.
 
-The caller never supplies a repository, workflow file, ref, GitHub token, execution-ticket material, database identifier, database credential, raw SQL, or provider control. Those values remain server-controlled by the existing Recovery/Breakglass implementation.
+The surface remains `private_admin`, requires the trusted Staging gateway identity, advertises no mutation, permits no Production authority, and does not accept caller credentials or caller-generated execution authority.
 
-## What this registration does not do
+## Activation Gateway convergence
 
-This registration does not expose generic `workflow_dispatch`, generic shell, raw SQL, Hostinger SSH, MariaDB administration, GitHub credentials, or a new break-glass secret. It does not create a database migration and does not add a signed recovery envelope.
+The bounded Gateway convergence set is:
 
-The shared Admin Core projection must continue excluding private Recovery operations. `admin_recovery_production` remains a standalone/private action slot so that a normal Admin Core connection cannot acquire Recovery execution authority by surface aggregation.
+- `activation_gateway_rollout_plan`;
+- `activation_gateway_dark_deploy` only with forced `dry_run` semantics;
+- exact-SHA verification;
+- same-cycle readback.
 
-## Runtime authority
+Consequential Gateway Apply is deliberately not exposed by this Staging Recovery connection. The existing generic Admin dark-deploy tool accepts a caller-supplied `capability_envelope_id` and `resource_binding_id`; although the runtime guard validates those objects, that is weaker than the Staging Recovery requirement that consequential authority be selected and bound entirely server-side. Apply therefore remains behind the existing certified server-side rollout workflow until a dedicated wrapper removes caller selection of those authority identifiers.
 
-`runtimeBreakglassBroker.js` remains the only server-side GitHub workflow broker for this path. Its repository, workflow and dispatch ref come from repository-owned configuration; every non-plan Production request is exact-SHA and idempotency bound. Approval and execution-ticket material is resolved internally and is not part of the ChatGPT connection schema.
+## Forbidden caller authority
+
+The connection does not accept or expose caller-selected repository, ref, workflow, execution ticket, capability envelope, resource binding, GitHub token, Cloudflare credential, database identifier, database credential, raw SQL, or raw shell. It exposes no generic GitHub dispatch, generic Cloudflare operation, DNS mutation, custom-domain mutation, Production target, or cross-environment fallback.
+
+No new database migration, break-glass secret, provider mutation, Production mutation, or signed recovery envelope is introduced by this connection contract.

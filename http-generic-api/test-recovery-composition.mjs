@@ -136,25 +136,43 @@ test("composition root wires the contract without auto-discovering credentials o
   assert.doesNotMatch(serverSource, /RUNTIME_BREAKGLASS_GITHUB_TOKEN/u);
 });
 
-test("Admin Recovery connection is pinned to the existing private Production Recovery projection", () => {
+test("Admin Recovery connection is pinned to the existing embedded Staging Recovery projection", () => {
   assert.equal(adminRecoveryConnection.contract, "mad4b.admin-recovery-chatgpt-connection.v1");
-  assert.equal(adminRecoveryConnection.environment, "production");
-  assert.equal(adminRecoveryConnection.server_uri, "https://auth.mad4b.com");
+  assert.equal(adminRecoveryConnection.environment, "staging");
+  assert.equal(adminRecoveryConnection.server_uri, "https://activation-dev.mad4b.com");
+  assert.equal(adminRecoveryConnection.upstream_origin, "https://dev.mad4b.com");
   assert.equal(adminRecoveryConnection.principal_class, "admin_gpt");
-  assert.equal(adminRecoveryConnection.projection.surface_key, "admin_recovery_production");
-  assert.equal(adminRecoveryConnection.projection.registration_set, "production_recovery");
+  assert.equal(adminRecoveryConnection.projection.surface_key, "admin_recovery_staging");
+  assert.equal(adminRecoveryConnection.projection.registration_set, "admin_activation_staging");
+  assert.equal(adminRecoveryConnection.projection.action_slot, "admin_activation");
+  assert.equal(adminRecoveryConnection.projection.registration_status, "embedded");
+  assert.equal(adminRecoveryConnection.projection.embed_into, "activation_admin_staging");
   assert.equal(adminRecoveryConnection.projection.private_only, true);
   assert.equal(adminRecoveryConnection.projection.shared_admin_core_member, false);
-  assert.match(customGptSurfaces, /production_recovery:/);
-  assert.match(customGptSurfaces, /admin_recovery_production/);
-  assert.match(customGptSurfaces, /action_slot:\s*recovery_kernel/);
+  assert.deepEqual(adminRecoveryConnection.allowed_operations, [
+    "getStagingRecoveryAdminContract",
+    "getStagingRecoveryAdminReadiness",
+    "getStagingRecoveryCertificationStatus",
+  ]);
+  assert.match(customGptSurfaces, /admin_activation_staging:/);
+  assert.match(customGptSurfaces, /admin_recovery_staging/);
+  assert.match(customGptSurfaces, /server_uri:\s*https:\/\/activation-dev\.mad4b\.com/);
+  assert.match(customGptSurfaces, /upstream_origin:\s*https:\/\/dev\.mad4b\.com/);
 });
 
-test("Admin Recovery challenge and approved-step execution remain fixed server routes", () => {
-  assert.match(routesSource, /\/admin\/recovery\/kernel\/approval-challenge/);
-  assert.match(routesSource, /\/admin\/recovery\/kernel\/execute-approved/);
-  assert.match(systemLayerSource, /recovery_kernel_create_approval_challenge/);
-  assert.match(systemLayerSource, /recovery_kernel_execute_approved_step/);
+test("Admin Recovery Staging Gateway convergence exposes read/preflight only", () => {
+  const gateway = adminRecoveryConnection.gateway_convergence;
+  assert.equal(gateway.trusted_ingress, "https://activation-dev.mad4b.com");
+  assert.equal(gateway.upstream_origin, "https://dev.mad4b.com");
+  assert.equal(gateway.direct_upstream_registration_allowed, false);
+  assert.equal(gateway.consequential_apply_exposed, false);
+  assert.equal(gateway.apply_authority, "certified_server_side_workflow_only");
+  assert.deepEqual(gateway.safe_read_or_preflight_operations, [
+    "activation_gateway_rollout_plan",
+    "activation_gateway_dark_deploy_dry_run",
+    "gateway_exact_sha_verification",
+    "gateway_same_cycle_readback",
+  ]);
 });
 
 test("Admin Recovery connection never exposes generic GitHub dispatch, shell, SQL, tickets, or credentials", () => {
@@ -169,6 +187,13 @@ test("Admin Recovery connection never exposes generic GitHub dispatch, shell, SQ
   assert.equal(boundary.caller_supplied_database_identifier_allowed, false);
   assert.equal(boundary.caller_supplied_database_credentials_allowed, false);
   assert.equal(boundary.caller_supplied_sql_allowed, false);
+  assert.equal(boundary.caller_supplied_capability_envelope_id_allowed, false);
+  assert.equal(boundary.caller_supplied_resource_binding_id_allowed, false);
+  assert.equal(boundary.generic_cloudflare_operations_exposed, false);
+  assert.equal(boundary.dns_mutation_exposed, false);
+  assert.equal(boundary.custom_domain_mutation_exposed, false);
+  assert.equal(boundary.production_target_allowed, false);
+  assert.equal(boundary.cross_environment_fallback_allowed, false);
 });
 
 test("runtime Breakglass broker keeps repo workflow ref and credential fields server-controlled", () => {
