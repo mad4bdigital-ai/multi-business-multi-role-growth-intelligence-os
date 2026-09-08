@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 20
     env:
       HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
-      EXPECTED_PARENT: 4f75a82ccda5d53341dcca0af2374d16f4e42edf
+      EXPECTED_PARENT: f707de82a2963eee4dd7391d555b9f099ce0b603
     steps:
       - name: Checkout exact PR head
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -36,7 +36,7 @@ jobs:
           test -e scripts/pr-7974-installer-security-once.py
           test -e .github/workflows/pr-7974-installer-security-once.yml
 
-      - name: Fix deterministic patch cardinality
+      - name: Fix deterministic patch literals
         shell: bash
         run: |
           set -euo pipefail
@@ -59,7 +59,18 @@ jobs:
           '''.replace('          ', '')
           if source.count(old) != 1:
               raise SystemExit('replace_once helper patch target mismatch')
-          p.write_text(source.replace(old, new, 1), encoding='utf-8', newline='\n')
+          source = source.replace(old, new, 1)
+          raw_old = '''    ''' + "'''" + '''    "function Protect-ConnectorSecretFile {",'''
+          raw_new = '''    r''' + "'''" + '''    "function Protect-ConnectorSecretFile {",'''
+          if source.count(raw_old) != 1:
+              raise SystemExit('secret file ACL search literal marker mismatch')
+          source = source.replace(raw_old, raw_new, 1)
+          replacement_old = '''    ''' + "'''" + '''    "function Protect-ConnectorSecretDirectory {",'''
+          replacement_new = '''    r''' + "'''" + '''    "function Protect-ConnectorSecretDirectory {",'''
+          if source.count(replacement_old) != 1:
+              raise SystemExit('secret directory ACL replacement literal marker mismatch')
+          source = source.replace(replacement_old, replacement_new, 1)
+          p.write_text(source, encoding='utf-8', newline='\n')
           PY
 
       - name: Apply installer security closure
