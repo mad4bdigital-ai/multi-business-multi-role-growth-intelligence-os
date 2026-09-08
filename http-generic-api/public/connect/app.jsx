@@ -2,6 +2,7 @@
 const { useState, useEffect } = React;
 
 const GOOGLE_CLIENT_ID_CONFIG = window.__GOOGLE_CLIENT_ID__ || '';
+const WORDPRESS_STAGING_ORIGIN = 'https://staging.egypttourgates.com';
 
 function apiFetch(path, opts = {}) {
   const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
@@ -9,6 +10,25 @@ function apiFetch(path, opts = {}) {
   if (token) headers['Authorization'] = 'Bearer ' + token;
   return fetch(path, { ...opts, headers })
     .then(r => r.json().catch(() => ({})).then(data => ({ ok: r.ok, status: r.status, data })));
+}
+
+function normalizeMemberships(items = []) {
+  const colors = ['coral', 'cyan', 'lime', 'blue'];
+  return (Array.isArray(items) ? items : []).map((m, index) => {
+    const name = m.name || m.display_name || m.tenant_id || 'Workspace';
+    const role = m.role || 'member';
+    return {
+      tenant_id: m.tenant_id,
+      name,
+      role,
+      role_label: m.role_label || role.charAt(0).toUpperCase() + role.slice(1),
+      color: m.color || colors[index % colors.length],
+      initial: m.initial || name[0]?.toUpperCase() || 'T',
+      domain: m.domain || '',
+      type: m.type || 'Company',
+      segment: m.segment || 'Workspace',
+    };
+  });
 }
 
 function App() {
@@ -29,6 +49,7 @@ function App() {
   const [authError, setAuthError] = useState('');
   const [deviceId, setDeviceId] = useState('nagy-mbp-m4');
   const [connections, setConnections] = useState({ cloudflare: 'not_connected', hostinger: 'not_connected', device: 'not_connected', launch: 'not_connected' });
+  const [connectionLifecycle, setConnectionLifecycle] = useState([]);
   const [completed, setCompleted] = useState(new Set());
   const [evidenceOpen, setEvidenceOpen] = useState(false);
   const [log, setLog] = useState([]);
@@ -36,19 +57,32 @@ function App() {
 
   const pushLog = (entry) => setLog(l => [...l, { ...entry, t: Date.now() }]);
 
-  const applyStatusData = (data) => {
+  const loadConnectionLifecycle = async () => {
+    const { ok, status, data } = await apiFetch('/connect/api/connections/lifecycle');
+    pushLog({ method: 'GET', path: '/connect/api/connections/lifecycle', status: status || (ok ? 200 : 500), ms: 0, body: ok ? { ok: true, counts: data?.counts } : { error: data?.error?.code } });
+    if (!ok) {
+      if (data?.error?.code === 'tenant_context_required') setStep('tenant');
+      return [];
+    }
+    const items = Array.isArray(data?.items) ? data.items : [];
+    setConnectionLifecycle(items);
+    return items;
+  };
+
+  const applyStatusData = (data, knownMemberships = memberships) => {
     const u = data.user;
     if (!u) return false;
     const ownerFromTenant = data.tenant?.role === 'owner';
     setSession({ email: u.email, name: u.display_name || u.email, owner: ownerFromTenant, user_id: u.user_id });
     setAuthError('');
     if (data.tenant?.tenant_id) {
-      const color = ['coral','cyan','lime','blue'][Math.floor(Math.random()*4)];
-      const m = [{ tenant_id: data.tenant.tenant_id, name: data.tenant.display_name || data.tenant.tenant_id, role: data.tenant.role || 'member', role_label: (data.tenant.role||'member').charAt(0).toUpperCase()+(data.tenant.role||'member').slice(1), color, initial: (data.tenant.display_name||'T')[0].toUpperCase(), domain: '', type: 'Company', segment: 'Corporate' }];
-      setMemberships(m);
-      setTenant(m[0]);
+      const current = knownMemberships.find(m => m.tenant_id === data.tenant.tenant_id)
+        || normalizeMemberships([{ tenant_id: data.tenant.tenant_id, name: data.tenant.display_name || data.tenant.tenant_id, role: data.tenant.role || 'member' }])[0];
+      setTenant(current);
       setCompleted(new Set(['auth','tenant']));
       if (data.connection?.status === 'active') {
+        // Activation is not the same as provider validation. Legacy cards keep the
+        // active signal while the lifecycle panel below shows the authoritative state.
         setConnections(c => ({ ...c, cloudflare: 'connected', hostinger: 'connected' }));
       }
       if (data.devices?.length > 0) {
@@ -57,19 +91,70 @@ function App() {
       }
       return true;
     }
+    setTenant(null);
     setCompleted(new Set(['auth']));
     return false;
   };
 
-  // Restore session on mount
+  const loadSession = async (contextRebound = false) => {
+    const contextResult = await apiFetch('/connect/api/contexts');
+    if (!contextResult.ok) {
+      if (contextResult.status === 401) {
+        localStorage.removeItem('mad4b_connect_token');
+        setSession(null);
+        setTenant(null);
+        setMemberships([]);
+        setStep('auth');
+      }
+      return;
+    }
+
+    const contextData = contextResult.data || {};
+    const mems = normalizeMemberships(contextData.memberships || []);
+    setMemberships(mems);
+    if (contextData.user) {
+      setSession({
+        email: contextData.user.email,
+        name: contextData.user.display_name || contextData.user.email,
+        owner: false,
+        user_id: contextData.user.user_id,
+      });
+    }
+
+    if (contextData.context_required) {
+      setTenant(null);
+      setCompleted(new Set(['auth']));
+      setStep('tenant');
+      return;
+    }
+
+    // A newly created or legacy single-membership session may not yet carry a
+    // tenant claim. Rebind it once so all following calls are context-explicit.
+    if (!contextData.active_tenant_id && mems.length === 1 && !contextRebound) {
+      const rebound = await apiFetch('/connect/api/active-context', {
+        method: 'POST',
+        body: JSON.stringify({ tenant_id: mems[0].tenant_id }),
+      });
+      if (rebound.ok && rebound.data?.token) {
+        localStorage.setItem('mad4b_connect_token', rebound.data.token);
+        return loadSession(true);
+      }
+    }
+
+    const { ok, data } = await apiFetch('/connect/status');
+    if (!ok) return;
+    const hasTenant = applyStatusData(data, mems);
+    if (hasTenant) await loadConnectionLifecycle();
+    setStep(hasTenant ? 'hub' : 'tenant');
+    setEvidenceOpen(true);
+    setTimeout(() => setEvidenceOpen(false), 2400);
+  };
+
+  // Restore session on mount through the canonical identity→context ladder.
   useEffect(() => {
     const token = localStorage.getItem('mad4b_connect_token');
     if (!token) return;
-    apiFetch('/connect/status').then(({ ok, data }) => {
-      if (!ok) { localStorage.removeItem('mad4b_connect_token'); return; }
-      const hasTenant = applyStatusData(data);
-      setStep(hasTenant ? 'hub' : 'tenant');
-    }).catch(() => {});
+    loadSession().catch(() => {});
   }, []);
 
   // Google OAuth setup
@@ -95,17 +180,6 @@ function App() {
     setup();
   }, [step]);
 
-  const loadSession = async () => {
-    const { ok, data } = await apiFetch('/connect/status');
-    if (!ok) return;
-    const hasTenant = applyStatusData(data);
-    const mems = data.memberships_count > 1 ? SAMPLE_MEMBERSHIPS : [];
-    if (mems.length > 1 && !hasTenant) { setMemberships(mems); setStep('tenant'); }
-    else setStep(hasTenant ? 'hub' : 'tenant');
-    setEvidenceOpen(true);
-    setTimeout(() => setEvidenceOpen(false), 2400);
-  };
-
   const handleSignIn = async ({ provider, email, name, mode, password, tenant_display_name }) => {
     setAuthError('');
     if (provider === 'google') return; // handled by GSI callback
@@ -120,14 +194,19 @@ function App() {
     await loadSession();
   };
 
-  const handlePickTenant = (m) => {
-    setTenant(m);
-    // Drive owner-mode UI (CMS claim auto-approval, owner badge) from the
-    // selected membership's role rather than email pattern.
-    setSession(s => s ? { ...s, owner: m.role === 'owner' } : s);
-    pushLog({ method: 'POST', path: '/auth/select-tenant', status: 200, ms: 92, body: { ok: true, tenant_id: m.tenant_id, role: m.role } });
-    setCompleted(prev => new Set([...prev, 'tenant']));
-    setStep('hub');
+  const handlePickTenant = async (m) => {
+    setAuthError('');
+    const { ok, status, data } = await apiFetch('/connect/api/active-context', {
+      method: 'POST',
+      body: JSON.stringify({ tenant_id: m.tenant_id }),
+    });
+    pushLog({ method: 'POST', path: '/connect/api/active-context', status: status || (ok ? 200 : 500), ms: 0, body: ok ? { ok: true, tenant_id: m.tenant_id, context_revalidated: true } : { error: data?.error?.code } });
+    if (!ok || !data?.token) {
+      setAuthError(data?.error?.message || 'Could not switch workspace context.');
+      return;
+    }
+    localStorage.setItem('mad4b_connect_token', data.token);
+    await loadSession(true);
   };
 
   const handleCreateWorkspace = async () => {
@@ -140,8 +219,14 @@ function App() {
 
   const handleSaveCredentials = async () => {
     const { ok, data } = await apiFetch('/connect/activate', { method: 'POST', body: JSON.stringify({ mode: 'managed', cloudflare_mode: 'managed', google_auth_mode: 'managed' }) });
-    pushLog({ method: 'POST', path: '/connect/activate', status: ok ? 200 : 500, ms: 142, body: ok ? { ok: true } : { error: data?.error?.message } });
-    if (ok) { setConnections(c => ({ ...c, cloudflare: 'connected', hostinger: 'connected' })); setCompleted(prev => new Set([...prev, 'credentials'])); setStep('preferences'); }
+    pushLog({ method: 'POST', path: '/connect/activate', status: ok ? 200 : 500, ms: 142, body: ok ? { ok: true, validation: 'pending_readback' } : { error: data?.error?.message } });
+    if (ok) {
+      // Do not translate activation acceptance into provider validation.
+      setConnections(c => ({ ...c, cloudflare: 'in_progress', hostinger: 'in_progress' }));
+      setCompleted(prev => new Set([...prev, 'credentials']));
+      await loadConnectionLifecycle();
+      setStep('preferences');
+    }
   };
 
   const handleSavePreferences = async (prefs) => {
@@ -163,8 +248,8 @@ function App() {
 
   // profile is the business-profile form payload; cmsCredential (optional) is
   // routed to the encrypted /connect/api/cms/claims path so the cmsKey never
-  // lands in metadata_json. Server returns dropped_fields[] from the allowlist
-  // sanitizer; we surface that in the evidence drawer.
+  // lands in metadata_json. WordPress Staging additionally receives a credentialless
+  // MCP federation connection bound to #7958/#6 and validated through fixed metadata URLs.
   const handleSaveBusiness = async (profile, cmsCredential) => {
     if (tenant) {
       const { ok, status, data } = await apiFetch('/connect/profile', { method: 'POST', body: JSON.stringify({ tenant_id: tenant.tenant_id, ...profile }) });
@@ -202,17 +287,60 @@ function App() {
       });
     }
 
+    const normalizedCmsUrl = String(profile?.cmsUrl || '').replace(/\/$/, '');
+    if (tenant && normalizedCmsUrl === WORDPRESS_STAGING_ORIGIN) {
+      const prepared = await apiFetch('/connect/api/wordpress-mcp/prepare', {
+        method: 'POST',
+        body: JSON.stringify({ site_url: normalizedCmsUrl }),
+      });
+      pushLog({
+        method: 'POST', path: '/connect/api/wordpress-mcp/prepare', status: prepared.status || (prepared.ok ? 201 : 500), ms: 0,
+        body: prepared.ok ? { ok: true, connection_id: prepared.data?.connection_id, lifecycle_state: prepared.data?.lifecycle_state } : { error: prepared.data?.error?.code },
+      });
+      if (prepared.ok && prepared.data?.connection_id) {
+        const validated = await apiFetch('/connect/api/wordpress-mcp/validate', {
+          method: 'POST',
+          body: JSON.stringify({ connection_id: prepared.data.connection_id }),
+        });
+        pushLog({
+          method: 'POST', path: '/connect/api/wordpress-mcp/validate', status: validated.status || (validated.ok ? 200 : 500), ms: 0,
+          body: { ok: validated.ok, validation_status: validated.data?.validation_status, blockers: validated.data?.blockers || [] },
+        });
+      }
+    }
+
+    await loadConnectionLifecycle();
     setCompleted(prev => new Set([...prev, 'business']));
     setStep('hub');
   };
 
   const handleDeviceComplete = async () => {
-    if (tenant) {
-      const { ok, data } = await apiFetch('/connect/device-install', { method: 'POST', body: JSON.stringify({ device_id: deviceId }) });
-      pushLog({ method: 'POST', path: '/connect/device-install', status: ok ? 201 : 500, ms: 312, body: ok ? data : { error: data?.error?.message } });
+    if (!tenant) return;
+    const { ok, data } = await apiFetch('/connect/device-install', { method: 'POST', body: JSON.stringify({ device_id: deviceId }) });
+    pushLog({ method: 'POST', path: '/connect/device-install', status: ok ? 201 : 500, ms: 312, body: ok ? data : { error: data?.error?.message } });
+    if (!ok) {
+      setConnections(c => ({ ...c, device: 'needs_attention' }));
+      return;
     }
     setConnections(c => ({ ...c, device: 'installed_here' }));
     setCompleted(prev => new Set([...prev, 'device']));
+    await loadConnectionLifecycle();
+  };
+
+  const handleDisconnectConnection = async (connectionId) => {
+    const response = await apiFetch(`/connect/api/connections/${encodeURIComponent(connectionId)}`, { method: 'DELETE' });
+    pushLog({ method: 'DELETE', path: `/connect/api/connections/${connectionId}`, status: response.status || (response.ok ? 204 : 500), ms: 0, body: response.ok ? { ok: true, status: 'revoked' } : { error: response.data?.error?.code } });
+    if (response.ok) await loadConnectionLifecycle();
+  };
+
+  const handleValidateLifecycleConnection = async (item) => {
+    if (item?.federation_profile !== 'wordpress_staging_mcp_rs256_v1') return;
+    const result = await apiFetch('/connect/api/wordpress-mcp/validate', {
+      method: 'POST',
+      body: JSON.stringify({ connection_id: item.connection_id }),
+    });
+    pushLog({ method: 'POST', path: '/connect/api/wordpress-mcp/validate', status: result.status || (result.ok ? 200 : 500), ms: 0, body: { ok: result.ok, validation_status: result.data?.validation_status, blockers: result.data?.blockers || [] } });
+    await loadConnectionLifecycle();
   };
 
   const handleLaunch = () => { setStep('launch'); };
@@ -226,6 +354,7 @@ function App() {
   const handleSignOut = () => {
     localStorage.removeItem('mad4b_connect_token');
     setSession(null); setTenant(null); setMemberships([]); setCompleted(new Set());
+    setConnectionLifecycle([]);
     setConnections({ cloudflare: 'not_connected', hostinger: 'not_connected', device: 'not_connected', launch: 'not_connected' });
     setStep('auth');
   };
@@ -264,7 +393,10 @@ function App() {
             <div className="hub-grid" style={{ display: 'grid', gridTemplateColumns: '260px minmax(0,1fr)', gap: 32, paddingTop: 8 }}>
               <ActivationRail currentStep={step} completed={completed} session={session} tenant={tenant} deviceId={deviceId}/>
               <section>
-                {step === 'hub' && <ActivationHub session={session} tenant={tenant} connections={connections} setConnections={setConnections} onLaunch={handleLaunch} pushLog={pushLog}/>}
+                {step === 'hub' && <>
+                  <ConnectionLifecyclePanel items={connectionLifecycle} onRefresh={loadConnectionLifecycle} onDisconnect={handleDisconnectConnection} onValidate={handleValidateLifecycleConnection}/>
+                  <ActivationHub session={session} tenant={tenant} connections={connections} setConnections={setConnections} onLaunch={handleLaunch} pushLog={pushLog}/>
+                </>}
                 {step === 'credentials' && <CredentialVault connections={connections} onSave={handleSaveCredentials} onBack={() => setStep('hub')}/>}
                 {step === 'preferences' && <PreferencesStep tenant={tenant} onSave={handleSavePreferences} onBack={() => setStep('credentials')}/>}
                 {step === 'business' && <BusinessProfileStep tenant={tenant} onSave={handleSaveBusiness} onBack={() => setStep('preferences')}/>}
@@ -276,7 +408,7 @@ function App() {
         </main>
         <footer style={{ textAlign: 'center', padding: '20px 28px', fontSize: 11.5, color: 'var(--muted)', borderTop: '1px solid var(--line)', marginTop: 12, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em' }}>
           <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, letterSpacing: 0, color: 'var(--ink)' }}>
-            Growth Intelligence Platform
+            Growth Intelligence Platform · Connection & Recovery Center
           </div>
           <div style={{ marginTop: 6 }}>
             <a className="wavy-link" href="/privacy-policy">Privacy Policy</a>
@@ -313,6 +445,55 @@ function App() {
             options={[{ value: 'dark', label: 'Dark' }, { value: 'light', label: 'Light' }]}/>
         </TweakSection>
       </TweaksPanel>
+    </div>
+  );
+}
+
+function ConnectionLifecyclePanel({ items = [], onRefresh, onDisconnect, onValidate }) {
+  const labels = {
+    active_pending_validation: 'VALIDATION_PENDING',
+    validated_ready: 'READY',
+    in_use: 'IN_USE',
+    token_expiring: 'TOKEN_EXPIRING',
+    reauth_required: 'REAUTH_REQUIRED',
+    managed_ready: 'MANAGED_READY',
+    needs_attention: 'NEEDS_ATTENTION',
+    revoked: 'REVOKED',
+  };
+  return (
+    <div className="panel" style={{ padding: 20, marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <div>
+          <span className="label-eyebrow">Connection lifecycle</span>
+          <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 5 }}>
+            Connected is not treated as ready until validation/readback proves it.
+          </div>
+        </div>
+        <button className="btn btn-secondary" onClick={onRefresh} style={{ height: 34, padding: '0 12px' }}>Refresh</button>
+      </div>
+      <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
+        {items.length === 0 && <div style={{ fontSize: 13, color: 'var(--muted)' }}>No tenant connection records yet.</div>}
+        {items.map(item => (
+          <div key={`${item.source_kind}:${item.connection_id}`} style={{ border: '1px solid var(--line)', borderRadius: 10, padding: 13, display: 'grid', gap: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+              <div>
+                <strong style={{ fontSize: 13.5 }}>{item.display_label || item.app_key}</strong>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--muted)', marginTop: 3 }}>{item.source_kind} · {item.connection_id}</div>
+              </div>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, fontWeight: 700 }}>{labels[item.lifecycle_state] || String(item.lifecycle_state || 'UNKNOWN').toUpperCase()}</span>
+            </div>
+            {item.federation_profile && <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Federation: {item.federation_profile} · subject binding {item.subject_binding_verified ? 'verified' : 'pending'}</div>}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {item.federation_profile === 'wordpress_staging_mcp_rs256_v1' && item.lifecycle_state !== 'revoked' && (
+                <button className="btn btn-secondary" onClick={() => onValidate(item)} style={{ height: 32, padding: '0 11px' }}>Validate</button>
+              )}
+              {item.source_kind === 'user_app_connection' && item.lifecycle_state !== 'revoked' && (
+                <button className="btn btn-secondary" onClick={() => onDisconnect(item.connection_id)} style={{ height: 32, padding: '0 11px' }}>Disconnect</button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
