@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const source = readFileSync("../autopilot-portable-staging/Start-AutoPilot.ps1", "utf8");
+const source = readFileSync(new URL("../autopilot-portable-staging/Start-AutoPilot.ps1", import.meta.url), "utf8");
 const finder = source.slice(source.indexOf("function Find-ExactStagingImageId"), source.indexOf("function Seed-SchemaBundle"));
 
 assert.match(finder, /config", "--format", "json"/);
