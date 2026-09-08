@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 20
     env:
       HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
-      EXPECTED_PARENT: f707de82a2963eee4dd7391d555b9f099ce0b603
+      EXPECTED_PARENT: 9a710d02af7174e6d9f11f939c91bdf0d664d25b
     steps:
       - name: Checkout exact PR head
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -36,7 +36,7 @@ jobs:
           test -e scripts/pr-7974-installer-security-once.py
           test -e .github/workflows/pr-7974-installer-security-once.yml
 
-      - name: Fix deterministic patch literals
+      - name: Fix deterministic patch literals and schema
         shell: bash
         run: |
           set -euo pipefail
@@ -60,16 +60,34 @@ jobs:
           if source.count(old) != 1:
               raise SystemExit('replace_once helper patch target mismatch')
           source = source.replace(old, new, 1)
+
           raw_old = '''    ''' + "'''" + '''    "function Protect-ConnectorSecretFile {",'''
           raw_new = '''    r''' + "'''" + '''    "function Protect-ConnectorSecretFile {",'''
           if source.count(raw_old) != 1:
               raise SystemExit('secret file ACL search literal marker mismatch')
           source = source.replace(raw_old, raw_new, 1)
+
           replacement_old = '''    ''' + "'''" + '''    "function Protect-ConnectorSecretDirectory {",'''
           replacement_new = '''    r''' + "'''" + '''    "function Protect-ConnectorSecretDirectory {",'''
           if source.count(replacement_old) != 1:
               raise SystemExit('secret directory ACL replacement literal marker mismatch')
           source = source.replace(replacement_old, replacement_new, 1)
+
+          manifest_old = '''includes = manifest.get('includes')
+          if not isinstance(includes, list):
+              raise SystemExit('E2E manifest includes list is missing')
+          '''.replace('          ', '')
+          manifest_new = '''scope = manifest.get('scope')
+          if not isinstance(scope, dict):
+              raise SystemExit('E2E manifest scope object is missing')
+          includes = scope.get('include')
+          if not isinstance(includes, list):
+              raise SystemExit('E2E manifest scope.include list is missing')
+          '''.replace('          ', '')
+          if source.count(manifest_old) != 1:
+              raise SystemExit('E2E manifest schema patch target mismatch')
+          source = source.replace(manifest_old, manifest_new, 1)
+
           p.write_text(source, encoding='utf-8', newline='\n')
           PY
 
