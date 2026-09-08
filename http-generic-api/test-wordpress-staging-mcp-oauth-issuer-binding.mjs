@@ -13,6 +13,10 @@ const compositionSource = readFileSync(
   new URL("./routes/mcpRoutes.js", import.meta.url),
   "utf8",
 );
+const tokenSource = readFileSync(
+  new URL("./wordpressStagingMcpOAuthTokens.js", import.meta.url),
+  "utf8",
+);
 
 assert.match(
   source,
@@ -48,6 +52,21 @@ assert.doesNotMatch(
   compositionSource,
   /REMOTE_MCP_OAUTH_DCR_ENABLED\s*:\s*env\.REMOTE_MCP_WORDPRESS_STAGING_DCR_ENABLED/u,
   "MCP composition must not project the WordPress DCR switch into the primary Remote MCP DCR variable.",
+);
+assert.doesNotMatch(
+  tokenSource,
+  /resolveRemoteMcpOAuthSigningSecret/u,
+  "WordPress authorization-request integrity must not share the primary Remote MCP symmetric signing secret.",
+);
+assert.match(
+  tokenSource,
+  /purpose:\s*"wordpress_staging_mcp_authorization_request"[\s\S]*configuration\.privateKey[\s\S]*algorithm:\s*WORDPRESS_STAGING_MCP_ACCESS_TOKEN_ALG/u,
+  "WordPress authorization requests must be signed by the dedicated asymmetric authority.",
+);
+assert.match(
+  tokenSource,
+  /jwt\.verify\([\s\S]*configuration\.publicKey[\s\S]*algorithms:\s*\[WORDPRESS_STAGING_MCP_ACCESS_TOKEN_ALG\]/u,
+  "WordPress authorization requests must verify only against the dedicated asymmetric public key.",
 );
 assert.doesNotMatch(
   source,
