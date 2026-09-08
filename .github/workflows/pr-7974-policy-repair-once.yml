@@ -1,0 +1,74 @@
+name: PR 7974 one-shot frontend policy repair
+
+on:
+  push:
+    branches:
+      - fix/admin-recovery-mcp-local-connector-ownership-20260908
+    paths:
+      - .github/workflows/pr-7974-policy-repair-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: fix/admin-recovery-mcp-local-connector-ownership-20260908
+          fetch-depth: 0
+      - name: Repair manual frontend authority
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const file = 'http-generic-api/frontend-surface-policy.json';
+          const policy = JSON.parse(fs.readFileSync(file, 'utf8'));
+          const misplacedId = 'local-connector-installer-delegation-signed-query-auth';
+          const sourceFile = 'routes/localConnectorInstallerDelegationRoutes.js';
+          const misplacedIndex = policy.rules.findIndex((rule) => rule.rule_id === misplacedId);
+          if (misplacedIndex < 0) throw new Error(`missing_expected_misplaced_rule:${misplacedId}`);
+          const [authRule] = policy.rules.splice(misplacedIndex, 1);
+          if (!Array.isArray(policy.auth_rules)) throw new Error('auth_rules_missing');
+          if (!policy.auth_rules.some((rule) => rule.rule_id === misplacedId)) {
+            policy.auth_rules.push(authRule);
+          }
+          const surfaceId = 'local-connector-installer-delegation-api-only';
+          if (!policy.rules.some((rule) => rule.rule_id === surfaceId)) {
+            policy.rules.push({
+              rule_id: surfaceId,
+              family_key: 'local-connector-installer-delegation',
+              source_file: sourceFile,
+              scope: 'developer',
+              decision: 'api_only',
+              owner: 'local-connector',
+              rationale: 'The signed-query canonical installer delegation endpoints are machine-consumed API delivery surfaces. They do not render or authorize a browser UI, widen installer authority, or expose generic execution.',
+              evidence_refs: [
+                sourceFile,
+                'routes/index.js',
+                'test-local-connector-durable-self-healing.mjs',
+                'openapi.yaml'
+              ]
+            });
+          }
+          fs.writeFileSync(file, `${JSON.stringify(policy, null, 2)}\n`);
+          NODE
+      - name: Verify bounded authority repair
+        working-directory: http-generic-api
+        run: |
+          npm ci
+          npm run frontend:dispatch:generate -- --baseline-ref=main
+          node test-frontend-surface-coverage-claims.mjs
+          node test-openapi-projection-readiness.mjs
+      - name: Commit authority repair and remove one-shot workflow
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git restore -- http-generic-api/frontend-operation-governance.generated.json http-generic-api/frontend-surface-dispatch.generated.json http-generic-api/openapi/frontend-runtime-routes.generated.yaml || true
+          git rm .github/workflows/pr-7974-policy-repair-once.yml
+          git add http-generic-api/frontend-surface-policy.json
+          git diff --cached --check
+          git commit -m 'fix(frontend): classify signed installer delegation surface'
+          git push origin HEAD:fix/admin-recovery-mcp-local-connector-ownership-20260908
