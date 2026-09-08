@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 20
     env:
       HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
-      EXPECTED_PARENT: c0e0d9bdc57afe35c50c8806845f44bfd3679139
+      EXPECTED_PARENT: 083ad9c15e17d58aa0208e1b9aaf82937b4a3d38
     steps:
       - name: Checkout exact PR head
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -44,6 +44,7 @@ jobs:
           from pathlib import Path
           p = Path('scripts/pr-7974-installer-security-once.py')
           source = p.read_text(encoding='utf-8')
+
           old = '''def replace_once(source, old, new, label):
               count = source.count(old)
               if count != 1:
@@ -72,6 +73,19 @@ jobs:
           if source.count(replacement_old) != 1:
               raise SystemExit('secret directory ACL replacement literal marker mismatch')
           source = source.replace(replacement_old, replacement_new, 1)
+
+          redemption_old = '''    ''' + "'''" + '''    "Protect-ConnectorSecretDirectory $SecretsRoot",'''
+          redemption_new = '''    r''' + "'''" + '''    "Protect-ConnectorSecretDirectory $SecretsRoot",'''
+          if source.count(redemption_old) != 1:
+              raise SystemExit('credential redemption replacement literal marker mismatch')
+          source = source.replace(redemption_old, redemption_new, 1)
+
+          cloud_old = '''    ''' + "'''" + '''    "$cfPath = (Get-Command cloudflared -ErrorAction Stop).Source",'''
+          cloud_new = '''    r''' + "'''" + '''    "$cfPath = (Get-Command cloudflared -ErrorAction Stop).Source",'''
+          if source.count(cloud_old) != 2:
+              raise SystemExit(f'cloudflared version search/replacement marker mismatch: {source.count(cloud_old)}')
+          cloud_index = source.rfind(cloud_old)
+          source = source[:cloud_index] + cloud_new + source[cloud_index + len(cloud_old):]
 
           manifest_old = '''includes = manifest.get('includes')
           if not isinstance(includes, list):
