@@ -1,8 +1,7 @@
 import { Router } from "express";
-import jwt from "jsonwebtoken";
 import { randomUUID } from "node:crypto";
 import { TENANT_CONNECTION_SELF_REPAIR_ROUTE_CONTRACTS } from "../tenantConnectionSelfRepairService.js";
-import { resolveUserJwtSecret } from "../userJwtAuth.js";
+import { issueUserTenantContextJwt } from "../userJwtAuth.js";
 
 const CONNECT_CONTEXT_TTL_SECONDS = 60 * 60;
 const WORDPRESS_STAGING_ORIGIN = "https://staging.egypttourgates.com";
@@ -157,31 +156,14 @@ async function enforceUnambiguousTenantContext(pool, req, res, next) {
 }
 
 function issueTenantContextToken(req, membership, env = process.env) {
-  const secret = resolveUserJwtSecret(env);
-  if (secret.length < 32) {
-    const error = new Error("Tenant context signing authority is unavailable.");
-    error.code = "tenant_context_signing_unavailable";
-    error.status = 503;
-    throw error;
-  }
-  const nowSeconds = Math.floor(Date.now() / 1000);
-  const currentExp = Number(req.auth?.claims?.exp);
-  const remaining = Number.isFinite(currentExp) && currentExp > nowSeconds
-    ? currentExp - nowSeconds
-    : CONNECT_CONTEXT_TTL_SECONDS;
-  const ttlSeconds = Math.min(CONNECT_CONTEXT_TTL_SECONDS, Math.max(60, remaining));
-  return jwt.sign(
-    {
-      user_id: req.auth.user_id,
-      tenant_id: membership.tenant_id,
-      email: req.auth?.email || req.auth?.claims?.email || undefined,
-      purpose: "connect_tenant_context",
-      context_role: membership.role || "member",
-      context_version: randomUUID(),
-    },
-    secret,
-    { algorithm: "HS256", expiresIn: ttlSeconds, jwtid: randomUUID() }
-  );
+  return issueUserTenantContextJwt({
+    userId: req.auth?.user_id,
+    tenantId: membership?.tenant_id,
+    email: req.auth?.email || req.auth?.claims?.email || null,
+    role: membership?.role || "member",
+    parentExp: req.auth?.claims?.exp ?? null,
+    maxTtlSeconds: CONNECT_CONTEXT_TTL_SECONDS,
+  }, { env });
 }
 
 function dateMs(value) {
