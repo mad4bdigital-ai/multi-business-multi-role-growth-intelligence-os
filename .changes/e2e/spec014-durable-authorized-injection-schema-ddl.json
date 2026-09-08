@@ -31,7 +31,7 @@
           "level": "synthetic_runtime",
           "actor": "Spec 014 durable authorized injection DDL guard",
           "entrypoint": "Canonical registry schema contract, registry SQL source, contract-local DDL file, and canonical E2E Production promotion classifier",
-          "terminal_outcome": "The DDL declares exactly the canonical state and rollback tables and remains outside every promoted migration path, while Production mode is granted only when the canonical gate validates protected main, an immutable main snapshot, or an exact history-preserving main reconciliation.",
+          "terminal_outcome": "The DDL declares exactly the canonical state and rollback tables and remains outside every promoted migration path, while Production mode is granted only when the canonical gate validates protected main, an immutable main snapshot, an exact history-preserving main reconciliation, or the certified deterministic release-cut reconciliation surface.",
           "steps": [
             "Read the canonical exported schema contract and exact table names.",
             "Read the registry SQL markers for state load, rollback load, state insert, rollback CAS update, and immutable rollback insert.",
@@ -39,7 +39,7 @@
             "Verify state identity, Receipt/Readback/bundle digests, active generation, row version, JSON record, and no-secrets columns.",
             "Verify one immutable rollback per injection, unique rollback digest, and foreign-key binding to the state row.",
             "Delegate the exact Production base SHA, candidate head SHA, head ref, and base ref to the canonical E2E PR gate.",
-            "Accept release mode only for canonical protected_main, immutable_main_snapshot, or history_preserving_main_reconciliation evidence and fail closed for every other Production identity.",
+            "Accept release mode only for canonical protected_main, immutable_main_snapshot, history_preserving_main_reconciliation, or certified_release_cut_reconciliation evidence and fail closed for every other Production identity.",
             "Reject destructive DDL, migration-ledger mutation, Route/Server changes, duplicate release-identity parsing, and any promotion or Apply authority."
           ],
           "assertions": [
