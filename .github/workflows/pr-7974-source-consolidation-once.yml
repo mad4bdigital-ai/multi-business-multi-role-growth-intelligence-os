@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 20
     env:
       HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
-      EXPECTED_PARENT: 3718b662c97bffe344f3c62f8e6cf047787c4410
+      EXPECTED_PARENT: 9e7d94da02c68bc60acc875becc9e3885e58f5a2
     steps:
       - name: Checkout exact PR head
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -44,11 +44,17 @@ jobs:
           from pathlib import Path
           p = Path('scripts/pr-7974-source-consolidation-once.py')
           source = p.read_text(encoding='utf-8')
-          old = 'source, count = production_test.subn(staging_tests, source, count=1)'
-          new = 'source, count = production_test.subn(lambda _match: staging_tests, source, count=1)'
-          if source.count(old) != 1:
-              raise SystemExit('patch-runner replacement target mismatch')
-          p.write_text(source.replace(old, new), encoding='utf-8', newline='\n')
+          replacements = {
+            'source, count = production_test.subn(staging_tests, source, count=1)':
+              'source, count = production_test.subn(lambda _match: staging_tests, source, count=1)',
+            'for owned in [index_path, test_path, policy_path, manifest_path, docs_path, connection_path]:':
+              'for owned in [index_path, policy_path, manifest_path, docs_path, connection_path]:',
+          }
+          for old, new in replacements.items():
+              if source.count(old) != 1:
+                  raise SystemExit(f'patch-runner replacement target mismatch: {old}')
+              source = source.replace(old, new)
+          p.write_text(source, encoding='utf-8', newline='\n')
           PY
           python scripts/pr-7974-source-consolidation-once.py
 
