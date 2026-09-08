@@ -1,13 +1,11 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
-import { resolveReusedBuilderRunId, selectReusableBuilderRun } from "../scripts/production-promotion-release-cut-evidence.mjs";
 
 const root = process.cwd();
 const launcher = fs.readFileSync(`${root}/.github/workflows/governed-production-promotion-request-launcher.yml`, "utf8");
 const mainSourcePin = fs.readFileSync(`${root}/.github/workflows/governed-production-main-source-pin-guard.yml`, "utf8");
 const releaseSourcePin = fs.readFileSync(`${root}/.github/workflows/governed-production-release-source-pin-gate.yml`, "utf8");
-const releaseCutEvidence = fs.readFileSync(`${root}/.github/scripts/production-promotion-release-cut-evidence.mjs`, "utf8");
 const schema = JSON.parse(fs.readFileSync(`${root}/.github/contracts/governed-command-parameters/production-promotion-request.v1.json`, "utf8"));
 const registry = JSON.parse(fs.readFileSync(`${root}/.github/contracts/production-promotion-supporting-gates.v1.json`, "utf8"));
 
@@ -65,79 +63,6 @@ test("comment transport is observability only after canonical promotion evidence
   assert.match(launcher, /validation evidence comment transport degraded/u);
   assert.match(launcher, /Upload convergence evidence/u);
   assert.match(launcher, /if-no-files-found: error/u);
-});
-
-test("reused builder provenance resolves only one successful exact-head candidate artifact", () => {
-  const requestHeadSha = "1".repeat(40);
-  const otherHeadSha = "3".repeat(40);
-  const candidateSha = "2".repeat(40);
-  const artifactName = `production-promotion-candidate-${candidateSha}`;
-  const runs = [
-    { id: 9101, head_sha: requestHeadSha, event: "workflow_dispatch", status: "completed", conclusion: "success" },
-    { id: 9102, head_sha: otherHeadSha, event: "workflow_dispatch", status: "completed", conclusion: "success" },
-    { id: 9103, head_sha: requestHeadSha, event: "workflow_dispatch", status: "completed", conclusion: "failure" },
-  ];
-  const artifactsByRun = {
-    9101: [{ name: artifactName, expired: false }],
-    9102: [{ name: artifactName, expired: false }],
-    9103: [{ name: artifactName, expired: false }],
-  };
-
-  assert.equal(selectReusableBuilderRun({ requestHeadSha, candidateSha, runs, artifactsByRun }), "9101");
-
-  assert.throws(() => selectReusableBuilderRun({
-    requestHeadSha,
-    candidateSha,
-    runs: [...runs, { id: 9104, head_sha: requestHeadSha, event: "workflow_dispatch", status: "completed", conclusion: "success" }],
-    artifactsByRun: { ...artifactsByRun, 9104: [{ name: artifactName, expired: false }] },
-  }), /expected exactly one reusable builder run/u);
-
-  assert.throws(() => selectReusableBuilderRun({
-    requestHeadSha,
-    candidateSha,
-    runs: [runs[0]],
-    artifactsByRun: { 9101: [{ name: artifactName, expired: true }] },
-  }), /expected exactly one reusable builder run/u);
-
-  assert.match(releaseCutEvidence, /builder_run_id: requireString\(String\(input\.builder_run_id\), "builder_run_id", POSITIVE_INT\)/u);
-  assert.match(releaseCutEvidence, /input\.builder_run_id = await resolveReusedBuilderRunId\(input\)/u);
-  assert.match(releaseCutEvidence, /execFileSync\(\s*"gh"/u);
-  assert.doesNotMatch(releaseCutEvidence, /process\.env\.(?:REPOSITORY|GITHUB_REPOSITORY|GH_TOKEN)/u);
-});
-
-test("reused builder resolver consumes bounded GitHub readback without new environment configuration", async () => {
-  const requestHeadSha = "4".repeat(40);
-  const candidateSha = "5".repeat(40);
-  const artifactName = `production-promotion-candidate-${candidateSha}`;
-  const seen = [];
-  const githubJson = async (path) => {
-    seen.push(path);
-    if (path === "/pulls/7979") return { head: { sha: requestHeadSha } };
-    if (path.startsWith("/actions/workflows/production-promotion-candidate.yml/runs?")) {
-      return {
-        workflow_runs: [
-          { id: 9201, head_sha: requestHeadSha, event: "workflow_dispatch", status: "completed", conclusion: "success" },
-        ],
-      };
-    }
-    if (path === "/actions/runs/9201/artifacts?per_page=100") {
-      return { total_count: 1, artifacts: [{ name: artifactName, expired: false }] };
-    }
-    throw new Error(`unexpected GitHub read path: ${path}`);
-  };
-
-  const resolved = await resolveReusedBuilderRunId({
-    builder_run_id: "reused",
-    request_pr: "7979",
-    candidate_sha: candidateSha,
-  }, { githubJson });
-
-  assert.equal(resolved, "9201");
-  assert.deepEqual(seen, [
-    "/pulls/7979",
-    "/actions/workflows/production-promotion-candidate.yml/runs?event=workflow_dispatch&status=success&per_page=100&page=1",
-    "/actions/runs/9201/artifacts?per_page=100",
-  ]);
 });
 
 console.log(JSON.stringify({

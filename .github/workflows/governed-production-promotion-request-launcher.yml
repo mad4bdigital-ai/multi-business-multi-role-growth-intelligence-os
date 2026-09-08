@@ -216,6 +216,70 @@ jobs:
             printf '%s' "$run_id"
           }
 
+          resolve_reused_builder_run() {
+            local candidate_sha="$1"
+            local artifact_name="production-promotion-candidate-${candidate_sha}"
+            local runs_file="$RUNNER_TEMP/reusable-builder-runs.json"
+            local run_id="" probe_dir="" evidence=""
+            local -a candidate_runs=()
+            local -a evidence_files=()
+            local -a matches=()
+
+            gh run list --repo "$REPOSITORY" --workflow production-promotion-candidate.yml --branch "$REQUEST_HEAD_BRANCH" --event workflow_dispatch --limit 1000 \
+              --json databaseId,headSha,status,conclusion,event,createdAt > "$runs_file"
+            mapfile -t candidate_runs < <(jq -r --arg sha "$EXPECTED_REQUEST_HEAD_SHA" '
+              [.[] | select(.headSha == $sha and .event == "workflow_dispatch" and .status == "completed" and .conclusion == "success")]
+              | sort_by(.createdAt, .databaseId)
+              | .[].databaseId
+            ' "$runs_file")
+
+            if (( ${#candidate_runs[@]} == 0 )); then
+              echo "::error::no successful exact-request-head candidate builder run is available for reuse" >&2
+              return 1
+            fi
+            if (( ${#candidate_runs[@]} > 20 )); then
+              echo "::error::reusable builder provenance search exceeded the bounded exact-head run limit" >&2
+              return 1
+            fi
+
+            for run_id in "${candidate_runs[@]}"; do
+              require_run_id "candidate builder run" "$run_id" || return 1
+              probe_dir="$RUNNER_TEMP/reusable-builder-${run_id}"
+              rm -rf "$probe_dir"
+              mkdir -p "$probe_dir"
+              if ! gh run download "$run_id" --repo "$REPOSITORY" --name "$artifact_name" --dir "$probe_dir" >/dev/null 2>&1; then
+                continue
+              fi
+              mapfile -t evidence_files < <(find "$probe_dir" -type f -name 'production-promotion-candidate.json' -print)
+              (( ${#evidence_files[@]} == 1 )) || continue
+              evidence="${evidence_files[0]}"
+              if jq -e \
+                --arg cut "$RELEASE_CUT_SHA" \
+                --arg prod "$PRODUCTION_SHA" \
+                --arg candidate "$candidate_sha" \
+                --arg release_branch "$RELEASE_BRANCH" \
+                --arg validation_branch "$VALIDATION_BRANCH" \
+                --arg validation_base "$VALIDATION_BASE_BRANCH" '
+                  .schema_version == "production_promotion_candidate.v3" and .ok == true and
+                  .release_mode == "certified_release_cut" and
+                  .release_cut_sha == $cut and .production_sha == $prod and .candidate_sha == $candidate and
+                  .release_branch == $release_branch and .validation_branch == $validation_branch and .validation_base_branch == $validation_base and
+                  .candidate_first_parent_is_release_cut == true and .candidate_second_parent_is_pinned_production == true and
+                  .tree_policy == "exact_release_cut_tree" and .main_tip_may_advance == true and .production_must_remain_stable == true and
+                  .merge_executed == false and .deployment_executed == false and .migration_executed == false and
+                  .provider_call_executed == false and .credential_payload_read == false and .secrets_included == false
+                ' "$evidence" >/dev/null; then
+                matches+=("$run_id")
+              fi
+            done
+
+            if (( ${#matches[@]} != 1 )); then
+              echo "::error::expected exactly one reusable builder run for candidate $candidate_sha, found ${#matches[@]}" >&2
+              return 1
+            fi
+            printf '%s' "${matches[0]}"
+          }
+
           APPROVAL_REQUIRED=0
           APPROVAL_MANIFEST="$RUNNER_TEMP/governed-production-promotion/approval-manifest.json"
           wait_run_success() {
@@ -298,7 +362,7 @@ jobs:
             echo "::error::stale promotion branch exists without an open PR; refusing reuse or overwrite"
             exit 78
           fi
-          BUILDER_RUN_ID="reused"
+          BUILDER_RUN_ID=""
           if [[ -n "$EXISTING_RELEASE_PR" && -z "$EXISTING_VALIDATION_PR" ]] || [[ -z "$EXISTING_RELEASE_PR" && -n "$EXISTING_VALIDATION_PR" ]]; then
             echo "::error::partial idempotent promotion surfaces detected; refusing builder retry to prevent duplicate PRs"
             exit 78
@@ -336,6 +400,12 @@ jobs:
           [[ "$(git rev-parse "refs/remotes/origin/${VALIDATION_BASE_BRANCH}")" == "$RELEASE_CUT_SHA" ]] || { echo "::error::validation base is not release cut"; exit 1; }
           [[ "$(git rev-parse "${CANDIDATE_SHA}^1")" == "$RELEASE_CUT_SHA" ]] || { echo "::error::candidate first parent is not release cut"; exit 1; }
           git diff --quiet "$RELEASE_CUT_SHA" "$CANDIDATE_SHA" || { echo "::error::candidate tree differs from release cut"; exit 1; }
+
+          if [[ -z "$BUILDER_RUN_ID" ]]; then
+            BUILDER_RUN_ID="$(resolve_reused_builder_run "$CANDIDATE_SHA")"
+            require_run_id BUILDER_RUN_ID "$BUILDER_RUN_ID"
+            echo "::notice::resolved reusable builder provenance run=$BUILDER_RUN_ID candidate=$CANDIDATE_SHA"
+          fi
 
           CERTIFIED_RUN_ID=""
           for _ in $(seq 1 60); do

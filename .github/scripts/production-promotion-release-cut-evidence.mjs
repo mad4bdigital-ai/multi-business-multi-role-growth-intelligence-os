@@ -1,13 +1,10 @@
 #!/usr/bin/env node
-import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 
 const SHA = /^[0-9a-f]{40}$/u;
 const SHA256 = /^[0-9a-f]{64}$/u;
 const POSITIVE_INT = /^[1-9][0-9]*$/u;
 const MODES = new Set(["human", "ai_policy"]);
-const CANDIDATE_WORKFLOW = "production-promotion-candidate.yml";
-const MAX_RUN_PAGES = 20;
 
 function fail(message) {
   throw new Error(message);
@@ -16,108 +13,6 @@ function fail(message) {
 function requireString(value, label, pattern) {
   if (typeof value !== "string" || !pattern.test(value)) fail(`${label} is invalid`);
   return value;
-}
-
-function requireObject(value, label) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) fail(`${label} must be an object`);
-  return value;
-}
-
-function defaultGitHubJson(path) {
-  const endpoint = `repos/{owner}/{repo}${path}`;
-  let raw;
-  try {
-    raw = execFileSync(
-      "gh",
-      [
-        "api",
-        "--method",
-        "GET",
-        endpoint,
-        "-H",
-        "Accept: application/vnd.github+json",
-        "-H",
-        "X-GitHub-Api-Version: 2022-11-28",
-      ],
-      { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 },
-    );
-  } catch (error) {
-    const detail = String(error?.stderr ?? error?.message ?? "unknown GitHub CLI failure").trim();
-    fail(`GitHub API ${path} failed: ${detail}`);
-  }
-  try {
-    return JSON.parse(raw);
-  } catch {
-    fail(`GitHub API ${path} returned invalid JSON`);
-  }
-}
-
-export function selectReusableBuilderRun({ requestHeadSha, candidateSha, runs, artifactsByRun }) {
-  requireString(requestHeadSha, "request_head_sha", SHA);
-  requireString(candidateSha, "candidate_sha", SHA);
-  if (!Array.isArray(runs)) fail("candidate workflow runs must be an array");
-  requireObject(artifactsByRun, "artifacts_by_run");
-
-  const artifactName = `production-promotion-candidate-${candidateSha}`;
-  const matches = new Set();
-
-  for (const run of runs) {
-    if (!run || typeof run !== "object" || Array.isArray(run)) continue;
-    if (run.head_sha !== requestHeadSha) continue;
-    if (run.event !== "workflow_dispatch") continue;
-    if (run.status !== "completed" || run.conclusion !== "success") continue;
-
-    const runId = requireString(String(run.id), "candidate builder run id", POSITIVE_INT);
-    const artifacts = artifactsByRun[runId];
-    if (!Array.isArray(artifacts)) continue;
-    if (artifacts.some((artifact) => artifact?.name === artifactName && artifact?.expired === false)) matches.add(runId);
-  }
-
-  if (matches.size !== 1) {
-    fail(`expected exactly one reusable builder run for candidate ${candidateSha}, found ${matches.size}`);
-  }
-  return [...matches][0];
-}
-
-export async function resolveReusedBuilderRunId(input, options = {}) {
-  requireObject(input, "input");
-  const suppliedRunId = String(input.builder_run_id ?? "");
-  if (suppliedRunId !== "reused") return requireString(suppliedRunId, "builder_run_id", POSITIVE_INT);
-
-  const candidateSha = requireString(input.candidate_sha, "candidate_sha", SHA);
-  const requestPr = requireString(String(input.request_pr), "request_pr", POSITIVE_INT);
-  const githubJson = options.githubJson ?? defaultGitHubJson;
-  if (typeof githubJson !== "function") fail("GitHub JSON reader is required to resolve reused builder provenance");
-
-  const request = await githubJson(`/pulls/${requestPr}`);
-  const requestHeadSha = requireString(request?.head?.sha, "request_head_sha", SHA);
-
-  const runs = [];
-  for (let page = 1; page <= MAX_RUN_PAGES; page += 1) {
-    const payload = await githubJson(
-      `/actions/workflows/${CANDIDATE_WORKFLOW}/runs?event=workflow_dispatch&status=success&per_page=100&page=${page}`,
-    );
-    const batch = payload?.workflow_runs;
-    if (!Array.isArray(batch)) fail("candidate workflow run response is invalid");
-    runs.push(...batch);
-    if (batch.length < 100) break;
-    if (page === MAX_RUN_PAGES) fail("candidate builder run search exceeded bounded page limit");
-  }
-
-  const artifactsByRun = {};
-  for (const run of runs) {
-    if (run?.head_sha !== requestHeadSha || run?.event !== "workflow_dispatch" || run?.status !== "completed" || run?.conclusion !== "success") continue;
-    const runId = requireString(String(run.id), "candidate builder run id", POSITIVE_INT);
-    const payload = await githubJson(`/actions/runs/${runId}/artifacts?per_page=100`);
-    const artifacts = payload?.artifacts;
-    if (!Array.isArray(artifacts)) fail(`candidate builder artifact response is invalid for run ${runId}`);
-    if (Number(payload?.total_count ?? artifacts.length) > artifacts.length) {
-      fail(`candidate builder artifact response is truncated for run ${runId}`);
-    }
-    artifactsByRun[runId] = artifacts;
-  }
-
-  return selectReusableBuilderRun({ requestHeadSha, candidateSha, runs, artifactsByRun });
 }
 
 export function buildReleaseCutPromotionEvidence(input) {
@@ -192,9 +87,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const args = parseArgs(process.argv);
   if (!args.input || !args.output) fail("--input and --output are required");
   const input = JSON.parse(fs.readFileSync(args.input, "utf8"));
-  if (String(input.builder_run_id ?? "") === "reused") {
-    input.builder_run_id = await resolveReusedBuilderRunId(input);
-  }
   const evidence = buildReleaseCutPromotionEvidence(input);
   fs.writeFileSync(args.output, `${JSON.stringify(evidence, null, 2)}\n`);
   process.stdout.write(`${JSON.stringify(evidence)}\n`);
