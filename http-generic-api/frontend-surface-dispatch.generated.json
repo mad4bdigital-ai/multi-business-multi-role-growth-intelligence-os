@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "c73af0ba93ecdcddd9c3ff69f8f1a18fe7e1b1fda18f8cfd50f668dec674f8cf",
+    "source_digest": "0a63fed81ec01a15f12a151e7e989463970a927f478734374cc895ea91015fd9",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -16,7 +16,7 @@
       },
       {
         "file": "frontend-surface-policy.json",
-        "sha256": "51834e9456ab381bec607a9b17d292d0967efbcd5368eec2113dd2c0b24d3408",
+        "sha256": "e340e7d54523176a290646b8cb3ca9a4aad8d0f8e3d5a6d59e64e275dcd45db4",
         "present": true
       },
       {
@@ -1203,14 +1203,14 @@
     "classified_mutation_count": 21,
     "governed_mutation_operation_count": 21,
     "embedded_ui_family_count": 7,
-    "unresolved_surface_decision_count": 1,
+    "unresolved_surface_decision_count": 0,
     "test_owned_family_count": 174,
     "untested_family_count": 0,
     "test_owned_operation_count": 1066,
     "untested_operation_count": 0,
-    "ready_task_count": 173,
-    "blocked_task_count": 1,
-    "coverage_complete": false
+    "ready_task_count": 174,
+    "blocked_task_count": 0,
+    "coverage_complete": true
   },
   "waves": [
     {
@@ -7714,13 +7714,20 @@
         "test-frontend-surface-coverage-claims.mjs"
       ],
       "surface_decision": {
-        "decision": "requires_review",
-        "rationale": "No repository policy decision covers this route family.",
-        "owner": null
+        "decision": "api_only",
+        "rationale": "The signed-query canonical installer delegation endpoint is a machine-consumed API delivery surface. It redirects or materializes the canonical installer only after existing signed-link verification and does not render a browser UI, widen installer authority, or expose generic execution.",
+        "owner": "local-connector",
+        "rule_id": "local-connector-installer-delegation-api-only",
+        "evidence_refs": [
+          "openapi.yaml",
+          "routes/index.js",
+          "routes/localConnectorInstallerDelegationRoutes.js",
+          "test-local-connector-durable-self-healing.mjs"
+        ]
       },
       "operation_blockers": [],
       "risk": {
-        "score": 2,
+        "score": 0,
         "class": "low"
       },
       "wave": "F5-developer-evidence"
@@ -99890,6 +99897,53 @@
       ]
     },
     {
+      "task_key": "frontend.local-connector-installer-delegation",
+      "title": "Resolve and deliver local connector installer delegation",
+      "wave": "F5-developer-evidence",
+      "state": "ready",
+      "blockers": [],
+      "dependencies": [
+        "F0-source-baseline",
+        "F1-tenant-workspace-context"
+      ],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/public-entrypoints.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/localConnectorInstallerDelegationRoutes.js",
+        "scripts/test-manifest.mjs",
+        "test-frontend-surface-coverage-claims.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
       "task_key": "frontend.local-gateway-tools",
       "title": "Resolve and deliver local gateway tools",
       "wave": "F5-developer-evidence",
@@ -100716,55 +100770,6 @@
         "surface_policy_resolved",
         "tests_registered",
         "operation_classification_explicit"
-      ],
-      "verification": [
-        "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
-      "task_key": "frontend.local-connector-installer-delegation",
-      "title": "Resolve and deliver local connector installer delegation",
-      "wave": "F5-developer-evidence",
-      "state": "blocked",
-      "blockers": [
-        "surface_policy_decision_required"
-      ],
-      "dependencies": [
-        "F0-source-baseline",
-        "F1-tenant-workspace-context"
-      ],
-      "source_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/brand-core-asset-materialization.yaml",
-        "openapi/container-authority-override-governance-smoke.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/hostinger-storage-tenant-runtime.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
-        "openapi/public-entrypoints.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "openapi/support-ticket-admin-brand.yaml",
-        "openapi/support-ticket-admin-execution.yaml",
-        "openapi/support-ticket-admin-remaining.yaml",
-        "openapi/support-ticket-runtime-completion.yaml",
-        "openapi/support-tickets.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/index.js",
-        "routes/localConnectorInstallerDelegationRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-frontend-surface-coverage-claims.mjs"
-      ],
-      "acceptance_gates": [
-        "source_baseline_unchanged",
-        "scope_and_auth_explicit",
-        "openapi_or_explicit_exemption",
-        "surface_policy_resolved",
-        "tests_registered"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
