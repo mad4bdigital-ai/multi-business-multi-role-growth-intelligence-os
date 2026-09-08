@@ -1,10 +1,13 @@
 #!/usr/bin/env node
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 
 const SHA = /^[0-9a-f]{40}$/u;
 const SHA256 = /^[0-9a-f]{64}$/u;
 const POSITIVE_INT = /^[1-9][0-9]*$/u;
+const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u;
 const MODES = new Set(["human", "ai_policy"]);
+const CANDIDATE_WORKFLOW_PATH = ".github/workflows/production-promotion-candidate.yml";
 
 function fail(message) {
   throw new Error(message);
@@ -13,6 +16,71 @@ function fail(message) {
 function requireString(value, label, pattern) {
   if (typeof value !== "string" || !pattern.test(value)) fail(`${label} is invalid`);
   return value;
+}
+
+export function resolveReusedBuilderRunId({ input, requestPull, artifacts, runsById }) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) fail("input must be an object");
+  const candidateSha = requireString(input.candidate_sha, "candidate_sha", SHA);
+  const requestHeadSha = requireString(requestPull?.head?.sha, "request PR head sha", SHA);
+  const requestHeadBranch = requestPull?.head?.ref;
+  if (typeof requestHeadBranch !== "string" || requestHeadBranch.length === 0) fail("request PR head branch is invalid");
+  if (!artifacts || !Array.isArray(artifacts.artifacts)) fail("builder artifact response is invalid");
+  if (!runsById || typeof runsById !== "object" || Array.isArray(runsById)) fail("builder run response map is invalid");
+
+  const artifactName = `production-promotion-candidate-${candidateSha}`;
+  const matchingArtifacts = artifacts.artifacts
+    .filter((artifact) => artifact?.name === artifactName
+      && artifact?.expired === false
+      && String(artifact?.workflow_run?.head_sha ?? "") === requestHeadSha
+      && String(artifact?.workflow_run?.head_branch ?? "") === requestHeadBranch
+      && POSITIVE_INT.test(String(artifact?.workflow_run?.id ?? "")))
+    .sort((left, right) => Number(right.id ?? 0) - Number(left.id ?? 0));
+
+  for (const artifact of matchingArtifacts) {
+    const runId = String(artifact.workflow_run.id);
+    const run = runsById[runId];
+    if (!run) continue;
+    if (String(run.id ?? "") !== runId) continue;
+    if (run.path !== CANDIDATE_WORKFLOW_PATH) continue;
+    if (run.event !== "workflow_dispatch") continue;
+    if (run.status !== "completed" || run.conclusion !== "success") continue;
+    if (run.head_sha !== requestHeadSha || run.head_branch !== requestHeadBranch) continue;
+    return runId;
+  }
+
+  fail("reused promotion surfaces have no exact successful candidate builder provenance");
+}
+
+function ghJson(endpoint) {
+  try {
+    return JSON.parse(execFileSync("gh", ["api", endpoint], { encoding: "utf8" }));
+  } catch (error) {
+    const detail = error?.stderr ? String(error.stderr).trim() : String(error?.message ?? error);
+    fail(`GitHub provenance read failed for ${endpoint}: ${detail}`);
+  }
+}
+
+function normalizeCliInput(input) {
+  if (String(input?.builder_run_id ?? "") !== "reused") return input;
+
+  const repository = requireString(process.env.REPOSITORY, "REPOSITORY", REPOSITORY);
+  const requestPr = requireString(String(input.request_pr), "request_pr", POSITIVE_INT);
+  const candidateSha = requireString(input.candidate_sha, "candidate_sha", SHA);
+  const requestPull = ghJson(`/repos/${repository}/pulls/${requestPr}`);
+  const artifactName = `production-promotion-candidate-${candidateSha}`;
+  const artifacts = ghJson(`/repos/${repository}/actions/artifacts?name=${encodeURIComponent(artifactName)}&per_page=100`);
+  const runsById = {};
+
+  for (const artifact of artifacts?.artifacts ?? []) {
+    const runId = String(artifact?.workflow_run?.id ?? "");
+    if (!POSITIVE_INT.test(runId) || Object.hasOwn(runsById, runId)) continue;
+    runsById[runId] = ghJson(`/repos/${repository}/actions/runs/${runId}`);
+  }
+
+  return {
+    ...input,
+    builder_run_id: resolveReusedBuilderRunId({ input, requestPull, artifacts, runsById }),
+  };
 }
 
 export function buildReleaseCutPromotionEvidence(input) {
@@ -86,7 +154,7 @@ function parseArgs(argv) {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const args = parseArgs(process.argv);
   if (!args.input || !args.output) fail("--input and --output are required");
-  const input = JSON.parse(fs.readFileSync(args.input, "utf8"));
+  const input = normalizeCliInput(JSON.parse(fs.readFileSync(args.input, "utf8")));
   const evidence = buildReleaseCutPromotionEvidence(input);
   fs.writeFileSync(args.output, `${JSON.stringify(evidence, null, 2)}\n`);
   process.stdout.write(`${JSON.stringify(evidence)}\n`);
