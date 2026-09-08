@@ -16,9 +16,8 @@
       "http-generic-api/routes/connectorAgentRoutes.js",
       "http-generic-api/routes/index.js",
       "http-generic-api/routes/localConnectorInstallerDelegationRoutes.js",
-      "http-generic-api/test-admin-recovery-chatgpt-connection.mjs",
-      "http-generic-api/test-local-connector-installer-delegation.mjs",
-      "http-generic-api/test-local-connector-installer-routing-closure.mjs",
+      "http-generic-api/test-local-connector-durable-self-healing.mjs",
+      "http-generic-api/test-recovery-composition.mjs",
       "local-connector/README.md",
       "local-connector/connector-environment-policy.mjs",
       "local-connector/connector-runtime-bootstrap.mjs",
@@ -69,17 +68,10 @@
           ],
           "tests": [
             {
-              "id": "local-connector-installer-delegation",
+              "id": "local-connector-durable-self-healing",
               "runner": "node",
               "working_directory": "http-generic-api",
-              "path": "test-local-connector-installer-delegation.mjs",
-              "args": []
-            },
-            {
-              "id": "local-connector-installer-routing-closure",
-              "runner": "node",
-              "working_directory": "http-generic-api",
-              "path": "test-local-connector-installer-routing-closure.mjs",
+              "path": "test-local-connector-durable-self-healing.mjs",
               "args": []
             }
           ],
@@ -88,6 +80,7 @@
             "http-generic-api/routes/connectorAgentRoutes.js",
             "http-generic-api/routes/index.js",
             "http-generic-api/routes/localConnectorInstallerDelegationRoutes.js",
+            "http-generic-api/test-local-connector-durable-self-healing.mjs",
             "local-connector/connector-watchdog.ps1",
             "local-connector/README.md"
           ]
@@ -130,10 +123,10 @@
               "args": []
             },
             {
-              "id": "local-connector-installer-routing-closure",
+              "id": "local-connector-durable-self-healing",
               "runner": "node",
               "working_directory": "http-generic-api",
-              "path": "test-local-connector-installer-routing-closure.mjs",
+              "path": "test-local-connector-durable-self-healing.mjs",
               "args": []
             }
           ],
@@ -143,6 +136,7 @@
             "local-connector/connector-runtime-bootstrap.mjs",
             "local-connector/test-connector-environment-policy.mjs",
             "local-connector/test-connector-runtime-bootstrap.mjs",
+            "http-generic-api/test-local-connector-durable-self-healing.mjs",
             "local-connector/README.md"
           ]
         },
@@ -168,17 +162,17 @@
           ],
           "tests": [
             {
-              "id": "admin-recovery-chatgpt-connection",
+              "id": "recovery-composition",
               "runner": "node",
               "working_directory": "http-generic-api",
-              "path": "test-admin-recovery-chatgpt-connection.mjs",
+              "path": "test-recovery-composition.mjs",
               "args": []
             }
           ],
           "evidence_paths": [
             "http-generic-api/config/admin-recovery-chatgpt-connection.json",
             "docs/governance/admin-recovery-chatgpt-connection.md",
-            "http-generic-api/test-admin-recovery-chatgpt-connection.mjs",
+            "http-generic-api/test-recovery-composition.mjs",
             "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml",
             "canonicals/openapi/custom-gpt-surfaces.yaml"
           ]
