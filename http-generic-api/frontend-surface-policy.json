@@ -2673,6 +2673,20 @@
         "frontend-surface-dispatch.generated.json",
         "test-frontend-surface-coverage-claims.mjs"
       ]
+    },
+    {
+      "rule_id": "local-connector-installer-delegation-signed-query-auth",
+      "operation": "GET /local-connector/install/download",
+      "source_file": "routes/localConnectorInstallerDelegationRoutes.js",
+      "profile": "signed_query_token",
+      "owner": "local-connector",
+      "rationale": "The canonical delegation router verifies the existing short-lived installer token before redirecting PS1 requests or materializing the BAT bootstrap; it does not widen installer or runtime authority.",
+      "evidence_refs": [
+        "routes/localConnectorInstallerDelegationRoutes.js",
+        "routes/connectorAgentRoutes.js",
+        "test-local-connector-durable-self-healing.mjs",
+        "openapi.yaml"
+      ]
     }
   ],
   "auth_rules": [
@@ -3206,7 +3220,11 @@
       "classification": "read_action",
       "owner": "runtime-operations",
       "rationale": "Builds and hashes an immutable repository-owned recovery plan without database or provider mutation.",
-      "evidence_refs": ["hostBreakglassCatalog.js", "test-host-breakglass-catalog.mjs", "test-admin-host-breakglass-routes.mjs"]
+      "evidence_refs": [
+        "hostBreakglassCatalog.js",
+        "test-host-breakglass-catalog.mjs",
+        "test-admin-host-breakglass-routes.mjs"
+      ]
     },
     {
       "rule_id": "host-breakglass-dispatch-external-effect",
@@ -3236,7 +3254,12 @@
         "correlation_id": "request.body.correlation_id",
         "run_status": "GET /admin/runtime-bootstrap/runs/{correlation_id}"
       },
-      "evidence_refs": ["hostBreakglassCatalog.js", "config/host-breakglass-catalog.json", "production-runtime-parity-evidence.yml", "test-host-breakglass-catalog.mjs"]
+      "evidence_refs": [
+        "hostBreakglassCatalog.js",
+        "config/host-breakglass-catalog.json",
+        "production-runtime-parity-evidence.yml",
+        "test-host-breakglass-catalog.mjs"
+      ]
     },
     {
       "rule_id": "root-discovery-delete-read-action",
