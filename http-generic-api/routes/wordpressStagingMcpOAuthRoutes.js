@@ -11,8 +11,6 @@ import {
   fixedTimeSecretEqual,
   normalizeRemoteMcpRedirectUri,
   normalizeTokenEndpointAuthMethod,
-  remoteMcpDynamicClientRegistrationAdvertised,
-  remoteMcpDynamicClientRegistrationEnabled,
   remoteMcpDynamicRedirectUriAllowed,
   sha256,
   verifyPkceS256,
@@ -28,6 +26,8 @@ import {
   resolveWordpressStagingMcpIssuer,
   resolveWordpressStagingMcpResource,
   wordpressStagingMcpClientProfileKey,
+  wordpressStagingMcpDcrAdvertised,
+  wordpressStagingMcpDcrEnabled,
   wordpressStagingMcpOAuthConfigured,
   wordpressStagingMcpOAuthReady,
   wordpressStagingMcpSubjectAllowed,
@@ -195,7 +195,7 @@ function metadata(env) {
     issuer,
     authorization_endpoint: `${issuer}/oauth/authorize`,
     token_endpoint: `${issuer}/oauth/token`,
-    ...(remoteMcpDynamicClientRegistrationAdvertised(env)
+    ...(wordpressStagingMcpDcrAdvertised(env)
       ? { registration_endpoint: `${issuer}/oauth/register` }
       : {}),
     revocation_endpoint: `${issuer}/oauth/revoke`,
@@ -271,7 +271,7 @@ export function buildWordpressStagingMcpOAuthRoutes(deps = {}) {
   router.post("/auth/mcp/wordpress-staging/oauth/register", async (req, res) => {
     if (!wordpressStagingMcpOAuthConfigured(env) || !requestUsesIssuerHost(req, env)) return notFound(res);
     if (!wordpressStagingMcpOAuthReady(env)) return oauthError(res, 503, "temporarily_unavailable", "WordPress staging OAuth signing authority or subject policy is not ready.");
-    if (!remoteMcpDynamicClientRegistrationEnabled(env)) return notFound(res);
+    if (!wordpressStagingMcpDcrEnabled(env)) return notFound(res);
     try {
       const suppliedRedirects = Array.isArray(req.body?.redirect_uris) ? req.body.redirect_uris : [];
       const redirectUris = [...new Set(suppliedRedirects.map((uri) => normalizeRemoteMcpRedirectUri(uri, env)).filter(Boolean))];
