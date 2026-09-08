@@ -150,7 +150,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "59f8cc578d4785f7e8b0cd2cd0ef7cbb9957218b7b65c76f65f24fa708f4cf3d"
+      "sha256": "a0bfd587789d626839b411a98296da99e5752d536f85184eb20428e6b94f55dc"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -414,7 +414,7 @@
     },
     {
       "path": "local-connector/server.mjs",
-      "sha256": "d0cb1e3918d5280c8b4387b9636bee3b916dfe1edc4f425ac823f34d0211a1e5"
+      "sha256": "8019f39ae893754aa3eb545db40ea54fac7bc0b036594364a2e9e80557cc81c5"
     },
     {
       "path": "autopilot-portable-staging/Invoke-StagingPrHeadCertification.ps1",
