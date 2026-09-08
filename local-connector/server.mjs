@@ -4,6 +4,7 @@
  * Bind: 127.0.0.1 only. Cloudflare Tunnel is the sole entry point.
  */
 
+import './connector-runtime-bootstrap.mjs';
 import http from 'node:http';
 import https from 'node:https';
 import os from 'node:os';
@@ -448,32 +449,19 @@ function locateRepoCandidates(startPath, options = {}) {
 
 const UNSAFE_CHARS = /[;&|`$<>\\!{}()\n\r]/;
 
-/**
- * Clamp a timeout value.
- * @param {number|undefined} requested
- * @param {number} [aliasDefault]
- * @returns {number}
- */
 function clampTimeout(requested, aliasDefault) {
   const base = aliasDefault ?? DEFAULT_TIMEOUT_MS;
   if (!requested) return base;
   return Math.min(Math.max(requested, 1000), MAX_TIMEOUT_MS);
 }
 
-/**
- * Run a command safely via spawn (no shell).
- * @param {string} command
- * @param {string[]} args
- * @param {number} timeoutMs
- * @returns {Promise<{stdout: string, stderr: string, exitCode: number}>}
- */
 function runCommand(command, args, timeoutMs) {
   return new Promise((resolve, reject) => {
     let stdout = '';
     let stderr = '';
     let settled = false;
 
-        const isWindowsCommandScript =
+    const isWindowsCommandScript =
       process.platform === 'win32' && /\.(cmd|bat)$/i.test(command);
 
     const quoteForCmd = (value) => {
@@ -593,15 +581,6 @@ async function startApp(entry, args = [], timeoutMs = 8000) {
   return runPs(script, timeoutMs);
 }
 
-// ---------------------------------------------------------------------------
-// Request parsing helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Read and JSON-parse the request body.
- * @param {http.IncomingMessage} req
- * @returns {Promise<unknown>}
- */
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let data = '';
@@ -615,12 +594,6 @@ function readBody(req) {
   });
 }
 
-/**
- * Send a JSON response.
- * @param {http.ServerResponse} res
- * @param {number} status
- * @param {unknown} body
- */
 function json(res, status, body) {
   const payload = JSON.stringify(body);
   res.writeHead(status, { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) });
@@ -698,15 +671,6 @@ function normalizeCliResult(result, toolLabel) {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Auth middleware
-// ---------------------------------------------------------------------------
-
-/**
- * @param {http.IncomingMessage} req
- * @param {http.ServerResponse} res
- * @returns {boolean} true if authenticated
- */
 function requireAuth(req, res) {
   if (!CONNECTOR_AUTH_SECRET) {
     err(res, 503, 'CONNECTOR_SECRET_NOT_CONFIGURED', 'CONNECTOR_SECRET is not configured on this connector');
@@ -726,18 +690,10 @@ function requireAuth(req, res) {
   return false;
 }
 
-// ---------------------------------------------------------------------------
-// Audit logger
-// ---------------------------------------------------------------------------
-
 function audit(req, details) {
   const ts = new Date().toISOString();
   console.log(JSON.stringify({ ts, method: req.method, path: req.url, ...details }));
 }
-
-// ---------------------------------------------------------------------------
-// Health check response
-// ---------------------------------------------------------------------------
 
 function healthBody() {
   return {
@@ -804,10 +760,6 @@ function policyBody() {
   };
 }
 
-// ---------------------------------------------------------------------------
-// PowerShell helper
-// ---------------------------------------------------------------------------
-
 function addPowerShellNativeExitGuard(script) {
   return [
     script,
@@ -827,16 +779,8 @@ function runPs(script, timeoutMs = 10000) {
   ], timeoutMs);
 }
 
-// ---------------------------------------------------------------------------
-// Config â€” fetch-upload
-// ---------------------------------------------------------------------------
-
 const MAIN_API_URL = (process.env.MAIN_API_URL ?? 'https://api.mad4b.com').replace(/\/$/, '');
 const FETCH_UPLOAD_ENABLED = process.env.CONNECTOR_FETCH_UPLOAD_ENABLED !== 'false';
-
-// ---------------------------------------------------------------------------
-// Route handlers
-// ---------------------------------------------------------------------------
 
 async function handleFetchUpload(req, res) {
   if (!FETCH_UPLOAD_ENABLED) return err(res, 403, 'DISABLED', 'fetch-upload is disabled on this connector');
@@ -1830,7 +1774,6 @@ async function handleN8nV2(req, res) {
       return ok(res, { restarted: true, launched, n8n: n8nRuntimeInfo({ health }) });
     }
 
-    // Fall through to the API-control implementation for workflow operations.
     return await handleN8n(req, res, body);
   } catch (e) {
     return err(res, 500, e.code || 'N8N_CONTROL_ERROR', e.message);
@@ -1905,10 +1848,6 @@ async function handleCf(req, res) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Router
-// ---------------------------------------------------------------------------
-
 const server = http.createServer(async (req, res) => {
   const url = req.url?.split('?')[0] ?? '/';
   const method = req.method ?? 'GET';
@@ -1921,7 +1860,7 @@ const server = http.createServer(async (req, res) => {
 
     if (method === 'GET' && url === '/policy') { if (!requireAuth(req, res)) return; await refreshShellPolicy(); audit(req, { action: 'policy' }); return json(res, 200, policyBody()); }
 
-      if (method === 'GET' && url === '/schema') {
+    if (method === 'GET' && url === '/schema') {
       const schemaPath = path.join(__dirname, '..', 'http-generic-api', 'openapi.gpt-action.local-connector.yaml');
       try {
         const schema = fs.readFileSync(schemaPath, 'utf8');
@@ -1941,7 +1880,7 @@ const server = http.createServer(async (req, res) => {
     if (method === 'POST' && url === '/apps') return await handleApps(req, res);
     if (method === 'POST' && url === '/browser') return await handleBrowser(req, res);
     if (method === 'POST' && url === '/browser4') return await handleBrowser4(req, res);
-      if (method === 'POST' && url === '/auto-browser') return await handleAutoBrowser(req, res);
+    if (method === 'POST' && url === '/auto-browser') return await handleAutoBrowser(req, res);
     if (method === 'POST' && url === '/files') return await handleFiles(req, res);
     if (method === 'POST' && url === '/fetch-upload') return await handleFetchUpload(req, res);
     if (method === 'POST' && url === '/shell-fetch-upload') return await handleShellFetchUpload(req, res);
@@ -1956,10 +1895,6 @@ const server = http.createServer(async (req, res) => {
     return err(res, 500, 'INTERNAL_ERROR', 'Unexpected server error');
   }
 });
-
-// ---------------------------------------------------------------------------
-// Start
-// ---------------------------------------------------------------------------
 
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`[connector] Listening on http://127.0.0.1:${PORT}`);
