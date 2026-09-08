@@ -28,15 +28,11 @@ export function buildMcpRoutes(deps) {
   }
 
   // Staging-only WordPress federation is a separate path-scoped issuer on the
-  // same authorization service. Its DCR switch is projected into this isolated
-  // router only; enabling ChatGPT registration here does not enable DCR on the
-  // primary mcp-dev resource issuer.
+  // same authorization service. The dedicated router resolves its own DCR
+  // authority from REMOTE_MCP_WORDPRESS_STAGING_DCR_ENABLED so the primary
+  // Remote MCP issuer and WordPress issuer cannot inherit each other's switch.
   if (wordpressStagingMcpOAuthConfigured(env)) {
-    const wordpressEnv = {
-      ...env,
-      REMOTE_MCP_OAUTH_DCR_ENABLED: env.REMOTE_MCP_WORDPRESS_STAGING_DCR_ENABLED || "false",
-    };
-    router.use(buildWordpressStagingMcpOAuthRoutes({ ...deps, env: wordpressEnv }));
+    router.use(buildWordpressStagingMcpOAuthRoutes({ ...deps, env }));
   }
 
   // Standards-oriented remote MCP surface for ChatGPT, Claude, Codex, and
