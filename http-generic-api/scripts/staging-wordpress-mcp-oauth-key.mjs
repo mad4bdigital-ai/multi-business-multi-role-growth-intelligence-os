@@ -5,9 +5,9 @@ import {
 import {
   chmodSync,
   existsSync,
+  linkSync,
   mkdirSync,
   readFileSync,
-  renameSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -64,21 +64,24 @@ export function ensureWordpressStagingMcpOAuthKey(env = process.env) {
   const pem = privateKey.export({ type: "pkcs8", format: "pem" });
   validatePrivateKeyPem(pem);
 
-  const tempPath = `${filePath}.tmp-${process.pid}-${Date.now()}`;
+  const tempPath = `${filePath}.tmp-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   try {
     writeFileSync(tempPath, pem, { encoding: "utf8", mode: 0o600, flag: "wx" });
-    renameSync(tempPath, filePath);
+    // Publish without replacement. linkSync is atomic on the same filesystem and
+    // fails with EEXIST if another bootstrap already won the canonical path.
+    linkSync(tempPath, filePath);
+    rmSync(tempPath, { force: true });
     try { chmodSync(filePath, 0o600); } catch {}
+    return { status: "generated", generated: true, path: filePath, secrets_included: false };
   } catch (error) {
     try { rmSync(tempPath, { force: true }); } catch {}
-    if (existsSync(filePath)) {
+    if (error?.code === "EEXIST" || existsSync(filePath)) {
       validatePrivateKeyPem(readFileSync(filePath, "utf8"));
+      try { chmodSync(filePath, 0o600); } catch {}
       return { status: "ready_race_winner", generated: false, path: filePath, secrets_included: false };
     }
     throw error;
   }
-
-  return { status: "generated", generated: true, path: filePath, secrets_included: false };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
