@@ -22,7 +22,9 @@ export const WORDPRESS_STAGING_MCP_AUTHORIZATION_SCOPES = Object.freeze(
     : [],
 );
 export const WORDPRESS_STAGING_MCP_RESOURCE = "https://staging.egypttourgates.com/wp-json/mcp/mad4b-read";
+export const WORDPRESS_STAGING_MCP_AUTHORIZATION_SERVER_BASE = "https://dev.mad4b.com/auth/mcp";
 export const WORDPRESS_STAGING_MCP_ISSUER_SUFFIX = "/wordpress-staging";
+export const WORDPRESS_STAGING_MCP_ISSUER = `${WORDPRESS_STAGING_MCP_AUTHORIZATION_SERVER_BASE}${WORDPRESS_STAGING_MCP_ISSUER_SUFFIX}`;
 export const WORDPRESS_STAGING_MCP_ACCESS_TOKEN_ALG = "RS256";
 export const WORDPRESS_STAGING_MCP_PRIVATE_KEY_FILE = "/app/data/oauth/wordpress-staging-rs256-private.pem";
 export const WORDPRESS_STAGING_MCP_CLIENT_ID_PREFIX = "mcp_stg_wp_";
@@ -100,15 +102,16 @@ export function isWordpressStagingMcpClientRecord(client, env = process.env) {
 }
 
 export function resolveWordpressStagingMcpResource(env = process.env) {
-  return normalizeHttpsUrlWithPath(
-    env.REMOTE_MCP_WORDPRESS_STAGING_RESOURCE_URL || WORDPRESS_STAGING_MCP_RESOURCE,
-  );
+  const configured = String(env.REMOTE_MCP_WORDPRESS_STAGING_RESOURCE_URL || "").trim();
+  if (!configured) return WORDPRESS_STAGING_MCP_RESOURCE;
+  const normalized = normalizeHttpsUrlWithPath(configured);
+  return normalized === WORDPRESS_STAGING_MCP_RESOURCE ? WORDPRESS_STAGING_MCP_RESOURCE : "";
 }
 
 export function resolveWordpressStagingMcpIssuer(env = process.env) {
-  const base = resolveRemoteMcpAuthorizationIssuer(env);
-  if (!base) return "";
-  return normalizeHttpsUrlWithPath(`${base}${WORDPRESS_STAGING_MCP_ISSUER_SUFFIX}`);
+  const base = normalizeHttpsUrlWithPath(resolveRemoteMcpAuthorizationIssuer(env));
+  if (base !== WORDPRESS_STAGING_MCP_AUTHORIZATION_SERVER_BASE) return "";
+  return WORDPRESS_STAGING_MCP_ISSUER;
 }
 
 export function resolveWordpressStagingMcpPrivateKeyFile(env = process.env) {
@@ -120,8 +123,8 @@ export function wordpressStagingMcpOAuthConfigured(env = process.env) {
   return remoteMcpOAuthEnabled(env)
     && envFlag(env.REMOTE_MCP_WORDPRESS_STAGING_OAUTH_ENABLED)
     && resolveRemoteMcpEnvironment(env) === "staging"
-    && Boolean(resolveWordpressStagingMcpIssuer(env))
-    && Boolean(resolveWordpressStagingMcpResource(env));
+    && resolveWordpressStagingMcpIssuer(env) === WORDPRESS_STAGING_MCP_ISSUER
+    && resolveWordpressStagingMcpResource(env) === WORDPRESS_STAGING_MCP_RESOURCE;
 }
 
 export function wordpressStagingMcpDcrEnabled(env = process.env) {
@@ -238,6 +241,8 @@ export function getWordpressStagingMcpOAuthStatus(env = process.env) {
     environment: resolveRemoteMcpEnvironment(env),
     issuer,
     resource,
+    issuer_pinned: issuer === WORDPRESS_STAGING_MCP_ISSUER,
+    resource_pinned: resource === WORDPRESS_STAGING_MCP_RESOURCE,
     resource_scope: WORDPRESS_STAGING_MCP_SCOPE,
     authorization_scopes: [...WORDPRESS_STAGING_MCP_AUTHORIZATION_SCOPES],
     refresh_token_supported: true,
