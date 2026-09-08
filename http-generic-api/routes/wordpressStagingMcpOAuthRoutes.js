@@ -152,6 +152,55 @@ async function activeUserContext(pool, claims) {
   return membership ? { user_id: userId, tenant_id: membership.tenant_id } : null;
 }
 
+async function consentUserContext(pool, claims, selectedTenantId = "") {
+  const userId = text(claims?.user_id, 64);
+  if (!userId) return null;
+  const [userRows] = await pool.query(
+    `SELECT user_id FROM users WHERE user_id = ? AND status = 'active'`,
+    [userId],
+  );
+  const [user] = userRows;
+  if (!user) return null;
+
+  const selectedTenant = text(selectedTenantId, 64);
+  if (selectedTenant) {
+    const [selectedRows] = await pool.query(
+      `SELECT m.tenant_id
+         FROM memberships m
+         JOIN tenants t ON t.tenant_id = m.tenant_id
+        WHERE m.user_id = ?
+          AND m.tenant_id = ?
+          AND m.status = 'active'
+          AND t.status = 'active'
+        LIMIT 1`,
+      [userId, selectedTenant],
+    );
+    const [membership] = selectedRows;
+    return membership ? { user_id: userId, tenant_id: membership.tenant_id, ambiguous: false } : null;
+  }
+
+  const [membershipRows] = await pool.query(
+    `SELECT m.tenant_id
+       FROM memberships m
+       JOIN tenants t ON t.tenant_id = m.tenant_id
+      WHERE m.user_id = ?
+        AND m.status = 'active'
+        AND t.status = 'active'
+      ORDER BY m.granted_at ASC, m.id ASC
+      LIMIT 2`,
+    [userId],
+  );
+  if (membershipRows.length > 1) {
+    return { user_id: userId, tenant_id: null, ambiguous: true };
+  }
+  const [membership] = membershipRows;
+  return {
+    user_id: userId,
+    tenant_id: membership?.tenant_id || null,
+    ambiguous: false,
+  };
+}
+
 function exactSubjectContext(context, userId, tenantId) {
   return Boolean(context)
     && context.user_id === userId
@@ -229,17 +278,19 @@ function authorizePage({ client, authorizationRequest }) {
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Connect ${name}</title><style>
-body{font-family:Arial,sans-serif;margin:0;background:#07111f;color:#eef4ff;display:grid;min-height:100vh;place-items:center}main{width:min(480px,calc(100vw - 32px));background:#101a30;border:1px solid #2d3f62;border-radius:22px;padding:26px}label{display:block;margin:12px 0 5px;color:#a8b6d8;font-size:13px}input{width:100%;box-sizing:border-box;border-radius:14px;border:1px solid #2d3f62;padding:12px;background:#0b1428;color:#f0f5ff}button{border-radius:14px;border:1px solid #87a0ff;padding:12px 16px;color:white;background:#6383ff;font-weight:800;margin-top:14px;cursor:pointer}.consent{display:flex;gap:10px;align-items:flex-start;margin:16px 0;color:#eef4ff}.consent input{width:auto}pre{white-space:pre-wrap;background:#0b1428;border:1px solid #2d3f62;border-radius:14px;padding:12px}.muted{color:#a8b6d8;font-size:13px}
+body{font-family:Arial,sans-serif;margin:0;background:#07111f;color:#eef4ff;display:grid;min-height:100vh;place-items:center}main{width:min(480px,calc(100vw - 32px));background:#101a30;border:1px solid #2d3f62;border-radius:22px;padding:26px}label{display:block;margin:12px 0 5px;color:#a8b6d8;font-size:13px}input,select{width:100%;box-sizing:border-box;border-radius:14px;border:1px solid #2d3f62;padding:12px;background:#0b1428;color:#f0f5ff}button{border-radius:14px;border:1px solid #87a0ff;padding:12px 16px;color:white;background:#6383ff;font-weight:800;margin-top:14px;cursor:pointer}.consent{display:flex;gap:10px;align-items:flex-start;margin:16px 0;color:#eef4ff}.consent input{width:auto}pre{white-space:pre-wrap;background:#0b1428;border:1px solid #2d3f62;border-radius:14px;padding:12px}.muted{color:#a8b6d8;font-size:13px}
 </style></head><body><main><h1>Connect ${name}</h1>
 <p class="muted">This client requests read-only WordPress Staging access: ${WORDPRESS_STAGING_MCP_SCOPE}. Only pre-approved Staging subjects can complete authorization. Refresh access carries no additional mutation authority.</p>
 <label>Email</label><input id="email" type="email" autocomplete="username"/>
 <label>Password</label><input id="password" type="password" autocomplete="current-password"/>
+<label id="workspace-label" hidden>Workspace</label><select id="workspace" hidden><option value="">Select workspace</option></select>
 <label class="consent"><input id="consent" type="checkbox"/><span>I authorize this client to use the read-only scope shown above and understand that I can revoke access later.</span></label>
 <button id="login">Sign in and connect</button><pre id="out">Waiting for sign-in and consent.</pre>
 <script>
-const request=${request};const out=document.getElementById('out');
-async function finish(token){const response=await fetch('/auth/mcp/wordpress-staging/oauth/code',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+token},body:JSON.stringify({...request,consent:true})});const data=await response.json();if(!response.ok)throw new Error(data?.error?.message||data?.error_description||'Authorization failed.');location.assign(data.redirect_to)}
-async function authenticate(){if(!document.getElementById('consent').checked)throw new Error('Consent is required before connecting this client.');const body={email:document.getElementById('email').value,password:document.getElementById('password').value};const response=await fetch('/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});const data=await response.json();if(!response.ok||!data.token)throw new Error(data?.error?.message||'Sign-in failed.');await finish(data.token)}
+const request=${request};const out=document.getElementById('out');const workspace=document.getElementById('workspace');const workspaceLabel=document.getElementById('workspace-label');let authenticatedToken='';
+function showWorkspaces(memberships){workspace.innerHTML='<option value="">Select workspace</option>';for(const membership of memberships){const option=document.createElement('option');option.value=String(membership.tenant_id||'');option.textContent=String(membership.tenant_display_name||membership.display_name||membership.tenant_id||'Workspace');workspace.appendChild(option)}workspace.hidden=false;workspaceLabel.hidden=false;}
+async function finish(token,selectedTenantId=''){const response=await fetch('/auth/mcp/wordpress-staging/oauth/code',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+token},body:JSON.stringify({...request,consent:true,selected_tenant_id:selectedTenantId||undefined})});const data=await response.json();if(!response.ok)throw new Error(data?.error?.message||data?.error_description||'Authorization failed.');location.assign(data.redirect_to)}
+async function authenticate(){if(!document.getElementById('consent').checked)throw new Error('Consent is required before connecting this client.');if(authenticatedToken){if(!workspace.hidden&&!workspace.value)throw new Error('Select a workspace before continuing.');return finish(authenticatedToken,workspace.value)}const body={email:document.getElementById('email').value,password:document.getElementById('password').value};const response=await fetch('/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});const data=await response.json();if(!response.ok||!data.token)throw new Error(data?.error?.message||'Sign-in failed.');authenticatedToken=data.token;const memberships=Array.isArray(data.memberships)?data.memberships.filter(item=>item&&item.tenant_id):[];if(memberships.length>1){showWorkspaces(memberships);out.textContent='Select the workspace to bind to this WordPress connection, then click Sign in and connect again.';return}await finish(data.token,memberships[0]?.tenant_id||'')}
 document.getElementById('login').onclick=()=>authenticate().catch(error=>out.textContent=error.message);
 </script></main></body></html>`;
 }
@@ -298,7 +349,7 @@ export function buildWordpressStagingMcpOAuthRoutes(deps = {}) {
         tokenEndpointAuthMethod: authMethod,
         clientSecret,
         redirectUris,
-        allowedScopes: [...WORDPRESS_STAGING_MCP_AUTHORIZATION_SCOPES],
+        allowedScopes: scopes.scopes,
       });
       noStore(res);
       return res.status(201).json({
@@ -372,8 +423,9 @@ export function buildWordpressStagingMcpOAuthRoutes(deps = {}) {
       if (!scopes.ok || scopes.scopes.some((scope) => !client.allowed_scopes.includes(scope))) return oauthError(res, 400, "invalid_scope", "scope is invalid.");
       const challenge = text(request?.code_challenge, 128);
       if (request?.code_challenge_method !== "S256" || !/^[A-Za-z0-9_-]{43}$/u.test(challenge)) return oauthError(res, 400, "invalid_request", "PKCE S256 code_challenge is required.");
-      const context = await activeUserContext(pool, verified.claims);
-      if (!context) return oauthError(res, 403, "inactive_user", "The signed-in user or requested tenant context is not active.");
+      const context = await consentUserContext(pool, verified.claims, req.body?.selected_tenant_id);
+      if (context?.ambiguous) return oauthError(res, 409, "tenant_context_required", "Select an active workspace before authorizing this WordPress connection.");
+      if (!context) return oauthError(res, 403, "inactive_user", "The signed-in user or selected tenant context is not active.");
       if (!wordpressStagingMcpSubjectAllowed({ userId: context.user_id, tenantId: context.tenant_id }, env)) return oauthError(res, 403, "access_denied", "The signed-in subject is not approved for the WordPress staging MCP resource.");
       const issued = await issueRemoteMcpAuthorizationCode({
         pool,
