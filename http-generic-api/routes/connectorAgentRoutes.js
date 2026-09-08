@@ -9,6 +9,10 @@ import {
   connectorLocalApiKeySelectFragment,
 } from "../connectorSchemaCompatibility.js";
 import { resolveRuntimeEnvironmentStrict } from "../runtimeEnvironmentResolver.js";
+import {
+  installerControlPlaneBinding,
+  verifyInstallerDownloadToken,
+} from "../localConnectorInstallerCapability.js";
 
 const AGENT_VERSION = "2026.05.28.1";
 const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -133,12 +137,6 @@ function sha256(buffer) {
   return crypto.createHash("sha256").update(buffer).digest("hex");
 }
 
-function publicBaseUrl(req) {
-  const proto = String(req.headers["x-forwarded-proto"] || req.protocol || "https").split(",")[0].trim();
-  const host = String(req.headers["x-forwarded-host"] || req.headers.host || "auth.mad4b.com").split(",")[0].trim();
-  return `${proto}://${host}`;
-}
-
 function connectorControlPlaneHost(environment) {
   if (!['staging', 'production'].includes(environment)) {
     throw new Error(`connector_runtime_environment_unsupported:${environment || 'unknown'}`);
@@ -170,28 +168,6 @@ function httpError(status, code, message) {
   err.status = status;
   err.code = code;
   return err;
-}
-
-function installerTokenSecret() {
-  const secret = String(process.env.BACKEND_API_KEY || "").trim();
-  if (!secret) throw httpError(500, "installer_token_secret_missing", "BACKEND_API_KEY is required for installer download links.");
-  return secret;
-}
-
-function verifyInstallerDownloadToken(token) {
-  const [body, sig] = String(token || "").split(".");
-  if (!body || !sig) throw httpError(401, "invalid_download_token", "Invalid installer download token.");
-  const expected = crypto.createHmac("sha256", installerTokenSecret()).update(body).digest("base64url");
-  const a = Buffer.from(sig);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
-    throw httpError(401, "invalid_download_token", "Invalid installer download token signature.");
-  }
-  const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
-  if (!payload.exp || Number(payload.exp) < Math.floor(Date.now() / 1000)) {
-    throw httpError(401, "download_token_expired", "Installer download token has expired.");
-  }
-  return payload;
 }
 
 function psQuote(value) {
@@ -421,17 +397,42 @@ function normalizeShellPolicyRow(row) {
   };
 }
 
-function buildConnectorEnv({ connectorSecret, connectorLocalApiKey = '', aliases, port, capabilities = [], permissionGrants = {}, environment, controlPlaneBaseUrl }) {
+async function claimInstallerCapability(config, payload) {
+  const metadata = JSON.stringify({
+    contract: payload.contract,
+    purpose: payload.purpose,
+    audience: payload.aud,
+    environment: payload.environment,
+    issued_at: payload.iat,
+    expires_at: payload.exp,
+    one_time: true,
+    secrets_included: false,
+  });
+  try {
+    const [result] = await getPool().query(
+      `INSERT INTO \`local_connector_recovery_events\`
+         (event_id, config_id, user_id, tenant_id, device_id, event_type, status, source, agent_version, active_slot, error_code, error_message, metadata_json)
+       VALUES (?, ?, ?, ?, ?, 'repair_bundle', 'ok', 'installer', ?, NULL, NULL, NULL, ?)`,
+      [payload.jti, config.config_id, config.user_id, config.tenant_id, config.device_id, AGENT_VERSION, metadata],
+    );
+    if (Number(result?.affectedRows || 0) !== 1) {
+      throw httpError(409, "installer_capability_replayed", "Installer credential capability has already been consumed.");
+    }
+  } catch (err) {
+    if (err?.code === "ER_DUP_ENTRY" || err?.code === "installer_capability_replayed") {
+      throw httpError(409, "installer_capability_replayed", "Installer credential capability has already been consumed.");
+    }
+    if (err?.status) throw err;
+    throw httpError(503, "installer_replay_store_unavailable", "Installer credential replay protection is unavailable; refusing secret materialization.");
+  }
+}
+
+function buildConnectorEnv({ aliases, port, capabilities = [], permissionGrants = {}, environment, controlPlaneBaseUrl }) {
   const grants = normalizePermissionGrants(permissionGrants);
   const allAliases = [...aliases, ...grants.shell_aliases];
   const appAllowlistLine = Object.keys(grants.apps).length ? [envJsonLine("CONNECTOR_APP_ALLOWLIST", grants.apps)] : [];
   const filePathLine = grants.allowed_paths.length ? [`CONNECTOR_FILE_PATHS=${grants.allowed_paths.join(",")}`] : [];
-  const connectorLocalApiKeyLine = String(connectorLocalApiKey || '').trim()
-    ? [`CONNECTOR_LOCAL_API_KEY=${String(connectorLocalApiKey).trim()}`]
-    : [];
   return [
-    `CONNECTOR_SECRET=${connectorSecret}`,
-    ...connectorLocalApiKeyLine,
     `CONNECTOR_ENVIRONMENT=${environment}`,
     `CONNECTOR_CONTROL_PLANE_BASE_URL=${controlPlaneBaseUrl}`,
     `CONNECTOR_POLICY_URL=${controlPlaneBaseUrl}/connector-agent/policy`,
@@ -468,8 +469,8 @@ function buildConnectorEnv({ connectorSecret, connectorLocalApiKey = '', aliases
   ].join("\r\n");
 }
 
-function buildInstallPowerShell({ cfToken, connectorSecret, connectorLocalApiKey = '', tunnelUrl, aliases, port, capabilities = [], permissionGrants = {}, environment, controlPlaneBaseUrl }) {
-  const envText = buildConnectorEnv({ connectorSecret, connectorLocalApiKey, aliases, port, capabilities, permissionGrants, environment, controlPlaneBaseUrl });
+function buildInstallPowerShell({ credentialUrl, tunnelUrl, aliases, port, capabilities = [], permissionGrants = {}, environment, controlPlaneBaseUrl }) {
+  const envText = buildConnectorEnv({ aliases, port, capabilities, permissionGrants, environment, controlPlaneBaseUrl });
   return [
     "# Mad4B Local Connector — run once as Administrator",
     "$ErrorActionPreference = 'Stop'",
@@ -493,6 +494,9 @@ function buildInstallPowerShell({ cfToken, connectorSecret, connectorLocalApiKey
     "$LocalAgentRuntime = Join-Path $Root 'local-agent-runtime.mjs'",
     "$SecretsRoot = Join-Path $Root 'secrets'",
     "$CfTokenFile = Join-Path $SecretsRoot 'cloudflared-token.txt'",
+    "$ConnectorSecretFile = Join-Path $SecretsRoot 'connector-secret.txt'",
+    "$ConnectorLocalApiKeyFile = Join-Path $SecretsRoot 'connector-local-api-key.txt'",
+    `$CredentialUrl = '${psQuote(credentialUrl)}'`,
     "$CfStdout = Join-Path $Root 'cloudflared.log'",
     "$CfStderr = Join-Path $Root 'cloudflared-error.log'",
     "",
@@ -517,11 +521,18 @@ function buildInstallPowerShell({ cfToken, connectorSecret, connectorLocalApiKey
     "    throw \"connector_transport_non_interference_failed:$Name\"",
     "  }",
     "}",
+    "function Protect-ConnectorSecretDirectory {",
+    "  param([Parameter(Mandatory=$true)][string]$Path)",
+    "  New-Item -ItemType Directory -Force -Path $Path | Out-Null",
+    "  $identity = [Security.Principal.WindowsIdentity]::GetCurrent().Name",
+    "  & icacls.exe $Path /inheritance:r /grant:r \"${identity}:(OI)(CI)F\" /grant:r \"SYSTEM:(OI)(CI)F\" | Out-Null",
+    "  if ($LASTEXITCODE -ne 0) { throw 'Unable to restrict Local Connector secrets directory ACL.' }",
+    "}",
     "function Protect-ConnectorSecretFile {",
     "  param([Parameter(Mandatory=$true)][string]$Path)",
     "  $identity = [Security.Principal.WindowsIdentity]::GetCurrent().Name",
     "  & icacls.exe $Path /inheritance:r /grant:r \"${identity}:(R,W)\" /grant:r \"SYSTEM:F\" | Out-Null",
-    "  if ($LASTEXITCODE -ne 0) { throw 'Unable to restrict Local Connector tunnel token file ACL.' }",
+    "  if ($LASTEXITCODE -ne 0) { throw 'Unable to restrict Local Connector secret file ACL.' }",
     "}",
     "",
     "if (-not (Get-Command node -ErrorAction SilentlyContinue)) {",
@@ -548,23 +559,44 @@ function buildInstallPowerShell({ cfToken, connectorSecret, connectorLocalApiKey
     "$LegacyBefore = Get-ServiceSnapshot $LegacyCfService",
     "$StagingBefore = Get-ServiceSnapshot $StagingCfService",
     "",
-    "New-Item -ItemType Directory -Force -Path $SecretsRoot | Out-Null",
-    `$CfToken = '${psQuote(cfToken)}'`,
+    "Protect-ConnectorSecretDirectory $SecretsRoot",
+    "if ([string]::IsNullOrWhiteSpace($CredentialUrl)) { throw 'Installer credential redemption URL is missing.' }",
+    "$CredentialBundle = Invoke-RestMethod -Uri $CredentialUrl -Method Get -Headers @{ Accept = 'application/json' } -TimeoutSec 60",
+    "if (-not $CredentialBundle.ok) { throw 'Installer credential redemption failed.' }",
+    "$CfToken = [string]$CredentialBundle.cf_token",
+    "$ConnectorSecret = [string]$CredentialBundle.connector_secret",
+    "$ConnectorLocalApiKey = [string]$CredentialBundle.connector_local_api_key",
     "if ([string]::IsNullOrWhiteSpace($CfToken) -or $CfToken.Length -le 20) { throw 'Local Connector tunnel token is empty or invalid.' }",
+    "if ([string]::IsNullOrWhiteSpace($ConnectorSecret) -or $ConnectorSecret.Length -le 20) { throw 'Local Connector secret is empty or invalid.' }",
     "$tokenEncoding = New-Object System.Text.UTF8Encoding($false)",
     "[IO.File]::WriteAllText($CfTokenFile, $CfToken.Trim(), $tokenEncoding)",
+    "[IO.File]::WriteAllText($ConnectorSecretFile, $ConnectorSecret.Trim(), $tokenEncoding)",
     "Protect-ConnectorSecretFile $CfTokenFile",
+    "Protect-ConnectorSecretFile $ConnectorSecretFile",
+    "if (-not [string]::IsNullOrWhiteSpace($ConnectorLocalApiKey)) {",
+    "  [IO.File]::WriteAllText($ConnectorLocalApiKeyFile, $ConnectorLocalApiKey.Trim(), $tokenEncoding)",
+    "  Protect-ConnectorSecretFile $ConnectorLocalApiKeyFile",
+    "}",
     "$CfToken = $null",
+    "$ConnectorSecret = $null",
+    "$ConnectorLocalApiKey = $null",
+    "$CredentialBundle = $null",
     "",
     "$EnvText = @'",
     envText,
     "'@",
     "$EnvText += \"`r`nCONNECTOR_CLOUDFLARED_TOKEN_FILE=$CfTokenFile\"",
+    "$EnvText += \"`r`nCONNECTOR_SECRET_FILE=$ConnectorSecretFile\"",
+    "if (Test-Path -LiteralPath $ConnectorLocalApiKeyFile) { $EnvText += \"`r`nCONNECTOR_LOCAL_API_KEY_FILE=$ConnectorLocalApiKeyFile\" }",
     "Set-Content -Path (Join-Path $Root '.env') -Value $EnvText -Encoding ascii",
     "",
     "if (-not (Get-Command cloudflared -ErrorAction SilentlyContinue)) { winget install Cloudflare.cloudflared -e --silent }",
     "if (-not (Get-Command nssm -ErrorAction SilentlyContinue)) { winget install NSSM.NSSM -e --silent }",
     "$cfPath = (Get-Command cloudflared -ErrorAction Stop).Source",
+    "$cfVersionText = (& $cfPath --version 2>&1 | Out-String).Trim()",
+    "if ($cfVersionText -notmatch '(\\d{4})\\.(\\d{1,2})\\.(\\d{1,2})') { throw 'cloudflared_version_unparseable' }",
+    "$cfVersion = [version](\"$($Matches[1]).$($Matches[2]).$($Matches[3])\")",
+    "if ($cfVersion -lt [version]'2025.4.0') { throw 'cloudflared_token_file_unsupported_version' }",
     "$cfSvc = Get-Service -Name $CfService -ErrorAction SilentlyContinue",
     "if (-not $cfSvc) { & nssm install $CfService $cfPath | Out-Null }",
     "& nssm set $CfService Application $cfPath | Out-Null",
@@ -865,8 +897,8 @@ export function buildConnectorAgentRoutes() {
 
   router.get("/connector-agent/manifest.json", async (req, res) => {
     try {
-      const base = publicBaseUrl(req);
       const binding = resolveConnectorEnvironmentBinding();
+      const base = binding.baseUrl;
       const files = {};
       for (const fileName of Object.keys(FILES)) {
         const loaded = await loadAgentFile(fileName);
@@ -911,26 +943,61 @@ export function buildConnectorAgentRoutes() {
 
   router.get("/connector-agent/installer.ps1", async (req, res) => {
     try {
-      const payload = verifyInstallerDownloadToken(req.query.token);
-      if (payload.format !== "ps1") throw httpError(400, "unsupported_format", "Only ps1 installer downloads are supported.");
-      const connectorLocalApiKeySelect = await connectorLocalApiKeySelectFragment();
+      const token = String(req.query.token || "");
+      const payload = verifyInstallerDownloadToken(token, { expectedFormat: "ps1" });
+      const material = String(req.query.material || "").trim().toLowerCase();
+      if (material && material !== "runtime_credentials") {
+        throw httpError(400, "installer_material_invalid", "Unknown installer material request.");
+      }
       const [[config]] = await getPool().query(
-        `SELECT config_id, user_id, tenant_id, device_id, COALESCE(device_runtime_url, tunnel_url) AS tunnel_url, connector_secret, ${connectorLocalApiKeySelect}, cf_token FROM \`local_connector_user_configs\` WHERE user_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1`,
-        [payload.user_id, payload.device_id]
+        `SELECT config_id, user_id, tenant_id, device_id, COALESCE(device_runtime_url, tunnel_url) AS tunnel_url
+           FROM \`local_connector_user_configs\`
+          WHERE config_id = ? AND user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1
+          LIMIT 1`,
+        [payload.config_id, payload.user_id, payload.tenant_id, payload.device_id]
       );
-      if (!config) throw httpError(404, "connector_config_not_found", "No active connector config was found for this download token.");
-      if (!config.cf_token || !config.connector_secret) throw httpError(409, "connector_config_incomplete", "Connector config is missing recovery token or connector secret.");
+      if (!config) throw httpError(404, "connector_config_not_found", "No exact active connector config was found for this installer capability.");
+
+      if (material === "runtime_credentials") {
+        await claimInstallerCapability(config, payload);
+        const connectorLocalApiKeySelect = await connectorLocalApiKeySelectFragment();
+        const [[credentials]] = await getPool().query(
+          `SELECT connector_secret, ${connectorLocalApiKeySelect}, cf_token
+             FROM \`local_connector_user_configs\`
+            WHERE config_id = ? AND user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1
+            LIMIT 1`,
+          [payload.config_id, payload.user_id, payload.tenant_id, payload.device_id]
+        );
+        if (!credentials?.cf_token || !credentials?.connector_secret) {
+          throw httpError(409, "connector_config_incomplete", "Connector config is missing canonical runtime credentials.");
+        }
+        res.setHeader("Cache-Control", "no-store, max-age=0");
+        res.setHeader("Pragma", "no-cache");
+        res.setHeader("X-Mad4B-Installer-Material", "one-time-runtime-credentials");
+        return res.status(200).json({
+          ok: true,
+          cf_token: credentials.cf_token,
+          connector_secret: credentials.connector_secret,
+          connector_local_api_key: credentials.connector_local_api_key || "",
+          one_time: true,
+          secrets_included: true,
+        });
+      }
+
       const dbGrants = await loadConnectorGrantPolicy(config.config_id);
       const binding = resolveConnectorEnvironmentBinding();
+      const capabilityBinding = installerControlPlaneBinding();
+      if (capabilityBinding.environment !== binding.environment || capabilityBinding.baseUrl !== binding.baseUrl) {
+        throw httpError(503, "installer_control_plane_binding_mismatch", "Installer capability and Connector control-plane bindings do not match.");
+      }
+      const credentialUrl = `${binding.baseUrl}/connector-agent/installer.ps1?material=runtime_credentials&token=${encodeURIComponent(token)}`;
       const installer = buildInstallPowerShell({
-        cfToken: config.cf_token,
-        connectorSecret: config.connector_secret,
-        connectorLocalApiKey: config.connector_local_api_key || '',
+        credentialUrl,
         tunnelUrl: config.tunnel_url,
         aliases: DEFAULT_WINDOWS_ALIASES,
         port: CONNECTOR_PORT,
-        capabilities: payload.capabilities || [],
-        permissionGrants: mergePermissionGrants(dbGrants, payload.permission_grants || {}),
+        capabilities: dbGrants.capabilities,
+        permissionGrants: dbGrants,
         environment: binding.environment,
         controlPlaneBaseUrl: binding.baseUrl,
       });
@@ -940,7 +1007,7 @@ export function buildConnectorAgentRoutes() {
       res.setHeader("Content-Disposition", `attachment; filename=\"${filename}\"`);
       return res.status(200).send(installer);
     } catch (err) {
-      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "connector_agent_installer_failed", message: err.message } });
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "connector_agent_installer_failed", message: err.message }, secrets_included: false });
     }
   });
 

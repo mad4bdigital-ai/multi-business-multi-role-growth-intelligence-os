@@ -26,7 +26,10 @@
       "local-connector/server.mjs",
       "local-connector/test-connector-environment-policy.mjs",
       "local-connector/test-connector-runtime-bootstrap.mjs",
-      "local-connector/test-files-endpoint.mjs"
+      "local-connector/test-files-endpoint.mjs",
+      "http-generic-api/localConnectorInstallerCapability.js",
+      "http-generic-api/services/localManagerDeviceLinkService.js",
+      "http-generic-api/test-local-connector-installer-capability.mjs"
     ]
   },
   "environment_impact": {
