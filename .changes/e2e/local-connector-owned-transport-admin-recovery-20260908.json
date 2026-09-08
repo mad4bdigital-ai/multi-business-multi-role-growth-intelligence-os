@@ -1,0 +1,181 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "local-connector-owned-transport-admin-recovery-20260908",
+  "title": "Converge Local Connector transport ownership and bounded Admin Recovery connection",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/local-connector-owned-transport-admin-recovery-20260908.json",
+      "docs/governance/admin-recovery-chatgpt-connection.md",
+      "http-generic-api/config/admin-recovery-chatgpt-connection.json",
+      "http-generic-api/routes/connectorAgentRoutes.js",
+      "http-generic-api/routes/index.js",
+      "http-generic-api/routes/localConnectorInstallerDelegationRoutes.js",
+      "http-generic-api/test-admin-recovery-chatgpt-connection.mjs",
+      "http-generic-api/test-local-connector-installer-delegation.mjs",
+      "http-generic-api/test-local-connector-installer-routing-closure.mjs",
+      "local-connector/README.md",
+      "local-connector/browser4-adapter.mjs",
+      "local-connector/connector-environment-policy.mjs",
+      "local-connector/connector-runtime-bootstrap.mjs",
+      "local-connector/test-connector-environment-policy.mjs",
+      "local-connector/test-connector-runtime-bootstrap.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make the modern Local Connector installer, watchdog, environment policy, legacy download entry points, documentation, and private Admin Recovery connection agree on one bounded runtime contract without creating new provider, database, secret, generic workflow-dispatch, or cross-environment authority.",
+      "e2e_journeys": [
+        {
+          "id": "connector-owned-cloudflared-runtime",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Manager Windows operator",
+          "entrypoint": "short-lived Local Connector installer link",
+          "terminal_outcome": "The canonical connector-agent installer owns only Mad4B-LocalConnector-Cloudflared, uses a restricted token file plus loopback-only metrics/logs, leaves generic cloudflared and Mad4B-Staging-Cloudflared unchanged, and the watchdog certifies the same runtime name.",
+          "steps": [
+            "Resolve a current short-lived Local Connector installer link.",
+            "Route PS1 directly to /connector-agent/installer.ps1 and route BAT through a bootstrap that downloads the same canonical PS1.",
+            "Verify the connector-agent manifest and SHA256 entries before installing runtime files.",
+            "Persist the canonical Connector cloudflared ownership, management mode, token-file, and metrics binding in .env.",
+            "Install or reconcile Mad4B-LocalConnector-Cloudflared without stopping, uninstalling, renaming, or reconfiguring generic cloudflared or Mad4B-Staging-Cloudflared.",
+            "Require local connector health and allow the watchdog to certify the same canonical runtime."
+          ],
+          "assertions": [
+            "The active installer path never invokes cloudflared service install with an inline token.",
+            "The Connector-owned Cloudflared service name is exactly Mad4B-LocalConnector-Cloudflared.",
+            "The tunnel token is stored in a restricted local token file and is not included in runtime evidence.",
+            "Cloudflared metrics remain loopback-only on a Connector-dedicated listener.",
+            "The generic cloudflared service and Mad4B-Staging-Cloudflared are non-interference boundaries.",
+            "Legacy installer download routes are preceded by the canonical delegation router and cannot execute their historical inline installer implementation.",
+            "No Cloudflare DNS/provider mutation, Production deployment, database mutation, migration apply, ruleset mutation, or secret rotation is authorized by this change."
+          ],
+          "tests": [
+            {
+              "id": "local-connector-installer-delegation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-local-connector-installer-delegation.mjs",
+              "args": []
+            },
+            {
+              "id": "local-connector-installer-routing-closure",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-local-connector-installer-routing-closure.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/local-connector-owned-transport-admin-recovery-20260908.json",
+            "http-generic-api/routes/connectorAgentRoutes.js",
+            "http-generic-api/routes/index.js",
+            "http-generic-api/routes/localConnectorInstallerDelegationRoutes.js",
+            "local-connector/connector-watchdog.ps1",
+            "local-connector/README.md"
+          ]
+        },
+        {
+          "id": "environment-policy-fail-closed",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Connector process",
+          "entrypoint": "local-connector/server.mjs startup",
+          "terminal_outcome": "The runtime accepts only the policy host that matches CONNECTOR_ENVIRONMENT, blocks Staging missing/mismatched policy configuration, and permits the historical Production fallback only behind an explicit Production compatibility flag.",
+          "steps": [
+            "Load the connector .env before runtime configuration is constructed.",
+            "Resolve CONNECTOR_ENVIRONMENT and the expected control-plane hostname.",
+            "Validate CONNECTOR_POLICY_URL against the environment-bound hostname.",
+            "Reject Staging with a missing or Production policy URL.",
+            "Allow the historical Production default only when the explicit compatibility flag is enabled in Production."
+          ],
+          "assertions": [
+            "production maps to auth.mad4b.com.",
+            "staging maps to dev.mad4b.com.",
+            "Staging cannot fall back to auth.mad4b.com.",
+            "Cross-environment policy callbacks fail closed before policy pull.",
+            "No new hostname such as connector-dev.mad4b.com is introduced."
+          ],
+          "tests": [
+            {
+              "id": "connector-environment-policy",
+              "runner": "node",
+              "working_directory": "local-connector",
+              "path": "test-connector-environment-policy.mjs",
+              "args": []
+            },
+            {
+              "id": "connector-runtime-bootstrap",
+              "runner": "node",
+              "working_directory": "local-connector",
+              "path": "test-connector-runtime-bootstrap.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "local-connector/connector-environment-policy.mjs",
+            "local-connector/connector-runtime-bootstrap.mjs",
+            "local-connector/test-connector-environment-policy.mjs",
+            "local-connector/test-connector-runtime-bootstrap.mjs",
+            "local-connector/README.md"
+          ]
+        },
+        {
+          "id": "bounded-admin-recovery-chatgpt-connection",
+          "end_to_end": true,
+          "level": "contract",
+          "actor": "MAD4B Admin Recovery ChatGPT connection",
+          "entrypoint": "existing admin_recovery_production private projection",
+          "terminal_outcome": "ChatGPT can register/use the bounded Admin Recovery projection while workflow dispatch, execution-ticket resolution, target selection, credentials, SQL, shell, and provider authority remain server-side and outside caller control.",
+          "steps": [
+            "Bind the connection contract to the existing admin_recovery_production standalone projection.",
+            "Expose only the existing private Recovery Kernel operation set selected by the projection.",
+            "Keep workflow dispatch and approval-token/execution-ticket resolution server-side.",
+            "Reject generic repository/ref/workflow selection and caller-supplied GitHub/DB credentials or execution tickets."
+          ],
+          "assertions": [
+            "No generic GitHub Actions dispatcher is exposed.",
+            "No raw shell or raw SQL surface is added.",
+            "No new break-glass secret or database migration is introduced.",
+            "The connection reuses admin_recovery_production rather than widening Admin Core.",
+            "No signed recovery envelope is required or introduced by this patch."
+          ],
+          "tests": [
+            {
+              "id": "admin-recovery-chatgpt-connection",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-admin-recovery-chatgpt-connection.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/config/admin-recovery-chatgpt-connection.json",
+            "docs/governance/admin-recovery-chatgpt-connection.md",
+            "http-generic-api/test-admin-recovery-chatgpt-connection.mjs",
+            "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml",
+            "canonicals/openapi/custom-gpt-surfaces.yaml"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
