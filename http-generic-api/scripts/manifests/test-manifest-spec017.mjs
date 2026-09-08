@@ -6,5 +6,6 @@ export const testCommands = Object.freeze([
   "node test-trusted-request-host-routing.mjs",
   "node test-wordpress-staging-mcp-oauth-key-bootstrap.mjs",
   "node test-wordpress-staging-mcp-oauth-federation.mjs",
+  "node test-wordpress-staging-mcp-oauth-issuer-binding.mjs",
   "node scripts/test-e2e-github-main-review-policy-readiness-failure-publisher.mjs",
 ]);
