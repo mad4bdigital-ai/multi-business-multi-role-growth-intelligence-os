@@ -2675,15 +2675,15 @@
       ]
     },
     {
-      "rule_id": "local-connector-installer-delegation-signed-query-auth",
-      "operation": "GET /local-connector/install/download",
+      "rule_id": "local-connector-installer-delegation-api-only",
       "source_file": "routes/localConnectorInstallerDelegationRoutes.js",
-      "profile": "signed_query_token",
+      "scope": "developer",
+      "decision": "api_only",
       "owner": "local-connector",
-      "rationale": "The canonical delegation router verifies the existing short-lived installer token before redirecting PS1 requests or materializing the BAT bootstrap; it does not widen installer or runtime authority.",
+      "rationale": "The signed-query canonical installer delegation endpoint is a machine-consumed API delivery surface. It redirects or materializes the canonical installer only after existing signed-link verification and does not render a browser UI, widen installer authority, or expose generic execution.",
       "evidence_refs": [
         "routes/localConnectorInstallerDelegationRoutes.js",
-        "routes/connectorAgentRoutes.js",
+        "routes/index.js",
         "test-local-connector-durable-self-healing.mjs",
         "openapi.yaml"
       ]
