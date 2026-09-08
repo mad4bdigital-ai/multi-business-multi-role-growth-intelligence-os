@@ -316,7 +316,9 @@
       ".changes/e2e/certified-release-cut-production-classifier-adapter.json",
       ".github/scripts/production-promotion-identity.mjs",
       ".github/scripts/production-promotion-operation-state.mjs",
-      ".github/workflows/production-certified-release-cut-validation.yml"
+      ".github/workflows/production-certified-release-cut-validation.yml",
+      ".changes/e2e/spec014-durable-authorized-injection-schema-ddl.json",
+      ".github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml"
     ],
     "automerge_opt_out_labels": [
       "do-not-auto-merge",
