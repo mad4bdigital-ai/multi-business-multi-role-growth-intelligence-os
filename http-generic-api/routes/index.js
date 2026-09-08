@@ -47,6 +47,7 @@ import { buildUploadRoutes } from "./uploadRoutes.js";
 import { buildTenantCommercialRoutes } from "./tenantCommercialRoutes.js";
 import { buildLocalConnectorRoutes } from "./localConnectorRoutes.js";
 import { buildLocalConnectorInstallRoutes } from "./localConnectorInstallRoutes.js";
+import { buildLocalConnectorInstallerDelegationRoutes } from "./localConnectorInstallerDelegationRoutes.js";
 import { buildDispatchRoutes } from "./dispatchRoutes.js";
 import { buildOnboardingRoutes } from "./onboardingRoutes.js";
 import { buildConnectRoutes } from "./connectRoutes.js";
@@ -183,6 +184,9 @@ export function registerRoutes(app, deps) {
   // Mount before root-level protected routers that can return missing_backend_api_key.
   app.use(buildLocalManagerBetaRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildLocalManagerDesktopCommandRoutes({ ...deps, requireAdminPrincipal }));
+  // Canonical installer delegation must precede the legacy installer router so
+  // /local-connector/install/download can never execute the old inline cloudflared implementation.
+  app.use(buildLocalConnectorInstallerDelegationRoutes({ env: deps?.env || process.env }));
   app.use(buildLocalConnectorInstallRoutes(deps));
   // Public token-gated credential intake pages must mount before any root-level
   // protected routers that call router.use(requireBackendApiKey).
