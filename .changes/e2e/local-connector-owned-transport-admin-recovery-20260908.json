@@ -12,7 +12,9 @@
     "include": [
       ".changes/e2e/local-connector-owned-transport-admin-recovery-20260908.json",
       "docs/governance/admin-recovery-chatgpt-connection.md",
+      "docs/governance/configuration-drift-baseline-extensions.json",
       "http-generic-api/config/admin-recovery-chatgpt-connection.json",
+      "http-generic-api/frontend-surface-policy.json",
       "http-generic-api/routes/connectorAgentRoutes.js",
       "http-generic-api/routes/index.js",
       "http-generic-api/routes/localConnectorInstallerDelegationRoutes.js",
@@ -23,7 +25,8 @@
       "local-connector/connector-runtime-bootstrap.mjs",
       "local-connector/server.mjs",
       "local-connector/test-connector-environment-policy.mjs",
-      "local-connector/test-connector-runtime-bootstrap.mjs"
+      "local-connector/test-connector-runtime-bootstrap.mjs",
+      "local-connector/test-files-endpoint.mjs"
     ]
   },
   "environment_impact": {
