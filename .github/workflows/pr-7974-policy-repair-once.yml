@@ -54,13 +54,18 @@ jobs:
           }
           fs.writeFileSync(file, `${JSON.stringify(policy, null, 2)}\n`);
           NODE
-      - name: Verify bounded authority repair
+      - name: Install verification dependencies
         working-directory: http-generic-api
-        run: |
-          npm ci
-          npm run frontend:dispatch:generate -- --baseline-ref=main
-          node test-frontend-surface-coverage-claims.mjs
-          node test-openapi-projection-readiness.mjs
+        run: npm ci
+      - name: Generate bounded frontend projection
+        working-directory: http-generic-api
+        run: npm run frontend:dispatch:generate -- --baseline-ref=main
+      - name: Verify frontend surface coverage claims
+        working-directory: http-generic-api
+        run: node test-frontend-surface-coverage-claims.mjs
+      - name: Verify OpenAPI projection readiness
+        working-directory: http-generic-api
+        run: node test-openapi-projection-readiness.mjs
       - name: Commit authority repair and remove one-shot workflow
         shell: bash
         run: |
@@ -72,5 +77,3 @@ jobs:
           git diff --cached --check
           git commit -m 'fix(frontend): classify signed installer delegation surface'
           git push origin HEAD:fix/admin-recovery-mcp-local-connector-ownership-20260908
-
-# retrigger: policy repair after n8n fixture isolation
