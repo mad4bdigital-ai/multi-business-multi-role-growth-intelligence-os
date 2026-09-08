@@ -9,6 +9,8 @@ const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
 
 const indexSource = read("http-generic-api/routes/index.js");
 const agentSource = read("http-generic-api/routes/connectorAgentRoutes.js");
+const serverSource = read("local-connector/server.mjs");
+const browser4Source = read("local-connector/browser4-adapter.mjs");
 const watchdogSource = read("local-connector/connector-watchdog.ps1");
 const readme = read("local-connector/README.md");
 
@@ -24,6 +26,9 @@ assert.match(agentSource, /cloudflared-token\.txt/);
 assert.doesNotMatch(agentSource, /cloudflared service install/);
 assert.match(agentSource, /connector-environment-policy\.mjs/);
 assert.match(agentSource, /connector-runtime-bootstrap\.mjs/);
+
+assert.match(serverSource, /import ['"]\.\/connector-runtime-bootstrap\.mjs['"];?/);
+assert.doesNotMatch(browser4Source, /connector-runtime-bootstrap\.mjs/);
 
 assert.match(watchdogSource, /Mad4B-LocalConnector-Cloudflared/);
 assert.match(watchdogSource, /Mad4B-Staging-Cloudflared/);
