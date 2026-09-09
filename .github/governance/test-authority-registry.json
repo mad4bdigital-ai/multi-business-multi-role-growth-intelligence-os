@@ -179,6 +179,7 @@
       "id": "local_connector_environment_and_transport_isolation",
       "test_paths": [
         "http-generic-api/test-local-connector-convergence-inspector.mjs",
+        "http-generic-api/test-db-driven-connector-capability-policy.mjs",
         "http-generic-api/test-local-connector-durable-self-healing.mjs",
         "http-generic-api/test-local-connector-installer-capability.mjs",
         "http-generic-api/test-windows-staging-bootstrap-supervisor.mjs",

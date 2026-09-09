@@ -182,6 +182,7 @@
       "patterns": [
         "http-generic-api/*.js",
         "http-generic-api/*.mjs",
+        "http-generic-api/services/**/*.js",
         "http-generic-api/scripts/**/*.mjs",
         "http-generic-api/wordpress/**/*.js",
         "edge/activation-gateway/src/*.mjs",
