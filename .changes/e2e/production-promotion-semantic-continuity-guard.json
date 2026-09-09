@@ -22,7 +22,7 @@
       ".github/workflows/governed-production-main-source-pin-guard.yml",
       ".github/workflows/governed-production-release-source-pin-gate.yml",
       "http-generic-api/test-production-promotion-convergence-workflows.mjs",
-      "docs/production-promotion-semantic-continuity-guard.md"
+      "docs/governance/production-promotion-semantic-continuity-guard.md"
     ]
   },
   "merge_contract": {
@@ -79,7 +79,7 @@
             ".github/workflows/governed-production-main-source-pin-guard.yml",
             ".github/workflows/governed-production-release-source-pin-gate.yml",
             "http-generic-api/test-production-promotion-convergence-workflows.mjs",
-            "docs/production-promotion-semantic-continuity-guard.md"
+            "docs/governance/production-promotion-semantic-continuity-guard.md"
           ]
         }
       ]
