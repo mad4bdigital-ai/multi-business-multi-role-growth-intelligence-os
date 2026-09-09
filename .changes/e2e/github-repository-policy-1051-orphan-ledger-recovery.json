@@ -17,7 +17,7 @@
   "scope": {
     "include": [
       ".changes/e2e/github-repository-policy-1051-orphan-ledger-recovery.json",
-      ".github/ops/github-repository-policy-1051-orphan-ledger-recovery.mjs",
+      ".github/ops/github-repository-policy-1051-governed-rollout.mjs",
       ".github/workflows/github-repository-policy-1051-governed-rollout.yml",
       "http-generic-api/test-github-repository-policy-1051-metadata-state.mjs",
       "docs/governance/github-repository-policy-1051-orphan-ledger-recovery.md"
@@ -40,7 +40,7 @@
           "entrypoint": "Production has complete Migration 1051 metadata and zero missing readback objects but the exact Migration 1051 durable ledger row is absent.",
           "terminal_outcome": "A separately confirmed record-only cycle writes a truthful checksum-bound record_only ledger with sql_applied_by_this_run=false; a later separately confirmed reconciled-Apply cycle may execute the reviewed idempotent metadata migration and create a true apply ledger, while GitHub provider mutation remains unauthorized.",
           "steps": [
-            "Reuse the existing Migration 1051 workflow authority rather than adding a second workflow.",
+            "Reuse the existing Migration 1051 workflow and canonical rollout runner rather than adding a second workflow or configuration surface.",
             "Fail closed until Migration 225 runtime dependency and the dedicated Governance DB writer readiness both pass.",
             "Run the existing checksum-bound authorization/bootstrap dry-run before record-only reconciliation.",
             "Verify exact Production runtime parity and the reviewed Migration 1051 Git blob.",
@@ -71,7 +71,7 @@
             }
           ],
           "evidence_paths": [
-            ".github/ops/github-repository-policy-1051-orphan-ledger-recovery.mjs",
+            ".github/ops/github-repository-policy-1051-governed-rollout.mjs",
             ".github/workflows/github-repository-policy-1051-governed-rollout.yml",
             "http-generic-api/test-github-repository-policy-1051-metadata-state.mjs",
             "docs/governance/github-repository-policy-1051-orphan-ledger-recovery.md"
