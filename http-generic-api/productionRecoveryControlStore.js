@@ -354,18 +354,60 @@ export function createProductionRecoveryControlStore({
     provider_accessed: false,
     executionTicketVerifier,
     async putRun(value) {
-      await putRecord(poolProvider, RECORD_TYPES.run, value?.run_id, value, { plan_id: value?.plan_id, step_id: value?.step_id, idempotency_key: value?.idempotency_key });
-      if (value?.idempotency_key) {
-        await withTransaction(poolProvider, async (connection) => {
-          const idempotencyKey = requiredId(value.idempotency_key, "idempotency_key");
-          const runId = requiredId(value.run_id, "run_id");
-          const [result] = await connection.query("INSERT IGNORE INTO recovery_control_run_idempotency (idempotency_key, run_id) VALUES (?, ?)", [idempotencyKey, runId]);
-          if (Number(result?.affectedRows) === 0) {
-            const [rows] = await connection.query("SELECT run_id FROM recovery_control_run_idempotency WHERE idempotency_key = ? FOR UPDATE", [idempotencyKey]);
-            if (rows?.[0]?.run_id !== runId) throw storeError("RECOVERY_CONTROL_STORE_IDEMPOTENCY_COLLISION", "An idempotency key cannot be rebound to a different Recovery run.", { idempotency_key_hash: digest(idempotencyKey) });
-          }
+      if (!value?.idempotency_key) {
+        return putRecord(poolProvider, RECORD_TYPES.run, value?.run_id, value, {
+          plan_id: value?.plan_id,
+          step_id: value?.step_id,
+          idempotency_key: value?.idempotency_key,
         });
       }
+
+      const idempotencyKey = requiredId(value.idempotency_key, "idempotency_key");
+      const runId = requiredId(value.run_id, "run_id");
+      const json = canonical(value);
+      return withTransaction(poolProvider, async (connection) => {
+        const [result] = await connection.query(
+          "INSERT IGNORE INTO recovery_control_run_idempotency (idempotency_key, run_id) VALUES (?, ?)",
+          [idempotencyKey, runId],
+        );
+        if (Number(result?.affectedRows) === 0) {
+          const [rows] = await connection.query(
+            "SELECT run_id FROM recovery_control_run_idempotency WHERE idempotency_key = ? FOR UPDATE",
+            [idempotencyKey],
+          );
+          if (rows.length !== 1) {
+            throw storeError(
+              "RECOVERY_CONTROL_STORE_IDEMPOTENCY_BINDING_AMBIGUOUS",
+              "Recovery run idempotency lookup did not resolve exactly one durable binding.",
+              { idempotency_key_hash: digest(idempotencyKey) },
+            );
+          }
+          const [binding] = rows;
+          if (binding.run_id !== runId) {
+            throw storeError(
+              "RECOVERY_CONTROL_STORE_IDEMPOTENCY_COLLISION",
+              "An idempotency key cannot be rebound to a different Recovery run.",
+              { idempotency_key_hash: digest(idempotencyKey) },
+            );
+          }
+        }
+
+        await connection.query(`INSERT INTO recovery_control_records
+          (record_type, record_id, plan_id, step_id, idempotency_key, payload_json, payload_sha256)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            plan_id = VALUES(plan_id), step_id = VALUES(step_id), idempotency_key = VALUES(idempotency_key),
+            payload_json = VALUES(payload_json), payload_sha256 = VALUES(payload_sha256)`, [
+          RECORD_TYPES.run,
+          runId,
+          text(value?.plan_id) || null,
+          text(value?.step_id) || null,
+          idempotencyKey,
+          json,
+          digest(json),
+        ]);
+        return { persisted: true };
+      });
     },
     async getRun(id) { return getRecord(poolProvider, RECORD_TYPES.run, id); },
     async putPlan(value) { return putRecord(poolProvider, RECORD_TYPES.plan, value?.plan_id, value); },
