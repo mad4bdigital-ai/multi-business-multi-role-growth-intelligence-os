@@ -182,6 +182,8 @@
         "http-generic-api/test-db-driven-connector-capability-policy.mjs",
         "http-generic-api/test-local-connector-durable-self-healing.mjs",
         "http-generic-api/test-local-connector-installer-capability.mjs",
+        "http-generic-api/test-connector-agent-installer-permission-grants.mjs",
+        "http-generic-api/test-local-connector-capability-installer-grants.mjs",
         "http-generic-api/test-windows-staging-bootstrap-supervisor.mjs",
         "http-generic-api/test-local-manager-tool-release-owner.mjs",
         "http-generic-api/test-local-manager-cloudflare-origin-classification.mjs",
