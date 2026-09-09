@@ -318,7 +318,12 @@
       ".github/scripts/production-promotion-operation-state.mjs",
       ".github/workflows/production-certified-release-cut-validation.yml",
       ".changes/e2e/spec014-durable-authorized-injection-schema-ddl.json",
-      ".github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml"
+      ".github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml",
+      ".changes/e2e/production-promotion-semantic-continuity-guard.json",
+      ".github/scripts/production-promotion-semantic-continuity.mjs",
+      ".github/workflows/governed-production-main-source-pin-guard.yml",
+      ".github/workflows/governed-production-release-source-pin-gate.yml",
+      "docs/governance/production-promotion-semantic-continuity-guard.md"
     ],
     "automerge_opt_out_labels": [
       "do-not-auto-merge",
