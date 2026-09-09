@@ -417,14 +417,17 @@ export function createProductionRecoveryControlStore({
     async getRunByIdempotency(id) {
       const idempotencyKey = requiredId(id, "idempotency_key");
       const [receiptRows] = await query(poolProvider, "SELECT payload_json FROM recovery_control_idempotency_receipts WHERE idempotency_key = ? LIMIT 1", [idempotencyKey]);
-      if (receiptRows?.length) return parsePayload(receiptRows[0].payload_json);
+      const [receipt] = receiptRows;
+      if (receipt) return parsePayload(receipt.payload_json);
       const [rows] = await query(poolProvider, "SELECT run_id FROM recovery_control_run_idempotency WHERE idempotency_key = ? LIMIT 1", [idempotencyKey]);
-      return rows?.[0]?.run_id ? getRecord(poolProvider, RECORD_TYPES.run, rows[0].run_id) : null;
+      const [binding] = rows;
+      return binding?.run_id ? getRecord(poolProvider, RECORD_TYPES.run, binding.run_id) : null;
     },
     async getRunByPlanStep(planId, stepId) {
       const [rows] = await query(poolProvider, `SELECT payload_json FROM recovery_control_records
-        WHERE record_type = ? AND plan_id = ? AND step_id = ? ORDER BY updated_at DESC LIMIT 1`, [RECORD_TYPES.run, requiredId(planId, "plan_id"), requiredId(stepId, "step_id")]);
-      return rows?.length ? parsePayload(rows[0].payload_json) : null;
+        WHERE record_type = ? AND plan_id = ? AND step_id = ? ORDER BY updated_at DESC, record_id DESC LIMIT 1`, [RECORD_TYPES.run, requiredId(planId, "plan_id"), requiredId(stepId, "step_id")]);
+      const [latestRun] = rows;
+      return latestRun ? parsePayload(latestRun.payload_json) : null;
     },
     async appendEvidenceEvent(runId, event) {
       const run = requiredId(runId, "run_id");
