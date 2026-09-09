@@ -1,0 +1,105 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-recovery-control-store-7999",
+  "title": "Production Recovery independent control-store boundary",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/production-recovery-control-store-7999.json",
+      "http-generic-api/recoveryControlDb.js",
+      "http-generic-api/scripts/recovery-control-db-contract-check.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": false,
+    "production_mutation_allowed": false,
+    "live_migration_executed": false,
+    "live_grant_executed": false,
+    "deployment_or_restart_executed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Establish an explicit fourth database identity for Production Recovery durable control state that cannot silently reuse runtime, governance, or runtime-persistence target databases or principals.",
+      "e2e_journeys": [
+        {
+          "id": "production-recovery-control-store-isolation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Production Recovery deployment composition",
+          "entrypoint": "Resolve Recovery control-store database configuration before constructing any durable Recovery authority adapter.",
+          "terminal_outcome": "A dedicated RECOVERY_CONTROL_DB_* configuration resolves only when its database and principal are distinct from every target role; missing or reused target identities fail closed before a database connection is created.",
+          "steps": [
+            "Require explicit Recovery control database name, user and password without falling back to runtime, governance or runtime-persistence database identities.",
+            "Allow a shared physical MySQL host only when the logical database and principal remain independent.",
+            "Reject database-name collision with runtime, governance or runtime-persistence targets.",
+            "Reject principal collision with runtime, governance or runtime-persistence identities.",
+            "Bound pool size and connection timeout before any future live adapter may consume the control-store pool.",
+            "Keep this source phase disconnected from the Recovery Kernel and from Production deployment until the remaining #7999 authority adapters, schema and activation evidence are separately reviewed."
+          ],
+          "assertions": [
+            "RECOVERY_CONTROL_DB_NAME never falls back to DB_NAME, GOVERNANCE_DB_NAME or RUNTIME_PERSISTENCE_DB_NAME.",
+            "RECOVERY_CONTROL_DB_USER never falls back to DB_USER, GOVERNANCE_DB_USER or RUNTIME_PERSISTENCE_DB_USER.",
+            "RECOVERY_CONTROL_DB_PASSWORD never falls back to any target-role password.",
+            "The resolved control database and principal are distinct from all three target roles.",
+            "Configuration errors expose no credential values and report secrets_included=false.",
+            "No database connection, SQL execution, Production deployment, grant, migration, provider mutation or activation is performed by this source phase."
+          ],
+          "tests": [
+            {
+              "id": "production-recovery-control-db-isolation-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/recovery-control-db-contract-check.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/production-recovery-control-store-7999.json",
+            "http-generic-api/recoveryControlDb.js",
+            "http-generic-api/scripts/recovery-control-db-contract-check.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Implement the independent durable Recovery Store schema and atomic reservation/fencing adapters on top of the dedicated control-store boundary."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove replay prevention, concurrent reservations, fencing, restart durability, ambiguous outcomes and no-secret receipts against a disposable non-Production control store."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Bind the complete concrete adapter graph to fresh signed Staging certification and exact Production deployment evidence without enabling Production mutation."
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Keep Production live activation blocked until #7999 has a provisioned independent control store, complete typed adapter graph, fresh signed readiness, exact Production activation readiness and separate explicit activation authorization.",
+      "blockers": [
+        "recovery_control_store_not_provisioned",
+        "production_recovery_adapter_graph_incomplete",
+        "fresh_signed_recovery_readiness_evidence_required",
+        "exact_production_activation_readiness_required",
+        "explicit_production_activation_authorization_required"
+      ]
+    }
+  ],
+  "secrets_included": false
+}
