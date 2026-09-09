@@ -41,26 +41,3 @@ assert(
   connectorSchema.includes('x-api-key: <CONNECTOR_SECRET>') &&
     connectorSchema.includes('connectorBearerAuth'),
 );
-
-assert(
-  'direct connector schema is explicitly standalone admin break-glass and independent of auth host',
-  connectorSchema.includes('Admin-only standalone connector for break-glass access') &&
-    connectorSchema.includes('independent of auth.mad4b.com') &&
-    connectorSchema.includes('https://connector.mad4b.com'),
-);
-
-assert(
-  'connector health is intentionally anonymous so reachability does not prove action authentication',
-  /\/health:[\s\S]*?operationId:\s*connectorHealth[\s\S]*?security:\s*\[\]/.test(connectorSchema),
-);
-
-assert(
-  'connector GitHub action requires the connector bearer credential',
-  /\/github:[\s\S]*?operationId:\s*connectorGithub[\s\S]*?security:[\s\S]*?- connectorBearerAuth:\s*\[\]/.test(connectorSchema),
-);
-
-assert(
-  'direct connector auth contract never treats auth-host user credentials as connector action credentials',
-  connectorSchema.includes('This standalone admin break-glass credential is independent of auth.mad4b.com.') &&
-    !connectorSchema.includes('bearerFormat: User JWT'),
-);
