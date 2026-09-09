@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "bca67402d3607626891742cb3e71c427c24dffe96ed359b346f730cd06c0ce3a",
+    "source_digest": "c28ee8e5645eca2a009c3d0f2a6be09367ab918f474c389190cb474cbad833f2",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -666,7 +666,7 @@
       },
       {
         "file": "routes/localConnectorInstallRoutes.js",
-        "sha256": "f8a470428902dda7c38cb51c1bf2c6140c5fab89126c62376f098273da901de0",
+        "sha256": "127c7c064715742466fc00865ba3cf11be9bbe9693353fb228df773a33d31118",
         "present": true
       },
       {
@@ -7705,7 +7705,7 @@
       "family_key": "local-connector-install.developer",
       "label": "local connector install (developer)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "f8a470428902dda7c38cb51c1bf2c6140c5fab89126c62376f098273da901de0",
+      "source_digest": "127c7c064715742466fc00865ba3cf11be9bbe9693353fb228df773a33d31118",
       "mount_prefix": "/",
       "mount_order": 14152,
       "split_from_mixed_scope_file": true,
@@ -8148,7 +8148,7 @@
       "family_key": "local-connector-install.local_device",
       "label": "local connector install (local_device)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "f8a470428902dda7c38cb51c1bf2c6140c5fab89126c62376f098273da901de0",
+      "source_digest": "127c7c064715742466fc00865ba3cf11be9bbe9693353fb228df773a33d31118",
       "mount_prefix": "/",
       "mount_order": 14152,
       "split_from_mixed_scope_file": true,
