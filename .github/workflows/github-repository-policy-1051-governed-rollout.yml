@@ -68,7 +68,6 @@ jobs:
       cancel-in-progress: false
     env:
       ROLLOUT_PHASE: readiness
-      RECOVERY_PHASE: record_only
       RUNTIME_BASE_URL: https://auth.mad4b.com
       BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
       GH_READ_TOKEN: ${{ github.token }}
@@ -93,7 +92,9 @@ jobs:
       - name: Create checksum-bound authorization and dry-run before record-only reconciliation
         run: node .github/ops/github-repository-policy-1051-governed-rollout.mjs
       - name: Record exact Migration 1051 ledger without replaying SQL
-        run: node .github/ops/github-repository-policy-1051-orphan-ledger-recovery.mjs
+        env:
+          ROLLOUT_PHASE: record_only
+        run: node .github/ops/github-repository-policy-1051-governed-rollout.mjs
       - name: Upload no-secret record-only reconciliation evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -117,7 +118,6 @@ jobs:
       cancel-in-progress: false
     env:
       ROLLOUT_PHASE: apply
-      RECOVERY_PHASE: verify_record_only
       RUNTIME_BASE_URL: https://auth.mad4b.com
       BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
       GH_READ_TOKEN: ${{ github.token }}
@@ -140,7 +140,9 @@ jobs:
           METADATA_DIAGNOSTIC_MODE: readiness
         run: node .github/ops/github-repository-policy-1051-metadata-state.mjs
       - name: Verify exact record-only ledger before reconciled Apply
-        run: node .github/ops/github-repository-policy-1051-orphan-ledger-recovery.mjs
+        env:
+          ROLLOUT_PHASE: verify_record_only
+        run: node .github/ops/github-repository-policy-1051-governed-rollout.mjs
       - name: Execute metadata Apply only after certified record-only reconciliation
         run: node .github/ops/github-repository-policy-1051-governed-rollout.mjs
       - name: Upload no-secret reconciled Apply evidence
