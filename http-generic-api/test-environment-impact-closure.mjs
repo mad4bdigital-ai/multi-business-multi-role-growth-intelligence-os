@@ -69,6 +69,7 @@ assert.deepEqual(classifyPath("autopilot-portable-staging/Start-AutoPilot.ps1", 
 assert.deepEqual(classifyPath("local-connector/server.mjs", classes).map((entry) => entry.id), ["shared_runtime"]);
 assert.deepEqual(classifyPath("local-connector/connector-watchdog.ps1", classes).map((entry) => entry.id), ["shared_runtime"]);
 assert.deepEqual(classifyPath("http-generic-api/routes/tenantTools.js", classes).map((entry) => entry.id), ["shared_runtime"]);
+assert.deepEqual(classifyPath("http-generic-api/services/localManagerDeviceLinkService.js", classes).map((entry) => entry.id), ["shared_runtime"]);
 assert.deepEqual(classifyPath("http-generic-api/schema.sql", classes).map((entry) => entry.id), ["shared_runtime"]);
 assert.deepEqual(classifyPath("autopilot-portable-production/Deploy.ps1", classes).map((entry) => entry.id), ["production_only"]);
 assert.deepEqual(classifyPath("http-generic-api/.env.staging.example", classes).map((entry) => entry.id), ["staging_only"]);

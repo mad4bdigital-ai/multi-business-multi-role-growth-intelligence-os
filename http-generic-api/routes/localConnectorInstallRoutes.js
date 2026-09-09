@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { getPool } from "../db.js";
-import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { decryptCredentials } from "../tokenEncryption.js";
 import { normalizeConnectionMode } from "../activationModePolicy.js";
 import {
@@ -12,6 +12,13 @@ import {
   connectorLocalApiKeySelectFragment,
   hasConnectorLocalApiKeyColumn,
 } from "../connectorSchemaCompatibility.js";
+import {
+  assertNoInstallerAuthorityOverrides,
+  createInstallerCapability,
+  installerControlPlaneBinding,
+  signInstallerDownloadToken,
+  verifyInstallerDownloadToken,
+} from "../localConnectorInstallerCapability.js";
 
 const CF_API = "https://api.cloudflare.com/client/v4";
 const CONNECTOR_PORT = 7070;
@@ -166,44 +173,6 @@ function httpError(status, code, message) {
   err.status = status;
   err.code = code;
   return err;
-}
-
-function base64url(input) {
-  return Buffer.from(input).toString("base64url");
-}
-
-function publicBaseUrl(req) {
-  const proto = String(req.headers["x-forwarded-proto"] || req.protocol || "https").split(",")[0].trim();
-  const host = String(req.headers["x-forwarded-host"] || req.headers.host || "auth.mad4b.com").split(",")[0].trim();
-  return `${proto}://${host}`;
-}
-
-function installerTokenSecret() {
-  const secret = String(process.env.BACKEND_API_KEY || "").trim();
-  if (!secret) throw httpError(500, "installer_token_secret_missing", "BACKEND_API_KEY is required for installer download links.");
-  return secret;
-}
-
-function signInstallerDownloadToken(payload) {
-  const body = base64url(JSON.stringify(payload));
-  const sig = createHmac("sha256", installerTokenSecret()).update(body).digest("base64url");
-  return `${body}.${sig}`;
-}
-
-function verifyInstallerDownloadToken(token) {
-  const [body, sig] = String(token || "").split(".");
-  if (!body || !sig) throw httpError(401, "invalid_download_token", "Invalid installer download token.");
-  const expected = createHmac("sha256", installerTokenSecret()).update(body).digest("base64url");
-  const a = Buffer.from(sig);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) {
-    throw httpError(401, "invalid_download_token", "Invalid installer download token signature.");
-  }
-  const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
-  if (!payload.exp || Number(payload.exp) < Math.floor(Date.now() / 1000)) {
-    throw httpError(401, "download_token_expired", "Installer download token has expired.");
-  }
-  return payload;
 }
 
 async function assertActiveMembership(userId, tenantId) {
@@ -739,7 +708,7 @@ function buildInstallScript({ cfToken, connectorSecret, connectorLocalApiKey = '
     "timeout /t 2 /nobreak >nul",
     "sc query %CF_SERVICE% >nul 2>&1 && sc delete %CF_SERVICE% >nul 2>&1",
     "timeout /t 2 /nobreak >nul",
-    "cloudflared service install " + cfToken,
+    "REM Legacy inline installer retired; use the canonical token-file installer.",
     "if %ERRORLEVEL% neq 0 (echo ERROR: cloudflared service install failed. & exit /b 1)",
     "net start %CF_SERVICE% >nul 2>&1",
     "if %ERRORLEVEL% neq 0 (echo ERROR: cloudflared service did not start. & exit /b 1)",
@@ -787,18 +756,15 @@ function buildInstallScript({ cfToken, connectorSecret, connectorLocalApiKey = '
   ].join("\r\n");
 }
 
-function buildConnectorEnv({ connectorSecret, connectorLocalApiKey = '', aliases, port, capabilities = [], permissionGrants = {} }) {
+function buildConnectorEnv({ aliases, port, capabilities = [], permissionGrants = {} }) {
   const grants = normalizePermissionGrants(permissionGrants);
   const allAliases = [...aliases, ...grants.shell_aliases];
   const allowlistVal = buildAllowlistEnvValue(allAliases);
   const appAllowlistLine = Object.keys(grants.apps).length ? [envJsonLine("CONNECTOR_APP_ALLOWLIST", grants.apps)] : [];
   const filePathLine = grants.allowed_paths.length ? [`CONNECTOR_FILE_PATHS=${grants.allowed_paths.join(",")}`] : [];
-  const connectorLocalApiKeyLine = String(connectorLocalApiKey || '').trim()
-    ? [`CONNECTOR_LOCAL_API_KEY=${String(connectorLocalApiKey).trim()}`]
-    : [];
   return [
-    `CONNECTOR_SECRET=${connectorSecret}`,
-    ...connectorLocalApiKeyLine,
+    "CONNECTOR_SECRET_FILE=D:\\Mad4B\\LocalManager\\updates\\secrets\\connector-secret.txt",
+    "CONNECTOR_LOCAL_API_KEY_FILE=D:\\Mad4B\\LocalManager\\updates\\secrets\\connector-local-api-key.txt",
     "MAIN_API_URL=https://api.mad4b.com",
     `CONNECTOR_PORT=${port}`,
     "CONNECTOR_SHELL_ENABLED=true",
@@ -924,7 +890,7 @@ function buildInstallPowerShell({ cfToken, connectorSecret, connectorLocalApiKey
     "    Start-Sleep -Seconds 2",
     "  }",
     "}",
-    `& cloudflared service install ${cfToken}`,
+    "throw 'legacy_inline_installer_retired_use_connector_agent_canonical_installer'",
     "if ($LASTEXITCODE -ne 0) { throw \"cloudflared service install failed with exit code $LASTEXITCODE.\" }",
     "$cfSvc = Get-Service -Name $CfService -ErrorAction SilentlyContinue",
     "if (-not $cfSvc) { throw 'cloudflared service was not created.' }",
@@ -1306,9 +1272,8 @@ export function buildLocalConnectorInstallRoutes(deps) {
         ? String(req.body?.tenant_id || "").trim()
         : "";
       const selectedTenantId = requestedTenantId || device.tenant_id || "";
-      const ttl = Math.max(5, Math.min(60, Number(req.body?.ttl_minutes || 30)));
-      const permissionGrants = normalizePermissionGrants({ ...(req.body?.permission_grants || {}), capabilities: req.body?.capabilities || [] });
-      const capabilities = permissionGrants.capabilities;
+      const ttl = Math.max(5, Math.min(10, Number(req.body?.ttl_minutes || 10)));
+      assertNoInstallerAuthorityOverrides(req.body || {});
       const appManaged = req.body?.app_managed === true || req.body?.suppress_pause === true || req.body?.no_pause === true;
       if (!["ps1", "bat"].includes(format)) return res.status(400).json({ ok: false, error: { code: "unsupported_format", message: "format must be ps1 or bat." }, secrets_included: false });
       const [rows] = await getPool().query(
@@ -1351,29 +1316,27 @@ export function buildLocalConnectorInstallRoutes(deps) {
         canonicalDeviceId: config.device_id,
         aliasDeviceIds: [device.device_id, device.session?.hostname, config.device_id],
       });
-      const token = signInstallerDownloadToken({
+      const token = signInstallerDownloadToken(createInstallerCapability({
+        config_id: config.config_id,
         user_id: device.user_id,
         tenant_id: config.tenant_id || device.tenant_id,
         device_id: config.device_id,
         format,
-        capabilities,
-        permission_grants: permissionGrants,
         app_managed: appManaged,
-        exp: Math.floor(Date.now() / 1000) + ttl * 60,
-      });
+        ttl_minutes: ttl,
+      }));
       const path = format === "bat" ? "/local-connector/install/download" : "/connector-agent/installer.ps1";
-      const download_url = `${publicBaseUrl(req)}${path}?token=${encodeURIComponent(token)}`;
+      const download_url = `${installerControlPlaneBinding().baseUrl}${path}?token=${encodeURIComponent(token)}`;
       return res.status(200).json({
         ok: true,
         device_id: device.device_id,
         canonical_device_id: config.device_id,
         config_id: config.config_id,
         format,
-        capabilities,
+        capabilities: [],
         permission_grants: {
-          allowed_paths: permissionGrants.allowed_paths,
-          app_aliases: Object.keys(permissionGrants.apps),
-          shell_aliases: permissionGrants.shell_aliases.map((entry) => entry.alias),
+          source: "database_policy",
+          caller_overrides_allowed: false,
         },
         ttl_minutes: ttl,
         download_url,
@@ -1393,7 +1356,7 @@ export function buildLocalConnectorInstallRoutes(deps) {
   // The token is HMAC-signed and contains no connector credentials itself.
   router.post("/local-connector/install/download-link", requireBackendApiKey, async (req, res) => {
     try {
-      const { user_id, tenant_id, device_id, ttl_minutes = 30 } = req.body || {};
+      const { user_id, tenant_id, device_id, ttl_minutes = 10 } = req.body || {};
       const format = String(req.body?.format || "ps1").trim().toLowerCase();
       if (!device_id) return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "device_id is required." } });
       if (!["ps1", "bat"].includes(format)) return res.status(400).json({ ok: false, error: { code: "unsupported_format", message: "format must be ps1 or bat." } });
@@ -1403,30 +1366,27 @@ export function buildLocalConnectorInstallRoutes(deps) {
         [principal.userId, principal.tenantId, device_id]
       );
       if (!config) return res.status(404).json({ ok: false, error: { code: "connector_config_not_found" } });
-      const ttl = Math.max(5, Math.min(120, Number(ttl_minutes || 30)));
-      const permissionGrants = normalizePermissionGrants({ ...(req.body?.permission_grants || {}), capabilities: req.body?.capabilities || [] });
-      const capabilities = permissionGrants.capabilities;
-      const token = signInstallerDownloadToken({
+      const ttl = Math.max(5, Math.min(10, Number(ttl_minutes || 10)));
+      assertNoInstallerAuthorityOverrides(req.body || {});
+      const token = signInstallerDownloadToken(createInstallerCapability({
+        config_id: config.config_id,
         user_id: principal.userId,
         tenant_id: config.tenant_id || principal.tenantId,
         device_id,
         format,
-        capabilities,
-        permission_grants: permissionGrants,
-        exp: Math.floor(Date.now() / 1000) + ttl * 60,
-      });
+        ttl_minutes: ttl,
+      }));
       const path = format === "bat" ? "/local-connector/install/download" : "/connector-agent/installer.ps1";
-      const download_url = `${publicBaseUrl(req)}${path}?token=${encodeURIComponent(token)}`;
+      const download_url = `${installerControlPlaneBinding().baseUrl}${path}?token=${encodeURIComponent(token)}`;
       return res.status(200).json({
         ok: true,
         device_id,
         config_id: config.config_id,
         format,
-        capabilities,
+        capabilities: [],
         permission_grants: {
-          allowed_paths: permissionGrants.allowed_paths,
-          app_aliases: Object.keys(permissionGrants.apps),
-          shell_aliases: permissionGrants.shell_aliases.map((entry) => entry.alias),
+          source: "database_policy",
+          caller_overrides_allowed: false,
         },
         ttl_minutes: ttl,
         download_url,
@@ -1438,48 +1398,48 @@ export function buildLocalConnectorInstallRoutes(deps) {
   });
 
   // ── GET /local-connector/install/download ─────────────────────────────────
-  // Public token-gated download. Use only with short-lived signed links.
+  // Public token-gated compatibility entrypoint. This file is the sole owner
+  // of the route; both formats converge on the canonical connector-agent PS1.
   router.get("/local-connector/install/download", async (req, res) => {
     try {
-      const payload = verifyInstallerDownloadToken(req.query.token);
-      if (!["ps1", "bat"].includes(payload.format)) throw httpError(400, "unsupported_format", "Only ps1 or bat installer downloads are supported.");
+      const token = String(req.query.token || "");
+      const payload = verifyInstallerDownloadToken(token);
+      if (!["ps1", "bat"].includes(payload.format)) {
+        throw httpError(400, "unsupported_format", "Only ps1 or bat installer downloads are supported.");
+      }
       const [[config]] = await getPool().query(
-        "SELECT config_id, user_id, tenant_id, device_id, COALESCE(device_runtime_url, tunnel_url) AS tunnel_url, connector_secret, cf_token FROM `local_connector_user_configs` WHERE user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
-        [payload.user_id, payload.tenant_id, payload.device_id]
+        "SELECT config_id, device_id FROM `local_connector_user_configs` WHERE config_id = ? AND user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
+        [payload.config_id, payload.user_id, payload.tenant_id, payload.device_id]
       );
       if (!config) throw httpError(404, "connector_config_not_found", "No active connector config was found for this download token.");
-      if (!config.cf_token || !config.connector_secret) throw httpError(409, "connector_config_incomplete", "Connector config is missing recovery token or connector secret.");
-      const permissionGrants = normalizePermissionGrants(payload.permission_grants || { capabilities: payload.capabilities || [] });
-      const capabilities = permissionGrants.capabilities;
-      const ps1Token = signInstallerDownloadToken({
-        user_id: payload.user_id,
-        tenant_id: payload.tenant_id,
-        device_id: payload.device_id,
-        format: "ps1",
-        capabilities,
-        permission_grants: permissionGrants,
-        exp: payload.exp,
-      });
-      const ps1Url = `${publicBaseUrl(req)}/connector-agent/installer.ps1?token=${encodeURIComponent(ps1Token)}`;
-      const installer = payload.format === "bat"
-        ? buildInstallPowerShellBootstrapBat({ ps1Url, deviceId: config.device_id, appManaged: payload.app_managed === true || payload.suppress_pause === true || payload.no_pause === true })
-        : buildInstallPowerShell({
-            cfToken: config.cf_token,
-            connectorSecret: config.connector_secret,
-            tunnelUrl: config.tunnel_url,
-            aliases: DEFAULT_WINDOWS_ALIASES,
-            port: CONNECTOR_PORT,
-            capabilities,
-            permissionGrants,
-          });
-      const safeDeviceId = String(config.device_id).replace(/[^a-zA-Z0-9_-]+/g, "-");
-      const filename = `install-local-connector-${safeDeviceId}.${payload.format}`;
-      res.setHeader("Content-Type", "text/plain; charset=utf-8");
+
+      const ps1Token = payload.format === "ps1"
+        ? token
+        : signInstallerDownloadToken({ ...payload, format: "ps1" });
+      const canonicalUrl = `${installerControlPlaneBinding().baseUrl}/connector-agent/installer.ps1?token=${encodeURIComponent(ps1Token)}`;
       res.setHeader("Cache-Control", "no-store");
-      res.setHeader("Content-Disposition", `attachment; filename=\"${filename}\"`);
+      res.setHeader("X-Mad4B-Installer-Delegation", "connector-agent-canonical");
+
+      if (payload.format === "ps1") {
+        return res.redirect(307, canonicalUrl);
+      }
+
+      const installer = buildInstallPowerShellBootstrapBat({
+        ps1Url: canonicalUrl,
+        deviceId: config.device_id,
+        appManaged: payload.app_managed === true || payload.suppress_pause === true || payload.no_pause === true,
+      });
+      const safeDeviceId = String(config.device_id).replace(/[^a-zA-Z0-9_-]+/g, "-");
+      const filename = `install-local-connector-${safeDeviceId}.bat`;
+      res.setHeader("Content-Type", "text/plain; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
       return res.status(200).send(installer);
     } catch (err) {
-      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "installer_download_failed", message: err.message } });
+      return res.status(err.status || 500).json({
+        ok: false,
+        error: { code: err.code || "installer_download_failed", message: err.message },
+        secrets_included: false,
+      });
     }
   });
 
@@ -1629,7 +1589,7 @@ export function buildLocalConnectorInstallRoutes(deps) {
         credential_source: provisioningCredentials.source,
         server_env: {
           CONNECTOR_LOCAL_API_KEY: connectorSecret,
-          instruction: `Set CONNECTOR_LOCAL_API_KEY=${connectorSecret} in hPanel environment variables for the connector.mad4b.com Node.js app.`,
+          instruction: "Legacy inline credential delivery is retired; use canonical one-time redemption.",
         },
         app_routes: await loadLocalAppRoutes(pool, finalConfigId),
         installation: {
@@ -1646,13 +1606,13 @@ export function buildLocalConnectorInstallRoutes(deps) {
             port: CONNECTOR_PORT,
             env_file: ".env",
             start_command: "start-connector.bat",
-            tunnel_command: `cloudflared service install ${tunnelToken}`,
+            tunnel_command: "retired: use canonical token-file installer",
           },
           steps: [
             "1. Put server.mjs and install-local-connector.ps1 in the local-connector folder.",
             "2. Run install-local-connector.ps1 as Administrator — writes .env, installs cloudflared, starts server.mjs.",
             "3. On later boots run start-connector.bat or configure it as a Windows startup task.",
-            `4. Set CONNECTOR_LOCAL_API_KEY=${connectorSecret} in hPanel env vars for connector.mad4b.com.`,
+            "4. Use canonical one-time installer redemption; no credential is returned inline.",
             `5. Test: GET /local-connector/health?user_id=${user_id}&tenant_id=${tenant_id}&device_id=${device_id}`,
           ],
         },

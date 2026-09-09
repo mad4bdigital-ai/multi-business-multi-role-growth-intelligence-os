@@ -182,6 +182,7 @@
       "patterns": [
         "http-generic-api/*.js",
         "http-generic-api/*.mjs",
+        "http-generic-api/services/**/*.js",
         "http-generic-api/scripts/**/*.mjs",
         "http-generic-api/wordpress/**/*.js",
         "edge/activation-gateway/src/*.mjs",
@@ -598,7 +599,14 @@
     ".github/scripts/production-promotion-operation-state.mjs",
     ".github/workflows/production-certified-release-cut-validation.yml",
     ".changes/e2e/spec014-durable-authorized-injection-schema-ddl.json",
-    ".github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml"
+    ".github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml",
+    ".changes/e2e/local-connector-owned-transport-admin-recovery-20260908.json",
+    "docs/governance/admin-recovery-chatgpt-connection.md",
+    ".changes/e2e/production-promotion-semantic-continuity-guard.json",
+    ".github/scripts/production-promotion-semantic-continuity.mjs",
+    ".github/workflows/governed-production-main-source-pin-guard.yml",
+    ".github/workflows/governed-production-release-source-pin-gate.yml",
+    "docs/governance/production-promotion-semantic-continuity-guard.md"
   ],
   "derived_state": {
     "registry": ".github/derived-state-governance.json",

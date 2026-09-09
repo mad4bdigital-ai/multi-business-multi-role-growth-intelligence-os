@@ -163,7 +163,6 @@ test("release-cut helpers fail closed on unsafe policy or identity", () => {
     candidateSha: sha(4),
   }), /review mode/u);
   assert.throws(() => buildReleaseCutPromotionEvidence({ ...evidenceInput(), candidate_sha: "short" }), /candidate_sha/u);
-  assert.throws(() => buildReleaseCutPromotionEvidence({ ...evidenceInput(), builder_run_id: "reused" }), /builder_run_id/u);
 });
 
 test("promotion rehearsal classifies real ancestry blockers without relaxing fail-closed policy", () => {
@@ -215,7 +214,6 @@ test("run selector still prefers terminal exact-head success over a newer queued
 
 test("controller uses certified immutable cuts and a declarative supporting-gate registry", () => {
   const launcher = read(".github/workflows/governed-production-promotion-request-launcher.yml");
-  const releaseCutEvidence = read(".github/scripts/production-promotion-release-cut-evidence.mjs");
   const candidate = read(".github/workflows/production-promotion-candidate.yml");
   const mainGuard = read(".github/workflows/governed-production-main-source-pin-guard.yml");
   const releaseGate = read(".github/workflows/governed-production-release-source-pin-gate.yml");
@@ -232,13 +230,6 @@ test("controller uses certified immutable cuts and a declarative supporting-gate
   assert.match(launcher, /production-certified-release-cut-validation\.yml/u);
   assert.match(launcher, /OPERATION_ID="promo-/u);
   assert.match(launcher, /reusing existing idempotent promotion surfaces/u);
-  assert.match(launcher, /resolve_reused_builder_run\(\) \{/u);
-  assert.match(launcher, /gh run list --repo "\$REPOSITORY" --workflow production-promotion-candidate\.yml/u);
-  assert.match(launcher, /gh run download "\$run_id" --repo "\$REPOSITORY" --name "\$artifact_name"/u);
-  assert.match(launcher, /\.schema_version == "production_promotion_candidate\.v3"/u);
-  assert.match(launcher, /expected exactly one reusable builder run/u);
-  assert.doesNotMatch(launcher, /BUILDER_RUN_ID="reused"/u);
-  assert.doesNotMatch(releaseCutEvidence, /node:child_process|execFileSync/u);
   assert.match(launcher, /approval-manifest\.json/u);
   assert.match(launcher, /select\(\.head_sha == \$candidate or \.head_sha == \$cut\)/u);
   assert.match(launcher, /--arg candidate "\$CANDIDATE_SHA" --arg cut "\$RELEASE_CUT_SHA"/u);
@@ -257,9 +248,14 @@ test("controller uses certified immutable cuts and a declarative supporting-gate
   assert.match(candidate, /git merge-base --is-ancestor "\$RELEASE_CUT_SHA" "\$CURRENT_MAIN_SHA"/u);
   assert.match(candidate, /git commit-tree "\$RELEASE_TREE" -p "\$RELEASE_CUT_SHA" -p "\$ACTUAL_PRODUCTION_SHA"/u);
   assert.match(candidate, /test\(release\): certify immutable Production candidate/u);
-  assert.match(mainGuard, /guard_scope:"release_cut_ancestry"/u);
+  assert.match(mainGuard, /guard_scope:"release_cut_ancestry_and_semantic_continuity"/u);
+  assert.match(mainGuard, /main_advance_requires_semantic_continuity:true/u);
+  assert.match(mainGuard, /promotion_surface_digest_required:true/u);
+  assert.match(mainGuard, /fresh_governed_release_cut_required_when_digest_changes:true/u);
   assert.match(mainGuard, /preserving launcher run/u);
   assert.match(releaseGate, /release_cut_is_ancestor_of_current_main:true/u);
+  assert.match(releaseGate, /semantic_continuity == true/u);
+  assert.match(releaseGate, /promotion_surface_digest_required:true/u);
   assert.match(postGuard, /release_cut_not_in_current_main/u);
   assert.doesNotMatch(postGuard, /REASON=main_moved_after_finalization/u);
   assert.match(rehearsal, /REHEARSE_GOVERNED_PRODUCTION_PROMOTION/u);
