@@ -251,8 +251,8 @@ export function classifyLedgerState(readback, expectedChecksum, expectedStatemen
   const missing = missingCounts(readback);
   const schemaComplete = readable && Object.values(missing).every((value) => value === 0);
   const exact = readable && readback.readback_status === 'pass' && ledger.found === true && ledger.migration_file === MIGRATION && String(ledger.migration_checksum_sha256 || '').toLowerCase() === expectedChecksum && Number(ledger.statement_count || 0) === expectedStatementCount && String(ledger.preflight_status || '') === 'pass' && Number(ledger.preflight_risk_count || 0) === 0;
-  const ledgerMode = exact ? String(ledger.mode || '').toLowerCase() : null;
-  return { readback_structured: readable, schema_complete: schemaComplete, exact_ledger: exact, ledger_mode: ledgerMode, apply_ledger: exact && ledgerMode === 'apply', record_only_ledger: exact && ledgerMode === 'record_only', missing };
+  const ledgerKind = exact ? String(ledger.mode || '').toLowerCase() : null;
+  return { readback_structured: readable, schema_complete: schemaComplete, exact_ledger: exact, ledger_mode: ledgerKind, apply_ledger: exact && ledgerKind === 'apply', record_only_ledger: exact && ledgerKind === 'record_only', missing };
 }
 export function validateMetadataReport(report = {}) {
   assert.equal(report?.diagnostic_status, 'captured', 'Migration 1051 metadata diagnostic is unavailable');
