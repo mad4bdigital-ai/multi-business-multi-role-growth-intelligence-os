@@ -16,7 +16,7 @@
     ]
   },
   "merge_contract": {
-    "minimum_phase": "operational"
+    "minimum_phase": "mvp"
   },
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
