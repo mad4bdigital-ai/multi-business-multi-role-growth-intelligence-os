@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7617,
+  "file_count": 7621,
   "route_count": 1103,
   "write_route_count": 670,
   "classified_write_surface_count": 42,
@@ -6268,8 +6268,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js#POST:/system/tools/call:0",
-      "source_line": 264,
-      "source_offset": 10556,
+      "source_line": 286,
+      "source_offset": 11919,
       "method": "POST",
       "path": "/system/tools/call",
       "file": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
@@ -6277,8 +6277,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js#POST:/admin/system/tools/call:1",
-      "source_line": 265,
-      "source_offset": 10638,
+      "source_line": 287,
+      "source_offset": 12001,
       "method": "POST",
       "path": "/admin/system/tools/call",
       "file": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
@@ -7979,7 +7979,7 @@
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#GET:/admin/recovery/staging/contract:0",
       "source_line": 189,
-      "source_offset": 17320,
+      "source_offset": 17252,
       "method": "GET",
       "path": "/admin/recovery/staging/contract",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -7988,7 +7988,7 @@
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#GET:/admin/recovery/staging/readiness:1",
       "source_line": 190,
-      "source_offset": 17472,
+      "source_offset": 17404,
       "method": "GET",
       "path": "/admin/recovery/staging/readiness",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -7997,7 +7997,7 @@
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#GET:/admin/recovery/staging/certification:2",
       "source_line": 194,
-      "source_offset": 18114,
+      "source_offset": 18046,
       "method": "GET",
       "path": "/admin/recovery/staging/certification",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -8006,7 +8006,7 @@
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-ticket/verify:3",
       "source_line": 199,
-      "source_offset": 19083,
+      "source_offset": 19015,
       "method": "POST",
       "path": "/admin/recovery/staging/bootstrap-ticket/verify",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -8015,7 +8015,7 @@
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-ticket/finalize:4",
       "source_line": 213,
-      "source_offset": 21303,
+      "source_offset": 21235,
       "method": "POST",
       "path": "/admin/recovery/staging/bootstrap-ticket/finalize",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -8024,7 +8024,7 @@
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-partial-receipt:5",
       "source_line": 228,
-      "source_offset": 23763,
+      "source_offset": 23695,
       "method": "POST",
       "path": "/admin/recovery/staging/bootstrap-partial-receipt",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -37461,10 +37461,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
-        "source_line": 264,
+        "source_line": 286,
         "handler_window_lines": [
-          264,
-          264
+          286,
+          286
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -37521,10 +37521,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
-        "source_line": 265,
+        "source_line": 287,
         "handler_window_lines": [
-          265,
-          277
+          287,
+          300
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -45148,7 +45148,7 @@
         "source_line": 228,
         "handler_window_lines": [
           228,
-          235
+          236
         ],
         "evidence_flags": {
           "handler_window_present": true,
