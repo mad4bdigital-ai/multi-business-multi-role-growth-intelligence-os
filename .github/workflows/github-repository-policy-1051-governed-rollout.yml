@@ -54,6 +54,104 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  reconcile_record_only:
+    name: Reconcile Migration 1051 orphan ledger without SQL replay
+    if: >-
+      github.event.issue.number == 6625 &&
+      !github.event.issue.pull_request &&
+      github.event.comment.body == 'RECONCILE_1051_GITHUB_REPOSITORY_POLICY_RECORD_ONLY_LEDGER' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    concurrency:
+      group: github-repository-policy-1051-record-only-reconcile
+      cancel-in-progress: false
+    env:
+      ROLLOUT_PHASE: readiness
+      RECOVERY_PHASE: record_only
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      GH_READ_TOKEN: ${{ github.token }}
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      CONTROL_ISSUE: '6625'
+      SOURCE_PR: '6631'
+      EVIDENCE_DIR: .artifacts/github-repository-policy-1051-record-only-reconcile
+    steps:
+      - name: Checkout exact issue-comment event head
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+      - name: Capture Migration 225 and Governance writer readiness before orphan-ledger reconciliation
+        env:
+          METADATA_DIAGNOSTIC_MODE: readiness
+        run: node .github/ops/github-repository-policy-1051-metadata-state.mjs
+      - name: Create checksum-bound authorization and dry-run before record-only reconciliation
+        run: node .github/ops/github-repository-policy-1051-governed-rollout.mjs
+      - name: Record exact Migration 1051 ledger without replaying SQL
+        run: node .github/ops/github-repository-policy-1051-orphan-ledger-recovery.mjs
+      - name: Upload no-secret record-only reconciliation evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: github-repository-policy-1051-record-only-reconcile-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}
+          if-no-files-found: error
+          retention-days: 30
+
+  apply_after_record_only_reconcile:
+    name: Apply Migration 1051 after certified record-only reconciliation
+    if: >-
+      github.event.issue.number == 6625 &&
+      !github.event.issue.pull_request &&
+      github.event.comment.body == 'APPLY_1051_GITHUB_REPOSITORY_POLICY_AFTER_RECORD_ONLY_RECONCILIATION' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    concurrency:
+      group: github-repository-policy-1051-reconciled-apply
+      cancel-in-progress: false
+    env:
+      ROLLOUT_PHASE: apply
+      RECOVERY_PHASE: verify_record_only
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      GH_READ_TOKEN: ${{ github.token }}
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      CONTROL_ISSUE: '6625'
+      SOURCE_PR: '6631'
+      EVIDENCE_DIR: .artifacts/github-repository-policy-1051-reconciled-apply
+    steps:
+      - name: Checkout exact issue-comment event head
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+      - name: Recheck Migration 225 and Governance writer readiness before reconciled Apply
+        env:
+          METADATA_DIAGNOSTIC_MODE: readiness
+        run: node .github/ops/github-repository-policy-1051-metadata-state.mjs
+      - name: Verify exact record-only ledger before reconciled Apply
+        run: node .github/ops/github-repository-policy-1051-orphan-ledger-recovery.mjs
+      - name: Execute metadata Apply only after certified record-only reconciliation
+        run: node .github/ops/github-repository-policy-1051-governed-rollout.mjs
+      - name: Upload no-secret reconciled Apply evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: github-repository-policy-1051-reconciled-apply-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}
+          if-no-files-found: error
+          retention-days: 30
+
   apply:
     name: Apply Migration 1051 exactly once and certify
     if: >-
