@@ -90,6 +90,8 @@ The semantic guard adds **zero** workflow files. Pre-merge impact classification
 
 The two provisional standalone semantic workflow files were removed. This preserves the repository's CI workflow-surface ratchet while strengthening existing authorities rather than creating parallel owners.
 
+The document intentionally lives under `docs/governance/`, which is the existing repository-governance path class. This keeps its environment-impact classification explicit without widening runtime or deployment-policy authority for documentation.
+
 ## Safety boundary
 
 This guard does not authorize or execute:
