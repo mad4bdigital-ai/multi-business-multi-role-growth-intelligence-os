@@ -1,34 +1,37 @@
 name: PR 7974 register connect-routes authority once
 
 on:
-  push:
-    branches:
-      - fix/admin-recovery-mcp-local-connector-ownership-20260908
+  pull_request:
+    branches: [main]
+    types: [synchronize]
 
 permissions:
   contents: write
 
 jobs:
   repair:
-    if: github.actor == 'mad4bdigital-ai'
+    if: github.actor == 'mad4bdigital-ai' && github.event.pull_request.head.ref == 'fix/admin-recovery-mcp-local-connector-ownership-20260908'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 2
           persist-credentials: true
 
       - name: Guard exact parent and repair only the existing authority
         shell: bash
         env:
-          EXPECTED_PARENT: 48f667c16b7f8db4b110bd4a95bd4d5f1abab6a8
+          EXPECTED_PARENT: 91ddd59041675f10e0cc8571edb76b3dd36e50fe
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
           TARGET_BRANCH: fix/admin-recovery-mcp-local-connector-ownership-20260908
           REGISTRY: .github/governance/test-authority-registry.json
           SELF: .github/workflows/pr-7974-register-connect-routes-authority-once.yml
         run: |
           set -euo pipefail
-          test "$GITHUB_REF_NAME" = "$TARGET_BRANCH"
+          test "$GITHUB_HEAD_REF" = "$TARGET_BRANCH"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
           test "$(git rev-parse HEAD^)" = "$EXPECTED_PARENT"
           changed="$(git diff --name-only "$EXPECTED_PARENT" HEAD)"
           test "$changed" = "$SELF"
