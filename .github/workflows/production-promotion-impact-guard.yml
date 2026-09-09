@@ -47,8 +47,24 @@ jobs:
           rm -rf "$report_dir"
           mkdir -p "$report_dir"
 
-          # Always execute the evaluator from the trusted base, never from the proposed head.
-          git show "${BASE_SHA}:${EVALUATOR_PATH}" > "$report_dir/trusted-evaluator.mjs"
+          # Normal mode always executes the evaluator from trusted base. The only bootstrap
+          # exception is the first introduction of this evaluator, proven by Git as an Added path
+          # that is absent from base. Once merged, this branch becomes unreachable.
+          evaluator_source="trusted_base"
+          if git cat-file -e "${BASE_SHA}:${EVALUATOR_PATH}" 2>/dev/null; then
+            git show "${BASE_SHA}:${EVALUATOR_PATH}" > "$report_dir/trusted-evaluator.mjs"
+          else
+            added="$(git diff --diff-filter=A --name-only "$BASE_SHA" "$HEAD_SHA" -- "$EVALUATOR_PATH")"
+            [[ "$added" == "$EVALUATOR_PATH" ]] || { echo "::error::trusted base evaluator missing and proposed evaluator is not an exact Added bootstrap path"; exit 1; }
+            git cat-file -e "${HEAD_SHA}:${EVALUATOR_PATH}"
+            git show "${HEAD_SHA}:${EVALUATOR_PATH}" > "$report_dir/trusted-evaluator.mjs"
+            node --check "$report_dir/trusted-evaluator.mjs"
+            if grep -Eq 'node:child_process|execFileSync|spawnSync|execSync' "$report_dir/trusted-evaluator.mjs"; then
+              echo "::error::bootstrap semantic evaluator may not gain process orchestration authority"
+              exit 1
+            fi
+            evaluator_source="bootstrap_exact_added_head"
+          fi
           git show "${BASE_SHA}:${POLICY_PATH}" > "$report_dir/base-policy.json"
           git show "${HEAD_SHA}:${POLICY_PATH}" > "$report_dir/head-policy.json"
           git ls-tree -r -z "$BASE_SHA" > "$report_dir/base-tree.bin"
@@ -83,6 +99,7 @@ jobs:
           echo "changed_sensitive_path_count=$changed_count" >> "$GITHUB_OUTPUT"
           echo "base_digest=$digest_before" >> "$GITHUB_OUTPUT"
           echo "head_digest=$digest_after" >> "$GITHUB_OUTPUT"
+          echo "evaluator_source=$evaluator_source" >> "$GITHUB_OUTPUT"
           echo "report=$report_dir/report.json" >> "$GITHUB_OUTPUT"
 
       - name: Publish classification summary
@@ -92,6 +109,7 @@ jobs:
           CHANGED_COUNT: ${{ steps.continuity.outputs.changed_sensitive_path_count }}
           BASE_DIGEST: ${{ steps.continuity.outputs.base_digest }}
           HEAD_DIGEST: ${{ steps.continuity.outputs.head_digest }}
+          EVALUATOR_SOURCE: ${{ steps.continuity.outputs.evaluator_source }}
         run: |
           set -Eeuo pipefail
           if [[ "$PRODUCTION_IMPACT" == true ]]; then
@@ -105,6 +123,7 @@ jobs:
           - base SHA: \`$BASE_SHA\`
           - head SHA: \`$HEAD_SHA\`
           - production-impacting: \`$PRODUCTION_IMPACT\`
+          - evaluator source: \`$EVALUATOR_SOURCE\`
           - changed sensitive paths: \`$CHANGED_COUNT\`
           - base promotion digest: \`$BASE_DIGEST\`
           - head promotion digest: \`$HEAD_DIGEST\`
