@@ -248,9 +248,14 @@ test("controller uses certified immutable cuts and a declarative supporting-gate
   assert.match(candidate, /git merge-base --is-ancestor "\$RELEASE_CUT_SHA" "\$CURRENT_MAIN_SHA"/u);
   assert.match(candidate, /git commit-tree "\$RELEASE_TREE" -p "\$RELEASE_CUT_SHA" -p "\$ACTUAL_PRODUCTION_SHA"/u);
   assert.match(candidate, /test\(release\): certify immutable Production candidate/u);
-  assert.match(mainGuard, /guard_scope:"release_cut_ancestry"/u);
+  assert.match(mainGuard, /guard_scope:"release_cut_ancestry_and_semantic_continuity"/u);
+  assert.match(mainGuard, /main_advance_requires_semantic_continuity:true/u);
+  assert.match(mainGuard, /promotion_surface_digest_required:true/u);
+  assert.match(mainGuard, /fresh_governed_release_cut_required_when_digest_changes:true/u);
   assert.match(mainGuard, /preserving launcher run/u);
   assert.match(releaseGate, /release_cut_is_ancestor_of_current_main:true/u);
+  assert.match(releaseGate, /semantic_continuity == true/u);
+  assert.match(releaseGate, /promotion_surface_digest_required:true/u);
   assert.match(postGuard, /release_cut_not_in_current_main/u);
   assert.doesNotMatch(postGuard, /REASON=main_moved_after_finalization/u);
   assert.match(rehearsal, /REHEARSE_GOVERNED_PRODUCTION_PROMOTION/u);
