@@ -1,7 +1,7 @@
 name: Governed Production Release Source-Pin Gate
 
 on:
-  pull_request:
+  pull_request_target:
     branches: [Production]
     types: [opened, synchronize, reopened, ready_for_review, edited]
 
@@ -15,9 +15,9 @@ concurrency:
 
 jobs:
   validate-governed-release-source-pin:
-    name: Validate governed Production source pin
+    name: Production Promotion Semantic Source-Pin Gate
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     env:
       GH_TOKEN: ${{ github.token }}
       REPOSITORY: ${{ github.repository }}
@@ -25,20 +25,14 @@ jobs:
       EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
       EVENT_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+      POLICY_PATH: http-generic-api/config/deployment-branch-policy.json
+      SEMANTIC_EVALUATOR: .github/scripts/production-promotion-semantic-continuity.mjs
     steps:
-      - name: Checkout exact release candidate
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Verify governed release cut and protected-ref freshness
-        id: verify
+      - name: Resolve exact trusted main and governed release identity
+        id: identity
         shell: bash
         run: |
           set -Eeuo pipefail
-
           require_sha() {
             local label="$1" value="$2"
             [[ "$value" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::$label must be an exact lowercase 40-character SHA"; exit 1; }
@@ -69,47 +63,18 @@ jobs:
           require_sha RELEASE_CUT_SHA "$RELEASE_CUT_SHA"
           require_sha PINNED_PRODUCTION "$PINNED_PRODUCTION"
 
-          git fetch --no-tags origin \
-            '+refs/heads/main:refs/remotes/origin/main' \
-            '+refs/heads/Production:refs/remotes/origin/Production'
-          CURRENT_MAIN_SHA="$(git rev-parse refs/remotes/origin/main)"
-          CURRENT_PRODUCTION_SHA="$(git rev-parse refs/remotes/origin/Production)"
-          CURRENT_HEAD_SHA="$(git rev-parse HEAD)"
+          CURRENT_MAIN_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          CURRENT_PRODUCTION_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
           require_sha CURRENT_MAIN_SHA "$CURRENT_MAIN_SHA"
           require_sha CURRENT_PRODUCTION_SHA "$CURRENT_PRODUCTION_SHA"
-          [[ "$CURRENT_HEAD_SHA" == "$EVENT_HEAD_SHA" ]] || { echo "::error::checked-out candidate differs from event head"; exit 1; }
           [[ "$CURRENT_PRODUCTION_SHA" == "$PINNED_PRODUCTION" ]] || { echo "::error::stale release: pinned Production differs from current Production"; exit 1; }
           [[ "$EVENT_BASE_SHA" == "$CURRENT_PRODUCTION_SHA" ]] || { echo "::error::release PR base is stale relative to Production"; exit 1; }
 
           if [[ "$RELEASE_CUT_MODE" == true ]]; then
-            git merge-base --is-ancestor "$RELEASE_CUT_SHA" "$CURRENT_MAIN_SHA" || {
-              echo "::error::stale release: certified release cut is not an ancestor of current main"
-              exit 1
-            }
-            git merge-base --is-ancestor "$CURRENT_PRODUCTION_SHA" "$RELEASE_CUT_SHA" || {
-              echo "::error::current Production contains commits absent from the certified release cut"
-              exit 1
-            }
-            [[ "$(git rev-parse "${EVENT_HEAD_SHA}^1")" == "$RELEASE_CUT_SHA" ]] || {
-              echo "::error::candidate first parent must be the certified release cut"
-              exit 1
-            }
-            git diff --quiet "$RELEASE_CUT_SHA" "$EVENT_HEAD_SHA" || {
-              echo "::error::candidate tree differs from certified release cut"
-              git diff --stat "$RELEASE_CUT_SHA" "$EVENT_HEAD_SHA"
-              exit 1
-            }
+            :
           else
-            # Backward-compatible fail-closed path for legacy exact-main candidates.
             [[ "$CURRENT_MAIN_SHA" == "$RELEASE_CUT_SHA" ]] || { echo "::error::legacy release requires exact current main pin"; exit 1; }
-            git diff --quiet "$CURRENT_MAIN_SHA" "$EVENT_HEAD_SHA" || { echo "::error::legacy candidate tree differs from current pinned main"; exit 1; }
-            git merge-base --is-ancestor "$CURRENT_MAIN_SHA" "$EVENT_HEAD_SHA" || { echo "::error::legacy candidate does not contain current main ancestry"; exit 1; }
           fi
-
-          git merge-base --is-ancestor "$CURRENT_PRODUCTION_SHA" "$EVENT_HEAD_SHA" || {
-            echo "::error::candidate does not contain current Production ancestry"
-            exit 1
-          }
 
           {
             echo "release_cut_sha=$RELEASE_CUT_SHA"
@@ -119,26 +84,130 @@ jobs:
             echo "release_cut_mode=$RELEASE_CUT_MODE"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Checkout exact trusted current main evaluator
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ steps.identity.outputs.main_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
+
+      - name: Enforce ancestry, candidate topology, and semantic continuity
+        id: continuity
+        shell: bash
+        env:
+          RELEASE_CUT_SHA: ${{ steps.identity.outputs.release_cut_sha }}
+          CURRENT_MAIN_SHA: ${{ steps.identity.outputs.main_sha }}
+          CURRENT_PRODUCTION_SHA: ${{ steps.identity.outputs.production_sha }}
+          RELEASE_CUT_MODE: ${{ steps.identity.outputs.release_cut_mode }}
+        run: |
+          set -Eeuo pipefail
+          REPORT_DIR="$RUNNER_TEMP/governed-production-release-source-pin"
+          rm -rf "$REPORT_DIR"
+          mkdir -p "$REPORT_DIR"
+          test -f "$SEMANTIC_EVALUATOR"
+
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/Production:refs/remotes/origin/Production" \
+            "+refs/pull/${PR_NUMBER}/head:refs/remotes/origin/semantic-release-candidate"
+          [[ "$(git rev-parse refs/remotes/origin/main)" == "$CURRENT_MAIN_SHA" ]] || { echo "::error::main moved after trusted evaluator pin; retry exact event"; exit 1; }
+          [[ "$(git rev-parse refs/remotes/origin/Production)" == "$CURRENT_PRODUCTION_SHA" ]] || { echo "::error::Production moved during semantic source-pin check"; exit 1; }
+          [[ "$(git rev-parse refs/remotes/origin/semantic-release-candidate)" == "$EVENT_HEAD_SHA" ]] || { echo "::error::release candidate moved during semantic source-pin check"; exit 1; }
+
+          git cat-file -e "${RELEASE_CUT_SHA}^{commit}"
+          git cat-file -e "${EVENT_HEAD_SHA}^{commit}"
+
+          if [[ "$RELEASE_CUT_MODE" == true ]]; then
+            git merge-base --is-ancestor "$RELEASE_CUT_SHA" "$CURRENT_MAIN_SHA" || {
+              echo "::error::stale release: certified release cut is not an ancestor of current main"
+              exit 1
+            }
+          else
+            [[ "$CURRENT_MAIN_SHA" == "$RELEASE_CUT_SHA" ]] || { echo "::error::legacy release requires exact current main pin"; exit 1; }
+          fi
+
+          git merge-base --is-ancestor "$CURRENT_PRODUCTION_SHA" "$RELEASE_CUT_SHA" || {
+            echo "::error::current Production contains commits absent from the certified release cut"
+            echo "::error::current Production is not contained by certified release cut"
+            exit 1
+          }
+          [[ "$(git rev-parse "${EVENT_HEAD_SHA}^1")" == "$RELEASE_CUT_SHA" ]] || {
+            echo "::error::candidate first parent must be the certified release cut"
+            exit 1
+          }
+          git diff --quiet "$RELEASE_CUT_SHA" "$EVENT_HEAD_SHA" || {
+            echo "::error::candidate tree differs from certified release cut"
+            git diff --stat "$RELEASE_CUT_SHA" "$EVENT_HEAD_SHA"
+            exit 1
+          }
+          git merge-base --is-ancestor "$CURRENT_PRODUCTION_SHA" "$EVENT_HEAD_SHA" || {
+            echo "::error::candidate does not contain current Production ancestry"
+            exit 1
+          }
+
+          git show "${RELEASE_CUT_SHA}:${POLICY_PATH}" > "$REPORT_DIR/release-policy.json"
+          git show "${CURRENT_MAIN_SHA}:${POLICY_PATH}" > "$REPORT_DIR/current-policy.json"
+          git ls-tree -r -z "$RELEASE_CUT_SHA" > "$REPORT_DIR/release-tree.bin"
+          git ls-tree -r -z "$CURRENT_MAIN_SHA" > "$REPORT_DIR/current-tree.bin"
+          node "$SEMANTIC_EVALUATOR" \
+            --release-cut-sha "$RELEASE_CUT_SHA" \
+            --current-main-sha "$CURRENT_MAIN_SHA" \
+            --release-policy "$REPORT_DIR/release-policy.json" \
+            --current-policy "$REPORT_DIR/current-policy.json" \
+            --release-tree "$REPORT_DIR/release-tree.bin" \
+            --current-tree "$REPORT_DIR/current-tree.bin" \
+            --output "$REPORT_DIR/report.json" >/dev/null
+
+          jq -e '
+            .contract == "mad4b.production-promotion-semantic-continuity.v1" and
+            .evaluation_ok == true and
+            .semantic_continuity == true and
+            .promotion_surface_changed == false and
+            .invalidation_required == false and
+            .main_advance_requires_semantic_continuity == true and
+            .merge_executed == false and
+            .deployment_executed == false and
+            .migration_executed == false and
+            .provider_call_executed == false and
+            .credential_payload_read == false and
+            .secrets_included == false
+          ' "$REPORT_DIR/report.json" >/dev/null || {
+            echo "::error::Production promotion release cut is semantically stale relative to current main; create a fresh governed release cut"
+            jq '{release_cut_sha,current_main_sha,changed_sensitive_path_count,changed_sensitive_paths,invalidation_reason,fresh_governed_release_cut_required}' "$REPORT_DIR/report.json"
+            exit 1
+          }
+          echo "semantic_report=$REPORT_DIR/report.json" >> "$GITHUB_OUTPUT"
+
       - name: Publish source-pin gate evidence
         shell: bash
         env:
-          RELEASE_CUT_SHA: ${{ steps.verify.outputs.release_cut_sha }}
-          CURRENT_MAIN_SHA: ${{ steps.verify.outputs.main_sha }}
-          PRODUCTION_SHA: ${{ steps.verify.outputs.production_sha }}
-          CANDIDATE_SHA: ${{ steps.verify.outputs.candidate_sha }}
-          RELEASE_CUT_MODE: ${{ steps.verify.outputs.release_cut_mode }}
+          RELEASE_CUT_SHA: ${{ steps.identity.outputs.release_cut_sha }}
+          CURRENT_MAIN_SHA: ${{ steps.identity.outputs.main_sha }}
+          PRODUCTION_SHA: ${{ steps.identity.outputs.production_sha }}
+          CANDIDATE_SHA: ${{ steps.identity.outputs.candidate_sha }}
+          RELEASE_CUT_MODE: ${{ steps.identity.outputs.release_cut_mode }}
+          SEMANTIC_REPORT: ${{ steps.continuity.outputs.semantic_report }}
         run: |
           set -Eeuo pipefail
           mkdir -p "$RUNNER_TEMP/governed-production-release-source-pin"
+          release_digest="$(jq -r '.release_cut_promotion_digest' "$SEMANTIC_REPORT")"
+          current_digest="$(jq -r '.current_main_promotion_digest' "$SEMANTIC_REPORT")"
           jq -n \
-            --arg contract "mad4b.governed-production-release-source-pin-gate.v2" \
+            --arg contract "mad4b.governed-production-release-source-pin-gate.v3" \
             --arg release_cut_sha "$RELEASE_CUT_SHA" \
             --arg current_main_sha "$CURRENT_MAIN_SHA" \
             --arg production_sha "$PRODUCTION_SHA" \
             --arg candidate_sha "$CANDIDATE_SHA" \
             --arg release_cut_mode "$RELEASE_CUT_MODE" \
+            --arg release_digest "$release_digest" \
+            --arg current_digest "$current_digest" \
             --argjson release_pr "$PR_NUMBER" \
-            '{contract:$contract,ok:true,release_pr:$release_pr,release_cut_sha:$release_cut_sha,current_main_sha:$current_main_sha,production_sha:$production_sha,candidate_sha:$candidate_sha,release_cut_mode:($release_cut_mode=="true"),candidate_tree_matches_release_cut:true,release_cut_is_ancestor_of_current_main:true,production_is_ancestor_of_release_cut:true,candidate_contains_current_production:true,production_ref_stable:true,main_tip_may_advance:($release_cut_mode=="true"),merge_executed:false,deployment_executed:false,migration_executed:false,provider_call_executed:false,credential_payload_read:false,secrets_included:false}' \
+            '{contract:$contract,ok:true,release_pr:$release_pr,release_cut_sha:$release_cut_sha,current_main_sha:$current_main_sha,production_sha:$production_sha,candidate_sha:$candidate_sha,release_cut_mode:($release_cut_mode=="true"),candidate_tree_matches_release_cut:true,release_cut_is_ancestor_of_current_main:true,production_is_ancestor_of_release_cut:true,candidate_contains_current_production:true,semantic_continuity:true,promotion_surface_changed:false,release_cut_promotion_digest:$release_digest,current_main_promotion_digest:$current_digest,production_ref_stable:true,main_tip_may_advance:true,main_advance_requires_semantic_continuity:true,promotion_surface_digest_required:true,fresh_governed_release_cut_required:false,merge_executed:false,deployment_executed:false,migration_executed:false,provider_call_executed:false,credential_payload_read:false,secrets_included:false}' \
             > "$RUNNER_TEMP/governed-production-release-source-pin/report.json"
 
       - name: Upload source-pin gate evidence
