@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
+import { buildReleaseCutPromotionEvidence } from "../scripts/production-promotion-release-cut-evidence.mjs";
 
 const root = process.cwd();
 const launcher = fs.readFileSync(`${root}/.github/workflows/governed-production-promotion-request-launcher.yml`, "utf8");
@@ -8,6 +9,25 @@ const mainSourcePin = fs.readFileSync(`${root}/.github/workflows/governed-produc
 const releaseSourcePin = fs.readFileSync(`${root}/.github/workflows/governed-production-release-source-pin-gate.yml`, "utf8");
 const schema = JSON.parse(fs.readFileSync(`${root}/.github/contracts/governed-command-parameters/production-promotion-request.v1.json`, "utf8"));
 const registry = JSON.parse(fs.readFileSync(`${root}/.github/contracts/production-promotion-supporting-gates.v1.json`, "utf8"));
+const sha = (digit) => String(digit).repeat(40);
+const digest = "a".repeat(64);
+
+function promotionEvidenceInput(builderRunId = "12345") {
+  return {
+    review_mode: "ai_policy",
+    request_pr: "7300",
+    release_pr: "7301",
+    validation_pr: "7302",
+    release_cut_sha: sha(1),
+    current_main_sha: sha(1),
+    production_sha: sha(3),
+    candidate_sha: sha(4),
+    builder_run_id: builderRunId,
+    certified_validation_run_id: "101",
+    gate_registry_sha256: digest,
+    supporting_runs: Object.fromEntries(registry.gates.map((gate, index) => [gate.id, String(200 + index)])),
+  };
+}
 
 test("promotion launcher keeps bounded human and AI policy review modes", () => {
   assert.match(launcher, /review_mode:/u);
@@ -20,6 +40,29 @@ test("promotion launcher keeps bounded human and AI policy review modes", () => 
   assert.match(launcher, /production-certified-release-cut-validation\.yml/u);
   assert.doesNotMatch(launcher, /contents:\s*write/u);
   assert.doesNotMatch(launcher, /gh pr merge/u);
+});
+
+test("reused builder provenance is resolved only by the governed launcher and remains numeric at the evidence boundary", () => {
+  assert.match(launcher, /resolve_reused_builder_run\(\)\s*\{/u);
+  assert.match(launcher, /--workflow production-promotion-candidate\.yml --branch "\$REQUEST_HEAD_BRANCH" --event workflow_dispatch --limit 1000/u);
+  assert.match(launcher, /\.headSha == \$sha and \.event == "workflow_dispatch" and \.status == "completed" and \.conclusion == "success"/u);
+  assert.match(launcher, /reusable builder provenance search exceeded the bounded exact-head run limit/u);
+  assert.match(launcher, /artifact_name="production-promotion-candidate-\$\{candidate_sha\}"/u);
+  assert.match(launcher, /gh run download "\$run_id" --repo "\$REPOSITORY" --name "\$artifact_name"/u);
+  assert.match(launcher, /\.schema_version == "production_promotion_candidate\.v3" and \.ok == true/u);
+  assert.match(launcher, /\.release_cut_sha == \$cut and \.production_sha == \$prod and \.candidate_sha == \$candidate/u);
+  assert.match(launcher, /\.candidate_first_parent_is_release_cut == true and \.candidate_second_parent_is_pinned_production == true/u);
+  assert.match(launcher, /\.merge_executed == false and \.deployment_executed == false and \.migration_executed == false/u);
+  assert.match(launcher, /\.provider_call_executed == false and \.credential_payload_read == false and \.secrets_included == false/u);
+  assert.match(launcher, /expected exactly one reusable builder run for candidate/u);
+  assert.ok(launcher.includes('BUILDER_RUN_ID="$(resolve_reused_builder_run "$CANDIDATE_SHA")"'));
+  assert.match(launcher, /require_run_id BUILDER_RUN_ID "\$BUILDER_RUN_ID"/u);
+
+  assert.equal(buildReleaseCutPromotionEvidence(promotionEvidenceInput()).builder_run_id, "12345");
+  assert.throws(
+    () => buildReleaseCutPromotionEvidence(promotionEvidenceInput("reused")),
+    /builder_run_id is invalid/u,
+  );
 });
 
 test("supporting-gate registry is the single read-only review-gate source", () => {
