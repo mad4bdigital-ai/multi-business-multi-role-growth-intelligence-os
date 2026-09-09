@@ -10,10 +10,10 @@ import {
   RECONCILED_APPLY_CONFIRM,
   classifyLedgerState,
   validateMetadataReport,
-} from "../.github/ops/github-repository-policy-1051-orphan-ledger-recovery.mjs";
+} from "../.github/ops/github-repository-policy-1051-governed-rollout.mjs";
 
 const workflow = fs.readFileSync(new URL("../.github/workflows/github-repository-policy-1051-governed-rollout.yml", import.meta.url), "utf8");
-const recovery = fs.readFileSync(new URL("../.github/ops/github-repository-policy-1051-orphan-ledger-recovery.mjs", import.meta.url), "utf8");
+const recovery = fs.readFileSync(new URL("../.github/ops/github-repository-policy-1051-governed-rollout.mjs", import.meta.url), "utf8");
 
 const absent = classifyMetadataPresence({});
 assert.equal(absent.target_metadata_state, "absent");
@@ -166,8 +166,9 @@ assert.equal(RECONCILED_APPLY_CONFIRM, "APPLY_1051_GITHUB_REPOSITORY_POLICY_AFTE
 
 assert.match(workflow, /RECONCILE_1051_GITHUB_REPOSITORY_POLICY_RECORD_ONLY_LEDGER/);
 assert.match(workflow, /APPLY_1051_GITHUB_REPOSITORY_POLICY_AFTER_RECORD_ONLY_RECONCILIATION/);
-assert.match(workflow, /RECOVERY_PHASE: record_only/);
-assert.match(workflow, /RECOVERY_PHASE: verify_record_only/);
+assert.match(workflow, /ROLLOUT_PHASE: record_only/);
+assert.match(workflow, /ROLLOUT_PHASE: verify_record_only/);
+assert.doesNotMatch(workflow, /RECOVERY_PHASE:/);
 assert.match(workflow, /Capture Migration 225 and Governance writer readiness before orphan-ledger reconciliation/);
 assert.match(workflow, /Create checksum-bound authorization and dry-run before record-only reconciliation/);
 assert.match(workflow, /Verify exact record-only ledger before reconciled Apply/);
@@ -180,14 +181,14 @@ const applyGuard = workflow.indexOf("Verify exact record-only ledger before reco
 const applyExecute = workflow.indexOf("Execute metadata Apply only after certified record-only reconciliation");
 assert.ok(applyGuard >= 0 && applyExecute > applyGuard);
 
-assert.match(recovery, /alias: "migration_ledger_record_apply"/);
+assert.match(recovery, /migration_ledger_record_apply/);
 assert.match(recovery, /sql_applied_by_this_run/);
 assert.match(recovery, /governed_migration_runner_backfill/);
 assert.match(recovery, /provider_call_executed: false/);
 assert.match(recovery, /external_write_executed: false/);
 assert.match(recovery, /live_github_policy_apply: false/);
-assert.match(recovery, /protected_ref_mutation: false/);
-assert.match(recovery, /force_push: false/);
+assert.match(recovery, /protected_ref_mutation/);
+assert.match(recovery, /force_push/);
 assert.match(recovery, /secrets_included: false/);
 
 console.log(JSON.stringify({
@@ -198,6 +199,7 @@ console.log(JSON.stringify({
   complete_requires_exact_ledger: !complete.replay_safe_without_exact_ledger,
   record_only_reconciliation_proven: true,
   apply_requires_separate_confirmation: true,
+  canonical_rollout_runner_reused: true,
   provider_call_executed: false,
   external_write_executed: false,
   secrets_included: false,
