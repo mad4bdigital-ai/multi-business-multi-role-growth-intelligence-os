@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { buildSemanticContinuityReport } from "../.github/scripts/production-promotion-semantic-continuity.mjs";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const launcher = read(".github/workflows/governed-production-promotion-request-launcher.yml");
@@ -8,6 +9,9 @@ const mainSourcePinGuard = read(".github/workflows/governed-production-main-sour
 const releaseSourcePinGate = read(".github/workflows/governed-production-release-source-pin-gate.yml");
 const postFinalizationGuard = read(".github/workflows/governed-production-promotion-post-finalization-guard.yml");
 const certifiedReleaseCut = read(".github/workflows/production-certified-release-cut-validation.yml");
+const semanticImpactGuard = read(".github/workflows/production-promotion-impact-guard.yml");
+const semanticSourcePinGate = read(".github/workflows/production-promotion-semantic-source-pin-gate.yml");
+const semanticContinuityHelper = read(".github/scripts/production-promotion-semantic-continuity.mjs");
 const ci = read(".github/workflows/ci.yml");
 const runtimeStartupWorkflow = read(".github/workflows/runtime-startup-deployment-evidence.yml");
 const startupSmoke = read("http-generic-api/test-server-startup-smoke.mjs");
@@ -16,6 +20,133 @@ const runtimeStartupEnvironment = read("http-generic-api/scripts/runtime-startup
 const gateResolver = read(".github/scripts/production-promotion-supporting-gates.mjs");
 const evidenceHelper = read(".github/scripts/production-promotion-release-cut-evidence.mjs");
 const registry = JSON.parse(read(".github/contracts/production-promotion-supporting-gates.v1.json"));
+
+const object = (digit) => String(digit).repeat(40);
+const treeEntry = (path, digit) => ({ path, mode: "100644", type: "blob", object: object(digit) });
+const deploymentPolicy = (extraSharedPatterns = []) => ({
+  schema_version: "mad4b.deployment-branch-policy.v1",
+  environment_impact: {
+    fail_closed: { unclassified_paths: true },
+    source_of_truth_paths: [
+      "http-generic-api/config/deployment-branch-policy.json",
+      "http-generic-api/config/domain-family-policy.json",
+    ],
+    path_classes: [
+      {
+        id: "shared_runtime",
+        patterns: ["http-generic-api/routes/**", ...extraSharedPatterns],
+        environments: ["staging", "production"],
+        requires_live_certification: true,
+      },
+      {
+        id: "repository_governance",
+        patterns: [".github/**", "docs/**"],
+        environments: ["repository"],
+        requires_live_certification: false,
+      },
+    ],
+  },
+});
+
+{
+  const releasePolicy = deploymentPolicy();
+  const baseTree = [
+    treeEntry("README.md", 1),
+    treeEntry("http-generic-api/routes/a.js", 2),
+    treeEntry(".github/workflows/ci.yml", 3),
+  ];
+
+  const docsOnly = buildSemanticContinuityReport({
+    releaseCutSha: object("a"),
+    currentMainSha: object("b"),
+    releasePolicy,
+    currentPolicy: releasePolicy,
+    releaseTree: baseTree,
+    currentTree: [
+      treeEntry("README.md", 9),
+      treeEntry("http-generic-api/routes/a.js", 2),
+      treeEntry(".github/workflows/ci.yml", 3),
+    ],
+  });
+  assert.equal(docsOnly.semantic_continuity, true, "README-only main advancement must not invalidate a release cut");
+  assert.equal(docsOnly.changed_sensitive_path_count, 0);
+
+  const runtimeChange = buildSemanticContinuityReport({
+    releaseCutSha: object("a"),
+    currentMainSha: object("b"),
+    releasePolicy,
+    currentPolicy: releasePolicy,
+    releaseTree: baseTree,
+    currentTree: [
+      treeEntry("README.md", 1),
+      treeEntry("http-generic-api/routes/a.js", 8),
+      treeEntry(".github/workflows/ci.yml", 3),
+    ],
+  });
+  assert.equal(runtimeChange.semantic_continuity, false, "shared runtime changes must invalidate an older release cut");
+  assert.ok(runtimeChange.changed_sensitive_paths.some((entry) => entry.path === "http-generic-api/routes/a.js"));
+
+  const governanceChange = buildSemanticContinuityReport({
+    releaseCutSha: object("a"),
+    currentMainSha: object("b"),
+    releasePolicy,
+    currentPolicy: releasePolicy,
+    releaseTree: baseTree,
+    currentTree: [
+      treeEntry("README.md", 1),
+      treeEntry("http-generic-api/routes/a.js", 2),
+      treeEntry(".github/workflows/ci.yml", 7),
+    ],
+  });
+  assert.equal(governanceChange.semantic_continuity, false, "certification/governance workflow changes must invalidate an older release cut");
+
+  const oldPolicy = deploymentPolicy();
+  const newPolicy = deploymentPolicy(["http-generic-api/services/**"]);
+  const policyExpansion = buildSemanticContinuityReport({
+    releaseCutSha: object("a"),
+    currentMainSha: object("b"),
+    releasePolicy: oldPolicy,
+    currentPolicy: newPolicy,
+    releaseTree: [
+      treeEntry("http-generic-api/services/localManagerDeviceLinkService.js", 4),
+      treeEntry("http-generic-api/config/deployment-branch-policy.json", 5),
+    ],
+    currentTree: [
+      treeEntry("http-generic-api/services/localManagerDeviceLinkService.js", 6),
+      treeEntry("http-generic-api/config/deployment-branch-policy.json", 7),
+    ],
+  });
+  assert.equal(policyExpansion.semantic_continuity, false, "new Production-sensitive policy patterns must apply across the old/new policy union");
+  assert.ok(policyExpansion.changed_sensitive_paths.some((entry) => entry.path === "http-generic-api/services/localManagerDeviceLinkService.js"));
+}
+
+assert.doesNotMatch(semanticContinuityHelper, /node:child_process|execFileSync|spawnSync|execSync/u);
+assert.match(semanticContinuityHelper, /union_of_release_and_current_deployment_policy_plus_fixed_control_plane_floor/u);
+assert.match(semanticContinuityHelper, /production_relevant_main_advance/u);
+assert.match(semanticContinuityHelper, /fresh_governed_release_cut_required/u);
+
+for (const required of [
+  /name: Production Promotion Semantic Impact Guard/u,
+  /branches: \[main\]/u,
+  /git show "\$\{BASE_SHA\}:\$\{EVALUATOR_PATH\}"/u,
+  /promotion_surface_changed/u,
+  /merge to main blocked by impact alone/u,
+  /older release cuts invalidated after an impacting merge/u,
+  /contents: read/u,
+]) assert.match(semanticImpactGuard, required);
+assert.doesNotMatch(semanticImpactGuard, /contents:\s*write|actions:\s*write|pull-requests:\s*write|gh pr |gh api --method/u);
+
+for (const required of [
+  /name: Production Promotion Semantic Source-Pin Gate/u,
+  /pull_request_target:/u,
+  /branches: \[Production\]/u,
+  /Checkout exact trusted current main evaluator/u,
+  /production-promotion-semantic-continuity\.mjs/u,
+  /semantic_continuity == true/u,
+  /fresh governed release cut/u,
+  /current Production is not contained by certified release cut/u,
+]) assert.match(semanticSourcePinGate, required);
+assert.doesNotMatch(semanticSourcePinGate, /contents:\s*write|actions:\s*write|pull-requests:\s*write|gh pr (?:comment|close|merge)|git push/u);
 
 for (const required of [
   /group: governed-production-promotion-convergence-\$\{\{ github\.repository \}\}/u,
@@ -70,15 +201,19 @@ assert.doesNotMatch(candidate, /ACTUAL_MAIN" != "\$EXPECTED_MAIN_SHA/u);
 assert.doesNotMatch(candidate, /--force(?:-with-lease)?|\s-f\s/u);
 
 for (const required of [
-  /mad4b\.governed-production-main-source-pin-guard\.v3/u,
-  /guard_scope:"release_cut_ancestry"/u,
-  /compatible_release_cuts/u,
-  /main_tip_may_advance:true/u,
-  /preserving launcher run/u,
-  /release_cut_ancestor=false/u,
+  /mad4b\.governed-production-main-source-pin-guard\.v4/u,
+  /guard_scope:"release_cut_ancestry_and_semantic_continuity"/u,
+  /semantic_continuity_holds/u,
+  /Production promotion digest is unchanged/u,
+  /production_relevant_main_advance/u,
+  /fresh_governed_release_cut_required=true/u,
+  /main_advance_requires_semantic_continuity:true/u,
+  /promotion_surface_digest_required:true/u,
 ]) assert.match(mainSourcePinGuard, required);
 assert.doesNotMatch(mainSourcePinGuard, /gh pr merge/u);
 assert.doesNotMatch(mainSourcePinGuard, /git push/u);
+assert.match(mainSourcePinGuard, /gh pr close "\$pr_number"/u);
+assert.match(mainSourcePinGuard, /closed_stale_release_pr_numbers/u);
 
 for (const required of [
   /mad4b\.governed-production-release-source-pin-gate\.v2/u,
@@ -191,12 +326,14 @@ for (const required of [
 assert.doesNotMatch(evidenceHelper, /candidate_tree_matches_main: true/u);
 
 console.log(JSON.stringify({
-  contract: "mad4b.production-promotion-release-cut-convergence.v1",
+  contract: "mad4b.production-promotion-release-cut-convergence.v2",
   ok: true,
   release_mode: "certified_release_cut",
   exact_candidate_parent_count: 2,
   exact_second_parent_pinned_production: true,
   main_tip_may_advance: true,
+  main_advance_requires_semantic_continuity: true,
+  production_promotion_semantic_guard: true,
   production_must_remain_stable: true,
   supporting_gate_source: "declarative_registry",
   supporting_gate_count: registry.gates.length,

@@ -1,0 +1,122 @@
+name: Production Promotion Semantic Impact Guard
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-promotion-semantic-impact-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  classify:
+    name: Classify Production promotion impact
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    env:
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      POLICY_PATH: http-generic-api/config/deployment-branch-policy.json
+      EVALUATOR_PATH: .github/scripts/production-promotion-semantic-continuity.mjs
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
+
+      - name: Build trusted base-vs-head semantic continuity evidence
+        id: continuity
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "$BASE_SHA" =~ ^[0-9a-f]{40}$ && "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
+          git cat-file -e "${BASE_SHA}^{commit}"
+          git cat-file -e "${HEAD_SHA}^{commit}"
+          report_dir="$RUNNER_TEMP/production-promotion-semantic-impact"
+          rm -rf "$report_dir"
+          mkdir -p "$report_dir"
+
+          # Always execute the evaluator from the trusted base, never from the proposed head.
+          git show "${BASE_SHA}:${EVALUATOR_PATH}" > "$report_dir/trusted-evaluator.mjs"
+          git show "${BASE_SHA}:${POLICY_PATH}" > "$report_dir/base-policy.json"
+          git show "${HEAD_SHA}:${POLICY_PATH}" > "$report_dir/head-policy.json"
+          git ls-tree -r -z "$BASE_SHA" > "$report_dir/base-tree.bin"
+          git ls-tree -r -z "$HEAD_SHA" > "$report_dir/head-tree.bin"
+
+          node "$report_dir/trusted-evaluator.mjs" \
+            --release-cut-sha "$BASE_SHA" \
+            --current-main-sha "$HEAD_SHA" \
+            --release-policy "$report_dir/base-policy.json" \
+            --current-policy "$report_dir/head-policy.json" \
+            --release-tree "$report_dir/base-tree.bin" \
+            --current-tree "$report_dir/head-tree.bin" \
+            --output "$report_dir/report.json" >/dev/null
+
+          jq -e '
+            .contract == "mad4b.production-promotion-semantic-continuity.v1" and
+            .evaluation_ok == true and
+            .main_advance_requires_semantic_continuity == true and
+            .merge_executed == false and
+            .deployment_executed == false and
+            .migration_executed == false and
+            .provider_call_executed == false and
+            .credential_payload_read == false and
+            .secrets_included == false
+          ' "$report_dir/report.json" >/dev/null
+
+          impact="$(jq -r '(.promotion_surface_changed == true)' "$report_dir/report.json")"
+          changed_count="$(jq -r '.changed_sensitive_path_count' "$report_dir/report.json")"
+          digest_before="$(jq -r '.release_cut_promotion_digest' "$report_dir/report.json")"
+          digest_after="$(jq -r '.current_main_promotion_digest' "$report_dir/report.json")"
+          echo "production_impact=$impact" >> "$GITHUB_OUTPUT"
+          echo "changed_sensitive_path_count=$changed_count" >> "$GITHUB_OUTPUT"
+          echo "base_digest=$digest_before" >> "$GITHUB_OUTPUT"
+          echo "head_digest=$digest_after" >> "$GITHUB_OUTPUT"
+          echo "report=$report_dir/report.json" >> "$GITHUB_OUTPUT"
+
+      - name: Publish classification summary
+        shell: bash
+        env:
+          PRODUCTION_IMPACT: ${{ steps.continuity.outputs.production_impact }}
+          CHANGED_COUNT: ${{ steps.continuity.outputs.changed_sensitive_path_count }}
+          BASE_DIGEST: ${{ steps.continuity.outputs.base_digest }}
+          HEAD_DIGEST: ${{ steps.continuity.outputs.head_digest }}
+        run: |
+          set -Eeuo pipefail
+          if [[ "$PRODUCTION_IMPACT" == true ]]; then
+            echo "::notice::PR changes the Production promotion semantic surface; merge to main is allowed, but every older release cut must be invalidated and a fresh governed release cut is required."
+          else
+            echo "::notice::PR does not change the Production promotion semantic surface; an existing release cut may remain valid if all other protected-ref invariants hold."
+          fi
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## Production promotion semantic impact
+
+          - base SHA: \`$BASE_SHA\`
+          - head SHA: \`$HEAD_SHA\`
+          - production-impacting: \`$PRODUCTION_IMPACT\`
+          - changed sensitive paths: \`$CHANGED_COUNT\`
+          - base promotion digest: \`$BASE_DIGEST\`
+          - head promotion digest: \`$HEAD_DIGEST\`
+          - merge to main blocked by impact alone: \`false\`
+          - older release cuts invalidated after an impacting merge: \`true\`
+          - Production merge/deploy/migration/provider mutation executed: \`false\`
+          EOF
+
+      - name: Upload bounded semantic impact evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: production-promotion-semantic-impact-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+          path: ${{ steps.continuity.outputs.report }}
+          if-no-files-found: error
+          retention-days: 30
