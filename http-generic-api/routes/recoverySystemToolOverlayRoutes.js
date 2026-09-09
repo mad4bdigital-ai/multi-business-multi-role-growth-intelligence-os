@@ -6,6 +6,7 @@ import {
   buildStagingRecoverySystemTools,
   isStagingRecoverySystemEnvironment,
   stagingRecoveryAccessRepairApprove,
+  stagingRecoveryAccessRepairExecute,
   stagingRecoveryAccessRepairPrepare,
   stagingRecoveryCertificationCanaryPlanCreate,
   stagingRecoverySystemSurfaceReadiness,
@@ -22,6 +23,7 @@ const STAGING_TOOL_NAMES = new Set([
   "staging_recovery_certification_canary_plan_create",
   "staging_recovery_access_repair_prepare",
   "staging_recovery_access_repair_approve",
+  "staging_recovery_access_repair_execute",
   "staging_recovery_system_surface_readiness",
 ]);
 const BRIDGE_ALLOWED_KEYS = new Set([
@@ -85,9 +87,25 @@ export function synchronizeRecoverySystemToolDescriptors(env = process.env) {
   };
 }
 
-export function projectRecoveryCapabilitiesForSystemSurface(env = process.env) {
+function stagingExecutionDependenciesReady(deps = {}) {
+  const executor = deps.hostBreakglassMutationExecutor;
+  return Boolean(
+    (typeof executor === "function" || typeof executor?.execute === "function")
+    && typeof deps.recoveryLock?.acquire === "function"
+    && typeof deps.readbackVerifier?.verify === "function"
+    && deps.readbackVerifier?.independent_authority === true
+    && deps.readbackVerifier?.role_aware === true
+    && deps.readbackVerifier?.mutation_authority !== true
+    && typeof deps.deploymentIdentityProvider?.readAttestation === "function"
+    && typeof deps.recoveryStore?.getPlan === "function"
+    && typeof deps.recoveryStore?.getExecutionTicket === "function"
+  );
+}
+
+export function projectRecoveryCapabilitiesForSystemSurface(env = process.env, deps = {}) {
   const kernel = getRecoveryCapabilities({ env });
   if (!isStagingRecoverySystemEnvironment(env)) return kernel;
+  const executionReady = stagingExecutionDependenciesReady(deps);
   return {
     ...kernel,
     environment_view: "staging_bounded_control_plane",
@@ -105,14 +123,14 @@ export function projectRecoveryCapabilitiesForSystemSurface(env = process.env) {
       {
         capability_key: "staging_database_access_repair",
         risk_class: "C2",
-        state_scope: "plan_approval_ticket_only",
-        target_database_mutation: false,
+        state_scope: executionReady ? "plan_approval_execute_readback" : "plan_approval_ticket_only",
+        target_database_mutation: executionReady,
         provider_mutation: false,
         production_authority: false,
       },
     ],
     control_plane_state_write_capabilities: ["staging_certification_canary_plan_create", "staging_database_access_repair"],
-    target_database_mutation_capabilities: [],
+    target_database_mutation_capabilities: executionReady ? ["staging_database_access_repair"] : [],
     production_authority: false,
     secrets_included: false,
   };
@@ -167,10 +185,10 @@ async function executeOverlayTool(name, args, deps = {}) {
   const runtimeEnv = deps.recoveryKernelEnv || deps.env || process.env;
 
   if (name === "recovery_kernel_capabilities") {
-    return projectRecoveryCapabilitiesForSystemSurface(runtimeEnv);
+    return projectRecoveryCapabilitiesForSystemSurface(runtimeEnv, deps);
   }
   if (name === "recovery_kernel_call" && String(args?.capability_key || "").trim() === "recovery_capabilities") {
-    return projectRecoveryCapabilitiesForSystemSurface(runtimeEnv);
+    return projectRecoveryCapabilitiesForSystemSurface(runtimeEnv, deps);
   }
 
   if (STAGING_TOOL_NAMES.has(name)) {
@@ -184,6 +202,10 @@ async function executeOverlayTool(name, args, deps = {}) {
     if (name === "staging_recovery_certification_canary_plan_create") return stagingRecoveryCertificationCanaryPlanCreate(args, { env: runtimeEnv });
     if (name === "staging_recovery_access_repair_prepare") return stagingRecoveryAccessRepairPrepare(args, { env: runtimeEnv });
     if (name === "staging_recovery_access_repair_approve") return stagingRecoveryAccessRepairApprove(args, { env: runtimeEnv });
+    if (name === "staging_recovery_access_repair_execute") {
+      if (!stagingExecutionDependenciesReady(deps)) throw Object.assign(new Error("Staging access-repair execution dependencies are incomplete."), { status: 503, code: "STAGING_RECOVERY_EXECUTION_UNAVAILABLE" });
+      return stagingRecoveryAccessRepairExecute(args, { env: runtimeEnv, adapters: deps });
+    }
     if (name === "staging_recovery_system_surface_readiness") return stagingRecoverySystemSurfaceReadiness(args, { env: runtimeEnv });
   }
 
@@ -272,5 +294,6 @@ export const _testingRecoverySystemToolOverlay = Object.freeze({
   BRIDGE_ALLOWED_KEYS,
   bridgeDescriptor,
   validateBridgeArgs,
+  stagingExecutionDependenciesReady,
   executeOverlayTool,
 });
