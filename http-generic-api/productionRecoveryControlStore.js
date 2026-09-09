@@ -227,6 +227,7 @@ async function putRecord(poolProvider, type, id, payload, indexes = {}) {
 
 async function getRecord(poolProvider, type, id) {
   const [rows] = await query(poolProvider, "SELECT payload_json FROM recovery_control_records WHERE record_type = ? AND record_id = ? LIMIT 1", [type, requiredId(id, `${type}_id`)]);
+  if (rows.length > 1) throw storeError("RECOVERY_CONTROL_STORE_AMBIGUOUS_RECORD", "Recovery control-store lookup returned multiple records for a unique record identity.", { record_type: type });
   return rows?.length ? parsePayload(rows[0].payload_json) : null;
 }
 
@@ -403,6 +404,7 @@ export function createProductionRecoveryControlStore({
     },
     async getApprovalByPlanStep(planId, stepId) {
       const [rows] = await query(poolProvider, "SELECT approval_id FROM recovery_control_approval_index WHERE plan_id = ? AND step_id = ? LIMIT 1", [requiredId(planId, "plan_id"), requiredId(stepId, "step_id")]);
+      if (rows.length > 1) throw storeError("RECOVERY_CONTROL_STORE_AMBIGUOUS_APPROVAL_INDEX", "Recovery approval index returned multiple approvals for one plan step.");
       return rows?.[0]?.approval_id ? getRecord(poolProvider, RECORD_TYPES.approval, rows[0].approval_id) : null;
     },
     async markApprovalUsed(approvalId) {
@@ -412,6 +414,7 @@ export function createProductionRecoveryControlStore({
         if (finalRows?.length) return { already_finalized: true };
         const [rows] = await connection.query("SELECT payload_json FROM recovery_control_records WHERE record_type = ? AND record_id = ? FOR UPDATE", [RECORD_TYPES.approval, id]);
         if (!rows?.length) return { already_finalized: true };
+        if (rows.length > 1) throw storeError("RECOVERY_CONTROL_STORE_AMBIGUOUS_APPROVAL", "Recovery approval lookup returned multiple records for one approval identity.");
         const approval = parsePayload(rows[0].payload_json);
         const finalized = { ...approval, used: true, reserved: false, finalized_at: new Date().toISOString() };
         const json = canonical(finalized);
@@ -431,6 +434,7 @@ export function createProductionRecoveryControlStore({
         if (finalRows?.length) return { reserved: false };
         const [rows] = await connection.query("SELECT payload_json FROM recovery_control_records WHERE record_type = ? AND record_id = ? FOR UPDATE", [RECORD_TYPES.approval, approvalId]);
         if (!rows?.length) return { reserved: false };
+        if (rows.length > 1) throw storeError("RECOVERY_CONTROL_STORE_AMBIGUOUS_APPROVAL", "Recovery approval lookup returned multiple records for one approval identity.");
         const approval = parsePayload(rows[0].payload_json);
         if (approval?.used === true || approval?.plan_hash !== planHash || approval?.step_id !== stepId) return { reserved: false };
         const payload = { ...context, reservation_key: reservationKey, reserved_at: new Date().toISOString(), secrets_included: false };
@@ -463,6 +467,7 @@ export function createProductionRecoveryControlStore({
     },
     async getExecutionTicket(ticketId) {
       const [rows] = await query(poolProvider, "SELECT payload_json FROM recovery_control_execution_tickets WHERE ticket_id = ? LIMIT 1", [requiredId(ticketId, "ticket_id")]);
+      if (rows.length > 1) throw storeError("RECOVERY_CONTROL_STORE_AMBIGUOUS_EXECUTION_TICKET", "Execution-ticket lookup returned multiple rows for one ticket identity.");
       return rows?.length ? parsePayload(rows[0].payload_json) : null;
     },
     async putExecutionTicket(ticket = {}) {
