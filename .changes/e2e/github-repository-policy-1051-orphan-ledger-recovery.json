@@ -19,7 +19,7 @@
       ".changes/e2e/github-repository-policy-1051-orphan-ledger-recovery.json",
       ".github/ops/github-repository-policy-1051-orphan-ledger-recovery.mjs",
       ".github/workflows/github-repository-policy-1051-governed-rollout.yml",
-      "http-generic-api/test-github-repository-policy-1051-orphan-ledger-recovery.mjs",
+      "http-generic-api/test-github-repository-policy-1051-metadata-state.mjs",
       "docs/governance/github-repository-policy-1051-orphan-ledger-recovery.md"
     ]
   },
@@ -66,14 +66,14 @@
               "id": "github-repository-policy-1051-orphan-ledger-recovery-contract",
               "runner": "node",
               "working_directory": "http-generic-api",
-              "path": "test-github-repository-policy-1051-orphan-ledger-recovery.mjs",
+              "path": "test-github-repository-policy-1051-metadata-state.mjs",
               "args": []
             }
           ],
           "evidence_paths": [
             ".github/ops/github-repository-policy-1051-orphan-ledger-recovery.mjs",
             ".github/workflows/github-repository-policy-1051-governed-rollout.yml",
-            "http-generic-api/test-github-repository-policy-1051-orphan-ledger-recovery.mjs",
+            "http-generic-api/test-github-repository-policy-1051-metadata-state.mjs",
             "docs/governance/github-repository-policy-1051-orphan-ledger-recovery.md"
           ]
         }
