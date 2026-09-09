@@ -6,7 +6,6 @@ import { fileURLToPath } from "node:url";
 
 export const CONTRACT = "mad4b.production-promotion-semantic-continuity.v1";
 const SHA_RE = /^[0-9a-f]{40}$/u;
-const POLICY_CONTRACT = "mad4b.deployment-branch-policy.v1";
 
 const FIXED_PROMOTION_SENSITIVE_PATTERNS = Object.freeze([
   ".github/scripts/production-*.mjs",
@@ -85,8 +84,8 @@ function validatePolicy(policy, label) {
   if (!policy || typeof policy !== "object" || Array.isArray(policy)) {
     throw new Error(`${label} deployment policy must be an object`);
   }
-  if (policy.schema_version !== POLICY_CONTRACT) {
-    throw new Error(`${label} deployment policy contract mismatch`);
+  if (typeof policy.schema_version !== "string" || policy.schema_version.trim().length === 0) {
+    throw new Error(`${label} deployment policy contract is missing`);
   }
   const pathClasses = policy.environment_impact?.path_classes;
   if (!Array.isArray(pathClasses) || pathClasses.length === 0) {

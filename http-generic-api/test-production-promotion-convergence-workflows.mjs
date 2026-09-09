@@ -9,8 +9,8 @@ const mainSourcePinGuard = read(".github/workflows/governed-production-main-sour
 const releaseSourcePinGate = read(".github/workflows/governed-production-release-source-pin-gate.yml");
 const postFinalizationGuard = read(".github/workflows/governed-production-promotion-post-finalization-guard.yml");
 const certifiedReleaseCut = read(".github/workflows/production-certified-release-cut-validation.yml");
-const semanticImpactGuard = read(".github/workflows/production-promotion-impact-guard.yml");
-const semanticSourcePinGate = read(".github/workflows/production-promotion-semantic-source-pin-gate.yml");
+const semanticSourcePinGate = releaseSourcePinGate;
+const derivedStateClosure = read(".github/workflows/derived-state-closure.yml");
 const semanticContinuityHelper = read(".github/scripts/production-promotion-semantic-continuity.mjs");
 const ci = read(".github/workflows/ci.yml");
 const runtimeStartupWorkflow = read(".github/workflows/runtime-startup-deployment-evidence.yml");
@@ -121,20 +121,22 @@ const deploymentPolicy = (extraSharedPatterns = []) => ({
 }
 
 assert.doesNotMatch(semanticContinuityHelper, /node:child_process|execFileSync|spawnSync|execSync/u);
+assert.doesNotMatch(semanticContinuityHelper, /POLICY_CONTRACT\s*=/u);
+assert.match(semanticContinuityHelper, /deployment policy contract is missing/u);
 assert.match(semanticContinuityHelper, /union_of_release_and_current_deployment_policy_plus_fixed_control_plane_floor/u);
 assert.match(semanticContinuityHelper, /production_relevant_main_advance/u);
 assert.match(semanticContinuityHelper, /fresh_governed_release_cut_required/u);
 
 for (const required of [
-  /name: Production Promotion Semantic Impact Guard/u,
+  /name: Derived State Closure/u,
+  /pull_request:/u,
   /branches: \[main\]/u,
-  /git show "\$\{BASE_SHA\}:\$\{EVALUATOR_PATH\}"/u,
-  /promotion_surface_changed/u,
-  /merge to main blocked by impact alone/u,
-  /older release cuts invalidated after an impacting merge/u,
+  /environment-impact-closure\.mjs/u,
+  /--base-sha "\$BASE_SHA" --head-sha "\$SOURCE_HEAD_SHA"/u,
   /contents: read/u,
-]) assert.match(semanticImpactGuard, required);
-assert.doesNotMatch(semanticImpactGuard, /contents:\s*write|actions:\s*write|pull-requests:\s*write|gh pr |gh api --method/u);
+  /pull-requests: read/u,
+]) assert.match(derivedStateClosure, required);
+assert.doesNotMatch(derivedStateClosure, /contents:\s*write|pull-requests:\s*write|gh pr merge|git push/u);
 
 for (const required of [
   /name: Production Promotion Semantic Source-Pin Gate/u,
@@ -216,13 +218,17 @@ assert.match(mainSourcePinGuard, /gh pr close "\$pr_number"/u);
 assert.match(mainSourcePinGuard, /closed_stale_release_pr_numbers/u);
 
 for (const required of [
-  /mad4b\.governed-production-release-source-pin-gate\.v2/u,
+  /mad4b\.governed-production-release-source-pin-gate\.v3/u,
   /certified release cut is not an ancestor of current main/u,
   /current Production contains commits absent from the certified release cut/u,
   /candidate first parent must be the certified release cut/u,
   /candidate tree differs from certified release cut/u,
+  /semantic_continuity:true/u,
+  /promotion_surface_changed:false/u,
   /release_cut_is_ancestor_of_current_main:true/u,
   /production_is_ancestor_of_release_cut:true/u,
+  /main_advance_requires_semantic_continuity:true/u,
+  /promotion_surface_digest_required:true/u,
   /main_tip_may_advance/u,
 ]) assert.match(releaseSourcePinGate, required);
 assert.doesNotMatch(releaseSourcePinGate, /contents:\s*write/u);

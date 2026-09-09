@@ -23,6 +23,8 @@ The evaluator is `.github/scripts/production-promotion-semantic-continuity.mjs`.
 
 It is deliberately pure: it reads precomputed Git tree manifests and deployment-policy snapshots, computes a deterministic report, and performs no GitHub API call, process spawn, branch mutation, or protected-ref write.
 
+The evaluator validates the deployment policy structurally and consumes the policy snapshot itself as authority. It does not duplicate the deployment-policy contract string as a second hard-coded configuration source.
+
 The sensitive surface is the union of:
 
 - every path class from both the release-cut and current `http-generic-api/config/deployment-branch-policy.json` whose environments include `production`;
@@ -45,27 +47,19 @@ The guard does not hash timestamps, workflow run IDs, PR numbers, or other unsta
 
 ## Pull requests to main
 
-`Production Promotion Semantic Impact Guard` runs read-only for pull requests targeting `main`.
+Pre-merge environment impact remains owned by the existing `Derived State Closure` / `environment-impact-closure.mjs` authority that already runs for pull requests targeting `main`.
 
-It executes the evaluator from the trusted base SHA, not from the proposed head. A PR therefore cannot weaken its own classifier and then use that weakened code to classify itself.
+The semantic-continuity change does not add a second PR workflow authority. A Production-impacting feature may still merge to `main` when every normal repository, environment-impact, CI, review, and certification gate passes. The semantic reuse decision is enforced after `main` advances and again before a governed Production release may proceed.
 
-A Production-impacting PR is not rejected merely for being impactful. The result means:
-
-```text
-merge_to_main_allowed_by_impact_guard = true
-older_release_cut_reuse_after_merge = false
-fresh_governed_release_cut_required = true
-```
-
-Other repository governance, environment-impact, CI, review, and certification requirements still apply independently.
+This separation preserves the repository workflow-surface ratchet while keeping the important rule: impact does not freeze development, but Production-relevant movement invalidates an older certified release cut.
 
 ## Production release source-pin gate
 
-`Production Promotion Semantic Source-Pin Gate` runs read-only under `pull_request_target` for governed release PRs targeting `Production`.
+The existing `Governed Production Release Source-Pin Gate` is strengthened in place and runs read-only under `pull_request_target` for governed release PRs targeting `Production`.
 
 It resolves and pins exact current `main` and `Production`, checks same-repository release identity and candidate topology, then evaluates the release cut against current `main` using the trusted evaluator from current `main`. A semantically stale cut fails closed and requires a fresh governed release cut. The gate performs no comment, close, merge, deployment, or provider mutation.
 
-This provides a default-branch bootstrap defense even before the new guard files themselves have been promoted into the `Production` branch.
+This provides an independent final semantic CAS without adding a second workflow authority.
 
 ## Pushes to main
 
@@ -89,6 +83,12 @@ If the digest changed, the guard:
 - does not silently repin the old authorization.
 
 Documentation-only movement that is outside the semantic surface can preserve the old release cut.
+
+## Workflow authority consolidation
+
+The semantic guard adds **zero** workflow files. Pre-merge impact classification stays in the existing Derived State/environment-impact authority, post-merge semantic reconciliation stays in `.github/workflows/governed-production-main-source-pin-guard.yml`, and Production semantic source-pin enforcement is integrated into `.github/workflows/governed-production-release-source-pin-gate.yml`.
+
+The two provisional standalone semantic workflow files were removed. This preserves the repository's CI workflow-surface ratchet while strengthening existing authorities rather than creating parallel owners.
 
 ## Safety boundary
 

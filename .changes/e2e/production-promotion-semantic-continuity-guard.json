@@ -19,9 +19,8 @@
     "include": [
       ".changes/e2e/production-promotion-semantic-continuity-guard.json",
       ".github/scripts/production-promotion-semantic-continuity.mjs",
-      ".github/workflows/production-promotion-impact-guard.yml",
-      ".github/workflows/production-promotion-semantic-source-pin-gate.yml",
       ".github/workflows/governed-production-main-source-pin-guard.yml",
+      ".github/workflows/governed-production-release-source-pin-gate.yml",
       "http-generic-api/test-production-promotion-convergence-workflows.mjs",
       "docs/production-promotion-semantic-continuity-guard.md"
     ]
@@ -43,14 +42,15 @@
           "entrypoint": "A pull request or feature advances main while one or more governed Production release cuts or launchers are still active.",
           "terminal_outcome": "Non-impacting documentation-only movement preserves the old cut, while any Production-sensitive runtime/governance/policy change marks old release candidates stale, cancels affected in-flight promotion runs, and requires a fresh governed release cut without mutating Production.",
           "steps": [
-            "Classify every pull request to main using a trusted-base evaluator and a deterministic Production-sensitive manifest.",
+            "Classify pull requests to main through the existing Derived State Closure/environment-impact authority; do not add a second workflow authority for PR impact classification.",
             "Derive sensitive runtime paths from the union of the release-cut and current deployment policies so a policy expansion cannot hide newly Production-relevant paths.",
             "Add a fixed promotion-control-plane floor covering promotion workflows, certification/governance checks, core policy registries, package/runtime build inputs, and deployment helpers.",
             "Hash Git tree identities including path, mode, type, and object identity rather than relying on main SHA equality.",
             "On every push to main, compare each open governed Production release cut and each in-flight promotion launcher against current main.",
             "Preserve an ancestor release cut only when its Production promotion digest equals current main.",
             "Mark, close, and cancel stale promotion surfaces when ancestry is lost or the semantic digest changes.",
-            "Run a trusted-main pull_request_target semantic source-pin gate on every governed Production release PR.",
+            "Enforce trusted-current-main semantic source-pin validation inside the existing Governed Production Release Source-Pin Gate.",
+            "Consolidate semantic continuity into existing workflow authorities so the CI workflow surface remains at its base count.",
             "Publish bounded evidence with explicit no-merge, no-deploy, no-migration, no-provider-mutation, and no-credential-read safety flags."
           ],
           "assertions": [
@@ -59,7 +59,9 @@
             "Production promotion or certification-governance workflow changes invalidate an older release cut.",
             "The union of release and current deployment policies detects a newly Production-sensitive path even if the old cut did not classify it as Production-relevant.",
             "The semantic evaluator is pure and does not gain child-process or GitHub orchestration authority.",
+            "The evaluator does not duplicate the deployment-policy contract as a hard-coded configuration candidate.",
             "A Production-impacting feature is allowed to merge to main when other governance gates pass; the impact itself requires a fresh release cut after merge rather than freezing development.",
+            "No new workflow authority is introduced; semantic impact and source-pin enforcement are consolidated into existing governed workflows.",
             "No stale release authorization is silently repinned or reused.",
             "No Production merge, deployment, migration, grant, provider mutation, credential payload read, protected-ref direct write, or force push is authorized."
           ],
@@ -74,9 +76,8 @@
           ],
           "evidence_paths": [
             ".github/scripts/production-promotion-semantic-continuity.mjs",
-            ".github/workflows/production-promotion-impact-guard.yml",
-            ".github/workflows/production-promotion-semantic-source-pin-gate.yml",
             ".github/workflows/governed-production-main-source-pin-guard.yml",
+            ".github/workflows/governed-production-release-source-pin-gate.yml",
             "http-generic-api/test-production-promotion-convergence-workflows.mjs",
             "docs/production-promotion-semantic-continuity-guard.md"
           ]
