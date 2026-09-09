@@ -17,8 +17,10 @@
   "scope": {
     "include": [
       ".changes/e2e/github-repository-policy-1051-orphan-ledger-recovery.json",
+      ".github/derived-state-governance.json",
       ".github/ops/github-repository-policy-1051-governed-rollout.mjs",
       ".github/workflows/github-repository-policy-1051-governed-rollout.yml",
+      "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/test-github-repository-policy-1051-metadata-state.mjs",
       "docs/governance/github-repository-policy-1051-orphan-ledger-recovery.md"
     ]
@@ -41,6 +43,7 @@
           "terminal_outcome": "A separately confirmed record-only cycle writes a truthful checksum-bound record_only ledger with sql_applied_by_this_run=false; a later separately confirmed reconciled-Apply cycle may execute the reviewed idempotent metadata migration and create a true apply ledger, while GitHub provider mutation remains unauthorized.",
           "steps": [
             "Reuse the existing Migration 1051 workflow and canonical rollout runner rather than adding a second workflow or configuration surface.",
+            "Register the new E2E declaration and governance recovery document in both Constitution.control_plane_paths and derived-state convergence automation_control_paths.",
             "Fail closed until Migration 225 runtime dependency and the dedicated Governance DB writer readiness both pass.",
             "Run the existing checksum-bound authorization/bootstrap dry-run before record-only reconciliation.",
             "Verify exact Production runtime parity and the reviewed Migration 1051 Git blob.",
@@ -52,6 +55,7 @@
             "Leave APPLY_GITHUB_MAIN_REVIEW_POLICY and all GitHub Ruleset mutation outside this recovery authority."
           ],
           "assertions": [
+            "The recovery E2E declaration and governance document are registered in both canonical control-plane path lists.",
             "Record-only reconciliation cannot run when Migration 1051 metadata is partial or absent.",
             "Record-only reconciliation cannot run with missing schema/readback objects.",
             "Record-only reconciliation cannot run while the Governance DB writer dependency is not ready.",
@@ -71,8 +75,10 @@
             }
           ],
           "evidence_paths": [
+            ".github/derived-state-governance.json",
             ".github/ops/github-repository-policy-1051-governed-rollout.mjs",
             ".github/workflows/github-repository-policy-1051-governed-rollout.yml",
+            "http-generic-api/config/repository-governance-constitution.json",
             "http-generic-api/test-github-repository-policy-1051-metadata-state.mjs",
             "docs/governance/github-repository-policy-1051-orphan-ledger-recovery.md"
           ]
