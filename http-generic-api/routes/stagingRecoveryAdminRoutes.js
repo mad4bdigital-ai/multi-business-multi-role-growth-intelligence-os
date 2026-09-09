@@ -31,7 +31,7 @@ const STAGING_RECOVERY_INTERNAL_EXECUTION_PATHS = Object.freeze([
 const STAGING_RECOVERY_PATHS = Object.freeze([...STAGING_RECOVERY_ADVERTISED_PATHS, ...STAGING_RECOVERY_INTERNAL_EXECUTION_PATHS]);
 const BOOTSTRAP_BINDING_KEYS = Object.freeze(["execution_ticket_id", "execution_ticket_hash", "expected_sha", "target_key", "target_fingerprint", "operation", "plan_hash", "idempotency_key", "role_selection_hash", "grant_binding_hash"]);
 const BOOTSTRAP_EXECUTION_START_KEYS = Object.freeze(["authority_action", ...BOOTSTRAP_BINDING_KEYS, "reservation_receipt"]);
-const ACCESS_REPAIR_PREPARE_KEYS = Object.freeze(["authority_action", "expected_sha", "target_key", "target_fingerprint", "grant_binding_hash", "idempotency_key"]);
+const ACCESS_REPAIR_PREPARE_KEYS = Object.freeze(["authority_action", "expected_sha", "target_key", "target_fingerprint", "idempotency_key"]);
 const ACCESS_REPAIR_APPROVE_KEYS = Object.freeze(["authority_action", "plan_id", "plan_hash", "step_id", "idempotency_key", "approval_confirmation"]);
 const SENSITIVE_KEY_RE = /(password|secret|credential|authorization|private[_-]?key|connection[_-]?string|database[_-]?name|db[_-]?(?:user|password)|hostname|username|raw[_-]?sql|command)/iu;
 const LEGACY_READBACK_ASSERTION_KEYS = Object.freeze(["readback_ready", "same_cycle", "database_mutation_performed", "readback_evidence_hash"]);
@@ -77,7 +77,7 @@ function exactBootstrapExecutionStart(input = {}) {
 function exactAccessRepairPrepare(input = {}) {
   exactKeys(input, ACCESS_REPAIR_PREPARE_KEYS, "Staging access-repair preparation request must be an object.");
   if (input.authority_action !== "prepare_access_repair") throw Object.assign(new Error("Unknown Staging ticket authority action."), { code: "RECOVERY_STAGING_BOOTSTRAP_ACTION_INVALID", status: 400 });
-  return { expected_sha: input.expected_sha, target_key: input.target_key || "staging-runtime", target_fingerprint: input.target_fingerprint, grant_binding_hash: input.grant_binding_hash, idempotency_key: input.idempotency_key };
+  return { expected_sha: input.expected_sha, target_key: input.target_key || "staging-runtime", target_fingerprint: input.target_fingerprint, idempotency_key: input.idempotency_key };
 }
 function exactAccessRepairApprove(input = {}) {
   exactKeys(input, ACCESS_REPAIR_APPROVE_KEYS, "Staging access-repair approval request must be an object.");

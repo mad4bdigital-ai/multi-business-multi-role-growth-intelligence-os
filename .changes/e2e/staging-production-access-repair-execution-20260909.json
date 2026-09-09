@@ -1,0 +1,104 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-production-access-repair-execution-20260909",
+  "title": "Close Staging and Production access-repair execution",
+  "delivery_mode": "single_pr",
+  "secrets_included": false,
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-production-access-repair-execution-20260909.json",
+      "http-generic-api/productionGrantBinding.js",
+      "http-generic-api/recoveryKernel.js",
+      "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
+      "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
+      "http-generic-api/stagingAccessRepairTicketAuthority.js",
+      "http-generic-api/stagingGrantBinding.js",
+      "http-generic-api/stagingRecoverySystemTools.js",
+      "http-generic-api/test-recovery-kernel.mjs",
+      "http-generic-api/test-recovery-system-tool-overlay.mjs",
+      "http-generic-api/test-staging-access-repair-ticket-authority.mjs",
+      "http-generic-api/test-staging-recovery-system-tools.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Bind access repair to repository-owned grant contracts and close execution with environment-specific trust gates and same-cycle least-privilege readback.",
+      "e2e_journeys": [
+        {
+          "id": "server-bound-access-repair-execution",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "verified recovery administrator",
+          "entrypoint": "Staging Recovery access-repair prepare, approve and execute System Tools or the existing Production recovery execution path",
+          "terminal_outcome": "The server resolves the canonical target, grant binding, approved plan and single-use ticket, executes only the fixed grant capability, and reports recovered only after exact same-cycle readback.",
+          "steps": [
+            "Derive the environment-specific grant binding from repository-owned policy.",
+            "Reject caller SQL, commands, credentials, target identity, grant hashes and ticket material.",
+            "Apply the bounded Staging trust exception or the unchanged Production trust root.",
+            "Execute the fixed grant capability through the configured breakglass executor.",
+            "Verify required SELECT privileges and forbidden write or grant-option privileges in the same cycle."
+          ],
+          "assertions": [
+            "Staging access repair is exposed only when every execution and readback dependency is ready.",
+            "Production mutations continue to require assertTrustForMutation and an exact Production deployment identity.",
+            "The plan, step, approval, ticket and executor payload share the same server-derived grant binding hash.",
+            "Readback failure produces reconciliation_required instead of a recovered result.",
+            "This change declares no live Production mutation and includes no credential or secret material."
+          ],
+          "tests": [
+            {
+              "id": "recovery-kernel-environment-trust-and-readback",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-kernel.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-recovery-access-repair-authority",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-access-repair-ticket-authority.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-recovery-system-tool-surface",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-system-tools.mjs",
+              "args": []
+            },
+            {
+              "id": "recovery-system-tool-overlay-capability",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-system-tool-overlay.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/stagingGrantBinding.js",
+            "http-generic-api/productionGrantBinding.js",
+            "http-generic-api/stagingAccessRepairTicketAuthority.js",
+            "http-generic-api/stagingRecoverySystemTools.js",
+            "http-generic-api/recoveryKernel.js",
+            "http-generic-api/routes/recoverySystemToolOverlayRoutes.js"
+          ]
+        }
+      ]
+    }
+  ]
+}

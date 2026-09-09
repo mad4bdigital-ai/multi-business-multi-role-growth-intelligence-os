@@ -12,11 +12,12 @@ import {
 import { createStagingBootstrapExecutionAuthority } from "./stagingBootstrapExecutionAuthority.js";
 import { _testingStagingRecoveryAuthorityBinding } from "./stagingRecoveryAuthorityBinding.js";
 import { _testingStagingRecoveryAdminRoutes } from "./routes/stagingRecoveryAdminRoutes.js";
+import { readCanonicalStagingGrantBinding } from "./stagingGrantBinding.js";
 
 const SHA = "a".repeat(40);
 const TREE = "b".repeat(40);
 const CONTEXT = "c".repeat(64);
-const GRANT_BINDING_HASH = "d".repeat(64);
+const GRANT_BINDING_HASH = readCanonicalStagingGrantBinding().grant_binding_hash;
 
 function stagingEnv(root) {
   return {
@@ -54,7 +55,6 @@ test("high-level Staging access-repair approval issues one exact signed grant ti
       expected_sha: SHA,
       target_key: "staging-runtime",
       target_fingerprint: targetFingerprint,
-      grant_binding_hash: GRANT_BINDING_HASH,
       idempotency_key: "staging-access-repair-prepare-001",
     });
 
