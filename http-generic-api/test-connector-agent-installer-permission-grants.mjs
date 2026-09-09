@@ -15,7 +15,8 @@ assert(routes.includes("normalizeWindowsPath"), "connector agent grants must val
 assert(routes.includes("allow_extra_args: item?.allow_extra_args === true"), "connector agent grants must preserve explicit allow_extra_args only");
 assert(routes.includes("!/[;&|`$<>\\n\\r]/.test(arg)"), "connector agent grants must reject shell metacharacters in args");
 assert(!routes.includes("eval("), "connector agent installer must not eval grant payloads");
-assert(routes.includes("$Root = Join-Path $env:LOCALAPPDATA 'Mad4B\\\\LocalManager\\\\updates'"), "connector installer must write runtime files into Local Manager app data, not the download directory");
-assert(routes.includes("New-Item -ItemType Directory -Force -Path $Root"), "connector installer must create the Local Manager updates directory before writing files");
+assert(routes.includes("$Root = Split-Path -Parent $MyInvocation.MyCommand.Path"), "connector installer must preserve the governed Local Manager updates root across UAC identity changes by resolving it from the downloaded installer path");
+assert(routes.includes("if ([string]::IsNullOrWhiteSpace($Root)) { throw 'connector_installer_root_unresolved' }"), "connector installer must fail closed when the governed installer root cannot be resolved");
+assert(routes.includes("New-Item -ItemType Directory -Force -Path $Root"), "connector installer must create the governed installer root before writing runtime files");
 
 console.log("connector agent installer permission grants tests passed");

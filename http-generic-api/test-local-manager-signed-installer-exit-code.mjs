@@ -6,7 +6,7 @@ const runbook = readFileSync("../docs/runbooks/local-manager-capability-installe
 
 assert.match(coordinator, /internal int\? LastExitCode \{ get; private set; \}/u, "Signed installer coordinator must retain the exact child exit code for bounded diagnostics");
 assert.match(coordinator, /LastExitCode\s*=\s*process\.ExitCode/u);
-assert.match(coordinator, /if \(process\.ExitCode != 0\)[\s\S]*throw new SignedInstallerExitCodeException\(process\.ExitCode\)/u);
+assert.match(coordinator, /if \(process\.ExitCode != 0\)[\s\S]*throw new SignedInstallerExitCodeException\(process\.ExitCode, TryReadFailureEvidence\(failureEvidencePath\)\)/u);
 assert.match(coordinator, /Signed connector installer exited with code \{exitCode\}\./u);
 assert.doesNotMatch(coordinator, /if \(process\.ExitCode != 0\)\s*return SignedInstallerRunResult\.Failed/u, "Non-zero child exits must not collapse into a boolean-only failure enum");
 assert.match(runbook, /preserve the actual installer exit code/u);
