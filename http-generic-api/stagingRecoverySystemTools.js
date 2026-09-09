@@ -1,6 +1,7 @@
 import { createStagingCertificationCanaryPlan } from "./recoveryKernel.js";
 import { createStagingAccessRepairTicketAuthority } from "./stagingAccessRepairTicketAuthority.js";
 import { stagingRecoveryAuthorityInternals } from "./stagingRecoveryAuthorityBinding.js";
+import { executeRemediationStep } from "./recoveryKernel.js";
 
 export const STAGING_RECOVERY_SYSTEM_SURFACE_CONTRACT = "mad4b.staging-recovery-system-surface.v1";
 export const STAGING_RECOVERY_SYSTEM_SOURCE_KEY = "staging_recovery_system_surface_v1";
@@ -115,8 +116,8 @@ export async function stagingRecoveryAccessRepairPrepare(input = {}, { env = pro
   requireStagingEnvironment(env);
   requireObject(
     input,
-    ["expected_sha", "grant_binding_hash", "idempotency_key"],
-    ["expected_sha", "grant_binding_hash", "idempotency_key"],
+    ["expected_sha", "idempotency_key"],
+    ["expected_sha", "idempotency_key"],
     "STAGING_RECOVERY_ACCESS_REPAIR_PREPARE_INPUT_INVALID",
   );
   const graph = graphFor(env);
@@ -127,7 +128,6 @@ export async function stagingRecoveryAccessRepairPrepare(input = {}, { env = pro
     expected_sha: requireSha40(input.expected_sha, "expected_sha"),
     target_key: "staging-runtime",
     target_fingerprint: targetFingerprint,
-    grant_binding_hash: requireSha256(input.grant_binding_hash, "grant_binding_hash"),
     idempotency_key: requireSafeId(input.idempotency_key, "idempotency_key"),
   });
   return {
@@ -139,6 +139,41 @@ export async function stagingRecoveryAccessRepairPrepare(input = {}, { env = pro
     production_authority: false,
     secrets_included: false,
   };
+}
+
+export async function stagingRecoveryAccessRepairExecute(input = {}, { env = process.env, adapters = null } = {}) {
+  requireStagingEnvironment(env);
+  requireObject(input, ["plan_id", "plan_hash", "step_id", "idempotency_key"], ["plan_id", "plan_hash", "step_id", "idempotency_key"], "STAGING_RECOVERY_ACCESS_REPAIR_EXECUTE_INPUT_INVALID");
+  const injected = Object.fromEntries(Object.entries(adapters || {}).filter(([, value]) => value !== undefined && value !== null));
+  const effectiveAdapters = { ...graphFor(env), ...injected };
+  const authority = createStagingAccessRepairTicketAuthority({ env, adapters: effectiveAdapters });
+  const resolved = await authority.resolveExecution({
+    plan_id: requireSafeId(input.plan_id, "plan_id", PLAN_ID_RE),
+    plan_hash: requireSha256(input.plan_hash, "plan_hash"),
+    step_id: requireSafeId(input.step_id, "step_id", STEP_ID_RE),
+  });
+  const result = await executeRemediationStep({
+    plan_id: resolved.plan.plan_id,
+    plan_hash: resolved.plan.plan_hash,
+    step_id: resolved.step.step_id,
+    approval_token: resolved.approval_token,
+    idempotency_key: requireSafeId(input.idempotency_key, "idempotency_key"),
+    execution_ticket_id: resolved.ticket.ticket_id,
+  }, {
+    env,
+    adminPrincipal: { verified: true, binding: "admin_guard_auth_context" },
+    approvalVerifier: effectiveAdapters.approvalVerifier,
+    approvalStore: effectiveAdapters.approvalStore,
+    recoveryLock: effectiveAdapters.recoveryLock,
+    mutationExecutor: typeof effectiveAdapters.hostBreakglassMutationExecutor === "function"
+      ? { execute: effectiveAdapters.hostBreakglassMutationExecutor }
+      : effectiveAdapters.hostBreakglassMutationExecutor,
+    recoveryStore: effectiveAdapters.recoveryStore,
+    readbackVerifier: effectiveAdapters.readbackVerifier,
+    deploymentIdentityProvider: effectiveAdapters.deploymentIdentityProvider,
+  });
+  const { execution_ticket_id: _ticketId, execution_ticket_hash: _ticketHash, approval_token: _approvalToken, ...safeResult } = result || {};
+  return { ...safeResult, execution_ticket_returned: false, approval_token_returned: false, production_authority: false, secrets_included: false };
 }
 
 export async function stagingRecoveryAccessRepairApprove(input = {}, { env = process.env } = {}) {
@@ -220,10 +255,30 @@ const descriptors = Object.freeze([
     inputSchema: {
       type: "object",
       additionalProperties: false,
-      required: ["expected_sha", "grant_binding_hash", "idempotency_key"],
+      required: ["expected_sha", "idempotency_key"],
       properties: {
         expected_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
-        grant_binding_hash: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
+        idempotency_key: { type: "string", minLength: 8, maxLength: 160 },
+      },
+    },
+  },
+  {
+    name: "staging_recovery_access_repair_execute",
+    handler: "stagingRecoveryAccessRepairExecute",
+    description: "Staging-only Admin Recovery operation. Resolves the approved plan, canonical grant binding, single-use ticket, fixed Staging target and same-cycle readback entirely on the server, then executes only the bounded database access repair.",
+    source_key: STAGING_RECOVERY_SYSTEM_SOURCE_KEY,
+    capability_key: "staging_database_access_repair",
+    catalog_level: "private_recovery",
+    tags: ["recovery", "staging", "private", "execute", "access_repair"],
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["plan_id", "plan_hash", "step_id", "idempotency_key"],
+      properties: {
+        plan_id: { type: "string", pattern: "^plan:[0-9a-f]{32}$" },
+        plan_hash: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
+        step_id: { type: "string", pattern: "^step:[0-9a-f]{32}$" },
         idempotency_key: { type: "string", minLength: 8, maxLength: 160 },
       },
     },

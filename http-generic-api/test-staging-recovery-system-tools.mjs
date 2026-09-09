@@ -28,6 +28,7 @@ const CONFLICTING_ENV = Object.freeze({
 const BUSINESS_TOOLS = [
   "staging_recovery_certification_canary_plan_create",
   "staging_recovery_access_repair_prepare",
+  "staging_recovery_access_repair_execute",
   "staging_recovery_access_repair_approve",
 ];
 const FORBIDDEN_CALLER_FIELDS = new Set([
@@ -45,6 +46,7 @@ const FORBIDDEN_CALLER_FIELDS = new Set([
   "execution_ticket_id",
   "execution_ticket_hash",
   "signature",
+  "grant_binding_hash",
   "repository_path",
   "ref",
 ]);
@@ -80,7 +82,7 @@ test("bounded Staging Recovery schemas never accept caller-selected execution or
     }
   }
   const prepare = tools.find((entry) => entry.name === "staging_recovery_access_repair_prepare");
-  assert.deepEqual(prepare.inputSchema.required, ["expected_sha", "grant_binding_hash", "idempotency_key"]);
+  assert.deepEqual(prepare.inputSchema.required, ["expected_sha", "idempotency_key"]);
 });
 
 test("Production and conflicting-environment calls fail before any Staging recovery authority can be constructed", async () => {
@@ -89,7 +91,6 @@ test("Production and conflicting-environment calls fail before any Staging recov
       () => stagingRecoveryCertificationCanaryPlanCreate({ expected_sha: "a".repeat(40) }, { env }),
       () => stagingRecoveryAccessRepairPrepare({
         expected_sha: "a".repeat(40),
-        grant_binding_hash: "c".repeat(64),
         idempotency_key: "staging-recovery-test-001",
       }, { env }),
       () => stagingRecoveryAccessRepairApprove({
