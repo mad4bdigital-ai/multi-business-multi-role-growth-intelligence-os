@@ -4,6 +4,7 @@ import { testCommands as spec017Commands } from "./manifests/test-manifest-spec0
 import { testCommands as upstreamMainCommands } from "./manifests/test-manifest-upstream-main.mjs";
 
 const upstreamCommands = [
+  "node test-local-connector-installer-capability.mjs",
   "node test-full-schema-metadata-census.mjs",
   "node test-managed-git-ephemeral-checkout-executor.mjs",
   "node scripts/test-managed-git-worker-lifecycle.mjs",

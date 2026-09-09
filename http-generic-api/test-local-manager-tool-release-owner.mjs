@@ -47,7 +47,9 @@ assert(connectorAgent.includes('windows_control: "CONNECTOR_WIN_ENABLED"'), 'con
 assert(connectorAgent.includes('connectorCapabilityEnvLines([...capabilities, ...grants.capabilities])'), 'connector-agent installer must render requested capability env flags');
 assert(connectorAgent.includes('CONNECTOR_APP_ALLOWLIST'), 'connector-agent installer must render dynamic app allowlist grants');
 assert(connectorAgent.includes('CONNECTOR_FILE_PATHS'), 'connector-agent installer must render dynamic file path grants');
-assert(connectorAgent.includes('capabilities: payload.capabilities || []'), 'connector-agent installer route must pass signed token capabilities into env generation');
+assert(connectorAgent.includes('capabilities: dbGrants.capabilities'), 'connector-agent installer route must use DB-authorized capabilities for env generation');
+assert(connectorAgent.includes('permissionGrants: dbGrants'), 'connector-agent installer route must use DB-authorized permission grants for env generation');
+assert(!connectorAgent.includes('payload.permission_grants'), 'connector-agent installer route must not trust token-carried permission grants');
 assert(connectorAgent.includes('BROWSER4_ALLOWED_HOSTS=mad4b.com,n8n.mad4b.com'), 'Browser4 install must preserve connector-side domain allowlist');
 assert(connectorAgent.includes("Get-Mad4BManifestFile -Name 'browser4-adapter.mjs'"), 'installer must install manifest-declared Browser4 adapter file');
 assert(connectorAgent.includes('local_tool_release_owner: "mad4b-local-manager"'), 'upgrade policy must identify Local Manager as tool release owner');
@@ -107,8 +109,9 @@ assert(installRoutes.includes('buildLocalConnectorRouteLifecycleFromDb'), 'insta
 assert(installRoutes.includes('route_lifecycle: routeLifecycle'), 'installer response must expose resolved route lifecycle metadata');
 assert(installRoutes.includes('target_selection: routeLifecycle.target'), 'installer response must expose explicit target selection metadata from the resolved profile');
 assert(installRoutes.includes('shell_aliases'), 'installer route must support dynamic helper shell alias grants');
-assert(installRoutes.includes('normalizePermissionGrants({ ...(req.body?.permission_grants || {}), capabilities: req.body?.capabilities || [] })'), 'device-scoped installer link must normalize requested permission grants');
-assert(installRoutes.includes('permission_grants: permissionGrants'), 'installer download token must propagate permission grants without secrets');
+assert(installRoutes.includes('assertNoInstallerAuthorityOverrides(req.body || {})'), 'device-scoped installer links must reject caller-selected permission grants');
+assert(installRoutes.includes('caller_overrides_allowed: false'), 'installer link responses must declare DB-only permission authority');
+assert(!installRoutes.includes('permission_grants: permissionGrants'), 'installer download tokens must not propagate caller-selected permission grants');
 assert(!installRoutes.includes('CONNECTOR_POWERSHELL_ENABLED=true",'), 'PowerShell must not be enabled by default in base connector env');
 assert(!installRoutes.includes('CONNECTOR_WIN_ENABLED=true",'), 'Windows control must not be enabled by default in base connector env');
 
