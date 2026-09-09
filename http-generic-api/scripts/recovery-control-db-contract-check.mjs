@@ -1,22 +1,25 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { resolveRecoveryControlDbConfig } from "../recoveryControlDb.js";
+import {
+  resolveRecoveryControlDbConfig,
+  _testingRecoveryControlDb,
+} from "../recoveryControlDb.js";
 
-const base = {
-  DB_HOST: "mysql.internal",
-  DB_PORT: "3306",
-  DB_NAME: "runtime_platform",
-  DB_USER: "runtime_user",
-  DB_PASSWORD: "runtime-secret-value",
-  GOVERNANCE_DB_HOST: "mysql.internal",
-  GOVERNANCE_DB_NAME: "governance_platform",
-  GOVERNANCE_DB_USER: "governance_user",
-  GOVERNANCE_DB_PASSWORD: "governance-secret-value",
-  RUNTIME_PERSISTENCE_DB_HOST: "mysql.internal",
-  RUNTIME_PERSISTENCE_DB_NAME: "runtime_persistence_platform",
-  RUNTIME_PERSISTENCE_DB_USER: "runtime_persistence_user",
-  RUNTIME_PERSISTENCE_DB_PASSWORD: "runtime-persistence-secret-value",
-};
+const targetBindings = _testingRecoveryControlDb.TARGET_DATABASE_BINDINGS;
+assert.ok(targetBindings.length > 0, "canonical target database roles must be registered");
+
+const base = {};
+const targetSecrets = [];
+for (const [index, binding] of targetBindings.entries()) {
+  base[binding.host] = "mysql.internal";
+  base[binding.port] = "3306";
+  base[binding.database] = `target_${index}_db`;
+  base[binding.user] = `target_${index}_user`;
+  const passwordKey = `${binding.prefix}_PASSWORD`;
+  const password = `target-${index}-secret-value`;
+  base[passwordKey] = password;
+  targetSecrets.push(password);
+}
 
 assert.throws(
   () => resolveRecoveryControlDbConfig(base),
@@ -32,8 +35,10 @@ assert.throws(
     assert.ok(error?.details?.missing?.includes("RECOVERY_CONTROL_DB_NAME"));
     assert.ok(error?.details?.missing?.includes("RECOVERY_CONTROL_DB_USER"));
     assert.ok(error?.details?.missing?.includes("RECOVERY_CONTROL_DB_PASSWORD"));
-    assert.doesNotMatch(String(error?.message || ""), /runtime-secret-value|governance-secret-value|runtime-persistence-secret-value/);
-    assert.doesNotMatch(JSON.stringify(error?.details || {}), /runtime-secret-value|governance-secret-value|runtime-persistence-secret-value/);
+    for (const secret of targetSecrets) {
+      assert.ok(!String(error?.message || "").includes(secret));
+      assert.ok(!JSON.stringify(error?.details || {}).includes(secret));
+    }
     return true;
   },
   "target DB configuration must never satisfy the Recovery control-store identity",
@@ -55,43 +60,35 @@ assert.equal(dedicated.password, "recovery-control-secret-value");
 assert.equal(dedicated.connectionLimit, 5);
 assert.equal(dedicated.connectTimeout, 1000);
 
-for (const [role, databaseKey] of [
-  ["runtime", "DB_NAME"],
-  ["governance", "GOVERNANCE_DB_NAME"],
-  ["runtime_persistence", "RUNTIME_PERSISTENCE_DB_NAME"],
-]) {
+for (const binding of targetBindings) {
   assert.throws(
     () => resolveRecoveryControlDbConfig({
       ...base,
-      RECOVERY_CONTROL_DB_NAME: base[databaseKey],
+      RECOVERY_CONTROL_DB_NAME: base[binding.database],
       RECOVERY_CONTROL_DB_USER: "recovery_control_user",
       RECOVERY_CONTROL_DB_PASSWORD: "recovery-control-secret-value",
     }),
     (error) => error?.code === "RECOVERY_CONTROL_DB_DATABASE_NOT_INDEPENDENT"
-      && error?.details?.conflicting_roles?.includes(role)
+      && error?.details?.conflicting_roles?.includes(binding.role)
       && error?.details?.target_database_binding === "forbidden"
       && error?.details?.secrets_included === false,
-    `Recovery control store must not reuse the ${role} database`,
+    `Recovery control store must not reuse the ${binding.role} database`,
   );
 }
 
-for (const [role, userKey] of [
-  ["runtime", "DB_USER"],
-  ["governance", "GOVERNANCE_DB_USER"],
-  ["runtime_persistence", "RUNTIME_PERSISTENCE_DB_USER"],
-]) {
+for (const binding of targetBindings) {
   assert.throws(
     () => resolveRecoveryControlDbConfig({
       ...base,
       RECOVERY_CONTROL_DB_NAME: "recovery_control",
-      RECOVERY_CONTROL_DB_USER: base[userKey],
+      RECOVERY_CONTROL_DB_USER: base[binding.user],
       RECOVERY_CONTROL_DB_PASSWORD: "recovery-control-secret-value",
     }),
     (error) => error?.code === "RECOVERY_CONTROL_DB_IDENTITY_NOT_INDEPENDENT"
-      && error?.details?.conflicting_roles?.includes(role)
+      && error?.details?.conflicting_roles?.includes(binding.role)
       && error?.details?.target_identity_reuse_allowed === false
       && error?.details?.secrets_included === false,
-    `Recovery control store must not reuse the ${role} database identity`,
+    `Recovery control store must not reuse the ${binding.role} database identity`,
   );
 }
 
@@ -118,6 +115,7 @@ assert.match(source, /RECOVERY_CONTROL_DB_DATABASE_NOT_INDEPENDENT/);
 assert.match(source, /RECOVERY_CONTROL_DB_IDENTITY_NOT_INDEPENDENT/);
 assert.match(source, /target_database_binding: "forbidden"/);
 assert.match(source, /target_identity_reuse_allowed: false/);
+assert.match(source, /readRuntimeBootstrapContract/);
 assert.doesNotMatch(source, /RECOVERY_CONTROL_DB_NAME\s*\|\|\s*(?:env\.)?(?:DB_NAME|GOVERNANCE_DB_NAME|RUNTIME_PERSISTENCE_DB_NAME)/);
 assert.doesNotMatch(source, /RECOVERY_CONTROL_DB_USER\s*\|\|\s*(?:env\.)?(?:DB_USER|GOVERNANCE_DB_USER|RUNTIME_PERSISTENCE_DB_USER)/);
 assert.doesNotMatch(source, /RECOVERY_CONTROL_DB_PASSWORD\s*\|\|\s*(?:env\.)?(?:DB_PASSWORD|GOVERNANCE_DB_PASSWORD|RUNTIME_PERSISTENCE_DB_PASSWORD)/);
