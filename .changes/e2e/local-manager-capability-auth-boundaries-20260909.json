@@ -1,0 +1,87 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "local-manager-capability-auth-boundaries-20260909",
+  "title": "Local Manager server-managed capability installer boundary",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/local-manager-capability-auth-boundaries-20260909.json",
+      "apps/local-manager-windows/SignedInstallerCoordinator.cs",
+      "http-generic-api/test-local-manager-signed-installer-coordinator.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false,
+    "live_migration_executed": false,
+    "live_grant_executed": false,
+    "deployment_or_restart_executed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Keep Local Manager capability installer authority server-managed, fail closed before caller-selected grants can be serialized, and use the canonical bounded installer-link TTL without widening Production authority.",
+      "e2e_journeys": [
+        {
+          "id": "server-managed-capability-installer-boundary",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "MAD4B Local Manager signed installer coordinator",
+          "entrypoint": "A capability installer request is prepared for a linked connector device.",
+          "terminal_outcome": "Caller-selected capabilities, apps, paths, or shell aliases fail closed before installer-link execution; an empty reconciliation request contains no capability grants and uses the canonical 10-minute TTL.",
+          "steps": [
+            "Inspect caller-selected capability and permission-grant collections before RequestAsync.",
+            "Throw the typed server-managed policy exception when any caller-selected authority is present.",
+            "For an empty reconciliation request, serialize only the bounded installer-link fields and omit capability and permission_grants payloads.",
+            "Preserve the existing exact non-zero installer exit-code path for genuine repair execution failures."
+          ],
+          "assertions": [
+            "Local Manager cannot submit caller-selected capability authority through the installer link.",
+            "The fail-closed error identifies the server-managed policy boundary without exposing credentials.",
+            "Capability and permission_grants fields are absent from the installer-link payload.",
+            "The requested installer-link TTL is 10 minutes.",
+            "No Production deployment, provider mutation, migration, grant, DNS change, secret rotation, or credential creation is performed."
+          ],
+          "tests": [
+            {
+              "id": "local-manager-signed-installer-coordinator",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-local-manager-signed-installer-coordinator.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "apps/local-manager-windows/SignedInstallerCoordinator.cs",
+            "http-generic-api/test-local-manager-signed-installer-coordinator.mjs"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "local-manager-signed-installer-coordinator",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-local-manager-signed-installer-coordinator.mjs",
+          "args": []
+        }
+      ]
+    }
+  ],
+  "safety": {
+    "repository_only": true,
+    "production_mutation_allowed": false,
+    "database_mutation": false,
+    "provider_call": false,
+    "secrets_included": false
+  }
+}
