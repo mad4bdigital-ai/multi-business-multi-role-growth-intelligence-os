@@ -37,6 +37,13 @@ assert(connectorAgent.includes('const AGENT_VERSION = "2026.05.28.1"'), 'connect
 assert(connectorAgent.includes('"browser4-adapter.mjs"'), 'Browser4 adapter must be shipped by connector-agent manifest');
 assert(connectorAgent.includes('"local-agent-runtime.mjs"'), 'Local agent runtime must be shipped by connector-agent manifest');
 assert(connectorAgent.includes('const ROOT = path.resolve(MODULE_DIR, "../..");'), 'connector-agent manifest must resolve local-connector assets from the repository root');
+assert(connectorAgent.includes('$Root = Split-Path -Parent $MyInvocation.MyCommand.Path'), 'canonical installer must remain in the Local Manager owned update root across UAC identity changes');
+assert(connectorAgent.includes("contract='mad4b.local-connector-installer-state.v1'"), 'canonical installer must emit structured secret-safe failure evidence');
+assert(connectorAgent.includes("$InstallerStage = 'credential_redemption'"), 'canonical installer must classify credential redemption failures without exposing credentials');
+assert(connectorAgent.includes("$InstallerStage = 'cloudflared_service'"), 'canonical installer must classify owned cloudflared service failures');
+assert(connectorAgent.includes('Refresh-ProcessPath'), 'canonical installer must refresh PATH after winget dependency installation');
+assert(connectorAgent.includes('cloudflared_command_unavailable_after_install'), 'canonical installer must fail explicitly when cloudflared remains undiscoverable');
+assert(connectorAgent.includes('nssm_command_unavailable_after_install'), 'canonical installer must fail explicitly when NSSM remains undiscoverable');
 assert(connectorAgent.includes('LOCAL_TOOL_RELEASES'), 'connector-agent manifest must define local tool releases');
 assert(connectorAgent.includes('owner_app: "mad4b-local-manager"'), 'Local Manager must own local tool releases');
 assert(connectorAgent.includes('release_model: "manifest_driven_allowlisted_tools"'), 'manifest must declare allowlisted tool release model');
@@ -185,6 +192,9 @@ assert(signedInstallerCoordinator.includes('tempTarget = target + ".download"'),
 assert(signedInstallerCoordinator.includes('FileMode.CreateNew'), 'Windows signed installer download must create the temporary file exclusively');
 assert(signedInstallerCoordinator.includes('FileShare.None'), 'Windows signed installer download must avoid shared writes while downloading');
 assert(signedInstallerCoordinator.includes('File.Move(tempTarget, target, overwrite: false);'), 'Windows signed installer download must move the complete temporary file into place atomically');
+assert(signedInstallerCoordinator.includes('connector-installer-state.json'), 'Windows app must read canonical installer state from its owned update root');
+assert(signedInstallerCoordinator.includes('TryReadFailureEvidence'), 'Windows app must surface bounded secret-safe installer failure evidence');
+assert(signedInstallerCoordinator.includes('secrets_included'), 'Windows app must require explicit no-secret evidence before displaying installer diagnostics');
 assert(signedInstallerCoordinator.includes('await destination.FlushAsync(cancellationToken);'), 'Windows signed installer download must flush the file before size validation');
 assert(signedInstallerCoordinator.includes('fileInfo.Refresh();'), 'Windows signed installer download must refresh file metadata before size validation');
 assert(signedInstallerCoordinator.includes('for (var attempt = 1; attempt <= 5; attempt++)'), 'Windows signed installer SHA validation must retry transient file read locks');
