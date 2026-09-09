@@ -32,7 +32,7 @@ internal sealed class SignedInstallerCoordinator
         RequestAsync(deviceAccessToken, new
         {
             format = "bat",
-            ttl_minutes = 30,
+            ttl_minutes = 10,
             app_managed = true,
             suppress_pause = true
         }, cancellationToken);
@@ -43,21 +43,25 @@ internal sealed class SignedInstallerCoordinator
         IReadOnlyList<object> apps,
         IReadOnlyList<string> allowedPaths,
         IReadOnlyList<object> shellAliases,
-        CancellationToken cancellationToken = default) =>
-        RequestAsync(deviceAccessToken, new
+        CancellationToken cancellationToken = default)
+    {
+        // Capability authority is server-managed after the installer authority hardening.
+        // The Windows app must never place caller-selected capabilities or permission_grants
+        // into an installer-link request. Repair/reconciliation may only re-apply the
+        // canonical database policy already bound to the linked device/config.
+        if (capabilities.Count > 0 || apps.Count > 0 || allowedPaths.Count > 0 || shellAliases.Count > 0)
+        {
+            throw new ServerManagedConnectorPolicyException();
+        }
+
+        return RequestAsync(deviceAccessToken, new
         {
             format = "bat",
-            ttl_minutes = 30,
+            ttl_minutes = 10,
             app_managed = true,
-            suppress_pause = true,
-            capabilities,
-            permission_grants = new
-            {
-                apps,
-                allowed_paths = allowedPaths,
-                shell_aliases = shellAliases
-            }
+            suppress_pause = true
         }, cancellationToken);
+    }
 
     internal async Task<SignedInstallerDownload> DownloadAsync(
         DeviceInstallerLinkResponse link,
@@ -264,6 +268,16 @@ internal sealed class SignedInstallerCoordinator
         var chars = value.Select(ch => char.IsLetterOrDigit(ch) || ch is '-' or '_' or '.' ? ch : '-').ToArray();
         var safe = new string(chars).Trim('-');
         return string.IsNullOrWhiteSpace(safe) ? "device" : safe;
+    }
+}
+
+internal sealed class ServerManagedConnectorPolicyException : InvalidOperationException
+{
+    internal const string PolicyCode = "connector_capability_policy_server_managed";
+
+    internal ServerManagedConnectorPolicyException()
+        : base("Connector capability changes are server-managed by the canonical device policy. Local Manager cannot submit caller-selected capabilities, paths, apps, or helper grants. Use the governed platform policy surface; Repair connector only reconciles policy that is already authorized for this device.")
+    {
     }
 }
 

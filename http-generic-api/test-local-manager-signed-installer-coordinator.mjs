@@ -49,6 +49,32 @@ assert.match(coordinator, /Installer file changed after governed download/);
 assert.doesNotMatch(coordinator, /ProcessStartInfo[\s\S]*Arguments\s*=/);
 assert.doesNotMatch(coordinator, /HttpMethod\.Put|HttpMethod\.Delete|ProtectedData/);
 
+assert.match(
+  coordinator,
+  /if \(capabilities\.Count > 0 \|\| apps\.Count > 0 \|\| allowedPaths\.Count > 0 \|\| shellAliases\.Count > 0\)/,
+  "Windows capability installer client must fail closed when UI-selected authority would be sent",
+);
+assert.match(
+  coordinator,
+  /throw new ServerManagedConnectorPolicyException\(\)/,
+  "Windows capability installer client must use a typed fail-closed server-managed policy error",
+);
+assert.match(
+  coordinator,
+  /Connector capability changes are server-managed by the canonical device policy/,
+  "Windows client must explain the canonical server-managed capability boundary without exposing secrets",
+);
+assert.doesNotMatch(
+  coordinator,
+  /RequestAsync\(deviceAccessToken, new\s*\{[\s\S]*?capabilities\s*,[\s\S]*?permission_grants\s*=/,
+  "Windows client must not serialize caller-selected capabilities or permission grants into installer-link requests",
+);
+assert.match(
+  coordinator,
+  /ttl_minutes = 10/,
+  "Windows installer client must request a bounded TTL within the canonical installer capability maximum",
+);
+
 const portAssignment = installerRoutes.indexOf('`$Port = ${Number(port)}`');
 const healthUrl = installerRoutes.indexOf("\"$HealthUrl = 'http://127.0.0.1:' + $Port + '/health'\"");
 assert.ok(portAssignment >= 0, "PowerShell installer must define the generated connector port");
