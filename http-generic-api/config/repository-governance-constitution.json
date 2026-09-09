@@ -607,7 +607,9 @@
     ".github/workflows/governed-production-main-source-pin-guard.yml",
     ".github/workflows/governed-production-release-source-pin-gate.yml",
     "docs/governance/production-promotion-semantic-continuity-guard.md",
-    ".changes/e2e/local-manager-capability-auth-boundaries-20260909.json"
+    ".changes/e2e/local-manager-capability-auth-boundaries-20260909.json",
+    ".changes/e2e/github-repository-policy-1051-orphan-ledger-recovery.json",
+    "docs/governance/github-repository-policy-1051-orphan-ledger-recovery.md"
   ],
   "derived_state": {
     "registry": ".github/derived-state-governance.json",

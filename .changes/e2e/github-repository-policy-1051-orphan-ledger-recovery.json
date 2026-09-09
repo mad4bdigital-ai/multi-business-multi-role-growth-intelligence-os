@@ -1,0 +1,110 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "github-repository-policy-1051-orphan-ledger-recovery",
+  "title": "GitHub Repository Policy Migration 1051 orphan-ledger recovery",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": false,
+    "production_mutation_allowed": false
+  },
+  "scope": {
+    "include": [
+      ".changes/e2e/github-repository-policy-1051-orphan-ledger-recovery.json",
+      ".github/derived-state-governance.json",
+      ".github/ops/github-repository-policy-1051-governed-rollout.mjs",
+      ".github/workflows/github-repository-policy-1051-governed-rollout.yml",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/test-github-repository-policy-1051-metadata-state.mjs",
+      "docs/governance/github-repository-policy-1051-orphan-ledger-recovery.md"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Recover an exact missing Migration 1051 ledger without fabricating Apply evidence or replaying SQL under the reconciliation authority, then require a second explicit authority before any idempotent metadata Apply.",
+      "e2e_journeys": [
+        {
+          "id": "reconcile-complete-metadata-missing-ledger-before-explicit-apply",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed Migration 1051 GitHub Repository Policy Authority Rollout",
+          "entrypoint": "Production has complete Migration 1051 metadata and zero missing readback objects but the exact Migration 1051 durable ledger row is absent.",
+          "terminal_outcome": "A separately confirmed record-only cycle writes a truthful checksum-bound record_only ledger with sql_applied_by_this_run=false; a later separately confirmed reconciled-Apply cycle may execute the reviewed idempotent metadata migration and create a true apply ledger, while GitHub provider mutation remains unauthorized.",
+          "steps": [
+            "Reuse the existing Migration 1051 workflow and canonical rollout runner rather than adding a second workflow or configuration surface.",
+            "Register the new E2E declaration and governance recovery document in both Constitution.control_plane_paths and derived-state convergence automation_control_paths.",
+            "Fail closed until Migration 225 runtime dependency and the dedicated Governance DB writer readiness both pass.",
+            "Run the existing checksum-bound authorization/bootstrap dry-run before record-only reconciliation.",
+            "Verify exact Production runtime parity and the reviewed Migration 1051 Git blob.",
+            "Require complete semantic metadata and zero missing readback objects before any ledger backfill.",
+            "Invoke only the existing migration_ledger_record_apply alias with the exact record-only runner confirmation.",
+            "Prove the new ledger is record_only, checksum-bound, preflight pass/0, produced by governed_migration_runner_backfill, and records sql_applied_by_this_run=false.",
+            "Require a different typed confirmation before any Migration 1051 SQL Apply.",
+            "Recheck Governance writer readiness and exact record-only proof immediately before the reconciled Apply.",
+            "Leave APPLY_GITHUB_MAIN_REVIEW_POLICY and all GitHub Ruleset mutation outside this recovery authority."
+          ],
+          "assertions": [
+            "The recovery E2E declaration and governance document are registered in both canonical control-plane path lists.",
+            "Record-only reconciliation cannot run when Migration 1051 metadata is partial or absent.",
+            "Record-only reconciliation cannot run with missing schema/readback objects.",
+            "Record-only reconciliation cannot run while the Governance DB writer dependency is not ready.",
+            "Record-only reconciliation never executes Migration 1051 SQL.",
+            "A record-only ledger is never mislabeled as an apply ledger.",
+            "The reconciled Apply requires a separate exact confirmation and an exact record-only proof.",
+            "The normal Migration 1051 Apply path and its replay guard remain unchanged.",
+            "No GitHub provider call, Ruleset mutation, Production deployment, force push, protected-ref mutation, credential payload read, or freeform SQL is authorized by this source change."
+          ],
+          "tests": [
+            {
+              "id": "github-repository-policy-1051-orphan-ledger-recovery-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-policy-1051-metadata-state.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/derived-state-governance.json",
+            ".github/ops/github-repository-policy-1051-governed-rollout.mjs",
+            ".github/workflows/github-repository-policy-1051-governed-rollout.yml",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "http-generic-api/test-github-repository-policy-1051-metadata-state.mjs",
+            "docs/governance/github-repository-policy-1051-orphan-ledger-recovery.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Publish bounded operator receipts for record-only reconciliation and reconciled Apply outcomes without exposing secrets."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise Production SHA movement, authorization expiry, duplicate reconciliation, ambiguous transport, and Governance writer regression while preserving fail-closed behavior."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "The record-only recovery performs no live GitHub provider canary mutation."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This source change does not authorize Production deployment, DB grant mutation, Migration 1051 execution, or GitHub Ruleset Apply."
+    }
+  ],
+  "secrets_included": false
+}
