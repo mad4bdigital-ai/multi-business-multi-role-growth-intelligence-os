@@ -150,6 +150,7 @@
           "http-generic-api/openapi/**",
           "http-generic-api/*.js",
           "http-generic-api/*.mjs",
+          "http-generic-api/services/**",
           "http-generic-api/canonical-business-operation-parity.generated.json",
           "http-generic-api/canonical-business-operation-registry.json",
           "http-generic-api/scripts/provision-remote-mcp-client.mjs",
