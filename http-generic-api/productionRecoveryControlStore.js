@@ -6,8 +6,10 @@ export const RECOVERY_DURABLE_STORE_CONTRACT = "mad4b.recovery-durable-store.v1"
 export const PRODUCTION_RECOVERY_LOCK_CONTRACT = "mad4b.production-recovery-fenced-lock.v1";
 
 const MAX_ID = 191;
-const MAX_TTL_SECONDS = 600;
-const MIN_TTL_SECONDS = 0.1;
+const RECOVERY_LOCK_LEASE_BOUNDS = Object.freeze({
+  minimumSeconds: 0.1,
+  maximumSeconds: 600,
+});
 const RECORD_TYPES = Object.freeze({
   run: "run",
   plan: "plan",
@@ -153,8 +155,8 @@ function requiredId(value, field) {
 
 function boundedTtl(value) {
   const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return MAX_TTL_SECONDS;
-  return Math.max(MIN_TTL_SECONDS, Math.min(parsed, MAX_TTL_SECONDS));
+  if (!Number.isFinite(parsed)) return RECOVERY_LOCK_LEASE_BOUNDS.maximumSeconds;
+  return Math.max(RECOVERY_LOCK_LEASE_BOUNDS.minimumSeconds, Math.min(parsed, RECOVERY_LOCK_LEASE_BOUNDS.maximumSeconds));
 }
 
 function parsePayload(value) {
@@ -252,7 +254,7 @@ function createFencedLock(poolProvider) {
     contract: PRODUCTION_RECOVERY_LOCK_CONTRACT,
     durable: true,
     shared_replica_safe: true,
-    async acquire({ target_key, plan_hash, ttl_seconds = MAX_TTL_SECONDS } = {}) {
+    async acquire({ target_key, plan_hash, ttl_seconds = RECOVERY_LOCK_LEASE_BOUNDS.maximumSeconds } = {}) {
       const targetKey = requiredId(target_key, "target_key");
       const planHash = text(plan_hash, 64) || null;
       const ttlMicros = Math.round(boundedTtl(ttl_seconds) * 1_000_000);
@@ -284,7 +286,7 @@ function createFencedLock(poolProvider) {
       const targetKey = requiredId(context.target_key, "target_key");
       const leaseId = requiredId(context.lease_id, "lease_id");
       const fencingToken = requiredId(context.fencing_token, "fencing_token");
-      const ttlMicros = Math.round(boundedTtl(context.ttl_seconds ?? MAX_TTL_SECONDS) * 1_000_000);
+      const ttlMicros = Math.round(boundedTtl(context.ttl_seconds ?? RECOVERY_LOCK_LEASE_BOUNDS.maximumSeconds) * 1_000_000);
       return withTransaction(poolProvider, async (connection) => {
         const [rows] = await connection.query(`SELECT target_key, fence_counter, lease_id, fencing_token, plan_hash, expires_at,
           (expires_at > CURRENT_TIMESTAMP(6)) AS unexpired
