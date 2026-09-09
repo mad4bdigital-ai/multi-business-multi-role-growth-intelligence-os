@@ -1,7 +1,16 @@
+import nodeAssert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const installerSource = readFileSync("routes/localConnectorInstallRoutes.js", "utf8");
 const watchdogSource = readFileSync("../local-connector/connector-watchdog.ps1", "utf8");
+const indexSource = readFileSync("routes/index.js", "utf8");
+const agentSource = readFileSync("routes/connectorAgentRoutes.js", "utf8");
+const connectorServerSource = readFileSync("../local-connector/server.mjs", "utf8");
+const browser4Source = readFileSync("../local-connector/browser4-adapter.mjs", "utf8");
+const connectorReadme = readFileSync("../local-connector/README.md", "utf8");
+const installerCapabilitySource = readFileSync("localConnectorInstallerCapability.js", "utf8");
+const localManagerDeviceSource = readFileSync("services/localManagerDeviceLinkService.js", "utf8");
+const runtimeBootstrapSource = readFileSync("../local-connector/connector-runtime-bootstrap.mjs", "utf8");
 
 let passed = 0;
 let failed = 0;
@@ -98,6 +107,74 @@ assert(
   installerSource.includes("connector-runtime-state.json") &&
     installerSource.includes("secrets_included = $false")
 );
+
+const downloadRouteOccurrences = installerSource.match(/router\.get\("\/local-connector\/install\/download"/g) || [];
+nodeAssert.equal(downloadRouteOccurrences.length, 1, "installer download path must have exactly one route owner");
+nodeAssert.doesNotMatch(indexSource, /localConnectorInstallerDelegationRoutes|buildLocalConnectorInstallerDelegationRoutes/);
+const downloadStart = installerSource.indexOf('// ── GET /local-connector/install/download');
+const downloadEnd = installerSource.indexOf('// ── POST /local-connector/install', downloadStart);
+nodeAssert.ok(downloadStart >= 0 && downloadEnd > downloadStart, "canonical installer download handler must be discoverable");
+const downloadHandlerSource = installerSource.slice(downloadStart, downloadEnd);
+nodeAssert.match(downloadHandlerSource, /connector-agent\/installer\.ps1/);
+nodeAssert.match(downloadHandlerSource, /res\.redirect\(307, canonicalUrl\)/);
+nodeAssert.match(downloadHandlerSource, /buildInstallPowerShellBootstrapBat/);
+nodeAssert.match(downloadHandlerSource, /X-Mad4B-Installer-Delegation/);
+nodeAssert.doesNotMatch(downloadHandlerSource, /connector_secret|cf_token/);
+nodeAssert.doesNotMatch(downloadHandlerSource, /buildInstallPowerShell\s*\(/);
+nodeAssert.doesNotMatch(downloadHandlerSource, /cloudflared service install/i);
+nodeAssert.match(downloadHandlerSource, /SELECT config_id, device_id/);
+nodeAssert.doesNotMatch(downloadHandlerSource, /SELECT[^\n]*(?:connector_secret|cf_token)/i);
+
+nodeAssert.match(installerSource, /createInstallerCapability/);
+nodeAssert.match(installerSource, /assertNoInstallerAuthorityOverrides/);
+nodeAssert.match(installerSource, /config_id: config\.config_id/);
+nodeAssert.match(downloadHandlerSource, /WHERE config_id = \? AND user_id = \? AND tenant_id = \? AND device_id = \?/);
+nodeAssert.doesNotMatch(installerSource, /permission_grants:\s*permissionGrants/);
+nodeAssert.match(installerCapabilitySource, /LOCAL_CONNECTOR_INSTALLER_DOWNLOAD_PURPOSE = "local_connector_installer_download"/);
+nodeAssert.match(installerCapabilitySource, /LOCAL_CONNECTOR_INSTALLER_REDEEM_PURPOSE = "local_connector_installer_secret_redeem"/);
+nodeAssert.match(installerCapabilitySource, /aud:\s*"connector_agent"/);
+nodeAssert.match(installerCapabilitySource, /jti:\s*randomUUID\(\)/);
+nodeAssert.match(installerCapabilitySource, /LOCAL_CONNECTOR_INSTALLER_CAPABILITY_MAX_TTL_SECONDS = 10 \* 60/);
+nodeAssert.match(installerCapabilitySource, /installer_permission_grants_server_managed/);
+nodeAssert.match(agentSource, /claimInstallerCapability/);
+nodeAssert.match(agentSource, /local_connector_recovery_events/);
+nodeAssert.match(agentSource, /installer_capability_replayed/);
+nodeAssert.match(agentSource, /router\.post\("\/connector-agent\/installer\/redeem"/);
+nodeAssert.match(agentSource, /Authorization = \\"Bearer \$RedeemToken/);
+nodeAssert.doesNotMatch(agentSource, /material=runtime_credentials/);
+nodeAssert.match(agentSource, /permissionGrants:\s*dbGrants/);
+nodeAssert.doesNotMatch(agentSource, /mergePermissionGrants\(dbGrants,\s*payload\.permission_grants/);
+nodeAssert.match(agentSource, /WHERE config_id = \? AND user_id = \? AND tenant_id = \? AND device_id = \? AND is_enabled = 1/);
+nodeAssert.match(agentSource, /Protect-ConnectorSecretDirectory \$SecretsRoot/);
+nodeAssert.match(agentSource, /CONNECTOR_SECRET_FILE=\$ConnectorSecretFile/);
+nodeAssert.match(agentSource, /CONNECTOR_LOCAL_API_KEY_FILE=\$ConnectorLocalApiKeyFile/);
+nodeAssert.doesNotMatch(agentSource, /`CONNECTOR_SECRET=\$\{connectorSecret\}`/);
+nodeAssert.match(agentSource, /cloudflared_token_file_unsupported_version/);
+nodeAssert.match(agentSource, /\[version\]'2025\.4\.0'/);
+nodeAssert.doesNotMatch(agentSource, /publicBaseUrl\(req\)/);
+nodeAssert.match(runtimeBootstrapSource, /CONNECTOR_SECRET_FILE/);
+nodeAssert.match(runtimeBootstrapSource, /CONNECTOR_LOCAL_API_KEY_FILE/);
+nodeAssert.match(localManagerDeviceSource, /PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = DEVICE_TOKEN_TTL_SECONDS/);
+nodeAssert.doesNotMatch(localManagerDeviceSource, /privileged_installer_reauth_required/);
+nodeAssert.match(localManagerDeviceSource, /requires_reauth_for_privileged_installers:\s*false/);
+
+nodeAssert.match(agentSource, /\$CfService = 'Mad4B-LocalConnector-Cloudflared'/);
+nodeAssert.match(agentSource, /CONNECTOR_CLOUDFLARED_SERVICE=Mad4B-LocalConnector-Cloudflared/);
+nodeAssert.match(agentSource, /CONNECTOR_CLOUDFLARED_METRICS=127\.0\.0\.1:49313/);
+nodeAssert.match(agentSource, /cloudflared-token\.txt/);
+nodeAssert.doesNotMatch(agentSource, /cloudflared service install/);
+nodeAssert.doesNotMatch(installerSource, /CONNECTOR_SECRET=|CONNECTOR_LOCAL_API_KEY=|cloudflared service install ["'`]?\s*\+?\s*(?:cfToken|tunnelToken)/);
+nodeAssert.match(agentSource, /connector-environment-policy\.mjs/);
+nodeAssert.match(agentSource, /connector-runtime-bootstrap\.mjs/);
+nodeAssert.match(connectorServerSource, /import ['"]\.\/connector-runtime-bootstrap\.mjs['"];?/);
+nodeAssert.doesNotMatch(browser4Source, /connector-runtime-bootstrap\.mjs/);
+nodeAssert.match(watchdogSource, /Mad4B-LocalConnector-Cloudflared/);
+nodeAssert.match(watchdogSource, /Mad4B-Staging-Cloudflared/);
+nodeAssert.match(connectorReadme, /shared Admin Recovery transport/);
+nodeAssert.match(connectorReadme, /Mad4B-LocalConnector-Cloudflared/);
+nodeAssert.match(connectorReadme, /staging` → `dev\.mad4b\.com/);
+nodeAssert.match(connectorReadme, /production` → `auth\.mad4b\.com/);
+nodeAssert.match(connectorReadme, /Do not treat a generic Windows service named `cloudflared` as Connector-owned/);
 
 console.log(`durable self-healing assertions: ${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

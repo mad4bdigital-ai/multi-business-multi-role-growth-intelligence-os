@@ -45,13 +45,17 @@ test("promotion parameter schema fails closed outside registered review modes", 
 test("source-pin guards preserve immutable release cuts while forbidding protected writes", () => {
   assert.match(mainSourcePin, /actions:\s*write/u);
   assert.match(mainSourcePin, /contents:\s*read/u);
-  assert.match(mainSourcePin, /guard_scope:"release_cut_ancestry"/u);
+  assert.match(mainSourcePin, /guard_scope:"release_cut_ancestry_and_semantic_continuity"/u);
+  assert.match(mainSourcePin, /main_advance_requires_semantic_continuity:true/u);
+  assert.match(mainSourcePin, /promotion_surface_digest_required:true/u);
   assert.match(mainSourcePin, /main_tip_may_advance:true/u);
   assert.doesNotMatch(mainSourcePin, /git push/u);
   assert.doesNotMatch(mainSourcePin, /gh pr merge/u);
 
   assert.match(releaseSourcePin, /permissions:\s*\n\s*contents: read\s*\n\s*pull-requests: read/u);
   assert.match(releaseSourcePin, /certified release cut is not an ancestor of current main/u);
+  assert.match(releaseSourcePin, /semantic_continuity == true/u);
+  assert.match(releaseSourcePin, /promotion_surface_digest_required:true/u);
   assert.match(releaseSourcePin, /production_is_ancestor_of_release_cut:true/u);
   assert.match(releaseSourcePin, /main_tip_may_advance/u);
   assert.doesNotMatch(releaseSourcePin, /contents:\s*write/u);
@@ -72,6 +76,7 @@ console.log(JSON.stringify({
   support_gate_authority: "declarative_read_only_registry",
   release_mode: "certified_release_cut",
   main_tip_may_advance: true,
+  main_advance_requires_semantic_continuity: true,
   protected_production_merge: false,
   deployment: false,
   migration_apply: false,

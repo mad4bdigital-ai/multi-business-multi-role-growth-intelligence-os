@@ -45,6 +45,7 @@ const AUTH_PROFILES = {
   local_manager: { alternatives: [["localManagerBearerAuth"]], principal: "local_manager", configuration_dependencies: ["JWT_SECRET"] },
   mcp_query_token: { alternatives: [["mcpQueryTokenAuth"]], principal: "mcp_client", configuration_dependencies: ["MCP_QUERY_TOKEN"] },
   signed_query_token: { alternatives: [["signedQueryTokenAuth"]], principal: "signed_link", configuration_dependencies: [] },
+  installer_redeem: { alternatives: [["installerRedeemBearerAuth"]], principal: "installer", configuration_dependencies: [] },
   github_webhook_hmac: { alternatives: [["githubWebhookSignature"]], principal: "github_webhook", configuration_dependencies: ["GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_SECRET"] },
 };
 const OPERATION_CLASSIFICATIONS = new Set(["read", "read_action", "preflight", "state_change", "external_effect", "disabled", "unresolved"]);
@@ -613,7 +614,9 @@ function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuards = [],
     if (discovered.state !== "resolved") {
       const signedQueryGuardVerified = override.profile === "signed_query_token"
         && guardChain.includes("verifyInstallerDownloadToken");
-      if (signedQueryGuardVerified) {
+      const installerRedeemGuardVerified = override.profile === "installer_redeem"
+        && guardChain.includes("verifyInstallerDownloadToken");
+      if (signedQueryGuardVerified || installerRedeemGuardVerified) {
         const selected = AUTH_PROFILES[override.profile];
         return {
           state: "resolved",
@@ -633,7 +636,10 @@ function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuards = [],
       && discovered.profile === "backend_or_user"
       && guardChain.includes("requireBackendApiKey")
       && override.runtime_compatibility === "backend_api_key_guard";
-    if (discovered.profile !== override.profile && !publishedSurfaceCompatibility) {
+    const installerRedeemCompatibility = override.profile === "installer_redeem"
+      && discovered.profile === "signed_query_token"
+      && guardChain.includes("verifyInstallerDownloadToken");
+    if (discovered.profile !== override.profile && !publishedSurfaceCompatibility && !installerRedeemCompatibility) {
       return {
         state: "unresolved",
         profile: "auth_policy_conflicts_with_runtime_guard",
@@ -644,7 +650,7 @@ function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuards = [],
         configuration_dependencies: discovered.configuration_dependencies || [],
       };
     }
-    if (publishedSurfaceCompatibility) {
+    if (publishedSurfaceCompatibility || installerRedeemCompatibility) {
       const selected = AUTH_PROFILES[override.profile];
       return {
         state: "resolved",
@@ -654,7 +660,7 @@ function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuards = [],
         evidence: unique([
           ...(discovered.evidence || []),
           ...(override.evidence_refs || []),
-          "runtime_compatibility:backend_api_key_guard",
+          publishedSurfaceCompatibility ? "runtime_compatibility:backend_api_key_guard" : "runtime_compatibility:installer_redeem_bearer",
         ]),
       };
     }

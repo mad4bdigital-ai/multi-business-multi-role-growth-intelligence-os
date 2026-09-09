@@ -41,12 +41,13 @@ test("Staging Recovery tools are absent from Production catalog and present only
 
   const staging = synchronizeRecoverySystemToolDescriptors(STAGING_ENV);
   assert.equal(staging.staging_advertised, true);
-  assert.equal(staging.staging_tool_count, 4);
+  assert.equal(staging.staging_tool_count, 5);
   assert.deepEqual(
     SYSTEM_LAYER_TOOLS.filter((entry) => entry.source_key === "staging_recovery_system_surface_v1").map((entry) => entry.name),
     [
       "staging_recovery_certification_canary_plan_create",
       "staging_recovery_access_repair_prepare",
+      "staging_recovery_access_repair_execute",
       "staging_recovery_access_repair_approve",
       "staging_recovery_system_surface_readiness",
     ],
@@ -71,6 +72,18 @@ test("Staging capability reporting separates kernel discovery from bounded Syste
   const production = projectRecoveryCapabilitiesForSystemSurface(PRODUCTION_ENV);
   assert.equal(production.environment_view, "production_private_recovery");
   assert.equal(Object.hasOwn(production, "system_surface_extensions"), false);
+});
+
+test("Staging access repair mutation is advertised only when execute and independent readback dependencies are complete", () => {
+  const staging = projectRecoveryCapabilitiesForSystemSurface(STAGING_ENV, {
+    hostBreakglassMutationExecutor: async () => ({ ok: true }),
+    recoveryLock: { acquire() {} },
+    readbackVerifier: { verify() {}, independent_authority: true, role_aware: true, mutation_authority: false },
+    deploymentIdentityProvider: { readAttestation() {} },
+    recoveryStore: { getPlan() {}, getExecutionTicket() {} },
+  });
+  assert.deepEqual(staging.target_database_mutation_capabilities, ["staging_database_access_repair"]);
+  assert.equal(staging.system_surface_extensions.find((entry) => entry.capability_key === "staging_database_access_repair").state_scope, "plan_approval_execute_readback");
 });
 
 test("Bridge v2 validator accepts explicit server-managed confirmation fields and rejects caller tickets", () => {

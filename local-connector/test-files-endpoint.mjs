@@ -26,6 +26,8 @@ const server = spawn(process.execPath, ['server.mjs'], {
     CONNECTOR_SECRET: apiKey,
     CONNECTOR_LOCAL_API_KEY: localApiKey,
     CONNECTOR_PORT: String(port),
+    CONNECTOR_ENVIRONMENT: 'production',
+    CONNECTOR_POLICY_ENABLED: 'false',
     CONNECTOR_FILES_ENABLED: 'true',
     CONNECTOR_FILE_PATHS: root,
     CONNECTOR_DEPENDENCIES_ENABLED: 'false',

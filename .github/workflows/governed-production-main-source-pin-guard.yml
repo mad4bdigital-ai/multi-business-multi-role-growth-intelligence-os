@@ -23,14 +23,28 @@ concurrency:
 jobs:
   reconcile-promotion-release-cuts:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     env:
       GH_TOKEN: ${{ github.token }}
       REPOSITORY: ${{ github.repository }}
       EVENT_MAIN_SHA: ${{ github.sha }}
       EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha || github.sha }}
       EVENT_NAME: ${{ github.event_name }}
+      POLICY_PATH: http-generic-api/config/deployment-branch-policy.json
+      SEMANTIC_EVALUATOR: .github/scripts/production-promotion-semantic-continuity.mjs
     steps:
+      - name: Checkout exact main guard source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
+
       - name: Verify current main event identity
         id: verify
         shell: bash
@@ -48,7 +62,7 @@ jobs:
           fi
           echo "current_main_sha=$CURRENT_MAIN_SHA" >> "$GITHUB_OUTPUT"
 
-      - name: Reconcile legacy pins and immutable release cuts
+      - name: Reconcile release cuts against semantic Production continuity
         id: reconcile
         if: steps.verify.outputs.superseded != 'true'
         shell: bash
@@ -57,22 +71,58 @@ jobs:
         run: |
           set -Eeuo pipefail
           REPORT_DIR="$RUNNER_TEMP/governed-production-main-source-pin"
+          rm -rf "$REPORT_DIR"
           mkdir -p "$REPORT_DIR"
+          test -f "$SEMANTIC_EVALUATOR"
 
           RELEASE_PRS="$(gh pr list --repo "$REPOSITORY" --state open --base Production --limit 100 --json number,title,body,headRefName,headRefOid)"
           COMPATIBLE_RELEASES='[]'
           STALE_RELEASES='[]'
           STALE_HEADS='[]'
           MARKED_RELEASES='[]'
+          CLOSED_RELEASES='[]'
 
           is_ancestor_of_main() {
             local cut="$1"
-            local compare="$RUNNER_TEMP/compare-${cut}.json"
-            if ! gh api "/repos/${REPOSITORY}/compare/${cut}...${MAIN_SHA}" > "$compare" 2>/dev/null; then return 1; fi
-            local status behind
-            status="$(jq -r '.status // ""' "$compare")"
-            behind="$(jq -r '.behind_by // -1' "$compare")"
-            [[ "$behind" == 0 && ( "$status" == ahead || "$status" == identical ) ]]
+            git merge-base --is-ancestor "$cut" "$MAIN_SHA"
+          }
+
+          semantic_report_path() {
+            local cut="$1"
+            printf '%s/semantic-%s.json' "$REPORT_DIR" "$cut"
+          }
+
+          build_semantic_report() {
+            local cut="$1" report
+            report="$(semantic_report_path "$cut")"
+            if [[ -s "$report" ]]; then
+              printf '%s' "$report"
+              return 0
+            fi
+            local work="$REPORT_DIR/semantic-${cut}.inputs"
+            mkdir -p "$work"
+            git cat-file -e "${cut}^{commit}"
+            git cat-file -e "${MAIN_SHA}^{commit}"
+            git show "${cut}:${POLICY_PATH}" > "$work/release-policy.json"
+            git show "${MAIN_SHA}:${POLICY_PATH}" > "$work/current-policy.json"
+            git ls-tree -r -z "$cut" > "$work/release-tree.bin"
+            git ls-tree -r -z "$MAIN_SHA" > "$work/current-tree.bin"
+            node "$SEMANTIC_EVALUATOR" \
+              --release-cut-sha "$cut" \
+              --current-main-sha "$MAIN_SHA" \
+              --release-policy "$work/release-policy.json" \
+              --current-policy "$work/current-policy.json" \
+              --release-tree "$work/release-tree.bin" \
+              --current-tree "$work/current-tree.bin" \
+              --output "$report" >/dev/null
+            jq -e '.contract == "mad4b.production-promotion-semantic-continuity.v1" and .evaluation_ok == true' "$report" >/dev/null
+            printf '%s' "$report"
+          }
+
+          semantic_continuity_holds() {
+            local cut="$1" report
+            report="$(build_semantic_report "$cut")" || return 1
+            jq -e '.semantic_continuity == true and .promotion_surface_changed == false' "$report" >/dev/null
           }
 
           while IFS= read -r pr; do
@@ -94,24 +144,70 @@ jobs:
             [[ "$body" == *"release_cut_mode: true"* ]] && release_cut_mode=true
 
             compatible=false
+            reason="unknown"
+            semantic_report=""
             if [[ "$release_cut_mode" == true ]]; then
-              if is_ancestor_of_main "$release_cut"; then compatible=true; fi
+              if ! is_ancestor_of_main "$release_cut"; then
+                reason="release_cut_ancestry_lost"
+                echo "release_cut_ancestor=false release_cut=$release_cut current_main=$MAIN_SHA"
+              elif semantic_report="$(build_semantic_report "$release_cut" 2>/dev/null)" && jq -e '.semantic_continuity == true' "$semantic_report" >/dev/null; then
+                compatible=true
+                reason="release_cut_ancestor_and_promotion_surface_unchanged"
+              else
+                reason="production_relevant_main_advance"
+              fi
             elif [[ "$release_cut" == "$MAIN_SHA" ]]; then
               compatible=true
+              reason="legacy_exact_main_equal"
+            else
+              reason="legacy_exact_main_moved"
             fi
 
             if [[ "$compatible" == true ]]; then
-              COMPATIBLE_RELEASES="$(jq --argjson pr "$pr_number" --arg cut "$release_cut" --arg head "$head_sha" '. + [{pr_number:$pr,release_cut_sha:$cut,head_sha:$head,main_tip_may_advance:true}]' <<<"$COMPATIBLE_RELEASES")"
+              release_digest=""
+              current_digest=""
+              if [[ -n "$semantic_report" && -s "$semantic_report" ]]; then
+                release_digest="$(jq -r '.release_cut_promotion_digest' "$semantic_report")"
+                current_digest="$(jq -r '.current_main_promotion_digest' "$semantic_report")"
+              fi
+              COMPATIBLE_RELEASES="$(jq \
+                --argjson pr "$pr_number" \
+                --arg cut "$release_cut" \
+                --arg head "$head_sha" \
+                --arg release_digest "$release_digest" \
+                --arg current_digest "$current_digest" \
+                '. + [{pr_number:$pr,release_cut_sha:$cut,head_sha:$head,semantic_continuity:true,release_cut_promotion_digest:$release_digest,current_main_promotion_digest:$current_digest,main_tip_may_advance:true}]' \
+                <<<"$COMPATIBLE_RELEASES")"
               continue
             fi
 
-            STALE_RELEASES="$(jq --argjson pr "$pr_number" --arg cut "$release_cut" --arg head "$head_sha" '. + [{pr_number:$pr,release_cut_sha:$cut,head_sha:$head}]' <<<"$STALE_RELEASES")"
+            changed_count=0
+            changed_preview='[]'
+            if [[ -n "$semantic_report" && -s "$semantic_report" ]]; then
+              changed_count="$(jq -r '.changed_sensitive_path_count // 0' "$semantic_report")"
+              changed_preview="$(jq -c '.changed_sensitive_paths[:10] | map(.path)' "$semantic_report")"
+            fi
+            STALE_RELEASES="$(jq \
+              --argjson pr "$pr_number" \
+              --arg cut "$release_cut" \
+              --arg head "$head_sha" \
+              --arg reason "$reason" \
+              --argjson changed_count "$changed_count" \
+              --argjson changed_preview "$changed_preview" \
+              '. + [{pr_number:$pr,release_cut_sha:$cut,head_sha:$head,reason:$reason,changed_sensitive_path_count:$changed_count,changed_sensitive_path_preview:$changed_preview}]' \
+              <<<"$STALE_RELEASES")"
             STALE_HEADS="$(jq --arg head "$head_sha" 'if index($head) then . else . + [$head] end' <<<"$STALE_HEADS")"
-            reason="STALE_PRODUCTION_CANDIDATE release_cut=${release_cut} current_main=${MAIN_SHA} release_cut_ancestor=false source_pin_guard=true merge_executed=false deployment_executed=false"
-            if gh pr comment "$pr_number" --repo "$REPOSITORY" --body "$reason"; then
+            marker="STALE_PRODUCTION_CANDIDATE release_cut=${release_cut} current_main=${MAIN_SHA} reason=${reason} changed_sensitive_path_count=${changed_count} semantic_continuity_required=true fresh_governed_release_cut_required=true merge_executed=false deployment_executed=false"
+            if gh pr comment "$pr_number" --repo "$REPOSITORY" --body "$marker"; then
               MARKED_RELEASES="$(jq --argjson pr "$pr_number" '. + [$pr]' <<<"$MARKED_RELEASES")"
             else
               echo "::warning::release PR $pr_number is stale but comment transport is degraded"
+            fi
+            if gh pr close "$pr_number" --repo "$REPOSITORY"; then
+              CLOSED_RELEASES="$(jq --argjson pr "$pr_number" '. + [$pr]' <<<"$CLOSED_RELEASES")"
+            else
+              echo "::error::stale Production release PR $pr_number could not be closed; refusing a successful guard decision"
+              exit 1
             fi
           done < <(jq -c '.[]' <<<"$RELEASE_PRS")
 
@@ -126,14 +222,18 @@ jobs:
             done < <(jq --argjson stale "$STALE_HEADS" -r '.workflow_runs[] | select(.head_sha as $h | ($stale | index($h)) != null) | .id' <<<"$RUNS")
           fi
 
-          # Launcher runs are no longer stale merely because main advanced. Cancel only a launcher whose
-          # authorized workflow SHA is not an ancestor of current main (history divergence / force rewrite).
+          # In-progress launchers survive a main advance only when BOTH ancestry and the
+          # canonical Production-sensitive digest remain unchanged.
           LAUNCHERS="$(gh api "/repos/${REPOSITORY}/actions/workflows/governed-production-promotion-request-launcher.yml/runs?status=in_progress&per_page=100")"
           while IFS=$'\t' read -r run_id run_head; do
             [[ -n "$run_id" && "$run_head" =~ ^[0-9a-f]{40}$ ]] || continue
             [[ "$run_head" == "$MAIN_SHA" ]] && continue
-            if is_ancestor_of_main "$run_head"; then
-              echo "::notice::preserving launcher run $run_id: release cut $run_head remains an ancestor of current main"
+            preserve=false
+            if is_ancestor_of_main "$run_head" && semantic_continuity_holds "$run_head"; then
+              preserve=true
+            fi
+            if [[ "$preserve" == true ]]; then
+              echo "::notice::preserving launcher run $run_id: release cut $run_head remains an ancestor and the Production promotion digest is unchanged"
               continue
             fi
             if gh run cancel "$run_id" --repo "$REPOSITORY"; then
@@ -142,14 +242,15 @@ jobs:
           done < <(jq -r '.workflow_runs[] | [.id,.head_sha] | @tsv' <<<"$LAUNCHERS")
 
           jq -n \
-            --arg contract "mad4b.governed-production-main-source-pin-guard.v3" \
+            --arg contract "mad4b.governed-production-main-source-pin-guard.v4" \
             --arg main_sha "$MAIN_SHA" \
             --arg event_name "$EVENT_NAME" \
             --argjson compatible_release_cuts "$COMPATIBLE_RELEASES" \
             --argjson stale_release_cuts "$STALE_RELEASES" \
             --argjson marked_stale_release_pr_numbers "$MARKED_RELEASES" \
+            --argjson closed_stale_release_pr_numbers "$CLOSED_RELEASES" \
             --argjson cancelled_run_ids "$CANCELLED" \
-            '{contract:$contract,ok:true,outcome:"current",event_name:$event_name,current_main_sha:$main_sha,guard_scope:"release_cut_ancestry",compatible_release_cuts:$compatible_release_cuts,stale_release_cuts:$stale_release_cuts,marked_stale_release_pr_numbers:$marked_stale_release_pr_numbers,cancelled_run_ids:$cancelled_run_ids,main_tip_may_advance:true,merge_executed:false,deployment_executed:false,migration_executed:false,provider_call_executed:false,credential_payload_read:false,secrets_included:false}' \
+            '{contract:$contract,ok:true,outcome:"current",event_name:$event_name,current_main_sha:$main_sha,guard_scope:"release_cut_ancestry_and_semantic_continuity",compatible_release_cuts:$compatible_release_cuts,stale_release_cuts:$stale_release_cuts,marked_stale_release_pr_numbers:$marked_stale_release_pr_numbers,closed_stale_release_pr_numbers:$closed_stale_release_pr_numbers,cancelled_run_ids:$cancelled_run_ids,main_tip_may_advance:true,main_advance_requires_semantic_continuity:true,promotion_surface_digest_required:true,fresh_governed_release_cut_required_when_digest_changes:true,merge_executed:false,deployment_executed:false,migration_executed:false,provider_call_executed:false,credential_payload_read:false,secrets_included:false}' \
             > "$REPORT_DIR/report.json"
           echo "report=$REPORT_DIR/report.json" >> "$GITHUB_OUTPUT"
 
@@ -163,8 +264,8 @@ jobs:
           set -Eeuo pipefail
           REPORT_DIR="$RUNNER_TEMP/governed-production-main-source-pin"
           mkdir -p "$REPORT_DIR"
-          jq -n --arg contract "mad4b.governed-production-main-source-pin-guard.v3" --arg event "$EVENT_MAIN_SHA" --arg current "$CURRENT_MAIN_SHA" \
-            '{contract:$contract,ok:true,outcome:"superseded",event_main_sha:$event,current_main_sha:$current,guard_scope:"release_cut_ancestry",compatible_release_cuts:[],stale_release_cuts:[],marked_stale_release_pr_numbers:[],cancelled_run_ids:[],main_tip_may_advance:true,merge_executed:false,deployment_executed:false,migration_executed:false,provider_call_executed:false,credential_payload_read:false,secrets_included:false}' \
+          jq -n --arg contract "mad4b.governed-production-main-source-pin-guard.v4" --arg event "$EVENT_MAIN_SHA" --arg current "$CURRENT_MAIN_SHA" \
+            '{contract:$contract,ok:true,outcome:"superseded",event_main_sha:$event,current_main_sha:$current,guard_scope:"release_cut_ancestry_and_semantic_continuity",compatible_release_cuts:[],stale_release_cuts:[],marked_stale_release_pr_numbers:[],closed_stale_release_pr_numbers:[],cancelled_run_ids:[],main_tip_may_advance:true,main_advance_requires_semantic_continuity:true,promotion_surface_digest_required:true,fresh_governed_release_cut_required_when_digest_changes:true,merge_executed:false,deployment_executed:false,migration_executed:false,provider_call_executed:false,credential_payload_read:false,secrets_included:false}' \
             > "$REPORT_DIR/report.json"
           echo "report=$REPORT_DIR/report.json" >> "$GITHUB_OUTPUT"
 
@@ -186,14 +287,19 @@ jobs:
           test -f "$REPORT"
           compatible="$(jq '.compatible_release_cuts | length' "$REPORT")"
           stale="$(jq '.stale_release_cuts | length' "$REPORT")"
+          closed="$(jq '.closed_stale_release_pr_numbers | length' "$REPORT")"
           cancelled="$(jq '.cancelled_run_ids | length' "$REPORT")"
-          echo "::notice::release-cut source guard: compatible=$compatible stale=$stale cancelled=$cancelled"
+          echo "::notice::release-cut source guard: compatible=$compatible stale=$stale closed=$closed cancelled=$cancelled"
           cat >> "$GITHUB_STEP_SUMMARY" <<EOF
-          ## Production release-cut source guard
+          ## Production release-cut semantic continuity guard
 
           - current main: \`$(jq -r '.current_main_sha' "$REPORT")\`
           - compatible release cuts: \`$compatible\`
           - stale release cuts: \`$stale\`
+          - closed stale release PRs: \`$closed\`
           - cancelled stale runs: \`$cancelled\`
           - main tip may advance: \`true\`
+          - semantic continuity required for advancement: \`true\`
+          - promotion surface digest required: \`true\`
+          - changed digest requires fresh governed release cut: \`true\`
           EOF

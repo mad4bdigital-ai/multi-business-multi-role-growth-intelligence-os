@@ -179,9 +179,15 @@
       "id": "local_connector_environment_and_transport_isolation",
       "test_paths": [
         "http-generic-api/test-local-connector-convergence-inspector.mjs",
+        "http-generic-api/test-db-driven-connector-capability-policy.mjs",
         "http-generic-api/test-local-connector-durable-self-healing.mjs",
+        "http-generic-api/test-local-connector-installer-capability.mjs",
+        "http-generic-api/test-connector-agent-installer-permission-grants.mjs",
+        "http-generic-api/test-local-connector-capability-installer-grants.mjs",
+        "http-generic-api/test-connector-local-api-key-registry.mjs",
         "http-generic-api/test-windows-staging-bootstrap-supervisor.mjs",
         "http-generic-api/test-local-manager-tool-release-owner.mjs",
+        "http-generic-api/test-connect-routes.mjs",
         "http-generic-api/test-local-manager-cloudflare-origin-classification.mjs",
         "http-generic-api/test-local-manager-signed-installer-coordinator.mjs",
         "http-generic-api/test-local-manager-signed-installer-exit-code.mjs",
@@ -246,7 +252,8 @@
         ".github/tests/production-promotion-runtime.test.mjs",
         "http-generic-api/test-production-promotion-candidate-workflow.mjs",
         "http-generic-api/test-production-promotion-convergence-workflows.mjs",
-        ".github/workflows/governed-production-promotion-request-launcher.yml"
+        ".github/workflows/governed-production-promotion-request-launcher.yml",
+        ".github/tests/production-promotion-review-mode.test.mjs"
       ]
     },
     {

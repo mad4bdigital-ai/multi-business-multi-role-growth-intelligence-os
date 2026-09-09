@@ -713,8 +713,6 @@ export async function requireLocalManagerDevice(req) {
 }
 
 export async function requireFreshLocalManagerDeviceForPrivilegedInstaller(req) {
-  // A valid, non-revoked Local Manager device token is sufficient. Windows UAC
-  // remains required locally for every privileged installer execution.
   return requireLocalManagerDevice(req);
 }
 

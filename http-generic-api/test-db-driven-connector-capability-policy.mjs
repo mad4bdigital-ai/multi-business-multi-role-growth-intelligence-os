@@ -8,7 +8,9 @@ assert(agentRoutes.includes('loadConnectorGrantPolicy'), 'auth-host policy must 
 assert(agentRoutes.includes('local_connector_capability_grants'), 'capability grants must come from local_connector_capability_grants');
 assert(agentRoutes.includes('local_connector_app_allowlists'), 'app allowlists must come from local_connector_app_allowlists');
 assert(agentRoutes.includes('local_connector_file_access_rules'), 'file grants must reuse local_connector_file_access_rules');
-assert(agentRoutes.includes('mergePermissionGrants(dbGrants, payload.permission_grants || {})'), 'installer generation must merge DB grants with token grants');
+assert(agentRoutes.includes('capabilities: dbGrants.capabilities'), 'installer capabilities must come from the DB-backed grant policy');
+assert(agentRoutes.includes('permissionGrants: dbGrants'), 'installer permission grants must come from the DB-backed grant policy');
+assert(!agentRoutes.includes('mergePermissionGrants(dbGrants, payload.permission_grants'), 'installer generation must reject caller-selected token grants');
 assert(agentRoutes.includes('capability_grants'), 'policy endpoint must return capability_grants');
 assert(agentRoutes.includes('checksumConnectorPolicy'), 'policy checksum must include connector grant policy');
 assert(agentRoutes.includes('secrets_included: false'), 'policy endpoint must not include secrets');
