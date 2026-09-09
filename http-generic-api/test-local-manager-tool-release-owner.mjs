@@ -47,7 +47,9 @@ assert(connectorAgent.includes('windows_control: "CONNECTOR_WIN_ENABLED"'), 'con
 assert(connectorAgent.includes('connectorCapabilityEnvLines([...capabilities, ...grants.capabilities])'), 'connector-agent installer must render requested capability env flags');
 assert(connectorAgent.includes('CONNECTOR_APP_ALLOWLIST'), 'connector-agent installer must render dynamic app allowlist grants');
 assert(connectorAgent.includes('CONNECTOR_FILE_PATHS'), 'connector-agent installer must render dynamic file path grants');
-assert(connectorAgent.includes('capabilities: payload.capabilities || []'), 'connector-agent installer route must pass signed token capabilities into env generation');
+assert(connectorAgent.includes('capabilities: dbGrants.capabilities'), 'connector-agent installer route must use DB-authorized capabilities for env generation');
+assert(connectorAgent.includes('permissionGrants: dbGrants'), 'connector-agent installer route must use DB-authorized permission grants for env generation');
+assert(!connectorAgent.includes('payload.permission_grants'), 'connector-agent installer route must not trust token-carried permission grants');
 assert(connectorAgent.includes('BROWSER4_ALLOWED_HOSTS=mad4b.com,n8n.mad4b.com'), 'Browser4 install must preserve connector-side domain allowlist');
 assert(connectorAgent.includes("Get-Mad4BManifestFile -Name 'browser4-adapter.mjs'"), 'installer must install manifest-declared Browser4 adapter file');
 assert(connectorAgent.includes('local_tool_release_owner: "mad4b-local-manager"'), 'upgrade policy must identify Local Manager as tool release owner');
@@ -107,8 +109,9 @@ assert(installRoutes.includes('buildLocalConnectorRouteLifecycleFromDb'), 'insta
 assert(installRoutes.includes('route_lifecycle: routeLifecycle'), 'installer response must expose resolved route lifecycle metadata');
 assert(installRoutes.includes('target_selection: routeLifecycle.target'), 'installer response must expose explicit target selection metadata from the resolved profile');
 assert(installRoutes.includes('shell_aliases'), 'installer route must support dynamic helper shell alias grants');
-assert(installRoutes.includes('normalizePermissionGrants({ ...(req.body?.permission_grants || {}), capabilities: req.body?.capabilities || [] })'), 'device-scoped installer link must normalize requested permission grants');
-assert(installRoutes.includes('permission_grants: permissionGrants'), 'installer download token must propagate permission grants without secrets');
+assert(installRoutes.includes('assertNoInstallerAuthorityOverrides(req.body || {})'), 'device-scoped installer links must reject caller-selected permission grants');
+assert(installRoutes.includes('caller_overrides_allowed: false'), 'installer link responses must declare DB-only permission authority');
+assert(!installRoutes.includes('permission_grants: permissionGrants'), 'installer download tokens must not propagate caller-selected permission grants');
 assert(!installRoutes.includes('CONNECTOR_POWERSHELL_ENABLED=true",'), 'PowerShell must not be enabled by default in base connector env');
 assert(!installRoutes.includes('CONNECTOR_WIN_ENABLED=true",'), 'Windows control must not be enabled by default in base connector env');
 
@@ -125,11 +128,11 @@ assert(localManagerWindowsInstallerSurface.includes('suppress_pause = true'), 'W
 assert(installRoutes.includes('app_managed: appManaged'), 'installer route must sign app-managed mode into download tokens');
 assert(installRoutes.includes('requireFreshLocalManagerDeviceForPrivilegedInstaller(req)'), 'privileged installer links must require fresh Local Manager authorization');
 assert(installRoutes.includes('auth_context: device.auth_context'), 'privileged installer link responses must disclose saved device-token auth context');
-assert(installRoutes.includes('reauth_required_for_stale_device_tokens: false'), 'privileged installer link responses must not require repeated sign-in for a valid saved device token');
-assert(localManagerDeviceLinkService.includes('PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = DEVICE_TOKEN_TTL_SECONDS'), 'Local Manager privileged installer authorization must follow the revocable device token lifetime');
+assert(installRoutes.includes('reauth_required_for_stale_device_tokens: true'), 'privileged installer links must require reauthentication when the saved device token is stale');
+assert(localManagerDeviceLinkService.includes('PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = 15 * 60'), 'Local Manager privileged installer authorization must require a recent device authentication');
 assert(localManagerDeviceLinkService.includes('source: "saved_device_token"'), 'Local Manager device session must disclose saved device-token identity source');
 assert(localManagerDeviceLinkService.includes('interactive_user_session_present: false'), 'Local Manager device session must distinguish saved token auth from an interactive user session');
-assert(localManagerDeviceLinkService.includes('requires_reauth_for_privileged_installers: false'), 'Local Manager privileged installer authorization must not require repeated sign-in for a valid device token');
+assert(localManagerDeviceLinkService.includes('requires_reauth_for_privileged_installers: true'), 'Local Manager privileged installer authorization must require reauthentication outside the freshness window');
 assert(!localManagerDeviceLinkService.includes('reauth_action: "forget_device_and_link_again"'), 'Local Manager privileged installer authorization must not instruct a valid linked device to unlink and sign in again');
 assert(localManagerDeviceLinkService.includes('resolveConnectorRuntimeReadback'), 'repair controls must resolve authoritative connector runtime evidence');
 assert(localManagerDeviceLinkService.includes('runtime_readback: runtimeReadback'), 'repair controls must expose runtime readback to the Windows app');
