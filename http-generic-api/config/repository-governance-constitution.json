@@ -606,7 +606,8 @@
     ".github/scripts/production-promotion-semantic-continuity.mjs",
     ".github/workflows/governed-production-main-source-pin-guard.yml",
     ".github/workflows/governed-production-release-source-pin-gate.yml",
-    "docs/governance/production-promotion-semantic-continuity-guard.md"
+    "docs/governance/production-promotion-semantic-continuity-guard.md",
+    ".changes/e2e/local-manager-capability-auth-boundaries-20260909.json"
   ],
   "derived_state": {
     "registry": ".github/derived-state-governance.json",
