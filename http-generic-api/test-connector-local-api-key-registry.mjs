@@ -43,10 +43,10 @@ assert(
 );
 
 assert(
-  'connector agent installer writes CONNECTOR_LOCAL_API_KEY when configured',
-  agentSource.includes('connectorLocalApiKey') &&
-    agentSource.includes('CONNECTOR_LOCAL_API_KEY=${String(connectorLocalApiKey).trim()}') &&
-    agentSource.includes('connector_local_api_key_configured'),
+  'connector agent installer withholds CONNECTOR_LOCAL_API_KEY and uses an ACL-backed file reference when configured',
+  agentSource.includes('connector_local_api_key_configured') &&
+    agentSource.includes('CONNECTOR_LOCAL_API_KEY_FILE=$ConnectorLocalApiKeyFile') &&
+    !agentSource.includes('CONNECTOR_LOCAL_API_KEY=${String(connectorLocalApiKey).trim()}'),
 );
 
 assert(

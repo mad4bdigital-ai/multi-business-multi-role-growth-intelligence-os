@@ -45,7 +45,9 @@ function operationIdentity(req = {}) {
   const operationKey = normalizeOperationKey(body.operation_key || body.operation || body.intent);
   if (operationKey) return operationKey;
   const method = compact(req.method || "GET", 12).toUpperCase();
-  const route = compact(req.originalUrl || req.baseUrl || req.path || "unknown", 300);
+  // Operation identity is deliberately path-only: query values can carry signed
+  // installer/download capabilities and must never enter resilience logs or keys.
+  const route = compact(req.originalUrl || req.baseUrl || req.path || "unknown", 300).split("?", 1)[0];
   return `route:${method}:${route}`;
 }
 

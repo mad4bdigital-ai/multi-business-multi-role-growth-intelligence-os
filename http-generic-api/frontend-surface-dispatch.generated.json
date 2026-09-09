@@ -2,21 +2,21 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "ec287e8971d2ed095f8ab7b92c2c8b1eb96fb6c66c37b186ba7aeb17e3fa781f",
+    "source_digest": "c28ee8e5645eca2a009c3d0f2a6be09367ab918f474c389190cb474cbad833f2",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
-        "sha256": "487135377e9c6e66b16f3cf21b7fa834fa2dc12a80e6d4101ccf6292bbeb3880",
+        "sha256": "47af71783edd817abfa6da6d461bb11c59f2842a51e4fec222832b042363ab1d",
         "present": true
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "466788b323853dde50d97d02c5105c583689c5ad0746af83defb4f8b95537bf5",
+        "sha256": "c0e7dd0a6f6e8a6603174d9283901dc50004ef97b87b7959e7bd24e81108fd63",
         "present": true
       },
       {
         "file": "frontend-surface-policy.json",
-        "sha256": "51834e9456ab381bec607a9b17d292d0967efbcd5368eec2113dd2c0b24d3408",
+        "sha256": "55800b558d9463875cc1000c09f2cbdd09eae7daa7752b66fc089eca00b8354c",
         "present": true
       },
       {
@@ -26,7 +26,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "904fdb9a349711c24393d00026f918afe5ccc2e6521836e5fae7b5b1af747007",
+        "sha256": "423f1ee6cc8399ad9f3eb5d837dbb16a954788899120ed8b5cfef6091a5e5ac8",
         "present": true
       },
       {
@@ -516,7 +516,7 @@
       },
       {
         "file": "routes/connectorAgentRoutes.js",
-        "sha256": "067e04131969cd5969b13e2a68dbd1403a8b49a4c1bdfc04657f468ade861e8f",
+        "sha256": "ac9badb88859c5479170e9696228a1bf380f2f1234a584f3c30aed3245fccfe2",
         "present": true
       },
       {
@@ -666,7 +666,7 @@
       },
       {
         "file": "routes/localConnectorInstallRoutes.js",
-        "sha256": "01d90e50e4307096190ed71f4b096fc47b016c9ada12c17b3d7071b8e3fb797b",
+        "sha256": "127c7c064715742466fc00865ba3cf11be9bbe9693353fb228df773a33d31118",
         "present": true
       },
       {
@@ -1081,12 +1081,12 @@
       },
       {
         "file": "scripts/frontend-surface-dispatch.mjs",
-        "sha256": "f6523536bed7020290eea5483f4e07ee0dcbe07497b7217305bc64b6cdacc717",
+        "sha256": "87c73af697dd9ba46e6beab563b386475aa5b71c15765710bc792e9e7b65a0c2",
         "present": true
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "df671045c611bda9f20973ec4f38431d6691ac9f1e4204c2f752e858d6efb6c0",
+        "sha256": "bbd3e514e2b9d0e818fc96e76d318f501d8bb146cc352c2b8ddd56b722d2fb72",
         "present": true
       },
       {
@@ -1111,7 +1111,12 @@
       },
       {
         "file": "test-frontend-surface-coverage-claims.mjs",
-        "sha256": "b22d12310b64801b1aca2c070ebd282612678ee9606d38353b2f377c47c3c67a",
+        "sha256": "f4f13a07dd413d593b3f27f7ee2830ca70f2ce62fb545774485ec3dede672af8",
+        "present": true
+      },
+      {
+        "file": "test-local-connector-installer-capability.mjs",
+        "sha256": "8d4c2844b6c83d7753ecb1203e65f7b9bb973e140e5da820cc4f1950fa9e694e",
         "present": true
       },
       {
@@ -1179,29 +1184,29 @@
     "mounted_family_count": 173,
     "mounted_route_file_count": 143,
     "mixed_scope_route_file_count": 25,
-    "operation_count": 1065,
-    "openapi_documented_count": 1049,
-    "openapi_canonical_documented_count": 731,
+    "operation_count": 1066,
+    "openapi_documented_count": 1050,
+    "openapi_canonical_documented_count": 732,
     "openapi_generated_index_count": 318,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
     "openapi_detail_gap_count": 318,
     "openapi_detail_gap_policy": "accepted_generated_index_only",
     "auth_parity_counts": {
-      "equivalent": 1049,
+      "equivalent": 1050,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 645,
+    "non_get_candidate_count": 646,
     "unresolved_operation_class_count": 0,
-    "classified_mutation_count": 21,
-    "governed_mutation_operation_count": 21,
+    "classified_mutation_count": 22,
+    "governed_mutation_operation_count": 22,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 0,
     "test_owned_family_count": 173,
     "untested_family_count": 0,
-    "test_owned_operation_count": 1065,
+    "test_owned_operation_count": 1066,
     "untested_operation_count": 0,
     "ready_task_count": 173,
     "blocked_task_count": 0,
@@ -5199,7 +5204,7 @@
       "family_key": "connector-agent.developer",
       "label": "connector agent (developer)",
       "source_file": "routes/connectorAgentRoutes.js",
-      "source_digest": "067e04131969cd5969b13e2a68dbd1403a8b49a4c1bdfc04657f468ade861e8f",
+      "source_digest": "ac9badb88859c5479170e9696228a1bf380f2f1234a584f3c30aed3245fccfe2",
       "mount_prefix": "/",
       "mount_order": 13778,
       "split_from_mixed_scope_file": true,
@@ -5331,7 +5336,7 @@
       "family_key": "connector-agent.local_device",
       "label": "connector agent (local_device)",
       "source_file": "routes/connectorAgentRoutes.js",
-      "source_digest": "067e04131969cd5969b13e2a68dbd1403a8b49a4c1bdfc04657f468ade861e8f",
+      "source_digest": "ac9badb88859c5479170e9696228a1bf380f2f1234a584f3c30aed3245fccfe2",
       "mount_prefix": "/",
       "mount_order": 13778,
       "split_from_mixed_scope_file": true,
@@ -5340,6 +5345,102 @@
       "group": "authentication",
       "scope": "local_device",
       "operations": [
+        {
+          "method": "POST",
+          "path": "/connector-agent/installer/redeem",
+          "signature": "POST /connector-agent/installer/redeem",
+          "source_file": "routes/connectorAgentRoutes.js",
+          "scope": "local_device",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "installer_redeem",
+            "alternatives": [
+              [
+                "installerRedeemBearerAuth"
+              ]
+            ],
+            "principal": "installer",
+            "configuration_dependencies": [],
+            "guard_chain": [
+              "verifyInstallerDownloadToken"
+            ],
+            "evidence": [
+              "localConnectorInstallerCapability.js",
+              "openapi.yaml",
+              "route:verifyInstallerDownloadToken",
+              "routes/connectorAgentRoutes.js",
+              "runtime_compatibility:installer_redeem_bearer",
+              "test-local-connector-installer-capability.mjs"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "installerRedeemBearerAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [
+            "test-local-connector-installer-capability.mjs"
+          ],
+          "governance": {
+            "classification": "external_effect",
+            "classification_source": "operation_rule",
+            "mutation_candidate": true,
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "signed_exact_capability_binding"
+              },
+              "approval": {
+                "mode": "server_issued_one_time_capability"
+              },
+              "readback": {
+                "mode": "inline_post_commit",
+                "same_cycle": true
+              },
+              "rollback": {
+                "mode": "not_required",
+                "rationale": "Consumption is intentionally irreversible; failure requires a newly issued capability and replay is denied."
+              }
+            },
+            "parameter_bindings": {
+              "authorization": "request.header.authorization.bearer",
+              "purpose": "server.local_connector_installer_secret_redeem",
+              "audience": "server.connector_agent",
+              "environment": "server.runtime_environment",
+              "config_id": "signed_capability.config_id",
+              "device_id": "signed_capability.device_id"
+            },
+            "blockers": [],
+            "rule_id": "local-connector-installer-redeem-external-effect",
+            "owner": "local-connector",
+            "rationale": "The route atomically consumes a one-time purpose-bound capability and returns the exact bound device credentials once for protected local materialization.",
+            "evidence_refs": [
+              "localConnectorInstallerCapability.js",
+              "openapi.yaml",
+              "routes/connectorAgentRoutes.js",
+              "test-local-connector-installer-capability.mjs"
+            ]
+          },
+          "mutation_candidate": true,
+          "mutation": true
+        },
         {
           "method": "GET",
           "path": "/connector-agent/policy",
@@ -5464,7 +5565,8 @@
       "auth_contract_gaps": [],
       "evidence_routes": [],
       "tests": [
-        "test-frontend-surface-coverage-claims.mjs"
+        "test-frontend-surface-coverage-claims.mjs",
+        "test-local-connector-installer-capability.mjs"
       ],
       "untested_operations": [],
       "resources": [],
@@ -5491,7 +5593,8 @@
         "routes/connectorAgentRoutes.js",
         "routes/index.js",
         "scripts/test-manifest.mjs",
-        "test-frontend-surface-coverage-claims.mjs"
+        "test-frontend-surface-coverage-claims.mjs",
+        "test-local-connector-installer-capability.mjs"
       ],
       "surface_decision": {
         "decision": "internal_only",
@@ -5508,7 +5611,7 @@
       },
       "operation_blockers": [],
       "risk": {
-        "score": 6,
+        "score": 8,
         "class": "high"
       },
       "wave": "F4-local-manager"
@@ -5517,7 +5620,7 @@
       "family_key": "connector-agent.public",
       "label": "connector agent (public)",
       "source_file": "routes/connectorAgentRoutes.js",
-      "source_digest": "067e04131969cd5969b13e2a68dbd1403a8b49a4c1bdfc04657f468ade861e8f",
+      "source_digest": "ac9badb88859c5479170e9696228a1bf380f2f1234a584f3c30aed3245fccfe2",
       "mount_prefix": "/",
       "mount_order": 13778,
       "split_from_mixed_scope_file": true,
@@ -7602,7 +7705,7 @@
       "family_key": "local-connector-install.developer",
       "label": "local connector install (developer)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "01d90e50e4307096190ed71f4b096fc47b016c9ada12c17b3d7071b8e3fb797b",
+      "source_digest": "127c7c064715742466fc00865ba3cf11be9bbe9693353fb228df773a33d31118",
       "mount_prefix": "/",
       "mount_order": 14152,
       "split_from_mixed_scope_file": true,
@@ -8045,7 +8148,7 @@
       "family_key": "local-connector-install.local_device",
       "label": "local connector install (local_device)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "01d90e50e4307096190ed71f4b096fc47b016c9ada12c17b3d7071b8e3fb797b",
+      "source_digest": "127c7c064715742466fc00865ba3cf11be9bbe9693353fb228df773a33d31118",
       "mount_prefix": "/",
       "mount_order": 14152,
       "split_from_mixed_scope_file": true,
@@ -98004,7 +98107,9 @@
         "F0-source-baseline",
         "F1-tenant-workspace-context",
         "F4-device-trust",
-        "operation-classification"
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
       ],
       "source_refs": [
         "frontend-operation-governance.generated.json",
@@ -98027,7 +98132,8 @@
         "routes/connectorAgentRoutes.js",
         "routes/index.js",
         "scripts/test-manifest.mjs",
-        "test-frontend-surface-coverage-claims.mjs"
+        "test-frontend-surface-coverage-claims.mjs",
+        "test-local-connector-installer-capability.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -98035,12 +98141,14 @@
         "openapi_or_explicit_exemption",
         "surface_policy_resolved",
         "tests_registered",
-        "operation_classification_explicit"
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
         "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-frontend-surface-coverage-claims.mjs"
+        "node test-frontend-surface-coverage-claims.mjs",
+        "node test-local-connector-installer-capability.mjs"
       ]
     },
     {
