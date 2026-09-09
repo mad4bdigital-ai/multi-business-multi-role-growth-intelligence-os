@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "9f23921eec965b470908a07a73656a2934f16a01e63a958a96c5ed7104550a8c",
+    "source_digest": "98b13ee21148415232d5c95effb6bafaef8c3207d9fd11b595b683d38d78b8cd",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -516,7 +516,7 @@
       },
       {
         "file": "routes/connectorAgentRoutes.js",
-        "sha256": "ac9badb88859c5479170e9696228a1bf380f2f1234a584f3c30aed3245fccfe2",
+        "sha256": "e86080bce15bcbc6a141dadff3c178985fe9db6029c6c87b58790f65a7a757a6",
         "present": true
       },
       {
@@ -681,7 +681,7 @@
       },
       {
         "file": "routes/localManagerBetaRoutes.js",
-        "sha256": "351fca5d42486a761e72419474f7e28429bf6c278c44bcb307d3a70a045206c7",
+        "sha256": "d9d7e2f6fd0d6b41ae1e93e714c4f2b6fc284aba4ff9d58a379bd64ceafbd86b",
         "present": true
       },
       {
@@ -5204,7 +5204,7 @@
       "family_key": "connector-agent.developer",
       "label": "connector agent (developer)",
       "source_file": "routes/connectorAgentRoutes.js",
-      "source_digest": "ac9badb88859c5479170e9696228a1bf380f2f1234a584f3c30aed3245fccfe2",
+      "source_digest": "e86080bce15bcbc6a141dadff3c178985fe9db6029c6c87b58790f65a7a757a6",
       "mount_prefix": "/",
       "mount_order": 13778,
       "split_from_mixed_scope_file": true,
@@ -5336,7 +5336,7 @@
       "family_key": "connector-agent.local_device",
       "label": "connector agent (local_device)",
       "source_file": "routes/connectorAgentRoutes.js",
-      "source_digest": "ac9badb88859c5479170e9696228a1bf380f2f1234a584f3c30aed3245fccfe2",
+      "source_digest": "e86080bce15bcbc6a141dadff3c178985fe9db6029c6c87b58790f65a7a757a6",
       "mount_prefix": "/",
       "mount_order": 13778,
       "split_from_mixed_scope_file": true,
@@ -5620,7 +5620,7 @@
       "family_key": "connector-agent.public",
       "label": "connector agent (public)",
       "source_file": "routes/connectorAgentRoutes.js",
-      "source_digest": "ac9badb88859c5479170e9696228a1bf380f2f1234a584f3c30aed3245fccfe2",
+      "source_digest": "e86080bce15bcbc6a141dadff3c178985fe9db6029c6c87b58790f65a7a757a6",
       "mount_prefix": "/",
       "mount_order": 13778,
       "split_from_mixed_scope_file": true,
@@ -5842,7 +5842,7 @@
       "family_key": "local-manager-beta.admin",
       "label": "local manager beta (admin)",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "351fca5d42486a761e72419474f7e28429bf6c278c44bcb307d3a70a045206c7",
+      "source_digest": "d9d7e2f6fd0d6b41ae1e93e714c4f2b6fc284aba4ff9d58a379bd64ceafbd86b",
       "mount_prefix": "/",
       "mount_order": 13990,
       "split_from_mixed_scope_file": true,
@@ -5981,7 +5981,7 @@
       "family_key": "local-manager-beta.local_device",
       "label": "local manager beta (local_device)",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "351fca5d42486a761e72419474f7e28429bf6c278c44bcb307d3a70a045206c7",
+      "source_digest": "d9d7e2f6fd0d6b41ae1e93e714c4f2b6fc284aba4ff9d58a379bd64ceafbd86b",
       "mount_prefix": "/",
       "mount_order": 13990,
       "split_from_mixed_scope_file": true,
@@ -6371,7 +6371,7 @@
       "family_key": "local-manager-beta.public.default",
       "label": "local manager beta (public) [default]",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "351fca5d42486a761e72419474f7e28429bf6c278c44bcb307d3a70a045206c7",
+      "source_digest": "d9d7e2f6fd0d6b41ae1e93e714c4f2b6fc284aba4ff9d58a379bd64ceafbd86b",
       "mount_prefix": "/",
       "mount_order": 13990,
       "split_from_mixed_scope_file": true,
@@ -7045,7 +7045,7 @@
       "family_key": "local-manager-beta.public.local-manager",
       "label": "local manager beta (public) [local-manager]",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "351fca5d42486a761e72419474f7e28429bf6c278c44bcb307d3a70a045206c7",
+      "source_digest": "d9d7e2f6fd0d6b41ae1e93e714c4f2b6fc284aba4ff9d58a379bd64ceafbd86b",
       "mount_prefix": "/",
       "mount_order": 13990,
       "split_from_mixed_scope_file": true,

@@ -37,6 +37,13 @@ assert(connectorAgent.includes('const AGENT_VERSION = "2026.05.28.1"'), 'connect
 assert(connectorAgent.includes('"browser4-adapter.mjs"'), 'Browser4 adapter must be shipped by connector-agent manifest');
 assert(connectorAgent.includes('"local-agent-runtime.mjs"'), 'Local agent runtime must be shipped by connector-agent manifest');
 assert(connectorAgent.includes('const ROOT = path.resolve(MODULE_DIR, "../..");'), 'connector-agent manifest must resolve local-connector assets from the repository root');
+assert(connectorAgent.includes('$Root = Split-Path -Parent $MyInvocation.MyCommand.Path'), 'canonical installer must remain in the Local Manager owned update root across UAC identity changes');
+assert(connectorAgent.includes("contract='mad4b.local-connector-installer-state.v1'"), 'canonical installer must emit structured secret-safe failure evidence');
+assert(connectorAgent.includes("$InstallerStage = 'credential_redemption'"), 'canonical installer must classify credential redemption failures without exposing credentials');
+assert(connectorAgent.includes("$InstallerStage = 'cloudflared_service'"), 'canonical installer must classify owned cloudflared service failures');
+assert(connectorAgent.includes('Refresh-ProcessPath'), 'canonical installer must refresh PATH after winget dependency installation');
+assert(connectorAgent.includes('cloudflared_command_unavailable_after_install'), 'canonical installer must fail explicitly when cloudflared remains undiscoverable');
+assert(connectorAgent.includes('nssm_command_unavailable_after_install'), 'canonical installer must fail explicitly when NSSM remains undiscoverable');
 assert(connectorAgent.includes('LOCAL_TOOL_RELEASES'), 'connector-agent manifest must define local tool releases');
 assert(connectorAgent.includes('owner_app: "mad4b-local-manager"'), 'Local Manager must own local tool releases');
 assert(connectorAgent.includes('release_model: "manifest_driven_allowlisted_tools"'), 'manifest must declare allowlisted tool release model');
@@ -74,16 +81,16 @@ assert(!connectorWatchdog.includes('Write-WatchdogLog "heartbeat_failed event_ty
 assert(localManager.includes('local release owner for platform tools'), 'public app page must explain Local Manager tool release ownership');
 assert(localManager.includes('manifest-driven local tool installation'), 'link flow must explain manifest-driven local tool installation');
 assert(localManager.includes('Mad4B Local Manager Admin Tools'), 'admin page must distinguish governed installer tools');
-assert(localManager.includes('LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "0.2.27"'), 'public Local Manager update route must advertise Windows 0.2.27');
-assert(localManager.includes('Mad4B-Local-Manager-Setup-0.2.27.exe'), 'public Local Manager download route must point at Windows 0.2.27 assets');
+assert(localManager.includes('LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "0.2.28"'), 'public Local Manager update route must advertise Windows 0.2.28');
+assert(localManager.includes('Mad4B-Local-Manager-Setup-0.2.28.exe'), 'public Local Manager download route must point at Windows 0.2.28 assets');
 assert(localManager.includes('code_fallback_newer_than_db'), 'Local Manager update route must ignore stale DB release rows when the code fallback advertises a newer semver');
 assert(localManager.includes('compareVersions(fallbackVersion, selectedVersion)'), 'Local Manager stale DB guard must use the defined version comparator');
 assert(!localManager.includes('compareSemver('), 'Local Manager stale DB guard must not call an undefined semver comparator');
 assert(localManager.includes('stale_db_version'), 'Local Manager update route must expose stale DB release evidence without secrets');
-assert(localManagerProject.includes('<Version>0.2.27</Version>'), 'Windows project Version must match advertised release');
-assert(localManagerProject.includes('<AssemblyVersion>0.2.27.0</AssemblyVersion>'), 'Windows project AssemblyVersion must match advertised release');
-assert(localManagerProject.includes('<FileVersion>0.2.27.0</FileVersion>'), 'Windows project FileVersion must match advertised release');
-assert(localManagerProject.includes('<InformationalVersion>0.2.27-complete-runtime-bundle-device-auth</InformationalVersion>'), 'Windows project InformationalVersion must identify the complete runtime bundle and device authorization build');
+assert(localManagerProject.includes('<Version>0.2.28</Version>'), 'Windows project Version must match advertised release');
+assert(localManagerProject.includes('<AssemblyVersion>0.2.28.0</AssemblyVersion>'), 'Windows project AssemblyVersion must match advertised release');
+assert(localManagerProject.includes('<FileVersion>0.2.28.0</FileVersion>'), 'Windows project FileVersion must match advertised release');
+assert(localManagerProject.includes('<InformationalVersion>0.2.28-complete-runtime-bundle-device-auth</InformationalVersion>'), 'Windows project InformationalVersion must identify the complete runtime bundle and device authorization build');
 
 assert(installRoutes.includes('LOCAL_CONNECTOR_CAPABILITY_FLAGS'), 'installer route must define explicit capability flag mapping');
 assert(installRoutes.includes('powershell_admin: "CONNECTOR_POWERSHELL_ENABLED"'), 'PowerShell capability must map only through explicit opt-in');
@@ -185,6 +192,9 @@ assert(signedInstallerCoordinator.includes('tempTarget = target + ".download"'),
 assert(signedInstallerCoordinator.includes('FileMode.CreateNew'), 'Windows signed installer download must create the temporary file exclusively');
 assert(signedInstallerCoordinator.includes('FileShare.None'), 'Windows signed installer download must avoid shared writes while downloading');
 assert(signedInstallerCoordinator.includes('File.Move(tempTarget, target, overwrite: false);'), 'Windows signed installer download must move the complete temporary file into place atomically');
+assert(signedInstallerCoordinator.includes('connector-installer-state.json'), 'Windows app must read canonical installer state from its owned update root');
+assert(signedInstallerCoordinator.includes('TryReadFailureEvidence'), 'Windows app must surface bounded secret-safe installer failure evidence');
+assert(signedInstallerCoordinator.includes('secrets_included'), 'Windows app must require explicit no-secret evidence before displaying installer diagnostics');
 assert(signedInstallerCoordinator.includes('await destination.FlushAsync(cancellationToken);'), 'Windows signed installer download must flush the file before size validation');
 assert(signedInstallerCoordinator.includes('fileInfo.Refresh();'), 'Windows signed installer download must refresh file metadata before size validation');
 assert(signedInstallerCoordinator.includes('for (var attempt = 1; attempt <= 5; attempt++)'), 'Windows signed installer SHA validation must retry transient file read locks');

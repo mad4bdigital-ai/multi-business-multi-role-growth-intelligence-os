@@ -42,7 +42,7 @@ assert.match(coordinator, /NativeErrorCode == 1223/);
 assert.match(coordinator, /WaitForExitAsync\(cancellationToken\)/);
 assert.match(coordinator, /LastExitCode = process\.ExitCode/);
 assert.match(coordinator, /process\.ExitCode != 0/);
-assert.match(coordinator, /SignedInstallerExitCodeException\(process\.ExitCode\)/);
+assert.match(coordinator, /SignedInstallerExitCodeException\(process\.ExitCode, TryReadFailureEvidence\(failureEvidencePath\)\)/);
 assert.match(coordinator, /Guid\.NewGuid\(\):N/);
 assert.match(coordinator, /SHA256\.HashDataAsync/);
 assert.match(coordinator, /Installer file changed after governed download/);
