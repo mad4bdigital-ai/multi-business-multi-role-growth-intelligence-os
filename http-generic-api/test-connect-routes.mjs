@@ -950,7 +950,7 @@ const doc = (() => {
       source.includes('router.post("/local-connector/install"') &&
       source.includes("provisionLocalConnectorInstall(req, req.body || {})") &&
       source.includes("shared provisioning helper"));
-    assert("admin installer link and redemption lookups are tenant scoped", source.includes("WHERE user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1") && source.includes("[principal.userId, principal.tenantId, device_id]") && source.includes("[payload.user_id, payload.tenant_id, payload.device_id]"));
+    assert("admin installer link and redemption lookups are tenant scoped", source.includes("WHERE user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1") && source.includes("[principal.userId, principal.tenantId, device_id]") && source.includes("[payload.config_id, payload.user_id, payload.tenant_id, payload.device_id]"));
 assert("local connector requires fresh Local Manager authorization for privileged repair installer links",
       source.includes('router.post("/local-connector/install/device-download-link"') &&
       source.includes("requireFreshLocalManagerDeviceForPrivilegedInstaller(req)") &&

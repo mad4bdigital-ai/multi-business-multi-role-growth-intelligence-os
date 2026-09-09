@@ -128,11 +128,11 @@ assert(localManagerWindowsInstallerSurface.includes('suppress_pause = true'), 'W
 assert(installRoutes.includes('app_managed: appManaged'), 'installer route must sign app-managed mode into download tokens');
 assert(installRoutes.includes('requireFreshLocalManagerDeviceForPrivilegedInstaller(req)'), 'privileged installer links must require fresh Local Manager authorization');
 assert(installRoutes.includes('auth_context: device.auth_context'), 'privileged installer link responses must disclose saved device-token auth context');
-assert(installRoutes.includes('reauth_required_for_stale_device_tokens: true'), 'privileged installer links must require reauthentication when the saved device token is stale');
-assert(localManagerDeviceLinkService.includes('PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = 15 * 60'), 'Local Manager privileged installer authorization must require a recent device authentication');
+assert(installRoutes.includes('reauth_required_for_stale_device_tokens: false'), 'privileged installer link responses must not require repeated sign-in for a valid saved device token');
+assert(localManagerDeviceLinkService.includes('PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = DEVICE_TOKEN_TTL_SECONDS'), 'Local Manager privileged installer authorization must follow the revocable device token lifetime');
 assert(localManagerDeviceLinkService.includes('source: "saved_device_token"'), 'Local Manager device session must disclose saved device-token identity source');
 assert(localManagerDeviceLinkService.includes('interactive_user_session_present: false'), 'Local Manager device session must distinguish saved token auth from an interactive user session');
-assert(localManagerDeviceLinkService.includes('requires_reauth_for_privileged_installers: true'), 'Local Manager privileged installer authorization must require reauthentication outside the freshness window');
+assert(localManagerDeviceLinkService.includes('requires_reauth_for_privileged_installers: false'), 'Local Manager privileged installer authorization must not require repeated sign-in for a valid device token');
 assert(!localManagerDeviceLinkService.includes('reauth_action: "forget_device_and_link_again"'), 'Local Manager privileged installer authorization must not instruct a valid linked device to unlink and sign in again');
 assert(localManagerDeviceLinkService.includes('resolveConnectorRuntimeReadback'), 'repair controls must resolve authoritative connector runtime evidence');
 assert(localManagerDeviceLinkService.includes('runtime_readback: runtimeReadback'), 'repair controls must expose runtime readback to the Windows app');

@@ -6,7 +6,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 const DEVICE_LINK_TTL_SECONDS = 10 * 60;
 const POLL_INTERVAL_SECONDS = 3;
 const DEVICE_TOKEN_TTL_SECONDS = 365 * 24 * 60 * 60;
-const PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = 15 * 60;
+const PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = DEVICE_TOKEN_TTL_SECONDS;
 const PLATFORM_MANAGED_N8N_URL = "https://n8n.mad4b.com/";
 
 function nowMs() {
@@ -702,7 +702,7 @@ export async function requireLocalManagerDevice(req) {
     token_scope: "local_manager.device",
     saved_device_token: true,
     interactive_user_session_present: false,
-    requires_reauth_for_privileged_installers: true,
+    requires_reauth_for_privileged_installers: false,
     privileged_authorization_max_age_seconds: PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS,
     privileged_authorization_fresh: authAgeSeconds !== null && authAgeSeconds <= PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS,
     auth_age_seconds: authAgeSeconds,
@@ -713,19 +713,7 @@ export async function requireLocalManagerDevice(req) {
 }
 
 export async function requireFreshLocalManagerDeviceForPrivilegedInstaller(req) {
-  const device = await requireLocalManagerDevice(req);
-  if (device.auth_context?.privileged_authorization_fresh !== true) {
-    const err = new Error("A recent Local Manager device re-authorization is required before issuing a privileged installer capability.");
-    err.status = 401;
-    err.code = "privileged_installer_reauth_required";
-    err.details = {
-      max_age_seconds: PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS,
-      auth_age_seconds: device.auth_context?.auth_age_seconds ?? null,
-      secrets_included: false,
-    };
-    throw err;
-  }
-  return device;
+  return requireLocalManagerDevice(req);
 }
 
 export async function getDeviceSession(req, res) {

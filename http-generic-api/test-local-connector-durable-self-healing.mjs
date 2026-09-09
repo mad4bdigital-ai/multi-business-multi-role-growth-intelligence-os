@@ -154,9 +154,9 @@ nodeAssert.match(agentSource, /\[version\]'2025\.4\.0'/);
 nodeAssert.doesNotMatch(agentSource, /publicBaseUrl\(req\)/);
 nodeAssert.match(runtimeBootstrapSource, /CONNECTOR_SECRET_FILE/);
 nodeAssert.match(runtimeBootstrapSource, /CONNECTOR_LOCAL_API_KEY_FILE/);
-nodeAssert.match(localManagerDeviceSource, /PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = 15 \* 60/);
-nodeAssert.match(localManagerDeviceSource, /privileged_installer_reauth_required/);
-nodeAssert.match(localManagerDeviceSource, /requires_reauth_for_privileged_installers:\s*true/);
+nodeAssert.match(localManagerDeviceSource, /PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = DEVICE_TOKEN_TTL_SECONDS/);
+nodeAssert.doesNotMatch(localManagerDeviceSource, /privileged_installer_reauth_required/);
+nodeAssert.match(localManagerDeviceSource, /requires_reauth_for_privileged_installers:\s*false/);
 
 nodeAssert.match(agentSource, /\$CfService = 'Mad4B-LocalConnector-Cloudflared'/);
 nodeAssert.match(agentSource, /CONNECTOR_CLOUDFLARED_SERVICE=Mad4B-LocalConnector-Cloudflared/);
