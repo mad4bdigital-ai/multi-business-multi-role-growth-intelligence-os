@@ -3,6 +3,42 @@
   "schema_version": 1,
   "entries": [
     {
+      "config_key": "local.connector.installer.capability.max.ttl.seconds",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "local-connector",
+      "risk_class": "critical",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/localConnectorInstallerCapability.js",
+      "resolver_ref": "http-generic-api/localConnectorInstallerCapability.js",
+      "readback_ref": "http-generic-api/test-local-connector-installer-capability.mjs",
+      "shadow_evidence_ref": "local-connector/README.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "local.connector.installer.capability.min.ttl.seconds",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "local-connector",
+      "risk_class": "critical",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/localConnectorInstallerCapability.js",
+      "resolver_ref": "http-generic-api/localConnectorInstallerCapability.js",
+      "readback_ref": "http-generic-api/test-local-connector-installer-capability.mjs",
+      "shadow_evidence_ref": "local-connector/README.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
       "config_key": "production.probe.auth.header",
       "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
       "owner": "platform-governance",

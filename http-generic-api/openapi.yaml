@@ -17290,7 +17290,7 @@ paths:
             schema: { type: object, additionalProperties: false }
       responses:
         "200": { description: One-time credential material for the bound installer, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
-        "401": { description: Capability missing, invalid, or expired, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { description: "Capability missing, invalid, or expired", content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "409": { description: Capability already consumed, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
   /connector-agent/files/{fileName}:
