@@ -1,12 +1,7 @@
 import mysql from "mysql2/promise";
+import { readRuntimeBootstrapContract } from "./runtimeBootstrapContract.js";
 
 let recoveryControlPool = null;
-
-const TARGET_DATABASE_BINDINGS = Object.freeze([
-  Object.freeze({ role: "runtime", database: "DB_NAME", user: "DB_USER" }),
-  Object.freeze({ role: "governance", database: "GOVERNANCE_DB_NAME", user: "GOVERNANCE_DB_USER" }),
-  Object.freeze({ role: "runtime_persistence", database: "RUNTIME_PERSISTENCE_DB_NAME", user: "RUNTIME_PERSISTENCE_DB_USER" }),
-]);
 
 function text(value) {
   return String(value ?? "").trim();
@@ -38,6 +33,58 @@ function fail(code, message, details = {}) {
   throw error;
 }
 
+function resolveTargetDatabaseBindings(contract = readRuntimeBootstrapContract()) {
+  const hostLocal = contract?.target_binding?.target_sources?.host_local_role_env;
+  const roles = Array.isArray(hostLocal?.selected_role_enum) ? hostLocal.selected_role_enum : [];
+  const prefixes = hostLocal?.role_environment_prefixes;
+  if (!roles.length || !prefixes || typeof prefixes !== "object" || Array.isArray(prefixes)) {
+    fail(
+      "RECOVERY_CONTROL_DB_ROLE_REGISTRY_INVALID",
+      "Recovery control DB isolation requires the canonical host-local database role registry.",
+      { role_registry_source: "runtime-bootstrap-contract" },
+    );
+  }
+
+  const bindings = roles.map((role) => {
+    const prefix = text(prefixes[role]);
+    if (!prefix) {
+      fail(
+        "RECOVERY_CONTROL_DB_ROLE_REGISTRY_INVALID",
+        "Every canonical target database role requires an environment prefix.",
+        { role_registry_source: "runtime-bootstrap-contract", role },
+      );
+    }
+    return Object.freeze({
+      role,
+      prefix,
+      host: `${prefix}_HOST`,
+      port: `${prefix}_PORT`,
+      database: `${prefix}_NAME`,
+      user: `${prefix}_USER`,
+    });
+  });
+
+  if (new Set(bindings.map((binding) => binding.role)).size !== bindings.length
+    || new Set(bindings.map((binding) => binding.prefix)).size !== bindings.length) {
+    fail(
+      "RECOVERY_CONTROL_DB_ROLE_REGISTRY_INVALID",
+      "Canonical target database roles and environment prefixes must be unique.",
+      { role_registry_source: "runtime-bootstrap-contract" },
+    );
+  }
+  return Object.freeze(bindings);
+}
+
+const TARGET_DATABASE_BINDINGS = resolveTargetDatabaseBindings();
+
+function firstConfiguredTargetValue(env, key) {
+  for (const binding of TARGET_DATABASE_BINDINGS) {
+    const value = text(env[binding[key]]);
+    if (value) return value;
+  }
+  return "";
+}
+
 function configuredTargetCollisions({ env, database, user }) {
   const databaseCollisions = [];
   const identityCollisions = [];
@@ -57,13 +104,8 @@ export function resolveRecoveryControlDbConfig(env = process.env) {
     "RECOVERY_CONTROL_DB_PASSWORD",
   ].filter((key) => !text(env[key]));
 
-  const host = text(
-    env.RECOVERY_CONTROL_DB_HOST
-    || env.DB_HOST
-    || env.GOVERNANCE_DB_HOST
-    || env.RUNTIME_PERSISTENCE_DB_HOST,
-  );
-  if (!host) missing.push("RECOVERY_CONTROL_DB_HOST|DB_HOST|GOVERNANCE_DB_HOST|RUNTIME_PERSISTENCE_DB_HOST");
+  const host = text(env.RECOVERY_CONTROL_DB_HOST) || firstConfiguredTargetValue(env, "host");
+  if (!host) missing.push("RECOVERY_CONTROL_DB_HOST|canonical_target_host");
 
   if (missing.length) {
     fail(
@@ -80,28 +122,22 @@ export function resolveRecoveryControlDbConfig(env = process.env) {
   if (databaseCollisions.length) {
     fail(
       "RECOVERY_CONTROL_DB_DATABASE_NOT_INDEPENDENT",
-      "Recovery control DB must be distinct from every runtime target database.",
+      "Recovery control DB must be distinct from every registered target database.",
       { conflicting_roles: databaseCollisions },
     );
   }
   if (identityCollisions.length) {
     fail(
       "RECOVERY_CONTROL_DB_IDENTITY_NOT_INDEPENDENT",
-      "Recovery control DB identity must be distinct from every runtime target database identity.",
+      "Recovery control DB identity must be distinct from every registered target database identity.",
       { conflicting_roles: identityCollisions },
     );
   }
 
+  const targetPort = firstConfiguredTargetValue(env, "port");
   return {
     host,
-    port: boundedInteger(
-      env.RECOVERY_CONTROL_DB_PORT
-      || env.DB_PORT
-      || env.GOVERNANCE_DB_PORT
-      || env.RUNTIME_PERSISTENCE_DB_PORT,
-      3306,
-      { min: 1, max: 65535 },
-    ),
+    port: boundedInteger(env.RECOVERY_CONTROL_DB_PORT || targetPort, 3306, { min: 1, max: 65535 }),
     database,
     user,
     password: String(env.RECOVERY_CONTROL_DB_PASSWORD),
@@ -138,6 +174,8 @@ export async function closeRecoveryControlPool() {
 
 export const _testingRecoveryControlDb = Object.freeze({
   TARGET_DATABASE_BINDINGS,
+  resolveTargetDatabaseBindings,
   configuredTargetCollisions,
+  firstConfiguredTargetValue,
   boundedInteger,
 });
