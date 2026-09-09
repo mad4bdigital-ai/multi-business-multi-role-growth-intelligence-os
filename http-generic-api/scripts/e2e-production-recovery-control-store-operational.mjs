@@ -96,6 +96,57 @@ assert.doesNotMatch(schemaText, /\b(?:DROP|TRUNCATE)\s+TABLE\b/iu);
 // resilient phase owns disposable-store concurrency/restart certification.
 assert.equal(poolAccesses, 0);
 
+// Idempotent run persistence must fail atomically. A collision may not leave a
+// run record written outside the transaction that protects the durable binding.
+const atomicTrace = {
+  begin: 0,
+  commit: 0,
+  rollback: 0,
+  release: 0,
+  directQueries: 0,
+  recordWrites: 0,
+};
+const atomicConnection = {
+  async beginTransaction() { atomicTrace.begin += 1; },
+  async commit() { atomicTrace.commit += 1; },
+  async rollback() { atomicTrace.rollback += 1; },
+  release() { atomicTrace.release += 1; },
+  async query(sql) {
+    const statement = String(sql);
+    if (statement.startsWith("INSERT IGNORE INTO recovery_control_run_idempotency")) return [{ affectedRows: 0 }];
+    if (statement.startsWith("SELECT run_id FROM recovery_control_run_idempotency")) return [[{ run_id: "run:existing" }]];
+    if (statement.includes("INSERT INTO recovery_control_records")) {
+      atomicTrace.recordWrites += 1;
+      return [{ affectedRows: 1 }];
+    }
+    throw new Error(`unexpected synthetic transaction query: ${statement}`);
+  },
+};
+const atomicPool = {
+  async getConnection() { return atomicConnection; },
+  async query(sql) {
+    atomicTrace.directQueries += 1;
+    if (String(sql).includes("recovery_control_records")) atomicTrace.recordWrites += 1;
+    return [{ affectedRows: 1 }];
+  },
+};
+const atomicStore = createProductionRecoveryControlStore({ poolProvider: () => atomicPool });
+await assert.rejects(
+  atomicStore.putRun({
+    run_id: "run:new",
+    plan_id: "plan:atomic",
+    step_id: "step:atomic",
+    idempotency_key: "idem:collision",
+  }),
+  (error) => error?.code === "RECOVERY_CONTROL_STORE_IDEMPOTENCY_COLLISION",
+);
+assert.equal(atomicTrace.begin, 1);
+assert.equal(atomicTrace.commit, 0);
+assert.equal(atomicTrace.rollback, 1);
+assert.equal(atomicTrace.release, 1);
+assert.equal(atomicTrace.directQueries, 0);
+assert.equal(atomicTrace.recordWrites, 0);
+
 process.stdout.write(`${JSON.stringify({
   ok: true,
   contract: "mad4b.production-recovery-control-store-operational-e2e.v1",
@@ -105,6 +156,7 @@ process.stdout.write(`${JSON.stringify({
   required_store_methods: REQUIRED_STORE_METHODS.length,
   required_lock_methods: REQUIRED_LOCK_METHODS.length,
   schema_statements: schemaPlan.statement_count,
+  atomic_run_idempotency_collision_rollback: true,
   database_connection_performed: false,
   database_mutation_performed: false,
   production_mutation_allowed: false,
