@@ -10,31 +10,32 @@ permissions:
 
 jobs:
   repair:
-    if: github.actor == 'mad4bdigital-ai' && github.event.pull_request.head.ref == 'fix/admin-recovery-mcp-local-connector-ownership-20260908'
+    if: github.actor == 'mad4bdigital-ai' && github.event.pull_request.number == 7974 && github.event.pull_request.head.ref == 'fix/admin-recovery-mcp-local-connector-ownership-20260908'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 2
+          fetch-depth: 5
           persist-credentials: true
 
-      - name: Guard exact parent and repair only the existing authority
+      - name: Guard bounded preparation and repair only the existing authority
         shell: bash
         env:
-          EXPECTED_PARENT: 91ddd59041675f10e0cc8571edb76b3dd36e50fe
+          BASELINE: 48f667c16b7f8db4b110bd4a95bd4d5f1abab6a8
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
           TARGET_BRANCH: fix/admin-recovery-mcp-local-connector-ownership-20260908
           REGISTRY: .github/governance/test-authority-registry.json
           SELF: .github/workflows/pr-7974-register-connect-routes-authority-once.yml
+          TRIGGER: scripts/.pr-7974-authority-trigger
         run: |
           set -euo pipefail
           test "$GITHUB_HEAD_REF" = "$TARGET_BRANCH"
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
-          test "$(git rev-parse HEAD^)" = "$EXPECTED_PARENT"
-          changed="$(git diff --name-only "$EXPECTED_PARENT" HEAD)"
-          test "$changed" = "$SELF"
+          git merge-base --is-ancestor "$BASELINE" HEAD
+          test "$(git diff --name-only "$BASELINE" HEAD^ | sort)" = "$SELF"
+          test "$(git diff --name-only HEAD^ HEAD | sort)" = "$TRIGGER"
 
           python - <<'PY'
           import json
@@ -67,11 +68,11 @@ jobs:
 
           git diff --check
           test "$(git diff --name-only)" = "$REGISTRY"
-          git rm "$SELF"
-          test "$(git diff --name-only | sort)" = "$(printf '%s\n%s\n' "$SELF" "$REGISTRY" | sort)"
+          git rm "$SELF" "$TRIGGER"
+          test "$(git diff --name-only | sort)" = "$(printf '%s\n%s\n%s\n' "$SELF" "$REGISTRY" "$TRIGGER" | sort)"
 
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add "$REGISTRY" "$SELF"
+          git add "$REGISTRY" "$SELF" "$TRIGGER"
           git commit -m "fix(governance): register connector route test authority"
           git push origin HEAD:"$TARGET_BRANCH"
