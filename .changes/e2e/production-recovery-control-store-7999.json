@@ -8,6 +8,7 @@
   "scope": {
     "include": [
       ".changes/e2e/production-recovery-control-store-7999.json",
+      "docs/governance/production-recovery-control-store-7999.md",
       "http-generic-api/recoveryControlDb.js",
       "http-generic-api/scripts/recovery-control-db-contract-check.mjs"
     ]
@@ -67,6 +68,7 @@
           ],
           "evidence_paths": [
             ".changes/e2e/production-recovery-control-store-7999.json",
+            "docs/governance/production-recovery-control-store-7999.md",
             "http-generic-api/recoveryControlDb.js",
             "http-generic-api/scripts/recovery-control-db-contract-check.mjs"
           ]
