@@ -3,6 +3,8 @@ name: Derived State Closure
 on:
   pull_request:
     branches: [main]
+  pull_request_review:
+    types: [submitted, dismissed]
   push:
     branches: [main]
   workflow_dispatch:
@@ -51,6 +53,19 @@ jobs:
               source_head_sha="$EVENT_HEAD_SHA"
               base_sha="$EVENT_BASE_SHA"
               candidate_sha="$EVENT_CANDIDATE_SHA"
+              candidate_kind="github_merge_candidate"
+              ;;
+            pull_request_review)
+              [[ "$EVENT_PR_NUMBER" =~ ^[1-9][0-9]*$ ]]
+              pr_file="$RUNNER_TEMP/derived-state-closure-review-pr.json"
+              gh api "repos/${GITHUB_REPOSITORY}/pulls/${EVENT_PR_NUMBER}" > "$pr_file"
+              test "$(jq -r '.state' "$pr_file")" = "open"
+              test "$(jq -r '.base.ref' "$pr_file")" = "main"
+              test "$(jq -r '.head.repo.full_name' "$pr_file")" = "$GITHUB_REPOSITORY"
+              pr_number="$EVENT_PR_NUMBER"
+              source_head_sha="$(jq -r '.head.sha' "$pr_file")"
+              base_sha="$(jq -r '.base.sha' "$pr_file")"
+              candidate_sha="$(jq -r '.merge_commit_sha // empty' "$pr_file")"
               candidate_kind="github_merge_candidate"
               ;;
             workflow_dispatch)
@@ -133,6 +148,7 @@ jobs:
           node http-generic-api/test-github-repository-policy-controller.mjs
           node http-generic-api/test-github-repository-governance-attestation.mjs
           node http-generic-api/test-github-repository-policy-live-activation-contract.mjs
+          node http-generic-api/test-single-owner-review-gate.mjs
 
       - name: Verify repository governance fixed point
         env:
@@ -167,6 +183,36 @@ jobs:
           node scripts/derived-state-closure.mjs \
             --expected-sha "$CANDIDATE_SHA" --candidate-kind "$CANDIDATE_KIND" --pr-number "$PR_NUMBER" \
             --source-head-sha "$SOURCE_HEAD_SHA" --base-sha "$BASE_SHA" --report-file "$OUT/report.json"
+
+      - name: Resolve live exact-head manual authorization
+        if: steps.target.outputs.pr_number != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUT: ${{ runner.temp }}/derived-state-closure
+          PR_NUMBER: ${{ steps.target.outputs.pr_number }}
+          SOURCE_HEAD_SHA: ${{ steps.target.outputs.source_head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          event_file="$RUNNER_TEMP/derived-state-manual-authorization-event.json"
+          jq -n --arg pr "$PR_NUMBER" '{pull_request:{number:($pr|tonumber)}}' > "$event_file"
+          set +e
+          GITHUB_EVENT_PATH="$event_file" \
+          GITHUB_TOKEN="$GH_TOKEN" \
+          node http-generic-api/scripts/single-owner-review-gate.mjs \
+            > "$OUT/manual-authorization.json" \
+            2> "$OUT/manual-authorization.stderr"
+          auth_status=$?
+          set -e
+          jq -e \
+            --arg pr "$PR_NUMBER" \
+            --arg head "$SOURCE_HEAD_SHA" \
+            '(.pr_number == ($pr|tonumber)) and (.exact_head_sha == $head) and (.ok == true or .ok == false) and (.mode|type == "string") and (.reason|type == "string")' \
+            "$OUT/manual-authorization.json" >/dev/null
+          if [[ "$auth_status" -ne 0 && "$(jq -r '.ok' "$OUT/manual-authorization.json")" == "true" ]]; then
+            echo "Manual authorization evaluator exited non-zero after reporting ok=true." >&2
+            exit 1
+          fi
 
       - name: Resolve canonical producer evidence for exact candidate
         if: steps.target.outputs.pr_number != '0'
@@ -223,7 +269,16 @@ jobs:
         run: |
           set -euo pipefail
           args=(--mode source --governance-report "$OUT/repository-governance.json" --derived-report "$OUT/report.json" --report-file "$OUT/policy-objections.json")
-          if [[ "$PR_NUMBER" != "0" ]]; then args=(--mode finalizer --governance-report "$OUT/repository-governance.json" --derived-report "$OUT/report.json" --evidence-report "$OUT/evidence-finalizer.json" --report-file "$OUT/policy-objections.json"); fi
+          if [[ "$PR_NUMBER" != "0" ]]; then
+            args=(
+              --mode finalizer
+              --governance-report "$OUT/repository-governance.json"
+              --derived-report "$OUT/report.json"
+              --evidence-report "$OUT/evidence-finalizer.json"
+              --manual-authorization-report "$OUT/manual-authorization.json"
+              --report-file "$OUT/policy-objections.json"
+            )
+          fi
           node scripts/repository-governance-objection-gate.mjs "${args[@]}"
           node - "$OUT/policy-objections.json" "$CANDIDATE_SHA" <<'NODE'
           const fs = require('fs');
@@ -232,6 +287,7 @@ jobs:
           if (report.contract !== 'mad4b.repository-policy-objections.v1') throw new Error('objection contract mismatch');
           if (report.candidate_sha !== candidate) throw new Error('objection candidate mismatch');
           if (Number(report.blocking_count) !== 0) throw new Error(`blocking objections remain: ${report.blocking_count}`);
+          if (Number(report.manual_count) !== 0) throw new Error(`manual authorization required: ${report.manual_count}`);
           NODE
 
       - name: Write exact-candidate detector identity
