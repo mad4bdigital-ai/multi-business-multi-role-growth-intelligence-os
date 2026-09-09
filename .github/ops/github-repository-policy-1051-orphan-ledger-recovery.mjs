@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { splitMigrationSqlStatements } from "../../http-generic-api/migrationSqlStatements.js";
 import { buildAdminControlDbReadRequest } from "./lib/admin-control-db-request.mjs";
 
@@ -177,27 +178,44 @@ async function schemaReadback(checksum, statementCount) {
   });
   return { result, readback: keyed(result.payload, "readback_status") };
 }
-function missingCounts(readback = {}) {
-  const missing = readback?.expectations?.missing || {};
-  return {
-    tables: Array.isArray(missing.tables) ? missing.tables.length : 0,
-    columns: Array.isArray(missing.columns) ? missing.columns.length : 0,
-    indexes: Array.isArray(missing.indexes) ? missing.indexes.length : 0,
-    rule_conditions: Array.isArray(missing.rule_conditions) ? missing.rule_conditions.length : 0,
-  };
+const READBACK_MISSING_KEYS = Object.freeze(["tables", "columns", "indexes", "rule_conditions"]);
+function structuredReadback(readback) {
+  const missing = readback?.expectations?.missing;
+  return Boolean(
+    readback
+    && typeof readback === "object"
+    && ["pass", "fail"].includes(String(readback.readback_status || ""))
+    && readback.ledger
+    && typeof readback.ledger === "object"
+    && typeof readback.ledger.found === "boolean"
+    && missing
+    && typeof missing === "object"
+    && READBACK_MISSING_KEYS.every((key) => Array.isArray(missing[key]))
+  );
+}
+function missingCounts(readback) {
+  if (!structuredReadback(readback)) {
+    return { tables: null, columns: null, indexes: null, rule_conditions: null };
+  }
+  const missing = readback.expectations.missing;
+  return Object.fromEntries(READBACK_MISSING_KEYS.map((key) => [key, missing[key].length]));
 }
 export function classifyLedgerState(readback, checksum, statementCount) {
-  const ledger = readback?.ledger || {};
+  const readable = structuredReadback(readback);
+  const ledger = readable ? readback.ledger : {};
   const missing = missingCounts(readback);
-  const schemaComplete = Object.values(missing).every((value) => value === 0);
-  const exact = ledger?.found === true
-    && ledger?.migration_file === MIGRATION
-    && String(ledger?.migration_checksum_sha256 || "").toLowerCase() === checksum
-    && Number(ledger?.statement_count || 0) === statementCount
-    && String(ledger?.preflight_status || "") === "pass"
-    && Number(ledger?.preflight_risk_count || 0) === 0;
-  const mode = exact ? String(ledger?.mode || "").toLowerCase() : null;
+  const schemaComplete = readable && Object.values(missing).every((value) => value === 0);
+  const exact = readable
+    && readback.readback_status === "pass"
+    && ledger.found === true
+    && ledger.migration_file === MIGRATION
+    && String(ledger.migration_checksum_sha256 || "").toLowerCase() === checksum
+    && Number(ledger.statement_count || 0) === statementCount
+    && String(ledger.preflight_status || "") === "pass"
+    && Number(ledger.preflight_risk_count || 0) === 0;
+  const mode = exact ? String(ledger.mode || "").toLowerCase() : null;
   return {
+    readback_structured: readable,
     schema_complete: schemaComplete,
     exact_ledger: exact,
     ledger_mode: mode,
@@ -231,8 +249,9 @@ async function ledgerDetail(runId, checksum) {
 }
 async function verifyRecordOnly(checksum, statementCount) {
   const { result, readback } = await schemaReadback(checksum, statementCount);
-  assert.ok(result.transport_ok, "Migration 1051 schema readback transport failed");
+  assert.ok(result.transport_ok && result.http_ok, "Migration 1051 record-only schema readback did not return HTTP success");
   const state = classifyLedgerState(readback, checksum, statementCount);
+  assert.equal(state.readback_structured, true, "Migration 1051 record-only readback is structurally incomplete");
   assert.equal(state.schema_complete, true, "Migration 1051 schema/metadata tables are incomplete");
   assert.equal(state.record_only_ledger, true, "Exact Migration 1051 record-only ledger proof is missing");
   const detail = await ledgerDetail(readback.ledger.run_id, checksum);
@@ -240,14 +259,16 @@ async function verifyRecordOnly(checksum, statementCount) {
 }
 async function recordOnly(checksum, statementCount) {
   const before = await schemaReadback(checksum, statementCount);
+  assert.ok(before.result.transport_ok, "Migration 1051 pre-reconciliation schema readback transport failed");
   const beforeState = classifyLedgerState(before.readback, checksum, statementCount);
+  assert.equal(beforeState.readback_structured, true, "Migration 1051 pre-reconciliation readback is structurally incomplete");
   assert.equal(beforeState.schema_complete, true, "Migration 1051 schema/metadata tables are incomplete; record-only recovery is forbidden");
   if (beforeState.apply_ledger) return { result: "already_has_apply_ledger", mutation_executed: false, before: beforeState };
   if (beforeState.record_only_ledger) {
     const verified = await verifyRecordOnly(checksum, statementCount);
     return { result: "already_reconciled_record_only", mutation_executed: false, ...verified };
   }
-  assert.equal(before.readback?.ledger?.found, false, "Migration 1051 has a non-exact or unsupported ledger state");
+  assert.equal(before.readback.ledger.found, false, "Migration 1051 has a non-exact or unsupported ledger state");
   const applied = requireSuccess(await requestRaw("/admin/control", {
     tool: "shell",
     action: "run",
@@ -294,6 +315,6 @@ async function main() {
   });
 }
 
-if (process.argv[1] && import.meta.url === new URL(`file://${path.resolve(process.argv[1]).replace(/\\/g, "/")}`).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   await main();
 }
