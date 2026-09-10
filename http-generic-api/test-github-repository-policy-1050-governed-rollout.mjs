@@ -23,11 +23,24 @@ assert.equal((workflow.match(/node \.github\/ops\/github-repository-policy-1050-
 
 assert.match(readinessDiagnosticWrapper, /const originalFetch = globalThis\.fetch;/);
 assert.equal((readinessDiagnosticWrapper.match(/await originalFetch\(input, init\)/g) || []).length, 1, 'Diagnostic wrapper must execute each governed request exactly once');
+assert.match(readinessDiagnosticWrapper, /captureRequestContext\(input, init\);/);
 assert.match(readinessDiagnosticWrapper, /response\.clone\(\)\.json\(\)/);
 assert.match(readinessDiagnosticWrapper, /PHASE !== 'readiness' \|\| response\.ok/);
 assert.match(readinessDiagnosticWrapper, /child_error_code: child\.code/);
 assert.match(readinessDiagnosticWrapper, /governance_foundation_ledger_missing: child\.foundation_ledger_missing/);
 assert.match(readinessDiagnosticWrapper, /code === 'ER_NO_SUCH_TABLE' && containsText\(parsed, 'capability_resolution_envelope_ledger'\)/);
+assert.match(readinessDiagnosticWrapper, /interceptedRuntimeOrigin = url\.origin/);
+assert.match(readinessDiagnosticWrapper, /interceptedBackendAuthorization = authorization/);
+assert.match(readinessDiagnosticWrapper, /interceptedGithubAuthorization = authorization/);
+assert.match(readinessDiagnosticWrapper, /interceptedGithubRepository = `\$\{decodeURIComponent\(match\[1\]\)\}\/\$\{decodeURIComponent\(match\[2\]\)\}`/);
+assert.doesNotMatch(readinessDiagnosticWrapper, /process\.env\.RUNTIME_BASE_URL/);
+assert.doesNotMatch(readinessDiagnosticWrapper, /process\.env\.BACKEND_API_KEY/);
+assert.doesNotMatch(readinessDiagnosticWrapper, /process\.env\.GH_READ_TOKEN/);
+assert.doesNotMatch(readinessDiagnosticWrapper, /process\.env\.REPOSITORY/);
+assert.match(readinessDiagnosticWrapper, /Authorization: interceptedGithubAuthorization/);
+assert.match(readinessDiagnosticWrapper, /Authorization: interceptedBackendAuthorization/);
+assert.match(readinessDiagnosticWrapper, /interceptedBackendAuthorization = null/);
+assert.match(readinessDiagnosticWrapper, /interceptedGithubAuthorization = null/);
 assert.match(readinessDiagnosticWrapper, /\/admin\/runtime-bootstrap\/runs/);
 assert.match(readinessDiagnosticWrapper, /environment_key: 'production_hostinger_autodeploy'/);
 assert.match(readinessDiagnosticWrapper, /operation_key: 'database\.inspect'/);
