@@ -1,0 +1,74 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "critical-declaration-registration-closure-20260910",
+  "title": "Register recovery environment declaration in the governance control plane",
+  "delivery_mode": "single_pr",
+  "secrets_included": false,
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/critical-declaration-registration-closure-20260910.json",
+      ".changes/e2e/staging-production-access-repair-execution-20260909.json",
+      ".github/derived-state-governance.json",
+      ".github/governance/test-authority-registry.json",
+      ".github/tests/repository-governance-objection-gate.test.mjs",
+      "http-generic-api/config/repository-governance-constitution.json"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Close the exact-path registration gap that caused the recovery access-repair declaration to raise a blocking governance objection while preserving mandatory manual merge review for critical surfaces.",
+      "e2e_journeys": [
+        {
+          "id": "registered-critical-declaration-remains-manual-not-blocking",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository governance evaluator",
+          "entrypoint": "Policy Objection CI evaluates a change containing a registered critical E2E declaration",
+          "terminal_outcome": "The exact declaration is recognized as a canonical control-plane path, blocking_count remains zero, manual_count remains one, and autonomous merge remains forbidden.",
+          "steps": [
+            "Classify the E2E declaration as a critical governance-control-plane path.",
+            "Resolve the exact path against Constitution.control_plane_paths.",
+            "Emit the non-waiverable manual-merge objection without emitting changed-critical-path-unregistered.",
+            "Require the existing exact-head Single Owner Review Gate before a human merge decision."
+          ],
+          "assertions": [
+            "The recovery access-repair declaration is registered exactly.",
+            "This repair declaration is also registered exactly and cannot recreate the same bootstrap failure.",
+            "Registered critical changes do not produce a blocking registration objection.",
+            "Registered critical changes still disable autonomous merge.",
+            "No GitHub policy, deployment, database, provider or credential mutation is performed by this change."
+          ],
+          "tests": [
+            {
+              "id": "critical-control-plane-declaration-registration",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/tests/repository-governance-objection-gate.test.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/derived-state-governance.json",
+            ".github/governance/test-authority-registry.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/tests/repository-governance-objection-gate.test.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}
