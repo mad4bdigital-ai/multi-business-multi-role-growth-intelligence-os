@@ -29,6 +29,10 @@ assert.ok(program.includes('cloudflared_running = lastFootprint?.CloudflaredRunn
 assert.ok(program.includes('connector_service_running = lastFootprint?.ConnectorServiceRunning'));
 assert.ok(program.includes('IsTransientConnectorVerificationFailure'));
 assert.ok(program.includes('statusCode == 429 || statusCode >= 500'));
+assert.ok(program.includes('Interval = 30000'), 'background desktop polling must leave request budget for interactive Local Manager actions');
+assert.ok(program.includes('RetryAfterSeconds(response, 120)'), 'HTTP 429 handling must honor the server Retry-After window');
+assert.ok(program.includes('Math.Max(localBackoffSeconds, serverRetryAfterSeconds ?? 0)'), 'desktop polling must not retry before the server cooldown expires');
+assert.ok(program.includes('retry_after_seconds = response.StatusCode == System.Net.HttpStatusCode.TooManyRequests'), 'privileged update checks must expose bounded secret-safe retry evidence');
 assert.doesNotMatch(program, /await Task\.Delay\(TimeSpan\.FromSeconds\(8\)\)/);
 const repairCommandStart = program.indexOf('string.Equals(action, "repair_connector"');
 const repairCommandEnd = program.indexOf('string.Equals(action, "focus_local_manager"', repairCommandStart);
