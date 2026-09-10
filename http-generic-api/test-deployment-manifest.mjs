@@ -4,11 +4,13 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
   classifyDeploymentProvenance,
+  readCanonicalDeploymentIdentity,
   readDeploymentManifest,
 } from "./deploymentManifest.js";
 
 const dir = mkdtempSync(join(tmpdir(), "mad4b-deployment-manifest-"));
 const manifestPath = join(dir, "deployment-manifest.json");
+const fullSha = "049bdfaff24966843cc1c55c9b61431d788acd60";
 
 try {
   writeFileSync(manifestPath, JSON.stringify({
@@ -52,6 +54,51 @@ try {
     false,
     "missing manifest reports incomplete"
   );
+
+  const commitJsonOnly = readCanonicalDeploymentIdentity({
+    env: {
+      DEPLOYMENT_COMMIT_JSON: JSON.stringify({
+        repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+        branch: "Production",
+        commit_sha: fullSha,
+      }),
+    },
+  });
+  assert.equal(commitJsonOnly.ok, true, "DEPLOYMENT_COMMIT_JSON is accepted as backward-compatible identity input");
+  assert.equal(commitJsonOnly.source, "env:DEPLOYMENT_COMMIT_JSON");
+  assert.equal(commitJsonOnly.sha, fullSha);
+  assert.equal(commitJsonOnly.manifest_bound, true);
+
+  const inlineManifestWins = readCanonicalDeploymentIdentity({
+    env: {
+      DEPLOYMENT_MANIFEST_JSON: JSON.stringify({
+        repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+        branch: "Production",
+        commit_sha: fullSha,
+      }),
+      DEPLOYMENT_COMMIT_JSON: JSON.stringify({
+        repository: "wrong/repo",
+        branch: "main",
+        commit_sha: "1111111111111111111111111111111111111111",
+      }),
+    },
+  });
+  assert.equal(inlineManifestWins.ok, true);
+  assert.equal(inlineManifestWins.source, "env:DEPLOYMENT_MANIFEST_JSON");
+  assert.equal(inlineManifestWins.repository, "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os");
+  assert.equal(inlineManifestWins.branch, "Production");
+  assert.equal(inlineManifestWins.sha, fullSha);
+
+  const fallbackIdentity = readCanonicalDeploymentIdentity({
+    env: {
+      GITHUB_REPOSITORY: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+      GITHUB_REF_NAME: "Production",
+      GITHUB_SHA: fullSha,
+    },
+  });
+  assert.equal(fallbackIdentity.ok, true, "legacy env fallback remains available when no manifest exists");
+  assert.equal(fallbackIdentity.source, "env:fallback");
+  assert.equal(fallbackIdentity.manifest_bound, false);
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }
