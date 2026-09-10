@@ -14,7 +14,8 @@
       "http-generic-api/recoveryComposition.js",
       "http-generic-api/productionRecoveryCompositionFactory.js",
       "http-generic-api/test-deployment-manifest.mjs",
-      "http-generic-api/test-production-recovery-composition-factory.mjs"
+      "http-generic-api/test-production-recovery-composition-factory.mjs",
+      "http-generic-api/test-recovery-readonly-evidence-store-boundary.mjs"
     ]
   },
   "merge_contract": {
@@ -48,6 +49,7 @@
             "Use the same canonical identity result in Recovery runtime attestation and trust evaluation.",
             "Build the normal server-managed Recovery candidate from the shared runtime composition.",
             "When live Production mutation authorization is incomplete, fail the mutation graph closed while extracting only an independently validated durable Recovery Control Store.",
+            "Require the evidence store to be target-database independent, replica-safe, non-auto-applying and provider-free.",
             "Project only run, plan, finding, evidence and idempotency persistence methods into the read-only evidence authority.",
             "Keep mutation-specific approval, claim, reserve and execution-ticket methods absent from the read-only projection.",
             "Require live Staging certification for this shared-runtime change before merge; do not perform Production deployment or database mutation in this PR."
@@ -56,7 +58,7 @@
             "Deployment identity and Recovery attestation cannot choose different canonical manifest sources for the same runtime inputs.",
             "DEPLOYMENT_MANIFEST_JSON remains higher priority than DEPLOYMENT_COMMIT_JSON, and compatibility commit JSON remains supported.",
             "Fail-closed mutation composition keeps mutation_authority_available=false.",
-            "Only an independent target-database-forbidden Recovery Control Store can survive as read-only evidence authority.",
+            "Only an independent target-database-forbidden, shared-replica-safe, schema-non-auto-applying and provider-free Recovery Control Store can survive as read-only evidence authority.",
             "The read-only evidence projection satisfies durable inspection persistence but cannot satisfy the mutation-grade store contract.",
             "No Staging or Production database, grant, migration, provider, Hostinger, secret or deployment mutation is performed by this repository change.",
             "Staging and Production remain environment profiles over one shared codebase rather than separate Recovery applications."
@@ -65,14 +67,16 @@
             {"id":"deployment-manifest-canonical-identity","runner":"node","working_directory":"http-generic-api","path":"test-deployment-manifest.mjs","args":[]},
             {"id":"recovery-trust-model","runner":"node","working_directory":"http-generic-api","path":"test-recovery-trust-model.mjs","args":[]},
             {"id":"recovery-composition","runner":"node","working_directory":"http-generic-api","path":"test-recovery-composition.mjs","args":[]},
-            {"id":"production-recovery-readonly-evidence-composition","runner":"node","working_directory":"http-generic-api","path":"test-production-recovery-composition-factory.mjs","args":[]}
+            {"id":"production-recovery-readonly-evidence-composition","runner":"node","working_directory":"http-generic-api","path":"test-production-recovery-composition-factory.mjs","args":[]},
+            {"id":"recovery-readonly-evidence-store-boundary","runner":"node","working_directory":"http-generic-api","path":"test-recovery-readonly-evidence-store-boundary.mjs","args":[]}
           ],
           "evidence_paths": [
             "docs/governance/recovery-canonical-identity-readonly-evidence-20260910.md",
             "http-generic-api/deploymentManifest.js",
             "http-generic-api/recoveryTrustModel.js",
             "http-generic-api/recoveryComposition.js",
-            "http-generic-api/productionRecoveryCompositionFactory.js"
+            "http-generic-api/productionRecoveryCompositionFactory.js",
+            "http-generic-api/test-recovery-readonly-evidence-store-boundary.mjs"
           ]
         }
       ],
@@ -80,7 +84,8 @@
         {"id":"deployment-manifest-canonical-identity","runner":"node","working_directory":"http-generic-api","path":"test-deployment-manifest.mjs","args":[]},
         {"id":"recovery-trust-model","runner":"node","working_directory":"http-generic-api","path":"test-recovery-trust-model.mjs","args":[]},
         {"id":"recovery-composition","runner":"node","working_directory":"http-generic-api","path":"test-recovery-composition.mjs","args":[]},
-        {"id":"production-recovery-readonly-evidence-composition","runner":"node","working_directory":"http-generic-api","path":"test-production-recovery-composition-factory.mjs","args":[]}
+        {"id":"production-recovery-readonly-evidence-composition","runner":"node","working_directory":"http-generic-api","path":"test-production-recovery-composition-factory.mjs","args":[]},
+        {"id":"recovery-readonly-evidence-store-boundary","runner":"node","working_directory":"http-generic-api","path":"test-recovery-readonly-evidence-store-boundary.mjs","args":[]}
       ]
     }
   ],
