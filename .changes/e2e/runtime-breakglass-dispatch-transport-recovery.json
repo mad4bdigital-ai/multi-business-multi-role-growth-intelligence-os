@@ -1,0 +1,77 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "runtime-breakglass-dispatch-transport-recovery",
+  "title": "Recover unknown runtime breakglass dispatch transport outcomes without duplicate POST",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/runtime-breakglass-dispatch-transport-recovery.json",
+      "http-generic-api/runtimeBreakglassBroker.js",
+      "http-generic-api/test-runtime-breakglass-broker.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make runtime breakglass workflow dispatch fail closed when the outbound POST transport outcome is unknown, recover only when exact correlation and SHA evidence proves the run, and never automatically repeat the POST.",
+      "e2e_journeys": [
+        {
+          "id": "dispatch-transport-unknown-outcome-recovery",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Runtime breakglass broker",
+          "entrypoint": "A governed runtime breakglass request passes exact branch and SHA parity, then the GitHub workflow dispatch POST throws before an upstream response is available.",
+          "terminal_outcome": "The broker performs bounded read-after-failure discovery, reuses only an exact proven workflow run, otherwise returns an unproven transport failure without issuing a second POST.",
+          "steps": [
+            "Resolve the exact main and Production heads before dispatch.",
+            "Perform the existing pre-dispatch idempotency discovery for the exact correlation and SHA.",
+            "Attempt the canonical workflow dispatch once.",
+            "When outbound transport fails before a response is received, perform bounded exact-correlation read-after-failure discovery.",
+            "Reuse the workflow run only when exact run evidence is proven.",
+            "If no exact run can be proven, fail closed and do not automatically retry the dispatch POST.",
+            "Keep database, migration, GRANT, provider, Production deployment, repository-policy, and secret mutations outside this change."
+          ],
+          "assertions": [
+            "A transport exception is classified distinctly from an HTTP response failure.",
+            "A proven exact-correlation workflow run is recovered without another dispatch POST.",
+            "An unproven transport outcome returns runtime_breakglass_dispatch_transport_failed_unproven.",
+            "automatic_dispatch_retry_performed remains false for an unproven transport outcome.",
+            "The change does not authorize or perform Production deployment, database mutation, migration apply, GRANT mutation, provider mutation, or repository-policy mutation.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "runtime-breakglass-dispatch-transport-recovery",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-breakglass-broker.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/runtime-breakglass-dispatch-transport-recovery.json",
+            "http-generic-api/runtimeBreakglassBroker.js",
+            "http-generic-api/test-runtime-breakglass-broker.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
