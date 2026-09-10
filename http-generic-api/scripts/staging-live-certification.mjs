@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createPublicKey } from "node:crypto";
 import {
   classifyEnvironmentCertification,
   loadActivationGatewayProfilePolicy,
@@ -43,6 +44,64 @@ async function fetchJson(url, { timeoutMs = 10000 } = {}) {
 
 function check(key, ok, detail = null, severity = "blocking") {
   return { key, ok: ok === true, detail, severity };
+}
+
+function inspectStagingRecoveryTrustedIngress(env, { expectedCommit, gatewayPolicy }) {
+  const mode = String(env.REMOTE_MCP_TRUSTED_INGRESS_MODE || "").trim().toLowerCase();
+  const proxyHeadersEnabled = bool(env.REMOTE_MCP_TRUST_PROXY_HOST_HEADERS, false);
+  const callerHeadersStripped = bool(env.REMOTE_MCP_TRUSTED_INGRESS_STRIP_CALLER_HEADERS, false);
+  const rawPublicKey = String(env.REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY || "").trim();
+  const publicKeyPem = rawPublicKey.includes("\\n") ? rawPublicKey.replaceAll("\\n", "\n") : rawPublicKey;
+  let publicKeyEd25519 = false;
+  try {
+    const publicKey = createPublicKey(publicKeyPem);
+    publicKeyEd25519 = publicKey.asymmetricKeyType === "ed25519";
+  } catch { }
+  const keyId = String(env.REMOTE_MCP_TRUSTED_INGRESS_KEY_ID || "").trim();
+  const canonicalHost = String(env.REMOTE_MCP_TRUSTED_INGRESS_CANONICAL_HOST || "").trim().toLowerCase();
+  const audience = String(env.REMOTE_MCP_TRUSTED_INGRESS_AUDIENCE || "").trim();
+  const issuer = String(env.REMOTE_MCP_TRUSTED_INGRESS_ISSUER || "").trim();
+  const deploymentSha = String(env.REMOTE_MCP_EXPECTED_DEPLOYMENT_SHA || "").trim().toLowerCase();
+  const replayDirectory = String(env.RECOVERY_STAGING_INGRESS_REPLAY_DIRECTORY || "").trim();
+  const expectedHost = String(gatewayPolicy?.public_host || "").trim().toLowerCase();
+  const expectedAudience = String(gatewayPolicy?.upstream_origin || "").trim();
+  const expectedIssuer = expectedHost ? `https://${expectedHost}` : "";
+  const checks = {
+    signature_mode: mode === "signature",
+    proxy_headers_enabled: proxyHeadersEnabled,
+    caller_headers_stripped: callerHeadersStripped,
+    public_key_ed25519: publicKeyEd25519,
+    key_id_valid: /^[A-Za-z0-9._:-]{16,128}$/u.test(keyId),
+    canonical_host_exact: Boolean(expectedHost) && canonicalHost === expectedHost,
+    audience_exact: Boolean(expectedAudience) && audience === expectedAudience,
+    issuer_exact: Boolean(expectedIssuer) && issuer === expectedIssuer,
+    deployment_sha_exact: SHA_RE.test(deploymentSha) && deploymentSha === expectedCommit,
+    replay_directory_exact: replayDirectory === "/app/data/recovery-ingress",
+  };
+  return {
+    ready: Object.values(checks).every((value) => value === true),
+    checks,
+    expected: {
+      canonical_host: expectedHost || null,
+      audience: expectedAudience || null,
+      issuer: expectedIssuer || null,
+      deployment_sha: expectedCommit,
+      replay_directory: "/app/data/recovery-ingress",
+    },
+    observed: {
+      mode: mode || null,
+      canonical_host: canonicalHost || null,
+      audience: audience || null,
+      issuer: issuer || null,
+      deployment_sha: deploymentSha || null,
+      replay_directory: replayDirectory || null,
+      key_id_present: Boolean(keyId),
+      public_key_configured: Boolean(rawPublicKey),
+      public_key_ed25519: publicKeyEd25519,
+    },
+    raw_public_key_exposed: false,
+    secrets_included: false,
+  };
 }
 
 const expectedCommit = String(
@@ -169,6 +228,7 @@ let gatewayEvidence = {
   expected_source_commit: expectedCommit,
   public_host: gatewayProfile.public_host || null,
   profile_validation: gw.resolution?.validation || null,
+  recovery_trusted_ingress: null,
   health: null,
   ready: null,
 };
@@ -199,6 +259,18 @@ if (requireGateway) {
     }));
 
     if (profileValidation.ok) {
+      const recoveryTrustedIngress = inspectStagingRecoveryTrustedIngress(process.env, {
+        expectedCommit,
+        gatewayPolicy,
+      });
+      gatewayEvidence.recovery_trusted_ingress = recoveryTrustedIngress;
+      readinessChecks.push(check(
+        "gateway_recovery_trusted_ingress",
+        recoveryTrustedIngress.ready,
+        recoveryTrustedIngress,
+        "readiness",
+      ));
+
       const gatewayBase = normalizeUrl(
         process.env.STAGING_CERT_GATEWAY_BASE_URL,
         `https://${gatewayPolicy.public_host}`,
@@ -248,6 +320,8 @@ const readinessFailed = readinessChecks.filter((entry) => !entry.ok);
 const outcome = integrityFailed.length > 0 ? "blocked" : readinessFailed.length > 0 ? "degraded" : "ready";
 const gatewayExactCommitSatisfied = !requireGateway
   || readinessChecks.some((entry) => entry.key === "gateway_exact_commit" && entry.ok);
+const gatewayRecoveryTrustedIngressSatisfied = !requireGateway
+  || readinessChecks.some((entry) => entry.key === "gateway_recovery_trusted_ingress" && entry.ok);
 
 const report = {
   contract: CONTRACT,
@@ -274,7 +348,9 @@ const report = {
     app_image_digest: observedImageDigest || null,
   },
   artifact_set: {
-    complete: artifactSetChecks.every((entry) => entry.ok) && gatewayExactCommitSatisfied,
+    complete: artifactSetChecks.every((entry) => entry.ok)
+      && gatewayExactCommitSatisfied
+      && gatewayRecoveryTrustedIngressSatisfied,
     app: {
       source_commit: body.commit_sha || body.commit || null,
       tree_sha: appManifest.tree_sha || null,
@@ -287,6 +363,7 @@ const report = {
       policy_hash: gatewayEvidence.health?.policyHash || null,
       expected_policy_hash: gatewayEvidence.expected_policy_hash,
       signed_attestation_required: requireGateway,
+      recovery_trusted_ingress_ready: gatewayEvidence.recovery_trusted_ingress?.ready ?? null,
     },
   },
   integrity_checks: integrityChecks,
