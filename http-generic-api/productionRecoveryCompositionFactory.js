@@ -62,6 +62,13 @@ function serverSideApprovalResolver(approvalStore) {
   return Boolean(approvalStore && typeof approvalStore[SERVER_RESOLVER_METHOD] === "function");
 }
 
+function extractCertifiedReadOnlyAuthorities(candidate = null) {
+  const recoveryStore = candidate?.components?.recoveryStore || null;
+  return Object.freeze({
+    recoveryStore: independentBootstrapEvidenceStore(recoveryStore) ? recoveryStore : null,
+  });
+}
+
 function validateLiveAuthorization(envelope, composition) {
   const authorization = envelope?.live_authorization;
   const problems = [];
@@ -126,6 +133,7 @@ function buildLiveAuthorityReadiness(composition, serverManagedBindingResolved, 
     durability_capable: bindingCapabilities.durability_capable === true,
     attestation_capable: bindingCapabilities.attestation_capable === true,
     bootstrap_evidence_independent: liveAuthorization?.bootstrap_evidence_independent === true,
+    read_only_recovery_store_available: Boolean(composition.readOnlyDependencies?.recoveryStore),
     exact_sha_bound: liveAuthorization?.exact_sha_bound === true,
     single_use_approval: liveAuthorization?.single_use_approval === true,
     same_cycle_readback_required: liveAuthorization?.same_cycle_readback_required === true,
@@ -141,7 +149,8 @@ function buildLiveAuthorityReadiness(composition, serverManagedBindingResolved, 
 }
 
 function failClosedComposition(source, reason, { candidate = null, envelope = null, liveAuthorization = null } = {}) {
-  const composition = createRecoveryComposition({ source });
+  const readOnlyAuthorities = extractCertifiedReadOnlyAuthorities(candidate);
+  const composition = createRecoveryComposition({ source, readOnlyAuthorities });
   return Object.freeze({
     ...composition,
     productionRecoveryCompositionFactory: Object.freeze({
@@ -154,6 +163,7 @@ function failClosedComposition(source, reason, { candidate = null, envelope = nu
       adapter_factory_wired: true,
       server_managed_binding_resolved: Boolean(candidate),
       authority_readiness: buildLiveAuthorityReadiness(candidate || composition, Boolean(candidate), envelope?.capabilities || {}, liveAuthorization),
+      read_only_recovery_store_available: Boolean(readOnlyAuthorities.recoveryStore),
       ...(candidate ? { activation_candidate: candidateMetadata(candidate, envelope) } : {}),
       ...(liveAuthorization ? { live_authorization: liveAuthorization } : {}),
       provider_accessed: false,
@@ -200,6 +210,7 @@ function candidateMetadata(composition, envelope) {
     graph_contract: composition.contract,
     configured: composition.configured === true,
     component_status: composition.component_status,
+    read_only_recovery_store_available: Boolean(composition.readOnlyDependencies?.recoveryStore),
     mutation_authority_exposed: false,
     live_activation: false,
     binding_module_id_hash: envelope?.module_id_hash || null,
@@ -236,6 +247,7 @@ function activateCertifiedProductionComposition(candidate, envelope, liveAuthori
       authority_readiness: authorityReadiness,
       live_authorization: liveAuthorization,
       activation_candidate: candidateMetadata(candidate, envelope),
+      read_only_recovery_store_available: Boolean(candidate.readOnlyDependencies?.recoveryStore),
       provider_accessed: false,
       database_connection_performed: false,
       database_mutation_performed: false,
@@ -316,6 +328,7 @@ export function createProductionRecoveryComposition({
       adapter_factory_wired: true,
       server_managed_binding_resolved: true,
       authority_readiness: buildLiveAuthorityReadiness(candidate, true, envelope.capabilities),
+      read_only_recovery_store_available: Boolean(candidate.readOnlyDependencies?.recoveryStore),
       provider_accessed: false,
       database_connection_performed: false,
       database_mutation_performed: false,
@@ -332,6 +345,7 @@ export const _testingProductionRecoveryCompositionFactory = Object.freeze({
   validateServerManagedEnvelope,
   validateLiveAuthorization,
   independentBootstrapEvidenceStore,
+  extractCertifiedReadOnlyAuthorities,
   independentReadbackAuthority,
   serverSideApprovalResolver,
   failClosedComposition,
