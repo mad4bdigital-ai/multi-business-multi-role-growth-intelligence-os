@@ -129,7 +129,7 @@ function assertExactKeys(value, allowed, required = []) {
   return input;
 }
 
-function resolveRecoveryRouteStores(options, recoveryStore) {
+export function resolveRecoveryRouteStores(options, recoveryStore) {
   const hasExplicitReadOnly = Object.prototype.hasOwnProperty.call(options, "readOnlyRecoveryStore");
   const hasExplicitMutation = Object.prototype.hasOwnProperty.call(options, "mutationRecoveryStore");
   return Object.freeze({
