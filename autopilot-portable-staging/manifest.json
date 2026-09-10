@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "667a7266f1da5e308f00099c243d7adbdf2dd962ae018f08ab8ae1f37eb7dbc5"
+      "sha256": "f3096c66eae5b439055d5a6a2a8125644ea773fdc5148c6cb47d7c7752698a3e"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -282,7 +282,7 @@
     },
     {
       "path": "http-generic-api/deploymentManifest.js",
-      "sha256": "bab3370717d07d44f28d0e7869440c45529afd0d33fe186cb6eef6b5b92dfddd"
+      "sha256": "6f8f467f6a7df47e5e65c187e449e509c3bdb4f43038980e53f49cdab5626a41"
     },
     {
       "path": "http-generic-api/scripts/staging-live-certification.mjs",
