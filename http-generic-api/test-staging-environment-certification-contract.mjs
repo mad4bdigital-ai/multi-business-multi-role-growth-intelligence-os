@@ -5,6 +5,10 @@ import os from "node:os";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import {
+  loadActivationGatewayProfilePolicy,
+  readEnvironmentConvergenceRegistry,
+} from "./environmentConvergenceRegistry.js";
 
 const apiRoot = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(apiRoot, "..");
@@ -15,12 +19,35 @@ const expectedCommit = "1".repeat(40);
 const expectedTree = "2".repeat(40);
 const expectedContextFileSet = "3".repeat(64);
 const expectedImageDigest = `sha256:${"4".repeat(64)}`;
-assert.match(fs.readFileSync(liveScript, "utf8"), /STAGING_CERT_EXPECTED_TREE/);
-assert.match(fs.readFileSync(liveScript, "utf8"), /STAGING_CERT_EXPECTED_CONTEXT_FILE_SET_SHA256/);
-assert.match(fs.readFileSync(liveScript, "utf8"), /app_image_digest_exact/);
-assert.match(fs.readFileSync(liveScript, "utf8"), /artifact_set/);
-assert.match(fs.readFileSync(liveScript, "utf8"), /gateway_environment_profile_current/);
-assert.match(fs.readFileSync(liveScript, "utf8"), /classifyEnvironmentCertification/);
+const liveSource = fs.readFileSync(liveScript, "utf8");
+assert.match(liveSource, /STAGING_CERT_EXPECTED_TREE/);
+assert.match(liveSource, /STAGING_CERT_EXPECTED_CONTEXT_FILE_SET_SHA256/);
+assert.match(liveSource, /app_image_digest_exact/);
+assert.match(liveSource, /artifact_set/);
+assert.match(liveSource, /gateway_environment_profile_current/);
+assert.match(liveSource, /classifyEnvironmentCertification/);
+assert.match(liveSource, /loadActivationGatewayProfilePolicy\("staging"/);
+assert.doesNotMatch(liveSource, /STAGING_CERT_GATEWAY_POLICY_PATH/);
+
+const convergenceRegistry = readEnvironmentConvergenceRegistry();
+const canonicalGateway = loadActivationGatewayProfilePolicy("staging", {
+  registry: convergenceRegistry,
+  repositoryRoot: root,
+});
+const gatewayPolicy = canonicalGateway.policy;
+assert.equal(canonicalGateway.policy_source, "repository_profile");
+assert.equal(canonicalGateway.canonical_policy_path, "edge/activation-gateway/generated/route-policy.staging.json");
+assert.equal(canonicalGateway.expected_policy_hash, convergenceRegistry.profiles.staging.activation_gateway.expected_policy_hash);
+assert.equal(gatewayPolicy.policy_key, "activation_gateway_staging");
+assert.equal(gatewayPolicy.public_host, "activation-dev.mad4b.com");
+
+const wrongPolicyRegistry = structuredClone(convergenceRegistry);
+wrongPolicyRegistry.profiles.staging.activation_gateway.policy_path = "http-generic-api/activation-gateway-runtime/generated/route-policy.json";
+assert.throws(
+  () => loadActivationGatewayProfilePolicy("staging", { registry: wrongPolicyRegistry, repositoryRoot: root }),
+  /activation_gateway_profile_policy_invalid:staging/,
+  "canonical profile loader must reject a policy from another environment before any live gateway probe",
+);
 
 const staticReport = path.join(os.tmpdir(), `staging-authority-${process.pid}.json`);
 const impactReport = path.join(os.tmpdir(), `staging-impact-${process.pid}.json`);
@@ -135,21 +162,6 @@ function deploymentBody({ commit = expectedCommit, databaseReady = true } = {}) 
   };
 }
 
-const gatewayPolicy = {
-  policy_key: "activation_gateway_staging",
-  public_host: "activation-dev.mad4b.com",
-  content_hash_sha256: "a".repeat(64),
-};
-const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "staging-cert-"));
-const gatewayPolicyPath = path.join(tempDir, "route-policy.staging.json");
-const wrongProfilePolicyPath = path.join(tempDir, "route-policy.wrong-profile.json");
-fs.writeFileSync(gatewayPolicyPath, `${JSON.stringify(gatewayPolicy, null, 2)}\n`);
-fs.writeFileSync(wrongProfilePolicyPath, `${JSON.stringify({
-  ...gatewayPolicy,
-  policy_key: "activation_gateway",
-  public_host: "activation.mad4b.com",
-}, null, 2)}\n`);
-
 let currentDeployment = deploymentBody();
 let gatewaySourceCommit = expectedCommit;
 let gatewayHealthRequests = 0;
@@ -198,7 +210,6 @@ function runLive(extraEnv = {}) {
         STAGING_CERT_APP_BASE_URL: app.baseUrl,
         STAGING_CERT_REQUIRE_GATEWAY: "true",
         STAGING_CERT_GATEWAY_BASE_URL: gateway.baseUrl,
-        STAGING_CERT_GATEWAY_POLICY_PATH: gatewayPolicyPath,
         ...extraEnv,
       },
       stdio: ["ignore", "pipe", "pipe"],
@@ -223,7 +234,11 @@ function runLive(extraEnv = {}) {
 }
 
 try {
-  const ready = await runLive({ STAGING_CERT_REQUIRE_READY: "true", STAGING_CERT_REQUIRE_GATEWAY_UPSTREAM: "true" });
+  const ready = await runLive({
+    STAGING_CERT_REQUIRE_READY: "true",
+    STAGING_CERT_REQUIRE_GATEWAY_UPSTREAM: "true",
+    STAGING_CERT_GATEWAY_POLICY_PATH: "/tmp/caller-policy-path-must-be-ignored.json",
+  });
   assert.equal(ready.run.status, 0, ready.run.stderr || ready.run.stdout);
   assert.equal(ready.report.outcome, "ready");
   assert.equal(ready.report.ready, true);
@@ -231,6 +246,10 @@ try {
   assert.deepEqual(ready.report.degraded_reasons, []);
   assert.equal(ready.report.gateway.expected_source_commit, expectedCommit);
   assert.equal(ready.report.gateway.profile_validation.ok, true);
+  assert.equal(ready.report.gateway.policy_source, "repository_profile");
+  assert.equal(ready.report.gateway.policy_path, "edge/activation-gateway/generated/route-policy.staging.json");
+  assert.equal(ready.report.gateway.expected_policy_hash, gatewayPolicy.content_hash_sha256);
+  assert.equal(ready.report.expected.activation_gateway_policy_hash, gatewayPolicy.content_hash_sha256);
   assert.equal(ready.report.convergence.status, "converged");
   assert.deepEqual(ready.report.convergence.classified_failures, []);
   assert.equal(ready.report.artifact_set.complete, true);
@@ -255,19 +274,13 @@ try {
   assert.equal(exactCommitFailure.drift_class, "release_identity_mismatch");
   assert.equal(exactCommitFailure.repairability, "governed");
   assert.equal(exactCommitFailure.handoff.automatic_apply_allowed, false);
+  assert.equal(exactCommitFailure.handoff.execution_ready, false);
+  assert.equal(exactCommitFailure.handoff.apply_capability, null);
+  assert.equal(exactCommitFailure.handoff.apply_block_reason, "server_governed_staging_activation_worker_adapter_required");
   gatewaySourceCommit = expectedCommit;
 
-  const healthRequestsBeforeProfileMismatch = gatewayHealthRequests;
-  const profileMismatch = await runLive({
-    STAGING_CERT_REQUIRE_READY: "false",
-    STAGING_CERT_GATEWAY_POLICY_PATH: wrongProfilePolicyPath,
-  });
-  assert.equal(profileMismatch.run.status, 1);
-  assert.equal(profileMismatch.report.outcome, "blocked");
-  assert.ok(profileMismatch.report.blocking_failures.includes("gateway_environment_profile_current"));
-  assert.equal(profileMismatch.report.convergence.status, "blocked");
-  assert.equal(profileMismatch.report.gateway.profile_validation.ok, false);
-  assert.equal(gatewayHealthRequests, healthRequestsBeforeProfileMismatch, "profile mismatch must fail before any gateway probe");
+  const healthRequestsAfterCanonicalChecks = gatewayHealthRequests;
+  assert.equal(healthRequestsAfterCanonicalChecks > 0, true);
 
   currentDeployment = deploymentBody({ databaseReady: false });
   const degraded = await runLive({ STAGING_CERT_REQUIRE_READY: "false" });
@@ -289,7 +302,6 @@ try {
 } finally {
   await new Promise((resolve) => app.server.close(resolve));
   await new Promise((resolve) => gateway.server.close(resolve));
-  fs.rmSync(tempDir, { recursive: true, force: true });
   fs.rmSync(staticReport, { force: true });
   fs.rmSync(impactReport, { force: true });
 }
