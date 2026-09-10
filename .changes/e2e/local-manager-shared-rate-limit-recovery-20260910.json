@@ -1,0 +1,128 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "local-manager-shared-rate-limit-recovery-20260910",
+  "title": "Local Manager shared auth-host rate-limit recovery",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/local-manager-shared-rate-limit-recovery-20260910.json",
+      "apps/local-manager-windows/Program.cs",
+      "apps/local-manager-windows/DeviceLinkClient.cs",
+      "apps/local-manager-windows/Mad4B.LocalManager.Windows.csproj",
+      "http-generic-api/routes/localManagerBetaRoutes.js",
+      "http-generic-api/test-local-manager-repair-connector-command.mjs",
+      "http-generic-api/test-local-manager-tool-release-owner.mjs",
+      "http-generic-api/test-connect-routes.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false,
+    "live_migration_executed": false,
+    "live_grant_executed": false,
+    "deployment_or_restart_executed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prevent background desktop polling from exhausting the shared auth-host request budget while preserving fail-closed privileged-action version verification.",
+      "e2e_journeys": [
+        {
+          "id": "interactive-actions-survive-background-polling",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Linked Mad4B Local Manager Windows app",
+          "entrypoint": "A linked desktop polls for commands while the user requests pairing, update status, or connector repair.",
+          "terminal_outcome": "Background polling runs at a bounded 30-second cadence, honors the server Retry-After value on HTTP 429, and leaves shared request capacity for interactive actions. Pairing and update failures expose only bounded secret-safe retry evidence, while repair remains blocked until current-version verification succeeds.",
+          "steps": [
+            "Start background desktop-command polling at a 30-second interval.",
+            "Classify HTTP 429 without copying response bodies or credentials into diagnostics.",
+            "Honor a bounded Retry-After delta/date before the next background poll.",
+            "Show a retry window for rate-limited pairing and update checks.",
+            "Keep privileged connector repair fail-closed when release verification cannot complete.",
+            "Publish the changed executable and public fallback URLs as version 0.2.29."
+          ],
+          "assertions": [
+            "An idle linked desktop generates at most two scheduled command polls per minute before backoff.",
+            "Server Retry-After is bounded to 1 through 300 seconds and is never shortened by local backoff.",
+            "Pairing, update, and repair diagnostics contain no token, command payload, or secret.",
+            "A 429 never authorizes connector repair or bypasses current-version verification.",
+            "The project and release-owner route agree on version 0.2.29.",
+            "No Production deployment, database mutation, provider mutation, secret rotation, or credential creation is performed."
+          ],
+          "tests": [
+            {
+              "id": "local-manager-repair-connector-command",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-local-manager-repair-connector-command.mjs",
+              "args": []
+            },
+            {
+              "id": "local-manager-tool-release-owner",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-local-manager-tool-release-owner.mjs",
+              "args": []
+            },
+            {
+              "id": "connect-routes",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-connect-routes.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "apps/local-manager-windows/Program.cs",
+            "apps/local-manager-windows/DeviceLinkClient.cs",
+            "apps/local-manager-windows/Mad4B.LocalManager.Windows.csproj",
+            "http-generic-api/routes/localManagerBetaRoutes.js",
+            "http-generic-api/test-local-manager-repair-connector-command.mjs",
+            "http-generic-api/test-local-manager-tool-release-owner.mjs",
+            "http-generic-api/test-connect-routes.mjs"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "local-manager-repair-connector-command",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-local-manager-repair-connector-command.mjs",
+          "args": []
+        },
+        {
+          "id": "local-manager-tool-release-owner",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-local-manager-tool-release-owner.mjs",
+          "args": []
+        },
+        {
+          "id": "connect-routes",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-connect-routes.mjs",
+          "args": []
+        }
+      ]
+    }
+  ],
+  "safety": {
+    "repository_only": true,
+    "production_mutation_allowed": false,
+    "database_mutation": false,
+    "provider_call": false,
+    "secrets_included": false
+  }
+}
