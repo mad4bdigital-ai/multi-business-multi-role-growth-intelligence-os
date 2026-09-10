@@ -9,6 +9,7 @@ import {
   readRuntimeAttestation,
   verifyRecoveryManifest,
 } from "./recoveryTrustModel.js";
+import { readCanonicalDeploymentIdentity } from "./deploymentManifest.js";
 
 const SHA = "a".repeat(40);
 const REPOSITORY = "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os";
@@ -54,6 +55,33 @@ test("manifest verification requires exact runtime SHA and production binding", 
   assert.equal(wrongSha.ok, false);
   const wrongBranch = verifyRecoveryManifest({ expectedSha: SHA, env: { ...ENV, DEPLOYMENT_MANIFEST_JSON: JSON.stringify({ repository: REPOSITORY, branch: "main", commit_sha: SHA, source: "test_fixture", secrets_included: false }) } });
   assert.equal(wrongBranch.ok, false);
+});
+
+test("canonical deployment identity prefers manifest JSON and supports legacy commit JSON", () => {
+  const legacySha = "b".repeat(40);
+  const legacy = readCanonicalDeploymentIdentity({
+    env: {
+      DEPLOYMENT_COMMIT_JSON: JSON.stringify({ repository: REPOSITORY, branch: "Production", commit_sha: legacySha }),
+    },
+  });
+  assert.equal(legacy.ok, true);
+  assert.equal(legacy.source, "env:DEPLOYMENT_COMMIT_JSON");
+  assert.equal(legacy.repository, REPOSITORY);
+  assert.equal(legacy.branch, "Production");
+  assert.equal(legacy.sha, legacySha);
+  assert.equal(legacy.manifest_bound, true);
+
+  const preferred = readCanonicalDeploymentIdentity({
+    env: {
+      DEPLOYMENT_MANIFEST_JSON: JSON.stringify({ repository: REPOSITORY, branch: "Production", commit_sha: SHA }),
+      DEPLOYMENT_COMMIT_JSON: JSON.stringify({ repository: "wrong/repo", branch: "main", commit_sha: legacySha }),
+    },
+  });
+  assert.equal(preferred.ok, true);
+  assert.equal(preferred.source, "env:DEPLOYMENT_MANIFEST_JSON");
+  assert.equal(preferred.repository, REPOSITORY);
+  assert.equal(preferred.branch, "Production");
+  assert.equal(preferred.sha, SHA);
 });
 
 test("runtime attestation is hash-only and includes independent role target fingerprints", () => {
