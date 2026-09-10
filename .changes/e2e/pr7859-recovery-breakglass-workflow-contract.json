@@ -11,7 +11,8 @@
       ".github/derived-state-governance.json",
       ".github/workflows/production-runtime-parity-evidence.yml",
       "http-generic-api/config/repository-governance-constitution.json",
-      "http-generic-api/runtimeBreakglassBroker.js"
+      "http-generic-api/runtimeBreakglassBroker.js",
+      "http-generic-api/test-runtime-breakglass-broker.mjs"
     ]
   },
   "merge_contract": {
@@ -28,7 +29,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Bind the Runtime Breakglass broker/workflow dispatch-contract repair to the canonical staging and production environment-impact policy while keeping all live mutation and activation authority denied.",
+      "objective": "Bind the Runtime Breakglass broker/workflow dispatch-contract repair, including unknown outbound dispatch transport outcome reconciliation, to the canonical staging and production environment-impact policy while keeping all live mutation and activation authority denied.",
       "e2e_journeys": [
         {
           "id": "pr7859-recovery-breakglass-environment-impact-readback",
@@ -36,12 +37,13 @@
           "level": "synthetic_runtime",
           "actor": "Governed CI",
           "entrypoint": "Evaluate the exact PR head against the canonical deployment and environment authority policies.",
-          "terminal_outcome": "The shared-runtime contract change is explicitly declared for staging and production, cross-environment review is explicit, live staging certification remains required, the declaration is registered in both governance control-plane registries, and production mutation remains denied.",
+          "terminal_outcome": "The shared-runtime contract change is explicitly declared for staging and production, cross-environment review is explicit, live staging certification remains required, an unknown GitHub dispatch transport outcome is reconciled only by exact correlation and SHA evidence without an automatic second POST, the declaration remains registered in both governance control-plane registries, and production mutation remains denied.",
           "steps": [
             "Classify the exact base-to-head changes against the canonical environment path classes.",
             "Read back deployment, domain, runtime invariant, database authority, readiness, and staging gateway policies.",
-            "Register this changed critical governance declaration in Constitution.control_plane_paths and convergence.automation_control_paths.",
+            "Keep this changed critical governance declaration registered in Constitution.control_plane_paths and convergence.automation_control_paths.",
             "Verify the declaration binds both staging and production and requires live staging certification.",
+            "After a GitHub workflow dispatch transport exception with no upstream response, perform bounded read-after-failure discovery and recover only an exact-correlation, exact-SHA run; reject ambiguous or unproven outcomes without automatically issuing another POST.",
             "Verify production mutation, database mutation, migration apply, provider mutation, credential payload reads, and production activation remain forbidden.",
             "Bind the result to the exact evaluated HEAD SHA."
           ],
@@ -50,6 +52,7 @@
             "The changed critical governance declaration is registered in Constitution.control_plane_paths and convergence.automation_control_paths.",
             "Both staging and production are explicitly declared and cross-environment review is true.",
             "Live staging certification remains required and is not silently waived.",
+            "A GitHub dispatch transport exception performs bounded exact-correlation read-after-failure recovery; an unproven outcome fails closed and automatic dispatch retry remains false.",
             "production_mutation_allowed is false.",
             "No migration apply, grants, database mutations, provider mutations, credential payload reads, Production deployment, or Production activation are introduced by this declaration.",
             "secrets_included is false."
@@ -60,6 +63,13 @@
               "runner": "node",
               "path": "http-generic-api/scripts/environment-impact-closure.mjs",
               "args": ["--base-sha", "BASE_SHA", "--head-sha", "HEAD_SHA"]
+            },
+            {
+              "id": "runtime-breakglass-dispatch-transport-recovery",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-breakglass-broker.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -68,7 +78,8 @@
             ".github/workflows/production-runtime-parity-evidence.yml",
             "http-generic-api/config/deployment-branch-policy.json",
             "http-generic-api/config/repository-governance-constitution.json",
-            "http-generic-api/runtimeBreakglassBroker.js"
+            "http-generic-api/runtimeBreakglassBroker.js",
+            "http-generic-api/test-runtime-breakglass-broker.mjs"
           ]
         }
       ],
@@ -78,6 +89,13 @@
           "runner": "node",
           "path": "http-generic-api/scripts/environment-impact-closure.mjs",
           "args": ["--base-sha", "BASE_SHA", "--head-sha", "HEAD_SHA"]
+        },
+        {
+          "id": "runtime-breakglass-dispatch-transport-recovery",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-runtime-breakglass-broker.mjs",
+          "args": []
         }
       ]
     }

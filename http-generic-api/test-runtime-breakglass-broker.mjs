@@ -205,6 +205,127 @@ test("Production dispatch uses fixed workflow/ref and exact SHA parity without c
   assert.equal(result.database_mutation_performed, false);
 });
 
+test("Production dispatch recovers an unknown transport outcome by exact correlation without another POST", async () => {
+  const mainSha = "b".repeat(40);
+  const request = _testingRuntimeBreakglass.buildNormalizedRequest({
+    environment: "production",
+    contract_key: "schema_repair",
+    mode: "dry_run",
+    expected_sha: SHA,
+    idempotency_key: "dispatch-transport-recovered",
+    migration: "20260815_custom_gpt_mcp_catalog_levels.sql",
+  });
+  const runName = _testingRuntimeBreakglass.expectedRunName(request);
+  let discoveryCalls = 0;
+  let postCalls = 0;
+  const fetchImpl = async (url, options = {}) => {
+    const target = String(url);
+    if (target.endsWith("/git/ref/heads/main")) return new Response(JSON.stringify({ object: { sha: mainSha } }), { status: 200 });
+    if (target.endsWith("/git/ref/heads/Production")) return new Response(JSON.stringify({ object: { sha: SHA } }), { status: 200 });
+    if (target.includes("/actions/workflows/.github%2Fworkflows%2Fproduction-runtime-parity-evidence.yml/runs?")) {
+      discoveryCalls += 1;
+      if (discoveryCalls === 1) return new Response(JSON.stringify({ workflow_runs: [] }), { status: 200 });
+      return new Response(JSON.stringify({ workflow_runs: [{
+        id: 123456789,
+        path: ".github/workflows/production-runtime-parity-evidence.yml",
+        event: "workflow_dispatch",
+        head_branch: "main",
+        head_sha: mainSha,
+        run_name: runName,
+        created_at: new Date().toISOString(),
+      }] }), { status: 200 });
+    }
+    if (target.endsWith("/dispatches") && (options.method || "GET") === "POST") {
+      postCalls += 1;
+      throw new TypeError("simulated dispatch transport failure");
+    }
+    throw new Error(`unexpected URL: ${url}`);
+  };
+  const result = await createRuntimeBreakglassRun({
+    environment: "production",
+    contract_key: "schema_repair",
+    mode: "dry_run",
+    expected_sha: SHA,
+    idempotency_key: "dispatch-transport-recovered",
+    migration: "20260815_custom_gpt_mcp_catalog_levels.sql",
+  }, { env: {}, fetchImpl, getAppToken: async () => "server-side-test-token", poll: false });
+  assert.equal(result.status, "queued");
+  assert.equal(result.workflow_dispatch_performed, true);
+  assert.equal(result.idempotent_reuse, true);
+  assert.equal(result.dispatch_transport_recovered, true);
+  assert.equal(result.dispatch_response_received, false);
+  assert.equal(result.run_discovery.proven, true);
+  assert.equal(result.run_discovery.run_id, "123456789");
+  assert.equal(result.run_discovery.post_transport_failure, true);
+  assert.equal(result.run_discovery.discovery_status, "proven");
+  assert.equal(postCalls, 1);
+});
+
+test("Production dispatch fails closed when transport outcome remains unproven and never retries POST", async () => {
+  const mainSha = "b".repeat(40);
+  let postCalls = 0;
+  let discoveryCalls = 0;
+  const fetchImpl = async (url, options = {}) => {
+    const target = String(url);
+    if (target.endsWith("/git/ref/heads/main")) return new Response(JSON.stringify({ object: { sha: mainSha } }), { status: 200 });
+    if (target.endsWith("/git/ref/heads/Production")) return new Response(JSON.stringify({ object: { sha: SHA } }), { status: 200 });
+    if (target.includes("/actions/workflows/.github%2Fworkflows%2Fproduction-runtime-parity-evidence.yml/runs?")) {
+      discoveryCalls += 1;
+      return new Response(JSON.stringify({ workflow_runs: [] }), { status: 200 });
+    }
+    if (target.endsWith("/dispatches") && (options.method || "GET") === "POST") {
+      postCalls += 1;
+      throw new TypeError("simulated dispatch transport failure");
+    }
+    throw new Error(`unexpected URL: ${url}`);
+  };
+  await assert.rejects(
+    createRuntimeBreakglassRun({
+      environment: "production",
+      contract_key: "schema_repair",
+      mode: "dry_run",
+      expected_sha: SHA,
+      idempotency_key: "dispatch-transport-unproven",
+      migration: "20260815_custom_gpt_mcp_catalog_levels.sql",
+    }, { env: {}, fetchImpl, getAppToken: async () => "server-side-test-token", poll: false }),
+    (error) => {
+      assert.equal(error?.code, "runtime_breakglass_dispatch_transport_failed_unproven");
+      assert.equal(error?.details?.workflow_dispatch_outcome, "unproven");
+      assert.equal(error?.details?.automatic_dispatch_retry_performed, false);
+      assert.equal(error?.details?.post_failure_discovery_performed, true);
+      assert.equal(error?.details?.post_failure_discovery_status, "completed_unproven");
+      assert.equal(error?.details?.post_failure_discovery_attempts, 1);
+      assert.equal(error?.details?.database_mutation_performed, false);
+      return true;
+    },
+  );
+  assert.equal(postCalls, 1);
+  assert.equal(discoveryCalls, 2);
+});
+
+test("Production pre-dispatch GitHub transport failure is classified and never sends POST", async () => {
+  let postCalls = 0;
+  const fetchImpl = async (url, options = {}) => {
+    const target = String(url);
+    if (target.endsWith("/git/ref/heads/main")) throw new TypeError("simulated preflight transport failure");
+    if (target.endsWith("/git/ref/heads/Production")) return new Response(JSON.stringify({ object: { sha: SHA } }), { status: 200 });
+    if ((options.method || "GET") === "POST") postCalls += 1;
+    throw new Error(`unexpected URL: ${url}`);
+  };
+  await assert.rejects(
+    createRuntimeBreakglassRun({
+      environment: "production",
+      contract_key: "schema_repair",
+      mode: "dry_run",
+      expected_sha: SHA,
+      idempotency_key: "dispatch-preflight-transport",
+      migration: "20260815_custom_gpt_mcp_catalog_levels.sql",
+    }, { env: {}, fetchImpl, getAppToken: async () => "server-side-test-token", poll: false }),
+    (error) => error?.code === "runtime_breakglass_github_transport_failed" && error?.details?.upstream_response_received === false,
+  );
+  assert.equal(postCalls, 0);
+});
+
 test("readback accepts only the exact workflow run binding and bounded artifacts", async () => {
   const request = _testingRuntimeBreakglass.buildNormalizedRequest({
     environment: "production",
