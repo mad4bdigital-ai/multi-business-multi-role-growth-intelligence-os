@@ -13,6 +13,7 @@
       "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/stagingAccessRepairTicketAuthority.js",
       "http-generic-api/stagingRecoverySystemTools.js",
+      "http-generic-api/stagingSchemaRepairSystemTools.js",
       "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
       "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
       "http-generic-api/test-staging-recovery-system-tools.mjs",
@@ -45,7 +46,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Expose the already-governed Staging Recovery canary planning and access-repair authorities through bounded Admin System Tools, close Recovery Action bridge v2 schema/handler parity in composed runtime, add read-only Local Connector convergence evidence, prevent category-invalid tunnel restart loops, and keep Production free of Staging-only tool advertisement or mutation authority.",
+      "objective": "Expose the already-governed Staging Recovery canary planning, access-repair, and schema-repair authorities through bounded Admin System Tools, close Recovery Action bridge v2 schema/handler parity in composed runtime, add read-only Local Connector convergence evidence, prevent category-invalid tunnel restart loops, and keep Production free of Staging-only tool advertisement or mutation authority.",
       "e2e_journeys": [
         {
           "id": "staging-recovery-governed-system-tool-surface",
@@ -56,9 +57,10 @@
           "terminal_outcome": "Staging advertises bounded Recovery planning/approval tools backed by existing server-managed authorities; Production does not advertise those tools; Recovery execution bridge accepts the v2 server-managed confirmation contract and never exposes caller-controlled execution tickets, SQL, commands, credentials, or Production authority.",
           "steps": [
             "Synchronize the Recovery Action bridge descriptor to its existing v2 implementation contract before System Layer requests are served.",
-            "Advertise the Staging Recovery canary-plan, access-repair prepare/approve, and readiness tools only when the runtime is Staging.",
+            "Advertise the Staging Recovery canary-plan, access-repair prepare/approve, schema-repair prepare/approve/execute, and readiness tools only when the runtime is Staging.",
             "Create canary plans through the durable Staging Recovery store without executing the canary or mutating target databases/providers.",
             "Create access-repair plans/challenges and issue server-signed single-use tickets through the existing Staging access-repair authority without accepting caller SQL, commands, target selection, credentials, signatures, or tickets.",
+            "Prepare schema repair from the repository-owned migration allowlist, require the exact typed migration confirmation, issue one server-held single-use execution ticket, execute only the bound Staging migration under a fenced Recovery lock, and require independent role-aware same-cycle readback plus durable migration-ledger finalization before success.",
             "Project Staging capability reporting as a bounded control-plane surface while preserving the kernel's discovery-only subview.",
             "Keep Production Recovery behavior available through the same v2 bridge while Staging-only descriptors remain absent from Production discovery.",
             "Inspect the Windows listener owner, runtime roots, services, tasks, identity presence, DNS state, and Staging/Local tunnel isolation without reading credential values or mutating the host.",
@@ -70,6 +72,9 @@
             "The certification canary plan operation may write durable Recovery control-plane state but performs no target-database, provider, DNS, deployment, or Production mutation.",
             "Access-repair System Tools delegate to createStagingAccessRepairTicketAuthority and do not reimplement grant, approval, signing, or execution-ticket authority.",
             "Access-repair plans are bound to the server-observed repository-owned Recovery Manifest hash and fail closed when the deployment attestation does not prove that manifest binding.",
+            "Schema-repair prepare accepts only expected_sha, migration, and idempotency_key; checksum, statement count, target role, target fingerprint, and postconditions are server-derived from the repository-owned Staging runtime bootstrap contract.",
+            "Schema-repair execution never accepts raw SQL, database names, script paths, target selectors, ticket identifiers, signatures, or migration hashes from the caller and requires fenced execution, independent role-aware same-cycle readback, and durable migration-ledger finalization.",
+            "Schema-repair authority remains Staging-only and authorizes no live Production mutation.",
             "Recovery Action bridge v2 accepts approval_id, expected_sha, typed_confirmation, and idempotency while keeping execution ticket identifiers/hashes/signatures server-controlled.",
             "Production mutation is not enabled by this change and Production never receives Staging target authority.",
             "Live Staging certification is required after merge because runtime routing and Recovery System Tool composition change.",
@@ -113,6 +118,7 @@
             ".changes/e2e/staging-recovery-system-surface-closure-20260907.json",
             "http-generic-api/stagingAccessRepairTicketAuthority.js",
             "http-generic-api/stagingRecoverySystemTools.js",
+            "http-generic-api/stagingSchemaRepairSystemTools.js",
             "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
             "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
             "local-connector/Get-LocalConnectorConvergence.ps1",
