@@ -3,6 +3,7 @@ import { createApprovalChallenge } from "./recoveryKernel.js";
 import { issueExecutionTicket } from "./recoveryExecutionTicket.js";
 import { buildApprovalBinding } from "./recoveryExecutionBinding.js";
 import { stagingRecoveryAuthorityInternals } from "./stagingRecoveryAuthorityBinding.js";
+import { canonicalStagingGrantBindingProvider } from "./stagingGrantBinding.js";
 
 export const STAGING_ACCESS_REPAIR_TICKET_AUTHORITY_CONTRACT = "mad4b.staging-access-repair-ticket-authority.v1";
 export const STAGING_ACCESS_REPAIR_CAPABILITY = "staging_database_access_repair";
@@ -32,16 +33,21 @@ function graphFor(env = process.env) {
   return stagingRecoveryAuthorityInternals.adapters(roots.readiness, env).adapters;
 }
 
-function normalizePrepare(input = {}) {
+function normalizePrepare(input = {}, grantBindingProvider = canonicalStagingGrantBindingProvider) {
+  if (Object.hasOwn(input, "grant_binding_hash")) fail("RECOVERY_TICKET_BINDING_MISMATCH", "grant_binding_hash is server-derived and caller input is forbidden.", { field: "grant_binding_hash" }, 400);
   const idempotencyKey = text(input.idempotency_key, 160);
   const targetKey = text(input.target_key || "staging-runtime", 128);
   if (!SAFE_ID.test(idempotencyKey)) fail("RECOVERY_TICKET_BINDING_MISMATCH", "A bounded idempotency key is required.", {}, 400);
   if (targetKey !== "staging-runtime") fail("RECOVERY_TICKET_BINDING_MISMATCH", "Staging access repair is bound to staging-runtime.", { target_key: targetKey }, 400);
+  const grantBinding = grantBindingProvider?.read?.();
+  if (grantBinding?.contract !== "mad4b.staging-grant-binding.v1" || grantBinding.environment !== "staging" || grantBinding.target_key !== "staging-runtime" || !SHA256.test(grantBinding.grant_binding_hash || "")) {
+    fail("RECOVERY_GRANT_BINDING_UNAVAILABLE", "The repository-owned Staging grant binding is unavailable or invalid.", {}, 503);
+  }
   return {
     expected_sha: sha(input.expected_sha, "expected_sha", SHA40),
     target_key: targetKey,
     target_fingerprint: sha(input.target_fingerprint, "target_fingerprint"),
-    grant_binding_hash: sha(input.grant_binding_hash, "grant_binding_hash"),
+    grant_binding_hash: grantBinding.grant_binding_hash,
     idempotency_key: idempotencyKey,
   };
 }
@@ -97,6 +103,7 @@ function buildPlan(binding, attestation) {
     target_fingerprint: binding.target_fingerprint,
     target_fingerprint_at_creation: binding.target_fingerprint,
     target_fingerprints: { composite: binding.target_fingerprint },
+    manifest_hash: attestation.recovery_manifest_hash,
     runtime_attestation_hash: attestation.attestation_hash,
     finding_ids: [findingId],
     finding_hash: findingHash,
@@ -104,6 +111,7 @@ function buildPlan(binding, attestation) {
     role_selection_hash: null,
     role_selection_proof: null,
     role_bundle_bindings: {},
+    proof: { manifest_bound: true },
     steps: [step],
     status: "planned",
     repair_key: STAGING_ACCESS_REPAIR_CAPABILITY,
@@ -131,11 +139,16 @@ async function attestExactDeployment(graph, binding) {
   if (attestation.environment !== "staging" || attestation.branch !== "main" || attestation.sha !== binding.expected_sha || attestation.target_fingerprint !== binding.target_fingerprint) {
     fail(attestation.sha !== binding.expected_sha ? "STAGING_SHA_MISMATCH" : "RECOVERY_TICKET_BINDING_MISMATCH", "Staging access-repair approval is not bound to the exact deployment and target.", { deployment_sha: attestation.sha, target_match: attestation.target_fingerprint === binding.target_fingerprint }, 412);
   }
-  return attestation;
+  const recoveryManifestHash = text(attestation.recovery_manifest_hash, 128).toLowerCase();
+  if (attestation.manifest_bound !== true || !SHA256.test(recoveryManifestHash)) {
+    fail("RECOVERY_MANIFEST_BINDING_MISSING", "Staging access-repair approval requires a valid repository-owned Recovery Manifest binding.", { manifest_bound: attestation.manifest_bound === true }, 412);
+  }
+  return { ...attestation, recovery_manifest_hash: recoveryManifestHash };
 }
 
-export function createStagingAccessRepairTicketAuthority({ env = process.env } = {}) {
-  const graph = graphFor(env);
+export function createStagingAccessRepairTicketAuthority({ env = process.env, grantBindingProvider = canonicalStagingGrantBindingProvider, adapters = null } = {}) {
+  const injected = Object.fromEntries(Object.entries(adapters || {}).filter(([, value]) => value !== undefined && value !== null));
+  const graph = { ...graphFor(env), ...injected };
   const store = graph.recoveryStore;
   if (!store?.putPlan || !store?.getPlan || !store?.putFinding || !store?.getApprovalByPlanStep || !store?.putExecutionTicket || !store?.reserveApproval || !store?.releaseApprovalReservation || !store?.markApprovalUsed || !graph.approvalIssuer?.createChallenge || !graph.approvalVerifier?.verify || !graph.executionTicketSigner?.sign) {
     fail("RECOVERY_APPROVAL_CHALLENGE_AUTHORITY_UNAVAILABLE", "Staging access-repair approval/ticket authorities are incomplete.", {}, 503);
@@ -146,7 +159,7 @@ export function createStagingAccessRepairTicketAuthority({ env = process.env } =
     production_authority: false,
 
     async prepare(input = {}) {
-      const binding = normalizePrepare(input);
+      const binding = normalizePrepare(input, grantBindingProvider);
       const attestation = await attestExactDeployment(graph, binding);
       const { finding, step, plan } = buildPlan(binding, attestation);
       await store.putFinding(finding);
@@ -185,6 +198,7 @@ export function createStagingAccessRepairTicketAuthority({ env = process.env } =
       if (!PLAN_ID.test(planId) || !STEP_ID.test(stepId) || !SAFE_ID.test(idempotencyKey)) fail("RECOVERY_TICKET_BINDING_MISMATCH", "Approval references are invalid.", {}, 400);
       const plan = await store.getPlan(planId);
       if (!plan || plan.plan_hash !== planHash || plan.repair_key !== STAGING_ACCESS_REPAIR_CAPABILITY || plan.target_key !== "staging-runtime" || plan.environment !== "staging" || plan.raw_sql_allowed !== false || plan.caller_command_allowed !== false) fail("RECOVERY_TICKET_BINDING_MISMATCH", "Approval references do not resolve to the fixed Staging access-repair plan.", {}, 409);
+      if (plan.execution_ticket_id || plan.status === "approved") fail("RECOVERY_APPROVAL_INVALID", "The Staging access-repair approval has already issued its single-use execution ticket.", {}, 409);
       const step = Array.isArray(plan.steps) ? plan.steps.find((entry) => entry.step_id === stepId) : null;
       if (!step || step.capability_key !== STAGING_ACCESS_REPAIR_CAPABILITY || step.operation !== "grants" || step.grant_binding_hash !== plan.grant_binding_hash) fail("RECOVERY_TICKET_BINDING_MISMATCH", "Approval step is not the fixed grant-repair capability.", {}, 409);
       const expectedConfirmation = approvalConfirmation(plan, step);
@@ -245,37 +259,8 @@ export function createStagingAccessRepairTicketAuthority({ env = process.env } =
         }, { signer: graph.executionTicketSigner });
         await store.putExecutionTicket(ticket);
         ticketPersisted = true;
-        try {
-          await store.markApprovalUsed(approval.approval_id);
-        } catch (error) {
-          await store.appendEvidenceEvent?.(idempotencyKey, {
-            event: "staging_access_repair_ticket_issuance_reconciliation_required",
-            phase: "issued_unreconciled",
-            ticket_id: ticket.ticket_id,
-            ticket_hash: ticket.ticket_hash,
-            plan_id: plan.plan_id,
-            plan_hash: plan.plan_hash,
-            step_id: step.step_id,
-            approval_id: approval.approval_id,
-            expected_sha: plan.expected_sha,
-            target_key: plan.target_key,
-            target_fingerprint: plan.target_fingerprint,
-            grant_binding_hash: plan.grant_binding_hash,
-            reconciliation_required: true,
-            automatic_rerun_allowed: false,
-            secrets_included: false,
-          }).catch(() => {});
-          fail("RECOVERY_RECONCILIATION_REQUIRED", "Execution ticket was durably persisted but approval consumption could not be finalized; reconciliation is required and automatic re-issuance is forbidden.", {
-            ticket_id: ticket.ticket_id,
-            ticket_hash: ticket.ticket_hash,
-            plan_id: plan.plan_id,
-            approval_id: approval.approval_id,
-            ticket_persisted: true,
-            reconciliation_required: true,
-            automatic_rerun_allowed: false,
-            cause_code: text(error?.code || error?.name || "mark_approval_used_failed", 128),
-          }, 409);
-        }
+        await store.putPlan({ ...plan, execution_ticket_id: ticket.ticket_id, execution_ticket_hash: ticket.ticket_hash, status: "approved" });
+        await store.releaseApprovalReservation(reservationContext);
         await store.appendEvidenceEvent?.(idempotencyKey, {
           event: "staging_access_repair_ticket_issued",
           phase: "issued",
@@ -320,6 +305,31 @@ export function createStagingAccessRepairTicketAuthority({ env = process.env } =
         if (!ticketPersisted) await store.releaseApprovalReservation(reservationContext).catch(() => {});
         throw error;
       }
+    },
+
+    async resolveExecution(input = {}) {
+      const planId = text(input.plan_id, 160);
+      const planHash = sha(input.plan_hash, "plan_hash");
+      const stepId = text(input.step_id, 160);
+      if (!PLAN_ID.test(planId) || !STEP_ID.test(stepId)) fail("RECOVERY_TICKET_BINDING_MISMATCH", "Execution references are invalid.", {}, 400);
+      const plan = await store.getPlan(planId);
+      const canonical = grantBindingProvider?.read?.();
+      if (!plan || plan.plan_hash !== planHash || plan.environment !== "staging" || plan.branch !== "main" || plan.target_key !== "staging-runtime" || plan.grant_binding_hash !== canonical?.grant_binding_hash) {
+        fail("RECOVERY_TICKET_BINDING_MISMATCH", "Execution does not resolve to the canonical approved Staging access-repair plan.", {}, 409);
+      }
+      const step = plan.steps?.find((entry) => entry.step_id === stepId);
+      if (!step || step.capability_key !== STAGING_ACCESS_REPAIR_CAPABILITY || step.operation !== "grants" || step.target_role !== "composite" || step.grant_binding_hash !== canonical.grant_binding_hash) {
+        fail("RECOVERY_TICKET_BINDING_MISMATCH", "Execution step is not the canonical Staging grant repair.", {}, 409);
+      }
+      if (!plan.execution_ticket_id || !plan.execution_ticket_hash) fail("RECOVERY_EXECUTION_TICKET_REQUIRED", "The approved plan has no server-issued execution ticket.", {}, 409);
+      const ticket = await store.getExecutionTicket(plan.execution_ticket_id);
+      if (!ticket || ticket.ticket_hash !== plan.execution_ticket_hash) fail("RECOVERY_EXECUTION_TICKET_INVALID", "The server-issued execution ticket is unavailable or rebound.", {}, 409);
+      const approval = await store.getApprovalByPlanStep(plan.plan_id, step.step_id);
+      if (!approval || approval.used === true || Date.parse(approval.expires_at || 0) <= Date.now()) fail("RECOVERY_APPROVAL_INVALID", "The approved plan is absent, expired, or consumed.", {}, 401);
+      const issued = await graph.approvalIssuer.createChallenge(approval);
+      if (!issued?.server_token) fail("RECOVERY_APPROVAL_INVALID", "Server-managed approval material could not be resolved.", {}, 401);
+      await attestExactDeployment(graph, { expected_sha: plan.expected_sha, target_fingerprint: plan.target_fingerprint });
+      return { plan, step, ticket, approval_token: issued.server_token, grant_binding: canonical };
     },
   });
 }

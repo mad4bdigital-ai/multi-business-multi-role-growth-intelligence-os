@@ -2,18 +2,24 @@
 
 ## Phase X0 — Evidence baseline
 
-- [ ] **X001** Instrument legacy GPT/system tool dispatch with stage durations and correlation IDs.
-- [ ] **X002** Record SQL query count, provider-call count, internal HTTP hops, model/tool round trips, continuation calls, and response size.
-- [ ] **X003** Select representative fixtures: single read, single mutation, 3-6 step workflow, repository PR workflow, and long-running external wait.
-- [ ] **X004** Capture authority, approval, provider, readback, receipt, result-hash, projection, and recovery outcomes for every fixture.
-- [ ] **X005** Publish a no-secret baseline artifact. No speed target may be claimed without this baseline.
+- [x] **X001** Instrument legacy GPT/system tool dispatch with stage durations and correlation IDs.
+- [x] **X002** Record SQL query count, provider-call count, internal HTTP hops, model/tool round trips, continuation calls, and response size, preserving explicit `unobserved` coverage wherever a runtime boundary is not yet precise.
+- [x] **X003** Select representative fixtures: single read, single mutation, 3-6 step workflow, repository PR workflow, and long-running external wait.
+- [x] **X004** Capture authority, approval, provider, readback, receipt, result-hash, projection, and recovery outcomes for every selected fixture.
+- [x] **X005** Publish a no-secret baseline artifact. No speed target may be claimed without this baseline.
 
 ### Gate X0
+
+Gate X0 external certification state: `complete_external`.
+
+External exact-head CI and live Windows Staging certification completed on PR #7942 at exact head `0def70177fb741d39e6624445506d5537c145808`; that tree was merged unchanged as `main@c6295a2ecc495ab4ab8155d541a8c538ef31289b`. The repository records only a reference to that external evidence in `x0-external-certification-reference.json`; this source tree does not self-attest certification.
 
 - same fixture inputs and expected functional outcomes are reproducible;
 - telemetry excludes secrets, raw JWTs, credentials, and unbounded payloads;
 - stage totals reconcile to total duration within declared instrumentation overhead;
 - no runtime behavior change.
+
+X1 entry is now permitted. This does not authorize runtime cutover, provider dispatch, database writes, migrations, or Production mutation.
 
 ## Phase X1 — Contract composition shadow
 

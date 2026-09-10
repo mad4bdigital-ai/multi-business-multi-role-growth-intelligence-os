@@ -16,7 +16,7 @@ param(
 )
 
 $ErrorActionPreference = "Continue"
-$WatchdogVersion = "2026.09.06.2"
+$WatchdogVersion = "2026.09.07.1"
 $AgentVersion = "2026.05.28.1"
 $CanonicalCloudflaredRuntime = "Mad4B-LocalConnector-Cloudflared"
 $StagingCloudflaredRuntime = "Mad4B-Staging-Cloudflared"
@@ -227,14 +227,23 @@ function Get-WebFailureText($ErrorRecord) {
 
 function Test-PublicConnectorHealth {
   try {
+    $publicHost = ([Uri]$PublicHealthUrl).Host
+    $dnsAnswers = @(Resolve-DnsName -Name $publicHost -ErrorAction Stop | Where-Object { $_.IPAddress -or $_.NameHost })
+    if ($dnsAnswers.Count -eq 0) {
+      return [pscustomobject]@{ ok = $false; http_status = $null; error = "dns_empty"; tunnel_restart_allowed = $false }
+    }
+  } catch {
+    return [pscustomobject]@{ ok = $false; http_status = $null; error = "dns_resolution_failed"; tunnel_restart_allowed = $false }
+  }
+  try {
     $res = Invoke-WebRequest -Uri $PublicHealthUrl -UseBasicParsing -TimeoutSec 15 -ErrorAction Stop
-    return [pscustomobject]@{ ok = ([int]$res.StatusCode -eq 200); http_status = [int]$res.StatusCode; error = $null }
+    return [pscustomobject]@{ ok = ([int]$res.StatusCode -eq 200); http_status = [int]$res.StatusCode; error = $null; tunnel_restart_allowed = $false }
   } catch {
     $statusCode = $null
     try { $statusCode = [int]$_.Exception.Response.StatusCode.value__ } catch {}
     $failureText = Get-WebFailureText $_
-    $errorClass = if ($failureText -match '(?i)\b1033\b' -or $statusCode -eq 530) { "cloudflare_1033" } else { "public_tunnel_unavailable" }
-    return [pscustomobject]@{ ok = $false; http_status = $statusCode; error = $errorClass }
+    $errorClass = if ($failureText -match '(?i)\b1033\b' -or $statusCode -eq 530) { "cloudflare_1033" } elseif ($statusCode -eq 401) { "identity_invalid" } elseif ($statusCode -eq 403) { "identity_binding_mismatch" } else { "public_route_unavailable" }
+    return [pscustomobject]@{ ok = $false; http_status = $statusCode; error = $errorClass; tunnel_restart_allowed = ($errorClass -eq "cloudflare_1033") }
   }
 }
 
@@ -383,11 +392,13 @@ try {
     if (Test-Path $ServerPath) { Copy-Item -LiteralPath $ServerPath -Destination $LastGoodPath -Force -ErrorAction SilentlyContinue }
     if ($cloudflaredReady) {
       $publicHealth = Test-PublicConnectorHealth
-      if (-not $publicHealth.ok) {
+      if (-not $publicHealth.ok -and $publicHealth.tunnel_restart_allowed) {
         Write-WatchdogLog "public_tunnel_failed error=$($publicHealth.error) action=restart_local_connector_tunnel"
         [void](Restart-RuntimeSafe $CloudflaredService $CloudflaredTask)
         Start-Sleep -Seconds 5
         $publicHealth = Test-PublicConnectorHealth
+      } elseif (-not $publicHealth.ok) {
+        Write-WatchdogLog "public_route_degraded error=$($publicHealth.error) action=none restart_allowed=false"
       }
       if ($publicHealth.ok) {
         $heartbeatSent = Publish-Heartbeat "ok" "health_ok" $true
@@ -415,7 +426,7 @@ try {
   if ($healthAfterRestart) {
     if (Test-Path $ServerPath) { Copy-Item -LiteralPath $ServerPath -Destination $LastGoodPath -Force -ErrorAction SilentlyContinue }
     $publicHealth = if ($cloudflaredReady) { Test-PublicConnectorHealth } else { $null }
-    if ($cloudflaredReady -and $null -ne $publicHealth -and -not $publicHealth.ok) {
+    if ($cloudflaredReady -and $null -ne $publicHealth -and -not $publicHealth.ok -and $publicHealth.tunnel_restart_allowed) {
       [void](Restart-RuntimeSafe $CloudflaredService $CloudflaredTask)
       Start-Sleep -Seconds 5
       $publicHealth = Test-PublicConnectorHealth
@@ -441,7 +452,7 @@ try {
       $publicHealth = if ($cloudflaredReady) { Test-PublicConnectorHealth } else { $null }
       $publicReady = $cloudflaredReady -and $null -ne $publicHealth -and $publicHealth.ok
       $status = if ($publicReady) { "ok" } else { "failed" }
-      $errorCode = if ($publicReady) { "" } elseif ($null -ne $publicHealth -and $publicHealth.error -eq 'cloudflare_1033') { "cloudflare_1033" } else { "cloudflared_unavailable" }
+      $errorCode = if ($publicReady) { "" } elseif ($null -ne $publicHealth) { [string]$publicHealth.error } else { "cloudflared_unavailable" }
       $errorMessage = if ($publicReady) { "" } else { "Connector public tunnel is not ready." }
       $heartbeatSent = Publish-Heartbeat $status "rollback" $true $errorCode $errorMessage
       Write-WatchdogLog "health_ok after_rollback=true public_tunnel=$publicReady heartbeat_sent=$heartbeatSent"

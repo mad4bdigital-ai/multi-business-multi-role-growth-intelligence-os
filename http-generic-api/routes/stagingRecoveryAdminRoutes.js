@@ -11,6 +11,7 @@ import { resolveTrustedRequestHost } from "../trustedRequestHost.js";
 import { evaluateExternalStagingEvidence } from "../recoveryReadinessEvidence.js";
 import { createStagingBootstrapExecutionAuthority } from "../stagingBootstrapExecutionAuthority.js";
 import { createStagingAccessRepairTicketAuthority } from "../stagingAccessRepairTicketAuthority.js";
+import { buildRecoverySystemToolOverlayRoutes } from "./recoverySystemToolOverlayRoutes.js";
 
 export const STAGING_RECOVERY_ADMIN_SURFACE_CONTRACT = "mad4b.staging-recovery-admin-surface.v1";
 export const STAGING_RECOVERY_ADMIN_SERVER_URI = "https://activation-dev.mad4b.com";
@@ -30,7 +31,7 @@ const STAGING_RECOVERY_INTERNAL_EXECUTION_PATHS = Object.freeze([
 const STAGING_RECOVERY_PATHS = Object.freeze([...STAGING_RECOVERY_ADVERTISED_PATHS, ...STAGING_RECOVERY_INTERNAL_EXECUTION_PATHS]);
 const BOOTSTRAP_BINDING_KEYS = Object.freeze(["execution_ticket_id", "execution_ticket_hash", "expected_sha", "target_key", "target_fingerprint", "operation", "plan_hash", "idempotency_key", "role_selection_hash", "grant_binding_hash"]);
 const BOOTSTRAP_EXECUTION_START_KEYS = Object.freeze(["authority_action", ...BOOTSTRAP_BINDING_KEYS, "reservation_receipt"]);
-const ACCESS_REPAIR_PREPARE_KEYS = Object.freeze(["authority_action", "expected_sha", "target_key", "target_fingerprint", "grant_binding_hash", "idempotency_key"]);
+const ACCESS_REPAIR_PREPARE_KEYS = Object.freeze(["authority_action", "expected_sha", "target_key", "target_fingerprint", "idempotency_key"]);
 const ACCESS_REPAIR_APPROVE_KEYS = Object.freeze(["authority_action", "plan_id", "plan_hash", "step_id", "idempotency_key", "approval_confirmation"]);
 const SENSITIVE_KEY_RE = /(password|secret|credential|authorization|private[_-]?key|connection[_-]?string|database[_-]?name|db[_-]?(?:user|password)|hostname|username|raw[_-]?sql|command)/iu;
 const LEGACY_READBACK_ASSERTION_KEYS = Object.freeze(["readback_ready", "same_cycle", "database_mutation_performed", "readback_evidence_hash"]);
@@ -76,7 +77,7 @@ function exactBootstrapExecutionStart(input = {}) {
 function exactAccessRepairPrepare(input = {}) {
   exactKeys(input, ACCESS_REPAIR_PREPARE_KEYS, "Staging access-repair preparation request must be an object.");
   if (input.authority_action !== "prepare_access_repair") throw Object.assign(new Error("Unknown Staging ticket authority action."), { code: "RECOVERY_STAGING_BOOTSTRAP_ACTION_INVALID", status: 400 });
-  return { expected_sha: input.expected_sha, target_key: input.target_key || "staging-runtime", target_fingerprint: input.target_fingerprint, grant_binding_hash: input.grant_binding_hash, idempotency_key: input.idempotency_key };
+  return { expected_sha: input.expected_sha, target_key: input.target_key || "staging-runtime", target_fingerprint: input.target_fingerprint, idempotency_key: input.idempotency_key };
 }
 function exactAccessRepairApprove(input = {}) {
   exactKeys(input, ACCESS_REPAIR_APPROVE_KEYS, "Staging access-repair approval request must be an object.");
@@ -127,13 +128,53 @@ export async function buildStagingRecoveryAdminReadiness({ recoveryComposition =
   };
 }
 
-export function buildStagingRecoveryAdminRoutes({ env = process.env, requireBackendApiKey, requireAdminPrincipal, recoveryComposition = null, stagingCertificationReader = null, deploymentAttestationReader = null, targetFingerprintReader = null, recoveryReadinessEvidenceReader = null, trustedHostResolver = resolveTrustedRequestHost, stagingBootstrapExecutionAuthorityFactory = createStagingBootstrapExecutionAuthority, stagingAccessRepairTicketAuthorityFactory = createStagingAccessRepairTicketAuthority } = {}) {
+export function buildStagingRecoveryAdminRoutes({
+  env = process.env,
+  recoveryKernelEnv = null,
+  requireBackendApiKey,
+  requireAdminPrincipal,
+  recoveryComposition = null,
+  stagingCertificationReader = null,
+  deploymentAttestationReader = null,
+  targetFingerprintReader = null,
+  recoveryReadinessEvidenceReader = null,
+  trustedHostResolver = resolveTrustedRequestHost,
+  stagingBootstrapExecutionAuthorityFactory = createStagingBootstrapExecutionAuthority,
+  stagingAccessRepairTicketAuthorityFactory = createStagingAccessRepairTicketAuthority,
+  recoveryStore = null,
+  executionTicketSigner = null,
+  approvalIssuer = null,
+  approvalVerifier = null,
+  approvalStore = null,
+  recoveryLock = null,
+  readbackVerifier = null,
+  deploymentIdentityProvider = null,
+  hostBreakglassMutationExecutor = null,
+  migrationLedger = null,
+} = {}) {
   const router = Router({ caseSensitive: true, strict: true });
   const hostProfile = resolveActivationGatewayHostProfile(env);
   const staging = isStagingEnvironment(env) && hostProfile.ok && hostProfile.profile?.gateway_key === "activation_gateway_staging";
   const missingGuards = [["requireBackendApiKey", requireBackendApiKey], ["requireAdminPrincipal", requireAdminPrincipal]].filter(([, guard]) => typeof guard !== "function").map(([name]) => name);
   if (missingGuards.length) throw Object.assign(new Error(`Staging Recovery requires all server-managed guards: ${missingGuards.join(", ")}`), { code: "RECOVERY_STAGING_GUARD_MISSING", missing_guards: missingGuards });
   const guards = [requireBackendApiKey, requireAdminPrincipal];
+
+  router.use(buildRecoverySystemToolOverlayRoutes({
+    env,
+    recoveryKernelEnv,
+    requireBackendApiKey,
+    requireAdminPrincipal,
+    recoveryStore,
+    executionTicketSigner,
+    approvalIssuer,
+    approvalVerifier,
+    approvalStore,
+    recoveryLock,
+    readbackVerifier,
+    deploymentIdentityProvider,
+    hostBreakglassMutationExecutor,
+    migrationLedger,
+  }));
 
   router.use((req, res, next) => {
     if (!STAGING_RECOVERY_PATHS.includes(String(req?.path || ""))) return next();

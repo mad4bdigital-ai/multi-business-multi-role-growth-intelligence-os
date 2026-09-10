@@ -22,6 +22,12 @@ import { evaluateConnectorDispatchPreflight, assertPreflightAllowed } from "./go
 import { resolveRuntimeWorkflow } from "./runtimeWorkflowResolver.js";
 import { resolveCapabilityExecutionEnvelope } from "./capabilityResolutionEnvelopeGuard.js";
 import {
+  createOptionalGovernedExecutionBaselineTrace,
+  finalizeOptionalGovernedExecutionBaselineTrace,
+  instrumentAgentLoopDependencies,
+  observeMcpProviderDispatch,
+} from "./governedExecutionBaselineRuntime.js";
+import {
   dispatchWordpressBlogPublish,
   isWordpressBlogPublishWorkflow,
 } from "./wordpressBlogPublishOrchestrator.js";
@@ -194,7 +200,6 @@ function buildWpContext(brand) {
 // ── DB write helpers (all non-throwing) ──────────────────────────────────────
 
 async function createWorkflowRun(run_id, trace_id, plan, service_mode) {
-  // Resolve agent_id from execution plan if not already on plan object
   let agent_id = plan.agent_id || null;
   if (!agent_id && plan.plan_id) {
     const [planRow] = await getPool().query(
@@ -354,16 +359,34 @@ async function dispatchWordpress(plan, brand, wpContext, options) {
 }
 
 async function dispatchContentWorkflow(plan, workflowDef, deps = {}) {
-  return runAgentLoop(plan, {
+  const agentHandle = createOptionalGovernedExecutionBaselineTrace({
+    entry_point: "agent_loop",
+    plan_id: plan.plan_id || null,
+    run_id: plan.run_id || null,
+    correlation_id: plan.correlation_id || plan.request_id || plan.run_id || null,
+  }, { emitter: deps.governedExecutionBaselineEmitter });
+  const agentDeps = instrumentAgentLoopDependencies({
     ...getAgentDeps(),
     ...deps,
     workflowDef,
-  });
+  }, agentHandle?.trace || null);
+  try {
+    const result = await runAgentLoop(plan, agentDeps);
+    void finalizeOptionalGovernedExecutionBaselineTrace(agentHandle, {
+      outcome: result?.ok === false ? "failure" : "success",
+      result_classification: "content_workflow",
+    });
+    return result;
+  } catch (error) {
+    void finalizeOptionalGovernedExecutionBaselineTrace(agentHandle, {
+      outcome: "failure",
+      result_classification: "agent_loop_exception",
+    });
+    throw error;
+  }
 }
 
-async function dispatchMcpConnector(plan) {
-  // Resolve the bearer token from the canonical Make.com MCP action's secret reference.
-  // Keep make_mcp_server as a temporary legacy fallback for one release window.
+async function dispatchMcpConnector(plan, baselineTrace = null) {
   let token = process.env.MAKE_MCP_TOKEN || "";
   if (!token) {
     const [rows] = await getPool().query(
@@ -383,7 +406,6 @@ async function dispatchMcpConnector(plan) {
     throw new Error("MAKE_MCP_TOKEN not configured - set ref:secret:MAKE_MCP_TOKEN on action makecom_mcp_client and provide the env secret.");
   }
 
-  // Build a JSON-RPC 2.0 tools/call envelope from the plan's first step.
   const steps = plan.steps_json || [];
   const step = Array.isArray(steps) ? steps[0] : null;
   const toolName = step?.tool || step?.action || plan.intent_key || "tools/list";
@@ -396,6 +418,7 @@ async function dispatchMcpConnector(plan) {
     params: { name: toolName, arguments: toolArgs },
   };
 
+  observeMcpProviderDispatch(baselineTrace);
   const resp = await fetch("https://eu2.make.com/mcp/stateless", {
     method: "POST",
     headers: {
@@ -414,7 +437,6 @@ async function dispatchMcpConnector(plan) {
   let data;
   const ct = resp.headers.get("content-type") || "";
   if (ct.includes("event-stream")) {
-    // SSE transport: collect all data: lines and parse the last one.
     const text = await resp.text();
     const dataLines = text.split("\n").filter(l => l.startsWith("data:"));
     if (!dataLines.length) throw new Error("Make MCP SSE: no data lines in response");
@@ -448,31 +470,59 @@ export async function dispatchPlan(plan_id, {
   const t0 = Date.now();
   const trace_id = randomUUID();
   const run_id   = randomUUID();
+  const baselineHandle = createOptionalGovernedExecutionBaselineTrace({
+    entry_point: "connector_plan",
+    plan_id,
+    run_id,
+    correlation_id: trace_id,
+  }, { emitter: deps.governedExecutionBaselineEmitter });
+  const baselineTrace = baselineHandle?.trace || null;
+  const finishBaseline = (value, resultClassification = "connector_plan") => {
+    const code = value?.error?.code || "";
+    const blocked = new Set([
+      "plan_not_executable",
+      "access_denied",
+      "plan_already_claimed",
+      "required_agent_skill_grant_missing",
+      "agent_skill_context_required",
+      "capability_resolution_envelope_rejected",
+    ]).has(code);
+    void finalizeOptionalGovernedExecutionBaselineTrace(baselineHandle, {
+      outcome: blocked ? "blocked" : value?.ok === false ? "failure" : "success",
+      result_classification: resultClassification,
+    });
+    return value;
+  };
 
+  const finishContext = baselineTrace?.startStage("context_resolution");
   const plan = await loadPlan(plan_id);
   if (!plan) {
-    return { ok: false, error: { code: "plan_not_found", message: `Plan ${plan_id} not found.` } };
+    finishContext?.();
+    return finishBaseline({ ok: false, error: { code: "plan_not_found", message: `Plan ${plan_id} not found.` } }, "plan_not_found");
   }
+  if (Array.isArray(plan.steps_json)) baselineTrace?.setCounter("plan_steps", plan.steps_json.length);
 
   if (!EXECUTABLE_PLAN_STATUSES.has(plan.plan_status)) {
-    return {
+    finishContext?.();
+    return finishBaseline({
       ok: false,
       error: {
         code: "plan_not_executable",
         message: `Plan '${plan.plan_status}' is not executable. Advance to validated or approved first.`,
       },
-    };
+    }, "plan_not_executable");
   }
 
   if (plan.access_decision && !EXECUTABLE_DECISIONS.has(plan.access_decision)) {
-    return {
+    finishContext?.();
+    return finishBaseline({
       ok: false,
       error: {
         code: "access_denied",
         message: `Access decision '${plan.access_decision}' requires human approval before execution.`,
         access_decision: plan.access_decision,
       },
-    };
+    }, "access_denied");
   }
 
   const [brand, connectedSystem, workflowResolution, actionRow] = await Promise.all([
@@ -484,8 +534,9 @@ export async function dispatchPlan(plan_id, {
     }),
     loadAction(plan.workflow_key || plan.intent_key),
   ]);
+  finishContext?.();
   if (!workflowResolution.ok && workflowResolution.resolution.code !== "workflow_identity_missing") {
-    return {
+    return finishBaseline({
       ok: false,
       plan_id,
       error: {
@@ -493,7 +544,7 @@ export async function dispatchPlan(plan_id, {
         message: workflowResolution.resolution.message,
         resolution: workflowResolution.resolution,
       },
-    };
+    }, workflowResolution.resolution.code || "workflow_resolution_failed");
   }
   const workflowDef = workflowResolution.ok ? workflowResolution.workflow : null;
 
@@ -502,8 +553,6 @@ export async function dispatchPlan(plan_id, {
     connectedSystem?.connector_family === "wordpress" ||
     isWordpressBlogPublishWorkflow(plan.workflow_key);
 
-  // GAP 6: runtime_capability_class from actions table is authoritative when
-  // connector_family is not set on the connected_systems row.
   const isMcp =
     connectedSystem?.connector_family === "make_mcp" ||
     (!connectedSystem && actionRow?.runtime_capability_class === "mcp_connector");
@@ -511,19 +560,37 @@ export async function dispatchPlan(plan_id, {
   const connector_type = isWordpress ? "wordpress" : isMcp ? "mcp_connector" : "content_workflow";
   const service_mode   = plan.service_mode || "self_serve";
 
-  assertPreflightAllowed(await evaluateConnectorDispatchPreflight({
-    plan,
-    connectorType: connector_type,
-    workflowDef,
-    apply,
-  }));
+  const finishPolicy = baselineTrace?.startStage("policy_resolution");
+  try {
+    assertPreflightAllowed(await evaluateConnectorDispatchPreflight({
+      plan,
+      connectorType: connector_type,
+      workflowDef,
+      apply,
+    }));
+  } catch (error) {
+    finishPolicy?.();
+    void finalizeOptionalGovernedExecutionBaselineTrace(baselineHandle, {
+      outcome: "blocked",
+      result_classification: error?.code || "connector_preflight_blocked",
+    });
+    throw error;
+  }
 
   const capabilityEnvelope = await validateDispatchCapabilityEnvelope(plan, connector_type, apply);
-  if (!capabilityEnvelope.ok) return { ok: false, plan_id, error: capabilityEnvelope.error };
+  if (!capabilityEnvelope.ok) {
+    finishPolicy?.();
+    return finishBaseline({ ok: false, plan_id, error: capabilityEnvelope.error }, capabilityEnvelope.error?.code || "capability_envelope_rejected");
+  }
 
   const skillGrant = await validateAgentSkillGrant(plan, connector_type);
-  if (!skillGrant.ok) return { ok: false, plan_id, error: skillGrant.error };
+  if (!skillGrant.ok) {
+    finishPolicy?.();
+    return finishBaseline({ ok: false, plan_id, error: skillGrant.error }, skillGrant.error?.code || "skill_grant_rejected");
+  }
+  finishPolicy?.();
 
+  const finishClaimLedger = baselineTrace?.startStage("ledger");
   const [claim] = await getPool().query(
     `UPDATE \`execution_plans\`
      SET plan_status = 'executing'
@@ -531,14 +598,15 @@ export async function dispatchPlan(plan_id, {
     [plan_id]
   );
   if (claim.affectedRows !== 1) {
-    return {
+    finishClaimLedger?.();
+    return finishBaseline({
       ok: false,
       plan_id,
       error: {
         code: "plan_already_claimed",
         message: "Plan dispatch was already claimed or its status changed before execution.",
       },
-    };
+    }, "plan_already_claimed");
   }
 
   try {
@@ -550,17 +618,20 @@ export async function dispatchPlan(plan_id, {
        WHERE plan_id = ? AND plan_status = 'executing'`,
       [plan_id]
     ).catch(() => {});
-    return {
+    finishClaimLedger?.();
+    return finishBaseline({
       ok: false,
       plan_id,
       error: {
         code: "workflow_run_create_failed",
         message: error?.message || "Failed to create workflow run after claiming the plan.",
       },
-    };
+    }, "workflow_run_create_failed");
   }
+  finishClaimLedger?.();
 
   let result, dispatchError;
+  const finishProvider = baselineTrace?.startStage("provider_dispatch");
   try {
     if (isWordpressBlogPublishWorkflow(plan.workflow_key)) {
       result = await dispatchWordpressBlogPublish(plan, { ...deps, brand });
@@ -574,23 +645,23 @@ export async function dispatchPlan(plan_id, {
       }
       result = await dispatchWordpress(plan, brand, wpContext, { apply, post_types, publish_status });
     } else if (isMcp) {
-      result = await dispatchMcpConnector(plan);
+      result = await dispatchMcpConnector(plan, baselineTrace);
     } else {
-      // Pass run_id so runAgentLoop writes step_runs against the same workflow_runs record.
-      result = await dispatchContentWorkflow({ ...plan, run_id }, workflowDef, deps);
+      result = await dispatchContentWorkflow({ ...plan, run_id, correlation_id: trace_id }, workflowDef, deps);
     }
   } catch (err) {
     dispatchError = err;
     result = { ok: false };
   }
+  finishProvider?.();
 
   const duration_ms  = Date.now() - t0;
   const succeeded    = !dispatchError && result?.ok !== false;
   const final_status = succeeded
     ? (connector_type === "content_workflow" ? "running" : "completed")
     : "failed";
-  // content_workflow is async (stays "running"); wordpress and mcp_connector are sync (→ "completed")
 
+  const finishFinalLedger = baselineTrace?.startStage("ledger");
   await Promise.all([
     finaliseWorkflowRun(run_id, final_status, succeeded ? result : null, dispatchError?.message),
     createStepRun(
@@ -611,8 +682,8 @@ export async function dispatchPlan(plan_id, {
       workflow_key: plan.workflow_key,
     }),
   ]);
+  finishFinalLedger?.();
 
-  // Route output to typed sinks (non-blocking — never fail the main response)
   if (succeeded && result?.output !== undefined) {
     routeOutput({
       run_id,
@@ -645,7 +716,7 @@ export async function dispatchPlan(plan_id, {
     metadata: { run_id, trace_id, connector_type, apply, duration_ms, secrets_included: false },
   });
 
-  return {
+  return finishBaseline({
     ok: succeeded,
     run_id,
     trace_id,
@@ -658,5 +729,5 @@ export async function dispatchPlan(plan_id, {
     error: dispatchError
       ? { code: "dispatch_failed", message: dispatchError.message }
       : undefined,
-  };
+  }, connector_type);
 }

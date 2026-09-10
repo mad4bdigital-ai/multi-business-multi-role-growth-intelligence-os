@@ -7,7 +7,6 @@
 $ErrorActionPreference = "Stop"
 
 $ConnectorDir   = $PSScriptRoot
-$ConfigPath     = Join-Path $ConnectorDir "cloudflared-config.yml"
 $WatchdogPath   = Join-Path $ConnectorDir "connector-watchdog.ps1"
 $EnvPath        = Join-Path $ConnectorDir ".env"
 $NodeExe        = (Get-Command node -ErrorAction Stop).Source
@@ -60,10 +59,27 @@ function Assert-ConnectorEnvironmentBinding {
     return [pscustomobject]@{ environment = $environment; control_plane_host = $expectedHost }
 }
 
+function Resolve-ConnectorTunnelTokenFile {
+    $configured = (Get-DotEnvValue "CONNECTOR_CLOUDFLARED_TOKEN_FILE").Trim()
+    if ([string]::IsNullOrWhiteSpace($configured)) {
+        throw "CONNECTOR_CLOUDFLARED_TOKEN_FILE must point to the dedicated Local Connector tunnel token file."
+    }
+    try { $path = [IO.Path]::GetFullPath($configured) }
+    catch { throw "CONNECTOR_CLOUDFLARED_TOKEN_FILE is not a valid filesystem path." }
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+        throw "Local Connector tunnel token file is missing: $path"
+    }
+    $value = [IO.File]::ReadAllText($path).Trim()
+    if ($value.Length -le 20) { throw "Local Connector tunnel token file is empty or invalid." }
+    return $path
+}
+
 Write-Host ""
 Write-Host "=== Growth Intelligence Platform - Local Connector Install ==="
 $environmentBinding = Assert-ConnectorEnvironmentBinding
+$tunnelTokenFile = Resolve-ConnectorTunnelTokenFile
 Write-Host "  Environment binding: $($environmentBinding.environment) -> $($environmentBinding.control_plane_host) [OK]"
+Write-Host "  Tunnel credential mode: token_file [OK]"
 
 # -- 1. Stop only Local Connector-owned legacy/current runtimes ---------------
 Write-Host ""
@@ -138,9 +154,11 @@ Write-Host "[3] Registering Local Connector Cloudflared task: $TunnelTask"
 
 Unregister-ScheduledTask -TaskName $TunnelTask -Confirm:$false -ErrorAction SilentlyContinue
 
+# The token is read by cloudflared from a protected local file. It is never
+# embedded in Scheduled Task arguments, process command lines, logs, or repo files.
 $cfAction = New-ScheduledTaskAction `
     -Execute $CfExe `
-    -Argument "tunnel --protocol http2 --no-autoupdate --config `"$ConfigPath`" run"
+    -Argument "tunnel --protocol http2 --no-autoupdate run --token-file `"$tunnelTokenFile`""
 
 Register-ScheduledTask `
     -TaskName $TunnelTask `
@@ -210,7 +228,7 @@ try {
 Write-Host ""
 Write-Host "=== Install complete ==="
 Write-Host "  $NodeTask     -- runs at logon, auto-restarts on failure"
-Write-Host "  $TunnelTask   -- Local Connector-only tunnel ownership"
+Write-Host "  $TunnelTask   -- Local Connector-only tunnel ownership via token file"
 Write-Host "  $WatchdogTask -- runs every minute, repairs only Local Connector-owned runtime"
 Write-Host ""
 Write-Host "To check status:"

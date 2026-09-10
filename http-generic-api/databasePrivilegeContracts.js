@@ -57,6 +57,7 @@ const STAGING_RUNTIME_READ_ONLY_TABLES = Object.freeze([
   "permission_grants",
   "activation_authorized_surface_registry",
   "registry_surfaces_catalog",
+  "execution_policies",
   "brands",
   "plugins",
   "logic_definitions",

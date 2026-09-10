@@ -950,7 +950,7 @@ const doc = (() => {
       source.includes('router.post("/local-connector/install"') &&
       source.includes("provisionLocalConnectorInstall(req, req.body || {})") &&
       source.includes("shared provisioning helper"));
-    assert("admin installer link and redemption lookups are tenant scoped", source.includes("WHERE user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1") && source.includes("[principal.userId, principal.tenantId, device_id]") && source.includes("[payload.user_id, payload.tenant_id, payload.device_id]"));
+    assert("admin installer link and redemption lookups are tenant scoped", source.includes("WHERE user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1") && source.includes("[principal.userId, principal.tenantId, device_id]") && source.includes("[payload.config_id, payload.user_id, payload.tenant_id, payload.device_id]"));
 assert("local connector requires fresh Local Manager authorization for privileged repair installer links",
       source.includes('router.post("/local-connector/install/device-download-link"') &&
       source.includes("requireFreshLocalManagerDeviceForPrivilegedInstaller(req)") &&
@@ -1056,7 +1056,7 @@ assert("Local Manager privileged installer authorization uses a long-lived revoc
       releaseMigrationSource.includes("Mad4B-Local-Manager-Setup.exe"));
     const deviceLinkSource = readFileSync("services/localManagerDeviceLinkService.js", "utf8");
     assert("local manager Windows default download redirects to public EXE release asset",
-      betaSource.includes("Mad4B-Local-Manager-Setup-0.2.26.exe") &&
+      betaSource.includes("Mad4B-Local-Manager-Setup-0.2.28.exe") &&
       betaSource.includes("releases/download/local-manager-windows-latest") &&
       !betaSource.includes("Mad4B-Local-Manager-Windows-Bootstrap.ps1") &&
       !betaSource.includes("connector_secret") &&

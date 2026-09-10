@@ -26,7 +26,7 @@ function invoke(root, { base, head, headRef }) {
   ], {
     cwd: root,
     encoding: "utf8",
-    env: { ...process.env, GITHUB_TOKEN_FOR_REF_LOOKUP: "", GITHUB_OUTPUT: "" }
+    env: { ...process.env, GITHUB_TOKEN_FOR_REF_LOOKUP: "", GITHUB_REPOSITORY: "", GITHUB_OUTPUT: "" }
   });
 }
 
@@ -36,12 +36,25 @@ function updateRemoteRef(remoteRoot, ref, sha, cwd) {
 }
 
 assert.deepEqual(
+  parseCertifiedReleaseCutRef("release/production-candidate-4607b4be9962-acbfb1351fdf"),
+  {
+    release_cut_prefix: "4607b4be9962",
+    production_prefix: "acbfb1351fdf",
+    session_prefix: null,
+    launcher_run_id: null,
+    launcher_run_attempt: null,
+    surface_kind: "deterministic_release_cut_v1"
+  }
+);
+assert.deepEqual(
   parseCertifiedReleaseCutRef("release/production-candidate-4607b4be9962-acbfb1351fdf-31862463986-1"),
   {
     release_cut_prefix: "4607b4be9962",
     production_prefix: "acbfb1351fdf",
+    session_prefix: null,
     launcher_run_id: "31862463986",
-    launcher_run_attempt: "1"
+    launcher_run_attempt: "1",
+    surface_kind: "certified_run_v1"
   }
 );
 assert.equal(parseCertifiedReleaseCutRef("release/production-candidate-4607b4be9962-acbfb1351fdf-31862463986-0"), null);
@@ -86,7 +99,8 @@ const candidateSha = run("git", [
   "-p", productionSha,
   "-m", "immutable certified Production candidate"
 ], root).trim();
-const candidateRef = `release/production-candidate-${releaseCutSha.slice(0, 12)}-${productionSha.slice(0, 12)}-31862463986-1`;
+const candidateRef = `release/production-candidate-${releaseCutSha.slice(0, 12)}-${productionSha.slice(0, 12)}`;
+const runBoundCandidateRef = `${candidateRef}-31862463986-1`;
 
 const accepted = invoke(root, { base: productionSha, head: candidateSha, headRef: candidateRef });
 assert.equal(accepted.status, 0, accepted.stderr || accepted.stdout);
@@ -94,6 +108,7 @@ const acceptedReport = JSON.parse(accepted.stdout);
 assert.equal(acceptedReport.ok, true, JSON.stringify(acceptedReport.findings));
 assert.equal(acceptedReport.production_promotion, true);
 assert.equal(acceptedReport.production_promotion_identity, "certified_release_cut_reconciliation");
+assert.equal(acceptedReport.production_promotion_surface_kind, "deterministic_release_cut_v1");
 assert.equal(acceptedReport.phase_evaluation_base, releaseCutSha);
 assert.equal(acceptedReport.production_promotion_anchor_sha, candidateSha);
 assert.equal(acceptedReport.production_promotion_rearm_depth, 0);
@@ -103,10 +118,14 @@ assert.equal(acceptedReport.production_release_cut_mode, true);
 assert.equal(acceptedReport.production_ref_stable, true);
 assert.equal(acceptedReport.main_tip_may_advance, true);
 
+const runBoundAccepted = invoke(root, { base: productionSha, head: candidateSha, headRef: runBoundCandidateRef });
+assert.equal(runBoundAccepted.status, 0, runBoundAccepted.stderr || runBoundAccepted.stdout);
+assert.equal(JSON.parse(runBoundAccepted.stdout).production_promotion_surface_kind, "certified_run_v1");
+
 const wrongCutPrefix = invoke(root, {
   base: productionSha,
   head: candidateSha,
-  headRef: `release/production-candidate-deadbeefdead-${productionSha.slice(0, 12)}-31862463986-1`
+  headRef: `release/production-candidate-deadbeefdead-${productionSha.slice(0, 12)}`
 });
 assert.notEqual(wrongCutPrefix.status, 0);
 assert(JSON.parse(wrongCutPrefix.stdout).findings.some((row) => row.code === "production_promotion_identity_invalid"));
@@ -160,10 +179,13 @@ assert(JSON.parse(staleCut.stdout).findings.some((row) => row.code === "producti
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 9,
-  contract: "certified_release_cut_candidate_identity_with_moving_main_and_exact_production_pin",
+  tests: 11,
+  contract: "deterministic_and_run_bound_certified_release_cut_candidate_identity_with_moving_main_and_exact_production_pin",
+  deterministic_surface_matches_governed_launcher: true,
+  run_bound_surface_retained_for_compatibility: true,
   main_tip_may_advance: true,
   production_ref_must_remain_exact: true,
+  candidate_parent_count_must_equal_two: true,
   candidate_tree_must_equal_release_cut: true,
   secrets_included: false
 }));

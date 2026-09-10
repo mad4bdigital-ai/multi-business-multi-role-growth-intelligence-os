@@ -9,6 +9,7 @@ const preflightPath = path.join(
   "Staging-Schema-Governance-Preflight.ps1",
 );
 const bootstrapPath = path.join(packageRoot, "Bootstrap-Staging-One-Click.ps1");
+const autoPilotPath = path.join(packageRoot, "Start-AutoPilot.ps1");
 const oneClickContractPath = path.join(
   root,
   "http-generic-api",
@@ -26,6 +27,7 @@ const smartGatewayContractPath = path.join(
 );
 const preflight = fs.readFileSync(preflightPath, "utf8");
 const bootstrap = fs.readFileSync(bootstrapPath, "utf8");
+const autoPilot = fs.readFileSync(autoPilotPath, "utf8");
 const oneClickContract = fs.readFileSync(oneClickContractPath, "utf8");
 const oneClickCoreContract = fs.readFileSync(oneClickCoreContractPath, "utf8");
 const smartGatewayContract = fs.readFileSync(smartGatewayContractPath, "utf8");
@@ -65,6 +67,16 @@ assert.ok(
     bootstrap.indexOf('$preflightReportPath ='),
 );
 
+// Auto Pilot performs its own exact-SHA fetch before the same preflight. Both
+// fetch sites must preserve the first parent instead of re-shallowing to depth 1.
+assert.equal(
+  (autoPilot.match(
+    /Invoke-Native\s+"git"\s+@\("fetch",\s*"origin",\s*\$Ref,\s*"--depth=2"\)/g,
+  ) ?? []).length,
+  2,
+);
+assert.doesNotMatch(autoPilot, /--depth=1/);
+
 // Node.js file URLs expose Windows drive paths as /C:/... URL pathnames.
 // The contract that runs inside the Windows preflight delegates to the split
 // Core and smart-gateway modules, so both imported modules must resolve from
@@ -91,6 +103,7 @@ console.log(
     contract: "mad4b.staging-schema-governance-powershell-revision-contract.v1",
     preserves_git_pseudo_revisions: true,
     bootstrap_preserves_first_parent_history: true,
+    autopilot_preserves_first_parent_history: true,
     windows_node_file_url_paths_safe: true,
     production_mutation: false,
     database_mutation: false,

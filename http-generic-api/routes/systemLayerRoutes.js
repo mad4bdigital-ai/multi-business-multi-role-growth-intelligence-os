@@ -190,6 +190,9 @@ const SYSTEM_LAYER_TOOLS = [
   {
     name: "recovery_kernel_capabilities",
     description: "Admin-only fixed, repository-owned Recovery Kernel capability matrix. Returns bounded risk, dependency, approval, rollback, and mutation metadata without loading a dynamic catalog or connecting to a database.",
+    capability_key: "recovery_capabilities",
+    tags: ["recovery", "staging", "certification", "phase_b", "read_only"],
+    aliases: ["staging recovery certification", "phase b certification", "recovery certification workflow"],
     requires_admin: true,
     inputSchema: { type: "object", additionalProperties: false, properties: {} },
   },

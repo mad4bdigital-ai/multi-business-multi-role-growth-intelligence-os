@@ -8,14 +8,14 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7564,
-  "route_count": 1100,
-  "write_route_count": 667,
+  "file_count": 7621,
+  "route_count": 1103,
+  "write_route_count": 670,
   "classified_write_surface_count": 42,
-  "classified_write_route_count": 667,
+  "classified_write_route_count": 670,
   "unclassified_write_route_count": 0,
-  "intentionally_unmapped_write_route_count": 625,
-  "sensitive_intentionally_unmapped_write_route_count": 625,
+  "intentionally_unmapped_write_route_count": 628,
+  "sensitive_intentionally_unmapped_write_route_count": 628,
   "migration_count": 447,
   "registry_evidence_count": 110,
   "write_scope_count": 6,
@@ -1993,8 +1993,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorAgentRoutes.js#GET:/connector-agent/version:0",
-      "source_line": 764,
-      "source_offset": 35723,
+      "source_line": 904,
+      "source_offset": 45739,
       "method": "GET",
       "path": "/connector-agent/version",
       "file": "http-generic-api/routes/connectorAgentRoutes.js",
@@ -2002,8 +2002,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorAgentRoutes.js#GET:/connector-agent/manifest.json:1",
-      "source_line": 794,
-      "source_offset": 36875,
+      "source_line": 934,
+      "source_offset": 46891,
       "method": "GET",
       "path": "/connector-agent/manifest.json",
       "file": "http-generic-api/routes/connectorAgentRoutes.js",
@@ -2011,35 +2011,44 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorAgentRoutes.js#GET:/connector-agent/installer.ps1:2",
-      "source_line": 840,
-      "source_offset": 38496,
+      "source_line": 980,
+      "source_offset": 48509,
       "method": "GET",
       "path": "/connector-agent/installer.ps1",
       "file": "http-generic-api/routes/connectorAgentRoutes.js",
       "write": false
     },
     {
-      "route_id": "http-generic-api/routes/connectorAgentRoutes.js#GET:/connector-agent/files/:fileName:3",
-      "source_line": 875,
-      "source_offset": 40774,
+      "route_id": "http-generic-api/routes/connectorAgentRoutes.js#POST:/connector-agent/installer/redeem:3",
+      "source_line": 1032,
+      "source_offset": 51177,
+      "method": "POST",
+      "path": "/connector-agent/installer/redeem",
+      "file": "http-generic-api/routes/connectorAgentRoutes.js",
+      "write": true
+    },
+    {
+      "route_id": "http-generic-api/routes/connectorAgentRoutes.js#GET:/connector-agent/files/:fileName:4",
+      "source_line": 1077,
+      "source_offset": 53663,
       "method": "GET",
       "path": "/connector-agent/files/:fileName",
       "file": "http-generic-api/routes/connectorAgentRoutes.js",
       "write": false
     },
     {
-      "route_id": "http-generic-api/routes/connectorAgentRoutes.js#GET:/connector-agent/policy:4",
-      "source_line": 892,
-      "source_offset": 41583,
+      "route_id": "http-generic-api/routes/connectorAgentRoutes.js#GET:/connector-agent/policy:5",
+      "source_line": 1094,
+      "source_offset": 54472,
       "method": "GET",
       "path": "/connector-agent/policy",
       "file": "http-generic-api/routes/connectorAgentRoutes.js",
       "write": false
     },
     {
-      "route_id": "http-generic-api/routes/connectorAgentRoutes.js#POST:/connector-agent/heartbeat:5",
-      "source_line": 966,
-      "source_offset": 45008,
+      "route_id": "http-generic-api/routes/connectorAgentRoutes.js#POST:/connector-agent/heartbeat:6",
+      "source_line": 1167,
+      "source_offset": 57847,
       "method": "POST",
       "path": "/connector-agent/heartbeat",
       "file": "http-generic-api/routes/connectorAgentRoutes.js",
@@ -3019,8 +3028,8 @@
     },
     {
       "route_id": "http-generic-api/routes/deviceToolsRoutes.js#GET:/device/tools:0",
-      "source_line": 33,
-      "source_offset": 1161,
+      "source_line": 50,
+      "source_offset": 1713,
       "method": "GET",
       "path": "/device/tools",
       "file": "http-generic-api/routes/deviceToolsRoutes.js",
@@ -3028,8 +3037,8 @@
     },
     {
       "route_id": "http-generic-api/routes/deviceToolsRoutes.js#POST:/device/tools/call:1",
-      "source_line": 51,
-      "source_offset": 1802,
+      "source_line": 71,
+      "source_offset": 2535,
       "method": "POST",
       "path": "/device/tools/call",
       "file": "http-generic-api/routes/deviceToolsRoutes.js",
@@ -4117,8 +4126,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localConnectorInstallRoutes.js#POST:/local-connector/install/device-download-link:0",
-      "source_line": 1301,
-      "source_offset": 56091,
+      "source_line": 1267,
+      "source_offset": 54633,
       "method": "POST",
       "path": "/local-connector/install/device-download-link",
       "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
@@ -4126,8 +4135,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localConnectorInstallRoutes.js#POST:/local-connector/install/download-link:1",
-      "source_line": 1394,
-      "source_offset": 60815,
+      "source_line": 1357,
+      "source_offset": 59083,
       "method": "POST",
       "path": "/local-connector/install/download-link",
       "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
@@ -4135,8 +4144,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localConnectorInstallRoutes.js#GET:/local-connector/install/download:2",
-      "source_line": 1442,
-      "source_offset": 63455,
+      "source_line": 1403,
+      "source_offset": 61531,
       "method": "GET",
       "path": "/local-connector/install/download",
       "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
@@ -4144,8 +4153,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localConnectorInstallRoutes.js#POST:/local-connector/install:3",
-      "source_line": 1488,
-      "source_offset": 66374,
+      "source_line": 1448,
+      "source_offset": 63857,
       "method": "POST",
       "path": "/local-connector/install",
       "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
@@ -4153,8 +4162,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localConnectorInstallRoutes.js#POST:/local-connector/install:4",
-      "source_line": 1500,
-      "source_offset": 67014,
+      "source_line": 1460,
+      "source_offset": 64497,
       "method": "POST",
       "path": "/local-connector/install",
       "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
@@ -4162,8 +4171,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localConnectorInstallRoutes.js#GET:/local-connector/install/status:5",
-      "source_line": 1668,
-      "source_offset": 74906,
+      "source_line": 1628,
+      "source_offset": 72339,
       "method": "GET",
       "path": "/local-connector/install/status",
       "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
@@ -4171,8 +4180,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localConnectorInstallRoutes.js#DELETE:/local-connector/uninstall:6",
-      "source_line": 1762,
-      "source_offset": 79628,
+      "source_line": 1722,
+      "source_offset": 77061,
       "method": "DELETE",
       "path": "/local-connector/uninstall",
       "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
@@ -6258,6 +6267,24 @@
       "write": false
     },
     {
+      "route_id": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js#POST:/system/tools/call:0",
+      "source_line": 286,
+      "source_offset": 11919,
+      "method": "POST",
+      "path": "/system/tools/call",
+      "file": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
+      "write": true
+    },
+    {
+      "route_id": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js#POST:/admin/system/tools/call:1",
+      "source_line": 287,
+      "source_offset": 12001,
+      "method": "POST",
+      "path": "/admin/system/tools/call",
+      "file": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
+      "write": true
+    },
+    {
       "route_id": "http-generic-api/routes/registryDataManagementRoutes.js#GET:/admin/data-tables:0",
       "source_line": 52,
       "source_offset": 2402,
@@ -7951,8 +7978,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#GET:/admin/recovery/staging/contract:0",
-      "source_line": 148,
-      "source_offset": 16509,
+      "source_line": 189,
+      "source_offset": 17252,
       "method": "GET",
       "path": "/admin/recovery/staging/contract",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -7960,8 +7987,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#GET:/admin/recovery/staging/readiness:1",
-      "source_line": 149,
-      "source_offset": 16661,
+      "source_line": 190,
+      "source_offset": 17404,
       "method": "GET",
       "path": "/admin/recovery/staging/readiness",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -7969,8 +7996,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#GET:/admin/recovery/staging/certification:2",
-      "source_line": 153,
-      "source_offset": 17303,
+      "source_line": 194,
+      "source_offset": 18046,
       "method": "GET",
       "path": "/admin/recovery/staging/certification",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -7978,8 +8005,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-ticket/verify:3",
-      "source_line": 158,
-      "source_offset": 18272,
+      "source_line": 199,
+      "source_offset": 19015,
       "method": "POST",
       "path": "/admin/recovery/staging/bootstrap-ticket/verify",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -7987,8 +8014,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-ticket/finalize:4",
-      "source_line": 172,
-      "source_offset": 20492,
+      "source_line": 213,
+      "source_offset": 21235,
       "method": "POST",
       "path": "/admin/recovery/staging/bootstrap-ticket/finalize",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -7996,8 +8023,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-partial-receipt:5",
-      "source_line": 187,
-      "source_offset": 22952,
+      "source_line": 228,
+      "source_offset": 23695,
       "method": "POST",
       "path": "/admin/recovery/staging/bootstrap-partial-receipt",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -8815,8 +8842,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/system/tools:0",
-      "source_line": 2765,
-      "source_offset": 114614,
+      "source_line": 2768,
+      "source_offset": 114844,
       "method": "GET",
       "path": "/system/tools",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8824,8 +8851,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/system/tools/catalog-observability:1",
-      "source_line": 2785,
-      "source_offset": 115256,
+      "source_line": 2788,
+      "source_offset": 115486,
       "method": "GET",
       "path": "/system/tools/catalog-observability",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8833,8 +8860,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/system/tools/:toolName:2",
-      "source_line": 2796,
-      "source_offset": 115608,
+      "source_line": 2799,
+      "source_offset": 115838,
       "method": "GET",
       "path": "/system/tools/:toolName",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8842,8 +8869,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#POST:/system/capabilities/resolve:3",
-      "source_line": 2807,
-      "source_offset": 115969,
+      "source_line": 2810,
+      "source_offset": 116199,
       "method": "POST",
       "path": "/system/capabilities/resolve",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8851,8 +8878,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#POST:/system/tools/call:4",
-      "source_line": 2818,
-      "source_offset": 116333,
+      "source_line": 2821,
+      "source_offset": 116563,
       "method": "POST",
       "path": "/system/tools/call",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8860,8 +8887,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/system/connectors:5",
-      "source_line": 2874,
-      "source_offset": 118288,
+      "source_line": 2877,
+      "source_offset": 118518,
       "method": "GET",
       "path": "/system/connectors",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8869,8 +8896,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/system/connectors/:system_id:6",
-      "source_line": 2883,
-      "source_offset": 118642,
+      "source_line": 2886,
+      "source_offset": 118872,
       "method": "GET",
       "path": "/system/connectors/:system_id",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8878,8 +8905,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/admin/system/connectors:7",
-      "source_line": 2892,
-      "source_offset": 118988,
+      "source_line": 2895,
+      "source_offset": 119218,
       "method": "GET",
       "path": "/admin/system/connectors",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8887,8 +8914,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/admin/system/connectors/:system_id:8",
-      "source_line": 2901,
-      "source_offset": 119344,
+      "source_line": 2904,
+      "source_offset": 119574,
       "method": "GET",
       "path": "/admin/system/connectors/:system_id",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8896,8 +8923,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/admin/system/tools:9",
-      "source_line": 2910,
-      "source_offset": 119692,
+      "source_line": 2913,
+      "source_offset": 119922,
       "method": "GET",
       "path": "/admin/system/tools",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8905,8 +8932,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#POST:/admin/system/tools/call:10",
-      "source_line": 2925,
-      "source_offset": 120182,
+      "source_line": 2928,
+      "source_offset": 120412,
       "method": "POST",
       "path": "/admin/system/tools/call",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8914,8 +8941,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/admin/apis-services/google-auth-platform:11",
-      "source_line": 2980,
-      "source_offset": 122130,
+      "source_line": 2983,
+      "source_offset": 122360,
       "method": "GET",
       "path": "/admin/apis-services/google-auth-platform",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8923,8 +8950,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/admin/apis-services/google-auth-platform/:tab:12",
-      "source_line": 2989,
-      "source_offset": 122459,
+      "source_line": 2992,
+      "source_offset": 122689,
       "method": "GET",
       "path": "/admin/apis-services/google-auth-platform/:tab",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8932,8 +8959,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#POST:/admin/apis-services/google-auth-platform/:tab:13",
-      "source_line": 2998,
-      "source_offset": 122823,
+      "source_line": 3001,
+      "source_offset": 123053,
       "method": "POST",
       "path": "/admin/apis-services/google-auth-platform/:tab",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8941,8 +8968,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/admin/apis-services/credentials:14",
-      "source_line": 3007,
-      "source_offset": 123193,
+      "source_line": 3010,
+      "source_offset": 123423,
       "method": "GET",
       "path": "/admin/apis-services/credentials",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8950,8 +8977,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#POST:/admin/apis-services/credentials:15",
-      "source_line": 3016,
-      "source_offset": 123541,
+      "source_line": 3019,
+      "source_offset": 123771,
       "method": "POST",
       "path": "/admin/apis-services/credentials",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -18384,17 +18411,90 @@
       "reason": "registry_mutation_requires_live_schema_and_policy_contract"
     },
     {
-      "route_id": "http-generic-api/routes/connectorAgentRoutes.js#POST:/connector-agent/heartbeat:5",
+      "route_id": "http-generic-api/routes/connectorAgentRoutes.js#POST:/connector-agent/installer/redeem:3",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "connector",
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/connectorAgentRoutes.js",
-        "source_line": 966,
+        "source_line": 1032,
         "handler_window_lines": [
-          966,
-          985
+          1032,
+          1075
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": false,
+          "db_registry_signal": false,
+          "authority_signal": true,
+          "readback_signal": true,
+          "mutation_signal": true
+        },
+        "signals": {
+          "provider": [],
+          "db_registry": [],
+          "authority": [
+            "capability",
+            "capability"
+          ],
+          "readback": [
+            "verify",
+            "select",
+            "select"
+          ],
+          "mutation": [
+            "install",
+            "install",
+            "install"
+          ]
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "low_static",
+        "basis": "handler_window_signals_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract",
+        "provider_adapter_allowlist",
+        "provider_idempotency",
+        "provider_rollback_or_compensation",
+        "device_capability_and_explicit_user_consent"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [],
+      "resource_candidate": "connector",
+      "resource_key": null,
+      "operation_key": null,
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "connector-governance",
+      "classification_confidence": "heuristic_requires_manual_confirmation",
+      "risk_class": "critical",
+      "reason": "connector_or_local_execution_requires_device_capability"
+    },
+    {
+      "route_id": "http-generic-api/routes/connectorAgentRoutes.js#POST:/connector-agent/heartbeat:6",
+      "classification": "intentionally_unmapped",
+      "mapping_status": "blocked",
+      "domain": "connector",
+      "operation_class": "create_or_request",
+      "evidence": {
+        "file": "http-generic-api/routes/connectorAgentRoutes.js",
+        "source_line": 1167,
+        "handler_window_lines": [
+          1167,
+          1186
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -22912,10 +23012,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/deviceToolsRoutes.js",
-        "source_line": 51,
+        "source_line": 71,
         "handler_window_lines": [
-          51,
-          92
+          71,
+          112
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -27594,26 +27694,26 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
-        "source_line": 1301,
+        "source_line": 1267,
         "handler_window_lines": [
-          1301,
-          1393
+          1267,
+          1356
         ],
         "evidence_flags": {
           "handler_window_present": true,
-          "provider_signal": true,
+          "provider_signal": false,
           "db_registry_signal": false,
           "authority_signal": true,
           "readback_signal": true,
           "mutation_signal": true
         },
         "signals": {
-          "provider": [
-            "shell"
-          ],
+          "provider": [],
           "db_registry": [],
           "authority": [
-            "admin"
+            "admin",
+            "authority",
+            "capability"
           ],
           "readback": [
             "select",
@@ -27669,31 +27769,33 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
-        "source_line": 1394,
+        "source_line": 1357,
         "handler_window_lines": [
-          1394,
-          1441
+          1357,
+          1402
         ],
         "evidence_flags": {
           "handler_window_present": true,
-          "provider_signal": true,
+          "provider_signal": false,
           "db_registry_signal": false,
-          "authority_signal": false,
+          "authority_signal": true,
           "readback_signal": true,
           "mutation_signal": true
         },
         "signals": {
-          "provider": [
-            "shell"
-          ],
+          "provider": [],
           "db_registry": [],
-          "authority": [],
+          "authority": [
+            "authority",
+            "capability"
+          ],
           "readback": [
             "select"
           ],
           "mutation": [
             "install",
-            "install"
+            "install",
+            "create"
           ]
         },
         "static_only": true,
@@ -27738,10 +27840,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
-        "source_line": 1488,
+        "source_line": 1448,
         "handler_window_lines": [
-          1488,
-          1499
+          1448,
+          1459
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -27806,10 +27908,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
-        "source_line": 1500,
+        "source_line": 1460,
         "handler_window_lines": [
-          1500,
-          1667
+          1460,
+          1627
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -27884,10 +27986,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
-        "source_line": 1762,
+        "source_line": 1722,
         "handler_window_lines": [
-          1762,
-          1802
+          1722,
+          1762
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -37352,6 +37454,130 @@
       "reason": "registry_mutation_requires_live_schema_and_policy_contract"
     },
     {
+      "route_id": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js#POST:/system/tools/call:0",
+      "classification": "intentionally_unmapped",
+      "mapping_status": "blocked",
+      "domain": "application_domain",
+      "operation_class": "create_or_request",
+      "evidence": {
+        "file": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
+        "source_line": 286,
+        "handler_window_lines": [
+          286,
+          286
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": false,
+          "db_registry_signal": false,
+          "authority_signal": true,
+          "readback_signal": false,
+          "mutation_signal": false
+        },
+        "signals": {
+          "provider": [],
+          "db_registry": [],
+          "authority": [
+            "admin"
+          ],
+          "readback": [],
+          "mutation": []
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "low_static",
+        "basis": "handler_window_signals_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [],
+      "resource_candidate": "application_domain",
+      "resource_key": null,
+      "operation_key": null,
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "application-domain-governance",
+      "classification_confidence": "heuristic_requires_manual_confirmation",
+      "risk_class": "high",
+      "reason": "registry_mutation_requires_live_schema_and_policy_contract"
+    },
+    {
+      "route_id": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js#POST:/admin/system/tools/call:1",
+      "classification": "intentionally_unmapped",
+      "mapping_status": "blocked",
+      "domain": "platform_control_plane",
+      "operation_class": "create_or_request",
+      "evidence": {
+        "file": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
+        "source_line": 287,
+        "handler_window_lines": [
+          287,
+          300
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": false,
+          "db_registry_signal": false,
+          "authority_signal": true,
+          "readback_signal": false,
+          "mutation_signal": true
+        },
+        "signals": {
+          "provider": [],
+          "db_registry": [],
+          "authority": [
+            "admin",
+            "admin"
+          ],
+          "readback": [],
+          "mutation": [
+            "execute"
+          ]
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "low_static",
+        "basis": "handler_window_signals_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract",
+        "live_db_registry_readback"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [],
+      "resource_candidate": "platform_control_plane",
+      "resource_key": null,
+      "operation_key": null,
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "platform-control-plane-governance",
+      "classification_confidence": "heuristic_requires_manual_confirmation",
+      "risk_class": "high",
+      "reason": "registry_mutation_requires_live_schema_and_policy_contract"
+    },
+    {
       "route_id": "http-generic-api/routes/registryDataManagementRoutes.js#POST:/admin/data-tables/:table_key/rows:3",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
@@ -44782,10 +45008,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
-        "source_line": 158,
+        "source_line": 199,
         "handler_window_lines": [
-          158,
-          170
+          199,
+          211
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -44850,10 +45076,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
-        "source_line": 172,
+        "source_line": 213,
         "handler_window_lines": [
-          172,
-          185
+          213,
+          226
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -44919,10 +45145,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
-        "source_line": 187,
+        "source_line": 228,
         "handler_window_lines": [
-          187,
-          195
+          228,
+          236
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -49168,10 +49394,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/systemLayerRoutes.js",
-        "source_line": 2807,
+        "source_line": 2810,
         "handler_window_lines": [
-          2807,
-          2816
+          2810,
+          2819
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -49228,10 +49454,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/systemLayerRoutes.js",
-        "source_line": 2818,
+        "source_line": 2821,
         "handler_window_lines": [
-          2818,
-          2872
+          2821,
+          2875
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -49298,10 +49524,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/systemLayerRoutes.js",
-        "source_line": 2925,
+        "source_line": 2928,
         "handler_window_lines": [
-          2925,
-          2978
+          2928,
+          2981
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -49370,10 +49596,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/systemLayerRoutes.js",
-        "source_line": 2998,
+        "source_line": 3001,
         "handler_window_lines": [
-          2998,
-          3005
+          3001,
+          3008
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -49430,10 +49656,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/systemLayerRoutes.js",
-        "source_line": 3016,
+        "source_line": 3019,
         "handler_window_lines": [
-          3016,
-          3038
+          3019,
+          3041
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -53241,18 +53467,18 @@
   ],
   "evidence_graph": {
     "node_counts": {
-      "routes": 667,
+      "routes": 670,
       "domains": 11,
-      "handler_files": 133
+      "handler_files": 134
     },
     "edge_counts": {
-      "route_to_handler_file": 667,
-      "route_to_domain": 667,
-      "route_to_provider_signal": 99,
+      "route_to_handler_file": 670,
+      "route_to_domain": 670,
+      "route_to_provider_signal": 97,
       "route_to_db_registry_signal": 0,
-      "route_to_authority_signal": 419,
-      "route_to_readback_signal": 376,
-      "route_to_mutation_signal": 383,
+      "route_to_authority_signal": 423,
+      "route_to_readback_signal": 377,
+      "route_to_mutation_signal": 385,
       "route_to_explicit_scope_candidate": 42
     },
     "execution_edges_are_non_authorizing": true,
@@ -59695,8 +59921,8 @@
     {
       "severity": "high",
       "code": "INTENTIONALLY_UNMAPPED_WRITE_ROUTES_BLOCKED",
-      "count": 625,
-      "sensitive_count": 625
+      "count": 628,
+      "sensitive_count": 628
     },
     {
       "severity": "medium",

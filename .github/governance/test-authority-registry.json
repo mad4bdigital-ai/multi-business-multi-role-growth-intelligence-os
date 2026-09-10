@@ -94,6 +94,13 @@
       ]
     },
     {
+      "id": "governed_execution_x0_evidence_baseline",
+      "test_paths": [
+        "http-generic-api/test-governed-execution-baseline-benchmark.mjs",
+        "http-generic-api/test-governed-execution-baseline-telemetry.mjs"
+      ]
+    },
+    {
       "id": "hostinger_runtime_bootstrap_contract",
       "test_paths": [
         "http-generic-api/test-runtime-bootstrap-contract.mjs",
@@ -155,6 +162,13 @@
       ]
     },
     {
+      "id": "hostinger_storage_durable_authorized_injection_schema_ddl",
+      "test_paths": [
+        "http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl.mjs",
+        "http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs"
+      ]
+    },
+    {
       "id": "hostinger_storage_work_map_gate_scope",
       "test_paths": [
         "http-generic-api/test-hostinger-storage-work-map-gate-scope.mjs",
@@ -164,9 +178,20 @@
     {
       "id": "local_connector_environment_and_transport_isolation",
       "test_paths": [
+        "http-generic-api/test-local-connector-convergence-inspector.mjs",
+        "http-generic-api/test-db-driven-connector-capability-policy.mjs",
         "http-generic-api/test-local-connector-durable-self-healing.mjs",
+        "http-generic-api/test-local-connector-installer-capability.mjs",
+        "http-generic-api/test-connector-agent-installer-permission-grants.mjs",
+        "http-generic-api/test-local-connector-capability-installer-grants.mjs",
+        "http-generic-api/test-connector-local-api-key-registry.mjs",
         "http-generic-api/test-windows-staging-bootstrap-supervisor.mjs",
         "http-generic-api/test-local-manager-tool-release-owner.mjs",
+        "http-generic-api/test-connect-routes.mjs",
+        "http-generic-api/test-local-manager-cloudflare-origin-classification.mjs",
+        "http-generic-api/test-local-manager-signed-installer-coordinator.mjs",
+        "http-generic-api/test-local-manager-signed-installer-exit-code.mjs",
+        "local-connector/Get-LocalConnectorConvergence.ps1",
         "local-connector/connector-watchdog.ps1",
         "http-generic-api/routes/connectorAgentRoutes.js",
         "http-generic-api/routes/connectorProxyRoutes.js"
@@ -225,7 +250,10 @@
       "id": "production_promotion_runtime",
       "test_paths": [
         ".github/tests/production-promotion-runtime.test.mjs",
-        ".github/workflows/governed-production-promotion-request-launcher.yml"
+        "http-generic-api/test-production-promotion-candidate-workflow.mjs",
+        "http-generic-api/test-production-promotion-convergence-workflows.mjs",
+        ".github/workflows/governed-production-promotion-request-launcher.yml",
+        ".github/tests/production-promotion-review-mode.test.mjs"
       ]
     },
     {
@@ -248,6 +276,7 @@
         "http-generic-api/test-production-recovery-composition-factory.mjs",
         "http-generic-api/test-server-managed-recovery-binding.mjs",
         "http-generic-api/test-staging-recovery-authority-binding.mjs",
+        "http-generic-api/test-staging-pr-head-recovery-readiness.mjs",
         "http-generic-api/test-staging-access-repair-ticket-authority.mjs",
         "http-generic-api/test-staging-bootstrap-readback-attestation.mjs",
         "http-generic-api/test-recovery-activation-readiness.mjs",
@@ -257,7 +286,14 @@
         "http-generic-api/test-staging-recovery-certification-public-trust.mjs",
         "http-generic-api/test-staging-recovery-certification-signing-authority.mjs",
         "http-generic-api/test-staging-recovery-phase-b-concurrency.mjs",
+        "http-generic-api/test-device-tools-diagnostics.mjs",
+        "http-generic-api/test-github-app-installation-discovery.mjs",
+        "http-generic-api/test-staging-recovery-certification-script-surface.mjs",
+        "http-generic-api/test-staging-recovery-phase-b-approval-single-issuance.mjs",
+        "http-generic-api/test-staging-trusted-ingress-diagnostics.mjs",
         "http-generic-api/test-recovery-action-bridge-system-layer.mjs",
+        "http-generic-api/test-recovery-system-tool-overlay.mjs",
+        "http-generic-api/test-staging-recovery-system-tools.mjs",
         "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
         "http-generic-api/scripts/validate-staging-recovery-admin-openapi.mjs",
         "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
@@ -337,6 +373,7 @@
       "id": "repository_governance_closure",
       "test_paths": [
         ".github/tests/repository-governance-closure.test.mjs",
+        ".github/tests/repository-governance-objection-gate.test.mjs",
         "scripts/repository-governance-closure.mjs",
         "http-generic-api/test-consolidated-governance-runtime-contracts.mjs"
       ]
@@ -405,6 +442,7 @@
     {
       "id": "staging_autopilot_git_transport_resilience",
       "test_paths": [
+        "http-generic-api/test-staging-post-build-image-discovery.mjs",
         "http-generic-api/test-staging-autopilot-closure.mjs",
         "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
         "http-generic-api/test-staging-one-click-autopilot-core.mjs",
@@ -412,13 +450,15 @@
         "http-generic-api/test-staging-schema-governance-powershell-revision-contract.mjs",
         "http-generic-api/test-staging-auto-deploy-contract.mjs",
         "http-generic-api/test-staging-cloudflared-log-release.mjs",
-        "autopilot-portable-staging/Staging-GitTransport.ps1"
+        "autopilot-portable-staging/Staging-GitTransport.ps1",
+        "autopilot-portable-staging/Start-AutoPilot.ps1"
       ]
     },
     {
       "id": "staging_database_readiness_repair",
       "test_paths": [
         "http-generic-api/test-staging-database-readiness-repair.mjs",
+        "http-generic-api/test-staging-execution-policies-grant.mjs",
         "http-generic-api/test-runtime-persistence-operational-readiness.mjs",
         "autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1",
         "http-generic-api/databasePrivilegeContracts.js",

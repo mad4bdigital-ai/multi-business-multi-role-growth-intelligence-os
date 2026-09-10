@@ -60,6 +60,8 @@ import {
   heartbeatExceptionLease,
   revokeExceptionLifecycle,
 } from "./recoveryExceptionLifecycle.js";
+import { readCanonicalStagingGrantBinding } from "./stagingGrantBinding.js";
+import { readCanonicalProductionGrantBinding } from "./productionGrantBinding.js";
 
 export { assertTrustForMutation, deriveRoleTargetFingerprints, getRecoveryTrustModel, readRuntimeAttestation, readRecoveryManifest, activateExceptionLifecycle, approveExceptionLifecycle, buildDisasterRecoveryPreview, consumeExceptionLifecycle, createExceptionLifecycle, createExceptionLifecycleRecord, expireExceptionLifecycle, heartbeatExceptionLease, revokeExceptionLifecycle };
 
@@ -749,7 +751,7 @@ function roleBundleBindingFromFinding(finding, targetRole) {
   return validation.binding;
 }
 
-function planSteps(findings, targetFingerprints = {}, roleSelectionProof = null) {
+function planSteps(findings, targetFingerprints = {}, roleSelectionProof = null, grantBinding = null) {
   return findings.map((finding, index) => {
     const classified = classifyFinding(finding);
     const roleBundleBinding = classified.mutation_class === "C5" ? roleBundleBindingFromFinding(finding, classified.target_role) : null;
@@ -763,6 +765,7 @@ function planSteps(findings, targetFingerprints = {}, roleSelectionProof = null)
       ownership_domain: classified.ownership_domain || classified.target_role,
       database_target_role: classified.database_target_role || classified.target_role,
       migration_target_binding: classified.migration_target_binding || null,
+      grant_binding_hash: classified.operation === "apply_grants" ? grantBinding?.grant_binding_hash || null : null,
       target_fingerprint: targetFingerprints[classified.database_target_role || classified.target_role] || targetFingerprints.composite || null,
       role_object_count_fingerprint: text(finding.observed_state?.actual?.object_count_fingerprint, 128) || (finding.observed_state?.actual?.object_counts ? stableHash(finding.observed_state.actual.object_counts) : null),
       role_object_classification: text(finding.observed_state?.actual?.classification, 80) || null,
@@ -832,8 +835,14 @@ export async function createRemediationPlan(input = {}, { recoveryStore, env = p
   if (recoveryStore && typeof recoveryStore.getPlan === "function") existing = await recoveryStore.getPlan(planId);
   if (!existing) existing = PLANS.get(planId);
   if (existing) return sanitizeEvidence(existing);
+  const productionGrantBinding = findings.some((finding) => classifyFinding(finding).operation === "apply_grants")
+    ? readCanonicalProductionGrantBinding(env)
+    : null;
+  if (productionGrantBinding && productionGrantBinding.target_key !== targetKey) {
+    throw kernelError(409, "RECOVERY_GRANT_BINDING_TARGET_MISMATCH", "The server-derived Production grant binding does not match the exact Recovery target.");
+  }
   const steps = [
-    ...planSteps(findings, targetFingerprints, roleSelectionProof),
+    ...planSteps(findings, targetFingerprints, roleSelectionProof, productionGrantBinding),
     ...(temporaryReference ? [{
       ordinal: findings.length + 1,
       finding_id: null,
@@ -887,6 +896,7 @@ export async function createRemediationPlan(input = {}, { recoveryStore, env = p
     },
     role_selection_proof: roleSelectionProof,
     role_selection_hash: roleSelectionProof?.selection_hash || null,
+    grant_binding_hash: productionGrantBinding?.grant_binding_hash || null,
       unsupported_capability: temporaryReference ? { capability_id: temporaryReference.capability_id, capability_hash: ephemeralDigest, incident_id: temporaryReference.incident_id, transport: temporaryReference.transport, capability_type: temporaryReference.capability_type, target_role: temporaryReference.target_role, scope_ref: temporaryReference.scope_ref, expires_at: temporaryReference.expires_at, single_use: true, content_received: false } : null,
     execution_lifecycle_contract: EXECUTION_LIFECYCLE_CONTRACT,
     approval_binding_contract: "mad4b.recovery-single-step-approval-binding.v1",
@@ -1206,6 +1216,18 @@ export async function executeRemediationStep(input = {}, { env = process.env, ad
   const plan = await ensurePlan(planId, text(input.plan_hash, 128) || null, { recoveryStore });
   const stepId = requireId(input.step_id, STEP_ID_RE, "step_id", "RECOVERY_STEP_ID_INVALID");
   const step = ensureStep(plan, stepId);
+  const stagingAccessRepair = plan.environment === "staging"
+    && plan.branch === "main"
+    && plan.target_key === "staging-runtime"
+    && step.capability_key === "staging_database_access_repair"
+    && step.operation === "grants"
+    && step.target_role === "composite";
+  const productionAccessRepair = plan.environment === "production"
+    && plan.branch === RECOVERY_KERNEL_PRODUCTION_BRANCH
+    && plan.target_key === RECOVERY_KERNEL_TARGET_KEY
+    && step.capability_key === "governance.grant.repair"
+    && step.operation === "apply_grants"
+    && step.target_role === "governance";
   if (!step.consequential) throw kernelError(409, "RECOVERY_STEP_NOT_CONSEQUENTIAL", "Read-only or fail-closed steps cannot be executed as mutations.");
   const idempotencyKey = text(input.idempotency_key, 160);
   if (!idempotencyKey) throw kernelError(400, "RECOVERY_IDEMPOTENCY_KEY_REQUIRED", "A caller-supplied idempotency_key is required for every consequential recovery step.");
@@ -1230,7 +1252,7 @@ export async function executeRemediationStep(input = {}, { env = process.env, ad
   let approvalResult;
   try {
     approvalResult = await verifyAndBuildApprovalBinding(plan, step, approvalToken, { approvalVerifier, approvalStore, recoveryStore });
-    if (plan.proof?.unknown_drift === true || plan.proof?.preconditions_satisfied !== true || plan.proof?.role_selection_provenance_bound !== true) throw kernelError(409, "RECOVERY_UNKNOWN_DRIFT", "The proof-carrying plan contains unknown drift, unverified provenance, or unsatisfied preconditions; mutation is denied.");
+    if (!stagingAccessRepair && (plan.proof?.unknown_drift === true || plan.proof?.preconditions_satisfied !== true || plan.proof?.role_selection_provenance_bound !== true)) throw kernelError(409, "RECOVERY_UNKNOWN_DRIFT", "The proof-carrying plan contains unknown drift, unverified provenance, or unsatisfied preconditions; mutation is denied.");
     if (String(env.RECOVERY_MUTATIONS_ENABLED || "").trim().toLowerCase() !== "true") throw kernelError(423, "RECOVERY_MUTATIONS_DISABLED", "Recovery mutations are disabled by the server kill-switch.");
     const targetBinding = step.operation === "apply_migration" ? resolveRuntimeMigrationTargetBinding({ migration: step.authority_ref, ownershipDomain: step.ownership_domain, databaseTargetRole: step.database_target_role || step.target_role }) : { ok: true };
     if (!targetBinding.ok) throw kernelError(409, "RECOVERY_MIGRATION_TARGET_BINDING_INVALID", "The migration ownership domain and database target role are not canonically bound.", { problems: targetBinding.problems });
@@ -1239,7 +1261,15 @@ export async function executeRemediationStep(input = {}, { env = process.env, ad
       && plan.target_key === "staging-recovery-certification"
       && step.capability_key === "staging.certification.canary"
       && step.operation === "staging.certification.canary";
-    if (stagingCertificationCanary) {
+    if (stagingAccessRepair) {
+      const canonicalGrantBinding = readCanonicalStagingGrantBinding();
+      if (!isStagingEnvironment(env) || adminPrincipal?.verified !== true) throw kernelError(403, "RECOVERY_STAGING_ACCESS_REPAIR_PRINCIPAL_DENIED", "Staging access repair requires the authenticated server-managed admin principal.");
+      if (plan.grant_binding_hash !== canonicalGrantBinding.grant_binding_hash || step.grant_binding_hash !== canonicalGrantBinding.grant_binding_hash) throw kernelError(409, "RECOVERY_GRANT_BINDING_MISMATCH", "The Staging access-repair plan is not bound to the canonical repository grant contract.");
+    } else if (productionAccessRepair) {
+      const canonicalGrantBinding = readCanonicalProductionGrantBinding(env);
+      if (plan.grant_binding_hash !== canonicalGrantBinding.grant_binding_hash || step.grant_binding_hash !== canonicalGrantBinding.grant_binding_hash) throw kernelError(409, "RECOVERY_GRANT_BINDING_MISMATCH", "The Production access-repair plan is not bound to the server-derived bootstrap grant contract.");
+      assertTrustForMutation({ expectedSha: plan.expected_sha, env, targetFingerprint: step.target_fingerprint || plan.target_fingerprint, targetRole: step.target_role, adminPrincipal });
+    } else if (stagingCertificationCanary) {
       if (!isStagingEnvironment(env) || adminPrincipal?.verified !== true) {
         throw kernelError(403, "RECOVERY_STAGING_CANARY_PRINCIPAL_DENIED", "The Staging canary requires the authenticated server-managed admin principal.");
       }
@@ -1270,6 +1300,7 @@ export async function executeRemediationStep(input = {}, { env = process.env, ad
     deployment_attestation_hash: plan.runtime_attestation_hash || null,
     target_fingerprints: plan.target_fingerprints || { composite: plan.target_fingerprint },
     selected_roles: plan.role_selection_proof?.selected_roles || ["composite"],
+    grant_binding_hash: step.grant_binding_hash || plan.grant_binding_hash || null,
   };
   try {
     await verifyExecutionTicket(executionTicket, { verifier: recoveryStore.executionTicketVerifier, expected: executionTicketExpected });
@@ -1347,6 +1378,7 @@ export async function executeRemediationStep(input = {}, { env = process.env, ad
       role_selection_proof_hash: plan.role_selection_hash || null,
       deployment_attestation_hash: deploymentAttestation.attestation_hash,
       role_bundle_binding: step.role_bundle_binding || null,
+      grant_binding_hash: step.grant_binding_hash || plan.grant_binding_hash || null,
     };
     try {
       if (step.capability_key === "unsupported_capability_execute") {
@@ -1399,6 +1431,19 @@ export async function executeRemediationStep(input = {}, { env = process.env, ad
         same_cycle: true,
         independent_authority: true,
         role_aware: true,
+        ...(stagingAccessRepair ? { required_postconditions: {
+          contract: "mad4b.staging-access-repair-postconditions.v1",
+          runtime_app: { table: "growth_runtime.execution_policies", allowed: ["SELECT"], denied: ["INSERT", "UPDATE", "DELETE", "GRANT OPTION"] },
+          follow_up_probes: ["repo_inspect", "governed_migration_schema_readback"],
+          denied_error_absent: "ER_TABLEACCESS_DENIED_ERROR",
+        } } : productionAccessRepair ? { required_postconditions: {
+          contract: "mad4b.production-access-repair-postconditions.v1",
+          grant_binding_hash: plan.grant_binding_hash,
+          target_role: "governance",
+          exact_repository_grant_contract: true,
+          grant_option_denied: true,
+          follow_up_probes: ["repo_inspect", "governed_migration_schema_readback"],
+        } } : {}),
       });
     } catch (error) {
       run.evidence.execution_outcome = "acknowledged_unverified";
@@ -1410,7 +1455,24 @@ export async function executeRemediationStep(input = {}, { env = process.env, ad
       throw kernelError(502, "RECOVERY_READBACK_UNAVAILABLE", "The provider acknowledged the operation but same-cycle readback was unavailable; reconciliation is required and replay is forbidden.", { run_id: run.run_id });
     }
     run.evidence.verification = sanitizeEvidence(verification);
-    const verificationPassed = verification?.postconditions_passed === true && verification?.behavioral_probe_passed !== false;
+    const accessRepairPostconditionsPassed = !stagingAccessRepair || (
+      verification?.access_repair?.runtime_app_select_execution_policies === true
+      && verification?.access_repair?.runtime_app_insert_execution_policies === false
+      && verification?.access_repair?.runtime_app_update_execution_policies === false
+      && verification?.access_repair?.runtime_app_delete_execution_policies === false
+      && verification?.access_repair?.runtime_app_grant_option === false
+      && verification?.access_repair?.repo_inspect_passed === true
+      && verification?.access_repair?.governed_migration_schema_readback_passed === true
+      && verification?.access_repair?.table_access_denied_error_absent === true
+    );
+    const productionAccessRepairPostconditionsPassed = !productionAccessRepair || (
+      verification?.access_repair?.grant_binding_hash === plan.grant_binding_hash
+      && verification?.access_repair?.exact_repository_grant_contract === true
+      && verification?.access_repair?.grant_option === false
+      && verification?.access_repair?.repo_inspect_passed === true
+      && verification?.access_repair?.governed_migration_schema_readback_passed === true
+    );
+    const verificationPassed = verification?.postconditions_passed === true && verification?.behavioral_probe_passed !== false && accessRepairPostconditionsPassed && productionAccessRepairPostconditionsPassed;
     run.evidence.verification_state = verificationPassed ? "verified" : "failed";
     run.evidence.execution_outcome = verificationPassed ? "verified" : "acknowledged_unverified";
     run.evidence.reconciliation_required = !verificationPassed;

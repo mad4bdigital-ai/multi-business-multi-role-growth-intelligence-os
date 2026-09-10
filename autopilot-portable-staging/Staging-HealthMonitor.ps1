@@ -23,6 +23,24 @@ $runtimeStatePath = Join-Path $PSScriptRoot "autopilot-state.json"
 $script:HealthStatePath = Join-Path (Get-StagingLogRoot) "health-monitor-state.json"
 $deploymentLeasePath = Join-Path (Get-StagingLogRoot) "deployment-lease.json"
 
+function Get-StagingComposeArgs([string]$ApiPath, [string]$EnvPath, [string]$Mode) {
+    $arguments = @(
+        "compose",
+        "-f", (Join-Path $ApiPath "docker-compose.yml"),
+        "-f", (Join-Path $ApiPath "docker-compose.staging.yml")
+    )
+    $override = switch ($Mode) {
+        "windows_service" { Join-Path $ApiPath "docker-compose.staging.windows-service.yml" }
+        "docker_sidecar" { Join-Path $ApiPath "docker-compose.staging.docker-sidecar.yml" }
+        default { $null }
+    }
+    if ($null -ne $override) {
+        if (-not (Test-Path -LiteralPath $override -PathType Leaf)) { throw "Required Staging Compose topology override is missing: $override" }
+        $arguments += @("-f", $override)
+    }
+    return @($arguments + @("--env-file", $EnvPath))
+}
+
 function Acquire-HealthMonitorLock {
     try {
         $script:HealthMonitorMutex = New-Object System.Threading.Mutex($false, "Global\Mad4bStagingHealthMonitor")
@@ -366,7 +384,9 @@ function Invoke-HealthCheck {
             if ($gatewayOk -ne $true) { throw "Activation Gateway health is not ready" }
             if ($gatewayStale -eq $true -or [string]$gatewayCode -eq "GATEWAY_POLICY_STALE") { throw "GATEWAY_POLICY_STALE: Activation Gateway policy is stale" }
         }
-        $compose = @("compose", "-f", $composeBase, "-f", $composeStage, "--env-file", $envFile)
+        $runtimeTunnelMode = [string](Get-ObjectProperty $runtimeState "tunnel_mode")
+        if ($runtimeTunnelMode -notin @("disabled", "windows_service", "docker_sidecar")) { $runtimeTunnelMode = "disabled" }
+        $compose = @(Get-StagingComposeArgs $apiPath $envFile $runtimeTunnelMode)
         & docker @compose config --quiet 2>$null
         if ($LASTEXITCODE -ne 0) { throw "Staging Compose model is invalid" }
         foreach ($service in $required) {

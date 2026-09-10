@@ -1,0 +1,160 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-recovery-system-surface-closure-20260907",
+  "title": "Staging Recovery System Tool surface closure",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-recovery-system-surface-closure-20260907.json",
+      ".github/derived-state-governance.json",
+      ".github/governance/test-authority-registry.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/stagingAccessRepairTicketAuthority.js",
+      "http-generic-api/stagingRecoverySystemTools.js",
+      "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
+      "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
+      "http-generic-api/test-staging-recovery-system-tools.mjs",
+      "http-generic-api/test-recovery-system-tool-overlay.mjs",
+      "http-generic-api/test-local-connector-convergence-inspector.mjs",
+      "http-generic-api/test-staging-post-build-image-discovery.mjs",
+      "http-generic-api/test-staging-auto-deploy-contract.mjs",
+      "http-generic-api/scripts/generate-portable-staging-manifest.mjs",
+      "autopilot-portable-staging/manifest.json",
+      "autopilot-portable-staging/Start-AutoPilot.ps1",
+      "autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1",
+      "local-connector/Get-LocalConnectorConvergence.ps1",
+      "local-connector/connector-watchdog.ps1"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Expose the already-governed Staging Recovery canary planning and access-repair authorities through bounded Admin System Tools, close Recovery Action bridge v2 schema/handler parity in composed runtime, add read-only Local Connector convergence evidence, prevent category-invalid tunnel restart loops, and keep Production free of Staging-only tool advertisement or mutation authority.",
+      "e2e_journeys": [
+        {
+          "id": "staging-recovery-governed-system-tool-surface",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Platform Admin",
+          "entrypoint": "Discover or call the fixed Admin System Tool surface through the composed runtime.",
+          "terminal_outcome": "Staging advertises bounded Recovery planning/approval tools backed by existing server-managed authorities; Production does not advertise those tools; Recovery execution bridge accepts the v2 server-managed confirmation contract and never exposes caller-controlled execution tickets, SQL, commands, credentials, or Production authority.",
+          "steps": [
+            "Synchronize the Recovery Action bridge descriptor to its existing v2 implementation contract before System Layer requests are served.",
+            "Advertise the Staging Recovery canary-plan, access-repair prepare/approve, and readiness tools only when the runtime is Staging.",
+            "Create canary plans through the durable Staging Recovery store without executing the canary or mutating target databases/providers.",
+            "Create access-repair plans/challenges and issue server-signed single-use tickets through the existing Staging access-repair authority without accepting caller SQL, commands, target selection, credentials, signatures, or tickets.",
+            "Project Staging capability reporting as a bounded control-plane surface while preserving the kernel's discovery-only subview.",
+            "Keep Production Recovery behavior available through the same v2 bridge while Staging-only descriptors remain absent from Production discovery.",
+            "Inspect the Windows listener owner, runtime roots, services, tasks, identity presence, DNS state, and Staging/Local tunnel isolation without reading credential values or mutating the host.",
+            "Classify DNS, identity, route, and Cloudflare edge failures independently; restart the Local Connector tunnel only for the bounded Cloudflare 1033 edge class.",
+            "Resolve the freshly built app through the effective Compose services.app.image reference before compose-up, convert it to an immutable image ID, and submit it to the unchanged exact-provenance validator."
+          ],
+          "assertions": [
+            "Staging Recovery System Tool descriptors are Admin-only, fixed-schema, private-recovery tools and are not advertised outside Staging.",
+            "The certification canary plan operation may write durable Recovery control-plane state but performs no target-database, provider, DNS, deployment, or Production mutation.",
+            "Access-repair System Tools delegate to createStagingAccessRepairTicketAuthority and do not reimplement grant, approval, signing, or execution-ticket authority.",
+            "Access-repair plans are bound to the server-observed repository-owned Recovery Manifest hash and fail closed when the deployment attestation does not prove that manifest binding.",
+            "Recovery Action bridge v2 accepts approval_id, expected_sha, typed_confirmation, and idempotency while keeping execution ticket identifiers/hashes/signatures server-controlled.",
+            "Production mutation is not enabled by this change and Production never receives Staging target authority.",
+            "Live Staging certification is required after merge because runtime routing and Recovery System Tool composition change.",
+            "The convergence inspector reports duplicate owners, runtime-root drift, missing identity, and cross-runtime binding while performing no restart, install, credential-value read, provider call, DNS write, or database mutation.",
+            "DNS resolution failures and HTTP 401/403 identity failures never trigger a cloudflared restart; only the classified Cloudflare 1033 edge failure may do so.",
+            "Post-build image discovery works before a new app container exists, treats a garbage-collected stale container image as a normal cache miss, and never accepts a tag directly: contract, commit, tree, context-file-set hash, secrets=false, and immutable sha256 ID remain mandatory."
+          ],
+          "tests": [
+            {
+              "id": "staging-recovery-system-tools-contract",
+              "runner": "node",
+              "path": "http-generic-api/test-staging-recovery-system-tools.mjs"
+            },
+            {
+              "id": "recovery-system-tool-overlay",
+              "runner": "node",
+              "path": "http-generic-api/test-recovery-system-tool-overlay.mjs"
+            },
+            {
+              "id": "staging-access-repair-ticket-authority",
+              "runner": "node",
+              "path": "http-generic-api/test-staging-access-repair-ticket-authority.mjs"
+            },
+            {
+              "id": "recovery-action-bridge",
+              "runner": "node",
+              "path": "http-generic-api/test-recovery-action-bridge.mjs"
+            },
+            {
+              "id": "local-connector-convergence-inspector",
+              "runner": "node",
+              "path": "http-generic-api/test-local-connector-convergence-inspector.mjs"
+            },
+            {
+              "id": "staging-post-build-image-discovery",
+              "runner": "node",
+              "path": "http-generic-api/test-staging-post-build-image-discovery.mjs"
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-recovery-system-surface-closure-20260907.json",
+            "http-generic-api/stagingAccessRepairTicketAuthority.js",
+            "http-generic-api/stagingRecoverySystemTools.js",
+            "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
+            "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
+            "local-connector/Get-LocalConnectorConvergence.ps1",
+            "local-connector/connector-watchdog.ps1",
+            "autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1",
+            "autopilot-portable-staging/Start-AutoPilot.ps1"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "staging-recovery-system-tools-contract",
+          "runner": "node",
+          "path": "http-generic-api/test-staging-recovery-system-tools.mjs"
+        },
+        {
+          "id": "recovery-system-tool-overlay",
+          "runner": "node",
+          "path": "http-generic-api/test-recovery-system-tool-overlay.mjs"
+        },
+        {
+          "id": "staging-access-repair-ticket-authority",
+          "runner": "node",
+          "path": "http-generic-api/test-staging-access-repair-ticket-authority.mjs"
+        },
+        {
+          "id": "recovery-action-bridge",
+          "runner": "node",
+          "path": "http-generic-api/test-recovery-action-bridge.mjs"
+        },
+        {
+          "id": "local-connector-convergence-inspector",
+          "runner": "node",
+          "path": "http-generic-api/test-local-connector-convergence-inspector.mjs"
+        },
+        {
+          "id": "staging-post-build-image-discovery",
+          "runner": "node",
+          "path": "http-generic-api/test-staging-post-build-image-discovery.mjs"
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

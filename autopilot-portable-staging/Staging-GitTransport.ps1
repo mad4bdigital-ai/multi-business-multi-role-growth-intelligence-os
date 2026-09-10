@@ -73,9 +73,19 @@ function Invoke-StagingGitProcess([string[]]$TransportArguments) {
         throw "STAGING_GIT_PROCESS_UNAVAILABLE: git application path could not be resolved"
     }
 
+    $currentLocation = Get-Location
+    if ($null -eq $currentLocation -or
+        $null -eq $currentLocation.Provider -or
+        [string]$currentLocation.Provider.Name -ne "FileSystem" -or
+        [string]::IsNullOrWhiteSpace([string]$currentLocation.Path)) {
+        throw "STAGING_GIT_WORKING_DIRECTORY_INVALID: current location must be a filesystem path"
+    }
+    $workingDirectory = [IO.Path]::GetFullPath([string]$currentLocation.Path)
+
     $startInfo = New-Object System.Diagnostics.ProcessStartInfo
     $startInfo.FileName = [string]$gitCommand.Source
     $startInfo.Arguments = Join-StagingProcessArguments $TransportArguments
+    $startInfo.WorkingDirectory = $workingDirectory
     $startInfo.UseShellExecute = $false
     $startInfo.RedirectStandardOutput = $true
     $startInfo.RedirectStandardError = $true
@@ -180,6 +190,7 @@ function Test-StagingGitTransportContract {
         native_capture = "system_diagnostics_process_exitcode"
         process_shell_execute = $false
         process_stdout_stderr_redirected = $true
+        process_working_directory = "current_filesystem_location"
         ls_remote_nonzero_ref_policy = "bounded_retry_never_accept_nonzero"
         retryable_errors = "connection reset,empty reply,recv failure,early eof,unexpected disconnect,timeout,remote hung up,resolve host,failed to connect,connection closed"
     }

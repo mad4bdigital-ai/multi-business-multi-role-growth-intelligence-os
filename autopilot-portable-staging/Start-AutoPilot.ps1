@@ -43,9 +43,64 @@ trap {
     exit 1
 }
 
-function Fail([string]$Message) {
-    Write-StagingLog -Level error -Component $LogComponent -Stage "fail_closed" -Message $Message
+function Fail([string]$Message, [hashtable]$Data = @{}) {
+    Write-StagingLog -Level error -Component $LogComponent -Stage "fail_closed" -Message $Message -Data $Data
     throw "AUTO_PILOT_FAIL_CLOSED: $Message"
+}
+
+function Get-StagingComposeArgs([string]$ApiPath, [string]$EnvPath, [string]$Mode) {
+    $arguments = @(
+        "compose",
+        "-f", (Join-Path $ApiPath "docker-compose.yml"),
+        "-f", (Join-Path $ApiPath "docker-compose.staging.yml")
+    )
+    $override = switch ($Mode) {
+        "windows_service" { Join-Path $ApiPath "docker-compose.staging.windows-service.yml" }
+        "docker_sidecar" { Join-Path $ApiPath "docker-compose.staging.docker-sidecar.yml" }
+        default { $null }
+    }
+    if ($null -ne $override) {
+        if (-not (Test-Path -LiteralPath $override -PathType Leaf)) { Fail "Required Staging Compose topology override is missing: $override" }
+        $arguments += @("-f", $override)
+    }
+    return @($arguments + @("--env-file", $EnvPath))
+}
+
+function Assert-WindowsHostOriginReachable([string[]]$ComposeArgs, [string]$Mode) {
+    if ($Mode -ne "windows_service") { return }
+    $origin = "http://127.0.0.1:8080/health"
+    $published = (& docker @($ComposeArgs + @("port", "app", "8080")) 2>$null | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or $published -notmatch '^(?:127\.0\.0\.1|localhost):8080$') {
+        Fail "Windows Staging host origin binding is missing from the effective Compose topology" @{ failure_class = "staging_origin_unreachable"; tunnel_mode = $Mode; origin = $origin; reason = "host_binding_missing"; observed_binding = $published }
+    }
+    try {
+        Add-Type -AssemblyName System.Net.Http -ErrorAction Stop
+    } catch {
+        Fail "Windows Staging host origin probe runtime is unavailable" @{ failure_class = "origin_probe_runtime_error"; tunnel_mode = $Mode; origin = $origin; reason = "http_client_runtime_unavailable"; error = $_.Exception.Message }
+    }
+    $lastError = ""
+    for ($attempt = 1; $attempt -le 5; $attempt++) {
+        $client = $null
+        try {
+            $client = New-Object System.Net.Http.HttpClient
+            $client.Timeout = [TimeSpan]::FromSeconds(10)
+            $response = $client.GetAsync($origin).GetAwaiter().GetResult()
+            if ($response.IsSuccessStatusCode) {
+                Write-StagingOperationBoundary -Component $LogComponent -Stage "host-origin" -Outcome "success" -Message "Windows host can reach the loopback-only Staging origin" -Data @{ tunnel_mode = $Mode; origin = $origin; http_status = [int]$response.StatusCode; attempt = $attempt }
+                $response.Dispose()
+                $client.Dispose()
+                return
+            }
+            $lastError = "http_status_$([int]$response.StatusCode)"
+            $response.Dispose()
+            $client.Dispose()
+        } catch {
+            if ($null -ne $client) { $client.Dispose() }
+            $lastError = $_.Exception.Message
+        }
+        if ($attempt -lt 5) { Start-Sleep -Seconds 2 }
+    }
+    Fail "Windows Staging host cannot reach the loopback-only app origin" @{ failure_class = "staging_origin_unreachable"; tunnel_mode = $Mode; origin = $origin; reason = "host_health_unreachable"; error = $lastError }
 }
 
 function Invoke-Native([string]$File, [string[]]$Arguments, [switch]$AllowFailure) {
@@ -201,7 +256,7 @@ function Invoke-SelfUpdate {
         Repair-ManifestLineEndings $RepositoryPath
         $dirty = @(git status --porcelain --untracked-files=all)
         if ($dirty.Count -gt 0) { Fail "Working tree is not clean; refusing bootstrap checkout before Auto Pilot self-update" }
-        Invoke-Native "git" @("fetch", "origin", $Ref, "--depth=1")
+        Invoke-Native "git" @("fetch", "origin", $Ref, "--depth=2")
         $remoteCommit = Get-NativeText "git" @("rev-parse", "origin/$Ref")
         if ($remoteCommit.ToLowerInvariant() -ne $targetCommit) { Fail "Self-update pinned commit mismatch: origin/$Ref resolved to $remoteCommit, expected $ExpectedCommit" }
         $currentCommit = Get-NativeText "git" @("rev-parse", "HEAD")
@@ -236,7 +291,10 @@ function Invoke-SelfUpdate {
     if ($SkipBuild) { $childArgs += "-SkipBuild" }
     & powershell.exe @childArgs
     $exitCode = $LASTEXITCODE
-    if ($exitCode -ne 0) { Fail "Reloaded Start-AutoPilot.ps1 exited with code $exitCode" }
+    if ($exitCode -ne 0) {
+        Write-StagingLog -Level warning -Component $LogComponent -Stage "bootstrap-child-failure" -Message "Reloaded Auto Pilot failed; preserving the child process root failure" -Data @{ parent_error = "RELOADED_AUTO_PILOT_FAILED"; expected_commit = $ExpectedCommit; child_exit_code = $exitCode }
+        exit $exitCode
+    }
     exit 0
 }
 
@@ -258,12 +316,37 @@ function Test-ExactStagingImage([string]$ImageId, [string]$ExpectedCommit, [stri
         return $false
     }
 }
-function Find-ExactStagingImageId([string]$ExpectedCommit, [string]$ExpectedTree, [string]$ExpectedContextFileSet, [string]$EnvPath) {
+function Find-ExactStagingImageId([string]$ExpectedCommit, [string]$ExpectedTree, [string]$ExpectedContextFileSet, [string]$EnvPath, [object[]]$ComposeArgs) {
     $candidateIds = @()
     $fromEnvLine = Get-Content -LiteralPath $EnvPath | Where-Object { $_ -match '^STAGING_APP_IMAGE_ID=(.*)$' } | Select-Object -First 1
     if ($fromEnvLine) {
         $fromEnv = ($fromEnvLine -replace '^STAGING_APP_IMAGE_ID=', '').Trim().ToLowerInvariant()
         if ($fromEnv -match '^sha256:[0-9a-f]{64}$') { $candidateIds += $fromEnv }
+    }
+    # Compose owns the effective app image name. Resolve it from the interpolated
+    # model instead of `compose images -q`: that command dereferences the image of
+    # an existing container and exits nonzero when Docker GC has removed it, which
+    # is a normal pre-build condition rather than an Auto Pilot failure.
+    if ($null -ne $ComposeArgs -and $ComposeArgs.Count -gt 0) {
+        try {
+            $composeModelJson = (& docker @($ComposeArgs + @("config", "--format", "json")) 2>$null | Out-String).Trim()
+            if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($composeModelJson)) {
+                $composeModel = $composeModelJson | ConvertFrom-Json
+                $effectiveImageRef = [string]$composeModel.services.app.image
+                if ([string]::IsNullOrWhiteSpace($effectiveImageRef) -and -not [string]::IsNullOrWhiteSpace([string]$composeModel.name)) {
+                    $effectiveImageRef = "{0}-app:latest" -f [string]$composeModel.name
+                }
+                if (-not [string]::IsNullOrWhiteSpace($effectiveImageRef)) {
+                    $effectiveImageId = (& docker image inspect --format '{{.Id}}' $effectiveImageRef 2>$null | Out-String).Trim()
+                    if ($LASTEXITCODE -eq 0 -and $effectiveImageId -match '^sha256:[0-9a-fA-F]{64}$') {
+                        $candidateIds += $effectiveImageId.ToLowerInvariant()
+                    }
+                }
+            }
+        } catch {
+            # Continue to the label-index fallback. Candidate acceptance remains
+            # fail-closed in Test-ExactStagingImage.
+        }
     }
     $labelQuery = (Get-NativeText "docker" @("image", "ls", "--no-trunc", "--filter", "label=org.mad4b.staging.provenance.contract=mad4b.staging-build-provenance.v1", "--format", "{{.ID}}")).Trim()
     $candidateIds += @($labelQuery -split "\s+" | Where-Object { $_ -match '^sha256:[0-9a-fA-F]{64}$' })
@@ -384,7 +467,7 @@ try {
     Repair-ManifestLineEndings $RepositoryPath
     $dirty = @(git status --porcelain --untracked-files=all)
     if ($dirty.Count -gt 0) { Fail "Working tree is not clean after protected line-ending normalization; Auto Pilot will not overwrite local work" }
-    Invoke-Native "git" @("fetch", "origin", $Ref, "--depth=1")
+    Invoke-Native "git" @("fetch", "origin", $Ref, "--depth=2")
     $remoteCommit = Get-NativeText "git" @("rev-parse", "origin/$Ref")
     if ($remoteCommit.ToLowerInvariant() -ne $ExpectedCommit.ToLowerInvariant()) {
         Fail "Pinned commit mismatch: origin/$Ref resolved to $remoteCommit, expected $ExpectedCommit"
@@ -480,7 +563,7 @@ try {
     if ($effectiveEnv -notmatch '(?im)^CLOUDFLARE_TUNNEL_GRACE_PERIOD=30s\s*$') { Fail "Staging tunnel grace period must remain 30s" }
     if ($effectiveEnv -match '(?im)^CLOUDFLARE_TUNNEL_HOSTNAMES=.*(auth\.mad4b\.com|mcp\.mad4b\.com|activation\.mad4b\.com)') { Fail "Forbidden Production hostname found in staging tunnel list" }
 
-    $composeArgs = @("compose", "-f", $ComposeBase, "-f", $ComposeStage, "--env-file", $EnvFile)
+    $composeArgs = @(Get-StagingComposeArgs $ApiPath $EnvFile $TunnelMode)
     Invoke-Native "docker" ($composeArgs + @("config", "--quiet"))
     if ($ValidateOnly) {
         Write-Host "AUTO_PILOT_VALIDATED: commit=$ExpectedCommit context=$context tunnel_mode=$TunnelMode"
@@ -494,7 +577,7 @@ try {
         Write-StagingOperationBoundary -Component $LogComponent -Stage "stop" -Outcome "success" -Message "local Staging services and Staging-owned tunnel runtimes stopped"
         return
     }
-    $existingImageId = Find-ExactStagingImageId $ExpectedCommit $buildTree $buildContextMetadata.context_file_set_sha256 $EnvFile
+    $existingImageId = Find-ExactStagingImageId $ExpectedCommit $buildTree $buildContextMetadata.context_file_set_sha256 $EnvFile $composeArgs
     $imageReused = $false
     $buildAction = "built"
     $imageMatchesExactProvenance = $existingImageId -match '^sha256:[0-9a-f]{64}$'
@@ -509,7 +592,7 @@ try {
         Write-StagingLog -Level info -Component $LogComponent -Stage "compose-build" -Message "building Staging app from exact Git context" -Data @{ mode = $BuildMode; previous_image_id = $existingImageId; previous_image_exact = [bool]$imageMatchesExactProvenance }
         Invoke-Native "docker" ($composeArgs + @("build", "app"))
     }
-    $imageId = Find-ExactStagingImageId $ExpectedCommit $buildTree $buildContextMetadata.context_file_set_sha256 $EnvFile
+    $imageId = Find-ExactStagingImageId $ExpectedCommit $buildTree $buildContextMetadata.context_file_set_sha256 $EnvFile $composeArgs
     if ($imageId -notmatch '^sha256:[0-9a-fA-F]{64}$') { Fail "Staging app image ID is not a content-addressed sha256 digest with exact provenance" }
     Set-EnvValue $EnvFile "STAGING_APP_IMAGE_ID" $imageId.ToLowerInvariant()
     Assert-UniqueEnvKeys $EnvFile
@@ -518,6 +601,7 @@ try {
     Write-StagingLog -Level info -Component $LogComponent -Stage "compose-up" -Message "starting local application topology"
     Invoke-Native "docker" $upArgs
     foreach ($service in @("redis", "runtime-db", "governance-db", "persistence-db", "app")) { Wait-ServiceHealthy $composeArgs $service }
+    Assert-WindowsHostOriginReachable $composeArgs $TunnelMode
     if ($TunnelMode -eq "windows_service") {
         Write-StagingLog -Level info -Component $LogComponent -Stage "tunnel" -Message "reconciling Staging tunnel in windows_service mode"
         Invoke-Native "docker" ($composeArgs + @("--profile", "tunnel", "stop", "cloudflared"))
@@ -588,10 +672,14 @@ try {
             $failedCertificationState = Get-Content -Raw -LiteralPath $StateFile | ConvertFrom-Json
             $blockingProperty = $failedCertificationState.PSObject.Properties["certification_blocking_failures"]
             $degradedProperty = $failedCertificationState.PSObject.Properties["certification_degraded_reasons"]
-            $certificationBlockingFailures = if ($null -ne $blockingProperty) { @($blockingProperty.Value | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }) } else { @() }
-            $certificationDegradedReasons = if ($null -ne $degradedProperty) { @($degradedProperty.Value | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }) } else { @() }
+            if ($null -ne $blockingProperty) {
+                $certificationBlockingFailures = @($blockingProperty.Value | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+            }
+            if ($null -ne $degradedProperty) {
+                $certificationDegradedReasons = @($degradedProperty.Value | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+            }
         } catch { }
-        $reasonSuffix = if ($certificationBlockingFailures.Count -gt 0) { " reasons=$($certificationBlockingFailures -join ',')" } else { " reasons=unavailable" }
+        $reasonSuffix = if (@($certificationBlockingFailures).Count -gt 0) { " reasons=$($certificationBlockingFailures -join ',')" } else { " reasons=unavailable" }
         $failureMessage = "Staging certification blocked exact commit $ExpectedCommit$reasonSuffix"
         Write-StagingOperationBoundary -Component $LogComponent -Stage "certification" -Outcome "failure" -Message $failureMessage -Data @{ commit = $ExpectedCommit; blocking_failures = $certificationBlockingFailures; degraded_reasons = $certificationDegradedReasons }
         Fail $failureMessage

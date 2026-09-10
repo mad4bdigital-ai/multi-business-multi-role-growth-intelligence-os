@@ -204,7 +204,21 @@ export async function signedRecoveryIngressHeaders(request, policy, requestId, v
     key_id: env.ACTIVATION_GATEWAY_INGRESS_KEY_ID,
   };
   if (!Number.isInteger(payload.exp) || payload.exp <= iat) throw new Error("Gateway policy expires before ingress proof");
-  const key = await cryptoImpl.subtle.importKey("jwk", JSON.parse(env.ACTIVATION_GATEWAY_INGRESS_PRIVATE_KEY_JWK), { name: "Ed25519" }, false, ["sign"]);
+  let key;
+  try {
+    key = await cryptoImpl.subtle.importKey(
+      "jwk",
+      JSON.parse(env.ACTIVATION_GATEWAY_INGRESS_PRIVATE_KEY_JWK),
+      { name: "Ed25519" },
+      false,
+      ["sign"],
+    );
+  } catch {
+    throw Object.assign(
+      new Error("Gateway ingress signing key is invalid."),
+      { code: "GATEWAY_INGRESS_KEY_INVALID" },
+    );
+  }
   const bytes = utf8(JSON.stringify(payload));
   const signature = new Uint8Array(await cryptoImpl.subtle.sign("Ed25519", key, bytes));
   const b64 = (v) => btoa(String.fromCharCode(...v)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
@@ -605,6 +619,30 @@ export function createActivationGateway({
       if (error?.code === "RESPONSE_TOO_LARGE") {
         status = 502;
         return jsonResponse(status, errorBody("GATEWAY_UPSTREAM_RESPONSE_TOO_LARGE", "The upstream response exceeds the route limit.", requestId), requestId);
+      }
+      if (error?.code === "GATEWAY_INGRESS_AUTHORITY_MISSING") {
+        status = 503;
+        return jsonResponse(
+          status,
+          errorBody(
+            "GATEWAY_INGRESS_AUTHORITY_MISSING",
+            "The Staging Recovery ingress signing authority is unavailable.",
+            requestId,
+          ),
+          requestId,
+        );
+      }
+      if (error?.code === "GATEWAY_INGRESS_KEY_INVALID") {
+        status = 503;
+        return jsonResponse(
+          status,
+          errorBody(
+            "GATEWAY_INGRESS_KEY_INVALID",
+            "The Staging Recovery ingress signing key is invalid.",
+            requestId,
+          ),
+          requestId,
+        );
       }
       status = 502;
       return jsonResponse(status, errorBody("GATEWAY_UPSTREAM_FAILURE", "The Activation Gateway could not complete the request.", requestId), requestId);

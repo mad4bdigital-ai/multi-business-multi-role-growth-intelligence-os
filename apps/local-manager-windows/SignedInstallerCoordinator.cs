@@ -17,6 +17,8 @@ internal sealed class SignedInstallerCoordinator
     private readonly string _updatesRoot;
     private readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web);
 
+    internal int? LastExitCode { get; private set; }
+
     internal SignedInstallerCoordinator(string baseUrl, string updatesRoot)
     {
         _baseUri = new Uri(baseUrl, UriKind.Absolute);
@@ -30,7 +32,7 @@ internal sealed class SignedInstallerCoordinator
         RequestAsync(deviceAccessToken, new
         {
             format = "bat",
-            ttl_minutes = 30,
+            ttl_minutes = 10,
             app_managed = true,
             suppress_pause = true
         }, cancellationToken);
@@ -41,21 +43,25 @@ internal sealed class SignedInstallerCoordinator
         IReadOnlyList<object> apps,
         IReadOnlyList<string> allowedPaths,
         IReadOnlyList<object> shellAliases,
-        CancellationToken cancellationToken = default) =>
-        RequestAsync(deviceAccessToken, new
+        CancellationToken cancellationToken = default)
+    {
+        // Capability authority is server-managed after the installer authority hardening.
+        // The Windows app must never place caller-selected capabilities or permission_grants
+        // into an installer-link request. Repair/reconciliation may only re-apply the
+        // canonical database policy already bound to the linked device/config.
+        if (capabilities.Count > 0 || apps.Count > 0 || allowedPaths.Count > 0 || shellAliases.Count > 0)
+        {
+            throw new ServerManagedConnectorPolicyException();
+        }
+
+        return RequestAsync(deviceAccessToken, new
         {
             format = "bat",
-            ttl_minutes = 30,
+            ttl_minutes = 10,
             app_managed = true,
-            suppress_pause = true,
-            capabilities,
-            permission_grants = new
-            {
-                apps,
-                allowed_paths = allowedPaths,
-                shell_aliases = shellAliases
-            }
+            suppress_pause = true
         }, cancellationToken);
+    }
 
     internal async Task<SignedInstallerDownload> DownloadAsync(
         DeviceInstallerLinkResponse link,
@@ -107,6 +113,9 @@ internal sealed class SignedInstallerCoordinator
         SignedInstallerDownload download,
         CancellationToken cancellationToken = default)
     {
+        LastExitCode = null;
+        var failureEvidencePath = Path.Combine(_updatesRoot, "connector-installer-state.json");
+        DeleteIfExists(failureEvidencePath);
         var ownedPath = Path.GetFullPath(download.InstallerPath);
         AssertOwnedInstallerPath(ownedPath);
         if (!File.Exists(ownedPath)) throw new FileNotFoundException("Installer file was not found.", ownedPath);
@@ -137,9 +146,15 @@ internal sealed class SignedInstallerCoordinator
         try
         {
             await process.WaitForExitAsync(cancellationToken);
-            return process.ExitCode == 0
-                ? SignedInstallerRunResult.Completed
-                : SignedInstallerRunResult.Failed;
+            LastExitCode = process.ExitCode;
+            if (process.ExitCode != 0)
+            {
+                // Propagate the exact bounded child status to the existing outer UI
+                // exception handler. Do not collapse it into the boolean-only Failed
+                // enum path, and do not include installer/token content in the message.
+                throw new SignedInstallerExitCodeException(process.ExitCode, TryReadFailureEvidence(failureEvidencePath));
+            }
+            return SignedInstallerRunResult.Completed;
         }
         catch (InvalidOperationException)
         {
@@ -231,6 +246,38 @@ internal sealed class SignedInstallerCoordinator
         throw lastIoException ?? new IOException("Installer file could not be read for SHA256 validation.");
     }
 
+    private static string? TryReadFailureEvidence(string path)
+    {
+        try
+        {
+            if (!File.Exists(path)) return null;
+            using var document = JsonDocument.Parse(File.ReadAllText(path));
+            var root = document.RootElement;
+            if (!root.TryGetProperty("secrets_included", out var secretsIncluded)
+                || secretsIncluded.ValueKind != JsonValueKind.False)
+            {
+                return null;
+            }
+            var stage = root.TryGetProperty("stage", out var stageValue) ? stageValue.GetString() : null;
+            var failureCode = root.TryGetProperty("failure_code", out var codeValue) ? codeValue.GetString() : null;
+            if (string.IsNullOrWhiteSpace(stage) || string.IsNullOrWhiteSpace(failureCode)) return null;
+            if (!stage.All(ch => char.IsLower(ch) || char.IsDigit(ch) || ch == '_')
+                || !failureCode.All(ch => char.IsLower(ch) || char.IsDigit(ch) || ch == '_'))
+            {
+                return null;
+            }
+            return $"stage={stage}; failure_code={failureCode}";
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+    }
+
     private void AssertOwnedInstallerPath(string path, bool allowDownloadExtension = false)
     {
         var relative = Path.GetRelativePath(_updatesRoot, path);
@@ -255,6 +302,29 @@ internal sealed class SignedInstallerCoordinator
         var chars = value.Select(ch => char.IsLetterOrDigit(ch) || ch is '-' or '_' or '.' ? ch : '-').ToArray();
         var safe = new string(chars).Trim('-');
         return string.IsNullOrWhiteSpace(safe) ? "device" : safe;
+    }
+}
+
+internal sealed class ServerManagedConnectorPolicyException : InvalidOperationException
+{
+    internal const string PolicyCode = "connector_capability_policy_server_managed";
+
+    internal ServerManagedConnectorPolicyException()
+        : base("Connector capability changes are server-managed by the canonical device policy. Local Manager cannot submit caller-selected capabilities, paths, apps, or helper grants. Use the governed platform policy surface; Repair connector only reconciles policy that is already authorized for this device.")
+    {
+    }
+}
+
+internal sealed class SignedInstallerExitCodeException : Exception
+{
+    internal int ExitCode { get; }
+
+    internal SignedInstallerExitCodeException(int exitCode, string? safeEvidence = null)
+        : base(string.IsNullOrWhiteSpace(safeEvidence)
+            ? $"Signed connector installer exited with code {exitCode}."
+            : $"Signed connector installer exited with code {exitCode} ({safeEvidence}).")
+    {
+        ExitCode = exitCode;
     }
 }
 

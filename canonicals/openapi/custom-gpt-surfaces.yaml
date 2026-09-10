@@ -400,6 +400,10 @@ surfaces:
         - session-archive
       omission: fail
       exclusion_records:
+        - operation_id: redeemConnectorAgentInstallerSecrets
+          reason: One-time installer secret redemption is a device-bound internal bearer exchange and must never be exposed through a Custom GPT operation surface.
+          owner: local-connector
+          review_after: 2026-09-30
         - operation_id: revokeAuthOAuthSsoSession
           reason: Shared OAuth and SSO lifecycle endpoint remains outside the Tenant Core OAuth surface boundary; revocation is handled by the auth boundary.
           owner: identity-platform

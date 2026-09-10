@@ -35,6 +35,8 @@ const connector = spawn(process.execPath, ['server.mjs'], {
     ...process.env,
     CONNECTOR_PORT: String(connectorPort),
     CONNECTOR_SECRET: connectorSecret,
+    CONNECTOR_ENVIRONMENT: 'production',
+    CONNECTOR_POLICY_ENABLED: 'false',
     CONNECTOR_N8N_ENABLED: 'true',
     N8N_BASE_URL: `http://127.0.0.1:${n8nPort}`,
     N8N_LOCAL_BASE_URL: `http://127.0.0.1:${n8nPort}`,

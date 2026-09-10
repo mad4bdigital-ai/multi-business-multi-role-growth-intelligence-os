@@ -42,12 +42,14 @@ internal static class AutopilotNetworkRecovery
                 "Local Manager will keep bounded retries. A linked device with missing local services will enter signed repair autopilot.",
                 true);
         }
-        if (numeric is 502 or 503 or 504)
+        if (numeric is 502 or 503 or 504 || numeric is >= 520 and <= 527)
         {
             return new AutopilotFailure(
                 "platform_origin_unavailable",
                 $"platform_origin_unavailable: auth.mad4b.com returned HTTP {numeric}.",
-                "Cloudflare was reachable but the platform origin did not complete the request. Polling will retry automatically.",
+                numeric is >= 520 and <= 527
+                    ? "Cloudflare reached the request path but reported an origin-side failure. Polling will retry automatically with bounded backoff."
+                    : "Cloudflare was reachable but the platform origin did not complete the request. Polling will retry automatically.",
                 true);
         }
         if (numeric == 429)
@@ -60,7 +62,7 @@ internal static class AutopilotNetworkRecovery
         }
         return new AutopilotFailure(
             "platform_http_failure",
-            $"platform_http_failure: auth.mad4b.com returned HTTP {numeric} {statusCode}.",
+            $"platform_http_failure: auth.mad4b.com returned HTTP {numeric}.",
             "The response body was not copied into the diagnostic envelope.",
             numeric >= 500);
     }

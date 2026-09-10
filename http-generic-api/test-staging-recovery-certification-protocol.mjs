@@ -4,8 +4,10 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { expectedStagingGatewayDeployment, expectedStagingRegistration } from "./recoveryReadinessEvidence.js";
+import { RECOVERY_CERTIFICATION_TRACE_STEPS, certificationPayloadHash } from "./recoveryActivationReadiness.js";
 import { _testingStagingRecoveryAuthorityBinding } from "./stagingRecoveryAuthorityBinding.js";
 import {
+  STAGING_RECOVERY_REQUIRED_NEGATIVE_TESTS,
   buildRecoveryReadinessSigningPayload,
   independentlyVerifyStagingRecoveryCanaryEvidence,
   produceGenuineStagingRecoveryCanaryEvidence,
@@ -22,10 +24,20 @@ function artifacts() {
   const receipt = { contract: "mad4b.recovery-remediation-execution-receipt.v1", plan_hash: plan.plan_hash, step_id: step.step_id, execution_ticket_id: ticket.ticket_id, run_id: run.run_id, phase: "recovered", status: "recovered", mutation_attestation: { database_mutation_performed: false, provider_mutation_performed: false, deployment_performed: false }, secrets_included: false };
   return { plan, approval, ticket, receipt, run };
 }
+function negativeEvidence(exactSha = SHA, status = "pass") {
+  return {
+    contract: "mad4b.staging-recovery-negative-test-evidence.v1",
+    all_passed: status === "pass",
+    exact_sha: exactSha,
+    generated_at: new Date().toISOString(),
+    cases: Object.fromEntries(STAGING_RECOVERY_REQUIRED_NEGATIVE_TESTS.map((key) => [key, { status, suite: "exact-sha-test", evidence_hash: H }])),
+    secrets_included: false,
+  };
+}
 async function input(targetFingerprint = TARGET) {
   const registration = await expectedStagingRegistration(); const gateway = await expectedStagingGatewayDeployment();
   const bound = { deployment_sha: SHA, target_fingerprint: targetFingerprint, evidence_hash: H, expires_at: new Date(Date.now() + 60_000).toISOString() };
-  return { deploymentAttestation: { environment: "staging", sha: SHA, target_fingerprint: targetFingerprint }, targetIdentity: { environment: "staging", target_fingerprint: targetFingerprint }, ...artifacts(), registrationEvidence: { ...bound, ...registration, observed_in: "chatgpt" }, oauthEvidence: { ...bound, issuer: "https://dev.mad4b.com", resource: "https://activation-dev.mad4b.com", steps: Object.fromEntries(["authorize", "login_consent", "code", "callback", "token", "resource"].map((v) => [v, "pass"])) }, networkEvidence: { ...bound, environment: "staging", gateway_host: gateway.gateway_host, upstream_origin: gateway.upstream_origin, gateway_only: true, signed_ingress_required: true, network_restriction_verified: true, direct_origin_publicly_reachable: false }, workerDeploymentEvidence: { ...bound, observed_in: "cloudflare_workers", deployment_verified: true, gateway_host: gateway.gateway_host, policy_hash: gateway.policy_hash, worker_build_sha: SHA, policy_source_sha: SHA, worker_bundle_sha256: H, release_bundle_sha256: H, deployed_bundle_sha256: H }, ingressBuildIdentity: { deployment_sha: SHA, worker_build_sha: SHA, worker_bundle_sha256: H, policy_hash: gateway.policy_hash, gateway_host: gateway.gateway_host, expires_at: Math.floor(Date.now() / 1000) + 60 }, artifactIntegrity: { valid: true, manifest_sha256: H }, nonce: "nonce:protocol-test", certificationRunId: "cert-run:protocol-test" };
+  return { deploymentAttestation: { environment: "staging", sha: SHA, target_fingerprint: targetFingerprint, attestation_hash: H }, targetIdentity: { environment: "staging", target_fingerprint: targetFingerprint }, ...artifacts(), registrationEvidence: { ...bound, ...registration, observed_in: "chatgpt" }, oauthEvidence: { ...bound, issuer: "https://dev.mad4b.com", resource: "https://activation-dev.mad4b.com", steps: Object.fromEntries(["authorize", "login_consent", "code", "callback", "token", "resource"].map((v) => [v, "pass"])) }, networkEvidence: { ...bound, environment: "staging", gateway_host: gateway.gateway_host, upstream_origin: gateway.upstream_origin, gateway_only: true, signed_ingress_required: true, network_restriction_verified: true, direct_origin_publicly_reachable: false }, workerDeploymentEvidence: { ...bound, observed_in: "cloudflare_workers", deployment_verified: true, gateway_host: gateway.gateway_host, policy_hash: gateway.policy_hash, worker_build_sha: SHA, policy_source_sha: SHA, worker_bundle_sha256: H, release_bundle_sha256: H, deployed_bundle_sha256: H }, ingressBuildIdentity: { deployment_sha: SHA, worker_build_sha: SHA, worker_bundle_sha256: H, policy_hash: gateway.policy_hash, gateway_host: gateway.gateway_host, expires_at: Math.floor(Date.now() / 1000) + 60 }, artifactIntegrity: { valid: true, manifest_sha256: H }, nonce: "nonce:protocol-test", certificationRunId: "cert-run:protocol-test" };
 }
 
 test("runner executes the real Recovery Kernel lifecycle with the durable Staging adapters", async () => {
@@ -37,29 +49,42 @@ test("runner executes the real Recovery Kernel lifecycle with the durable Stagin
     const attestation = await adapters.deploymentIdentityProvider.readAttestation(); const source = await input(attestation.target_fingerprint);
     const result = await runGenuineStagingRecoveryCanary({ expectedSha: SHA, externalEvidence: { registrationEvidence: source.registrationEvidence, oauthEvidence: source.oauthEvidence, networkEvidence: source.networkEvidence, workerDeploymentEvidence: source.workerDeploymentEvidence, ingressBuildIdentity: source.ingressBuildIdentity }, artifactIntegrity: source.artifactIntegrity }, { env, adapters });
     assert.equal(result.artifacts.run.phase, "recovered"); assert.equal(result.envelope.kernel.lifecycle_phases.join(","), ["created", "planned", "awaiting_approval", "approval_granted", "locked", "executing", "provider_acknowledged", "readback_pending", "verifying", "verified", "recovered"].join(","));
-    assert.equal(result.approval_token_returned, false); assert.equal(result.production_live_enabled, false);
+    assert.equal(result.envelope.server_identity_fingerprint, attestation.attestation_hash); assert.equal(result.approval_token_returned, false); assert.equal(result.production_live_enabled, false);
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
-test("genuine producer derives lifecycle bindings only from complete Kernel artifacts", async () => {
+test("genuine producer derives lifecycle and server identity bindings only from complete Kernel artifacts", async () => {
   const source = await input(); const envelope = produceGenuineStagingRecoveryCanaryEvidence(source);
-  assert.equal(envelope.kernel.run_id, source.run.run_id); assert.equal(envelope.kernel.lifecycle_phases.at(-1), "recovered");
+  assert.equal(envelope.kernel.run_id, source.run.run_id); assert.equal(envelope.kernel.lifecycle_phases.at(-1), "recovered"); assert.equal(envelope.server_identity_fingerprint, H);
   assert.throws(() => produceGenuineStagingRecoveryCanaryEvidence({ ...source, run: { ...source.run, events: source.run.events.slice(0, -1) } }), (e) => e.code === "RECOVERY_CANARY_LIFECYCLE_INVALID");
+  assert.throws(() => produceGenuineStagingRecoveryCanaryEvidence({ ...source, deploymentAttestation: { ...source.deploymentAttestation, attestation_hash: null } }), (e) => e.code === "RECOVERY_CANARY_TARGET_BINDING_INVALID");
   assert.throws(() => produceGenuineStagingRecoveryCanaryEvidence({ ...source, receipt: { ...source.receipt, mutation_attestation: { ...source.receipt.mutation_attestation, database_mutation_performed: true } } }), (e) => e.code === "RECOVERY_CANARY_SAFETY_BOUNDARY_INVALID");
 });
 
-test("independent verifier recomputes Kernel bindings and rejects altered artifacts", async () => {
+test("independent verifier binds negative tests and emits the complete Production-consumable certification", async () => {
   const source = await input(); const envelope = produceGenuineStagingRecoveryCanaryEvidence(source);
-  const report = await independentlyVerifyStagingRecoveryCanaryEvidence(envelope, { expectedSha: SHA, expectedTargetFingerprint: TARGET, workflowSourceSha: SHA, loadKernelArtifacts: async () => source });
-  assert.equal(report.verified, true);
+  const report = await independentlyVerifyStagingRecoveryCanaryEvidence(envelope, { expectedSha: SHA, expectedTargetFingerprint: TARGET, workflowSourceSha: SHA, negativeTestEvidence: negativeEvidence(), loadKernelArtifacts: async () => source });
+  assert.equal(report.verified, true); assert.equal(report.negative_tests.all_passed, true); assert.equal(Object.keys(report.negative_tests.cases).length, STAGING_RECOVERY_REQUIRED_NEGATIVE_TESTS.length);
   const payload = buildRecoveryReadinessSigningPayload(envelope, report, { issuer: "mad4b://staging-recovery-certification", keyId: "recovery-certification-test" });
-  assert.equal(payload.stagingCertification.lifecycle_trace.source, "recovery_kernel"); assert.equal(payload.production_live_enabled, false);
-  await assert.rejects(() => independentlyVerifyStagingRecoveryCanaryEvidence(envelope, { expectedSha: SHA, expectedTargetFingerprint: TARGET, workflowSourceSha: SHA, loadKernelArtifacts: async () => ({ ...source, ticket: { ...source.ticket, ticket_hash: "f".repeat(64) } }) }), (e) => e.code === "RECOVERY_CANARY_KERNEL_BINDING_MISMATCH");
+  assert.equal(payload.stagingCertification.lifecycle_trace.source, "recovery_kernel");
+  assert.equal(payload.stagingCertification.server_identity_fingerprint, H);
+  assert.equal(payload.stagingCertification.negative_tests.all_passed, true);
+  assert.ok(RECOVERY_CERTIFICATION_TRACE_STEPS.every((step) => payload.stagingCertification.lifecycle_trace[step]?.status === "pass"));
+  assert.equal(payload.stagingCertification.audit_evidence.canonical_payload_hash, certificationPayloadHash(payload.stagingCertification));
+  assert.equal(payload.production_live_enabled, false);
+  await assert.rejects(() => independentlyVerifyStagingRecoveryCanaryEvidence(envelope, { expectedSha: SHA, expectedTargetFingerprint: TARGET, workflowSourceSha: SHA, negativeTestEvidence: negativeEvidence(), loadKernelArtifacts: async () => ({ ...source, ticket: { ...source.ticket, ticket_hash: "f".repeat(64) } }) }), (e) => e.code === "RECOVERY_CANARY_KERNEL_BINDING_MISMATCH");
+});
+
+test("independent verifier rejects absent, failing, or cross-SHA negative evidence", async () => {
+  const source = await input(); const envelope = produceGenuineStagingRecoveryCanaryEvidence(source);
+  await assert.rejects(() => independentlyVerifyStagingRecoveryCanaryEvidence(envelope, { expectedSha: SHA, expectedTargetFingerprint: TARGET, workflowSourceSha: SHA, loadKernelArtifacts: async () => source }), (e) => e.code === "RECOVERY_CANARY_NEGATIVE_TEST_EVIDENCE_REQUIRED");
+  await assert.rejects(() => independentlyVerifyStagingRecoveryCanaryEvidence(envelope, { expectedSha: SHA, expectedTargetFingerprint: TARGET, workflowSourceSha: SHA, negativeTestEvidence: negativeEvidence(SHA, "fail"), loadKernelArtifacts: async () => source }), (e) => e.code === "RECOVERY_CANARY_NEGATIVE_TEST_FAILED");
+  await assert.rejects(() => independentlyVerifyStagingRecoveryCanaryEvidence(envelope, { expectedSha: SHA, expectedTargetFingerprint: TARGET, workflowSourceSha: SHA, negativeTestEvidence: negativeEvidence("f".repeat(40)), loadKernelArtifacts: async () => source }), (e) => e.code === "RECOVERY_CANARY_NEGATIVE_TEST_SHA_MISMATCH");
 });
 
 test("protocol rejects stale SHA, wrong target, expiry, Production and secret-bearing evidence", async () => {
   const source = await input(); const envelope = produceGenuineStagingRecoveryCanaryEvidence(source);
-  for (const options of [{ expectedSha: "f".repeat(40), expectedTargetFingerprint: TARGET }, { expectedSha: SHA, expectedTargetFingerprint: "e".repeat(64) }]) await assert.rejects(() => independentlyVerifyStagingRecoveryCanaryEvidence(envelope, { ...options, workflowSourceSha: SHA, loadKernelArtifacts: async () => source }), (e) => e.code === "RECOVERY_CANARY_EXACT_TARGET_MISMATCH");
+  for (const options of [{ expectedSha: "f".repeat(40), expectedTargetFingerprint: TARGET }, { expectedSha: SHA, expectedTargetFingerprint: "e".repeat(64) }]) await assert.rejects(() => independentlyVerifyStagingRecoveryCanaryEvidence(envelope, { ...options, workflowSourceSha: SHA, negativeTestEvidence: negativeEvidence(), loadKernelArtifacts: async () => source }), (e) => e.code === "RECOVERY_CANARY_EXACT_TARGET_MISMATCH");
   assert.throws(() => produceGenuineStagingRecoveryCanaryEvidence({ ...source, targetIdentity: { environment: "production", target_fingerprint: TARGET } }), (e) => e.code === "RECOVERY_CANARY_TARGET_BINDING_INVALID");
   assert.throws(() => produceGenuineStagingRecoveryCanaryEvidence({ ...source, expiresAt: new Date(Date.now() - 1000).toISOString() }), (e) => e.code === "RECOVERY_CANARY_EVIDENCE_EXPIRED");
   assert.throws(() => produceGenuineStagingRecoveryCanaryEvidence({ ...source, artifactIntegrity: { ...source.artifactIntegrity, client_secret: "forbidden" } }), (e) => e.code === "RECOVERY_CANARY_SECRET_FIELD_FORBIDDEN");

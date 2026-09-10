@@ -45,15 +45,20 @@ const objections = spawnSync(process.execPath, [
 assert.equal(objections.status, 0, `${objections.stdout}\n${objections.stderr}`);
 const report = JSON.parse(fs.readFileSync(objectionReport, "utf8"));
 assert.equal(report.contract, "mad4b.repository-policy-objections.v1");
+assert.equal(report.decision_state, "clear");
 assert.equal(report.blocking_count, 0);
 assert.equal(report.manual_count, 0);
+assert.equal(report.resolved_count, 0);
 assert.equal(report.merge_allowed_by_source_policy, true);
 assert.equal(report.automerge_allowed, true);
 assert.equal(report.safety.repository_mutation_performed, false);
 
 const canonicalGovernance = JSON.parse(fs.readFileSync(governanceReport, "utf8"));
+canonicalGovernance.candidate.source_head_sha = sha;
 const criticalPath = ".github/governance/policy-registry.json";
 assert.ok(constitution.control_plane_paths.includes(criticalPath));
+assert.ok(constitution.control_plane_paths.includes(".changes/e2e/staging-production-access-repair-execution-20260909.json"));
+assert.ok(constitution.control_plane_paths.includes(".changes/e2e/critical-declaration-registration-closure-20260910.json"));
 canonicalGovernance.change_inventory.changes = [{
   raw_status: "M",
   status: "M",
@@ -80,15 +85,73 @@ const criticalObjections = spawnSync(process.execPath, [
 ], { cwd: root, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
 assert.equal(criticalObjections.status, 0, `${criticalObjections.stdout}\n${criticalObjections.stderr}`);
 const criticalReport = JSON.parse(fs.readFileSync(criticalObjectionReport, "utf8"));
+assert.equal(criticalReport.decision_state, "manual_authorization_required");
 assert.equal(criticalReport.blocking_count, 0);
 assert.equal(criticalReport.manual_count, 1);
+assert.equal(criticalReport.resolved_count, 0);
 assert.equal(criticalReport.automerge_allowed, false);
 assert.ok(criticalReport.objections.some((entry) =>
   entry.policy_id === "control-plane-self-amendment"
   && entry.objection_id === "control-plane-self-amendment:manual-merge-required"
   && entry.severity === "manual"
+  && entry.resolved === false
   && entry.evidence?.critical_paths?.includes(criticalPath)
 ));
+
+const authorizationReport = path.join(dir, "manual-authorization.json");
+fs.writeFileSync(authorizationReport, `${JSON.stringify({
+  ok: true,
+  mode: "single_owner_attestation",
+  reason: "single_owner_exact_head_attestation",
+  reviewer: "repository-owner",
+  exact_head_sha: sha,
+  secrets_included: false,
+}, null, 2)}\n`);
+const authorizedObjectionReport = path.join(dir, "objections-critical-authorized.json");
+const authorizedObjections = spawnSync(process.execPath, [
+  "scripts/repository-governance-objection-gate.mjs",
+  "--mode", "source",
+  "--governance-report", criticalGovernanceReport,
+  "--manual-authorization-report", authorizationReport,
+  "--report-file", authorizedObjectionReport,
+], { cwd: root, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
+assert.equal(authorizedObjections.status, 0, `${authorizedObjections.stdout}\n${authorizedObjections.stderr}`);
+const authorizedReport = JSON.parse(fs.readFileSync(authorizedObjectionReport, "utf8"));
+assert.equal(authorizedReport.decision_state, "manual_authorization_satisfied");
+assert.equal(authorizedReport.blocking_count, 0);
+assert.equal(authorizedReport.manual_count, 0);
+assert.equal(authorizedReport.resolved_count, 1);
+assert.equal(authorizedReport.automerge_allowed, false);
+assert.ok(authorizedReport.objections.some((entry) =>
+  entry.objection_id === "control-plane-self-amendment:manual-merge-required"
+  && entry.resolved === true
+  && entry.resolution?.kind === "exact_head_review_authorization"
+  && entry.resolution?.exact_head_sha === sha
+));
+
+const staleAuthorizationReport = path.join(dir, "manual-authorization-stale.json");
+fs.writeFileSync(staleAuthorizationReport, `${JSON.stringify({
+  ok: true,
+  mode: "single_owner_attestation",
+  reason: "single_owner_exact_head_attestation",
+  reviewer: "repository-owner",
+  exact_head_sha: "b".repeat(40),
+  secrets_included: false,
+}, null, 2)}\n`);
+const staleObjectionReport = path.join(dir, "objections-critical-stale-authorization.json");
+const staleAuthorizedObjections = spawnSync(process.execPath, [
+  "scripts/repository-governance-objection-gate.mjs",
+  "--mode", "source",
+  "--governance-report", criticalGovernanceReport,
+  "--manual-authorization-report", staleAuthorizationReport,
+  "--report-file", staleObjectionReport,
+], { cwd: root, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
+assert.equal(staleAuthorizedObjections.status, 0, `${staleAuthorizedObjections.stdout}\n${staleAuthorizedObjections.stderr}`);
+const staleAuthorizationResult = JSON.parse(fs.readFileSync(staleObjectionReport, "utf8"));
+assert.equal(staleAuthorizationResult.decision_state, "manual_authorization_required");
+assert.equal(staleAuthorizationResult.manual_count, 1);
+assert.equal(staleAuthorizationResult.resolved_count, 0);
+assert.equal(staleAuthorizationResult.automerge_allowed, false);
 
 const malformedGovernance = structuredClone(canonicalGovernance);
 delete malformedGovernance.change_inventory.changes[0].paths[0].surface_classes;
@@ -103,6 +166,7 @@ const malformedObjections = spawnSync(process.execPath, [
 ], { cwd: root, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
 assert.equal(malformedObjections.status, 1, `${malformedObjections.stdout}\n${malformedObjections.stderr}`);
 const malformedReport = JSON.parse(fs.readFileSync(malformedObjectionReport, "utf8"));
+assert.equal(malformedReport.decision_state, "blocked");
 assert.ok(malformedReport.objections.some((entry) =>
   entry.policy_id === "governance-report-shape"
   && entry.objection_id === "governance-report-shape:surface-classes-missing"
@@ -117,5 +181,7 @@ console.log(JSON.stringify({
   dynamic_policy_objections: true,
   canonical_required_producer: requiredProducers[0].id,
   critical_surface_manual_merge_enforced: true,
+  exact_head_manual_authorization_resolution: true,
+  stale_manual_authorization_rejected: true,
   malformed_surface_class_report_fails_closed: true,
 }));

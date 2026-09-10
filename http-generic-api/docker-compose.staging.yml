@@ -84,12 +84,21 @@ services:
     environment:
       NODE_ENV: staging
       RECOVERY_SERVER_MANAGED_BINDING_MODULE: ./stagingRecoveryAuthorityBindingPhaseB.js
+      # These PR-head markers are non-secret certification context only. They
+      # never grant Recovery mutation authority and default to empty on main.
+      STAGING_CERT_AUTHORITY_MODE: "${STAGING_CERT_AUTHORITY_MODE:-}"
+      STAGING_CERT_PR_NUMBER: "${STAGING_CERT_PR_NUMBER:-}"
+      STAGING_CERT_PR_REPOSITORY: "${STAGING_CERT_PR_REPOSITORY:-}"
       DEPLOYMENT_EXPECTED_COMMIT_SHA: ${DEPLOYMENT_EXPECTED_COMMIT_SHA:?set DEPLOYMENT_EXPECTED_COMMIT_SHA in .env.staging}
       DEPLOY_COMMIT: ${DEPLOY_COMMIT:?set DEPLOY_COMMIT in .env.staging}
       DEPLOY_BRANCH: ${DEPLOY_BRANCH:-main}
       STAGING_BUILD_TREE: ${STAGING_BUILD_TREE:?set STAGING_BUILD_TREE in .env.staging}
       STAGING_BUILD_CONTEXT_FILE_SET_SHA256: ${STAGING_BUILD_CONTEXT_FILE_SET_SHA256:?set STAGING_BUILD_CONTEXT_FILE_SET_SHA256 in .env.staging}
       STAGING_APP_IMAGE_ID: ${STAGING_APP_IMAGE_ID:-}
+      # The Staging tunnel token belongs exclusively to the Staging ingress
+      # runtime. Do not expose it to application routes where it could be
+      # mistaken for a Local Connector tunnel credential.
+      CLOUDFLARE_TUNNEL_TOKEN: ""
       DB_HOST: runtime-db
       DB_PORT: 3306
       DB_NAME: ${DB_NAME:?set DB_NAME in .env.staging}
@@ -107,6 +116,8 @@ services:
       RUNTIME_PERSISTENCE_DB_PASSWORD: ${RUNTIME_PERSISTENCE_DB_PASSWORD:?set RUNTIME_PERSISTENCE_DB_PASSWORD in .env.staging}
       REDIS_URL: redis://redis:6379
       QUEUE_WORKER_ENABLED: "FALSE"
+      GOVERNED_EXECUTION_BASELINE_ENABLED: "true"
+      GOVERNED_EXECUTION_BASELINE_MAX_SAMPLES: "500"
       MIGRATION_APPLIED: "false"
       DATABASE_MUTATED: "false"
       PRODUCTION_MUTATION_AUTHORIZED: "false"
