@@ -20,19 +20,37 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSCommandPath
 $core = Join-Path $root 'Invoke-Staging-One-Click-Core.ps1'
 $envAuthorityGuard = Join-Path $root 'Assert-StagingEnvAuthority.ps1'
-$converger = Join-Path $root 'Converge-StagingActivationGateway.ps1'
-$convergenceReportPath = Join-Path $root 'logs\staging-activation-gateway-convergence.json'
+$convergenceBridge = Join-Path $RepositoryPath 'http-generic-api\scripts\staging-environment-convergence-plan.mjs'
 $preflightReportPath = Join-Path $root 'logs\staging-schema-governance-preflight.json'
 $runtimeStatePath = Join-Path $root 'autopilot-state.json'
 $expectedRepository = 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os'
 
 function Fail([string]$Message) { throw "STAGING_DUAL_MODE_SMART_ONE_CLICK_FAIL_CLOSED: $Message" }
 
+function Write-Lines([object[]]$Lines) {
+    foreach ($line in @($Lines)) { Write-Host ([string]$line) }
+}
+
+function Get-FinalJson([object[]]$Lines) {
+    $textLines = @($Lines | ForEach-Object { [string]$_ })
+    for ($index = $textLines.Count - 1; $index -ge 0; $index--) {
+        if (-not $textLines[$index].TrimStart().StartsWith('{')) { continue }
+        $candidate = ($textLines[$index..($textLines.Count - 1)] -join "`n")
+        try {
+            $json = $candidate | ConvertFrom-Json -ErrorAction Stop
+            return [pscustomobject]@{
+                json = $json
+                prefix = if ($index -gt 0) { @($textLines[0..($index - 1)]) } else { @() }
+            }
+        } catch { }
+    }
+    return $null
+}
+
 function Invoke-EnvAuthorityGuard {
     if (-not (Test-Path -LiteralPath $envAuthorityGuard -PathType Leaf)) {
         Fail "Staging environment authority guard is missing: $envAuthorityGuard"
     }
-
     $previousErrorActionPreference = $ErrorActionPreference
     $exitCode = $null
     $lines = @()
@@ -46,13 +64,9 @@ function Invoke-EnvAuthorityGuard {
     } finally {
         $ErrorActionPreference = $previousErrorActionPreference
     }
-
-    if ($null -eq $exitCode) { Fail 'Staging environment authority guard did not expose a native exit code.' }
-    if ($exitCode -ne 0) {
-        Write-Lines $lines
-        Fail "Staging environment authority guard exited with code $exitCode"
-    }
     Write-Lines $lines
+    if ($null -eq $exitCode) { Fail 'Staging environment authority guard did not expose a native exit code.' }
+    if ($exitCode -ne 0) { Fail "Staging environment authority guard exited with code $exitCode" }
 }
 
 function New-CoreArguments {
@@ -77,10 +91,6 @@ function Invoke-Core {
     $exitCode = $null
     $lines = @()
     try {
-        # powershell.exe surfaces native child stderr (for example Docker build progress)
-        # as ErrorRecord objects. The smart wrapper must collect that diagnostic stream
-        # without allowing the wrapper's global Stop policy to terminate before the
-        # child's real exit code can be evaluated for bounded gateway convergence.
         $ErrorActionPreference = 'Continue'
         $lines = @(& powershell.exe @(New-CoreArguments) 2>&1 | ForEach-Object { [string]$_ })
         $exitCode = [int]$LASTEXITCODE
@@ -89,32 +99,6 @@ function Invoke-Core {
     }
     if ($null -eq $exitCode) { Fail 'Dual-mode core did not expose a native exit code.' }
     return [pscustomobject]@{ exit_code = $exitCode; lines = $lines }
-}
-
-function Write-Lines([object[]]$Lines) {
-    foreach ($line in @($Lines)) { Write-Host ([string]$line) }
-}
-
-function Get-FinalJson([object[]]$Lines) {
-    $textLines = @($Lines | ForEach-Object { [string]$_ })
-    for ($index = $textLines.Count - 1; $index -ge 0; $index--) {
-        if (-not $textLines[$index].TrimStart().StartsWith('{')) { continue }
-        $candidate = ($textLines[$index..($textLines.Count - 1)] -join "`n")
-        try {
-            $json = $candidate | ConvertFrom-Json -ErrorAction Stop
-            return [pscustomobject]@{
-                json = $json
-                prefix = if ($index -gt 0) { @($textLines[0..($index - 1)]) } else { @() }
-            }
-        } catch { }
-    }
-    return $null
-}
-
-function Read-TypedState([string]$Path, [string]$Label) {
-    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { Fail "$Label is missing: $Path" }
-    try { return Get-Content -Raw -LiteralPath $Path | ConvertFrom-Json -ErrorAction Stop }
-    catch { Fail "$Label is invalid JSON: $Path" }
 }
 
 function Read-LocalStagingEnvValue([string]$Name) {
@@ -151,83 +135,55 @@ function Test-LocalRecoveryTrustExact([string]$Commit) {
         -and $replayDirectory -eq '/app/data/recovery-ingress'
 }
 
-function Get-GatewayDriftRecovery([int]$ChildExitCode) {
+function Invoke-SharedConvergence([int]$ChildExitCode) {
     if (-not $EnableActivationGateway) { return $null }
     if ($RequireSchemaBundle -or $ApplySchemaBundle) { return $null }
+    if (-not (Test-Path -LiteralPath $runtimeStatePath -PathType Leaf)) { return $null }
+    if (-not (Test-Path -LiteralPath $preflightReportPath -PathType Leaf)) { return $null }
+    if (-not (Test-Path -LiteralPath $convergenceBridge -PathType Leaf)) { Fail "Shared convergence bridge is missing: $convergenceBridge" }
 
-    $runtime = Read-TypedState $runtimeStatePath 'Auto Pilot runtime state'
-    $preflight = Read-TypedState $preflightReportPath 'Staging schema/governance preflight report'
+    $runtime = Get-Content -Raw -LiteralPath $runtimeStatePath | ConvertFrom-Json -ErrorAction Stop
     $commit = ([string]$runtime.commit).Trim().ToLowerInvariant()
     if ($commit -notmatch '^[0-9a-f]{40}$') { return $null }
-    if ([string]$preflight.status -ne 'passed') { return $null }
-    if (([string]$preflight.expected_commit).Trim().ToLowerInvariant() -ne $commit) { return $null }
-    if (([string]$preflight.observed_commit).Trim().ToLowerInvariant() -ne $commit) { return $null }
-    if ($preflight.safety.production_access -ne $false -or $preflight.safety.provider_access -ne $false) { return $null }
-    if ($preflight.safety.database_mutation -ne $false -or $preflight.safety.migration_apply -ne $false) { return $null }
-
     $trustExact = Test-LocalRecoveryTrustExact $commit
     if ($ChildExitCode -eq 0 -and $trustExact) { return $null }
 
-    $blocking = if ($ChildExitCode -eq 0) { @() } else { @($runtime.certification_blocking_failures | ForEach-Object { [string]$_ } | Where-Object { $_ }) }
-    $degraded = if ($ChildExitCode -eq 0) { @() } else { @($runtime.certification_degraded_reasons | ForEach-Object { [string]$_ } | Where-Object { $_ }) }
-    $reasons = @($blocking + $degraded | Select-Object -Unique)
-    if (-not $trustExact) { $reasons = @($reasons + 'gateway_recovery_trusted_ingress' | Select-Object -Unique) }
-    $gatewayDriftKeys = @('gateway_exact_commit','gateway_policy_not_stale','gateway_policy_hash_current','gateway_policy_key_current','gateway_recovery_trusted_ingress')
-    if ($reasons.Count -eq 0) { return $null }
-    $nonGateway = @($reasons | Where-Object { $_ -notin $gatewayDriftKeys })
-    if ($nonGateway.Count -gt 0) { return $null }
-    if (@($reasons | Where-Object { $_ -in $gatewayDriftKeys }).Count -eq 0) { return $null }
-
-    return [pscustomobject]@{
-        commit = $commit
-        blocking = $blocking
-        degraded = $degraded
-        reasons = $reasons
-        recovery_trust_exact = [bool]$trustExact
-    }
-}
-
-function Invoke-GatewayConvergence([object]$Recovery) {
-    if (-not (Test-Path -LiteralPath $converger -PathType Leaf)) { Fail "Activation Gateway convergence helper is missing: $converger" }
-    if (Test-Path -LiteralPath $convergenceReportPath) { Remove-Item -LiteralPath $convergenceReportPath -Force }
-    Write-Host "STAGING_GATEWAY_DRIFT_DETECTED: commit=$($Recovery.commit) reasons=$($Recovery.reasons -join ',')" -ForegroundColor Yellow
     $previousErrorActionPreference = $ErrorActionPreference
-    $convergenceExitCode = $null
-    $convergenceLines = @()
+    $exitCode = $null
+    $lines = @()
     try {
         $ErrorActionPreference = 'Continue'
-        $convergenceLines = @(& powershell.exe @(
-            '-NoLogo','-NoProfile','-ExecutionPolicy','Bypass','-File',$converger,
-            '-RepositoryPath',$RepositoryPath,
-            '-ExpectedCommit',$Recovery.commit,
-            '-ExpectedRepository',$expectedRepository,
-            '-ReportPath',$convergenceReportPath
+        $lines = @(& node @(
+            $convergenceBridge,
+            '--runtime-state',$runtimeStatePath,
+            '--preflight',$preflightReportPath,
+            '--repository',$expectedRepository,
+            '--recovery-trust-exact',([string]([bool]$trustExact)).ToLowerInvariant()
         ) 2>&1 | ForEach-Object { [string]$_ })
-        $convergenceExitCode = [int]$LASTEXITCODE
+        $exitCode = [int]$LASTEXITCODE
     } finally {
         $ErrorActionPreference = $previousErrorActionPreference
     }
-    Write-Lines $convergenceLines
-    if ($null -eq $convergenceExitCode) { Fail 'Activation Gateway smart convergence did not expose a native exit code.' }
-    if ($convergenceExitCode -ne 0) { Fail "Activation Gateway smart convergence exited with code $convergenceExitCode" }
-    $report = Read-TypedState $convergenceReportPath 'Activation Gateway convergence report'
-    if ([string]$report.contract -ne 'mad4b.staging.activation-gateway-convergence.v1' -or $report.ready -ne $true) {
-        Fail 'Activation Gateway smart convergence did not produce ready exact-SHA evidence.'
+    if ($null -eq $exitCode) { Fail 'Shared convergence bridge did not expose a native exit code.' }
+    $final = Get-FinalJson $lines
+    if ($null -eq $final) {
+        Write-Lines $lines
+        Fail 'Shared convergence bridge did not emit canonical JSON.'
     }
-    if (([string]$report.expected_commit).Trim().ToLowerInvariant() -ne $Recovery.commit) { Fail 'Activation Gateway convergence report commit mismatch.' }
-    if ($report.production_mutation -ne $false -or $report.production_deploy -ne $false -or $report.cloudflare_dns_mutation -ne $false) {
-        Fail 'Activation Gateway convergence violated the Staging-only mutation boundary.'
+    Write-Lines $final.prefix
+    if ($exitCode -ne 0) {
+        $final.json | ConvertTo-Json -Depth 12
+        Fail "Shared convergence bridge exited with code $exitCode"
     }
-    if ($report.database_mutation -ne $false -or $report.migration_apply -ne $false -or $report.ruleset_mutation -ne $false -or $report.secrets_included -ne $false) {
-        Fail 'Activation Gateway convergence violated a non-Worker safety boundary.'
+    $bridge = $final.json
+    if ([string]$bridge.contract -ne 'mad4b.staging-environment-convergence-bridge.v1') { Fail 'Unexpected shared convergence bridge contract.' }
+    if ($bridge.safety.provider_mutation -ne $false -or $bridge.safety.workflow_dispatch -ne $false -or $bridge.safety.production_mutation -ne $false -or $bridge.safety.database_mutation -ne $false) {
+        Fail 'Shared convergence bridge violated the observation-only boundary.'
     }
-    if ($report.final_origin_trust.exact -ne $true -or [string]$report.recovery_ingress_replay_scope -ne 'single_filesystem') {
-        Fail 'Activation Gateway convergence did not establish exact Recovery origin trust and durable local replay authority.'
-    }
-    return $report
+    return $bridge
 }
 
-function Write-CorrectedResult([object[]]$Lines, [object]$Convergence) {
+function Write-CorrectedResult([object[]]$Lines, [object]$Bridge) {
     $final = Get-FinalJson $Lines
     if ($null -eq $final) {
         Write-Lines $Lines
@@ -235,48 +191,35 @@ function Write-CorrectedResult([object[]]$Lines, [object]$Convergence) {
     }
     Write-Lines $final.prefix
     $result = $final.json
-    $mutated = $false
-    $initiated = $false
-    $scope = 'none'
-    $action = if ($EnableActivationGateway) { 'already_current_or_core_ready' } else { 'not_requested' }
-    $runId = $null
-    $originTrustUpdated = $false
-    if ($null -ne $Convergence) {
-        $mutated = [bool]$Convergence.provider_mutation
-        $initiated = [bool]$Convergence.provider_mutation_initiated
-        $scope = [string]$Convergence.provider_mutation_scope
-        $action = [string]$Convergence.action
-        $runId = $Convergence.workflow_run_id
-        $originTrustUpdated = [bool]$Convergence.origin_trust_updated
-    }
-    $result | Add-Member -NotePropertyName activation_gateway_smart_convergence -NotePropertyValue ([bool]$EnableActivationGateway) -Force
-    $result | Add-Member -NotePropertyName activation_gateway_convergence_action -NotePropertyValue $action -Force
-    $result | Add-Member -NotePropertyName activation_gateway_deploy_run_id -NotePropertyValue $runId -Force
-    $result | Add-Member -NotePropertyName activation_recovery_origin_trust_updated -NotePropertyValue $originTrustUpdated -Force
+    $classification = if ($null -ne $Bridge) { $Bridge.report.convergence } else { $null }
+    $handoff = if ($null -ne $classification) { $classification.next_governed_handoff } else { $null }
+    $result | Add-Member -NotePropertyName environment_convergence_status -NotePropertyValue $(if ($null -ne $classification) { [string]$classification.status } else { 'converged_or_not_required' }) -Force
+    $result | Add-Member -NotePropertyName environment_convergence_plan_sha256 -NotePropertyValue $(if ($null -ne $Bridge -and $null -ne $Bridge.plan) { [string]$Bridge.plan.plan_sha256 } else { $null }) -Force
+    $result | Add-Member -NotePropertyName environment_convergence_next_governed_handoff -NotePropertyValue $handoff -Force
     $result | Add-Member -NotePropertyName activation_recovery_trusted_ingress_ready -NotePropertyValue ([bool]($EnableActivationGateway -and (Test-LocalRecoveryTrustExact ([string]$result.commit)))) -Force
-    $result | Add-Member -NotePropertyName staging_worker_deploy_performed -NotePropertyValue $mutated -Force
-    $result | Add-Member -NotePropertyName staging_worker_deploy_initiated -NotePropertyValue $initiated -Force
-    $result | Add-Member -NotePropertyName provider_mutation -NotePropertyValue $mutated -Force
-    $result | Add-Member -NotePropertyName provider_mutation_scope -NotePropertyValue $scope -Force
-    $result | Add-Member -NotePropertyName cloudflare_worker_mutation -NotePropertyValue $mutated -Force
+    $result | Add-Member -NotePropertyName staging_worker_deploy_performed -NotePropertyValue $false -Force
+    $result | Add-Member -NotePropertyName staging_worker_deploy_initiated -NotePropertyValue $false -Force
+    $result | Add-Member -NotePropertyName provider_mutation -NotePropertyValue $false -Force
+    $result | Add-Member -NotePropertyName provider_mutation_scope -NotePropertyValue 'none' -Force
+    $result | Add-Member -NotePropertyName cloudflare_worker_mutation -NotePropertyValue $false -Force
     $result | Add-Member -NotePropertyName cloudflare_dns_mutation -NotePropertyValue $false -Force
-    $result | Add-Member -NotePropertyName cloudflare_mutation -NotePropertyValue $mutated -Force
+    $result | Add-Member -NotePropertyName cloudflare_mutation -NotePropertyValue $false -Force
     $result | Add-Member -NotePropertyName production_mutation -NotePropertyValue $false -Force
     $result | Add-Member -NotePropertyName production_database_mutation -NotePropertyValue $false -Force
     $result | Add-Member -NotePropertyName secrets_included -NotePropertyValue $false -Force
-    $result | ConvertTo-Json -Depth 8
+    $result | ConvertTo-Json -Depth 12
 }
 
 if ([string]::IsNullOrWhiteSpace($RepositoryPath)) { $RepositoryPath = [IO.Path]::GetFullPath((Join-Path $root '..')) }
 $RepositoryPath = [IO.Path]::GetFullPath($RepositoryPath)
+$convergenceBridge = Join-Path $RepositoryPath 'http-generic-api\scripts\staging-environment-convergence-plan.mjs'
 if (-not (Test-Path -LiteralPath $core -PathType Leaf)) { Fail "Dual-mode core launcher is missing: $core" }
 if (-not (Test-Path -LiteralPath (Join-Path $RepositoryPath '.git'))) { Fail "RepositoryPath is not a Git checkout: $RepositoryPath" }
-if (Test-Path -LiteralPath $convergenceReportPath) { Remove-Item -LiteralPath $convergenceReportPath -Force }
 
 Invoke-EnvAuthorityGuard
 $first = Invoke-Core
-$recovery = Get-GatewayDriftRecovery $first.exit_code
-if ($null -eq $recovery) {
+$bridge = Invoke-SharedConvergence $first.exit_code
+if ($null -eq $bridge) {
     if ($first.exit_code -eq 0) {
         Write-CorrectedResult $first.lines $null
         exit 0
@@ -285,11 +228,15 @@ if ($null -eq $recovery) {
     exit $first.exit_code
 }
 
-$convergence = Invoke-GatewayConvergence $recovery
-Write-Host "STAGING_GATEWAY_CONVERGENCE_RECERTIFY: commit=$($recovery.commit) action=$($convergence.action)" -ForegroundColor Cyan
-$second = Invoke-Core
-if ($second.exit_code -ne 0) {
-    Write-Lines $second.lines
-    Fail "Dual-mode core remained blocked after exact-SHA Activation Gateway convergence; exit=$($second.exit_code)"
+$classification = $bridge.report.convergence
+$handoff = $classification.next_governed_handoff
+Write-Lines $first.lines
+$bridge | ConvertTo-Json -Depth 12
+if ($null -eq $handoff) { Fail "Shared convergence did not produce a governed handoff; status=$($classification.status)" }
+if ($bridge.convergence_run.status -eq 'approval_required') {
+    Fail "Environment convergence approval required; plan_sha256=$($bridge.plan.plan_sha256)"
 }
-Write-CorrectedResult $second.lines $convergence
+if ($bridge.convergence_run.status -eq 'governed_authority_required' -or $handoff.execution_ready -ne $true) {
+    Fail "Server-governed Staging Activation Gateway apply authority is required; reason=$($handoff.apply_block_reason)"
+}
+Fail 'Top-level AutoPilot must not execute provider or workflow mutation; handoff is ready for the governed server authority.'
