@@ -122,6 +122,28 @@ function productionCandidateEvaluationComposition(composition, env = process.env
   };
 }
 
+function observedProductionLiveState(composition) {
+  const factory = composition?.productionRecoveryCompositionFactory || null;
+  const enabled = composition?.mode === "production_live"
+    && composition?.live_activation === true
+    && composition?.mutation_authority_available === true;
+  const requested = factory?.activation_requested === true
+    || factory?.mode === "production_live";
+  const factoryClaimsLive = factory?.live_activation === true;
+  const contradiction = factoryClaimsLive !== enabled
+    && (factoryClaimsLive || enabled);
+  return {
+    requested,
+    enabled,
+    factory_claims_live: factoryClaimsLive,
+    contradiction,
+    composition_mode: composition?.mode || null,
+    mutation_authority_available: composition?.mutation_authority_available === true,
+    source: "actual_recovery_composition",
+    secrets_included: false,
+  };
+}
+
 export async function runProductionActivationReadiness({
   mcpCatalogReader = readMcpCatalogSchemaReadinessSafe,
   governanceDbReader = getGovernanceDbPrivilegeReadinessSnapshot,
@@ -164,12 +186,21 @@ export async function runProductionActivationReadiness({
   };
   const ready = Object.values(checks).every(Boolean);
 
+  const actualLiveState = observedProductionLiveState(recoveryComposition);
   const candidateEvaluation = productionCandidateEvaluationComposition(recoveryComposition, env);
-  const effectiveProductionLiveRequested = productionLiveRequested === true || candidateEvaluation.requested === true;
+  const effectiveProductionLiveRequested = productionLiveRequested === true
+    || actualLiveState.requested === true
+    || candidateEvaluation.requested === true;
+  // Composition state is authoritative. The legacy caller flag remains accepted
+  // for compatibility but cannot turn Production live state on by itself.
+  const effectiveProductionLiveEnabled = actualLiveState.enabled === true;
+  const authorityComposition = actualLiveState.enabled === true
+    ? recoveryComposition
+    : candidateEvaluation.composition;
   const productionAuthorityReadiness = buildProductionAuthorityActivationReadiness({
     productionLiveRequested: effectiveProductionLiveRequested,
-    productionLiveEnabled,
-    composition: candidateEvaluation.composition,
+    productionLiveEnabled: effectiveProductionLiveEnabled,
+    composition: authorityComposition,
     stagingCertification,
     deploymentAttestation,
     candidateSha,
@@ -204,9 +235,12 @@ export async function runProductionActivationReadiness({
       graph_validated: candidateEvaluation.candidate?.configured === true,
       mutation_authority_exposed: candidateEvaluation.candidate?.mutation_authority_exposed === true,
       runtime_class: candidateEvaluation.runtime?.runtime_class || null,
-      live_activation: false,
+      live_activation: actualLiveState.enabled,
       secrets_included: false,
     },
+    actual_composition_live_state: actualLiveState,
+    legacy_caller_live_enabled_signal: productionLiveEnabled === true,
+    live_state_contradiction: actualLiveState.contradiction === true,
     read_only_probe: mutationAttestationComplete,
     database_connection_performed: aggregateBoolean("database_connection_performed"),
     sql_readback_performed: aggregateBoolean("sql_readback_performed"),
@@ -222,4 +256,5 @@ export async function runProductionActivationReadiness({
 
 export const _testingProductionActivationReadiness = Object.freeze({
   productionCandidateEvaluationComposition,
+  observedProductionLiveState,
 });
