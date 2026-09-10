@@ -144,6 +144,27 @@ function observedProductionLiveState(composition) {
   };
 }
 
+function bindAuthorityReadinessToActualLiveState(readiness, actualLiveState) {
+  const observedEnabled = actualLiveState.enabled === true;
+  const authorityEligible = readiness?.activation_eligible === true;
+  const contradiction = actualLiveState.contradiction === true
+    || (observedEnabled && !authorityEligible);
+  const blockingReasons = new Set(readiness?.blocking_reasons || []);
+  if (contradiction) blockingReasons.add("RECOVERY_PRODUCTION_LIVE_STATE_CONTRADICTION");
+  return {
+    ...readiness,
+    production_live: {
+      ...(readiness?.production_live || {}),
+      enabled: observedEnabled,
+      observed_enabled: observedEnabled,
+    },
+    live_activation: observedEnabled,
+    live_state_contradiction: contradiction,
+    blocking_reasons: [...blockingReasons],
+    secrets_included: false,
+  };
+}
+
 export async function runProductionActivationReadiness({
   mcpCatalogReader = readMcpCatalogSchemaReadinessSafe,
   governanceDbReader = getGovernanceDbPrivilegeReadinessSnapshot,
@@ -184,7 +205,7 @@ export async function runProductionActivationReadiness({
     runtime_persistence_ready: runtimePersistence.ok === true,
     mutation_attestation_complete: mutationAttestationComplete,
   };
-  const ready = Object.values(checks).every(Boolean);
+  const dimensionReady = Object.values(checks).every(Boolean);
 
   const actualLiveState = observedProductionLiveState(recoveryComposition);
   const candidateEvaluation = productionCandidateEvaluationComposition(recoveryComposition, env);
@@ -197,7 +218,7 @@ export async function runProductionActivationReadiness({
   const authorityComposition = actualLiveState.enabled === true
     ? recoveryComposition
     : candidateEvaluation.composition;
-  const productionAuthorityReadiness = buildProductionAuthorityActivationReadiness({
+  const rawProductionAuthorityReadiness = buildProductionAuthorityActivationReadiness({
     productionLiveRequested: effectiveProductionLiveRequested,
     productionLiveEnabled: effectiveProductionLiveEnabled,
     composition: authorityComposition,
@@ -209,6 +230,12 @@ export async function runProductionActivationReadiness({
     unresolvedRecoveryIncidents,
     adapterProvenance,
   });
+  const productionAuthorityReadiness = bindAuthorityReadinessToActualLiveState(
+    rawProductionAuthorityReadiness,
+    actualLiveState,
+  );
+  const liveStateContradiction = productionAuthorityReadiness.live_state_contradiction === true;
+  const ready = dimensionReady && !liveStateContradiction;
 
   const aggregateBoolean = (field) => dimensionEntries.some(([, result]) => result[field] === true);
 
@@ -218,7 +245,10 @@ export async function runProductionActivationReadiness({
     ok: ready,
     ready,
     dimensions,
-    checks,
+    checks: {
+      ...checks,
+      recovery_live_state_consistent: !liveStateContradiction,
+    },
     mutation_attestation: {
       complete: mutationAttestationComplete,
       dimensions: mutationAttestations,
@@ -240,7 +270,7 @@ export async function runProductionActivationReadiness({
     },
     actual_composition_live_state: actualLiveState,
     legacy_caller_live_enabled_signal: productionLiveEnabled === true,
-    live_state_contradiction: actualLiveState.contradiction === true,
+    live_state_contradiction: liveStateContradiction,
     read_only_probe: mutationAttestationComplete,
     database_connection_performed: aggregateBoolean("database_connection_performed"),
     sql_readback_performed: aggregateBoolean("sql_readback_performed"),
@@ -257,4 +287,5 @@ export async function runProductionActivationReadiness({
 export const _testingProductionActivationReadiness = Object.freeze({
   productionCandidateEvaluationComposition,
   observedProductionLiveState,
+  bindAuthorityReadinessToActualLiveState,
 });
