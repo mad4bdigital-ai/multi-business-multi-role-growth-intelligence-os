@@ -1,0 +1,6 @@
+version: 1
+contracts:
+  "POST /platform/remote-runtime/wordpress/staging/deploy-plugin":
+    path_item_ref: ./openapi/wordpress-staging-plugin-deploy.yaml#/wordpressStagingPluginDeployPath
+    route_file: routes/wordpressStagingPluginDeployRoutes.js
+    composition_mode: inline
