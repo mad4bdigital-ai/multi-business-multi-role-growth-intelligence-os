@@ -2,14 +2,24 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "staging-environment-convergence-certification-20260910",
-  "title": "Staging environment profile-first convergence certification",
+  "title": "Staging profile-bound shared convergence orchestration",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
     "include": [
       ".changes/e2e/staging-environment-convergence-certification-20260910.json",
+      ".github/workflows/staging-live-certification.yml",
+      "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
+      "autopilot-portable-staging/Converge-StagingActivationGateway.ps1",
+      "autopilot-portable-staging/activation-gateway-smart-convergence-policy.json",
+      "http-generic-api/config/environment-convergence-registry.json",
+      "http-generic-api/environmentConvergenceRegistry.js",
+      "http-generic-api/environmentConvergenceEngine.js",
+      "http-generic-api/scripts/staging-environment-convergence-plan.mjs",
       "http-generic-api/scripts/staging-live-certification.mjs",
+      "http-generic-api/test-staging-activation-gateway.mjs",
       "http-generic-api/test-staging-environment-certification-contract.mjs",
+      "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
       "http-generic-api/test-staging-autopilot-closure.mjs"
     ]
   },
@@ -27,7 +37,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Make Staging live certification enforce the canonical environment profile before probing Activation Gateway, classify a healthy old Gateway release as repairable convergence drift instead of integrity corruption, and expose the shared convergence classification without granting apply authority or performing mutation.",
+      "objective": "Make the shared environment convergence engine the canonical Staging drift classifier and plan authority, bind every Gateway plan to the exact environment policy hash, retire direct workflow dispatch from the AutoPilot convergence path, and keep Staging apply fail-closed until a server-governed adapter exists.",
       "e2e_journeys": [
         {
           "id": "staging-profile-first-live-certification",
@@ -35,22 +45,23 @@
           "level": "synthetic_runtime",
           "actor": "Staging release certification controller",
           "entrypoint": "http-generic-api/scripts/staging-live-certification.mjs",
-          "terminal_outcome": "An exact Staging release certifies ready; a healthy Gateway on an older exact SHA remains non-ready but is reported as degraded with convergence.status=reconciliation_required and no automatic apply; a policy bound to the wrong environment is blocked before any Gateway health probe.",
+          "terminal_outcome": "An exact Staging release certifies ready from a canonical profile-resolved policy; a healthy Gateway on an older exact SHA remains non-ready and is classified as governed convergence drift; caller policy-path overrides cannot change policy identity.",
           "steps": [
-            "Load the canonical environment-convergence registry and the selected Staging Gateway policy.",
-            "Validate policy key and public host against the Staging profile before constructing or probing the Gateway endpoint.",
-            "Treat a profile mismatch as gateway_environment_profile_current integrity failure and stop before the Gateway network probe.",
+            "Load the canonical environment-convergence registry and resolve the Staging Gateway policy server-side from its profile.",
+            "Validate policy key, public host and expected policy hash before constructing or probing the Gateway endpoint.",
+            "Ignore caller-selected policy paths and fail closed when the canonical profile policy is inconsistent.",
             "For a profile-valid reachable Gateway, keep gateway_health_reachable as integrity evidence but evaluate gateway_exact_commit as readiness/convergence evidence.",
             "Classify a healthy old sourceCommit as convergence_drift/release_identity_mismatch with repairability=governed and automatic_apply_allowed=false.",
             "Emit the classification in report.convergence while retaining certification as the final judge and requiring exact Gateway release identity for artifact_set.complete.",
             "Keep all provider, database, migration, Production, ruleset and secret mutation disabled."
           ],
           "assertions": [
-            "The Staging certification policy must match activation_gateway_staging and activation-dev.mad4b.com before any external Gateway probe.",
+            "The Staging certification policy must match activation_gateway_staging, activation-dev.mad4b.com and the profile expected_policy_hash before any external Gateway probe.",
+            "The live certifier does not read STAGING_CERT_GATEWAY_POLICY_PATH or any other caller-selected policy path.",
             "gateway_environment_profile_current is an integrity failure and manual_non_repairable when false.",
-            "gateway_exact_commit is a readiness failure classified as convergence_drift/release_identity_mismatch rather than integrity corruption.",
+            "gateway_exact_commit is classified as convergence_drift/release_identity_mismatch rather than integrity corruption.",
             "A healthy old Gateway SHA yields degraded certification when readiness is not required and convergence.status=reconciliation_required.",
-            "An exact Gateway SHA remains required for artifact_set.complete and release-ready certification.",
+            "An exact Gateway SHA and policy hash remain required for artifact_set.complete and release-ready certification.",
             "The convergence handoff never auto-applies and live certification performs no provider or Production mutation."
           ],
           "tests": [
@@ -62,6 +73,58 @@
               "args": []
             },
             {
+              "id": "staging-activation-gateway-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-activation-gateway.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-environment-convergence-certification-20260910.json",
+            ".github/workflows/staging-live-certification.yml",
+            "http-generic-api/scripts/staging-live-certification.mjs",
+            "http-generic-api/config/environment-convergence-registry.json",
+            "http-generic-api/environmentConvergenceRegistry.js",
+            "http-generic-api/environmentConvergenceEngine.js",
+            "http-generic-api/test-staging-environment-certification-contract.mjs",
+            "http-generic-api/test-staging-activation-gateway.mjs",
+            "http-generic-api/config/deployment-branch-policy.json"
+          ]
+        },
+        {
+          "id": "staging-autopilot-shared-convergence-handoff",
+          "end_to_end": true,
+          "level": "contract_integration",
+          "actor": "Staging AutoPilot",
+          "entrypoint": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
+          "terminal_outcome": "AutoPilot consumes report.convergence.next_governed_handoff from the shared engine, produces a policy-hash-bound plan, and stops at approval/governed-authority boundaries without dispatching a workflow or mutating a provider.",
+          "steps": [
+            "Run the local Staging core once and treat its certification state as observation evidence.",
+            "Pass observed blocking/degraded reasons to the shared environment convergence bridge rather than classify Gateway drift inside PowerShell.",
+            "Build an immutable convergence plan whose plan_sha256 binds repository, branch, exact commit and activation_gateway_policy_hash.",
+            "Consume report.convergence.next_governed_handoff as the only convergence next-action source.",
+            "Stop at approval_required when approval is missing and at governed_authority_required while Staging has no server-governed apply adapter.",
+            "Keep the legacy Converge-StagingActivationGateway helper as a non-mutating fail-closed compatibility tombstone.",
+            "Guard the launcher, legacy helper and shared bridge against direct provider commands and workflow dispatch."
+          ],
+          "assertions": [
+            "Invoke-Staging-One-Click.ps1 contains no hardcoded Gateway drift-key allowlist and does not call Converge-StagingActivationGateway.ps1.",
+            "The Staging profile has apply_capability=null and governed_apply_ready=false until a focused server-governed adapter exists.",
+            "The convergence plan binds activation_gateway_policy_hash and rejects a caller-supplied mismatched policy hash.",
+            "Converge-StagingActivationGateway.ps1 performs no GitHub workflow dispatch, provider mutation, trust installation, database mutation or Production mutation.",
+            "The orchestrator boundary includes the One-Click launcher, legacy helper and shared convergence bridge.",
+            "The legacy deployment workflow may remain as infrastructure but is not an execution primitive available to the AutoPilot boundary."
+          ],
+          "tests": [
+            {
+              "id": "staging-smart-gateway-convergence-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-smart-gateway-convergence-contract.mjs",
+              "args": []
+            },
+            {
               "id": "staging-autopilot-certification-closure",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -70,13 +133,13 @@
             }
           ],
           "evidence_paths": [
-            ".changes/e2e/staging-environment-convergence-certification-20260910.json",
-            "http-generic-api/scripts/staging-live-certification.mjs",
+            "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
+            "autopilot-portable-staging/Converge-StagingActivationGateway.ps1",
+            "autopilot-portable-staging/activation-gateway-smart-convergence-policy.json",
+            "http-generic-api/scripts/staging-environment-convergence-plan.mjs",
             "http-generic-api/config/environment-convergence-registry.json",
-            "http-generic-api/environmentConvergenceRegistry.js",
-            "http-generic-api/test-staging-environment-certification-contract.mjs",
-            "http-generic-api/test-staging-autopilot-closure.mjs",
-            "http-generic-api/config/deployment-branch-policy.json"
+            "http-generic-api/environmentConvergenceEngine.js",
+            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
           ]
         }
       ],
@@ -86,6 +149,20 @@
           "runner": "node",
           "working_directory": "http-generic-api",
           "path": "test-staging-environment-certification-contract.mjs",
+          "args": []
+        },
+        {
+          "id": "staging-activation-gateway-contract",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-staging-activation-gateway.mjs",
+          "args": []
+        },
+        {
+          "id": "staging-smart-gateway-convergence-contract",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-staging-smart-gateway-convergence-contract.mjs",
           "args": []
         },
         {
