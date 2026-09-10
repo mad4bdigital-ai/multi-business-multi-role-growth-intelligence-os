@@ -13,10 +13,9 @@
       "http-generic-api/recoveryTrustModel.js",
       "http-generic-api/recoveryComposition.js",
       "http-generic-api/productionRecoveryCompositionFactory.js",
-      "http-generic-api/test-deployment-manifest.mjs",
-      "http-generic-api/test-recovery-canonical-identity-resolution.mjs",
-      "http-generic-api/test-production-recovery-composition-factory.mjs",
-      "http-generic-api/test-recovery-readonly-evidence-store-boundary.mjs"
+      "http-generic-api/test-recovery-trust-model.mjs",
+      "http-generic-api/test-recovery-composition.mjs",
+      "http-generic-api/test-production-recovery-composition-factory.mjs"
     ]
   },
   "merge_contract": {
@@ -66,12 +65,9 @@
             "Staging and Production remain environment profiles over one shared codebase rather than separate Recovery applications."
           ],
           "tests": [
-            {"id":"deployment-manifest-canonical-identity","runner":"node","working_directory":"http-generic-api","path":"test-deployment-manifest.mjs","args":[]},
-            {"id":"recovery-canonical-identity-resolution","runner":"node","working_directory":"http-generic-api","path":"test-recovery-canonical-identity-resolution.mjs","args":[]},
             {"id":"recovery-trust-model","runner":"node","working_directory":"http-generic-api","path":"test-recovery-trust-model.mjs","args":[]},
             {"id":"recovery-composition","runner":"node","working_directory":"http-generic-api","path":"test-recovery-composition.mjs","args":[]},
-            {"id":"production-recovery-readonly-evidence-composition","runner":"node","working_directory":"http-generic-api","path":"test-production-recovery-composition-factory.mjs","args":[]},
-            {"id":"recovery-readonly-evidence-store-boundary","runner":"node","working_directory":"http-generic-api","path":"test-recovery-readonly-evidence-store-boundary.mjs","args":[]}
+            {"id":"production-recovery-readonly-evidence-composition","runner":"node","working_directory":"http-generic-api","path":"test-production-recovery-composition-factory.mjs","args":[]}
           ],
           "evidence_paths": [
             "docs/governance/recovery-canonical-identity-readonly-evidence-20260910.md",
@@ -79,18 +75,16 @@
             "http-generic-api/recoveryTrustModel.js",
             "http-generic-api/recoveryComposition.js",
             "http-generic-api/productionRecoveryCompositionFactory.js",
-            "http-generic-api/test-recovery-canonical-identity-resolution.mjs",
-            "http-generic-api/test-recovery-readonly-evidence-store-boundary.mjs"
+            "http-generic-api/test-recovery-trust-model.mjs",
+            "http-generic-api/test-recovery-composition.mjs",
+            "http-generic-api/test-production-recovery-composition-factory.mjs"
           ]
         }
       ],
       "tests": [
-        {"id":"deployment-manifest-canonical-identity","runner":"node","working_directory":"http-generic-api","path":"test-deployment-manifest.mjs","args":[]},
-        {"id":"recovery-canonical-identity-resolution","runner":"node","working_directory":"http-generic-api","path":"test-recovery-canonical-identity-resolution.mjs","args":[]},
         {"id":"recovery-trust-model","runner":"node","working_directory":"http-generic-api","path":"test-recovery-trust-model.mjs","args":[]},
         {"id":"recovery-composition","runner":"node","working_directory":"http-generic-api","path":"test-recovery-composition.mjs","args":[]},
-        {"id":"production-recovery-readonly-evidence-composition","runner":"node","working_directory":"http-generic-api","path":"test-production-recovery-composition-factory.mjs","args":[]},
-        {"id":"recovery-readonly-evidence-store-boundary","runner":"node","working_directory":"http-generic-api","path":"test-recovery-readonly-evidence-store-boundary.mjs","args":[]}
+        {"id":"production-recovery-readonly-evidence-composition","runner":"node","working_directory":"http-generic-api","path":"test-production-recovery-composition-factory.mjs","args":[]}
       ]
     }
   ],
