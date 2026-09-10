@@ -41,7 +41,7 @@ test("Staging Recovery tools are absent from Production catalog and present only
 
   const staging = synchronizeRecoverySystemToolDescriptors(STAGING_ENV);
   assert.equal(staging.staging_advertised, true);
-  assert.equal(staging.staging_tool_count, 5);
+  assert.equal(staging.staging_tool_count, 8);
   assert.deepEqual(
     SYSTEM_LAYER_TOOLS.filter((entry) => entry.source_key === "staging_recovery_system_surface_v1").map((entry) => entry.name),
     [
@@ -50,6 +50,9 @@ test("Staging Recovery tools are absent from Production catalog and present only
       "staging_recovery_access_repair_execute",
       "staging_recovery_access_repair_approve",
       "staging_recovery_system_surface_readiness",
+      "staging_recovery_schema_repair_prepare",
+      "staging_recovery_schema_repair_approve",
+      "staging_recovery_schema_repair_execute",
     ],
   );
 
@@ -64,8 +67,10 @@ test("Staging capability reporting separates kernel discovery from bounded Syste
   assert.deepEqual(staging.control_plane_state_write_capabilities, [
     "staging_certification_canary_plan_create",
     "staging_database_access_repair",
+    "staging_database_schema_repair",
   ]);
   assert.deepEqual(staging.target_database_mutation_capabilities, []);
+  assert.equal(staging.system_surface_extensions.find((entry) => entry.capability_key === "staging_database_schema_repair").state_scope, "allowlist_plan_approval_ticket_only");
   assert.equal(staging.production_authority, false);
   assert.equal(staging.secrets_included, false);
 
@@ -84,6 +89,20 @@ test("Staging access repair mutation is advertised only when execute and indepen
   });
   assert.deepEqual(staging.target_database_mutation_capabilities, ["staging_database_access_repair"]);
   assert.equal(staging.system_surface_extensions.find((entry) => entry.capability_key === "staging_database_access_repair").state_scope, "plan_approval_execute_readback");
+  assert.equal(staging.system_surface_extensions.find((entry) => entry.capability_key === "staging_database_schema_repair").state_scope, "allowlist_plan_approval_ticket_only");
+});
+
+test("Staging schema repair mutation is advertised only with fenced execution, durable ticket finalization, readback, and migration ledger", () => {
+  const staging = projectRecoveryCapabilitiesForSystemSurface(STAGING_ENV, {
+    hostBreakglassMutationExecutor: async () => ({ ok: true }),
+    recoveryLock: { acquire() {}, heartbeat() {}, assertFence() {}, release() {} },
+    readbackVerifier: { verify() {}, independent_authority: true, role_aware: true, mutation_authority: false },
+    deploymentIdentityProvider: { readAttestation() {} },
+    recoveryStore: { getPlan() {}, getExecutionTicket() {}, reserveExecutionTicket() {}, finalizeExecutionTicket() {}, markApprovalUsed() {} },
+    migrationLedger: { finalize() {} },
+  });
+  assert.deepEqual(staging.target_database_mutation_capabilities, ["staging_database_access_repair", "staging_database_schema_repair"]);
+  assert.equal(staging.system_surface_extensions.find((entry) => entry.capability_key === "staging_database_schema_repair").state_scope, "allowlist_plan_approval_execute_same_cycle_readback");
 });
 
 test("Bridge v2 validator accepts explicit server-managed confirmation fields and rejects caller tickets", () => {
