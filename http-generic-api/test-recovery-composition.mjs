@@ -64,6 +64,7 @@ function makeEvidenceStore(overrides = {}) {
     target_database_binding: "forbidden",
     shared_replica_safe: true,
     schema_auto_apply: false,
+    payload_integrity_verified_on_read: true,
     provider_accessed: false,
     ...Object.fromEntries(READ_ONLY_EVIDENCE_STORE_METHODS.map((name) => [name, asyncMethod(true)])),
     claimExecution: asyncMethod(true),
@@ -159,6 +160,7 @@ test("read-only Recovery store projection rejects unsafe persistence boundaries"
   assert.equal(buildReadOnlyEvidenceStore(makeEvidenceStore({ target_database_binding: "runtime_persistence" })), null);
   assert.equal(buildReadOnlyEvidenceStore(makeEvidenceStore({ shared_replica_safe: false })), null);
   assert.equal(buildReadOnlyEvidenceStore(makeEvidenceStore({ schema_auto_apply: true })), null);
+  assert.equal(buildReadOnlyEvidenceStore(makeEvidenceStore({ payload_integrity_verified_on_read: false })), null);
   assert.equal(buildReadOnlyEvidenceStore(makeEvidenceStore({ provider_accessed: true })), null);
 });
 
