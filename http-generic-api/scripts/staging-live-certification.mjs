@@ -2,12 +2,18 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  assertActivationGatewayProfilePolicy,
+  classifyEnvironmentCertification,
+  readEnvironmentConvergenceRegistry,
+} from "../environmentConvergenceRegistry.js";
 
 const CONTRACT = "mad4b.staging-live-certification.v1";
 const SHA_RE = /^[0-9a-f]{40}$/u;
 const here = path.dirname(fileURLToPath(import.meta.url));
 const apiRoot = path.resolve(here, "..");
 const repositoryRoot = path.resolve(apiRoot, "..");
+const convergenceRegistry = readEnvironmentConvergenceRegistry();
 
 function bool(value, fallback = false) {
   const normalized = String(value ?? "").trim().toLowerCase();
@@ -169,6 +175,7 @@ let gatewayEvidence = {
   expected_policy_hash: gatewayPolicy?.content_hash_sha256 || null,
   expected_source_commit: expectedCommit,
   public_host: gatewayPolicy?.public_host || null,
+  profile_validation: null,
   health: null,
   ready: null,
 };
@@ -177,45 +184,59 @@ if (requireGateway) {
   if (!gatewayPolicy?.public_host || !gatewayPolicy?.content_hash_sha256) {
     readinessChecks.push(check("gateway_policy_source_available", false, { policy_path: gatewayPolicyPath }, "readiness"));
   } else {
-    const gatewayBase = normalizeUrl(
-      process.env.STAGING_CERT_GATEWAY_BASE_URL,
-      `https://${gatewayPolicy.public_host}`,
-    );
-    const health = await fetchJson(new URL("/health", gatewayBase));
-    const gatewayHealthUsable = health.ok && health.body !== null && typeof health.body === "object";
-    gatewayEvidence.health = health.body || { status: health.status, error: health.error || null };
-    integrityChecks.push(check("gateway_health_reachable", gatewayHealthUsable, {
-      status: health.status,
-      error: health.error || null,
-      json_body_available: health.body !== null,
+    const profileValidation = assertActivationGatewayProfilePolicy("staging", gatewayPolicy, convergenceRegistry);
+    gatewayEvidence.profile_validation = profileValidation;
+    integrityChecks.push(check("gateway_environment_profile_current", profileValidation.ok, {
+      environment: profileValidation.environment,
+      expected_policy_key: profileValidation.expected_policy_key,
+      observed_policy_key: profileValidation.observed_policy_key,
+      expected_public_host: profileValidation.expected_public_host,
+      observed_public_host: profileValidation.observed_public_host,
+      policy_path: profileValidation.policy_path,
+      checks: profileValidation.checks,
     }));
-    if (gatewayHealthUsable) {
-      readinessChecks.push(check("gateway_policy_not_stale", health.body.ok === true && health.body.stale === false, {
-        stale: health.body.stale ?? null,
-        source_commit: health.body.sourceCommit || null,
-      }, "readiness"));
-      integrityChecks.push(check("gateway_exact_commit", String(health.body.sourceCommit || "").trim().toLowerCase() === expectedCommit, {
-        expected: expectedCommit,
-        observed: health.body.sourceCommit || null,
+
+    if (profileValidation.ok) {
+      const gatewayBase = normalizeUrl(
+        process.env.STAGING_CERT_GATEWAY_BASE_URL,
+        `https://${gatewayPolicy.public_host}`,
+      );
+      const health = await fetchJson(new URL("/health", gatewayBase));
+      const gatewayHealthUsable = health.ok && health.body !== null && typeof health.body === "object";
+      gatewayEvidence.health = health.body || { status: health.status, error: health.error || null };
+      integrityChecks.push(check("gateway_health_reachable", gatewayHealthUsable, {
+        status: health.status,
+        error: health.error || null,
+        json_body_available: health.body !== null,
       }));
-      readinessChecks.push(check("gateway_policy_hash_current", health.body.policyHash === gatewayPolicy.content_hash_sha256, {
-        expected: gatewayPolicy.content_hash_sha256,
-        observed: health.body.policyHash || null,
-      }, "readiness"));
-      readinessChecks.push(check("gateway_policy_key_current", health.body.policyKey === gatewayPolicy.policy_key, {
-        expected: gatewayPolicy.policy_key || null,
-        observed: health.body.policyKey || null,
-      }, "readiness"));
-      readinessChecks.push(check("gateway_health_secret_free", health.body.secretsIncluded === false, health.body.secretsIncluded ?? null, "readiness"));
-    }
-    if (requireGatewayUpstream) {
-      const ready = await fetchJson(new URL("/ready", gatewayBase));
-      gatewayEvidence.ready = ready.body || { status: ready.status, error: ready.error || null };
-      readinessChecks.push(check("gateway_upstream_ready", ready.ok && ready.body?.ok === true && ready.body?.upstreamReady === true, {
-        status: ready.status,
-        upstream_ready: ready.body?.upstreamReady ?? null,
-        error: ready.error || ready.body?.error?.code || null,
-      }, "readiness"));
+      if (gatewayHealthUsable) {
+        readinessChecks.push(check("gateway_policy_not_stale", health.body.ok === true && health.body.stale === false, {
+          stale: health.body.stale ?? null,
+          source_commit: health.body.sourceCommit || null,
+        }, "readiness"));
+        readinessChecks.push(check("gateway_exact_commit", String(health.body.sourceCommit || "").trim().toLowerCase() === expectedCommit, {
+          expected: expectedCommit,
+          observed: health.body.sourceCommit || null,
+        }, "readiness"));
+        readinessChecks.push(check("gateway_policy_hash_current", health.body.policyHash === gatewayPolicy.content_hash_sha256, {
+          expected: gatewayPolicy.content_hash_sha256,
+          observed: health.body.policyHash || null,
+        }, "readiness"));
+        readinessChecks.push(check("gateway_policy_key_current", health.body.policyKey === gatewayPolicy.policy_key, {
+          expected: gatewayPolicy.policy_key || null,
+          observed: health.body.policyKey || null,
+        }, "readiness"));
+        readinessChecks.push(check("gateway_health_secret_free", health.body.secretsIncluded === false, health.body.secretsIncluded ?? null, "readiness"));
+      }
+      if (requireGatewayUpstream) {
+        const ready = await fetchJson(new URL("/ready", gatewayBase));
+        gatewayEvidence.ready = ready.body || { status: ready.status, error: ready.error || null };
+        readinessChecks.push(check("gateway_upstream_ready", ready.ok && ready.body?.ok === true && ready.body?.upstreamReady === true, {
+          status: ready.status,
+          upstream_ready: ready.body?.upstreamReady ?? null,
+          error: ready.error || ready.body?.error?.code || null,
+        }, "readiness"));
+      }
     }
   }
 }
@@ -223,6 +244,8 @@ if (requireGateway) {
 const integrityFailed = integrityChecks.filter((entry) => !entry.ok);
 const readinessFailed = readinessChecks.filter((entry) => !entry.ok);
 const outcome = integrityFailed.length > 0 ? "blocked" : readinessFailed.length > 0 ? "degraded" : "ready";
+const gatewayExactCommitSatisfied = !requireGateway
+  || readinessChecks.some((entry) => entry.key === "gateway_exact_commit" && entry.ok);
 
 const report = {
   contract: CONTRACT,
@@ -245,7 +268,7 @@ const report = {
     app_image_digest: observedImageDigest || null,
   },
   artifact_set: {
-    complete: artifactSetChecks.every((entry) => entry.ok) && (!requireGateway || integrityChecks.some((entry) => entry.key === "gateway_exact_commit" && entry.ok)),
+    complete: artifactSetChecks.every((entry) => entry.ok) && gatewayExactCommitSatisfied,
     app: {
       source_commit: body.commit_sha || body.commit || null,
       tree_sha: appManifest.tree_sha || null,
@@ -275,6 +298,11 @@ const report = {
     secrets_included: false,
   },
 };
+
+report.convergence = classifyEnvironmentCertification(report, {
+  environment: "staging",
+  registry: convergenceRegistry,
+});
 
 console.log(JSON.stringify(report));
 if (outcome === "blocked" || (requireReady && outcome !== "ready")) process.exitCode = 1;
