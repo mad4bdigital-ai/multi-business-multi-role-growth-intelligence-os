@@ -1,171 +1,3040 @@
-// Canonical Recovery authority facade for the fixed System Layer bridge.
-//
-// Non-Recovery tools remain delegated to the existing system-layer core. Recovery tools
-// are intercepted here so read-only evidence authority and consequential mutation/control
-// authority are selected explicitly. Presence of a new dependency key is authoritative:
-// an explicit null mutationRecoveryStore must never fall back to the legacy recoveryStore.
-export * from "./systemLayerRoutesCore.js";
-
 import { Router } from "express";
-import * as Core from "./systemLayerRoutesCore.js";
-import { requireAdminPrincipal } from "./adminCliRoutes.js";
 import {
-  maybeChunkToolResponseBody,
-  shouldChunkDispatchedToolResponse,
-} from "./gptToolsRoutes.js";
+  ACTIVATION_BOOTSTRAP_CONFIG_SHEET,
+  OVERSIZED_ARTIFACTS_DRIVE_FOLDER_ID,
+} from "../config.js";
+import { getPool } from "../db.js";
+import { getGoogleClients } from "../googleSheets.js";
+import { runGovernedActivation } from "../governedActivationRunner.js";
+import {
+  ACTIVATION_GITHUB_BOOTSTRAP_CONFIG_KEY,
+  resolveActivationBootstrapConfig,
+  validateActivationBootstrapConfig,
+} from "../activationBootstrapConfig.js";
+import { getTenantGptOAuthClientConfigStatus, upsertTenantGptOAuthClientConfig } from "../tenantGptOAuthClientConfig.js";
+import {
+  listPlatformCredentialClientConfigs,
+  PLATFORM_CREDENTIAL_CLIENT_TYPES,
+  upsertPlatformCredentialClientConfig,
+} from "../platformCredentialClientsConfig.js";
+import {
+  getGoogleAuthPlatformConfig,
+  GOOGLE_AUTH_PLATFORM_TABS,
+  upsertGoogleAuthPlatformConfig,
+} from "../googleAuthPlatformConfig.js";
+import { requireAdminPrincipal } from "./adminCliRoutes.js";
+import { decodeGitHubAppPrivateKey, getGitHubAppInstallationToken, resolveGitHubAppConfig } from "../githubAppAuth.js";
+import { GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_PROVISIONING_SYSTEM_TOOLS } from "../githubRepositoryMainMovedWebhookProvisioning.js";
+import * as GitHubRepositoryMainMovedWebhookProvisioningRuntime from "../githubRepositoryMainMovedWebhookProvisioning.js";
+import { derivePrincipalExecutionContext } from "../executionControlResolvers.js";
+import { fetchToolsForCaller, dispatchToolForCaller, maybeChunkToolResponseBody, readCachedToolResponseChunk, paginateItems, shouldChunkDispatchedToolResponse } from "./gptToolsRoutes.js";
+import {
+  PLATFORM_RESOURCE_RECIPE_SYSTEM_TOOLS,
+  catalogGovernedResources,
+  planGovernedResource,
+  resolveGovernedResource,
+  runGovernedResource,
+  executeRepositoryPrReconciliationReadOnlyForAdminReadiness,
+} from "../platformResourceRecipeCapability.js";
+import {
+  REPOSITORY_PR_RECONCILE_RECIPE_KEY,
+  TENANT_REPOSITORY_INTELLIGENCE_V2_SYSTEM_TOOLS,
+  createRepositoryAuthorityBinding,
+  listRepositoryAuthorityBindings,
+  revokeRepositoryAuthorityBinding,
+  tenantRepositoryActionPlannerDryRun,
+  tenantRepositoryIntelligenceReport,
+  tenantRepositoryIntelligenceV2ReadinessSmoke,
+  tenantRepositoryIntelligenceV3V4ReadinessSmoke,
+  tenantRepositoryPrReconciliationSweep,
+} from "../repositoryTenantIntelligenceV2.js";
+import * as RepositoryTenantIntelligenceV2Runtime from "../repositoryTenantIntelligenceV2.js";
+import {
+  TENANT_REPOSITORY_ADVISORY_COMMENT_V5_SYSTEM_TOOLS,
+  tenantRepositoryAdvisoryCommentApply,
+  tenantRepositoryAdvisoryCommentPreview,
+  tenantRepositoryAdvisoryCommentReadback,
+  tenantRepositoryAdvisoryCommentV5ReadinessSmoke,
+} from "../repositoryTenantAdvisoryCommentsV5.js";
+import * as RepositoryTenantAdvisoryCommentV5Runtime from "../repositoryTenantAdvisoryCommentsV5.js";
+import {
+  TENANT_REPOSITORY_GOVERNANCE_V6_SYSTEM_TOOLS,
+  createRepositoryMutationAuthorityBindingV6,
+  tenantRepositoryGovernanceV6ReadinessSmoke,
+  tenantRepositoryIntelligenceV6Report,
+  tenantRepositoryMutationApplyV6,
+  tenantRepositoryMutationPlanV6,
+  tenantRepositoryMutationReadbackV6,
+} from "../repositoryGovernanceV6.js";
+import * as RepositoryGovernanceV6Runtime from "../repositoryGovernanceV6.js";
+import {
+  TENANT_EFFECTIVE_CAPABILITY_SYSTEM_TOOLS,
+  tenantEffectiveCapabilityPreview,
+  tenantEffectiveCapabilityReadinessSmoke,
+  tenantCapabilityShadowCompare,
+} from "../tenantEffectiveCapabilityResolver.js";
+import {
+  TENANT_CAPABILITY_ENFORCEMENT_SYSTEM_TOOLS,
+  tenantCapabilityEnforcementPreview,
+  tenantCapabilityEnforcementReadinessSmoke,
+} from "../tenantCapabilityEnforcementKernel.js";
+import { GROWTH_AUDIT_EVIDENCE_SYSTEM_TOOLS } from "../growthAuditEvidence.js";
+import * as GrowthAuditEvidenceRuntime from "../growthAuditEvidence.js";
+import { BRAND_WORKSPACE_CONTEXT_SYSTEM_TOOLS } from "../brandWorkspaceContextResolver.js";
+import * as BrandWorkspaceContextRuntime from "../brandWorkspaceContextResolver.js";
+import { PLATFORM_RESOURCE_CONTEXT_SYSTEM_TOOLS } from "../platformResourceContextResolver.js";
+import * as PlatformResourceContextRuntime from "../platformResourceContextResolver.js";
+import {
+  CAPABILITY_ENABLEMENT_SYSTEM_TOOLS,
+} from "../capabilityEnablementBroker.js";
+import * as CapabilityEnablementBrokerRuntime from "../capabilityEnablementBroker.js";
+import { writeResourceRecipeApplyEvidence } from "../resourceRecipeApplyEvidence.js";
+import {
+  buildPlatformEndpointToolDescriptors,
+  selectPlatformEndpointToolBinding,
+} from "../platformEndpointToolFacade.js";
+import { assertApprovalChallengeAuthorities, getRecoveryCapabilities, callRecoveryKernelCapability } from "../recoveryKernel.js";
+import { issueAndExecuteApprovedRecoveryStep, sanitizeRecoveryActionBridgeOutput } from "../recoveryActionBridge.js";
 
-const FIXED_RECOVERY_SYSTEM_TOOLS = new Set([
-  "recovery_kernel_call",
-  "recovery_kernel_create_approval_challenge",
-  "recovery_kernel_execute_approved_step",
-]);
-
-const CONTROL_CAPABILITIES_FORBIDDEN_ON_READ_BRIDGE = new Set([
+// Auth Admin Actions already have a bounded fixed dispatcher. Keep Recovery reachable
+// through that single operation without allowing a non-consequential Action to invoke
+// plan-step or unsupported/provider mutations. Consequential work remains on the
+// explicitly consequential Host Breakglass/Recovery routes with their own approvals.
+const SHARED_ADMIN_RECOVERY_READONLY_CAPABILITIES = new Set([
+  "production_identity",
+  "recovery_manifest_get",
+  "recovery_trust_model",
+  "runtime_attestation",
+  "tool_surface_parity",
+  "recovery_capabilities",
+  "production_activation_readiness",
+  "database_full_inspection",
+  "finding_details",
+  "remediation_plan_create",
+  "remediation_plan_preview",
   "approval_challenge_create",
+  "remediation_step_verify",
+  "recovery_run_get",
+  "recovery_evidence_get",
+  "privileged_operation_preview",
+  "privileged_lease_preview",
+  "recovery_exception_preview",
+  "disaster_recovery_preview",
+  "recovery_reconciliation_preview",
+  "recovery_cancel_preview",
+  "recovery_evidence_chain_preview",
+  "secret_observation",
+  "unsupported_recovery_escalate",
+  "ssh_session_preview",
+  "sql_session_preview",
   "ephemeral_capability_create",
-  "remediation_step_execute",
-  "host_breakglass_execute",
-  "unsupported_capability_execute",
+  "system_tool_get",
+  "system_tools_search",
 ]);
 
-export function resolveSystemRecoveryStores(deps = {}) {
-  const hasExplicitReadOnly = Object.prototype.hasOwnProperty.call(deps, "readOnlyRecoveryStore");
-  const hasExplicitMutation = Object.prototype.hasOwnProperty.call(deps, "mutationRecoveryStore");
-  return Object.freeze({
-    readOnlyRecoveryStore: hasExplicitReadOnly
-      ? (deps.readOnlyRecoveryStore ?? null)
-      : (deps.recoveryStore ?? null),
-    mutationRecoveryStore: hasExplicitMutation
-      ? (deps.mutationRecoveryStore ?? null)
-      : (deps.recoveryStore ?? null),
-    explicit_read_only_boundary: hasExplicitReadOnly,
-    explicit_mutation_boundary: hasExplicitMutation,
+const SYSTEM_LAYER_TOOLS = [
+  {
+    name: "runtime_endpoint_preview",
+    description: "Passive dry-run resolver for a governed endpoint. Resolves action, endpoint, schema, provider URL, credentials, risk, and readiness without calling the provider.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        parent_action_key: { type: "string" },
+        endpoint_key: { type: "string" },
+        path_params: { type: "object", additionalProperties: true },
+        query: { type: "object", additionalProperties: true },
+        body: { type: "object", additionalProperties: true },
+        headers: { type: "object", additionalProperties: true },
+        credential_scope: { type: "string", enum: ["platform", "tenant", "user", "connection", "auto"] },
+        connection_id: { type: "string" },
+        app_key: { type: "string" },
+        auth_type: { type: "string" },
+        auth_context: { type: "object", additionalProperties: true },
+      },
+      required: ["parent_action_key", "endpoint_key"],
+    },
+  },
+  {
+    name: "runtime_endpoint_call",
+    description: "Admin-only kernel dispatcher for governed runtime endpoint execution. Resolves parent_action_key/endpoint_key through registry authority, preserves brand target fields, applies principal context, and delegates provider execution to the runtime facade.",
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      properties: {
+        parent_action_key: { type: "string" },
+        endpoint_key: { type: "string" },
+        target_key: { type: "string" },
+        brand_key: { type: "string" },
+        brand_domain: { type: "string" },
+        path_params: { type: "object", additionalProperties: true },
+        query: { type: "object", additionalProperties: true },
+        body: { type: "object", additionalProperties: true },
+        headers: { type: "object", additionalProperties: true },
+        credential_scope: { type: "string", enum: ["platform", "tenant", "user", "connection", "auto"] },
+        connection_id: { type: "string" },
+        app_key: { type: "string" },
+        auth_type: { type: "string" },
+        auth_context: { type: "object", additionalProperties: true },
+        mutation_approval: { type: "object", additionalProperties: true },
+        dry_run: { type: "boolean" },
+        preflight_only: { type: "boolean" },
+        dry_run_preflight_completed: { type: "boolean" },
+        approved_preflight_dry_run_validated: { type: "boolean" },
+        live_execution_approved: { type: "boolean" },
+        readback: { type: "object", additionalProperties: true },
+        timeout_seconds: { type: "integer", minimum: 1, maximum: 120 },
+      },
+      required: ["parent_action_key", "endpoint_key"],
+    },
+  },
+  {
+    name: "recovery_kernel_capabilities",
+    description: "Admin-only fixed, repository-owned Recovery Kernel capability matrix. Returns bounded risk, dependency, approval, rollback, and mutation metadata without loading a dynamic catalog or connecting to a database.",
+    capability_key: "recovery_capabilities",
+    tags: ["recovery", "staging", "certification", "phase_b", "read_only"],
+    aliases: ["staging recovery certification", "phase b certification", "recovery certification workflow"],
+    requires_admin: true,
+    inputSchema: { type: "object", additionalProperties: false, properties: {} },
+  },
+  {
+    name: "system_tool_get",
+    description: "Admin-only exact lookup of one fixed system-tool descriptor from the repository-owned static registry. It does not load the large database-backed catalog.",
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["tool_name"],
+      properties: { tool_name: { type: "string", minLength: 1, maxLength: 191 } },
+    },
+  },
+  {
+    name: "system_tools_search",
+    description: "Admin-only bounded search over fixed system-tool descriptors from the repository-owned static registry. It does not load the large database-backed catalog.",
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        q: { type: "string", maxLength: 256 },
+        tag: { type: "string", maxLength: 96 },
+        capability_key: { type: "string", maxLength: 191 },
+        limit: { type: "integer", minimum: 1, maximum: 50, default: 20 },
+      },
+    },
+  },
+  {
+    name: "recovery_kernel_execute_approved_step",
+    description: "Private principal-scoped Admin Recovery bridge. Accepts only plan, step, approval, and idempotency references; issues the execution ticket server-side and forwards it internally to the governed Recovery/Host Breakglass executor. Ticket IDs, hashes, signatures, credentials, SQL, migration selection, and provider controls are never caller-controlled or returned.",
+    source_key: "private_recovery_action_bridge",
+    capability_key: "recovery_kernel_execute_approved_step",
+    catalog_level: "private_recovery",
+    tags: ["recovery", "private", "principal_scoped", "consequential"],
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["plan_id", "plan_hash", "step_id", "approval_token", "idempotency_key"],
+      properties: {
+        plan_id: { type: "string", pattern: "^plan:[0-9a-f]{16,64}$" },
+        plan_hash: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        step_id: { type: "string", pattern: "^step:[0-9a-f]{16,64}$" },
+        approval_token: { type: "string", minLength: 16, maxLength: 512 },
+        idempotency_key: { type: "string", minLength: 8, maxLength: 160 },
+      },
+    },
+  },
+  {
+    name: "recovery_kernel_create_approval_challenge",
+    description: "Private principal-scoped Admin Recovery approval-challenge issuer. Accepts only a registered plan, immutable plan hash, and step reference; stores a short-lived step-bound challenge through the injected approval authorities and never returns an approval token, execution ticket, signature, credential, SQL, migration, or provider control.",
+    source_key: "private_recovery_approval_challenge",
+    capability_key: "approval_challenge_create",
+    catalog_level: "private_recovery",
+    tags: ["recovery", "private", "principal_scoped", "approval"],
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["plan_id", "plan_hash", "step_id"],
+      properties: {
+        plan_id: { type: "string", pattern: "^plan:[0-9a-f]{16,64}$" },
+        plan_hash: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        step_id: { type: "string", pattern: "^step:[0-9a-f]{16,64}$" },
+      },
+    },
+  },
+  {
+    name: "recovery_kernel_call",
+    description: "Admin-only fixed dispatcher for the repository-owned Recovery Kernel. The capability key is server-allowlisted and the request never accepts SQL, shell, credentials, database identifiers, migration/grant selection, workflow/ref, or arbitrary target-source controls. Production-only capabilities are rejected by the runtime when the environment is not Production; Staging may use only database-independent discovery capabilities.",
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["capability_key"],
+      properties: {
+        capability_key: { type: "string", minLength: 1, maxLength: 191 },
+        input: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            expected_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
+            target_key: { type: "string", enum: ["production-runtime"] },
+            target_role: { type: "string", enum: ["server_resolved", "runtime", "governance", "runtime_persistence"] },
+            host_fingerprint: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
+            tool_name: { type: "string", minLength: 1, maxLength: 191 },
+            q: { type: "string", maxLength: 256 },
+            tag: { type: "string", maxLength: 96 },
+            capability_key: { type: "string", maxLength: 191 },
+            limit: { type: "integer", minimum: 1, maximum: 50 },
+            finding_id: { type: "string", pattern: "^finding:[0-9a-f]{16,64}$" },
+            finding_ids: { type: "array", minItems: 1, maxItems: 50, items: { type: "string", pattern: "^finding:[0-9a-f]{16,64}$" } },
+            plan_id: { type: "string", pattern: "^plan:[0-9a-f]{16,64}$" },
+            plan_hash: { type: "string", pattern: "^[0-9a-f]{64}$" },
+            step_id: { type: "string", pattern: "^step:[0-9a-f]{16,64}$" },
+            run_id: { type: "string", pattern: "^run:[0-9a-f]{16,64}$" },
+            incident_id: { type: "string", pattern: "^incident:[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$" },
+            reason: { type: "string", minLength: 12, maxLength: 1000 },
+            profile: { type: "string", enum: ["S0", "S1", "S2", "S3", "S4", "S5", "Q0", "Q1", "Q2", "Q3", "Q4", "Q5", "Q6"] },
+            risk_class: { type: "string", enum: ["read_only", "reversible", "service_impacting", "filesystem_mutation", "destructive", "unknown"] },
+            command_sha256: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
+            query_sha256: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
+            artifact_sha256: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
+            scope_ref: { type: "string", pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$" },
+            expires_at: { type: "string", format: "date-time" },
+            transport: { type: "string", enum: ["ssh", "sql"] },
+            capability_type: { type: "string", pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$" },
+            single_use: { type: "boolean", default: true },
+            backup_evidence_ref: { type: "string", pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$" },
+            operation_type: { type: "string", enum: ["ssh_command", "sql_statement", "file_patch", "service_action", "process_action", "network_diagnostic", "backup_operation", "deployment_rollback"] },
+            scope_ref: { type: "string", pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$" },
+            exception_class: { type: "string", enum: ["E0", "E1", "E2", "E3", "E4", "E5", "E6"] },
+            requested_scope_ref: { type: "string", pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$" },
+            depends_on: { type: "array", maxItems: 5, items: { type: "string", pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$" } },
+            capability_budget: { type: "object", additionalProperties: false, properties: { max_statements: { type: "integer", minimum: 0, maximum: 1000000 }, max_rows: { type: "integer", minimum: 0, maximum: 1000000 }, max_files: { type: "integer", minimum: 0, maximum: 1000000 }, max_bytes: { type: "integer", minimum: 0, maximum: 67108864 }, max_runtime_seconds: { type: "integer", minimum: 0, maximum: 1000000 }, max_services: { type: "integer", minimum: 0, maximum: 1000000 }, max_commands: { type: "integer", minimum: 0, maximum: 1000000 } } },
+            max_commands: { type: "integer", minimum: 0, maximum: 50 },
+            max_rows: { type: "integer", minimum: 0, maximum: 100 },
+            previous_hash: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
+            event: { type: "object", additionalProperties: true },
+            configured: { type: "boolean" },
+            value_hash: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
+            age_seconds: { type: "integer", minimum: 0, maximum: 315360000 },
+          },
+        },
+      },
+    },
+  },
+  {
+    name: "response_chunk_read",
+    description: "Read the next chunk of a cached oversized governed tool response. Use this whenever a system/admin/device/tool response returns response_chunked=true or page.has_more=true before switching to any fallback surface. Supports dynamic TTL via response_options.chunk_ttl_ms or response_options.chunk_ttl_minutes and extends cache retention after each successful read.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        chunk_id: { type: "string" },
+        cursor: { type: "integer", minimum: 0, default: 0 },
+        max_chars: { type: "integer", minimum: 5000, maximum: 150000, default: 30000 },
+        chunk_ttl_ms: { type: "integer", minimum: 300000, maximum: 7200000 },
+        chunk_ttl_minutes: { type: "integer", minimum: 5, maximum: 120 },
+      },
+      required: ["chunk_id"],
+    },
+  },
+  {
+    name: "google_drive_endpoint_catalog",
+    description: "Admin-only read-only catalog for Google Drive endpoint registry rows. Supports filtering by operation, method, readiness, and search text so large Drive operation surfaces are discoverable without raw SQL.",
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      properties: {
+        parent_action_key: { type: "string", default: "google_drive_api" },
+        search: { type: "string" },
+        method: { type: "string" },
+        status: { type: "string" },
+        execution_readiness: { type: "string" },
+        limit: { type: "integer", minimum: 1, maximum: 200, default: 100 },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "google_drive_folder_inspect",
+    description: "Admin-only read-only Google Drive folder inspector. Lists folder metadata and direct children through runtime_endpoint_call using governed Drive endpoint registry, supports Shared Drives, and never returns file content or secrets.",
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      properties: {
+        folder_id: { type: "string" },
+        folder_url: { type: "string" },
+        recursive: { type: "boolean", default: false },
+        max_depth: { type: "integer", minimum: 0, maximum: 3, default: 1 },
+        page_size: { type: "integer", minimum: 1, maximum: 200, default: 100 },
+        credential_scope: { type: "string", enum: ["platform", "tenant", "user", "connection", "auto"], default: "platform" },
+        connection_id: { type: "string" },
+        tenant_id: { type: "string" },
+        user_id: { type: "string" },
+        allow_platform_fallback: { type: "boolean", default: true },
+      },
+      required: [],
+    },
+  },
+  ...PLATFORM_RESOURCE_RECIPE_SYSTEM_TOOLS,
+  // Descriptor-loaded Repository Intelligence system tools. New descriptor sources should
+  // be added to SYSTEM_LAYER_DESCRIPTOR_SOURCES below; list + dispatch wiring remains automatic.
+  ...TENANT_REPOSITORY_INTELLIGENCE_V2_SYSTEM_TOOLS,
+  ...TENANT_REPOSITORY_ADVISORY_COMMENT_V5_SYSTEM_TOOLS,
+  ...TENANT_EFFECTIVE_CAPABILITY_SYSTEM_TOOLS,
+  ...GROWTH_AUDIT_EVIDENCE_SYSTEM_TOOLS,
+  ...BRAND_WORKSPACE_CONTEXT_SYSTEM_TOOLS,
+  ...PLATFORM_RESOURCE_CONTEXT_SYSTEM_TOOLS,
+  {
+    name: "system_layer_descriptor_readiness",
+    description: "Admin-only read-only diagnostic for descriptor-backed system-layer tool sources. Verifies every descriptor has a runtime handler and no secrets are included.",
+    requires_admin: true,
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "system_layer_descriptor_callability_audit",
+    description: "Admin-only fail-closed callability audit for all descriptor-backed system-layer sources. Verifies handlers and executes each source's governed no-secret readiness smoke through the public descriptor dispatcher without unauthorized mutations.",
+    requires_admin: true,
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "connector_registry_list",
+    description: "List connector systems from the connected_systems registry.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tenant_id: { type: "string" },
+        status: { type: "string", enum: ["active", "pending", "error", "archived"] },
+        connector_family: { type: "string" },
+        provider_family: { type: "string" },
+        limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "connector_registry_get",
+    description: "Read one connector system, including its installation and grant summary.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        system_id: { type: "string" },
+      },
+      required: ["system_id"],
+    },
+  },
+  {
+    name: "activation_drive_probe",
+    description: "Admin-only Drive provider-connectivity diagnostic. Proves Google auth and Drive API are reachable; does NOT load registry data — SQL is the runtime authority. Use for same-cycle activation evidence or break-glass recovery.",
+    requires_admin: true,
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "activation_bootstrap_config_read",
+    description: "Admin-only DB-native read of the Activation Bootstrap Config from backend runtime authority. Does not call Google Sheets; returns source=backend_runtime/db_runtime and sheets_required=false.",
+    requires_admin: true,
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "activation_sheets_bootstrap_read",
+    description: "Deprecated compatibility alias for activation_bootstrap_config_read. Google Sheets is no longer a valid bootstrap source and is not called; use the DB-native bootstrap config read instead.",
+    requires_admin: true,
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "activation_github_validate",
+    description: "Admin-only GitHub validation using bootstrap-resolved repository binding (read from SQL via /activation/bootstrap-config).",
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      properties: {
+        github_owner: { type: "string" },
+        github_repo: { type: "string" },
+        github_branch: { type: "string", default: "main" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "activation_provider_bootstrap_validate",
+    description: "Admin-only same-cycle Drive, DB bootstrap config, and GitHub validation chain. Google Sheets is deprecated and not called; SQL/backend runtime is the bootstrap authority.",
+    requires_admin: true,
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "github_app_key_diagnostics",
+    description: "Admin-only: returns the key-shape diagnostic of GITHUB_APP_PRIVATE_KEY without signing. Safe to call when activation_github_validate fails with invalid_private_key.",
+    requires_admin: true,
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "activation_bootstrap_config_upsert",
+    description: "Admin-only DB runtime bootstrap upsert for GitHub activation binding; avoids Cloud Run env mutation.",
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      properties: {
+        github_parent_action_key: { type: "string", default: "github_api_mcp" },
+        github_endpoint_key: { type: "string", default: "github_get_repository" },
+        github_owner: { type: "string" },
+        github_repo: { type: "string" },
+        github_branch: { type: "string", default: "main" },
+        note: { type: "string" },
+      },
+      required: ["github_parent_action_key", "github_endpoint_key", "github_owner", "github_repo"],
+    },
+  },
+  {
+    name: "tenant_gpt_oauth_client_status",
+    description: "Read-only status for the Tenant GPT OAuth client secret reference. Never returns the secret value.",
+    requires_admin: true,
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "tenant_gpt_oauth_client_upsert",
+    description: "Admin-only upsert that stores the default Custom GPT Tenant OAuth client secret in platform_secrets and keeps only client_secret_ref in runtime config.",
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      properties: {
+        client_id: { type: "string", default: "mad4b-tenant-gpt" },
+        client_secret: { type: "string", description: "Optional explicit secret. If omitted, one is generated or the current one is retained." },
+        client_secret_ref: { type: "string", default: "platform_secret:TENANT_GPT_OAUTH_CLIENT_SECRET", description: "Governed platform secret reference. Inline runtime-config secret storage is not written." },
+        callback_urls_to_allow: { type: "array", items: { type: "string" } },
+        rotate: { type: "boolean", default: false },
+        note: { type: "string" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "credential_client_config_upsert",
+    description: "Admin-only DB source-of-truth upsert for platform-controlled credential clients: API key, OAuth client, or service account.",
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      properties: {
+        owner_type: { type: "string", enum: ["platform", "tenant"], default: "platform" },
+        tenant_id: { type: "string" },
+        channel_key: { type: "string", default: "custom_gpt" },
+        credential_type: { type: "string", enum: PLATFORM_CREDENTIAL_CLIENT_TYPES },
+        client_key: { type: "string" },
+        display_name: { type: "string" },
+        provider: { type: "string", default: "google" },
+        project_id: { type: "string" },
+        client_type: { type: "string", enum: ["web", "desktop", "android", "ios", "chrome_app", "tv_limited_input"] },
+        client_id: { type: "string" },
+        client_secret_ref: { type: "string" },
+        client_secret_hint: { type: "string" },
+        client_secret_status: { type: "string", default: "enabled" },
+        authorized_javascript_origins: { type: "array", items: { type: "string" } },
+        redirect_uris: { type: "array", items: { type: "string" } },
+        scopes: { type: "array", items: { type: "string" } },
+        key_secret_ref: { type: "string" },
+        key_hint: { type: "string" },
+        allowed_apis: { type: "array", items: { type: "string" } },
+        api_restrictions: { type: "array", items: { type: "string" } },
+        application_restrictions: { type: "object" },
+        restrictions: { type: "object" },
+        bound_service_account_ref: { type: "string" },
+        service_account_email: { type: "string" },
+        service_account_unique_id: { type: "string" },
+        roles: { type: "array", items: { type: "string" } },
+        note: { type: "string" },
+      },
+      required: ["credential_type"],
+    },
+  },
+  {
+    name: "credential_client_config_list",
+    description: "Admin-only list of platform-controlled credential client configs stored in DB.",
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      properties: {
+        owner_type: { type: "string", enum: ["platform", "tenant"] },
+        tenant_id: { type: "string" },
+        channel_key: { type: "string" },
+        credential_type: { type: "string", enum: PLATFORM_CREDENTIAL_CLIENT_TYPES },
+        limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "google_auth_platform_config_upsert",
+    description: "Admin-only DB source-of-truth upsert for simulated Google Auth Platform and APIs & Services tab state.",
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      properties: {
+        owner_type: { type: "string", enum: ["platform", "tenant"], default: "platform" },
+        tenant_id: { type: "string" },
+        project_key: { type: "string", default: "growth-intelligence-os" },
+        project_id: { type: "string" },
+        project_display_name: { type: "string" },
+        tab: { type: "string", enum: GOOGLE_AUTH_PLATFORM_TABS },
+        path: { type: "string" },
+        state: { type: "object" },
+        note: { type: "string" },
+      },
+      required: ["tab"],
+    },
+  },
+  {
+    name: "google_auth_platform_config_get",
+    description: "Admin-only read of simulated Google Auth Platform and APIs & Services tab state.",
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      properties: {
+        owner_type: { type: "string", enum: ["platform", "tenant"], default: "platform" },
+        tenant_id: { type: "string" },
+        project_key: { type: "string", default: "growth-intelligence-os" },
+        project_id: { type: "string" },
+        tab: { type: "string", enum: GOOGLE_AUTH_PLATFORM_TABS },
+      },
+      required: [],
+    },
+  },
+  ...CAPABILITY_ENABLEMENT_SYSTEM_TOOLS,
+  ...GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_PROVISIONING_SYSTEM_TOOLS,
+];
+
+const VALID_STATUSES = new Set(["active", "pending", "error", "archived"]);
+const ADMIN_ONLY_SYSTEM_TOOLS = new Set(
+  SYSTEM_LAYER_TOOLS.filter((tool) => tool.requires_admin === true).map((tool) => tool.name)
+);
+const LOCAL_SYSTEM_TOOL_NAMES = new Set(SYSTEM_LAYER_TOOLS.map((tool) => tool.name));
+const TENANT_BLOCKED_SYSTEM_TOOL_NAMES = new Set([
+  "runtime_endpoint_call",
+  "github_api_mcp__create_or_update_file_contents",
+  "github_api_mcp__github_create_or_update_file",
+  "github_api_mcp__github_put_contents",
+  "github_api_mcp__github_delete_file",
+]);
+
+const SYSTEM_LAYER_DESCRIPTOR_SOURCES = [
+  {
+    source_key: "repository_tenant_intelligence_v2",
+    tools: TENANT_REPOSITORY_INTELLIGENCE_V2_SYSTEM_TOOLS,
+    handlers: RepositoryTenantIntelligenceV2Runtime,
+    readiness_tool: "tenant_repository_intelligence_v2_readiness_smoke",
+    readiness_args: { limit: 1 },
+  },
+  {
+    source_key: "repository_tenant_advisory_comment_v5",
+    tools: TENANT_REPOSITORY_ADVISORY_COMMENT_V5_SYSTEM_TOOLS,
+    handlers: RepositoryTenantAdvisoryCommentV5Runtime,
+    readiness_tool: "tenant_repository_advisory_comment_v5_readiness_smoke",
+    readiness_args: { limit: 1 },
+  },
+  {
+    source_key: "repository_governance_v6",
+    tools: TENANT_REPOSITORY_GOVERNANCE_V6_SYSTEM_TOOLS,
+    handlers: RepositoryGovernanceV6Runtime,
+    readiness_tool: "tenant_repository_governance_v6_readiness_smoke",
+    readiness_args: { limit: 1 },
+  },
+  {
+    source_key: "tenant_effective_capability_resolver_v1",
+    tools: TENANT_EFFECTIVE_CAPABILITY_SYSTEM_TOOLS,
+    handlers: {
+      tenantEffectiveCapabilityPreview,
+      tenantEffectiveCapabilityReadinessSmoke,
+      tenantCapabilityShadowCompare,
+    },
+    readiness_tool: "tenant_effective_capability_readiness_smoke",
+    readiness_args: {},
+  },
+  {
+    source_key: "tenant_capability_enforcement_kernel_v1",
+    tools: TENANT_CAPABILITY_ENFORCEMENT_SYSTEM_TOOLS,
+    handlers: {
+      tenantCapabilityEnforcementPreview,
+      tenantCapabilityEnforcementReadinessSmoke,
+    },
+    readiness_tool: "tenant_capability_enforcement_readiness_smoke",
+    readiness_args: {},
+  },
+  {
+    source_key: "growth_audit_evidence_v1",
+    tools: GROWTH_AUDIT_EVIDENCE_SYSTEM_TOOLS,
+    handlers: GrowthAuditEvidenceRuntime,
+    readiness_tool: "growth_audit_evidence_readiness_smoke",
+    readiness_args: {},
+  },
+  {
+    source_key: "brand_workspace_context_v1",
+    tools: BRAND_WORKSPACE_CONTEXT_SYSTEM_TOOLS,
+    handlers: BrandWorkspaceContextRuntime,
+    readiness_tool: "brand_workspace_context_readiness_smoke",
+    readiness_args: {},
+  },
+  {
+    source_key: "platform_resource_context_v1",
+    tools: PLATFORM_RESOURCE_CONTEXT_SYSTEM_TOOLS,
+    handlers: PlatformResourceContextRuntime,
+    readiness_tool: "platform_resource_context_readiness_smoke",
+    readiness_args: {},
+  },
+  {
+    source_key: "github_repository_main_moved_webhook_provisioning_v1",
+    tools: GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_PROVISIONING_SYSTEM_TOOLS,
+    handlers: GitHubRepositoryMainMovedWebhookProvisioningRuntime,
+    readiness_tool: "github_repository_main_moved_webhook_provisioning_readiness_smoke",
+    readiness_args: {},
+  },
+  {
+    source_key: "capability_enablement_broker_v1",
+    tools: CAPABILITY_ENABLEMENT_SYSTEM_TOOLS,
+    handlers: CapabilityEnablementBrokerRuntime,
+    readiness_tool: "capability_enablement_readiness_smoke",
+    readiness_args: {},
+  },
+];
+
+function snakeToolNameToCamelHandlerName(name = "") {
+  return String(name || "").replace(/_([a-z0-9])/g, (_, ch) => String(ch).toUpperCase());
+}
+
+function descriptorHandlerName(tool = {}) {
+  return String(
+    tool.handler
+    || tool.handler_name
+    || tool.runtime_handler
+    || tool.x_system_handler
+    || snakeToolNameToCamelHandlerName(tool.name)
+    || ""
+  ).trim();
+}
+
+function descriptorHandlerRegistry() {
+  const registry = new Map();
+  for (const source of SYSTEM_LAYER_DESCRIPTOR_SOURCES) {
+    const tools = Array.isArray(source.tools) ? source.tools : [];
+    for (const tool of tools) {
+      if (!tool?.name) continue;
+      const handlerName = descriptorHandlerName(tool);
+      const handler = source.handlers?.[handlerName];
+      registry.set(tool.name, {
+        source_key: source.source_key,
+        tool,
+        handler_name: handlerName,
+        handler: typeof handler === "function" ? handler : null,
+      });
+    }
+  }
+  return registry;
+}
+
+const SYSTEM_LAYER_DESCRIPTOR_HANDLER_REGISTRY = descriptorHandlerRegistry();
+
+async function runRepositoryGovernanceV6ReadinessResource(args = {}) {
+  const recipeKey = String(args.recipe_key || "").trim();
+  const mode = String(args.mode || "").trim();
+  if (recipeKey !== REPOSITORY_PR_RECONCILE_RECIPE_KEY || mode !== "read_only") {
+    const err = new Error("Repository Governance V6 readiness only permits the read-only PR reconciliation recipe.");
+    err.status = 403;
+    err.code = "repository_governance_v6_readiness_scope_blocked";
+    throw err;
+  }
+  return runGovernedResource(args, {
+    executeGithubReadOnly: (operationKey, githubArgs = {}) =>
+      executeRepositoryPrReconciliationReadOnlyForAdminReadiness(operationKey, githubArgs, {
+        adminAuthorized: true,
+      }),
   });
 }
 
-function privateRecoverySurfaceError(capabilityKey) {
-  const error = new Error("Consequential Recovery control or execution is not available through the read-only fixed Admin System Tool bridge.");
-  error.status = 404;
-  error.code = "recovery_kernel_private_surface_required";
-  error.details = {
-    capability_key: capabilityKey,
-    required_surface: "recovery_kernel_create_approval_challenge_or_execute_approved_step",
+async function callDescriptorSystemToolIfAvailable(name, args = {}, auth = null, deps = {}) {
+  const entry = SYSTEM_LAYER_DESCRIPTOR_HANDLER_REGISTRY.get(name);
+  if (!entry) return { handled: false };
+  if (typeof entry.handler !== "function") {
+    const err = new Error(`System-layer descriptor tool ${name} does not have a runtime handler ${entry.handler_name}.`);
+    err.status = 500;
+    err.code = "system_layer_descriptor_handler_missing";
+    err.details = { tool_name: name, source_key: entry.source_key, handler_name: entry.handler_name };
+    throw err;
+  }
+  const dispatchSystemTool = async (toolName, toolArgs = {}, toolAuth = auth) => {
+    const child = await callDescriptorSystemToolIfAvailable(toolName, toolArgs, toolAuth, deps);
+    if (!child.handled) {
+      const err = new Error(`System-layer descriptor tool ${toolName} is not registered.`);
+      err.status = 404;
+      err.code = "system_layer_descriptor_tool_not_registered";
+      throw err;
+    }
+    return child.result;
+  };
+  const readinessRunGovernedResource =
+    name === "tenant_repository_governance_v6_readiness_smoke" && isAdminPrincipal(auth)
+      ? runRepositoryGovernanceV6ReadinessResource
+      : null;
+  const result = await entry.handler(args, {
+    auth,
+    runGovernedResource,
+    readinessRunGovernedResource,
+    req: deps.req,
+    executionFacade: deps.executionFacade,
+    dispatchSystemTool,
+    descriptorReadiness: systemLayerDescriptorReadiness,
+  });
+  return { handled: true, result };
+}
+
+export function systemLayerDescriptorReadiness() {
+  return [...SYSTEM_LAYER_DESCRIPTOR_HANDLER_REGISTRY.entries()].map(([tool_name, entry]) => ({
+    tool_name,
+    source_key: entry.source_key,
+    handler_name: entry.handler_name,
+    handler_present: typeof entry.handler === "function",
+    requires_admin: entry.tool?.requires_admin === true,
+    secrets_included: false,
+  }));
+}
+
+export async function runRepositoryIntelligenceV2DescriptorReadinessSmoke(args = {}) {
+  const auth = {
+    is_admin: true,
+    user_id: "system:release_readiness",
+    tenant_id: null,
+  };
+  const dispatched = await callDescriptorSystemToolIfAvailable(
+    "tenant_repository_intelligence_v2_readiness_smoke",
+    { limit: 1, ...args },
+    auth,
+    {}
+  );
+  if (!dispatched.handled) {
+    const err = new Error("Repository Intelligence V2 readiness descriptor is not registered.");
+    err.status = 500;
+    err.code = "repository_intelligence_v2_readiness_descriptor_missing";
+    throw err;
+  }
+  return dispatched.result;
+}
+
+export async function runRepositoryGovernanceV6DescriptorReadinessSmoke(args = {}) {
+  const auth = {
+    is_admin: true,
+    user_id: "system:release_readiness",
+    tenant_id: null,
+  };
+  const dispatched = await callDescriptorSystemToolIfAvailable(
+    "tenant_repository_governance_v6_readiness_smoke",
+    { limit: 1, ...args },
+    auth,
+    {}
+  );
+  if (!dispatched.handled) {
+    const err = new Error("Repository Governance V6 readiness descriptor is not registered.");
+    err.status = 500;
+    err.code = "repository_governance_v6_readiness_descriptor_missing";
+    throw err;
+  }
+  return dispatched.result;
+}
+
+export async function runSystemLayerDescriptorCallabilityAudit() {
+  const auth = {
+    is_admin: true,
+    user_id: "system:descriptor_callability_audit",
+    tenant_id: null,
+  };
+  const readiness = systemLayerDescriptorReadiness();
+  const missingHandlers = readiness.filter((row) => row.handler_present !== true);
+  const sourceResults = [];
+
+  for (const source of SYSTEM_LAYER_DESCRIPTOR_SOURCES) {
+    const sourceRows = readiness.filter((row) => row.source_key === source.source_key);
+    const missingSourceHandlers = sourceRows.filter((row) => row.handler_present !== true);
+    let smoke = null;
+    let error = null;
+    if (!source.readiness_tool) {
+      error = {
+        code: "descriptor_source_readiness_tool_missing",
+        message: `Descriptor source ${source.source_key} does not declare a readiness tool.`,
+      };
+    } else if (!missingSourceHandlers.length) {
+      try {
+        const dispatched = await callDescriptorSystemToolIfAvailable(
+          source.readiness_tool,
+          source.readiness_args || {},
+          auth,
+          {}
+        );
+        smoke = dispatched.handled ? dispatched.result : null;
+        if (!dispatched.handled) {
+          error = {
+            code: "descriptor_source_readiness_tool_not_registered",
+            message: `Readiness tool ${source.readiness_tool} is not registered.`,
+          };
+        }
+      } catch (err) {
+        error = {
+          code: err?.code || "descriptor_source_readiness_smoke_failed",
+          message: err?.message || "Descriptor source readiness smoke failed.",
+        };
+      }
+    }
+
+    const smokePass = smoke?.ok === true && smoke?.status === "pass";
+    const authorizationGated = !error
+      && smoke?.status === "authorization_gated"
+      && smoke?.reason_code === "repository_provider_binding_required"
+      && smoke?.mutations_executed === false
+      && smoke?.secrets_included === false;
+    sourceResults.push({
+      source_key: source.source_key,
+      descriptor_tool_count: sourceRows.length,
+      missing_handler_count: missingSourceHandlers.length,
+      readiness_tool: source.readiness_tool || null,
+      readiness_status: error ? "fail" : (smokePass ? "pass" : (authorizationGated ? "authorization_gated" : "fail")),
+      readiness_classification: smoke?.classification || null,
+      checks: Array.isArray(smoke?.checks) ? smoke.checks : [],
+      error,
+      apply_allowed: false,
+      mutations_executed: false,
+      secrets_included: false,
+    });
+  }
+
+  const failedSources = sourceResults.filter((row) => row.readiness_status === "fail");
+  const authorizationGatedSources = sourceResults.filter((row) => row.readiness_status === "authorization_gated");
+  const pass = missingHandlers.length === 0 && failedSources.length === 0;
+  return {
+    ok: pass,
+    tool: "system_layer_descriptor_callability_audit",
+    status: pass ? (authorizationGatedSources.length ? "authorization_gated" : "pass") : "fail",
+    classification: pass
+      ? (authorizationGatedSources.length ? "system_layer_descriptor_callability_authorization_gated" : "system_layer_descriptor_callability_ready")
+      : "system_layer_descriptor_callability_blocked",
+    descriptor_source_count: SYSTEM_LAYER_DESCRIPTOR_SOURCES.length,
+    descriptor_tool_count: readiness.length,
+    missing_handler_count: missingHandlers.length,
+    failed_source_count: failedSources.length,
+    authorization_gated_source_count: authorizationGatedSources.length,
+    sources: sourceResults,
+    handlers: readiness,
+    apply_allowed: false,
+    mutations_executed: false,
     secrets_included: false,
   };
-  return error;
 }
 
-export async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
-  const stores = resolveSystemRecoveryStores(deps);
+function safeParseJsonObject(value, fallback = {}) {
+  if (!value) return fallback;
+  if (typeof value === "object") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
 
-  if (name === "recovery_kernel_call") {
-    const capabilityKey = String(args?.capability_key || "").trim();
-    if (CONTROL_CAPABILITIES_FORBIDDEN_ON_READ_BRIDGE.has(capabilityKey)) {
-      throw privateRecoverySurfaceError(capabilityKey);
-    }
-    return Core.callSystemLayerTool(name, args, auth, {
-      ...deps,
-      recoveryStore: stores.readOnlyRecoveryStore,
-    });
+function platformEndpointToolScopeClassesForPrincipal(auth) {
+  return isAdminPrincipal(auth) ? ["admin", "both"] : ["tenant", "both"];
+}
+
+function platformEndpointToolTenantClauseForPrincipal(auth, tableAlias = "x") {
+  if (isAdminPrincipal(auth)) return { sql: "", params: [] };
+
+  const tenantId = principalTenantId(auth);
+  if (!tenantId) return { sql: `AND ${tableAlias}.tenant_id IS NULL`, params: [] };
+
+  return { sql: `AND (${tableAlias}.tenant_id IS NULL OR ${tableAlias}.tenant_id = ?)`, params: [tenantId] };
+}
+
+function normalizePlatformEndpointInputSchema(schemaJson) {
+  const schema = safeParseJsonObject(schemaJson, { type: "object", properties: {}, required: [] });
+
+  if (schema?.requestBody?.type) {
+    return {
+      type: "object",
+      properties: {
+        path_params: { type: "object", additionalProperties: true },
+        query: { type: "object", additionalProperties: true },
+        body: schema.requestBody,
+        headers: { type: "object", additionalProperties: true },
+        timeout_seconds: { type: "integer", minimum: 1, maximum: 120 },
+        readback: { type: "object", additionalProperties: true },
+      },
+      required: [],
+    };
   }
 
-  if (name === "recovery_kernel_create_approval_challenge" || name === "recovery_kernel_execute_approved_step") {
-    return Core.callSystemLayerTool(name, args, auth, {
-      ...deps,
-      recoveryStore: stores.mutationRecoveryStore,
-    });
+  if (schema?.parameters) {
+    return {
+      type: "object",
+      properties: {
+        path_params: {
+          type: "object",
+          properties: schema.parameters.path || {},
+          additionalProperties: true,
+        },
+        query: {
+          type: "object",
+          properties: schema.parameters.query || {},
+          additionalProperties: true,
+        },
+        body: schema.requestBody || { type: "object", additionalProperties: true },
+        headers: { type: "object", additionalProperties: true },
+        timeout_seconds: { type: "integer", minimum: 1, maximum: 120 },
+        readback: { type: "object", additionalProperties: true },
+      },
+      required: [],
+    };
   }
 
-  return Core.callSystemLayerTool(name, args, auth, deps);
+  return schema;
 }
 
-function toolArgs(req) {
-  return req.body?.tool_args && typeof req.body.tool_args === "object"
-    ? req.body.tool_args
-    : (req.body?.arguments && typeof req.body.arguments === "object" ? req.body.arguments : {});
+async function listPlatformEndpointToolsForPrincipal(auth, existingNames = new Set()) {
+  try {
+    const scopeClasses = platformEndpointToolScopeClassesForPrincipal(auth);
+    const tenantClause = platformEndpointToolTenantClauseForPrincipal(auth, "x");
+    const [rows] = await getPool().query(
+      `SELECT x.tool_name,
+              x.parent_action_key,
+              x.endpoint_key,
+              x.scope_class,
+              x.input_schema_json,
+              e.method
+         FROM platform_endpoint_tool_exports x
+         LEFT JOIN endpoints e
+           ON e.parent_action_key = x.parent_action_key
+          AND e.endpoint_key = x.endpoint_key
+          AND e.status = 'active'
+        WHERE x.status = 'active'
+          AND x.scope_class IN (?, ?)
+          ${tenantClause.sql}
+        ORDER BY x.tool_name, x.endpoint_key, x.parent_action_key`,
+      [...scopeClasses, ...tenantClause.params]
+    );
+
+    const visibleRows = rows
+      .filter((row) => row?.tool_name && !existingNames.has(row.tool_name))
+      .filter((row) => isAdminPrincipal(auth) || !TENANT_BLOCKED_SYSTEM_TOOL_NAMES.has(row.tool_name));
+
+    return buildPlatformEndpointToolDescriptors(visibleRows, {
+      normalizeInputSchema: normalizePlatformEndpointInputSchema,
+    });
+  } catch (err) {
+    console.error("[systemLayerTools] Failed to list platform endpoint exports:", err?.message || err);
+    return [];
+  }
 }
 
-function sendBridgeError(res, error) {
+function isTenantRegistryToolAllowedInSystemFacade(tool = {}) {
+  const name = String(tool.name || "").trim();
+  if (!name || name.startsWith("system_tools_")) return false;
+  if (TENANT_BLOCKED_SYSTEM_TOOL_NAMES.has(name)) return false;
+  const pathValue = String(tool.path || "").trim();
+  if (pathValue === "/system/tools" || pathValue === "/system/tools/call") return false;
+  return true;
+}
+
+async function listTenantEndpointRegistryToolsForPrincipal(auth, existingNames = new Set()) {
+  if (isAdminPrincipal(auth)) return [];
+  try {
+    const tools = await fetchToolsForCaller("tenant");
+    return tools
+      .filter((tool) => isTenantRegistryToolAllowedInSystemFacade(tool))
+      .filter((tool) => !existingNames.has(tool.name))
+      .map((tool) => ({
+        ...tool,
+        source: "tenant_platform_endpoint_tools",
+      }));
+  } catch (err) {
+    console.error("[systemLayerTools] Failed to list tenant endpoint registry tools:", err?.message || err);
+    return [];
+  }
+}
+
+async function toolsForPrincipalWithPlatformEndpoints(auth) {
+  const baseTools = toolsForPrincipal(auth);
+  const existingNames = new Set(baseTools.map((tool) => tool.name));
+  const tenantTools = await listTenantEndpointRegistryToolsForPrincipal(auth, existingNames);
+  for (const tool of tenantTools) existingNames.add(tool.name);
+  const platformTools = await listPlatformEndpointToolsForPrincipal(auth, existingNames);
+  return [...baseTools, ...tenantTools, ...platformTools];
+}
+
+function systemToolCatalogMetadata(tools = []) {
+  return (Array.isArray(tools) ? tools : []).map((tool) => {
+    const descriptorEntry = SYSTEM_LAYER_DESCRIPTOR_HANDLER_REGISTRY.get(tool?.name);
+    return {
+      ...tool,
+      source_key: tool?.source_key
+        || descriptorEntry?.source_key
+        || tool?.x_platform_endpoint?.source
+        || tool?.source
+        || "local_system_layer",
+      capability_key: tool?.capability_key
+        || tool?.capabilityKey
+        || tool?.["x-capability-key"]
+        || null,
+    };
+  });
+}
+
+async function visibleSystemToolCatalog(auth) {
+  return systemToolCatalogMetadata(await toolsForPrincipalWithPlatformEndpoints(auth));
+}
+
+function normalizeSystemToolCatalogQuery(query = {}) {
+  const normalized = query && typeof query === "object" ? { ...query } : {};
+  const cursor = String(normalized.cursor ?? "").trim();
+  if (/^\d+$/.test(cursor)) {
+    normalized.offset = cursor;
+    delete normalized.cursor;
+  }
+  return normalized;
+}
+
+async function buildSystemToolsListResponse(auth, query = {}) {
+  const { listSystemToolCatalog } = await import("../systemToolCatalogV2.js");
+  const catalog = listSystemToolCatalog(
+    await visibleSystemToolCatalog(auth),
+    normalizeSystemToolCatalogQuery(query),
+    { legacyCompleteDefault: true },
+  );
+  return {
+    ok: true,
+    protocol: "openapi-mcp-facade",
+    list_mode: "bounded_paginated_chunkable",
+    catalog_mode: "stable_cursor_catalog_v2",
+    tools: catalog.items,
+    items: catalog.items,
+    page: catalog.page,
+    total_available_tools: catalog.page.total_count,
+    catalog_version: catalog.catalog_version,
+    snapshot_id: catalog.snapshot_id,
+    compatibility: catalog.compatibility,
+    continuation_contract: {
+      response_chunked_when_large: true,
+      required_tool: "response_chunk_read",
+      use_when: "response_chunked=true or page.has_more=true",
+      fallback_allowed_only_after: "all_chunks_read_or_chunk_cache_expired_or_authorized_tool_unavailable",
+      dynamic_cache_ttl: true,
+      configurable_ttl_options: ["response_options.chunk_ttl_ms", "response_options.chunk_ttl_minutes"],
+      extends_cache_on_read: true,
+      secrets_included: false,
+    },
+    secrets_included: false,
+  };
+}
+
+async function getSystemToolCatalogDescriptor(auth, toolName) {
+  const { getSystemToolDescriptorByName } = await import("../systemToolCatalogV2.js");
+  return getSystemToolDescriptorByName(await visibleSystemToolCatalog(auth), toolName);
+}
+
+async function resolveSystemToolCatalogIntent(auth, request = {}) {
+  const { resolveSystemCapabilityIntent } = await import("../systemToolCatalogV2.js");
+  return resolveSystemCapabilityIntent(await visibleSystemToolCatalog(auth), request);
+}
+
+async function readSystemToolCatalogObservability() {
+  const {
+    auditSystemToolDescriptorRuntimeParity,
+    getSystemToolCatalogObservability,
+  } = await import("../systemToolCatalogV2.js");
+  const descriptors = [...SYSTEM_LAYER_DESCRIPTOR_HANDLER_REGISTRY.entries()].map(([name, entry]) => ({
+    ...entry.tool,
+    name,
+    source_key: entry.source_key,
+  }));
+  const handlers = new Map(
+    [...SYSTEM_LAYER_DESCRIPTOR_HANDLER_REGISTRY.entries()].map(([name, entry]) => [name, entry.handler]),
+  );
+  return {
+    ...getSystemToolCatalogObservability(),
+    descriptor_parity: auditSystemToolDescriptorRuntimeParity(descriptors, handlers),
+  };
+}
+
+function sendSystemToolCatalogError(res, error, fallbackCode) {
   return res.status(error?.status || 500).json({
     ok: false,
     error: {
-      code: error?.code || "system_tool_call_failed",
-      message: error?.message || "System tool call failed.",
+      code: error?.code || fallbackCode,
+      message: error?.message || "System tool catalog request failed.",
       ...(error?.details !== undefined ? { details: error.details } : {}),
+      ...(res.locals?.request_id ? { requestId: res.locals.request_id } : {}),
     },
     secrets_included: false,
   });
 }
 
-async function sendBridgeResult(res, name, args, auth, result, sourceSurface) {
-  if (!shouldChunkDispatchedToolResponse(name, result)) return res.status(200).json(result);
+async function chunkSystemLayerResponse(
+  body,
+  source = {},
+  auth = null,
+  sourceSurface = "system_layer_response",
+  trustedSourceToolKey = null,
+) {
+  const responseOptions = source?.response_options && typeof source.response_options === "object" ? source.response_options : {};
+  const sourceToolKey = String(
+    trustedSourceToolKey || source?.source_tool_key || "system_layer_response",
+  ).trim() || "system_layer_response";
   try {
-    const responseOptions = args?.response_options && typeof args.response_options === "object"
-      ? args.response_options
-      : {};
-    const body = await maybeChunkToolResponseBody(
-      { ok: true, name, result, secrets_included: false },
-      {
-        response_options: {
-          max_chars: Number(responseOptions.max_chars || args?.max_chars || 45000),
-          cursor: Number(responseOptions.cursor || args?.cursor || 0),
-          chunk_ttl_ms: Number(responseOptions.chunk_ttl_ms || args?.chunk_ttl_ms || 0) || undefined,
-          chunk_ttl_minutes: Number(responseOptions.chunk_ttl_minutes || args?.chunk_ttl_minutes || 0) || undefined,
-        },
-        auth,
-        source_tool_key: name,
-        source_surface: sourceSurface,
+    return await maybeChunkToolResponseBody(body, {
+      response_options: {
+        max_chars: Number(responseOptions.max_chars || source?.max_chars || 45000),
+        client_response_budget_chars: Number(
+          responseOptions.client_response_budget_chars
+          || source?.client_response_budget_chars
+          || 0,
+        ) || undefined,
+        response_envelope_overhead_chars: Number(
+          responseOptions.response_envelope_overhead_chars
+          || source?.response_envelope_overhead_chars
+          || 0,
+        ) || undefined,
+        cursor: Number(responseOptions.cursor || source?.cursor || 0),
+        chunk_ttl_ms: Number(responseOptions.chunk_ttl_ms || source?.chunk_ttl_ms || 0) || undefined,
+        chunk_ttl_minutes: Number(responseOptions.chunk_ttl_minutes || source?.chunk_ttl_minutes || 0) || undefined,
       },
-    );
-    return res.status(200).json(body);
+      auth,
+      source_tool_key: sourceToolKey,
+      source_surface: sourceSurface,
+    });
   } catch (error) {
     const { buildBoundedInlineChunkFallback } = await import("../systemLayerResponseFallback.js");
-    return res.status(200).json(buildBoundedInlineChunkFallback(
-      { ok: true, name, result, secrets_included: false },
-      error,
-      { sourceToolKey: name, maxChars: 150000 },
-    ));
+    const fallback = buildBoundedInlineChunkFallback(body, error, {
+      sourceToolKey,
+      maxChars: Number(
+        responseOptions.inline_fallback_max_chars
+        || source?.inline_fallback_max_chars
+        || 150000,
+      ),
+    });
+    console.warn(
+      "[systemLayerResponse] durable chunk persistence unavailable; returning bounded inline response",
+      JSON.stringify({
+        error_code: error?.code || null,
+        cause_code: error?.details?.cause_code || error?.cause?.code || null,
+        source_tool_key: sourceToolKey,
+        serialized_chars: fallback.continuation_contract?.serialized_chars || null,
+        bounded_inline_max_chars: fallback.continuation_contract?.bounded_inline_max_chars || null,
+        secrets_included: false,
+      }),
+    );
+    return fallback;
   }
 }
 
-function fixedRecoveryBridgeHandler(deps, sourceSurface) {
-  return async (req, res, next) => {
-    const name = String(req.body?.name || "").trim();
-    if (!FIXED_RECOVERY_SYSTEM_TOOLS.has(name)) return next();
-    try {
-      const args = toolArgs(req);
-      const result = await callSystemLayerTool(name, args, req.auth, deps);
-      return await sendBridgeResult(res, name, args, req.auth, result, sourceSurface);
-    } catch (error) {
-      return sendBridgeError(res, error);
+async function callRuntimeEndpointViaFacade(payload, deps = {}) {
+  const facade = deps.executionFacade;
+  if (!facade) {
+    const err = new Error("No executionFacade is available for platform endpoint dispatch.");
+    err.status = 503;
+    err.code = "runtime_endpoint_executor_missing";
+    throw err;
+  }
+
+  if (typeof facade === "function") {
+    return await facade(payload);
+  }
+
+  const methodNames = [
+    "executeHttpRequest",
+    "executeHttpRequestAction",
+    "execute",
+    "dispatch",
+    "run",
+    "callEndpoint",
+  ];
+
+  for (const methodName of methodNames) {
+    if (typeof facade[methodName] === "function") {
+      return await facade[methodName](payload);
     }
+  }
+
+  const err = new Error("executionFacade does not expose a supported endpoint dispatch method.");
+  err.status = 503;
+  err.code = "runtime_endpoint_executor_method_missing";
+  throw err;
+}
+
+// Hostinger shared hosting proxy drops idle TCP connections at ~30s.
+// Cap all platform endpoint tool calls to 25s so we always respond before that.
+const PLATFORM_TOOL_MAX_TIMEOUT_SECONDS = 25;
+
+function normalizePlatformEndpointCallArgs(row, args = {}, auth = null) {
+  let payload;
+  if (row.tool_name === "runtime_endpoint_call") {
+    payload = { ...(args || {}) };
+  } else {
+    payload = {
+      parent_action_key: row.parent_action_key,
+      endpoint_key: row.endpoint_key,
+      path_params: args.path_params || args.path || {},
+      query: args.query || {},
+      headers: args.headers || {},
+      timeout_seconds: Math.min(
+        Number(args.timeout_seconds) || PLATFORM_TOOL_MAX_TIMEOUT_SECONDS,
+        PLATFORM_TOOL_MAX_TIMEOUT_SECONDS
+      ),
+      readback: args.readback || { required: false, mode: "none" },
+    };
+
+    for (const optionalAuthField of ["user_id", "tenant_id", "target_key", "brand_key", "brand_domain", "credential_scope", "connection_id", "app_key", "scopes", "auth_type", "allow_platform_fallback", "auth_context", "dry_run"]) {
+      if (Object.prototype.hasOwnProperty.call(args, optionalAuthField)) {
+        payload[optionalAuthField] = args[optionalAuthField];
+      }
+    }
+
+    const method = String(row.method || "").toUpperCase();
+    const hasBody = args.body && Object.keys(args.body).length > 0;
+
+    if (!["GET", "HEAD"].includes(method) && hasBody) {
+      payload.body = args.body;
+    }
+  }
+
+  const guarded = derivePrincipalExecutionContext(payload, auth);
+  return {
+    ...guarded.payload,
+    _principal: guarded.principal,
+    _principal_context_guard: guarded.guard,
   };
 }
 
-export function buildSystemLayerRoutes(deps = {}) {
+function assertRuntimePreviewObjectField(payload = {}, fieldName = "") {
+  if (!Object.prototype.hasOwnProperty.call(payload, fieldName) || payload[fieldName] == null) return;
+  const value = payload[fieldName];
+  if (typeof value === "object" && !Array.isArray(value)) return;
+  const err = new Error(`runtime_endpoint_preview ${fieldName} must be an object when provided.`);
+  err.status = 400;
+  err.code = "runtime_endpoint_preview_invalid_object_field";
+  err.details = { field: fieldName };
+  throw err;
+}
+
+function assertRuntimePreviewQueryIsStrict(query = {}) {
+  const blockedKeys = new Set(["url", "uri", "endpoint", "host", "hostname", "base_url", "base_uri"]);
+  for (const [rawKey, rawValue] of Object.entries(query || {})) {
+    const key = String(rawKey || "").trim().toLowerCase();
+    const value = String(rawValue || "").trim().toLowerCase();
+    if (blockedKeys.has(key) || /^https?:\/\//i.test(value) || value.includes("169.254.169.254") || value.includes("metadata.google.internal")) {
+      const err = new Error("runtime_endpoint_preview query contains an unsupported provider-target override.");
+      err.status = 400;
+      err.code = "runtime_endpoint_preview_query_not_allowed";
+      err.details = { key: rawKey };
+      throw err;
+    }
+  }
+}
+
+function assertRuntimePreviewProviderBody(payload = {}) {
+  const parentActionKey = String(payload.parent_action_key || "").trim();
+  const endpointKey = String(payload.endpoint_key || "").trim();
+  if (parentActionKey !== "github_api_mcp") return;
+  const body = payload.body && typeof payload.body === "object" && !Array.isArray(payload.body) ? payload.body : {};
+  if (/create_or_update|put_contents|file_contents/i.test(endpointKey) && !String(body.content || "").trim()) {
+    const err = new Error("GitHub content write preview requires body.content.");
+    err.status = 400;
+    err.code = "runtime_endpoint_preview_missing_required_body_field";
+    err.details = { parent_action_key: parentActionKey, endpoint_key: endpointKey, missing: ["body.content"] };
+    throw err;
+  }
+  if (/delete_file/i.test(endpointKey) && !String(body.sha || "").trim()) {
+    const err = new Error("GitHub delete file preview requires body.sha.");
+    err.status = 400;
+    err.code = "runtime_endpoint_preview_missing_required_body_field";
+    err.details = { parent_action_key: parentActionKey, endpoint_key: endpointKey, missing: ["body.sha"] };
+    throw err;
+  }
+}
+
+function assertRuntimeEndpointPreviewPayload(payload = {}) {
+  for (const fieldName of ["path_params", "query", "body", "headers", "auth_context"]) {
+    assertRuntimePreviewObjectField(payload, fieldName);
+  }
+  assertRuntimePreviewQueryIsStrict(payload.query || {});
+  assertRuntimePreviewProviderBody(payload);
+}
+
+function encodeGithubPathPart(value = "") {
+  return encodeURIComponent(String(value || "").trim());
+}
+
+async function githubReadOnlyGet(pathname = "", token = "") {
+  const response = await fetch(`https://api.github.com${pathname}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      "User-Agent": "growth-intelligence-platform-resource-recipes",
+    },
+  });
+  const text = await response.text();
+  let body = null;
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    body = { parse_error: true, text: text.slice(0, 200) };
+  }
+  if (!response.ok) {
+    const err = new Error(body?.message || `GitHub read-only request failed with ${response.status}`);
+    err.status = response.status;
+    err.code = "github_read_only_request_failed";
+    err.details = { pathname, status: response.status, body };
+    throw err;
+  }
+  return body;
+}
+
+function liteGithubPullRequest(pr = {}) {
+  return {
+    number: pr.number,
+    title: pr.title || null,
+    state: pr.state || null,
+    url: pr.html_url || pr.url || null,
+    draft: Boolean(pr.draft),
+    mergeable: pr.mergeable ?? null,
+    merge_state_status: pr.mergeable_state || null,
+    author: pr.user?.login || null,
+    base: { ref: pr.base?.ref || null, sha: pr.base?.sha || null },
+    head: { ref: pr.head?.ref || null, sha: pr.head?.sha || null },
+    secrets_included: false,
+  };
+}
+
+async function executeGithubReadOnlyRecipe(operationKey = "", args = {}) {
+  if (operationKey !== "repo_pr_reconciliation_sweep") {
+    const err = new Error(`Unsupported GitHub read-only resource recipe operation: ${operationKey}`);
+    err.status = 400;
+    err.code = "unsupported_github_read_only_operation";
+    throw err;
+  }
+  const owner = String(args.owner || "").trim();
+  const repo = String(args.repo || "").trim();
+  if (!owner || !repo) {
+    const err = new Error("GitHub read-only PR reconciliation requires owner and repo.");
+    err.status = 400;
+    err.code = "missing_github_owner_repo";
+    throw err;
+  }
+
+  const token = await getGitHubAppInstallationToken({});
+  const safeOwner = encodeGithubPathPart(owner);
+  const safeRepo = encodeGithubPathPart(repo);
+  const state = encodeURIComponent(String(args.state || "open"));
+  const limit = Math.min(Math.max(Number(args.limit || 50), 1), 100);
+  let providerCallsMade = 0;
+
+  const pulls = await githubReadOnlyGet(`/repos/${safeOwner}/${safeRepo}/pulls?state=${state}&per_page=${limit}`, token);
+  providerCallsMade += 1;
+  const pullRequests = [];
+  for (const pr of Array.isArray(pulls) ? pulls.slice(0, limit) : []) {
+    const lite = liteGithubPullRequest(pr);
+    if (args.include_changed_files !== false) {
+      const files = await githubReadOnlyGet(`/repos/${safeOwner}/${safeRepo}/pulls/${pr.number}/files?per_page=100`, token);
+      providerCallsMade += 1;
+      lite.changed_files = Array.isArray(files) ? files.map((file) => ({
+        filename: file.filename || null,
+        status: file.status || null,
+        additions: Number(file.additions || 0),
+        deletions: Number(file.deletions || 0),
+      })) : [];
+    }
+    if (args.include_check_runs !== false && pr.head?.sha) {
+      const checks = await githubReadOnlyGet(`/repos/${safeOwner}/${safeRepo}/commits/${encodeGithubPathPart(pr.head.sha)}/check-runs?per_page=100`, token);
+      providerCallsMade += 1;
+      lite.check_runs = Array.isArray(checks?.check_runs) ? checks.check_runs.map((check) => ({
+        name: check.name || null,
+        status: check.status || null,
+        conclusion: check.conclusion || null,
+        url: check.html_url || check.details_url || null,
+      })) : [];
+    }
+    pullRequests.push(lite);
+  }
+
+  return {
+    ok: true,
+    operation_key: operationKey,
+    owner,
+    repo,
+    pull_requests: pullRequests,
+    provider_calls_made: providerCallsMade,
+    mutations_executed: false,
+    secrets_included: false,
+  };
+}
+
+async function callPlatformEndpointToolIfAvailable(name, args = {}, auth = null, deps = {}) {
+  if (!isAdminPrincipal(auth) && TENANT_BLOCKED_SYSTEM_TOOL_NAMES.has(String(name || "").trim())) {
+    const err = new Error("Tenant system tools cannot dispatch admin-only or state-changing platform routes.");
+    err.status = 403;
+    err.code = "tenant_system_tool_route_not_allowed";
+    throw err;
+  }
+
+  const scopeClasses = platformEndpointToolScopeClassesForPrincipal(auth);
+  const tenantClause = platformEndpointToolTenantClauseForPrincipal(auth, "x");
+  const [rows] = await getPool().query(
+    `SELECT x.tool_name,
+            x.parent_action_key,
+            x.endpoint_key,
+            x.scope_class,
+            e.method
+       FROM platform_endpoint_tool_exports x
+       LEFT JOIN endpoints e
+         ON e.parent_action_key = x.parent_action_key
+        AND e.endpoint_key = x.endpoint_key
+        AND e.status = 'active'
+      WHERE x.tool_name = ?
+        AND x.status = 'active'
+        AND x.scope_class IN (?, ?)
+        ${tenantClause.sql}
+      ORDER BY x.endpoint_key, x.parent_action_key
+      LIMIT 200`,
+    [name, ...scopeClasses, ...tenantClause.params]
+  );
+
+  if (!rows.length) {
+    return { handled: false };
+  }
+
+  const row = selectPlatformEndpointToolBinding(rows, args, name);
+
+  if (row.scope_class === "admin" && !isAdminPrincipal(auth)) {
+    const err = new Error("This platform endpoint tool requires admin access.");
+    err.status = 403;
+    err.code = "platform_endpoint_tool_admin_required";
+    throw err;
+  }
+
+  const payload = normalizePlatformEndpointCallArgs(row, args, auth);
+  const result = await callRuntimeEndpointViaFacade(payload, deps);
+  return { handled: true, result };
+}
+
+async function callTenantEndpointRegistryToolIfAvailable(name, args = {}, auth = null, deps = {}) {
+  if (isAdminPrincipal(auth)) return { handled: false };
+  const tenantTools = await listTenantEndpointRegistryToolsForPrincipal(auth, new Set());
+  const tool = tenantTools.find((entry) => entry.name === name);
+  if (!tool) return { handled: false };
+
+  const req = deps.req || { auth, headers: deps.headers || {}, ip: deps.ip || null };
+  const dispatched = await dispatchToolForCaller("tenant", name, args, req);
+  const status = Number(dispatched?.status || 200);
+  const body = dispatched?.body || {};
+  if (status >= 400 || body?.ok === false) {
+    const err = new Error(body?.error?.message || `Tenant endpoint registry tool ${name} failed.`);
+    err.status = status || body?.error?.status || 500;
+    err.code = body?.error?.code || "tenant_endpoint_registry_tool_failed";
+    err.details = body?.error?.details || null;
+    throw err;
+  }
+
+  return {
+    handled: true,
+    result: Object.prototype.hasOwnProperty.call(body, "result") ? body.result : body,
+  };
+}
+
+function isAdminPrincipal(auth) {
+  return auth?.is_admin === true;
+}
+
+function principalTenantId(auth) {
+  return auth?.tenant_id || null;
+}
+
+function toolsForPrincipal(auth) {
+  if (isAdminPrincipal(auth)) return SYSTEM_LAYER_TOOLS;
+  return SYSTEM_LAYER_TOOLS.filter((tool) => tool.requires_admin !== true && !TENANT_BLOCKED_SYSTEM_TOOL_NAMES.has(tool.name));
+}
+
+function assertAdminToolAccess(name, auth) {
+  if (!ADMIN_ONLY_SYSTEM_TOOLS.has(name) || isAdminPrincipal(auth)) return;
+  const err = new Error("This system-layer tool requires an admin/service principal.");
+  err.status = 403;
+  err.code = "admin_system_tool_required";
+  throw err;
+}
+
+function scopeFiltersToPrincipal(filters = {}, auth = {}) {
+  if (isAdminPrincipal(auth)) return { ...filters };
+
+  const tenantId = principalTenantId(auth);
+  if (!tenantId) {
+    const err = new Error("Tenant-scoped system tools require a tenant context.");
+    err.status = 403;
+    err.code = "tenant_context_required";
+    throw err;
+  }
+
+  if (filters.tenant_id && filters.tenant_id !== tenantId) {
+    const err = new Error("Tenant-scoped system tools cannot access another tenant.");
+    err.status = 403;
+    err.code = "tenant_scope_violation";
+    throw err;
+  }
+
+  return { ...filters, tenant_id: tenantId };
+}
+
+function clampLimit(value, fallback = 50) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(Math.max(parsed, 1), 200);
+}
+
+function parseConfigJson(value) {
+  if (!value || typeof value !== "string") return value || null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return { parse_error: true };
+  }
+}
+
+function providerProbeError(err) {
+  const status = Number(err?.status || err?.code || err?.response?.status || 0);
+  const message = err?.response?.data?.error?.message || err?.message || "Provider probe failed.";
+  const code = err?.code || (status === 401 || status === 403 ? "provider_auth_failed" : "provider_probe_failed");
+  const result = {
+    ok: false,
+    status: status || undefined,
+    code,
+    message,
+    auth_failed: status === 401 || status === 403 || code === "missing_github_token" || code === "provider_auth_failed",
+    rate_limited: status === 429,
+  };
+  if (code === "github_app_auth_invalid_private_key" && err?.details?.key_shape) {
+    result.details = {
+      cause_code: err.details.cause_code || "",
+      expected_prefixes: err.details.expected_prefixes || [],
+      key_shape: err.details.key_shape,
+    };
+  }
+  return result;
+}
+
+function parseGithubRepo(value) {
+  const normalized = String(value || "").trim().replace(/^https:\/\/github\.com\//i, "");
+  const [owner, repo] = normalized.split("/").map((part) => part.trim()).filter(Boolean);
+  if (!owner || !repo) return null;
+  return { owner, repo: repo.replace(/\.git$/i, "") };
+}
+
+function bootstrapRowObject(values = []) {
+  const row = Array.isArray(values?.[0]) ? values[0] : Array.isArray(values) ? values : [];
+  const mapped = {
+    system_name: row[0] || "",
+    api_base_url: row[1] || "",
+    environment: row[2] || "",
+    registry_sheet_id: row[3] || "",
+    activity_sheet_id: row[4] || "",
+    github_repo: row[5] || "",
+    cloudflare_zone: row[6] || "",
+    connector_url: row[7] || "",
+    bootstrap_version: row[8] || "",
+    activated_at: row[9] || "",
+  };
+  const repo = parseGithubRepo(mapped.github_repo);
+  return {
+    ...mapped,
+    diagnostic_only: true,
+    github_parent_action_key: "github_api_mcp",
+    github_endpoint_key: "github_get_repository",
+    github_owner: repo?.owner || "",
+    github_repo: repo?.repo || mapped.github_repo,
+    github_branch: process.env.GITHUB_BRANCH || "main",
+    raw_values: row,
+  };
+}
+
+function bootstrapConfigToRunnerRow(bootstrapConfig) {
+  return {
+    github_parent_action_key: bootstrapConfig.github_parent_action_key,
+    github_endpoint_key: bootstrapConfig.github_endpoint_key,
+    github_owner: bootstrapConfig.github_owner,
+    github_repo: bootstrapConfig.github_repo,
+    github_branch: bootstrapConfig.github_branch || "main",
+    source: bootstrapConfig.source,
+    sheets_required: false,
+  };
+}
+
+async function ensurePlatformRuntimeConfigTable(pool = getPool()) {
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS \`platform_runtime_config\` (
+      \`config_key\`  VARCHAR(128) NOT NULL,
+      \`config_json\` JSON         NOT NULL,
+      \`status\`      ENUM('active','disabled') NOT NULL DEFAULT 'active',
+      \`note\`        VARCHAR(255) NULL,
+      \`created_at\`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      \`updated_at\`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (\`config_key\`),
+      KEY \`idx_prc_status\` (\`status\`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
+  );
+}
+
+async function activationBootstrapConfigUpsert(args = {}) {
+  const validated = validateActivationBootstrapConfig(args, "db_runtime");
+  if (!validated.ok) {
+    const err = new Error(`Missing required activation bootstrap fields: ${validated.missing.join(", ")}.`);
+    err.status = 400;
+    err.code = validated.error;
+    throw err;
+  }
+
+  const config = {
+    github_parent_action_key: validated.config.github_parent_action_key,
+    github_endpoint_key: validated.config.github_endpoint_key,
+    github_owner: validated.config.github_owner,
+    github_repo: validated.config.github_repo,
+    github_branch: validated.config.github_branch || "main",
+  };
+  const note = String(args.note || "admin_system_tool").trim().slice(0, 255);
+  const pool = getPool();
+
+  await ensurePlatformRuntimeConfigTable(pool);
+  await pool.query(
+    `INSERT INTO \`platform_runtime_config\`
+       (config_key, config_json, status, note)
+     VALUES (?, ?, 'active', ?)
+     ON DUPLICATE KEY UPDATE
+       config_json = VALUES(config_json),
+       status = 'active',
+       note = VALUES(note),
+       updated_at = CURRENT_TIMESTAMP`,
+    [ACTIVATION_GITHUB_BOOTSTRAP_CONFIG_KEY, JSON.stringify(config), note]
+  );
+
+  const readback = await resolveActivationBootstrapConfig();
+  return {
+    ok: readback.ok,
+    config_key: ACTIVATION_GITHUB_BOOTSTRAP_CONFIG_KEY,
+    source: readback.source,
+    config: readback.ok ? readback.config : config,
+    next_step: "Call activation_provider_bootstrap_validate from /system/tools/call or /admin/system/tools/call.",
+    ...(readback.ok ? {} : { error: readback.error, db_error: readback.db_error, env_error: readback.env_error }),
+  };
+}
+
+const PROBE_TIMEOUT_MS = 15000;
+
+function withProbeTimeout(promise, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(Object.assign(new Error(`${label} probe timed out after ${PROBE_TIMEOUT_MS}ms`), { code: "probe_timeout" })), PROBE_TIMEOUT_MS))
+  ]);
+}
+
+async function activationDriveProbe() {
+  try {
+    const { drive } = await getGoogleClients({ action_key: "google_drive_api" });
+    const response = await withProbeTimeout(
+      drive.files.list({
+        pageSize: 1,
+        fields: "files(id,name,mimeType),nextPageToken",
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true,
+      }),
+      "Drive"
+    );
+    return {
+      ok: true,
+      provider: "google_drive",
+      attempted_binding: { parent_action_key: "google_drive_api", endpoint_key: "listDriveFiles" },
+      sample_count: Array.isArray(response.data?.files) ? response.data.files.length : 0,
+    };
+  } catch (err) {
+    const httpStatus = err?.code || err?.status || err?.response?.status;
+    const apiMsg = err?.response?.data?.error?.message || err?.response?.data?.error_description || "";
+    console.error(`[driveProbe] FAILED — status=${httpStatus} code=${err?.code} msg="${err?.message}"${apiMsg ? ` api="${apiMsg}"` : ""}`);
+    return { provider: "google_drive", ...providerProbeError(err) };
+  }
+}
+
+async function activationBootstrapConfigRead() {
+  const runtimeBootstrap = await resolveActivationBootstrapConfig();
+  if (!runtimeBootstrap.ok) {
+    return {
+      ok: false,
+      provider: "backend_runtime",
+      source: "unresolved",
+      sheets_required: false,
+      sheets_called: false,
+      code: runtimeBootstrap.error || "activation_bootstrap_config_unresolved",
+      db_error: runtimeBootstrap.db_error || null,
+      env_error: runtimeBootstrap.env_error || null,
+      secrets_included: false,
+    };
+  }
+
+  const bootstrapRow = bootstrapConfigToRunnerRow(runtimeBootstrap.config);
+  return {
+    ok: true,
+    provider: "backend_runtime",
+    source: runtimeBootstrap.source || "db_runtime",
+    sheets_required: false,
+    sheets_called: false,
+    bootstrap_row_read: true,
+    bootstrap_row: bootstrapRow,
+    config: runtimeBootstrap.config,
+    secrets_included: false,
+  };
+}
+
+async function activationSheetsBootstrapRead() {
+  const replacement = await activationBootstrapConfigRead();
+  return {
+    ...replacement,
+    ok: replacement.ok,
+    status: "deprecated_not_required",
+    provider: "backend_runtime",
+    legacy_tool: "activation_sheets_bootstrap_read",
+    replacement_tool: "activation_bootstrap_config_read",
+    diagnostic_only: true,
+    sheets_required: false,
+    sheets_called: false,
+    google_sheets_called: false,
+    message: "Google Sheets bootstrap reads are deprecated; backend runtime DB bootstrap config is authoritative.",
+  };
+}
+
+function resolveGithubValidationTarget(args = {}, bootstrapRow = {}) {
+  const explicit = args.github_owner && args.github_repo ? { owner: args.github_owner, repo: args.github_repo } : null;
+  const fromBootstrap = bootstrapRow.github_owner && bootstrapRow.github_repo
+    ? { owner: bootstrapRow.github_owner, repo: bootstrapRow.github_repo }
+    : parseGithubRepo(bootstrapRow.github_repo);
+  const target = explicit || fromBootstrap;
+  return target ? { ...target, branch: args.github_branch || bootstrapRow.github_branch || process.env.GITHUB_BRANCH || "main" } : null;
+}
+
+const GITHUB_REPOSITORY_ENDPOINT_KEY = "github_get_repository";
+const ARTIFACT_ENV_BINDINGS = [
+  ["OVERSIZED_ARTIFACTS_DRIVE_FOLDER_ID", OVERSIZED_ARTIFACTS_DRIVE_FOLDER_ID],
+  ["BACKEND_ARTIFACTS", process.env.BACKEND_ARTIFACTS],
+  ["BACKEND_ARTIFACTS_DRIVE_FOLDER_ID", process.env.BACKEND_ARTIFACTS_DRIVE_FOLDER_ID],
+  ["ARTIFACTS_DRIVE_FOLDER_ID", process.env.ARTIFACTS_DRIVE_FOLDER_ID],
+].map(([name, value]) => [name, String(value || "").trim()]).filter(([, value]) => value);
+
+function findArtifactBindingInGithubTarget(target) {
+  if (!target) return null;
+  const fields = {
+    github_owner: String(target.owner || "").trim(),
+    github_repo: String(target.repo || "").trim(),
+  };
+  for (const [field, value] of Object.entries(fields)) {
+    const match = ARTIFACT_ENV_BINDINGS.find(([, envValue]) => envValue && value === envValue);
+    if (match) return { field, env_key: match[0] };
+  }
+  return null;
+}
+
+function resolveGithubRepositoryEndpointKey(endpointKey) {
+  const normalized = String(endpointKey || "").trim();
+  return normalized === GITHUB_REPOSITORY_ENDPOINT_KEY
+    ? normalized
+    : GITHUB_REPOSITORY_ENDPOINT_KEY;
+}
+
+function normalizeExecutionBody(executionResult = {}) {
+  const body = executionResult?.body || executionResult?.data || executionResult || {};
+  return body?.data && typeof body.data === "object" ? body.data : body;
+}
+
+async function activationGithubValidate(args = {}, bootstrapRow = {}, deps = {}) {
+  try {
+    const executeGovernedHttp = deps.executionFacade?.execute || deps.executeGovernedHttp;
+
+    if (typeof executeGovernedHttp !== "function") {
+      const err = new Error("Governed HTTP execution facade is unavailable for GitHub validation.");
+      err.code = "governed_http_execution_unavailable";
+      err.status = 500;
+      throw err;
+    }
+
+    const target = resolveGithubValidationTarget(args, bootstrapRow);
+
+    if (!target) {
+      return {
+        ok: false,
+        provider: "github",
+        code: "activation_github_binding_missing",
+        message: "GitHub validation requires github_owner/github_repo from explicit arguments or the bootstrap repository binding.",
+        details: {
+          explicit_owner_present: Boolean(args.github_owner),
+          explicit_repo_present: Boolean(args.github_repo),
+          bootstrap_owner_present: Boolean(bootstrapRow.github_owner),
+          bootstrap_repo_present: Boolean(bootstrapRow.github_repo),
+        },
+      };
+    }
+
+    const artifactBinding = findArtifactBindingInGithubTarget(target);
+    if (artifactBinding) {
+      return {
+        ok: false,
+        provider: "github",
+        code: "activation_github_artifact_binding_rejected",
+        message: "GitHub validation received an artifact storage identifier instead of a repository binding.",
+        details: artifactBinding,
+      };
+    }
+
+    const parentActionKey = String(
+      bootstrapRow.github_parent_action_key || "github_api_mcp"
+    ).trim();
+    const configuredEndpointKey = String(
+      bootstrapRow.github_endpoint_key || GITHUB_REPOSITORY_ENDPOINT_KEY
+    ).trim();
+    const endpointKey = resolveGithubRepositoryEndpointKey(configuredEndpointKey);
+
+    const executionResult = await executeGovernedHttp({
+      parent_action_key: parentActionKey,
+      endpoint_key: endpointKey,
+      credential_scope: "platform",
+      path_params: {
+        owner: target.owner,
+        repo: target.repo,
+      },
+      query: {},
+      timeout_seconds: Number(args.timeout_seconds || 15),
+      expect_json: true,
+      execution_trace_id: args.execution_trace_id,
+      source_layer: "system_layer_activation",
+      readback: {
+        required: false,
+        mode: "none",
+      },
+    });
+
+    const status = Number(executionResult?.status || executionResult?.statusCode || 0);
+    const payload = normalizeExecutionBody(executionResult);
+
+    if (status < 200 || status >= 300 || payload?.ok === false) {
+      const err = new Error(
+        payload?.error?.message ||
+        payload?.message ||
+        `Governed GitHub validation failed with status ${status || "unknown"}.`
+      );
+      err.code =
+        payload?.error?.code ||
+        (status === 401 || status === 403
+          ? "provider_auth_failed"
+          : "github_governed_validation_failed");
+      err.status = status || payload?.error?.status || 500;
+      if (payload?.error?.details) {
+        err.details = payload.error.details;
+      }
+      throw err;
+    }
+
+    return {
+      ok: true,
+      provider: "github",
+      attempted_binding: {
+        parent_action_key: parentActionKey,
+        endpoint_key: endpointKey,
+        ...(endpointKey !== configuredEndpointKey ? { configured_endpoint_key: configuredEndpointKey } : {}),
+      },
+      repository: payload.full_name || `${target.owner}/${target.repo}`,
+      default_branch: payload.default_branch || null,
+      requested_branch: target.branch,
+      private: Boolean(payload.private),
+      governed_execution: true,
+      http_status: status,
+    };
+  } catch (err) {
+    return { provider: "github", ...providerProbeError(err) };
+  }
+}
+
+async function activationProviderBootstrapValidate(args = {}, deps = {}) {
+  let bootstrapRow = null;
+  let sheetsDiagnostic = null;
+  let driveDiagnostic = null;
+  const runtimeBootstrap = await resolveActivationBootstrapConfig();
+
+  const result = await runGovernedActivation({
+    attemptDrive: async () => {
+      const probe = await activationDriveProbe();
+      driveDiagnostic = { ok: probe.ok, code: probe.code || null, message: probe.message || null, status: probe.status || null, auth_failed: probe.auth_failed || false };
+      return { ok: probe.ok, auth_failed: probe.auth_failed };
+    },
+    attemptSheets: async () => {
+      sheetsDiagnostic = {
+        attempted: false,
+        ok: false,
+        skipped: true,
+        not_required: true,
+        diagnostic_only: true,
+        status: "deprecated_not_required",
+        reason: "db_runtime_bootstrap_authority",
+        replacement_tool: "activation_bootstrap_config_read",
+        source: runtimeBootstrap.ok ? runtimeBootstrap.source : "unresolved",
+        sheets_called: false,
+      };
+      return {
+        ok: true,
+        skipped: true,
+        not_required: true,
+        reason: "db_runtime_bootstrap_authority",
+      };
+    },
+    getSpreadsheet: async () => {
+      if (runtimeBootstrap.ok) {
+        return { ok: true, data: { sheets: [{ properties: { title: ACTIVATION_BOOTSTRAP_CONFIG_SHEET } }] } };
+      }
+      const probe = await activationSheetsBootstrapRead();
+      sheetsDiagnostic = probe;
+      return probe.ok
+        ? { ok: true, data: { sheets: [{ properties: { title: ACTIVATION_BOOTSTRAP_CONFIG_SHEET } }] } }
+        : { ok: false, reason: probe.code || "activation_bootstrap_workbook_unreadable" };
+    },
+    readBootstrapRow: async () => {
+      if (!runtimeBootstrap.ok) {
+        return {
+          ok: false,
+          source: "db_runtime_or_server_env",
+          error: runtimeBootstrap.error,
+          db_error: runtimeBootstrap.db_error,
+          env_error: runtimeBootstrap.env_error,
+        };
+      }
+      bootstrapRow = bootstrapConfigToRunnerRow(runtimeBootstrap.config);
+      return { ok: true, row: bootstrapRow };
+    },
+    attemptGitHub: async (bindings) => {
+      const probe = await activationGithubValidate(args, { ...bootstrapRow, ...bindings }, deps);
+      return { ok: probe.ok, auth_failed: probe.auth_failed };
+    },
+  });
+
+  return {
+    ok: result.runtime_classification?.activation_status === "active",
+    activation_layer: "provider_bootstrap_system_tool",
+    bootstrap_source: runtimeBootstrap.ok ? runtimeBootstrap.source : "unresolved",
+    sheets_required: false,
+    drive_diagnostic: driveDiagnostic || { attempted: false },
+    sheets_diagnostic: sheetsDiagnostic
+      ? {
+          attempted: sheetsDiagnostic.attempted === true,
+          ok: sheetsDiagnostic.ok === true,
+          skipped: sheetsDiagnostic.skipped === true,
+          not_required: sheetsDiagnostic.not_required === true,
+          diagnostic_only: true,
+          status: sheetsDiagnostic.status || (sheetsDiagnostic.skipped ? "deprecated_not_required" : undefined),
+          reason: sheetsDiagnostic.reason || null,
+          replacement_tool: sheetsDiagnostic.replacement_tool || null,
+          source: sheetsDiagnostic.source || null,
+          sheets_called: sheetsDiagnostic.sheets_called === true,
+          spreadsheet_id: sheetsDiagnostic.spreadsheet_id || null,
+          range: sheetsDiagnostic.range || null,
+        }
+      : { attempted: false, diagnostic_only: true, sheets_called: false },
+    ...result,
+  };
+}
+
+function systemRow(row) {
+  return {
+    system_id: row.system_id,
+    tenant_id: row.tenant_id,
+    system_key: row.system_key,
+    display_name: row.display_name,
+    provider_family: row.provider_family,
+    provider_domain: row.provider_domain,
+    connector_family: row.connector_family,
+    auth_type: row.auth_type,
+    service_mode: row.service_mode,
+    self_serve_capable: Boolean(row.self_serve_capable),
+    assisted_capable: Boolean(row.assisted_capable),
+    managed_capable: Boolean(row.managed_capable),
+    status: row.status,
+    config: parseConfigJson(row.config_json),
+    active_installations: Number(row.active_installations || 0),
+    total_installations: Number(row.total_installations || 0),
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+async function listConnectorRegistry(filters = {}, auth = null) {
+  const scopedFilters = auth ? scopeFiltersToPrincipal(filters, auth) : filters;
+  const conditions = ["1=1"];
+  const params = [];
+
+  if (scopedFilters.tenant_id) {
+    conditions.push("cs.tenant_id = ?");
+    params.push(scopedFilters.tenant_id);
+  }
+  if (scopedFilters.status) {
+    if (!VALID_STATUSES.has(scopedFilters.status)) {
+      const err = new Error("status must be one of: active, pending, error, archived.");
+      err.status = 400;
+      err.code = "invalid_status";
+      throw err;
+    }
+    conditions.push("cs.status = ?");
+    params.push(scopedFilters.status);
+  }
+  if (scopedFilters.connector_family) {
+    conditions.push("cs.connector_family = ?");
+    params.push(scopedFilters.connector_family);
+  }
+  if (scopedFilters.provider_family) {
+    conditions.push("cs.provider_family = ?");
+    params.push(scopedFilters.provider_family);
+  }
+
+  const limit = clampLimit(scopedFilters.limit);
+  params.push(limit);
+
+  const [rows] = await getPool().query(
+    `SELECT cs.system_id, cs.tenant_id, cs.system_key, cs.display_name, cs.provider_family,
+            cs.provider_domain, cs.connector_family, cs.auth_type, cs.service_mode,
+            cs.self_serve_capable, cs.assisted_capable, cs.managed_capable, cs.status,
+            cs.config_json, cs.created_at, cs.updated_at,
+            SUM(CASE WHEN i.status = 'active' THEN 1 ELSE 0 END) AS active_installations,
+            COUNT(i.installation_id) AS total_installations
+       FROM \`connected_systems\` cs
+       LEFT JOIN \`installations\` i ON i.system_id = cs.system_id
+      WHERE ${conditions.join(" AND ")}
+      GROUP BY cs.id
+      ORDER BY cs.updated_at DESC, cs.created_at DESC
+      LIMIT ?`,
+    params
+  );
+
+  return rows.map(systemRow);
+}
+
+async function getConnectorRegistrySystem(systemId, auth = null) {
+  if (!systemId) {
+    const err = new Error("system_id is required.");
+    err.status = 400;
+    err.code = "missing_system_id";
+    throw err;
+  }
+
+  const [rows] = await getPool().query(
+    `SELECT cs.system_id, cs.tenant_id, cs.system_key, cs.display_name, cs.provider_family,
+            cs.provider_domain, cs.connector_family, cs.auth_type, cs.service_mode,
+            cs.self_serve_capable, cs.assisted_capable, cs.managed_capable, cs.status,
+            cs.config_json, cs.created_at, cs.updated_at,
+            SUM(CASE WHEN i.status = 'active' THEN 1 ELSE 0 END) AS active_installations,
+            COUNT(i.installation_id) AS total_installations
+       FROM \`connected_systems\` cs
+       LEFT JOIN \`installations\` i ON i.system_id = cs.system_id
+      WHERE cs.system_id = ?
+      GROUP BY cs.id
+      LIMIT 2`,
+    [systemId]
+  );
+
+  if (!rows.length) {
+    const err = new Error(`Connector system ${systemId} not found.`);
+    err.status = 404;
+    err.code = "connector_system_not_found";
+    throw err;
+  }
+
+  if (rows.length > 1) {
+    const err = new Error(`Connector system ${systemId} is ambiguous in the registry.`);
+    err.status = 409;
+    err.code = "connector_system_ambiguous";
+    err.details = {
+      system_id: systemId,
+      candidate_count: rows.length,
+      secrets_included: false,
+    };
+    throw err;
+  }
+
+  const [row] = rows;
+  if (auth && !isAdminPrincipal(auth) && row.tenant_id !== principalTenantId(auth)) {
+    const err = new Error("Tenant-scoped system tools cannot access another tenant.");
+    err.status = 403;
+    err.code = "tenant_scope_violation";
+    throw err;
+  }
+
+  const [installations] = await getPool().query(
+    `SELECT installation_id, tenant_id, scope, credential_ref, status, installed_at, expires_at, meta_json
+       FROM \`installations\`
+      WHERE system_id = ?
+      ORDER BY installed_at DESC
+      LIMIT 100`,
+    [systemId]
+  );
+
+  return {
+    ...systemRow(row),
+    installations: installations.map((installation) => ({
+      ...installation,
+      meta_json: parseConfigJson(installation.meta_json),
+    })),
+  };
+}
+
+function clampDriveToolLimit(value, fallback = 100, max = 200) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.min(Math.max(1, Math.floor(parsed)), max);
+}
+
+function parseGoogleDriveFolderId(args = {}) {
+  const direct = String(args.folder_id || args.file_id || "").trim();
+  if (direct) return direct;
+  const url = String(args.folder_url || args.url || "").trim();
+  if (!url) return "";
+  const folderMatch = url.match(/\/folders\/([A-Za-z0-9_-]+)/);
+  if (folderMatch?.[1]) return folderMatch[1];
+  const idMatch = url.match(/[?&]id=([A-Za-z0-9_-]+)/);
+  return idMatch?.[1] || "";
+}
+
+function sanitizeDriveFileMetadata(file = {}) {
+  return {
+    id: file.id || null,
+    name: file.name || null,
+    mimeType: file.mimeType || null,
+    modifiedTime: file.modifiedTime || null,
+    createdTime: file.createdTime || null,
+    size: file.size || null,
+    driveId: file.driveId || null,
+    parents: Array.isArray(file.parents) ? file.parents : [],
+    webViewLink: file.webViewLink || null,
+    capabilities: file.capabilities || undefined,
+    is_folder: file.mimeType === "application/vnd.google-apps.folder",
+  };
+}
+
+function driveEndpointCatalogRow(row = {}) {
+  return {
+    endpoint_id: row.endpoint_id || null,
+    parent_action_key: row.parent_action_key || null,
+    endpoint_key: row.endpoint_key || null,
+    endpoint_operation: row.endpoint_operation || null,
+    openai_action_name: row.openai_action_name || null,
+    method: row.method || null,
+    endpoint_path_or_function: row.endpoint_path_or_function || null,
+    route_target: row.route_target || null,
+    module_binding: row.module_binding || null,
+    connector_family: row.connector_family || null,
+    status: row.status || null,
+    execution_readiness: row.execution_readiness || null,
+    endpoint_role: row.endpoint_role || null,
+    execution_mode: row.execution_mode || null,
+    transport_required: row.transport_required || null,
+    secrets_included: false,
+  };
+}
+
+async function listGoogleDriveEndpointCatalog(args = {}) {
+  const parentActionKey = String(args.parent_action_key || "google_drive_api").trim() || "google_drive_api";
+  const conditions = ["parent_action_key = ?"];
+  const params = [parentActionKey];
+  for (const [argKey, column] of [["method", "method"], ["status", "status"], ["execution_readiness", "execution_readiness"]]) {
+    if (args[argKey]) {
+      conditions.push(`${column} = ?`);
+      params.push(String(args[argKey]).trim());
+    }
+  }
+  const search = String(args.search || "").trim();
+  if (search) {
+    conditions.push("(endpoint_key LIKE ? OR endpoint_operation LIKE ? OR openai_action_name LIKE ? OR endpoint_path_or_function LIKE ? OR notes LIKE ?)");
+    const like = `%${search}%`;
+    params.push(like, like, like, like, like);
+  }
+  const limit = clampDriveToolLimit(args.limit, 100, 200);
+  params.push(limit);
+  const [rows] = await getPool().query(
+    `SELECT endpoint_id, parent_action_key, endpoint_key, endpoint_operation, openai_action_name,
+            method, endpoint_path_or_function, route_target, module_binding, connector_family,
+            status, execution_readiness, endpoint_role, execution_mode, transport_required
+       FROM \`endpoints\`
+      WHERE ${conditions.join(" AND ")}
+      ORDER BY
+        CASE WHEN status = 'active' THEN 0 ELSE 1 END,
+        CASE WHEN execution_readiness = 'ready' THEN 0 ELSE 1 END,
+        endpoint_key ASC
+      LIMIT ?`,
+    params
+  );
+  return {
+    ok: true,
+    parent_action_key: parentActionKey,
+    filters: {
+      search: search || null,
+      method: args.method || null,
+      status: args.status || null,
+      execution_readiness: args.execution_readiness || null,
+      limit,
+    },
+    count: rows.length,
+    endpoints: rows.map(driveEndpointCatalogRow),
+    secrets_included: false,
+  };
+}
+
+function buildDriveRuntimePayload({ endpointKey, pathParams = {}, query = {}, args = {}, auth = null, dryRun = false }) {
+  const guarded = derivePrincipalExecutionContext({
+    parent_action_key: "google_drive_api",
+    endpoint_key: endpointKey,
+    path_params: pathParams,
+    query,
+    credential_scope: args.credential_scope || "platform",
+    connection_id: args.connection_id,
+    tenant_id: args.tenant_id,
+    user_id: args.user_id,
+    allow_platform_fallback: args.allow_platform_fallback !== false,
+    auth_context: args.auth_context,
+    timeout_seconds: Math.min(Number(args.timeout_seconds) || 60, 120),
+    dry_run: Boolean(dryRun),
+  }, auth);
+  return {
+    ...guarded.payload,
+    _principal: guarded.principal,
+    _principal_context_guard: guarded.guard,
+  };
+}
+
+async function callDriveRuntimeEndpoint({ endpointKey, pathParams = {}, query = {}, args = {}, auth = null, deps = {} }) {
+  return await callRuntimeEndpointViaFacade(buildDriveRuntimePayload({ endpointKey, pathParams, query, args, auth }), deps);
+}
+
+function runtimeEndpointData(response) {
+  return (response?.body || response || {}).data || {};
+}
+
+async function inspectGoogleDriveFolder(args = {}, auth = null, deps = {}) {
+  const folderId = parseGoogleDriveFolderId(args);
+  if (!folderId) {
+    const err = new Error("folder_id or folder_url is required.");
+    err.status = 400;
+    err.code = "google_drive_folder_id_required";
+    throw err;
+  }
+  const maxDepth = clampDriveToolLimit(args.max_depth, 1, 3);
+  const pageSize = clampDriveToolLimit(args.page_size, 100, 200);
+  const recursive = Boolean(args.recursive);
+  const visited = new Set();
+
+  async function inspectOne(currentFolderId, depth = 0) {
+    if (visited.has(currentFolderId)) {
+      return { id: currentFolderId, skipped: true, skip_reason: "already_visited", children: [] };
+    }
+    visited.add(currentFolderId);
+    const metadata = runtimeEndpointData(await callDriveRuntimeEndpoint({
+      endpointKey: "getFileMetadata",
+      pathParams: { fileId: currentFolderId },
+      query: {
+        fields: "id,name,mimeType,driveId,parents,createdTime,modifiedTime,webViewLink,capabilities(canAddChildren,canEdit,canListChildren)",
+        supportsAllDrives: true,
+      },
+      args,
+      auth,
+      deps,
+    }));
+    const listData = runtimeEndpointData(await callDriveRuntimeEndpoint({
+      endpointKey: "listDriveFiles",
+      query: {
+        q: `'${currentFolderId}' in parents and trashed=false`,
+        fields: "files(id,name,mimeType,modifiedTime,size,parents,webViewLink),nextPageToken",
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true,
+        pageSize,
+      },
+      args,
+      auth,
+      deps,
+    }));
+    const children = Array.isArray(listData.files) ? listData.files.map(sanitizeDriveFileMetadata) : [];
+    const childFolders = children.filter((child) => child.is_folder);
+    const nested = [];
+    if (recursive && depth < maxDepth) {
+      for (const child of childFolders) nested.push(await inspectOne(child.id, depth + 1));
+    }
+    return {
+      folder: sanitizeDriveFileMetadata(metadata),
+      depth,
+      child_count: children.length,
+      folder_count: childFolders.length,
+      file_count: children.length - childFolders.length,
+      children,
+      nested,
+      next_page_token: listData.nextPageToken || null,
+      secrets_included: false,
+    };
+  }
+
+  const tree = await inspectOne(folderId, 0);
+  return {
+    ok: true,
+    adapter: "google-drive-folder-inspect-v1",
+    requested_folder_id: folderId,
+    recursive,
+    max_depth: maxDepth,
+    page_size: pageSize,
+    tree,
+    secrets_included: false,
+  };
+}
+
+function recoveryAdminPrincipalFromAuth(auth) {
+  const verified = auth?.is_admin === true;
+  return { verified, binding: verified ? "admin_guard_auth_context" : "missing_admin_guard_binding" };
+}
+
+function recoveryEnvironmentIsProduction(env = process.env) {
+  const signals = [
+    ["NODE_ENV", env.NODE_ENV],
+    ["REMOTE_MCP_ENVIRONMENT", env.REMOTE_MCP_ENVIRONMENT],
+    ["DEPLOYMENT_ENVIRONMENT", env.DEPLOYMENT_ENVIRONMENT],
+    ["GITHUB_REF_NAME", env.GITHUB_REF_NAME],
+  ].filter(([, value]) => String(value || "").trim());
+  if (!signals.length) return false;
+  return signals.every(([name, value]) => {
+    const normalized = String(value).trim().toLowerCase();
+    return name === "GITHUB_REF_NAME" ? normalized === "production" : ["production", "prod"].includes(normalized);
+  });
+}
+
+async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
+  if (!LOCAL_SYSTEM_TOOL_NAMES.has(name)) {
+    const tenantRegistryTool = await callTenantEndpointRegistryToolIfAvailable(name, args, auth, deps);
+    if (tenantRegistryTool.handled) return tenantRegistryTool.result;
+
+    let platformEndpointTool;
+    try {
+      platformEndpointTool = await callPlatformEndpointToolIfAvailable(name, args, auth, deps);
+    } catch (err) {
+      if (err.code !== "DB_CONFIG_MISSING") throw err;
+      platformEndpointTool = { handled: false };
+    }
+    if (platformEndpointTool.handled) return platformEndpointTool.result;
+  }
+
+  assertAdminToolAccess(name, auth);
+
+  const descriptorSystemTool = await callDescriptorSystemToolIfAvailable(name, args, auth, deps);
+  if (descriptorSystemTool.handled) return descriptorSystemTool.result;
+
+  switch (name) {
+    case "recovery_kernel_create_approval_challenge": {
+      if (!args || typeof args !== "object" || Array.isArray(args)) {
+        const error = new Error("recovery_kernel_create_approval_challenge requires a JSON object.");
+        error.status = 400;
+        error.code = "recovery_kernel_create_approval_challenge_input_invalid";
+        throw error;
+      }
+      const allowedKeys = new Set(["plan_id", "plan_hash", "step_id"]);
+      const unexpected = Object.keys(args).filter((key) => !allowedKeys.has(key));
+      const missing = ["plan_id", "plan_hash", "step_id"].filter((key) => args[key] === undefined || args[key] === null || args[key] === "");
+      if (unexpected.length || missing.length) {
+        const error = new Error("recovery_kernel_create_approval_challenge accepts only plan, plan hash, and step references.");
+        error.status = 400;
+        error.code = "recovery_kernel_create_approval_challenge_field_forbidden";
+        error.details = { fields: [...unexpected, ...missing], secrets_included: false };
+        throw error;
+      }
+      assertApprovalChallengeAuthorities({
+        recoveryStore: deps.recoveryStore,
+        approvalIssuer: deps.approvalIssuer,
+        approvalStore: deps.approvalStore,
+      });
+      const result = await callRecoveryKernelCapability("approval_challenge_create", args, {
+        env: deps.recoveryKernelEnv || deps.env || process.env,
+        recoveryStore: deps.recoveryStore,
+        approvalIssuer: deps.approvalIssuer,
+        approvalStore: deps.approvalStore,
+        adminPrincipal: recoveryAdminPrincipalFromAuth(auth),
+      });
+      return result;
+    }
+    case "recovery_kernel_execute_approved_step": {
+      if (!args || typeof args !== "object" || Array.isArray(args)) {
+        const error = new Error("recovery_kernel_execute_approved_step requires a JSON object.");
+        error.status = 400;
+        error.code = "recovery_kernel_execute_approved_step_input_invalid";
+        throw error;
+      }
+      const allowedKeys = new Set(["plan_id", "plan_hash", "step_id", "approval_token", "idempotency_key"]);
+      const unexpected = Object.keys(args).filter((key) => !allowedKeys.has(key));
+      if (unexpected.length) {
+        const error = new Error("recovery_kernel_execute_approved_step accepts only plan, step, approval, and idempotency references; execution tickets are server-issued.");
+        error.status = 400;
+        error.code = "recovery_kernel_execute_approved_step_field_forbidden";
+        error.details = { fields: unexpected, secrets_included: false };
+        throw error;
+      }
+      const result = await issueAndExecuteApprovedRecoveryStep(args, {
+        env: deps.recoveryKernelEnv || deps.env || process.env,
+        adminPrincipal: recoveryAdminPrincipalFromAuth(auth),
+        recoveryStore: deps.recoveryStore,
+        executionTicketSigner: deps.executionTicketSigner,
+        approvalVerifier: deps.approvalVerifier,
+        approvalStore: deps.approvalStore,
+        recoveryLock: deps.recoveryLock,
+        readbackVerifier: deps.readbackVerifier,
+        deploymentIdentityProvider: deps.deploymentIdentityProvider,
+        hostBreakglassMutationExecutor: deps.hostBreakglassMutationExecutor,
+        migrationLedger: deps.migrationLedger,
+      });
+      return sanitizeRecoveryActionBridgeOutput(result);
+    }
+    case "recovery_kernel_call": {
+      if (!args || typeof args !== "object" || Array.isArray(args)) {
+        const error = new Error("recovery_kernel_call requires a JSON object.");
+        error.status = 400;
+        error.code = "recovery_kernel_call_input_invalid";
+        throw error;
+      }
+      const allowedKeys = new Set(["capability_key", "input"]);
+      const unexpected = Object.keys(args).filter((key) => !allowedKeys.has(key));
+      if (unexpected.length || typeof args.capability_key !== "string" || !args.capability_key.trim()) {
+        const error = new Error("recovery_kernel_call accepts only capability_key and bounded input.");
+        error.status = 400;
+        error.code = "recovery_kernel_call_field_forbidden";
+        error.details = { fields: unexpected, secrets_included: false };
+        throw error;
+      }
+      const capabilityKey = args.capability_key.trim();
+      if (!SHARED_ADMIN_RECOVERY_READONLY_CAPABILITIES.has(capabilityKey)) {
+        const error = new Error("Consequential Recovery execution is not available through the shared non-consequential Admin System Action.");
+        error.status = 404;
+        error.code = "recovery_kernel_private_surface_required";
+        error.details = { capability_key: capabilityKey, required_surface: "admin_recovery_production_or_host_breakglass", secrets_included: false };
+        throw error;
+      }
+      const stagingSafe = new Set(["recovery_capabilities", "system_tool_get", "system_tools_search"]);
+      const env = deps.recoveryKernelEnv || deps.env || process.env;
+      if (!stagingSafe.has(capabilityKey) && !recoveryEnvironmentIsProduction(env)) {
+        const error = new Error("Production-only Recovery Kernel capability requested outside Production.");
+        error.status = 404;
+        error.code = "recovery_kernel_production_only";
+        error.details = { capability_key: capabilityKey, secrets_included: false };
+        throw error;
+      }
+      return await callRecoveryKernelCapability(capabilityKey, args.input || {}, {
+        env,
+        repoRoot: deps.hostLocalInspectionRepoRoot,
+        hostLocalExecutor: deps.hostLocalInspectionExecutor,
+        recoveryStore: deps.recoveryStore,
+        approvalIssuer: deps.approvalIssuer,
+        approvalVerifier: deps.approvalVerifier,
+        approvalStore: deps.approvalStore,
+        recoveryLock: deps.recoveryLock,
+        mutationExecutor: deps.mutationExecutor,
+        readbackVerifier: deps.readbackVerifier,
+        productionActivationReadinessExecutor: deps.productionActivationReadinessExecutor,
+        systemToolLookup: deps.systemToolLookup,
+        adminPrincipal: recoveryAdminPrincipalFromAuth(auth),
+      });
+    }
+    case "recovery_kernel_capabilities":
+      return getRecoveryCapabilities({ env: deps.recoveryKernelEnv || deps.env || process.env });
+    case "system_tool_get": {
+      if (!args || typeof args !== "object" || Array.isArray(args) || typeof args.tool_name !== "string" || !args.tool_name.trim()) {
+        const error = new Error("system_tool_get requires tool_name and accepts no other control fields.");
+        error.status = 400;
+        error.code = "system_tool_get_input_invalid";
+        throw error;
+      }
+      const { getSystemToolDescriptorByName } = await import("../systemToolCatalogV2.js");
+      return getSystemToolDescriptorByName(toolsForPrincipal(auth), args.tool_name.trim());
+    }
+    case "system_tools_search": {
+      if (!args || typeof args !== "object" || Array.isArray(args)) {
+        const error = new Error("system_tools_search requires a JSON object.");
+        error.status = 400;
+        error.code = "system_tools_search_input_invalid";
+        throw error;
+      }
+      const allowedKeys = new Set(["q", "tag", "capability_key", "limit"]);
+      const unexpected = Object.keys(args).filter((key) => !allowedKeys.has(key));
+      if (unexpected.length) {
+        const error = new Error("system_tools_search accepts only bounded query fields.");
+        error.status = 400;
+        error.code = "system_tools_search_field_forbidden";
+        error.details = { fields: unexpected, secrets_included: false };
+        throw error;
+      }
+      const { listSystemToolCatalog } = await import("../systemToolCatalogV2.js");
+      return {
+        ok: true,
+        protocol: "openapi-mcp-facade",
+        catalog_mode: "repository_static_system_layer",
+        ...listSystemToolCatalog(toolsForPrincipal(auth), { ...args, limit: Math.min(Number(args.limit || 20), 50) }),
+        database_query_performed: false,
+        secrets_included: false,
+      };
+    }
+    case "response_chunk_read":
+      return await readCachedToolResponseChunk({
+        ...(args || {}),
+        auth,
+        source_surface: "system_layer_response_chunk_read",
+      });
+    case "system_layer_descriptor_readiness":
+      return {
+        ok: true,
+        tool: "system_layer_descriptor_readiness",
+        descriptor_source_count: SYSTEM_LAYER_DESCRIPTOR_SOURCES.length,
+        descriptor_tool_count: SYSTEM_LAYER_DESCRIPTOR_HANDLER_REGISTRY.size,
+        missing_handler_count: systemLayerDescriptorReadiness().filter((row) => !row.handler_present).length,
+        descriptors: systemLayerDescriptorReadiness(),
+        secrets_included: false,
+      };
+    case "system_layer_descriptor_callability_audit":
+      return runSystemLayerDescriptorCallabilityAudit();
+    case "runtime_endpoint_call": {
+      const guarded = derivePrincipalExecutionContext({ ...(args || {}) }, auth);
+      return await callRuntimeEndpointViaFacade({
+        ...guarded.payload,
+        _principal: guarded.principal,
+        _principal_context_guard: guarded.guard,
+      }, deps);
+    }
+    case "runtime_endpoint_preview": {
+      assertRuntimeEndpointPreviewPayload(args || {});
+      const guarded = derivePrincipalExecutionContext({ ...(args || {}), dry_run: true }, auth);
+      return await callRuntimeEndpointViaFacade({
+        ...guarded.payload,
+        dry_run: true,
+        _principal: guarded.principal,
+        _principal_context_guard: guarded.guard,
+      }, deps);
+    }
+    case "google_drive_endpoint_catalog":
+      return await listGoogleDriveEndpointCatalog(args);
+    case "google_drive_folder_inspect":
+      return await inspectGoogleDriveFolder(args, auth, deps);
+    case "platform_resource_authority_binding_create":
+      return await createRepositoryAuthorityBinding(args, { auth });
+    case "platform_resource_authority_binding_list":
+      return await listRepositoryAuthorityBindings(args, { auth });
+    case "platform_resource_authority_binding_revoke":
+      return await revokeRepositoryAuthorityBinding(args, { auth });
+    case "tenant_repo_pr_reconciliation_sweep":
+      return await tenantRepositoryPrReconciliationSweep(args, { auth, runGovernedResource });
+    case "tenant_repository_intelligence_v2_readiness_smoke":
+      return await tenantRepositoryIntelligenceV2ReadinessSmoke(args, { auth, runGovernedResource });
+    case "tenant_repository_intelligence_report":
+      return await tenantRepositoryIntelligenceReport(args, { auth, runGovernedResource });
+    case "tenant_repository_action_planner_dry_run":
+      return await tenantRepositoryActionPlannerDryRun(args, { auth, runGovernedResource });
+    case "tenant_repository_intelligence_v3_v4_readiness_smoke":
+      return await tenantRepositoryIntelligenceV3V4ReadinessSmoke(args, { auth, runGovernedResource });
+    case "tenant_repository_advisory_comment_preview": return await tenantRepositoryAdvisoryCommentPreview(args, { auth, runGovernedResource }); case "tenant_repository_advisory_comment_apply": return await tenantRepositoryAdvisoryCommentApply(args, { auth, runGovernedResource }); case "tenant_repository_advisory_comment_readback": return await tenantRepositoryAdvisoryCommentReadback(args, { auth, runGovernedResource }); case "tenant_repository_advisory_comment_v5_readiness_smoke": return await tenantRepositoryAdvisoryCommentV5ReadinessSmoke(args, { auth, runGovernedResource }); case "governed_resource_resolve":
+      return await resolveGovernedResource(args);
+    case "governed_resource_catalog":
+      return await catalogGovernedResources(args);
+    case "governed_resource_plan":
+      return await planGovernedResource(args);
+    case "governed_resource_run": {
+      const result = await runGovernedResource(args, {
+        executeInstalledTool: async (toolKey, toolArgs) => {
+          if (toolKey === "google_drive_folder_inspect") {
+            return await inspectGoogleDriveFolder(toolArgs, auth, deps);
+          }
+          const err = new Error(`Installed tool ${toolKey} is not allowlisted for resource recipe execution.`);
+          err.status = 403;
+          err.code = "resource_recipe_installed_tool_not_allowlisted";
+          throw err;
+        },
+        executeRuntimeEndpoint: async (payload) => {
+          return await callRuntimeEndpointViaFacade(payload, deps);
+        },
+      });
+      if (String(args?.mode || result?.mode || "").trim() === "apply") {
+        try {
+          result.audit_evidence = await writeResourceRecipeApplyEvidence({ args, result, auth });
+        } catch (err) {
+          result.audit_evidence = {
+            ok: false,
+            error: { code: err?.code || "resource_recipe_apply_evidence_failed", message: err?.message || "Resource recipe apply evidence write failed." },
+            secrets_included: false,
+          };
+        }
+      }
+      return result;
+    }
+    case "connector_registry_list":
+      return { connectors: await listConnectorRegistry(args, auth) };
+    case "connector_registry_get":
+      return { connector: await getConnectorRegistrySystem(args.system_id, auth) };
+    case "activation_drive_probe":
+      return await activationDriveProbe(args);
+    case "activation_bootstrap_config_read":
+      return await activationBootstrapConfigRead(args);
+    case "activation_sheets_bootstrap_read":
+      return await activationSheetsBootstrapRead(args);
+    case "activation_github_validate": {
+      const runtimeBootstrap = await resolveActivationBootstrapConfig();
+      return await activationGithubValidate(
+        args,
+        runtimeBootstrap.ok ? bootstrapConfigToRunnerRow(runtimeBootstrap.config) : {},
+        deps
+      );
+    }
+    case "github_app_key_diagnostics": {
+      const { privateKey } = resolveGitHubAppConfig({});
+      const decoded = decodeGitHubAppPrivateKey(privateKey);
+      const firstLine = decoded.split("\n")[0] || "";
+      return {
+        ok: true,
+        configured: Boolean(privateKey),
+        raw_length: privateKey.length,
+        decoded_length: decoded.length,
+        decoded_first_line: firstLine.slice(0, 40) || "(empty)",
+        starts_with_pem_header: decoded.startsWith("-----BEGIN"),
+        has_private_key_header: decoded.includes("PRIVATE KEY-----"),
+        looks_like_pem: decoded.startsWith("-----BEGIN") && decoded.includes("PRIVATE KEY-----"),
+        has_actual_newlines: privateKey.includes("\n") || privateKey.includes("\r"),
+        has_escaped_newlines: privateKey.includes("\\n") || privateKey.includes("\\r\\n"),
+        recommended_fix: decoded.startsWith("-----BEGIN") && decoded.includes("PRIVATE KEY-----")
+          ? "PEM structure detected — if signing still fails, try re-setting GITHUB_APP_PRIVATE_KEY as the base64 of the PEM file."
+          : "PEM header not found after decoding. Re-set GITHUB_APP_PRIVATE_KEY as the base64 of the raw PEM file (cat key.pem | base64 -w0).",
+      };
+    }
+    case "activation_provider_bootstrap_validate":
+      return await activationProviderBootstrapValidate(args, deps);
+    case "activation_bootstrap_config_upsert":
+      return await activationBootstrapConfigUpsert(args);
+    case "tenant_gpt_oauth_client_upsert":
+      return await upsertTenantGptOAuthClientConfig(args);
+    case "tenant_gpt_oauth_client_status":
+      return await getTenantGptOAuthClientConfigStatus();
+    case "credential_client_config_upsert":
+      return await upsertPlatformCredentialClientConfig(args);
+    case "credential_client_config_list":
+      return await listPlatformCredentialClientConfigs(args);
+    case "google_auth_platform_config_upsert":
+      return await upsertGoogleAuthPlatformConfig(args);
+    case "google_auth_platform_config_get":
+      return await getGoogleAuthPlatformConfig(args);
+    default: {
+      const err = new Error(`Unknown system layer tool: ${name}`);
+      err.status = 400;
+      err.code = "unknown_tool";
+      throw err;
+    }
+  }
+}
+
+function sendError(res, err, fallbackCode) {
+  return res.status(err.status || 500).json({
+    ok: false,
+    error: {
+      code: err.code || fallbackCode,
+      message: err.message,
+      ...(err?.details !== undefined ? { details: err.details } : {}),
+    },
+  });
+}
+
+export function buildSystemLayerRoutes(deps) {
+  const {
+    requireBackendApiKey,
+    executionFacade,
+    hostLocalInspectionExecutor,
+    hostLocalInspectionEnv,
+    hostLocalInspectionRepoRoot,
+    productionActivationReadinessExecutor,
+    recoveryKernelEnv,
+    recoveryStore,
+    approvalIssuer,
+    approvalVerifier,
+    approvalStore,
+    recoveryLock,
+    mutationExecutor,
+    readbackVerifier,
+    executionTicketSigner,
+    hostBreakglassMutationExecutor,
+    systemToolLookup,
+    env,
+  } = deps;
   const router = Router();
-  const requireBackendApiKey = deps.requireBackendApiKey;
-  const authenticated = [requireBackendApiKey].filter((value) => typeof value === "function");
-  const adminOnly = [requireBackendApiKey, requireAdminPrincipal].filter((value) => typeof value === "function");
+  const adminOnly = [requireBackendApiKey, requireAdminPrincipal];
+  const authenticated = [requireBackendApiKey];
 
-  // These handlers run before the core router and only claim the three fixed Recovery
-  // bridge tools. Every unrelated system-layer route remains owned by the existing core.
-  router.post(
-    "/system/tools/call",
-    ...authenticated,
-    fixedRecoveryBridgeHandler(deps, "system_tools_call"),
-  );
-  router.post(
-    "/admin/system/tools/call",
-    ...adminOnly,
-    fixedRecoveryBridgeHandler(deps, "admin_system_tools_call"),
-  );
+  router.get("/system/tools", ...authenticated, async (req, res) => {
+    try {
+      const body = await buildSystemToolsListResponse(req.auth, req.query || {});
+      body.principal = {
+        mode: req.auth?.mode || null,
+        is_admin: isAdminPrincipal(req.auth),
+        tenant_id: principalTenantId(req.auth),
+      };
+      return res.status(200).json(await chunkSystemLayerResponse(
+        body,
+        req.query || {},
+        req.auth,
+        "system_tools_list",
+        "system_tools_list",
+      ));
+    } catch (error) {
+      return sendSystemToolCatalogError(res, error, "system_tool_catalog_list_failed");
+    }
+  });
 
-  router.use(Core.buildSystemLayerRoutes(deps));
+  router.get("/system/tools/catalog-observability", ...adminOnly, async (_req, res) => {
+    try {
+      return res.status(200).json({
+        ok: true,
+        ...(await readSystemToolCatalogObservability()),
+      });
+    } catch (error) {
+      return sendSystemToolCatalogError(res, error, "system_tool_catalog_observability_failed");
+    }
+  });
+
+  router.get("/system/tools/:toolName", ...authenticated, async (req, res) => {
+    try {
+      return res.status(200).json({
+        ok: true,
+        ...(await getSystemToolCatalogDescriptor(req.auth, req.params.toolName)),
+      });
+    } catch (error) {
+      return sendSystemToolCatalogError(res, error, "system_tool_catalog_lookup_failed");
+    }
+  });
+
+  router.post("/system/capabilities/resolve", ...authenticated, async (req, res) => {
+    try {
+      return res.status(200).json({
+        ok: true,
+        ...(await resolveSystemToolCatalogIntent(req.auth, req.body || {})),
+      });
+    } catch (error) {
+      return sendSystemToolCatalogError(res, error, "system_capability_resolution_failed");
+    }
+  });
+
+  router.post("/system/tools/call", ...authenticated, async (req, res) => {
+    try {
+      const { name } = req.body || {};
+      const args = req.body?.tool_args && typeof req.body.tool_args === "object"
+        ? req.body.tool_args
+        : (req.body?.arguments && typeof req.body.arguments === "object" ? req.body.arguments : {});
+      if (!name) {
+        return res.status(400).json({ ok: false, error: { code: "missing_tool_name", message: "name is required." } });
+      }
+      const timeoutMs = (PLATFORM_TOOL_MAX_TIMEOUT_SECONDS + 2) * 1000;
+      const deadline = new Promise((_, reject) =>
+        setTimeout(() => {
+          const e = new Error(`System tool call timed out after ${PLATFORM_TOOL_MAX_TIMEOUT_SECONDS + 2}s`);
+          e.status = 504;
+          e.code = "system_tool_timeout";
+          reject(e);
+        }, timeoutMs)
+      );
+      const result = await Promise.race([
+        callSystemLayerTool(name, args, req.auth, {
+          executionFacade,
+          req,
+          hostLocalInspectionExecutor,
+          hostLocalInspectionEnv,
+          hostLocalInspectionRepoRoot,
+          productionActivationReadinessExecutor,
+          recoveryKernelEnv,
+          recoveryStore,
+          approvalIssuer,
+          approvalVerifier,
+          approvalStore,
+          recoveryLock,
+          mutationExecutor,
+          readbackVerifier,
+          executionTicketSigner,
+          hostBreakglassMutationExecutor,
+          systemToolLookup,
+          env,
+        }),
+        deadline
+      ]);
+      if (!shouldChunkDispatchedToolResponse(name, result)) {
+        return res.status(200).json(result);
+      }
+      return res.status(200).json(await chunkSystemLayerResponse(
+        { ok: true, name, result, secrets_included: false },
+        args || {},
+        req.auth,
+        "system_tools_call",
+        name,
+      ));
+    } catch (err) {
+      return sendError(res, err, "system_tool_call_failed");
+    }
+  });
+
+  router.get("/system/connectors", ...authenticated, async (req, res) => {
+    try {
+      const connectors = await listConnectorRegistry(req.query || {}, req.auth);
+      return res.status(200).json({ ok: true, connectors, count: connectors.length });
+    } catch (err) {
+      return sendError(res, err, "connector_registry_list_failed");
+    }
+  });
+
+  router.get("/system/connectors/:system_id", ...authenticated, async (req, res) => {
+    try {
+      const connector = await getConnectorRegistrySystem(req.params.system_id, req.auth);
+      return res.status(200).json({ ok: true, connector });
+    } catch (err) {
+      return sendError(res, err, "connector_registry_get_failed");
+    }
+  });
+
+  router.get("/admin/system/connectors", ...adminOnly, async (req, res) => {
+    try {
+      const connectors = await listConnectorRegistry(req.query || {}, req.auth);
+      return res.status(200).json({ ok: true, connectors, count: connectors.length });
+    } catch (err) {
+      return sendError(res, err, "connector_registry_list_failed");
+    }
+  });
+
+  router.get("/admin/system/connectors/:system_id", ...adminOnly, async (req, res) => {
+    try {
+      const connector = await getConnectorRegistrySystem(req.params.system_id, req.auth);
+      return res.status(200).json({ ok: true, connector });
+    } catch (err) {
+      return sendError(res, err, "connector_registry_get_failed");
+    }
+  });
+
+  router.get("/admin/system/tools", ...adminOnly, async (req, res) => {
+    try {
+      const body = await buildSystemToolsListResponse(req.auth, req.query || {});
+      return res.status(200).json(await chunkSystemLayerResponse(
+        body,
+        req.query || {},
+        req.auth,
+        "admin_system_tools_list",
+        "admin_system_tools_list",
+      ));
+    } catch (error) {
+      return sendSystemToolCatalogError(res, error, "system_tool_catalog_list_failed");
+    }
+  });
+
+  router.post("/admin/system/tools/call", ...adminOnly, async (req, res) => {
+    try {
+      const { name } = req.body || {};
+      const args = req.body?.tool_args && typeof req.body.tool_args === "object"
+        ? req.body.tool_args
+        : (req.body?.arguments && typeof req.body.arguments === "object" ? req.body.arguments : {});
+      if (!name) {
+        return res.status(400).json({ ok: false, error: { code: "missing_tool_name", message: "name is required." } });
+      }
+      const timeoutMs = (PLATFORM_TOOL_MAX_TIMEOUT_SECONDS + 2) * 1000;
+      const deadline = new Promise((_, reject) =>
+        setTimeout(() => {
+          const e = new Error(`System tool call timed out after ${PLATFORM_TOOL_MAX_TIMEOUT_SECONDS + 2}s`);
+          e.status = 504;
+          e.code = "system_tool_timeout";
+          reject(e);
+        }, timeoutMs)
+      );
+      const result = await Promise.race([
+        callSystemLayerTool(name, args, req.auth, {
+          executionFacade,
+          hostLocalInspectionExecutor,
+          hostLocalInspectionEnv,
+          hostLocalInspectionRepoRoot,
+          productionActivationReadinessExecutor,
+          recoveryKernelEnv,
+          recoveryStore,
+          approvalIssuer,
+          approvalVerifier,
+          approvalStore,
+          recoveryLock,
+          mutationExecutor,
+          readbackVerifier,
+          executionTicketSigner,
+          hostBreakglassMutationExecutor,
+          systemToolLookup,
+          env,
+        }),
+        deadline
+      ]);
+      if (!shouldChunkDispatchedToolResponse(name, result)) {
+        return res.status(200).json(result);
+      }
+      return res.status(200).json(await chunkSystemLayerResponse(
+        { ok: true, name, result, secrets_included: false },
+        args || {},
+        req.auth,
+        "admin_system_tools_call",
+        name,
+      ));
+    } catch (err) {
+      return sendError(res, err, "system_tool_call_failed");
+    }
+  });
+
+  router.get("/admin/apis-services/google-auth-platform", ...adminOnly, async (req, res) => {
+    try {
+      const result = await getGoogleAuthPlatformConfig(req.query || {});
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "google_auth_platform_config_get_failed");
+    }
+  });
+
+  router.get("/admin/apis-services/google-auth-platform/:tab", ...adminOnly, async (req, res) => {
+    try {
+      const result = await getGoogleAuthPlatformConfig({ ...(req.query || {}), tab: req.params.tab });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "google_auth_platform_config_get_failed");
+    }
+  });
+
+  router.post("/admin/apis-services/google-auth-platform/:tab", ...adminOnly, async (req, res) => {
+    try {
+      const result = await upsertGoogleAuthPlatformConfig({ ...(req.body || {}), tab: req.params.tab });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "google_auth_platform_config_upsert_failed");
+    }
+  });
+
+  router.get("/admin/apis-services/credentials", ...adminOnly, async (req, res) => {
+    try {
+      const result = await getGoogleAuthPlatformConfig({ ...(req.query || {}), tab: "api_credentials" });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "google_api_credentials_get_failed");
+    }
+  });
+
+  router.post("/admin/apis-services/credentials", ...adminOnly, async (req, res) => {
+    try {
+      const result = await upsertGoogleAuthPlatformConfig({ ...(req.body || {}), tab: "api_credentials" });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "google_api_credentials_upsert_failed");
+    }
+  });
+
   return router;
 }
 
-export const systemLayerRecoveryAuthorityFacadeInternals = Object.freeze({
-  FIXED_RECOVERY_SYSTEM_TOOLS,
-  CONTROL_CAPABILITIES_FORBIDDEN_ON_READ_BRIDGE,
-});
+export {
+  SYSTEM_LAYER_TOOLS,
+  activationBootstrapConfigUpsert,
+  activationGithubValidate,
+  callSystemLayerTool,
+  ensurePlatformRuntimeConfigTable,
+  getConnectorRegistrySystem,
+  listConnectorRegistry,
+  resolveGithubValidationTarget,
+};
