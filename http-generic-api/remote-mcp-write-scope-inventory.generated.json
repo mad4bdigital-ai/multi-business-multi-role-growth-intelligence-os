@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7634,
+  "file_count": 7641,
   "route_count": 1103,
   "write_route_count": 670,
   "classified_write_surface_count": 42,
@@ -6214,8 +6214,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#POST:/admin/recovery/kernel/call:0",
-      "source_line": 182,
-      "source_offset": 6298,
+      "source_line": 198,
+      "source_offset": 7124,
       "method": "POST",
       "path": "/admin/recovery/kernel/call",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -6223,8 +6223,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#POST:/admin/recovery/kernel/approval-challenge:1",
-      "source_line": 248,
-      "source_offset": 8926,
+      "source_line": 264,
+      "source_offset": 9798,
       "method": "POST",
       "path": "/admin/recovery/kernel/approval-challenge",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -6232,8 +6232,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#POST:/admin/recovery/kernel/execute-approved:2",
-      "source_line": 275,
-      "source_offset": 10005,
+      "source_line": 291,
+      "source_offset": 10923,
       "method": "POST",
       "path": "/admin/recovery/kernel/execute-approved",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -6241,8 +6241,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#POST:/admin/recovery/kernel/execute:3",
-      "source_line": 279,
-      "source_offset": 10330,
+      "source_line": 295,
+      "source_offset": 11248,
       "method": "POST",
       "path": "/admin/recovery/kernel/execute",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -6250,8 +6250,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#GET:/admin/recovery/kernel/runs/:run_id:4",
-      "source_line": 281,
-      "source_offset": 10403,
+      "source_line": 297,
+      "source_offset": 11321,
       "method": "GET",
       "path": "/admin/recovery/kernel/runs/:run_id",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -6259,8 +6259,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#GET:/admin/recovery/kernel/evidence/:run_id:5",
-      "source_line": 290,
-      "source_offset": 10751,
+      "source_line": 306,
+      "source_offset": 11692,
       "method": "GET",
       "path": "/admin/recovery/kernel/evidence/:run_id",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -37198,10 +37198,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/recoveryKernelRoutes.js",
-        "source_line": 182,
+        "source_line": 198,
         "handler_window_lines": [
-          182,
-          246
+          198,
+          262
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -37270,10 +37270,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/recoveryKernelRoutes.js",
-        "source_line": 248,
+        "source_line": 264,
         "handler_window_lines": [
-          248,
-          273
+          264,
+          289
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -37333,10 +37333,10 @@
       "operation_class": "decision",
       "evidence": {
         "file": "http-generic-api/routes/recoveryKernelRoutes.js",
-        "source_line": 275,
+        "source_line": 291,
         "handler_window_lines": [
-          275,
-          278
+          291,
+          294
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -37398,10 +37398,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/recoveryKernelRoutes.js",
-        "source_line": 279,
+        "source_line": 295,
         "handler_window_lines": [
-          279,
-          279
+          295,
+          295
         ],
         "evidence_flags": {
           "handler_window_present": true,
