@@ -1,0 +1,85 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "github-review-policy-runtime-parity-probe-backoff-20260910",
+  "title": "Rate-limit resilient exact-SHA parity probe for GitHub review policy activation",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/github-review-policy-runtime-parity-probe-backoff-20260910.json",
+      ".github/ops/lib/github-review-policy-public-probe-preload.mjs",
+      ".github/workflows/github-main-review-policy-live-activation.yml",
+      "http-generic-api/test-github-repository-policy-live-activation-contract.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": false,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make the existing read-only GitHub review-policy runtime parity gate tolerate transient public-probe throttling without weakening exact Production SHA, branch, migration, policy-plan, readiness-marker, or exactly-once Apply requirements.",
+      "e2e_journeys": [
+        {
+          "id": "serialized-bounded-public-parity-readback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed GitHub review policy activation workflow",
+          "entrypoint": "Readiness, Apply, or Verify checks auth.mad4b.com health/version/deployment-info before any policy mutation.",
+          "terminal_outcome": "The three exact-SHA parity probes are serialized and transient 408/425/429/5xx responses receive bounded retry/backoff, while all unrelated fetches and all downstream governance gates retain their existing behavior.",
+          "steps": [
+            "Preload the bounded public-probe fetch wrapper before the canonical live activation runner.",
+            "Serialize only GET requests to the three canonical auth.mad4b.com parity endpoints.",
+            "Retry only a finite transient HTTP status allowlist with bounded delay and attempt count.",
+            "Leave non-parity endpoints and all non-GET requests untouched.",
+            "Continue into the existing exact Production SHA, Migration 1051, policy fingerprint, readiness marker, capability envelope, and exactly-once Apply gates unchanged."
+          ],
+          "assertions": [
+            "No Production deployment, database, provider, Hostinger, Cloudflare, secret, or branch mutation is authorized by this patch.",
+            "The patch does not accept stale runtime SHA or relax branch equality.",
+            "The patch does not add an Apply retry and does not change ambiguous Apply reconciliation semantics.",
+            "Transient probe handling is bounded and serial, preventing a three-request burst from self-inducing a 429 loop.",
+            "Unrelated runtime and control-plane requests remain passthrough.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "github-review-policy-public-probe-preload-self-test",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/ops/lib/github-review-policy-public-probe-preload.mjs",
+              "args": [
+                "--self-test"
+              ]
+            },
+            {
+              "id": "github-repository-policy-live-activation-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-policy-live-activation-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/github-review-policy-runtime-parity-probe-backoff-20260910.json",
+            ".github/ops/lib/github-review-policy-public-probe-preload.mjs",
+            ".github/workflows/github-main-review-policy-live-activation.yml",
+            "http-generic-api/test-github-repository-policy-live-activation-contract.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}
