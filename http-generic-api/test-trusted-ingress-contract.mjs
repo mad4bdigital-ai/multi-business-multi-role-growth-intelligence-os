@@ -31,21 +31,22 @@ const signedEnv = {
   REMOTE_MCP_TRUSTED_INGRESS_STRIP_CALLER_HEADERS: "true",
   REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY: publicKeyPem,
   REMOTE_MCP_TRUSTED_INGRESS_CANONICAL_HOST: "mcp.example.test",
+  REMOTE_MCP_TRUSTED_INGRESS_CANONICAL_HOSTS: "mcp.example.test,auth.example.test",
   REMOTE_MCP_TRUSTED_INGRESS_AUDIENCE: "mad4b-production-origin",
   REMOTE_MCP_TRUSTED_INGRESS_ISSUER: "mad4b-edge",
   REMOTE_MCP_EXPECTED_DEPLOYMENT_SHA: deploymentSha,
 };
-function signedRequest(overrides = {}, headerOverrides = {}) {
+function signedRequest(host = "mcp.example.test", overrides = {}, headerOverrides = {}) {
   const now = Math.floor(Date.now() / 1000);
   const claims = {
     iss: "mad4b-edge",
     aud: "mad4b-production-origin",
     iat: now - 2,
     exp: now + 30,
-    host: "mcp.example.test",
+    host,
     deployment_sha: deploymentSha,
-    request_id: "request-1",
-    jti: "jti-1",
+    request_id: `request-${host}`,
+    jti: `jti-${host}`,
     key_id: "edge-key-1",
     ...overrides,
   };
@@ -54,28 +55,64 @@ function signedRequest(overrides = {}, headerOverrides = {}) {
   const signature = sign(null, payloadBytes, privateKey).toString("base64url");
   return {
     headers: {
-      "x-forwarded-host": "mcp.example.test",
+      "x-forwarded-host": host,
       "x-mad4b-ingress-attestation": `${encodedClaims}.${signature}`,
       ...headerOverrides,
     },
   };
 }
+
 const signedReady = assertTrustedIngressReadyForProduction(signedEnv, signedRequest());
 assert.equal(signedReady.ready, true);
 assert.equal(signedReady.attestation_mode, "signature");
 assert.equal(signedReady.signed_attestation.verified, true);
 assert.equal(signedReady.signed_attestation.key_id, "edge-key-1");
+assert.equal(signedReady.signed_attestation.canonical_host, "mcp.example.test");
+assert.deepEqual(signedReady.canonical_host_policy.hosts, ["mcp.example.test", "auth.example.test"]);
+
+const authReady = assertTrustedIngressReadyForProduction(signedEnv, signedRequest("auth.example.test"));
+assert.equal(authReady.ready, true);
+assert.equal(authReady.signed_attestation.canonical_host, "auth.example.test");
 
 const ingressDenied = (error) => error?.code === "TRUSTED_INGRESS_ATTESTATION_REQUIRED";
-const forged = signedRequest({}, { "x-mad4b-ingress-attestation": `${Buffer.from("{}", "utf8").toString("base64url")}.forged` });
+const forged = signedRequest("mcp.example.test", {}, { "x-mad4b-ingress-attestation": `${Buffer.from("{}", "utf8").toString("base64url")}.forged` });
 assert.throws(() => assertTrustedIngressReadyForProduction(signedEnv, forged), ingressDenied);
 assert.throws(
   () => assertTrustedIngressReadyForProduction(
     signedEnv,
-    signedRequest({ host: ["other", "example", "test"].join(".") }),
+    signedRequest("mcp.example.test", {}, { "x-forwarded-host": "auth.example.test" }),
   ),
   ingressDenied,
 );
-const expired = signedRequest({ iat: Math.floor(Date.now() / 1000) - 200, exp: Math.floor(Date.now() / 1000) - 100 });
+assert.throws(
+  () => assertTrustedIngressReadyForProduction(signedEnv, signedRequest("unknown.example.test")),
+  ingressDenied,
+);
+const expired = signedRequest("mcp.example.test", { iat: Math.floor(Date.now() / 1000) - 200, exp: Math.floor(Date.now() / 1000) - 100 });
 assert.throws(() => assertTrustedIngressReadyForProduction(signedEnv, expired), ingressDenied);
+
+const legacySingleHostEnv = {
+  ...signedEnv,
+  REMOTE_MCP_TRUSTED_INGRESS_CANONICAL_HOSTS: "",
+  REMOTE_MCP_TRUSTED_INGRESS_CANONICAL_HOST: "mcp.example.test",
+};
+assert.equal(assertTrustedIngressReadyForProduction(legacySingleHostEnv, signedRequest()).ready, true);
+assert.throws(() => assertTrustedIngressReadyForProduction(legacySingleHostEnv, signedRequest("auth.example.test")), ingressDenied);
+
+const duplicateHostEnv = {
+  ...signedEnv,
+  REMOTE_MCP_TRUSTED_INGRESS_CANONICAL_HOSTS: "mcp.example.test,mcp.example.test",
+};
+const duplicateHostReadiness = buildTrustedIngressReadiness(duplicateHostEnv);
+assert.equal(duplicateHostReadiness.signed_attestation_configured, false);
+assert.equal(duplicateHostReadiness.canonical_host_policy.valid, false);
+
+const wildcardHostEnv = {
+  ...signedEnv,
+  REMOTE_MCP_TRUSTED_INGRESS_CANONICAL_HOSTS: "*.example.test",
+};
+const wildcardHostReadiness = buildTrustedIngressReadiness(wildcardHostEnv);
+assert.equal(wildcardHostReadiness.signed_attestation_configured, false);
+assert.equal(wildcardHostReadiness.canonical_host_policy.valid, false);
+
 console.log("Trusted ingress contract tests passed.");
