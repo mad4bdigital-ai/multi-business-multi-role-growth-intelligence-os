@@ -7,6 +7,7 @@ import {
 } from "./environmentConvergenceRegistry.js";
 
 const SHA_RE = /^[0-9a-f]{40}$/u;
+const SHA256_RE = /^[0-9a-f]{64}$/u;
 
 function compact(value) {
   return String(value ?? "").trim();
@@ -42,12 +43,18 @@ function validateReleaseSpec(releaseSpec, profile, registry) {
   const repository = compact(releaseSpec?.repository);
   const sourceBranch = compact(releaseSpec?.source_branch);
   const commitSha = compact(releaseSpec?.commit_sha).toLowerCase();
+  const expectedGatewayPolicyHash = compact(profile?.activation_gateway?.expected_policy_hash).toLowerCase();
+  const suppliedGatewayPolicyHash = compact(releaseSpec?.activation_gateway_policy_hash).toLowerCase();
   const errors = [];
   if (!repository) errors.push("release_repository_required");
   if (!sourceBranch) errors.push("release_source_branch_required");
   if (!SHA_RE.test(commitSha)) errors.push("release_commit_sha_invalid");
+  if (!SHA256_RE.test(expectedGatewayPolicyHash)) errors.push("release_gateway_policy_hash_profile_invalid");
   if (sourceBranch && sourceBranch !== compact(profile?.source_branch)) {
     errors.push("release_source_branch_profile_mismatch");
+  }
+  if (suppliedGatewayPolicyHash && suppliedGatewayPolicyHash !== expectedGatewayPolicyHash) {
+    errors.push("release_gateway_policy_hash_profile_mismatch");
   }
   return {
     ok: errors.length === 0,
@@ -57,6 +64,7 @@ function validateReleaseSpec(releaseSpec, profile, registry) {
       repository: repository || null,
       source_branch: sourceBranch || null,
       commit_sha: SHA_RE.test(commitSha) ? commitSha : (commitSha || null),
+      activation_gateway_policy_hash: expectedGatewayPolicyHash || null,
     },
   };
 }
@@ -110,6 +118,7 @@ export function buildEnvironmentConvergencePlan({
       mutation_policy: profile.mutation_policy,
       policy_key: profile.activation_gateway?.policy_key || null,
       policy_path: profile.activation_gateway?.policy_path || null,
+      expected_policy_hash: profile.activation_gateway?.expected_policy_hash || null,
       public_host: profile.activation_gateway?.public_host || null,
     },
     drift: governedFailures.map((entry) => ({
@@ -126,6 +135,8 @@ export function buildEnvironmentConvergencePlan({
       plan_capability: firstHandoff.plan_capability,
       apply_capability: firstHandoff.apply_capability,
       profile_binding_required: firstHandoff.profile_binding_required === true,
+      execution_ready: firstHandoff.execution_ready === true,
+      apply_block_reason: firstHandoff.apply_block_reason || null,
       automatic_apply_allowed: false,
     },
     maximum_reconciliation_passes: Number(registry.state_machine.maximum_reconciliation_passes || 0),
@@ -186,6 +197,7 @@ export function runEnvironmentConvergence({
       runtime_adapter: profile.runtime_adapter,
       mutation_policy: profile.mutation_policy,
       policy_key: profile.activation_gateway?.policy_key || null,
+      expected_policy_hash: profile.activation_gateway?.expected_policy_hash || null,
       public_host: profile.activation_gateway?.public_host || null,
     },
     release_spec: releaseValidation.release_spec,
@@ -280,6 +292,7 @@ export function runEnvironmentConvergence({
     plan_sha256: plan.plan_sha256,
     environment: environmentKey,
     commit_sha: plan.release_spec.commit_sha,
+    activation_gateway_policy_hash: plan.release_spec.activation_gateway_policy_hash,
     approval_is_execution_authority: false,
     provider_execution_performed: false,
   };
@@ -299,6 +312,30 @@ export function runEnvironmentConvergence({
     });
   }
 
+  const governedHandoff = {
+    ...plan.governed_handoff,
+    plan_sha256: plan.plan_sha256,
+    environment: environmentKey,
+    commit_sha: plan.release_spec.commit_sha,
+    activation_gateway_policy_hash: plan.release_spec.activation_gateway_policy_hash,
+    execution_performed: false,
+  };
+
+  if (plan.governed_handoff.execution_ready !== true) {
+    return deepFreeze({
+      ...base,
+      status: "governed_authority_required",
+      current_stage: "approval_checkpoint",
+      next_stage: null,
+      errors: [plan.governed_handoff.apply_block_reason || "governed_apply_authority_not_ready"],
+      stage_trace: [...stageTrace, "plan", "approval_checkpoint"],
+      classification,
+      plan,
+      approval_checkpoint: approvalCheckpoint,
+      governed_handoff: governedHandoff,
+    });
+  }
+
   return deepFreeze({
     ...base,
     status: "handoff_ready",
@@ -309,12 +346,6 @@ export function runEnvironmentConvergence({
     classification,
     plan,
     approval_checkpoint: approvalCheckpoint,
-    governed_handoff: {
-      ...plan.governed_handoff,
-      plan_sha256: plan.plan_sha256,
-      environment: environmentKey,
-      commit_sha: plan.release_spec.commit_sha,
-      execution_performed: false,
-    },
+    governed_handoff: governedHandoff,
   });
 }
