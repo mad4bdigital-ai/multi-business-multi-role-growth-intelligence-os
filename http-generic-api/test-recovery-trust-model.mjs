@@ -60,6 +60,26 @@ test("manifest verification requires exact runtime SHA and production binding", 
   assert.equal(wrongBranch.ok, false);
 });
 
+test("env-only identity remains diagnostic but cannot satisfy Recovery Manifest trust", () => {
+  const env = {
+    GITHUB_REPOSITORY: REPOSITORY,
+    GITHUB_REF_NAME: "Production",
+    GITHUB_SHA: SHA,
+    DEPLOYMENT_MANIFEST_PATH: "__missing_recovery_deployment_manifest_for_test__.json",
+  };
+  const verified = verifyRecoveryManifest({ expectedSha: SHA, env });
+  assert.equal(verified.repository_match, true);
+  assert.equal(verified.branch_match, true);
+  assert.equal(verified.sha_match, true);
+  assert.equal(verified.manifest_bound, false);
+  assert.equal(verified.ok, false);
+
+  const attestation = readRuntimeAttestation({ env, expectedSha: SHA });
+  assert.equal(attestation.deployment_identity_manifest_bound, false);
+  assert.equal(attestation.manifest_bound, false);
+  assert.equal(attestation.parity, false);
+});
+
 test("canonical deployment identity prefers manifest JSON and supports legacy commit JSON", () => {
   const legacySha = "b".repeat(40);
   const legacy = readCanonicalDeploymentIdentity({
