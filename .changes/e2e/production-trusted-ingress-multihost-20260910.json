@@ -1,0 +1,98 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-trusted-ingress-multihost-20260910",
+  "title": "Signed trusted ingress across the canonical Production host family",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/production-trusted-ingress-multihost-20260910.json",
+      "edge/auth-mad4b-proxy/src/proxy.mjs",
+      "http-generic-api/trustedIngressContract.js",
+      "http-generic-api/test-trusted-ingress-contract.mjs",
+      "http-generic-api/test-auth-mad4b-proxy-edge.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make the shared trusted-ingress contract verify signed attestations against an exact canonical-host allowlist and make the existing auth-mad4b-proxy mint a fresh host-bound Ed25519 attestation for each governed Production public host, while preserving legacy single-host compatibility and failing closed on invalid host or signing configuration.",
+      "e2e_journeys": [
+        {
+          "id": "canonical-production-host-family-trusted-ingress",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed edge proxy and shared MCP/OAuth origin runtime",
+          "entrypoint": "A request reaches auth.mad4b.com, mcp.mad4b.com, or activation.mad4b.com through the existing auth-mad4b-proxy trusted-ingress path.",
+          "terminal_outcome": "Caller-supplied forwarding and attestation headers are stripped, a fresh Ed25519 attestation is bound to the exact public request host and deployment SHA, and the shared origin accepts only a configured canonical host while retaining the legacy single-host contract.",
+          "steps": [
+            "Resolve the public request host only from the governed Production host allowlist.",
+            "Strip caller-supplied forwarding, original-host and trusted-ingress attestation headers at the edge boundary.",
+            "Mint a short-lived Ed25519 attestation bound to issuer, audience, request ID, unique JTI, exact deployment SHA and exact public request host.",
+            "Forward the canonical host separately from the private origin Host header.",
+            "Verify the signed attestation at the shared origin against the plural canonical-host allowlist, rejecting duplicates, wildcards, unknown hosts and host mismatches.",
+            "Fall back only to the existing legacy single-host configuration when the plural configuration is absent.",
+            "Require live Staging certification before promotion or any Production rollout decision."
+          ],
+          "assertions": [
+            "Each accepted signed attestation is bound to exactly one canonical request host and cannot be replayed as another allowed host.",
+            "The canonical-host allowlist is finite, duplicate-free, wildcard-free and fail-closed.",
+            "Incomplete or invalid edge signing configuration fails closed without forwarding an unsigned privileged request.",
+            "The legacy REMOTE_MCP_TRUSTED_INGRESS_CANONICAL_HOST path remains backward compatible when the plural host list is absent.",
+            "No Production database mutation, Hostinger mutation, Cloudflare DNS or route mutation, provider mutation, credential payload read or secret value is authorized or stored by this change.",
+            "Live Worker secret provisioning, route binding and Production deployment remain separate governed operations.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "trusted-ingress-multihost-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-trusted-ingress-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "auth-mad4b-proxy-edge-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-auth-mad4b-proxy-edge.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/production-trusted-ingress-multihost-20260910.json",
+            "edge/auth-mad4b-proxy/src/proxy.mjs",
+            "http-generic-api/trustedIngressContract.js",
+            "http-generic-api/test-trusted-ingress-contract.mjs",
+            "http-generic-api/test-auth-mad4b-proxy-edge.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Live Production signing-key provisioning, Worker deployment, route binding and external acceptance remain outside this code-change PR.",
+      "blockers": [
+        "Production rollout requires its separate governed provider/deployment authorization and exact-SHA evidence.",
+        "This declaration grants no Production database, provider, Hostinger, Cloudflare DNS, route, ruleset or secret mutation authority."
+      ]
+    }
+  ]
+}
