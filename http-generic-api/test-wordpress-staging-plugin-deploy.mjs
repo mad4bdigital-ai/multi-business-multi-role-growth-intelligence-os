@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import YAML from "yaml";
 
 const executor = readFileSync(new URL("./wordpressStagingPluginDeployExecutor.js", import.meta.url), "utf8");
 const route = readFileSync(new URL("./routes/wordpressStagingPluginDeployRoutes.js", import.meta.url), "utf8");
 const routesIndex = readFileSync(new URL("./routes/index.js", import.meta.url), "utf8");
 const migration = readFileSync(new URL("./migrations/20260910_wordpress_staging_plugin_deploy_authority.sql", import.meta.url), "utf8");
+const preciseOpenApi = readFileSync(new URL("./openapi/wordpress-staging-plugin-deploy.yaml", import.meta.url), "utf8");
+const preciseRegistry = readFileSync(new URL("./openapi-route-contracts.d/wordpress-staging-plugin-deploy.yaml", import.meta.url), "utf8");
+const preciseOpenApiDoc = YAML.parse(preciseOpenApi);
+const preciseRequest = preciseOpenApiDoc?.wordpressStagingPluginDeployPath?.post?.requestBody?.content?.["application/json"]?.schema || {};
 
 function requires(source, markers, label) {
   for (const marker of markers) {
@@ -46,6 +51,7 @@ requires(executor, [
   'expectedCommitSha: expectedHeadSha',
   'requireCommitHint: true',
   'allowReferenced: false',
+  'acceptedCapabilityKeys: [WORDPRESS_STAGING_DEPLOY_OPERATION]',
   'markCapabilityEnvelopeReferenced',
   'transitionCapabilityEnvelopeLifecycle',
   'action: "consume"',
@@ -72,7 +78,12 @@ requires(route, [
   '"/platform/remote-runtime/wordpress/staging/deploy-plugin"',
   'requireBackendApiKey',
   'requireAdminPrincipal',
-  'input.dry_run === undefined ? true : input.dry_run',
+  'const dryRun = input.dry_run === undefined ? true : bool(input.dry_run)',
+  'REMOTE_RUNTIME_WORDPRESS_STAGING_DEPLOY_ENABLED',
+  'wordpress_staging_plugin_deploy_apply_disabled',
+  'dry_run_available: true',
+  'production_authority_used: false',
+  'breakglass_used: false',
   'secrets_included: false',
 ], "route");
 
@@ -127,6 +138,27 @@ for (const callerControlled of [
 ]) {
   const schemaPrefix = migration.slice(migration.indexOf("INSERT INTO remote_runtime_command_allowlists"), migration.indexOf("INSERT INTO admin_platform_endpoint_tools"));
   assert(!schemaPrefix.includes(callerControlled), `command input schema must not expose ${callerControlled}`);
+}
+
+requires(preciseRegistry, [
+  '"POST /platform/remote-runtime/wordpress/staging/deploy-plugin"',
+  './openapi/wordpress-staging-plugin-deploy.yaml#/wordpressStagingPluginDeployPath',
+  'routes/wordpressStagingPluginDeployRoutes.js',
+], "precise OpenAPI registry");
+
+requires(preciseOpenApi, [
+  'wordpressStagingPluginDeployPath:',
+  'operationId: wordpressStagingPluginDeploy',
+  'x-runtime-auth-profile: admin_backend',
+  'x-custom-gpt-exclude: true',
+  'x-openai-isConsequential: true',
+  'expected_head_sha:',
+  'enum: [https://staging.egypttourgates.com]',
+  'const: false',
+], "precise OpenAPI");
+assert.deepEqual(preciseRequest.required, ["target_id", "expected_head_sha"], "precise request must require only the server target id and exact reviewed WordPress HEAD");
+for (const forbiddenProperty of ["app_path", "host", "ssh_host", "ssh_user", "ssh_password", "ssh_private_key", "branch", "production", "breakglass_reason"]) {
+  assert(!Object.hasOwn(preciseRequest.properties || {}, forbiddenProperty), `precise request must not expose caller-controlled ${forbiddenProperty}`);
 }
 
 console.log("wordpress-staging-plugin-deploy.v1: PASS");
