@@ -361,17 +361,26 @@ async function resolveGitHubToken({ env = process.env, fetchImpl = fetch, getApp
 
 async function githubJson({ env = process.env, token, method = "GET", apiPath, body = undefined, fetchImpl = fetch } = {}) {
   const url = `${githubApiBase(env)}${apiPath}`;
-  const response = await fetchImpl(url, {
-    method,
-    headers: {
-      Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${token}`,
-      "X-GitHub-Api-Version": "2022-11-28",
-      "User-Agent": "mad4b-runtime-breakglass-broker",
-      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
-    },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-  });
+  let response;
+  try {
+    response = await fetchImpl(url, {
+      method,
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${token}`,
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "mad4b-runtime-breakglass-broker",
+        ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+      },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+  } catch (error) {
+    throw brokerError(503, "runtime_breakglass_github_transport_failed", "The governed GitHub broker transport failed.", {
+      method,
+      cause_code: safeText(error?.code || error?.name || "transport_error", 80),
+      upstream_response_received: false,
+    });
+  }
   const text = await response.text().catch(() => "");
   let parsed = {};
   try { parsed = text ? JSON.parse(text) : {}; } catch { parsed = {}; }
@@ -424,6 +433,33 @@ async function discoverWorkflowRun({ env, token, request, dispatchStartedAt, fet
   // Exactly one candidate is proven above; destructuring avoids an implicit positional context choice.
   const [run] = candidates;
   return { proven: true, run_id: String(run.id), candidate_count: 1, run };
+}
+
+async function discoverAfterDispatchTransportFailure({ env, token, request, dispatchStartedAt, fetchImpl, poll = true } = {}) {
+  const delays = poll ? [0, 250, 750, 1500, 3000] : [0];
+  let last = { proven: false, run_id: null, candidate_count: 0, discovery_status: "not_started", discovery_attempts: 0 };
+  for (const delay of delays) {
+    if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
+    try {
+      const discovery = await discoverWorkflowRun({ env, token, request, dispatchStartedAt, fetchImpl });
+      last = {
+        ...discovery,
+        discovery_status: discovery.proven ? "proven" : "completed_unproven",
+        discovery_attempts: last.discovery_attempts + 1,
+      };
+      if (discovery.proven) return last;
+    } catch (error) {
+      last = {
+        proven: false,
+        run_id: null,
+        candidate_count: 0,
+        discovery_status: "transport_failed",
+        discovery_attempts: last.discovery_attempts + 1,
+        discovery_error_code: safeText(error?.code || error?.name || "transport_error", 100),
+      };
+    }
+  }
+  return last;
 }
 
 async function dispatchWorkflowAndDiscover({ env = process.env, request, fetchImpl = fetch, getAppToken = getGitHubAppInstallationToken, poll = true } = {}) {
@@ -479,14 +515,79 @@ async function dispatchWorkflowAndDiscover({ env = process.env, request, fetchIm
     };
   }
   const payload = workflowInputPayload(request);
-  await githubJson({
-    env,
-    token,
-    method: "POST",
-    apiPath: `/repos/${canonicalRepository()}/actions/workflows/${encodeURIComponent(canonicalWorkflow().file)}/dispatches`,
-    body: payload,
-    fetchImpl,
-  });
+  try {
+    await githubJson({
+      env,
+      token,
+      method: "POST",
+      apiPath: `/repos/${canonicalRepository()}/actions/workflows/${encodeURIComponent(canonicalWorkflow().file)}/dispatches`,
+      body: payload,
+      fetchImpl,
+    });
+  } catch (error) {
+    if (error?.code !== "runtime_breakglass_github_transport_failed") throw error;
+    const recovery = await discoverAfterDispatchTransportFailure({
+      env,
+      token,
+      request,
+      dispatchStartedAt,
+      fetchImpl,
+      poll,
+    });
+    if (recovery.proven) {
+      return {
+        workflow_dispatch_performed: true,
+        idempotent_reuse: true,
+        dispatch_transport_recovered: true,
+        dispatch_response_received: false,
+        workflow: canonicalWorkflow().file,
+        dispatch_ref: canonicalWorkflow().dispatch_ref,
+        broker_auth_mode: auth_mode,
+        correlation_id: request.correlation_id,
+        run_discovery: {
+          proven: true,
+          run_id: recovery.run_id,
+          candidate_count: recovery.candidate_count,
+          bounded_polling_performed: poll,
+          post_transport_failure: true,
+          discovery_status: recovery.discovery_status,
+          discovery_attempts: recovery.discovery_attempts,
+        },
+        source_heads: {
+          dispatch_main_sha: heads.main_sha,
+          production_sha_verified: heads.production_sha,
+        },
+        request: {
+          environment: request.environment,
+          contract_key: request.contract_key,
+          mode: request.mode,
+          expected_sha: request.expected_sha,
+          expected_branch: request.expected_branch,
+          target_key: request.target_key,
+          target_source: request.target_source,
+          migration: request.migration,
+        },
+        database_connection_performed: false,
+        database_mutation_performed: false,
+        migration_apply_performed: false,
+        grant_mutation_performed: false,
+        readback_required: true,
+        secrets_included: false,
+      };
+    }
+    throw brokerError(503, "runtime_breakglass_dispatch_transport_failed_unproven", "The GitHub dispatch transport failed and no exact workflow run could be proven.", {
+      cause_code: safeText(error?.details?.cause_code || error?.code || "transport_error", 100),
+      workflow_dispatch_outcome: "unproven",
+      automatic_dispatch_retry_performed: false,
+      post_failure_discovery_performed: true,
+      post_failure_discovery_status: recovery.discovery_status,
+      post_failure_discovery_attempts: recovery.discovery_attempts,
+      candidate_count: recovery.candidate_count,
+      database_mutation_performed: false,
+      migration_apply_performed: false,
+      grant_mutation_performed: false,
+    });
+  }
   let discovery = { proven: false, run_id: null, candidate_count: 0 };
   if (poll) {
     for (const delay of [250, 750, 1500, 3000, 5000]) {
