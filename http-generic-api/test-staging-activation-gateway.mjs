@@ -7,6 +7,7 @@ import {
   assertActivationGatewayProfilePolicy,
   classifyEnvironmentCertification,
   getEnvironmentConvergenceProfile,
+  loadActivationGatewayProfilePolicy,
   readEnvironmentConvergenceRegistry,
   validateEnvironmentConvergenceRegistry,
 } from "./environmentConvergenceRegistry.js";
@@ -126,6 +127,10 @@ assert.equal(productionConvergenceProfile.source_branch, "Production");
 assert.equal(productionConvergenceProfile.upstream_branch, "main");
 assert.equal(stagingConvergenceProfile.provider_mutation_implementation, null);
 assert.equal(productionConvergenceProfile.provider_mutation_implementation, null);
+assert.equal(stagingConvergenceProfile.activation_gateway.governed_apply_ready, false);
+assert.equal(stagingConvergenceProfile.activation_gateway.apply_capability, null);
+assert.equal(productionConvergenceProfile.activation_gateway.governed_apply_ready, true);
+assert.equal(productionConvergenceProfile.activation_gateway.apply_capability, "activation_gateway_dark_deploy");
 
 const stagingGatewayPolicy = readJson(stagingConvergenceProfile.activation_gateway.policy_path);
 const productionGatewayPolicy = readJson(productionConvergenceProfile.activation_gateway.policy_path);
@@ -133,8 +138,16 @@ assert.equal(assertActivationGatewayProfilePolicy("staging", stagingGatewayPolic
 assert.equal(assertActivationGatewayProfilePolicy("production", productionGatewayPolicy, convergenceRegistry).ok, true);
 assert.equal(stagingGatewayPolicy.policy_key, "activation_gateway_staging");
 assert.equal(stagingGatewayPolicy.public_host, "activation-dev.mad4b.com");
+assert.equal(stagingGatewayPolicy.content_hash_sha256, stagingConvergenceProfile.activation_gateway.expected_policy_hash);
 assert.equal(productionGatewayPolicy.policy_key, "activation_gateway");
 assert.equal(productionGatewayPolicy.public_host, "activation.mad4b.com");
+assert.equal(productionGatewayPolicy.content_hash_sha256, productionConvergenceProfile.activation_gateway.expected_policy_hash);
+const loadedStagingPolicy = loadActivationGatewayProfilePolicy("staging", { registry: convergenceRegistry, repositoryRoot });
+const loadedProductionPolicy = loadActivationGatewayProfilePolicy("production", { registry: convergenceRegistry, repositoryRoot });
+assert.equal(loadedStagingPolicy.policy_source, "repository_profile");
+assert.equal(loadedStagingPolicy.expected_policy_hash, stagingGatewayPolicy.content_hash_sha256);
+assert.equal(loadedProductionPolicy.policy_source, "repository_profile");
+assert.equal(loadedProductionPolicy.expected_policy_hash, productionGatewayPolicy.content_hash_sha256);
 
 const desiredCommit = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const observedCommit = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
@@ -158,6 +171,10 @@ assert.equal(exactCommitClassification.status, "reconciliation_required");
 assert.equal(exactCommitClassification.classified_failures[0].failure_kind, "convergence_drift");
 assert.equal(exactCommitClassification.classified_failures[0].drift_class, "release_identity_mismatch");
 assert.equal(exactCommitClassification.next_governed_handoff.automatic_apply_allowed, false);
+assert.equal(exactCommitClassification.next_governed_handoff.execution_ready, false);
+assert.equal(exactCommitClassification.next_governed_handoff.plan_capability, "environment_convergence_plan");
+assert.equal(exactCommitClassification.next_governed_handoff.apply_capability, null);
+assert.equal(exactCommitClassification.next_governed_handoff.apply_block_reason, "server_governed_staging_activation_worker_adapter_required");
 
 const releaseSpec = {
   repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
@@ -178,8 +195,12 @@ assert.match(approvalRequired.plan.plan_sha256, /^[0-9a-f]{64}$/u);
 assert.equal(Object.isFrozen(approvalRequired.plan), true);
 assert.equal(Object.isFrozen(approvalRequired.plan.profile_binding), true);
 assert.equal(approvalRequired.plan.release_spec.commit_sha, desiredCommit);
+assert.equal(approvalRequired.plan.release_spec.activation_gateway_policy_hash, stagingGatewayPolicy.content_hash_sha256);
 assert.equal(approvalRequired.plan.profile_binding.policy_key, "activation_gateway_staging");
-assert.equal(approvalRequired.plan.governed_handoff.apply_capability, "activation_gateway_dark_deploy");
+assert.equal(approvalRequired.plan.profile_binding.expected_policy_hash, stagingGatewayPolicy.content_hash_sha256);
+assert.equal(approvalRequired.plan.governed_handoff.plan_capability, "environment_convergence_plan");
+assert.equal(approvalRequired.plan.governed_handoff.apply_capability, null);
+assert.equal(approvalRequired.plan.governed_handoff.execution_ready, false);
 assert.equal(approvalRequired.plan.governed_handoff.automatic_apply_allowed, false);
 assert.equal(approvalRequired.safety.mutation_performed, false);
 assert.equal(approvalRequired.safety.workflow_dispatch, false);
@@ -191,6 +212,14 @@ const repeatedPlan = runEnvironmentConvergence({
   registry: convergenceRegistry,
 });
 assert.equal(repeatedPlan.plan.plan_sha256, approvalRequired.plan.plan_sha256, "same inputs must produce the same immutable plan identity");
+const wrongPolicyRelease = runEnvironmentConvergence({
+  environment: "staging",
+  releaseSpec: { ...releaseSpec, activation_gateway_policy_hash: "0".repeat(64) },
+  certificationReport: exactCommitReport,
+  registry: convergenceRegistry,
+});
+assert.equal(wrongPolicyRelease.status, "blocked");
+assert.ok(wrongPolicyRelease.errors.includes("release_gateway_policy_hash_profile_mismatch"));
 
 const wrongApproval = runEnvironmentConvergence({
   environment: "staging",
@@ -207,7 +236,7 @@ const wrongApproval = runEnvironmentConvergence({
 assert.equal(wrongApproval.status, "approval_required");
 assert.equal(wrongApproval.governed_handoff, null);
 
-const handoffReady = runEnvironmentConvergence({
+const authorityRequired = runEnvironmentConvergence({
   environment: "staging",
   releaseSpec,
   certificationReport: exactCommitReport,
@@ -219,12 +248,15 @@ const handoffReady = runEnvironmentConvergence({
   },
   registry: convergenceRegistry,
 });
-assert.equal(handoffReady.status, "handoff_ready");
-assert.equal(handoffReady.next_stage, "apply");
-assert.equal(handoffReady.governed_handoff.execution_performed, false);
-assert.equal(handoffReady.governed_handoff.plan_sha256, approvalRequired.plan.plan_sha256);
-assert.equal(handoffReady.safety.provider_mutation, false);
-assert.equal(handoffReady.safety.production_deploy, false);
+assert.equal(authorityRequired.status, "governed_authority_required");
+assert.equal(authorityRequired.next_stage, null);
+assert.equal(authorityRequired.governed_handoff.execution_ready, false);
+assert.equal(authorityRequired.governed_handoff.execution_performed, false);
+assert.equal(authorityRequired.governed_handoff.plan_sha256, approvalRequired.plan.plan_sha256);
+assert.equal(authorityRequired.governed_handoff.activation_gateway_policy_hash, stagingGatewayPolicy.content_hash_sha256);
+assert.ok(authorityRequired.errors.includes("server_governed_staging_activation_worker_adapter_required"));
+assert.equal(authorityRequired.safety.provider_mutation, false);
+assert.equal(authorityRequired.safety.production_deploy, false);
 
 const unavailableGateway = runEnvironmentConvergence({
   environment: "staging",
@@ -255,10 +287,15 @@ const productionReleaseMismatch = runEnvironmentConvergence({
 assert.equal(productionReleaseMismatch.status, "approval_required");
 assert.equal(productionReleaseMismatch.profile.runtime_adapter, "hostinger");
 assert.equal(productionReleaseMismatch.profile.policy_key, "activation_gateway");
+assert.equal(productionReleaseMismatch.profile.expected_policy_hash, productionGatewayPolicy.content_hash_sha256);
 assert.equal(productionReleaseMismatch.plan.profile_binding.public_host, "activation.mad4b.com");
+assert.equal(productionReleaseMismatch.plan.governed_handoff.apply_capability, "activation_gateway_dark_deploy");
+assert.equal(productionReleaseMismatch.plan.governed_handoff.execution_ready, true);
 assert.equal(productionReleaseMismatch.safety.production_deploy, false);
 
 const currentCertification = readText("http-generic-api/scripts/staging-live-certification.mjs");
+assert.doesNotMatch(currentCertification, /STAGING_CERT_GATEWAY_POLICY_PATH/);
+assert.match(currentCertification, /loadActivationGatewayProfilePolicy\("staging"/);
 for (const checkKey of Object.keys(convergenceRegistry.dependencies.activation_gateway.checks)) {
   assert.match(currentCertification, new RegExp(`\\b${checkKey}\\b`), `Certification dependency ${checkKey} is absent`);
 }
