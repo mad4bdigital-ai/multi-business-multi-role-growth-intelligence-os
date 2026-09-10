@@ -1,0 +1,97 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "recovery-canonical-identity-readonly-evidence-20260910",
+  "title": "Recovery canonical deployment identity and durable read-only evidence closure",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/recovery-canonical-identity-readonly-evidence-20260910.json",
+      "docs/governance/recovery-canonical-identity-readonly-evidence-20260910.md",
+      "http-generic-api/deploymentManifest.js",
+      "http-generic-api/recoveryTrustModel.js",
+      "http-generic-api/recoveryComposition.js",
+      "http-generic-api/productionRecoveryCompositionFactory.js",
+      "http-generic-api/test-deployment-manifest.mjs",
+      "http-generic-api/test-production-recovery-composition-factory.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false,
+    "live_migration_executed": false,
+    "live_grant_executed": false,
+    "deployment_or_restart_executed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Use one shared Recovery runtime to resolve deployment identity canonically and retain only an independently validated durable evidence-store projection when Production mutation authorization fails closed.",
+      "e2e_journeys": [
+        {
+          "id": "canonical-identity-to-durable-readonly-inspection-evidence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Recovery control-plane operator",
+          "entrypoint": "A shared-runtime Recovery request resolves deployment identity and composes server-managed Recovery dependencies.",
+          "terminal_outcome": "Staging and Production use the same Recovery core; a fail-closed Production mutation graph may retain durable read-only evidence persistence without exposing approval, execution-ticket, claim, reserve, lock, signer or mutation authority.",
+          "steps": [
+            "Resolve deployment identity through the canonical deployment-manifest resolver, including inline manifest, compatibility commit JSON, configured manifest path and runtime manifest file sources.",
+            "Use the same canonical identity result in Recovery runtime attestation and trust evaluation.",
+            "Build the normal server-managed Recovery candidate from the shared runtime composition.",
+            "When live Production mutation authorization is incomplete, fail the mutation graph closed while extracting only an independently validated durable Recovery Control Store.",
+            "Project only run, plan, finding, evidence and idempotency persistence methods into the read-only evidence authority.",
+            "Keep mutation-specific approval, claim, reserve and execution-ticket methods absent from the read-only projection.",
+            "Require live Staging certification for this shared-runtime change before merge; do not perform Production deployment or database mutation in this PR."
+          ],
+          "assertions": [
+            "Deployment identity and Recovery attestation cannot choose different canonical manifest sources for the same runtime inputs.",
+            "DEPLOYMENT_MANIFEST_JSON remains higher priority than DEPLOYMENT_COMMIT_JSON, and compatibility commit JSON remains supported.",
+            "Fail-closed mutation composition keeps mutation_authority_available=false.",
+            "Only an independent target-database-forbidden Recovery Control Store can survive as read-only evidence authority.",
+            "The read-only evidence projection satisfies durable inspection persistence but cannot satisfy the mutation-grade store contract.",
+            "No Staging or Production database, grant, migration, provider, Hostinger, secret or deployment mutation is performed by this repository change.",
+            "Staging and Production remain environment profiles over one shared codebase rather than separate Recovery applications."
+          ],
+          "tests": [
+            {"id":"deployment-manifest-canonical-identity","runner":"node","working_directory":"http-generic-api","path":"test-deployment-manifest.mjs","args":[]},
+            {"id":"recovery-trust-model","runner":"node","working_directory":"http-generic-api","path":"test-recovery-trust-model.mjs","args":[]},
+            {"id":"recovery-composition","runner":"node","working_directory":"http-generic-api","path":"test-recovery-composition.mjs","args":[]},
+            {"id":"production-recovery-readonly-evidence-composition","runner":"node","working_directory":"http-generic-api","path":"test-production-recovery-composition-factory.mjs","args":[]}
+          ],
+          "evidence_paths": [
+            "docs/governance/recovery-canonical-identity-readonly-evidence-20260910.md",
+            "http-generic-api/deploymentManifest.js",
+            "http-generic-api/recoveryTrustModel.js",
+            "http-generic-api/recoveryComposition.js",
+            "http-generic-api/productionRecoveryCompositionFactory.js"
+          ]
+        }
+      ],
+      "tests": [
+        {"id":"deployment-manifest-canonical-identity","runner":"node","working_directory":"http-generic-api","path":"test-deployment-manifest.mjs","args":[]},
+        {"id":"recovery-trust-model","runner":"node","working_directory":"http-generic-api","path":"test-recovery-trust-model.mjs","args":[]},
+        {"id":"recovery-composition","runner":"node","working_directory":"http-generic-api","path":"test-recovery-composition.mjs","args":[]},
+        {"id":"production-recovery-readonly-evidence-composition","runner":"node","working_directory":"http-generic-api","path":"test-production-recovery-composition-factory.mjs","args":[]}
+      ]
+    }
+  ],
+  "safety": {
+    "repository_only": true,
+    "production_mutation_allowed": false,
+    "database_mutation": false,
+    "migration_apply": false,
+    "grant_execution": false,
+    "provider_call": false,
+    "production_deploy": false,
+    "secrets_included": false
+  }
+}
