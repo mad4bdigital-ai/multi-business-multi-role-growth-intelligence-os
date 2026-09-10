@@ -1,10 +1,7 @@
 {
   "contract": "mad4b.repository-derived-state-governance.v1",
   "schema_version": 2,
-  "protected_branches": [
-    "main",
-    "Production"
-  ],
+  "protected_branches": ["main", "Production"],
   "required_check_name": "Derived State Closure",
   "max_convergence_passes": 3,
   "policy": {
@@ -78,11 +75,13 @@
       "http-generic-api/recoveryReadinessEvidence.js",
       ".changes/e2e/repository-generated-artifact-queue-readiness.json",
       ".changes/e2e/configuration-drift-guard-20260815.json",
+      ".changes/e2e/github-review-policy-runtime-parity-probe-backoff-20260910.json",
       ".changes/e2e/governed-generated-artifact-refresh-pr-target-bridge.json",
       ".changes/e2e/governed-generated-refresh-apply-context-availability.json",
       ".github/governance/generated-artifact-registry.json",
       ".github/ops/generated-artifact-governance.mjs",
       ".github/ops/github-followup-automerge-readiness.mjs",
+      ".github/ops/lib/github-review-policy-public-probe-preload.mjs",
       ".github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml",
       ".github/workflows/staging-admin-schema-contract.yml",
       "docs/governance/configuration-drift-baseline-extensions.json",
@@ -171,11 +170,6 @@
       ".changes/e2e/staging-inherited-port-publication-reset.json",
       ".changes/e2e/staging-cloudflared-cim-service-reconcile-20260902.json",
       ".changes/e2e/staging-mcp-hostname-rfc-compliance-20260902.json",
-      ".changes/e2e/staging-activation-schema-runtime-grants-reconciliation-20260902.json",
-      ".changes/e2e/pr7859-recovery-breakglass-workflow-contract.json",
-      ".changes/e2e/production-recovery-certified-live-authority-20260902.json",
-      ".changes/e2e/staging-env-authority-canonicalization-20260902.json",
-      ".changes/e2e/connector-environment-isolation-20260903.json",
       ".changes/e2e/staging-activation-recovery-trusted-ingress-provisioning-20260903.json",
       ".changes/e2e/staging-recovery-authority-certification-20260903.json",
       ".changes/e2e/gpt-admin-staging-readiness-remediation-20260906.json",
@@ -338,197 +332,24 @@
       ".changes/e2e/github-repository-policy-1050-governed-rollout.json",
       ".github/ops/github-repository-policy-1050-readiness-diagnostic-wrapper.mjs"
     ],
-    "automerge_opt_out_labels": [
-      "do-not-auto-merge",
-      "manual-merge"
-    ],
-    "post_merge_publishable_recipes": [
-      "repository_inventory_refresh"
-    ],
+    "automerge_opt_out_labels": ["do-not-auto-merge", "manual-merge"],
+    "post_merge_publishable_recipes": ["repository_inventory_refresh"],
     "auto_merge_requires_current_head_convergence_receipt": true,
     "receipt_must_bind_result_head": true,
     "closure_reverification_mode": "exact_merge_candidate_workflow_dispatch"
   },
   "artifacts": [
-    {
-      "artifact_id": "repository_inventory",
-      "artifact_class": "observability",
-      "merge_blocking": false,
-      "recipe": "repository_inventory_refresh",
-      "verifier_id": "repository_inventory_currentness",
-      "dependency_scope": [
-        {
-          "type": "git_index_shape"
-        },
-        {
-          "type": "repository_inventory_rules"
-        }
-      ],
-      "outputs": [
-        "docs/repository-inventory.json",
-        "docs/repository-inventory-summary.json",
-        "docs/repository-inventory.md"
-      ]
-    },
-    {
-      "artifact_id": "repository_evaluation",
-      "artifact_class": "observability",
-      "merge_blocking": false,
-      "recipe": "repository_inventory_refresh",
-      "verifier_id": "repository_evaluation_currentness",
-      "dependency_scope": [
-        {
-          "type": "artifact",
-          "artifact_id": "repository_inventory"
-        },
-        {
-          "type": "repository_evaluation_rules"
-        }
-      ],
-      "outputs": [
-        "docs/repository-evaluation.json",
-        "docs/repository-evaluation-summary.json",
-        "docs/repository-evaluation.md"
-      ]
-    },
-    {
-      "artifact_id": "remote_mcp_write_scope_inventory",
-      "artifact_class": "semantic",
-      "merge_blocking": true,
-      "recipe": "remote_mcp_write_scope_refresh",
-      "verifier_id": "remote_mcp_write_scope_currentness",
-      "currentness_projection": {
-        "mode": "semantic_projection",
-        "ignored_json_fields": [
-          "file_count"
-        ],
-        "ignored_markdown_line_patterns": [
-          "^\\| Tracked files scanned \\|"
-        ]
-      },
-      "dependency_scope": [
-        {
-          "type": "path_glob",
-          "pattern": "http-generic-api/routes/**/*.js"
-        },
-        {
-          "type": "path_glob",
-          "pattern": "http-generic-api/migrations/**/*.sql"
-        },
-        {
-          "type": "file",
-          "path": "http-generic-api/remote-mcp-scope-catalog.generated.json"
-        },
-        {
-          "type": "tracked_registry_evidence_scan",
-          "extensions": [
-            ".js",
-            ".mjs",
-            ".sql"
-          ]
-        }
-      ],
-      "outputs": [
-        "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-        "docs/remote-mcp-write-scope-inventory.md"
-      ]
-    },
-    {
-      "artifact_id": "frontend_openapi_projection",
-      "artifact_class": "semantic",
-      "merge_blocking": true,
-      "recipe": "frontend_openapi_refresh",
-      "verifier_id": "frontend_openapi_currentness",
-      "dependency_scope": [
-        {
-          "type": "path_glob",
-          "pattern": "http-generic-api/routes/**"
-        },
-        {
-          "type": "path_glob",
-          "pattern": "http-generic-api/openapi/**"
-        },
-        {
-          "type": "path_glob",
-          "pattern": "canonicals/openapi/**"
-        },
-        {
-          "type": "registered_generator_contract"
-        }
-      ],
-      "outputs": [
-        "http-generic-api/frontend-operation-governance.generated.json",
-        "http-generic-api/frontend-surface-dispatch.generated.json",
-        "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
-        "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
-        "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
-        "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json"
-      ]
-    },
-    {
-      "artifact_id": "work_maps",
-      "artifact_class": "semantic",
-      "merge_blocking": true,
-      "repair_authority": {
-        "id": "spec_kit_work_map_autofix",
-        "kind": "delegated_work_map_writer",
-        "workflow": ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
-        "writer_workflow": ".github/workflows/spec-kit-work-map-autofix.yml"
-      },
-      "verifier_id": "work_map_currentness",
-      "dependency_scope": [
-        {
-          "type": "registered_work_map_source_universe"
-        }
-      ],
-      "outputs": [
-        "docs/work-maps/**",
-        "specs/*/work-map-integration.json"
-      ]
-    },
-    {
-      "artifact_id": "portable_staging_manifest",
-      "artifact_class": "semantic",
-      "merge_blocking": true,
-      "recipe": "remote_mcp_write_scope_refresh",
-      "verifier_id": "portable_staging_manifest_currentness",
-      "dependency_scope": [
-        {
-          "type": "manifest_declared_files"
-        },
-        {
-          "type": "artifact",
-          "artifact_id": "remote_mcp_write_scope_inventory"
-        }
-      ],
-      "outputs": [
-        "autopilot-portable-staging/manifest.json"
-      ]
-    }
+    {"artifact_id":"repository_inventory","artifact_class":"observability","merge_blocking":false,"recipe":"repository_inventory_refresh","verifier_id":"repository_inventory_currentness","dependency_scope":[{"type":"git_index_shape"},{"type":"repository_inventory_rules"}],"outputs":["docs/repository-inventory.json","docs/repository-inventory-summary.json","docs/repository-inventory.md"]},
+    {"artifact_id":"repository_evaluation","artifact_class":"observability","merge_blocking":false,"recipe":"repository_inventory_refresh","verifier_id":"repository_evaluation_currentness","dependency_scope":[{"type":"artifact","artifact_id":"repository_inventory"},{"type":"repository_evaluation_rules"}],"outputs":["docs/repository-evaluation.json","docs/repository-evaluation-summary.json","docs/repository-evaluation.md"]},
+    {"artifact_id":"remote_mcp_write_scope_inventory","artifact_class":"semantic","merge_blocking":true,"recipe":"remote_mcp_write_scope_refresh","verifier_id":"remote_mcp_write_scope_currentness","currentness_projection":{"mode":"semantic_projection","ignored_json_fields":["file_count"],"ignored_markdown_line_patterns":["^\\| Tracked files scanned \\|"]},"dependency_scope":[{"type":"path_glob","pattern":"http-generic-api/routes/**/*.js"},{"type":"path_glob","pattern":"http-generic-api/migrations/**/*.sql"},{"type":"file","path":"http-generic-api/remote-mcp-scope-catalog.generated.json"},{"type":"tracked_registry_evidence_scan","extensions":[".js",".mjs",".sql"]}],"outputs":["http-generic-api/remote-mcp-write-scope-inventory.generated.json","docs/remote-mcp-write-scope-inventory.md"]},
+    {"artifact_id":"frontend_openapi_projection","artifact_class":"semantic","merge_blocking":true,"recipe":"frontend_openapi_refresh","verifier_id":"frontend_openapi_currentness","dependency_scope":[{"type":"path_glob","pattern":"http-generic-api/routes/**"},{"type":"path_glob","pattern":"http-generic-api/openapi/**"},{"type":"path_glob","pattern":"canonicals/openapi/**"},{"type":"registered_generator_contract"}],"outputs":["http-generic-api/frontend-operation-governance.generated.json","http-generic-api/frontend-surface-dispatch.generated.json","http-generic-api/openapi/frontend-runtime-routes.generated.yaml","specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json","specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json","specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json"]},
+    {"artifact_id":"work_maps","artifact_class":"semantic","merge_blocking":true,"repair_authority":{"id":"spec_kit_work_map_autofix","kind":"delegated_work_map_writer","workflow":".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml","writer_workflow":".github/workflows/spec-kit-work-map-autofix.yml"},"verifier_id":"work_map_currentness","dependency_scope":[{"type":"registered_work_map_source_universe"}],"outputs":["docs/work-maps/**","specs/*/work-map-integration.json"]},
+    {"artifact_id":"portable_staging_manifest","artifact_class":"semantic","merge_blocking":true,"recipe":"remote_mcp_write_scope_refresh","verifier_id":"portable_staging_manifest_currentness","dependency_scope":[{"type":"manifest_declared_files"},{"type":"artifact","artifact_id":"remote_mcp_write_scope_inventory"}],"outputs":["autopilot-portable-staging/manifest.json"]}
   ],
   "server_enforcement": {
     "required_ruleset_state": "active",
     "activation_guard": "trusted_evidence_finalizer_and_live_readback",
-    "main": {
-      "require_pull_request": true,
-      "block_direct_push": true,
-      "block_force_push": true,
-      "dismiss_stale_approvals": true,
-      "require_conversation_resolution": true,
-      "required_checks": [
-        "Derived State Closure"
-      ]
-    },
-    "Production": {
-      "require_pull_request": true,
-      "block_direct_push": true,
-      "block_force_push": true,
-      "generic_pull_request_merge_forbidden": true,
-      "promotion_path": "Governed Production Promotion",
-      "same_sha_closure_required": true,
-      "required_checks": [
-        "Governed Production Promotion"
-      ]
-    }
+    "main": {"require_pull_request":true,"block_direct_push":true,"block_force_push":true,"dismiss_stale_approvals":true,"require_conversation_resolution":true,"required_checks":["Derived State Closure"]},
+    "Production": {"require_pull_request":true,"block_direct_push":true,"block_force_push":true,"generic_pull_request_merge_forbidden":true,"promotion_path":"Governed Production Promotion","same_sha_closure_required":true,"required_checks":["Governed Production Promotion"]}
   }
 }
