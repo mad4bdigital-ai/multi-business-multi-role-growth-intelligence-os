@@ -150,7 +150,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "8cb622cb1a19003b3da0613452aea7246e1e2d7c655bb535048997316ee7892f"
+      "sha256": "fe6fb3f0dd1d6be65283f171773c8d6356ada96edf7c2d9beb579668692b0919"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -242,7 +242,7 @@
     },
     {
       "path": "http-generic-api/test-staging-autopilot-closure.mjs",
-      "sha256": "b8c968aa683f199e00224a9ec74c73edc035d9da9fee9c2b990d3a9b480de178"
+      "sha256": "5e3beccab414cec890dbb61822a3152f12e0555ac059667999155cc9d0ef4e5c"
     },
     {
       "path": "http-generic-api/test-staging-build-context-provenance.mjs",
@@ -286,7 +286,7 @@
     },
     {
       "path": "http-generic-api/scripts/staging-live-certification.mjs",
-      "sha256": "ad72a7b5d85c5663bc67dbb690d3e15dd13c7e76f6aea23386115949ca91da78"
+      "sha256": "9176d41a90ca14cc4ef29da0de9c67def040e185c9a7b8e757ed8349662a1510"
     },
     {
       "path": "http-generic-api/tenantGptOAuthPkce.js",
@@ -298,7 +298,7 @@
     },
     {
       "path": "http-generic-api/test-staging-environment-certification-contract.mjs",
-      "sha256": "4a216afc3869be17514ea77e9818b89bac83847813f586db2562052426a714e5"
+      "sha256": "ca35cdfe1df8935abd5e7219e28ec933697f10560e7096b2a0390eb62169f4df"
     },
     {
       "path": "autopilot-portable-staging/Bootstrap-Staging-One-Click.ps1",
