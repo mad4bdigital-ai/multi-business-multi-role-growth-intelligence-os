@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "eba1ed1d00658883d934e6b5c749732a3a0249b60d885443dcf706876d89c149"
+      "sha256": "7d499b10def6899f459483065b59645e9de7704a5db9f8cda6347ebb42a70d62"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -242,7 +242,7 @@
     },
     {
       "path": "http-generic-api/test-staging-autopilot-closure.mjs",
-      "sha256": "5e3beccab414cec890dbb61822a3152f12e0555ac059667999155cc9d0ef4e5c"
+      "sha256": "80a9e90489162b52951f26f62e68bdafe26ced831a2ec2cc6b644a1a7e40efa0"
     },
     {
       "path": "http-generic-api/test-staging-build-context-provenance.mjs",
@@ -286,7 +286,7 @@
     },
     {
       "path": "http-generic-api/scripts/staging-live-certification.mjs",
-      "sha256": "9176d41a90ca14cc4ef29da0de9c67def040e185c9a7b8e757ed8349662a1510"
+      "sha256": "189f3fd4aaa4fddb6b850aae2101d2ca339b76e03df987aa429dfb7a2384551c"
     },
     {
       "path": "http-generic-api/tenantGptOAuthPkce.js",
@@ -298,7 +298,7 @@
     },
     {
       "path": "http-generic-api/test-staging-environment-certification-contract.mjs",
-      "sha256": "ca35cdfe1df8935abd5e7219e28ec933697f10560e7096b2a0390eb62169f4df"
+      "sha256": "e82175febbacfd49cb2048716144d75393d0015eacf447303ae4ec9f53e8d815"
     },
     {
       "path": "autopilot-portable-staging/Bootstrap-Staging-One-Click.ps1",
@@ -334,7 +334,7 @@
     },
     {
       "path": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
-      "sha256": "59d2384af53689e1979847ab32f40c8573d5468175d182fe07007f2cfcee55c1"
+      "sha256": "70066f3149aafbc43d01b93be3e194e09be34fd89718db06a83f9fcba9931527"
     },
     {
       "path": "autopilot-portable-staging/Staging-Environment.ps1",
@@ -390,11 +390,11 @@
     },
     {
       "path": "autopilot-portable-staging/Converge-StagingActivationGateway.ps1",
-      "sha256": "f3ad74f3141fcde448803e1f1f6baf760a8f0d75aa7c3de3deb2101c8d8af881"
+      "sha256": "04cb9ca15fed324e7474135ace8fea8f552d81aba2675c6831a9fea68742d305"
     },
     {
       "path": "autopilot-portable-staging/activation-gateway-smart-convergence-policy.json",
-      "sha256": "941cfef2cba6eee866f49fd02807cac767c99c496f96eb8c598e07d27ab3add5"
+      "sha256": "a4fd996f12617db300591ec9a56115b075083bfdbf4406c96890173a0506e5fe"
     },
     {
       "path": "autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1",
