@@ -176,14 +176,25 @@ assert.ok(
 );
 assert.match(certification, /STAGING_CERTIFICATION_READY: commit=\$ExpectedCommit gateway=\$gatewayEnabled connector=healthy/);
 
-// Reuse the existing bounded exact-SHA Worker authority instead of direct local Cloudflare calls.
-assert.match(converger, /operation=deploy_activation_worker/);
-assert.match(converger, /confirmation=DEPLOY_STAGING_ACTIVATION_WORKER/);
-assert.match(converger, /origin\/main moved before governed Staging Worker dispatch/);
-assert.match(converger, /source_commit/);
-assert.match(converger, /worker_build_sha/);
-assert.match(converger, /production_mutation = \$false/);
+// The legacy convergence helper is a fail-closed compatibility tombstone. It may
+// describe the server-governed handoff but cannot dispatch or apply the old Worker authority.
+assert.match(converger, /mad4b\.staging\.activation-gateway-convergence\.v2/);
+assert.match(converger, /status = 'governed_authority_required'/);
+assert.match(converger, /authority = 'server_governed'/);
+assert.match(converger, /apply_capability = \$null/);
+assert.match(converger, /execution_ready = \$false/);
+assert.match(converger, /automatic_apply_allowed = \$false/);
+assert.match(converger, /workflow_dispatch_allowed = \$false/);
+assert.match(converger, /provider_mutation_allowed = \$false/);
+assert.match(converger, /local_origin_trust_mutation_allowed = \$false/);
+assert.match(converger, /workflow_dispatch = \$false/);
+assert.match(converger, /cloudflare_worker_mutation = \$false/);
 assert.match(converger, /cloudflare_dns_mutation = \$false/);
+assert.match(converger, /production_mutation = \$false/);
+assert.doesNotMatch(converger, /operation=deploy_activation_worker/);
+assert.doesNotMatch(converger, /confirmation=DEPLOY_STAGING_ACTIVATION_WORKER/);
+assert.doesNotMatch(converger, /gh\s+workflow\s+run/i);
+assert.doesNotMatch(converger, /\/dispatches/);
 
 // last-failure.json keeps the actionable child cause instead of only the launcher failure.
 for (const key of ["failure_class", "expected_commit", "observed_commit", "parent_error", "blocking_reason"]) {
