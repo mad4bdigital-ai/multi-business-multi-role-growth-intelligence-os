@@ -264,10 +264,13 @@ export function getRecoveryCompositionRouteDependencies(composition = buildFailC
   if (!composition || composition.contract !== RECOVERY_COMPOSITION_CONTRACT) {
     throw compositionError("RECOVERY_COMPOSITION_INVALID", "Routes require the canonical Recovery composition contract.");
   }
+  const readOnlyRecoveryStore = composition.readOnlyDependencies?.recoveryStore || null;
   return Object.freeze({
     recoveryComposition: composition,
     ...composition.kernelDependencies,
-    readOnlyRecoveryStore: composition.readOnlyDependencies?.recoveryStore || null,
+    readOnlyRecoveryStore,
+    recoveryStore: composition.kernelDependencies?.recoveryStore || readOnlyRecoveryStore,
+    mutationRecoveryStore: composition.kernelDependencies?.recoveryStore || null,
     broker: composition.hostBreakglassBroker,
     hostBreakglassMutationExecutor: composition.hostBreakglassBroker.hostLocalMutationExecutor || null,
     runtimeBootstrapDependencies: composition.runtimeBootstrapDependencies,
