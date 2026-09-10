@@ -1,0 +1,84 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-schema-repair-ticket-authority-20260910",
+  "title": "Govern Staging schema-repair ticket authority",
+  "delivery_mode": "single_pr",
+  "secrets_included": false,
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-schema-repair-ticket-authority-20260910.json",
+      "autopilot-portable-staging/manifest.json",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
+      "http-generic-api/stagingSchemaRepairSystemTools.js",
+      "http-generic-api/test-recovery-system-tool-overlay.mjs",
+      "http-generic-api/test-staging-recovery-system-tools.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Expose a server-owned, single-use Staging schema-repair lifecycle while preserving fail-closed Production authority and same-cycle migration readback.",
+      "e2e_journeys": [
+        {
+          "id": "server-bound-staging-schema-repair",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "verified recovery administrator",
+          "entrypoint": "Staging Recovery schema-repair prepare, approve and execute System Tools",
+          "terminal_outcome": "The server resolves the allowlisted migration and execution ticket internally, executes only the selected Staging migration, and reports success only after same-cycle schema readback and durable ledger finalization.",
+          "steps": [
+            "Derive migration checksum, statement count, role and target fingerprint from the repository-owned Staging runtime bootstrap contract.",
+            "Reject caller SQL, database names, script paths, target selection, ticket identifiers, signatures and migration hashes.",
+            "Require the exact typed Staging migration confirmation before issuing a single-use ticket held server-side.",
+            "Execute only the allowlisted migration under the fenced Recovery lock.",
+            "Verify role-aware schema postconditions and migration-ledger finalization before consuming approval and ticket authority."
+          ],
+          "assertions": [
+            "Schema repair is advertised only for unambiguous Staging and only when every execution and readback dependency is ready.",
+            "The prepare, approval and execute lifecycle remains bound to the exact deployed main SHA and Recovery Manifest.",
+            "Execution ticket identifiers, hashes, signatures and server tokens are never disclosed to the caller.",
+            "Production schema-repair authority remains disabled and this change authorizes no live Production mutation.",
+            "Readback or ledger failure fails closed instead of reporting recovery."
+          ],
+          "tests": [
+            {
+              "id": "staging-recovery-schema-repair-authority",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-system-tools.mjs",
+              "args": []
+            },
+            {
+              "id": "recovery-system-tool-overlay-schema-repair-capability",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-system-tool-overlay.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/stagingSchemaRepairSystemTools.js",
+            "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
+            "http-generic-api/test-staging-recovery-system-tools.mjs",
+            "http-generic-api/test-recovery-system-tool-overlay.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}
