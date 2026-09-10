@@ -180,6 +180,8 @@ test("Recovery store qualification is shared and distinguishes durable inspectio
   const inspectionStore = createProductionRecoveryControlStore({ poolProvider: backend.poolProvider, env: ENV });
   const inspectionQualification = describeRecoveryStoreQualification(inspectionStore);
   assert.equal(inspectionQualification.boundary_valid, true);
+  assert.equal(inspectionQualification.payload_integrity_verified_on_read, true);
+  assert.deepEqual(inspectionQualification.missing_integrity_guarantees, []);
   assert.equal(inspectionQualification.durable_inspection_store, true);
   assert.equal(inspectionQualification.mutation_grade_recovery_store, false);
 
@@ -188,6 +190,18 @@ test("Recovery store qualification is shared and distinguishes durable inspectio
   const mutationQualification = describeRecoveryStoreQualification(mutationStore);
   assert.equal(mutationQualification.durable_inspection_store, true);
   assert.equal(mutationQualification.mutation_grade_recovery_store, true);
+});
+
+test("Recovery store qualification rejects method-complete independent stores without verified payload integrity on read", () => {
+  const backend = createFakeControlStoreBackend();
+  const realStore = createProductionRecoveryControlStore({ poolProvider: backend.poolProvider, env: ENV });
+  const unsafeStore = { ...realStore, payload_integrity_verified_on_read: false };
+  const qualification = describeRecoveryStoreQualification(unsafeStore);
+  assert.equal(qualification.boundary_valid, true);
+  assert.equal(qualification.payload_integrity_verified_on_read, false);
+  assert.deepEqual(qualification.missing_integrity_guarantees, ["payload_integrity_verified_on_read"]);
+  assert.equal(qualification.durable_inspection_store, false);
+  assert.equal(qualification.mutation_grade_recovery_store, false);
 });
 
 test("Recovery control-store readiness is read-only and detects missing durable evidence schema", async () => {
