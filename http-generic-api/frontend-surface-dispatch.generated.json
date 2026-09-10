@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "ba64e041857747f274537e58ec165e04a646cbf4689db48566d50b2432f02219",
+    "source_digest": "200030aae9afbcbffa8ba9aafb1cf91b8d3d29720b525c642cacd207d25032f2",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -1136,7 +1136,7 @@
       },
       {
         "file": "test-runtime-breakglass-broker.mjs",
-        "sha256": "efcff65617f4501bb55cae0db26b2108353b51f5bdd51167dd6a996e48372f55",
+        "sha256": "aec8a5592454f75190bacbe64ba09c76465749bb82d226c05662a31d96e988d1",
         "present": true
       },
       {
