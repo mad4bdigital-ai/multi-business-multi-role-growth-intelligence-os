@@ -4,6 +4,39 @@
   "purpose": "Permanent, explicitly reviewed code-owned CI governance inputs that extend the legacy monolithic configuration fingerprint baseline without suppressing drift.",
   "entries": [
     {
+      "fingerprint": ".github/ops/lib/github-review-policy-public-probe-preload.mjs|DEFAULT_MAX_ATTEMPTS|literal_declaration|max.attempts",
+      "owner": "repository-governance",
+      "reason": "Fixed bounded-attempt default for the serialized public exact-SHA policy readiness probes; it is a non-secret code-owned retry invariant and grants no runtime, provider, database, protected-ref, Ruleset Apply, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/lib/github-review-policy-public-probe-preload.mjs|DEFAULT_RETRY_DELAY_MS|literal_declaration|retry.delay.ms",
+      "owner": "repository-governance",
+      "reason": "Fixed bounded retry-delay default for the serialized public exact-SHA policy readiness probes; it is a non-secret code-owned backoff invariant and grants no runtime, provider, database, protected-ref, Ruleset Apply, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/lib/github-review-policy-public-probe-preload.mjs|MAX_RETRY_AFTER_MS|literal_declaration|max.retry.after.ms",
+      "owner": "repository-governance",
+      "reason": "Fixed upper bound for Retry-After handling by the public exact-SHA policy readiness probes; it is a non-secret fail-bounded safety invariant and grants no runtime, provider, database, protected-ref, Ruleset Apply, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": "http-generic-api/localConnectorInstallerCapability.js|LOCAL_CONNECTOR_INSTALLER_CAPABILITY_MAX_TTL_SECONDS|literal_declaration|local.connector.installer.capability.max.ttl.seconds",
       "owner": "local-connector",
       "reason": "Fixed upper lifetime bound for signed installer download capabilities; it is a security invariant, contains no secret, and grants no runtime, provider, database, or Production mutation authority.",
