@@ -14,6 +14,7 @@
       "http-generic-api/recoveryComposition.js",
       "http-generic-api/productionRecoveryCompositionFactory.js",
       "http-generic-api/test-deployment-manifest.mjs",
+      "http-generic-api/test-recovery-canonical-identity-resolution.mjs",
       "http-generic-api/test-production-recovery-composition-factory.mjs",
       "http-generic-api/test-recovery-readonly-evidence-store-boundary.mjs"
     ]
@@ -46,7 +47,7 @@
           "terminal_outcome": "Staging and Production use the same Recovery core; a fail-closed Production mutation graph may retain durable read-only evidence persistence without exposing approval, execution-ticket, claim, reserve, lock, signer or mutation authority.",
           "steps": [
             "Resolve deployment identity through the canonical deployment-manifest resolver, including inline manifest, compatibility commit JSON, configured manifest path and runtime manifest file sources.",
-            "Use the same canonical identity result in Recovery runtime attestation and trust evaluation.",
+            "Use the same canonical identity result in Recovery runtime attestation and trust evaluation, including path-only deployments where conflicting fallback environment variables must not override the manifest.",
             "Build the normal server-managed Recovery candidate from the shared runtime composition.",
             "When live Production mutation authorization is incomplete, fail the mutation graph closed while extracting only an independently validated durable Recovery Control Store.",
             "Require the evidence store to be target-database independent, replica-safe, non-auto-applying and provider-free.",
@@ -56,6 +57,7 @@
           ],
           "assertions": [
             "Deployment identity and Recovery attestation cannot choose different canonical manifest sources for the same runtime inputs.",
+            "DEPLOYMENT_MANIFEST_PATH-only runtime identity is accepted by Recovery attestation and wins over conflicting fallback environment identity.",
             "DEPLOYMENT_MANIFEST_JSON remains higher priority than DEPLOYMENT_COMMIT_JSON, and compatibility commit JSON remains supported.",
             "Fail-closed mutation composition keeps mutation_authority_available=false.",
             "Only an independent target-database-forbidden, shared-replica-safe, schema-non-auto-applying and provider-free Recovery Control Store can survive as read-only evidence authority.",
@@ -65,6 +67,7 @@
           ],
           "tests": [
             {"id":"deployment-manifest-canonical-identity","runner":"node","working_directory":"http-generic-api","path":"test-deployment-manifest.mjs","args":[]},
+            {"id":"recovery-canonical-identity-resolution","runner":"node","working_directory":"http-generic-api","path":"test-recovery-canonical-identity-resolution.mjs","args":[]},
             {"id":"recovery-trust-model","runner":"node","working_directory":"http-generic-api","path":"test-recovery-trust-model.mjs","args":[]},
             {"id":"recovery-composition","runner":"node","working_directory":"http-generic-api","path":"test-recovery-composition.mjs","args":[]},
             {"id":"production-recovery-readonly-evidence-composition","runner":"node","working_directory":"http-generic-api","path":"test-production-recovery-composition-factory.mjs","args":[]},
@@ -76,12 +79,14 @@
             "http-generic-api/recoveryTrustModel.js",
             "http-generic-api/recoveryComposition.js",
             "http-generic-api/productionRecoveryCompositionFactory.js",
+            "http-generic-api/test-recovery-canonical-identity-resolution.mjs",
             "http-generic-api/test-recovery-readonly-evidence-store-boundary.mjs"
           ]
         }
       ],
       "tests": [
         {"id":"deployment-manifest-canonical-identity","runner":"node","working_directory":"http-generic-api","path":"test-deployment-manifest.mjs","args":[]},
+        {"id":"recovery-canonical-identity-resolution","runner":"node","working_directory":"http-generic-api","path":"test-recovery-canonical-identity-resolution.mjs","args":[]},
         {"id":"recovery-trust-model","runner":"node","working_directory":"http-generic-api","path":"test-recovery-trust-model.mjs","args":[]},
         {"id":"recovery-composition","runner":"node","working_directory":"http-generic-api","path":"test-recovery-composition.mjs","args":[]},
         {"id":"production-recovery-readonly-evidence-composition","runner":"node","working_directory":"http-generic-api","path":"test-production-recovery-composition-factory.mjs","args":[]},
