@@ -1473,6 +1473,7 @@ export async function executeRemediationStep(input = {}, { env = process.env, ad
       && verification?.access_repair?.governed_migration_schema_readback_passed === true
     );
     const verificationPassed = verification?.postconditions_passed === true && verification?.behavioral_probe_passed !== false && accessRepairPostconditionsPassed && productionAccessRepairPostconditionsPassed;
+    run.evidence.verification = sanitizeEvidence(verification);
     run.evidence.verification_state = verificationPassed ? "verified" : "failed";
     run.evidence.execution_outcome = verificationPassed ? "verified" : "acknowledged_unverified";
     run.evidence.reconciliation_required = !verificationPassed;
@@ -1765,3 +1766,228 @@ export const _testingRecoveryKernel = Object.freeze({
   RECOVERY_STATE_PHASES,
   RECOVERY_STATE_TRANSITIONS,
 });
+
+// Canonical live-consumer authority closure. Keep this logic in the authoritative Kernel
+// instead of reintroducing the path-duplicating *Core.js facades removed by governance.
+let recoveryDurabilityContractPromise = null;
+function recoveryDurabilityContract() {
+  recoveryDurabilityContractPromise ||= import("./recoveryDurableStoreContract.js");
+  return recoveryDurabilityContractPromise;
+}
+
+function compactRecoveryReadiness(readiness = null) {
+  if (!readiness || typeof readiness !== "object") return null;
+  return sanitizeEvidence({
+    contract: readiness.contract || null,
+    ready: readiness.ready === true,
+    scope: readiness.scope || null,
+    database_connection_performed: readiness.database_connection_performed === true,
+    database_mutation_performed: readiness.database_mutation_performed === true,
+    schema_auto_apply: readiness.schema_auto_apply === true,
+    secrets_included: false,
+  });
+}
+
+async function resolveCanonicalInspectionStore(recoveryStore) {
+  const contract = await recoveryDurabilityContract();
+  const structurallyQualified = contract.isDurableInspectionStore(recoveryStore);
+  if (!structurallyQualified) {
+    return {
+      store: null,
+      structurally_qualified: false,
+      readiness_observed: false,
+      ready: false,
+      readiness: null,
+      error: null,
+    };
+  }
+  if (typeof recoveryStore?.getReadiness !== "function") {
+    return {
+      store: null,
+      structurally_qualified: true,
+      readiness_observed: false,
+      ready: false,
+      readiness: null,
+      error: null,
+    };
+  }
+  try {
+    const readiness = await recoveryStore.getReadiness();
+    const ready = contract.isReadOnlyRecoveryStoreReady(readiness);
+    return {
+      store: ready ? recoveryStore : null,
+      structurally_qualified: true,
+      readiness_observed: true,
+      ready,
+      readiness: compactRecoveryReadiness(readiness),
+      error: null,
+    };
+  } catch (error) {
+    return {
+      store: null,
+      structurally_qualified: true,
+      readiness_observed: true,
+      ready: false,
+      readiness: null,
+      error: {
+        code: text(error?.code || "recovery_store_readiness_failed", 128),
+        message: text(error?.message || "Recovery store readiness observation failed.", 320),
+        secrets_included: false,
+      },
+    };
+  }
+}
+
+async function resolveCanonicalMutationStore(recoveryStore) {
+  const contract = await recoveryDurabilityContract();
+  if (!contract.isMutationGradeRecoveryStore(recoveryStore)) {
+    return {
+      store: null,
+      structurally_qualified: false,
+      readiness_observed: false,
+      ready: false,
+      readiness: null,
+      error: null,
+    };
+  }
+  return resolveCanonicalInspectionStore(recoveryStore);
+}
+
+async function canonicalDurability(sourceStore, resolution = null) {
+  const contract = await recoveryDurabilityContract();
+  const inspectionStructural = contract.isDurableInspectionStore(sourceStore);
+  const mutationStructural = contract.isMutationGradeRecoveryStore(sourceStore);
+  const inspectionDurable = Boolean(resolution?.store && resolution?.ready === true && inspectionStructural);
+  return {
+    store_present: Boolean(sourceStore),
+    store_contract_valid: inspectionStructural,
+    inspection_durable: inspectionDurable,
+    mutation_grade_durable: Boolean(inspectionDurable && mutationStructural),
+    durable: inspectionDurable,
+    readiness_observed: resolution?.readiness_observed === true,
+    store_ready: resolution?.ready === true,
+    readiness: resolution?.readiness || null,
+    readiness_error: resolution?.error || null,
+    mode: inspectionDurable
+      ? (mutationStructural ? "canonical_mutation_grade_store" : "canonical_durable_inspection_store")
+      : sourceStore
+        ? "degraded_memory_only_store_not_ready_or_unqualified"
+        : "degraded_memory_only_test_state",
+    secrets_included: false,
+  };
+}
+
+const recoveryKernelCoreInspectProductionDatabase = inspectProductionDatabase;
+const recoveryKernelCoreCreateRemediationPlan = createRemediationPlan;
+const recoveryKernelCorePreviewRemediationPlan = previewRemediationPlan;
+const recoveryKernelCoreCreateApprovalChallenge = createApprovalChallenge;
+const recoveryKernelCoreCreateExecutionTicket = createExecutionTicket;
+const recoveryKernelCoreExecuteRemediationStep = executeRemediationStep;
+const recoveryKernelCoreVerifyRemediationStep = verifyRemediationStep;
+const recoveryKernelCoreGetRecoveryRun = getRecoveryRun;
+const recoveryKernelCoreGetRecoveryEvidence = getRecoveryEvidence;
+const recoveryKernelCoreCallCapability = callRecoveryKernelCapability;
+
+inspectProductionDatabase = async function canonicalInspectProductionDatabase(input = {}, deps = {}) {
+  const sourceStore = deps.recoveryStore || null;
+  const resolution = await resolveCanonicalInspectionStore(sourceStore);
+  const result = await recoveryKernelCoreInspectProductionDatabase(input, { ...deps, recoveryStore: resolution.store });
+  return sanitizeEvidence({
+    ...result,
+    durability: await canonicalDurability(sourceStore, resolution),
+  });
+};
+
+createRemediationPlan = async function canonicalCreateRemediationPlan(input = {}, deps = {}) {
+  const sourceStore = deps.recoveryStore || null;
+  const resolution = await resolveCanonicalInspectionStore(sourceStore);
+  return recoveryKernelCoreCreateRemediationPlan(input, { ...deps, recoveryStore: resolution.store });
+};
+
+previewRemediationPlan = async function canonicalPreviewRemediationPlan(input = {}, deps = {}) {
+  const resolution = await resolveCanonicalInspectionStore(deps.recoveryStore || null);
+  return recoveryKernelCorePreviewRemediationPlan(input, { ...deps, recoveryStore: resolution.store });
+};
+
+createApprovalChallenge = async function canonicalCreateApprovalChallenge(input = {}, deps = {}) {
+  const resolution = await resolveCanonicalMutationStore(deps.recoveryStore || null);
+  if (!resolution.store) {
+    throw kernelError(503, "RECOVERY_MUTATION_STORE_UNAVAILABLE", "A same-request ready mutation-grade Recovery store is required before approval challenge issuance.", {
+      readiness_observed: resolution.readiness_observed,
+      store_ready: resolution.ready,
+    });
+  }
+  return recoveryKernelCoreCreateApprovalChallenge(input, { ...deps, recoveryStore: resolution.store });
+};
+
+createExecutionTicket = async function canonicalCreateExecutionTicket(input = {}, deps = {}) {
+  const resolution = await resolveCanonicalMutationStore(deps.recoveryStore || null);
+  if (!resolution.store) {
+    throw kernelError(503, "RECOVERY_MUTATION_STORE_UNAVAILABLE", "A same-request ready mutation-grade Recovery store is required before execution-ticket issuance.", {
+      readiness_observed: resolution.readiness_observed,
+      store_ready: resolution.ready,
+    });
+  }
+  return recoveryKernelCoreCreateExecutionTicket(input, { ...deps, recoveryStore: resolution.store });
+};
+
+executeRemediationStep = async function canonicalExecuteRemediationStep(input = {}, deps = {}) {
+  const resolution = await resolveCanonicalMutationStore(deps.recoveryStore || null);
+  if (!resolution.store) {
+    throw kernelError(503, "RECOVERY_MUTATION_STORE_UNAVAILABLE", "A same-request ready mutation-grade Recovery store is required before consequential Recovery execution.", {
+      readiness_observed: resolution.readiness_observed,
+      store_ready: resolution.ready,
+    });
+  }
+  return recoveryKernelCoreExecuteRemediationStep(input, { ...deps, recoveryStore: resolution.store });
+};
+
+verifyRemediationStep = async function canonicalVerifyRemediationStep(input = {}, deps = {}) {
+  const resolution = await resolveCanonicalInspectionStore(deps.recoveryStore || null);
+  if (!resolution.store) {
+    throw kernelError(503, "RECOVERY_STORE_UNAVAILABLE", "A same-request ready canonical durable inspection store is required for durable Recovery verification.", {
+      readiness_observed: resolution.readiness_observed,
+      store_ready: resolution.ready,
+    });
+  }
+  return recoveryKernelCoreVerifyRemediationStep(input, { ...deps, recoveryStore: resolution.store });
+};
+
+getRecoveryRun = async function canonicalGetRecoveryRun(input = {}, deps = {}) {
+  const sourceStore = deps.recoveryStore || null;
+  const resolution = await resolveCanonicalInspectionStore(sourceStore);
+  const result = await recoveryKernelCoreGetRecoveryRun(input, { ...deps, recoveryStore: resolution.store });
+  return sanitizeEvidence({
+    ...result,
+    resumable: Boolean(resolution.store),
+    durability: await canonicalDurability(sourceStore, resolution),
+  });
+};
+
+getRecoveryEvidence = async function canonicalGetRecoveryEvidence(input = {}, deps = {}) {
+  const sourceStore = deps.recoveryStore || null;
+  const resolution = await resolveCanonicalInspectionStore(sourceStore);
+  const result = await recoveryKernelCoreGetRecoveryEvidence(input, { ...deps, recoveryStore: resolution.store });
+  return sanitizeEvidence({
+    ...result,
+    durability: await canonicalDurability(sourceStore, resolution),
+  });
+};
+
+callRecoveryKernelCapability = async function canonicalCallRecoveryKernelCapability(capabilityKey, input = {}, deps = {}) {
+  const requestedKey = text(capabilityKey, 160);
+  const key = CAPABILITY_ALIASES[requestedKey] || requestedKey;
+  if (key === "finding_details") {
+    const sourceStore = deps.recoveryStore || null;
+    const resolution = await resolveCanonicalInspectionStore(sourceStore);
+    const result = await recoveryKernelCoreCallCapability(capabilityKey, input, { ...deps, recoveryStore: resolution.store });
+    return sanitizeEvidence({
+      ...result,
+      durable_read: Boolean(resolution.store),
+      durability: await canonicalDurability(sourceStore, resolution),
+    });
+  }
+  return recoveryKernelCoreCallCapability(capabilityKey, input, deps);
+};
+
+Object.assign(_testingRecoveryKernel, {});
