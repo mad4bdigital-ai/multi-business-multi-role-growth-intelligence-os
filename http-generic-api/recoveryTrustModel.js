@@ -163,16 +163,22 @@ export function verifyRecoveryManifest({ expectedSha, identity = null, env = pro
   const branchMatch = resolvedIdentity.branch === manifest.production_branch && resolvedIdentity.branch === RECOVERY_BRANCH;
   const identitySha = text(resolvedIdentity.sha || resolvedIdentity.commit, 64).toLowerCase();
   const shaMatch = shaValid && identitySha === sha;
-  const manifestBound = resolvedIdentity.manifest_bound === true;
-  const environmentMatch = safeEnvironmentKey(env) === "production_hostinger_autodeploy" || !text(env.DEPLOYMENT_ENVIRONMENT || env.REMOTE_MCP_ENVIRONMENT || env.NODE_ENV);
+  const canonicalManifestIdentity = readCanonicalDeploymentIdentity({ env, requireManifest: true });
+  const manifestBound = resolvedIdentity.manifest_bound === true || (
+    resolvedIdentity.manifest_bound == null
+    && canonicalManifestIdentity.ok === true
+    && canonicalManifestIdentity.repository === resolvedIdentity.repository
+    && canonicalManifestIdentity.branch === resolvedIdentity.branch
+    && text(canonicalManifestIdentity.sha || canonicalManifestIdentity.commit_sha, 64).toLowerCase() === identitySha
+  );
   return {
-    ok: Boolean(repositoryMatch && branchMatch && shaMatch && manifestBound && environmentMatch),
+    ok: Boolean(repositoryMatch && branchMatch && shaMatch && manifestBound && (safeEnvironmentKey(env) === "production_hostinger_autodeploy" || !text(env.DEPLOYMENT_ENVIRONMENT || env.REMOTE_MCP_ENVIRONMENT || env.NODE_ENV))),
     contract: RECOVERY_TRUST_CONTRACT,
     manifest_hash: manifest.manifest_hash,
     repository_match: repositoryMatch,
     branch_match: branchMatch,
     sha_match: shaMatch,
-    environment_match: environmentMatch,
+    environment_match: safeEnvironmentKey(env) === "production_hostinger_autodeploy" || !text(env.DEPLOYMENT_ENVIRONMENT || env.REMOTE_MCP_ENVIRONMENT || env.NODE_ENV),
     exact_sha_required: true,
     identity_source: resolvedIdentity.source || null,
     manifest_bound: manifestBound,
