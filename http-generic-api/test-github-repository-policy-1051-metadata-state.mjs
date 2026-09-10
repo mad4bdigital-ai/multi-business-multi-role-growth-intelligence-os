@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { classifyMetadataPresence, METADATA_STATE_SQL } from "../.github/ops/github-repository-policy-1051-metadata-state.mjs";
+import {
+  bounded429RetryDelayMs,
+  classifyDependencyBlockReason,
+  classifyMetadataPresence,
+  METADATA_STATE_SQL,
+} from "../.github/ops/github-repository-policy-1051-metadata-state.mjs";
 import {
   MIGRATION,
   MIGRATION_BLOB_SHA,
@@ -14,6 +19,7 @@ import {
 
 const workflow = fs.readFileSync(new URL("../.github/workflows/github-repository-policy-1051-governed-rollout.yml", import.meta.url), "utf8");
 const recovery = fs.readFileSync(new URL("../.github/ops/github-repository-policy-1051-governed-rollout.mjs", import.meta.url), "utf8");
+const metadataStateSource = fs.readFileSync(new URL("../.github/ops/github-repository-policy-1051-metadata-state.mjs", import.meta.url), "utf8");
 
 const absent = classifyMetadataPresence({});
 assert.equal(absent.target_metadata_state, "absent");
@@ -70,6 +76,49 @@ assert.equal(extraLayer.replay_safe_without_exact_ledger, false);
 const duplicateAuthorization = classifyMetadataPresence({ migration_authorization_count: 2 });
 assert.equal(duplicateAuthorization.authorization_state, "invalid_multiple");
 assert.equal(duplicateAuthorization.metadata_present, false);
+
+const sampleNow = Date.parse("2026-09-10T00:00:00Z");
+assert.equal(bounded429RetryDelayMs({ retryIndex: 0, nowMs: sampleNow }), 5000);
+assert.equal(bounded429RetryDelayMs({ retryIndex: 1, nowMs: sampleNow }), 15000);
+assert.equal(bounded429RetryDelayMs({ retryIndex: 2, nowMs: sampleNow }), 30000);
+assert.equal(bounded429RetryDelayMs({ retryAfter: "2", retryIndex: 2, nowMs: sampleNow }), 2000);
+assert.equal(bounded429RetryDelayMs({ retryAfter: "Thu, 10 Sep 2026 00:00:12 GMT", retryIndex: 0, nowMs: sampleNow }), 12000);
+assert.equal(bounded429RetryDelayMs({ retryAfter: "Thu, 10 Sep 2026 00:01:00 GMT", retryIndex: 0, nowMs: sampleNow }), 30000);
+assert.equal(bounded429RetryDelayMs({ retryAfter: "not-a-date", retryIndex: 1, nowMs: sampleNow }), 15000);
+
+assert.equal(classifyDependencyBlockReason({
+  runtimeDependencyReady: false,
+  governanceWriterReady: false,
+  migrationReadbackRateLimited: true,
+}), "migration_225_readback_rate_limited");
+assert.equal(classifyDependencyBlockReason({
+  runtimeDependencyReady: true,
+  governanceWriterReady: false,
+  governanceReadbackRateLimited: true,
+}), "governance_writer_readback_rate_limited");
+assert.equal(classifyDependencyBlockReason({
+  runtimeDependencyReady: false,
+  governanceWriterReady: true,
+}), "migration_225_runtime_dependency_not_ready");
+assert.equal(classifyDependencyBlockReason({
+  runtimeDependencyReady: true,
+  governanceWriterReady: false,
+}), "governance_writer_readiness_not_ready");
+assert.equal(classifyDependencyBlockReason({
+  runtimeDependencyReady: true,
+  governanceWriterReady: true,
+}), null);
+
+assert.match(metadataStateSource, /const READBACK_BACKOFF = Object\.freeze\(\{/);
+assert.match(metadataStateSource, /attempts:\s*4/);
+assert.match(metadataStateSource, /delaysMs:\s*Object\.freeze\(\[5000, 15000, 30000\]\)/);
+assert.match(metadataStateSource, /maxDelayMs:\s*30000/);
+assert.match(metadataStateSource, /response\.headers\?\.get\?\.\('retry-after'\)/);
+assert.match(metadataStateSource, /rate_limit_exhausted: response\.status === 429/);
+assert.match(metadataStateSource, /\{ retry429: true \}/g);
+assert.match(metadataStateSource, /migration_1051_dependency_readback_rate_limited/);
+assert.match(metadataStateSource, /read-only dependency readback remained rate limited after bounded retries/);
+assert.doesNotMatch(metadataStateSource, /rate_limit.*grants_apply_authority:\s*true/i);
 
 assert.match(METADATA_STATE_SQL, /AS adapter_count/);
 assert.match(METADATA_STATE_SQL, /AS readback_contract_count/);
@@ -198,6 +247,8 @@ console.log(JSON.stringify({
   partial_replay_safe: partial.replay_safe_without_exact_ledger,
   complete_requires_exact_ledger: !complete.replay_safe_without_exact_ledger,
   record_only_reconciliation_proven: true,
+  bounded_rate_limit_retry_proven: true,
+  rate_limit_failure_classification_proven: true,
   apply_requires_separate_confirmation: true,
   canonical_rollout_runner_reused: true,
   provider_call_executed: false,
