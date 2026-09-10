@@ -6,6 +6,7 @@ import { resolveRuntimeEnvironment, resolveRuntimeEnvironmentStrict } from "./ru
 const DEFAULT_ATTESTATION_HEADER = "x-mad4b-ingress-attestation";
 const DEFAULT_MAX_CLOCK_SKEW_SECONDS = 30;
 const DEFAULT_MAX_ATTESTATION_TTL_SECONDS = 90;
+const MAX_CANONICAL_HOSTS = 16;
 
 function flag(value) {
   return ["1", "true", "yes", "on"].includes(String(value || "").trim().toLowerCase());
@@ -18,10 +19,38 @@ function text(value, max = 256) {
 function trustedIngressPublicKey(env = process.env) {
   const configured = text(env?.REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY, 8192);
   if (!configured) return "";
-  // Local Staging .env values are single-line. The governed Worker deployment
-  // publishes only the public PEM with literal \n escapes; decode those escapes
-  // at the trust boundary while preserving ordinary multiline PEM compatibility.
   return configured.includes("\\n") ? configured.replaceAll("\\n", "\n") : configured;
+}
+
+function normalizeCanonicalHost(value) {
+  const host = text(value, 256).toLowerCase();
+  if (!host || host.includes("*") || host.includes(":") || host.includes("/") || host.includes("@")) return "";
+  if (host.length > 253 || !/^[a-z0-9.-]+$/u.test(host)) return "";
+  if (host.startsWith(".") || host.endsWith(".") || host.includes("..")) return "";
+  const labels = host.split(".");
+  if (labels.some((label) => !label || label.length > 63 || label.startsWith("-") || label.endsWith("-"))) return "";
+  return host;
+}
+
+function trustedIngressCanonicalHostConfig(env = process.env) {
+  const plural = text(env?.REMOTE_MCP_TRUSTED_INGRESS_CANONICAL_HOSTS, 4096);
+  const legacy = text(env?.REMOTE_MCP_TRUSTED_INGRESS_CANONICAL_HOST, 256);
+  const rawEntries = plural ? plural.split(",").map((item) => item.trim()) : (legacy ? [legacy] : []);
+  const normalized = rawEntries.map(normalizeCanonicalHost);
+  const nonEmpty = normalized.filter(Boolean);
+  const unique = [...new Set(nonEmpty)];
+  const legacyNormalized = normalizeCanonicalHost(legacy);
+  const valid = rawEntries.length > 0
+    && rawEntries.length <= MAX_CANONICAL_HOSTS
+    && rawEntries.every((item) => Boolean(item))
+    && normalized.every(Boolean)
+    && unique.length === normalized.length
+    && (!plural || !legacy || unique.includes(legacyNormalized));
+  return {
+    valid,
+    hosts: valid ? unique : [],
+    source: plural ? "allowlist" : (legacy ? "legacy_single" : "missing"),
+  };
 }
 
 function boundedSeconds(value, fallback, maximum) {
@@ -38,6 +67,7 @@ function baseReadiness(env = process.env) {
   const proxyHeadersEnabled = flag(env?.REMOTE_MCP_TRUST_PROXY_HOST_HEADERS);
   const stripCallerHeaders = flag(env?.REMOTE_MCP_TRUSTED_INGRESS_STRIP_CALLER_HEADERS);
   const legacyAttested = flag(env?.REMOTE_MCP_TRUSTED_INGRESS_ATTESTED);
+  const canonicalHosts = trustedIngressCanonicalHostConfig(env);
   return {
     environment,
     production_like: productionLike,
@@ -57,10 +87,18 @@ function baseReadiness(env = process.env) {
     proxy_headers_enabled: proxyHeadersEnabled,
     ingress_attested: mode === "signature" ? false : legacyAttested,
     caller_headers_stripped: stripCallerHeaders,
+    canonical_host_policy: {
+      source: canonicalHosts.source,
+      host_count: canonicalHosts.hosts.length,
+      hosts: canonicalHosts.hosts,
+      valid: canonicalHosts.valid,
+      secrets_included: false,
+    },
     required_for_production: true,
     signed_attestation_configured: mode === "signature"
       && Boolean(trustedIngressPublicKey(env))
-      && Boolean(text(env?.REMOTE_MCP_TRUSTED_INGRESS_CANONICAL_HOST, 256))
+      && canonicalHosts.valid
+      && canonicalHosts.hosts.length > 0
       && Boolean(text(env?.REMOTE_MCP_TRUSTED_INGRESS_AUDIENCE, 256))
       && Boolean(text(env?.REMOTE_MCP_TRUSTED_INGRESS_ISSUER, 256))
       && Boolean(text(env?.REMOTE_MCP_EXPECTED_DEPLOYMENT_SHA || env?.GIT_COMMIT_FULL, 64)),
@@ -98,15 +136,20 @@ function parseSignedAttestation(value) {
   return { ok: true, payloadBytes, signatureBytes, claims };
 }
 
+function requestHeader(request, name) {
+  if (request?.headers && typeof request.headers.get === "function") return request.headers.get(name);
+  return request?.headers?.[name] || request?.headers?.[name.replaceAll("-", "_")];
+}
+
 function verifySignedAttestation(env, request) {
   const headerName = text(env?.REMOTE_MCP_TRUSTED_INGRESS_SIGNATURE_HEADER || DEFAULT_ATTESTATION_HEADER, 128).toLowerCase();
-  const rawHeader = request?.headers?.[headerName] || request?.headers?.[headerName.replaceAll("-", "_")];
+  const rawHeader = requestHeader(request, headerName);
   if (Array.isArray(rawHeader)) return { ok: false, code: "attestation_header_duplicated" };
   const parsed = parseSignedAttestation(rawHeader);
   if (!parsed.ok) return parsed;
 
   const publicKeyPem = trustedIngressPublicKey(env);
-  const canonicalHost = text(env?.REMOTE_MCP_TRUSTED_INGRESS_CANONICAL_HOST, 256).toLowerCase();
+  const canonicalHosts = trustedIngressCanonicalHostConfig(env);
   const audience = text(env?.REMOTE_MCP_TRUSTED_INGRESS_AUDIENCE, 256);
   const issuer = text(env?.REMOTE_MCP_TRUSTED_INGRESS_ISSUER, 256);
   const nowSeconds = Math.floor(Date.now() / 1000);
@@ -115,8 +158,10 @@ function verifySignedAttestation(env, request) {
   const claims = parsed.claims;
   const issuedAt = Number(claims.iat);
   const expiresAt = Number(claims.exp);
-  const requestHost = resolveTrustedRequestHost(request, env);
-  if (!publicKeyPem || !canonicalHost || !audience || !issuer) return { ok: false, code: "attestation_configuration_incomplete" };
+  const requestHost = normalizeCanonicalHost(resolveTrustedRequestHost(request, env));
+  if (!publicKeyPem || !canonicalHosts.valid || canonicalHosts.hosts.length === 0 || !audience || !issuer) {
+    return { ok: false, code: "attestation_configuration_incomplete" };
+  }
   if (!Number.isInteger(issuedAt) || !Number.isInteger(expiresAt)) return { ok: false, code: "attestation_time_claims_invalid" };
   if (issuedAt > nowSeconds + maxSkew || expiresAt <= nowSeconds - maxSkew || expiresAt <= issuedAt || expiresAt - issuedAt > maxTtl) {
     return { ok: false, code: "attestation_expired_or_window_invalid" };
@@ -124,7 +169,8 @@ function verifySignedAttestation(env, request) {
   if (text(claims.iss, 256) !== issuer || text(claims.aud, 256) !== audience) {
     return { ok: false, code: "attestation_issuer_or_audience_invalid" };
   }
-  if (text(claims.host, 256).toLowerCase() !== canonicalHost || requestHost !== canonicalHost) {
+  const claimHost = normalizeCanonicalHost(claims.host);
+  if (!requestHost || !canonicalHosts.hosts.includes(requestHost) || claimHost !== requestHost) {
     return { ok: false, code: "attestation_host_invalid" };
   }
   const expectedSha = text(env?.REMOTE_MCP_EXPECTED_DEPLOYMENT_SHA || env?.GIT_COMMIT_FULL, 64).toLowerCase();
@@ -148,7 +194,8 @@ function verifySignedAttestation(env, request) {
     code: null,
     claims,
     key_id: text(claims.key_id, 128),
-    canonical_host: canonicalHost,
+    canonical_host: requestHost,
+    canonical_hosts: canonicalHosts.hosts,
     audience,
     expires_at: expiresAt,
     replay_protection: "bounded_ttl_only",
@@ -156,8 +203,6 @@ function verifySignedAttestation(env, request) {
   };
 }
 
-// Recovery is stricter than legacy OAuth metadata: host assertions and legacy
-// mode never confer provenance. The durable claim is consumed after ALL bindings.
 export async function verifyRecoveryGatewayIngress({ env = process.env, request, policy, replayStore } = {}) {
   const runtime = resolveRuntimeEnvironmentStrict(env);
   if (!runtime.ok || runtime.environment_key !== "staging") return { ok: false, code: "ingress_runtime_invalid" };
@@ -221,6 +266,7 @@ export function assertTrustedIngressReadyForProduction(env = process.env, reques
         verified: attestation.ok === true,
         failure_code: attestation.ok ? null : attestation.code,
         key_id: attestation.key_id || null,
+        canonical_host: attestation.canonical_host || null,
         expires_at: attestation.expires_at || null,
         replay_protection: "bounded_ttl_only",
         secrets_included: false,
