@@ -167,9 +167,9 @@ function gatewayPolicyIdentity(certificationReport, profile) {
 
 function acknowledgementMatches(plan, acknowledgement) {
   if (!acknowledgement || typeof acknowledgement !== "object") return false;
-  const supportedContract = acknowledgement.contract === "mad4b.environment-convergence-operator-acknowledgement.v1"
+  const contractAccepted = acknowledgement.contract === "mad4b.environment-convergence-operator-acknowledgement.v1"
     || acknowledgement.contract === "mad4b.environment-convergence-approval.v1";
-  return supportedContract
+  return contractAccepted
     && compact(acknowledgement.plan_sha256).toLowerCase() === plan.plan_sha256
     && normalizeEnvironment(acknowledgement.environment) === plan.environment
     && compact(acknowledgement.commit_sha).toLowerCase() === plan.release_spec.commit_sha;
