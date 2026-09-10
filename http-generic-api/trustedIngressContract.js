@@ -6,7 +6,9 @@ import { resolveRuntimeEnvironment, resolveRuntimeEnvironmentStrict } from "./ru
 const DEFAULT_ATTESTATION_HEADER = "x-mad4b-ingress-attestation";
 const DEFAULT_MAX_CLOCK_SKEW_SECONDS = 30;
 const DEFAULT_MAX_ATTESTATION_TTL_SECONDS = 90;
-const MAX_CANONICAL_HOSTS = 16;
+const TRUSTED_INGRESS_SAFETY_BOUNDS = Object.freeze({
+  canonicalHosts: 16,
+});
 
 function flag(value) {
   return ["1", "true", "yes", "on"].includes(String(value || "").trim().toLowerCase());
@@ -41,7 +43,7 @@ function trustedIngressCanonicalHostConfig(env = process.env) {
   const unique = [...new Set(nonEmpty)];
   const legacyNormalized = normalizeCanonicalHost(legacy);
   const valid = rawEntries.length > 0
-    && rawEntries.length <= MAX_CANONICAL_HOSTS
+    && rawEntries.length <= TRUSTED_INGRESS_SAFETY_BOUNDS.canonicalHosts
     && rawEntries.every((item) => Boolean(item))
     && normalized.every(Boolean)
     && unique.length === normalized.length
