@@ -85,273 +85,52 @@
     }
   },
   "change_model": {
-    "supported_git_statuses": [
-      "A",
-      "M",
-      "D",
-      "R",
-      "C",
-      "T"
-    ],
+    "supported_git_statuses": ["A", "M", "D", "R", "C", "T"],
     "rename_and_copy_source_must_be_classified": true,
     "rename_and_copy_target_must_be_classified": true,
     "added_path_newness_must_come_from_git": true,
     "filename_age_heuristics_forbidden": true
   },
-  "executable_extensions": [
-    ".js",
-    ".mjs",
-    ".cjs",
-    ".ts",
-    ".tsx",
-    ".py",
-    ".sh",
-    ".ps1",
-    ".sql"
-  ],
+  "executable_extensions": [".js", ".mjs", ".cjs", ".ts", ".tsx", ".py", ".sh", ".ps1", ".sql"],
   "semantic_executable_classes": [
-    {
-      "id": "github_workflow",
-      "patterns": [
-        ".github/workflows/*.yml",
-        ".github/workflows/*.yaml"
-      ]
-    },
-    {
-      "id": "github_governance_test",
-      "patterns": [
-        ".github/tests/**/*.mjs",
-        ".github/tests/**/*.js"
-      ]
-    },
-    {
-      "id": "github_governance_operation",
-      "patterns": [
-        ".github/ops/**/*.mjs",
-        ".github/ops/**/*.js",
-        ".github/scripts/**/*.mjs",
-        ".github/scripts/**/*.js"
-      ]
-    },
-    {
-      "id": "production_promotion_governance",
-      "patterns": [
-        ".github/scripts/production-promotion-*.mjs",
-        ".github/tests/production-promotion-*.test.mjs"
-      ]
-    },
-    {
-      "id": "production_release_cut_reconciliation",
-      "patterns": [
-        ".github/scripts/production-release-cut-reconciliation.mjs",
-        ".github/tests/production-release-cut-reconciliation*.mjs"
-      ]
-    },
-    {
-      "id": "repository_governance",
-      "patterns": [
-        "scripts/repository-governance-*.mjs",
-        "scripts/derived-state-closure.mjs",
-        "scripts/remote-mcp-write-scope-semantic-currentness.mjs"
-      ]
-    },
-    {
-      "id": "repository_automation",
-      "patterns": [
-        "scripts/*.mjs",
-        "tools/**/*.mjs",
-        "tools/**/*.js",
-        "specs/015-tenant-operating-system-studio/tools/validate-spec.mjs"
-      ]
-    },
-    {
-      "id": "api_route",
-      "patterns": [
-        "http-generic-api/routes/**/*.js"
-      ]
-    },
-    {
-      "id": "database_migration",
-      "patterns": [
-        "http-generic-api/migrations/**/*.sql",
-        "migrations/**/*.sql"
-      ]
-    },
-    {
-      "id": "api_runtime",
-      "patterns": [
-        "http-generic-api/*.js",
-        "http-generic-api/*.mjs",
-        "http-generic-api/services/**/*.js",
-        "http-generic-api/scripts/**/*.mjs",
-        "http-generic-api/wordpress/**/*.js",
-        "edge/activation-gateway/src/*.mjs",
-        "http-generic-api/activation-gateway-runtime/src/*.mjs"
-      ]
-    },
-    {
-      "id": "edge_worker_runtime",
-      "patterns": [
-        "edge/**/*.mjs",
-        "edge/**/*.js",
-        "http-generic-api/activation-gateway-runtime/**/*.mjs",
-        "http-generic-api/activation-gateway-runtime/**/*.js"
-      ]
-    },
-    {
-      "id": "typescript_runtime",
-      "patterns": [
-        "src/**/*.ts",
-        "src/**/*.tsx",
-        "edge/**/*.ts",
-        "edge/**/*.tsx"
-      ]
-    },
-    {
-      "id": "portable_staging_runtime",
-      "patterns": [
-        "autopilot-portable-staging/**/*.js",
-        "autopilot-portable-staging/**/*.mjs",
-        "autopilot-portable-staging/**/*.sh",
-        "autopilot-portable-staging/**/*.ps1"
-      ]
-    },
-    {
-      "id": "local_connector_runtime",
-      "patterns": [
-        "local-connector/**/*.js",
-        "local-connector/**/*.mjs",
-        "local-connector/**/*.sh",
-        "local-connector/**/*.ps1"
-      ]
-    },
-    {
-      "id": "staging_schema_bootstrap",
-      "patterns": [
-        "http-generic-api/schema.sql",
-        "http-generic-api/scripts/build-staging-schema-bundle.mjs",
-        "http-generic-api/test-staging-schema-bundle-builder.mjs"
-      ]
-    }
+    {"id":"github_workflow","patterns":[".github/workflows/*.yml",".github/workflows/*.yaml"]},
+    {"id":"github_governance_test","patterns":[".github/tests/**/*.mjs",".github/tests/**/*.js"]},
+    {"id":"github_governance_operation","patterns":[".github/ops/**/*.mjs",".github/ops/**/*.js",".github/scripts/**/*.mjs",".github/scripts/**/*.js"]},
+    {"id":"production_promotion_governance","patterns":[".github/scripts/production-promotion-*.mjs",".github/tests/production-promotion-*.test.mjs"]},
+    {"id":"production_release_cut_reconciliation","patterns":[".github/scripts/production-release-cut-reconciliation.mjs",".github/tests/production-release-cut-reconciliation*.mjs"]},
+    {"id":"repository_governance","patterns":["scripts/repository-governance-*.mjs","scripts/derived-state-closure.mjs","scripts/remote-mcp-write-scope-semantic-currentness.mjs"]},
+    {"id":"repository_automation","patterns":["scripts/*.mjs","tools/**/*.mjs","tools/**/*.js","specs/015-tenant-operating-system-studio/tools/validate-spec.mjs"]},
+    {"id":"api_route","patterns":["http-generic-api/routes/**/*.js"]},
+    {"id":"database_migration","patterns":["http-generic-api/migrations/**/*.sql","migrations/**/*.sql"]},
+    {"id":"api_runtime","patterns":["http-generic-api/*.js","http-generic-api/*.mjs","http-generic-api/services/**/*.js","http-generic-api/scripts/**/*.mjs","http-generic-api/wordpress/**/*.js","edge/activation-gateway/src/*.mjs","http-generic-api/activation-gateway-runtime/src/*.mjs"]},
+    {"id":"edge_worker_runtime","patterns":["edge/**/*.mjs","edge/**/*.js","http-generic-api/activation-gateway-runtime/**/*.mjs","http-generic-api/activation-gateway-runtime/**/*.js"]},
+    {"id":"typescript_runtime","patterns":["src/**/*.ts","src/**/*.tsx","edge/**/*.ts","edge/**/*.tsx"]},
+    {"id":"portable_staging_runtime","patterns":["autopilot-portable-staging/**/*.js","autopilot-portable-staging/**/*.mjs","autopilot-portable-staging/**/*.sh","autopilot-portable-staging/**/*.ps1"]},
+    {"id":"local_connector_runtime","patterns":["local-connector/**/*.js","local-connector/**/*.mjs","local-connector/**/*.sh","local-connector/**/*.ps1"]},
+    {"id":"staging_schema_bootstrap","patterns":["http-generic-api/schema.sql","http-generic-api/scripts/build-staging-schema-bundle.mjs","http-generic-api/test-staging-schema-bundle-builder.mjs"]}
   ],
   "surface_classes": [
-    {
-      "id": "governance_control_plane",
-      "risk": "critical",
-      "patterns": [
-        ".github/**",
-        ".specify/**",
-        "docs/governance/**",
-        ".changes/e2e/**",
-        "canonicals/openapi/**"
-      ]
-    },
-    {
-      "id": "repository_governance_runtime",
-      "risk": "critical",
-      "patterns": [
-        "scripts/repository-governance-*.mjs",
-        "scripts/derived-state-closure.mjs",
-        "scripts/remote-mcp-write-scope-semantic-currentness.mjs",
-        "http-generic-api/config/repository-governance-*.json",
-        "http-generic-api/githubRepositoryPolicyController.js",
-        "http-generic-api/githubRepositoryGovernanceAttestation.js",
-        "http-generic-api/test-github-repository-policy-controller.mjs",
-        "http-generic-api/test-github-repository-governance-attestation.mjs",
-        "http-generic-api/scripts/e2e-phase-governance-*.mjs"
-      ]
-    },
-    {
-      "id": "application_runtime",
-      "risk": "high",
-      "patterns": [
-        "http-generic-api/**",
-        "src/**",
-        "edge/**",
-        "wordpress/**",
-        "apps/local-manager-windows/**"
-      ]
-    },
-    {
-      "id": "repository_automation",
-      "risk": "high",
-      "patterns": [
-        "scripts/**",
-        "tools/**"
-      ]
-    },
-    {
-      "id": "portable_staging",
-      "risk": "high",
-      "patterns": [
-        "autopilot-portable-staging/**"
-      ]
-    },
-    {
-      "id": "local_connector",
-      "risk": "high",
-      "patterns": [
-        "local-connector/**"
-      ]
-    },
-    {
-      "id": "specification_contract",
-      "risk": "medium",
-      "patterns": [
-        "specs/**"
-      ]
-    },
-    {
-      "id": "documentation_evidence",
-      "risk": "low",
-      "patterns": [
-        "docs/**",
-        "README.md",
-        "STAGING-DEEP-AUDIT-2026-08-15.md",
-        "STAGING-WINDOWS.md",
-        "SECURITY.md",
-        "CONTRIBUTING.md",
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md"
-      ]
-    },
-    {
-      "id": "repository_toolchain",
-      "risk": "high",
-      "patterns": [
-        "package.json",
-        "package-lock.json",
-        "npm-shrinkwrap.json",
-        "tsconfig.json",
-        "tsconfig.*.json",
-        ".nvmrc",
-        ".node-version",
-        ".editorconfig",
-        ".gitignore",
-        ".gitattributes",
-        ".dockerignore"
-      ]
-    }
+    {"id":"governance_control_plane","risk":"critical","patterns":[".github/**",".specify/**","docs/governance/**",".changes/e2e/**","canonicals/openapi/**"]},
+    {"id":"repository_governance_runtime","risk":"critical","patterns":["scripts/repository-governance-*.mjs","scripts/derived-state-closure.mjs","scripts/remote-mcp-write-scope-semantic-currentness.mjs","http-generic-api/config/repository-governance-*.json","http-generic-api/githubRepositoryPolicyController.js","http-generic-api/githubRepositoryGovernanceAttestation.js","http-generic-api/test-github-repository-policy-controller.mjs","http-generic-api/test-github-repository-governance-attestation.mjs","http-generic-api/scripts/e2e-phase-governance-*.mjs"]},
+    {"id":"application_runtime","risk":"high","patterns":["http-generic-api/**","src/**","edge/**","wordpress/**","apps/local-manager-windows/**"]},
+    {"id":"repository_automation","risk":"high","patterns":["scripts/**","tools/**"]},
+    {"id":"portable_staging","risk":"high","patterns":["autopilot-portable-staging/**"]},
+    {"id":"local_connector","risk":"high","patterns":["local-connector/**"]},
+    {"id":"specification_contract","risk":"medium","patterns":["specs/**"]},
+    {"id":"documentation_evidence","risk":"low","patterns":["docs/**","README.md","STAGING-DEEP-AUDIT-2026-08-15.md","STAGING-WINDOWS.md","SECURITY.md","CONTRIBUTING.md","Updating Registry Patch Index.md","deployment_parity_checklist.md"]},
+    {"id":"repository_toolchain","risk":"high","patterns":["package.json","package-lock.json","npm-shrinkwrap.json","tsconfig.json","tsconfig.*.json",".nvmrc",".node-version",".editorconfig",".gitignore",".gitattributes",".dockerignore"]}
   ],
   "objection_control_plane": {
-    "contract": "mad4b.repository-policy-objections.v1",
-    "blocking_severities": [
-      "blocking"
-    ],
-    "manual_merge_severities": [
-      "manual"
-    ],
-    "advisory_severities": [
-      "advisory"
-    ],
-    "activation_severities": [
-      "activation"
-    ],
-    "critical_surface_requires_manual_merge": true,
-    "new_executable_requires_semantic_registration": true,
-    "missing_trusted_evidence_is_blocking": true,
-    "observability_freshness_is_advisory": true,
-    "waiver_requires_digest_and_expiry": true
+    "contract":"mad4b.repository-policy-objections.v1",
+    "blocking_severities":["blocking"],
+    "manual_merge_severities":["manual"],
+    "advisory_severities":["advisory"],
+    "activation_severities":["activation"],
+    "critical_surface_requires_manual_merge":true,
+    "new_executable_requires_semantic_registration":true,
+    "missing_trusted_evidence_is_blocking":true,
+    "observability_freshness_is_advisory":true,
+    "waiver_requires_digest_and_expiry":true
   },
   "control_plane_paths": [
     ".github/workflows/e2e-phase-governance.yml",
@@ -360,11 +139,13 @@
     "http-generic-api/recoveryReadinessEvidence.js",
     ".changes/e2e/repository-generated-artifact-queue-readiness.json",
     ".changes/e2e/configuration-drift-guard-20260815.json",
+    ".changes/e2e/github-review-policy-runtime-parity-probe-backoff-20260910.json",
     ".changes/e2e/governed-generated-artifact-refresh-pr-target-bridge.json",
     ".changes/e2e/governed-generated-refresh-apply-context-availability.json",
     ".github/governance/generated-artifact-registry.json",
     ".github/ops/generated-artifact-governance.mjs",
     ".github/ops/github-followup-automerge-readiness.mjs",
+    ".github/ops/lib/github-review-policy-public-probe-preload.mjs",
     ".github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml",
     "docs/governance/configuration-drift-baseline-extensions.json",
     ".changes/e2e/collation-governance-runtime-persistence-wiring.json",
@@ -452,11 +233,6 @@
     ".changes/e2e/staging-inherited-port-publication-reset.json",
     ".changes/e2e/staging-cloudflared-cim-service-reconcile-20260902.json",
     ".changes/e2e/staging-mcp-hostname-rfc-compliance-20260902.json",
-    ".changes/e2e/staging-activation-schema-runtime-grants-reconciliation-20260902.json",
-    ".changes/e2e/pr7859-recovery-breakglass-workflow-contract.json",
-    ".changes/e2e/production-recovery-certified-live-authority-20260902.json",
-    ".changes/e2e/staging-env-authority-canonicalization-20260902.json",
-    ".changes/e2e/connector-environment-isolation-20260903.json",
     ".changes/e2e/staging-activation-recovery-trusted-ingress-provisioning-20260903.json",
     ".changes/e2e/staging-recovery-authority-certification-20260903.json",
     ".changes/e2e/gpt-admin-staging-readiness-remediation-20260906.json",
