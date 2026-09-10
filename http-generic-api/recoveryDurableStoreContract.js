@@ -44,6 +44,7 @@ export function isIndependentRecoveryStoreBoundary(store) {
 export function isDurableInspectionStore(store) {
   return Boolean(
     isIndependentRecoveryStoreBoundary(store)
+      && store?.payload_integrity_verified_on_read === true
       && hasMethods(store, DURABLE_INSPECTION_STORE_METHODS)
   );
 }
@@ -72,9 +73,11 @@ export function isReadOnlyRecoveryStoreReady(readiness) {
 
 export function describeRecoveryStoreQualification(store, { readiness = null } = {}) {
   const boundary = isIndependentRecoveryStoreBoundary(store);
+  const payloadIntegrityVerifiedOnRead = store?.payload_integrity_verified_on_read === true;
   const missingInspectionMethods = DURABLE_INSPECTION_STORE_METHODS.filter((name) => typeof store?.[name] !== "function");
   const missingMutationMethods = MUTATION_GRADE_STORE_METHODS.filter((name) => typeof store?.[name] !== "function");
-  const inspection = boundary && missingInspectionMethods.length === 0;
+  const missingIntegrityGuarantees = payloadIntegrityVerifiedOnRead ? [] : ["payload_integrity_verified_on_read"];
+  const inspection = boundary && payloadIntegrityVerifiedOnRead && missingInspectionMethods.length === 0;
   const mutation = inspection
     && missingMutationMethods.length === 0
     && (typeof store?.finalizeApproval === "function" || typeof store?.markApprovalUsed === "function")
@@ -85,6 +88,8 @@ export function describeRecoveryStoreQualification(store, { readiness = null } =
     durable_inspection_store: inspection,
     mutation_grade_recovery_store: mutation,
     read_only_readiness_verified: isReadOnlyRecoveryStoreReady(readiness),
+    payload_integrity_verified_on_read: payloadIntegrityVerifiedOnRead,
+    missing_integrity_guarantees: missingIntegrityGuarantees,
     missing_inspection_methods: missingInspectionMethods,
     missing_mutation_methods: missingMutationMethods,
     provider_accessed: store?.provider_accessed ?? null,
