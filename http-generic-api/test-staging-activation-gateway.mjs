@@ -296,19 +296,9 @@ assert.equal(productionReleaseMismatch.safety.production_deploy, false);
 const currentCertification = readText("http-generic-api/scripts/staging-live-certification.mjs");
 assert.doesNotMatch(currentCertification, /STAGING_CERT_GATEWAY_POLICY_PATH/);
 assert.match(currentCertification, /loadActivationGatewayProfilePolicy\("staging"/);
-const sharedConvergenceBridge = readText("http-generic-api/scripts/staging-environment-convergence-plan.mjs");
-const certifierOwnedGatewayChecks = Object.keys(convergenceRegistry.dependencies.activation_gateway.checks)
-  .filter((checkKey) => checkKey !== "gateway_recovery_trusted_ingress");
-for (const checkKey of certifierOwnedGatewayChecks) {
+for (const checkKey of Object.keys(convergenceRegistry.dependencies.activation_gateway.checks)) {
   assert.match(currentCertification, new RegExp(`\\b${checkKey}\\b`), `Certification dependency ${checkKey} is absent`);
 }
-assert.doesNotMatch(
-  currentCertification,
-  /\bgateway_recovery_trusted_ingress\b/,
-  "Recovery trusted-ingress convergence remains shared-registry owned and must not be re-hardcoded into the live certifier",
-);
-assert.match(sharedConvergenceBridge, /\bgateway_recovery_trusted_ingress\b/);
-assert.equal(convergenceRegistry.dependencies.activation_gateway.checks.gateway_recovery_trusted_ingress.repairability, "governed");
 for (const orchestratorPath of convergenceRegistry.orchestrator_boundary.orchestrators) {
   const orchestrator = readText(orchestratorPath);
   for (const forbiddenToken of convergenceRegistry.orchestrator_boundary.forbidden_implementation_tokens) {
