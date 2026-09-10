@@ -26,6 +26,9 @@ function makeCompleteAdapters({ independentStore = true, serverApprovalResolver 
   recoveryStore.recovery_store_contract = "mad4b.recovery-durable-store.v1";
   recoveryStore.independent_of_target_databases = independentStore;
   recoveryStore.target_database_binding = independentStore ? "forbidden" : "runtime_persistence";
+  recoveryStore.provider_accessed = false;
+  recoveryStore.shared_replica_safe = true;
+  recoveryStore.schema_auto_apply = false;
   const approvalStore = { putChallenge: asyncMethod(true), getChallenge: asyncMethod(null) };
   if (serverApprovalResolver) approvalStore.resolveApprovedExecutionApproval = asyncMethod({ approval_token: "server-internal-test-token" });
   return {
@@ -178,7 +181,7 @@ test("Production candidate without explicit live authorization remains fail-clos
   assert.equal(composition.productionRecoveryCompositionFactory.live_authorization.problems.includes("live_authorization_missing"), true);
 });
 
-test("fail-closed mutation composition preserves only certified read-only durable evidence store", () => {
+test("fail-closed mutation composition preserves only a durable evidence-store projection", () => {
   const adapters = makeCompleteAdapters();
   const composition = createProductionRecoveryComposition({
     mode: "injected_non_live",
@@ -186,13 +189,26 @@ test("fail-closed mutation composition preserves only certified read-only durabl
     serverManagedBindingProvider: () => liveEnvelope({ adapters, authorization: null }),
   });
   const routeDeps = getRecoveryCompositionRouteDependencies(composition);
+  const evidenceStore = composition.readOnlyDependencies.recoveryStore;
   assert.equal(composition.mode, "fail_closed");
   assert.equal(composition.mutation_authority_available, false);
   assert.equal(composition.kernelDependencies.recoveryStore, null);
   assert.equal(composition.components.recoveryStore, null);
-  assert.equal(composition.readOnlyDependencies.recoveryStore, adapters.recoveryStore);
-  assert.equal(routeDeps.recoveryStore, adapters.recoveryStore);
-  assert.equal(routeDeps.readOnlyRecoveryStore, adapters.recoveryStore);
+  assert.notEqual(evidenceStore, adapters.recoveryStore);
+  assert.equal(evidenceStore.recovery_store_contract, "mad4b.recovery-durable-store.v1");
+  assert.equal(evidenceStore.independent_of_target_databases, true);
+  assert.equal(evidenceStore.target_database_binding, "forbidden");
+  assert.equal(evidenceStore.provider_accessed, false);
+  assert.equal(evidenceStore.evidence_authority_only, true);
+  assert.equal(evidenceStore.mutation_authority, false);
+  for (const method of ["putRun", "getRun", "putPlan", "getPlan", "putFinding", "getFinding", "getRunByIdempotency", "appendEvidenceEvent", "putIdempotencyReceipt"]) {
+    assert.equal(typeof evidenceStore[method], "function", `${method} remains available for durable evidence`);
+  }
+  for (const method of ["putApproval", "getApprovalByPlanStep", "claimExecution", "reserveApproval", "getExecutionTicket", "putExecutionTicket", "reserveExecutionTicket", "releaseExecutionTicket", "finalizeExecutionTicket", "releaseExecutionClaim", "releaseApprovalReservation"]) {
+    assert.equal(evidenceStore[method], undefined, `${method} is not exposed through read-only evidence authority`);
+  }
+  assert.equal(routeDeps.recoveryStore, evidenceStore);
+  assert.equal(routeDeps.readOnlyRecoveryStore, evidenceStore);
   assert.equal(routeDeps.mutationRecoveryStore, null);
   assert.equal(composition.productionRecoveryCompositionFactory.read_only_recovery_store_available, true);
 });
@@ -208,6 +224,7 @@ test("coupled stores are not preserved as read-only evidence authority", () => {
   assert.equal(composition.mode, "fail_closed");
   assert.equal(composition.readOnlyDependencies.recoveryStore, null);
   assert.equal(routeDeps.readOnlyRecoveryStore, null);
+  assert.equal(routeDeps.mutationRecoveryStore, null);
   assert.equal(composition.productionRecoveryCompositionFactory.read_only_recovery_store_available, false);
 });
 
@@ -297,6 +314,7 @@ console.log(JSON.stringify({
   default_live_activation: false,
   certified_server_managed_activation_supported: true,
   read_only_evidence_survives_mutation_fail_closed: true,
+  read_only_evidence_excludes_mutation_methods: true,
   provider_accessed: false,
   database_mutation_performed: false,
   secrets_included: false,
