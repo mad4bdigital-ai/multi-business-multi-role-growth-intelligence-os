@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { _testingRecoveryComposition } from "./recoveryComposition.js";
+import { _testingRecoveryComposition, getRecoveryCompositionRouteDependencies } from "./recoveryComposition.js";
 import {
   PRODUCTION_RECOVERY_COMPOSITION_FACTORY_CONTRACT,
   PRODUCTION_RECOVERY_LIVE_AUTHORIZATION_CONTRACT,
@@ -178,6 +178,38 @@ test("Production candidate without explicit live authorization remains fail-clos
   assert.equal(composition.productionRecoveryCompositionFactory.live_authorization.problems.includes("live_authorization_missing"), true);
 });
 
+test("fail-closed mutation composition preserves only certified read-only durable evidence store", () => {
+  const adapters = makeCompleteAdapters();
+  const composition = createProductionRecoveryComposition({
+    mode: "injected_non_live",
+    source: "test_fail_closed_read_only_store",
+    serverManagedBindingProvider: () => liveEnvelope({ adapters, authorization: null }),
+  });
+  const routeDeps = getRecoveryCompositionRouteDependencies(composition);
+  assert.equal(composition.mode, "fail_closed");
+  assert.equal(composition.mutation_authority_available, false);
+  assert.equal(composition.kernelDependencies.recoveryStore, null);
+  assert.equal(composition.components.recoveryStore, null);
+  assert.equal(composition.readOnlyDependencies.recoveryStore, adapters.recoveryStore);
+  assert.equal(routeDeps.recoveryStore, null);
+  assert.equal(routeDeps.readOnlyRecoveryStore, adapters.recoveryStore);
+  assert.equal(composition.productionRecoveryCompositionFactory.read_only_recovery_store_available, true);
+});
+
+test("coupled stores are not preserved as read-only evidence authority", () => {
+  const adapters = makeCompleteAdapters({ independentStore: false });
+  const composition = createProductionRecoveryComposition({
+    mode: "injected_non_live",
+    source: "test_fail_closed_coupled_store",
+    serverManagedBindingProvider: () => liveEnvelope({ adapters, authorization: null }),
+  });
+  const routeDeps = getRecoveryCompositionRouteDependencies(composition);
+  assert.equal(composition.mode, "fail_closed");
+  assert.equal(composition.readOnlyDependencies.recoveryStore, null);
+  assert.equal(routeDeps.readOnlyRecoveryStore, null);
+  assert.equal(composition.productionRecoveryCompositionFactory.read_only_recovery_store_available, false);
+});
+
 test("certified Production candidate activates only with independent bootstrap evidence and server-side approval resolution", () => {
   const composition = createProductionRecoveryComposition({
     mode: "injected_non_live",
@@ -260,9 +292,10 @@ test("server composition root uses the factory without caller or credential disc
 console.log(JSON.stringify({
   ok: true,
   contract: PRODUCTION_RECOVERY_COMPOSITION_FACTORY_CONTRACT,
-  cases: 12,
+  cases: 14,
   default_live_activation: false,
   certified_server_managed_activation_supported: true,
+  read_only_evidence_survives_mutation_fail_closed: true,
   provider_accessed: false,
   database_mutation_performed: false,
   secrets_included: false,
