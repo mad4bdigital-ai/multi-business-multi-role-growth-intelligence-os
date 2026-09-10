@@ -18,14 +18,9 @@ const DURABLE_INSPECTION_SCHEMA = Object.freeze({
     "idempotency_key",
     "run_id",
     "created_at",
-    "updated_at",
   ]),
   recovery_control_idempotency_receipts: Object.freeze([
     "idempotency_key",
-    "run_id",
-    "plan_id",
-    "step_id",
-    "status",
     "payload_json",
     "payload_sha256",
     "created_at",
@@ -50,11 +45,10 @@ const DURABLE_INSPECTION_INDEXES = Object.freeze({
   ]),
   recovery_control_idempotency_receipts: Object.freeze([
     Object.freeze({ columns: "idempotency_key", unique: true }),
-    Object.freeze({ columns: "run_id", unique: false }),
   ]),
   recovery_control_evidence_events: Object.freeze([
     Object.freeze({ columns: "event_id", unique: true }),
-    Object.freeze({ columns: "run_id", unique: false }),
+    Object.freeze({ columns: "run_id,created_at", unique: false }),
   ]),
 });
 
