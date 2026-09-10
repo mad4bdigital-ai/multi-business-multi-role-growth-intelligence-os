@@ -2,15 +2,15 @@ import { promises as fs } from 'node:fs';
 
 const PHASE = String(process.env.ROLLOUT_PHASE || '').trim();
 const DIR = String(process.env.EVIDENCE_DIR || `${process.env.RUNNER_TEMP || '/tmp'}/github-repository-policy-1050`).trim();
-const BASE = String(process.env.RUNTIME_BASE_URL || 'https://auth.mad4b.com').replace(/\/+$/, '');
-const KEY = String(process.env.BACKEND_API_KEY || '').trim();
-const GH = String(process.env.GH_READ_TOKEN || '').trim();
-const REPO = String(process.env.REPOSITORY || 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os').trim();
 const originalFetch = globalThis.fetch;
 const ROLE_ORDER = Object.freeze(['runtime', 'governance', 'runtime_persistence']);
 const OBJECT_KINDS = Object.freeze(['total', 'tables', 'views', 'triggers', 'routines', 'events']);
 let adminControlFailureCount = 0;
 let foundationInspectionAttempted = false;
+let interceptedRuntimeOrigin = null;
+let interceptedBackendAuthorization = null;
+let interceptedGithubAuthorization = null;
+let interceptedGithubRepository = null;
 
 function safeCode(value) {
   const code = String(value || '').trim();
@@ -26,6 +26,44 @@ function requestUrl(input) {
   if (typeof input === 'string') return input;
   if (input instanceof URL) return input.toString();
   return typeof input?.url === 'string' ? input.url : '';
+}
+
+function requestHeader(input, init, headerName) {
+  const wanted = String(headerName || '').toLowerCase();
+  const fromHeaders = (headers) => {
+    if (!headers) return null;
+    if (typeof headers.get === 'function') return headers.get(headerName);
+    if (Array.isArray(headers)) {
+      const pair = headers.find(([name]) => String(name || '').toLowerCase() === wanted);
+      return pair ? String(pair[1] ?? '') : null;
+    }
+    if (typeof headers === 'object') {
+      const key = Object.keys(headers).find((name) => String(name).toLowerCase() === wanted);
+      return key ? String(headers[key] ?? '') : null;
+    }
+    return null;
+  };
+  return fromHeaders(init?.headers) || fromHeaders(input?.headers) || null;
+}
+
+function captureRequestContext(input, init) {
+  const rawUrl = requestUrl(input);
+  let url;
+  try { url = new URL(rawUrl); } catch { return; }
+  const authorization = requestHeader(input, init, 'Authorization');
+
+  if (url.hostname === 'api.github.com') {
+    const match = url.pathname.match(/^\/repos\/([^/]+)\/([^/]+)(?:\/|$)/);
+    if (match) {
+      interceptedGithubRepository = `${decodeURIComponent(match[1])}/${decodeURIComponent(match[2])}`;
+      if (authorization) interceptedGithubAuthorization = authorization;
+    }
+  }
+
+  if (/\/admin\/control(?:$|[?#])/.test(rawUrl)) {
+    interceptedRuntimeOrigin = url.origin;
+    if (authorization) interceptedBackendAuthorization = authorization;
+  }
 }
 
 function containsText(value, needle, seen = new Set()) {
@@ -112,15 +150,15 @@ async function writeBoundedJson(name, value) {
 }
 
 async function readProductionHead() {
-  if (!GH) {
-    const error = new Error('GitHub read token unavailable');
-    error.code = 'foundation_inspection_github_token_unavailable';
+  if (!interceptedGithubAuthorization || !interceptedGithubRepository) {
+    const error = new Error('Prior governed GitHub read authority was not observed');
+    error.code = 'foundation_inspection_github_read_context_unavailable';
     throw error;
   }
-  const response = await originalFetch(`https://api.github.com/repos/${REPO}/git/ref/heads/Production`, {
+  const response = await originalFetch(`https://api.github.com/repos/${interceptedGithubRepository}/git/ref/heads/Production`, {
     headers: {
       Accept: 'application/vnd.github+json',
-      Authorization: `Bearer ${GH}`,
+      Authorization: interceptedGithubAuthorization,
       'X-GitHub-Api-Version': '2022-11-28',
     },
     redirect: 'error',
@@ -177,18 +215,18 @@ async function runGovernanceFoundationInspection() {
   };
 
   try {
-    if (!KEY) {
-      const error = new Error('Backend service key unavailable');
-      error.code = 'foundation_inspection_backend_key_unavailable';
+    if (!interceptedRuntimeOrigin || !interceptedBackendAuthorization) {
+      const error = new Error('Prior governed runtime authority was not observed');
+      error.code = 'foundation_inspection_runtime_context_unavailable';
       throw error;
     }
     const productionSha = await readProductionHead();
     report.production_sha = productionSha;
-    const response = await originalFetch(`${BASE}/admin/runtime-bootstrap/runs`, {
+    const response = await originalFetch(`${interceptedRuntimeOrigin}/admin/runtime-bootstrap/runs`, {
       method: 'POST',
       redirect: 'error',
       headers: {
-        Authorization: `Bearer ${KEY}`,
+        Authorization: interceptedBackendAuthorization,
         Accept: 'application/json',
         'Content-Type': 'application/json',
       },
@@ -244,6 +282,9 @@ async function runGovernanceFoundationInspection() {
     }
   } catch (error) {
     report.response_error_code = safeCode(error?.code) || 'foundation_inspection_failed';
+  } finally {
+    interceptedBackendAuthorization = null;
+    interceptedGithubAuthorization = null;
   }
 
   await writeBoundedJson('governance-foundation-inspection.json', report);
@@ -287,6 +328,7 @@ async function recordAdminControlFailure(response) {
 }
 
 globalThis.fetch = async (input, init) => {
+  captureRequestContext(input, init);
   const response = await originalFetch(input, init);
   const url = requestUrl(input);
   if (PHASE === 'readiness' && /\/admin\/control(?:$|[?#])/.test(url) && !response.ok) {
