@@ -20,7 +20,8 @@
     "identity": [
       "repository",
       "source_branch",
-      "commit_sha"
+      "commit_sha",
+      "activation_gateway_policy_hash"
     ],
     "ready_requires_all_required_components_same_release_identity": true,
     "credentials_allowed": false,
@@ -37,9 +38,15 @@
         "profile_key": "activation_gateway_staging",
         "policy_key": "activation_gateway_staging",
         "policy_path": "edge/activation-gateway/generated/route-policy.staging.json",
+        "packaged_policy_path": "/app/staging-route-policy.json",
+        "expected_policy_hash": "c6468e051b8456d4d3ffc6478cdb98f7048b69c8ca6742f4dca27e1eb4023f32",
         "public_host": "activation-dev.mad4b.com",
         "current_authority_adapter": "staging_activation_worker_workflow",
-        "target_authority_model": "server_governed"
+        "target_authority_model": "server_governed",
+        "plan_capability": "environment_convergence_plan",
+        "apply_capability": null,
+        "governed_apply_ready": false,
+        "apply_block_reason": "server_governed_staging_activation_worker_adapter_required"
       }
     },
     "production": {
@@ -53,9 +60,15 @@
         "profile_key": "activation_gateway",
         "policy_key": "activation_gateway",
         "policy_path": "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
+        "packaged_policy_path": "/app/activation-gateway-runtime/generated/route-policy.json",
+        "expected_policy_hash": "585b2e07b71832b7a200971d66329326d79640a23f83a29c535100d7abaa64cd",
         "public_host": "activation.mad4b.com",
         "current_authority_adapter": "activation_gateway_dark_deploy",
-        "target_authority_model": "server_governed"
+        "target_authority_model": "server_governed",
+        "plan_capability": "activation_gateway_rollout_plan",
+        "apply_capability": "activation_gateway_dark_deploy",
+        "governed_apply_ready": true,
+        "apply_block_reason": null
       }
     }
   },
@@ -152,6 +165,8 @@
     "environment_profiles_select_policy_and_authority_but_do_not_implement_provider_mutation",
     "every_external_certification_dependency_declares_remediation_or_manual_nonrepairability",
     "activation_gateway_policy_identity_is_explicit_per_environment",
+    "gateway_policy_hash_is_release_and_plan_identity",
+    "staging_gateway_apply_requires_server_governed_adapter_before_execution",
     "gateway_exact_commit_is_convergence_drift_not_integrity_corruption",
     "release_ready_requires_exact_release_identity_across_required_components"
   ],
