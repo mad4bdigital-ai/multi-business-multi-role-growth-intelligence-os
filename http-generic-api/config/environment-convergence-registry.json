@@ -17,6 +17,7 @@
   },
   "release_spec": {
     "contract": "mad4b.environment-release-spec.v1",
+    "canonical_repository": "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
     "identity": [
       "repository",
       "source_branch",
@@ -47,7 +48,22 @@
         "plan_capability": "environment_convergence_plan",
         "apply_capability": null,
         "governed_apply_ready": false,
-        "apply_block_reason": "server_governed_staging_activation_worker_adapter_required"
+        "apply_block_reason": "server_governed_staging_activation_worker_adapter_required",
+        "execution_target": {
+          "contract": "mad4b.environment-convergence-execution-target.v1",
+          "component": "activation_gateway",
+          "target_key": "activation_gateway_staging",
+          "bundle_binding": {
+            "bundle_key": "activation_gateway_staging_worker",
+            "entrypoint": "edge/activation-gateway/src/worker-staging.mjs",
+            "policy_path": "edge/activation-gateway/generated/route-policy.staging.json"
+          },
+          "resource_binding": {
+            "resource_type": "cloudflare_worker",
+            "resource_binding_id": null
+          },
+          "runtime_surface": null
+        }
       }
     },
     "production": {
@@ -70,7 +86,22 @@
         "plan_capability": "activation_gateway_rollout_plan",
         "apply_capability": "activation_gateway_dark_deploy",
         "governed_apply_ready": true,
-        "apply_block_reason": null
+        "apply_block_reason": null,
+        "execution_target": {
+          "contract": "mad4b.environment-convergence-execution-target.v1",
+          "component": "activation_gateway",
+          "target_key": "activation_gateway_production",
+          "bundle_binding": {
+            "bundle_key": "activation_gateway_runtime",
+            "entrypoint": "http-generic-api/activation-gateway-runtime/src/worker.mjs",
+            "policy_path": "http-generic-api/activation-gateway-runtime/generated/route-policy.json"
+          },
+          "resource_binding": {
+            "resource_type": "cloudflare_worker",
+            "resource_binding_id": "8be421f5-49d3-4bda-a0f6-3cf8a04ee227"
+          },
+          "runtime_surface": "activation_gateway_dark_deploy"
+        }
       }
     }
   },
@@ -180,6 +211,10 @@
     "every_external_certification_dependency_declares_remediation_or_manual_nonrepairability",
     "activation_gateway_policy_identity_is_explicit_per_environment",
     "gateway_policy_hash_is_release_and_plan_identity",
+    "release_repository_is_canonical_and_exact",
+    "execution_target_is_server_resolved_from_environment_profile",
+    "operator_acknowledgement_is_not_execution_authority",
+    "live_gateway_probe_target_is_profile_owned_except_synthetic_loopback_fixture",
     "staging_gateway_apply_requires_server_governed_adapter_before_execution",
     "staging_orchestration_must_not_dispatch_provider_workflows_directly",
     "gateway_exact_commit_is_convergence_drift_not_integrity_corruption",

@@ -131,6 +131,10 @@ assert.equal(stagingConvergenceProfile.activation_gateway.governed_apply_ready, 
 assert.equal(stagingConvergenceProfile.activation_gateway.apply_capability, null);
 assert.equal(productionConvergenceProfile.activation_gateway.governed_apply_ready, true);
 assert.equal(productionConvergenceProfile.activation_gateway.apply_capability, "activation_gateway_dark_deploy");
+assert.equal(
+  convergenceRegistry.release_spec.canonical_repository,
+  "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+);
 
 const stagingGatewayPolicy = readJson(stagingConvergenceProfile.activation_gateway.policy_path);
 const productionGatewayPolicy = readJson(productionConvergenceProfile.activation_gateway.policy_path);
@@ -154,7 +158,16 @@ const observedCommit = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 const exactCommitReport = {
   outcome: "blocked",
   expected: { commit_sha: desiredCommit },
-  gateway: { health: { sourceCommit: observedCommit } },
+  gateway: {
+    health: {
+      sourceCommit: observedCommit,
+      policyKey: stagingGatewayPolicy.policy_key,
+      policyHash: stagingGatewayPolicy.content_hash_sha256,
+    },
+    profile_validation: {
+      observed_public_host: stagingGatewayPolicy.public_host,
+    },
+  },
   integrity_checks: [{
     key: "gateway_exact_commit",
     ok: false,
@@ -196,12 +209,21 @@ assert.equal(Object.isFrozen(approvalRequired.plan), true);
 assert.equal(Object.isFrozen(approvalRequired.plan.profile_binding), true);
 assert.equal(approvalRequired.plan.release_spec.commit_sha, desiredCommit);
 assert.equal(approvalRequired.plan.release_spec.activation_gateway_policy_hash, stagingGatewayPolicy.content_hash_sha256);
+assert.equal(approvalRequired.plan.release_spec.canonical_repository_bound, true);
 assert.equal(approvalRequired.plan.profile_binding.policy_key, "activation_gateway_staging");
 assert.equal(approvalRequired.plan.profile_binding.expected_policy_hash, stagingGatewayPolicy.content_hash_sha256);
+assert.equal(approvalRequired.plan.gateway_policy_identity.desired.policy_hash_sha256, stagingGatewayPolicy.content_hash_sha256);
+assert.equal(approvalRequired.plan.gateway_policy_identity.observed.policy_hash_sha256, stagingGatewayPolicy.content_hash_sha256);
+assert.equal(approvalRequired.plan.execution_target.server_resolved, true);
+assert.equal(approvalRequired.plan.execution_target.caller_target_override_allowed, false);
+assert.equal(approvalRequired.plan.execution_target.execution_ready, false);
+assert.equal(approvalRequired.plan.execution_target.resource_binding.resource_binding_id, null);
 assert.equal(approvalRequired.plan.governed_handoff.plan_capability, "environment_convergence_plan");
 assert.equal(approvalRequired.plan.governed_handoff.apply_capability, null);
 assert.equal(approvalRequired.plan.governed_handoff.execution_ready, false);
 assert.equal(approvalRequired.plan.governed_handoff.automatic_apply_allowed, false);
+assert.equal(approvalRequired.operator_acknowledgement.operator_acknowledgement_is_execution_authority, false);
+assert.equal(approvalRequired.approval_checkpoint.canonical_semantics, "operator_acknowledgement");
 assert.equal(approvalRequired.safety.mutation_performed, false);
 assert.equal(approvalRequired.safety.workflow_dispatch, false);
 
@@ -212,6 +234,22 @@ const repeatedPlan = runEnvironmentConvergence({
   registry: convergenceRegistry,
 });
 assert.equal(repeatedPlan.plan.plan_sha256, approvalRequired.plan.plan_sha256, "same inputs must produce the same immutable plan identity");
+
+const changedObservedPolicyReport = structuredClone(exactCommitReport);
+changedObservedPolicyReport.gateway.health.policyHash = "1".repeat(64);
+const changedObservedPolicyPlan = runEnvironmentConvergence({
+  environment: "staging",
+  releaseSpec,
+  certificationReport: changedObservedPolicyReport,
+  registry: convergenceRegistry,
+});
+assert.notEqual(
+  changedObservedPolicyPlan.plan.plan_sha256,
+  approvalRequired.plan.plan_sha256,
+  "observed Gateway policy identity must be bound into plan_sha256",
+);
+assert.equal(changedObservedPolicyPlan.plan.gateway_policy_identity.observed.policy_hash_sha256, "1".repeat(64));
+
 const wrongPolicyRelease = runEnvironmentConvergence({
   environment: "staging",
   releaseSpec: { ...releaseSpec, activation_gateway_policy_hash: "0".repeat(64) },
@@ -220,6 +258,15 @@ const wrongPolicyRelease = runEnvironmentConvergence({
 });
 assert.equal(wrongPolicyRelease.status, "blocked");
 assert.ok(wrongPolicyRelease.errors.includes("release_gateway_policy_hash_profile_mismatch"));
+
+const wrongRepositoryRelease = runEnvironmentConvergence({
+  environment: "staging",
+  releaseSpec: { ...releaseSpec, repository: "mad4bdigital-ai/not-the-platform-repository" },
+  certificationReport: exactCommitReport,
+  registry: convergenceRegistry,
+});
+assert.equal(wrongRepositoryRelease.status, "blocked");
+assert.ok(wrongRepositoryRelease.errors.includes("release_repository_canonical_mismatch"));
 
 const wrongApproval = runEnvironmentConvergence({
   environment: "staging",
@@ -240,8 +287,8 @@ const authorityRequired = runEnvironmentConvergence({
   environment: "staging",
   releaseSpec,
   certificationReport: exactCommitReport,
-  approval: {
-    contract: "mad4b.environment-convergence-approval.v1",
+  operatorAcknowledgement: {
+    contract: "mad4b.environment-convergence-operator-acknowledgement.v1",
     plan_sha256: approvalRequired.plan.plan_sha256,
     environment: "staging",
     commit_sha: desiredCommit,
@@ -250,6 +297,9 @@ const authorityRequired = runEnvironmentConvergence({
 });
 assert.equal(authorityRequired.status, "governed_authority_required");
 assert.equal(authorityRequired.next_stage, null);
+assert.equal(authorityRequired.operator_acknowledgement.status, "acknowledged_for_handoff");
+assert.equal(authorityRequired.operator_acknowledgement.operator_acknowledgement_is_execution_authority, false);
+assert.equal(authorityRequired.approval_checkpoint.transitional_alias, true);
 assert.equal(authorityRequired.governed_handoff.execution_ready, false);
 assert.equal(authorityRequired.governed_handoff.execution_performed, false);
 assert.equal(authorityRequired.governed_handoff.plan_sha256, approvalRequired.plan.plan_sha256);
@@ -291,11 +341,15 @@ assert.equal(productionReleaseMismatch.profile.expected_policy_hash, productionG
 assert.equal(productionReleaseMismatch.plan.profile_binding.public_host, "activation.mad4b.com");
 assert.equal(productionReleaseMismatch.plan.governed_handoff.apply_capability, "activation_gateway_dark_deploy");
 assert.equal(productionReleaseMismatch.plan.governed_handoff.execution_ready, true);
+assert.equal(productionReleaseMismatch.plan.execution_target.server_resolved, true);
+assert.equal(productionReleaseMismatch.plan.execution_target.resource_binding.resource_binding_id, "8be421f5-49d3-4bda-a0f6-3cf8a04ee227");
 assert.equal(productionReleaseMismatch.safety.production_deploy, false);
 
 const currentCertification = readText("http-generic-api/scripts/staging-live-certification.mjs");
 assert.doesNotMatch(currentCertification, /STAGING_CERT_GATEWAY_POLICY_PATH/);
 assert.match(currentCertification, /loadActivationGatewayProfilePolicy\("staging"/);
+assert.match(currentCertification, /STAGING_CERT_SYNTHETIC_LOOPBACK_FIXTURE/);
+assert.match(currentCertification, /gateway_probe_target_profile_bound/);
 for (const checkKey of Object.keys(convergenceRegistry.dependencies.activation_gateway.checks)) {
   assert.match(currentCertification, new RegExp(`\\b${checkKey}\\b`), `Certification dependency ${checkKey} is absent`);
 }
@@ -310,4 +364,13 @@ for (const orchestratorPath of convergenceRegistry.orchestrator_boundary.orchest
   }
 }
 
+console.log(JSON.stringify({
+  canonical_repository_bound: approvalRequired.plan.release_spec.canonical_repository_bound === true,
+  observed_policy_identity_bound_to_plan_hash: changedObservedPolicyPlan.plan.plan_sha256 !== approvalRequired.plan.plan_sha256,
+  execution_target_server_resolved: approvalRequired.plan.execution_target.server_resolved === true,
+  live_gateway_override_fixture_only: currentCertification.includes("STAGING_CERT_SYNTHETIC_LOOPBACK_FIXTURE"),
+  operator_acknowledgement_not_execution_authority: authorityRequired.operator_acknowledgement.operator_acknowledgement_is_execution_authority === false,
+  provider_mutation: authorityRequired.safety.provider_mutation,
+  production_mutation: authorityRequired.safety.production_deploy,
+}));
 console.log("staging_activation_gateway=PASS");

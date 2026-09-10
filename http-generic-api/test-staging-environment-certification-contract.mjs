@@ -29,6 +29,8 @@ assert.match(liveSource, /app_image_digest_exact/);
 assert.match(liveSource, /artifact_set/);
 assert.match(liveSource, /gateway_environment_profile_current/);
 assert.match(liveSource, /gateway_recovery_trusted_ingress/);
+assert.match(liveSource, /gateway_probe_target_profile_bound/);
+assert.match(liveSource, /STAGING_CERT_SYNTHETIC_LOOPBACK_FIXTURE/);
 assert.match(liveSource, /public_key_ed25519/);
 assert.match(liveSource, /classifyEnvironmentCertification/);
 assert.match(liveSource, /loadActivationGatewayProfilePolicy\("staging"/);
@@ -215,6 +217,7 @@ function runLive(extraEnv = {}) {
         STAGING_CERT_APP_BASE_URL: app.baseUrl,
         STAGING_CERT_REQUIRE_GATEWAY: "true",
         STAGING_CERT_GATEWAY_BASE_URL: gateway.baseUrl,
+        STAGING_CERT_SYNTHETIC_LOOPBACK_FIXTURE: "true",
         REMOTE_MCP_TRUST_PROXY_HOST_HEADERS: "true",
         REMOTE_MCP_TRUSTED_INGRESS_MODE: "signature",
         REMOTE_MCP_TRUSTED_INGRESS_STRIP_CALLER_HEADERS: "true",
@@ -264,6 +267,9 @@ try {
   assert.equal(ready.report.gateway.policy_source, "repository_profile");
   assert.equal(ready.report.gateway.policy_path, "edge/activation-gateway/generated/route-policy.staging.json");
   assert.equal(ready.report.gateway.expected_policy_hash, gatewayPolicy.content_hash_sha256);
+  assert.equal(ready.report.gateway.probe_target.source, "synthetic_loopback_fixture");
+  assert.equal(ready.report.gateway.probe_target.synthetic_loopback_fixture, true);
+  assert.equal(ready.report.gateway.probe_target.caller_override_allowed, true);
   assert.equal(ready.report.gateway.recovery_trusted_ingress.ready, true);
   assert.equal(ready.report.gateway.recovery_trusted_ingress.raw_public_key_exposed, false);
   assert.equal(ready.report.gateway.recovery_trusted_ingress.secrets_included, false);
@@ -278,6 +284,19 @@ try {
   assert.equal(ready.report.safety.database_mutation, false);
   assert.equal(ready.report.safety.migration_apply, false);
   assert.equal(ready.report.safety.production_deploy, false);
+
+  const requestsBeforeRejectedOverride = gatewayHealthRequests;
+  const rejectedOverride = await runLive({
+    STAGING_CERT_REQUIRE_READY: "false",
+    STAGING_CERT_GATEWAY_BASE_URL: "https://example.invalid",
+    STAGING_CERT_SYNTHETIC_LOOPBACK_FIXTURE: "false",
+  });
+  assert.equal(rejectedOverride.run.status, 1);
+  assert.equal(rejectedOverride.report.outcome, "blocked");
+  assert.ok(rejectedOverride.report.blocking_failures.includes("gateway_probe_target_profile_bound"));
+  assert.equal(rejectedOverride.report.gateway.probe_target.source, "rejected_override");
+  assert.equal(rejectedOverride.report.gateway.probe_target.caller_override_allowed, false);
+  assert.equal(gatewayHealthRequests, requestsBeforeRejectedOverride, "rejected live override must not be probed");
 
   gatewaySourceCommit = "0".repeat(40);
   const gatewayMismatch = await runLive({ STAGING_CERT_REQUIRE_READY: "false" });

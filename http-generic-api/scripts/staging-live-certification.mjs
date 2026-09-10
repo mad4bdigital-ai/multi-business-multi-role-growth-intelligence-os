@@ -22,6 +22,79 @@ function normalizeUrl(value, fallback) {
   return url;
 }
 
+function isLoopbackHost(hostname) {
+  const normalized = String(hostname || "").trim().toLowerCase().replace(/^\[|\]$/gu, "");
+  return normalized === "localhost" || normalized === "127.0.0.1" || normalized === "::1";
+}
+
+function resolveGatewayProbeTarget(env, gatewayPolicy) {
+  const canonical = normalizeUrl(null, `https://${gatewayPolicy.public_host}`);
+  const overrideValue = String(env.STAGING_CERT_GATEWAY_BASE_URL || "").trim();
+  if (!overrideValue) {
+    return {
+      ok: true,
+      url: canonical,
+      source: "environment_profile",
+      profile_origin: canonical.origin,
+      resolved_origin: canonical.origin,
+      override_present: false,
+      synthetic_loopback_fixture: false,
+      caller_override_allowed: false,
+      reason: null,
+      secrets_included: false,
+    };
+  }
+
+  let candidate = null;
+  try {
+    candidate = normalizeUrl(overrideValue);
+  } catch {
+    return {
+      ok: false,
+      url: null,
+      source: "rejected_override",
+      profile_origin: canonical.origin,
+      resolved_origin: null,
+      override_present: true,
+      synthetic_loopback_fixture: false,
+      caller_override_allowed: false,
+      reason: "gateway_override_invalid_url",
+      secrets_included: false,
+    };
+  }
+
+  const explicitFixture = bool(env.STAGING_CERT_SYNTHETIC_LOOPBACK_FIXTURE, false);
+  const loopback = isLoopbackHost(candidate.hostname);
+  const allowed = explicitFixture && loopback && ["http:", "https:"].includes(candidate.protocol);
+  if (!allowed) {
+    return {
+      ok: false,
+      url: null,
+      source: "rejected_override",
+      profile_origin: canonical.origin,
+      resolved_origin: candidate.origin,
+      override_present: true,
+      synthetic_loopback_fixture: false,
+      caller_override_allowed: false,
+      reason: explicitFixture ? "gateway_fixture_override_must_be_loopback" : "gateway_live_override_forbidden",
+      secrets_included: false,
+    };
+  }
+
+  return {
+    ok: true,
+    url: candidate,
+    source: "synthetic_loopback_fixture",
+    profile_origin: canonical.origin,
+    resolved_origin: candidate.origin,
+    override_present: true,
+    synthetic_loopback_fixture: true,
+    caller_override_allowed: true,
+    reason: null,
+    secrets_included: false,
+  };
+}
+
 async function fetchJson(url, { timeoutMs = 10000 } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -228,6 +301,7 @@ let gatewayEvidence = {
   expected_source_commit: expectedCommit,
   public_host: gatewayProfile.public_host || null,
   profile_validation: gw.resolution?.validation || null,
+  probe_target: null,
   recovery_trusted_ingress: null,
   health: null,
   ready: null,
@@ -271,45 +345,56 @@ if (requireGateway) {
         "readiness",
       ));
 
-      const gatewayBase = normalizeUrl(
-        process.env.STAGING_CERT_GATEWAY_BASE_URL,
-        `https://${gatewayPolicy.public_host}`,
-      );
-      const health = await fetchJson(new URL("/health", gatewayBase));
-      const gatewayHealthUsable = health.ok && health.body !== null && typeof health.body === "object";
-      gatewayEvidence.health = health.body || { status: health.status, error: health.error || null };
-      integrityChecks.push(check("gateway_health_reachable", gatewayHealthUsable, {
-        status: health.status,
-        error: health.error || null,
-        json_body_available: health.body !== null,
-      }));
-      if (gatewayHealthUsable) {
-        readinessChecks.push(check("gateway_policy_not_stale", health.body.ok === true && health.body.stale === false, {
-          stale: health.body.stale ?? null,
-          source_commit: health.body.sourceCommit || null,
-        }, "readiness"));
-        readinessChecks.push(check("gateway_exact_commit", String(health.body.sourceCommit || "").trim().toLowerCase() === expectedCommit, {
-          expected: expectedCommit,
-          observed: health.body.sourceCommit || null,
-        }, "readiness"));
-        readinessChecks.push(check("gateway_policy_hash_current", health.body.policyHash === gatewayProfile.expected_policy_hash, {
-          expected: gatewayProfile.expected_policy_hash,
-          observed: health.body.policyHash || null,
-        }, "readiness"));
-        readinessChecks.push(check("gateway_policy_key_current", health.body.policyKey === gatewayProfile.policy_key, {
-          expected: gatewayProfile.policy_key || null,
-          observed: health.body.policyKey || null,
-        }, "readiness"));
-        readinessChecks.push(check("gateway_health_secret_free", health.body.secretsIncluded === false, health.body.secretsIncluded ?? null, "readiness"));
-      }
-      if (requireGatewayUpstream) {
-        const ready = await fetchJson(new URL("/ready", gatewayBase));
-        gatewayEvidence.ready = ready.body || { status: ready.status, error: ready.error || null };
-        readinessChecks.push(check("gateway_upstream_ready", ready.ok && ready.body?.ok === true && ready.body?.upstreamReady === true, {
-          status: ready.status,
-          upstream_ready: ready.body?.upstreamReady ?? null,
-          error: ready.error || ready.body?.error?.code || null,
-        }, "readiness"));
+      const probeTarget = resolveGatewayProbeTarget(process.env, gatewayPolicy);
+      gatewayEvidence.probe_target = {
+        source: probeTarget.source,
+        profile_origin: probeTarget.profile_origin,
+        resolved_origin: probeTarget.resolved_origin,
+        override_present: probeTarget.override_present,
+        synthetic_loopback_fixture: probeTarget.synthetic_loopback_fixture,
+        caller_override_allowed: probeTarget.caller_override_allowed,
+        reason: probeTarget.reason,
+        secrets_included: false,
+      };
+      integrityChecks.push(check("gateway_probe_target_profile_bound", probeTarget.ok, gatewayEvidence.probe_target));
+
+      if (probeTarget.ok) {
+        const health = await fetchJson(new URL("/health", probeTarget.url));
+        const gatewayHealthUsable = health.ok && health.body !== null && typeof health.body === "object";
+        gatewayEvidence.health = health.body || { status: health.status, error: health.error || null };
+        integrityChecks.push(check("gateway_health_reachable", gatewayHealthUsable, {
+          status: health.status,
+          error: health.error || null,
+          json_body_available: health.body !== null,
+        }));
+        if (gatewayHealthUsable) {
+          readinessChecks.push(check("gateway_policy_not_stale", health.body.ok === true && health.body.stale === false, {
+            stale: health.body.stale ?? null,
+            source_commit: health.body.sourceCommit || null,
+          }, "readiness"));
+          readinessChecks.push(check("gateway_exact_commit", String(health.body.sourceCommit || "").trim().toLowerCase() === expectedCommit, {
+            expected: expectedCommit,
+            observed: health.body.sourceCommit || null,
+          }, "readiness"));
+          readinessChecks.push(check("gateway_policy_hash_current", health.body.policyHash === gatewayProfile.expected_policy_hash, {
+            expected: gatewayProfile.expected_policy_hash,
+            observed: health.body.policyHash || null,
+          }, "readiness"));
+          readinessChecks.push(check("gateway_policy_key_current", health.body.policyKey === gatewayProfile.policy_key, {
+            expected: gatewayProfile.policy_key || null,
+            observed: health.body.policyKey || null,
+          }, "readiness"));
+          readinessChecks.push(check("gateway_health_secret_free", health.body.secretsIncluded === false, health.body.secretsIncluded ?? null, "readiness"));
+        }
+        if (requireGatewayUpstream) {
+          const ready = await fetchJson(new URL("/ready", probeTarget.url));
+          gatewayEvidence.ready = ready.body || { status: ready.status, error: ready.error || null };
+          readinessChecks.push(check("gateway_upstream_ready", ready.ok && ready.body?.ok === true && ready.body?.upstreamReady === true, {
+            status: ready.status,
+            upstream_ready: ready.body?.upstreamReady ?? null,
+            error: ready.error || ready.body?.error?.code || null,
+          }, "readiness"));
+        }
       }
     }
   }
