@@ -536,7 +536,12 @@ test("plan and preview are deterministic and never execution-authorized", async 
 test("approval challenge is bound to plan/step and never returns an approval token", async () => {
   const plan = [..._testingRecoveryKernel.PLANS.values()].at(-1);
   const step = plan.steps.find((entry) => entry.consequential);
-  const challenge = await createApprovalChallenge({ plan_id: plan.plan_id, plan_hash: plan.plan_hash, step_id: step.step_id });
+  const durable = makeDurableStore();
+  await durable.putPlan(plan);
+  const challenge = await createApprovalChallenge(
+    { plan_id: plan.plan_id, plan_hash: plan.plan_hash, step_id: step.step_id },
+    { recoveryStore: durable, deploymentIdentityProvider: DEPLOYMENT_IDENTITY_PROVIDER, migrationLedger: MIGRATION_LEDGER },
+  );
   assert.equal(challenge.execution_ready, false);
   assert.equal(challenge.approval_token_not_returned, true);
   assert.equal(challenge.plan_hash, plan.plan_hash);
