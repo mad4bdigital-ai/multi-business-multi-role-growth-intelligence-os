@@ -1,0 +1,102 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-environment-convergence-certification-20260910",
+  "title": "Staging environment profile-first convergence certification",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-environment-convergence-certification-20260910.json",
+      "http-generic-api/scripts/staging-live-certification.mjs",
+      "http-generic-api/test-staging-environment-certification-contract.mjs",
+      "http-generic-api/test-staging-autopilot-closure.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make Staging live certification enforce the canonical environment profile before probing Activation Gateway, classify a healthy old Gateway release as repairable convergence drift instead of integrity corruption, and expose the shared convergence classification without granting apply authority or performing mutation.",
+      "e2e_journeys": [
+        {
+          "id": "staging-profile-first-live-certification",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging release certification controller",
+          "entrypoint": "http-generic-api/scripts/staging-live-certification.mjs",
+          "terminal_outcome": "An exact Staging release certifies ready; a healthy Gateway on an older exact SHA remains non-ready but is reported as degraded with convergence.status=reconciliation_required and no automatic apply; a policy bound to the wrong environment is blocked before any Gateway health probe.",
+          "steps": [
+            "Load the canonical environment-convergence registry and the selected Staging Gateway policy.",
+            "Validate policy key and public host against the Staging profile before constructing or probing the Gateway endpoint.",
+            "Treat a profile mismatch as gateway_environment_profile_current integrity failure and stop before the Gateway network probe.",
+            "For a profile-valid reachable Gateway, keep gateway_health_reachable as integrity evidence but evaluate gateway_exact_commit as readiness/convergence evidence.",
+            "Classify a healthy old sourceCommit as convergence_drift/release_identity_mismatch with repairability=governed and automatic_apply_allowed=false.",
+            "Emit the classification in report.convergence while retaining certification as the final judge and requiring exact Gateway release identity for artifact_set.complete.",
+            "Keep all provider, database, migration, Production, ruleset and secret mutation disabled."
+          ],
+          "assertions": [
+            "The Staging certification policy must match activation_gateway_staging and activation-dev.mad4b.com before any external Gateway probe.",
+            "gateway_environment_profile_current is an integrity failure and manual_non_repairable when false.",
+            "gateway_exact_commit is a readiness failure classified as convergence_drift/release_identity_mismatch rather than integrity corruption.",
+            "A healthy old Gateway SHA yields degraded certification when readiness is not required and convergence.status=reconciliation_required.",
+            "An exact Gateway SHA remains required for artifact_set.complete and release-ready certification.",
+            "The convergence handoff never auto-applies and live certification performs no provider or Production mutation."
+          ],
+          "tests": [
+            {
+              "id": "staging-live-certification-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-environment-certification-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-autopilot-certification-closure",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-autopilot-closure.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-environment-convergence-certification-20260910.json",
+            "http-generic-api/scripts/staging-live-certification.mjs",
+            "http-generic-api/config/environment-convergence-registry.json",
+            "http-generic-api/environmentConvergenceRegistry.js",
+            "http-generic-api/test-staging-environment-certification-contract.mjs",
+            "http-generic-api/test-staging-autopilot-closure.mjs",
+            "http-generic-api/config/deployment-branch-policy.json"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "staging-live-certification-contract",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-staging-environment-certification-contract.mjs",
+          "args": []
+        },
+        {
+          "id": "staging-autopilot-certification-closure",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-staging-autopilot-closure.mjs",
+          "args": []
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
