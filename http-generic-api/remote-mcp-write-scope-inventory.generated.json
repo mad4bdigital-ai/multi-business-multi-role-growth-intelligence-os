@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7642,
+  "file_count": 7643,
   "route_count": 1103,
   "write_route_count": 670,
   "classified_write_surface_count": 42,
@@ -6215,7 +6215,7 @@
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#POST:/admin/recovery/kernel/call:0",
       "source_line": 196,
-      "source_offset": 7060,
+      "source_offset": 7067,
       "method": "POST",
       "path": "/admin/recovery/kernel/call",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -6224,7 +6224,7 @@
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#POST:/admin/recovery/kernel/approval-challenge:1",
       "source_line": 262,
-      "source_offset": 9734,
+      "source_offset": 9741,
       "method": "POST",
       "path": "/admin/recovery/kernel/approval-challenge",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -6233,7 +6233,7 @@
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#POST:/admin/recovery/kernel/execute-approved:2",
       "source_line": 289,
-      "source_offset": 10859,
+      "source_offset": 10866,
       "method": "POST",
       "path": "/admin/recovery/kernel/execute-approved",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -6242,7 +6242,7 @@
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#POST:/admin/recovery/kernel/execute:3",
       "source_line": 293,
-      "source_offset": 11184,
+      "source_offset": 11191,
       "method": "POST",
       "path": "/admin/recovery/kernel/execute",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -6251,7 +6251,7 @@
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#GET:/admin/recovery/kernel/runs/:run_id:4",
       "source_line": 295,
-      "source_offset": 11257,
+      "source_offset": 11264,
       "method": "GET",
       "path": "/admin/recovery/kernel/runs/:run_id",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -6260,7 +6260,7 @@
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#GET:/admin/recovery/kernel/evidence/:run_id:5",
       "source_line": 304,
-      "source_offset": 11628,
+      "source_offset": 11635,
       "method": "GET",
       "path": "/admin/recovery/kernel/evidence/:run_id",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
