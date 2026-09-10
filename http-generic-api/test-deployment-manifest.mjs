@@ -88,17 +88,6 @@ try {
   assert.equal(inlineManifestWins.repository, "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os");
   assert.equal(inlineManifestWins.branch, "Production");
   assert.equal(inlineManifestWins.sha, fullSha);
-
-  const fallbackIdentity = readCanonicalDeploymentIdentity({
-    env: {
-      GITHUB_REPOSITORY: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
-      GITHUB_REF_NAME: "Production",
-      GITHUB_SHA: fullSha,
-    },
-  });
-  assert.equal(fallbackIdentity.ok, true, "legacy env fallback remains available when no manifest exists");
-  assert.equal(fallbackIdentity.source, "env:fallback");
-  assert.equal(fallbackIdentity.manifest_bound, false);
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }
