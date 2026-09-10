@@ -478,15 +478,15 @@ export async function captureMetadataState({ base, key, evidenceDir, mode = 'ver
 
   if (mode === 'readiness') {
     if (!dependencyGuardAllowed) {
-      const throttled = dependency225.dependency_block_reason === 'migration_225_readback_rate_limited'
+      const blockedBy429 = dependency225.dependency_block_reason === 'migration_225_readback_rate_limited'
         || dependency225.dependency_block_reason === 'governance_writer_readback_rate_limited';
       const writerBlocked = dependency225.runtime_dependency_ready === true && dependency225.governance_writer_ready !== true;
-      const error = new Error(throttled
+      const error = new Error(blockedBy429
         ? 'Migration 1051 readiness blocked: read-only dependency readback remained rate limited after bounded retries'
         : writerBlocked
           ? 'Migration 1051 readiness blocked: Governance DB writer schema and privilege readiness are not proven on the same Production runtime that will persist the capability envelope'
           : 'Migration 1051 readiness blocked: Migration 225 runtime dependency requires an exact Apply ledger and capability_resolution_envelope_ledger table');
-      error.code = throttled
+      error.code = blockedBy429
         ? 'migration_1051_dependency_readback_rate_limited'
         : writerBlocked
           ? 'migration_1051_governance_writer_dependency_not_ready'
@@ -497,15 +497,15 @@ export async function captureMetadataState({ base, key, evidenceDir, mode = 'ver
   if (mode === 'pre_apply') {
     assert.ok(diagnosticCaptured, 'Migration 1051 pre-Apply metadata diagnostic is unavailable');
     if (!dependencyGuardAllowed) {
-      const throttled = dependency225.dependency_block_reason === 'migration_225_readback_rate_limited'
+      const blockedBy429 = dependency225.dependency_block_reason === 'migration_225_readback_rate_limited'
         || dependency225.dependency_block_reason === 'governance_writer_readback_rate_limited';
       const writerBlocked = dependency225.runtime_dependency_ready === true && dependency225.governance_writer_ready !== true;
-      const error = new Error(throttled
+      const error = new Error(blockedBy429
         ? 'Migration 1051 pre-Apply blocked: read-only dependency readback remained rate limited after bounded retries'
         : writerBlocked
           ? 'Migration 1051 pre-Apply blocked: Governance DB writer schema and privilege readiness are not proven'
           : 'Migration 1051 pre-Apply blocked: Migration 225 runtime dependency is not ready');
-      error.code = throttled
+      error.code = blockedBy429
         ? 'migration_1051_dependency_readback_rate_limited'
         : writerBlocked
           ? 'migration_1051_governance_writer_dependency_not_ready'
