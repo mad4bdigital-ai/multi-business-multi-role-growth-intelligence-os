@@ -22,6 +22,9 @@ const ENVELOPE_DEPENDENCY_PATH = new URL(`../../http-generic-api/migrations/${EN
 const ENVELOPE_DEPENDENCY_EXPECTED_CHECKSUM = '35b034940c2be63d9bf8a8099573cac1c5a75b5fffd8ccfad60a453ed3cf7419';
 const ENVELOPE_DEPENDENCY_EXPECTED_STATEMENT_COUNT = 3;
 const ENVELOPE_DEPENDENCY_EXPECTED_TABLES = Object.freeze(['capability_resolution_envelope_ledger']);
+const RATE_LIMIT_MAX_ATTEMPTS = 4;
+const RATE_LIMIT_FALLBACK_DELAYS_MS = Object.freeze([5000, 15000, 30000]);
+const RATE_LIMIT_MAX_DELAY_MS = 30000;
 
 export const METADATA_STATE_SQL = `SELECT
   (SELECT COUNT(*) FROM platform_resource_adapters WHERE adapter_key='github_repository_policy_v2') AS adapter_count,
@@ -134,40 +137,104 @@ function findObject(value, predicate, seen = new Set()) {
 const findRows = (value) => findObject(value, (candidate) => Array.isArray(candidate.rows))?.rows || [];
 const keyed = (value, key) => findObject(value, (candidate) => Object.prototype.hasOwnProperty.call(candidate, key));
 const sha256 = (value) => createHash('sha256').update(String(value || ''), 'utf8').digest('hex');
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function requestRaw(base, key, pathname, body, timeoutMs = 120000) {
-  try {
-    const response = await fetch(`${base}${pathname}`, {
-      method: 'POST',
-      redirect: 'error',
-      headers: { 'x-api-key': key, Accept: 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-    const text = await response.text();
-    let payload = null;
-    try { payload = text ? JSON.parse(text) : null; } catch { payload = null; }
-    return { transport_ok: true, status: response.status, http_ok: response.ok, payload };
-  } catch (error) {
-    return { transport_ok: false, status: null, http_ok: false, payload: null, transport_error: String(error?.name || 'Error') };
+export function bounded429RetryDelayMs({ retryAfter = null, retryIndex = 0, nowMs = Date.now() } = {}) {
+  const normalizedIndex = Math.min(Math.max(Number(retryIndex) || 0, 0), RATE_LIMIT_FALLBACK_DELAYS_MS.length - 1);
+  const fallback = RATE_LIMIT_FALLBACK_DELAYS_MS[normalizedIndex];
+  const value = String(retryAfter ?? '').trim();
+  if (!value) return fallback;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return Math.min(Math.max(Math.round(seconds * 1000), 0), RATE_LIMIT_MAX_DELAY_MS);
   }
+  const retryAt = Date.parse(value);
+  if (!Number.isFinite(retryAt)) return fallback;
+  return Math.min(Math.max(retryAt - nowMs, 0), RATE_LIMIT_MAX_DELAY_MS);
+}
+
+export function classifyDependencyBlockReason({
+  runtimeDependencyReady = false,
+  governanceWriterReady = false,
+  migrationReadbackRateLimited = false,
+  governanceReadbackRateLimited = false,
+} = {}) {
+  if (migrationReadbackRateLimited) return 'migration_225_readback_rate_limited';
+  if (!runtimeDependencyReady) return 'migration_225_runtime_dependency_not_ready';
+  if (governanceReadbackRateLimited) return 'governance_writer_readback_rate_limited';
+  if (!governanceWriterReady) return 'governance_writer_readiness_not_ready';
+  return null;
+}
+
+async function requestJsonWithBounded429Retry(url, init, timeoutMs, { retry429 = false } = {}) {
+  const maxAttempts = retry429 ? RATE_LIMIT_MAX_ATTEMPTS : 1;
+  let rateLimitRetries = 0;
+  let lastRetryDelayMs = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const response = await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+      const text = await response.text();
+      let payload = null;
+      try { payload = text ? JSON.parse(text) : null; } catch { payload = null; }
+      const retryAfter = response.headers?.get?.('retry-after') ?? null;
+      if (response.status === 429 && attempt < maxAttempts) {
+        lastRetryDelayMs = bounded429RetryDelayMs({ retryAfter, retryIndex: rateLimitRetries });
+        rateLimitRetries += 1;
+        await sleep(lastRetryDelayMs);
+        continue;
+      }
+      return {
+        transport_ok: true,
+        status: response.status,
+        http_ok: response.ok,
+        payload,
+        request_attempts: attempt,
+        rate_limit_retries: rateLimitRetries,
+        rate_limit_exhausted: response.status === 429,
+        last_retry_delay_ms: lastRetryDelayMs,
+      };
+    } catch (error) {
+      return {
+        transport_ok: false,
+        status: null,
+        http_ok: false,
+        payload: null,
+        transport_error: String(error?.name || 'Error'),
+        request_attempts: attempt,
+        rate_limit_retries: rateLimitRetries,
+        rate_limit_exhausted: false,
+        last_retry_delay_ms: lastRetryDelayMs,
+      };
+    }
+  }
+  return {
+    transport_ok: false,
+    status: null,
+    http_ok: false,
+    payload: null,
+    transport_error: 'UnexpectedRetryLoopExit',
+    request_attempts: maxAttempts,
+    rate_limit_retries: rateLimitRetries,
+    rate_limit_exhausted: false,
+    last_retry_delay_ms: lastRetryDelayMs,
+  };
+}
+
+async function requestRaw(base, key, pathname, body, timeoutMs = 120000, options = {}) {
+  return requestJsonWithBounded429Retry(`${base}${pathname}`, {
+    method: 'POST',
+    redirect: 'error',
+    headers: { 'x-api-key': key, Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }, timeoutMs, options);
 }
 
 async function requestReadinessProjection(base, key, timeoutMs = 120000) {
-  try {
-    const response = await fetch(`${base}/deployment-info?include_governance_db_readiness=1`, {
-      method: 'GET',
-      redirect: 'error',
-      headers: { 'x-api-key': key, Accept: 'application/json' },
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-    const text = await response.text();
-    let payload = null;
-    try { payload = text ? JSON.parse(text) : null; } catch { payload = null; }
-    return { transport_ok: true, status: response.status, http_ok: response.ok, payload };
-  } catch (error) {
-    return { transport_ok: false, status: null, http_ok: false, payload: null, transport_error: String(error?.name || 'Error') };
-  }
+  return requestJsonWithBounded429Retry(`${base}/deployment-info?include_governance_db_readiness=1`, {
+    method: 'GET',
+    redirect: 'error',
+    headers: { 'x-api-key': key, Accept: 'application/json' },
+  }, timeoutMs, { retry429: true });
 }
 
 function ledgerPass(readback, checksum, statementCount, migration = MIGRATION) {
@@ -214,6 +281,9 @@ async function captureGovernanceWriterReadiness({ base, key }) {
     contract: 'github_repository_policy_1051_governance_writer_readiness.v2',
     transport_ok: result.transport_ok,
     http_status: result.status,
+    request_attempts: result.request_attempts,
+    rate_limit_retries: result.rate_limit_retries,
+    rate_limit_exhausted: result.rate_limit_exhausted === true,
     runtime_branch: runtimeBranch || null,
     status: readiness?.status ?? null,
     ready,
@@ -253,7 +323,7 @@ async function captureEnvelopeDependency225({ base, key, evidenceDir }) {
       expected_statement_count: statementCount,
       expected_tables: [...ENVELOPE_DEPENDENCY_EXPECTED_TABLES],
     },
-  }, 180000);
+  }, 180000, { retry429: true });
   const readback = keyed(result.payload, 'readback_status');
   const schemaTables = Array.isArray(readback?.schema?.tables) ? readback.schema.tables : [];
   const missingTables = Array.isArray(readback?.expectations?.missing?.tables) ? readback.expectations.missing.tables : [];
@@ -263,11 +333,12 @@ async function captureEnvelopeDependency225({ base, key, evidenceDir }) {
   const runtimeDependencyReady = exactLedgerVerified && tablePresent;
   const governanceWriter = await captureGovernanceWriterReadiness({ base, key });
   const dependencyReady = runtimeDependencyReady && governanceWriter.ready;
-  const dependencyBlockReason = !runtimeDependencyReady
-    ? 'migration_225_runtime_dependency_not_ready'
-    : !governanceWriter.ready
-      ? 'governance_writer_readiness_not_ready'
-      : null;
+  const dependencyBlockReason = classifyDependencyBlockReason({
+    runtimeDependencyReady,
+    governanceWriterReady: governanceWriter.ready,
+    migrationReadbackRateLimited: result.rate_limit_exhausted === true,
+    governanceReadbackRateLimited: governanceWriter.rate_limit_exhausted === true,
+  });
   const report = {
     contract: 'github_repository_policy_1051_envelope_dependency_225.v3',
     migration: ENVELOPE_DEPENDENCY_MIGRATION,
@@ -275,6 +346,9 @@ async function captureEnvelopeDependency225({ base, key, evidenceDir }) {
     statement_count: statementCount,
     transport_ok: result.transport_ok,
     http_status: result.status,
+    request_attempts: result.request_attempts,
+    rate_limit_retries: result.rate_limit_retries,
+    rate_limit_exhausted: result.rate_limit_exhausted === true,
     readback_status: readback?.readback_status ?? null,
     ledger_found: readback?.ledger?.found ?? null,
     exact_apply_ledger_verified: exactLedgerVerified,
@@ -312,7 +386,7 @@ export async function captureMetadataState({ base, key, evidenceDir, mode = 'ver
       required: true,
     },
   });
-  const result = await requestRaw(base, key, '/admin/control', body);
+  const result = await requestRaw(base, key, '/admin/control', body, 120000, { retry429: true });
   const rows = findRows(result.payload);
   const row = rows[0] || {};
   const classification = classifyMetadataPresence(row);
@@ -331,13 +405,16 @@ export async function captureMetadataState({ base, key, evidenceDir, mode = 'ver
         expected_statement_count: statementCount,
         expected_tables: [...EXPECTED_TABLES],
       },
-    }, 180000);
+    }, 180000, { retry429: true });
     const readback = keyed(ledgerResult.payload, 'readback_status');
     const exact = ledgerResult.transport_ok && ledgerPass(readback, checksum, statementCount);
     ledger = {
       checked: true,
       exact_apply_ledger_verified: exact,
       http_status: ledgerResult.status,
+      request_attempts: ledgerResult.request_attempts,
+      rate_limit_retries: ledgerResult.rate_limit_retries,
+      rate_limit_exhausted: ledgerResult.rate_limit_exhausted === true,
       readback_status: readback?.readback_status ?? null,
       found: readback?.ledger?.found ?? null,
     };
@@ -356,6 +433,9 @@ export async function captureMetadataState({ base, key, evidenceDir, mode = 'ver
     diagnostic_status: diagnosticCaptured ? 'captured' : 'unavailable',
     transport_ok: result.transport_ok,
     http_status: result.status,
+    request_attempts: result.request_attempts,
+    rate_limit_retries: result.rate_limit_retries,
+    rate_limit_exhausted: result.rate_limit_exhausted === true,
     query_row_present: rows.length === 1,
     row_present: classification.metadata_present,
     metadata_present: classification.metadata_present,
@@ -396,26 +476,38 @@ export async function captureMetadataState({ base, key, evidenceDir, mode = 'ver
 
   if (mode === 'readiness') {
     if (!dependencyGuardAllowed) {
+      const rateLimited = dependency225.dependency_block_reason === 'migration_225_readback_rate_limited'
+        || dependency225.dependency_block_reason === 'governance_writer_readback_rate_limited';
       const writerBlocked = dependency225.runtime_dependency_ready === true && dependency225.governance_writer_ready !== true;
-      const error = new Error(writerBlocked
-        ? 'Migration 1051 readiness blocked: Governance DB writer schema and privilege readiness are not proven on the same Production runtime that will persist the capability envelope'
-        : 'Migration 1051 readiness blocked: Migration 225 runtime dependency requires an exact Apply ledger and capability_resolution_envelope_ledger table');
-      error.code = writerBlocked
-        ? 'migration_1051_governance_writer_dependency_not_ready'
-        : 'migration_1051_dependency_225_not_ready';
+      const error = new Error(rateLimited
+        ? 'Migration 1051 readiness blocked: read-only dependency readback remained rate limited after bounded retries'
+        : writerBlocked
+          ? 'Migration 1051 readiness blocked: Governance DB writer schema and privilege readiness are not proven on the same Production runtime that will persist the capability envelope'
+          : 'Migration 1051 readiness blocked: Migration 225 runtime dependency requires an exact Apply ledger and capability_resolution_envelope_ledger table');
+      error.code = rateLimited
+        ? 'migration_1051_dependency_readback_rate_limited'
+        : writerBlocked
+          ? 'migration_1051_governance_writer_dependency_not_ready'
+          : 'migration_1051_dependency_225_not_ready';
       throw error;
     }
   }
   if (mode === 'pre_apply') {
     assert.ok(diagnosticCaptured, 'Migration 1051 pre-Apply metadata diagnostic is unavailable');
     if (!dependencyGuardAllowed) {
+      const rateLimited = dependency225.dependency_block_reason === 'migration_225_readback_rate_limited'
+        || dependency225.dependency_block_reason === 'governance_writer_readback_rate_limited';
       const writerBlocked = dependency225.runtime_dependency_ready === true && dependency225.governance_writer_ready !== true;
-      const error = new Error(writerBlocked
-        ? 'Migration 1051 pre-Apply blocked: Governance DB writer schema and privilege readiness are not proven'
-        : 'Migration 1051 pre-Apply blocked: Migration 225 runtime dependency is not ready');
-      error.code = writerBlocked
-        ? 'migration_1051_governance_writer_dependency_not_ready'
-        : 'migration_1051_dependency_225_not_ready';
+      const error = new Error(rateLimited
+        ? 'Migration 1051 pre-Apply blocked: read-only dependency readback remained rate limited after bounded retries'
+        : writerBlocked
+          ? 'Migration 1051 pre-Apply blocked: Governance DB writer schema and privilege readiness are not proven'
+          : 'Migration 1051 pre-Apply blocked: Migration 225 runtime dependency is not ready');
+      error.code = rateLimited
+        ? 'migration_1051_dependency_readback_rate_limited'
+        : writerBlocked
+          ? 'migration_1051_governance_writer_dependency_not_ready'
+          : 'migration_1051_dependency_225_not_ready';
       throw error;
     }
     assert.ok(guardAllowed, `Migration 1051 replay guard blocked ${classification.target_metadata_state} target metadata without an exact Apply ledger`);
@@ -442,6 +534,9 @@ async function main() {
     governance_writer_schema_ready: report.envelope_dependency_225?.governance_writer_readiness?.schema_objects_ready ?? false,
     governance_writer_ready: report.envelope_dependency_225?.governance_writer_ready ?? false,
     dependency_225_ready: report.envelope_dependency_225?.dependency_ready ?? false,
+    dependency_block_reason: report.envelope_dependency_225?.dependency_block_reason ?? null,
+    dependency_rate_limit_retries: report.envelope_dependency_225?.rate_limit_retries ?? 0,
+    dependency_rate_limit_exhausted: report.envelope_dependency_225?.rate_limit_exhausted ?? false,
     readiness_dependency_guard: report.readiness_dependency_guard?.status ?? null,
     pre_apply_guard: report.pre_apply_guard?.status ?? null,
     metadata_grants_apply_authority: false,
