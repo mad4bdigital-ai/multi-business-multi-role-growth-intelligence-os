@@ -43,7 +43,7 @@ jobs:
       - name: Verify branch target contract
         run: node http-generic-api/scripts/test-github-review-policy-target.mjs
       - name: Execute read-only source/runtime/readback/plan readiness
-        run: node .github/ops/github-main-review-policy-live-activation.mjs
+        run: node --import ./.github/ops/lib/github-review-policy-public-probe-preload.mjs .github/ops/github-main-review-policy-live-activation.mjs
       - name: Upload no-secret readiness evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -88,7 +88,7 @@ jobs:
       - name: Verify branch target contract
         run: node http-generic-api/scripts/test-github-review-policy-target.mjs
       - name: Execute exactly-once target Ruleset Apply with same-cycle readback
-        run: node .github/ops/github-main-review-policy-live-activation.mjs
+        run: node --import ./.github/ops/lib/github-review-policy-public-probe-preload.mjs .github/ops/github-main-review-policy-live-activation.mjs
       - name: Upload no-secret Apply evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -133,7 +133,7 @@ jobs:
       - name: Verify branch target contract
         run: node http-generic-api/scripts/test-github-review-policy-target.mjs
       - name: Verify target server policy gate without mutation
-        run: node .github/ops/github-main-review-policy-live-activation.mjs
+        run: node --import ./.github/ops/lib/github-review-policy-public-probe-preload.mjs .github/ops/github-main-review-policy-live-activation.mjs
       - name: Upload no-secret verification evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
