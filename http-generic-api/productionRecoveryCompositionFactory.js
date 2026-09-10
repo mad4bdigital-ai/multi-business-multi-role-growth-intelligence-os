@@ -53,6 +53,8 @@ function independentBootstrapEvidenceStore(recoveryStore) {
     && recoveryStore.recovery_store_contract === "mad4b.recovery-durable-store.v1"
     && recoveryStore.independent_of_target_databases === true
     && recoveryStore.target_database_binding === "forbidden"
+    && recoveryStore.shared_replica_safe === true
+    && recoveryStore.schema_auto_apply === false
     && recoveryStore.provider_accessed === false
     && typeof recoveryStore.appendEvidenceEvent === "function"
     && typeof recoveryStore.putRun === "function"
@@ -68,7 +70,7 @@ function buildReadOnlyEvidenceStore(recoveryStore) {
     independent_of_target_databases: true,
     target_database_binding: "forbidden",
     provider_accessed: false,
-    shared_replica_safe: recoveryStore.shared_replica_safe === true,
+    shared_replica_safe: true,
     schema_auto_apply: false,
     evidence_authority_only: true,
     mutation_authority: false,
