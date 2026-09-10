@@ -1,11 +1,13 @@
 import { createHash, randomUUID } from "node:crypto";
-import { getRecoveryControlPool } from "./recoveryControlDb.js";
+import { getRecoveryControlPool, getRecoveryControlStoreReadiness } from "./recoveryControlDb.js";
+import { RECOVERY_DURABLE_STORE_CONTRACT } from "./recoveryDurableStoreContract.js";
 
 export const PRODUCTION_RECOVERY_CONTROL_STORE_CONTRACT = "mad4b.production-recovery-control-store.v1";
-export const RECOVERY_DURABLE_STORE_CONTRACT = "mad4b.recovery-durable-store.v1";
+export { RECOVERY_DURABLE_STORE_CONTRACT };
 export const PRODUCTION_RECOVERY_LOCK_CONTRACT = "mad4b.production-recovery-fenced-lock.v1";
 
 const MAX_ID = 191;
+const HASH_RE = /^[0-9a-f]{64}$/u;
 const RECOVERY_LOCK_LEASE_BOUNDS = Object.freeze({
   minimumSeconds: 0.1,
   maximumSeconds: 600,
@@ -179,6 +181,40 @@ function storeError(code, message, details = {}) {
   return error;
 }
 
+function rawPayloadText(value) {
+  if (Buffer.isBuffer(value)) return value.toString("utf8");
+  return typeof value === "string" ? value : canonical(value);
+}
+
+function parseVerifiedPayload(row, details = {}) {
+  if (!row) return null;
+  const raw = rawPayloadText(row.payload_json);
+  const expected = text(row.payload_sha256, 64).toLowerCase();
+  if (!HASH_RE.test(expected)) {
+    throw storeError("RECOVERY_CONTROL_STORE_PAYLOAD_HASH_MISSING", "Persisted Recovery control-store payload is missing a valid SHA-256 integrity binding.", details);
+  }
+  const actual = digest(raw);
+  if (actual !== expected) {
+    throw storeError("RECOVERY_CONTROL_STORE_PAYLOAD_HASH_MISMATCH", "Persisted Recovery control-store payload failed its SHA-256 integrity check.", {
+      ...details,
+      expected_hash: expected,
+      actual_hash: actual,
+    });
+  }
+  return parsePayload(raw);
+}
+
+function parseVerifiedExecutionTicket(row, details = {}) {
+  if (!row) return null;
+  const ticket = parsePayload(row.payload_json);
+  const storedHash = text(row.ticket_hash, 64).toLowerCase();
+  const payloadHash = text(ticket?.ticket_hash, 64).toLowerCase();
+  if (!HASH_RE.test(storedHash) || storedHash !== payloadHash) {
+    throw storeError("RECOVERY_CONTROL_STORE_EXECUTION_TICKET_HASH_MISMATCH", "Persisted Recovery execution-ticket payload is not bound to its stored ticket hash.", details);
+  }
+  return ticket;
+}
+
 async function withTransaction(poolProvider, operation) {
   const pool = poolProvider();
   if (!pool || typeof pool.getConnection !== "function") throw storeError("RECOVERY_CONTROL_STORE_POOL_INVALID", "Recovery control-store pool provider is not configured.");
@@ -228,9 +264,10 @@ async function putRecord(poolProvider, type, id, payload, indexes = {}) {
 }
 
 async function getRecord(poolProvider, type, id) {
-  const [rows] = await query(poolProvider, "SELECT payload_json FROM recovery_control_records WHERE record_type = ? AND record_id = ? LIMIT 1", [type, requiredId(id, `${type}_id`)]);
+  const recordId = requiredId(id, `${type}_id`);
+  const [rows] = await query(poolProvider, "SELECT payload_json, payload_sha256 FROM recovery_control_records WHERE record_type = ? AND record_id = ? LIMIT 1", [type, recordId]);
   if (rows.length > 1) throw storeError("RECOVERY_CONTROL_STORE_AMBIGUOUS_RECORD", "Recovery control-store lookup returned multiple records for a unique record identity.", { record_type: type });
-  return rows?.length ? parsePayload(rows[0].payload_json) : null;
+  return rows?.length ? parseVerifiedPayload(rows[0], { record_type: type, record_id_hash: digest(recordId) }) : null;
 }
 
 function approvalReservationKey(context) {
@@ -339,6 +376,7 @@ export function getProductionRecoveryControlStoreSchemaPlan() {
 export function createProductionRecoveryControlStore({
   poolProvider = getRecoveryControlPool,
   executionTicketVerifier = null,
+  env = process.env,
 } = {}) {
   if (typeof poolProvider !== "function") throw storeError("RECOVERY_CONTROL_STORE_POOL_PROVIDER_INVALID", "Recovery control-store pool provider must be a function.");
   const recoveryLock = createFencedLock(poolProvider);
@@ -352,7 +390,11 @@ export function createProductionRecoveryControlStore({
     shared_replica_safe: true,
     schema_auto_apply: false,
     provider_accessed: false,
+    payload_integrity_verified_on_read: true,
     executionTicketVerifier,
+    async getReadiness() {
+      return getRecoveryControlStoreReadiness({ env, poolProvider });
+    },
     async putRun(value) {
       if (!value?.idempotency_key) {
         return putRecord(poolProvider, RECORD_TYPES.run, value?.run_id, value, {
@@ -416,18 +458,18 @@ export function createProductionRecoveryControlStore({
     async getFinding(id) { return getRecord(poolProvider, RECORD_TYPES.finding, id); },
     async getRunByIdempotency(id) {
       const idempotencyKey = requiredId(id, "idempotency_key");
-      const [receiptRows] = await query(poolProvider, "SELECT payload_json FROM recovery_control_idempotency_receipts WHERE idempotency_key = ? LIMIT 1", [idempotencyKey]);
+      const [receiptRows] = await query(poolProvider, "SELECT payload_json, payload_sha256 FROM recovery_control_idempotency_receipts WHERE idempotency_key = ? LIMIT 1", [idempotencyKey]);
       const [receipt] = receiptRows;
-      if (receipt) return parsePayload(receipt.payload_json);
+      if (receipt) return parseVerifiedPayload(receipt, { record_type: "idempotency_receipt", idempotency_key_hash: digest(idempotencyKey) });
       const [rows] = await query(poolProvider, "SELECT run_id FROM recovery_control_run_idempotency WHERE idempotency_key = ? LIMIT 1", [idempotencyKey]);
       const [binding] = rows;
       return binding?.run_id ? getRecord(poolProvider, RECORD_TYPES.run, binding.run_id) : null;
     },
     async getRunByPlanStep(planId, stepId) {
-      const [rows] = await query(poolProvider, `SELECT payload_json FROM recovery_control_records
+      const [rows] = await query(poolProvider, `SELECT payload_json, payload_sha256 FROM recovery_control_records
         WHERE record_type = ? AND plan_id = ? AND step_id = ? ORDER BY updated_at DESC, record_id DESC LIMIT 1`, [RECORD_TYPES.run, requiredId(planId, "plan_id"), requiredId(stepId, "step_id")]);
       const [latestRun] = rows;
-      return latestRun ? parsePayload(latestRun.payload_json) : null;
+      return latestRun ? parseVerifiedPayload(latestRun, { record_type: RECORD_TYPES.run, lookup: "plan_step" }) : null;
     },
     async appendEvidenceEvent(runId, event) {
       const run = requiredId(runId, "run_id");
@@ -459,10 +501,10 @@ export function createProductionRecoveryControlStore({
       return withTransaction(poolProvider, async (connection) => {
         const [finalRows] = await connection.query("SELECT approval_id FROM recovery_control_approval_finalizations WHERE approval_id = ? FOR UPDATE", [id]);
         if (finalRows?.length) return { already_finalized: true };
-        const [rows] = await connection.query("SELECT payload_json FROM recovery_control_records WHERE record_type = ? AND record_id = ? FOR UPDATE", [RECORD_TYPES.approval, id]);
+        const [rows] = await connection.query("SELECT payload_json, payload_sha256 FROM recovery_control_records WHERE record_type = ? AND record_id = ? FOR UPDATE", [RECORD_TYPES.approval, id]);
         if (!rows?.length) return { already_finalized: true };
         if (rows.length > 1) throw storeError("RECOVERY_CONTROL_STORE_AMBIGUOUS_APPROVAL", "Recovery approval lookup returned multiple records for one approval identity.");
-        const approval = parsePayload(rows[0].payload_json);
+        const approval = parseVerifiedPayload(rows[0], { record_type: RECORD_TYPES.approval, record_id_hash: digest(id) });
         const finalized = { ...approval, used: true, reserved: false, finalized_at: new Date().toISOString() };
         const json = canonical(finalized);
         await connection.query("INSERT INTO recovery_control_approval_finalizations (approval_id) VALUES (?)", [id]);
@@ -479,10 +521,10 @@ export function createProductionRecoveryControlStore({
       return withTransaction(poolProvider, async (connection) => {
         const [finalRows] = await connection.query("SELECT approval_id FROM recovery_control_approval_finalizations WHERE approval_id = ? FOR UPDATE", [approvalId]);
         if (finalRows?.length) return { reserved: false };
-        const [rows] = await connection.query("SELECT payload_json FROM recovery_control_records WHERE record_type = ? AND record_id = ? FOR UPDATE", [RECORD_TYPES.approval, approvalId]);
+        const [rows] = await connection.query("SELECT payload_json, payload_sha256 FROM recovery_control_records WHERE record_type = ? AND record_id = ? FOR UPDATE", [RECORD_TYPES.approval, approvalId]);
         if (!rows?.length) return { reserved: false };
         if (rows.length > 1) throw storeError("RECOVERY_CONTROL_STORE_AMBIGUOUS_APPROVAL", "Recovery approval lookup returned multiple records for one approval identity.");
-        const approval = parsePayload(rows[0].payload_json);
+        const approval = parseVerifiedPayload(rows[0], { record_type: RECORD_TYPES.approval, record_id_hash: digest(approvalId) });
         if (approval?.used === true || approval?.plan_hash !== planHash || approval?.step_id !== stepId) return { reserved: false };
         const payload = { ...context, reservation_key: reservationKey, reserved_at: new Date().toISOString(), secrets_included: false };
         const [result] = await connection.query(`INSERT IGNORE INTO recovery_control_approval_reservations
@@ -513,9 +555,10 @@ export function createProductionRecoveryControlStore({
       return { released: Number(result?.affectedRows) === 1 };
     },
     async getExecutionTicket(ticketId) {
-      const [rows] = await query(poolProvider, "SELECT payload_json FROM recovery_control_execution_tickets WHERE ticket_id = ? LIMIT 1", [requiredId(ticketId, "ticket_id")]);
+      const id = requiredId(ticketId, "ticket_id");
+      const [rows] = await query(poolProvider, "SELECT ticket_hash, payload_json FROM recovery_control_execution_tickets WHERE ticket_id = ? LIMIT 1", [id]);
       if (rows.length > 1) throw storeError("RECOVERY_CONTROL_STORE_AMBIGUOUS_EXECUTION_TICKET", "Execution-ticket lookup returned multiple rows for one ticket identity.");
-      return rows?.length ? parsePayload(rows[0].payload_json) : null;
+      return rows?.length ? parseVerifiedExecutionTicket(rows[0], { ticket_id_hash: digest(id) }) : null;
     },
     async putExecutionTicket(ticket = {}) {
       const ticketId = requiredId(ticket.ticket_id, "ticket_id");
@@ -597,6 +640,8 @@ export const _testingProductionRecoveryControlStore = Object.freeze({
   canonical,
   digest,
   parsePayload,
+  parseVerifiedPayload,
+  parseVerifiedExecutionTicket,
   boundedTtl,
   approvalReservationKey,
   createFencedLock,
