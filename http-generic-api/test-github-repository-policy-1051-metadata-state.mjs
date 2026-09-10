@@ -77,14 +77,14 @@ const duplicateAuthorization = classifyMetadataPresence({ migration_authorizatio
 assert.equal(duplicateAuthorization.authorization_state, "invalid_multiple");
 assert.equal(duplicateAuthorization.metadata_present, false);
 
-const retryNow = Date.parse("2026-09-10T00:00:00Z");
-assert.equal(bounded429RetryDelayMs({ retryIndex: 0, nowMs: retryNow }), 5000);
-assert.equal(bounded429RetryDelayMs({ retryIndex: 1, nowMs: retryNow }), 15000);
-assert.equal(bounded429RetryDelayMs({ retryIndex: 2, nowMs: retryNow }), 30000);
-assert.equal(bounded429RetryDelayMs({ retryAfter: "2", retryIndex: 2, nowMs: retryNow }), 2000);
-assert.equal(bounded429RetryDelayMs({ retryAfter: "Thu, 10 Sep 2026 00:00:12 GMT", retryIndex: 0, nowMs: retryNow }), 12000);
-assert.equal(bounded429RetryDelayMs({ retryAfter: "Thu, 10 Sep 2026 00:01:00 GMT", retryIndex: 0, nowMs: retryNow }), 30000);
-assert.equal(bounded429RetryDelayMs({ retryAfter: "not-a-date", retryIndex: 1, nowMs: retryNow }), 15000);
+const sampleNow = Date.parse("2026-09-10T00:00:00Z");
+assert.equal(bounded429RetryDelayMs({ retryIndex: 0, nowMs: sampleNow }), 5000);
+assert.equal(bounded429RetryDelayMs({ retryIndex: 1, nowMs: sampleNow }), 15000);
+assert.equal(bounded429RetryDelayMs({ retryIndex: 2, nowMs: sampleNow }), 30000);
+assert.equal(bounded429RetryDelayMs({ retryAfter: "2", retryIndex: 2, nowMs: sampleNow }), 2000);
+assert.equal(bounded429RetryDelayMs({ retryAfter: "Thu, 10 Sep 2026 00:00:12 GMT", retryIndex: 0, nowMs: sampleNow }), 12000);
+assert.equal(bounded429RetryDelayMs({ retryAfter: "Thu, 10 Sep 2026 00:01:00 GMT", retryIndex: 0, nowMs: sampleNow }), 30000);
+assert.equal(bounded429RetryDelayMs({ retryAfter: "not-a-date", retryIndex: 1, nowMs: sampleNow }), 15000);
 
 assert.equal(classifyDependencyBlockReason({
   runtimeDependencyReady: false,
@@ -109,8 +109,10 @@ assert.equal(classifyDependencyBlockReason({
   governanceWriterReady: true,
 }), null);
 
-assert.match(metadataStateSource, /const RATE_LIMIT_MAX_ATTEMPTS = 4;/);
-assert.match(metadataStateSource, /RATE_LIMIT_FALLBACK_DELAYS_MS = Object\.freeze\(\[5000, 15000, 30000\]\)/);
+assert.match(metadataStateSource, /const READBACK_BACKOFF = Object\.freeze\(\{/);
+assert.match(metadataStateSource, /attempts:\s*4/);
+assert.match(metadataStateSource, /delaysMs:\s*Object\.freeze\(\[5000, 15000, 30000\]\)/);
+assert.match(metadataStateSource, /maxDelayMs:\s*30000/);
 assert.match(metadataStateSource, /response\.headers\?\.get\?\.\('retry-after'\)/);
 assert.match(metadataStateSource, /rate_limit_exhausted: response\.status === 429/);
 assert.match(metadataStateSource, /\{ retry429: true \}/g);
