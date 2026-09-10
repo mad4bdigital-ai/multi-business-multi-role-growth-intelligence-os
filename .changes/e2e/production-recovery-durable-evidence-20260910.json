@@ -13,7 +13,8 @@
       "http-generic-api/productionRecoveryControlStore.js",
       "http-generic-api/productionRecoveryCompositionFactory.js",
       "http-generic-api/productionActivationReadiness.js",
-      "http-generic-api/test-production-recovery-durable-evidence.mjs"
+      "http-generic-api/test-production-recovery-durable-evidence.mjs",
+      "http-generic-api/test-production-activation-readiness.mjs"
     ]
   },
   "merge_contract": {
@@ -38,7 +39,7 @@
           "level": "synthetic_runtime",
           "actor": "Production Recovery composition root",
           "entrypoint": "http-generic-api/test-production-recovery-durable-evidence.mjs",
-          "terminal_outcome": "A fresh Recovery store instance over the same backing state can read the persisted run, plan, finding and idempotency evidence; any payload whose stored SHA-256 no longer matches is rejected; readiness reports degraded rather than mutating schema when the durable evidence layout is incomplete.",
+          "terminal_outcome": "A fresh Recovery store instance over the same backing state can read the persisted run, plan, finding and idempotency evidence; any payload whose stored SHA-256 no longer matches is rejected; readiness reports degraded rather than mutating schema when the durable evidence layout is incomplete; Production live-state consistency is derived from actual composition instead of a legacy caller signal.",
           "steps": [
             "Create the Recovery control-store through the canonical shared durable-store contract.",
             "Persist a sanitized run, plan, finding, idempotency receipt and append-only evidence event.",
@@ -47,7 +48,8 @@
             "Modify persisted payload_json without updating payload_sha256 and require the store to fail closed with an integrity error.",
             "Probe the independent Recovery control database through ping plus information_schema column/index reads only.",
             "When a required durable evidence column is absent, return schema_not_ready with database_mutation_performed=false and schema_auto_apply=false.",
-            "Qualify durable inspection and mutation-grade stores through one shared validator contract while keeping execution-ticket verification an additional mutation-grade requirement."
+            "Qualify durable inspection and mutation-grade stores through one shared validator contract while keeping execution-ticket verification an additional mutation-grade requirement.",
+            "Compute Production live-state consistency from the actual Recovery composition and prove the legacy caller live-enabled signal cannot activate mutation authority."
           ],
           "assertions": [
             "Durable Recovery evidence survives a process/store restart over the same backing store.",
@@ -57,6 +59,7 @@
             "The Recovery control DB remains independent from runtime, governance and runtime-persistence target databases.",
             "The shared durable-store contract distinguishes evidence-grade durability from mutation-grade authority.",
             "Actual Recovery composition state is authoritative for Production live readiness; legacy caller signals cannot enable mutation authority.",
+            "recovery_live_state_consistent is a fail-closed aggregate readiness dimension rather than an informational field.",
             "Production deploy, provider mutation, database mutation, migration apply, grant mutation, workflow dispatch and secret reads remain false."
           ],
           "tests": [
@@ -65,6 +68,13 @@
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-production-recovery-durable-evidence.mjs",
+              "args": []
+            },
+            {
+              "id": "production-recovery-live-state-readiness",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-activation-readiness.mjs",
               "args": []
             }
           ],
@@ -76,6 +86,7 @@
             "http-generic-api/productionRecoveryCompositionFactory.js",
             "http-generic-api/productionActivationReadiness.js",
             "http-generic-api/test-production-recovery-durable-evidence.mjs",
+            "http-generic-api/test-production-activation-readiness.mjs",
             "http-generic-api/config/deployment-branch-policy.json"
           ]
         }
@@ -86,6 +97,13 @@
           "runner": "node",
           "working_directory": "http-generic-api",
           "path": "test-production-recovery-durable-evidence.mjs",
+          "args": []
+        },
+        {
+          "id": "production-recovery-live-state-readiness",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-production-activation-readiness.mjs",
           "args": []
         }
       ]
