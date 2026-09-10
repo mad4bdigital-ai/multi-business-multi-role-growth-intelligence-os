@@ -150,7 +150,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "409424a9fc2b54fcb8777a07c2884abdeac94c74553f74d5a84a3b94d4911df9"
+      "sha256": "48a6e782fb9951d314148aaaa4326ea66c73dac61a81c2c996db20d49f7293d5"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -286,7 +286,7 @@
     },
     {
       "path": "http-generic-api/scripts/staging-live-certification.mjs",
-      "sha256": "1d4d621bc8901a55385095d3ca3de0bab191acd11ba8279702401df17cd812ce"
+      "sha256": "5611552f143e03595911180dfebf25de08a0149cef4ed24a96f8a680a4ec07c5"
     },
     {
       "path": "http-generic-api/tenantGptOAuthPkce.js",
@@ -298,7 +298,7 @@
     },
     {
       "path": "http-generic-api/test-staging-environment-certification-contract.mjs",
-      "sha256": "e377509f95715ded673e0c217242a42e2915d9176eb406e9029cab5d6edecadc"
+      "sha256": "e6791e98e83a529c5d61eb1cfa3cd49b74ec448275d15f161f62e7b7aa6d54a5"
     },
     {
       "path": "autopilot-portable-staging/Bootstrap-Staging-One-Click.ps1",
