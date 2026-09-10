@@ -172,6 +172,42 @@ test("approval challenge returns exact typed-confirmation requirements without t
   }
 });
 
+test("approval challenge cannot fall back to read-only evidence authority", async () => {
+  let evidenceStoreCalls = 0;
+  let issuerCalls = 0;
+  const evidenceStore = {
+    getPlan: async () => { evidenceStoreCalls += 1; return PLAN; },
+    putApproval: async () => { evidenceStoreCalls += 1; return { persisted: true }; },
+    getApprovalByPlanStep: async () => { evidenceStoreCalls += 1; return null; },
+  };
+  const app = buildTestApp({
+    recoveryStore: evidenceStore,
+    readOnlyRecoveryStore: evidenceStore,
+    mutationRecoveryStore: null,
+    approvalIssuer: { createChallenge: async () => { issuerCalls += 1; return { delivery_ref: "must-not-issue" }; } },
+    approvalStore: {
+      putChallenge: async () => ({ persisted: true }),
+      getChallenge: async () => null,
+    },
+  });
+  const { server, baseUrl } = await startServer(app);
+  try {
+    const response = await postJson(baseUrl, {
+      plan_id: PLAN_ID,
+      plan_hash: PLAN_HASH,
+      step_id: STEP_ID,
+    }, "/admin/recovery/kernel/approval-challenge");
+    assert.equal(response.status, 503);
+    assert.equal(response.body.error.code, "RECOVERY_APPROVAL_CHALLENGE_AUTHORITY_UNAVAILABLE");
+    assert.equal(response.body.database_mutation_performed, false);
+    assert.equal(response.body.secrets_included, false);
+    assert.equal(evidenceStoreCalls, 0, "approval issuance must not read or mutate through the evidence-only store");
+    assert.equal(issuerCalls, 0, "approval issuer must not run without mutation-grade Recovery store authority");
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
 test("historical execute alias uses the same server-issued bridge and fails closed before provider", async () => {
   let providerCalls = 0;
   const app = buildTestApp({
