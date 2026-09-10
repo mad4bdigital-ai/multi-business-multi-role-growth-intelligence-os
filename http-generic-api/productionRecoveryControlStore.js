@@ -487,7 +487,7 @@ export function createProductionRecoveryControlStore({
         VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE payload_json = VALUES(payload_json), payload_sha256 = VALUES(payload_sha256)`, [key, json, digest(json)]);
     },
     async putApproval(value) {
-      await putRecord(poolProvider, RECORD_TYPES.apval, value?.approval_id, value, { plan_id: value?.plan_id, step_id: value?.step_id });
+      await putRecord(poolProvider, RECORD_TYPES.approval, value?.approval_id, value, { plan_id: value?.plan_id, step_id: value?.step_id });
       await query(poolProvider, `INSERT INTO recovery_control_approval_index (plan_id, step_id, approval_id)
         VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE approval_id = VALUES(approval_id)`, [requiredId(value?.plan_id, "plan_id"), requiredId(value?.step_id, "step_id"), requiredId(value?.approval_id, "approval_id")]);
     },
