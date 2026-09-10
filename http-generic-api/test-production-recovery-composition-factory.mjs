@@ -191,8 +191,9 @@ test("fail-closed mutation composition preserves only certified read-only durabl
   assert.equal(composition.kernelDependencies.recoveryStore, null);
   assert.equal(composition.components.recoveryStore, null);
   assert.equal(composition.readOnlyDependencies.recoveryStore, adapters.recoveryStore);
-  assert.equal(routeDeps.recoveryStore, null);
+  assert.equal(routeDeps.recoveryStore, adapters.recoveryStore);
   assert.equal(routeDeps.readOnlyRecoveryStore, adapters.recoveryStore);
+  assert.equal(routeDeps.mutationRecoveryStore, null);
   assert.equal(composition.productionRecoveryCompositionFactory.read_only_recovery_store_available, true);
 });
 
