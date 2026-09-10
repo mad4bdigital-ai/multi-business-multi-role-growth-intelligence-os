@@ -1,18 +1,12 @@
 #!/usr/bin/env node
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import {
-  assertActivationGatewayProfilePolicy,
   classifyEnvironmentCertification,
+  loadActivationGatewayProfilePolicy,
   readEnvironmentConvergenceRegistry,
 } from "../environmentConvergenceRegistry.js";
 
 const CONTRACT = "mad4b.staging-live-certification.v1";
 const SHA_RE = /^[0-9a-f]{40}$/u;
-const here = path.dirname(fileURLToPath(import.meta.url));
-const apiRoot = path.resolve(here, "..");
-const repositoryRoot = path.resolve(apiRoot, "..");
 const convergenceRegistry = readEnvironmentConvergenceRegistry();
 
 function bool(value, fallback = false) {
@@ -25,22 +19,6 @@ function normalizeUrl(value, fallback) {
   const url = new URL(String(value || fallback));
   url.pathname = url.pathname.replace(/\/$/u, "");
   return url;
-}
-
-function readGatewayPolicy() {
-  const configured = String(process.env.STAGING_CERT_GATEWAY_POLICY_PATH || "").trim();
-  const candidates = [
-    configured,
-    path.join(repositoryRoot, "edge/activation-gateway/generated/route-policy.staging.json"),
-    path.join(apiRoot, "staging-route-policy.json"),
-    "/app/staging-route-policy.json",
-  ].filter(Boolean);
-  for (const candidate of candidates) {
-    try {
-      return { path: candidate, policy: JSON.parse(fs.readFileSync(candidate, "utf8")) };
-    } catch { }
-  }
-  return { path: null, policy: null };
 }
 
 async function fetchJson(url, { timeoutMs = 10000 } = {}) {
@@ -84,7 +62,6 @@ const requireGateway = bool(
   bool(process.env.ACTIVATION_STAGING_GATEWAY_ENABLED, false),
 );
 const requireGatewayUpstream = bool(process.env.STAGING_CERT_REQUIRE_GATEWAY_UPSTREAM, false);
-const { path: gatewayPolicyPath, policy: gatewayPolicy } = readGatewayPolicy();
 
 if (!SHA_RE.test(expectedCommit)) {
   console.error("STAGING_CERT_EXPECTED_COMMIT must be an exact lowercase 40-character SHA");
@@ -106,6 +83,21 @@ if (expectedImageDigest && !/^sha256:[0-9a-f]{64}$/u.test(expectedImageDigest)) 
   console.error("STAGING_CERT_APP_IMAGE_ID must be a sha256 content digest when supplied");
   process.exit(1);
 }
+
+let gatewayPolicyResolution = null;
+let gatewayPolicyLoadError = null;
+if (requireGateway) {
+  try {
+    gatewayPolicyResolution = loadActivationGatewayProfilePolicy("staging", {
+      registry: convergenceRegistry,
+    });
+  } catch (error) {
+    gatewayPolicyLoadError = String(error?.message || "activation_gateway_canonical_policy_unavailable").slice(0, 256);
+  }
+}
+const gatewayProfile = convergenceRegistry.profiles.staging.activation_gateway;
+const gatewayPolicy = gatewayPolicyResolution?.policy || null;
+const gatewayPolicyPath = gatewayPolicyResolution?.canonical_policy_path || gatewayProfile.policy_path || null;
 
 const deploymentUrl = new URL("/deployment-info", appBase);
 deploymentUrl.searchParams.set("include_governance_db_readiness", "1");
@@ -172,27 +164,38 @@ const readinessChecks = [
 let gatewayEvidence = {
   required: requireGateway,
   policy_path: gatewayPolicyPath,
-  expected_policy_hash: gatewayPolicy?.content_hash_sha256 || null,
+  loaded_policy_path: gatewayPolicyResolution?.loaded_policy_path || null,
+  policy_source: gatewayPolicyResolution?.policy_source || null,
+  expected_policy_hash: gatewayProfile.expected_policy_hash || null,
   expected_source_commit: expectedCommit,
-  public_host: gatewayPolicy?.public_host || null,
-  profile_validation: null,
+  public_host: gatewayProfile.public_host || null,
+  profile_validation: gatewayPolicyResolution?.validation || null,
   health: null,
   ready: null,
 };
 
 if (requireGateway) {
-  if (!gatewayPolicy?.public_host || !gatewayPolicy?.content_hash_sha256) {
-    readinessChecks.push(check("gateway_policy_source_available", false, { policy_path: gatewayPolicyPath }, "readiness"));
+  if (!gatewayPolicyResolution || !gatewayPolicy) {
+    integrityChecks.push(check("gateway_environment_profile_current", false, {
+      environment: "staging",
+      policy_path: gatewayPolicyPath,
+      error: gatewayPolicyLoadError,
+      caller_policy_override_allowed: false,
+    }));
   } else {
-    const profileValidation = assertActivationGatewayProfilePolicy("staging", gatewayPolicy, convergenceRegistry);
-    gatewayEvidence.profile_validation = profileValidation;
+    const profileValidation = gatewayPolicyResolution.validation;
     integrityChecks.push(check("gateway_environment_profile_current", profileValidation.ok, {
       environment: profileValidation.environment,
       expected_policy_key: profileValidation.expected_policy_key,
       observed_policy_key: profileValidation.observed_policy_key,
+      expected_policy_hash: profileValidation.expected_policy_hash,
+      observed_policy_hash: profileValidation.observed_policy_hash,
       expected_public_host: profileValidation.expected_public_host,
       observed_public_host: profileValidation.observed_public_host,
       policy_path: profileValidation.policy_path,
+      loaded_policy_path: gatewayPolicyResolution.loaded_policy_path,
+      policy_source: gatewayPolicyResolution.policy_source,
+      caller_policy_override_allowed: false,
       checks: profileValidation.checks,
     }));
 
@@ -218,12 +221,12 @@ if (requireGateway) {
           expected: expectedCommit,
           observed: health.body.sourceCommit || null,
         }, "readiness"));
-        readinessChecks.push(check("gateway_policy_hash_current", health.body.policyHash === gatewayPolicy.content_hash_sha256, {
-          expected: gatewayPolicy.content_hash_sha256,
+        readinessChecks.push(check("gateway_policy_hash_current", health.body.policyHash === gatewayProfile.expected_policy_hash, {
+          expected: gatewayProfile.expected_policy_hash,
           observed: health.body.policyHash || null,
         }, "readiness"));
-        readinessChecks.push(check("gateway_policy_key_current", health.body.policyKey === gatewayPolicy.policy_key, {
-          expected: gatewayPolicy.policy_key || null,
+        readinessChecks.push(check("gateway_policy_key_current", health.body.policyKey === gatewayProfile.policy_key, {
+          expected: gatewayProfile.policy_key || null,
           observed: health.body.policyKey || null,
         }, "readiness"));
         readinessChecks.push(check("gateway_health_secret_free", health.body.secretsIncluded === false, health.body.secretsIncluded ?? null, "readiness"));
@@ -255,6 +258,7 @@ const report = {
   expected: {
     branch: expectedBranch,
     commit_sha: expectedCommit,
+    activation_gateway_policy_hash: gatewayProfile.expected_policy_hash || null,
     app_base_url: appBase.origin,
   },
   observed: {
