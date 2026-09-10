@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { generateKeyPairSync } from "node:crypto";
 import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
@@ -19,12 +20,16 @@ const expectedCommit = "1".repeat(40);
 const expectedTree = "2".repeat(40);
 const expectedContextFileSet = "3".repeat(64);
 const expectedImageDigest = `sha256:${"4".repeat(64)}`;
+const { publicKey: stagingIngressPublicKey } = generateKeyPairSync("ed25519");
+const stagingIngressPublicKeyPem = stagingIngressPublicKey.export({ type: "spki", format: "pem" });
 const liveSource = fs.readFileSync(liveScript, "utf8");
 assert.match(liveSource, /STAGING_CERT_EXPECTED_TREE/);
 assert.match(liveSource, /STAGING_CERT_EXPECTED_CONTEXT_FILE_SET_SHA256/);
 assert.match(liveSource, /app_image_digest_exact/);
 assert.match(liveSource, /artifact_set/);
 assert.match(liveSource, /gateway_environment_profile_current/);
+assert.match(liveSource, /gateway_recovery_trusted_ingress/);
+assert.match(liveSource, /public_key_ed25519/);
 assert.match(liveSource, /classifyEnvironmentCertification/);
 assert.match(liveSource, /loadActivationGatewayProfilePolicy\("staging"/);
 assert.doesNotMatch(liveSource, /STAGING_CERT_GATEWAY_POLICY_PATH/);
@@ -210,6 +215,16 @@ function runLive(extraEnv = {}) {
         STAGING_CERT_APP_BASE_URL: app.baseUrl,
         STAGING_CERT_REQUIRE_GATEWAY: "true",
         STAGING_CERT_GATEWAY_BASE_URL: gateway.baseUrl,
+        REMOTE_MCP_TRUST_PROXY_HOST_HEADERS: "true",
+        REMOTE_MCP_TRUSTED_INGRESS_MODE: "signature",
+        REMOTE_MCP_TRUSTED_INGRESS_STRIP_CALLER_HEADERS: "true",
+        REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY: stagingIngressPublicKeyPem,
+        REMOTE_MCP_TRUSTED_INGRESS_KEY_ID: "staging-test-ingress-key-0001",
+        REMOTE_MCP_TRUSTED_INGRESS_CANONICAL_HOST: gatewayPolicy.public_host,
+        REMOTE_MCP_TRUSTED_INGRESS_AUDIENCE: gatewayPolicy.upstream_origin,
+        REMOTE_MCP_TRUSTED_INGRESS_ISSUER: `https://${gatewayPolicy.public_host}`,
+        REMOTE_MCP_EXPECTED_DEPLOYMENT_SHA: expectedCommit,
+        RECOVERY_STAGING_INGRESS_REPLAY_DIRECTORY: "/app/data/recovery-ingress",
         ...extraEnv,
       },
       stdio: ["ignore", "pipe", "pipe"],
@@ -249,6 +264,9 @@ try {
   assert.equal(ready.report.gateway.policy_source, "repository_profile");
   assert.equal(ready.report.gateway.policy_path, "edge/activation-gateway/generated/route-policy.staging.json");
   assert.equal(ready.report.gateway.expected_policy_hash, gatewayPolicy.content_hash_sha256);
+  assert.equal(ready.report.gateway.recovery_trusted_ingress.ready, true);
+  assert.equal(ready.report.gateway.recovery_trusted_ingress.raw_public_key_exposed, false);
+  assert.equal(ready.report.gateway.recovery_trusted_ingress.secrets_included, false);
   assert.equal(ready.report.expected.activation_gateway_policy_hash, gatewayPolicy.content_hash_sha256);
   assert.equal(ready.report.convergence.status, "converged");
   assert.deepEqual(ready.report.convergence.classified_failures, []);
@@ -256,6 +274,7 @@ try {
   assert.equal(ready.report.artifact_set.app.tree_sha, expectedTree);
   assert.equal(ready.report.artifact_set.app.context_file_set_sha256, expectedContextFileSet);
   assert.equal(ready.report.artifact_set.app.image_digest, expectedImageDigest);
+  assert.equal(ready.report.artifact_set.gateway.recovery_trusted_ingress_ready, true);
   assert.equal(ready.report.safety.database_mutation, false);
   assert.equal(ready.report.safety.migration_apply, false);
   assert.equal(ready.report.safety.production_deploy, false);
@@ -278,6 +297,29 @@ try {
   assert.equal(exactCommitFailure.handoff.apply_capability, null);
   assert.equal(exactCommitFailure.handoff.apply_block_reason, "server_governed_staging_activation_worker_adapter_required");
   gatewaySourceCommit = expectedCommit;
+
+  const trustMismatch = await runLive({
+    STAGING_CERT_REQUIRE_READY: "false",
+    REMOTE_MCP_EXPECTED_DEPLOYMENT_SHA: "0".repeat(40),
+  });
+  assert.equal(trustMismatch.run.status, 0, trustMismatch.run.stderr || trustMismatch.run.stdout);
+  assert.equal(trustMismatch.report.outcome, "degraded");
+  assert.equal(trustMismatch.report.ready, false);
+  assert.ok(trustMismatch.report.degraded_reasons.includes("gateway_recovery_trusted_ingress"));
+  assert.equal(trustMismatch.report.artifact_set.complete, false);
+  assert.equal(trustMismatch.report.gateway.recovery_trusted_ingress.ready, false);
+  assert.equal(trustMismatch.report.gateway.recovery_trusted_ingress.checks.deployment_sha_exact, false);
+  assert.equal(trustMismatch.report.convergence.status, "reconciliation_required");
+  const trustFailure = trustMismatch.report.convergence.classified_failures.find(
+    (entry) => entry.check_key === "gateway_recovery_trusted_ingress",
+  );
+  assert.equal(trustFailure.failure_kind, "convergence_drift");
+  assert.equal(trustFailure.drift_class, "trusted_ingress_evidence_mismatch");
+  assert.equal(trustFailure.repairability, "governed");
+  assert.equal(trustFailure.handoff.automatic_apply_allowed, false);
+  assert.equal(trustMismatch.report.safety.provider_mutation, false);
+  assert.equal(trustMismatch.report.safety.database_mutation, false);
+  assert.equal(trustMismatch.report.safety.production_deploy, false);
 
   const healthRequestsAfterCanonicalChecks = gatewayHealthRequests;
   assert.equal(healthRequestsAfterCanonicalChecks > 0, true);
