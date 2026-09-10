@@ -27,6 +27,17 @@ const REQUIRED_LIVE_AUTHORIZATION_FLAGS = Object.freeze([
   "bootstrap_evidence_independent",
 ]);
 const SERVER_RESOLVER_METHOD = "resolveApprovedExecutionApproval";
+const READ_ONLY_EVIDENCE_STORE_METHODS = Object.freeze([
+  "putRun",
+  "getRun",
+  "putPlan",
+  "getPlan",
+  "putFinding",
+  "getFinding",
+  "getRunByIdempotency",
+  "appendEvidenceEvent",
+  "putIdempotencyReceipt",
+]);
 
 function factoryError(code, message, details = {}) {
   const error = new Error(message);
@@ -42,10 +53,31 @@ function independentBootstrapEvidenceStore(recoveryStore) {
     && recoveryStore.recovery_store_contract === "mad4b.recovery-durable-store.v1"
     && recoveryStore.independent_of_target_databases === true
     && recoveryStore.target_database_binding === "forbidden"
+    && recoveryStore.provider_accessed === false
     && typeof recoveryStore.appendEvidenceEvent === "function"
     && typeof recoveryStore.putRun === "function"
     && typeof recoveryStore.getRunByIdempotency === "function",
   );
+}
+
+function buildReadOnlyEvidenceStore(recoveryStore) {
+  if (!independentBootstrapEvidenceStore(recoveryStore)) return null;
+  if (READ_ONLY_EVIDENCE_STORE_METHODS.some((method) => typeof recoveryStore[method] !== "function")) return null;
+  const projection = {
+    recovery_store_contract: recoveryStore.recovery_store_contract,
+    independent_of_target_databases: true,
+    target_database_binding: "forbidden",
+    provider_accessed: false,
+    shared_replica_safe: recoveryStore.shared_replica_safe === true,
+    schema_auto_apply: false,
+    evidence_authority_only: true,
+    mutation_authority: false,
+    secrets_included: false,
+  };
+  for (const method of READ_ONLY_EVIDENCE_STORE_METHODS) {
+    projection[method] = recoveryStore[method].bind(recoveryStore);
+  }
+  return Object.freeze(projection);
 }
 
 function independentReadbackAuthority(readbackVerifier) {
@@ -65,7 +97,7 @@ function serverSideApprovalResolver(approvalStore) {
 function extractCertifiedReadOnlyAuthorities(candidate = null) {
   const recoveryStore = candidate?.components?.recoveryStore || null;
   return Object.freeze({
-    recoveryStore: independentBootstrapEvidenceStore(recoveryStore) ? recoveryStore : null,
+    recoveryStore: buildReadOnlyEvidenceStore(recoveryStore),
   });
 }
 
@@ -342,9 +374,11 @@ export const _testingProductionRecoveryCompositionFactory = Object.freeze({
   SERVER_MANAGED_CONTEXT,
   REQUIRED_LIVE_AUTHORIZATION_FLAGS,
   SERVER_APPROVAL_RESOLVER_METHOD: SERVER_RESOLVER_METHOD,
+  READ_ONLY_EVIDENCE_STORE_METHODS,
   validateServerManagedEnvelope,
   validateLiveAuthorization,
   independentBootstrapEvidenceStore,
+  buildReadOnlyEvidenceStore,
   extractCertifiedReadOnlyAuthorities,
   independentReadbackAuthority,
   serverSideApprovalResolver,
