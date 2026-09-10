@@ -1,0 +1,106 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-recovery-kernel-authority-closure-20260910",
+  "title": "Production Recovery Kernel canonical durability and fixed Admin authority closure",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/production-recovery-kernel-authority-closure-20260910.json",
+      "http-generic-api/recoveryKernel.js",
+      "http-generic-api/recoveryKernelCore.js",
+      "http-generic-api/routes/systemLayerRoutes.js",
+      "http-generic-api/routes/systemLayerRoutesCore.js",
+      "http-generic-api/routes/recoveryKernelRoutes.js",
+      "http-generic-api/routes/recoveryKernelRoutesCore.js",
+      "http-generic-api/productionRecoveryCompositionFactory.js",
+      "http-generic-api/productionRecoveryCompositionFactoryCore.js",
+      "http-generic-api/recoveryDurableStoreContract.js",
+      "http-generic-api/test-recovery-system-tool-store-authority-separation.mjs",
+      ".github/governance/test-authority-registry.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make canonical durable-store qualification authoritative at the Recovery Kernel and fixed Admin System Tool consumer boundaries, degrade unready evidence stores to memory-only diagnostics, preserve explicit-null mutation fail-close, and require canonical mutation-grade Recovery storage before Production live mutation authority can be exposed.",
+      "e2e_journeys": [
+        {
+          "id": "fixed-admin-recovery-store-authority-separation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Fixed Admin System Tool Recovery caller",
+          "entrypoint": "http-generic-api/test-recovery-system-tool-store-authority-separation.mjs",
+          "terminal_outcome": "Fixed Admin Recovery reads use only qualified evidence authority, consequential control/execution uses only explicit mutation authority, explicit mutationRecoveryStore=null never falls back to the legacy alias, and an observed unready evidence store is treated as memory-only rather than durable.",
+          "steps": [
+            "Qualify evidence and mutation stores through recoveryDurableStoreContract.js rather than method-shape-only local validators.",
+            "Route recovery_kernel_call through readOnlyRecoveryStore when that dependency is explicitly present.",
+            "Route approval/control and execute-approved operations through mutationRecoveryStore when that dependency is explicitly present.",
+            "Reject consequential capabilities on the read-only fixed Admin bridge.",
+            "Preserve explicit mutationRecoveryStore=null as authoritative fail-closed state without fallback to recoveryStore.",
+            "Observe getReadiness when exposed by the Recovery Control Store and remove unready evidence authority from the durable path.",
+            "Normalize database inspection and durable readback claims so inspection-grade and mutation-grade are separate booleans.",
+            "Require canonical mutation-grade storage before any Production live composition may expose mutation_authority_available=true.",
+            "Keep provider, database, migration, grant, Production deploy, workflow-dispatch and secret mutation outside this change."
+          ],
+          "assertions": [
+            "Evidence-grade durability never implies mutation-grade authority.",
+            "A method-shape-only store that omits canonical independence, schema-auto-apply or payload-integrity guarantees cannot produce durable proof.",
+            "Fixed Admin recovery_kernel_call selects the explicit readOnlyRecoveryStore and does not touch a legacy recoveryStore alias when the explicit boundary exists.",
+            "Fixed Admin execute-approved selects mutationRecoveryStore only, and explicit null mutation authority remains fail-closed.",
+            "Approval challenge creation is treated as control-plane state mutation and cannot run through the evidence-only projection.",
+            "Observed Recovery Control Store readiness=false causes memory-only/degraded diagnostics and inspection_durable=false rather than false durable evidence.",
+            "Role-selection provenance can become durable_full_inspection only when the store passed canonical inspection qualification and remained ready for the request.",
+            "Production live activation cannot expose mutation authority without canonical isMutationGradeRecoveryStore qualification.",
+            "No provider call, database mutation, migration apply, grant mutation, Production deploy, ruleset mutation or secret read is authorized by this closure."
+          ],
+          "tests": [
+            {
+              "id": "recovery-fixed-admin-store-authority-separation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-system-tool-store-authority-separation.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/production-recovery-kernel-authority-closure-20260910.json",
+            "http-generic-api/recoveryKernel.js",
+            "http-generic-api/recoveryKernelCore.js",
+            "http-generic-api/routes/systemLayerRoutes.js",
+            "http-generic-api/routes/systemLayerRoutesCore.js",
+            "http-generic-api/routes/recoveryKernelRoutes.js",
+            "http-generic-api/routes/recoveryKernelRoutesCore.js",
+            "http-generic-api/productionRecoveryCompositionFactory.js",
+            "http-generic-api/productionRecoveryCompositionFactoryCore.js",
+            "http-generic-api/recoveryDurableStoreContract.js",
+            "http-generic-api/test-recovery-system-tool-store-authority-separation.mjs",
+            "http-generic-api/config/deployment-branch-policy.json"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "recovery-fixed-admin-store-authority-separation",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-recovery-system-tool-store-authority-separation.mjs",
+          "args": []
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

@@ -84,20 +84,19 @@ if (expectedImageDigest && !/^sha256:[0-9a-f]{64}$/u.test(expectedImageDigest)) 
   process.exit(1);
 }
 
-let gatewayPolicyResolution = null;
-let gatewayPolicyLoadError = null;
+const gw = { resolution: null, load_error: null };
 if (requireGateway) {
   try {
-    gatewayPolicyResolution = loadActivationGatewayProfilePolicy("staging", {
+    gw.resolution = loadActivationGatewayProfilePolicy("staging", {
       registry: convergenceRegistry,
     });
   } catch (error) {
-    gatewayPolicyLoadError = String(error?.message || "activation_gateway_canonical_policy_unavailable").slice(0, 256);
+    gw.load_error = String(error?.message || "activation_gateway_canonical_policy_unavailable").slice(0, 256);
   }
 }
 const gatewayProfile = convergenceRegistry.profiles.staging.activation_gateway;
-const gatewayPolicy = gatewayPolicyResolution?.policy || null;
-const gatewayPolicyPath = gatewayPolicyResolution?.canonical_policy_path || gatewayProfile.policy_path || null;
+const gatewayPolicy = gw.resolution?.policy || null;
+const gatewayPolicyPath = gw.resolution?.canonical_policy_path || gatewayProfile.policy_path || null;
 
 const deploymentUrl = new URL("/deployment-info", appBase);
 deploymentUrl.searchParams.set("include_governance_db_readiness", "1");
@@ -164,26 +163,26 @@ const readinessChecks = [
 let gatewayEvidence = {
   required: requireGateway,
   policy_path: gatewayPolicyPath,
-  loaded_policy_path: gatewayPolicyResolution?.loaded_policy_path || null,
-  policy_source: gatewayPolicyResolution?.policy_source || null,
+  loaded_policy_path: gw.resolution?.loaded_policy_path || null,
+  policy_source: gw.resolution?.policy_source || null,
   expected_policy_hash: gatewayProfile.expected_policy_hash || null,
   expected_source_commit: expectedCommit,
   public_host: gatewayProfile.public_host || null,
-  profile_validation: gatewayPolicyResolution?.validation || null,
+  profile_validation: gw.resolution?.validation || null,
   health: null,
   ready: null,
 };
 
 if (requireGateway) {
-  if (!gatewayPolicyResolution || !gatewayPolicy) {
+  if (!gw.resolution || !gatewayPolicy) {
     integrityChecks.push(check("gateway_environment_profile_current", false, {
       environment: "staging",
       policy_path: gatewayPolicyPath,
-      error: gatewayPolicyLoadError,
+      error: gw.load_error,
       caller_policy_override_allowed: false,
     }));
   } else {
-    const profileValidation = gatewayPolicyResolution.validation;
+    const profileValidation = gw.resolution.validation;
     integrityChecks.push(check("gateway_environment_profile_current", profileValidation.ok, {
       environment: profileValidation.environment,
       expected_policy_key: profileValidation.expected_policy_key,
@@ -193,8 +192,8 @@ if (requireGateway) {
       expected_public_host: profileValidation.expected_public_host,
       observed_public_host: profileValidation.observed_public_host,
       policy_path: profileValidation.policy_path,
-      loaded_policy_path: gatewayPolicyResolution.loaded_policy_path,
-      policy_source: gatewayPolicyResolution.policy_source,
+      loaded_policy_path: gw.resolution.loaded_policy_path,
+      policy_source: gw.resolution.policy_source,
       caller_policy_override_allowed: false,
       checks: profileValidation.checks,
     }));
@@ -258,6 +257,9 @@ const report = {
   expected: {
     branch: expectedBranch,
     commit_sha: expectedCommit,
+    tree_sha: expectedTree,
+    context_file_set_sha256: expectedContextFileSet,
+    image_digest: expectedImageDigest || null,
     activation_gateway_policy_hash: gatewayProfile.expected_policy_hash || null,
     app_base_url: appBase.origin,
   },

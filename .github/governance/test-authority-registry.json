@@ -297,6 +297,7 @@
         "http-generic-api/test-staging-recovery-phase-b-approval-single-issuance.mjs",
         "http-generic-api/test-staging-trusted-ingress-diagnostics.mjs",
         "http-generic-api/test-recovery-action-bridge-system-layer.mjs",
+        "http-generic-api/test-recovery-system-tool-store-authority-separation.mjs",
         "http-generic-api/test-recovery-system-tool-overlay.mjs",
         "http-generic-api/test-staging-recovery-system-tools.mjs",
         "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -716,7 +717,8 @@
         "http-generic-api/test-staging-recovery-certification-protocol.mjs",
         "http-generic-api/test-staging-recovery-certification-public-trust.mjs",
         "http-generic-api/test-staging-recovery-certification-signing-authority.mjs",
-        "http-generic-api/test-staging-recovery-phase-b-concurrency.mjs"
+        "http-generic-api/test-staging-recovery-phase-b-concurrency.mjs",
+        "http-generic-api/test-recovery-system-tool-store-authority-separation.mjs"
       ],
       "protected_by_verifiers": [
         "production_live_fail_closed",
@@ -757,6 +759,7 @@
         "http-generic-api/test-recovery-composition.mjs",
         "http-generic-api/test-recovery-kernel-routes.mjs",
         "http-generic-api/test-recovery-action-bridge-system-layer.mjs",
+        "http-generic-api/test-recovery-system-tool-store-authority-separation.mjs",
         "http-generic-api/test-runtime-bootstrap-contract.mjs",
         "http-generic-api/test-host-breakglass-catalog.mjs"
       ],

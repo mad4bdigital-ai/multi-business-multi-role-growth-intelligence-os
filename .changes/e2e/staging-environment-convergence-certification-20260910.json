@@ -23,9 +23,7 @@
       "http-generic-api/test-staging-autopilot-closure.mjs"
     ]
   },
-  "merge_contract": {
-    "minimum_phase": "mvp"
-  },
+  "merge_contract": { "minimum_phase": "mvp" },
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
     "declared_targets": ["staging", "production"],
@@ -65,20 +63,8 @@
             "The convergence handoff never auto-applies and live certification performs no provider or Production mutation."
           ],
           "tests": [
-            {
-              "id": "staging-live-certification-contract",
-              "runner": "node",
-              "working_directory": "http-generic-api",
-              "path": "test-staging-environment-certification-contract.mjs",
-              "args": []
-            },
-            {
-              "id": "staging-activation-gateway-contract",
-              "runner": "node",
-              "working_directory": "http-generic-api",
-              "path": "test-staging-activation-gateway.mjs",
-              "args": []
-            }
+            { "id": "staging-live-certification-contract", "runner": "node", "working_directory": "http-generic-api", "path": "test-staging-environment-certification-contract.mjs", "args": [] },
+            { "id": "staging-activation-gateway-contract", "runner": "node", "working_directory": "http-generic-api", "path": "test-staging-activation-gateway.mjs", "args": [] }
           ],
           "evidence_paths": [
             ".changes/e2e/staging-environment-convergence-certification-20260910.json",
@@ -95,7 +81,7 @@
         {
           "id": "staging-autopilot-shared-convergence-handoff",
           "end_to_end": true,
-          "level": "contract_integration",
+          "level": "synthetic_runtime",
           "actor": "Staging AutoPilot",
           "entrypoint": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
           "terminal_outcome": "AutoPilot consumes report.convergence.next_governed_handoff from the shared engine, produces a policy-hash-bound plan, and stops at approval/governed-authority boundaries without dispatching a workflow or mutating a provider.",
@@ -117,20 +103,8 @@
             "The legacy deployment workflow may remain as infrastructure but is not an execution primitive available to the AutoPilot boundary."
           ],
           "tests": [
-            {
-              "id": "staging-smart-gateway-convergence-contract",
-              "runner": "node",
-              "working_directory": "http-generic-api",
-              "path": "test-staging-smart-gateway-convergence-contract.mjs",
-              "args": []
-            },
-            {
-              "id": "staging-autopilot-certification-closure",
-              "runner": "node",
-              "working_directory": "http-generic-api",
-              "path": "test-staging-autopilot-closure.mjs",
-              "args": []
-            }
+            { "id": "staging-smart-gateway-convergence-contract", "runner": "node", "working_directory": "http-generic-api", "path": "test-staging-smart-gateway-convergence-contract.mjs", "args": [] },
+            { "id": "staging-autopilot-certification-closure", "runner": "node", "working_directory": "http-generic-api", "path": "test-staging-autopilot-closure.mjs", "args": [] }
           ],
           "evidence_paths": [
             "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
@@ -144,34 +118,10 @@
         }
       ],
       "tests": [
-        {
-          "id": "staging-live-certification-contract",
-          "runner": "node",
-          "working_directory": "http-generic-api",
-          "path": "test-staging-environment-certification-contract.mjs",
-          "args": []
-        },
-        {
-          "id": "staging-activation-gateway-contract",
-          "runner": "node",
-          "working_directory": "http-generic-api",
-          "path": "test-staging-activation-gateway.mjs",
-          "args": []
-        },
-        {
-          "id": "staging-smart-gateway-convergence-contract",
-          "runner": "node",
-          "working_directory": "http-generic-api",
-          "path": "test-staging-smart-gateway-convergence-contract.mjs",
-          "args": []
-        },
-        {
-          "id": "staging-autopilot-certification-closure",
-          "runner": "node",
-          "working_directory": "http-generic-api",
-          "path": "test-staging-autopilot-closure.mjs",
-          "args": []
-        }
+        { "id": "staging-live-certification-contract", "runner": "node", "working_directory": "http-generic-api", "path": "test-staging-environment-certification-contract.mjs", "args": [] },
+        { "id": "staging-activation-gateway-contract", "runner": "node", "working_directory": "http-generic-api", "path": "test-staging-activation-gateway.mjs", "args": [] },
+        { "id": "staging-smart-gateway-convergence-contract", "runner": "node", "working_directory": "http-generic-api", "path": "test-staging-smart-gateway-convergence-contract.mjs", "args": [] },
+        { "id": "staging-autopilot-certification-closure", "runner": "node", "working_directory": "http-generic-api", "path": "test-staging-autopilot-closure.mjs", "args": [] }
       ]
     }
   ],
