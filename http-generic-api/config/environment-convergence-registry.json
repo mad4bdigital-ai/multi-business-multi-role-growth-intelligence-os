@@ -75,6 +75,12 @@
           "repairability": "manual_or_external",
           "automatic_apply_allowed": false
         },
+        "gateway_environment_profile_current": {
+          "failure_kind": "integrity_failure",
+          "drift_class": "environment_profile_mismatch",
+          "repairability": "manual_non_repairable",
+          "automatic_apply_allowed": false
+        },
         "gateway_exact_commit": {
           "failure_kind": "convergence_drift",
           "drift_class": "release_identity_mismatch",
