@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
+import { readCanonicalDeploymentIdentity } from "./deploymentManifest.js";
 import { validateDeploymentIdentityAttestation } from "./recoveryExecutionBinding.js";
 
 export const RECOVERY_TRUST_CONTRACT = "mad4b.recovery-trust-model.v1";
@@ -88,18 +89,13 @@ function readManifest() {
 }
 
 function readIdentity(env = process.env) {
-  let deployment = null;
-  const candidates = [env.DEPLOYMENT_MANIFEST_JSON, env.DEPLOYMENT_COMMIT_JSON].filter(Boolean);
-  for (const candidate of candidates) {
-    try {
-      const parsed = JSON.parse(String(candidate));
-      if (parsed && typeof parsed === "object") { deployment = parsed; break; }
-    } catch { /* fail closed below */ }
-  }
+  const identity = readCanonicalDeploymentIdentity({ env, requireManifest: false });
   return {
-    repository: text(deployment?.repository || env.GITHUB_REPOSITORY || env.DEPLOY_REPOSITORY, 160) || null,
-    branch: text(deployment?.branch || env.GITHUB_REF_NAME || env.DEPLOY_BRANCH || env.BRANCH_NAME, 64) || null,
-    sha: text(deployment?.commit_sha || env.GITHUB_SHA || env.DEPLOY_COMMIT || env.COMMIT_SHA || env.REVISION_SHA, 64).toLowerCase() || null,
+    repository: text(identity.repository, 160) || null,
+    branch: text(identity.branch, 64) || null,
+    sha: text(identity.sha || identity.commit_sha, 64).toLowerCase() || null,
+    source: identity.source || "unknown",
+    manifest_bound: identity.manifest_bound === true,
   };
 }
 
@@ -176,6 +172,8 @@ export function verifyRecoveryManifest({ expectedSha, identity = null, env = pro
     sha_match: shaMatch,
     environment_match: safeEnvironmentKey(env) === "production_hostinger_autodeploy" || !text(env.DEPLOYMENT_ENVIRONMENT || env.REMOTE_MCP_ENVIRONMENT || env.NODE_ENV),
     exact_sha_required: true,
+    identity_source: resolvedIdentity.source || null,
+    manifest_bound: resolvedIdentity.manifest_bound === true,
     secrets_included: false,
   };
 }
@@ -200,7 +198,7 @@ function roleCredentialReadiness(env, role) {
 export function readRuntimeAttestation({ env = process.env, expectedSha = null, identity = null } = {}) {
   const resolvedIdentity = identity || readIdentity(env);
   const manifest = readRecoveryManifest();
-  const manifestBinding = expectedSha ? verifyRecoveryManifest({ expectedSha, identity: resolvedIdentity, env }) : { ok: false, manifest_hash: manifest.manifest_hash, exact_sha_required: true, secrets_included: false };
+  const manifestBinding = expectedSha ? verifyRecoveryManifest({ expectedSha, identity: resolvedIdentity, env }) : { ok: false, manifest_hash: manifest.manifest_hash, exact_sha_required: true, identity_source: resolvedIdentity.source || null, manifest_bound: resolvedIdentity.manifest_bound === true, secrets_included: false };
   const roleCredentials = Object.fromEntries(Object.keys(ROLE_ENVIRONMENTS).map((role) => [role, roleCredentialReadiness(env, role)]));
   const processStart = Number.isFinite(Number(process.uptime?.())) ? new Date(Date.now() - (process.uptime() * 1000)).toISOString() : null;
   const base = {
@@ -210,6 +208,8 @@ export function readRuntimeAttestation({ env = process.env, expectedSha = null, 
     branch: resolvedIdentity.branch,
     repository_sha: resolvedIdentity.sha,
     deployment_sha: resolvedIdentity.sha,
+    identity_source: resolvedIdentity.source || null,
+    deployment_identity_manifest_bound: resolvedIdentity.manifest_bound === true,
     process_start_time: processStart,
     environment_key: safeEnvironmentKey(env),
     recovery_manifest_hash: manifest.manifest_hash,
@@ -236,7 +236,7 @@ export function getRecoveryTrustModel({ env = process.env, expectedSha = null, i
     ok: Boolean(attestation?.parity),
     contract: RECOVERY_TRUST_CONTRACT,
     trust_roots: ["exact_production_sha", "recovery_manifest_hash", "deployment_attestation_hash", "target_fingerprint", "admin_principal_binding"],
-    identity: { repository: resolvedIdentity.repository, branch: resolvedIdentity.branch, sha: resolvedIdentity.sha, exact_sha_required: true },
+    identity: { repository: resolvedIdentity.repository, branch: resolvedIdentity.branch, sha: resolvedIdentity.sha, source: resolvedIdentity.source || null, manifest_bound: resolvedIdentity.manifest_bound === true, exact_sha_required: true },
     manifest: { manifest_hash: manifest.manifest_hash, contract: manifest.contract, version: manifest.recovery_manifest_version, secrets_included: false },
     target_fingerprints: deriveRoleTargetFingerprints({ env }),
     role_identity_uniqueness: roleIdentityUniqueness({ env }),
