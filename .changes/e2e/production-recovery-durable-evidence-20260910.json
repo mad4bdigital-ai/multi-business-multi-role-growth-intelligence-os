@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "production-recovery-durable-evidence-20260910",
-  "title": "Production Recovery durable evidence, readiness, and integrity closure",
+  "title": "Production Recovery durable evidence, readiness, integrity, and route authority closure",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
@@ -13,8 +13,11 @@
       "http-generic-api/productionRecoveryControlStore.js",
       "http-generic-api/productionRecoveryCompositionFactory.js",
       "http-generic-api/productionActivationReadiness.js",
+      "http-generic-api/routes/recoveryKernelRoutes.js",
       "http-generic-api/test-production-recovery-durable-evidence.mjs",
-      "http-generic-api/test-production-activation-readiness.mjs"
+      "http-generic-api/test-production-activation-readiness.mjs",
+      "http-generic-api/test-production-recovery-composition-factory.mjs",
+      "http-generic-api/test-recovery-kernel-routes.mjs"
     ]
   },
   "merge_contract": {
@@ -31,7 +34,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Keep Production Recovery mutation fail-closed while preserving a qualified independent durable evidence authority across process restarts, validating the Recovery control-store schema through read-only information_schema probes, rejecting tampered persisted payloads, and deriving live readiness from actual composition state rather than caller claims.",
+      "objective": "Keep Production Recovery mutation fail-closed while preserving only a qualified independent hash-verified durable evidence authority across process restarts, validating the Recovery control-store schema through read-only information_schema probes, rejecting tampered persisted payloads, deriving live readiness from actual composition state rather than caller claims, and enforcing read-only versus mutation-grade Recovery stores at the HTTP route boundary.",
       "e2e_journeys": [
         {
           "id": "production-recovery-durable-evidence-restart-and-tamper",
@@ -39,27 +42,32 @@
           "level": "synthetic_runtime",
           "actor": "Production Recovery composition root",
           "entrypoint": "http-generic-api/test-production-recovery-durable-evidence.mjs",
-          "terminal_outcome": "A fresh Recovery store instance over the same backing state can read the persisted run, plan, finding and idempotency evidence; any payload whose stored SHA-256 no longer matches is rejected; readiness reports degraded rather than mutating schema when the durable evidence layout is incomplete; Production live-state consistency is derived from actual composition instead of a legacy caller signal.",
+          "terminal_outcome": "A fresh Recovery store instance over the same backing state can read persisted run, plan, finding and idempotency evidence only when the store is independent and verifies payload integrity on read; tampered payloads are rejected; readiness remains observation-only; fail-closed HTTP routes retain evidence reads while explicit mutation routes receive no mutation store and cannot fall back to evidence authority.",
           "steps": [
             "Create the Recovery control-store through the canonical shared durable-store contract.",
             "Persist a sanitized run, plan, finding, idempotency receipt and append-only evidence event.",
             "Discard the first store instance and construct a fresh instance over the same backing state to simulate process restart.",
             "Read back the persisted evidence and prove it is independent from in-process Recovery maps.",
             "Modify persisted payload_json without updating payload_sha256 and require the store to fail closed with an integrity error.",
+            "Reject a method-complete independent store when payload_integrity_verified_on_read is false.",
             "Probe the independent Recovery control database through ping plus information_schema column/index reads only.",
             "When a required durable evidence column is absent, return schema_not_ready with database_mutation_performed=false and schema_auto_apply=false.",
             "Qualify durable inspection and mutation-grade stores through one shared validator contract while keeping execution-ticket verification an additional mutation-grade requirement.",
-            "Compute Production live-state consistency from the actual Recovery composition and prove the legacy caller live-enabled signal cannot activate mutation authority."
+            "Compute Production live-state consistency from the actual Recovery composition and prove the legacy caller live-enabled signal cannot activate mutation authority.",
+            "Project only the qualified evidence store through the read-only route dependency and pass the explicit mutation-grade store separately to execution routes.",
+            "Prove a fail-closed route can read durable run evidence while execute-approved cannot fall back to the read-only evidence store when mutationRecoveryStore is null."
           ],
           "assertions": [
             "Durable Recovery evidence survives a process/store restart over the same backing store.",
             "Readback validates payload_sha256 before trusting persisted Recovery snapshots.",
+            "Evidence-grade qualification requires payload_integrity_verified_on_read=true in addition to physical independence and the bounded evidence method surface.",
             "Execution-ticket payload identity must match the stored ticket_hash.",
             "Recovery control-store readiness uses read-only information_schema probes and never auto-applies schema.",
             "The Recovery control DB remains independent from runtime, governance and runtime-persistence target databases.",
             "The shared durable-store contract distinguishes evidence-grade durability from mutation-grade authority.",
             "Actual Recovery composition state is authoritative for Production live readiness; legacy caller signals cannot enable mutation authority.",
             "recovery_live_state_consistent is a fail-closed aggregate readiness dimension rather than an informational field.",
+            "HTTP read and execution routes use explicit readOnlyRecoveryStore and mutationRecoveryStore authority boundaries; explicit null mutation authority cannot fall back to evidence authority.",
             "Production deploy, provider mutation, database mutation, migration apply, grant mutation, workflow dispatch and secret reads remain false."
           ],
           "tests": [
@@ -76,6 +84,20 @@
               "working_directory": "http-generic-api",
               "path": "test-production-activation-readiness.mjs",
               "args": []
+            },
+            {
+              "id": "production-recovery-composition-qualification",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-recovery-composition-factory.mjs",
+              "args": []
+            },
+            {
+              "id": "production-recovery-route-authority-separation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-kernel-routes.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -85,8 +107,11 @@
             "http-generic-api/productionRecoveryControlStore.js",
             "http-generic-api/productionRecoveryCompositionFactory.js",
             "http-generic-api/productionActivationReadiness.js",
+            "http-generic-api/routes/recoveryKernelRoutes.js",
             "http-generic-api/test-production-recovery-durable-evidence.mjs",
             "http-generic-api/test-production-activation-readiness.mjs",
+            "http-generic-api/test-production-recovery-composition-factory.mjs",
+            "http-generic-api/test-recovery-kernel-routes.mjs",
             "http-generic-api/config/deployment-branch-policy.json"
           ]
         }
@@ -104,6 +129,20 @@
           "runner": "node",
           "working_directory": "http-generic-api",
           "path": "test-production-activation-readiness.mjs",
+          "args": []
+        },
+        {
+          "id": "production-recovery-composition-qualification",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-production-recovery-composition-factory.mjs",
+          "args": []
+        },
+        {
+          "id": "production-recovery-route-authority-separation",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-recovery-kernel-routes.mjs",
           "args": []
         }
       ]
