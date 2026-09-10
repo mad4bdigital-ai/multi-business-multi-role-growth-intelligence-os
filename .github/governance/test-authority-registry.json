@@ -373,6 +373,7 @@
       "id": "repository_governance_closure",
       "test_paths": [
         ".github/tests/repository-governance-closure.test.mjs",
+        ".github/tests/repository-governance-objection-gate.test.mjs",
         "scripts/repository-governance-closure.mjs",
         "http-generic-api/test-consolidated-governance-runtime-contracts.mjs"
       ]
