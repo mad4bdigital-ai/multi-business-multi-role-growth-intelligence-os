@@ -59,7 +59,14 @@ function matches(file, patterns = []) {
 }
 function objection({ policy_id, objection_id, severity = "blocking", candidate_sha, evidence = {}, remediation, waiverable = false, stage = "source" }) {
   const core = { policy_id, objection_id, severity, candidate_sha, evidence, remediation, waiverable, stage };
-  return { ...core, objection_digest: digest(core), waived: false, waiver: null };
+  return {
+    ...core,
+    objection_digest: digest(core),
+    waived: false,
+    waiver: null,
+    resolved: false,
+    resolution: null,
+  };
 }
 
 const mode = arg("mode", "finalizer");
@@ -67,6 +74,7 @@ if (!["source", "finalizer"].includes(mode)) throw new Error("mode must be sourc
 const governanceFile = path.resolve(arg("governance-report"));
 const derivedFile = arg("derived-report");
 const evidenceFile = arg("evidence-report");
+const manualAuthorizationFile = arg("manual-authorization-report");
 const outputFile = path.resolve(arg("report-file", path.join(root, ".artifacts/repository-policy-objections/report.json")));
 
 const constitution = readJson(path.join(root, "http-generic-api/config/repository-governance-constitution.json"));
@@ -75,8 +83,10 @@ const waiverLedger = readJson(path.join(root, ".github/governance/waiver-ledger.
 const governance = readJson(governanceFile);
 const derived = readJson(derivedFile ? path.resolve(derivedFile) : null, false);
 const producerEvidence = readJson(evidenceFile ? path.resolve(evidenceFile) : null, false);
+const manualAuthorization = readJson(manualAuthorizationFile ? path.resolve(manualAuthorizationFile) : null, false);
 const candidateSha = governance?.candidate?.sha;
 if (!/^[0-9a-f]{40}$/u.test(candidateSha || "")) throw new Error("governance report candidate SHA missing or invalid");
+const sourceHeadSha = derived?.candidate?.source_head_sha || governance?.candidate?.source_head_sha || null;
 
 const policyById = new Map((registry.policies || []).map((entry) => [entry.id, entry]));
 const objections = [];
@@ -269,17 +279,53 @@ if (waiverErrors.length) {
   }));
 }
 
-const unresolved = objections.filter((item) => !item.waived);
+const manualAuthorizationModes = new Set(["single_owner_attestation", "independent_approval"]);
+const manualAuthorizationValid = Boolean(
+  manualAuthorization?.ok === true
+  && /^[0-9a-f]{40}$/u.test(sourceHeadSha || "")
+  && manualAuthorization?.exact_head_sha === sourceHeadSha
+  && manualAuthorizationModes.has(manualAuthorization?.mode)
+);
+if (manualAuthorizationValid) {
+  for (const target of objections) {
+    if (
+      target.severity === "manual"
+      && target.policy_id === "control-plane-self-amendment"
+      && target.objection_id === "control-plane-self-amendment:manual-merge-required"
+      && !target.waived
+    ) {
+      target.resolved = true;
+      target.resolution = {
+        kind: "exact_head_review_authorization",
+        exact_head_sha: sourceHeadSha,
+        mode: manualAuthorization.mode,
+        reviewer: manualAuthorization.reviewer || null,
+      };
+    }
+  }
+}
+
+const unresolved = objections.filter((item) => !item.waived && !item.resolved);
 const blocking = unresolved.filter((item) => item.severity === "blocking");
 const manual = unresolved.filter((item) => item.severity === "manual");
 const advisory = unresolved.filter((item) => item.severity === "advisory");
 const activation = unresolved.filter((item) => item.severity === "activation");
+const resolved = objections.filter((item) => item.resolved);
+const manualObjectionCount = objections.filter((item) => item.severity === "manual" && !item.waived).length;
+const decisionState = blocking.length
+  ? "blocked"
+  : manual.length
+    ? "manual_authorization_required"
+    : resolved.some((item) => item.severity === "manual")
+      ? "manual_authorization_satisfied"
+      : "clear";
 const report = {
   contract: CONTRACT,
   generated_at: new Date().toISOString(),
   mode,
   candidate_sha: candidateSha,
-  source_head_sha: derived?.candidate?.source_head_sha || governance?.candidate?.source_head_sha || null,
+  source_head_sha: sourceHeadSha,
+  decision_state: decisionState,
   objection_count: objections.length,
   unresolved_count: unresolved.length,
   blocking_count: blocking.length,
@@ -287,8 +333,9 @@ const report = {
   advisory_count: advisory.length,
   activation_count: activation.length,
   waived_count: objections.filter((item) => item.waived).length,
+  resolved_count: resolved.length,
   merge_allowed_by_source_policy: blocking.length === 0,
-  automerge_allowed: blocking.length === 0 && manual.length === 0,
+  automerge_allowed: blocking.length === 0 && manualObjectionCount === 0,
   single_gate_activation_allowed: blocking.length === 0 && activation.length === 0,
   objections,
   safety: {
@@ -302,10 +349,13 @@ fs.writeFileSync(outputFile, `${JSON.stringify(report, null, 2)}\n`, "utf8");
 process.stdout.write(`${JSON.stringify({
   contract: report.contract,
   candidate_sha: report.candidate_sha,
+  source_head_sha: report.source_head_sha,
+  decision_state: report.decision_state,
   blocking_count: report.blocking_count,
   manual_count: report.manual_count,
   advisory_count: report.advisory_count,
   activation_count: report.activation_count,
+  resolved_count: report.resolved_count,
   merge_allowed_by_source_policy: report.merge_allowed_by_source_policy,
   automerge_allowed: report.automerge_allowed
 })}\n`);

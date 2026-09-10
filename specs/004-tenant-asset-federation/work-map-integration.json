@@ -3,8 +3,8 @@
   "feature_key": "004-tenant-asset-federation",
   "review_state": "draft",
   "registry": {
-    "fingerprint": "fa7cea7b5bb36187c769a15a34183aad7471223bff4d66dbfca664562becdbbd",
-    "index_source_hash": "151bf4bc3c1707873c58d78d1aca20b935b627b956738e1d695d903eca536133",
+    "fingerprint": "d77c34a8e846a3d2a315af758774d5d070a142762fd5b33161025d3101abf2be",
+    "index_source_hash": "5236228de7a06d0fd6156f532af42ab8380725eee511d8c2f6ad7edb3122f0c7",
     "coverage_source_hash": "396e861a335e70e437cedbbdf3eb8e389d48ac29a0988f8d1997f91abde233a1",
     "map_count": 19,
     "domain_count": 16,
