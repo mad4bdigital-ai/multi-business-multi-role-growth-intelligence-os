@@ -8,6 +8,7 @@ import {
   DURABLE_INSPECTION_STORE_METHODS,
   describeRecoveryStoreQualification,
   isDurableInspectionStore,
+  isMutationGradeRecoveryStore,
 } from "./recoveryDurableStoreContract.js";
 
 export const PRODUCTION_RECOVERY_COMPOSITION_FACTORY_CONTRACT = "mad4b.production-recovery-composition-factory.v2";
@@ -109,11 +110,14 @@ function validateLiveAuthorization(envelope, composition) {
   }
 
   const capabilities = envelope?.capabilities || {};
+  const recoveryStore = composition?.components?.recoveryStore || null;
+  const mutationGradeRecoveryStore = isMutationGradeRecoveryStore(recoveryStore);
   if (capabilities.adapter_present !== true) problems.push("adapter_present_required");
   if (capabilities.durability_capable !== true) problems.push("durability_capable_required");
   if (capabilities.attestation_capable !== true) problems.push("attestation_capable_required");
   if (composition?.configured !== true) problems.push("composition_incomplete");
-  if (!isDurableInspectionStore(composition?.components?.recoveryStore)) problems.push("bootstrap_evidence_store_not_independent");
+  if (!isDurableInspectionStore(recoveryStore)) problems.push("bootstrap_evidence_store_not_independent");
+  if (!mutationGradeRecoveryStore) problems.push("mutation_grade_recovery_store_required");
   if (!independentReadbackAuthority(composition?.components?.readbackVerifier)) problems.push("independent_role_aware_readback_required");
   // The fixed private System Tool receives approvalStore but does not receive the
   // approval issuer. Requiring the resolver on approvalStore therefore certifies
@@ -128,7 +132,8 @@ function validateLiveAuthorization(envelope, composition) {
     single_use_approval: authorization?.single_use_approval === true,
     same_cycle_readback_required: authorization?.same_cycle_readback_required === true,
     server_side_approval_resolution: authorization?.server_side_approval_resolution === true,
-    bootstrap_evidence_independent: authorization?.bootstrap_evidence_independent === true && isDurableInspectionStore(composition?.components?.recoveryStore),
+    bootstrap_evidence_independent: authorization?.bootstrap_evidence_independent === true && isDurableInspectionStore(recoveryStore),
+    mutation_grade_recovery_store: mutationGradeRecoveryStore,
     secrets_included: false,
   });
 }
@@ -138,11 +143,13 @@ function buildLiveAuthorityReadiness(composition, serverManagedBindingResolved, 
   const configuredComponents = RECOVERY_LIVE_AUTHORITY_COMPONENT_KEYS.filter((key) => componentStatus[key]?.configured === true);
   const missingComponents = RECOVERY_LIVE_AUTHORITY_COMPONENT_KEYS.filter((key) => componentStatus[key]?.configured !== true);
   const authorizationOk = liveAuthorization?.ok === true;
+  const mutationGradeRecoveryStore = liveAuthorization?.mutation_grade_recovery_store === true;
   const liveReady = missingComponents.length === 0
     && serverManagedBindingResolved
     && bindingCapabilities.adapter_present === true
     && bindingCapabilities.durability_capable === true
     && bindingCapabilities.attestation_capable === true
+    && mutationGradeRecoveryStore
     && authorizationOk;
   return Object.freeze({
     contract: "mad4b.recovery-live-authority-readiness.v2",
@@ -155,6 +162,7 @@ function buildLiveAuthorityReadiness(composition, serverManagedBindingResolved, 
     durability_capable: bindingCapabilities.durability_capable === true,
     attestation_capable: bindingCapabilities.attestation_capable === true,
     bootstrap_evidence_independent: liveAuthorization?.bootstrap_evidence_independent === true,
+    mutation_grade_recovery_store: mutationGradeRecoveryStore,
     read_only_recovery_store_available: Boolean(composition.readOnlyDependencies?.recoveryStore),
     exact_sha_bound: liveAuthorization?.exact_sha_bound === true,
     single_use_approval: liveAuthorization?.single_use_approval === true,
