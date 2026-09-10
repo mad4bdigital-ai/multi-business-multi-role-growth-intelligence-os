@@ -41,7 +41,6 @@ const READ_ONLY_CAPABILITIES = new Set([
   "host_breakglass_plan",
   "remediation_plan_preview",
   "host_breakglass_preview",
-  "approval_challenge_create",
   "remediation_step_verify",
   "host_breakglass_verify",
   "recovery_run_get",
@@ -51,7 +50,6 @@ const READ_ONLY_CAPABILITIES = new Set([
   "unsupported_recovery_escalate",
   "ssh_session_preview",
   "sql_session_preview",
-  "ephemeral_capability_create",
 ]);
 
 function requestAdminPrincipal(req) {
@@ -264,9 +262,9 @@ export function buildRecoveryKernelRoutes(options = {}) {
   router.post("/admin/recovery/kernel/approval-challenge", async (req, res) => {
     try {
       const body = assertExactKeys(req.body || {}, ["plan_id", "plan_hash", "step_id"], ["plan_id", "plan_hash", "step_id"]);
-      assertApprovalChallengeAuthorities({ recoveryStore: readOnlyRecoveryStore, approvalIssuer, approvalStore });
+      assertApprovalChallengeAuthorities({ recoveryStore: mutationRecoveryStore, approvalIssuer, approvalStore });
       const result = await createApprovalChallenge(body, {
-        recoveryStore: readOnlyRecoveryStore,
+        recoveryStore: mutationRecoveryStore,
         approvalIssuer,
         approvalStore,
       });
