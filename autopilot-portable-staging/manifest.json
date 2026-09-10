@@ -146,11 +146,11 @@
     },
     {
       "path": "http-generic-api/frontend-operation-governance.generated.json",
-      "sha256": "c0e7dd0a6f6e8a6603174d9283901dc50004ef97b87b7959e7bd24e81108fd63"
+      "sha256": "480b1c205b0e850554897d50b37bdd02f888bfbef8297952df00166e428b3a9d"
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "48a6e782fb9951d314148aaaa4326ea66c73dac61a81c2c996db20d49f7293d5"
+      "sha256": "f0241c3b57abb4cab998d804f1a2ffebec894adc5e6eb45a05d37fc7a262b79f"
     },
     {
       "path": "http-generic-api/governanceDb.js",
