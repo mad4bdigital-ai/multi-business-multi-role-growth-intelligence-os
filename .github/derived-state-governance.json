@@ -332,7 +332,9 @@
       ".changes/e2e/production-recovery-control-store-7999.json",
       "docs/governance/production-recovery-control-store-7999.md",
       ".changes/e2e/staging-production-access-repair-execution-20260909.json",
-      ".changes/e2e/critical-declaration-registration-closure-20260910.json"
+      ".changes/e2e/critical-declaration-registration-closure-20260910.json",
+      ".changes/e2e/github-repository-policy-1050-governed-rollout.json",
+      ".github/ops/github-repository-policy-1050-readiness-diagnostic-wrapper.mjs"
     ],
     "automerge_opt_out_labels": [
       "do-not-auto-merge",
