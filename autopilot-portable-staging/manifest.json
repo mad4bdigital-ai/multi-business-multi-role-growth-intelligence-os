@@ -150,7 +150,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "f0241c3b57abb4cab998d804f1a2ffebec894adc5e6eb45a05d37fc7a262b79f"
+      "sha256": "b1ace2467d8ff9c454ee8f78411edde4eee28075f7e0ae0284c95ca763cdf6b4"
     },
     {
       "path": "http-generic-api/governanceDb.js",

@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "fbb04575c3e39b877dfc97da63b21bd05517475ffaada7f60dc8a12df3c969c2",
+    "source_digest": "e60fed37a67e23179fa916bbffe9f0af9a6f7a3fecc97f35e35575f2b868d713",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -781,7 +781,7 @@
       },
       {
         "file": "routes/recoveryKernelRoutes.js",
-        "sha256": "6ae6fc6eabf134ee5fca550a4ecaaf519e5df494c3ca3cb1e8345135438691bd",
+        "sha256": "f409df342737dc7477306886f2372f990c4084d97ab521bef3bb007f026012e0",
         "present": true
       },
       {
@@ -3139,7 +3139,7 @@
       "family_key": "recovery-kernel",
       "label": "recovery kernel",
       "source_file": "routes/recoveryKernelRoutes.js",
-      "source_digest": "6ae6fc6eabf134ee5fca550a4ecaaf519e5df494c3ca3cb1e8345135438691bd",
+      "source_digest": "f409df342737dc7477306886f2372f990c4084d97ab521bef3bb007f026012e0",
       "mount_prefix": "/",
       "mount_order": 13433,
       "split_from_mixed_scope_file": false,
