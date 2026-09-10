@@ -27,6 +27,11 @@ async function postJson(baseUrl, body, pathname = "/admin/recovery/kernel/execut
   return { status: response.status, body: await response.json() };
 }
 
+async function getJson(baseUrl, pathname) {
+  const response = await fetch(`${baseUrl}${pathname}`);
+  return { status: response.status, body: await response.json() };
+}
+
 const PLAN_ID = "plan:1234567890abcdef";
 const PLAN_HASH = "a".repeat(64);
 const STEP_ID = "step:1234567890abcdef";
@@ -53,10 +58,10 @@ const PLAN = {
   }],
 };
 
-function buildTestApp({ recoveryStore, approvalIssuer, approvalStore, mutationExecutor } = {}) {
+function buildTestApp({ recoveryStore, readOnlyRecoveryStore, mutationRecoveryStore, approvalIssuer, approvalStore, mutationExecutor } = {}) {
   const app = express();
   app.use(express.json());
-  app.use(buildRecoveryKernelRoutes({
+  const routeOptions = {
     requireBackendApiKey: (_req, _res, next) => next(),
     requireAdminPrincipal: (req, _res, next) => {
       req.auth = { is_admin: true };
@@ -67,7 +72,10 @@ function buildTestApp({ recoveryStore, approvalIssuer, approvalStore, mutationEx
     approvalIssuer,
     approvalStore,
     mutationExecutor,
-  }));
+  };
+  if (readOnlyRecoveryStore !== undefined) routeOptions.readOnlyRecoveryStore = readOnlyRecoveryStore;
+  if (mutationRecoveryStore !== undefined) routeOptions.mutationRecoveryStore = mutationRecoveryStore;
+  app.use(buildRecoveryKernelRoutes(routeOptions));
   return app;
 }
 
@@ -178,6 +186,46 @@ test("historical execute alias uses the same server-issued bridge and fails clos
     assert.equal(providerCalls, 0);
     assert.equal(response.body.database_mutation_performed, false);
     assert.equal(response.body.secrets_included, false);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("explicit route store boundary preserves evidence reads while denying execution when mutation store is null", async () => {
+  let evidenceReads = 0;
+  let providerCalls = 0;
+  const evidenceStore = {
+    getRun: async (runId) => {
+      evidenceReads += 1;
+      return {
+        run_id: runId,
+        state: "failed_closed",
+        findings: [],
+        evidence: [],
+        secrets_included: false,
+      };
+    },
+  };
+  const app = buildTestApp({
+    recoveryStore: evidenceStore,
+    readOnlyRecoveryStore: evidenceStore,
+    mutationRecoveryStore: null,
+    mutationExecutor: { execute: async () => { providerCalls += 1; return { database_mutation_performed: true }; } },
+  });
+  const { server, baseUrl } = await startServer(app);
+  try {
+    const runRead = await getJson(baseUrl, "/admin/recovery/kernel/runs/run:1234567890abcdef");
+    assert.equal(runRead.status, 200);
+    assert.equal(runRead.body.run_id, "run:1234567890abcdef");
+    assert.equal(evidenceReads, 1);
+
+    const execute = await postJson(baseUrl, validServerBody());
+    assert.equal(execute.status, 503);
+    assert.equal(execute.body.error.code, "recovery_action_bridge_authority_unavailable");
+    assert.equal(providerCalls, 0);
+    assert.equal(execute.body.database_mutation_performed, false);
+    assert.equal(execute.body.secrets_included, false);
+    assert.equal(evidenceReads, 1, "execution must not fall back to the read-only evidence store");
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
