@@ -1,0 +1,95 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-recovery-durable-evidence-20260910",
+  "title": "Production Recovery durable evidence, readiness, and integrity closure",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/production-recovery-durable-evidence-20260910.json",
+      "http-generic-api/recoveryDurableStoreContract.js",
+      "http-generic-api/recoveryControlDb.js",
+      "http-generic-api/productionRecoveryControlStore.js",
+      "http-generic-api/productionRecoveryCompositionFactory.js",
+      "http-generic-api/productionActivationReadiness.js",
+      "http-generic-api/test-production-recovery-durable-evidence.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Keep Production Recovery mutation fail-closed while preserving a qualified independent durable evidence authority across process restarts, validating the Recovery control-store schema through read-only information_schema probes, rejecting tampered persisted payloads, and deriving live readiness from actual composition state rather than caller claims.",
+      "e2e_journeys": [
+        {
+          "id": "production-recovery-durable-evidence-restart-and-tamper",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Production Recovery composition root",
+          "entrypoint": "http-generic-api/test-production-recovery-durable-evidence.mjs",
+          "terminal_outcome": "A fresh Recovery store instance over the same backing state can read the persisted run, plan, finding and idempotency evidence; any payload whose stored SHA-256 no longer matches is rejected; readiness reports degraded rather than mutating schema when the durable evidence layout is incomplete.",
+          "steps": [
+            "Create the Recovery control-store through the canonical shared durable-store contract.",
+            "Persist a sanitized run, plan, finding, idempotency receipt and append-only evidence event.",
+            "Discard the first store instance and construct a fresh instance over the same backing state to simulate process restart.",
+            "Read back the persisted evidence and prove it is independent from in-process Recovery maps.",
+            "Modify persisted payload_json without updating payload_sha256 and require the store to fail closed with an integrity error.",
+            "Probe the independent Recovery control database through ping plus information_schema column/index reads only.",
+            "When a required durable evidence column is absent, return schema_not_ready with database_mutation_performed=false and schema_auto_apply=false.",
+            "Qualify durable inspection and mutation-grade stores through one shared validator contract while keeping execution-ticket verification an additional mutation-grade requirement."
+          ],
+          "assertions": [
+            "Durable Recovery evidence survives a process/store restart over the same backing store.",
+            "Readback validates payload_sha256 before trusting persisted Recovery snapshots.",
+            "Execution-ticket payload identity must match the stored ticket_hash.",
+            "Recovery control-store readiness uses read-only information_schema probes and never auto-applies schema.",
+            "The Recovery control DB remains independent from runtime, governance and runtime-persistence target databases.",
+            "The shared durable-store contract distinguishes evidence-grade durability from mutation-grade authority.",
+            "Actual Recovery composition state is authoritative for Production live readiness; legacy caller signals cannot enable mutation authority.",
+            "Production deploy, provider mutation, database mutation, migration apply, grant mutation, workflow dispatch and secret reads remain false."
+          ],
+          "tests": [
+            {
+              "id": "production-recovery-durable-evidence",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-recovery-durable-evidence.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/production-recovery-durable-evidence-20260910.json",
+            "http-generic-api/recoveryDurableStoreContract.js",
+            "http-generic-api/recoveryControlDb.js",
+            "http-generic-api/productionRecoveryControlStore.js",
+            "http-generic-api/productionRecoveryCompositionFactory.js",
+            "http-generic-api/productionActivationReadiness.js",
+            "http-generic-api/test-production-recovery-durable-evidence.mjs",
+            "http-generic-api/config/deployment-branch-policy.json"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "production-recovery-durable-evidence",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-production-recovery-durable-evidence.mjs",
+          "args": []
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
