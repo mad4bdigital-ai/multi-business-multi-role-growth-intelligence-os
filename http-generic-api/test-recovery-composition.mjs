@@ -9,7 +9,9 @@ import {
   validateRecoveryCompositionAdapters,
   _testingRecoveryComposition,
 } from "./recoveryComposition.js";
+import { _testingProductionRecoveryCompositionFactory } from "./productionRecoveryCompositionFactory.js";
 
+const { buildReadOnlyEvidenceStore, READ_ONLY_EVIDENCE_STORE_METHODS } = _testingProductionRecoveryCompositionFactory;
 const serverSource = readFileSync(new URL("./server.js", import.meta.url), "utf8");
 const routesSource = readFileSync(new URL("./routes/recoveryKernelRoutes.js", import.meta.url), "utf8");
 const systemLayerSource = readFileSync(new URL("./routes/systemLayerRoutes.js", import.meta.url), "utf8");
@@ -52,6 +54,22 @@ function makeCompleteAdapters() {
     partialReceiptStore: { putImmutablePartialRebuildReceipt: asyncMethod({ persisted: true }) },
     proofResolver: () => ({ source: "durable_full_inspection", selected_roles: ["runtime"] }),
     migrationLedger: { contract: "mad4b.governance-migration-ledger.v1", finalize: asyncMethod({ finalized: true }) },
+  };
+}
+
+function makeEvidenceStore(overrides = {}) {
+  return {
+    recovery_store_contract: "mad4b.recovery-durable-store.v1",
+    independent_of_target_databases: true,
+    target_database_binding: "forbidden",
+    shared_replica_safe: true,
+    schema_auto_apply: false,
+    provider_accessed: false,
+    ...Object.fromEntries(READ_ONLY_EVIDENCE_STORE_METHODS.map((name) => [name, asyncMethod(true)])),
+    claimExecution: asyncMethod(true),
+    reserveApproval: asyncMethod(true),
+    putExecutionTicket: asyncMethod(true),
+    ...overrides,
   };
 }
 
@@ -121,6 +139,27 @@ test("complete injected graph remains non-live and is exposed through three boun
   assert.equal(routeDeps.runtimeBootstrapDependencies.deploymentIdentityProvider, adapters.deploymentIdentityProvider);
   assert.equal(routeDeps.runtimeBootstrapDependencies.partialReceiptStore, adapters.partialReceiptStore);
   assert.equal(routeDeps.runtimeBootstrapDependencies.executionTicketVerifier, adapters.executionTicketVerifier);
+});
+
+test("read-only Recovery store projection exposes evidence persistence only", () => {
+  const source = makeEvidenceStore();
+  const projected = buildReadOnlyEvidenceStore(source);
+  assert.ok(projected);
+  assert.notEqual(projected, source);
+  assert.equal(projected.evidence_authority_only, true);
+  assert.equal(projected.mutation_authority, false);
+  assert.equal(projected.shared_replica_safe, true);
+  assert.equal(projected.schema_auto_apply, false);
+  for (const name of READ_ONLY_EVIDENCE_STORE_METHODS) assert.equal(typeof projected[name], "function");
+  for (const name of ["claimExecution", "reserveApproval", "putExecutionTicket"]) assert.equal(projected[name], undefined);
+});
+
+test("read-only Recovery store projection rejects unsafe persistence boundaries", () => {
+  assert.equal(buildReadOnlyEvidenceStore(makeEvidenceStore({ independent_of_target_databases: false })), null);
+  assert.equal(buildReadOnlyEvidenceStore(makeEvidenceStore({ target_database_binding: "runtime_persistence" })), null);
+  assert.equal(buildReadOnlyEvidenceStore(makeEvidenceStore({ shared_replica_safe: false })), null);
+  assert.equal(buildReadOnlyEvidenceStore(makeEvidenceStore({ schema_auto_apply: true })), null);
+  assert.equal(buildReadOnlyEvidenceStore(makeEvidenceStore({ provider_accessed: true })), null);
 });
 
 test("composition root wires the contract without auto-discovering credentials or providers", () => {

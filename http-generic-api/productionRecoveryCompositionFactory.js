@@ -27,6 +27,17 @@ const REQUIRED_LIVE_AUTHORIZATION_FLAGS = Object.freeze([
   "bootstrap_evidence_independent",
 ]);
 const SERVER_RESOLVER_METHOD = "resolveApprovedExecutionApproval";
+const READ_ONLY_EVIDENCE_STORE_METHODS = Object.freeze([
+  "putRun",
+  "getRun",
+  "putPlan",
+  "getPlan",
+  "putFinding",
+  "getFinding",
+  "getRunByIdempotency",
+  "appendEvidenceEvent",
+  "putIdempotencyReceipt",
+]);
 
 function factoryError(code, message, details = {}) {
   const error = new Error(message);
@@ -42,10 +53,33 @@ function independentBootstrapEvidenceStore(recoveryStore) {
     && recoveryStore.recovery_store_contract === "mad4b.recovery-durable-store.v1"
     && recoveryStore.independent_of_target_databases === true
     && recoveryStore.target_database_binding === "forbidden"
+    && recoveryStore.shared_replica_safe === true
+    && recoveryStore.schema_auto_apply === false
+    && recoveryStore.provider_accessed === false
     && typeof recoveryStore.appendEvidenceEvent === "function"
     && typeof recoveryStore.putRun === "function"
     && typeof recoveryStore.getRunByIdempotency === "function",
   );
+}
+
+function buildReadOnlyEvidenceStore(recoveryStore) {
+  if (!independentBootstrapEvidenceStore(recoveryStore)) return null;
+  if (READ_ONLY_EVIDENCE_STORE_METHODS.some((method) => typeof recoveryStore[method] !== "function")) return null;
+  const projection = {
+    recovery_store_contract: recoveryStore.recovery_store_contract,
+    independent_of_target_databases: true,
+    target_database_binding: "forbidden",
+    provider_accessed: false,
+    shared_replica_safe: true,
+    schema_auto_apply: false,
+    evidence_authority_only: true,
+    mutation_authority: false,
+    secrets_included: false,
+  };
+  for (const method of READ_ONLY_EVIDENCE_STORE_METHODS) {
+    projection[method] = recoveryStore[method].bind(recoveryStore);
+  }
+  return Object.freeze(projection);
 }
 
 function independentReadbackAuthority(readbackVerifier) {
@@ -60,6 +94,13 @@ function independentReadbackAuthority(readbackVerifier) {
 
 function serverSideApprovalResolver(approvalStore) {
   return Boolean(approvalStore && typeof approvalStore[SERVER_RESOLVER_METHOD] === "function");
+}
+
+function extractCertifiedReadOnlyAuthorities(candidate = null) {
+  const recoveryStore = candidate?.components?.recoveryStore || null;
+  return Object.freeze({
+    recoveryStore: buildReadOnlyEvidenceStore(recoveryStore),
+  });
 }
 
 function validateLiveAuthorization(envelope, composition) {
@@ -126,6 +167,7 @@ function buildLiveAuthorityReadiness(composition, serverManagedBindingResolved, 
     durability_capable: bindingCapabilities.durability_capable === true,
     attestation_capable: bindingCapabilities.attestation_capable === true,
     bootstrap_evidence_independent: liveAuthorization?.bootstrap_evidence_independent === true,
+    read_only_recovery_store_available: Boolean(composition.readOnlyDependencies?.recoveryStore),
     exact_sha_bound: liveAuthorization?.exact_sha_bound === true,
     single_use_approval: liveAuthorization?.single_use_approval === true,
     same_cycle_readback_required: liveAuthorization?.same_cycle_readback_required === true,
@@ -141,7 +183,8 @@ function buildLiveAuthorityReadiness(composition, serverManagedBindingResolved, 
 }
 
 function failClosedComposition(source, reason, { candidate = null, envelope = null, liveAuthorization = null } = {}) {
-  const composition = createRecoveryComposition({ source });
+  const readOnlyAuthorities = extractCertifiedReadOnlyAuthorities(candidate);
+  const composition = createRecoveryComposition({ source, readOnlyAuthorities });
   return Object.freeze({
     ...composition,
     productionRecoveryCompositionFactory: Object.freeze({
@@ -154,6 +197,7 @@ function failClosedComposition(source, reason, { candidate = null, envelope = nu
       adapter_factory_wired: true,
       server_managed_binding_resolved: Boolean(candidate),
       authority_readiness: buildLiveAuthorityReadiness(candidate || composition, Boolean(candidate), envelope?.capabilities || {}, liveAuthorization),
+      read_only_recovery_store_available: Boolean(readOnlyAuthorities.recoveryStore),
       ...(candidate ? { activation_candidate: candidateMetadata(candidate, envelope) } : {}),
       ...(liveAuthorization ? { live_authorization: liveAuthorization } : {}),
       provider_accessed: false,
@@ -200,6 +244,7 @@ function candidateMetadata(composition, envelope) {
     graph_contract: composition.contract,
     configured: composition.configured === true,
     component_status: composition.component_status,
+    read_only_recovery_store_available: Boolean(composition.readOnlyDependencies?.recoveryStore),
     mutation_authority_exposed: false,
     live_activation: false,
     binding_module_id_hash: envelope?.module_id_hash || null,
@@ -236,6 +281,7 @@ function activateCertifiedProductionComposition(candidate, envelope, liveAuthori
       authority_readiness: authorityReadiness,
       live_authorization: liveAuthorization,
       activation_candidate: candidateMetadata(candidate, envelope),
+      read_only_recovery_store_available: Boolean(candidate.readOnlyDependencies?.recoveryStore),
       provider_accessed: false,
       database_connection_performed: false,
       database_mutation_performed: false,
@@ -316,6 +362,7 @@ export function createProductionRecoveryComposition({
       adapter_factory_wired: true,
       server_managed_binding_resolved: true,
       authority_readiness: buildLiveAuthorityReadiness(candidate, true, envelope.capabilities),
+      read_only_recovery_store_available: Boolean(candidate.readOnlyDependencies?.recoveryStore),
       provider_accessed: false,
       database_connection_performed: false,
       database_mutation_performed: false,
@@ -329,9 +376,12 @@ export const _testingProductionRecoveryCompositionFactory = Object.freeze({
   SERVER_MANAGED_CONTEXT,
   REQUIRED_LIVE_AUTHORIZATION_FLAGS,
   SERVER_APPROVAL_RESOLVER_METHOD: SERVER_RESOLVER_METHOD,
+  READ_ONLY_EVIDENCE_STORE_METHODS,
   validateServerManagedEnvelope,
   validateLiveAuthorization,
   independentBootstrapEvidenceStore,
+  buildReadOnlyEvidenceStore,
+  extractCertifiedReadOnlyAuthorities,
   independentReadbackAuthority,
   serverSideApprovalResolver,
   failClosedComposition,

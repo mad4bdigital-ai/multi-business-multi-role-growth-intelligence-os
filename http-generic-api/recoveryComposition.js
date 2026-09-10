@@ -67,7 +67,7 @@ const STORE_METHODS = Object.freeze([
 
 const REQUIRED_ADAPTERS = Object.freeze({
   deploymentIdentityProvider: { kind: "object", methods: ["readAttestation"] },
-    recoveryStore: { kind: "object", methods: STORE_METHODS },
+  recoveryStore: { kind: "object", methods: STORE_METHODS },
   approvalIssuer: { kind: "object", methods: ["createChallenge"] },
   approvalVerifier: { kind: "object", methods: ["verify"] },
   approvalStore: { kind: "object", methods: ["putChallenge", "getChallenge"] },
@@ -120,8 +120,15 @@ function immutableComponents(adapters = {}) {
   return Object.freeze(Object.fromEntries(COMPONENT_KEYS.map((key) => [key, adapters[key] ?? null])));
 }
 
-function buildFailClosedComposition(source) {
+function buildReadOnlyDependencies(readOnlyAuthorities = {}) {
+  return Object.freeze({
+    recoveryStore: readOnlyAuthorities?.recoveryStore || null,
+  });
+}
+
+function buildFailClosedComposition(source, { readOnlyAuthorities = null } = {}) {
   const components = immutableComponents();
+  const readOnlyDependencies = buildReadOnlyDependencies(readOnlyAuthorities || {});
   const kernelDependencies = Object.freeze({ ...components });
   const authorityInventory = Object.freeze({
     contract: "mad4b.recovery-authority-inventory.v1",
@@ -129,6 +136,7 @@ function buildFailClosedComposition(source) {
     configured_components: [],
     all_required_components_configured: false,
     live_activation: false,
+    read_only_recovery_store_available: Boolean(readOnlyDependencies.recoveryStore),
     provider_accessed: false,
     database_connection_performed: false,
     database_mutation_performed: false,
@@ -158,6 +166,7 @@ function buildFailClosedComposition(source) {
     component_status: componentStatus(components),
     authority_inventory: authorityInventory,
     kernelDependencies,
+    readOnlyDependencies,
     hostBreakglassBroker,
     runtimeBootstrapDependencies,
     secrets_included: false,
@@ -194,16 +203,17 @@ export function validateRecoveryCompositionAdapters(adapters = {}) {
   };
 }
 
-export function createRecoveryComposition({ mode = "fail_closed", adapters = null, source = "server_composition_root" } = {}) {
+export function createRecoveryComposition({ mode = "fail_closed", adapters = null, source = "server_composition_root", readOnlyAuthorities = null } = {}) {
   if (!COMPOSITION_MODES.has(mode)) {
     throw compositionError("RECOVERY_COMPOSITION_MODE_INVALID", "Recovery composition mode is not registered.", { mode });
   }
-  if (mode === "fail_closed") return buildFailClosedComposition(source);
+  if (mode === "fail_closed") return buildFailClosedComposition(source, { readOnlyAuthorities });
   if (mode === "production_live") {
     throw compositionError("RECOVERY_PRODUCTION_LIVE_DISABLED", "production_live is registered as a contract boundary but remains disabled until independently certified live authorities are deployed; no live mutation wiring is present in this repository patch.", { live_activation: false, database_mutation_performed: false, provider_accessed: false });
   }
   validateRecoveryCompositionAdapters(adapters);
   const components = immutableComponents(adapters);
+  const readOnlyDependencies = buildReadOnlyDependencies({ recoveryStore: components.recoveryStore });
   const kernelDependencies = Object.freeze({ ...components });
   const hostBreakglassBroker = Object.freeze({
     proofResolver: components.proofResolver,
@@ -223,6 +233,7 @@ export function createRecoveryComposition({ mode = "fail_closed", adapters = nul
     configured_components: [...COMPONENT_KEYS],
     all_required_components_configured: true,
     live_activation: false,
+    read_only_recovery_store_available: Boolean(readOnlyDependencies.recoveryStore),
     provider_accessed: false,
     database_connection_performed: false,
     database_mutation_performed: false,
@@ -242,6 +253,7 @@ export function createRecoveryComposition({ mode = "fail_closed", adapters = nul
     component_status: componentStatus(components),
     authority_inventory: authorityInventory,
     kernelDependencies,
+    readOnlyDependencies,
     hostBreakglassBroker,
     runtimeBootstrapDependencies,
     secrets_included: false,
@@ -252,9 +264,13 @@ export function getRecoveryCompositionRouteDependencies(composition = buildFailC
   if (!composition || composition.contract !== RECOVERY_COMPOSITION_CONTRACT) {
     throw compositionError("RECOVERY_COMPOSITION_INVALID", "Routes require the canonical Recovery composition contract.");
   }
+  const readOnlyRecoveryStore = composition.readOnlyDependencies?.recoveryStore || null;
   return Object.freeze({
     recoveryComposition: composition,
     ...composition.kernelDependencies,
+    readOnlyRecoveryStore,
+    recoveryStore: composition.kernelDependencies?.recoveryStore || readOnlyRecoveryStore,
+    mutationRecoveryStore: composition.kernelDependencies?.recoveryStore || null,
     broker: composition.hostBreakglassBroker,
     hostBreakglassMutationExecutor: composition.hostBreakglassBroker.hostLocalMutationExecutor || null,
     runtimeBootstrapDependencies: composition.runtimeBootstrapDependencies,
