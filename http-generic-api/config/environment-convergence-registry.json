@@ -41,7 +41,8 @@
         "packaged_policy_path": "/app/staging-route-policy.json",
         "expected_policy_hash": "c6468e051b8456d4d3ffc6478cdb98f7048b69c8ca6742f4dca27e1eb4023f32",
         "public_host": "activation-dev.mad4b.com",
-        "current_authority_adapter": "staging_activation_worker_workflow",
+        "current_authority_adapter": null,
+        "legacy_authority_adapter": "staging_activation_worker_workflow",
         "target_authority_model": "server_governed",
         "plan_capability": "environment_convergence_plan",
         "apply_capability": null,
@@ -64,6 +65,7 @@
         "expected_policy_hash": "585b2e07b71832b7a200971d66329326d79640a23f83a29c535100d7abaa64cd",
         "public_host": "activation.mad4b.com",
         "current_authority_adapter": "activation_gateway_dark_deploy",
+        "legacy_authority_adapter": null,
         "target_authority_model": "server_governed",
         "plan_capability": "activation_gateway_rollout_plan",
         "apply_capability": "activation_gateway_dark_deploy",
@@ -130,6 +132,15 @@
           "profile_binding_required": true,
           "automatic_apply_allowed": false
         },
+        "gateway_recovery_trusted_ingress": {
+          "failure_kind": "convergence_drift",
+          "drift_class": "trusted_ingress_evidence_mismatch",
+          "repairability": "governed",
+          "plan_capability": "activation_gateway_rollout_plan",
+          "apply_capability": "activation_gateway_dark_deploy",
+          "profile_binding_required": true,
+          "automatic_apply_allowed": false
+        },
         "gateway_upstream_ready": {
           "failure_kind": "readiness_failure",
           "drift_class": "upstream_not_ready",
@@ -142,7 +153,10 @@
   "orchestrator_boundary": {
     "orchestrators": [
       "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "autopilot-portable-staging/Auto-Deploy-Staging.ps1"
+      "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
+      "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
+      "autopilot-portable-staging/Converge-StagingActivationGateway.ps1",
+      "http-generic-api/scripts/staging-environment-convergence-plan.mjs"
     ],
     "forbidden_implementation_tokens": [
       "CLOUDFLARE_API_TOKEN",
@@ -167,6 +181,7 @@
     "activation_gateway_policy_identity_is_explicit_per_environment",
     "gateway_policy_hash_is_release_and_plan_identity",
     "staging_gateway_apply_requires_server_governed_adapter_before_execution",
+    "staging_orchestration_must_not_dispatch_provider_workflows_directly",
     "gateway_exact_commit_is_convergence_drift_not_integrity_corruption",
     "release_ready_requires_exact_release_identity_across_required_components"
   ],
