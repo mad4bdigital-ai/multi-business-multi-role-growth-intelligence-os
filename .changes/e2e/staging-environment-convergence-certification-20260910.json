@@ -13,12 +13,21 @@
       "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
       "autopilot-portable-staging/Converge-StagingActivationGateway.ps1",
       "autopilot-portable-staging/activation-gateway-smart-convergence-policy.json",
+      "edge/activation-gateway/src/worker-staging.mjs",
+      "http-generic-api/activationGatewayRolloutTool.js",
+      "http-generic-api/activationGatewayRolloutToolProduction.js",
       "http-generic-api/config/environment-convergence-registry.json",
       "http-generic-api/environmentConvergenceRegistry.js",
       "http-generic-api/environmentConvergenceEngine.js",
+      "http-generic-api/migrations/20260911_staging_activation_gateway_apply_adapter.sql",
+      "http-generic-api/scripts/build-staging-worker.mjs",
+      "http-generic-api/scripts/install-staging-activation-trust.mjs",
       "http-generic-api/scripts/manifests/test-manifest-spec017.mjs",
       "http-generic-api/scripts/staging-environment-convergence-plan.mjs",
       "http-generic-api/scripts/staging-live-certification.mjs",
+      "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+      "http-generic-api/stagingActivationGatewayBundle.js",
+      "http-generic-api/stagingActivationTrustInstaller.js",
       "http-generic-api/test-environment-convergence-packaged-policy.mjs",
       "http-generic-api/test-staging-activation-gateway.mjs",
       "http-generic-api/test-staging-environment-certification-contract.mjs",
@@ -43,7 +52,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Phase-1 mutation-free classifier/planner foundation: make the shared environment convergence engine the canonical Staging drift classifier and plan authority, exact-bind repository and Gateway release identity, resolve execution targets server-side, keep operator acknowledgement non-executive, retire direct workflow dispatch from the AutoPilot convergence path, keep Staging apply fail-closed until a server-governed adapter exists, and preserve profile-validated packaged policy fallback in flattened runtime images.",
+      "objective": "Make the shared environment convergence engine the canonical Staging drift and plan authority; exact-bind repository and Gateway release identity; activate a focused server-governed Staging Activation Gateway apply adapter whose Cloudflare target is resolved only from the Staging profile and canonical resource-authority binding; keep operator acknowledgement non-executive and automatic apply disabled; retire direct workflow/provider dispatch from AutoPilot; publish exact public Recovery trust evidence from the deployed Worker; install only the bounded local trusted-ingress allowlist after that public evidence is exact; permit one local runtime retry solely after successful trust installation; preserve the existing Production rollout implementation and keep Production mutation forbidden; and retain profile-validated packaged-policy fallback for flattened runtime images.",
       "e2e_journeys": [
         {
           "id": "staging-profile-first-live-certification",
@@ -56,20 +65,20 @@
             "Load the canonical environment-convergence registry and resolve the Staging Gateway policy server-side from its profile.",
             "Validate policy key, public host and expected policy hash before constructing or probing the Gateway endpoint.",
             "Reject caller-selected policy paths and reject Gateway URL overrides unless the override is an explicitly marked synthetic loopback fixture.",
-            "For a profile-valid reachable Gateway, keep gateway_health_reachable as integrity evidence but evaluate gateway_exact_commit as readiness/convergence evidence.",
-            "Classify a healthy old sourceCommit as convergence_drift/release_identity_mismatch with repairability=governed and automatic_apply_allowed=false.",
-            "Emit the classification in report.convergence while retaining certification as the final judge and requiring exact Gateway release identity for artifact_set.complete.",
-            "Keep all provider, database, migration, Production, ruleset and secret mutation disabled."
+            "For a profile-valid reachable Gateway, keep gateway_health_reachable as integrity evidence but evaluate gateway_exact_commit and gateway_recovery_trusted_ingress as readiness/convergence evidence.",
+            "Classify healthy stale release identity as convergence drift with repairability=governed and automatic_apply_allowed=false.",
+            "Retain certification as the final judge and require exact Gateway release identity and exact Recovery trust identity for release readiness.",
+            "Keep the certifier read-only with no provider, database, migration, Production, ruleset or secret mutation."
           ],
           "assertions": [
             "The Staging certification policy must match activation_gateway_staging, activation-dev.mad4b.com and the profile expected_policy_hash before any external Gateway probe.",
             "The live certifier does not read STAGING_CERT_GATEWAY_POLICY_PATH or any other caller-selected policy path.",
             "A Gateway base override is accepted only when STAGING_CERT_SYNTHETIC_LOOPBACK_FIXTURE is true and the resolved host is loopback; all other overrides fail closed before the Gateway probe.",
-            "gateway_environment_profile_current is an integrity failure and manual_non_repairable when false.",
-            "gateway_exact_commit is classified as convergence_drift/release_identity_mismatch rather than integrity corruption.",
-            "A healthy old Gateway SHA yields degraded certification when readiness is not required and convergence.status=reconciliation_required.",
-            "An exact Gateway SHA and policy hash remain required for artifact_set.complete and release-ready certification.",
-            "The convergence handoff never auto-applies and live certification performs no provider or Production mutation."
+            "gateway_environment_profile_current remains an integrity failure and manual_non_repairable when false.",
+            "gateway_exact_commit is convergence_drift/release_identity_mismatch, not integrity corruption.",
+            "gateway_recovery_trusted_ingress remains governed convergence drift when local trust is not exact.",
+            "An exact Gateway SHA, policy hash and Recovery trust identity remain required for release-ready certification.",
+            "Live certification performs no provider or Production mutation."
           ],
           "tests": [
             {
@@ -105,28 +114,30 @@
           "level": "synthetic_runtime",
           "actor": "Staging AutoPilot",
           "entrypoint": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
-          "terminal_outcome": "AutoPilot consumes report.convergence.next_governed_handoff from the shared engine, produces a repository/policy/observed-state-bound immutable plan with a server-resolved execution target, and stops at operator acknowledgement/governed-authority boundaries without dispatching a workflow or mutating a provider.",
+          "terminal_outcome": "AutoPilot consumes report.convergence.next_governed_handoff from the shared engine, produces a repository/policy/observed-state-bound immutable plan with a server-resolved execution target, never performs provider/workflow mutation itself, and may perform one local runtime retry only after exact public Recovery trust evidence is safely installed into the bounded Staging trust allowlist.",
           "steps": [
             "Run the local Staging core once and treat its certification state as observation evidence.",
-            "Pass observed blocking/degraded reasons to the shared environment convergence bridge rather than classify Gateway drift inside PowerShell.",
-            "Build an immutable convergence plan whose plan_sha256 binds the canonical repository, branch, exact commit, desired Gateway policy identity, observed Gateway policy identity and server-resolved execution target.",
-            "Resolve bundle and resource binding from the environment profile on the server; callers do not select an execution target.",
+            "If local Recovery trust is not exact, dry-run the local trust installer against profile-owned public Gateway /health and /ready evidence before any local change.",
+            "When public Gateway evidence is already exact, update only the eight trusted-ingress allowlist keys and retry the local core once so the runtime consumes the new public trust binding.",
+            "When public Gateway evidence is not exact, perform no local trust mutation and pass observed blocking/degraded reasons to the shared environment convergence bridge.",
+            "Build an immutable convergence plan whose plan_sha256 binds canonical repository, branch, exact commit, desired and observed Gateway policy identity, and the server-resolved execution target.",
+            "Resolve bundle and Cloudflare Worker resource binding from the environment profile/server authority; callers do not select the provider execution target.",
             "Consume report.convergence.next_governed_handoff as the only convergence next-action source.",
-            "Treat operator_acknowledgement as a non-execution acknowledgement; retain approval_checkpoint only as a transitional compatibility alias.",
-            "Stop at approval_required when acknowledgement is missing and at governed_authority_required while Staging has no server-governed apply adapter.",
-            "Keep the legacy Converge-StagingActivationGateway helper as a non-mutating fail-closed compatibility tombstone.",
-            "Guard the launcher, legacy helper and shared bridge against direct provider commands and workflow dispatch."
+            "Treat operator_acknowledgement as non-execution acknowledgement; retain approval_checkpoint only as a transitional compatibility alias.",
+            "Expose execution_ready=true and activation_gateway_dark_deploy only when the focused server-governed adapter is profile-bound and ready; automatic_apply_allowed remains false.",
+            "Keep the legacy Converge-StagingActivationGateway helper as a retired, non-mutating compatibility tombstone and guard all orchestrators against direct provider commands and workflow dispatch."
           ],
           "assertions": [
-            "ReleaseSpec repository must exactly equal mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os.",
-            "The Staging profile has apply_capability=null and governed_apply_ready=false until a focused server-governed adapter exists.",
-            "Changing observed Gateway policy identity changes plan_sha256 even when repository, branch and commit remain unchanged.",
-            "The execution target is server_resolved=true, caller_target_override_allowed=false and Staging execution_ready=false.",
+            "ReleaseSpec repository exactly equals mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os.",
+            "The Staging profile is bound to staging_activation_gateway_profile_apply, activation_gateway_dark_deploy, governed_apply_ready=true and resource_binding_id=5a2b04f8-bb99-4f65-a924-0f55d3080376.",
+            "The execution target is server-resolved and caller target override is forbidden.",
             "operator_acknowledgement_is_execution_authority=false and approval_checkpoint is only a transitional alias.",
-            "Invoke-Staging-One-Click.ps1 contains no hardcoded Gateway drift-key allowlist and does not call Converge-StagingActivationGateway.ps1.",
-            "Converge-StagingActivationGateway.ps1 performs no GitHub workflow dispatch, provider mutation, trust installation, database mutation or Production mutation.",
-            "The orchestrator boundary includes the One-Click launcher, legacy helper and shared convergence bridge.",
-            "The legacy deployment workflow may remain as infrastructure but is not an execution primitive available to the AutoPilot boundary."
+            "automatic_apply_allowed remains false even when the governed handoff is execution-ready.",
+            "Invoke-Staging-One-Click.ps1 contains no hardcoded Gateway drift-key allowlist, no Cloudflare provider credential read, no provider API call and no GitHub workflow dispatch.",
+            "The local trust installer first proves exact public SHA/policy/trust evidence, then may update only its eight-key trust allowlist; unrelated .env.staging values remain unchanged.",
+            "The local core may be retried at most once and only after exact_public_gateway_trust_installed_locally.",
+            "Converge-StagingActivationGateway.ps1 performs no workflow dispatch, provider mutation, trust installation, database mutation or Production mutation.",
+            "Provider, Cloudflare, workflow-dispatch, database and Production mutation flags remain false in AutoPilot results."
           ],
           "tests": [
             {
@@ -148,11 +159,61 @@
             "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
             "autopilot-portable-staging/Converge-StagingActivationGateway.ps1",
             "autopilot-portable-staging/activation-gateway-smart-convergence-policy.json",
+            "http-generic-api/scripts/install-staging-activation-trust.mjs",
+            "http-generic-api/stagingActivationTrustInstaller.js",
             "http-generic-api/scripts/staging-environment-convergence-plan.mjs",
             "http-generic-api/config/environment-convergence-registry.json",
             "http-generic-api/environmentConvergenceEngine.js",
-            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
-            "http-generic-api/test-staging-activation-gateway.mjs"
+            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
+          ]
+        },
+        {
+          "id": "staging-server-governed-activation-gateway-apply",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Server-governed Staging Activation Gateway apply authority",
+          "entrypoint": "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+          "terminal_outcome": "The exact Staging profile resolves one canonical Cloudflare Worker binding, builds an exact-SHA signed Worker bundle, applies it only through the existing governed Activation Gateway rollout surface after typed confirmation/capability authorization, verifies public /health, /ready and Recovery trust identity in the same cycle, returns only non-secret trust evidence, and rolls back on failed readback without widening Production or DNS authority.",
+          "steps": [
+            "Load and validate the exact Staging environment profile, policy hash, bundle key, entrypoint, public host, apply capability and fixed resource_binding_id.",
+            "Resolve account/script only from platform_resource_authority_bindings; treat caller account/script fields only as assertions and reject caller resource IDs, policy paths, bundle keys, entrypoints, public hosts, zones, DNS records and custom domains.",
+            "Build the Staging Worker from the exact requested source SHA, generate a signed deployment attestation and a separate Ed25519 Recovery ingress signing key, and bind the public trust bundle to that exact release identity.",
+            "Require the Staging feature flag, typed policy confirmation, execution nonce, exact capability envelope and active runtime dispatch certification before apply.",
+            "Upload only the fixed Worker script and generated Worker secrets using server-held provider authority; do not mutate DNS or custom-domain routing.",
+            "Read back the Cloudflare deployment and then require exact public activation-dev.mad4b.com /health and /ready SHA/policy/trust evidence.",
+            "Return the public Recovery trust bundle without private/provider secrets and audit/finalize the single-use capability envelope.",
+            "If any post-write step fails, restore the previous deployment versions or delete the new unrouted script and mark the envelope failed."
+          ],
+          "assertions": [
+            "The server adapter resolves resource_binding_id=5a2b04f8-bb99-4f65-a924-0f55d3080376 from the Staging profile and resolves account/script from that canonical binding.",
+            "Caller-selected provider targets, policy paths and provider credentials are not accepted execution authority.",
+            "The Staging target is mad4b-activation-gateway-staging with activation_gateway_staging policy hash c6468e051b8456d4d3ffc6478cdb98f7048b69c8ca6742f4dca27e1eb4023f32.",
+            "Apply requires exact source SHA, typed confirmation, execution nonce, single-use capability envelope, dispatch certification, audit evidence and same-cycle readback.",
+            "Worker apply does not write DNS or custom-domain bindings and does not deploy Production.",
+            "The public Recovery trust bundle contains an Ed25519 public key and exact release identity but no private key, provider credential or secret value.",
+            "The existing Production Activation Gateway rollout implementation remains isolated in activationGatewayRolloutToolProduction.js and the generic wrapper only delegates Staging-matching requests to the focused adapter.",
+            "The execution path does not perform business/schema database mutation; only existing governance envelope/audit lifecycle writes are permitted.",
+            "Automatic rollback is required after any failed provider/public readback."
+          ],
+          "tests": [
+            {
+              "id": "staging-smart-gateway-convergence-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-smart-gateway-convergence-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/activationGatewayRolloutTool.js",
+            "http-generic-api/activationGatewayRolloutToolProduction.js",
+            "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+            "http-generic-api/stagingActivationGatewayBundle.js",
+            "http-generic-api/migrations/20260911_staging_activation_gateway_apply_adapter.sql",
+            "edge/activation-gateway/src/worker-staging.mjs",
+            "http-generic-api/scripts/build-staging-worker.mjs",
+            "http-generic-api/config/environment-convergence-registry.json",
+            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
           ]
         },
         {
@@ -175,7 +236,7 @@
             "A packaged policy with a mismatched expected hash fails with activation_gateway_profile_policy_invalid:staging:policy_hash.",
             "The regression test remains registered in the canonical full test manifest and the test-authority registry.",
             "Live Staging certification remains required and production_mutation_allowed remains false.",
-            "No provider, database, migration, DNS, secret, ruleset or Production mutation is introduced."
+            "No provider, database, DNS, secret, ruleset or Production mutation is introduced by the packaged-policy fallback."
           ],
           "tests": [
             {
