@@ -49,18 +49,16 @@ if ($policyHash -notmatch '^[0-9a-f]{64}$') {
 if ([string]$gateway.policy_key -ne 'activation_gateway_staging') {
     Fail 'Staging Activation Gateway profile is not bound to activation_gateway_staging.'
 }
-if ($gateway.governed_apply_ready -ne $false -or $null -ne $gateway.apply_capability) {
-    Fail 'Legacy convergence helper may only run while Staging provider apply remains fail-closed.'
-}
 
-# This file intentionally remains as a compatibility tombstone for callers that
-# still know the old helper path. It MUST NOT dispatch GitHub Actions, read provider
-# credentials, mutate Cloudflare, install trust material, or retry the runtime.
-# The top-level AutoPilot now consumes the shared convergence engine and stops at
-# the governed authority checkpoint until a server-side Staging apply adapter exists.
+# Compatibility tombstone only. The server-governed Staging adapter is now profile-bound,
+# but this historical helper MUST remain outside the execution path. It never dispatches
+# GitHub Actions, reads provider credentials, mutates Cloudflare, installs trust material,
+# or retries the runtime. All real planning flows through the shared convergence engine;
+# provider apply flows through the server-governed adapter named by the profile.
+$executionReady = ($gateway.governed_apply_ready -eq $true -and -not [string]::IsNullOrWhiteSpace([string]$gateway.apply_capability))
 $report = [ordered]@{
-    contract = 'mad4b.staging.activation-gateway-convergence.v2'
-    status = 'governed_authority_required'
+    contract = 'mad4b.staging.activation-gateway-convergence.v3'
+    status = 'legacy_adapter_retired'
     ready = $false
     environment = 'staging'
     state_machine = [string]$profile.state_machine
@@ -71,13 +69,14 @@ $report = [ordered]@{
         policy_path = [string]$gateway.policy_path
         expected_policy_hash = $policyHash
         public_host = [string]$gateway.public_host
+        current_authority_adapter = [string]$gateway.current_authority_adapter
     }
     next_governed_handoff = [ordered]@{
         authority = 'server_governed'
         plan_capability = [string]$gateway.plan_capability
-        apply_capability = $null
-        execution_ready = $false
-        apply_block_reason = [string]$gateway.apply_block_reason
+        apply_capability = if ($executionReady) { [string]$gateway.apply_capability } else { $null }
+        execution_ready = [bool]$executionReady
+        apply_block_reason = if ($executionReady) { $null } else { [string]$gateway.apply_block_reason }
         automatic_apply_allowed = $false
     }
     legacy_adapter = [ordered]@{
@@ -115,5 +114,5 @@ if (-not [string]::IsNullOrWhiteSpace($ReportPath)) {
 }
 
 Write-Output $json
-Write-Error "Server-governed Staging Activation Gateway apply authority is required: $($gateway.apply_block_reason)"
+Write-Error 'Legacy Staging Activation Gateway convergence helper is retired; use the shared environment convergence plan and profile-bound server authority.'
 exit 2
