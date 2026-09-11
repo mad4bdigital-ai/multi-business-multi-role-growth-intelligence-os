@@ -74,6 +74,23 @@ function mutationStore(overrides = {}) {
   });
 }
 
+function recoveryActionBridgeAuthorityShape() {
+  return {
+    executionTicketSigner: { async sign() { throw new Error("store selection test must fail before ticket signing"); } },
+    approvalVerifier: { async verify() { throw new Error("store selection test must fail before approval verification"); } },
+    approvalStore: { async putChallenge() {}, async getChallenge() { return null; } },
+    recoveryLock: {
+      async acquire() { throw new Error("store selection test must fail before lock acquisition"); },
+      async heartbeat() { throw new Error("store selection test must fail before lock heartbeat"); },
+      async assertFence() { throw new Error("store selection test must fail before fence verification"); },
+      async release() {},
+    },
+    readbackVerifier: { async verify() { throw new Error("store selection test must fail before readback"); } },
+    hostBreakglassMutationExecutor: { async execute() { throw new Error("store selection test must fail before mutation execution"); } },
+    deploymentIdentityProvider: { async readAttestation() { throw new Error("store selection test must fail before deployment attestation"); } },
+  };
+}
+
 {
   const evidence = inspectionStore();
   const mutation = mutationStore();
@@ -190,6 +207,7 @@ function mutationStore(overrides = {}) {
         recoveryStore: legacy,
         readOnlyRecoveryStore: inspectionStore(),
         mutationRecoveryStore,
+        ...recoveryActionBridgeAuthorityShape(),
       },
     ),
     (error) => error?.code === "MUTATION_STORE_SELECTED",
