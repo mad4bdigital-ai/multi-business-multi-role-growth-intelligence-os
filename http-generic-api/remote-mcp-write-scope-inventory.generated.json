@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7643,
+  "file_count": 7650,
   "route_count": 1103,
   "write_route_count": 670,
   "classified_write_surface_count": 42,
@@ -16,8 +16,8 @@
   "unclassified_write_route_count": 0,
   "intentionally_unmapped_write_route_count": 628,
   "sensitive_intentionally_unmapped_write_route_count": 628,
-  "migration_count": 447,
-  "registry_evidence_count": 110,
+  "migration_count": 448,
+  "registry_evidence_count": 113,
   "write_scope_count": 6,
   "bound_write_scope_count": 0,
   "write_scopes": [
@@ -57100,6 +57100,24 @@
       "catalog_fingerprints": []
     },
     {
+      "path": "http-generic-api/migrations/20260911_staging_activation_gateway_apply_adapter.sql",
+      "tables": [
+        "platform_resource_authority_requirements",
+        "the",
+        "display_name",
+        "resource_authority_route_family_registry",
+        "environment_convergence_registry",
+        "capability_apply_authorization_policy_registry",
+        "app_key",
+        "runtime_dispatch_certification_registry",
+        "surface_key",
+        "platform_resource_authority_bindings",
+        "tenant_id"
+      ],
+      "write_scopes": [],
+      "catalog_fingerprints": []
+    },
+    {
       "path": "http-generic-api/migrations/202_sprint66_tenant_ssh_cli_allowlisted_execute_tool.sql",
       "tables": [
         "tenant_platform_endpoint_tools",
@@ -59202,7 +59220,7 @@
   ],
   "registry_evidence": [
     {
-      "path": "http-generic-api/activationGatewayRolloutTool.js",
+      "path": "http-generic-api/activationGatewayRolloutToolProduction.js",
       "registries": [
         "platform_resource_authority_bindings"
       ]
@@ -59443,6 +59461,12 @@
       ]
     },
     {
+      "path": "http-generic-api/migrations/20260911_staging_activation_gateway_apply_adapter.sql",
+      "registries": [
+        "platform_resource_authority_bindings"
+      ]
+    },
+    {
       "path": "http-generic-api/migrations/307_sprint69_hostinger_deploy_restart_option_support.sql",
       "registries": [
         "platform_resource_authority_bindings"
@@ -59624,6 +59648,12 @@
     },
     {
       "path": "http-generic-api/scripts/test-operation-rollout-pilots.mjs",
+      "registries": [
+        "platform_resource_authority_bindings"
+      ]
+    },
+    {
+      "path": "http-generic-api/stagingActivationGatewayApplyAdapter.js",
       "registries": [
         "platform_resource_authority_bindings"
       ]
@@ -59852,6 +59882,12 @@
       "registries": [
         "platform_resource_authority_bindings",
         "platform_tool_dispatch_bindings"
+      ]
+    },
+    {
+      "path": "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+      "registries": [
+        "platform_resource_authority_bindings"
       ]
     },
     {
