@@ -1,8 +1,8 @@
+#!/usr/bin/env node
 import assert from "node:assert/strict";
-import crypto from "node:crypto";
-import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { writeStagingActivationGatewayBundle } from "../stagingActivationGatewayBundle.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..", "..");
@@ -14,145 +14,28 @@ const sourceSha = String(args.get("--source-sha") || "").toLowerCase();
 const outputDir = path.resolve(root, args.get("--output-dir") || ".artifacts/activation-gateway-staging");
 const lifetimeHours = Number(args.get("--lifetime-hours") || 168);
 
-assert.match(sourceSha, /^[a-f0-9]{40}$/, "source SHA must be an exact 40-character commit");
+assert.match(sourceSha, /^[a-f0-9]{40}$/u, "source SHA must be an exact 40-character commit");
 assert.ok(Number.isInteger(lifetimeHours) && lifetimeHours >= 1 && lifetimeHours <= 720, "attestation lifetime must be 1..720 hours");
 
-const sourceDir = path.join(root, "edge", "activation-gateway", "src");
-const workerPath = path.join(sourceDir, "worker-staging.mjs");
-const gatewayPath = path.join(sourceDir, "gateway.mjs");
-const policyPath = path.join(root, "edge", "activation-gateway", "generated", "route-policy.staging.json");
-const workerTemplate = fs.readFileSync(workerPath, "utf8");
-const gateway = fs.readFileSync(gatewayPath, "utf8");
-const policyText = fs.readFileSync(policyPath, "utf8");
-const policy = JSON.parse(policyText);
-
-assert.equal(policy.policy_key, "activation_gateway_staging");
-assert.equal(policy.public_host, "activation-dev.mad4b.com");
-assert.match(policy.content_hash_sha256, /^[a-f0-9]{64}$/);
-
-const graphDigest = crypto.createHash("sha256")
-  .update("mad4b.activation-gateway-staging.bundle.v1\0")
-  .update(workerTemplate).update("\0")
-  .update(gateway).update("\0")
-  .update(policyText)
-  .digest("hex");
-const workerBuildIdentity = { source_sha: sourceSha, bundle_sha256: graphDigest };
-const marker = "/* WORKER_BUILD_IDENTITY */ null";
-const moduleSpecifier = (fromFile, toFile) => {
-  const relative = path.relative(path.dirname(fromFile), toFile).replaceAll(path.sep, "/");
-  return JSON.stringify(relative.startsWith(".") ? relative : `./${relative}`);
-};
-assert.equal(workerTemplate.split(marker).length, 2, "worker identity marker must occur exactly once");
-assert.equal(workerTemplate.split(moduleSpecifier(workerPath, policyPath)).length, 2, "staging policy import must occur exactly once");
-const builtWorker = workerTemplate
-  .replace(
-    moduleSpecifier(workerPath, policyPath),
-    moduleSpecifier(path.join(outputDir, "worker-staging.mjs"), path.join(outputDir, path.basename(policyPath))),
-  )
-  .replace(marker, JSON.stringify(workerBuildIdentity));
-assert.equal(
-  builtWorker.includes(moduleSpecifier(workerPath, policyPath)),
-  false,
-  "deployment artifact must not depend on source-tree policy topology",
-);
-assert.equal(
-  builtWorker.includes(moduleSpecifier(path.join(outputDir, "worker-staging.mjs"), path.join(outputDir, path.basename(policyPath)))),
-  true,
-  "deployment artifact must import its co-located policy",
-);
-
-const deploymentId = `activation-staging-${sourceSha.slice(0, 12)}-${Date.now()}`;
-const expiresAt = new Date(Date.now() + lifetimeHours * 60 * 60 * 1000).toISOString();
-const unsigned = {
-  content_hash_sha256: policy.content_hash_sha256,
-  deployment_id: deploymentId,
-  expires_at: expiresAt,
-  source_commit: sourceSha,
-  surface_registry_version: Number(policy.surface_registry_version),
-  worker_build_sha: sourceSha,
-  worker_bundle_sha256: graphDigest,
-};
-const stableValue = (value) => Array.isArray(value)
-  ? value.map(stableValue)
-  : value && typeof value === "object"
-    ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, stableValue(value[key])]))
-    : value;
-const stableJson = (value) => `${JSON.stringify(stableValue(value), null, 2)}\n`;
-const { privateKey, publicKey } = crypto.generateKeyPairSync("ed25519");
-const signature = crypto.sign(null, Buffer.from(stableJson(unsigned)), privateKey).toString("base64url");
-const attestation = { ...unsigned, signature_b64url: signature };
-const publicJwk = publicKey.export({ format: "jwk" });
-
-// Recovery ingress signing authority is intentionally independent from the policy
-// attestation key. The private key is emitted only into the ephemeral Wrangler
-// secrets file; the origin receives only the matching public trust bundle.
-const { privateKey: ingressPrivateKey, publicKey: ingressPublicKey } = crypto.generateKeyPairSync("ed25519");
-const ingressPrivateJwk = ingressPrivateKey.export({ format: "jwk" });
-const ingressPublicJwk = ingressPublicKey.export({ format: "jwk" });
-const ingressPublicPemEscaped = ingressPublicKey
-  .export({ type: "spki", format: "pem" })
-  .replaceAll("\r", "")
-  .replaceAll("\n", "\\n");
-const ingressFingerprint = crypto.createHash("sha256")
-  .update(JSON.stringify(ingressPublicJwk))
-  .digest("hex")
-  .slice(0, 16);
-const ingressKeyId = `activation-staging-${sourceSha.slice(0, 12)}-${ingressFingerprint}`;
-const originTrust = {
-  contract: "mad4b.staging.activation-recovery-origin-trust.v1",
-  source_commit: sourceSha,
-  worker_build_sha: sourceSha,
-  worker_bundle_sha256: graphDigest,
-  policy_hash: policy.content_hash_sha256,
-  gateway_host: policy.public_host,
-  canonical_host: policy.public_host,
-  audience: policy.upstream_origin,
-  issuer: `https://${policy.public_host}`,
-  key_id: ingressKeyId,
-  public_key_pem_escaped: ingressPublicPemEscaped,
-  trusted_ingress_mode: "signature",
-  strip_caller_headers: true,
-  replay_store_scope: "single_filesystem",
-  production_deploy: false,
-  database_mutation: false,
-  secrets_included: false,
-};
-
-fs.rmSync(outputDir, { recursive: true, force: true });
-fs.mkdirSync(outputDir, { recursive: true });
-fs.writeFileSync(path.join(outputDir, "worker-staging.mjs"), builtWorker);
-fs.writeFileSync(path.join(outputDir, "gateway.mjs"), gateway);
-fs.writeFileSync(path.join(outputDir, "route-policy.staging.json"), policyText);
-fs.writeFileSync(path.join(outputDir, "deployment-secrets.json"), JSON.stringify({
-  ACTIVATION_GATEWAY_DEPLOYMENT_ATTESTATION_JSON: JSON.stringify(attestation),
-  ACTIVATION_GATEWAY_POLICY_PUBLIC_KEY_JWK: JSON.stringify(publicJwk),
-  ACTIVATION_GATEWAY_INGRESS_PRIVATE_KEY_JWK: JSON.stringify(ingressPrivateJwk),
-  ACTIVATION_GATEWAY_INGRESS_KEY_ID: ingressKeyId,
-}, null, 2));
-fs.writeFileSync(path.join(outputDir, "origin-trust.json"), stableJson(originTrust));
-fs.writeFileSync(path.join(outputDir, "deployment-evidence.json"), stableJson({
-  contract: "mad4b.activation-gateway-staging-deployment-evidence.v1",
-  deployment_id: deploymentId,
-  expires_at: expiresAt,
-  policy_hash: policy.content_hash_sha256,
-  public_host: policy.public_host,
-  source_commit: sourceSha,
-  worker_bundle_sha256: graphDigest,
-  recovery_ingress_key_id: ingressKeyId,
-  recovery_origin_trust_contract: originTrust.contract,
-  production_deploy: false,
-  database_mutation: false,
-  secrets_included: false,
-}));
+const bundle = await writeStagingActivationGatewayBundle({
+  sourceSha,
+  repositoryRoot: root,
+  outputDir,
+  lifetimeHours,
+});
 
 console.log(JSON.stringify({
   ok: true,
-  deployment_id: deploymentId,
-  expires_at: expiresAt,
-  policy_hash: policy.content_hash_sha256,
-  source_commit: sourceSha,
-  worker_bundle_sha256: graphDigest,
-  recovery_ingress_key_id: ingressKeyId,
-  recovery_origin_trust_contract: originTrust.contract,
+  deployment_id: bundle.deployment_id,
+  expires_at: bundle.expires_at,
+  policy_hash: bundle.policy_hash,
+  source_commit: bundle.source_sha,
+  worker_bundle_sha256: bundle.worker_bundle_sha256,
+  recovery_ingress_key_id: bundle.origin_trust.key_id,
+  recovery_origin_trust_contract: bundle.origin_trust.contract,
+  public_recovery_trust_embedded: true,
+  provider_credentials_included: false,
+  production_deploy: false,
+  database_mutation: false,
   secrets_included: false,
 }));
