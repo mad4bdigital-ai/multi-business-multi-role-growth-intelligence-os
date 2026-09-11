@@ -36,8 +36,13 @@ function parseArgs(argv) {
   return out;
 }
 
+function parseJsonText(text) {
+  const value = String(text ?? "");
+  return JSON.parse(value.charCodeAt(0) === 0xFEFF ? value.slice(1) : value);
+}
+
 function readJson(filePath, label) {
-  try { return JSON.parse(fs.readFileSync(filePath, "utf8")); }
+  try { return parseJsonText(fs.readFileSync(filePath, "utf8")); }
   catch { fail("staging_convergence_input_invalid", `${label} is missing or invalid JSON.`, { file_path: filePath }); }
 }
 
