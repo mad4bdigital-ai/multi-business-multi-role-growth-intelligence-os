@@ -42,13 +42,13 @@
         "packaged_policy_path": "/app/staging-route-policy.json",
         "expected_policy_hash": "c6468e051b8456d4d3ffc6478cdb98f7048b69c8ca6742f4dca27e1eb4023f32",
         "public_host": "activation-dev.mad4b.com",
-        "current_authority_adapter": null,
+        "current_authority_adapter": "staging_activation_gateway_profile_apply",
         "legacy_authority_adapter": "staging_activation_worker_workflow",
         "target_authority_model": "server_governed",
         "plan_capability": "environment_convergence_plan",
-        "apply_capability": null,
-        "governed_apply_ready": false,
-        "apply_block_reason": "server_governed_staging_activation_worker_adapter_required",
+        "apply_capability": "activation_gateway_dark_deploy",
+        "governed_apply_ready": true,
+        "apply_block_reason": null,
         "execution_target": {
           "contract": "mad4b.environment-convergence-execution-target.v1",
           "component": "activation_gateway",
@@ -60,9 +60,9 @@
           },
           "resource_binding": {
             "resource_type": "cloudflare_worker",
-            "resource_binding_id": null
+            "resource_binding_id": "5a2b04f8-bb99-4f65-a924-0f55d3080376"
           },
-          "runtime_surface": null
+          "runtime_surface": "activation_gateway_dark_deploy"
         }
       }
     },
