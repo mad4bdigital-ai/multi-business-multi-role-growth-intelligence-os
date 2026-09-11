@@ -100,7 +100,7 @@ function normalizeCloudflareEnvelope(status, parsed, rawText = "") {
 
 export function createCloudflareApiClient({
   fetchImpl = globalThis.fetch,
-  token = process.env.CLOUDFLARE_API_TOKEN,
+  token,
   apiBase = "https://api.cloudflare.com/client/v4",
   timeoutMs = 30000,
 } = {}) {
@@ -149,8 +149,7 @@ async function readGatewayBundle(bundleRoot = DEFAULT_BUNDLE_ROOT) {
     const absolutePath = path.join(bundleRoot, ...descriptor.path.split("/"));
     files.push({ ...descriptor, content: await fs.readFile(absolutePath, "utf8") });
   }
-  const policyFile = files.find((item) => item.name === "generated/route-policy.json");
-  const policy = parseJson(policyFile?.content, null);
+  const policy = parseJson(files.find((item) => item.name === "generated/route-policy.json")?.content, null);
   if (!policy) throw rolloutError("activation_gateway_policy_invalid", "Activation Gateway route policy is not valid JSON.", 500);
   const hash = crypto.createHash("sha256");
   for (const file of [...files].sort((left, right) => left.name.localeCompare(right.name))) {
