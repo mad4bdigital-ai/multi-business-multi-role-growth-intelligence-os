@@ -2,7 +2,7 @@
 param(
     [string]$RepositoryPath = '',
     [ValidateSet('disabled','windows_service','docker_sidecar')]
-    [string]$TunnelMode = 'windows_service',
+    [string]$TunnelMode = 'disabled',
     [switch]$EnableActivationGateway,
     [switch]$NoAutoDeploy,
     [switch]$RequireSchemaBundle,
@@ -18,15 +18,102 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSCommandPath
+. (Join-Path $root 'Staging-Operations-Log.ps1')
 $core = Join-Path $root 'Invoke-Staging-One-Click-Core.ps1'
 $envAuthorityGuard = Join-Path $root 'Assert-StagingEnvAuthority.ps1'
 $convergenceBridge = ''
 $trustInstaller = ''
 $preflightReportPath = Join-Path $root 'logs\staging-schema-governance-preflight.json'
 $runtimeStatePath = Join-Path $root 'autopilot-state.json'
+$deploymentLeasePath = Join-Path (Get-StagingLogRoot) 'deployment-lease.json'
 $expectedRepository = 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os'
+$script:TopologyTransitionLeaseActive = $false
 
 function Fail([string]$Message) { throw "STAGING_DUAL_MODE_SMART_ONE_CLICK_FAIL_CLOSED: $Message" }
+
+function Get-RepositoryHeadCommit {
+    try {
+        $head = (& git -C $RepositoryPath rev-parse HEAD 2>$null | Out-String).Trim().ToLowerInvariant()
+        if ($head -match '^[0-9a-f]{40}$') { return $head }
+    } catch { }
+    return ''
+}
+
+function Enter-TopologyTransitionLease {
+    $now = [DateTime]::UtcNow
+    $lease = [ordered]@{
+        contract = 'mad4b.staging-deployment-lease.v1'
+        status = 'deploying'
+        stage = 'tunnel_topology_transition'
+        expected_commit = Get-RepositoryHeadCommit
+        requested_tunnel_mode = $TunnelMode
+        started_at = $now.ToString('o')
+        expires_at = $now.AddMinutes(15).ToString('o')
+        production_mutation = $false
+        provider_mutation = $false
+        database_mutation = $false
+        secrets_included = $false
+    }
+    Write-StagingAtomicJson $deploymentLeasePath $lease 8
+    $script:TopologyTransitionLeaseActive = $true
+}
+
+function Complete-TopologyTransitionLease {
+    if (Test-Path -LiteralPath $deploymentLeasePath) {
+        Remove-Item -LiteralPath $deploymentLeasePath -Force -ErrorAction SilentlyContinue
+    }
+    $script:TopologyTransitionLeaseActive = $false
+}
+
+function Mark-TopologyTransitionFailed {
+    if (-not $script:TopologyTransitionLeaseActive) { return }
+    $now = [DateTime]::UtcNow
+    $lease = $null
+    try {
+        if (Test-Path -LiteralPath $deploymentLeasePath -PathType Leaf) {
+            $lease = Get-Content -Raw -LiteralPath $deploymentLeasePath | ConvertFrom-Json -ErrorAction Stop
+        }
+    } catch { $lease = $null }
+    if ($null -eq $lease) {
+        $lease = [pscustomobject]@{
+            contract = 'mad4b.staging-deployment-lease.v1'
+            expected_commit = Get-RepositoryHeadCommit
+            requested_tunnel_mode = $TunnelMode
+            production_mutation = $false
+            provider_mutation = $false
+            database_mutation = $false
+            secrets_included = $false
+        }
+    }
+    $lease | Add-Member -NotePropertyName status -NotePropertyValue 'deploying' -Force
+    $lease | Add-Member -NotePropertyName stage -NotePropertyValue 'tunnel_topology_transition_failed' -Force
+    $lease | Add-Member -NotePropertyName failed_at -NotePropertyValue $now.ToString('o') -Force
+    $lease | Add-Member -NotePropertyName expires_at -NotePropertyValue $now.AddMinutes(5).ToString('o') -Force
+    Write-StagingAtomicJson $deploymentLeasePath $lease 8
+    $script:TopologyTransitionLeaseActive = $false
+}
+
+function Publish-CanonicalTunnelRuntimeState {
+    if (-not (Test-Path -LiteralPath $runtimeStatePath -PathType Leaf)) {
+        Fail "Canonical runtime state is missing after successful topology transition: $runtimeStatePath"
+    }
+    try {
+        $runtime = Get-Content -Raw -LiteralPath $runtimeStatePath | ConvertFrom-Json -ErrorAction Stop
+    } catch {
+        Fail 'Canonical runtime state is not valid JSON after successful topology transition.'
+    }
+    $commit = ([string]$runtime.commit).Trim().ToLowerInvariant()
+    if ($commit -notmatch '^[0-9a-f]{40}$') { Fail 'Canonical runtime state is missing an exact commit after topology transition.' }
+    $runtime | Add-Member -NotePropertyName tunnel_mode -NotePropertyValue $TunnelMode -Force
+    $runtime | Add-Member -NotePropertyName tunnel_started -NotePropertyValue ([bool]($TunnelMode -ne 'disabled')) -Force
+    $runtime | Add-Member -NotePropertyName tunnel_state_published_at -NotePropertyValue ([DateTime]::UtcNow.ToString('o')) -Force
+    Write-StagingAtomicJson $runtimeStatePath $runtime 10
+
+    $readback = Get-Content -Raw -LiteralPath $runtimeStatePath | ConvertFrom-Json -ErrorAction Stop
+    if ([string]$readback.tunnel_mode -ne $TunnelMode) { Fail 'Canonical runtime tunnel_mode readback mismatch after publication.' }
+    if ([bool]$readback.tunnel_started -ne [bool]($TunnelMode -ne 'disabled')) { Fail 'Canonical runtime tunnel_started readback mismatch after publication.' }
+    if (([string]$readback.commit).Trim().ToLowerInvariant() -ne $commit) { Fail 'Canonical runtime commit changed during tunnel state publication.' }
+}
 
 function Write-Lines([object[]]$Lines) {
     foreach ($line in @($Lines)) { Write-Host ([string]$line) }
@@ -115,6 +202,23 @@ function Invoke-Core {
     }
     if ($null -eq $exitCode) { Fail 'Dual-mode core did not expose a native exit code.' }
     return [pscustomobject]@{ exit_code = $exitCode; lines = $lines }
+}
+
+function Invoke-CoreWithTopologyLease {
+    Enter-TopologyTransitionLease
+    try {
+        $run = Invoke-Core
+        if ($run.exit_code -eq 0) {
+            Publish-CanonicalTunnelRuntimeState
+            Complete-TopologyTransitionLease
+        } else {
+            Mark-TopologyTransitionFailed
+        }
+        return $run
+    } catch {
+        Mark-TopologyTransitionFailed
+        throw
+    }
 }
 
 function Read-LocalStagingEnvValue([string]$Name) {
@@ -310,12 +414,15 @@ $convergenceBridge = Join-Path $RepositoryPath 'http-generic-api\scripts\staging
 $trustInstaller = Join-Path $RepositoryPath 'http-generic-api\scripts\install-staging-activation-trust.mjs'
 if (-not (Test-Path -LiteralPath $core -PathType Leaf)) { Fail "Dual-mode core launcher is missing: $core" }
 if (-not (Test-Path -LiteralPath (Join-Path $RepositoryPath '.git'))) { Fail "RepositoryPath is not a Git checkout: $RepositoryPath" }
+if ($TunnelMode -ne 'disabled' -and -not $EnableActivationGateway) {
+    Fail 'Public Staging tunnel modes require -EnableActivationGateway before any topology mutation.'
+}
 
 Invoke-EnvAuthorityGuard
-$active = Invoke-Core
+$active = Invoke-CoreWithTopologyLease
 $trustRefresh = Invoke-LocalRecoveryTrustRefresh
 if ($trustRefresh.installed -eq $true) {
-    $active = Invoke-Core
+    $active = Invoke-CoreWithTopologyLease
 }
 $bridge = Invoke-SharedConvergence $active.exit_code
 if ($null -eq $bridge) {

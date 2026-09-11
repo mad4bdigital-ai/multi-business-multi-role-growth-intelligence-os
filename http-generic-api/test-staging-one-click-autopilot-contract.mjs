@@ -9,7 +9,30 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+const packageRoot = path.resolve(here, "..", "autopilot-portable-staging");
 const bridgePath = path.join(here, "scripts", "staging-environment-convergence-plan.mjs");
+const smartLauncher = fs.readFileSync(path.join(packageRoot, "Invoke-Staging-One-Click.ps1"), "utf8");
+const cmdLauncher = fs.readFileSync(path.join(packageRoot, "Start-Staging-One-Click.cmd"), "utf8");
+
+assert.match(smartLauncher, /\[string\]\$TunnelMode = 'disabled'/);
+assert.match(smartLauncher, /function Enter-TopologyTransitionLease/);
+assert.match(smartLauncher, /function Mark-TopologyTransitionFailed/);
+assert.match(smartLauncher, /function Publish-CanonicalTunnelRuntimeState/);
+assert.match(smartLauncher, /Write-StagingAtomicJson \$runtimeStatePath \$runtime 10/);
+assert.match(smartLauncher, /Add-Member -NotePropertyName tunnel_mode/);
+assert.match(smartLauncher, /Add-Member -NotePropertyName tunnel_started/);
+assert.match(smartLauncher, /tunnel_topology_transition_failed/);
+assert.match(smartLauncher, /Public Staging tunnel modes require -EnableActivationGateway before any topology mutation/);
+assert.ok(
+  smartLauncher.indexOf("if ($TunnelMode -ne 'disabled' -and -not $EnableActivationGateway)") <
+    smartLauncher.indexOf("Invoke-EnvAuthorityGuard\n$active = Invoke-CoreWithTopologyLease"),
+  "public-mode Activation Gateway guard must run before the topology coordinator",
+);
+assert.match(cmdLauncher, /if "%TUNNEL_MODE%"=="" set "TUNNEL_MODE=disabled"/);
+assert.doesNotMatch(cmdLauncher, /if "%TUNNEL_MODE%"=="" set "TUNNEL_MODE=windows_service"/);
+assert.match(cmdLauncher, /'-EnableActivationGateway'/);
+assert.match(cmdLauncher, /disabled       : local-only Staging \^\(safe default\^\)/);
+
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mad4b-staging-convergence-bom-"));
 const runtimePath = path.join(tempRoot, "autopilot-state.json");
 const preflightPath = path.join(tempRoot, "staging-schema-governance-preflight.json");
