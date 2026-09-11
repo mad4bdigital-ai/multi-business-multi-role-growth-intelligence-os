@@ -149,8 +149,8 @@ async function readGatewayBundle(bundleRoot = DEFAULT_BUNDLE_ROOT) {
     const absolutePath = path.join(bundleRoot, ...descriptor.path.split("/"));
     files.push({ ...descriptor, content: await fs.readFile(absolutePath, "utf8") });
   }
-  const policy = parseJson(files.find((item) => item.name === "generated/route-policy.json")?.content, null);
-  if (!policy) throw rolloutError("activation_gateway_policy_invalid", "Activation Gateway route policy is not valid JSON.", 500);
+  const routeDocument = parseJson(files.find((item) => item.name === "generated/route-policy.json")?.content, null);
+  if (!routeDocument) throw rolloutError("activation_gateway_policy_invalid", "Activation Gateway route policy is not valid JSON.", 500);
   const hash = crypto.createHash("sha256");
   for (const file of [...files].sort((left, right) => left.name.localeCompare(right.name))) {
     hash.update(file.name);
@@ -158,7 +158,7 @@ async function readGatewayBundle(bundleRoot = DEFAULT_BUNDLE_ROOT) {
     hash.update(file.content.replace(/\r\n?/g, "\n"));
     hash.update("\0");
   }
-  return { files, policy, bundle_hash_sha256: hash.digest("hex") };
+  return { files, policy: routeDocument, bundle_hash_sha256: hash.digest("hex") };
 }
 
 export function activationGatewayTypedConfirmation(policyHashValue) {
