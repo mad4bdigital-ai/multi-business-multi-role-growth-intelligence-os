@@ -1,0 +1,76 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-convergence-bom-json-20260911",
+  "title": "Accept UTF-8 BOM encoded Staging convergence JSON inputs",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-convergence-bom-json-20260911.json",
+      "autopilot-portable-staging/manifest.json",
+      "http-generic-api/scripts/staging-environment-convergence-plan.mjs",
+      "http-generic-api/test-staging-one-click-autopilot-contract.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Allow the canonical Staging environment convergence bridge to parse Windows PowerShell UTF-8 JSON files with one leading BOM while preserving exact-SHA, preflight, safety, environment-isolation, and fail-closed validation.",
+      "e2e_journeys": [
+        {
+          "id": "staging-bom-json-convergence-bridge",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging One-Click operator",
+          "entrypoint": "http-generic-api/scripts/staging-environment-convergence-plan.mjs",
+          "terminal_outcome": "BOM-encoded runtime-state and schema/governance preflight JSON produced by Windows PowerShell are accepted by the real convergence bridge, while all existing exact-commit and safety boundaries remain fail-closed and Production mutation remains forbidden.",
+          "steps": [
+            "Write synthetic runtime-state and Staging schema/governance preflight fixtures with an actual leading UTF-8 BOM.",
+            "Invoke the canonical Staging environment convergence bridge against those fixtures using an exact synthetic 40-character commit.",
+            "Normalize at most one leading BOM before JSON.parse and perform the existing convergence validation unchanged.",
+            "Require a successful not_required classification only when runtime, certification, preflight, exact commit, and safety evidence are valid.",
+            "Keep provider, workflow-dispatch, database, secret, and Production mutation authority disabled."
+          ],
+          "assertions": [
+            "A single leading UTF-8 BOM does not cause staging_convergence_input_invalid for otherwise valid JSON evidence.",
+            "The bridge still rejects malformed JSON and does not weaken exact SHA or preflight validation.",
+            "The output exact commit equals the supplied synthetic exact commit.",
+            "provider_mutation, workflow_dispatch, production_mutation, database_mutation, and secrets_included remain false.",
+            "No Production deploy, provider mutation, database mutation, Breakglass, or authority widening is introduced by this change."
+          ],
+          "tests": [
+            {
+              "id": "staging-one-click-autopilot-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-one-click-autopilot-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-convergence-bom-json-20260911.json",
+            "autopilot-portable-staging/manifest.json",
+            "http-generic-api/scripts/staging-environment-convergence-plan.mjs",
+            "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+            "http-generic-api/config/deployment-branch-policy.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
