@@ -8,10 +8,10 @@ const handle = createActivationGateway({ policy: routePolicy, workerBuildIdentit
 
 function publicRecoveryTrust(env) {
   const keyId = String(env?.ACTIVATION_GATEWAY_INGRESS_KEY_ID || "").trim();
-  const publicKey = String(env?.ACTIVATION_GATEWAY_INGRESS_PUBLIC_KEY_PEM || "").trim();
+  const publicKey = String(env?.ACTIVATION_GATEWAY_INGRESS_PUBLIC_KEY_PEM || "").replaceAll("\r", "");
   const sourceSha = String(workerBuildIdentity?.source_sha || "").trim().toLowerCase();
   const bundleSha = String(workerBuildIdentity?.bundle_sha256 || "").trim().toLowerCase();
-  if (!keyId || !publicKey || !/^[a-f0-9]{40}$/u.test(sourceSha) || !/^[a-f0-9]{64}$/u.test(bundleSha)) return null;
+  if (!keyId || !publicKey.trim() || !/^[a-f0-9]{40}$/u.test(sourceSha) || !/^[a-f0-9]{64}$/u.test(bundleSha)) return null;
   return {
     contract: "mad4b.staging.activation-recovery-origin-trust.v2",
     deployment_sha: sourceSha,
