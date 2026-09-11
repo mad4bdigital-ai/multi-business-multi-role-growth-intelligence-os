@@ -2,7 +2,7 @@
   "ok": true,
   "schema_version": "surface-contract-safety-attestations-v1",
   "source_queue_schema": "surface-contract-gap-queue-v1",
-  "item_count": 156,
+  "item_count": 157,
   "items": [
     {
       "migration_file": "1003_sprint68_supervisor_chain_runtime_guards.sql",
@@ -7149,6 +7149,56 @@
           "action_key": "verify_readback_view",
           "targets": [
             "v_bootstrap_only"
+          ]
+        }
+      ],
+      "safety_markers": {
+        "no_provider_call": true,
+        "no_credential_payload_read": true,
+        "no_raw_secrets": true,
+        "no_external_send": true,
+        "no_external_write": true,
+        "secrets_included_false": true
+      },
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "20260911_staging_activation_gateway_apply_adapter.sql",
+      "migration_sha256": "26d96fdf2dd8a611457bfffed721539587a02734c020797fe1160320fcd11aeb",
+      "checksum_canonicalization": "utf8_lf_v1",
+      "attestation_status": "verified_static_no_external_side_effects",
+      "evidence_mode": "checksum_bound_static_contract",
+      "queue_class_at_attestation": "high_review",
+      "gap_severity_at_attestation": "medium",
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "statement_count": 5,
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 0,
+        "views": 1,
+        "policies": 1,
+        "routes": 0
+      },
+      "runtime_reviews": [
+        {
+          "action_key": "verify_policy_seed_readiness",
+          "targets": [
+            "staging_activation_gateway_apply_policy_v1"
+          ]
+        },
+        {
+          "action_key": "verify_readback_view",
+          "targets": [
+            "v_only"
           ]
         }
       ],
