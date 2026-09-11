@@ -54,6 +54,7 @@ const staticDiscoveryCommands = [
   "node test-activation-deployment-projection-service.mjs",
   "node test-activation-followup-hardening.mjs",
   "node test-activation-surface-coverage-gate.mjs",
+  "node test-environment-convergence-packaged-policy.mjs",
   "node test-agent-capability-admin-tool-registry.mjs",
   "node test-agent-capability-coverage.mjs",
   "node test-audit-payload-evidence.mjs",
