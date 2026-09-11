@@ -17,7 +17,7 @@ function asyncMethod(value = {}) {
   return async () => value;
 }
 
-function makeCompleteAdapters({ independentStore = true, serverApprovalResolver = true } = {}) {
+function makeCompleteAdapters({ independentStore = true, serverApprovalResolver = true, integrityVerified = true } = {}) {
   const executionTicketVerifier = { verify: asyncMethod(true) };
   const recoveryStore = Object.fromEntries(
     _testingRecoveryComposition.STORE_METHODS.map((method) => [method, asyncMethod(true)]),
@@ -29,6 +29,8 @@ function makeCompleteAdapters({ independentStore = true, serverApprovalResolver 
   recoveryStore.provider_accessed = false;
   recoveryStore.shared_replica_safe = true;
   recoveryStore.schema_auto_apply = false;
+  recoveryStore.payload_integrity_verified_on_read = integrityVerified;
+  recoveryStore.finalizeApproval = asyncMethod(true);
   const approvalStore = { putChallenge: asyncMethod(true), getChallenge: asyncMethod(null) };
   if (serverApprovalResolver) approvalStore.resolveApprovedExecutionApproval = asyncMethod({ approval_token: "server-internal-test-token" });
   return {
@@ -199,6 +201,7 @@ test("fail-closed mutation composition preserves only a durable evidence-store p
   assert.equal(evidenceStore.independent_of_target_databases, true);
   assert.equal(evidenceStore.target_database_binding, "forbidden");
   assert.equal(evidenceStore.provider_accessed, false);
+  assert.equal(evidenceStore.payload_integrity_verified_on_read, true);
   assert.equal(evidenceStore.evidence_authority_only, true);
   assert.equal(evidenceStore.mutation_authority, false);
   for (const method of ["putRun", "getRun", "putPlan", "getPlan", "putFinding", "getFinding", "getRunByIdempotency", "appendEvidenceEvent", "putIdempotencyReceipt"]) {
@@ -228,6 +231,31 @@ test("coupled stores are not preserved as read-only evidence authority", () => {
   assert.equal(composition.productionRecoveryCompositionFactory.read_only_recovery_store_available, false);
 });
 
+test("stores without verified payload integrity cannot survive fail-closed projection or authorize live bootstrap", () => {
+  const adapters = makeCompleteAdapters({ integrityVerified: false });
+  const failClosed = createProductionRecoveryComposition({
+    mode: "injected_non_live",
+    source: "test_unverified_integrity_projection",
+    serverManagedBindingProvider: () => liveEnvelope({ adapters, authorization: null }),
+  });
+  const failClosedRouteDeps = getRecoveryCompositionRouteDependencies(failClosed);
+  assert.equal(failClosed.mode, "fail_closed");
+  assert.equal(failClosed.readOnlyDependencies.recoveryStore, null);
+  assert.equal(failClosedRouteDeps.readOnlyRecoveryStore, null);
+  assert.equal(failClosedRouteDeps.mutationRecoveryStore, null);
+  assert.equal(failClosed.productionRecoveryCompositionFactory.read_only_recovery_store_available, false);
+
+  const liveAttempt = createProductionRecoveryComposition({
+    mode: "injected_non_live",
+    source: "test_unverified_integrity_live",
+    serverManagedBindingProvider: () => liveEnvelope({ adapters }),
+  });
+  assert.equal(liveAttempt.mode, "fail_closed");
+  assert.equal(liveAttempt.live_activation, false);
+  assert.equal(liveAttempt.productionRecoveryCompositionFactory.denial_reason, "production_live_authorization_incomplete");
+  assert.equal(liveAttempt.productionRecoveryCompositionFactory.live_authorization.problems.includes("bootstrap_evidence_store_not_independent"), true);
+});
+
 test("certified Production candidate activates only with independent bootstrap evidence and server-side approval resolution", () => {
   const composition = createProductionRecoveryComposition({
     mode: "injected_non_live",
@@ -241,10 +269,26 @@ test("certified Production candidate activates only with independent bootstrap e
   assert.equal(composition.productionRecoveryCompositionFactory.authority_readiness.live_ready, true);
   assert.equal(composition.productionRecoveryCompositionFactory.authority_readiness.activation_eligible, true);
   assert.equal(composition.productionRecoveryCompositionFactory.authority_readiness.bootstrap_evidence_independent, true);
+  assert.equal(composition.productionRecoveryCompositionFactory.authority_readiness.mutation_grade_recovery_store, true);
   assert.equal(composition.productionRecoveryCompositionFactory.authority_readiness.server_side_approval_resolution, true);
   assert.equal(composition.provider_accessed, false);
   assert.equal(composition.database_connection_performed, false);
   assert.equal(composition.database_mutation_performed, false);
+});
+
+test("certified Production candidate requires a canonical mutation-grade Recovery store", () => {
+  const adapters = makeCompleteAdapters();
+  delete adapters.recoveryStore.finalizeApproval;
+  const composition = createProductionRecoveryComposition({
+    mode: "injected_non_live",
+    source: "test_non_mutation_grade_store",
+    serverManagedBindingProvider: () => liveEnvelope({ adapters }),
+  });
+  assert.equal(composition.mode, "fail_closed");
+  assert.equal(composition.live_activation, false);
+  assert.equal(composition.productionRecoveryCompositionFactory.denial_reason, "production_live_authorization_incomplete");
+  assert.equal(composition.productionRecoveryCompositionFactory.live_authorization.problems.includes("mutation_grade_recovery_store_required"), true);
+  assert.equal(composition.productionRecoveryCompositionFactory.authority_readiness.mutation_grade_recovery_store, false);
 });
 
 test("certified Production candidate rejects a missing shared approval resolver", () => {
@@ -310,11 +354,13 @@ test("server composition root uses the factory without caller or credential disc
 console.log(JSON.stringify({
   ok: true,
   contract: PRODUCTION_RECOVERY_COMPOSITION_FACTORY_CONTRACT,
-  cases: 14,
+  cases: 16,
   default_live_activation: false,
   certified_server_managed_activation_supported: true,
   read_only_evidence_survives_mutation_fail_closed: true,
+  read_only_evidence_requires_payload_integrity_on_read: true,
   read_only_evidence_excludes_mutation_methods: true,
+  production_live_requires_canonical_mutation_grade_store: true,
   provider_accessed: false,
   database_mutation_performed: false,
   secrets_included: false,

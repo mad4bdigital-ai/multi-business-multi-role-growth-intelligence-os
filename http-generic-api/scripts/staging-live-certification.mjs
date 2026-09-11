@@ -1,13 +1,14 @@
 #!/usr/bin/env node
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { createPublicKey } from "node:crypto";
+import {
+  classifyEnvironmentCertification,
+  loadActivationGatewayProfilePolicy,
+  readEnvironmentConvergenceRegistry,
+} from "../environmentConvergenceRegistry.js";
 
 const CONTRACT = "mad4b.staging-live-certification.v1";
 const SHA_RE = /^[0-9a-f]{40}$/u;
-const here = path.dirname(fileURLToPath(import.meta.url));
-const apiRoot = path.resolve(here, "..");
-const repositoryRoot = path.resolve(apiRoot, "..");
+const convergenceRegistry = readEnvironmentConvergenceRegistry();
 
 function bool(value, fallback = false) {
   const normalized = String(value ?? "").trim().toLowerCase();
@@ -21,20 +22,77 @@ function normalizeUrl(value, fallback) {
   return url;
 }
 
-function readGatewayPolicy() {
-  const configured = String(process.env.STAGING_CERT_GATEWAY_POLICY_PATH || "").trim();
-  const candidates = [
-    configured,
-    path.join(repositoryRoot, "edge/activation-gateway/generated/route-policy.staging.json"),
-    path.join(apiRoot, "staging-route-policy.json"),
-    "/app/staging-route-policy.json",
-  ].filter(Boolean);
-  for (const candidate of candidates) {
-    try {
-      return { path: candidate, policy: JSON.parse(fs.readFileSync(candidate, "utf8")) };
-    } catch { }
+function isLoopbackHost(hostname) {
+  const normalized = String(hostname || "").trim().toLowerCase().replace(/^\[|\]$/gu, "");
+  return normalized === "localhost" || normalized === "127.0.0.1" || normalized === "::1";
+}
+
+function resolveGatewayProbeTarget(env, gatewayPolicy) {
+  const canonical = normalizeUrl(null, `https://${gatewayPolicy.public_host}`);
+  const overrideValue = String(env.STAGING_CERT_GATEWAY_BASE_URL || "").trim();
+  if (!overrideValue) {
+    return {
+      ok: true,
+      url: canonical,
+      source: "environment_profile",
+      profile_origin: canonical.origin,
+      resolved_origin: canonical.origin,
+      override_present: false,
+      synthetic_loopback_fixture: false,
+      caller_override_allowed: false,
+      reason: null,
+      secrets_included: false,
+    };
   }
-  return { path: null, policy: null };
+
+  let candidate = null;
+  try {
+    candidate = normalizeUrl(overrideValue);
+  } catch {
+    return {
+      ok: false,
+      url: null,
+      source: "rejected_override",
+      profile_origin: canonical.origin,
+      resolved_origin: null,
+      override_present: true,
+      synthetic_loopback_fixture: false,
+      caller_override_allowed: false,
+      reason: "gateway_override_invalid_url",
+      secrets_included: false,
+    };
+  }
+
+  const explicitFixture = bool(env.STAGING_CERT_SYNTHETIC_LOOPBACK_FIXTURE, false);
+  const loopback = isLoopbackHost(candidate.hostname);
+  const allowed = explicitFixture && loopback && ["http:", "https:"].includes(candidate.protocol);
+  if (!allowed) {
+    return {
+      ok: false,
+      url: null,
+      source: "rejected_override",
+      profile_origin: canonical.origin,
+      resolved_origin: candidate.origin,
+      override_present: true,
+      synthetic_loopback_fixture: false,
+      caller_override_allowed: false,
+      reason: explicitFixture ? "gateway_fixture_override_must_be_loopback" : "gateway_live_override_forbidden",
+      secrets_included: false,
+    };
+  }
+
+  return {
+    ok: true,
+    url: candidate,
+    source: "synthetic_loopback_fixture",
+    profile_origin: canonical.origin,
+    resolved_origin: candidate.origin,
+    override_present: true,
+    synthetic_loopback_fixture: true,
+    caller_override_allowed: true,
+    reason: null,
+    secrets_included: false,
+  };
 }
 
 async function fetchJson(url, { timeoutMs = 10000 } = {}) {
@@ -61,6 +119,64 @@ function check(key, ok, detail = null, severity = "blocking") {
   return { key, ok: ok === true, detail, severity };
 }
 
+function inspectStagingRecoveryTrustedIngress(env, { expectedCommit, gatewayPolicy }) {
+  const mode = String(env.REMOTE_MCP_TRUSTED_INGRESS_MODE || "").trim().toLowerCase();
+  const proxyHeadersEnabled = bool(env.REMOTE_MCP_TRUST_PROXY_HOST_HEADERS, false);
+  const callerHeadersStripped = bool(env.REMOTE_MCP_TRUSTED_INGRESS_STRIP_CALLER_HEADERS, false);
+  const rawPublicKey = String(env.REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY || "").trim();
+  const publicKeyPem = rawPublicKey.includes("\\n") ? rawPublicKey.replaceAll("\\n", "\n") : rawPublicKey;
+  let publicKeyEd25519 = false;
+  try {
+    const publicKey = createPublicKey(publicKeyPem);
+    publicKeyEd25519 = publicKey.asymmetricKeyType === "ed25519";
+  } catch { }
+  const keyId = String(env.REMOTE_MCP_TRUSTED_INGRESS_KEY_ID || "").trim();
+  const canonicalHost = String(env.REMOTE_MCP_TRUSTED_INGRESS_CANONICAL_HOST || "").trim().toLowerCase();
+  const audience = String(env.REMOTE_MCP_TRUSTED_INGRESS_AUDIENCE || "").trim();
+  const issuer = String(env.REMOTE_MCP_TRUSTED_INGRESS_ISSUER || "").trim();
+  const deploymentSha = String(env.REMOTE_MCP_EXPECTED_DEPLOYMENT_SHA || "").trim().toLowerCase();
+  const replayDirectory = String(env.RECOVERY_STAGING_INGRESS_REPLAY_DIRECTORY || "").trim();
+  const expectedHost = String(gatewayPolicy?.public_host || "").trim().toLowerCase();
+  const expectedAudience = String(gatewayPolicy?.upstream_origin || "").trim();
+  const expectedIssuer = expectedHost ? `https://${expectedHost}` : "";
+  const checks = {
+    signature_mode: mode === "signature",
+    proxy_headers_enabled: proxyHeadersEnabled,
+    caller_headers_stripped: callerHeadersStripped,
+    public_key_ed25519: publicKeyEd25519,
+    key_id_valid: /^[A-Za-z0-9._:-]{16,128}$/u.test(keyId),
+    canonical_host_exact: Boolean(expectedHost) && canonicalHost === expectedHost,
+    audience_exact: Boolean(expectedAudience) && audience === expectedAudience,
+    issuer_exact: Boolean(expectedIssuer) && issuer === expectedIssuer,
+    deployment_sha_exact: SHA_RE.test(deploymentSha) && deploymentSha === expectedCommit,
+    replay_directory_exact: replayDirectory === "/app/data/recovery-ingress",
+  };
+  return {
+    ready: Object.values(checks).every((value) => value === true),
+    checks,
+    expected: {
+      canonical_host: expectedHost || null,
+      audience: expectedAudience || null,
+      issuer: expectedIssuer || null,
+      deployment_sha: expectedCommit,
+      replay_directory: "/app/data/recovery-ingress",
+    },
+    observed: {
+      mode: mode || null,
+      canonical_host: canonicalHost || null,
+      audience: audience || null,
+      issuer: issuer || null,
+      deployment_sha: deploymentSha || null,
+      replay_directory: replayDirectory || null,
+      key_id_present: Boolean(keyId),
+      public_key_configured: Boolean(rawPublicKey),
+      public_key_ed25519: publicKeyEd25519,
+    },
+    raw_public_key_exposed: false,
+    secrets_included: false,
+  };
+}
+
 const expectedCommit = String(
   process.env.STAGING_CERT_EXPECTED_COMMIT ||
   process.env.DEPLOYMENT_EXPECTED_COMMIT_SHA ||
@@ -78,7 +194,6 @@ const requireGateway = bool(
   bool(process.env.ACTIVATION_STAGING_GATEWAY_ENABLED, false),
 );
 const requireGatewayUpstream = bool(process.env.STAGING_CERT_REQUIRE_GATEWAY_UPSTREAM, false);
-const { path: gatewayPolicyPath, policy: gatewayPolicy } = readGatewayPolicy();
 
 if (!SHA_RE.test(expectedCommit)) {
   console.error("STAGING_CERT_EXPECTED_COMMIT must be an exact lowercase 40-character SHA");
@@ -100,6 +215,20 @@ if (expectedImageDigest && !/^sha256:[0-9a-f]{64}$/u.test(expectedImageDigest)) 
   console.error("STAGING_CERT_APP_IMAGE_ID must be a sha256 content digest when supplied");
   process.exit(1);
 }
+
+const gw = { resolution: null, load_error: null };
+if (requireGateway) {
+  try {
+    gw.resolution = loadActivationGatewayProfilePolicy("staging", {
+      registry: convergenceRegistry,
+    });
+  } catch (error) {
+    gw.load_error = String(error?.message || "activation_gateway_canonical_policy_unavailable").slice(0, 256);
+  }
+}
+const gatewayProfile = convergenceRegistry.profiles.staging.activation_gateway;
+const gatewayPolicy = gw.resolution?.policy || null;
+const gatewayPolicyPath = gw.resolution?.canonical_policy_path || gatewayProfile.policy_path || null;
 
 const deploymentUrl = new URL("/deployment-info", appBase);
 deploymentUrl.searchParams.set("include_governance_db_readiness", "1");
@@ -166,56 +295,107 @@ const readinessChecks = [
 let gatewayEvidence = {
   required: requireGateway,
   policy_path: gatewayPolicyPath,
-  expected_policy_hash: gatewayPolicy?.content_hash_sha256 || null,
+  loaded_policy_path: gw.resolution?.loaded_policy_path || null,
+  policy_source: gw.resolution?.policy_source || null,
+  expected_policy_hash: gatewayProfile.expected_policy_hash || null,
   expected_source_commit: expectedCommit,
-  public_host: gatewayPolicy?.public_host || null,
+  public_host: gatewayProfile.public_host || null,
+  profile_validation: gw.resolution?.validation || null,
+  probe_target: null,
+  recovery_trusted_ingress: null,
   health: null,
   ready: null,
 };
 
 if (requireGateway) {
-  if (!gatewayPolicy?.public_host || !gatewayPolicy?.content_hash_sha256) {
-    readinessChecks.push(check("gateway_policy_source_available", false, { policy_path: gatewayPolicyPath }, "readiness"));
-  } else {
-    const gatewayBase = normalizeUrl(
-      process.env.STAGING_CERT_GATEWAY_BASE_URL,
-      `https://${gatewayPolicy.public_host}`,
-    );
-    const health = await fetchJson(new URL("/health", gatewayBase));
-    const gatewayHealthUsable = health.ok && health.body !== null && typeof health.body === "object";
-    gatewayEvidence.health = health.body || { status: health.status, error: health.error || null };
-    integrityChecks.push(check("gateway_health_reachable", gatewayHealthUsable, {
-      status: health.status,
-      error: health.error || null,
-      json_body_available: health.body !== null,
+  if (!gw.resolution || !gatewayPolicy) {
+    integrityChecks.push(check("gateway_environment_profile_current", false, {
+      environment: "staging",
+      policy_path: gatewayPolicyPath,
+      error: gw.load_error,
+      caller_policy_override_allowed: false,
     }));
-    if (gatewayHealthUsable) {
-      readinessChecks.push(check("gateway_policy_not_stale", health.body.ok === true && health.body.stale === false, {
-        stale: health.body.stale ?? null,
-        source_commit: health.body.sourceCommit || null,
-      }, "readiness"));
-      integrityChecks.push(check("gateway_exact_commit", String(health.body.sourceCommit || "").trim().toLowerCase() === expectedCommit, {
-        expected: expectedCommit,
-        observed: health.body.sourceCommit || null,
-      }));
-      readinessChecks.push(check("gateway_policy_hash_current", health.body.policyHash === gatewayPolicy.content_hash_sha256, {
-        expected: gatewayPolicy.content_hash_sha256,
-        observed: health.body.policyHash || null,
-      }, "readiness"));
-      readinessChecks.push(check("gateway_policy_key_current", health.body.policyKey === gatewayPolicy.policy_key, {
-        expected: gatewayPolicy.policy_key || null,
-        observed: health.body.policyKey || null,
-      }, "readiness"));
-      readinessChecks.push(check("gateway_health_secret_free", health.body.secretsIncluded === false, health.body.secretsIncluded ?? null, "readiness"));
-    }
-    if (requireGatewayUpstream) {
-      const ready = await fetchJson(new URL("/ready", gatewayBase));
-      gatewayEvidence.ready = ready.body || { status: ready.status, error: ready.error || null };
-      readinessChecks.push(check("gateway_upstream_ready", ready.ok && ready.body?.ok === true && ready.body?.upstreamReady === true, {
-        status: ready.status,
-        upstream_ready: ready.body?.upstreamReady ?? null,
-        error: ready.error || ready.body?.error?.code || null,
-      }, "readiness"));
+  } else {
+    const profileValidation = gw.resolution.validation;
+    integrityChecks.push(check("gateway_environment_profile_current", profileValidation.ok, {
+      environment: profileValidation.environment,
+      expected_policy_key: profileValidation.expected_policy_key,
+      observed_policy_key: profileValidation.observed_policy_key,
+      expected_policy_hash: profileValidation.expected_policy_hash,
+      observed_policy_hash: profileValidation.observed_policy_hash,
+      expected_public_host: profileValidation.expected_public_host,
+      observed_public_host: profileValidation.observed_public_host,
+      policy_path: profileValidation.policy_path,
+      loaded_policy_path: gw.resolution.loaded_policy_path,
+      policy_source: gw.resolution.policy_source,
+      caller_policy_override_allowed: false,
+      checks: profileValidation.checks,
+    }));
+
+    if (profileValidation.ok) {
+      const recoveryTrustedIngress = inspectStagingRecoveryTrustedIngress(process.env, {
+        expectedCommit,
+        gatewayPolicy,
+      });
+      gatewayEvidence.recovery_trusted_ingress = recoveryTrustedIngress;
+      readinessChecks.push(check(
+        "gateway_recovery_trusted_ingress",
+        recoveryTrustedIngress.ready,
+        recoveryTrustedIngress,
+        "readiness",
+      ));
+
+      const probeTarget = resolveGatewayProbeTarget(process.env, gatewayPolicy);
+      gatewayEvidence.probe_target = {
+        source: probeTarget.source,
+        profile_origin: probeTarget.profile_origin,
+        resolved_origin: probeTarget.resolved_origin,
+        override_present: probeTarget.override_present,
+        synthetic_loopback_fixture: probeTarget.synthetic_loopback_fixture,
+        caller_override_allowed: probeTarget.caller_override_allowed,
+        reason: probeTarget.reason,
+        secrets_included: false,
+      };
+      integrityChecks.push(check("gateway_probe_target_profile_bound", probeTarget.ok, gatewayEvidence.probe_target));
+
+      if (probeTarget.ok) {
+        const health = await fetchJson(new URL("/health", probeTarget.url));
+        const gatewayHealthUsable = health.ok && health.body !== null && typeof health.body === "object";
+        gatewayEvidence.health = health.body || { status: health.status, error: health.error || null };
+        integrityChecks.push(check("gateway_health_reachable", gatewayHealthUsable, {
+          status: health.status,
+          error: health.error || null,
+          json_body_available: health.body !== null,
+        }));
+        if (gatewayHealthUsable) {
+          readinessChecks.push(check("gateway_policy_not_stale", health.body.ok === true && health.body.stale === false, {
+            stale: health.body.stale ?? null,
+            source_commit: health.body.sourceCommit || null,
+          }, "readiness"));
+          readinessChecks.push(check("gateway_exact_commit", String(health.body.sourceCommit || "").trim().toLowerCase() === expectedCommit, {
+            expected: expectedCommit,
+            observed: health.body.sourceCommit || null,
+          }, "readiness"));
+          readinessChecks.push(check("gateway_policy_hash_current", health.body.policyHash === gatewayProfile.expected_policy_hash, {
+            expected: gatewayProfile.expected_policy_hash,
+            observed: health.body.policyHash || null,
+          }, "readiness"));
+          readinessChecks.push(check("gateway_policy_key_current", health.body.policyKey === gatewayProfile.policy_key, {
+            expected: gatewayProfile.policy_key || null,
+            observed: health.body.policyKey || null,
+          }, "readiness"));
+          readinessChecks.push(check("gateway_health_secret_free", health.body.secretsIncluded === false, health.body.secretsIncluded ?? null, "readiness"));
+        }
+        if (requireGatewayUpstream) {
+          const ready = await fetchJson(new URL("/ready", probeTarget.url));
+          gatewayEvidence.ready = ready.body || { status: ready.status, error: ready.error || null };
+          readinessChecks.push(check("gateway_upstream_ready", ready.ok && ready.body?.ok === true && ready.body?.upstreamReady === true, {
+            status: ready.status,
+            upstream_ready: ready.body?.upstreamReady ?? null,
+            error: ready.error || ready.body?.error?.code || null,
+          }, "readiness"));
+        }
+      }
     }
   }
 }
@@ -223,6 +403,10 @@ if (requireGateway) {
 const integrityFailed = integrityChecks.filter((entry) => !entry.ok);
 const readinessFailed = readinessChecks.filter((entry) => !entry.ok);
 const outcome = integrityFailed.length > 0 ? "blocked" : readinessFailed.length > 0 ? "degraded" : "ready";
+const gatewayExactCommitSatisfied = !requireGateway
+  || readinessChecks.some((entry) => entry.key === "gateway_exact_commit" && entry.ok);
+const gatewayRecoveryTrustedIngressSatisfied = !requireGateway
+  || readinessChecks.some((entry) => entry.key === "gateway_recovery_trusted_ingress" && entry.ok);
 
 const report = {
   contract: CONTRACT,
@@ -232,6 +416,10 @@ const report = {
   expected: {
     branch: expectedBranch,
     commit_sha: expectedCommit,
+    tree_sha: expectedTree,
+    context_file_set_sha256: expectedContextFileSet,
+    image_digest: expectedImageDigest || null,
+    activation_gateway_policy_hash: gatewayProfile.expected_policy_hash || null,
     app_base_url: appBase.origin,
   },
   observed: {
@@ -245,7 +433,9 @@ const report = {
     app_image_digest: observedImageDigest || null,
   },
   artifact_set: {
-    complete: artifactSetChecks.every((entry) => entry.ok) && (!requireGateway || integrityChecks.some((entry) => entry.key === "gateway_exact_commit" && entry.ok)),
+    complete: artifactSetChecks.every((entry) => entry.ok)
+      && gatewayExactCommitSatisfied
+      && gatewayRecoveryTrustedIngressSatisfied,
     app: {
       source_commit: body.commit_sha || body.commit || null,
       tree_sha: appManifest.tree_sha || null,
@@ -258,6 +448,7 @@ const report = {
       policy_hash: gatewayEvidence.health?.policyHash || null,
       expected_policy_hash: gatewayEvidence.expected_policy_hash,
       signed_attestation_required: requireGateway,
+      recovery_trusted_ingress_ready: gatewayEvidence.recovery_trusted_ingress?.ready ?? null,
     },
   },
   integrity_checks: integrityChecks,
@@ -275,6 +466,11 @@ const report = {
     secrets_included: false,
   },
 };
+
+report.convergence = classifyEnvironmentCertification(report, {
+  environment: "staging",
+  registry: convergenceRegistry,
+});
 
 console.log(JSON.stringify(report));
 if (outcome === "blocked" || (requireReady && outcome !== "ready")) process.exitCode = 1;

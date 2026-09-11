@@ -146,11 +146,11 @@
     },
     {
       "path": "http-generic-api/frontend-operation-governance.generated.json",
-      "sha256": "c0e7dd0a6f6e8a6603174d9283901dc50004ef97b87b7959e7bd24e81108fd63"
+      "sha256": "480b1c205b0e850554897d50b37bdd02f888bfbef8297952df00166e428b3a9d"
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "8cb622cb1a19003b3da0613452aea7246e1e2d7c655bb535048997316ee7892f"
+      "sha256": "83c9206ebc2d2750ab3615a097a9752088d93e15075beea906dcdd16e00930dd"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "f3096c66eae5b439055d5a6a2a8125644ea773fdc5148c6cb47d7c7752698a3e"
+      "sha256": "22e87223b2461988b6843ceca286008705f4ab1d281fa7878cac04751f4df661"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -242,7 +242,7 @@
     },
     {
       "path": "http-generic-api/test-staging-autopilot-closure.mjs",
-      "sha256": "b8c968aa683f199e00224a9ec74c73edc035d9da9fee9c2b990d3a9b480de178"
+      "sha256": "80a9e90489162b52951f26f62e68bdafe26ced831a2ec2cc6b644a1a7e40efa0"
     },
     {
       "path": "http-generic-api/test-staging-build-context-provenance.mjs",
@@ -286,7 +286,7 @@
     },
     {
       "path": "http-generic-api/scripts/staging-live-certification.mjs",
-      "sha256": "ad72a7b5d85c5663bc67dbb690d3e15dd13c7e76f6aea23386115949ca91da78"
+      "sha256": "5611552f143e03595911180dfebf25de08a0149cef4ed24a96f8a680a4ec07c5"
     },
     {
       "path": "http-generic-api/tenantGptOAuthPkce.js",
@@ -298,7 +298,7 @@
     },
     {
       "path": "http-generic-api/test-staging-environment-certification-contract.mjs",
-      "sha256": "4a216afc3869be17514ea77e9818b89bac83847813f586db2562052426a714e5"
+      "sha256": "e6791e98e83a529c5d61eb1cfa3cd49b74ec448275d15f161f62e7b7aa6d54a5"
     },
     {
       "path": "autopilot-portable-staging/Bootstrap-Staging-One-Click.ps1",
@@ -334,7 +334,7 @@
     },
     {
       "path": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
-      "sha256": "59d2384af53689e1979847ab32f40c8573d5468175d182fe07007f2cfcee55c1"
+      "sha256": "70066f3149aafbc43d01b93be3e194e09be34fd89718db06a83f9fcba9931527"
     },
     {
       "path": "autopilot-portable-staging/Staging-Environment.ps1",
@@ -390,11 +390,11 @@
     },
     {
       "path": "autopilot-portable-staging/Converge-StagingActivationGateway.ps1",
-      "sha256": "f3ad74f3141fcde448803e1f1f6baf760a8f0d75aa7c3de3deb2101c8d8af881"
+      "sha256": "04cb9ca15fed324e7474135ace8fea8f552d81aba2675c6831a9fea68742d305"
     },
     {
       "path": "autopilot-portable-staging/activation-gateway-smart-convergence-policy.json",
-      "sha256": "941cfef2cba6eee866f49fd02807cac767c99c496f96eb8c598e07d27ab3add5"
+      "sha256": "a4fd996f12617db300591ec9a56115b075083bfdbf4406c96890173a0506e5fe"
     },
     {
       "path": "autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1",

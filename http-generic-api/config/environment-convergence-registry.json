@@ -1,0 +1,224 @@
+{
+  "contract": "mad4b.environment-convergence-registry.v1",
+  "state_machine": {
+    "key": "environment_convergence.v1",
+    "stages": [
+      "observe",
+      "classify",
+      "plan",
+      "approval_checkpoint",
+      "apply",
+      "verify",
+      "certify"
+    ],
+    "maximum_reconciliation_passes": 3,
+    "certification_is_final_judge": true,
+    "certification_may_mutate": false
+  },
+  "release_spec": {
+    "contract": "mad4b.environment-release-spec.v1",
+    "canonical_repository": "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+    "identity": [
+      "repository",
+      "source_branch",
+      "commit_sha",
+      "activation_gateway_policy_hash"
+    ],
+    "ready_requires_all_required_components_same_release_identity": true,
+    "credentials_allowed": false,
+    "provider_commands_allowed": false
+  },
+  "profiles": {
+    "staging": {
+      "state_machine": "environment_convergence.v1",
+      "source_branch": "main",
+      "runtime_adapter": "local_windows_docker",
+      "mutation_policy": "staging",
+      "provider_mutation_implementation": null,
+      "activation_gateway": {
+        "profile_key": "activation_gateway_staging",
+        "policy_key": "activation_gateway_staging",
+        "policy_path": "edge/activation-gateway/generated/route-policy.staging.json",
+        "packaged_policy_path": "/app/staging-route-policy.json",
+        "expected_policy_hash": "c6468e051b8456d4d3ffc6478cdb98f7048b69c8ca6742f4dca27e1eb4023f32",
+        "public_host": "activation-dev.mad4b.com",
+        "current_authority_adapter": null,
+        "legacy_authority_adapter": "staging_activation_worker_workflow",
+        "target_authority_model": "server_governed",
+        "plan_capability": "environment_convergence_plan",
+        "apply_capability": null,
+        "governed_apply_ready": false,
+        "apply_block_reason": "server_governed_staging_activation_worker_adapter_required",
+        "execution_target": {
+          "contract": "mad4b.environment-convergence-execution-target.v1",
+          "component": "activation_gateway",
+          "target_key": "activation_gateway_staging",
+          "bundle_binding": {
+            "bundle_key": "activation_gateway_staging_worker",
+            "entrypoint": "edge/activation-gateway/src/worker-staging.mjs",
+            "policy_path": "edge/activation-gateway/generated/route-policy.staging.json"
+          },
+          "resource_binding": {
+            "resource_type": "cloudflare_worker",
+            "resource_binding_id": null
+          },
+          "runtime_surface": null
+        }
+      }
+    },
+    "production": {
+      "state_machine": "environment_convergence.v1",
+      "source_branch": "Production",
+      "upstream_branch": "main",
+      "runtime_adapter": "hostinger",
+      "mutation_policy": "production_c5",
+      "provider_mutation_implementation": null,
+      "activation_gateway": {
+        "profile_key": "activation_gateway",
+        "policy_key": "activation_gateway",
+        "policy_path": "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
+        "packaged_policy_path": "/app/activation-gateway-runtime/generated/route-policy.json",
+        "expected_policy_hash": "585b2e07b71832b7a200971d66329326d79640a23f83a29c535100d7abaa64cd",
+        "public_host": "activation.mad4b.com",
+        "current_authority_adapter": "activation_gateway_dark_deploy",
+        "legacy_authority_adapter": null,
+        "target_authority_model": "server_governed",
+        "plan_capability": "activation_gateway_rollout_plan",
+        "apply_capability": "activation_gateway_dark_deploy",
+        "governed_apply_ready": true,
+        "apply_block_reason": null,
+        "execution_target": {
+          "contract": "mad4b.environment-convergence-execution-target.v1",
+          "component": "activation_gateway",
+          "target_key": "activation_gateway_production",
+          "bundle_binding": {
+            "bundle_key": "activation_gateway_runtime",
+            "entrypoint": "http-generic-api/activation-gateway-runtime/src/worker.mjs",
+            "policy_path": "http-generic-api/activation-gateway-runtime/generated/route-policy.json"
+          },
+          "resource_binding": {
+            "resource_type": "cloudflare_worker",
+            "resource_binding_id": "8be421f5-49d3-4bda-a0f6-3cf8a04ee227"
+          },
+          "runtime_surface": "activation_gateway_dark_deploy"
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "activation_gateway": {
+      "required_for": [
+        "staging_certification",
+        "production_certification"
+      ],
+      "observe": "activation_gateway_health",
+      "verify": "activation_gateway_health",
+      "authority": "server_governed",
+      "checks": {
+        "gateway_health_reachable": {
+          "failure_kind": "availability_failure",
+          "drift_class": "dependency_unreachable",
+          "repairability": "manual_or_external",
+          "automatic_apply_allowed": false
+        },
+        "gateway_environment_profile_current": {
+          "failure_kind": "integrity_failure",
+          "drift_class": "environment_profile_mismatch",
+          "repairability": "manual_non_repairable",
+          "automatic_apply_allowed": false
+        },
+        "gateway_exact_commit": {
+          "failure_kind": "convergence_drift",
+          "drift_class": "release_identity_mismatch",
+          "repairability": "governed",
+          "plan_capability": "activation_gateway_rollout_plan",
+          "apply_capability": "activation_gateway_dark_deploy",
+          "profile_binding_required": true,
+          "automatic_apply_allowed": false
+        },
+        "gateway_policy_not_stale": {
+          "failure_kind": "convergence_drift",
+          "drift_class": "policy_stale",
+          "repairability": "governed",
+          "plan_capability": "activation_gateway_rollout_plan",
+          "apply_capability": "activation_gateway_dark_deploy",
+          "profile_binding_required": true,
+          "automatic_apply_allowed": false
+        },
+        "gateway_policy_hash_current": {
+          "failure_kind": "convergence_drift",
+          "drift_class": "policy_identity_mismatch",
+          "repairability": "governed",
+          "plan_capability": "activation_gateway_rollout_plan",
+          "apply_capability": "activation_gateway_dark_deploy",
+          "profile_binding_required": true,
+          "automatic_apply_allowed": false
+        },
+        "gateway_policy_key_current": {
+          "failure_kind": "convergence_drift",
+          "drift_class": "policy_profile_mismatch",
+          "repairability": "governed",
+          "plan_capability": "activation_gateway_rollout_plan",
+          "apply_capability": "activation_gateway_dark_deploy",
+          "profile_binding_required": true,
+          "automatic_apply_allowed": false
+        },
+        "gateway_recovery_trusted_ingress": {
+          "failure_kind": "convergence_drift",
+          "drift_class": "trusted_ingress_evidence_mismatch",
+          "repairability": "governed",
+          "plan_capability": "activation_gateway_rollout_plan",
+          "apply_capability": "activation_gateway_dark_deploy",
+          "profile_binding_required": true,
+          "automatic_apply_allowed": false
+        },
+        "gateway_upstream_ready": {
+          "failure_kind": "readiness_failure",
+          "drift_class": "upstream_not_ready",
+          "repairability": "manual_or_external",
+          "automatic_apply_allowed": false
+        }
+      }
+    }
+  },
+  "orchestrator_boundary": {
+    "orchestrators": [
+      "autopilot-portable-staging/Start-AutoPilot.ps1",
+      "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
+      "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
+      "autopilot-portable-staging/Converge-StagingActivationGateway.ps1",
+      "http-generic-api/scripts/staging-environment-convergence-plan.mjs"
+    ],
+    "forbidden_implementation_tokens": [
+      "CLOUDFLARE_API_TOKEN",
+      "api.cloudflare.com/client/v4",
+      "wrangler deploy",
+      "gh workflow run"
+    ],
+    "allowed_roles": [
+      "probe",
+      "local_runtime_adapter",
+      "call_governed_authority",
+      "consume_plan",
+      "render_approval_checkpoint",
+      "resume",
+      "verify"
+    ]
+  },
+  "invariants": [
+    "staging_and_production_share_one_convergence_state_machine",
+    "environment_profiles_select_policy_and_authority_but_do_not_implement_provider_mutation",
+    "every_external_certification_dependency_declares_remediation_or_manual_nonrepairability",
+    "activation_gateway_policy_identity_is_explicit_per_environment",
+    "gateway_policy_hash_is_release_and_plan_identity",
+    "release_repository_is_canonical_and_exact",
+    "execution_target_is_server_resolved_from_environment_profile",
+    "operator_acknowledgement_is_not_execution_authority",
+    "live_gateway_probe_target_is_profile_owned_except_synthetic_loopback_fixture",
+    "staging_gateway_apply_requires_server_governed_adapter_before_execution",
+    "staging_orchestration_must_not_dispatch_provider_workflows_directly",
+    "gateway_exact_commit_is_convergence_drift_not_integrity_corruption",
+    "release_ready_requires_exact_release_identity_across_required_components"
+  ],
+  "secrets_included": false
+}

@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
+import { generateKeyPairSync } from "node:crypto";
 import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import {
+  loadActivationGatewayProfilePolicy,
+  readEnvironmentConvergenceRegistry,
+} from "./environmentConvergenceRegistry.js";
 
 const apiRoot = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(apiRoot, "..");
@@ -15,10 +20,41 @@ const expectedCommit = "1".repeat(40);
 const expectedTree = "2".repeat(40);
 const expectedContextFileSet = "3".repeat(64);
 const expectedImageDigest = `sha256:${"4".repeat(64)}`;
-assert.match(fs.readFileSync(liveScript, "utf8"), /STAGING_CERT_EXPECTED_TREE/);
-assert.match(fs.readFileSync(liveScript, "utf8"), /STAGING_CERT_EXPECTED_CONTEXT_FILE_SET_SHA256/);
-assert.match(fs.readFileSync(liveScript, "utf8"), /app_image_digest_exact/);
-assert.match(fs.readFileSync(liveScript, "utf8"), /artifact_set/);
+const { publicKey: stagingIngressPublicKey } = generateKeyPairSync("ed25519");
+const stagingIngressPublicKeyPem = stagingIngressPublicKey.export({ type: "spki", format: "pem" });
+const liveSource = fs.readFileSync(liveScript, "utf8");
+assert.match(liveSource, /STAGING_CERT_EXPECTED_TREE/);
+assert.match(liveSource, /STAGING_CERT_EXPECTED_CONTEXT_FILE_SET_SHA256/);
+assert.match(liveSource, /app_image_digest_exact/);
+assert.match(liveSource, /artifact_set/);
+assert.match(liveSource, /gateway_environment_profile_current/);
+assert.match(liveSource, /gateway_recovery_trusted_ingress/);
+assert.match(liveSource, /gateway_probe_target_profile_bound/);
+assert.match(liveSource, /STAGING_CERT_SYNTHETIC_LOOPBACK_FIXTURE/);
+assert.match(liveSource, /public_key_ed25519/);
+assert.match(liveSource, /classifyEnvironmentCertification/);
+assert.match(liveSource, /loadActivationGatewayProfilePolicy\("staging"/);
+assert.doesNotMatch(liveSource, /STAGING_CERT_GATEWAY_POLICY_PATH/);
+
+const convergenceRegistry = readEnvironmentConvergenceRegistry();
+const canonicalGateway = loadActivationGatewayProfilePolicy("staging", {
+  registry: convergenceRegistry,
+  repositoryRoot: root,
+});
+const gatewayPolicy = canonicalGateway.policy;
+assert.equal(canonicalGateway.policy_source, "repository_profile");
+assert.equal(canonicalGateway.canonical_policy_path, "edge/activation-gateway/generated/route-policy.staging.json");
+assert.equal(canonicalGateway.expected_policy_hash, convergenceRegistry.profiles.staging.activation_gateway.expected_policy_hash);
+assert.equal(gatewayPolicy.policy_key, "activation_gateway_staging");
+assert.equal(gatewayPolicy.public_host, "activation-dev.mad4b.com");
+
+const wrongPolicyRegistry = structuredClone(convergenceRegistry);
+wrongPolicyRegistry.profiles.staging.activation_gateway.policy_path = "http-generic-api/activation-gateway-runtime/generated/route-policy.json";
+assert.throws(
+  () => loadActivationGatewayProfilePolicy("staging", { registry: wrongPolicyRegistry, repositoryRoot: root }),
+  /activation_gateway_profile_policy_invalid:staging/,
+  "canonical profile loader must reject a policy from another environment before any live gateway probe",
+);
 
 const staticReport = path.join(os.tmpdir(), `staging-authority-${process.pid}.json`);
 const impactReport = path.join(os.tmpdir(), `staging-impact-${process.pid}.json`);
@@ -133,17 +169,9 @@ function deploymentBody({ commit = expectedCommit, databaseReady = true } = {}) 
   };
 }
 
-const gatewayPolicy = {
-  policy_key: "activation_gateway_staging",
-  public_host: "activation-dev.example.test",
-  content_hash_sha256: "a".repeat(64),
-};
-const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "staging-cert-"));
-const gatewayPolicyPath = path.join(tempDir, "route-policy.staging.json");
-fs.writeFileSync(gatewayPolicyPath, `${JSON.stringify(gatewayPolicy, null, 2)}\n`);
-
 let currentDeployment = deploymentBody();
 let gatewaySourceCommit = expectedCommit;
+let gatewayHealthRequests = 0;
 const app = await listen((req, res) => {
   if (req.url?.startsWith("/deployment-info")) {
     res.writeHead(200, { "content-type": "application/json" });
@@ -154,6 +182,7 @@ const app = await listen((req, res) => {
 });
 const gateway = await listen((req, res) => {
   if (req.url === "/health") {
+    gatewayHealthRequests += 1;
     res.writeHead(200, { "content-type": "application/json" });
     res.end(JSON.stringify({
       ok: true,
@@ -188,7 +217,17 @@ function runLive(extraEnv = {}) {
         STAGING_CERT_APP_BASE_URL: app.baseUrl,
         STAGING_CERT_REQUIRE_GATEWAY: "true",
         STAGING_CERT_GATEWAY_BASE_URL: gateway.baseUrl,
-        STAGING_CERT_GATEWAY_POLICY_PATH: gatewayPolicyPath,
+        STAGING_CERT_SYNTHETIC_LOOPBACK_FIXTURE: "true",
+        REMOTE_MCP_TRUST_PROXY_HOST_HEADERS: "true",
+        REMOTE_MCP_TRUSTED_INGRESS_MODE: "signature",
+        REMOTE_MCP_TRUSTED_INGRESS_STRIP_CALLER_HEADERS: "true",
+        REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY: stagingIngressPublicKeyPem,
+        REMOTE_MCP_TRUSTED_INGRESS_KEY_ID: "staging-test-ingress-key-0001",
+        REMOTE_MCP_TRUSTED_INGRESS_CANONICAL_HOST: gatewayPolicy.public_host,
+        REMOTE_MCP_TRUSTED_INGRESS_AUDIENCE: gatewayPolicy.upstream_origin,
+        REMOTE_MCP_TRUSTED_INGRESS_ISSUER: `https://${gatewayPolicy.public_host}`,
+        REMOTE_MCP_EXPECTED_DEPLOYMENT_SHA: expectedCommit,
+        RECOVERY_STAGING_INGRESS_REPLAY_DIRECTORY: "/app/data/recovery-ingress",
         ...extraEnv,
       },
       stdio: ["ignore", "pipe", "pipe"],
@@ -213,27 +252,96 @@ function runLive(extraEnv = {}) {
 }
 
 try {
-  const ready = await runLive({ STAGING_CERT_REQUIRE_READY: "true", STAGING_CERT_REQUIRE_GATEWAY_UPSTREAM: "true" });
+  const ready = await runLive({
+    STAGING_CERT_REQUIRE_READY: "true",
+    STAGING_CERT_REQUIRE_GATEWAY_UPSTREAM: "true",
+    STAGING_CERT_GATEWAY_POLICY_PATH: "/tmp/caller-policy-path-must-be-ignored.json",
+  });
   assert.equal(ready.run.status, 0, ready.run.stderr || ready.run.stdout);
   assert.equal(ready.report.outcome, "ready");
   assert.equal(ready.report.ready, true);
   assert.deepEqual(ready.report.blocking_failures, []);
   assert.deepEqual(ready.report.degraded_reasons, []);
   assert.equal(ready.report.gateway.expected_source_commit, expectedCommit);
+  assert.equal(ready.report.gateway.profile_validation.ok, true);
+  assert.equal(ready.report.gateway.policy_source, "repository_profile");
+  assert.equal(ready.report.gateway.policy_path, "edge/activation-gateway/generated/route-policy.staging.json");
+  assert.equal(ready.report.gateway.expected_policy_hash, gatewayPolicy.content_hash_sha256);
+  assert.equal(ready.report.gateway.probe_target.source, "synthetic_loopback_fixture");
+  assert.equal(ready.report.gateway.probe_target.synthetic_loopback_fixture, true);
+  assert.equal(ready.report.gateway.probe_target.caller_override_allowed, true);
+  assert.equal(ready.report.gateway.recovery_trusted_ingress.ready, true);
+  assert.equal(ready.report.gateway.recovery_trusted_ingress.raw_public_key_exposed, false);
+  assert.equal(ready.report.gateway.recovery_trusted_ingress.secrets_included, false);
+  assert.equal(ready.report.expected.activation_gateway_policy_hash, gatewayPolicy.content_hash_sha256);
+  assert.equal(ready.report.convergence.status, "converged");
+  assert.deepEqual(ready.report.convergence.classified_failures, []);
   assert.equal(ready.report.artifact_set.complete, true);
   assert.equal(ready.report.artifact_set.app.tree_sha, expectedTree);
   assert.equal(ready.report.artifact_set.app.context_file_set_sha256, expectedContextFileSet);
   assert.equal(ready.report.artifact_set.app.image_digest, expectedImageDigest);
+  assert.equal(ready.report.artifact_set.gateway.recovery_trusted_ingress_ready, true);
   assert.equal(ready.report.safety.database_mutation, false);
   assert.equal(ready.report.safety.migration_apply, false);
   assert.equal(ready.report.safety.production_deploy, false);
 
+  const requestsBeforeRejectedOverride = gatewayHealthRequests;
+  const rejectedOverride = await runLive({
+    STAGING_CERT_REQUIRE_READY: "false",
+    STAGING_CERT_GATEWAY_BASE_URL: "https://example.invalid",
+    STAGING_CERT_SYNTHETIC_LOOPBACK_FIXTURE: "false",
+  });
+  assert.equal(rejectedOverride.run.status, 1);
+  assert.equal(rejectedOverride.report.outcome, "blocked");
+  assert.ok(rejectedOverride.report.blocking_failures.includes("gateway_probe_target_profile_bound"));
+  assert.equal(rejectedOverride.report.gateway.probe_target.source, "rejected_override");
+  assert.equal(rejectedOverride.report.gateway.probe_target.caller_override_allowed, false);
+  assert.equal(gatewayHealthRequests, requestsBeforeRejectedOverride, "rejected live override must not be probed");
+
   gatewaySourceCommit = "0".repeat(40);
   const gatewayMismatch = await runLive({ STAGING_CERT_REQUIRE_READY: "false" });
-  assert.equal(gatewayMismatch.run.status, 1);
-  assert.equal(gatewayMismatch.report.outcome, "blocked");
-  assert.ok(gatewayMismatch.report.blocking_failures.includes("gateway_exact_commit"));
+  assert.equal(gatewayMismatch.run.status, 0, gatewayMismatch.run.stderr || gatewayMismatch.run.stdout);
+  assert.equal(gatewayMismatch.report.outcome, "degraded");
+  assert.equal(gatewayMismatch.report.ready, false);
+  assert.ok(gatewayMismatch.report.degraded_reasons.includes("gateway_exact_commit"));
+  assert.equal(gatewayMismatch.report.blocking_failures.includes("gateway_exact_commit"), false);
+  assert.equal(gatewayMismatch.report.artifact_set.complete, false);
+  assert.equal(gatewayMismatch.report.convergence.status, "reconciliation_required");
+  const exactCommitFailure = gatewayMismatch.report.convergence.classified_failures.find((entry) => entry.check_key === "gateway_exact_commit");
+  assert.equal(exactCommitFailure.failure_kind, "convergence_drift");
+  assert.equal(exactCommitFailure.drift_class, "release_identity_mismatch");
+  assert.equal(exactCommitFailure.repairability, "governed");
+  assert.equal(exactCommitFailure.handoff.automatic_apply_allowed, false);
+  assert.equal(exactCommitFailure.handoff.execution_ready, false);
+  assert.equal(exactCommitFailure.handoff.apply_capability, null);
+  assert.equal(exactCommitFailure.handoff.apply_block_reason, "server_governed_staging_activation_worker_adapter_required");
   gatewaySourceCommit = expectedCommit;
+
+  const trustMismatch = await runLive({
+    STAGING_CERT_REQUIRE_READY: "false",
+    REMOTE_MCP_EXPECTED_DEPLOYMENT_SHA: "0".repeat(40),
+  });
+  assert.equal(trustMismatch.run.status, 0, trustMismatch.run.stderr || trustMismatch.run.stdout);
+  assert.equal(trustMismatch.report.outcome, "degraded");
+  assert.equal(trustMismatch.report.ready, false);
+  assert.ok(trustMismatch.report.degraded_reasons.includes("gateway_recovery_trusted_ingress"));
+  assert.equal(trustMismatch.report.artifact_set.complete, false);
+  assert.equal(trustMismatch.report.gateway.recovery_trusted_ingress.ready, false);
+  assert.equal(trustMismatch.report.gateway.recovery_trusted_ingress.checks.deployment_sha_exact, false);
+  assert.equal(trustMismatch.report.convergence.status, "reconciliation_required");
+  const trustFailure = trustMismatch.report.convergence.classified_failures.find(
+    (entry) => entry.check_key === "gateway_recovery_trusted_ingress",
+  );
+  assert.equal(trustFailure.failure_kind, "convergence_drift");
+  assert.equal(trustFailure.drift_class, "trusted_ingress_evidence_mismatch");
+  assert.equal(trustFailure.repairability, "governed");
+  assert.equal(trustFailure.handoff.automatic_apply_allowed, false);
+  assert.equal(trustMismatch.report.safety.provider_mutation, false);
+  assert.equal(trustMismatch.report.safety.database_mutation, false);
+  assert.equal(trustMismatch.report.safety.production_deploy, false);
+
+  const healthRequestsAfterCanonicalChecks = gatewayHealthRequests;
+  assert.equal(healthRequestsAfterCanonicalChecks > 0, true);
 
   currentDeployment = deploymentBody({ databaseReady: false });
   const degraded = await runLive({ STAGING_CERT_REQUIRE_READY: "false" });
@@ -255,7 +363,6 @@ try {
 } finally {
   await new Promise((resolve) => app.server.close(resolve));
   await new Promise((resolve) => gateway.server.close(resolve));
-  fs.rmSync(tempDir, { recursive: true, force: true });
   fs.rmSync(staticReport, { force: true });
   fs.rmSync(impactReport, { force: true });
 }

@@ -15,6 +15,7 @@ const REPOSITORY = "mad4bdigital-ai/multi-business-multi-role-growth-intelligenc
 const SHA40 = /^[a-f0-9]{40}$/u;
 const SHA256 = /^[a-f0-9]{64}$/u;
 const MAX = 1024 * 1024;
+const STAGING_RECOVERY_STORE_RECORD_CONTRACT = "mad4b.staging-recovery-store-record.v1";
 const MODULE_SHA256 = createHash("sha256").update(readFileSync(fileURLToPath(import.meta.url))).digest("hex");
 const KERNEL_MANIFEST = fileURLToPath(new URL("./config/recovery-kernel-manifest.json", import.meta.url));
 const stable = (v) => Array.isArray(v) ? v.map(stable) : v && typeof v === "object" ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, stable(v[k])])) : v;
@@ -57,6 +58,32 @@ async function writeJson(file, value, immutable = false) {
 }
 async function remove(file) { await rm(file, { force: true }); await ensure(path.dirname(file)); await syncDir(path.dirname(file)); }
 async function immutableClaim(file, value) { try { await writeJson(file, value, true); return true; } catch (e) { if (e.code === "EEXIST") return false; throw e; } }
+
+function integrityEnvelope(value) {
+  const payload = structuredClone(value);
+  return {
+    contract: STAGING_RECOVERY_STORE_RECORD_CONTRACT,
+    payload,
+    payload_sha256: digest(payload),
+    secrets_included: false,
+  };
+}
+async function writeIntegrityJson(file, value, immutable = false) {
+  return writeJson(file, integrityEnvelope(value), immutable);
+}
+async function readIntegrityJson(file) {
+  const record = await readJson(file);
+  if (!record) return null;
+  const valid = record.contract === STAGING_RECOVERY_STORE_RECORD_CONTRACT
+    && record.secrets_included === false
+    && SHA256.test(record.payload_sha256 || "")
+    && digest(record.payload) === record.payload_sha256;
+  if (!valid) denied("RECOVERY_STAGING_STORE_PAYLOAD_INTEGRITY_INVALID", "Persisted Staging Recovery state failed its SHA-256 integrity binding.");
+  return structuredClone(record.payload);
+}
+async function immutableIntegrityClaim(file, value) {
+  try { await writeIntegrityJson(file, value, true); return true; } catch (e) { if (e.code === "EEXIST") return false; throw e; }
+}
 
 function targetIdentityProvider(root) {
   const file = path.join(root, "identity", "target.json");
@@ -108,19 +135,61 @@ function approvalAuthorities(root) {
 }
 
 function recoveryStore(root, executionTicketVerifier) {
-  const base = path.join(root, "kernel-store"); const file = (kind, id) => path.join(base, kind, `${key(id)}.json`); const get = (k, id) => readJson(file(k, id)); const put = (k, id, v) => writeJson(file(k, id), v);
-  const claim = async (kind, id, value) => immutableClaim(file(kind, id), value);
+  const base = path.join(root, "kernel-store");
+  const file = (kind, id) => path.join(base, kind, `${key(id)}.json`);
+  const get = (kind, id) => readIntegrityJson(file(kind, id));
+  const put = (kind, id, value) => writeIntegrityJson(file(kind, id), value);
+  const claim = async (kind, id, value) => immutableIntegrityClaim(file(kind, id), value);
   const approvalReservationId = (c) => `${c.approval_id}:${c.plan_hash}:${c.step_id}`;
-  return Object.freeze({ recovery_store_contract: "mad4b.recovery-durable-store.v1", implementation_contract: "mad4b.staging-recovery-filesystem-store.v1", independent_of_target_databases: true, target_database_binding: "forbidden", durability: "persistent_filesystem", provider_accessed: false, executionTicketVerifier,
-    async putRun(v) { await put("runs", v.run_id, v); if (v.idempotency_key) await put("run-idempotency", v.idempotency_key, { run_id: v.run_id }); }, async getRun(id) { return get("runs", id); }, async putPlan(v) { await put("plans", v.plan_id, v); }, async getPlan(id) { return get("plans", id); }, async putFinding(v) { await put("findings", v.finding_id, v); }, async getFinding(id) { return get("findings", id); },
-    async getRunByIdempotency(id) { const receipt = await get("receipts", id); if (receipt) return receipt; const index = await get("run-idempotency", id); return index?.run_id ? get("runs", index.run_id) : null; }, async appendEvidenceEvent(run_id, event) { const id = `${Date.now()}:${randomUUID()}`; await writeJson(file("evidence", id), { run_id, ...event }, true); }, async putIdempotencyReceipt(id, v) { await put("receipts", id, v); },
-    async putApproval(v) { await put("approvals", v.approval_id, v); await put("approval-index", `${v.plan_id}:${v.step_id}`, { approval_id: v.approval_id }); }, async getApprovalByPlanStep(plan, step) { const i = await get("approval-index", `${plan}:${step}`); return i?.approval_id ? get("approvals", i.approval_id) : null; },
+  return Object.freeze({
+    recovery_store_contract: "mad4b.recovery-durable-store.v1",
+    implementation_contract: "mad4b.staging-recovery-filesystem-store.v1",
+    independent_of_target_databases: true,
+    target_database_binding: "forbidden",
+    durability: "persistent_filesystem",
+    shared_replica_safe: true,
+    schema_auto_apply: false,
+    payload_integrity_verified_on_read: true,
+    provider_accessed: false,
+    executionTicketVerifier,
+    async getReadiness() {
+      let ready = false;
+      try {
+        const h = await open(base, constants.O_RDONLY | constants.O_NOFOLLOW);
+        try { ready = (await h.stat()).isDirectory(); } finally { await h.close(); }
+      } catch (e) {
+        if (e.code !== "ENOENT") throw e;
+      }
+      return {
+        contract: "mad4b.recovery-control-store-readiness.v1",
+        ready,
+        scope: "durable_inspection",
+        storage_class: "persistent_filesystem",
+        database_connection_performed: false,
+        database_mutation_performed: false,
+        schema_auto_apply: false,
+        provider_accessed: false,
+        secrets_included: false,
+      };
+    },
+    async putRun(v) { await put("runs", v.run_id, v); if (v.idempotency_key) await put("run-idempotency", v.idempotency_key, { run_id: v.run_id }); },
+    async getRun(id) { return get("runs", id); },
+    async putPlan(v) { await put("plans", v.plan_id, v); },
+    async getPlan(id) { return get("plans", id); },
+    async putFinding(v) { await put("findings", v.finding_id, v); },
+    async getFinding(id) { return get("findings", id); },
+    async getRunByIdempotency(id) { const receipt = await get("receipts", id); if (receipt) return receipt; const index = await get("run-idempotency", id); return index?.run_id ? get("runs", index.run_id) : null; },
+    async appendEvidenceEvent(run_id, event) { const id = `${Date.now()}:${randomUUID()}`; await writeIntegrityJson(file("evidence", id), { run_id, ...event }, true); },
+    async putIdempotencyReceipt(id, v) { await put("receipts", id, v); },
+    async putApproval(v) { await put("approvals", v.approval_id, v); await put("approval-index", `${v.plan_id}:${v.step_id}`, { approval_id: v.approval_id }); },
+    async getApprovalByPlanStep(plan, step) { const i = await get("approval-index", `${plan}:${step}`); return i?.approval_id ? get("approvals", i.approval_id) : null; },
     async markApprovalUsed(id) { const a = await get("approvals", id); if (!a) return { already_finalized: true }; const finalized = await claim("approval-used", id, { approval_id: id, finalized_at: new Date().toISOString(), secrets_included: false }); if (!finalized) return { already_finalized: true }; await put("approvals", id, { ...a, used: true, finalized_at: new Date().toISOString() }); return { finalized: true }; },
-    async claimExecution(c) { const v = { claim_id: `claim:${key(c.idempotency_key).slice(0, 32)}`, status: "claimed", ...c }; return await claim("execution-claims", c.idempotency_key, v) ? { claimed: true, claim_id: v.claim_id } : { existing: true, status: "claimed", claim_id: (await get("execution-claims", c.idempotency_key))?.claim_id }; }, async releaseExecutionClaim(c) { await remove(file("execution-claims", c.idempotency_key)); return { released: true }; },
+    async claimExecution(c) { const v = { claim_id: `claim:${key(c.idempotency_key).slice(0, 32)}`, status: "claimed", ...c }; return await claim("execution-claims", c.idempotency_key, v) ? { claimed: true, claim_id: v.claim_id } : { existing: true, status: "claimed", claim_id: (await get("execution-claims", c.idempotency_key))?.claim_id }; },
+    async releaseExecutionClaim(c) { await remove(file("execution-claims", c.idempotency_key)); return { released: true }; },
     async reserveApproval(c) { const a = await get("approvals", c.approval_id); const used = await get("approval-used", c.approval_id); if (!a || a.used || used || a.plan_hash !== c.plan_hash || a.step_id !== c.step_id) return { reserved: false }; const id = approvalReservationId(c); const value = { ...c, reservation_id: id, reserved_at: new Date().toISOString(), secrets_included: false }; if (await claim("approval-reservations", id, value)) return { reserved: true }; const existing = await get("approval-reservations", id); return { reserved: false, existing: true, same_idempotency: existing?.idempotency_key === c.idempotency_key }; },
     async releaseApprovalReservation(c) { const id = approvalReservationId(c); const existing = await get("approval-reservations", id); if (existing?.idempotency_key !== c.idempotency_key) return { released: false }; await remove(file("approval-reservations", id)); return { released: true }; },
     async getExecutionTicket(id) { return get("tickets", id); },
-    async putExecutionTicket(t) { try { await writeJson(file("tickets", t.ticket_id), t, true); } catch (e) { if (e.code !== "EEXIST") throw e; const existing = await get("tickets", t.ticket_id); if (!existing || existing.ticket_hash !== t.ticket_hash) denied("RECOVERY_STAGING_EXECUTION_TICKET_COLLISION", "Execution ticket identity cannot be rebound to different content."); } },
+    async putExecutionTicket(t) { try { await writeIntegrityJson(file("tickets", t.ticket_id), t, true); } catch (e) { if (e.code !== "EEXIST") throw e; const existing = await get("tickets", t.ticket_id); if (!existing || existing.ticket_hash !== t.ticket_hash) denied("RECOVERY_STAGING_EXECUTION_TICKET_COLLISION", "Execution ticket identity cannot be rebound to different content."); } },
     async reserveExecutionTicket(c) { const ticket = await get("tickets", c.ticket_id); if (!ticket || ticket.ticket_hash !== c.ticket_hash || await get("ticket-finalized", c.ticket_id)) return { reserved: false }; const value = { ...c, reserved_at: new Date().toISOString(), secrets_included: false }; if (await claim("ticket-reservations", c.ticket_id, value)) return { reserved: true }; const existing = await get("ticket-reservations", c.ticket_id); return { reserved: false, existing: true, same_idempotency: existing?.idempotency_key === c.idempotency_key }; },
     async releaseExecutionTicket(c) { if (await get("ticket-finalized", c.ticket_id)) return { released: false, finalized: true }; const existing = await get("ticket-reservations", c.ticket_id); if (!existing || existing.ticket_hash !== c.ticket_hash || existing.idempotency_key !== c.idempotency_key) return { released: false }; await remove(file("ticket-reservations", c.ticket_id)); return { released: true }; },
     async finalizeExecutionTicket(c) { const ticket = await get("tickets", c.ticket_id); if (!ticket || ticket.ticket_hash !== c.ticket_hash) return { finalized: false }; const reservation = await get("ticket-reservations", c.ticket_id); if (!reservation || reservation.ticket_hash !== c.ticket_hash || reservation.idempotency_key !== c.idempotency_key) return { finalized: false }; if (!await claim("ticket-finalized", c.ticket_id, { ...c, status: "finalized", finalized_at: new Date().toISOString(), secrets_included: false })) return { already_finalized: true }; return { finalized: true }; },

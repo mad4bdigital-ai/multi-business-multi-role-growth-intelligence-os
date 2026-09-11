@@ -3,8 +3,8 @@
   "feature_key": "019-governed-database-lifecycle-pressure-relief",
   "review_state": "ready_for_implementation",
   "registry": {
-    "fingerprint": "069609224b7f2f9322b9a5b152ed1a9b8d49f3ee267979a4cf2d373a7039d068",
-    "index_source_hash": "a5eb6bfc915f79dd3a532bec00fe30ca858cdee2ca462bf699856307c0a1f66a",
+    "fingerprint": "93b3e122f8a66d7182d62eb5ca80b2559828887161ca82fa629198e8b63b2e73",
+    "index_source_hash": "a119b56b7ffeafdbbefec166fc49de67b36b46364482443cae9ef10c73df66c1",
     "coverage_source_hash": "396e861a335e70e437cedbbdf3eb8e389d48ac29a0988f8d1997f91abde233a1",
     "map_count": 19,
     "domain_count": 16,

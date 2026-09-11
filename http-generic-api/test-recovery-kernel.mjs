@@ -87,7 +87,20 @@ function makeDurableStore() {
     recovery_store_contract: "mad4b.recovery-durable-store.v1",
     independent_of_target_databases: true,
     target_database_binding: "forbidden",
+    shared_replica_safe: true,
+    schema_auto_apply: false,
+    payload_integrity_verified_on_read: true,
     provider_accessed: false,
+    async getReadiness() {
+      return {
+        contract: "mad4b.recovery-control-store-readiness.v1",
+        ready: true,
+        scope: "durable_inspection",
+        database_mutation_performed: false,
+        schema_auto_apply: false,
+        secrets_included: false,
+      };
+    },
     runs,
     plans,
     findings,
@@ -523,7 +536,12 @@ test("plan and preview are deterministic and never execution-authorized", async 
 test("approval challenge is bound to plan/step and never returns an approval token", async () => {
   const plan = [..._testingRecoveryKernel.PLANS.values()].at(-1);
   const step = plan.steps.find((entry) => entry.consequential);
-  const challenge = await createApprovalChallenge({ plan_id: plan.plan_id, plan_hash: plan.plan_hash, step_id: step.step_id });
+  const durable = makeDurableStore();
+  await durable.putPlan(plan);
+  const challenge = await createApprovalChallenge(
+    { plan_id: plan.plan_id, plan_hash: plan.plan_hash, step_id: step.step_id },
+    { recoveryStore: durable, deploymentIdentityProvider: DEPLOYMENT_IDENTITY_PROVIDER, migrationLedger: MIGRATION_LEDGER },
+  );
   assert.equal(challenge.execution_ready, false);
   assert.equal(challenge.approval_token_not_returned, true);
   assert.equal(challenge.plan_hash, plan.plan_hash);
@@ -929,7 +947,7 @@ test("unsupported capability is plan-bound and brokerless execution fails closed
       recoveryLock: { acquire: async () => ({ acquired: true, lock_id: "unsupported-test-lock", lease_id: "lease:unsupported-test-001", fencing_token: "fence:unsupported-test-001", expires_at: new Date(Date.now() + 600000).toISOString() }), heartbeat: async () => ({ renewed: true }), assertFence: async () => ({ valid: true }), release: async () => {} },
       readbackVerifier: { independent_authority: true, role_aware: true, verify: async () => ({ postconditions_passed: true, behavioral_probe_passed: true }) },
       recoveryStore: durable,
-    deploymentIdentityProvider: DEPLOYMENT_IDENTITY_PROVIDER,
+      deploymentIdentityProvider: DEPLOYMENT_IDENTITY_PROVIDER,
       migrationLedger: MIGRATION_LEDGER,
     }),
     (error) => error?.code === "UNSUPPORTED_BROKER_UNAVAILABLE",

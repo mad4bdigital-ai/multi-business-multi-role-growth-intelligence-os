@@ -27,7 +27,6 @@ jobs:
       STAGING_CERT_REQUIRE_GATEWAY: "true"
       STAGING_CERT_REQUIRE_GATEWAY_UPSTREAM: "true"
       STAGING_CERT_REQUIRE_READY: "true"
-      STAGING_CERT_GATEWAY_POLICY_PATH: edge/activation-gateway/generated/route-policy.staging.json
       STAGING_CERT_REPORT_FILE: .artifacts/staging-live-certification/report.json
       STAGING_AUTHORITY_REPORT_FILE: .artifacts/staging-environment-authority-closure/report.json
       ENVIRONMENT_IMPACT_REPORT_FILE: .artifacts/staging-environment-impact-closure/report.json
@@ -106,7 +105,11 @@ jobs:
             .contract == "mad4b.staging-live-certification.v1" and
             .outcome == "ready" and .ready == true and
             .expected.branch == "main" and .expected.commit_sha == $cut and
+            (.expected.activation_gateway_policy_hash | test("^[0-9a-f]{64}$")) and
             .observed.branch == "main" and .observed.commit_sha == $cut and
+            .gateway.policy_source == "repository_profile" and
+            .gateway.profile_validation.ok == true and
+            .gateway.profile_validation.expected_policy_hash == .expected.activation_gateway_policy_hash and
             .artifact_set.complete == true and
             (.artifact_set.app.source_commit == $cut) and
             (.artifact_set.gateway.source_commit == $cut) and

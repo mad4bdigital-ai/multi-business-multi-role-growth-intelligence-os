@@ -107,7 +107,20 @@ function makeStore() {
     recovery_store_contract: "mad4b.recovery-durable-store.v1",
     independent_of_target_databases: true,
     target_database_binding: "forbidden",
+    shared_replica_safe: true,
+    schema_auto_apply: false,
+    payload_integrity_verified_on_read: true,
     provider_accessed: false,
+    async getReadiness() {
+      return {
+        contract: "mad4b.recovery-control-store-readiness.v1",
+        ready: true,
+        scope: "durable_inspection",
+        database_mutation_performed: false,
+        schema_auto_apply: false,
+        secrets_included: false,
+      };
+    },
     executionTicketVerifier: {
       verify: async ({ ticket_hash, ticket }) => ticket.signature === `sig:${ticket_hash}`,
     },

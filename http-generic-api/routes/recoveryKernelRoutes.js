@@ -41,7 +41,6 @@ const READ_ONLY_CAPABILITIES = new Set([
   "host_breakglass_plan",
   "remediation_plan_preview",
   "host_breakglass_preview",
-  "approval_challenge_create",
   "remediation_step_verify",
   "host_breakglass_verify",
   "recovery_run_get",
@@ -51,7 +50,6 @@ const READ_ONLY_CAPABILITIES = new Set([
   "unsupported_recovery_escalate",
   "ssh_session_preview",
   "sql_session_preview",
-  "ephemeral_capability_create",
 ]);
 
 function requestAdminPrincipal(req) {
@@ -131,26 +129,42 @@ function assertExactKeys(value, allowed, required = []) {
   return input;
 }
 
-export function buildRecoveryKernelRoutes({
-  requireBackendApiKey,
-  requireAdminPrincipal,
-  env = process.env,
-  repoRoot,
-  hostLocalInspectionExecutor,
-  recoveryStore,
-  approvalIssuer,
-  approvalVerifier,
-  approvalStore,
-  recoveryLock,
-  mutationExecutor,
-  readbackVerifier,
-  executionTicketSigner,
-  deploymentIdentityProvider,
-  hostBreakglassMutationExecutor,
-  migrationLedger,
-  productionActivationReadinessExecutor,
-  systemToolLookup,
-} = {}) {
+export function resolveRecoveryRouteStores(options, recoveryStore) {
+  const hasExplicitReadOnly = Object.prototype.hasOwnProperty.call(options, "readOnlyRecoveryStore");
+  const hasExplicitMutation = Object.prototype.hasOwnProperty.call(options, "mutationRecoveryStore");
+  return Object.freeze({
+    readOnlyRecoveryStore: hasExplicitReadOnly ? (options.readOnlyRecoveryStore || null) : (recoveryStore || null),
+    mutationRecoveryStore: hasExplicitMutation ? (options.mutationRecoveryStore || null) : (recoveryStore || null),
+    explicit_read_only_boundary: hasExplicitReadOnly,
+    explicit_mutation_boundary: hasExplicitMutation,
+  });
+}
+
+export function buildRecoveryKernelRoutes(options = {}) {
+  const {
+    requireBackendApiKey,
+    requireAdminPrincipal,
+    env = process.env,
+    repoRoot,
+    hostLocalInspectionExecutor,
+    recoveryStore,
+    approvalIssuer,
+    approvalVerifier,
+    approvalStore,
+    recoveryLock,
+    mutationExecutor,
+    readbackVerifier,
+    executionTicketSigner,
+    deploymentIdentityProvider,
+    hostBreakglassMutationExecutor,
+    migrationLedger,
+    productionActivationReadinessExecutor,
+    systemToolLookup,
+  } = options;
+  const {
+    readOnlyRecoveryStore,
+    mutationRecoveryStore,
+  } = resolveRecoveryRouteStores(options, recoveryStore);
   const router = Router();
   const guards = [requireBackendApiKey, requireAdminPrincipal].filter((value) => typeof value === "function");
   const fixedSystemToolLookup = systemToolLookup || (async (key, input = {}) => {
@@ -194,7 +208,7 @@ export function buildRecoveryKernelRoutes({
         env,
         repoRoot,
         hostLocalExecutor: hostLocalInspectionExecutor,
-        recoveryStore,
+        recoveryStore: readOnlyRecoveryStore,
         approvalIssuer,
         approvalVerifier,
         approvalStore,
@@ -223,7 +237,7 @@ export function buildRecoveryKernelRoutes({
       const result = await issueAndExecuteApprovedRecoveryStep(body, {
         env,
         adminPrincipal: requestAdminPrincipal(req),
-        recoveryStore,
+        recoveryStore: mutationRecoveryStore,
         executionTicketSigner,
         approvalIssuer,
         approvalVerifier,
@@ -248,9 +262,9 @@ export function buildRecoveryKernelRoutes({
   router.post("/admin/recovery/kernel/approval-challenge", async (req, res) => {
     try {
       const body = assertExactKeys(req.body || {}, ["plan_id", "plan_hash", "step_id"], ["plan_id", "plan_hash", "step_id"]);
-      assertApprovalChallengeAuthorities({ recoveryStore, approvalIssuer, approvalStore });
+      assertApprovalChallengeAuthorities({ recoveryStore: mutationRecoveryStore, approvalIssuer, approvalStore });
       const result = await createApprovalChallenge(body, {
-        recoveryStore,
+        recoveryStore: mutationRecoveryStore,
         approvalIssuer,
         approvalStore,
       });
@@ -280,7 +294,7 @@ export function buildRecoveryKernelRoutes({
 
   router.get("/admin/recovery/kernel/runs/:run_id", async (req, res) => {
     try {
-      const result = await getRecoveryRun({ run_id: req.params.run_id }, { recoveryStore });
+      const result = await getRecoveryRun({ run_id: req.params.run_id }, { recoveryStore: readOnlyRecoveryStore });
       return res.status(200).json(sanitizeEvidence(result));
     } catch (error) {
       return errorResponse(res, error, "recovery_kernel_run_read_failed");
@@ -289,7 +303,7 @@ export function buildRecoveryKernelRoutes({
 
   router.get("/admin/recovery/kernel/evidence/:run_id", async (req, res) => {
     try {
-      const result = await getRecoveryEvidence({ run_id: req.params.run_id }, { recoveryStore });
+      const result = await getRecoveryEvidence({ run_id: req.params.run_id }, { recoveryStore: readOnlyRecoveryStore });
       return res.status(200).json(sanitizeEvidence(result));
     } catch (error) {
       return errorResponse(res, error, "recovery_kernel_evidence_read_failed");
@@ -304,4 +318,5 @@ export const _testingRecoveryKernelRoutes = Object.freeze({
   assertExactKeys,
   assertProductionEnvironment,
   errorResponse,
+  resolveRecoveryRouteStores,
 });
