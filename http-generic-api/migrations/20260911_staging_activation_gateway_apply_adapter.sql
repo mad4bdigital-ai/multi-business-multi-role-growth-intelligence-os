@@ -184,7 +184,7 @@ VALUES
  'profile_bound_staging_apply_contract_certified',
  'server_resolve_profile_binding_then_exact_sha_bundle_then_worker_upload_then_bound_secrets_then_public_health_ready_trust_readback_with_automatic_rollback',
  1, 1, 1, 1, 1, 1,
- 'test-staging-activation-gateway-apply-adapter.mjs;test-staging-smart-gateway-convergence-contract.mjs',
+ 'test-staging-smart-gateway-convergence-contract.mjs',
  CURRENT_TIMESTAMP,
  DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 30 DAY),
  'Certification is Staging-only and does not certify generic Cloudflare, DNS, Production, or caller-selected provider operations.')
