@@ -1,11 +1,11 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 97.91,
+  "docs_completion_percent": 97.71,
   "docs_complete_count": 469,
-  "docs_gap_count": 10,
-  "queue_items": 10,
-  "blocking_new_item_count": 7,
+  "docs_gap_count": 11,
+  "queue_items": 11,
+  "blocking_new_item_count": 8,
   "gate_ok": false,
   "top_actionable": [
     {
@@ -39,6 +39,12 @@
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
+      "migration_file": "20260911_staging_activation_gateway_apply_adapter.sql",
+      "queue_class": "high_review",
+      "score": 570,
+      "next_step": "add targeted patch-index, parity, and governance documentation"
+    },
+    {
       "migration_file": "1030_sprint69_default_blocker_recovery_governance_seed.sql",
       "queue_class": "high_review",
       "score": 477,
@@ -53,8 +59,8 @@
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 7,
-    "warning_new_item_count": 7
+    "blocking_new_item_count": 8,
+    "warning_new_item_count": 8
   },
   "safety": {
     "executes_provider_calls": false,
