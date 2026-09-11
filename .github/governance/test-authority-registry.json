@@ -20,6 +20,7 @@
       "test_paths": [
         "http-generic-api/test-activation-gateway-host-profile.mjs",
         "http-generic-api/test-activation-gateway.mjs",
+        "http-generic-api/test-environment-convergence-packaged-policy.mjs",
         "http-generic-api/test-auth-oauth-routes.mjs",
         "http-generic-api/test-chatgpt-mcp-metadata-routing.mjs",
         "http-generic-api/test-frontend-surface-dispatch.mjs",
