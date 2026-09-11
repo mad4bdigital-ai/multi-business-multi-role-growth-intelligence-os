@@ -22,7 +22,31 @@ function hasOwn(value, key) {
 function isWithin(root, candidate) {
   const normalizedRoot = path.resolve(root);
   const normalizedCandidate = path.resolve(candidate);
-  return normalizedCandidate === normalizedRoot || normalizedCandidate.startsWith(`${normalizedRoot}${path.sep}`);
+  const relative = path.relative(normalizedRoot, normalizedCandidate);
+
+  return relative === ""
+    || (
+      relative !== ".."
+      && !relative.startsWith(`..${path.sep}`)
+      && !path.isAbsolute(relative)
+    );
+}
+
+function isSafeRepositoryRelativePath(value) {
+  const candidate = compact(value);
+  if (!candidate) return false;
+
+  if (
+    path.isAbsolute(candidate)
+    || path.posix.isAbsolute(candidate)
+    || path.win32.isAbsolute(candidate)
+  ) {
+    return false;
+  }
+
+  return !candidate
+    .split(/[\\/]+/u)
+    .some((segment) => segment === "..");
 }
 
 export function readEnvironmentConvergenceRegistry(registryPath = DEFAULT_REGISTRY_PATH) {
@@ -79,6 +103,9 @@ export function loadActivationGatewayProfilePolicy(environment, {
   const gateway = profile.activation_gateway || {};
   const sourceRelativePath = compact(gateway.policy_path);
   if (!sourceRelativePath) throw new Error(`activation_gateway_policy_path_missing:${environmentKey}`);
+  if (!isSafeRepositoryRelativePath(sourceRelativePath)) {
+    throw new Error(`activation_gateway_policy_path_outside_repository:${environmentKey}`);
+  }
 
   const sourcePath = path.resolve(repositoryRoot, sourceRelativePath);
   if (!isWithin(repositoryRoot, sourcePath)) {
