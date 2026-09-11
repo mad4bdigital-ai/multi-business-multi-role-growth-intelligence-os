@@ -65,9 +65,7 @@ assert.deepEqual(policy.safety, {
   provider_mutation: false,
 });
 
-assert.match(workflow, /on:\
-  push:\
-    branches: \[main\]/);
+assert.match(workflow, /on:\n  push:\n    branches: \[main\]/);
 assert.match(workflow, /name: Staging Main Deploy Eligibility/);
 assert.match(workflow, /ref: \$\{\{ github\.sha \}\}/);
 assert.match(workflow, /test "\$\(git rev-parse HEAD\)" = "\$EXPECTED_HEAD_SHA"/);
