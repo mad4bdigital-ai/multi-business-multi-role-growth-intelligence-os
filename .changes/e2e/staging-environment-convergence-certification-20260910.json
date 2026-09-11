@@ -8,6 +8,7 @@
   "scope": {
     "include": [
       ".changes/e2e/staging-environment-convergence-certification-20260910.json",
+      ".github/governance/test-authority-registry.json",
       ".github/workflows/staging-live-certification.yml",
       "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
       "autopilot-portable-staging/Converge-StagingActivationGateway.ps1",
@@ -15,8 +16,10 @@
       "http-generic-api/config/environment-convergence-registry.json",
       "http-generic-api/environmentConvergenceRegistry.js",
       "http-generic-api/environmentConvergenceEngine.js",
+      "http-generic-api/scripts/manifests/test-manifest-spec017.mjs",
       "http-generic-api/scripts/staging-environment-convergence-plan.mjs",
       "http-generic-api/scripts/staging-live-certification.mjs",
+      "http-generic-api/test-environment-convergence-packaged-policy.mjs",
       "http-generic-api/test-staging-activation-gateway.mjs",
       "http-generic-api/test-staging-environment-certification-contract.mjs",
       "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
@@ -40,7 +43,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Phase-1 mutation-free classifier/planner foundation: make the shared environment convergence engine the canonical Staging drift classifier and plan authority, exact-bind repository and Gateway release identity, resolve execution targets server-side, keep operator acknowledgement non-executive, retire direct workflow dispatch from the AutoPilot convergence path, and keep Staging apply fail-closed until a server-governed adapter exists.",
+      "objective": "Phase-1 mutation-free classifier/planner foundation: make the shared environment convergence engine the canonical Staging drift classifier and plan authority, exact-bind repository and Gateway release identity, resolve execution targets server-side, keep operator acknowledgement non-executive, retire direct workflow dispatch from the AutoPilot convergence path, keep Staging apply fail-closed until a server-governed adapter exists, and preserve profile-validated packaged policy fallback in flattened runtime images.",
       "e2e_journeys": [
         {
           "id": "staging-profile-first-live-certification",
@@ -150,6 +153,48 @@
             "http-generic-api/environmentConvergenceEngine.js",
             "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
             "http-generic-api/test-staging-activation-gateway.mjs"
+          ]
+        },
+        {
+          "id": "staging-flattened-runtime-packaged-policy-fallback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging certification runtime",
+          "entrypoint": "http-generic-api/environmentConvergenceRegistry.js",
+          "terminal_outcome": "A flattened runtime whose repository root resolves to the filesystem root can reach the configured packaged Staging policy fallback after safe repository-relative containment checks, while traversal and profile hash mismatch remain fail-closed.",
+          "steps": [
+            "Resolve repository containment with path.relative so filesystem-root containment is handled correctly.",
+            "Reject absolute and parent-traversal policy_path forms before resolving the repository candidate.",
+            "Attempt the canonical repository policy candidate first and the configured packaged absolute policy candidate second.",
+            "Validate policy key, public host and expected policy hash after loading either candidate.",
+            "Run the regression through the imported Spec017 test manifest and registered activation/environment test authority."
+          ],
+          "assertions": [
+            "A missing repository policy under filesystem-root repositoryRoot falls back to a valid configured packaged policy.",
+            "A policy_path containing '..' fails with activation_gateway_policy_path_outside_repository:staging.",
+            "A packaged policy with a mismatched expected hash fails with activation_gateway_profile_policy_invalid:staging:policy_hash.",
+            "The regression test remains registered in the canonical full test manifest and the test-authority registry.",
+            "Live Staging certification remains required and production_mutation_allowed remains false.",
+            "No provider, database, migration, DNS, secret, ruleset or Production mutation is introduced."
+          ],
+          "tests": [
+            {
+              "id": "environment-convergence-packaged-policy-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-environment-convergence-packaged-policy.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-environment-convergence-certification-20260910.json",
+            ".github/governance/test-authority-registry.json",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/config/environment-convergence-registry.json",
+            "http-generic-api/environmentConvergenceRegistry.js",
+            "http-generic-api/scripts/manifests/test-manifest-spec017.mjs",
+            "http-generic-api/test-environment-convergence-packaged-policy.mjs",
+            "edge/activation-gateway/generated/route-policy.staging.json"
           ]
         }
       ]
