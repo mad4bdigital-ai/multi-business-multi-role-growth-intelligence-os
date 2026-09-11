@@ -49,6 +49,10 @@ const growthControlContinuationTestCommands = Object.freeze([
   "node test-growth-control-analytics-observability-routes.mjs",
 ]);
 
+const environmentConvergenceRegressionTestCommands = Object.freeze([
+  "node test-environment-convergence-packaged-policy.mjs",
+]);
+
 const diagnosticAutomationTestCommands = Object.freeze([
   "node test-branch-test-diagnostic-shards.mjs",
   "node test-sequential-test-progress-report.mjs",
@@ -59,6 +63,7 @@ export const testCommands = Object.freeze([
   ...canonicalTestCommands,
   ...authorityRecoveryTestCommands,
   ...growthControlContinuationTestCommands,
+  ...environmentConvergenceRegressionTestCommands,
   ...diagnosticAutomationTestCommands,
 ]);
 
