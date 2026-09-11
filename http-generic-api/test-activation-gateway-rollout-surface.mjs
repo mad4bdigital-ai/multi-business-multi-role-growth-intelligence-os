@@ -3,7 +3,7 @@ import fs from "node:fs";
 
 const routes = fs.readFileSync("routes/gptToolsRoutes.js", "utf8");
 const migration = fs.readFileSync("migrations/20260627_activation_gateway_rollout_surface.sql", "utf8");
-const moduleSource = fs.readFileSync("activationGatewayRolloutTool.js", "utf8");
+const moduleSource = fs.readFileSync("activationGatewayRolloutToolProduction.js", "utf8");
 
 for (const tool of ["activation_gateway_rollout_plan", "activation_gateway_dark_deploy"]) {
   assert.match(routes, new RegExp(`name: \\"${tool}\\"`));
