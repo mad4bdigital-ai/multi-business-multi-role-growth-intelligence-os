@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   loadActivationGatewayProfilePolicy,
   readEnvironmentConvergenceRegistry,
 } from "./environmentConvergenceRegistry.js";
 
-const repositoryRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
+const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const registry = readEnvironmentConvergenceRegistry();
 const canonicalPolicy = JSON.parse(fs.readFileSync(
   path.join(repositoryRoot, registry.profiles.staging.activation_gateway.policy_path),
