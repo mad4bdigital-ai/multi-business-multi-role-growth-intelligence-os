@@ -9,7 +9,8 @@ const policy = JSON.parse(read("autopilot-portable-staging/auto-deploy-policy.js
 const workflow = read(".github/workflows/staging-main-deploy-eligibility.yml");
 const liveWorkflow = read(".github/workflows/staging-live-certification.yml");
 const activationWorkerWorkflow = workflow;
-const activationWorkerBuilder = read("http-generic-api/scripts/build-staging-worker.mjs");
+const activationWorkerBuilderCli = read("http-generic-api/scripts/build-staging-worker.mjs");
+const activationWorkerBuilder = read("http-generic-api/stagingActivationGatewayBundle.js");
 const activationPolicyGenerator = read("http-generic-api/scripts/generate-activation-staging-policy.mjs");
 const promotionGates = JSON.parse(read(".github/contracts/production-promotion-supporting-gates.v1.json"));
 const deployScript = read("autopilot-portable-staging/Auto-Deploy-Staging.ps1");
@@ -64,7 +65,9 @@ assert.deepEqual(policy.safety, {
   provider_mutation: false,
 });
 
-assert.match(workflow, /on:\n  push:\n    branches: \[main\]/);
+assert.match(workflow, /on:\
+  push:\
+    branches: \[main\]/);
 assert.match(workflow, /name: Staging Main Deploy Eligibility/);
 assert.match(workflow, /ref: \$\{\{ github\.sha \}\}/);
 assert.match(workflow, /test "\$\(git rev-parse HEAD\)" = "\$EXPECTED_HEAD_SHA"/);
@@ -97,6 +100,8 @@ assert.match(activationWorkerWorkflow, /sourceCommit == \$sha/);
 assert.match(activationWorkerWorkflow, /workerBuildSha == \$sha/);
 assert.match(activationWorkerWorkflow, /\.stale == false/);
 assert.doesNotMatch(activationWorkerWorkflow, /refs\/heads\/Production|activation\.mad4b\.com/);
+assert.match(activationWorkerBuilderCli, /writeStagingActivationGatewayBundle/);
+assert.match(activationWorkerBuilderCli, /\.\.\/stagingActivationGatewayBundle\.js/);
 assert.match(activationWorkerBuilder, /WORKER_BUILD_IDENTITY/);
 assert.match(activationWorkerBuilder, /generateKeyPairSync\("ed25519"\)/);
 assert.match(activationWorkerBuilder, /worker_bundle_sha256/);
