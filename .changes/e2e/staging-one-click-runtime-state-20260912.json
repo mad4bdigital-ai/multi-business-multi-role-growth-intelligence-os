@@ -1,0 +1,83 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-one-click-runtime-state-20260912",
+  "title": "Reconcile Staging One-Click tunnel lifecycle authority",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-one-click-runtime-state-20260912.json",
+      "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
+      "autopilot-portable-staging/Start-Staging-One-Click.cmd",
+      "http-generic-api/test-staging-one-click-autopilot-contract.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Keep the operator-safe default local-only and make tunnel ownership transitions publish one canonical runtime authority without exposing transient handoff drift as steady state.",
+      "e2e_journeys": [
+        {
+          "id": "staging-one-click-tunnel-lifecycle-authority",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Windows Docker Staging operator",
+          "entrypoint": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
+          "terminal_outcome": "The no-argument launcher remains local-only; explicit public modes require the Staging Activation Gateway before topology mutation, use a bounded transition lease, and publish tunnel_mode/tunnel_started atomically to the exact-commit runtime state after success.",
+          "steps": [
+            "Launch the operator CMD without a tunnel argument and resolve disabled as the safe default.",
+            "Reject a public tunnel mode before topology mutation when Activation Gateway authority is absent.",
+            "Enter a bounded deployment lease before delegating the selected tunnel transition to the dual-mode core.",
+            "On successful transition, atomically publish tunnel_mode and tunnel_started while preserving the exact runtime commit, then remove the lease.",
+            "On failed transition, retain a short transition-failed lease so the Health Monitor does not misclassify an in-progress or failed handoff as healthy steady-state authority."
+          ],
+          "assertions": [
+            "The CMD and smart launcher default to disabled local-only mode.",
+            "Explicit windows_service or docker_sidecar CMD selection includes EnableActivationGateway.",
+            "Public modes without EnableActivationGateway fail before Invoke-Core can mutate topology.",
+            "Successful transitions atomically update canonical autopilot-state.json tunnel_mode and tunnel_started with exact-commit readback.",
+            "Failed transitions leave only bounded Staging lifecycle evidence; no Production, provider, Cloudflare DNS, schema, migration, or Production database mutation is authorized."
+          ],
+          "tests": [
+            {
+              "id": "staging-one-click-autopilot-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-one-click-autopilot-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
+            "autopilot-portable-staging/Start-Staging-One-Click.cmd",
+            "http-generic-api/test-staging-one-click-autopilot-contract.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Preserve shared source compatibility without authorizing Production execution.",
+      "blockers": [
+        "Production remains outside this repair and requires its separate governed promotion lifecycle."
+      ]
+    }
+  ]
+}
