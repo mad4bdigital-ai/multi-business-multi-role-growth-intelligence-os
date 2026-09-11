@@ -298,7 +298,7 @@
     },
     {
       "path": "http-generic-api/test-staging-environment-certification-contract.mjs",
-      "sha256": "e6791e98e83a529c5d61eb1cfa3cd49b74ec448275d15f161f62e7b7aa6d54a5"
+      "sha256": "07bedae6f629e21fdcfcd9f05be7d013f8e07305a6c05c5856cd16db5fa5eed2"
     },
     {
       "path": "autopilot-portable-staging/Bootstrap-Staging-One-Click.ps1",
