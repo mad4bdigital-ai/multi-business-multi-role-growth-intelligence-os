@@ -1,7 +1,10 @@
 import crypto from "node:crypto";
 import { createCloudflareApiClient } from "./activationGatewayRolloutTool.js";
 import { buildStagingActivationGatewayBundle } from "./stagingActivationGatewayBundle.js";
-import { readEnvironmentConvergenceRegistry } from "./environmentConvergenceRegistry.js";
+import {
+  loadActivationGatewayProfilePolicy,
+  readEnvironmentConvergenceRegistry,
+} from "./environmentConvergenceRegistry.js";
 import {
   capabilityEnvelopeError,
   resolveCapabilityExecutionEnvelope,
@@ -11,7 +14,6 @@ const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
 const SHA_RE = /^[a-f0-9]{40}$/u;
 const SHA256_RE = /^[a-f0-9]{64}$/u;
 const SAFE_NONCE_RE = /^[A-Za-z0-9._:-]{8,128}$/u;
-const STAGING_POLICY_HASH = "c6468e051b8456d4d3ffc6478cdb98f7048b69c8ca6742f4dca27e1eb4023f32";
 const STAGING_SCRIPT_NAME = "mad4b-activation-gateway-staging";
 const STAGING_CERTIFICATION_KEY = "staging_activation_gateway_apply_v1";
 const STAGING_CAPABILITY_KEY = "admin_cloudflare_v1";
@@ -55,7 +57,11 @@ function requiredProfile(registry = readEnvironmentConvergenceRegistry()) {
   if (profile?.source_branch !== "main") errors.push("source_branch");
   if (gateway?.policy_key !== "activation_gateway_staging") errors.push("policy_key");
   if (gateway?.public_host !== "activation-dev.mad4b.com") errors.push("public_host");
-  if (compact(gateway?.expected_policy_hash).toLowerCase() !== STAGING_POLICY_HASH) errors.push("policy_hash");
+  try {
+    loadActivationGatewayProfilePolicy("staging", { registry });
+  } catch {
+    errors.push("policy_hash");
+  }
   if (gateway?.current_authority_adapter !== "staging_activation_gateway_profile_apply") errors.push("authority_adapter");
   if (gateway?.target_authority_model !== "server_governed") errors.push("authority_model");
   if (gateway?.apply_capability !== STAGING_RUNTIME_SURFACE || gateway?.governed_apply_ready !== true) errors.push("apply_capability");
