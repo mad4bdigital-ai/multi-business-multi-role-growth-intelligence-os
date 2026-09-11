@@ -312,9 +312,9 @@ try {
   assert.equal(exactCommitFailure.drift_class, "release_identity_mismatch");
   assert.equal(exactCommitFailure.repairability, "governed");
   assert.equal(exactCommitFailure.handoff.automatic_apply_allowed, false);
-  assert.equal(exactCommitFailure.handoff.execution_ready, false);
-  assert.equal(exactCommitFailure.handoff.apply_capability, null);
-  assert.equal(exactCommitFailure.handoff.apply_block_reason, "server_governed_staging_activation_worker_adapter_required");
+  assert.equal(exactCommitFailure.handoff.execution_ready, true);
+  assert.equal(exactCommitFailure.handoff.apply_capability, "activation_gateway_dark_deploy");
+  assert.equal(exactCommitFailure.handoff.apply_block_reason, null);
   gatewaySourceCommit = expectedCommit;
 
   const trustMismatch = await runLive({
