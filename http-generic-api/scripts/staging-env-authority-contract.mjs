@@ -26,7 +26,7 @@ assert.doesNotMatch(guard, /\$[A-Za-z_][A-Za-z0-9_]*\?\./, "guard must remain Wi
 
 assert.match(launcher, /Assert-StagingEnvAuthority\.ps1/);
 assert.match(launcher, /function Invoke-EnvAuthorityGuard/);
-assert.match(launcher, /Invoke-EnvAuthorityGuard\s*\r?\n\$first = Invoke-Core/);
+assert.match(launcher, /Invoke-EnvAuthorityGuard\s*\r?\n\$active = Invoke-Core/);
 assert.match(launcher, /Staging environment authority guard exited with code/);
 
 // The incident shape must be rejected by source contract: Compose accepts a

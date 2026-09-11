@@ -405,6 +405,7 @@ flowchart TD
 | `session_insight_target_write_readback_policy_v1` | 1 |
 | `session_memory_reliability_policy_v1` | 1 |
 | `sql_cache_policy_v2` | 1 |
+| `staging_activation_gateway_apply_policy_v1` | 1 |
 | `support_ticket_external_delivery_admin_control_surface_policy_v1` | 1 |
 | `support_ticket_external_delivery_completion_certification_policy_v1` | 1 |
 | `support_ticket_external_delivery_dual_provider_policy_v1` | 1 |

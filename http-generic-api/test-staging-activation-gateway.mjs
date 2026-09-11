@@ -127,8 +127,8 @@ assert.equal(productionConvergenceProfile.source_branch, "Production");
 assert.equal(productionConvergenceProfile.upstream_branch, "main");
 assert.equal(stagingConvergenceProfile.provider_mutation_implementation, null);
 assert.equal(productionConvergenceProfile.provider_mutation_implementation, null);
-assert.equal(stagingConvergenceProfile.activation_gateway.governed_apply_ready, false);
-assert.equal(stagingConvergenceProfile.activation_gateway.apply_capability, null);
+assert.equal(stagingConvergenceProfile.activation_gateway.governed_apply_ready, true);
+assert.equal(stagingConvergenceProfile.activation_gateway.apply_capability, "activation_gateway_dark_deploy");
 assert.equal(productionConvergenceProfile.activation_gateway.governed_apply_ready, true);
 assert.equal(productionConvergenceProfile.activation_gateway.apply_capability, "activation_gateway_dark_deploy");
 assert.equal(
@@ -184,10 +184,10 @@ assert.equal(exactCommitClassification.status, "reconciliation_required");
 assert.equal(exactCommitClassification.classified_failures[0].failure_kind, "convergence_drift");
 assert.equal(exactCommitClassification.classified_failures[0].drift_class, "release_identity_mismatch");
 assert.equal(exactCommitClassification.next_governed_handoff.automatic_apply_allowed, false);
-assert.equal(exactCommitClassification.next_governed_handoff.execution_ready, false);
+assert.equal(exactCommitClassification.next_governed_handoff.execution_ready, true);
 assert.equal(exactCommitClassification.next_governed_handoff.plan_capability, "environment_convergence_plan");
-assert.equal(exactCommitClassification.next_governed_handoff.apply_capability, null);
-assert.equal(exactCommitClassification.next_governed_handoff.apply_block_reason, "server_governed_staging_activation_worker_adapter_required");
+assert.equal(exactCommitClassification.next_governed_handoff.apply_capability, "activation_gateway_dark_deploy");
+assert.equal(exactCommitClassification.next_governed_handoff.apply_block_reason, null);
 
 const releaseSpec = {
   repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
@@ -216,11 +216,14 @@ assert.equal(approvalRequired.plan.gateway_policy_identity.desired.policy_hash_s
 assert.equal(approvalRequired.plan.gateway_policy_identity.observed.policy_hash_sha256, stagingGatewayPolicy.content_hash_sha256);
 assert.equal(approvalRequired.plan.execution_target.server_resolved, true);
 assert.equal(approvalRequired.plan.execution_target.caller_target_override_allowed, false);
-assert.equal(approvalRequired.plan.execution_target.execution_ready, false);
-assert.equal(approvalRequired.plan.execution_target.resource_binding.resource_binding_id, null);
+assert.equal(approvalRequired.plan.execution_target.execution_ready, true);
+assert.equal(
+  approvalRequired.plan.execution_target.resource_binding.resource_binding_id,
+  stagingConvergenceProfile.activation_gateway.execution_target.resource_binding.resource_binding_id,
+);
 assert.equal(approvalRequired.plan.governed_handoff.plan_capability, "environment_convergence_plan");
-assert.equal(approvalRequired.plan.governed_handoff.apply_capability, null);
-assert.equal(approvalRequired.plan.governed_handoff.execution_ready, false);
+assert.equal(approvalRequired.plan.governed_handoff.apply_capability, "activation_gateway_dark_deploy");
+assert.equal(approvalRequired.plan.governed_handoff.execution_ready, true);
 assert.equal(approvalRequired.plan.governed_handoff.automatic_apply_allowed, false);
 assert.equal(approvalRequired.operator_acknowledgement.operator_acknowledgement_is_execution_authority, false);
 assert.equal(approvalRequired.approval_checkpoint.canonical_semantics, "operator_acknowledgement");
@@ -295,16 +298,16 @@ const authorityRequired = runEnvironmentConvergence({
   },
   registry: convergenceRegistry,
 });
-assert.equal(authorityRequired.status, "governed_authority_required");
-assert.equal(authorityRequired.next_stage, null);
+assert.equal(authorityRequired.status, "handoff_ready");
+assert.equal(authorityRequired.next_stage, "apply");
 assert.equal(authorityRequired.operator_acknowledgement.status, "acknowledged_for_handoff");
 assert.equal(authorityRequired.operator_acknowledgement.operator_acknowledgement_is_execution_authority, false);
 assert.equal(authorityRequired.approval_checkpoint.transitional_alias, true);
-assert.equal(authorityRequired.governed_handoff.execution_ready, false);
+assert.equal(authorityRequired.governed_handoff.execution_ready, true);
 assert.equal(authorityRequired.governed_handoff.execution_performed, false);
 assert.equal(authorityRequired.governed_handoff.plan_sha256, approvalRequired.plan.plan_sha256);
 assert.equal(authorityRequired.governed_handoff.activation_gateway_policy_hash, stagingGatewayPolicy.content_hash_sha256);
-assert.ok(authorityRequired.errors.includes("server_governed_staging_activation_worker_adapter_required"));
+assert.deepEqual(authorityRequired.errors, []);
 assert.equal(authorityRequired.safety.provider_mutation, false);
 assert.equal(authorityRequired.safety.production_deploy, false);
 

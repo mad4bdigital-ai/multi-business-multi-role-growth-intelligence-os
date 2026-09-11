@@ -19,6 +19,7 @@
       "id": "activation_environment_and_gateway_regressions",
       "test_paths": [
         "http-generic-api/test-activation-gateway-host-profile.mjs",
+        "http-generic-api/test-activation-gateway-rollout-surface.mjs",
         "http-generic-api/test-activation-gateway.mjs",
         "http-generic-api/test-environment-convergence-packaged-policy.mjs",
         "http-generic-api/test-auth-oauth-routes.mjs",

@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "b93b7f69ca9a23c7bb8a7a6bc1cb8a0075ebfe7ac25988698b4f5ae3063e4af7"
+      "sha256": "cf3174d044e545e8e59ad1e5a0becc70015df287965b0a302375095588858ae1"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "22e87223b2461988b6843ceca286008705f4ab1d281fa7878cac04751f4df661"
+      "sha256": "f0a6116e7ee7303ee27d8343ee1cf7b8c53e7bf210070fe4acd91e884ba4bffd"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -294,11 +294,11 @@
     },
     {
       "path": "http-generic-api/test-staging-auto-deploy-contract.mjs",
-      "sha256": "41573314373b78ae68ecd31076492fe032c56453b66f98f5ab92e179f9104b12"
+      "sha256": "ca9d7a4b1c1e9f361d76f52b5588c2138b1a3259b555c268052dd0cbf0cfb270"
     },
     {
       "path": "http-generic-api/test-staging-environment-certification-contract.mjs",
-      "sha256": "e6791e98e83a529c5d61eb1cfa3cd49b74ec448275d15f161f62e7b7aa6d54a5"
+      "sha256": "07bedae6f629e21fdcfcd9f05be7d013f8e07305a6c05c5856cd16db5fa5eed2"
     },
     {
       "path": "autopilot-portable-staging/Bootstrap-Staging-One-Click.ps1",
@@ -334,7 +334,7 @@
     },
     {
       "path": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
-      "sha256": "70066f3149aafbc43d01b93be3e194e09be34fd89718db06a83f9fcba9931527"
+      "sha256": "d8ef709aa42268bf08c44eff3d308bb6a26aa9b9831bc259623c04892ec30722"
     },
     {
       "path": "autopilot-portable-staging/Staging-Environment.ps1",
@@ -390,11 +390,11 @@
     },
     {
       "path": "autopilot-portable-staging/Converge-StagingActivationGateway.ps1",
-      "sha256": "04cb9ca15fed324e7474135ace8fea8f552d81aba2675c6831a9fea68742d305"
+      "sha256": "c5f73f0f67c23be7a1172754cf166aead07fec35104adf574a7e02b7b013c1f2"
     },
     {
       "path": "autopilot-portable-staging/activation-gateway-smart-convergence-policy.json",
-      "sha256": "a4fd996f12617db300591ec9a56115b075083bfdbf4406c96890173a0506e5fe"
+      "sha256": "dcaeb218222c12e195058420357976e22986222dd3ae24bbd8b1e3b1a5fa47ba"
     },
     {
       "path": "autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1",

@@ -1,5 +1,5 @@
 {
-  "contract": "mad4b.staging.activation-gateway-smart-convergence-policy.v2",
+  "contract": "mad4b.staging.activation-gateway-smart-convergence-policy.v3",
   "extends": "autopilot-portable-staging/autopilot-one-click-policy.json",
   "environment": "staging",
   "enabled_by_switch": "EnableActivationGateway",
@@ -8,6 +8,7 @@
   "shared_convergence_registry": "http-generic-api/config/environment-convergence-registry.json",
   "shared_convergence_bridge": "http-generic-api/scripts/staging-environment-convergence-plan.mjs",
   "legacy_convergence_helper": "autopilot-portable-staging/Converge-StagingActivationGateway.ps1",
+  "local_trust_installer": "http-generic-api/scripts/install-staging-activation-trust.mjs",
   "typed_recovery": {
     "runtime_state": "autopilot-portable-staging/autopilot-state.json",
     "preflight_report": "autopilot-portable-staging/logs/staging-schema-governance-preflight.json",
@@ -19,13 +20,19 @@
     "gateway_health_unreachable_auto_mutation": false,
     "non_gateway_blocker_auto_mutation": false,
     "schema_bundle_explicit_mode_auto_mutation": false,
-    "maximum_core_retries_after_convergence": 0
+    "maximum_core_retries_after_convergence": 1,
+    "retry_reason_allowlist": [
+      "exact_public_gateway_trust_installed_locally"
+    ]
   },
   "deployment_authority": {
     "target_authority_model": "server_governed",
-    "current_apply_capability": null,
-    "current_apply_ready": false,
-    "apply_block_reason": "server_governed_staging_activation_worker_adapter_required",
+    "current_authority_adapter": "staging_activation_gateway_profile_apply",
+    "current_apply_capability": "activation_gateway_dark_deploy",
+    "current_apply_ready": true,
+    "apply_block_reason": null,
+    "resource_binding_id": "5a2b04f8-bb99-4f65-a924-0f55d3080376",
+    "server_feature_flag": "STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED",
     "legacy_workflow": ".github/workflows/staging-main-deploy-eligibility.yml",
     "legacy_operation": "deploy_activation_worker",
     "legacy_confirmation": "DEPLOY_STAGING_ACTIVATION_WORKER",
@@ -33,18 +40,23 @@
     "launcher_workflow_dispatch_allowed": false,
     "legacy_helper_workflow_dispatch_allowed": false,
     "direct_cloudflare_api_from_launcher": false,
-    "local_cloudflare_api_token_read": false
+    "local_cloudflare_api_token_read": false,
+    "caller_selected_provider_target_allowed": false,
+    "provider_target_resolved_from_profile_binding": true
   },
   "policy_identity": {
     "policy_key": "activation_gateway_staging",
     "policy_path": "edge/activation-gateway/generated/route-policy.staging.json",
     "expected_policy_hash": "c6468e051b8456d4d3ffc6478cdb98f7048b69c8ca6742f4dca27e1eb4023f32",
     "public_host": "activation-dev.mad4b.com",
+    "bundle_key": "activation_gateway_staging_worker",
+    "entrypoint": "edge/activation-gateway/src/worker-staging.mjs",
     "caller_policy_path_override_allowed": false,
     "plan_hash_binds_policy_hash": true
   },
   "postconditions": {
     "public_health_url": "https://activation-dev.mad4b.com/health",
+    "public_ready_url": "https://activation-dev.mad4b.com/ready",
     "http_200_required": true,
     "ok_true_required": true,
     "stale_false_required": true,
@@ -52,16 +64,21 @@
     "worker_build_sha_exact_required": true,
     "policy_hash_current_required": true,
     "policy_key": "activation_gateway_staging",
+    "public_recovery_trust_bundle_required": true,
+    "public_recovery_trust_contract": "mad4b.staging.activation-recovery-origin-trust.v2",
     "recovery_origin_trust_exact_required": true,
     "recovery_ingress_replay_scope": "single_filesystem",
-    "origin_trust_artifact": "staging-activation-origin-trust-{{source_sha}}",
+    "local_trust_env_allowlist_only": true,
     "secrets_included_false_required": true,
     "recertify_after_governed_apply": true
   },
   "mutation_scope": {
     "provider_mutation_from_launcher": false,
     "provider_mutation_from_legacy_helper": false,
-    "local_origin_trust_config_mutation_from_launcher": false,
+    "server_governed_worker_apply": true,
+    "server_governed_worker_apply_scope": "profile_bound_cloudflare_worker_only",
+    "local_origin_trust_config_mutation_from_launcher": true,
+    "local_origin_trust_config_mutation_scope": "eight_key_allowlist_after_exact_public_evidence_only",
     "local_origin_trust_config_mutation_from_legacy_helper": false,
     "cloudflare_worker_mutation_from_orchestrator": false,
     "cloudflare_dns_mutation": false,
@@ -74,9 +91,14 @@
   },
   "evidence": {
     "bridge_contract": "mad4b.staging-environment-convergence-bridge.v1",
-    "legacy_helper_contract": "mad4b.staging.activation-gateway-convergence.v2",
+    "legacy_helper_contract": "mad4b.staging.activation-gateway-convergence.v3",
     "plan_contract": "mad4b.environment-convergence-plan.v1",
-    "mutation_flags_must_remain_false_until_server_governed_apply": true,
+    "server_bundle_contract": "mad4b.staging.activation-gateway-server-bundle.v1",
+    "server_deployment_evidence_contract": "mad4b.activation-gateway-staging-deployment-evidence.v2",
+    "public_trust_contract": "mad4b.staging.activation-recovery-origin-trust.v2",
+    "local_trust_install_plan_contract": "mad4b.staging.activation-recovery-trust-install-plan.v1",
+    "provider_mutation_flags_in_autopilot_must_remain_false": true,
+    "workflow_dispatch_must_remain_false": true,
     "secrets_included": false
   }
 }

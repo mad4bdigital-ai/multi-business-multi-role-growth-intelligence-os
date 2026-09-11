@@ -20,7 +20,8 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSCommandPath
 $core = Join-Path $root 'Invoke-Staging-One-Click-Core.ps1'
 $envAuthorityGuard = Join-Path $root 'Assert-StagingEnvAuthority.ps1'
-$convergenceBridge = Join-Path $RepositoryPath 'http-generic-api\scripts\staging-environment-convergence-plan.mjs'
+$convergenceBridge = ''
+$trustInstaller = ''
 $preflightReportPath = Join-Path $root 'logs\staging-schema-governance-preflight.json'
 $runtimeStatePath = Join-Path $root 'autopilot-state.json'
 $expectedRepository = 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os'
@@ -45,6 +46,21 @@ function Get-FinalJson([object[]]$Lines) {
         } catch { }
     }
     return $null
+}
+
+function Invoke-NodeJson([object[]]$Arguments) {
+    $previousErrorActionPreference = $ErrorActionPreference
+    $exitCode = $null
+    $lines = @()
+    try {
+        $ErrorActionPreference = 'Continue'
+        $lines = @(& node @Arguments 2>&1 | ForEach-Object { [string]$_ })
+        $exitCode = [int]$LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+    if ($null -eq $exitCode) { Fail 'Node helper did not expose a native exit code.' }
+    return [pscustomobject]@{ exit_code = $exitCode; lines = $lines; final = (Get-FinalJson $lines) }
 }
 
 function Invoke-EnvAuthorityGuard {
@@ -135,6 +151,92 @@ function Test-LocalRecoveryTrustExact([string]$Commit) {
         -and $replayDirectory -eq '/app/data/recovery-ingress'
 }
 
+function Get-RuntimeCommit {
+    if (-not (Test-Path -LiteralPath $runtimeStatePath -PathType Leaf)) { return '' }
+    try {
+        $runtime = Get-Content -Raw -LiteralPath $runtimeStatePath | ConvertFrom-Json -ErrorAction Stop
+        $commit = ([string]$runtime.commit).Trim().ToLowerInvariant()
+        if ($commit -match '^[0-9a-f]{40}$') { return $commit }
+    } catch { }
+    return ''
+}
+
+function Assert-TrustInstallerSafety([object]$Result) {
+    if ($Result.provider_mutation -ne $false `
+        -or $Result.cloudflare_mutation -ne $false `
+        -or $Result.workflow_dispatch -ne $false `
+        -or $Result.production_mutation -ne $false `
+        -or $Result.database_mutation -ne $false `
+        -or $Result.secrets_included -ne $false) {
+        Fail 'Local recovery trust installer violated its mutation boundary.'
+    }
+}
+
+function Invoke-LocalRecoveryTrustRefresh {
+    if (-not $EnableActivationGateway) {
+        return [pscustomobject]@{ status = 'not_enabled'; installed = $false; mutated = $false }
+    }
+    if ($RequireSchemaBundle -or $ApplySchemaBundle) {
+        return [pscustomobject]@{ status = 'schema_bundle_mode'; installed = $false; mutated = $false }
+    }
+    $commit = Get-RuntimeCommit
+    if ([string]::IsNullOrWhiteSpace($commit)) {
+        return [pscustomobject]@{ status = 'runtime_commit_unavailable'; installed = $false; mutated = $false }
+    }
+    if (Test-LocalRecoveryTrustExact $commit) {
+        return [pscustomobject]@{ status = 'already_exact'; installed = $false; mutated = $false; expected_sha = $commit }
+    }
+    if (-not (Test-Path -LiteralPath $trustInstaller -PathType Leaf)) { Fail "Staging trust installer is missing: $trustInstaller" }
+    $envFile = Join-Path $RepositoryPath 'http-generic-api\.env.staging'
+    if (-not (Test-Path -LiteralPath $envFile -PathType Leaf)) { Fail "Missing local .env.staging: $envFile" }
+
+    $dry = Invoke-NodeJson @(
+        $trustInstaller,
+        '--expected-sha',$commit,
+        '--env-file',$envFile,
+        '--mode','dry_run'
+    )
+    if ($null -eq $dry.final) {
+        Write-Lines $dry.lines
+        Fail 'Staging trust installer dry-run did not emit canonical JSON.'
+    }
+    Assert-TrustInstallerSafety $dry.final.json
+    if ($dry.exit_code -eq 2 -and $dry.final.json.ready -ne $true) {
+        return [pscustomobject]@{ status = 'public_gateway_not_exact'; installed = $false; mutated = $false; expected_sha = $commit }
+    }
+    if ($dry.exit_code -ne 0 -or $dry.final.json.ready -ne $true) {
+        Write-Lines $dry.lines
+        Fail "Staging trust installer dry-run failed with code $($dry.exit_code)"
+    }
+
+    $apply = Invoke-NodeJson @(
+        $trustInstaller,
+        '--expected-sha',$commit,
+        '--env-file',$envFile,
+        '--mode','apply'
+    )
+    if ($null -eq $apply.final) {
+        Write-Lines $apply.lines
+        Fail 'Staging trust installer apply did not emit canonical JSON.'
+    }
+    Assert-TrustInstallerSafety $apply.final.json
+    if ($apply.exit_code -ne 0 -or $apply.final.json.ready -ne $true) {
+        Write-Lines $apply.lines
+        Fail "Staging trust installer apply failed with code $($apply.exit_code)"
+    }
+    if (-not (Test-LocalRecoveryTrustExact $commit)) {
+        Fail 'Staging trust installer completed but local Recovery trust is not exact.'
+    }
+    return [pscustomobject]@{
+        status = 'exact_public_gateway_trust_installed_locally'
+        installed = $true
+        mutated = [bool]$apply.final.json.mutated
+        expected_sha = $commit
+        key_id = [string]$apply.final.json.key_id
+        public_key_sha256 = [string]$apply.final.json.public_key_sha256
+    }
+}
+
 function Invoke-SharedConvergence([int]$ChildExitCode) {
     if (-not $EnableActivationGateway) { return $null }
     if ($RequireSchemaBundle -or $ApplySchemaBundle) { return $null }
@@ -148,34 +250,23 @@ function Invoke-SharedConvergence([int]$ChildExitCode) {
     $trustExact = Test-LocalRecoveryTrustExact $commit
     if ($ChildExitCode -eq 0 -and $trustExact) { return $null }
 
-    $previousErrorActionPreference = $ErrorActionPreference
-    $exitCode = $null
-    $lines = @()
-    try {
-        $ErrorActionPreference = 'Continue'
-        $lines = @(& node @(
-            $convergenceBridge,
-            '--runtime-state',$runtimeStatePath,
-            '--preflight',$preflightReportPath,
-            '--repository',$expectedRepository,
-            '--recovery-trust-exact',([string]([bool]$trustExact)).ToLowerInvariant()
-        ) 2>&1 | ForEach-Object { [string]$_ })
-        $exitCode = [int]$LASTEXITCODE
-    } finally {
-        $ErrorActionPreference = $previousErrorActionPreference
-    }
-    if ($null -eq $exitCode) { Fail 'Shared convergence bridge did not expose a native exit code.' }
-    $final = Get-FinalJson $lines
-    if ($null -eq $final) {
-        Write-Lines $lines
+    $bridgeRun = Invoke-NodeJson @(
+        $convergenceBridge,
+        '--runtime-state',$runtimeStatePath,
+        '--preflight',$preflightReportPath,
+        '--repository',$expectedRepository,
+        '--recovery-trust-exact',([string]([bool]$trustExact)).ToLowerInvariant()
+    )
+    if ($null -eq $bridgeRun.final) {
+        Write-Lines $bridgeRun.lines
         Fail 'Shared convergence bridge did not emit canonical JSON.'
     }
-    Write-Lines $final.prefix
-    if ($exitCode -ne 0) {
-        $final.json | ConvertTo-Json -Depth 12
-        Fail "Shared convergence bridge exited with code $exitCode"
+    Write-Lines $bridgeRun.final.prefix
+    if ($bridgeRun.exit_code -ne 0) {
+        $bridgeRun.final.json | ConvertTo-Json -Depth 12
+        Fail "Shared convergence bridge exited with code $($bridgeRun.exit_code)"
     }
-    $bridge = $final.json
+    $bridge = $bridgeRun.final.json
     if ([string]$bridge.contract -ne 'mad4b.staging-environment-convergence-bridge.v1') { Fail 'Unexpected shared convergence bridge contract.' }
     if ($bridge.safety.provider_mutation -ne $false -or $bridge.safety.workflow_dispatch -ne $false -or $bridge.safety.production_mutation -ne $false -or $bridge.safety.database_mutation -ne $false) {
         Fail 'Shared convergence bridge violated the observation-only boundary.'
@@ -183,7 +274,7 @@ function Invoke-SharedConvergence([int]$ChildExitCode) {
     return $bridge
 }
 
-function Write-CorrectedResult([object[]]$Lines, [object]$Bridge) {
+function Write-CorrectedResult([object[]]$Lines, [object]$Bridge, [object]$TrustRefresh) {
     $final = Get-FinalJson $Lines
     if ($null -eq $final) {
         Write-Lines $Lines
@@ -197,6 +288,9 @@ function Write-CorrectedResult([object[]]$Lines, [object]$Bridge) {
     $result | Add-Member -NotePropertyName environment_convergence_plan_sha256 -NotePropertyValue $(if ($null -ne $Bridge -and $null -ne $Bridge.plan) { [string]$Bridge.plan.plan_sha256 } else { $null }) -Force
     $result | Add-Member -NotePropertyName environment_convergence_next_governed_handoff -NotePropertyValue $handoff -Force
     $result | Add-Member -NotePropertyName activation_recovery_trusted_ingress_ready -NotePropertyValue ([bool]($EnableActivationGateway -and (Test-LocalRecoveryTrustExact ([string]$result.commit)))) -Force
+    $result | Add-Member -NotePropertyName activation_recovery_trust_refresh_status -NotePropertyValue $(if ($null -ne $TrustRefresh) { [string]$TrustRefresh.status } else { 'not_attempted' }) -Force
+    $result | Add-Member -NotePropertyName local_origin_trust_mutation -NotePropertyValue ([bool]($null -ne $TrustRefresh -and $TrustRefresh.mutated -eq $true)) -Force
+    $result | Add-Member -NotePropertyName local_origin_trust_mutation_scope -NotePropertyValue $(if ($null -ne $TrustRefresh -and $TrustRefresh.mutated -eq $true) { 'eight_key_allowlist_after_exact_public_evidence_only' } else { 'none' }) -Force
     $result | Add-Member -NotePropertyName staging_worker_deploy_performed -NotePropertyValue $false -Force
     $result | Add-Member -NotePropertyName staging_worker_deploy_initiated -NotePropertyValue $false -Force
     $result | Add-Member -NotePropertyName provider_mutation -NotePropertyValue $false -Force
@@ -213,24 +307,29 @@ function Write-CorrectedResult([object[]]$Lines, [object]$Bridge) {
 if ([string]::IsNullOrWhiteSpace($RepositoryPath)) { $RepositoryPath = [IO.Path]::GetFullPath((Join-Path $root '..')) }
 $RepositoryPath = [IO.Path]::GetFullPath($RepositoryPath)
 $convergenceBridge = Join-Path $RepositoryPath 'http-generic-api\scripts\staging-environment-convergence-plan.mjs'
+$trustInstaller = Join-Path $RepositoryPath 'http-generic-api\scripts\install-staging-activation-trust.mjs'
 if (-not (Test-Path -LiteralPath $core -PathType Leaf)) { Fail "Dual-mode core launcher is missing: $core" }
 if (-not (Test-Path -LiteralPath (Join-Path $RepositoryPath '.git'))) { Fail "RepositoryPath is not a Git checkout: $RepositoryPath" }
 
 Invoke-EnvAuthorityGuard
-$first = Invoke-Core
-$bridge = Invoke-SharedConvergence $first.exit_code
+$active = Invoke-Core
+$trustRefresh = Invoke-LocalRecoveryTrustRefresh
+if ($trustRefresh.installed -eq $true) {
+    $active = Invoke-Core
+}
+$bridge = Invoke-SharedConvergence $active.exit_code
 if ($null -eq $bridge) {
-    if ($first.exit_code -eq 0) {
-        Write-CorrectedResult $first.lines $null
+    if ($active.exit_code -eq 0) {
+        Write-CorrectedResult $active.lines $null $trustRefresh
         exit 0
     }
-    Write-Lines $first.lines
-    exit $first.exit_code
+    Write-Lines $active.lines
+    exit $active.exit_code
 }
 
 $classification = $bridge.report.convergence
 $handoff = $classification.next_governed_handoff
-Write-Lines $first.lines
+Write-Lines $active.lines
 $bridge | ConvertTo-Json -Depth 12
 if ($null -eq $handoff) { Fail "Shared convergence did not produce a governed handoff; status=$($classification.status)" }
 if ($bridge.convergence_run.status -eq 'approval_required') {
