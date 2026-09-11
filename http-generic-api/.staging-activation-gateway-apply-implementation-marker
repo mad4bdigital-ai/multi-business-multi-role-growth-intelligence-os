@@ -1,6 +1,0 @@
-mad4b.staging.activation-gateway-apply-adapter.v1
-server_resolved_target=true
-caller_provider_target=false
-workflow_dispatch=false
-production_mutation=false
-secrets_included=false
