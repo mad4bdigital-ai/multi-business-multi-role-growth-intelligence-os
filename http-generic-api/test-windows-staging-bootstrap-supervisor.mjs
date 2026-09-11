@@ -178,11 +178,11 @@ assert.match(certification, /STAGING_CERTIFICATION_READY: commit=\$ExpectedCommi
 
 // The legacy convergence helper is a fail-closed compatibility tombstone. It may
 // describe the server-governed handoff but cannot dispatch or apply the old Worker authority.
-assert.match(converger, /mad4b\.staging\.activation-gateway-convergence\.v2/);
-assert.match(converger, /status = 'governed_authority_required'/);
+assert.match(converger, /mad4b\.staging\.activation-gateway-convergence\.v3/);
+assert.match(converger, /status = 'legacy_adapter_retired'/);
 assert.match(converger, /authority = 'server_governed'/);
-assert.match(converger, /apply_capability = \$null/);
-assert.match(converger, /execution_ready = \$false/);
+assert.match(converger, /apply_capability = if \(\$executionReady\) \{ \[string\]\$gateway\.apply_capability \} else \{ \$null \}/);
+assert.match(converger, /execution_ready = \[bool\]\$executionReady/);
 assert.match(converger, /automatic_apply_allowed = \$false/);
 assert.match(converger, /workflow_dispatch_allowed = \$false/);
 assert.match(converger, /provider_mutation_allowed = \$false/);
