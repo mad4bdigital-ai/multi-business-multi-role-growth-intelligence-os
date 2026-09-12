@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS staging_activation_gateway_execution_artifacts (
   artifact_ref VARCHAR(191) NOT NULL PRIMARY KEY,
   encrypted_artifact LONGBLOB NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS staging_activation_gateway_execution_plans (
   plan_id CHAR(36) NOT NULL PRIMARY KEY,
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS staging_activation_gateway_execution_plans (
   claimed_at TIMESTAMP NULL,
   completed_at TIMESTAMP NULL,
   KEY idx_staging_gateway_plan_claim (plan_sha256, environment_convergence_plan_sha256, status, expires_at)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS staging_activation_gateway_envelope_plan_bindings (
   envelope_id VARCHAR(191) NOT NULL PRIMARY KEY,
@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS staging_activation_gateway_envelope_plan_bindings (
   principal_id VARCHAR(191) NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_staging_gateway_bound_plan (plan_id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 UPDATE runtime_dispatch_certification_registry
    SET certification_status='pending', dispatch_allowed=0, apply_allowed=0,
