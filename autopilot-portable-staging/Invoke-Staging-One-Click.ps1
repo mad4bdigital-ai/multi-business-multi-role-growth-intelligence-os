@@ -473,5 +473,21 @@ if ($bridge.convergence_run.status -eq 'governed_authority_required' -or $handof
 if ($bridge.convergence_run.status -ne 'handoff_ready' -or $bridge.convergence_run.operator_acknowledgement.status -ne 'acknowledged_for_handoff') {
     Fail 'Convergence did not produce an acknowledged governed handoff.'
 }
-# The result above is the terminal handoff. Server authority performs any subsequent apply.
+# Exit 0 certifies only completion of the local handoff stage. The final JSON is the
+# One-Click terminal contract; server authority must perform apply and certification.
+[pscustomobject]@{
+    contract = 'mad4b.staging-one-click-governed-handoff.v1'
+    status = 'handoff_ready'
+    local_phase_completed = $true
+    environment = 'staging'
+    commit_sha = [string]$bridge.plan.release_spec.commit_sha
+    plan_sha256 = [string]$bridge.plan.plan_sha256
+    governed_handoff = $bridge.convergence_run.governed_handoff
+    provider_execution_performed = $false
+    provider_mutation = $false
+    database_mutation = $false
+    production_mutation = $false
+    staging_certification_ready = $false
+    secrets_included = $false
+} | ConvertTo-Json -Depth 12
 exit 0
