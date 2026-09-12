@@ -26,13 +26,13 @@ const STAGING_RECOVERY_ADVERTISED_PATHS = Object.freeze([
 ]);
 const STAGING_RECOVERY_INTERNAL_EXECUTION_PATHS = Object.freeze([
   "/admin/recovery/staging/bootstrap-ticket/verify",
-  "/admin/recovery/staging/bootstrap-ticket/bundle-verify",
   "/admin/recovery/staging/bootstrap-ticket/finalize",
   "/admin/recovery/staging/bootstrap-partial-receipt",
 ]);
 const STAGING_RECOVERY_PATHS = Object.freeze([...STAGING_RECOVERY_ADVERTISED_PATHS, ...STAGING_RECOVERY_INTERNAL_EXECUTION_PATHS]);
 const BOOTSTRAP_BINDING_KEYS = Object.freeze(["execution_ticket_id", "execution_ticket_hash", "expected_sha", "target_key", "target_fingerprint", "operation", "plan_hash", "idempotency_key", "role_selection_hash", "grant_binding_hash"]);
 const BOOTSTRAP_EXECUTION_START_KEYS = Object.freeze(["authority_action", ...BOOTSTRAP_BINDING_KEYS, "reservation_receipt"]);
+const REBUILD_BUNDLE_VERIFY_KEYS = Object.freeze(["authority_action", "execution_ticket_id", "execution_ticket_hash", "expected_sha", "target_key", "target_fingerprint", "authority_plan_hash", "role_selection_hash", "idempotency_key", "selected_roles", "role_bundle_bindings"]);
 const ACCESS_REPAIR_PREPARE_KEYS = Object.freeze(["authority_action", "expected_sha", "target_key", "target_fingerprint", "idempotency_key"]);
 const ACCESS_REPAIR_APPROVE_KEYS = Object.freeze(["authority_action", "plan_id", "plan_hash", "step_id", "idempotency_key", "approval_confirmation"]);
 const SENSITIVE_KEY_RE = /(password|secret|credential|authorization|private[_-]?key|connection[_-]?string|database[_-]?name|db[_-]?(?:user|password)|hostname|username|raw[_-]?sql|command)/iu;
@@ -75,6 +75,13 @@ function exactBootstrapExecutionStart(input = {}) {
   delete body.authority_action;
   delete body.reservation_receipt;
   return { ...exactBootstrapBinding(body), reservation_receipt: reservationReceipt };
+}
+function exactRebuildBundleVerification(input = {}) {
+  exactKeys(input, REBUILD_BUNDLE_VERIFY_KEYS, "Staging rebuild role-bundle verification request must be an object.");
+  if (input.authority_action !== "verify_role_bundle_binding") throw Object.assign(new Error("Unknown Staging ticket authority action."), { code: "RECOVERY_STAGING_BOOTSTRAP_ACTION_INVALID", status: 400 });
+  const body = { ...input };
+  delete body.authority_action;
+  return body;
 }
 function exactAccessRepairPrepare(input = {}) {
   exactKeys(input, ACCESS_REPAIR_PREPARE_KEYS, "Staging access-repair preparation request must be an object.");
@@ -259,6 +266,11 @@ export function buildStagingRecoveryAdminRoutes({
         const result = await authority.approveAndIssue(exactAccessRepairApprove(req.body || {}));
         return res.status(201).json({ ...result, environment: "staging", production_authority: false, secrets_included: false });
       }
+      if (authorityAction === "verify_role_bundle_binding") {
+        const verifier = stagingRebuildBundleVerifierFactory({ env });
+        const result = await verifier.verify(exactRebuildBundleVerification(req.body || {}));
+        return res.status(result?.ok === true ? 200 : 409).json({ ...result, environment: "staging", production_authority: false, database_mutation_performed: false, secrets_included: false });
+      }
       if (authorityAction === "mark_executing") {
         const authority = stagingBootstrapExecutionAuthorityFactory({ env });
         const result = await authority.markExecutingForBootstrap(exactBootstrapExecutionStart(req.body || {}));
@@ -272,16 +284,6 @@ export function buildStagingRecoveryAdminRoutes({
       return res.status(result.valid === true ? 200 : 409).json({ ok: result.valid === true, ...result, environment: "staging", production_authority: false, database_mutation_performed: false, secrets_included: false });
     } catch (error) {
       return errorResponse(res, req, Number(error?.status || 503), error?.code || "RECOVERY_STAGING_BOOTSTRAP_TICKET_VERIFY_FAILED", "Staging bootstrap ticket authority failed closed; no database operation was attempted.");
-    }
-  });
-
-  router.post("/admin/recovery/staging/bootstrap-ticket/bundle-verify", ...guards, async (req, res) => {
-    try {
-      const verifier = stagingRebuildBundleVerifierFactory({ env });
-      const result = await verifier.verify(req.body || {});
-      return res.status(result?.ok === true ? 200 : 409).json({ ...result, environment: "staging", production_authority: false, database_mutation_performed: false, secrets_included: false });
-    } catch (error) {
-      return errorResponse(res, req, Number(error?.status || 503), error?.code || "RECOVERY_ROLE_BUNDLE_BINDING_MISMATCH", "Staging role-bundle verification failed closed; no database operation was attempted.");
     }
   });
 
@@ -328,4 +330,4 @@ export function buildStagingRecoveryAdminRoutes({
   return router;
 }
 
-export const _testingStagingRecoveryAdminRoutes = Object.freeze({ STAGING_ENVIRONMENT_KEYS, STAGING_RECOVERY_PATHS, STAGING_RECOVERY_ADVERTISED_PATHS, STAGING_RECOVERY_INTERNAL_EXECUTION_PATHS, STAGING_RECOVERY_ADMIN_HOST, BOOTSTRAP_BINDING_KEYS, BOOTSTRAP_EXECUTION_START_KEYS, ACCESS_REPAIR_PREPARE_KEYS, ACCESS_REPAIR_APPROVE_KEYS, LEGACY_READBACK_ASSERTION_KEYS, isStagingEnvironment, publicAttestation, exactBootstrapBinding, exactBootstrapExecutionStart, exactAccessRepairPrepare, exactAccessRepairApprove, hasSensitiveReceiptKey, legacyReadbackAssertions });
+export const _testingStagingRecoveryAdminRoutes = Object.freeze({ STAGING_ENVIRONMENT_KEYS, STAGING_RECOVERY_PATHS, STAGING_RECOVERY_ADVERTISED_PATHS, STAGING_RECOVERY_INTERNAL_EXECUTION_PATHS, STAGING_RECOVERY_ADMIN_HOST, BOOTSTRAP_BINDING_KEYS, BOOTSTRAP_EXECUTION_START_KEYS, REBUILD_BUNDLE_VERIFY_KEYS, ACCESS_REPAIR_PREPARE_KEYS, ACCESS_REPAIR_APPROVE_KEYS, LEGACY_READBACK_ASSERTION_KEYS, isStagingEnvironment, publicAttestation, exactBootstrapBinding, exactBootstrapExecutionStart, exactRebuildBundleVerification, exactAccessRepairPrepare, exactAccessRepairApprove, hasSensitiveReceiptKey, legacyReadbackAssertions });
