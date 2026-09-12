@@ -66,7 +66,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
-      "sha256": "9028bbfbc01911251636c900f8a910de86e2acb1cb97a1709156096f7adcd96a"
+      "sha256": "c15838696f3289b6f0b249059277990268151b9400f167860d58828e34a6c04a"
     },
     {
       "path": "autopilot-portable-staging/Uninstall-AutoDeployTask.ps1",
