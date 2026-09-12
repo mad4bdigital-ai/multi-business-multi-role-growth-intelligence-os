@@ -6,10 +6,10 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_artifact_sha256": "3fcba7d2a90ab98bbf37571a6e0eb72a7668dfefdd08074130aabd490762b2bf",
+    "dispatch_artifact_sha256": "941fe1783f7c9eed5aebb55df438b60bc9835678cf70859269cfad4489bb9e20",
     "family_count": 173,
-    "detail_family_count": 75,
-    "dispatch_operation_count": 1066
+    "detail_family_count": 76,
+    "dispatch_operation_count": 1070
   },
   "scope_boundary": {
     "route_wiring": false,
@@ -38,10 +38,10 @@
     "evidence_only": true
   },
   "summary": {
-    "family_count": 75,
+    "family_count": 76,
     "dispatch_family_count": 173,
-    "operation_count": 318,
-    "detail_evidence_required_count": 318,
+    "operation_count": 322,
+    "detail_evidence_required_count": 322,
     "canonical_openapi_added_count": 0,
     "excluded_scope_count": 0
   },
@@ -141,6 +141,90 @@
       "openapi_contract_level": "operation-index-only",
       "auth_parity": "equivalent",
       "governance_classification": "read",
+      "governance_rule_id": null,
+      "evidence_refs": [
+        "http-generic-api/frontend-surface-dispatch.generated.json"
+      ],
+      "closure_status": "detail_evidence_required",
+      "canonical_openapi_added": false,
+      "route_wiring": false,
+      "runtime_authority": false,
+      "production_activation": false
+    },
+    {
+      "family_key": "admin-host-breakglass",
+      "method": "POST",
+      "path": "/admin/runtime-bootstrap/staging/rebuild-empty/inspection",
+      "signature": "POST /admin/runtime-bootstrap/staging/rebuild-empty/inspection",
+      "source_file": "routes/adminHostBreakglassRoutes.js",
+      "scope": "admin",
+      "delivery_kind": "api",
+      "openapi_contract_level": "operation-index-only",
+      "auth_parity": "equivalent",
+      "governance_classification": "unresolved",
+      "governance_rule_id": null,
+      "evidence_refs": [
+        "http-generic-api/frontend-surface-dispatch.generated.json"
+      ],
+      "closure_status": "detail_evidence_required",
+      "canonical_openapi_added": false,
+      "route_wiring": false,
+      "runtime_authority": false,
+      "production_activation": false
+    },
+    {
+      "family_key": "admin-host-breakglass",
+      "method": "POST",
+      "path": "/admin/runtime-bootstrap/staging/rebuild-empty/prepare",
+      "signature": "POST /admin/runtime-bootstrap/staging/rebuild-empty/prepare",
+      "source_file": "routes/adminHostBreakglassRoutes.js",
+      "scope": "admin",
+      "delivery_kind": "api",
+      "openapi_contract_level": "operation-index-only",
+      "auth_parity": "equivalent",
+      "governance_classification": "unresolved",
+      "governance_rule_id": null,
+      "evidence_refs": [
+        "http-generic-api/frontend-surface-dispatch.generated.json"
+      ],
+      "closure_status": "detail_evidence_required",
+      "canonical_openapi_added": false,
+      "route_wiring": false,
+      "runtime_authority": false,
+      "production_activation": false
+    },
+    {
+      "family_key": "admin-host-breakglass",
+      "method": "POST",
+      "path": "/admin/runtime-bootstrap/staging/rebuild-empty/ticket-bundle-verify",
+      "signature": "POST /admin/runtime-bootstrap/staging/rebuild-empty/ticket-bundle-verify",
+      "source_file": "routes/adminHostBreakglassRoutes.js",
+      "scope": "admin",
+      "delivery_kind": "api",
+      "openapi_contract_level": "operation-index-only",
+      "auth_parity": "equivalent",
+      "governance_classification": "unresolved",
+      "governance_rule_id": null,
+      "evidence_refs": [
+        "http-generic-api/frontend-surface-dispatch.generated.json"
+      ],
+      "closure_status": "detail_evidence_required",
+      "canonical_openapi_added": false,
+      "route_wiring": false,
+      "runtime_authority": false,
+      "production_activation": false
+    },
+    {
+      "family_key": "admin-host-breakglass",
+      "method": "POST",
+      "path": "/admin/runtime-bootstrap/staging/rebuild-empty/approve",
+      "signature": "POST /admin/runtime-bootstrap/staging/rebuild-empty/approve",
+      "source_file": "routes/adminHostBreakglassRoutes.js",
+      "scope": "admin",
+      "delivery_kind": "api",
+      "openapi_contract_level": "operation-index-only",
+      "auth_parity": "equivalent",
+      "governance_classification": "unresolved",
       "governance_rule_id": null,
       "evidence_refs": [
         "http-generic-api/frontend-surface-dispatch.generated.json"
