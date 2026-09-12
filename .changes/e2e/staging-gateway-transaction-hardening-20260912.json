@@ -11,6 +11,8 @@
   "scope": {
     "include": [
       ".changes/e2e/staging-gateway-transaction-hardening-20260912.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/stagingActivationGatewayApplyAdapter.js",
       "http-generic-api/stagingGatewayExecutionPlanStore.js",
       "http-generic-api/databasePrivilegeContracts.js",
@@ -73,6 +75,8 @@
           ],
           "evidence_paths": [
             ".changes/e2e/staging-gateway-transaction-hardening-20260912.json",
+            ".github/derived-state-governance.json",
+            "http-generic-api/config/repository-governance-constitution.json",
             "http-generic-api/stagingActivationGatewayApplyAdapter.js",
             "http-generic-api/stagingGatewayExecutionPlanStore.js",
             "http-generic-api/databasePrivilegeContracts.js",
