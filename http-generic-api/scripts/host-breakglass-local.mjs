@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { buildHostBreakglassPlan } from "../hostBreakglassCatalog.js";
+import { verifyHostBreakglassLocalRequest } from "../hostBreakglassLocalRequest.js";
 import { runBootstrap, sanitizeBootstrapError } from "../runtimeBootstrapContract.js";
 import { readStagingRuntimeBootstrapContract } from "../stagingRuntimeBootstrapContract.js";
 import { STAGING_ROLE_GRANT_POLICIES } from "../databasePrivilegeContracts.js";
@@ -19,7 +20,17 @@ const requestPath = path.resolve(process.cwd(), process.argv[requestIndex + 1]);
 const request = JSON.parse(fs.readFileSync(requestPath, "utf8"));
 request.environment_key = "staging_local_windows_docker";
 const bootstrapContract = readStagingRuntimeBootstrapContract();
-const plan = buildHostBreakglassPlan(request, { bootstrapContract });
+const verifiedRequest = request.contract === "mad4b.host-breakglass-local-request.v2" ? verifyHostBreakglassLocalRequest(request) : null;
+const planInput = verifiedRequest ? { ...verifiedRequest, environment_key: "staging_local_windows_docker" } : request;
+const durableProof = planInput.operation_key === "database.rebuild_empty" && planInput.action === "apply_migration" ? planInput.role_selection_proof : null;
+if (planInput.operation_key === "database.rebuild_empty" && planInput.action === "apply_migration" && !verifiedRequest) {
+  throw Object.assign(new Error("Selective Staging rebuild requires the verified local request envelope."), { code: "host_breakglass_verified_rebuild_request_required", status: 409 });
+}
+const plan = buildHostBreakglassPlan(planInput, {
+  bootstrapContract,
+  ...(durableProof ? { proofResolver: () => durableProof } : {}),
+});
+const authorityPlanHash = String(verifiedRequest?.authority_plan_hash || request.authority_plan_hash || plan.plan_sha256).trim().toLowerCase();
 
 function stagingContract() { return structuredClone(bootstrapContract); }
 function stable(value) { return Array.isArray(value) ? value.map(stable) : value && typeof value === "object" ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, stable(value[key])])) : value; }
@@ -87,9 +98,9 @@ function localEnv() {
     BOOTSTRAP_REBUILD_CONFIRMATION: plan.action === "apply_migration" && plan.operation_key === "database.rebuild_empty" ? plan.confirmation || "" : "",
     BOOTSTRAP_ROLE_SELECTION: Array.isArray(plan.selected_rebuild_roles) ? plan.selected_rebuild_roles.join(",") : "",
     BOOTSTRAP_INSPECTION_RUN_ID: plan.role_selection_proof?.inspection_run_id || "",
-    BOOTSTRAP_PLAN_SHA256: plan.plan_sha256,
+    BOOTSTRAP_PLAN_SHA256: authorityPlanHash,
     BOOTSTRAP_ROLE_SELECTION_HASH: plan.role_selection_proof?.selection_hash || "",
-    BOOTSTRAP_ROLE_OBJECT_COUNT_FINGERPRINTS: plan.role_selection_proof?.role_object_count_fingerprints ? JSON.stringify(plan.role_selection_proof.role_object_count_fingerprints) : "",
+    BOOTSTRAP_ROLE_OBJECT_COUNT_FINGERPRINTS: plan.role_selection_proof ? JSON.stringify(plan.role_selection_proof) : "",
     BOOTSTRAP_GRANTS_CONFIRMATION: plan.action === "apply_grants" ? plan.confirmation || "" : "",
     BOOTSTRAP_GRANT_BINDING_HASH: plan.grant_binding_hash || "",
     BOOTSTRAP_EXECUTION_TICKET_ID: plan.execution_ticket_id || "",
@@ -137,7 +148,7 @@ function stagingBootstrapAuthorityClient(env) {
     target_key: expected.target_key || plan.target_key,
     target_fingerprint: expected.target_fingerprint,
     operation: expected.operation,
-    plan_hash: plan.plan_sha256,
+    plan_hash: authorityPlanHash,
     idempotency_key: plan.correlation_id,
     role_selection_hash: expected.role_selection_hash || plan.role_selection_proof?.selection_hash || null,
     grant_binding_hash: expected.grant_binding_hash || plan.grant_binding_hash || null,
@@ -237,7 +248,7 @@ try {
   const authority = stagingBootstrapAuthorityClient(env);
   const result = await runBootstrap({ env, contract: stagingContract(), repoRoot: path.resolve(API_ROOT, ".."), executionTicketVerifier: authority.executionTicketVerifier, partialReceiptStore: authority.partialReceiptStore });
   if (["apply_migration", "apply_grants"].includes(plan.action)) await authority.finalize(result);
-  process.stdout.write(`${JSON.stringify({ ...result, environment_key: plan.environment_key, execution_transport: "local_cli", execution_ticket_finalized: ["apply_migration", "apply_grants"].includes(plan.action), secrets_included: false })}\n`);
+  process.stdout.write(`${JSON.stringify({ ...result, environment_key: plan.environment_key, execution_transport: "local_cli", authority_plan_hash: authorityPlanHash, transport_plan_sha256: plan.plan_sha256, execution_ticket_finalized: ["apply_migration", "apply_grants"].includes(plan.action), secrets_included: false })}\n`);
 } catch (error) {
   const sanitized = sanitizeBootstrapError(error);
   const mutationPerformed = sanitized?.details?.database_mutation_performed ?? false;
