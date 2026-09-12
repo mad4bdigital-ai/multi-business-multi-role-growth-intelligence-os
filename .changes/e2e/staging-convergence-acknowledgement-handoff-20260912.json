@@ -14,6 +14,7 @@
       "autopilot-portable-staging/manifest.json",
       "http-generic-api/scripts/staging-environment-convergence-plan.mjs",
       "http-generic-api/test-staging-convergence-acknowledgement-cli.mjs",
+      "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
       "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
     ]
   },
@@ -46,6 +47,7 @@
         "The operator controls only the plan hash, not the environment, commit, or provider target.",
         "An obsolete plan hash cannot authorize a different exact commit.",
         "Handoff readiness does not imply provider execution or certification readiness.",
+        "PowerShell terminates with a separate One-Click handoff JSON contract and exit 0 only for an acknowledged plan.",
         "secrets_included is false."
       ],
       "tests": [{
@@ -54,11 +56,18 @@
         "working_directory": "http-generic-api",
         "path": "test-staging-convergence-acknowledgement-cli.mjs",
         "args": []
+      }, {
+        "id": "staging-one-click-powershell-handoff",
+        "runner": "node",
+        "working_directory": "http-generic-api",
+        "path": "test-staging-one-click-autopilot-contract.mjs",
+        "args": []
       }],
       "evidence_paths": [
         ".changes/e2e/staging-convergence-acknowledgement-handoff-20260912.json",
         "http-generic-api/scripts/staging-environment-convergence-plan.mjs",
         "http-generic-api/test-staging-convergence-acknowledgement-cli.mjs",
+        "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
         "autopilot-portable-staging/Invoke-Staging-One-Click.ps1"
       ]
     }]
