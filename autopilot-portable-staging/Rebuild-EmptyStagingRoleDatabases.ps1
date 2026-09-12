@@ -52,6 +52,10 @@ function Invoke-Authority([string]$Path, $Body, [string]$ApiKey) {
     Fail "Staging authority rejected or could not process $Path : $detail"
   }
 }
+function Invoke-RecoverySystemTool([string]$Name, $Arguments, [string]$ApiKey) {
+  $body = [ordered]@{ name = $Name; tool_args = $Arguments }
+  return Invoke-Authority "/admin/system/tools/call" $body $ApiKey
+}
 
 Require (Test-Path -LiteralPath $envFile -PathType Leaf) "Local .env.staging is missing"
 foreach ($file in @($builder, $classifier, $inspectionPreparer, $verifiedRunner)) { Require (Test-Path -LiteralPath $file -PathType Leaf) "Required canonical bootstrap component is missing: $file" }
@@ -63,7 +67,7 @@ Require ((Native-Text "git" @("-C", $repo, "rev-parse", "HEAD")).ToLowerInvarian
 Require ([string]::IsNullOrWhiteSpace((Native-Text "git" @("-C", $repo, "status", "--porcelain", "--untracked-files=no")))) "Tracked working tree is dirty"
 Require ((Native-Text "git" @("-C", $repo, "remote", "get-url", "origin")) -match 'github\.com[:/]mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os(?:\.git)?$') "Repository origin mismatch"
 foreach ($key in @("MIGRATION_APPLIED", "DATABASE_MUTATED", "PRODUCTION_MUTATION_AUTHORIZED", "RULESET_MUTATION_AUTHORIZED")) { Require ((Read-Env $key) -ceq "false") "$key must be false" }
-Require ([string]::IsNullOrWhiteSpace($RebuildConfirmation)) "Legacy REBUILD_EMPTY_LOCAL_STAGING_DATABASES confirmation is retired; server-issued approval/ticket authority is required"
+Require ([string]::IsNullOrWhiteSpace($RebuildConfirmation)) "Legacy REBUILD_EMPTY_LOCAL_STAGING_DATABASES confirmation is retired; server-issued Recovery approval/ticket authority is required"
 Require ($AuthorityUrl -match '^https://activation-dev\.mad4b\.com/?$') "Rebuild-empty authority must remain activation-dev.mad4b.com"
 
 & docker compose @compose config --quiet
@@ -80,7 +84,7 @@ if ($Apply -and -not [string]::IsNullOrWhiteSpace($VerifiedRequestFile)) {
   exit 0
 }
 if ($Apply -and [string]::IsNullOrWhiteSpace($VerifiedRequestFile) -and [string]::IsNullOrWhiteSpace($ApprovalConfirmation)) {
-  Fail "-Apply requires either a server-issued -VerifiedRequestFile or the exact -ApprovalConfirmation returned by prepare"
+  Fail "-Apply requires either a server-issued -VerifiedRequestFile or the exact -ApprovalConfirmation returned by Recovery prepare"
 }
 
 $roles = @(
@@ -120,7 +124,7 @@ Require ($LASTEXITCODE -eq 0) "Canonical role schema bundle plan failed"
 Require ($LASTEXITCODE -eq 0) "Canonical schema bundle build failed"
 Require (Test-Path -LiteralPath $bundleManifest -PathType Leaf) "Canonical generated schema-bundle manifest is missing"
 
-$inspectionJson = (& node $inspectionPreparer --expected-commit $ExpectedCommit --correlation-id $CorrelationId --census-json $censusJson --manifest $bundleManifest | Out-String).Trim()
+$inspectionJson = (& node $inspectionPreparer --expected-commit $ExpectedCommit --correlation-id $CorrelationId --census-json $censusJson --manifest $bundleManifest --env-file $envFile | Out-String).Trim()
 Require ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($inspectionJson)) "Governed inspection evidence preparation failed"
 $inspectionEnvelope = $inspectionJson | ConvertFrom-Json
 New-Item -ItemType Directory -Force -Path $EvidenceDirectory | Out-Null
@@ -128,13 +132,13 @@ $inspectionPath = Join-Path $EvidenceDirectory "inspection-$CorrelationId.json"
 Save-Json $inspectionPath $inspectionEnvelope
 
 $apiKey = Read-Env "BACKEND_API_KEY"
-Require (-not [string]::IsNullOrWhiteSpace($apiKey)) "Existing BACKEND_API_KEY is required for private Staging authority"
-$inspectionReceipt = Invoke-Authority "/admin/runtime-bootstrap/staging/rebuild-empty/inspection" $inspectionEnvelope $apiKey
-Require ($inspectionReceipt.status -ceq "durable_full_inspection_recorded" -and $inspectionReceipt.role_selection_authoritative -eq $true -and $inspectionReceipt.database_mutation_performed -eq $false) "Server did not durably authorize selected zero-object roles"
+Require (-not [string]::IsNullOrWhiteSpace($apiKey)) "Existing BACKEND_API_KEY is required for private Staging Recovery authority"
+$inspectionReceipt = Invoke-RecoverySystemTool "staging_recovery_rebuild_empty_inspection_record" $inspectionEnvelope $apiKey
+Require ($inspectionReceipt.status -ceq "durable_full_inspection_recorded" -and $inspectionReceipt.role_selection_authoritative -eq $true -and $inspectionReceipt.database_mutation_performed -eq $false) "Recovery authority did not durably authorize selected zero-object roles"
 
 $prepareInput = [ordered]@{ expected_sha = $ExpectedCommit; inspection_run_id = $inspectionReceipt.inspection_run_id; idempotency_key = $CorrelationId }
-$prepareReceipt = Invoke-Authority "/admin/runtime-bootstrap/staging/rebuild-empty/prepare" $prepareInput $apiKey
-Require ($prepareReceipt.status -ceq "approval_required" -and $prepareReceipt.execution_ticket_not_returned -eq $true -and $prepareReceipt.database_mutation_performed -eq $false) "Staging rebuild plan did not stop at explicit approval"
+$prepareReceipt = Invoke-RecoverySystemTool "staging_recovery_rebuild_empty_prepare" $prepareInput $apiKey
+Require ($prepareReceipt.status -in @("approval_required", "execution_ticket_already_issued") -and $prepareReceipt.database_mutation_performed -eq $false) "Staging rebuild plan did not remain inside the Recovery approval lifecycle"
 $preparePath = Join-Path $EvidenceDirectory "prepare-$CorrelationId.json"
 Save-Json $preparePath $prepareReceipt
 
@@ -146,7 +150,7 @@ if ([string]::IsNullOrWhiteSpace($ApprovalConfirmation)) {
   exit 0
 }
 
-Require ($ApprovalConfirmation -ceq $prepareReceipt.approval_confirmation) "Approval confirmation does not match the exact authority plan/step/SHA/role selection"
+Require ($ApprovalConfirmation -ceq $prepareReceipt.approval_confirmation) "Approval confirmation does not match the exact Recovery plan/step/SHA/role selection"
 $approveInput = [ordered]@{
   plan_id = $prepareReceipt.plan_id
   authority_plan_hash = $prepareReceipt.authority_plan_hash
@@ -154,8 +158,8 @@ $approveInput = [ordered]@{
   idempotency_key = $CorrelationId
   approval_confirmation = $ApprovalConfirmation
 }
-$approvalReceipt = Invoke-Authority "/admin/runtime-bootstrap/staging/rebuild-empty/approve" $approveInput $apiKey
-Require ($approvalReceipt.status -ceq "execution_ticket_issued_local_handoff_ready" -and $approvalReceipt.local_handoff.verified_request -and $approvalReceipt.database_mutation_performed -eq $false) "Server did not issue the verified local selective rebuild handoff"
+$approvalReceipt = Invoke-RecoverySystemTool "staging_recovery_rebuild_empty_approve" $approveInput $apiKey
+Require ($approvalReceipt.status -ceq "execution_ticket_issued_local_handoff_ready" -and $approvalReceipt.local_handoff.verified_request -and $approvalReceipt.database_mutation_performed -eq $false) "Recovery authority did not issue the verified local selective rebuild handoff"
 $verifiedPath = Join-Path $EvidenceDirectory $approvalReceipt.local_handoff.request_file_name
 Save-Json $verifiedPath $approvalReceipt.local_handoff.verified_request
 Write-Host "STAGING_REBUILD_EMPTY_VERIFIED_HANDOFF_READY: commit=$ExpectedCommit selected_roles=$([string]::Join(',', $approvalReceipt.selected_zero_object_roles)) preserved_roles=$([string]::Join(',', $approvalReceipt.preserved_nonempty_roles)) request=$verifiedPath mutation=false"
