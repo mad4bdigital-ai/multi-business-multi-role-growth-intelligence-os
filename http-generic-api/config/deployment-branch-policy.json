@@ -104,6 +104,7 @@
           ".gitignore",
           "http-generic-api/scripts/prepare-staging-build-context.mjs",
           "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs",
+          "http-generic-api/scripts/classify-staging-empty-role-census.mjs",
           "http-generic-api/docker-compose.staging.yml",
           "http-generic-api/docker-compose.staging.windows-service.yml",
           "http-generic-api/docker-compose.staging.docker-sidecar.yml",

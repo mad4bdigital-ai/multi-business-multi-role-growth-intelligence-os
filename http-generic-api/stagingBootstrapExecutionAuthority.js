@@ -7,6 +7,7 @@ export const STAGING_BOOTSTRAP_RESERVATION_RECEIPT_CONTRACT = "mad4b.staging-boo
 export const STAGING_BOOTSTRAP_EXECUTION_RECEIPT_CONTRACT = "mad4b.staging-bootstrap-execution-receipt.v1";
 export const STAGING_BOOTSTRAP_READBACK_EVIDENCE_CONTRACT = "mad4b.staging-bootstrap-local-readback-evidence.v1";
 export const STAGING_BOOTSTRAP_READBACK_RECEIPT_CONTRACT = "mad4b.staging-bootstrap-readback-receipt.v1";
+export const STAGING_BOOTSTRAP_LIFECYCLE_RECEIPT_CONTRACT = "mad4b.staging-bootstrap-lifecycle-receipt.v1";
 const SHA40 = /^[0-9a-f]{40}$/u;
 const SHA256 = /^[0-9a-f]{64}$/u;
 const TICKET_ID = /^ticket:[A-Za-z0-9._:-]{8,160}$/u;
@@ -36,9 +37,6 @@ function hasSensitiveKey(value, depth = 0) {
   if (Array.isArray(value)) return value.some((item) => hasSensitiveKey(item, depth + 1));
   if (!isObject(value)) return false;
   return Object.entries(value).some(([key, child]) => {
-    // `secrets_included: false` is the mandatory redaction attestation carried by
-    // every governed evidence envelope. Treat only that exact sentinel as safe;
-    // truthy or malformed variants must continue to fail closed.
     if (key === "secrets_included" && child === false) return false;
     return SENSITIVE_KEY_RE.test(key) || hasSensitiveKey(child, depth + 1);
   });
@@ -75,8 +73,6 @@ function receiptPayload(receipt) {
 }
 
 function signerProjection(payload) {
-  // executionTicketVerifier intentionally excludes ticket_id from ticket signatures.
-  // The receipt_hash still commits to the complete payload, including ticket_id.
   return Object.fromEntries(Object.entries(payload).filter(([key]) => key !== "ticket_id"));
 }
 
@@ -113,6 +109,41 @@ function assertReceiptBinding(payload, { ticketId, ticketHash, binding, reservat
     || (payload.role_selection_hash || null) !== binding.role_selection_hash
     || (reservationGeneration && payload.reservation_generation !== reservationGeneration);
   if (mismatch) fail(payload.expected_sha !== binding.production_sha ? "STAGING_SHA_MISMATCH" : "RECOVERY_TICKET_BINDING_MISMATCH", "Receipt is not bound to this exact ticket reservation and repair plan.", { reconciliation_required: true, automatic_rerun_allowed: false }, 409);
+}
+
+function lifecycleBindingMatches(record, { ticketId, ticketHash, binding } = {}) {
+  return Boolean(record
+    && record.contract === STAGING_BOOTSTRAP_LIFECYCLE_RECEIPT_CONTRACT
+    && record.ticket_id === ticketId
+    && record.execution_ticket_hash === ticketHash
+    && record.binding_hash === digest(binding)
+    && record.expected_sha === binding.production_sha
+    && record.target_key === binding.target_key
+    && record.target_fingerprint === binding.target_fingerprint
+    && record.operation === binding.operation
+    && record.plan_hash === binding.plan_hash
+    && record.idempotency_key === binding.idempotency_key
+    && (record.role_selection_hash || null) === binding.role_selection_hash
+    && (record.grant_binding_hash || null) === binding.grant_binding_hash);
+}
+
+function lifecycleBase({ ticketId, ticketHash, binding }) {
+  return {
+    contract: STAGING_BOOTSTRAP_LIFECYCLE_RECEIPT_CONTRACT,
+    ticket_id: ticketId,
+    execution_ticket_hash: ticketHash,
+    expected_sha: binding.production_sha,
+    target_key: binding.target_key,
+    target_fingerprint: binding.target_fingerprint,
+    operation: binding.operation,
+    plan_hash: binding.plan_hash,
+    idempotency_key: binding.idempotency_key,
+    role_selection_hash: binding.role_selection_hash,
+    grant_binding_hash: binding.grant_binding_hash,
+    binding_hash: digest(binding),
+    production_authority: false,
+    secrets_included: false,
+  };
 }
 
 function validateReadbackEvidence(evidence, { ticketId, binding, reservationGeneration, now = Date.now() } = {}) {
@@ -171,7 +202,7 @@ export function createStagingBootstrapExecutionAuthority({ env = process.env } =
   const signatureVerifier = graph.executionTicketVerifier;
   const receiptSigner = graph.executionTicketSigner;
   const partialReceiptStore = graph.partialReceiptStore;
-  if (!store || typeof store.getExecutionTicket !== "function" || typeof store.reserveExecutionTicket !== "function" || typeof store.finalizeExecutionTicket !== "function" || typeof store.putIdempotencyReceipt !== "function" || typeof store.appendEvidenceEvent !== "function") fail("RECOVERY_STAGING_BOOTSTRAP_STORE_UNAVAILABLE", "Durable Staging execution-ticket storage is unavailable.");
+  if (!store || typeof store.getExecutionTicket !== "function" || typeof store.reserveExecutionTicket !== "function" || typeof store.finalizeExecutionTicket !== "function" || typeof store.putIdempotencyReceipt !== "function" || typeof store.getRunByIdempotency !== "function" || typeof store.appendEvidenceEvent !== "function") fail("RECOVERY_STAGING_BOOTSTRAP_STORE_UNAVAILABLE", "Durable Staging execution-ticket storage is unavailable.");
   if (!signatureVerifier?.verify || !receiptSigner?.sign) fail("RECOVERY_STAGING_BOOTSTRAP_VERIFIER_UNAVAILABLE", "The server-managed Staging Ed25519 authority is unavailable.");
 
   const verifyTicketAndBinding = async ({ ticket_id, ticket_hash, expected } = {}) => {
@@ -186,6 +217,17 @@ export function createStagingBootstrapExecutionAuthority({ env = process.env } =
     return { ticketId, ticketHash, binding };
   };
 
+  const readLifecycle = async ({ ticketId, ticketHash, binding }) => {
+    const existing = await store.getRunByIdempotency(binding.idempotency_key);
+    if (!existing) return null;
+    if (existing.contract === STAGING_BOOTSTRAP_EXECUTION_AUTHORITY_CONTRACT && existing.status === "finalized") {
+      if (existing.ticket_id === ticketId && existing.binding_hash === digest(binding) && existing.plan_hash === binding.plan_hash && existing.expected_sha === binding.production_sha) return { finalized: true, audit: existing };
+      fail("RECOVERY_IDEMPOTENCY_CONFLICT", "Bootstrap idempotency key is already finalized for different ticket content.", { reconciliation_required: true, automatic_rerun_allowed: false }, 409);
+    }
+    if (!lifecycleBindingMatches(existing, { ticketId, ticketHash, binding })) fail("RECOVERY_IDEMPOTENCY_CONFLICT", "Bootstrap idempotency key is already bound to a different ticket lifecycle.", { reconciliation_required: true, automatic_rerun_allowed: false }, 409);
+    return { finalized: false, lifecycle: existing };
+  };
+
   const authority = {
     contract: STAGING_BOOTSTRAP_EXECUTION_AUTHORITY_CONTRACT,
     environment: "staging",
@@ -193,8 +235,19 @@ export function createStagingBootstrapExecutionAuthority({ env = process.env } =
 
     async verifyForBootstrap(input = {}) {
       const { ticketId, ticketHash, binding } = await verifyTicketAndBinding(input);
+      const prior = await readLifecycle({ ticketId, ticketHash, binding });
+      if (prior?.finalized) return { valid: false, reserved: false, finalized: true, lifecycle_state: "finalized", reason: "ticket_already_finalized", error_code: "RECOVERY_TICKET_ALREADY_FINALIZED", reconciliation_required: false, automatic_rerun_allowed: false, database_mutation_performed: true, secrets_included: false };
+      if (prior?.lifecycle?.reservation_receipt) {
+        const reservation = await verifyReceipt(signatureVerifier, prior.lifecycle.reservation_receipt, { contract: STAGING_BOOTSTRAP_RESERVATION_RECEIPT_CONTRACT, domain: STAGING_BOOTSTRAP_RESERVATION_RECEIPT_CONTRACT });
+        assertReceiptBinding(reservation, { ticketId, ticketHash, binding });
+        return { valid: true, reserved: true, idempotent_replay: true, contract: STAGING_BOOTSTRAP_EXECUTION_AUTHORITY_CONTRACT, reservation_generation: reservation.reservation_generation, reservation_fingerprint: digest({ ticket_id: ticketId, ticket_hash: ticketHash, reservation_generation: reservation.reservation_generation, ...binding }), reservation_receipt: prior.lifecycle.reservation_receipt, lifecycle_state: prior.lifecycle.lifecycle_state, reconciliation_required: false, database_mutation_performed: prior.lifecycle.lifecycle_state === "reserved" ? false : null, secrets_included: false };
+      }
       const reservation = await store.reserveExecutionTicket({ ticket_id: ticketId, ticket_hash: ticketHash, idempotency_key: binding.idempotency_key, plan_hash: binding.plan_hash, target_key: binding.target_key, operation: binding.operation, grant_binding_hash: binding.grant_binding_hash, reserved_for: "staging_local_bootstrap", secrets_included: false });
-      if (reservation?.reserved !== true) return { valid: false, reserved: false, reason: "ticket_already_reserved_or_finalized", error_code: "RECOVERY_TICKET_ALREADY_RESERVED", reconciliation_required: true, automatic_rerun_allowed: false, database_mutation_performed: false, secrets_included: false };
+      if (reservation?.reserved !== true) {
+        const replay = reservation?.same_idempotency === true ? await readLifecycle({ ticketId, ticketHash, binding }) : null;
+        if (replay?.lifecycle?.reservation_receipt) return authority.verifyForBootstrap(input);
+        return { valid: false, reserved: false, reason: "ticket_already_reserved_or_finalized", error_code: "RECOVERY_TICKET_ALREADY_RESERVED", reconciliation_required: true, automatic_rerun_allowed: false, database_mutation_performed: false, secrets_included: false };
+      }
       const now = Date.now();
       const reservationGeneration = randomUUID();
       const payload = {
@@ -217,6 +270,7 @@ export function createStagingBootstrapExecutionAuthority({ env = process.env } =
         receipt_nonce: randomUUID(),
       };
       const reservationReceipt = await signReceipt(receiptSigner, payload, STAGING_BOOTSTRAP_RESERVATION_RECEIPT_CONTRACT);
+      await store.putIdempotencyReceipt(binding.idempotency_key, { ...lifecycleBase({ ticketId, ticketHash, binding }), lifecycle_state: "reserved", reservation_generation: reservationGeneration, reservation_receipt: reservationReceipt, updated_at: new Date().toISOString() });
       await store.appendEvidenceEvent(binding.idempotency_key, { event: "staging_bootstrap_ticket_reserved", phase: "reserved", ticket_id: ticketId, reservation_generation: reservationGeneration, expected_sha: binding.production_sha, plan_hash: binding.plan_hash, binding_hash: digest(binding), receipt_hash: reservationReceipt.receipt_hash, secrets_included: false });
       return { valid: true, reserved: true, contract: STAGING_BOOTSTRAP_EXECUTION_AUTHORITY_CONTRACT, reservation_generation: reservationGeneration, reservation_fingerprint: digest({ ticket_id: ticketId, ticket_hash: ticketHash, reservation_generation: reservationGeneration, ...binding }), reservation_receipt: reservationReceipt, lifecycle_state: "reserved", reconciliation_required: false, database_mutation_performed: false, secrets_included: false };
     },
@@ -226,6 +280,14 @@ export function createStagingBootstrapExecutionAuthority({ env = process.env } =
       const reservation = await verifyReceipt(signatureVerifier, reservation_receipt, { contract: STAGING_BOOTSTRAP_RESERVATION_RECEIPT_CONTRACT, domain: STAGING_BOOTSTRAP_RESERVATION_RECEIPT_CONTRACT });
       assertReceiptBinding(reservation, { ticketId, ticketHash, binding });
       if (reservation.binding_hash !== digest(binding)) fail("RECOVERY_TICKET_BINDING_MISMATCH", "Reservation receipt binding fingerprint is invalid.", { reconciliation_required: true, automatic_rerun_allowed: false }, 409);
+      const prior = await readLifecycle({ ticketId, ticketHash, binding });
+      if (prior?.finalized) fail("RECOVERY_TICKET_ALREADY_FINALIZED", "Execution ticket is already finalized and cannot re-enter execution.", { reconciliation_required: false, automatic_rerun_allowed: false }, 409);
+      if (prior?.lifecycle?.reservation_receipt?.receipt_hash !== reservation_receipt.receipt_hash) fail("RECOVERY_TICKET_BINDING_MISMATCH", "Execution-start retry does not match the durable reservation receipt.", { reconciliation_required: true, automatic_rerun_allowed: false }, 409);
+      if (prior?.lifecycle?.execution_receipt) {
+        const execution = await verifyReceipt(signatureVerifier, prior.lifecycle.execution_receipt, { contract: STAGING_BOOTSTRAP_EXECUTION_RECEIPT_CONTRACT, domain: STAGING_BOOTSTRAP_EXECUTION_RECEIPT_CONTRACT });
+        assertReceiptBinding(execution, { ticketId, ticketHash, binding, reservationGeneration: reservation.reservation_generation });
+        return { executing: true, idempotent_replay: true, lifecycle_state: "executing", execution_receipt: prior.lifecycle.execution_receipt, reservation_generation: reservation.reservation_generation, reconciliation_required: false, database_mutation_performed: false, secrets_included: false };
+      }
       const now = Date.now();
       const payload = {
         contract: STAGING_BOOTSTRAP_EXECUTION_RECEIPT_CONTRACT,
@@ -249,6 +311,7 @@ export function createStagingBootstrapExecutionAuthority({ env = process.env } =
         receipt_nonce: randomUUID(),
       };
       const executionReceipt = await signReceipt(receiptSigner, payload, STAGING_BOOTSTRAP_EXECUTION_RECEIPT_CONTRACT);
+      await store.putIdempotencyReceipt(binding.idempotency_key, { ...(prior?.lifecycle || lifecycleBase({ ticketId, ticketHash, binding })), ...lifecycleBase({ ticketId, ticketHash, binding }), lifecycle_state: "executing", reservation_generation: reservation.reservation_generation, reservation_receipt, execution_receipt: executionReceipt, updated_at: new Date().toISOString() });
       await store.appendEvidenceEvent(binding.idempotency_key, { event: "staging_bootstrap_execution_started", phase: "executing", ticket_id: ticketId, reservation_generation: reservation.reservation_generation, expected_sha: binding.production_sha, plan_hash: binding.plan_hash, binding_hash: digest(binding), reservation_receipt_hash: reservation_receipt.receipt_hash, receipt_hash: executionReceipt.receipt_hash, secrets_included: false });
       return { executing: true, lifecycle_state: "executing", execution_receipt: executionReceipt, reservation_generation: reservation.reservation_generation, reconciliation_required: false, database_mutation_performed: false, secrets_included: false };
     },
@@ -262,6 +325,15 @@ export function createStagingBootstrapExecutionAuthority({ env = process.env } =
       assertReceiptBinding(execution, { ticketId, ticketHash, binding, reservationGeneration: reservation.reservation_generation });
       if (execution.reservation_receipt_hash !== reservation_receipt.receipt_hash || execution.binding_hash !== digest(binding)) fail("RECOVERY_READBACK_UNVERIFIED", "Execution-start receipt is not bound to the exact reservation receipt.", { reconciliation_required: true, automatic_rerun_allowed: false }, 409);
       const readback = validateReadbackEvidence(evidence, { ticketId, binding, reservationGeneration: reservation.reservation_generation });
+      const prior = await readLifecycle({ ticketId, ticketHash, binding });
+      if (prior?.finalized) return { verified: true, finalized: true, idempotent_replay: true, lifecycle_state: "finalized", evidence_hash: prior.audit.evidence_hash, result_fingerprint: prior.audit.result_fingerprint, secrets_included: false };
+      if (prior?.lifecycle?.execution_receipt?.receipt_hash !== execution_receipt.receipt_hash) fail("RECOVERY_READBACK_UNVERIFIED", "Readback retry is not bound to the durable execution-start receipt.", { reconciliation_required: true, automatic_rerun_allowed: false }, 409);
+      if (prior?.lifecycle?.readback_receipt) {
+        if (prior.lifecycle.readback_evidence_hash !== readback.evidence_hash || prior.lifecycle.result_fingerprint !== readback.result_fingerprint) fail("RECOVERY_IDEMPOTENCY_CONFLICT", "Readback retry changed evidence for an existing ticket lifecycle.", { reconciliation_required: true, automatic_rerun_allowed: false }, 409);
+        const persisted = await verifyReceipt(signatureVerifier, prior.lifecycle.readback_receipt, { contract: STAGING_BOOTSTRAP_READBACK_RECEIPT_CONTRACT, domain: STAGING_BOOTSTRAP_READBACK_RECEIPT_CONTRACT });
+        assertReceiptBinding(persisted, { ticketId, ticketHash, binding, reservationGeneration: reservation.reservation_generation });
+        return { verified: true, idempotent_replay: true, lifecycle_state: "verifying", readback_receipt: prior.lifecycle.readback_receipt, evidence_hash: readback.evidence_hash, result_fingerprint: readback.result_fingerprint, secrets_included: false };
+      }
       const now = Date.now();
       const payload = {
         contract: STAGING_BOOTSTRAP_READBACK_RECEIPT_CONTRACT,
@@ -287,23 +359,27 @@ export function createStagingBootstrapExecutionAuthority({ env = process.env } =
         receipt_nonce: randomUUID(),
       };
       const receipt = await signReceipt(receiptSigner, payload, STAGING_BOOTSTRAP_READBACK_RECEIPT_CONTRACT);
+      await store.putIdempotencyReceipt(binding.idempotency_key, { ...(prior?.lifecycle || lifecycleBase({ ticketId, ticketHash, binding })), ...lifecycleBase({ ticketId, ticketHash, binding }), lifecycle_state: "verifying", reservation_generation: reservation.reservation_generation, reservation_receipt, execution_receipt, readback_receipt: receipt, readback_evidence_hash: readback.evidence_hash, result_fingerprint: readback.result_fingerprint, updated_at: new Date().toISOString() });
       await store.appendEvidenceEvent(binding.idempotency_key, { event: "staging_bootstrap_readback_attested", phase: "verifying", ticket_id: ticketId, reservation_generation: reservation.reservation_generation, expected_sha: binding.production_sha, plan_hash: binding.plan_hash, binding_hash: digest(binding), execution_receipt_hash: execution_receipt.receipt_hash, evidence_hash: readback.evidence_hash, result_fingerprint: readback.result_fingerprint, receipt_hash: receipt.receipt_hash, secrets_included: false });
       return { verified: true, lifecycle_state: "verifying", readback_receipt: receipt, evidence_hash: readback.evidence_hash, result_fingerprint: readback.result_fingerprint, secrets_included: false };
     },
 
     async finalizeForBootstrap({ ticket_id, ticket_hash, expected, readback_receipt } = {}) {
       const { ticketId, ticketHash, binding } = await verifyTicketAndBinding({ ticket_id, ticket_hash, expected });
+      const prior = await readLifecycle({ ticketId, ticketHash, binding });
+      if (prior?.finalized) return { finalized: true, idempotent_replay: true, status: "finalized", lifecycle_state: "finalized", execution_receipt_hash: prior.audit.execution_receipt_hash, readback_evidence_hash: prior.audit.evidence_hash, result_fingerprint: prior.audit.result_fingerprint, audit: prior.audit, secrets_included: false };
       if (!readback_receipt || readback_receipt.contract !== STAGING_BOOTSTRAP_READBACK_RECEIPT_CONTRACT) fail("RECOVERY_READBACK_UNVERIFIED", "Ticket finalization requires a server-signed same-cycle readback receipt; caller booleans and arbitrary hashes are not accepted.", { reconciliation_required: true, automatic_rerun_allowed: false }, 409);
       const receipt = await verifyReceipt(signatureVerifier, readback_receipt, { contract: STAGING_BOOTSTRAP_READBACK_RECEIPT_CONTRACT, domain: STAGING_BOOTSTRAP_READBACK_RECEIPT_CONTRACT });
       assertReceiptBinding(receipt, { ticketId, ticketHash, binding, reservationGeneration: receipt.reservation_generation });
       if (!SHA256.test(text(receipt.execution_receipt_hash, 128).toLowerCase()) || !SHA256.test(text(receipt.evidence_hash, 128).toLowerCase()) || !SHA256.test(text(receipt.result_fingerprint, 128).toLowerCase()) || receipt.binding_hash !== digest(binding)) fail("RECOVERY_READBACK_UNVERIFIED", "Readback receipt execution, evidence, or binding fingerprint is invalid.", { reconciliation_required: true }, 409);
+      if (prior?.lifecycle?.readback_receipt?.receipt_hash !== readback_receipt.receipt_hash) fail("RECOVERY_READBACK_UNVERIFIED", "Finalization receipt does not match the durable readback lifecycle receipt.", { reconciliation_required: true, automatic_rerun_allowed: false }, 409);
       const finalizedAt = new Date().toISOString();
       const finalized = await store.finalizeExecutionTicket({ ticket_id: ticketId, ticket_hash: ticketHash, idempotency_key: binding.idempotency_key, plan_hash: binding.plan_hash, target_key: binding.target_key, operation: binding.operation, reservation_generation: receipt.reservation_generation, outcome: "verified", same_cycle_readback: true, readback_evidence_hash: receipt.evidence_hash, result_fingerprint: receipt.result_fingerprint, provider_acknowledged: true, secrets_included: false });
-      if (finalized?.finalized !== true) fail("RECOVERY_RECONCILIATION_REQUIRED", "The durable ticket reservation could not be finalized; reconciliation is required and replay is forbidden.", { reconciliation_required: true, automatic_rerun_allowed: false }, 409);
-      const audit = { contract: STAGING_BOOTSTRAP_EXECUTION_AUTHORITY_CONTRACT, status: "finalized", ticket_id: ticketId, run_id: binding.idempotency_key, expected_sha: binding.production_sha, repair_key: binding.operation === "grants" ? "staging_database_access_repair" : binding.operation, target_key: binding.target_key, plan_hash: binding.plan_hash, binding_hash: digest(binding), execution_receipt_hash: receipt.execution_receipt_hash, evidence_hash: receipt.evidence_hash, result_fingerprint: receipt.result_fingerprint, reservation_generation: receipt.reservation_generation, finalized_at: finalizedAt, secrets_included: false };
+      if (finalized?.finalized !== true && finalized?.already_finalized !== true) fail("RECOVERY_RECONCILIATION_REQUIRED", "The durable ticket reservation could not be finalized; reconciliation is required and replay is forbidden.", { reconciliation_required: true, automatic_rerun_allowed: false }, 409);
+      const audit = { contract: STAGING_BOOTSTRAP_EXECUTION_AUTHORITY_CONTRACT, status: "finalized", ticket_id: ticketId, run_id: binding.idempotency_key, expected_sha: binding.production_sha, repair_key: binding.operation === "grants" ? "staging_database_access_repair" : binding.operation, target_key: binding.target_key, target_fingerprint: binding.target_fingerprint, plan_hash: binding.plan_hash, binding_hash: digest(binding), execution_receipt_hash: receipt.execution_receipt_hash, evidence_hash: receipt.evidence_hash, result_fingerprint: receipt.result_fingerprint, reservation_generation: receipt.reservation_generation, finalized_at: finalizedAt, secrets_included: false };
       await store.putIdempotencyReceipt(binding.idempotency_key, audit);
       await store.appendEvidenceEvent(binding.idempotency_key, { event: "staging_bootstrap_ticket_finalized", phase: "finalized", ...audit });
-      return { finalized: true, status: "finalized", lifecycle_state: "finalized", execution_receipt_hash: receipt.execution_receipt_hash, readback_evidence_hash: receipt.evidence_hash, result_fingerprint: receipt.result_fingerprint, audit, secrets_included: false };
+      return { finalized: true, idempotent_replay: finalized?.already_finalized === true, status: "finalized", lifecycle_state: "finalized", execution_receipt_hash: receipt.execution_receipt_hash, readback_evidence_hash: receipt.evidence_hash, result_fingerprint: receipt.result_fingerprint, audit, secrets_included: false };
     },
 
     partialReceiptStore: Object.freeze({
@@ -316,4 +392,4 @@ export function createStagingBootstrapExecutionAuthority({ env = process.env } =
   return Object.freeze(authority);
 }
 
-export const _testingStagingBootstrapExecutionAuthority = Object.freeze({ normalizeExpected, digest, resolveAuthorityGraph, hasSensitiveKey, signerProjection, signReceipt, verifyReceipt, validateReadbackEvidence, assertReceiptBinding });
+export const _testingStagingBootstrapExecutionAuthority = Object.freeze({ normalizeExpected, digest, resolveAuthorityGraph, hasSensitiveKey, signerProjection, signReceipt, verifyReceipt, validateReadbackEvidence, assertReceiptBinding, lifecycleBindingMatches, lifecycleBase });

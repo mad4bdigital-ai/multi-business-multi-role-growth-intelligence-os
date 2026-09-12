@@ -230,6 +230,13 @@
       "patterns": [
         "http-generic-api/schema.sql",
         "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+        "autopilot-portable-staging/Rebuild-EmptyStagingRoleDatabases.ps1",
+        "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1",
+        "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs",
+        "http-generic-api/config/staging-empty-governance-certification-seed.sql",
+        ".changes/e2e/staging-empty-role-db-bootstrap-20260912.json",
+        "http-generic-api/scripts/classify-staging-empty-role-census.mjs",
+        "http-generic-api/test-staging-empty-role-db-bootstrap.mjs",
         "http-generic-api/test-staging-schema-bundle-builder.mjs"
       ]
     }
@@ -415,6 +422,7 @@
     ".changes/e2e/staging-autopilot-bootstrap-self-update.json",
     ".changes/e2e/production-promotion-release-cut-controller.json",
     ".changes/e2e/staging-schema-bootstrap-role-aware.json",
+    ".changes/e2e/staging-empty-role-db-bootstrap-20260912.json",
     ".changes/e2e/staging-schema-bootstrap-stdin-transport.json",
     ".changes/e2e/staging-actions-baseline-contract.json",
     ".changes/e2e/staging-endpoints-baseline-autopilot-entrypoint.json",

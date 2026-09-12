@@ -117,6 +117,29 @@ function Invoke-DatabaseScalar([object]$Item, [string[]]$ComposeArgs, [string]$S
   if ([string]::IsNullOrWhiteSpace($value)) { Fail "Runtime database scalar query returned no value for $($Item.Key)" }
   return $value.Trim()
 }
+function Invoke-RootScalar([object]$Item, [string[]]$ComposeArgs, [string]$Sql) {
+  $password = Read-Env $Item.RootPassword
+  $result = (& docker compose @ComposeArgs exec -T -e "MYSQL_PWD=$password" $Item.Service mariadb --protocol=socket --user=root --batch --skip-column-names --raw -e $Sql | Out-String).Trim()
+  if ($LASTEXITCODE -ne 0 -or $result -notmatch '^\d+$') { Fail "Root schema census failed for $($Item.Key)" }
+  return [int]$result
+}
+function Assert-EmptyRoleDatabases([object[]]$Services, [string[]]$ComposeArgs) {
+  # Inspect all roles before the first DDL. INFORMATION_SCHEMA includes unexpected
+  # tables and views, not just the canonical role table list.
+  $census = @()
+  foreach ($item in $Services) {
+    $db = Read-Env $item.Database
+    Require ($db -match '^[A-Za-z0-9_]+$' -and $db -notmatch '(?i)(production|hostinger)') "Unsafe Staging database name for $($item.Key)"
+    $quoted = "'" + $db + "'"
+    $schemaCount = Invoke-RootScalar $item $ComposeArgs "SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME=$quoted"
+    Require ($schemaCount -eq 1) "Role database does not exist for $($item.Key)"
+    $objects = Invoke-RootScalar $item $ComposeArgs "SELECT (SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=$quoted) + (SELECT COUNT(*) FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA=$quoted) + (SELECT COUNT(*) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA=$quoted) + (SELECT COUNT(*) FROM information_schema.EVENTS WHERE EVENT_SCHEMA=$quoted)"
+    $census += [pscustomobject]@{ role = $item.Key; database = $db; object_count = $objects }
+  }
+  $occupied = @($census | Where-Object { $_.object_count -ne 0 })
+  if ($occupied.Count -gt 0) { Fail "rebuild_empty refuses non-empty or partially populated roles: $(($occupied | ForEach-Object { $_.role }) -join ',')" }
+  return $census
+}
 function Test-SafeSeed([string]$Sql, [string]$File) {
   $forbidden = @(
     '(?im)^\s*GRANT\b', '(?im)^\s*REVOKE\b', '(?im)^\s*CREATE\s+USER\b',
@@ -230,7 +253,8 @@ foreach ($item in $roleConfig) {
   Require (Test-Path -LiteralPath $source -PathType Leaf) "Missing required schema_only bundle: $($item.File)"
   Require ((Get-Sha256 $source) -eq ([string]$role.sha256).ToLowerInvariant()) "Bundle hash mismatch: $($item.File)"
   Require (Test-GzipFile $source) "Bundle gzip validation failed: $($item.File)"
-  $services += [pscustomobject]@{ Key = $item.Key; Service = $item.Service; Database = $item.Database; User = $item.User; Password = $item.Password; RootPassword = $item.RootPassword; File = $item.File; Source = $source; ExpectedTables = @($role.tables) }
+  $expectedViews = if ($null -ne $role.PSObject.Properties['views']) { @($role.views) } else { @() }
+  $services += [pscustomobject]@{ Key = $item.Key; Service = $item.Service; Database = $item.Database; User = $item.User; Password = $item.Password; RootPassword = $item.RootPassword; File = $item.File; Source = $source; ExpectedTables = @($role.tables); ExpectedViews = $expectedViews }
 }
 $runtimeRole = $bundleManifest.roles.runtime
 Assert-ContainsSet $requiredRuntimeCensus @($runtimeRole.tables) "runtime required 18-table census"
@@ -259,10 +283,21 @@ try {
   $existingState = $null
   if (Test-Path -LiteralPath $BundleStatePath) { $existingState = Read-Json $BundleStatePath }
   if ($null -ne $existingState -and [string]$existingState.status -eq "completed" -and [string]$existingState.source_commit -eq $ExpectedCommit.ToLowerInvariant() -and [string]$existingState.manifest_sha256 -eq $manifestSha -and [string]$existingState.canonical_seed_status -eq "completed" -and [string]$existingState.authority_seed_status -eq "completed" -and [string]$existingState.canonical_seed_readback.status -eq "passed") {
+    foreach ($item in $services) {
+      $tableText = Invoke-DatabaseQuery $item $compose "SHOW FULL TABLES"
+      $actual = Get-TableNames $tableText
+      Assert-SetEqual $item.ExpectedTables $actual $item.Key
+      if ($null -ne $bundleManifest.PSObject.Properties['replay_preparation']) {
+        $observedViews = @($tableText -split "`r?`n" | Where-Object { $_ -match "`tVIEW$" } | ForEach-Object { ($_ -split "`t")[0].Trim() })
+        Assert-SetEqual $item.ExpectedViews $observedViews "$($item.Key) view"
+      }
+    }
     Write-Host "SCHEMA_IMPORT_ALREADY_COMPLETE: source_commit=$ExpectedCommit manifest_sha256=$manifestSha"
     exit 0
   }
   if ($null -ne $existingState -and [string]$existingState.status -eq "applying") { Fail "Previous schema import is marked applying; refusing blind resume. Stop/reset local Staging containers and rerun after review." }
+
+  $preImportCensus = Assert-EmptyRoleDatabases $services $compose
 
   $state = [ordered]@{
     contract = "mad4b.staging.schema-import-state.v1"
@@ -271,6 +306,7 @@ try {
     manifest_sha256 = $manifestSha
     mode = "schema_only"
     roles = @($services | ForEach-Object { $_.Key })
+    pre_import_census = @($preImportCensus)
     applied_roles = @()
     canonical_seed_contract = [string]$canonicalSeedManifest.contract
     canonical_seed_files = @($canonicalSeedRows | ForEach-Object { [string]$_.file })
@@ -293,11 +329,11 @@ try {
     $db = Read-Env $item.Database
     $user = Read-Env $item.User
     $password = Read-Env $item.Password
-    Require ($db -notmatch '(?i)(production|hostinger)' -and $user -notmatch '(?i)(production|hostinger)') "Target database identity is not Staging-local: $($item.Key)"
+    Require ($db -match '^[A-Za-z0-9_]+$' -and $db -notmatch '(?i)(production|hostinger)' -and $user -match '^[A-Za-z0-9_]+$' -and $user -notmatch '(?i)(production|hostinger)') "Target database identity is not Staging-local: $($item.Key)"
     $containerPath = "/tmp/$($item.File)"
     & docker compose @compose cp $item.Source "$($item.Service):$containerPath"
     Require ($LASTEXITCODE -eq 0) "Failed to copy bundle into $($item.Service)"
-    & docker compose @compose exec -T -e "MYSQL_PWD=$password" $item.Service sh -lc "gzip -dc '$containerPath' | sed -E 's/DEFINER=[^ ]+/DEFINER=CURRENT_USER/g' | mariadb --protocol=socket -u'$user' '$db'"
+    & docker compose @compose exec -T -e "MYSQL_PWD=$password" $item.Service bash -o pipefail -c "gzip -dc '$containerPath' | sed -E 's/DEFINER=[^ ]+/DEFINER=CURRENT_USER/g' | mariadb --protocol=socket -u'$user' '$db'"
     if ($LASTEXITCODE -ne 0) { Fail "Schema import failed for role $($item.Key); state remains applying for explicit recovery." }
     & docker compose @compose exec -T $item.Service rm -f $containerPath
     if ($LASTEXITCODE -ne 0) { Fail "Failed to remove temporary bundle from $($item.Service)" }
@@ -347,6 +383,10 @@ try {
     Require ($LASTEXITCODE -eq 0) "Post-import table readback failed for $($item.Key)"
     $actualTables = Get-TableNames $tableText
     Assert-SetEqual $item.ExpectedTables $actualTables $item.Key
+    if ($null -ne $bundleManifest.PSObject.Properties['replay_preparation']) {
+      $observedViews = @($tableText -split "`r?`n" | Where-Object { $_ -match "`tVIEW$" } | ForEach-Object { ($_ -split "`t")[0].Trim() })
+      Assert-SetEqual $item.ExpectedViews $observedViews "$($item.Key) view"
+    }
     if ($item.Key -eq "runtime") { $runtimeTableNames = @($actualTables) }
   }
   Assert-ContainsSet $requiredRuntimeCensus @($runtimeTableNames) "post-import 18-table census"

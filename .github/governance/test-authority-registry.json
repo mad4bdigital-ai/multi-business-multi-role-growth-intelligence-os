@@ -482,6 +482,7 @@
       "id": "staging_schema_bundle_bootstrap",
       "test_paths": [
         "http-generic-api/test-staging-schema-bundle-builder.mjs",
+        "http-generic-api/test-staging-empty-role-db-bootstrap.mjs",
         "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
         "http-generic-api/test-database-foreign-key-compatibility-policy.mjs",
         "http-generic-api/test-mariadb-collation-ci-guard.mjs",

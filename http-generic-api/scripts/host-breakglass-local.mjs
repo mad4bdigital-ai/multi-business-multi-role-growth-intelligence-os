@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { buildHostBreakglassPlan } from "../hostBreakglassCatalog.js";
+import { verifyHostBreakglassLocalRequest } from "../hostBreakglassLocalRequest.js";
 import { runBootstrap, sanitizeBootstrapError } from "../runtimeBootstrapContract.js";
 import { readStagingRuntimeBootstrapContract } from "../stagingRuntimeBootstrapContract.js";
 import { STAGING_ROLE_GRANT_POLICIES } from "../databasePrivilegeContracts.js";
@@ -19,7 +20,17 @@ const requestPath = path.resolve(process.cwd(), process.argv[requestIndex + 1]);
 const request = JSON.parse(fs.readFileSync(requestPath, "utf8"));
 request.environment_key = "staging_local_windows_docker";
 const bootstrapContract = readStagingRuntimeBootstrapContract();
-const plan = buildHostBreakglassPlan(request, { bootstrapContract });
+const verifiedRequest = request.contract === "mad4b.host-breakglass-local-request.v2" ? verifyHostBreakglassLocalRequest(request) : null;
+const planInput = verifiedRequest ? { ...verifiedRequest, environment_key: "staging_local_windows_docker" } : request;
+const durableProof = planInput.operation_key === "database.rebuild_empty" && planInput.action === "apply_migration" ? planInput.role_selection_proof : null;
+if (planInput.operation_key === "database.rebuild_empty" && planInput.action === "apply_migration" && !verifiedRequest) {
+  throw Object.assign(new Error("Selective Staging rebuild requires the verified local request envelope."), { code: "host_breakglass_verified_rebuild_request_required", status: 409 });
+}
+if (planInput.operation_key === "database.rebuild_empty" && planInput.action === "apply_migration" && process.env.HOST_BREAKGLASS_ROLE_BUNDLE_VERIFICATION !== "ticket_role_bundle_bindings_verified") {
+  throw Object.assign(new Error("Selective Staging rebuild must enter through the verified wrapper after exact ticket role-bundle verification."), { code: "host_breakglass_role_bundle_verification_required", status: 409 });
+}
+const plan = buildHostBreakglassPlan(planInput, { bootstrapContract, ...(durableProof ? { proofResolver: () => durableProof } : {}) });
+const authorityPlanHash = String(verifiedRequest?.authority_plan_hash || request.authority_plan_hash || plan.plan_sha256).trim().toLowerCase();
 
 function stagingContract() { return structuredClone(bootstrapContract); }
 function stable(value) { return Array.isArray(value) ? value.map(stable) : value && typeof value === "object" ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, stable(value[key])])) : value; }
@@ -87,9 +98,9 @@ function localEnv() {
     BOOTSTRAP_REBUILD_CONFIRMATION: plan.action === "apply_migration" && plan.operation_key === "database.rebuild_empty" ? plan.confirmation || "" : "",
     BOOTSTRAP_ROLE_SELECTION: Array.isArray(plan.selected_rebuild_roles) ? plan.selected_rebuild_roles.join(",") : "",
     BOOTSTRAP_INSPECTION_RUN_ID: plan.role_selection_proof?.inspection_run_id || "",
-    BOOTSTRAP_PLAN_SHA256: plan.plan_sha256,
+    BOOTSTRAP_PLAN_SHA256: authorityPlanHash,
     BOOTSTRAP_ROLE_SELECTION_HASH: plan.role_selection_proof?.selection_hash || "",
-    BOOTSTRAP_ROLE_OBJECT_COUNT_FINGERPRINTS: plan.role_selection_proof?.role_object_count_fingerprints ? JSON.stringify(plan.role_selection_proof.role_object_count_fingerprints) : "",
+    BOOTSTRAP_ROLE_OBJECT_COUNT_FINGERPRINTS: plan.role_selection_proof ? JSON.stringify(plan.role_selection_proof) : "",
     BOOTSTRAP_GRANTS_CONFIRMATION: plan.action === "apply_grants" ? plan.confirmation || "" : "",
     BOOTSTRAP_GRANT_BINDING_HASH: plan.grant_binding_hash || "",
     BOOTSTRAP_EXECUTION_TICKET_ID: plan.execution_ticket_id || "",
@@ -100,7 +111,7 @@ function localEnv() {
     HOST_BREAKGLASS_ENVIRONMENT_KEY: plan.environment_key,
     HOST_BREAKGLASS_CAPSULE_PATH: plan.capsule_path || "",
     HOST_BREAKGLASS_CAPSULE_SHA256: plan.capsule_sha256 || "",
-    HOST_BREAKGLASS_CAPSULE_CONFIRMATION: plan.confirmation || ""
+    HOST_BREAKGLASS_CAPSULE_CONFIRMATION: plan.confirmation || "",
   };
 }
 
@@ -116,12 +127,7 @@ function stagingBootstrapAuthorityClient(env) {
   const post = async (pathname, body) => {
     let response;
     try {
-      response = await fetch(`${baseUrl}${pathname}`, {
-        method: "POST",
-        headers: { "content-type": "application/json", "x-api-key": backendApiKey, "x-request-id": plan.correlation_id },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(20000),
-      });
+      response = await fetch(`${baseUrl}${pathname}`, { method: "POST", headers: { "content-type": "application/json", "x-api-key": backendApiKey, "x-request-id": plan.correlation_id }, body: JSON.stringify(body), signal: AbortSignal.timeout(20000) });
     } catch (error) {
       throw Object.assign(new Error("Staging bootstrap execution authority is unreachable; no automatic local mutation is allowed."), { code: "host_breakglass_staging_ticket_authority_unreachable", status: 503, cause: error });
     }
@@ -137,7 +143,7 @@ function stagingBootstrapAuthorityClient(env) {
     target_key: expected.target_key || plan.target_key,
     target_fingerprint: expected.target_fingerprint,
     operation: expected.operation,
-    plan_hash: plan.plan_sha256,
+    plan_hash: authorityPlanHash,
     idempotency_key: plan.correlation_id,
     role_selection_hash: expected.role_selection_hash || plan.role_selection_proof?.selection_hash || null,
     grant_binding_hash: expected.grant_binding_hash || plan.grant_binding_hash || null,
@@ -172,6 +178,7 @@ function stagingBootstrapAuthorityClient(env) {
         ? Boolean(roleReadback && Object.keys(roleReadback).length && Object.values(roleReadback).every((entry) => entry?.ready === true))
         : Boolean(result?.postconditions?.ready === true || result?.role_rebuild_evidence?.verification?.every?.((entry) => entry?.required_tables_present === true));
       if (!readbackReady) throw Object.assign(new Error("Local bootstrap completed without the canonical same-cycle readback required to finalize its ticket."), { code: "RECOVERY_READBACK_UNVERIFIED", status: 409, details: { database_mutation_performed: result?.database_mutation_performed === true, reconciliation_required: true, automatic_rerun_allowed: false } });
+      if (result?.operation === "database.rebuild_empty" && result?.role_rebuild_evidence?.preserved_roles_unchanged !== true) throw Object.assign(new Error("Selective rebuild completed without proof that every preserved non-selected role remained unchanged."), { code: "RECOVERY_PRESERVED_ROLE_READBACK_UNVERIFIED", status: 409, details: { database_mutation_performed: true, reconciliation_required: true, automatic_rerun_allowed: false } });
       const roleProjection = roleReadback ? Object.fromEntries(Object.entries(roleReadback).map(([role, entry]) => [role, { ready: entry?.ready === true, evidence_fingerprint: evidenceHash(entry) }])) : null;
       const evidence = {
         contract: "mad4b.staging-bootstrap-local-readback-evidence.v1",
@@ -200,6 +207,61 @@ function stagingBootstrapAuthorityClient(env) {
         error.details = { ...(error.details || {}), database_mutation_performed: result?.database_mutation_performed === true, reconciliation_required: true, automatic_rerun_allowed: false };
         throw error;
       }
+    },
+  };
+}
+
+async function verifyPreservedRolesAfterSelectiveRebuild(result, env) {
+  if (result?.operation !== "database.rebuild_empty") return result;
+  const selected = new Set(Array.isArray(result.selected_rebuild_roles) ? result.selected_rebuild_roles : []);
+  const before = result?.role_rebuild_evidence?.role_object_count_fingerprints_before || {};
+  const preservedRoles = ["runtime", "governance", "runtime_persistence"].filter((role) => !selected.has(role));
+  const postEnv = {
+    ...env,
+    BOOTSTRAP_MODE: "dry_run",
+    BOOTSTRAP_MIGRATION: "",
+    BOOTSTRAP_MIGRATION_CONFIRMATION: "",
+    BOOTSTRAP_REBUILD_CONFIRMATION: "",
+    BOOTSTRAP_GRANTS_CONFIRMATION: "",
+    BOOTSTRAP_ROLE_SELECTION: "",
+    BOOTSTRAP_INSPECTION_RUN_ID: "",
+    BOOTSTRAP_PLAN_SHA256: "",
+    BOOTSTRAP_ROLE_SELECTION_HASH: "",
+    BOOTSTRAP_ROLE_OBJECT_COUNT_FINGERPRINTS: "",
+    BOOTSTRAP_EXECUTION_TICKET_ID: "",
+    BOOTSTRAP_EXECUTION_TICKET_HASH: "",
+    HOST_BREAKGLASS_OPERATION: "database.inspect",
+  };
+  const readback = await runBootstrap({ env: postEnv, contract: stagingContract(), repoRoot: path.resolve(API_ROOT, "..") });
+  const after = readback?.role_database_object_count_fingerprints || {};
+  const changed = preservedRoles.filter((role) => !before[role] || !after[role] || before[role] !== after[role]);
+  if (changed.length) {
+    throw Object.assign(new Error("A preserved non-selected database role changed during selective rebuild."), {
+      code: "RECOVERY_PRESERVED_ROLE_CHANGED",
+      status: 409,
+      details: { preserved_roles: preservedRoles, changed_roles: changed, database_mutation_performed: true, reconciliation_required: true, automatic_rerun_allowed: false, secrets_included: false },
+    });
+  }
+  const preservedBefore = Object.fromEntries(preservedRoles.map((role) => [role, before[role]]));
+  const preservedAfter = Object.fromEntries(preservedRoles.map((role) => [role, after[role]]));
+  return {
+    ...result,
+    role_rebuild_evidence: {
+      ...result.role_rebuild_evidence,
+      role_object_count_fingerprints_after: after,
+      preserved_roles: preservedRoles,
+      preserved_role_fingerprints_before: preservedBefore,
+      preserved_role_fingerprints_after: preservedAfter,
+      preserved_roles_unchanged: true,
+      preserved_role_readback_same_cycle: true,
+    },
+    postconditions: {
+      ...(result.postconditions || {}),
+      preserved_roles: preservedRoles,
+      preserved_role_fingerprints_before: preservedBefore,
+      preserved_role_fingerprints_after: preservedAfter,
+      preserved_roles_unchanged: true,
+      preserved_role_readback_same_cycle: true,
     },
   };
 }
@@ -235,9 +297,10 @@ try {
   }
   const env = localEnv();
   const authority = stagingBootstrapAuthorityClient(env);
-  const result = await runBootstrap({ env, contract: stagingContract(), repoRoot: path.resolve(API_ROOT, ".."), executionTicketVerifier: authority.executionTicketVerifier, partialReceiptStore: authority.partialReceiptStore });
+  const initialResult = await runBootstrap({ env, contract: stagingContract(), repoRoot: path.resolve(API_ROOT, ".."), executionTicketVerifier: authority.executionTicketVerifier, partialReceiptStore: authority.partialReceiptStore });
+  const result = await verifyPreservedRolesAfterSelectiveRebuild(initialResult, env);
   if (["apply_migration", "apply_grants"].includes(plan.action)) await authority.finalize(result);
-  process.stdout.write(`${JSON.stringify({ ...result, environment_key: plan.environment_key, execution_transport: "local_cli", execution_ticket_finalized: ["apply_migration", "apply_grants"].includes(plan.action), secrets_included: false })}\n`);
+  process.stdout.write(`${JSON.stringify({ ...result, environment_key: plan.environment_key, execution_transport: "local_cli", authority_plan_hash: authorityPlanHash, transport_plan_sha256: plan.plan_sha256, execution_ticket_finalized: ["apply_migration", "apply_grants"].includes(plan.action), secrets_included: false })}\n`);
 } catch (error) {
   const sanitized = sanitizeBootstrapError(error);
   const mutationPerformed = sanitized?.details?.database_mutation_performed ?? false;

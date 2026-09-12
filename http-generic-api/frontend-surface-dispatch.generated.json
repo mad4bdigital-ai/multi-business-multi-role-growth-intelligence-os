@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "c886b681d67d8ec6d2ff5bed8461eb18e566685bb17f5c9add8322baef5487bb",
+    "source_digest": "74874e05ad0e9d5f301fb6f436c4d8c2281c9cedbabf3c7e743242f5d5155c77",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -396,7 +396,7 @@
       },
       {
         "file": "routes/adminHostBreakglassRoutes.js",
-        "sha256": "2e00c7f72ea429dfb8a7a0a7e6c96edda0a11478162ad892f97981b2ffa939ca",
+        "sha256": "35431fe0c68b5ca09094588b5356c7f5860b39baee3b63fe40e9d3392eaa586d",
         "present": true
       },
       {
@@ -981,7 +981,7 @@
       },
       {
         "file": "routes/stagingRecoveryAdminRoutes.js",
-        "sha256": "7137608d6df3d04eeac113a87633bea97463e09e8cace6a762bd092ba771bd73",
+        "sha256": "46c063f64fde56daee0f47cf9ed4a83ec80e2662a8aa2ca5687525f39627f2c5",
         "present": true
       },
       {
@@ -1091,7 +1091,7 @@
       },
       {
         "file": "test-admin-host-breakglass-routes.mjs",
-        "sha256": "1c3e27ffce6b6950288aaf62d2d7f4a71e6aead53a1f047287a087d839f20496",
+        "sha256": "de83e4c71a93dde996bdcd3ea147310b250ae0211e3b7c074f0b4d36aa32991a",
         "present": true
       },
       {
@@ -2751,7 +2751,7 @@
       "family_key": "admin-host-breakglass",
       "label": "admin host breakglass",
       "source_file": "routes/adminHostBreakglassRoutes.js",
-      "source_digest": "2e00c7f72ea429dfb8a7a0a7e6c96edda0a11478162ad892f97981b2ffa939ca",
+      "source_digest": "35431fe0c68b5ca09094588b5356c7f5860b39baee3b63fe40e9d3392eaa586d",
       "mount_prefix": "/",
       "mount_order": 13354,
       "split_from_mixed_scope_file": false,
@@ -3738,7 +3738,7 @@
       "family_key": "staging-recovery-admin",
       "label": "staging recovery admin",
       "source_file": "routes/stagingRecoveryAdminRoutes.js",
-      "source_digest": "7137608d6df3d04eeac113a87633bea97463e09e8cace6a762bd092ba771bd73",
+      "source_digest": "46c063f64fde56daee0f47cf9ed4a83ec80e2662a8aa2ca5687525f39627f2c5",
       "mount_prefix": "/",
       "mount_order": 13507,
       "split_from_mixed_scope_file": false,

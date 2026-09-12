@@ -313,6 +313,7 @@ function main() {
         compressed_bytes: gzip.length,
         table_count: plan.roles[role].expected_objects.length,
         tables: plan.roles[role].expected_objects,
+        views: plan.roles[role].views,
       };
       publicPlan.roles[role].output_file = target;
       publicPlan.roles[role].prepared_bundle_sha256 = preparedManifest.roles[role].sha256;

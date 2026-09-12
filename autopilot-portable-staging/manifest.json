@@ -38,7 +38,7 @@
     },
     {
       "path": "autopilot-portable-staging/README.md",
-      "sha256": "8a998016fa5583bfd0562a8b8f910db7b50b049091540c1724a2c74e448e80a4"
+      "sha256": "54ef225a8470321c095dd51eec9454d5dc3fcec633af73997dc00d145ee1d42a"
     },
     {
       "path": "autopilot-portable-staging/Show-StagingLogs.ps1",
@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "cf3174d044e545e8e59ad1e5a0becc70015df287965b0a302375095588858ae1"
+      "sha256": "3ea1e459816db47bc793e108b5eee7ecff73e7f6a79dc6d79a6c40e49c49c7d5"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
@@ -150,7 +150,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "3fcba7d2a90ab98bbf37571a6e0eb72a7668dfefdd08074130aabd490762b2bf"
+      "sha256": "31a86da39b43f5b103b7c8fb6ba3c590bd87d23d98c93c5e2e7d50a250fde77e"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "573fa4cca6b02f5522e65725afa55a16a10ecfd792b37d2cdc0f56c99fa33208"
+      "sha256": "9679903eaa93099b22a5458fd940ab06ce3c0a3adba5d4e560d836208e479f21"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -318,11 +318,11 @@
     },
     {
       "path": "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1",
-      "sha256": "f6cca4769be3a37c9011ab58b5caca3600a3714b5f9ac7b53f2b05f9412ecae3"
+      "sha256": "b0c561d86d39d19743392eecb8aeedd10ed0279d75e9c5c9d41a3961edf41898"
     },
     {
       "path": "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs",
-      "sha256": "a637cae107f64ed8ddd4dd7d892153653e9aca7beae94a316f66f249529d4465"
+      "sha256": "41566f018476d621a4225c031badfd42a78502f1a7d4807ff59724a9adb7eb59"
     },
     {
       "path": "http-generic-api/scripts/staging-sql-parser.mjs",

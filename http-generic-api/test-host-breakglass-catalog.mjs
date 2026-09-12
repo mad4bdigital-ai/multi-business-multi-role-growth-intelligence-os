@@ -24,6 +24,12 @@ const ROLE_SELECTION_PROOF = {
   selected_roles: ["governance", "runtime_persistence"],
   role_object_count_fingerprints: { governance: "d".repeat(64), runtime_persistence: "e".repeat(64) },
 };
+test("Staging rebuild confirmation prefix matches the canonical local overlay", () => {
+  const catalog = publicHostBreakglassCatalog();
+  const overlay = JSON.parse(fs.readFileSync(path.join(process.cwd(), "config/host-breakglass-staging-contract.json"), "utf8"));
+  assert.equal(catalog.environments.staging_local_windows_docker.rebuild_confirmation_prefix, "APPLY_STAGING_RUNTIME_BASELINE_REBUILD");
+  assert.equal(catalog.environments.staging_local_windows_docker.rebuild_confirmation_prefix, overlay.rebuild_confirmation_prefix);
+});
 fs.mkdirSync(path.dirname(SQL_PATH), { recursive: true });
 fs.mkdirSync(path.dirname(SHELL_PATH), { recursive: true });
 fs.writeFileSync(SQL_PATH, SQL);
