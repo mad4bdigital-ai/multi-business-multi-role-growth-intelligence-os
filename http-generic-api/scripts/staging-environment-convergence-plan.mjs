@@ -6,6 +6,8 @@ import { runEnvironmentConvergence } from "../environmentConvergenceEngine.js";
 import { readEnvironmentConvergenceRegistry } from "../environmentConvergenceRegistry.js";
 
 const SHA_RE = /^[0-9a-f]{40}$/u;
+const HASH_RE = /^[0-9a-f]{64}$/u;
+const ACK_CONTRACT = "mad4b.environment-convergence-operator-acknowledgement.v1";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const apiRoot = path.resolve(here, "..");
 const repositoryRoot = path.resolve(apiRoot, "..");
@@ -23,6 +25,7 @@ function parseArgs(argv) {
     preflight: path.join(repositoryRoot, "autopilot-portable-staging", "logs", "staging-schema-governance-preflight.json"),
     repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
     recoveryTrustExact: true,
+    acknowledgedPlanSha256: null,
   };
   for (let index = 2; index < argv.length; index += 1) {
     const key = argv[index];
@@ -31,6 +34,7 @@ function parseArgs(argv) {
     else if (key === "--preflight") { out.preflight = path.resolve(value); index += 1; }
     else if (key === "--repository") { out.repository = String(value || "").trim(); index += 1; }
     else if (key === "--recovery-trust-exact") { out.recoveryTrustExact = String(value || "").trim().toLowerCase() === "true"; index += 1; }
+    else if (key === "--acknowledged-plan-sha256") { out.acknowledgedPlanSha256 = String(value || "").trim().toLowerCase(); index += 1; }
     else fail("staging_convergence_argument_unknown", `Unknown argument: ${key}`);
   }
   return out;
@@ -90,6 +94,9 @@ try {
   ]);
 
   if (reasons.length === 0) {
+    if (args.acknowledgedPlanSha256) {
+      fail("staging_convergence_acknowledgement_without_plan", "No current reconciliation plan exists for this acknowledgement.");
+    }
     console.log(JSON.stringify({
       contract: "mad4b.staging-environment-convergence-bridge.v1",
       status: "not_required",
@@ -119,16 +126,40 @@ try {
     certificationReport,
     registry,
   });
+  let finalRun = convergenceRun;
+  if (args.acknowledgedPlanSha256 !== null) {
+    if (!HASH_RE.test(args.acknowledgedPlanSha256)
+      || args.acknowledgedPlanSha256 !== convergenceRun.plan?.plan_sha256) {
+      fail("staging_convergence_acknowledgement_mismatch", "Operator acknowledgement does not match the current Staging plan and exact commit.");
+    }
+    const acknowledgement = {
+      contract: ACK_CONTRACT,
+      plan_sha256: args.acknowledgedPlanSha256,
+      environment: "staging",
+      commit_sha: commit,
+    };
+    finalRun = runEnvironmentConvergence({
+      environment: "staging",
+      releaseSpec: { repository: args.repository, source_branch: "main", commit_sha: commit },
+      certificationReport,
+      operatorAcknowledgement: acknowledgement,
+      registry,
+    });
+    if (finalRun.plan?.plan_sha256 !== convergenceRun.plan.plan_sha256
+      || !["handoff_ready", "governed_authority_required"].includes(finalRun.status)) {
+      fail("staging_convergence_acknowledgement_not_accepted", "Operator acknowledgement did not yield a governed handoff.");
+    }
+  }
 
   console.log(JSON.stringify({
     contract: "mad4b.staging-environment-convergence-bridge.v1",
-    status: convergenceRun.status,
+    status: finalRun.status,
     expected_commit: commit,
     reasons,
-    report: { convergence: convergenceRun.classification || null },
-    plan: convergenceRun.plan || null,
-    approval_checkpoint: convergenceRun.approval_checkpoint || null,
-    convergence_run: convergenceRun,
+    report: { convergence: finalRun.classification || null },
+    plan: finalRun.plan || null,
+    approval_checkpoint: finalRun.approval_checkpoint || null,
+    convergence_run: finalRun,
     safety: { provider_mutation: false, workflow_dispatch: false, production_mutation: false, database_mutation: false, secrets_included: false },
   }));
 } catch (error) {
