@@ -352,7 +352,7 @@ const savedArtifacts = new Map();
 const savedPlans = new Map();
 const envelopeBindings = new Map();
 const envelopeStates = new Map();
-const executionPool = {
+const governancePool = {
   async query(sql, params = []) {
     const statement = String(sql);
     if (statement.includes("FROM capability_resolution_envelope_ledger") && statement.includes("envelope_json")) {
@@ -370,10 +370,10 @@ const executionPool = {
     if (statement.includes("FROM runtime_dispatch_certification_registry"))
       return [[{ certification_status: "certified", dispatch_allowed: 1, apply_allowed: 1, requires_readback: 1 }]];
     if (statement.includes("UPDATE capability_resolution_envelope_ledger")) {
-      const claim = statement.includes("SET execution_status='referenced'");
-      const id = claim ? params[1] : params[2];
-      const state = envelopeStates.get(id); if (!state) return [{ affectedRows: 0 }];
-      state.execution_status = claim ? "referenced" : params[0];
+      const id = params.at(-1); const state = envelopeStates.get(id);
+      if (!state || (statement.includes("execution_status IN") && !["not_executed", "referenced"].includes(state.execution_status))) return [{ affectedRows: 0 }];
+      state.execution_status = statement.includes("'executed'") ? "executed" : statement.includes("'cancelled'") ? "cancelled" : "referenced";
+      state.execution_ref = params[0];
       return [{ affectedRows: 1 }];
     }
     if (statement.includes("UPDATE staging_activation_gateway_execution_plans")) {
@@ -415,10 +415,24 @@ const executionPool = {
     };
   },
 };
+const runtimePool = {
+  async query(sql, params) {
+    if (/\b(?:INSERT|UPDATE|DELETE)\b/iu.test(String(sql)) || String(sql).includes("staging_activation_gateway_execution_plans") || String(sql).includes("staging_activation_gateway_execution_artifacts") || String(sql).includes("staging_activation_gateway_envelope_plan_bindings"))
+      throw new Error("runtime pool has no governance mutation authority");
+    return governancePool.query(sql, params);
+  },
+  async getConnection() { throw new Error("runtime pool cannot write execution plans"); },
+};
+const adapterSource = fs.readFileSync(path.join(root, "http-generic-api/stagingActivationGatewayApplyAdapter.js"), "utf8");
+assert.doesNotMatch(adapterSource, /UPDATE\s+capability_resolution_envelope_ledger/iu);
+assert.match(adapterSource, /markCapabilityEnvelopeReferenced\(\{ writerPool: governancePool/iu);
+assert.match(adapterSource, /transitionCapabilityEnvelopeLifecycle\(\{ writerPool: governancePool/iu);
+await assert.rejects(runtimePool.query("INSERT INTO staging_activation_gateway_execution_plans VALUES (?)", ["forbidden"]), /runtime pool has no governance mutation authority/u);
+await assert.rejects(runtimePool.getConnection(), /runtime pool cannot write execution plans/u);
 const executionEnv = { ...storageEnv, STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED: "true", DEPLOYMENT_MANIFEST_JSON: JSON.stringify({ repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os", branch: "main", commit_sha: sourceSha }) };
 const dryRunInput = { mode: "dry_run", account_id: accountId, expected_source_commit: sourceSha,
   expected_policy_hash: staging.expected_policy_hash, environment_convergence_plan_sha256: convergencePlanSha };
-const executionDeps = { pool: executionPool, auth, env: executionEnv, cloudflareClient: fakeCloudflareClient,
+const executionDeps = { runtimePool, governancePool, auth, env: executionEnv, cloudflareClient: fakeCloudflareClient,
   registry, repositoryRoot: root };
 const firstExecution = await runStagingActivationGatewayApply(dryRunInput, executionDeps);
 const secondExecution = await runStagingActivationGatewayApply(dryRunInput, executionDeps);
@@ -495,7 +509,7 @@ await assert.rejects(runStagingActivationGatewayApply({ ...applyIdentity,
 (error) => error.code === "staging_activation_gateway_apply_failed" && error.details?.rollback_verified === false);
 assert.equal(providerWrites, 0);
 assert.equal(savedPlans.get(firstExecution.plan_id).status, "failed");
-assert.equal(envelopeStates.get("pre-audit-failure-envelope").execution_status, "failed");
+assert.equal(envelopeStates.get("pre-audit-failure-envelope").execution_status, "cancelled");
 await assert.rejects(runStagingActivationGatewayApply({ ...applyIdentity,
   capability_envelope_id: "pre-audit-failure-envelope" }, { ...executionDeps, audit: async () => {} }),
 (error) => error.code === "staging_activation_gateway_stale_plan");
@@ -558,7 +572,7 @@ await assert.rejects(runStagingActivationGatewayApply({ ...dryRunInput, mode: "a
     if (action === "activation_gateway.staging_apply") throw new Error("durable post-audit unavailable");
   } }), (error) => error.details?.rollback?.rollback_verified === true);
 assert.equal(savedPlans.get(thirdExecution.plan_id).status, "failed");
-assert.equal(envelopeStates.get("post-audit-failure-envelope").execution_status, "failed");
+assert.equal(envelopeStates.get("post-audit-failure-envelope").execution_status, "cancelled");
 assert.equal(providerCalls.some((call) => call.apiPath.endsWith("/deployments?force=true")), true);
 await assert.rejects(
   buildActivationGatewayRolloutPlan({ mode: "dry_run", account_id: "f".repeat(32), expected_source_commit: sourceSha, expected_policy_hash: staging.expected_policy_hash, environment_convergence_plan_sha256: convergencePlanSha }, { pool: dryRunPool, auth, env: { STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED: "true", DEPLOYMENT_MANIFEST_JSON: JSON.stringify({ repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os", branch: "main", commit_sha: sourceSha }) }, cloudflareClient: fakeCloudflareClient, registry, repositoryRoot: root }),

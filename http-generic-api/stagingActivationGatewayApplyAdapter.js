@@ -13,6 +13,8 @@ import {
 import {
   capabilityEnvelopeError,
   resolveCapabilityExecutionEnvelope,
+  markCapabilityEnvelopeReferenced,
+  transitionCapabilityEnvelopeLifecycle,
 } from "./capabilityResolutionEnvelopeGuard.js";
 
 const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
@@ -207,13 +209,13 @@ function canonicalPrincipal(auth = {}) {
   return { type: null, id: null };
 }
 
-async function assertEnvelopeForApply({ pool, auth, input, expectedCommitSha, workspaceId, plan }) {
+async function assertEnvelopeForApply({ runtimePool, governancePool, auth, input, expectedCommitSha, workspaceId, plan }) {
   const { type: principalType, id: principalId } = canonicalPrincipal(auth);
   if (!principalId || !["user", "service"].includes(principalType)) {
     throw adapterError("staging_activation_gateway_principal_unresolved", "A canonical authenticated principal is required.", 403);
   }
   const envelope = await resolveCapabilityExecutionEnvelope({
-    pool,
+    pool: runtimePool,
     envelopeId: input.capability_envelope_id,
     source: input,
     acceptedAppKeys: ["cloudflare"],
@@ -236,7 +238,7 @@ async function assertEnvelopeForApply({ pool, auth, input, expectedCommitSha, wo
   if (!envelope.apply_allowed || !envelope.readback_required) {
     throw adapterError("staging_activation_gateway_capability_envelope_not_applicable", "Capability envelope must allow apply and require readback.", 403, { envelope_id: envelope.envelope_id });
   }
-  const [rows] = await pool.query(
+  const [rows] = await governancePool.query(
     `SELECT capability_key, workspace_id, apply_allowed, readback_required
        FROM capability_resolution_envelope_ledger
       WHERE envelope_id=?
@@ -250,14 +252,14 @@ async function assertEnvelopeForApply({ pool, auth, input, expectedCommitSha, wo
   if (row.workspace_id && workspaceId && row.workspace_id !== workspaceId) {
     throw adapterError("staging_activation_gateway_capability_envelope_workspace_mismatch", "Capability envelope workspace does not match rollout workspace.", 403, { envelope_id: envelope.envelope_id });
   }
-  await pool.query(
+  await governancePool.query(
     `INSERT IGNORE INTO staging_activation_gateway_envelope_plan_bindings
        (envelope_id, plan_id, plan_sha256, environment_convergence_plan_sha256, principal_type, principal_id)
      VALUES (?, ?, ?, ?, ?, ?)`,
     [envelope.envelope_id, plan.plan_id, plan.plan_sha256, plan.environment_convergence_plan_sha256,
       principalType, principalId],
   );
-  const [bindingRows] = await pool.query(
+  const [bindingRows] = await governancePool.query(
     `SELECT plan_id, plan_sha256, environment_convergence_plan_sha256, principal_type, principal_id
        FROM staging_activation_gateway_envelope_plan_bindings WHERE envelope_id=? LIMIT 1`, [envelope.envelope_id],
   );
@@ -267,7 +269,7 @@ async function assertEnvelopeForApply({ pool, auth, input, expectedCommitSha, wo
     || binding.principal_type !== principalType || binding.principal_id !== principalId) {
     throw adapterError("staging_activation_gateway_envelope_plan_binding_mismatch", "Capability envelope is not bound to this exact execution and convergence plan.", 403);
   }
-  const [certRows] = await pool.query(
+  const [certRows] = await runtimePool.query(
     `SELECT certification_key, certification_status, dispatch_allowed, apply_allowed, requires_readback, expires_at
        FROM runtime_dispatch_certification_registry
       WHERE certification_key=?
@@ -280,28 +282,6 @@ async function assertEnvelopeForApply({ pool, auth, input, expectedCommitSha, wo
   );
   if (!certRows?.[0] || certRows[0].certification_status !== "certified") throw adapterError("staging_activation_gateway_dispatch_certification_missing", "Independent Staging Activation Gateway apply certification is missing or expired.", 403);
   return { ...envelope, certification: certRows[0] };
-}
-
-async function claimEnvelope(pool, envelopeId, executionRef) {
-  const [result] = await pool.query(
-    `UPDATE capability_resolution_envelope_ledger
-        SET execution_status='referenced', execution_ref=?, updated_at=NOW()
-      WHERE envelope_id=?
-        AND execution_status='not_executed'
-        AND (execution_ref IS NULL OR execution_ref='')`,
-    [executionRef, envelopeId],
-  );
-  if (Number(result?.affectedRows || 0) !== 1) throw adapterError("staging_activation_gateway_capability_envelope_replay_blocked", "Capability envelope was already claimed, consumed, failed, or cancelled.", 409, { envelope_id: envelopeId, replay_blocked: true });
-}
-
-async function finalizeEnvelope(pool, envelopeId, executionRef, status) {
-  const [result] = await pool.query(
-    `UPDATE capability_resolution_envelope_ledger
-        SET execution_status=?, execution_ref=?, updated_at=NOW()
-      WHERE envelope_id=? AND execution_status='referenced' AND execution_ref=?`,
-    [status, executionRef, envelopeId, executionRef],
-  );
-  if (Number(result?.affectedRows || 0) !== 1) throw adapterError("staging_activation_gateway_capability_envelope_finalize_failed", "Capability envelope final state could not be persisted.", 500, { envelope_id: envelopeId, execution_status: status });
 }
 
 function deploymentList(response) {
@@ -385,7 +365,7 @@ async function rollback({ client, accountId, scriptName, previousDeployment, scr
 export async function buildStagingActivationGatewayApplyPlan(input = {}, deps = {}) {
   const registry = deps.registry || readEnvironmentConvergenceRegistry();
   const { gateway, target, binding_id: bindingId } = requiredProfile(registry);
-  const pool = deps.pool || null;
+  const pool = deps.runtimePool || deps.pool || null;
   const auth = deps.auth || {};
   const expectedSourceCommit = compact(input.expected_source_commit, 64).toLowerCase();
   const expectedPolicyHash = compact(input.expected_policy_hash, 64).toLowerCase();
@@ -475,12 +455,14 @@ export async function buildStagingActivationGatewayApplyPlan(input = {}, deps = 
 export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
   const mode = compact(input.mode || "dry_run", 16).toLowerCase();
   if (!["dry_run", "apply"].includes(mode)) throw adapterError("staging_activation_gateway_mode_invalid", "mode must be dry_run or apply.");
-  const pool = deps.pool;
+  const runtimePool = deps.runtimePool || deps.pool;
+  const governancePool = deps.governancePool;
+  if (!governancePool) throw adapterError("staging_activation_gateway_governance_database_required", "Dedicated Governance DB writer is required.", 503);
   const env = deps.env || process.env;
   if (mode === "dry_run") {
     const plan = await buildStagingActivationGatewayApplyPlan(input, { ...deps, includeInternal: true });
     const { _internal, _planBody, ...publicPlan } = plan;
-    if (plan.apply_ready) await saveStagingGatewayExecutionPlan(pool, plan, _internal.bundle, { env });
+    if (plan.apply_ready) await saveStagingGatewayExecutionPlan(governancePool, plan, _internal.bundle, { env });
     return { ...publicPlan, mode, execution: { will_execute: false, executed: false }, governance_state_mutation: plan.apply_ready };
   }
   const planId = compact(input.plan_id, 36);
@@ -489,7 +471,7 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
   if (!/^[a-f0-9-]{36}$/u.test(planId) || !SHA256_RE.test(planSha) || !SHA256_RE.test(convergencePlanSha)) {
     throw adapterError("staging_activation_gateway_plan_identity_invalid", "Exact plan ID, plan SHA-256, and acknowledged convergence plan SHA-256 are required.");
   }
-  const { row, bundle } = await loadStagingGatewayExecutionPlan(pool, { planId, planSha256: planSha, convergencePlanSha256: convergencePlanSha, env });
+  const { row, bundle } = await loadStagingGatewayExecutionPlan(governancePool, { planId, planSha256: planSha, convergencePlanSha256: convergencePlanSha, env });
   const planBody = parseJson(row.plan_body_json);
   if (!planBody || sha256(stableJson(planBody)) !== planSha || planBody.plan_id !== planId
     || planBody.contract !== "mad4b.staging.activation-gateway-execution-plan.v1"
@@ -506,10 +488,10 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
   }
   const registry = deps.registry || readEnvironmentConvergenceRegistry();
   const { gateway, binding_id: bindingId } = requiredProfile(registry);
-  const binding = await resolveServerResourceBinding(pool, bindingId);
+  const binding = await resolveServerResourceBinding(runtimePool, bindingId);
   assertCallerCannotSelectTarget(input, binding);
   const auth = deps.auth || {};
-  const workspace = await resolveWorkspace(pool, auth, input);
+  const workspace = await resolveWorkspace(runtimePool, auth, input);
   const expectedSourceCommit = compact(input.expected_source_commit, 64).toLowerCase();
   const expectedPolicyHash = compact(input.expected_policy_hash, 64).toLowerCase();
   const actualSourceCommit = await canonicalRuntimeCommit(deps);
@@ -536,10 +518,10 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
   if (!truthy(env.STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED)) throw adapterError("staging_activation_gateway_apply_disabled", "Staging apply feature gate is disabled.", 403);
   const nonce = compact(input.execution_nonce, 128);
   if (!SAFE_NONCE_RE.test(nonce)) throw adapterError("staging_activation_gateway_execution_nonce_invalid", "Apply requires execution_nonce with 8 to 128 safe characters.");
-  const envelope = await assertEnvelopeForApply({ pool, auth, input, expectedCommitSha: plan.expected_source_commit, workspaceId: workspace.workspace_id, plan });
+  const envelope = await assertEnvelopeForApply({ runtimePool, governancePool, auth, input, expectedCommitSha: plan.expected_source_commit, workspaceId: workspace.workspace_id, plan });
   const executionRef = `staging-activation-gateway:${nonce}`.slice(0, 191);
   const executionNonceSha256 = sha256(nonce);
-  await claimStagingGatewayExecutionPlan(pool, { planId, planSha256: planSha, convergencePlanSha256: convergencePlanSha });
+  await claimStagingGatewayExecutionPlan(governancePool, { planId, planSha256: planSha, convergencePlanSha256: convergencePlanSha });
 
   const client = deps.cloudflareClient || createCloudflareApiClient({ fetchImpl: deps.fetchImpl, token: env.CLOUDFLARE_API_TOKEN, timeoutMs: deps.cloudflareTimeoutMs });
   const accountId = plan.resource_binding.account_id;
@@ -553,9 +535,10 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
   let envelopeClaimed = false;
   let rollbackResult = null;
   try {
-    await claimEnvelope(pool, envelope.envelope_id, executionRef);
+    const referenced = await markCapabilityEnvelopeReferenced({ writerPool: governancePool, envelopeId: envelope.envelope_id, executionRef });
+    if (!referenced.ok) throw adapterError("staging_activation_gateway_capability_envelope_reference_failed", "Capability envelope reference could not be persisted.", 409);
     envelopeClaimed = true;
-    await transitionStagingGatewayExecutionPlan(pool, planId, "claimed", "executing");
+    await transitionStagingGatewayExecutionPlan(governancePool, planId, "claimed", "executing");
     await deps.audit({ action: "activation_gateway.staging_apply.intent", resource_type: "cloudflare_worker", resource_id: scriptName,
       payload: { plan_id: planId, plan_sha256: planSha, environment_convergence_plan_sha256: convergencePlanSha,
         capability_envelope_id: envelope.envelope_id, resource_binding_id: binding.binding_id,
@@ -632,8 +615,9 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
         capability_envelope_id: envelope.envelope_id, execution_nonce_sha256: executionNonceSha256,
         production_mutation: false, business_database_mutation: false, governance_state_mutation: true, secrets_included: false },
     });
-    await transitionStagingGatewayExecutionPlan(pool, planId, "executing", "succeeded");
-    await finalizeEnvelope(pool, envelope.envelope_id, executionRef, "executed");
+    await transitionStagingGatewayExecutionPlan(governancePool, planId, "executing", "succeeded");
+    const consumed = await transitionCapabilityEnvelopeLifecycle({ writerPool: governancePool, envelopeId: envelope.envelope_id, action: "consume", executionRef });
+    if (!consumed.ok) throw adapterError("staging_activation_gateway_capability_envelope_finalize_failed", "Capability envelope consumption could not be persisted.", 500);
     return {
       ...publicPlan,
       mode: "apply",
@@ -670,12 +654,13 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
     } catch (failure) { failureAuditError = compact(failure?.message, 300); }
     let planFailure = null;
     try {
-      const [current] = await pool.query(`SELECT status FROM staging_activation_gateway_execution_plans WHERE plan_id=?`, [planId]);
+      const [current] = await governancePool.query(`SELECT status FROM staging_activation_gateway_execution_plans WHERE plan_id=?`, [planId]);
       if (current?.[0]?.status === "executing" || current?.[0]?.status === "claimed" || current?.[0]?.status === "succeeded")
-        await transitionStagingGatewayExecutionPlan(pool, planId, current[0].status, "failed");
+        await transitionStagingGatewayExecutionPlan(governancePool, planId, current[0].status, "failed");
     } catch (failure) { planFailure = compact(failure?.message, 300); }
     let envelopeFailure = null;
-    if (envelopeClaimed) try { await finalizeEnvelope(pool, envelope.envelope_id, executionRef, "failed"); }
+    if (envelopeClaimed) try { const cancelled = await transitionCapabilityEnvelopeLifecycle({ writerPool: governancePool, envelopeId: envelope.envelope_id, action: "cancel", executionRef, reason: "staging_apply_failed" });
+    if (!cancelled.ok) throw adapterError("staging_activation_gateway_capability_envelope_finalize_failed", "Capability envelope cancellation could not be persisted.", 500); }
     catch (failure) { envelopeFailure = compact(failure?.message, 300); }
     throw adapterError(error?.code || "staging_activation_gateway_apply_failed", error?.message || "Staging Activation Gateway apply failed.", error?.status || 502,
       { ...(error?.details || {}), rollback: rollbackResult, rollback_verified: rollbackResult?.rollback_verified === true,
