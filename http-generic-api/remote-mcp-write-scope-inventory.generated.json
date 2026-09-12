@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7656,
+  "file_count": 7662,
   "route_count": 1103,
   "write_route_count": 670,
   "classified_write_surface_count": 42,
@@ -3694,8 +3694,8 @@
     },
     {
       "route_id": "http-generic-api/routes/gptToolsRoutes.js#POST:/admin/act-as-user/sessions:0",
-      "source_line": 4611,
-      "source_offset": 216519,
+      "source_line": 4621,
+      "source_offset": 217336,
       "method": "POST",
       "path": "/admin/act-as-user/sessions",
       "file": "http-generic-api/routes/gptToolsRoutes.js",
@@ -3703,8 +3703,8 @@
     },
     {
       "route_id": "http-generic-api/routes/gptToolsRoutes.js#POST:/admin/act-as-user/sessions/:sessionId/revoke:1",
-      "source_line": 4627,
-      "source_offset": 217713,
+      "source_line": 4637,
+      "source_offset": 218530,
       "method": "POST",
       "path": "/admin/act-as-user/sessions/:sessionId/revoke",
       "file": "http-generic-api/routes/gptToolsRoutes.js",
@@ -3712,8 +3712,8 @@
     },
     {
       "route_id": "http-generic-api/routes/gptToolsRoutes.js#GET:/gpt/tools:2",
-      "source_line": 4641,
-      "source_offset": 218699,
+      "source_line": 4651,
+      "source_offset": 219516,
       "method": "GET",
       "path": "/gpt/tools",
       "file": "http-generic-api/routes/gptToolsRoutes.js",
@@ -3721,8 +3721,8 @@
     },
     {
       "route_id": "http-generic-api/routes/gptToolsRoutes.js#POST:/gpt/tools/call:3",
-      "source_line": 4684,
-      "source_offset": 220584,
+      "source_line": 4694,
+      "source_offset": 221401,
       "method": "POST",
       "path": "/gpt/tools/call",
       "file": "http-generic-api/routes/gptToolsRoutes.js",
@@ -3730,8 +3730,8 @@
     },
     {
       "route_id": "http-generic-api/routes/gptToolsRoutesLegacy.js#GET:/gpt/tools:0",
-      "source_line": 4351,
-      "source_offset": 203829,
+      "source_line": 4362,
+      "source_offset": 204702,
       "method": "GET",
       "path": "/gpt/tools",
       "file": "http-generic-api/routes/gptToolsRoutesLegacy.js",
@@ -3739,8 +3739,8 @@
     },
     {
       "route_id": "http-generic-api/routes/gptToolsRoutesLegacy.js#POST:/gpt/tools/call:1",
-      "source_line": 4385,
-      "source_offset": 205166,
+      "source_line": 4396,
+      "source_offset": 206039,
       "method": "POST",
       "path": "/gpt/tools/call",
       "file": "http-generic-api/routes/gptToolsRoutesLegacy.js",
@@ -26294,10 +26294,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/gptToolsRoutes.js",
-        "source_line": 4611,
+        "source_line": 4621,
         "handler_window_lines": [
-          4611,
-          4626
+          4621,
+          4636
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -26364,10 +26364,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/gptToolsRoutes.js",
-        "source_line": 4627,
+        "source_line": 4637,
         "handler_window_lines": [
-          4627,
-          4640
+          4637,
+          4650
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -26424,10 +26424,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/gptToolsRoutes.js",
-        "source_line": 4684,
+        "source_line": 4694,
         "handler_window_lines": [
-          4684,
-          4751
+          4694,
+          4761
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -26494,10 +26494,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/gptToolsRoutesLegacy.js",
-        "source_line": 4385,
+        "source_line": 4396,
         "handler_window_lines": [
-          4385,
-          4441
+          4396,
+          4452
         ],
         "evidence_flags": {
           "handler_window_present": true,

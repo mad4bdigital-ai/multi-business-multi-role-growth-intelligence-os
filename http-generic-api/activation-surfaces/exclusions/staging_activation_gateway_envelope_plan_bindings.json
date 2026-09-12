@@ -1,0 +1,7 @@
+{
+  "surface_key": "staging_activation_gateway_envelope_plan_bindings",
+  "source_table": "staging_activation_gateway_envelope_plan_bindings",
+  "reason": "Internal Staging execution-envelope binding ledger. It is not a tenant-visible activation surface; exposing its rows would cross the server governance boundary.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

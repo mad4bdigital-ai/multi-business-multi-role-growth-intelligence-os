@@ -625,7 +625,8 @@
     ".changes/e2e/production-recovery-durable-evidence-20260910.json",
     ".changes/e2e/staging-environment-convergence-certification-20260910.json",
     ".changes/e2e/pr8043-staging-one-click-runtime-state.json",
-    ".changes/e2e/staging-one-click-runtime-state-20260912.json"
+    ".changes/e2e/staging-one-click-runtime-state-20260912.json",
+    ".changes/e2e/staging-gateway-transaction-hardening-20260912.json"
   ],
   "derived_state": {
     "registry": ".github/derived-state-governance.json",

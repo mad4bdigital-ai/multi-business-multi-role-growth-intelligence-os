@@ -100,6 +100,12 @@ const STAGING_RUNTIME_READ_ONLY_MATRIX = Object.freeze(Object.fromEntries(
     .map((table) => [table, Object.freeze(["SELECT"])]),
 ));
 
+const STAGING_GATEWAY_PLAN_GRANTS = Object.freeze({
+  staging_activation_gateway_execution_artifacts: Object.freeze(["SELECT", "INSERT"]),
+  staging_activation_gateway_execution_plans: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
+  staging_activation_gateway_envelope_plan_bindings: Object.freeze(["SELECT", "INSERT"]),
+});
+
 // Local Staging keeps the production bootstrap grant surface unchanged while
 // adding only bounded read-only runtime authority surfaces that the running
 // Staging app must inspect. The Staging-only overlay includes Activation
@@ -122,7 +128,12 @@ export const STAGING_ROLE_GRANT_POLICIES = Object.freeze({
     STAGING_RUNTIME_READ_ONLY_MATRIX,
     STAGING_RUNTIME_OPTIONAL_READ_SURFACES,
   ),
-  governance: BOOTSTRAP_ROLE_GRANT_POLICIES.governance,
+  governance: buildGrantSpec(
+    [...Object.keys(GOVERNANCE_DB_PRIVILEGE_MATRIX), ...Object.keys(STAGING_GATEWAY_PLAN_GRANTS)],
+    ["SELECT"],
+    "always",
+    { ...GOVERNANCE_DB_PRIVILEGE_MATRIX, ...STAGING_GATEWAY_PLAN_GRANTS },
+  ),
   runtime_persistence: BOOTSTRAP_ROLE_GRANT_POLICIES.runtime_persistence,
 });
 

@@ -903,6 +903,7 @@ const VIRTUAL_ADMIN_TOOLS = [
         script_name: { type: "string", const: "mad4b-activation-gateway" },
         expected_source_commit: { type: "string", pattern: "^[a-f0-9]{40}$" },
         expected_policy_hash: { type: "string", pattern: "^[a-f0-9]{64}$" },
+        environment_convergence_plan_sha256: { type: "string", pattern: "^[a-f0-9]{64}$" },
         workspace_id: { type: "string" },
         resource_binding_id: { type: "string" },
       },
@@ -912,7 +913,7 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "activation_gateway_dark_deploy",
     displayName: "Activation Gateway Dark Deploy",
-    description: "Admin-only governed workers.dev dark deployment for the Activation Gateway. Defaults to dry-run. Apply requires an exact policy hash and source commit, signed Ed25519 attestation, active exact Worker resource binding, approved single-use capability envelope, execution nonce, typed confirmation derived from the policy hash, enabled feature flag, same-cycle Cloudflare inventory, awaited audit evidence, secret-safe Worker upload, workers.dev health/ready readback, and automatic rollback. DNS and custom-domain binding are forbidden.",
+    description: "Admin-only governed workers.dev dark deployment for the Activation Gateway. Defaults to dry-run. Apply requires an exact policy hash and source commit, signed Ed25519 attestation, active exact Worker resource binding, approved single-use capability envelope, execution nonce, Production typed confirmation uses the policy hash; Staging confirmation binds the source commit and immutable execution-plan hash, enabled feature flag, same-cycle Cloudflare inventory, awaited audit evidence, secret-safe Worker upload, workers.dev health/ready readback, and automatic rollback. DNS and custom-domain binding are forbidden.",
     method: "VIRTUAL",
     path: "internal://activation-gateway-dark-deploy",
     tags: ["activation_gateway", "cloudflare", "rollout", "mutation", "dry_run_default", "dry_run_default_true", "typed_confirmation", "capability_envelope", "same_cycle_readback", "rollback_required", "no_dns", "no_custom_domain", "no_secrets"],
@@ -922,15 +923,22 @@ const VIRTUAL_ADMIN_TOOLS = [
       properties: {
         mode: { type: "string", enum: ["dry_run", "apply"], default: "dry_run" },
         account_id: { type: "string", pattern: "^[a-f0-9]{32}$" },
-        script_name: { type: "string", const: "mad4b-activation-gateway" },
+        script_name: { type: "string", enum: ["mad4b-activation-gateway", "mad4b-activation-gateway-staging"] },
         expected_source_commit: { type: "string", pattern: "^[a-f0-9]{40}$" },
         expected_policy_hash: { type: "string", pattern: "^[a-f0-9]{64}$" },
+        environment_convergence_plan_sha256: { type: "string", pattern: "^[a-f0-9]{64}$" },
         workspace_id: { type: "string" },
         resource_binding_id: { type: "string" },
+        plan_id: { type: "string", pattern: "^[a-f0-9-]{36}$" },
+        plan_sha256: { type: "string", pattern: "^[a-f0-9]{64}$" },
         capability_envelope_id: { type: "string" },
         execution_nonce: { type: "string", minLength: 8, maxLength: 128, pattern: "^[A-Za-z0-9._:-]+$" },
         confirm: { type: "string" },
       },
+      oneOf: [
+        { required: ["environment_convergence_plan_sha256"], properties: { script_name: { const: "mad4b-activation-gateway-staging" } } },
+        { not: { required: ["environment_convergence_plan_sha256"] }, properties: { script_name: { const: "mad4b-activation-gateway" } } },
+      ],
       additionalProperties: false,
     },
   },
@@ -2976,6 +2984,8 @@ async function dispatchToolImpl(callerType, toolKey, args, req, runtimeDeps = {}
     try {
       const result = await runActivationGatewayDarkDeploy(args || {}, {
         pool: getPool(),
+        runtimePool: getPool(),
+        governancePool: getGovernancePool(),
         auth: req?.auth || {},
         env: process.env,
         audit: async (entry = {}) => writeAuditLog({
