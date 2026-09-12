@@ -1,0 +1,67 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-convergence-acknowledgement-handoff-20260912",
+  "title": "Bind Staging operator acknowledgement to the exact convergence plan",
+  "delivery_mode": "single_pr",
+  "merge_contract": { "minimum_phase": "mvp" },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-convergence-acknowledgement-handoff-20260912.json",
+      ".github/governance/test-authority-registry.json",
+      "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
+      "autopilot-portable-staging/manifest.json",
+      "http-generic-api/scripts/staging-environment-convergence-plan.mjs",
+      "http-generic-api/test-staging-convergence-acknowledgement-cli.mjs",
+      "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [{
+    "id": "mvp",
+    "status": "implemented",
+    "objective": "Accept a Staging operator plan hash only when the locally reconstructed convergence plan is bound to the validated runtime and preflight exact commit, then stop at the server-governed handoff without provider execution.",
+    "e2e_journeys": [{
+      "id": "exact-plan-acknowledgement-handoff",
+      "end_to_end": true,
+      "level": "synthetic_runtime",
+      "actor": "Staging Auto Pilot operator",
+      "entrypoint": "The operator submits a plan SHA-256 to the Staging One-Click after observing its convergence plan.",
+      "terminal_outcome": "Matching acknowledgement produces handoff_ready with execution_performed=false; stale or malformed hashes fail closed.",
+      "steps": [
+        "Validate the runtime and preflight against the same exact Staging commit.",
+        "Reconstruct the current convergence plan and compare its digest to the submitted plan hash.",
+        "Derive the acknowledgement environment and commit locally before passing it to the shared engine.",
+        "Return the governed handoff without executing Cloudflare, workflow, database, or Production mutation.",
+        "Require live Staging certification before treating changed runtime topology as ready."
+      ],
+      "assertions": [
+        "The operator controls only the plan hash, not the environment, commit, or provider target.",
+        "An obsolete plan hash cannot authorize a different exact commit.",
+        "Handoff readiness does not imply provider execution or certification readiness.",
+        "secrets_included is false."
+      ],
+      "tests": [{
+        "id": "staging-convergence-acknowledgement-cli",
+        "runner": "node",
+        "working_directory": "http-generic-api",
+        "path": "test-staging-convergence-acknowledgement-cli.mjs",
+        "args": []
+      }],
+      "evidence_paths": [
+        ".changes/e2e/staging-convergence-acknowledgement-handoff-20260912.json",
+        "http-generic-api/scripts/staging-environment-convergence-plan.mjs",
+        "http-generic-api/test-staging-convergence-acknowledgement-cli.mjs",
+        "autopilot-portable-staging/Invoke-Staging-One-Click.ps1"
+      ]
+    }]
+  }],
+  "secrets_included": false
+}
