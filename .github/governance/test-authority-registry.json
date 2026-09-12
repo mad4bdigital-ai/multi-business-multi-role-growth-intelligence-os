@@ -113,6 +113,7 @@
         "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
         "http-generic-api/test-openapi-detail-closure-batch.mjs",
         "http-generic-api/test-host-breakglass-catalog.mjs",
+        "http-generic-api/test-host-breakglass-local-request.mjs",
         "http-generic-api/test-role-selection-proof-contract.mjs",
         "http-generic-api/test-host-breakglass-role-selection-artifact.mjs",
         "http-generic-api/test-admin-host-breakglass-routes.mjs",
@@ -691,7 +692,8 @@
         "http-generic-api/test-recovery-kernel.mjs",
         "http-generic-api/test-openapi-split-governance.mjs",
         "http-generic-api/test-staging-independent-schema-contract.mjs",
-        "http-generic-api/test-role-selection-proof-contract.mjs"
+        "http-generic-api/test-role-selection-proof-contract.mjs",
+        "http-generic-api/test-host-breakglass-local-request.mjs"
       ],
       "protected_by_verifiers": []
     },
