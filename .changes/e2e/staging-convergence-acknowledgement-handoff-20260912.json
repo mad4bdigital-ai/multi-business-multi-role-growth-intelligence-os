@@ -10,6 +10,8 @@
     "include": [
       ".changes/e2e/staging-convergence-acknowledgement-handoff-20260912.json",
       ".github/governance/test-authority-registry.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
       "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
       "autopilot-portable-staging/manifest.json",
       "http-generic-api/scripts/staging-environment-convergence-plan.mjs",
