@@ -19,6 +19,7 @@
       "http-generic-api/stagingRebuildBundleVerifier.js",
       "http-generic-api/stagingRoleBundleBinding.js",
       "http-generic-api/stagingRecoverySystemTools.js",
+      "http-generic-api/stagingBootstrapExecutionAuthority.js",
       "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
       "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
       "http-generic-api/routes/adminHostBreakglassRoutes.js",
@@ -27,6 +28,7 @@
       "http-generic-api/scripts/host-breakglass-local.mjs",
       "http-generic-api/test-staging-empty-role-db-bootstrap.mjs",
       "http-generic-api/test-staging-rebuild-empty-authority.mjs",
+      "http-generic-api/test-staging-bootstrap-ticket-idempotency.mjs",
       "http-generic-api/test-admin-host-breakglass-routes.mjs",
       "autopilot-portable-staging/README.md"
     ]
@@ -49,13 +51,14 @@
       "level": "synthetic_runtime",
       "actor": "local Staging database operator through the private Recovery System Tool surface",
       "entrypoint": "Rebuild-EmptyStagingRoleDatabases.ps1 on an exact clean main checkout; orchestration enters staging_recovery_rebuild_empty_* Recovery System Tools and never a parallel runtime-bootstrap rebuild authority.",
-      "terminal_outcome": "Only roles still proven zero-object are rebuilt and verified; every preserved non-empty role has equal before/after object-count fingerprints; grants remain unapplied and Gateway apply certification remains pending.",
+      "terminal_outcome": "Only roles still proven zero-object are rebuilt and verified; every preserved non-empty role has equal before/after object-count fingerprints; ticket lifecycle retries return the same durable receipts; grants remain unapplied and Gateway apply certification remains pending.",
       "steps": [
         "Inspect all three local role databases read-only across base tables, views, triggers, routines and events; treat the local census only as candidate evidence.",
         "Bind the inspection to the exact local database/principal target fingerprint, exact source SHA and exact generated role bundle bindings, then persist a durable Recovery inspection whose server recomputes every object-count fingerprint and derives the zero-object role set.",
         "Create a deterministic plan through staging_recovery_rebuild_empty_prepare and require the exact plan/step/SHA/role-selection approval confirmation.",
         "Issue the single-use execution ticket through staging_recovery_rebuild_empty_approve and return only the verified Host Breakglass local handoff; direct Staging rebuild authority under /admin/runtime-bootstrap is forbidden.",
         "Before local mutation, recompute exact role bundle bindings and verify them against the server-held ticket through the internal Staging Recovery bootstrap authority.",
+        "Reserve the execution ticket, mark execution started, attest same-cycle readback and finalize through durable idempotent lifecycle receipts so response loss can replay the same receipt without a second mutation authority.",
         "Same-cycle recheck each selected role remains zero-object, rebuild selected roles sequentially, stop on verification failure, and perform a final read-only census proving every non-selected preserved role is unchanged before ticket finalization.",
         "End with grants not applied; database.access_repair and any later Gateway/provider certification remain separate governed operations."
       ],
@@ -63,6 +66,7 @@
         "A mixed topology is valid only when at least one role is zero-object; non-empty roles are excluded from mutation rather than blocking eligible empty roles.",
         "Caller-selected role sets are non-authoritative; durable Recovery inspection evidence selects the roles and binds the exact database target, source SHA, role fingerprints and schema bundles.",
         "The Recovery System Tool surface is the sole Staging rebuild orchestration authority; Host Breakglass is transport only and the former /admin/runtime-bootstrap/staging/rebuild-empty lifecycle is absent.",
+        "Reservation, execution-start, readback-attestation and finalization retries with the same exact idempotency binding return the persisted lifecycle result; attempts to rebind the idempotency key fail closed.",
         "Every selected role is rechecked zero-object immediately before DDL and verified after replay; every preserved role has identical before/after canonical object-count fingerprints before ticket finalization.",
         "Schema rebuild never applies grants, never creates missing databases, never authorizes Production/provider mutation and leaves Gateway apply certification pending."
       ],
@@ -79,6 +83,13 @@
           "runner": "node",
           "working_directory": "http-generic-api",
           "path": "test-staging-rebuild-empty-authority.mjs",
+          "args": []
+        },
+        {
+          "id": "staging-bootstrap-ticket-idempotency",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-staging-bootstrap-ticket-idempotency.mjs",
           "args": []
         },
         {
@@ -99,6 +110,7 @@
         "http-generic-api/stagingRebuildBundleVerifier.js",
         "http-generic-api/stagingRoleBundleBinding.js",
         "http-generic-api/stagingRecoverySystemTools.js",
+        "http-generic-api/stagingBootstrapExecutionAuthority.js",
         "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
         "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
         "http-generic-api/routes/adminHostBreakglassRoutes.js",
@@ -107,6 +119,7 @@
         "http-generic-api/scripts/host-breakglass-local.mjs",
         "http-generic-api/test-staging-empty-role-db-bootstrap.mjs",
         "http-generic-api/test-staging-rebuild-empty-authority.mjs",
+        "http-generic-api/test-staging-bootstrap-ticket-idempotency.mjs",
         "http-generic-api/test-admin-host-breakglass-routes.mjs",
         "autopilot-portable-staging/README.md"
       ]
