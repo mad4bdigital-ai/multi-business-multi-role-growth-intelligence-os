@@ -1,12 +1,10 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import path from "node:path";
-import zlib from "node:zlib";
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { validateSchemaBundleManifest, sha256Hex } from "../runtimeBootstrapContract.js";
-import { splitMigrationSqlStatements } from "../migrationSqlStatements.js";
-import { buildRoleBundleBinding } from "../recoveryExecutionBinding.js";
+import { sha256Hex } from "../runtimeBootstrapContract.js";
+import { computeStagingRoleBundleBindings } from "../stagingRoleBundleBinding.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const API_ROOT = path.resolve(HERE, "..");
@@ -79,30 +77,6 @@ function normalizeCensus(rows) {
   return { counts, classifications, fingerprints, selected, preserved };
 }
 
-function statementsFromBundle(bundlePath) {
-  const sql = zlib.gunzipSync(fs.readFileSync(bundlePath)).toString("utf8");
-  const statements = splitMigrationSqlStatements(sql).map((statement) => String(statement).trim()).filter(Boolean);
-  if (!statements.length) fail(`schema bundle is empty: ${path.basename(bundlePath)}`);
-  return statements;
-}
-
-function bundleBindings(manifestPath, expectedCommit, selectedRoles) {
-  const bindings = {};
-  for (const role of selectedRoles) {
-    const bundle = validateSchemaBundleManifest(manifestPath, expectedCommit, undefined, role);
-    const statements = statementsFromBundle(bundle.bundlePath);
-    const binding = buildRoleBundleBinding({
-      role,
-      bundleManifestSha256: bundle.manifest_sha256,
-      roleBundleSha256: String(bundle.role.sha256 || "").toLowerCase(),
-      statementCount: statements.length,
-      statementFingerprints: statements.map((statement) => sha256Hex(statement)),
-    });
-    bindings[role] = binding;
-  }
-  return bindings;
-}
-
 export function buildStagingRebuildEmptyInspectionEnvelope({ expectedCommit, correlationId, censusRows, manifestPath = DEFAULT_MANIFEST } = {}) {
   const expectedSha = String(expectedCommit || "").trim().toLowerCase();
   if (!SHA40.test(expectedSha)) fail("expectedCommit must be a full 40-character SHA");
@@ -111,7 +85,7 @@ export function buildStagingRebuildEmptyInspectionEnvelope({ expectedCommit, cor
   const resolvedManifest = path.resolve(manifestPath);
   if (!fs.existsSync(resolvedManifest) || !fs.statSync(resolvedManifest).isFile()) fail("canonical generated schema-bundle manifest is missing");
   const census = normalizeCensus(censusRows);
-  const bindings = bundleBindings(resolvedManifest, expectedSha, census.selected);
+  const bindings = computeStagingRoleBundleBindings({ manifestPath: resolvedManifest, expectedSha, roles: census.selected });
   return {
     expected_sha: expectedSha,
     target_key: "staging-runtime",
