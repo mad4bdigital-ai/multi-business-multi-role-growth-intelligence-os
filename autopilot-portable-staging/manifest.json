@@ -66,7 +66,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
-      "sha256": "567a7ff93f77b6c87b29e53a33c767fddd54203880aadd9ce629ab03a686b186"
+      "sha256": "c15838696f3289b6f0b249059277990268151b9400f167860d58828e34a6c04a"
     },
     {
       "path": "autopilot-portable-staging/Uninstall-AutoDeployTask.ps1",
@@ -150,7 +150,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "83c9206ebc2d2750ab3615a097a9752088d93e15075beea906dcdd16e00930dd"
+      "sha256": "0c63e1f79c2c951f114ebabacde3e265f359938866c487a9cd9f317b1513ae0f"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "04ec1e8d0a55769f51f3f4b1a5b8694514f0e0340050a14550510ae4bd4eff27"
+      "sha256": "5cd68a2bbaf800d802837451f474f92df7cd8ceb9e34078bea1b2aa414e33c1d"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -254,7 +254,7 @@
     },
     {
       "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
-      "sha256": "ade02721557c2fa9a5a5e9fecec0db5e50c74a0ba8ab955aa10573b79a3ba6e6"
+      "sha256": "642a34944aa43a1921441f411612cf0afa002b5d457569b9845420966d8d00ce"
     },
     {
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
@@ -334,7 +334,7 @@
     },
     {
       "path": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
-      "sha256": "d8ef709aa42268bf08c44eff3d308bb6a26aa9b9831bc259623c04892ec30722"
+      "sha256": "f3f084439c319616b139efa3831c4bb24763f263aedbcb2f8ec3d0bd93307796"
     },
     {
       "path": "autopilot-portable-staging/Staging-Environment.ps1",

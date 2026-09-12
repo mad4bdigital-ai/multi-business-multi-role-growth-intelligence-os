@@ -1,0 +1,131 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-one-click-runtime-state-20260912",
+  "title": "Reconcile Staging One-Click tunnel lifecycle authority",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-one-click-runtime-state-20260912.json",
+      "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
+      "autopilot-portable-staging/Start-Staging-One-Click.cmd",
+      "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+      "http-generic-api/hostBreakglassLocalRequest.js",
+      "http-generic-api/routes/adminHostBreakglassRoutes.js",
+      "http-generic-api/scripts/host-breakglass-local-verified.mjs",
+      "http-generic-api/test-host-breakglass-local-request.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Keep the operator-safe default local-only, make tunnel ownership transitions publish one canonical exact-commit runtime authority, and make Staging database access-repair handoff exact-plan verifiable before any local execution.",
+      "e2e_journeys": [
+        {
+          "id": "staging-one-click-tunnel-lifecycle-authority",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Windows Docker Staging operator",
+          "entrypoint": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
+          "terminal_outcome": "The no-argument launcher remains local-only; explicit public modes require the Staging Activation Gateway before topology mutation, use a bounded transition lease bound to the exact repository HEAD, reject stale runtime commits before publication, and publish tunnel_mode/tunnel_started atomically only after exact-commit proof.",
+          "steps": [
+            "Launch the operator CMD without a tunnel argument and resolve disabled as the safe default.",
+            "Reject a public tunnel mode before topology mutation when Activation Gateway authority is absent.",
+            "Resolve a full 40-character repository HEAD or fail closed before entering the bounded deployment lease.",
+            "Persist that exact HEAD as expected_commit in the transition lease and retain the same in-process expected commit authority for publication.",
+            "On successful core transition, compare autopilot-state.json commit to the transition expected_commit before writing tunnel_mode, tunnel_started, or tunnel_state_published_at.",
+            "If runtime commit is stale, fail closed without publishing tunnel authority and retain bounded transition-failed evidence.",
+            "If publication succeeds, atomically write and read back the exact commit plus tunnel authority, remove the lease, and verify the lease is actually absent.",
+            "On any failed transition, retain a short transition-failed lease so the Health Monitor does not misclassify an in-progress or failed handoff as healthy steady-state authority."
+          ],
+          "assertions": [
+            "The CMD and smart launcher default to disabled local-only mode.",
+            "Explicit windows_service or docker_sidecar CMD selection includes EnableActivationGateway.",
+            "Public modes without EnableActivationGateway fail before Invoke-Core can mutate topology.",
+            "An unresolved or non-exact repository HEAD cannot create topology-transition authority.",
+            "repo HEAD A plus runtime commit B fails before tunnel_mode/tunnel_started publication and leaves no new tunnel authority in autopilot-state.json.",
+            "Successful transitions require runtime commit equality with the transition expected_commit and use exact-commit readback after atomic publication.",
+            "Completion requires deployment-lease deletion readback; a surviving lease is a fail-closed transition error.",
+            "Failed transitions leave only bounded Staging lifecycle evidence; no Production, provider, Cloudflare DNS, schema, migration, or Production database mutation is authorized."
+          ],
+          "tests": [
+            {
+              "id": "staging-one-click-autopilot-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-one-click-autopilot-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
+            "autopilot-portable-staging/Start-Staging-One-Click.cmd",
+            "http-generic-api/test-staging-one-click-autopilot-contract.mjs"
+          ]
+        },
+        {
+          "id": "staging-access-repair-verified-local-handoff",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging recovery operator",
+          "entrypoint": "POST /admin/runtime-bootstrap/runs",
+          "terminal_outcome": "A Staging database.access_repair dry-run returns a concrete request JSON and non-placeholder local command; the local verifier rebuilds the repository-owned plan and rejects any plan_sha256 mismatch before delegating to the existing Host Breakglass runner.",
+          "steps": [
+            "Build the Staging database.access_repair plan against the exact deployment SHA and staging_local_role_env target source.",
+            "Return local_execution_required with a concrete verified request envelope containing the canonical plan_sha256 and a deterministic request_sha256.",
+            "Persist the returned JSON locally under the deterministic request filename and invoke the returned Windows/Docker local command.",
+            "Verify request shape and digest, rebuild the repository-owned Host Breakglass plan from the request, and require exact plan_sha256 equality before invoking the existing local runner.",
+            "Run the repository dry-run without database mutation; a later apply_grants remains separately ticketed, typed-confirmed, server-reserved, and same-cycle-readback governed."
+          ],
+          "assertions": [
+            "The handoff no longer returns <verified-request.json> as an unusable placeholder.",
+            "The request is restricted to staging_local_windows_docker + database.repair + database.access_repair + staging_local_role_env.",
+            "Tampering with expected_sha or any request field invalidates request_sha256 before the legacy runner, Docker mutation path, or database path is reached.",
+            "The local verifier requires the rebuilt plan_sha256 to equal the server-returned canonical plan_sha256.",
+            "The historical plan hash be044d4b39d4c54261b0c07c1527233d2a17c5cfb5614c46e31107a21c2967c4 is evidence only and cannot authorize execution after the branch/deployment exact SHA changes.",
+            "Production authority remains false and the handoff itself performs no database, provider, Cloudflare, schema, migration, or Production mutation."
+          ],
+          "tests": [
+            {
+              "id": "staging-access-repair-verified-local-handoff-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-host-breakglass-local-request.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/hostBreakglassLocalRequest.js",
+            "http-generic-api/routes/adminHostBreakglassRoutes.js",
+            "http-generic-api/scripts/host-breakglass-local-verified.mjs",
+            "http-generic-api/test-host-breakglass-local-request.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Preserve shared source compatibility without authorizing Production execution.",
+      "blockers": [
+        "Production remains outside this repair and requires its separate governed promotion lifecycle."
+      ]
+    }
+  ]
+}
