@@ -131,7 +131,7 @@ function baseRequestFromPlan(plan = {}) {
   const roleSelectionProof = normalizeRoleSelectionProof(plan.role_selection_proof, { required: rebuildApply });
   if (roleSelectionProof && roleSelectionProof.expected_sha !== plan.expected_sha) fail("host_breakglass_local_request_role_proof_sha_mismatch", "Role-selection proof SHA does not match the verified local plan.");
   const authorityPlanHash = normalizedNullable(plan.authority_plan_hash);
-  if ((rebuildApply || plan.action === "apply_grants") && !SHA256_RE.test(String(authorityPlanHash || ""))) fail("host_breakglass_local_request_authority_plan_hash_invalid", "Mutation handoff requires the server-issued authority_plan_hash separate from transport plan_sha256.");
+  if (rebuildApply && !SHA256_RE.test(String(authorityPlanHash || ""))) fail("host_breakglass_local_request_authority_plan_hash_invalid", "Selective rebuild handoff requires the server-issued authority_plan_hash separate from transport plan_sha256.");
 
   return {
     contract: LOCAL_REQUEST_BOUNDARY.contract,
@@ -185,7 +185,7 @@ export function verifyHostBreakglassLocalRequest(request = {}) {
   const rebuildApply = scope.runbook_key === "database.empty_rebuild" && request.action === "apply_migration";
   const roleSelectionProof = normalizeRoleSelectionProof(request.role_selection_proof, { required: rebuildApply });
   if (roleSelectionProof && roleSelectionProof.expected_sha !== request.expected_sha) fail("host_breakglass_local_request_role_proof_sha_mismatch", "Role-selection proof SHA does not match verified request SHA.");
-  if ((rebuildApply || request.action === "apply_grants") && !SHA256_RE.test(String(request.authority_plan_hash || ""))) fail("host_breakglass_local_request_authority_plan_hash_invalid", "Mutation request is missing the server-issued authority_plan_hash.");
+  if (rebuildApply && !SHA256_RE.test(String(request.authority_plan_hash || ""))) fail("host_breakglass_local_request_authority_plan_hash_invalid", "Selective rebuild request is missing the server-issued authority_plan_hash.");
   const base = Object.fromEntries(Object.entries(request).filter(([key]) => key !== "request_sha256"));
   if (digest(base) !== request.request_sha256) {
     fail("host_breakglass_local_request_digest_mismatch", "Verified local request content does not match request_sha256.");
