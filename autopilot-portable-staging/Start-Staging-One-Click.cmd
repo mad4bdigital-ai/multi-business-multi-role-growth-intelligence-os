@@ -17,7 +17,7 @@ if /I not "%TUNNEL_MODE%"=="windows_service" if /I not "%TUNNEL_MODE%"=="docker_
 )
 
 echo Starting governed Staging One-Click mode=%TUNNEL_MODE%
-echo windows_service: Windows cloudflared -^> 127.0.0.1:8080 ^(explicit public mode; Activation Gateway enabled^)
+echo windows_service: Windows cloudflared -^> 127.0.0.1:8080 ^(explicit public mode; Activation Gateway enabled^), shared app network namespace
 echo docker_sidecar : Compose cloudflared -^> 127.0.0.1:8080 ^(explicit public mode; Activation Gateway enabled^)
 echo disabled       : local-only Staging ^(safe default^)
 if /I "%TUNNEL_MODE%"=="disabled" (
