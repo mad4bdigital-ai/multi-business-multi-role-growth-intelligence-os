@@ -1,0 +1,97 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr8043-staging-one-click-runtime-state",
+  "title": "PR8043 Staging one-click runtime-state and access-repair convergence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr8043-staging-one-click-runtime-state.json",
+      "http-generic-api/package.json",
+      "http-generic-api/routes/adminHostBreakglassRoutes.js",
+      "http-generic-api/scripts/test-one-click-runtime-bootstrap.mjs",
+      "http-generic-api/services/hostingerBootstrapTarget.js",
+      "http-generic-api/services/promotionReadiness.generated.json",
+      "http-generic-api/services/promotionReadiness.js",
+      "http-generic-api/services/stagingRuntimeState.generated.json",
+      "http-generic-api/services/test-authority-registry.json",
+      "package.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Reconcile Staging one-click tunnel lifecycle authority and local access-repair handoff while preserving fail-closed Production, provider, database, grant, and Breakglass boundaries.",
+      "e2e_journeys": [
+        {
+          "id": "staging-one-click-runtime-state-convergence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging operator through governed one-click and recovery surfaces",
+          "entrypoint": "Evaluate the exact PR head with local Staging runtime defaults, exact-commit topology-transition authority, and server-derived access-repair handoff.",
+          "terminal_outcome": "Staging tunnel authority is published only after exact-commit proof, access-repair handoff is reproducible from server-derived evidence, and no Production, provider, database, grant, or Breakglass mutation is authorized by this PR.",
+          "steps": [
+            "Default the normal launcher path to disabled local-only mode unless activation is explicitly enabled.",
+            "Bind topology-transition authority and bounded deployment lease to the exact repository commit before publishing tunnel state.",
+            "Fail closed when runtime commit evidence does not equal the expected topology-transition commit.",
+            "Produce and verify a deterministic Staging local access-repair request bound to canonical plan and request digests.",
+            "Keep apply_grants behind its separate execution ticket, typed confirmation, server reservation, and same-cycle readback authority.",
+            "Require live Staging certification before any promotion decision affecting the shared runtime."
+          ],
+          "assertions": [
+            "The environment impact declaration is bound to the canonical deployment branch policy.",
+            "Shared-runtime impact is explicitly declared for both staging and production and cross-environment review is true.",
+            "Live staging certification remains required.",
+            "production_mutation_allowed is false.",
+            "No Production deploy, Cloudflare/provider mutation, database/schema/grant mutation, or Breakglass execution is introduced or authorized by this declaration.",
+            "The historical access-repair plan is evidence only and is not reusable execution authority.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "pr8043-environment-impact-closure",
+              "runner": "node",
+              "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+              "args": ["--base-sha", "BASE_SHA", "--head-sha", "HEAD_SHA"]
+            },
+            {
+              "id": "pr8043-one-click-runtime-bootstrap",
+              "runner": "node",
+              "path": "http-generic-api/scripts/test-one-click-runtime-bootstrap.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/pr8043-staging-one-click-runtime-state.json",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/routes/adminHostBreakglassRoutes.js",
+            "http-generic-api/services/hostingerBootstrapTarget.js",
+            "http-generic-api/services/promotionReadiness.js",
+            "http-generic-api/services/stagingRuntimeState.generated.json"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "environment-impact-closure",
+          "runner": "node",
+          "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+          "args": ["--base-sha", "BASE_SHA", "--head-sha", "HEAD_SHA"]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
