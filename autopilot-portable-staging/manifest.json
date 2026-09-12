@@ -38,7 +38,7 @@
     },
     {
       "path": "autopilot-portable-staging/README.md",
-      "sha256": "8a998016fa5583bfd0562a8b8f910db7b50b049091540c1724a2c74e448e80a4"
+      "sha256": "3f4c394ccd1807b898468a378d947061ef75a7e5e666abe2c22e4b8a2e363bfd"
     },
     {
       "path": "autopilot-portable-staging/Show-StagingLogs.ps1",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "573fa4cca6b02f5522e65725afa55a16a10ecfd792b37d2cdc0f56c99fa33208"
+      "sha256": "73383840e02784d1a1b24dccbbff7d8ff941ef101babc7e606c434cbfb08108e"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -318,11 +318,11 @@
     },
     {
       "path": "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1",
-      "sha256": "f6cca4769be3a37c9011ab58b5caca3600a3714b5f9ac7b53f2b05f9412ecae3"
+      "sha256": "b0c561d86d39d19743392eecb8aeedd10ed0279d75e9c5c9d41a3961edf41898"
     },
     {
       "path": "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs",
-      "sha256": "a637cae107f64ed8ddd4dd7d892153653e9aca7beae94a316f66f249529d4465"
+      "sha256": "41566f018476d621a4225c031badfd42a78502f1a7d4807ff59724a9adb7eb59"
     },
     {
       "path": "http-generic-api/scripts/staging-sql-parser.mjs",
