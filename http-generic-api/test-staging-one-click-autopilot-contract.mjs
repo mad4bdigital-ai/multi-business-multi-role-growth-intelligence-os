@@ -111,6 +111,50 @@ try {
   fs.rmSync(topologyTempRoot, { recursive: true, force: true });
 }
 
+const terminalStart = smartLauncher.indexOf("$classification = $bridge.report.convergence\n$handoff = $classification.next_governed_handoff");
+assert.ok(terminalStart >= 0, "governed handoff must have an explicit terminal branch");
+const terminalBranch = smartLauncher.slice(terminalStart);
+const handoffTempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mad4b-staging-handoff-terminal-"));
+const handoffHarnessPath = path.join(handoffTempRoot, "handoff-terminal.ps1");
+const sampleBridge = {
+  contract: "mad4b.staging-environment-convergence-bridge.v1",
+  report: { convergence: { next_governed_handoff: { execution_ready: true } } },
+  plan: { plan_sha256: "c".repeat(64), release_spec: { commit_sha: "a".repeat(40) } },
+  convergence_run: {
+    status: "handoff_ready",
+    operator_acknowledgement: { status: "acknowledged_for_handoff" },
+    governed_handoff: { execution_ready: true, execution_performed: false },
+  },
+};
+try {
+  function executeTerminal(bridge) {
+    fs.writeFileSync(handoffHarnessPath, `
+$ErrorActionPreference = 'Stop'
+$bridge = ${powershellSingleQuoted(JSON.stringify(bridge))} | ConvertFrom-Json
+$active = [pscustomobject]@{ lines = @() }
+function Write-Lines([object[]]$Lines) { }
+function Fail([string]$Message) { throw "STAGING_DUAL_MODE_SMART_ONE_CLICK_FAIL_CLOSED: $Message" }
+${terminalBranch}
+`, "utf8");
+    return spawnSync(powerShell, ["-NoLogo", "-NoProfile", "-File", handoffHarnessPath], { encoding: "utf8" });
+  }
+  const accepted = executeTerminal(sampleBridge);
+  assert.equal(accepted.status, 0, accepted.stderr || accepted.stdout);
+  const terminalIndex = accepted.stdout.search(/\{\s*"contract"\s*:\s*"mad4b\.staging-one-click-governed-handoff\.v1"/u);
+  assert.ok(terminalIndex >= 0, "final JSON must be the One-Click handoff terminal contract");
+  const terminal = JSON.parse(accepted.stdout.slice(terminalIndex));
+  assert.equal(terminal.status, "handoff_ready");
+  assert.equal(terminal.local_phase_completed, true);
+  assert.equal(terminal.staging_certification_ready, false);
+  assert.equal(terminal.provider_execution_performed, false);
+  assert.equal(terminal.governed_handoff.execution_performed, false);
+  const rejected = executeTerminal({ ...sampleBridge, convergence_run: { ...sampleBridge.convergence_run, status: "approval_required" } });
+  assert.notEqual(rejected.status, 0, "an unacknowledged plan must not finish the One-Click handoff");
+  assert.doesNotMatch(rejected.stdout, /mad4b\.staging-one-click-governed-handoff\.v1/u);
+} finally {
+  fs.rmSync(handoffTempRoot, { recursive: true, force: true });
+}
+
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mad4b-staging-convergence-bom-"));
 const runtimePath = path.join(tempRoot, "autopilot-state.json");
 const preflightPath = path.join(tempRoot, "staging-schema-governance-preflight.json");
