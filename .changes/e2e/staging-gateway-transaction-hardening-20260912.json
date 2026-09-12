@@ -13,17 +13,21 @@
       ".changes/e2e/staging-gateway-transaction-hardening-20260912.json",
       "http-generic-api/stagingActivationGatewayApplyAdapter.js",
       "http-generic-api/stagingGatewayExecutionPlanStore.js",
+      "http-generic-api/databasePrivilegeContracts.js",
+      "http-generic-api/activation-surfaces/exclusions/staging_activation_gateway_envelope_plan_bindings.json",
       "http-generic-api/migrations/20260912_staging_activation_gateway_transaction_hardening.sql",
       "http-generic-api/routes/gptToolsRoutes.js",
       "http-generic-api/routes/gptToolsRoutesLegacy.js",
       "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
-      "http-generic-api/test-staging-schema-bundle-builder.mjs"
+      "http-generic-api/test-staging-schema-bundle-builder.mjs",
+      "http-generic-api/test-staging-database-readiness-repair.mjs"
     ]
   },
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
     "declared_targets": [
-      "staging"
+      "staging",
+      "production"
     ],
     "cross_environment_reviewed": true,
     "live_staging_certification_required": true,
@@ -33,7 +37,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Bind the acknowledged convergence plan to a durable encrypted execution artifact and keep Staging external writes blocked pending independent live certification.",
+          "objective": "Bind the acknowledged convergence plan to a durable encrypted execution artifact and keep Staging external writes blocked pending independent live certification.",
       "e2e_journeys": [
         {
           "id": "staging-gateway-transaction-contract",
@@ -70,11 +74,14 @@
             ".changes/e2e/staging-gateway-transaction-hardening-20260912.json",
             "http-generic-api/stagingActivationGatewayApplyAdapter.js",
             "http-generic-api/stagingGatewayExecutionPlanStore.js",
+            "http-generic-api/databasePrivilegeContracts.js",
+            "http-generic-api/activation-surfaces/exclusions/staging_activation_gateway_envelope_plan_bindings.json",
             "http-generic-api/migrations/20260912_staging_activation_gateway_transaction_hardening.sql",
             "http-generic-api/routes/gptToolsRoutes.js",
             "http-generic-api/routes/gptToolsRoutesLegacy.js",
             "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
-            "http-generic-api/test-staging-schema-bundle-builder.mjs"
+            "http-generic-api/test-staging-schema-bundle-builder.mjs",
+            "http-generic-api/test-staging-database-readiness-repair.mjs"
           ]
         }
       ]
