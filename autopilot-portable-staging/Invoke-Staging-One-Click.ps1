@@ -4,6 +4,7 @@ param(
     [ValidateSet('disabled','windows_service','docker_sidecar')]
     [string]$TunnelMode = 'disabled',
     [switch]$EnableActivationGateway,
+    [string]$AcknowledgedConvergencePlanSha256 = '',
     [switch]$NoAutoDeploy,
     [switch]$RequireSchemaBundle,
     [switch]$ApplySchemaBundle,
@@ -31,6 +32,11 @@ $script:TopologyTransitionLeaseActive = $false
 $script:TopologyTransitionExpectedCommit = ''
 
 function Fail([string]$Message) { throw "STAGING_DUAL_MODE_SMART_ONE_CLICK_FAIL_CLOSED: $Message" }
+
+$AcknowledgedConvergencePlanSha256 = ([string]$AcknowledgedConvergencePlanSha256).Trim().ToLowerInvariant()
+if ($AcknowledgedConvergencePlanSha256 -and $AcknowledgedConvergencePlanSha256 -notmatch '^[0-9a-f]{64}$') {
+    Fail 'Environment convergence acknowledgement requires an exact 64-character plan SHA-256.'
+}
 
 function Get-RepositoryHeadCommit {
     try {
@@ -367,15 +373,19 @@ function Invoke-SharedConvergence([int]$ChildExitCode) {
     $commit = ([string]$runtime.commit).Trim().ToLowerInvariant()
     if ($commit -notmatch '^[0-9a-f]{40}$') { return $null }
     $trustExact = Test-LocalRecoveryTrustExact $commit
-    if ($ChildExitCode -eq 0 -and $trustExact) { return $null }
+    if ($ChildExitCode -eq 0 -and $trustExact -and -not $AcknowledgedConvergencePlanSha256) { return $null }
 
-    $bridgeRun = Invoke-NodeJson @(
+    $bridgeArgs = @(
         $convergenceBridge,
         '--runtime-state',$runtimeStatePath,
         '--preflight',$preflightReportPath,
         '--repository',$expectedRepository,
         '--recovery-trust-exact',([string]([bool]$trustExact)).ToLowerInvariant()
     )
+    if ($AcknowledgedConvergencePlanSha256) {
+        $bridgeArgs += @('--acknowledged-plan-sha256', $AcknowledgedConvergencePlanSha256)
+    }
+    $bridgeRun = Invoke-NodeJson $bridgeArgs
     if ($null -eq $bridgeRun.final) {
         Write-Lines $bridgeRun.lines
         Fail 'Shared convergence bridge did not emit canonical JSON.'
@@ -460,4 +470,8 @@ if ($bridge.convergence_run.status -eq 'approval_required') {
 if ($bridge.convergence_run.status -eq 'governed_authority_required' -or $handoff.execution_ready -ne $true) {
     Fail "Server-governed Staging Activation Gateway apply authority is required; reason=$($handoff.apply_block_reason)"
 }
-Fail 'Top-level AutoPilot must not execute provider or workflow mutation; handoff is ready for the governed server authority.'
+if ($bridge.convergence_run.status -ne 'handoff_ready' -or $bridge.convergence_run.operator_acknowledgement.status -ne 'acknowledged_for_handoff') {
+    Fail 'Convergence did not produce an acknowledged governed handoff.'
+}
+# The result above is the terminal handoff. Server authority performs any subsequent apply.
+exit 0
