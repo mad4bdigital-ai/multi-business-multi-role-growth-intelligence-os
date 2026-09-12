@@ -8,14 +8,14 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7673,
-  "route_count": 1104,
-  "write_route_count": 671,
+  "file_count": 7674,
+  "route_count": 1103,
+  "write_route_count": 670,
   "classified_write_surface_count": 42,
-  "classified_write_route_count": 671,
+  "classified_write_route_count": 670,
   "unclassified_write_route_count": 0,
-  "intentionally_unmapped_write_route_count": 629,
-  "sensitive_intentionally_unmapped_write_route_count": 629,
+  "intentionally_unmapped_write_route_count": 628,
+  "sensitive_intentionally_unmapped_write_route_count": 628,
   "migration_count": 448,
   "registry_evidence_count": 113,
   "write_scope_count": 6,
@@ -7978,8 +7978,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#GET:/admin/recovery/staging/contract:0",
-      "source_line": 231,
-      "source_offset": 17700,
+      "source_line": 238,
+      "source_offset": 18377,
       "method": "GET",
       "path": "/admin/recovery/staging/contract",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -7987,8 +7987,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#GET:/admin/recovery/staging/readiness:1",
-      "source_line": 232,
-      "source_offset": 17852,
+      "source_line": 239,
+      "source_offset": 18529,
       "method": "GET",
       "path": "/admin/recovery/staging/readiness",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -7996,8 +7996,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#GET:/admin/recovery/staging/certification:2",
-      "source_line": 240,
-      "source_offset": 18516,
+      "source_line": 247,
+      "source_offset": 19193,
       "method": "GET",
       "path": "/admin/recovery/staging/certification",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -8005,35 +8005,26 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-ticket/verify:3",
-      "source_line": 249,
-      "source_offset": 19507,
+      "source_line": 256,
+      "source_offset": 20184,
       "method": "POST",
       "path": "/admin/recovery/staging/bootstrap-ticket/verify",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-ticket/bundle-verify:4",
-      "source_line": 278,
-      "source_offset": 21833,
-      "method": "POST",
-      "path": "/admin/recovery/staging/bootstrap-ticket/bundle-verify",
-      "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
-      "write": true
-    },
-    {
-      "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-ticket/finalize:5",
-      "source_line": 288,
-      "source_offset": 22516,
+      "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-ticket/finalize:4",
+      "source_line": 290,
+      "source_offset": 22939,
       "method": "POST",
       "path": "/admin/recovery/staging/bootstrap-ticket/finalize",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-partial-receipt:6",
-      "source_line": 317,
-      "source_offset": 25066,
+      "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-partial-receipt:5",
+      "source_line": 319,
+      "source_offset": 25489,
       "method": "POST",
       "path": "/admin/recovery/staging/bootstrap-partial-receipt",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -45018,10 +45009,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
-        "source_line": 249,
+        "source_line": 256,
         "handler_window_lines": [
-          249,
-          276
+          256,
+          288
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -45037,7 +45028,8 @@
           "authority": [
             "admin",
             "authority",
-            "authority"
+            "authority",
+            "role"
           ],
           "readback": [
             "verify",
@@ -45079,83 +45071,17 @@
       "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
     },
     {
-      "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-ticket/bundle-verify:4",
+      "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-ticket/finalize:4",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "support",
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
-        "source_line": 278,
+        "source_line": 290,
         "handler_window_lines": [
-          278,
-          286
-        ],
-        "evidence_flags": {
-          "handler_window_present": true,
-          "provider_signal": false,
-          "db_registry_signal": false,
-          "authority_signal": true,
-          "readback_signal": true,
-          "mutation_signal": false
-        },
-        "signals": {
-          "provider": [],
-          "db_registry": [],
-          "authority": [
-            "admin",
-            "authority",
-            "role",
-            "role"
-          ],
-          "readback": [
-            "verify",
-            "response"
-          ],
-          "mutation": []
-        },
-        "static_only": true,
-        "secrets_included": false
-      },
-      "evidence_confidence": {
-        "level": "low_static",
-        "basis": "handler_window_signals_only",
-        "authorizes": false
-      },
-      "promotion_prerequisites": [
-        "explicit_resource_operation_scope_binding",
-        "live_resource_authority_binding",
-        "approval_policy_evidence",
-        "capability_envelope_evidence",
-        "lease_evidence",
-        "staging_environment",
-        "same_cycle_readback_contract"
-      ],
-      "promotion_status": "blocked",
-      "scope_keys": [],
-      "resource_candidate": "support",
-      "resource_key": null,
-      "operation_key": null,
-      "authority_required": true,
-      "provider_mutation_allowed": false,
-      "readback_required": true,
-      "owner": "support-governance",
-      "classification_confidence": "heuristic_requires_manual_confirmation",
-      "risk_class": "critical",
-      "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
-    },
-    {
-      "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-ticket/finalize:5",
-      "classification": "intentionally_unmapped",
-      "mapping_status": "blocked",
-      "domain": "support",
-      "operation_class": "create_or_request",
-      "evidence": {
-        "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
-        "source_line": 288,
-        "handler_window_lines": [
-          288,
-          315
+          290,
+          317
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -45214,17 +45140,17 @@
       "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
     },
     {
-      "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-partial-receipt:6",
+      "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-partial-receipt:5",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "platform_control_plane",
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
-        "source_line": 317,
+        "source_line": 319,
         "handler_window_lines": [
-          317,
-          332
+          319,
+          333
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -45246,6 +45172,7 @@
           ],
           "readback": [
             "response",
+            "verify",
             "readback",
             "readback"
           ],
@@ -53543,17 +53470,17 @@
   ],
   "evidence_graph": {
     "node_counts": {
-      "routes": 671,
+      "routes": 670,
       "domains": 11,
       "handler_files": 134
     },
     "edge_counts": {
-      "route_to_handler_file": 671,
-      "route_to_domain": 671,
+      "route_to_handler_file": 670,
+      "route_to_domain": 670,
       "route_to_provider_signal": 97,
       "route_to_db_registry_signal": 0,
-      "route_to_authority_signal": 424,
-      "route_to_readback_signal": 378,
+      "route_to_authority_signal": 423,
+      "route_to_readback_signal": 377,
       "route_to_mutation_signal": 385,
       "route_to_explicit_scope_candidate": 42
     },
@@ -60033,8 +59960,8 @@
     {
       "severity": "high",
       "code": "INTENTIONALLY_UNMAPPED_WRITE_ROUTES_BLOCKED",
-      "count": 629,
-      "sensitive_count": 629
+      "count": 628,
+      "sensitive_count": 628
     },
     {
       "severity": "medium",
