@@ -254,7 +254,7 @@
     },
     {
       "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
-      "sha256": "642a34944aa43a1921441f411612cf0afa002b5d457569b9845420966d8d00ce"
+      "sha256": "32657f10120bc3da62881077ddbe4aba4ff01c11f8184808cf48db7c6ae47ef0"
     },
     {
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
@@ -334,7 +334,7 @@
     },
     {
       "path": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
-      "sha256": "cc8c6db51ec1f62333887168b42c738a0c555ec576ce0ef1a51a6cadb82ef9f4"
+      "sha256": "27f469f797f322aeaff5467707782935ab1bfac2ec595c87299b1fe2b836de28"
     },
     {
       "path": "autopilot-portable-staging/Staging-Environment.ps1",
