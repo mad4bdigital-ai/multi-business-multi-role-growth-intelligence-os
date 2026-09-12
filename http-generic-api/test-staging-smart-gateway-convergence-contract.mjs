@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import "./test-staging-convergence-acknowledgement-cli.mjs";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
