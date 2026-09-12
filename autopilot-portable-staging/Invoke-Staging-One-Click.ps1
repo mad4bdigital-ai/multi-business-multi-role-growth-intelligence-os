@@ -28,6 +28,7 @@ $runtimeStatePath = Join-Path $root 'autopilot-state.json'
 $deploymentLeasePath = Join-Path (Get-StagingLogRoot) 'deployment-lease.json'
 $expectedRepository = 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os'
 $script:TopologyTransitionLeaseActive = $false
+$script:TopologyTransitionExpectedCommit = ''
 
 function Fail([string]$Message) { throw "STAGING_DUAL_MODE_SMART_ONE_CLICK_FAIL_CLOSED: $Message" }
 
@@ -36,16 +37,17 @@ function Get-RepositoryHeadCommit {
         $head = (& git -C $RepositoryPath rev-parse HEAD 2>$null | Out-String).Trim().ToLowerInvariant()
         if ($head -match '^[0-9a-f]{40}$') { return $head }
     } catch { }
-    return ''
+    Fail 'Unable to resolve an exact repository HEAD commit for the topology transition.'
 }
 
 function Enter-TopologyTransitionLease {
+    $expectedCommit = Get-RepositoryHeadCommit
     $now = [DateTime]::UtcNow
     $lease = [ordered]@{
         contract = 'mad4b.staging-deployment-lease.v1'
         status = 'deploying'
         stage = 'tunnel_topology_transition'
-        expected_commit = Get-RepositoryHeadCommit
+        expected_commit = $expectedCommit
         requested_tunnel_mode = $TunnelMode
         started_at = $now.ToString('o')
         expires_at = $now.AddMinutes(15).ToString('o')
@@ -55,14 +57,19 @@ function Enter-TopologyTransitionLease {
         secrets_included = $false
     }
     Write-StagingAtomicJson $deploymentLeasePath $lease 8
+    $script:TopologyTransitionExpectedCommit = $expectedCommit
     $script:TopologyTransitionLeaseActive = $true
 }
 
 function Complete-TopologyTransitionLease {
     if (Test-Path -LiteralPath $deploymentLeasePath) {
-        Remove-Item -LiteralPath $deploymentLeasePath -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $deploymentLeasePath -Force -ErrorAction Stop
+    }
+    if (Test-Path -LiteralPath $deploymentLeasePath) {
+        Fail 'Topology transition lease remained after completion cleanup.'
     }
     $script:TopologyTransitionLeaseActive = $false
+    $script:TopologyTransitionExpectedCommit = ''
 }
 
 function Mark-TopologyTransitionFailed {
@@ -77,7 +84,7 @@ function Mark-TopologyTransitionFailed {
     if ($null -eq $lease) {
         $lease = [pscustomobject]@{
             contract = 'mad4b.staging-deployment-lease.v1'
-            expected_commit = Get-RepositoryHeadCommit
+            expected_commit = $script:TopologyTransitionExpectedCommit
             requested_tunnel_mode = $TunnelMode
             production_mutation = $false
             provider_mutation = $false
@@ -91,9 +98,14 @@ function Mark-TopologyTransitionFailed {
     $lease | Add-Member -NotePropertyName expires_at -NotePropertyValue $now.AddMinutes(5).ToString('o') -Force
     Write-StagingAtomicJson $deploymentLeasePath $lease 8
     $script:TopologyTransitionLeaseActive = $false
+    $script:TopologyTransitionExpectedCommit = ''
 }
 
 function Publish-CanonicalTunnelRuntimeState {
+    $expectedCommit = ([string]$script:TopologyTransitionExpectedCommit).Trim().ToLowerInvariant()
+    if ($expectedCommit -notmatch '^[0-9a-f]{40}$') {
+        Fail 'Topology transition is missing the exact commit authority required for runtime publication.'
+    }
     if (-not (Test-Path -LiteralPath $runtimeStatePath -PathType Leaf)) {
         Fail "Canonical runtime state is missing after successful topology transition: $runtimeStatePath"
     }
@@ -104,6 +116,9 @@ function Publish-CanonicalTunnelRuntimeState {
     }
     $commit = ([string]$runtime.commit).Trim().ToLowerInvariant()
     if ($commit -notmatch '^[0-9a-f]{40}$') { Fail 'Canonical runtime state is missing an exact commit after topology transition.' }
+    if ($commit -ne $expectedCommit) {
+        Fail 'Canonical runtime commit does not match topology transition commit.'
+    }
     $runtime | Add-Member -NotePropertyName tunnel_mode -NotePropertyValue $TunnelMode -Force
     $runtime | Add-Member -NotePropertyName tunnel_started -NotePropertyValue ([bool]($TunnelMode -ne 'disabled')) -Force
     $runtime | Add-Member -NotePropertyName tunnel_state_published_at -NotePropertyValue ([DateTime]::UtcNow.ToString('o')) -Force
@@ -112,7 +127,7 @@ function Publish-CanonicalTunnelRuntimeState {
     $readback = Get-Content -Raw -LiteralPath $runtimeStatePath | ConvertFrom-Json -ErrorAction Stop
     if ([string]$readback.tunnel_mode -ne $TunnelMode) { Fail 'Canonical runtime tunnel_mode readback mismatch after publication.' }
     if ([bool]$readback.tunnel_started -ne [bool]($TunnelMode -ne 'disabled')) { Fail 'Canonical runtime tunnel_started readback mismatch after publication.' }
-    if (([string]$readback.commit).Trim().ToLowerInvariant() -ne $commit) { Fail 'Canonical runtime commit changed during tunnel state publication.' }
+    if (([string]$readback.commit).Trim().ToLowerInvariant() -ne $expectedCommit) { Fail 'Canonical runtime commit changed during tunnel state publication.' }
 }
 
 function Write-Lines([object[]]$Lines) {
