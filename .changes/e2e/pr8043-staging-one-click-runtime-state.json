@@ -8,6 +8,7 @@
   "scope": {
     "include": [
       ".changes/e2e/pr8043-staging-one-click-runtime-state.json",
+      "autopilot-portable-staging/manifest.json",
       "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
       "autopilot-portable-staging/Start-Staging-One-Click.cmd",
       "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
@@ -88,6 +89,7 @@
           "evidence_paths": [
             ".changes/e2e/pr8043-staging-one-click-runtime-state.json",
             "http-generic-api/config/deployment-branch-policy.json",
+            "autopilot-portable-staging/manifest.json",
             "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
             "autopilot-portable-staging/Start-Staging-One-Click.cmd",
             "http-generic-api/routes/adminHostBreakglassRoutes.js",
