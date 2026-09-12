@@ -8,15 +8,13 @@
   "scope": {
     "include": [
       ".changes/e2e/pr8043-staging-one-click-runtime-state.json",
-      "http-generic-api/package.json",
+      "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
+      "autopilot-portable-staging/Start-Staging-One-Click.cmd",
+      "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+      "http-generic-api/hostBreakglassLocalRequest.js",
       "http-generic-api/routes/adminHostBreakglassRoutes.js",
-      "http-generic-api/scripts/test-one-click-runtime-bootstrap.mjs",
-      "http-generic-api/services/hostingerBootstrapTarget.js",
-      "http-generic-api/services/promotionReadiness.generated.json",
-      "http-generic-api/services/promotionReadiness.js",
-      "http-generic-api/services/stagingRuntimeState.generated.json",
-      "http-generic-api/services/test-authority-registry.json",
-      "package.json"
+      "http-generic-api/scripts/host-breakglass-local-verified.mjs",
+      "http-generic-api/test-host-breakglass-local-request.mjs"
     ]
   },
   "merge_contract": {
@@ -24,7 +22,10 @@
   },
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
-    "declared_targets": ["staging", "production"],
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
     "cross_environment_reviewed": true,
     "live_staging_certification_required": true,
     "production_mutation_allowed": false
@@ -64,22 +65,34 @@
               "id": "pr8043-environment-impact-closure",
               "runner": "node",
               "path": "http-generic-api/scripts/environment-impact-closure.mjs",
-              "args": ["--base-sha", "BASE_SHA", "--head-sha", "HEAD_SHA"]
+              "args": [
+                "--base-sha",
+                "BASE_SHA",
+                "--head-sha",
+                "HEAD_SHA"
+              ]
             },
             {
               "id": "pr8043-one-click-runtime-bootstrap",
               "runner": "node",
-              "path": "http-generic-api/scripts/test-one-click-runtime-bootstrap.mjs",
+              "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "pr8043-verified-staging-access-repair-handoff",
+              "runner": "node",
+              "path": "http-generic-api/test-host-breakglass-local-request.mjs",
               "args": []
             }
           ],
           "evidence_paths": [
             ".changes/e2e/pr8043-staging-one-click-runtime-state.json",
             "http-generic-api/config/deployment-branch-policy.json",
+            "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
+            "autopilot-portable-staging/Start-Staging-One-Click.cmd",
             "http-generic-api/routes/adminHostBreakglassRoutes.js",
-            "http-generic-api/services/hostingerBootstrapTarget.js",
-            "http-generic-api/services/promotionReadiness.js",
-            "http-generic-api/services/stagingRuntimeState.generated.json"
+            "http-generic-api/hostBreakglassLocalRequest.js",
+            "http-generic-api/scripts/host-breakglass-local-verified.mjs"
           ]
         }
       ],
@@ -88,7 +101,12 @@
           "id": "environment-impact-closure",
           "runner": "node",
           "path": "http-generic-api/scripts/environment-impact-closure.mjs",
-          "args": ["--base-sha", "BASE_SHA", "--head-sha", "HEAD_SHA"]
+          "args": [
+            "--base-sha",
+            "BASE_SHA",
+            "--head-sha",
+            "HEAD_SHA"
+          ]
         }
       ]
     }
