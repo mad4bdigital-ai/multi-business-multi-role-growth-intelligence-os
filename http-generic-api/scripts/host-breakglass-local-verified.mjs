@@ -21,21 +21,31 @@ function requestFileFromArgs(args) {
   return { index, path: path.resolve(process.cwd(), args[index + 1]) };
 }
 
-export function rebuildVerifiedStagingAccessRepairPlan(request = {}) {
+export function rebuildVerifiedStagingPlan(request = {}) {
   const planInput = verifyHostBreakglassLocalRequest(request);
   const bootstrapContract = readStagingRuntimeBootstrapContract();
-  const rebuilt = buildHostBreakglassPlan(planInput, { bootstrapContract });
+  const roleSelectiveRebuild = planInput.operation_key === "database.rebuild_empty" && planInput.action === "apply_migration";
+  const durableProof = roleSelectiveRebuild ? planInput.role_selection_proof : null;
+  if (roleSelectiveRebuild && durableProof?.source !== "durable_full_inspection") {
+    fail("host_breakglass_local_role_selection_provenance_invalid", "Verified selective rebuild requires the server-resolved durable full-inspection proof.");
+  }
+  const rebuilt = buildHostBreakglassPlan(planInput, {
+    bootstrapContract,
+    ...(durableProof ? { proofResolver: () => durableProof } : {}),
+  });
   if (rebuilt.plan_sha256 !== request.plan_sha256) {
-    fail("host_breakglass_local_plan_mismatch", "The local checkout rebuilt a different Host Breakglass plan; execution is forbidden.");
+    fail("host_breakglass_local_plan_mismatch", "The local checkout rebuilt a different Host Breakglass transport plan; execution is forbidden.");
   }
   return rebuilt;
 }
+
+export const rebuildVerifiedStagingAccessRepairPlan = rebuildVerifiedStagingPlan;
 
 export function verifyHostBreakglassLocalRequestFile(requestPath) {
   if (!fs.existsSync(requestPath) || !fs.statSync(requestPath).isFile()) fail("host_breakglass_local_request_file_missing", "Verified Host Breakglass request file does not exist.", 400);
   if (fs.statSync(requestPath).size > 256 * 1024) fail("host_breakglass_local_request_file_too_large", "Verified Host Breakglass request file exceeds the bounded size limit.", 400);
   const request = JSON.parse(fs.readFileSync(requestPath, "utf8"));
-  const plan = rebuildVerifiedStagingAccessRepairPlan(request);
+  const plan = rebuildVerifiedStagingPlan(request);
   return { request, plan };
 }
 
@@ -43,12 +53,16 @@ async function main() {
   const args = process.argv.slice(2);
   try {
     const requestFile = requestFileFromArgs(args);
-    verifyHostBreakglassLocalRequestFile(requestFile.path);
+    const verified = verifyHostBreakglassLocalRequestFile(requestFile.path);
     const delegatedArgs = [...args];
     delegatedArgs[requestFile.index + 1] = requestFile.path;
     const child = spawnSync(process.execPath, [LEGACY_RUNNER, ...delegatedArgs], {
       cwd: API_ROOT,
-      env: process.env,
+      env: {
+        ...process.env,
+        HOST_BREAKGLASS_VERIFIED_REQUEST_SHA256: verified.request.request_sha256,
+        HOST_BREAKGLASS_AUTHORITY_PLAN_HASH: verified.request.authority_plan_hash || "",
+      },
       stdio: "inherit",
       windowsHide: true,
     });
@@ -57,7 +71,7 @@ async function main() {
   } catch (error) {
     process.stdout.write(`${JSON.stringify({
       ok: false,
-      contract: "mad4b.host-breakglass-local-request-verifier.v1",
+      contract: "mad4b.host-breakglass-local-request-verifier.v2",
       status: "verified_request_rejected",
       error: {
         code: error?.code || "host_breakglass_local_request_verification_failed",
