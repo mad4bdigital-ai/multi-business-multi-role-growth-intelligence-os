@@ -40,7 +40,7 @@ Require (-not $env:DOCKER_HOST -and -not $env:DOCKER_CONTEXT) "Remote Docker con
 Require ((Native-Text "docker" @("context", "show")) -in @("default", "desktop-linux")) "Docker context is not local"
 Require (-not [string]::IsNullOrWhiteSpace((Native-Text "docker" @("info", "--format", "{{.ServerVersion}}")))) "Local Docker daemon is unavailable"
 Require ((Native-Text "git" @("-C", $repo, "rev-parse", "HEAD")).ToLowerInvariant() -eq $ExpectedCommit) "Exact checkout commit mismatch"
-Require ([string]::IsNullOrWhiteSpace((Native-Text "git" @("-C", $repo, "status", "--porcelain", "--untracked-files=no"))) "Tracked working tree is dirty"
+Require ([string]::IsNullOrWhiteSpace((Native-Text "git" @("-C", $repo, "status", "--porcelain", "--untracked-files=no")))) "Tracked working tree is dirty"
 Require ((Native-Text "git" @("-C", $repo, "remote", "get-url", "origin")) -match 'github\.com[:/]mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os(?:\.git)?$') "Repository origin mismatch"
 foreach ($key in @("MIGRATION_APPLIED", "DATABASE_MUTATED", "PRODUCTION_MUTATION_AUTHORIZED", "RULESET_MUTATION_AUTHORIZED")) { Require ((Read-Env $key) -ceq "false") "$key must be false" }
 if ($Apply) {
