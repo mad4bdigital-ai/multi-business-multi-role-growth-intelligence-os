@@ -85,12 +85,7 @@ async function verifySelectiveRoleBundles({ request, plan, args } = {}) {
   const selectedRoles = Array.isArray(plan.selected_rebuild_roles) ? plan.selected_rebuild_roles : [];
   if (!selectedRoles.length) fail("host_breakglass_staging_role_selection_missing", "Selective rebuild request contains no selected roles.", 409);
   const manifestPath = resolveBundleManifestPath(bootstrapContract);
-  const roleBundleBindings = computeStagingRoleBundleBindings({
-    manifestPath,
-    expectedSha: plan.expected_sha,
-    roles: selectedRoles,
-    contract: bootstrapContract,
-  });
+  const roleBundleBindings = computeStagingRoleBundleBindings({ manifestPath, expectedSha: plan.expected_sha, roles: selectedRoles, contract: bootstrapContract });
   const backendApiKey = String(process.env.STAGING_RECOVERY_BACKEND_API_KEY || process.env.BACKEND_API_KEY || "").trim();
   if (!backendApiKey) fail("host_breakglass_staging_ticket_authority_auth_missing", "Existing BACKEND_API_KEY is required for pre-mutation role-bundle ticket verification.", 503);
   const baseUrl = String(process.env.STAGING_RECOVERY_ADMIN_URL || "https://activation-dev.mad4b.com").trim().replace(/\/+$/u, "");
@@ -109,7 +104,7 @@ async function verifySelectiveRoleBundles({ request, plan, args } = {}) {
   };
   let response;
   try {
-    response = await fetch(`${baseUrl}/admin/runtime-bootstrap/staging/rebuild-empty/ticket-bundle-verify`, {
+    response = await fetch(`${baseUrl}/admin/recovery/staging/bootstrap-ticket/bundle-verify`, {
       method: "POST",
       headers: { "content-type": "application/json", "x-api-key": backendApiKey, "x-request-id": plan.correlation_id },
       body: JSON.stringify(body),
@@ -147,18 +142,7 @@ async function main() {
     if (child.error) throw child.error;
     process.exit(Number.isInteger(child.status) ? child.status : 1);
   } catch (error) {
-    process.stdout.write(`${JSON.stringify({
-      ok: false,
-      contract: "mad4b.host-breakglass-local-request-verifier.v2",
-      status: "verified_request_rejected",
-      error: {
-        code: error?.code || "host_breakglass_local_request_verification_failed",
-        message: error?.message || "Verified Host Breakglass request verification failed.",
-      },
-      database_mutation_performed: false,
-      production_authority: false,
-      secrets_included: false,
-    })}\n`);
+    process.stdout.write(`${JSON.stringify({ ok: false, contract: "mad4b.host-breakglass-local-request-verifier.v2", status: "verified_request_rejected", error: { code: error?.code || "host_breakglass_local_request_verification_failed", message: error?.message || "Verified Host Breakglass request verification failed." }, database_mutation_performed: false, production_authority: false, secrets_included: false })}\n`);
     process.exit(1);
   }
 }
