@@ -35,7 +35,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Keep the operator-safe default local-only, make tunnel ownership transitions publish one canonical runtime authority, and make Staging database access-repair handoff exact-plan verifiable before any local execution.",
+      "objective": "Keep the operator-safe default local-only, make tunnel ownership transitions publish one canonical exact-commit runtime authority, and make Staging database access-repair handoff exact-plan verifiable before any local execution.",
       "e2e_journeys": [
         {
           "id": "staging-one-click-tunnel-lifecycle-authority",
@@ -43,19 +43,25 @@
           "level": "synthetic_runtime",
           "actor": "Local Windows Docker Staging operator",
           "entrypoint": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
-          "terminal_outcome": "The no-argument launcher remains local-only; explicit public modes require the Staging Activation Gateway before topology mutation, use a bounded transition lease, and publish tunnel_mode/tunnel_started atomically to the exact-commit runtime state after success.",
+          "terminal_outcome": "The no-argument launcher remains local-only; explicit public modes require the Staging Activation Gateway before topology mutation, use a bounded transition lease bound to the exact repository HEAD, reject stale runtime commits before publication, and publish tunnel_mode/tunnel_started atomically only after exact-commit proof.",
           "steps": [
             "Launch the operator CMD without a tunnel argument and resolve disabled as the safe default.",
             "Reject a public tunnel mode before topology mutation when Activation Gateway authority is absent.",
-            "Enter a bounded deployment lease before delegating the selected tunnel transition to the dual-mode core.",
-            "On successful transition, atomically publish tunnel_mode and tunnel_started while preserving the exact runtime commit, then remove the lease.",
-            "On failed transition, retain a short transition-failed lease so the Health Monitor does not misclassify an in-progress or failed handoff as healthy steady-state authority."
+            "Resolve a full 40-character repository HEAD or fail closed before entering the bounded deployment lease.",
+            "Persist that exact HEAD as expected_commit in the transition lease and retain the same in-process expected commit authority for publication.",
+            "On successful core transition, compare autopilot-state.json commit to the transition expected_commit before writing tunnel_mode, tunnel_started, or tunnel_state_published_at.",
+            "If runtime commit is stale, fail closed without publishing tunnel authority and retain bounded transition-failed evidence.",
+            "If publication succeeds, atomically write and read back the exact commit plus tunnel authority, remove the lease, and verify the lease is actually absent.",
+            "On any failed transition, retain a short transition-failed lease so the Health Monitor does not misclassify an in-progress or failed handoff as healthy steady-state authority."
           ],
           "assertions": [
             "The CMD and smart launcher default to disabled local-only mode.",
             "Explicit windows_service or docker_sidecar CMD selection includes EnableActivationGateway.",
             "Public modes without EnableActivationGateway fail before Invoke-Core can mutate topology.",
-            "Successful transitions atomically update canonical autopilot-state.json tunnel_mode and tunnel_started with exact-commit readback.",
+            "An unresolved or non-exact repository HEAD cannot create topology-transition authority.",
+            "repo HEAD A plus runtime commit B fails before tunnel_mode/tunnel_started publication and leaves no new tunnel authority in autopilot-state.json.",
+            "Successful transitions require runtime commit equality with the transition expected_commit and use exact-commit readback after atomic publication.",
+            "Completion requires deployment-lease deletion readback; a surviving lease is a fail-closed transition error.",
             "Failed transitions leave only bounded Staging lifecycle evidence; no Production, provider, Cloudflare DNS, schema, migration, or Production database mutation is authorized."
           ],
           "tests": [
@@ -92,6 +98,7 @@
             "The request is restricted to staging_local_windows_docker + database.repair + database.access_repair + staging_local_role_env.",
             "Tampering with expected_sha or any request field invalidates request_sha256 before the legacy runner, Docker mutation path, or database path is reached.",
             "The local verifier requires the rebuilt plan_sha256 to equal the server-returned canonical plan_sha256.",
+            "The historical plan hash be044d4b39d4c54261b0c07c1527233d2a17c5cfb5614c46e31107a21c2967c4 is evidence only and cannot authorize execution after the branch/deployment exact SHA changes.",
             "Production authority remains false and the handoff itself performs no database, provider, Cloudflare, schema, migration, or Production mutation."
           ],
           "tests": [
