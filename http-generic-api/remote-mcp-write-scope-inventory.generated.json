@@ -8,14 +8,14 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7667,
-  "route_count": 1103,
-  "write_route_count": 670,
+  "file_count": 7671,
+  "route_count": 1107,
+  "write_route_count": 674,
   "classified_write_surface_count": 42,
-  "classified_write_route_count": 670,
+  "classified_write_route_count": 674,
   "unclassified_write_route_count": 0,
-  "intentionally_unmapped_write_route_count": 628,
-  "sensitive_intentionally_unmapped_write_route_count": 628,
+  "intentionally_unmapped_write_route_count": 632,
+  "sensitive_intentionally_unmapped_write_route_count": 632,
   "migration_count": 448,
   "registry_evidence_count": 113,
   "write_scope_count": 6,
@@ -508,35 +508,71 @@
     },
     {
       "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#GET:/admin/runtime-bootstrap/catalog:0",
-      "source_line": 76,
-      "source_offset": 3975,
+      "source_line": 140,
+      "source_offset": 8003,
       "method": "GET",
       "path": "/admin/runtime-bootstrap/catalog",
       "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
       "write": false
     },
     {
-      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/plan:1",
-      "source_line": 81,
-      "source_offset": 4215,
+      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/staging/rebuild-empty/inspection:1",
+      "source_line": 145,
+      "source_offset": 8243,
+      "method": "POST",
+      "path": "/admin/runtime-bootstrap/staging/rebuild-empty/inspection",
+      "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
+      "write": true
+    },
+    {
+      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/staging/rebuild-empty/prepare:2",
+      "source_line": 149,
+      "source_offset": 8502,
+      "method": "POST",
+      "path": "/admin/runtime-bootstrap/staging/rebuild-empty/prepare",
+      "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
+      "write": true
+    },
+    {
+      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/staging/rebuild-empty/ticket-bundle-verify:3",
+      "source_line": 153,
+      "source_offset": 8749,
+      "method": "POST",
+      "path": "/admin/runtime-bootstrap/staging/rebuild-empty/ticket-bundle-verify",
+      "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
+      "write": true
+    },
+    {
+      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/staging/rebuild-empty/approve:4",
+      "source_line": 157,
+      "source_offset": 9013,
+      "method": "POST",
+      "path": "/admin/runtime-bootstrap/staging/rebuild-empty/approve",
+      "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
+      "write": true
+    },
+    {
+      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/plan:5",
+      "source_line": 174,
+      "source_offset": 9757,
       "method": "POST",
       "path": "/admin/runtime-bootstrap/plan",
       "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/runs:2",
-      "source_line": 82,
-      "source_offset": 4460,
+      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/runs:6",
+      "source_line": 175,
+      "source_offset": 10002,
       "method": "POST",
       "path": "/admin/runtime-bootstrap/runs",
       "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#GET:/admin/runtime-bootstrap/runs/:correlation_id:3",
-      "source_line": 93,
-      "source_offset": 4941,
+      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#GET:/admin/runtime-bootstrap/runs/:correlation_id:7",
+      "source_line": 186,
+      "source_offset": 10490,
       "method": "GET",
       "path": "/admin/runtime-bootstrap/runs/:correlation_id",
       "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
@@ -11985,17 +12021,273 @@
       "reason": "connector_or_local_execution_requires_device_capability"
     },
     {
-      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/plan:1",
+      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/staging/rebuild-empty/inspection:1",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "platform_control_plane",
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
-        "source_line": 81,
+        "source_line": 145,
         "handler_window_lines": [
-          81,
-          81
+          145,
+          148
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": false,
+          "db_registry_signal": false,
+          "authority_signal": true,
+          "readback_signal": true,
+          "mutation_signal": false
+        },
+        "signals": {
+          "provider": [],
+          "db_registry": [],
+          "authority": [
+            "admin",
+            "authority"
+          ],
+          "readback": [
+            "response"
+          ],
+          "mutation": []
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "low_static",
+        "basis": "handler_window_signals_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract",
+        "live_db_registry_readback"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [],
+      "resource_candidate": "platform_control_plane",
+      "resource_key": null,
+      "operation_key": null,
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "platform-control-plane-governance",
+      "classification_confidence": "heuristic_requires_manual_confirmation",
+      "risk_class": "critical",
+      "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
+    },
+    {
+      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/staging/rebuild-empty/prepare:2",
+      "classification": "intentionally_unmapped",
+      "mapping_status": "blocked",
+      "domain": "platform_control_plane",
+      "operation_class": "execute",
+      "evidence": {
+        "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
+        "source_line": 149,
+        "handler_window_lines": [
+          149,
+          152
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": false,
+          "db_registry_signal": false,
+          "authority_signal": true,
+          "readback_signal": true,
+          "mutation_signal": false
+        },
+        "signals": {
+          "provider": [],
+          "db_registry": [],
+          "authority": [
+            "admin",
+            "authority"
+          ],
+          "readback": [
+            "response"
+          ],
+          "mutation": []
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "low_static",
+        "basis": "handler_window_signals_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract",
+        "live_db_registry_readback"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [],
+      "resource_candidate": "platform_control_plane",
+      "resource_key": null,
+      "operation_key": null,
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "platform-control-plane-governance",
+      "classification_confidence": "heuristic_requires_manual_confirmation",
+      "risk_class": "critical",
+      "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
+    },
+    {
+      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/staging/rebuild-empty/ticket-bundle-verify:3",
+      "classification": "intentionally_unmapped",
+      "mapping_status": "blocked",
+      "domain": "support",
+      "operation_class": "execute",
+      "evidence": {
+        "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
+        "source_line": 153,
+        "handler_window_lines": [
+          153,
+          156
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": false,
+          "db_registry_signal": false,
+          "authority_signal": true,
+          "readback_signal": true,
+          "mutation_signal": false
+        },
+        "signals": {
+          "provider": [],
+          "db_registry": [],
+          "authority": [
+            "admin"
+          ],
+          "readback": [
+            "verify",
+            "response"
+          ],
+          "mutation": []
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "low_static",
+        "basis": "handler_window_signals_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [],
+      "resource_candidate": "support",
+      "resource_key": null,
+      "operation_key": null,
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "support-governance",
+      "classification_confidence": "heuristic_requires_manual_confirmation",
+      "risk_class": "critical",
+      "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
+    },
+    {
+      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/staging/rebuild-empty/approve:4",
+      "classification": "intentionally_unmapped",
+      "mapping_status": "blocked",
+      "domain": "platform_control_plane",
+      "operation_class": "decision",
+      "evidence": {
+        "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
+        "source_line": 157,
+        "handler_window_lines": [
+          157,
+          173
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": false,
+          "db_registry_signal": false,
+          "authority_signal": true,
+          "readback_signal": true,
+          "mutation_signal": false
+        },
+        "signals": {
+          "provider": [],
+          "db_registry": [],
+          "authority": [
+            "admin",
+            "authority",
+            "authority"
+          ],
+          "readback": [
+            "response"
+          ],
+          "mutation": []
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "low_static",
+        "basis": "handler_window_signals_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract",
+        "live_db_registry_readback"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [],
+      "resource_candidate": "platform_control_plane",
+      "resource_key": null,
+      "operation_key": null,
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "platform-control-plane-governance",
+      "classification_confidence": "heuristic_requires_manual_confirmation",
+      "risk_class": "critical",
+      "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
+    },
+    {
+      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/plan:5",
+      "classification": "intentionally_unmapped",
+      "mapping_status": "blocked",
+      "domain": "platform_control_plane",
+      "operation_class": "execute",
+      "evidence": {
+        "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
+        "source_line": 174,
+        "handler_window_lines": [
+          174,
+          174
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -12048,17 +12340,17 @@
       "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
     },
     {
-      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/runs:2",
+      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/runs:6",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "platform_control_plane",
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
-        "source_line": 82,
+        "source_line": 175,
         "handler_window_lines": [
-          82,
-          92
+          175,
+          185
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -53468,17 +53760,17 @@
   ],
   "evidence_graph": {
     "node_counts": {
-      "routes": 670,
+      "routes": 674,
       "domains": 11,
       "handler_files": 134
     },
     "edge_counts": {
-      "route_to_handler_file": 670,
-      "route_to_domain": 670,
+      "route_to_handler_file": 674,
+      "route_to_domain": 674,
       "route_to_provider_signal": 97,
       "route_to_db_registry_signal": 0,
-      "route_to_authority_signal": 423,
-      "route_to_readback_signal": 377,
+      "route_to_authority_signal": 427,
+      "route_to_readback_signal": 381,
       "route_to_mutation_signal": 385,
       "route_to_explicit_scope_candidate": 42
     },
@@ -59958,8 +60250,8 @@
     {
       "severity": "high",
       "code": "INTENTIONALLY_UNMAPPED_WRITE_ROUTES_BLOCKED",
-      "count": 628,
-      "sensitive_count": 628
+      "count": 632,
+      "sensitive_count": 632
     },
     {
       "severity": "medium",
