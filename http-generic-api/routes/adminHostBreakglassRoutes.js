@@ -3,6 +3,7 @@ import { buildHostBreakglassPlan, dispatchHostBreakglassPlan, publicHostBreakgla
 import { buildVerifiedHostBreakglassLocalRequest } from "../hostBreakglassLocalRequest.js";
 import { resolveDurableRoleSelectionProof } from "../hostBreakglassRoleSelectionArtifact.js";
 import { createStagingRebuildEmptyAuthority } from "../stagingRebuildEmptyAuthority.js";
+import { createStagingRebuildBundleVerifier } from "../stagingRebuildBundleVerifier.js";
 import { publicStagingReadinessRemediationContract, readStagingRuntimeBootstrapContract } from "../stagingRuntimeBootstrapContract.js";
 
 function errorResponse(res, error) {
@@ -63,6 +64,11 @@ export function buildAdminHostBreakglassRoutes({ requireBackendApiKey, requireAd
     if (broker.stagingRebuildEmptyAuthority) return broker.stagingRebuildEmptyAuthority;
     if (typeof broker.createStagingRebuildEmptyAuthority === "function") return broker.createStagingRebuildEmptyAuthority();
     return createStagingRebuildEmptyAuthority({ env: broker.env || process.env, adapters: broker.stagingRecoveryAdapters || null, authorityGraph: broker.stagingRecoveryAuthorityGraph || null });
+  };
+  const stagingBundleVerifier = () => {
+    if (broker.stagingRebuildBundleVerifier) return broker.stagingRebuildBundleVerifier;
+    if (typeof broker.createStagingRebuildBundleVerifier === "function") return broker.createStagingRebuildBundleVerifier();
+    return createStagingRebuildBundleVerifier({ env: broker.env || process.env, adapters: broker.stagingRecoveryAdapters || null, authorityGraph: broker.stagingRecoveryAuthorityGraph || null });
   };
   const buildGovernedPlan = async (input = {}) => {
     const deps = dependenciesFor(input);
@@ -142,6 +148,10 @@ export function buildAdminHostBreakglassRoutes({ requireBackendApiKey, requireAd
   });
   router.post("/admin/runtime-bootstrap/staging/rebuild-empty/prepare", async (req, res) => {
     try { return res.status(200).json(await stagingAuthority().prepare(req.body || {})); }
+    catch (error) { return errorResponse(res, error); }
+  });
+  router.post("/admin/runtime-bootstrap/staging/rebuild-empty/ticket-bundle-verify", async (req, res) => {
+    try { return res.status(200).json(await stagingBundleVerifier().verify(req.body || {})); }
     catch (error) { return errorResponse(res, error); }
   });
   router.post("/admin/runtime-bootstrap/staging/rebuild-empty/approve", async (req, res) => {
