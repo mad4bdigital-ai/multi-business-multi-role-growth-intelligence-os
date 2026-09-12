@@ -6,19 +6,19 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "68e716b1eb9a4d940d79f56b94c31084d6f493126843b68605976ad7d849aaa0",
-    "dispatch_artifact_sha256": "574edd1ea46757162e4defafe46d46be2792952373f2e8000a8baff0fac7d1a5"
+    "dispatch_source_digest": "74874e05ad0e9d5f301fb6f436c4d8c2281c9cedbabf3c7e743242f5d5155c77",
+    "dispatch_artifact_sha256": "31a86da39b43f5b103b7c8fb6ba3c590bd87d23d98c93c5e2e7d50a250fde77e"
   },
   "coverage": {
-    "operation_count": 1067,
-    "openapi_documented_count": 1051,
+    "operation_count": 1066,
+    "openapi_documented_count": 1050,
     "openapi_canonical_documented_count": 732,
-    "openapi_generated_index_count": 319,
+    "openapi_generated_index_count": 318,
     "openapi_gap_count": 0,
     "auth_contract_gap_count": 0,
-    "openapi_detail_gap_count": 319,
+    "openapi_detail_gap_count": 318,
     "unresolved_surface_decision_count": 0,
-    "coverage_complete": false
+    "coverage_complete": true
   },
   "distributions": {
     "surface_decisions_by_family": [
@@ -46,7 +46,7 @@
     "detail_gap_entries_by_surface_decision": [
       {
         "decision": "internal_only",
-        "count": 276
+        "count": 275
       },
       {
         "decision": "api_only",
@@ -64,7 +64,7 @@
     "detail_gap_entries_by_method": [
       {
         "method": "POST",
-        "count": 146
+        "count": 145
       },
       {
         "method": "GET",
@@ -86,7 +86,7 @@
     "detail_gap_entries_by_path_first_segment": [
       {
         "path_first_segment": "admin",
-        "count": 39
+        "count": 38
       },
       {
         "path_first_segment": "dev-agent",
@@ -443,10 +443,6 @@
         "count": 4
       },
       {
-        "family_key": "staging-recovery-admin",
-        "count": 4
-      },
-      {
         "family_key": "auth-email-targeted-delivery",
         "count": 3
       },
@@ -472,6 +468,10 @@
       },
       {
         "family_key": "platform-engine",
+        "count": 3
+      },
+      {
+        "family_key": "staging-recovery-admin",
         "count": 3
       },
       {
@@ -651,7 +651,7 @@
   "priority_summary": {
     "blocking_contract_gap_count": 0,
     "surface_decision_required_family_count": 0,
-    "documentation_only_detail_gap_count": 319,
+    "documentation_only_detail_gap_count": 318,
     "top_surface_decision_families": []
   },
   "scope_boundary": {
