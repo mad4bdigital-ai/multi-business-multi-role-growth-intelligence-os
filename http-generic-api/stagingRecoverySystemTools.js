@@ -1,7 +1,8 @@
-import { createStagingCertificationCanaryPlan } from "./recoveryKernel.js";
+import { createStagingCertificationCanaryPlan, executeRemediationStep } from "./recoveryKernel.js";
 import { createStagingAccessRepairTicketAuthority } from "./stagingAccessRepairTicketAuthority.js";
 import { stagingRecoveryAuthorityInternals } from "./stagingRecoveryAuthorityBinding.js";
-import { executeRemediationStep } from "./recoveryKernel.js";
+import { createStagingRebuildEmptyAuthority } from "./stagingRebuildEmptyAuthority.js";
+import { buildStagingRebuildEmptyLocalHandoff } from "./stagingRebuildEmptyHandoff.js";
 
 export const STAGING_RECOVERY_SYSTEM_SURFACE_CONTRACT = "mad4b.staging-recovery-system-surface.v1";
 export const STAGING_RECOVERY_SYSTEM_SOURCE_KEY = "staging_recovery_system_surface_v1";
@@ -194,6 +195,69 @@ export async function stagingRecoveryAccessRepairApprove(input = {}, { env = pro
   });
 }
 
+export async function stagingRecoveryRebuildEmptyInspectionRecord(input = {}, { env = process.env, adapters = null } = {}) {
+  requireStagingEnvironment(env);
+  requireObject(
+    input,
+    ["expected_sha", "target_key", "correlation_id", "inspection", "role_bundle_bindings"],
+    ["expected_sha", "target_key", "correlation_id", "inspection", "role_bundle_bindings"],
+    "STAGING_RECOVERY_REBUILD_EMPTY_INSPECTION_INPUT_INVALID",
+  );
+  const authority = createStagingRebuildEmptyAuthority({ env, adapters });
+  return authority.recordInspection({
+    ...input,
+    expected_sha: requireSha40(input.expected_sha, "expected_sha"),
+    target_key: text(input.target_key, 128),
+    correlation_id: requireSafeId(input.correlation_id, "correlation_id"),
+  });
+}
+
+export async function stagingRecoveryRebuildEmptyPrepare(input = {}, { env = process.env, adapters = null } = {}) {
+  requireStagingEnvironment(env);
+  requireObject(
+    input,
+    ["expected_sha", "inspection_run_id", "idempotency_key"],
+    ["expected_sha", "inspection_run_id", "idempotency_key"],
+    "STAGING_RECOVERY_REBUILD_EMPTY_PREPARE_INPUT_INVALID",
+  );
+  const authority = createStagingRebuildEmptyAuthority({ env, adapters });
+  return authority.prepare({
+    expected_sha: requireSha40(input.expected_sha, "expected_sha"),
+    inspection_run_id: requireSafeId(input.inspection_run_id, "inspection_run_id"),
+    idempotency_key: requireSafeId(input.idempotency_key, "idempotency_key"),
+  });
+}
+
+export async function stagingRecoveryRebuildEmptyApprove(input = {}, { env = process.env, adapters = null } = {}) {
+  requireStagingEnvironment(env);
+  requireObject(
+    input,
+    ["plan_id", "authority_plan_hash", "step_id", "idempotency_key", "approval_confirmation"],
+    ["plan_id", "authority_plan_hash", "step_id", "idempotency_key", "approval_confirmation"],
+    "STAGING_RECOVERY_REBUILD_EMPTY_APPROVE_INPUT_INVALID",
+  );
+  const idempotencyKey = requireSafeId(input.idempotency_key, "idempotency_key");
+  const authority = createStagingRebuildEmptyAuthority({ env, adapters });
+  const issued = await authority.approveAndIssue({
+    plan_id: requireSafeId(input.plan_id, "plan_id", PLAN_ID_RE),
+    authority_plan_hash: requireSha256(input.authority_plan_hash, "authority_plan_hash"),
+    step_id: requireSafeId(input.step_id, "step_id", STEP_ID_RE),
+    idempotency_key: idempotencyKey,
+    approval_confirmation: text(input.approval_confirmation, 1024),
+  });
+  const handoff = await buildStagingRebuildEmptyLocalHandoff({ issued, idempotencyKey, broker: adapters || {} });
+  return {
+    ...issued,
+    status: "execution_ticket_issued_local_handoff_ready",
+    transport_plan_sha256: handoff.transport_plan_sha256,
+    local_handoff: handoff,
+    database_mutation_performed: false,
+    grant_mutation_performed: false,
+    production_authority: false,
+    secrets_included: false,
+  };
+}
+
 export async function stagingRecoverySystemSurfaceReadiness(_input = {}, { env = process.env } = {}) {
   const available = isStagingRecoverySystemEnvironment(env);
   if (!available) {
@@ -215,7 +279,8 @@ export async function stagingRecoverySystemSurfaceReadiness(_input = {}, { env =
     available: true,
     environment: "staging",
     target_key: "staging-runtime",
-    target_fingerprint_source: "server_derived_deployment_attestation",
+    control_plane_target_fingerprint_source: "server_derived_deployment_attestation",
+    rebuild_database_target_fingerprint_source: "runtime_bootstrap_target_binding_from_local_exact_environment",
     caller_selected_target: false,
     caller_selected_target_fingerprint: false,
     production_authority: false,
@@ -299,6 +364,70 @@ const descriptors = Object.freeze([
       properties: {
         plan_id: { type: "string", pattern: "^plan:[0-9a-f]{32}$" },
         plan_hash: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
+        step_id: { type: "string", pattern: "^step:[0-9a-f]{32}$" },
+        idempotency_key: { type: "string", minLength: 8, maxLength: 160 },
+        approval_confirmation: { type: "string", minLength: 32, maxLength: 1024 },
+      },
+    },
+  },
+  {
+    name: "staging_recovery_rebuild_empty_inspection_record",
+    handler: "stagingRecoveryRebuildEmptyInspectionRecord",
+    description: "Staging-only Recovery operation. Persists the exact-SHA read-only three-role object census, derives the selected zero-object role set server-side, separates Recovery control-plane identity from the local database target binding, and performs no mutation.",
+    source_key: STAGING_RECOVERY_SYSTEM_SOURCE_KEY,
+    capability_key: "staging_database_rebuild_empty",
+    catalog_level: "private_recovery",
+    tags: ["recovery", "staging", "private", "inspection", "rebuild_empty"],
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["expected_sha", "target_key", "correlation_id", "inspection", "role_bundle_bindings"],
+      properties: {
+        expected_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
+        target_key: { const: "staging-runtime" },
+        correlation_id: { type: "string", minLength: 8, maxLength: 160 },
+        inspection: { type: "object" },
+        role_bundle_bindings: { type: "object" },
+      },
+    },
+  },
+  {
+    name: "staging_recovery_rebuild_empty_prepare",
+    handler: "stagingRecoveryRebuildEmptyPrepare",
+    description: "Staging-only Recovery operation. Builds the deterministic selective rebuild-empty remediation plan from one durable full-inspection record and returns only the exact server-managed approval challenge.",
+    source_key: STAGING_RECOVERY_SYSTEM_SOURCE_KEY,
+    capability_key: "staging_database_rebuild_empty",
+    catalog_level: "private_recovery",
+    tags: ["recovery", "staging", "private", "plan", "approval", "rebuild_empty"],
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["expected_sha", "inspection_run_id", "idempotency_key"],
+      properties: {
+        expected_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
+        inspection_run_id: { type: "string", minLength: 12, maxLength: 180 },
+        idempotency_key: { type: "string", minLength: 8, maxLength: 160 },
+      },
+    },
+  },
+  {
+    name: "staging_recovery_rebuild_empty_approve",
+    handler: "stagingRecoveryRebuildEmptyApprove",
+    description: "Staging-only Recovery operation. Consumes the exact plan-bound rebuild approval, issues the single-use ticket idempotently, and returns the canonical verified Host Breakglass local handoff without performing database mutation.",
+    source_key: STAGING_RECOVERY_SYSTEM_SOURCE_KEY,
+    capability_key: "staging_database_rebuild_empty",
+    catalog_level: "private_recovery",
+    tags: ["recovery", "staging", "private", "approval", "ticket", "local_handoff", "rebuild_empty"],
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["plan_id", "authority_plan_hash", "step_id", "idempotency_key", "approval_confirmation"],
+      properties: {
+        plan_id: { type: "string", pattern: "^plan:[0-9a-f]{32}$" },
+        authority_plan_hash: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
         step_id: { type: "string", pattern: "^step:[0-9a-f]{32}$" },
         idempotency_key: { type: "string", minLength: 8, maxLength: 160 },
         approval_confirmation: { type: "string", minLength: 32, maxLength: 1024 },
