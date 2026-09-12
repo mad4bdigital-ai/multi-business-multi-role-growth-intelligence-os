@@ -284,9 +284,13 @@ try {
   if (Test-Path -LiteralPath $BundleStatePath) { $existingState = Read-Json $BundleStatePath }
   if ($null -ne $existingState -and [string]$existingState.status -eq "completed" -and [string]$existingState.source_commit -eq $ExpectedCommit.ToLowerInvariant() -and [string]$existingState.manifest_sha256 -eq $manifestSha -and [string]$existingState.canonical_seed_status -eq "completed" -and [string]$existingState.authority_seed_status -eq "completed" -and [string]$existingState.canonical_seed_readback.status -eq "passed") {
     foreach ($item in $services) {
-      $db = Read-Env $item.Database
-      $actual = Get-TableNames (Invoke-DatabaseQuery $item $compose "SHOW FULL TABLES")
+      $tableText = Invoke-DatabaseQuery $item $compose "SHOW FULL TABLES"
+      $actual = Get-TableNames $tableText
       Assert-SetEqual $item.ExpectedTables $actual $item.Key
+      if ($null -ne $bundleManifest.PSObject.Properties['replay_preparation']) {
+        $observedViews = @($tableText -split "`r?`n" | Where-Object { $_ -match "`tVIEW$" } | ForEach-Object { ($_ -split "`t")[0].Trim() })
+        Assert-SetEqual $item.ExpectedViews $observedViews "$($item.Key) view"
+      }
     }
     Write-Host "SCHEMA_IMPORT_ALREADY_COMPLETE: source_commit=$ExpectedCommit manifest_sha256=$manifestSha"
     exit 0
