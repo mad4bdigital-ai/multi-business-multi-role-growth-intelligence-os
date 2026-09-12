@@ -91,6 +91,7 @@ async function verifySelectiveRoleBundles({ request, plan, args } = {}) {
   const baseUrl = String(process.env.STAGING_RECOVERY_ADMIN_URL || "https://activation-dev.mad4b.com").trim().replace(/\/+$/u, "");
   if (baseUrl !== "https://activation-dev.mad4b.com") fail("host_breakglass_staging_ticket_authority_host_invalid", "Selective rebuild bundle verification must use activation-dev.mad4b.com.", 409);
   const body = {
+    authority_action: "verify_role_bundle_binding",
     execution_ticket_id: plan.execution_ticket_id,
     execution_ticket_hash: plan.execution_ticket_hash,
     expected_sha: plan.expected_sha,
@@ -104,7 +105,7 @@ async function verifySelectiveRoleBundles({ request, plan, args } = {}) {
   };
   let response;
   try {
-    response = await fetch(`${baseUrl}/admin/recovery/staging/bootstrap-ticket/bundle-verify`, {
+    response = await fetch(`${baseUrl}/admin/recovery/staging/bootstrap-ticket/verify`, {
       method: "POST",
       headers: { "content-type": "application/json", "x-api-key": backendApiKey, "x-request-id": plan.correlation_id },
       body: JSON.stringify(body),
