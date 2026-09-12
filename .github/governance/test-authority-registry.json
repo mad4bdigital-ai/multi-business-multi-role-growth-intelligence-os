@@ -456,6 +456,7 @@
         "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
         "http-generic-api/test-staging-one-click-autopilot-core.mjs",
         "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+        "http-generic-api/test-staging-convergence-acknowledgement-cli.mjs",
         "http-generic-api/test-staging-schema-governance-powershell-revision-contract.mjs",
         "http-generic-api/test-staging-auto-deploy-contract.mjs",
         "http-generic-api/test-staging-cloudflared-log-release.mjs",
