@@ -1,0 +1,77 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-empty-role-db-bootstrap-20260912",
+  "title": "Build empty local Staging role databases from exact schema bundles",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-empty-role-db-bootstrap-20260912.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1",
+      "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs",
+      "autopilot-portable-staging/Rebuild-EmptyStagingRoleDatabases.ps1",
+      "http-generic-api/config/staging-empty-governance-certification-seed.sql",
+      "http-generic-api/scripts/classify-staging-empty-role-census.mjs",
+      "http-generic-api/test-staging-empty-role-db-bootstrap.mjs",
+      "autopilot-portable-staging/README.md"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": { "minimum_phase": "mvp" },
+  "phases": [{
+    "id": "mvp",
+    "status": "implemented",
+    "objective": "Refuse all mixed, partial and populated role databases before local DDL, then import exact three-role schema bundles and complete canonical seed, grants and runtime readback.",
+    "e2e_journeys": [{
+      "id": "empty-role-bootstrap-fail-closed",
+      "end_to_end": true,
+      "level": "synthetic_runtime",
+      "actor": "local Staging database operator",
+      "entrypoint": "Rebuild-EmptyStagingRoleDatabases.ps1 with exact commit and explicit confirmations",
+      "terminal_outcome": "Three empty role schemas can be rebuilt from the exact bundle; a non-empty role blocks all DDL; provider apply certification remains pending.",
+      "steps": [
+        "Inspect local root object counts for all three roles before any DDL.",
+        "Reject partial, mixed, wrong-role and malformed census evidence.",
+        "Build and validate canonical role bundles on the exact clean checkout.",
+        "Repeat root census inside the import lock; apply schema, seeds, readback then grants.",
+        "Require independent certification for any later provider apply."
+      ],
+      "assertions": [
+        "A non-empty role or unknown object forbids rebuild_empty for all roles.",
+        "Schema import failure prevents governance seed and grant phase.",
+        "The Gateway governance certification seed is pending with dispatch/apply disabled.",
+        "No Production, provider or destructive reset mutation is performed by this test."
+      ],
+      "tests": [{
+        "id": "staging-empty-role-census-contract",
+        "runner": "node",
+        "working_directory": "http-generic-api",
+        "path": "test-staging-empty-role-db-bootstrap.mjs",
+        "args": []
+      }],
+      "evidence_paths": [
+        ".changes/e2e/staging-empty-role-db-bootstrap-20260912.json",
+        ".github/derived-state-governance.json",
+        "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+        "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1",
+        "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs",
+        "autopilot-portable-staging/Rebuild-EmptyStagingRoleDatabases.ps1",
+        "http-generic-api/config/staging-empty-governance-certification-seed.sql",
+        "http-generic-api/scripts/classify-staging-empty-role-census.mjs",
+        "http-generic-api/test-staging-empty-role-db-bootstrap.mjs",
+        "autopilot-portable-staging/README.md"
+      ]
+    }]
+  }]
+}
