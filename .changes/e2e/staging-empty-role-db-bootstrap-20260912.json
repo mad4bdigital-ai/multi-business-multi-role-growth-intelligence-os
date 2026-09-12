@@ -30,24 +30,24 @@
   "phases": [{
     "id": "mvp",
     "status": "implemented",
-    "objective": "Refuse all mixed, partial and populated role databases before local DDL, then import exact three-role schema bundles and complete canonical seed, grants and runtime readback.",
+    "objective": "Refuse all mixed, partial and populated role databases before local DDL, then import exact three-role schema bundles and complete canonical seed and runtime readback. Grants require a separate approval.",
     "e2e_journeys": [{
       "id": "empty-role-bootstrap-fail-closed",
       "end_to_end": true,
       "level": "synthetic_runtime",
       "actor": "local Staging database operator",
-      "entrypoint": "Rebuild-EmptyStagingRoleDatabases.ps1 with exact commit and explicit confirmations",
+      "entrypoint": "Rebuild-EmptyStagingRoleDatabases.ps1 with exact commit and explicit rebuild confirmation",
       "terminal_outcome": "Three empty role schemas can be rebuilt from the exact bundle; a non-empty role blocks all DDL; provider apply certification remains pending.",
       "steps": [
         "Inspect local root object counts for all three roles before any DDL.",
         "Reject partial, mixed, wrong-role and malformed census evidence.",
         "Build and validate canonical role bundles on the exact clean checkout.",
-        "Repeat root census inside the import lock; apply schema, seeds, readback then grants.",
+        "Repeat root census inside the import lock; apply schema and seeds, then verify readback without grants.",
         "Require independent certification for any later provider apply."
       ],
       "assertions": [
         "A non-empty role or unknown object forbids rebuild_empty for all roles.",
-        "Schema import failure prevents governance seed and grant phase.",
+        "Schema import failure prevents governance seed; grants always require a separate access-repair operation.",
         "The Gateway governance certification seed is pending with dispatch/apply disabled.",
         "No Production, provider or destructive reset mutation is performed by this test."
       ],

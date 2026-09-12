@@ -2,8 +2,7 @@
 param(
   [Parameter(Mandatory = $true)] [ValidatePattern('^[0-9a-fA-F]{40}$')] [string]$ExpectedCommit,
   [switch]$Apply,
-  [string]$RebuildConfirmation = "",
-  [string]$GrantConfirmation = ""
+  [string]$RebuildConfirmation = ""
 )
 
 Set-StrictMode -Version Latest
@@ -14,7 +13,6 @@ $api = Join-Path $repo "http-generic-api"
 $envFile = Join-Path $api ".env.staging"
 $builder = Join-Path $api "scripts\build-staging-schema-bundle.mjs"
 $importer = Join-Path $PSScriptRoot "Clone-StagingDatabases.ps1"
-$repair = Join-Path $PSScriptRoot "Repair-StagingDatabaseReadiness.ps1"
 $governanceSeed = Join-Path $api "config\staging-empty-governance-certification-seed.sql"
 $classifier = Join-Path $api "scripts\classify-staging-empty-role-census.mjs"
 $dumpDirectory = Join-Path $PSScriptRoot "staging-db-dumps"
@@ -34,7 +32,7 @@ function Read-Env([string]$Key) {
 }
 
 Require (Test-Path -LiteralPath $envFile -PathType Leaf) "Local .env.staging is missing"
-foreach ($file in @($builder, $importer, $repair, $governanceSeed, $classifier)) { Require (Test-Path -LiteralPath $file -PathType Leaf) "Required canonical bootstrap component is missing" }
+foreach ($file in @($builder, $importer, $governanceSeed, $classifier)) { Require (Test-Path -LiteralPath $file -PathType Leaf) "Required canonical bootstrap component is missing" }
 foreach ($command in @("git", "node", "docker", "powershell.exe")) { Require ($null -ne (Get-Command $command -ErrorAction SilentlyContinue)) "Required command is missing: $command" }
 Require (-not $env:DOCKER_HOST -and -not $env:DOCKER_CONTEXT) "Remote Docker context overrides are forbidden"
 Require ((Native-Text "docker" @("context", "show")) -in @("default", "desktop-linux")) "Docker context is not local"
@@ -45,7 +43,6 @@ Require ((Native-Text "git" @("-C", $repo, "remote", "get-url", "origin")) -matc
 foreach ($key in @("MIGRATION_APPLIED", "DATABASE_MUTATED", "PRODUCTION_MUTATION_AUTHORIZED", "RULESET_MUTATION_AUTHORIZED")) { Require ((Read-Env $key) -ceq "false") "$key must be false" }
 if ($Apply) {
   Require ($RebuildConfirmation -ceq "REBUILD_EMPTY_LOCAL_STAGING_DATABASES:$ExpectedCommit") "Exact rebuild_empty confirmation mismatch"
-  Require ($GrantConfirmation -ceq "REPAIR_LOCAL_STAGING_DATABASE_READINESS:${ExpectedCommit}:staging_local_windows_docker") "Exact grant/readiness confirmation mismatch"
   $remoteLine = Native-Text "git" @("-C", $repo, "-c", "protocol.version=0", "-c", "http.version=HTTP/1.1", "ls-remote", "origin", "refs/heads/main")
   Require ((($remoteLine -split '\s+')[0]).ToLowerInvariant() -eq $ExpectedCommit) "origin/main moved away from the exact checkout"
 }
@@ -89,7 +86,7 @@ Require ($LASTEXITCODE -eq 0) "Canonical schema bundle build failed"
 & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $importer -DumpDirectory $dumpDirectory -ExpectedCommit $ExpectedCommit -Mode schema_only
 Require ($LASTEXITCODE -eq 0) "Prepared role schema bundle validation failed"
 & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $importer -DumpDirectory $dumpDirectory -ExpectedCommit $ExpectedCommit -Mode schema_only -Apply
-Require ($LASTEXITCODE -eq 0) "Empty role schema import or post-import census failed; grant phase was not started"
+Require ($LASTEXITCODE -eq 0) "Empty role schema import or post-import census failed; grants remain a separate operation"
 $governance = $roles | Where-Object { $_.key -eq "governance" } | Select-Object -First 1
 Require ($null -ne $governance) "Governance role is missing"
 $governanceDb = Read-Env $governance.name
@@ -97,9 +94,7 @@ $governanceRoot = Read-Env $governance.root
 $seedSql = Get-Content -Raw -LiteralPath $governanceSeed
 Require ($seedSql -match "'staging_activation_gateway_apply_v1'" -and $seedSql -match "'pending'" -and $seedSql -notmatch '(?im)^\s*(?:DROP|DELETE|GRANT|REVOKE|UPDATE)\b') "Reviewed pending-only governance seed is invalid"
 $seedSql | & docker compose @compose exec -T -e "MYSQL_PWD=$governanceRoot" $governance.service mariadb --protocol=socket -uroot $governanceDb --binary-mode
-Require ($LASTEXITCODE -eq 0) "Pending Governance certification seed failed; grant phase was not started"
+Require ($LASTEXITCODE -eq 0) "Pending Governance certification seed failed; grants remain a separate operation"
 $seedReadback = (& docker compose @compose exec -T -e "MYSQL_PWD=$governanceRoot" $governance.service mariadb --protocol=socket -uroot $governanceDb --batch --skip-column-names -e "SELECT CONCAT(certification_status,':',dispatch_allowed,':',apply_allowed) FROM runtime_dispatch_certification_registry WHERE certification_key='staging_activation_gateway_apply_v1'" | Out-String).Trim()
 Require ($LASTEXITCODE -eq 0 -and $seedReadback -ceq "pending:0:0") "Governance Gateway certification is not fail-closed after schema bootstrap"
-& powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $repair -ExpectedCommit $ExpectedCommit -RepairConfirmation $GrantConfirmation -RepositoryPath $repo
-Require ($LASTEXITCODE -eq 0) "Schema was imported; least-privilege readiness/Auto Pilot did not complete"
-Write-Host "STAGING_REBUILD_EMPTY_READY: commit=$ExpectedCommit schema=verified grants=verified certification=ready"
+Write-Host "STAGING_REBUILD_EMPTY_SCHEMA_READY: commit=$ExpectedCommit schema=verified grants=not_applied runtime_certification=not_asserted gateway_apply_certification=pending next_action=database.access_repair"

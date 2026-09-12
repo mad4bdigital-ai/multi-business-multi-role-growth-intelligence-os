@@ -40,7 +40,8 @@ assert.match(importer, /Assert-SetEqual \$item\.ExpectedViews \$observedViews/u)
 assert.match(entry, /classify-staging-empty-role-census\.mjs/u);
 assert.ok(entry.indexOf("$classification = $classificationJson") < entry.indexOf("& node $builder --expected-commit $ExpectedCommit --confirm"));
 assert.ok(entry.indexOf("-Mode schema_only -Apply") < entry.indexOf("$seedSql \| & docker compose"));
-assert.ok(entry.indexOf("$seedReadback -ceq \"pending:0:0\"") < entry.indexOf("-RepairConfirmation $GrantConfirmation"));
+assert.match(entry, /grants=not_applied runtime_certification=not_asserted gateway_apply_certification=pending next_action=database\.access_repair/u);
+assert.doesNotMatch(entry, /Repair-StagingDatabaseReadiness|GrantConfirmation|RepairConfirmation/u);
 assert.match(seed, /'staging_activation_gateway_apply_v1'/u);
 assert.match(seed, /'pending'/u);
 assert.doesNotMatch(seed, /^\s*(?:DROP|DELETE|UPDATE|GRANT|REVOKE)\b/imu);
