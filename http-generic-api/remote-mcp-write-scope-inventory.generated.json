@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7651,
+  "file_count": 7656,
   "route_count": 1103,
   "write_route_count": 670,
   "classified_write_surface_count": 42,
@@ -508,8 +508,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#GET:/admin/runtime-bootstrap/catalog:0",
-      "source_line": 52,
-      "source_offset": 2937,
+      "source_line": 76,
+      "source_offset": 3975,
       "method": "GET",
       "path": "/admin/runtime-bootstrap/catalog",
       "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
@@ -517,8 +517,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/plan:1",
-      "source_line": 57,
-      "source_offset": 3177,
+      "source_line": 81,
+      "source_offset": 4215,
       "method": "POST",
       "path": "/admin/runtime-bootstrap/plan",
       "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
@@ -526,8 +526,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/runs:2",
-      "source_line": 58,
-      "source_offset": 3422,
+      "source_line": 82,
+      "source_offset": 4460,
       "method": "POST",
       "path": "/admin/runtime-bootstrap/runs",
       "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
@@ -535,8 +535,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#GET:/admin/runtime-bootstrap/runs/:correlation_id:3",
-      "source_line": 59,
-      "source_offset": 3787,
+      "source_line": 93,
+      "source_offset": 4941,
       "method": "GET",
       "path": "/admin/runtime-bootstrap/runs/:correlation_id",
       "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
@@ -11992,10 +11992,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
-        "source_line": 57,
+        "source_line": 81,
         "handler_window_lines": [
-          57,
-          57
+          81,
+          81
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -12055,10 +12055,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
-        "source_line": 58,
+        "source_line": 82,
         "handler_window_lines": [
-          58,
-          58
+          82,
+          92
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -12070,7 +12070,8 @@
         },
         "signals": {
           "provider": [
-            "dispatch"
+            "dispatch",
+            "request("
           ],
           "db_registry": [],
           "authority": [
