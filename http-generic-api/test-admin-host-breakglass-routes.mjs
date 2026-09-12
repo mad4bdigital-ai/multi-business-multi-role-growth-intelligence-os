@@ -3,6 +3,10 @@ import test from "node:test";
 import express from "express";
 import { buildAdminHostBreakglassRoutes } from "./routes/adminHostBreakglassRoutes.js";
 // frontend-surface-operation: GET /admin/runtime-bootstrap/catalog
+// frontend-surface-operation: POST /admin/runtime-bootstrap/staging/rebuild-empty/inspection
+// frontend-surface-operation: POST /admin/runtime-bootstrap/staging/rebuild-empty/prepare
+// frontend-surface-operation: POST /admin/runtime-bootstrap/staging/rebuild-empty/ticket-bundle-verify
+// frontend-surface-operation: POST /admin/runtime-bootstrap/staging/rebuild-empty/approve
 // frontend-surface-operation: POST /admin/runtime-bootstrap/plan
 // frontend-surface-operation: POST /admin/runtime-bootstrap/runs
 // frontend-surface-operation: GET /admin/runtime-bootstrap/runs/{correlation_id}
@@ -176,6 +180,53 @@ test("Production selected-role apply fails closed when durable proof resolution 
     const body = await response.json();
     assert.equal(body.error.code, "host_breakglass_role_selection_provenance_unavailable");
     assert.equal(body.database_mutation_performed, false);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("Staging rebuild bundle verifier route stays guarded and read-only", async () => {
+  let received;
+  const app = express();
+  app.use(express.json());
+  app.use(buildAdminHostBreakglassRoutes({
+    requireBackendApiKey: guard,
+    requireAdminPrincipal: admin,
+    broker: {
+      stagingRebuildBundleVerifier: {
+        verify: async (input) => {
+          received = structuredClone(input);
+          return {
+            ok: true,
+            contract: "mad4b.staging-rebuild-bundle-verifier.v1",
+            status: "ticket_role_bundle_bindings_verified",
+            execution_ticket_id: input.execution_ticket_id,
+            selected_roles: input.selected_roles,
+            database_connection_performed: false,
+            database_mutation_performed: false,
+            production_authority: false,
+            secrets_included: false,
+          };
+        },
+      },
+    },
+  }));
+  const server = app.listen(0);
+  const port = server.address().port;
+  try {
+    const url = `http://127.0.0.1:${port}/admin/runtime-bootstrap/staging/rebuild-empty/ticket-bundle-verify`;
+    const body = {
+      execution_ticket_id: "ticket:staging-rebuild-test-001",
+      selected_roles: ["governance", "runtime_persistence"],
+    };
+    assert.equal((await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })).status, 401);
+    const response = await fetch(url, { method: "POST", headers: { "content-type": "application/json", "x-api-key": "key" }, body: JSON.stringify(body) });
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.status, "ticket_role_bundle_bindings_verified");
+    assert.equal(payload.database_mutation_performed, false);
+    assert.equal(payload.production_authority, false);
+    assert.deepEqual(received.selected_roles, ["governance", "runtime_persistence"]);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
