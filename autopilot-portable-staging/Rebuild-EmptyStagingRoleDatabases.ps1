@@ -2,7 +2,12 @@
 param(
   [Parameter(Mandatory = $true)] [ValidatePattern('^[0-9a-fA-F]{40}$')] [string]$ExpectedCommit,
   [switch]$Apply,
-  [string]$RebuildConfirmation = ""
+  [string]$ApprovalConfirmation = "",
+  [string]$VerifiedRequestFile = "",
+  [string]$RebuildConfirmation = "",
+  [string]$AuthorityUrl = "https://activation-dev.mad4b.com",
+  [string]$CorrelationId = "",
+  [string]$EvidenceDirectory = ""
 )
 
 Set-StrictMode -Version Latest
@@ -12,11 +17,13 @@ $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $api = Join-Path $repo "http-generic-api"
 $envFile = Join-Path $api ".env.staging"
 $builder = Join-Path $api "scripts\build-staging-schema-bundle.mjs"
-$importer = Join-Path $PSScriptRoot "Clone-StagingDatabases.ps1"
-$governanceSeed = Join-Path $api "config\staging-empty-governance-certification-seed.sql"
 $classifier = Join-Path $api "scripts\classify-staging-empty-role-census.mjs"
-$dumpDirectory = Join-Path $PSScriptRoot "staging-db-dumps"
+$inspectionPreparer = Join-Path $api "scripts\prepare-staging-rebuild-empty-inspection.mjs"
+$verifiedRunner = Join-Path $api "scripts\host-breakglass-local-verified.mjs"
+$bundleManifest = Join-Path $PSScriptRoot "staging-db-dumps\staging-schema-bundle-manifest.json"
 $compose = @("-f", (Join-Path $api "docker-compose.yml"), "-f", (Join-Path $api "docker-compose.staging.yml"), "--env-file", $envFile)
+if ([string]::IsNullOrWhiteSpace($EvidenceDirectory)) { $EvidenceDirectory = Join-Path $PSScriptRoot "logs\rebuild-empty" }
+if ([string]::IsNullOrWhiteSpace($CorrelationId)) { $CorrelationId = "staging-rebuild-empty-$([Guid]::NewGuid().ToString('N'))" }
 
 function Fail([string]$Message) { throw "STAGING_REBUILD_EMPTY_FAIL_CLOSED: $Message" }
 function Require([bool]$Condition, [string]$Message) { if (-not $Condition) { Fail $Message } }
@@ -30,10 +37,25 @@ function Read-Env([string]$Key) {
   Require ($values.Count -eq 1) "Missing or duplicate local role environment key: $Key"
   return ($values[0] -replace "^$([regex]::Escape($Key))=", "")
 }
+function Save-Json([string]$Path, $Value) {
+  $parent = Split-Path -Parent $Path
+  if (-not [string]::IsNullOrWhiteSpace($parent)) { New-Item -ItemType Directory -Force -Path $parent | Out-Null }
+  $Value | ConvertTo-Json -Depth 32 | Set-Content -LiteralPath $Path -Encoding UTF8
+}
+function Invoke-Authority([string]$Path, $Body, [string]$ApiKey) {
+  $uri = "$($AuthorityUrl.TrimEnd('/'))$Path"
+  try {
+    return Invoke-RestMethod -Method Post -Uri $uri -Headers @{ "x-api-key" = $ApiKey; "x-request-id" = $CorrelationId } -ContentType "application/json" -Body ($Body | ConvertTo-Json -Depth 32 -Compress) -TimeoutSec 30
+  } catch {
+    $detail = $_.ErrorDetails.Message
+    if ([string]::IsNullOrWhiteSpace($detail)) { $detail = $_.Exception.Message }
+    Fail "Staging authority rejected or could not process $Path : $detail"
+  }
+}
 
 Require (Test-Path -LiteralPath $envFile -PathType Leaf) "Local .env.staging is missing"
-foreach ($file in @($builder, $importer, $governanceSeed, $classifier)) { Require (Test-Path -LiteralPath $file -PathType Leaf) "Required canonical bootstrap component is missing" }
-foreach ($command in @("git", "node", "docker", "powershell.exe")) { Require ($null -ne (Get-Command $command -ErrorAction SilentlyContinue)) "Required command is missing: $command" }
+foreach ($file in @($builder, $classifier, $inspectionPreparer, $verifiedRunner)) { Require (Test-Path -LiteralPath $file -PathType Leaf) "Required canonical bootstrap component is missing: $file" }
+foreach ($command in @("git", "node", "docker")) { Require ($null -ne (Get-Command $command -ErrorAction SilentlyContinue)) "Required command is missing: $command" }
 Require (-not $env:DOCKER_HOST -and -not $env:DOCKER_CONTEXT) "Remote Docker context overrides are forbidden"
 Require ((Native-Text "docker" @("context", "show")) -in @("default", "desktop-linux")) "Docker context is not local"
 Require (-not [string]::IsNullOrWhiteSpace((Native-Text "docker" @("info", "--format", "{{.ServerVersion}}")))) "Local Docker daemon is unavailable"
@@ -41,14 +63,26 @@ Require ((Native-Text "git" @("-C", $repo, "rev-parse", "HEAD")).ToLowerInvarian
 Require ([string]::IsNullOrWhiteSpace((Native-Text "git" @("-C", $repo, "status", "--porcelain", "--untracked-files=no")))) "Tracked working tree is dirty"
 Require ((Native-Text "git" @("-C", $repo, "remote", "get-url", "origin")) -match 'github\.com[:/]mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os(?:\.git)?$') "Repository origin mismatch"
 foreach ($key in @("MIGRATION_APPLIED", "DATABASE_MUTATED", "PRODUCTION_MUTATION_AUTHORIZED", "RULESET_MUTATION_AUTHORIZED")) { Require ((Read-Env $key) -ceq "false") "$key must be false" }
-if ($Apply) {
-  Require ($RebuildConfirmation -ceq "REBUILD_EMPTY_LOCAL_STAGING_DATABASES:$ExpectedCommit") "Exact rebuild_empty confirmation mismatch"
-  $remoteLine = Native-Text "git" @("-C", $repo, "-c", "protocol.version=0", "-c", "http.version=HTTP/1.1", "ls-remote", "origin", "refs/heads/main")
-  Require ((($remoteLine -split '\s+')[0]).ToLowerInvariant() -eq $ExpectedCommit) "origin/main moved away from the exact checkout"
-}
+Require ([string]::IsNullOrWhiteSpace($RebuildConfirmation)) "Legacy REBUILD_EMPTY_LOCAL_STAGING_DATABASES confirmation is retired; server-issued approval/ticket authority is required"
+Require ($AuthorityUrl -match '^https://activation-dev\.mad4b\.com/?$') "Rebuild-empty authority must remain activation-dev.mad4b.com"
 
 & docker compose @compose config --quiet
 Require ($LASTEXITCODE -eq 0) "Local Staging Compose model is invalid"
+
+if ($Apply -and -not [string]::IsNullOrWhiteSpace($VerifiedRequestFile)) {
+  $verifiedPath = [IO.Path]::GetFullPath($VerifiedRequestFile)
+  Require (Test-Path -LiteralPath $verifiedPath -PathType Leaf) "Verified local request file is missing"
+  $remoteLine = Native-Text "git" @("-C", $repo, "-c", "protocol.version=0", "-c", "http.version=HTTP/1.1", "ls-remote", "origin", "refs/heads/main")
+  Require ((($remoteLine -split '\s+')[0]).ToLowerInvariant() -eq $ExpectedCommit) "origin/main moved away from the exact approved checkout"
+  & node $verifiedRunner --request-file $verifiedPath --env-file $envFile
+  Require ($LASTEXITCODE -eq 0) "Governed selective rebuild execution failed or requires reconciliation"
+  Write-Host "STAGING_REBUILD_EMPTY_SCHEMA_READY: commit=$ExpectedCommit grants=not_applied runtime_certification=not_asserted gateway_apply_certification=pending next_action=database.access_repair"
+  exit 0
+}
+if ($Apply -and [string]::IsNullOrWhiteSpace($VerifiedRequestFile) -and [string]::IsNullOrWhiteSpace($ApprovalConfirmation)) {
+  Fail "-Apply requires either a server-issued -VerifiedRequestFile or the exact -ApprovalConfirmation returned by prepare"
+}
+
 $roles = @(
   @{ key = "runtime"; service = "runtime-db"; name = "DB_NAME"; root = "RUNTIME_DB_ROOT_PASSWORD" },
   @{ key = "governance"; service = "governance-db"; name = "GOVERNANCE_DB_NAME"; root = "GOVERNANCE_DB_ROOT_PASSWORD" },
@@ -62,39 +96,74 @@ foreach ($role in $roles) {
   Require ($container -match '^[0-9a-f]{12,64}$') "Local role database container is not running: $($role.key)"
   Require ((Native-Text "docker" @("inspect", "--format", "{{.State.Health.Status}}", $container)) -eq "healthy") "Local role database is not healthy: $($role.key)"
   $literal = "'" + $db + "'"
-  $query = "SELECT (SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=$literal) + (SELECT COUNT(*) FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA=$literal) + (SELECT COUNT(*) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA=$literal) + (SELECT COUNT(*) FROM information_schema.EVENTS WHERE EVENT_SCHEMA=$literal)"
   $password = Read-Env $role.root
   $exists = (& docker compose @compose exec -T -e "MYSQL_PWD=$password" $role.service mariadb --protocol=socket -uroot --batch --skip-column-names -e "SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME=$literal" | Out-String).Trim()
   Require ($LASTEXITCODE -eq 0 -and $exists -ceq "1") "Role database is missing: $($role.key)"
-  $objects = (& docker compose @compose exec -T -e "MYSQL_PWD=$password" $role.service mariadb --protocol=socket -uroot --batch --skip-column-names -e $query | Out-String).Trim()
-  Require ($LASTEXITCODE -eq 0 -and $objects -match '^\d+$') "Root object census failed: $($role.key)"
-  $census += [pscustomobject]@{ role = $role.key; object_count = [int]$objects; classification = $(if ([int]$objects -eq 0) { "rebuild_empty" } else { "schema_repair_or_access_repair_required" }) }
+  $query = "SELECT (SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=$literal AND TABLE_TYPE='BASE TABLE'),(SELECT COUNT(*) FROM information_schema.VIEWS WHERE TABLE_SCHEMA=$literal),(SELECT COUNT(*) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA=$literal),(SELECT COUNT(*) FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA=$literal),(SELECT COUNT(*) FROM information_schema.EVENTS WHERE EVENT_SCHEMA=$literal)"
+  $raw = (& docker compose @compose exec -T -e "MYSQL_PWD=$password" $role.service mariadb --protocol=socket -uroot --batch --skip-column-names -e $query | Out-String).Trim()
+  Require ($LASTEXITCODE -eq 0 -and $raw -match '^\d+\t\d+\t\d+\t\d+\t\d+$') "Root object-kind census failed: $($role.key)"
+  $parts = $raw -split "`t"
+  $counts = [ordered]@{ tables = [int]$parts[0]; views = [int]$parts[1]; triggers = [int]$parts[2]; routines = [int]$parts[3]; events = [int]$parts[4] }
+  $total = [int]($counts.tables + $counts.views + $counts.triggers + $counts.routines + $counts.events)
+  $census += [pscustomobject]@{ role = $role.key; object_count = $total; object_counts = [ordered]@{ tables = $counts.tables; views = $counts.views; triggers = $counts.triggers; routines = $counts.routines; events = $counts.events; total = $total } }
 }
-$census | ConvertTo-Json -Depth 4
-$censusJson = ConvertTo-Json -InputObject $census -Depth 4 -Compress
+
+$censusJson = ConvertTo-Json -InputObject $census -Depth 8 -Compress
 $classificationJson = (& node $classifier --census-json $censusJson | Out-String).Trim()
-Require ($LASTEXITCODE -eq 0) "At least one role contains objects; rebuild_empty refuses mixed, partial, or populated databases"
+Require ($LASTEXITCODE -eq 0) "No zero-object role is eligible for governed rebuild_empty"
 $classification = $classificationJson | ConvertFrom-Json
-Require ($classification.ready_for_rebuild_empty -eq $true -and $classification.database_mutation -eq $false) "Role census classifier did not approve empty rebuild"
+Require ($classification.candidate_for_governed_rebuild_empty -eq $true -and $classification.ready_for_local_mutation -eq $false -and $classification.role_selection_authoritative -eq $false) "Local census must remain non-authoritative and mutation-disabled"
+
 & node $builder --expected-commit $ExpectedCommit --plan
 Require ($LASTEXITCODE -eq 0) "Canonical role schema bundle plan failed"
-if (-not $Apply) { Write-Host "STAGING_REBUILD_EMPTY_PLAN_READY: commit=$ExpectedCommit roles=runtime,governance,runtime_persistence mutation=false"; exit 0 }
-
-# The verified importer repeats the root census under its import lock before any DDL.
 & node $builder --expected-commit $ExpectedCommit --confirm BUILD_STAGING_SCHEMA_BUNDLE
 Require ($LASTEXITCODE -eq 0) "Canonical schema bundle build failed"
-& powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $importer -DumpDirectory $dumpDirectory -ExpectedCommit $ExpectedCommit -Mode schema_only
-Require ($LASTEXITCODE -eq 0) "Prepared role schema bundle validation failed"
-& powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $importer -DumpDirectory $dumpDirectory -ExpectedCommit $ExpectedCommit -Mode schema_only -Apply
-Require ($LASTEXITCODE -eq 0) "Empty role schema import or post-import census failed; grants remain a separate operation"
-$governance = $roles | Where-Object { $_.key -eq "governance" } | Select-Object -First 1
-Require ($null -ne $governance) "Governance role is missing"
-$governanceDb = Read-Env $governance.name
-$governanceRoot = Read-Env $governance.root
-$seedSql = Get-Content -Raw -LiteralPath $governanceSeed
-Require ($seedSql -match "'staging_activation_gateway_apply_v1'" -and $seedSql -match "'pending'" -and $seedSql -notmatch '(?im)^\s*(?:DROP|DELETE|GRANT|REVOKE|UPDATE)\b') "Reviewed pending-only governance seed is invalid"
-$seedSql | & docker compose @compose exec -T -e "MYSQL_PWD=$governanceRoot" $governance.service mariadb --protocol=socket -uroot $governanceDb --binary-mode
-Require ($LASTEXITCODE -eq 0) "Pending Governance certification seed failed; grants remain a separate operation"
-$seedReadback = (& docker compose @compose exec -T -e "MYSQL_PWD=$governanceRoot" $governance.service mariadb --protocol=socket -uroot $governanceDb --batch --skip-column-names -e "SELECT CONCAT(certification_status,':',dispatch_allowed,':',apply_allowed) FROM runtime_dispatch_certification_registry WHERE certification_key='staging_activation_gateway_apply_v1'" | Out-String).Trim()
-Require ($LASTEXITCODE -eq 0 -and $seedReadback -ceq "pending:0:0") "Governance Gateway certification is not fail-closed after schema bootstrap"
-Write-Host "STAGING_REBUILD_EMPTY_SCHEMA_READY: commit=$ExpectedCommit schema=verified grants=not_applied runtime_certification=not_asserted gateway_apply_certification=pending next_action=database.access_repair"
+Require (Test-Path -LiteralPath $bundleManifest -PathType Leaf) "Canonical generated schema-bundle manifest is missing"
+
+$inspectionJson = (& node $inspectionPreparer --expected-commit $ExpectedCommit --correlation-id $CorrelationId --census-json $censusJson --manifest $bundleManifest | Out-String).Trim()
+Require ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($inspectionJson)) "Governed inspection evidence preparation failed"
+$inspectionEnvelope = $inspectionJson | ConvertFrom-Json
+New-Item -ItemType Directory -Force -Path $EvidenceDirectory | Out-Null
+$inspectionPath = Join-Path $EvidenceDirectory "inspection-$CorrelationId.json"
+Save-Json $inspectionPath $inspectionEnvelope
+
+$apiKey = Read-Env "BACKEND_API_KEY"
+Require (-not [string]::IsNullOrWhiteSpace($apiKey)) "Existing BACKEND_API_KEY is required for private Staging authority"
+$inspectionReceipt = Invoke-Authority "/admin/runtime-bootstrap/staging/rebuild-empty/inspection" $inspectionEnvelope $apiKey
+Require ($inspectionReceipt.status -ceq "durable_full_inspection_recorded" -and $inspectionReceipt.role_selection_authoritative -eq $true -and $inspectionReceipt.database_mutation_performed -eq $false) "Server did not durably authorize selected zero-object roles"
+
+$prepareInput = [ordered]@{ expected_sha = $ExpectedCommit; inspection_run_id = $inspectionReceipt.inspection_run_id; idempotency_key = $CorrelationId }
+$prepareReceipt = Invoke-Authority "/admin/runtime-bootstrap/staging/rebuild-empty/prepare" $prepareInput $apiKey
+Require ($prepareReceipt.status -ceq "approval_required" -and $prepareReceipt.execution_ticket_not_returned -eq $true -and $prepareReceipt.database_mutation_performed -eq $false) "Staging rebuild plan did not stop at explicit approval"
+$preparePath = Join-Path $EvidenceDirectory "prepare-$CorrelationId.json"
+Save-Json $preparePath $prepareReceipt
+
+if ([string]::IsNullOrWhiteSpace($ApprovalConfirmation)) {
+  Write-Host "STAGING_REBUILD_EMPTY_APPROVAL_REQUIRED: commit=$ExpectedCommit inspection_run_id=$($inspectionReceipt.inspection_run_id) selected_roles=$([string]::Join(',', $inspectionReceipt.selected_zero_object_roles)) preserved_roles=$([string]::Join(',', $inspectionReceipt.preserved_nonempty_roles))"
+  Write-Host "approval_confirmation=$($prepareReceipt.approval_confirmation)"
+  Write-Host "prepare_receipt=$preparePath"
+  Write-Host "database_mutation=false grants=not_applied"
+  exit 0
+}
+
+Require ($ApprovalConfirmation -ceq $prepareReceipt.approval_confirmation) "Approval confirmation does not match the exact authority plan/step/SHA/role selection"
+$approveInput = [ordered]@{
+  plan_id = $prepareReceipt.plan_id
+  authority_plan_hash = $prepareReceipt.authority_plan_hash
+  step_id = $prepareReceipt.step_id
+  idempotency_key = $CorrelationId
+  approval_confirmation = $ApprovalConfirmation
+}
+$approvalReceipt = Invoke-Authority "/admin/runtime-bootstrap/staging/rebuild-empty/approve" $approveInput $apiKey
+Require ($approvalReceipt.status -ceq "execution_ticket_issued_local_handoff_ready" -and $approvalReceipt.local_handoff.verified_request -and $approvalReceipt.database_mutation_performed -eq $false) "Server did not issue the verified local selective rebuild handoff"
+$verifiedPath = Join-Path $EvidenceDirectory $approvalReceipt.local_handoff.request_file_name
+Save-Json $verifiedPath $approvalReceipt.local_handoff.verified_request
+Write-Host "STAGING_REBUILD_EMPTY_VERIFIED_HANDOFF_READY: commit=$ExpectedCommit selected_roles=$([string]::Join(',', $approvalReceipt.selected_zero_object_roles)) preserved_roles=$([string]::Join(',', $approvalReceipt.preserved_nonempty_roles)) request=$verifiedPath mutation=false"
+
+if ($Apply) {
+  $remoteLine = Native-Text "git" @("-C", $repo, "-c", "protocol.version=0", "-c", "http.version=HTTP/1.1", "ls-remote", "origin", "refs/heads/main")
+  Require ((($remoteLine -split '\s+')[0]).ToLowerInvariant() -eq $ExpectedCommit) "origin/main moved away from the exact approved checkout"
+  & node $verifiedRunner --request-file $verifiedPath --env-file $envFile
+  Require ($LASTEXITCODE -eq 0) "Governed selective rebuild execution failed or requires reconciliation"
+  Write-Host "STAGING_REBUILD_EMPTY_SCHEMA_READY: commit=$ExpectedCommit grants=not_applied runtime_certification=not_asserted gateway_apply_certification=pending next_action=database.access_repair"
+}
