@@ -11,6 +11,16 @@ const roles = ["runtime", "governance", "runtime_persistence"];
 const empty = roles.map((role) => ({ role, object_count: 0 }));
 assert.equal(classifyStagingEmptyRoleCensus(empty).ready_for_rebuild_empty, true);
 assert.deepEqual(classifyStagingEmptyRoleCensus(empty).roles.map((row) => row.role), ["governance", "runtime", "runtime_persistence"]);
+const mixed = classifyStagingEmptyRoleCensus([
+  { role: "runtime", object_count: 782 },
+  { role: "governance", object_count: 0 },
+  { role: "runtime_persistence", object_count: 0 },
+]);
+assert.deepEqual(mixed.selected_zero_object_roles, ["governance", "runtime_persistence"]);
+assert.deepEqual(mixed.preserved_nonempty_roles, ["runtime"]);
+assert.equal(mixed.role_selection_authoritative, false);
+assert.equal(mixed.mutation_requires_durable_inspection_proof, true);
+assert.equal(mixed.ready_for_rebuild_empty, false);
 for (const i of [0, 1, 2]) {
   const partial = empty.map((row, index) => ({ ...row, object_count: index === i ? 1 : 0 }));
   const result = classifyStagingEmptyRoleCensus(partial);

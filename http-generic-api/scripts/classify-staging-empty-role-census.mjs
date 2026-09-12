@@ -8,9 +8,15 @@ export function classifyStagingEmptyRoleCensus(rows) {
   const sorted = [...rows].sort((a, b) => String(a?.role).localeCompare(String(b?.role), "en"));
   if (sorted.map((row) => row?.role).join(",") !== EXPECTED_ROLES.join(",")) throw new Error("role census identity is missing, duplicated, or unexpected");
   if (sorted.some((row) => !Number.isSafeInteger(row.object_count) || row.object_count < 0)) throw new Error("role object count is invalid");
+  const selectedZeroObjectRoles = sorted.filter((row) => row.object_count === 0).map((row) => row.role);
+  const preservedNonemptyRoles = sorted.filter((row) => row.object_count > 0).map((row) => row.role);
   return {
     contract: "mad4b.staging.empty-role-database-census.v1",
-    ready_for_rebuild_empty: sorted.every((row) => row.object_count === 0),
+    ready_for_rebuild_empty: preservedNonemptyRoles.length === 0,
+    selected_zero_object_roles: selectedZeroObjectRoles,
+    preserved_nonempty_roles: preservedNonemptyRoles,
+    role_selection_authoritative: false,
+    mutation_requires_durable_inspection_proof: true,
     roles: sorted.map(({ role, object_count }) => ({ role, object_count,
       classification: object_count === 0 ? "rebuild_empty" : "non_empty_requires_separate_diagnosis" })),
     production_accessed: false, provider_accessed: false, database_mutation: false, secrets_included: false,
