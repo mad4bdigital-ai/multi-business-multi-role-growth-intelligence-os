@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import YAML from "yaml";
+import "./test-wordpress-staging-plugin-deploy.mjs";
 
 const executor = readFileSync("hostingerSshDeployExecutor.js", "utf8");
 const authority = readFileSync("productionDeploymentAuthority.js", "utf8");
