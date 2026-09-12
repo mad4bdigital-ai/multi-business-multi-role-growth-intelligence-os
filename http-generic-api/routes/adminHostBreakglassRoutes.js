@@ -100,6 +100,34 @@ export function buildAdminHostBreakglassRoutes({ requireBackendApiKey, requireAd
       proofResolver: () => durableProof,
     });
   };
+  const buildApprovedStagingRebuildHandoff = async (approvalInput = {}, issued = {}) => {
+    const contract = readStagingRuntimeBootstrapContract();
+    const roles = Array.isArray(issued.selected_zero_object_roles) ? issued.selected_zero_object_roles : [];
+    const prefix = contract.execution_policy?.rebuild_confirmation_prefix || "APPLY_STAGING_RUNTIME_BASELINE_REBUILD";
+    const runInput = {
+      environment_key: "staging_local_windows_docker",
+      operation_key: "database.rebuild_empty",
+      runbook_key: "database.empty_rebuild",
+      action: "apply_migration",
+      expected_sha: issued.expected_sha,
+      target_source: "staging_local_role_env",
+      target_key: issued.target_key || "staging-runtime",
+      migration: "",
+      confirmation: `${prefix}:${issued.expected_sha}:${issued.target_key || "staging-runtime"}:${roles.join(",")}`,
+      correlation_id: approvalInput.idempotency_key,
+      execution_ticket_id: issued.execution_ticket_id,
+      execution_ticket_hash: issued.execution_ticket_hash,
+      authority_plan_hash: issued.authority_plan_hash,
+      role_selection_proof: issued.role_selection_proof,
+    };
+    const plan = await buildGovernedPlan(runInput);
+    const receipt = await dispatchHostBreakglassPlan(plan, broker);
+    return {
+      run_input: { ...runInput, role_selection_proof: structuredClone(issued.role_selection_proof) },
+      transport_plan_sha256: plan.plan_sha256,
+      local_handoff: attachVerifiedStagingLocalRequest(plan, receipt, runInput),
+    };
+  };
   const guards = [requireBackendApiKey, requireAdminPrincipal].filter((value) => typeof value === "function");
   if (guards.length !== 2) throw new Error("Admin Host Breakglass routes require backend-key and admin-principal guards.");
   router.use("/admin/runtime-bootstrap", ...guards);
@@ -117,8 +145,21 @@ export function buildAdminHostBreakglassRoutes({ requireBackendApiKey, requireAd
     catch (error) { return errorResponse(res, error); }
   });
   router.post("/admin/runtime-bootstrap/staging/rebuild-empty/approve", async (req, res) => {
-    try { return res.status(200).json(await stagingAuthority().approveAndIssue(req.body || {})); }
-    catch (error) { return errorResponse(res, error); }
+    try {
+      const input = req.body || {};
+      const issued = await stagingAuthority().approveAndIssue(input);
+      const handoff = await buildApprovedStagingRebuildHandoff(input, issued);
+      return res.status(202).json({
+        ...issued,
+        status: "execution_ticket_issued_local_handoff_ready",
+        transport_plan_sha256: handoff.transport_plan_sha256,
+        local_handoff: handoff.local_handoff,
+        database_mutation_performed: false,
+        grant_mutation_performed: false,
+        production_authority: false,
+        secrets_included: false,
+      });
+    } catch (error) { return errorResponse(res, error); }
   });
   router.post("/admin/runtime-bootstrap/plan", async (req, res) => { try { return res.status(200).json({ ok: true, ...await buildGovernedPlan(req.body || {}), secrets_included: false }); } catch (error) { return errorResponse(res, error); } });
   router.post("/admin/runtime-bootstrap/runs", async (req, res) => {
