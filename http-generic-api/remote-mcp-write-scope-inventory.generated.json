@@ -8,14 +8,14 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7671,
-  "route_count": 1107,
-  "write_route_count": 674,
+  "file_count": 7673,
+  "route_count": 1104,
+  "write_route_count": 671,
   "classified_write_surface_count": 42,
-  "classified_write_route_count": 674,
+  "classified_write_route_count": 671,
   "unclassified_write_route_count": 0,
-  "intentionally_unmapped_write_route_count": 632,
-  "sensitive_intentionally_unmapped_write_route_count": 632,
+  "intentionally_unmapped_write_route_count": 629,
+  "sensitive_intentionally_unmapped_write_route_count": 629,
   "migration_count": 448,
   "registry_evidence_count": 113,
   "write_scope_count": 6,
@@ -508,71 +508,35 @@
     },
     {
       "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#GET:/admin/runtime-bootstrap/catalog:0",
-      "source_line": 140,
-      "source_offset": 8003,
+      "source_line": 102,
+      "source_offset": 5106,
       "method": "GET",
       "path": "/admin/runtime-bootstrap/catalog",
       "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
       "write": false
     },
     {
-      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/staging/rebuild-empty/inspection:1",
-      "source_line": 145,
-      "source_offset": 8243,
-      "method": "POST",
-      "path": "/admin/runtime-bootstrap/staging/rebuild-empty/inspection",
-      "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
-      "write": true
-    },
-    {
-      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/staging/rebuild-empty/prepare:2",
-      "source_line": 149,
-      "source_offset": 8502,
-      "method": "POST",
-      "path": "/admin/runtime-bootstrap/staging/rebuild-empty/prepare",
-      "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
-      "write": true
-    },
-    {
-      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/staging/rebuild-empty/ticket-bundle-verify:3",
-      "source_line": 153,
-      "source_offset": 8749,
-      "method": "POST",
-      "path": "/admin/runtime-bootstrap/staging/rebuild-empty/ticket-bundle-verify",
-      "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
-      "write": true
-    },
-    {
-      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/staging/rebuild-empty/approve:4",
-      "source_line": 157,
-      "source_offset": 9013,
-      "method": "POST",
-      "path": "/admin/runtime-bootstrap/staging/rebuild-empty/approve",
-      "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
-      "write": true
-    },
-    {
-      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/plan:5",
-      "source_line": 174,
-      "source_offset": 9757,
+      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/plan:1",
+      "source_line": 118,
+      "source_offset": 5782,
       "method": "POST",
       "path": "/admin/runtime-bootstrap/plan",
       "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/runs:6",
-      "source_line": 175,
-      "source_offset": 10002,
+      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/runs:2",
+      "source_line": 122,
+      "source_offset": 6037,
       "method": "POST",
       "path": "/admin/runtime-bootstrap/runs",
       "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#GET:/admin/runtime-bootstrap/runs/:correlation_id:7",
-      "source_line": 186,
-      "source_offset": 10490,
+      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#GET:/admin/runtime-bootstrap/runs/:correlation_id:3",
+      "source_line": 133,
+      "source_offset": 6525,
       "method": "GET",
       "path": "/admin/runtime-bootstrap/runs/:correlation_id",
       "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
@@ -6304,8 +6268,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js#POST:/system/tools/call:0",
-      "source_line": 337,
-      "source_offset": 14780,
+      "source_line": 358,
+      "source_offset": 16024,
       "method": "POST",
       "path": "/system/tools/call",
       "file": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
@@ -6313,8 +6277,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js#POST:/admin/system/tools/call:1",
-      "source_line": 338,
-      "source_offset": 14862,
+      "source_line": 359,
+      "source_offset": 16106,
       "method": "POST",
       "path": "/admin/system/tools/call",
       "file": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
@@ -8014,8 +7978,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#GET:/admin/recovery/staging/contract:0",
-      "source_line": 189,
-      "source_offset": 17252,
+      "source_line": 231,
+      "source_offset": 17700,
       "method": "GET",
       "path": "/admin/recovery/staging/contract",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -8023,8 +7987,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#GET:/admin/recovery/staging/readiness:1",
-      "source_line": 190,
-      "source_offset": 17404,
+      "source_line": 232,
+      "source_offset": 17852,
       "method": "GET",
       "path": "/admin/recovery/staging/readiness",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -8032,8 +7996,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#GET:/admin/recovery/staging/certification:2",
-      "source_line": 194,
-      "source_offset": 18046,
+      "source_line": 240,
+      "source_offset": 18516,
       "method": "GET",
       "path": "/admin/recovery/staging/certification",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -8041,26 +8005,35 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-ticket/verify:3",
-      "source_line": 199,
-      "source_offset": 19015,
+      "source_line": 249,
+      "source_offset": 19507,
       "method": "POST",
       "path": "/admin/recovery/staging/bootstrap-ticket/verify",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-ticket/finalize:4",
-      "source_line": 213,
-      "source_offset": 21235,
+      "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-ticket/bundle-verify:4",
+      "source_line": 278,
+      "source_offset": 21833,
+      "method": "POST",
+      "path": "/admin/recovery/staging/bootstrap-ticket/bundle-verify",
+      "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
+      "write": true
+    },
+    {
+      "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-ticket/finalize:5",
+      "source_line": 288,
+      "source_offset": 22516,
       "method": "POST",
       "path": "/admin/recovery/staging/bootstrap-ticket/finalize",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-partial-receipt:5",
-      "source_line": 228,
-      "source_offset": 23695,
+      "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-partial-receipt:6",
+      "source_line": 317,
+      "source_offset": 25066,
       "method": "POST",
       "path": "/admin/recovery/staging/bootstrap-partial-receipt",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -12021,273 +11994,17 @@
       "reason": "connector_or_local_execution_requires_device_capability"
     },
     {
-      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/staging/rebuild-empty/inspection:1",
+      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/plan:1",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "platform_control_plane",
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
-        "source_line": 145,
+        "source_line": 118,
         "handler_window_lines": [
-          145,
-          148
-        ],
-        "evidence_flags": {
-          "handler_window_present": true,
-          "provider_signal": false,
-          "db_registry_signal": false,
-          "authority_signal": true,
-          "readback_signal": true,
-          "mutation_signal": false
-        },
-        "signals": {
-          "provider": [],
-          "db_registry": [],
-          "authority": [
-            "admin",
-            "authority"
-          ],
-          "readback": [
-            "response"
-          ],
-          "mutation": []
-        },
-        "static_only": true,
-        "secrets_included": false
-      },
-      "evidence_confidence": {
-        "level": "low_static",
-        "basis": "handler_window_signals_only",
-        "authorizes": false
-      },
-      "promotion_prerequisites": [
-        "explicit_resource_operation_scope_binding",
-        "live_resource_authority_binding",
-        "approval_policy_evidence",
-        "capability_envelope_evidence",
-        "lease_evidence",
-        "staging_environment",
-        "same_cycle_readback_contract",
-        "live_db_registry_readback"
-      ],
-      "promotion_status": "blocked",
-      "scope_keys": [],
-      "resource_candidate": "platform_control_plane",
-      "resource_key": null,
-      "operation_key": null,
-      "authority_required": true,
-      "provider_mutation_allowed": false,
-      "readback_required": true,
-      "owner": "platform-control-plane-governance",
-      "classification_confidence": "heuristic_requires_manual_confirmation",
-      "risk_class": "critical",
-      "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
-    },
-    {
-      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/staging/rebuild-empty/prepare:2",
-      "classification": "intentionally_unmapped",
-      "mapping_status": "blocked",
-      "domain": "platform_control_plane",
-      "operation_class": "execute",
-      "evidence": {
-        "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
-        "source_line": 149,
-        "handler_window_lines": [
-          149,
-          152
-        ],
-        "evidence_flags": {
-          "handler_window_present": true,
-          "provider_signal": false,
-          "db_registry_signal": false,
-          "authority_signal": true,
-          "readback_signal": true,
-          "mutation_signal": false
-        },
-        "signals": {
-          "provider": [],
-          "db_registry": [],
-          "authority": [
-            "admin",
-            "authority"
-          ],
-          "readback": [
-            "response"
-          ],
-          "mutation": []
-        },
-        "static_only": true,
-        "secrets_included": false
-      },
-      "evidence_confidence": {
-        "level": "low_static",
-        "basis": "handler_window_signals_only",
-        "authorizes": false
-      },
-      "promotion_prerequisites": [
-        "explicit_resource_operation_scope_binding",
-        "live_resource_authority_binding",
-        "approval_policy_evidence",
-        "capability_envelope_evidence",
-        "lease_evidence",
-        "staging_environment",
-        "same_cycle_readback_contract",
-        "live_db_registry_readback"
-      ],
-      "promotion_status": "blocked",
-      "scope_keys": [],
-      "resource_candidate": "platform_control_plane",
-      "resource_key": null,
-      "operation_key": null,
-      "authority_required": true,
-      "provider_mutation_allowed": false,
-      "readback_required": true,
-      "owner": "platform-control-plane-governance",
-      "classification_confidence": "heuristic_requires_manual_confirmation",
-      "risk_class": "critical",
-      "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
-    },
-    {
-      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/staging/rebuild-empty/ticket-bundle-verify:3",
-      "classification": "intentionally_unmapped",
-      "mapping_status": "blocked",
-      "domain": "support",
-      "operation_class": "execute",
-      "evidence": {
-        "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
-        "source_line": 153,
-        "handler_window_lines": [
-          153,
-          156
-        ],
-        "evidence_flags": {
-          "handler_window_present": true,
-          "provider_signal": false,
-          "db_registry_signal": false,
-          "authority_signal": true,
-          "readback_signal": true,
-          "mutation_signal": false
-        },
-        "signals": {
-          "provider": [],
-          "db_registry": [],
-          "authority": [
-            "admin"
-          ],
-          "readback": [
-            "verify",
-            "response"
-          ],
-          "mutation": []
-        },
-        "static_only": true,
-        "secrets_included": false
-      },
-      "evidence_confidence": {
-        "level": "low_static",
-        "basis": "handler_window_signals_only",
-        "authorizes": false
-      },
-      "promotion_prerequisites": [
-        "explicit_resource_operation_scope_binding",
-        "live_resource_authority_binding",
-        "approval_policy_evidence",
-        "capability_envelope_evidence",
-        "lease_evidence",
-        "staging_environment",
-        "same_cycle_readback_contract"
-      ],
-      "promotion_status": "blocked",
-      "scope_keys": [],
-      "resource_candidate": "support",
-      "resource_key": null,
-      "operation_key": null,
-      "authority_required": true,
-      "provider_mutation_allowed": false,
-      "readback_required": true,
-      "owner": "support-governance",
-      "classification_confidence": "heuristic_requires_manual_confirmation",
-      "risk_class": "critical",
-      "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
-    },
-    {
-      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/staging/rebuild-empty/approve:4",
-      "classification": "intentionally_unmapped",
-      "mapping_status": "blocked",
-      "domain": "platform_control_plane",
-      "operation_class": "decision",
-      "evidence": {
-        "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
-        "source_line": 157,
-        "handler_window_lines": [
-          157,
-          173
-        ],
-        "evidence_flags": {
-          "handler_window_present": true,
-          "provider_signal": false,
-          "db_registry_signal": false,
-          "authority_signal": true,
-          "readback_signal": true,
-          "mutation_signal": false
-        },
-        "signals": {
-          "provider": [],
-          "db_registry": [],
-          "authority": [
-            "admin",
-            "authority",
-            "authority"
-          ],
-          "readback": [
-            "response"
-          ],
-          "mutation": []
-        },
-        "static_only": true,
-        "secrets_included": false
-      },
-      "evidence_confidence": {
-        "level": "low_static",
-        "basis": "handler_window_signals_only",
-        "authorizes": false
-      },
-      "promotion_prerequisites": [
-        "explicit_resource_operation_scope_binding",
-        "live_resource_authority_binding",
-        "approval_policy_evidence",
-        "capability_envelope_evidence",
-        "lease_evidence",
-        "staging_environment",
-        "same_cycle_readback_contract",
-        "live_db_registry_readback"
-      ],
-      "promotion_status": "blocked",
-      "scope_keys": [],
-      "resource_candidate": "platform_control_plane",
-      "resource_key": null,
-      "operation_key": null,
-      "authority_required": true,
-      "provider_mutation_allowed": false,
-      "readback_required": true,
-      "owner": "platform-control-plane-governance",
-      "classification_confidence": "heuristic_requires_manual_confirmation",
-      "risk_class": "critical",
-      "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
-    },
-    {
-      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/plan:5",
-      "classification": "intentionally_unmapped",
-      "mapping_status": "blocked",
-      "domain": "platform_control_plane",
-      "operation_class": "execute",
-      "evidence": {
-        "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
-        "source_line": 174,
-        "handler_window_lines": [
-          174,
-          174
+          118,
+          121
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -12340,17 +12057,17 @@
       "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
     },
     {
-      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/runs:6",
+      "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/runs:2",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "platform_control_plane",
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
-        "source_line": 175,
+        "source_line": 122,
         "handler_window_lines": [
-          175,
-          185
+          122,
+          132
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -37754,10 +37471,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
-        "source_line": 337,
+        "source_line": 358,
         "handler_window_lines": [
-          337,
-          337
+          358,
+          358
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -37814,10 +37531,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
-        "source_line": 338,
+        "source_line": 359,
         "handler_window_lines": [
-          338,
-          352
+          359,
+          373
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -45301,10 +45018,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
-        "source_line": 199,
+        "source_line": 249,
         "handler_window_lines": [
-          199,
-          211
+          249,
+          276
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -45362,17 +45079,83 @@
       "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
     },
     {
-      "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-ticket/finalize:4",
+      "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-ticket/bundle-verify:4",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "support",
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
-        "source_line": 213,
+        "source_line": 278,
         "handler_window_lines": [
-          213,
-          226
+          278,
+          286
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": false,
+          "db_registry_signal": false,
+          "authority_signal": true,
+          "readback_signal": true,
+          "mutation_signal": false
+        },
+        "signals": {
+          "provider": [],
+          "db_registry": [],
+          "authority": [
+            "admin",
+            "authority",
+            "role",
+            "role"
+          ],
+          "readback": [
+            "verify",
+            "response"
+          ],
+          "mutation": []
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "low_static",
+        "basis": "handler_window_signals_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [],
+      "resource_candidate": "support",
+      "resource_key": null,
+      "operation_key": null,
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "support-governance",
+      "classification_confidence": "heuristic_requires_manual_confirmation",
+      "risk_class": "critical",
+      "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
+    },
+    {
+      "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-ticket/finalize:5",
+      "classification": "intentionally_unmapped",
+      "mapping_status": "blocked",
+      "domain": "support",
+      "operation_class": "create_or_request",
+      "evidence": {
+        "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
+        "source_line": 288,
+        "handler_window_lines": [
+          288,
+          315
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -45431,17 +45214,17 @@
       "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
     },
     {
-      "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-partial-receipt:5",
+      "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-partial-receipt:6",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "platform_control_plane",
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
-        "source_line": 228,
+        "source_line": 317,
         "handler_window_lines": [
-          228,
-          236
+          317,
+          332
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -53760,17 +53543,17 @@
   ],
   "evidence_graph": {
     "node_counts": {
-      "routes": 674,
+      "routes": 671,
       "domains": 11,
       "handler_files": 134
     },
     "edge_counts": {
-      "route_to_handler_file": 674,
-      "route_to_domain": 674,
+      "route_to_handler_file": 671,
+      "route_to_domain": 671,
       "route_to_provider_signal": 97,
       "route_to_db_registry_signal": 0,
-      "route_to_authority_signal": 427,
-      "route_to_readback_signal": 381,
+      "route_to_authority_signal": 424,
+      "route_to_readback_signal": 378,
       "route_to_mutation_signal": 385,
       "route_to_explicit_scope_candidate": 42
     },
@@ -60250,8 +60033,8 @@
     {
       "severity": "high",
       "code": "INTENTIONALLY_UNMAPPED_WRITE_ROUTES_BLOCKED",
-      "count": 632,
-      "sensitive_count": 632
+      "count": 629,
+      "sensitive_count": 629
     },
     {
       "severity": "medium",
