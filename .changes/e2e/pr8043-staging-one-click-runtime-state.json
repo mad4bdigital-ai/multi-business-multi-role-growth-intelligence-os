@@ -84,6 +84,12 @@
               "runner": "node",
               "path": "http-generic-api/test-host-breakglass-local-request.mjs",
               "args": []
+            },
+            {
+              "id": "pr8043-portable-staging-manifest-closure",
+              "runner": "node",
+              "path": "http-generic-api/test-staging-autopilot-closure.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -94,7 +100,8 @@
             "autopilot-portable-staging/Start-Staging-One-Click.cmd",
             "http-generic-api/routes/adminHostBreakglassRoutes.js",
             "http-generic-api/hostBreakglassLocalRequest.js",
-            "http-generic-api/scripts/host-breakglass-local-verified.mjs"
+            "http-generic-api/scripts/host-breakglass-local-verified.mjs",
+            "http-generic-api/test-staging-autopilot-closure.mjs"
           ]
         }
       ],
