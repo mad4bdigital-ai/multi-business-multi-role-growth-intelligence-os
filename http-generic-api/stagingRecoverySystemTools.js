@@ -232,25 +232,48 @@ export async function stagingRecoveryRebuildEmptyApprove(input = {}, { env = pro
   requireStagingEnvironment(env);
   requireObject(
     input,
-    ["plan_id", "authority_plan_hash", "step_id", "idempotency_key", "approval_confirmation"],
-    ["plan_id", "authority_plan_hash", "step_id", "idempotency_key", "approval_confirmation"],
+    ["expected_sha", "inspection_run_id", "idempotency_key", "approval_confirmation"],
+    ["expected_sha", "inspection_run_id", "idempotency_key", "approval_confirmation"],
     "STAGING_RECOVERY_REBUILD_EMPTY_APPROVE_INPUT_INVALID",
   );
   const idempotencyKey = requireSafeId(input.idempotency_key, "idempotency_key");
   const authority = createStagingRebuildEmptyAuthority({ env, adapters });
   const issued = await authority.approveAndIssue({
-    plan_id: requireSafeId(input.plan_id, "plan_id", PLAN_ID_RE),
-    authority_plan_hash: requireSha256(input.authority_plan_hash, "authority_plan_hash"),
-    step_id: requireSafeId(input.step_id, "step_id", STEP_ID_RE),
+    expected_sha: requireSha40(input.expected_sha, "expected_sha"),
+    inspection_run_id: requireSafeId(input.inspection_run_id, "inspection_run_id"),
     idempotency_key: idempotencyKey,
     approval_confirmation: text(input.approval_confirmation, 1024),
   });
-  const handoff = await buildStagingRebuildEmptyLocalHandoff({ issued, idempotencyKey, broker: adapters || {} });
+  const roleHandoffs = [];
+  for (const roleIssuance of issued.role_issuances || []) {
+    const handoff = await buildStagingRebuildEmptyLocalHandoff({
+      issued: roleIssuance,
+      idempotencyKey: roleIssuance.idempotency_key,
+      broker: adapters || {},
+    });
+    roleHandoffs.push({
+      role: roleIssuance.target_role,
+      capability_key: roleIssuance.canonical_capability_key,
+      plan_id: roleIssuance.plan_id,
+      authority_plan_hash: roleIssuance.authority_plan_hash,
+      step_id: roleIssuance.step_id,
+      execution_ticket_id: roleIssuance.execution_ticket_id,
+      execution_ticket_hash: roleIssuance.execution_ticket_hash,
+      ...handoff,
+    });
+  }
+  if (roleHandoffs.length !== issued.selected_zero_object_roles?.length) {
+    throw systemError(503, "STAGING_REBUILD_EMPTY_ROLE_HANDOFF_INCOMPLETE", "Every server-selected rebuild role must resolve to one verified local handoff.", {
+      selected_role_count: issued.selected_zero_object_roles?.length || 0,
+      handoff_count: roleHandoffs.length,
+    });
+  }
   return {
     ...issued,
-    status: "execution_ticket_issued_local_handoff_ready",
-    transport_plan_sha256: handoff.transport_plan_sha256,
-    local_handoff: handoff,
+    status: "role_execution_tickets_issued_local_handoffs_ready",
+    role_handoffs: roleHandoffs,
+    handoff_count: roleHandoffs.length,
+    caller_selected_plan_or_step: false,
     database_mutation_performed: false,
     grant_mutation_performed: false,
     production_authority: false,
@@ -281,8 +304,12 @@ export async function stagingRecoverySystemSurfaceReadiness(_input = {}, { env =
     target_key: "staging-runtime",
     control_plane_target_fingerprint_source: "server_derived_deployment_attestation",
     rebuild_database_target_fingerprint_source: "runtime_bootstrap_target_binding_from_local_exact_environment",
+    rebuild_capability_authority: "role_specific_recovery_kernel_capabilities",
+    rebuild_role_capability_keys: ["runtime.baseline.rebuild_empty", "governance.baseline.rebuild_empty", "runtime_persistence.baseline.rebuild_empty"],
     caller_selected_target: false,
     caller_selected_target_fingerprint: false,
+    caller_selected_rebuild_role: false,
+    caller_selected_rebuild_plan_or_step: false,
     production_authority: false,
     raw_sql_allowed: false,
     caller_command_allowed: false,
@@ -373,11 +400,11 @@ const descriptors = Object.freeze([
   {
     name: "staging_recovery_rebuild_empty_inspection_record",
     handler: "stagingRecoveryRebuildEmptyInspectionRecord",
-    description: "Staging-only Recovery operation. Persists the exact-SHA read-only three-role object census, derives the selected zero-object role set server-side, separates Recovery control-plane identity from the local database target binding, and performs no mutation.",
+    description: "Staging-only canonical Recovery inspection ingress. Persists an exact-SHA read-only three-role census, classifies findings through RecoveryKernel.findingsFromInspection, and never accepts a caller-selected rebuild role.",
     source_key: STAGING_RECOVERY_SYSTEM_SOURCE_KEY,
-    capability_key: "staging_database_rebuild_empty",
+    capability_key: "database_full_inspection",
     catalog_level: "private_recovery",
-    tags: ["recovery", "staging", "private", "inspection", "rebuild_empty"],
+    tags: ["recovery", "staging", "private", "inspection", "rebuild_empty", "canonical_findings"],
     requires_admin: true,
     inputSchema: {
       type: "object",
@@ -395,11 +422,11 @@ const descriptors = Object.freeze([
   {
     name: "staging_recovery_rebuild_empty_prepare",
     handler: "stagingRecoveryRebuildEmptyPrepare",
-    description: "Staging-only Recovery operation. Builds the deterministic selective rebuild-empty remediation plan from one durable full-inspection record and returns only the exact server-managed approval challenge.",
+    description: "Staging-only canonical Recovery planning operation. Builds one remediation-plan.v1 step per server-selected zero-object role using the role-specific baseline.rebuild_empty capabilities and one set-bound approval confirmation.",
     source_key: STAGING_RECOVERY_SYSTEM_SOURCE_KEY,
-    capability_key: "staging_database_rebuild_empty",
+    capability_key: "remediation_plan_create",
     catalog_level: "private_recovery",
-    tags: ["recovery", "staging", "private", "plan", "approval", "rebuild_empty"],
+    tags: ["recovery", "staging", "private", "plan", "approval", "rebuild_empty", "role_specific_capability"],
     requires_admin: true,
     inputSchema: {
       type: "object",
@@ -415,20 +442,19 @@ const descriptors = Object.freeze([
   {
     name: "staging_recovery_rebuild_empty_approve",
     handler: "stagingRecoveryRebuildEmptyApprove",
-    description: "Staging-only Recovery operation. Consumes the exact plan-bound rebuild approval, issues the single-use ticket idempotently, and returns the canonical verified Host Breakglass local handoff without performing database mutation.",
+    description: "Staging-only canonical Recovery approval/handoff operation. Approves the complete server-derived role-plan set and returns one verified local Host Breakglass handoff per role-specific baseline.rebuild_empty step; caller-selected plan, step, or role is forbidden.",
     source_key: STAGING_RECOVERY_SYSTEM_SOURCE_KEY,
-    capability_key: "staging_database_rebuild_empty",
+    capability_key: "remediation_step_execute",
     catalog_level: "private_recovery",
-    tags: ["recovery", "staging", "private", "approval", "ticket", "local_handoff", "rebuild_empty"],
+    tags: ["recovery", "staging", "private", "approval", "ticket", "local_handoff", "rebuild_empty", "role_specific_capability"],
     requires_admin: true,
     inputSchema: {
       type: "object",
       additionalProperties: false,
-      required: ["plan_id", "authority_plan_hash", "step_id", "idempotency_key", "approval_confirmation"],
+      required: ["expected_sha", "inspection_run_id", "idempotency_key", "approval_confirmation"],
       properties: {
-        plan_id: { type: "string", pattern: "^plan:[0-9a-f]{32}$" },
-        authority_plan_hash: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
-        step_id: { type: "string", pattern: "^step:[0-9a-f]{32}$" },
+        expected_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
+        inspection_run_id: { type: "string", minLength: 12, maxLength: 180 },
         idempotency_key: { type: "string", minLength: 8, maxLength: 160 },
         approval_confirmation: { type: "string", minLength: 32, maxLength: 1024 },
       },
