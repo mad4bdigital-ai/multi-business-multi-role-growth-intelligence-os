@@ -7,8 +7,10 @@ import { fileURLToPath } from "node:url";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WORKFLOW_PATH = path.resolve(HERE, "..", ".github", "workflows", "production-runtime-parity-evidence.yml");
 const STAGING_REBUILD_AUTHORITY_PATH = path.resolve(HERE, "stagingRebuildEmptyAuthority.js");
+const STAGING_REBUILD_HANDOFF_PATH = path.resolve(HERE, "stagingRebuildEmptyHandoff.js");
 const workflow = fs.readFileSync(WORKFLOW_PATH, "utf8");
 const stagingRebuildAuthority = fs.readFileSync(STAGING_REBUILD_AUTHORITY_PATH, "utf8");
+const stagingRebuildHandoff = fs.readFileSync(STAGING_REBUILD_HANDOFF_PATH, "utf8");
 
 function section(start, end) {
   const startIndex = workflow.indexOf(start);
@@ -88,7 +90,8 @@ test("Production full-role evidence cannot be consumed as Staging rebuild mutati
   assert.doesNotMatch(stagingRebuildAuthority, /mad4b\.production-runtime-full-role-inspection-evidence\.v1/u);
   assert.match(stagingRebuildAuthority, /mad4b\.staging-durable-full-inspection\.v2/u);
   assert.match(stagingRebuildAuthority, /targetKey !== "staging-runtime"/u);
-  assert.match(stagingRebuildAuthority, /proof\.source !== "durable_full_inspection"/u);
+  assert.match(stagingRebuildAuthority, /source: "durable_full_inspection"/u);
+  assert.match(stagingRebuildHandoff, /proof\.source !== "durable_full_inspection"/u);
   assert.match(stagingRebuildAuthority, /caller_role_selection_allowed: false/u);
 
   // Recording recomputes canonical Staging role selection from counts and bundle bindings;
