@@ -22,6 +22,8 @@ on:
       - 'http-generic-api/scripts/production-runtime-parity-evidence.mjs'
       - 'http-generic-api/scripts/test-production-runtime-parity-evidence.mjs'
       - 'http-generic-api/test-production-runtime-full-role-inspection-workflow.mjs'
+      - 'http-generic-api/hostBreakglassRoleSelectionArtifact.js'
+      - 'http-generic-api/test-host-breakglass-role-selection-artifact.mjs'
       - 'http-generic-api/config/deployment-branch-policy.json'
       - 'http-generic-api/config/runtime-bootstrap-contract.json'
       - 'http-generic-api/config/runtime-breakglass-catalog.json'
@@ -219,7 +221,7 @@ jobs:
       - name: Validate Production full-role inspection workflow contract
         if: github.event_name == 'pull_request'
         working-directory: http-generic-api
-        run: node --test test-production-runtime-full-role-inspection-workflow.mjs
+        run: node --test test-production-runtime-full-role-inspection-workflow.mjs test-host-breakglass-role-selection-artifact.mjs
 
       - name: Validate recovery operator, centralized policy, and runner ancestry
         run: node --test .github/ops/test-production-runtime-recovery.mjs .github/ops/test-production-runtime-recovery-policy.mjs
@@ -235,6 +237,7 @@ jobs:
           node --test test-runtime-bootstrap-contract.mjs
           node --test test-runtime-gate-deployment-info-parity.mjs
           node --test test-runtime-breakglass-broker.mjs
+          node --test test-host-breakglass-role-selection-artifact.mjs
           node scripts/hostinger-runtime-bootstrap.mjs --plan
 
   bootstrap:
@@ -561,8 +564,10 @@ jobs:
             ($root.status == "host_local_inspection_complete") and
             ($root.mode == "dry_run") and
             ($root.operation == "read_only") and
+            ($root.full_inspection == true) and
             ($root.target_source == "host_local_role_env") and
             ($root.target_key == $target_key) and
+            ($root.target_binding.target_fingerprint | type == "string" and test("^[0-9a-f]{64}$")) and
             ($root.expected_sha == $expected_sha) and
             ($root.expected_branch == "Production") and
             ($root.expected_repository == $expected_repository) and
@@ -605,11 +610,15 @@ jobs:
               source:"durable_full_inspection",
               workflow:"production-runtime-parity-evidence.yml",
               workflow_tooling_sha:$tooling_sha,
+              expected_sha:$expected_sha,
               expected_production_sha:$expected_sha,
               expected_branch:"Production",
               expected_repository:$expected_repository,
+              full_inspection:true,
+              source_binding:{expected_sha:$expected_sha},
               target_key:.target_key,
               target_source:.target_source,
+              target_binding:{target_fingerprint:.target_binding.target_fingerprint},
               mode:.mode,
               status:.status,
               operation:.operation,
@@ -638,6 +647,10 @@ jobs:
           jq -e '
             (.contract == "mad4b.production-runtime-full-role-inspection-evidence.v1") and
             (.source == "durable_full_inspection") and
+            (.full_inspection == true) and
+            (.expected_sha | type == "string" and test("^[0-9a-f]{40}$")) and
+            (.source_binding.expected_sha == .expected_sha) and
+            (.target_binding.target_fingerprint | type == "string" and test("^[0-9a-f]{64}$")) and
             (.read_only == true) and
             (.database_mutation_performed == false) and
             (.migration_apply_performed == false) and
