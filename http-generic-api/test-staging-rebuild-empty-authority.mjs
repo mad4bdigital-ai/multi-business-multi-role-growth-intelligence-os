@@ -134,7 +134,7 @@ function harness() {
     },
     approvalIssuer: { async createChallenge() { return { authority: "server_managed", expires_at: new Date(Date.now() + 300000).toISOString(), server_token: "server-token-for-authority-test" }; } },
     approvalVerifier: { async verify() { return true; } },
-    approvalStore: { async putChallenge() {} },
+    approvalStore: { async putChallenge() {}, async getChallenge() { return null; } },
     executionTicketSigner: { async sign() { return "authority-test-signature"; } },
   };
   return {
@@ -144,14 +144,18 @@ function harness() {
   };
 }
 
-test("mixed topology selects only empty roles and separates database target from Recovery control-plane target", async () => {
+test("mixed topology selects only empty roles through canonical Recovery Kernel findings", async () => {
   const h = harness();
   const recorded = await h.authority.recordInspection(inspectionEnvelope());
   assert.deepEqual(recorded.selected_zero_object_roles, ["governance", "runtime_persistence"]);
+  assert.deepEqual(recorded.selected_capability_keys, ["governance.baseline.rebuild_empty", "runtime_persistence.baseline.rebuild_empty"]);
   assert.deepEqual(recorded.preserved_nonempty_roles, ["runtime"]);
+  assert.equal(recorded.canonical_finding_classifier, "RecoveryKernel.findingsFromInspection");
   assert.equal(recorded.target_fingerprint, DB_TARGET);
   assert.equal(recorded.control_plane_target_fingerprint, CONTROL_TARGET);
   assert.notEqual(recorded.target_fingerprint, recorded.control_plane_target_fingerprint);
+  const run = await h.store.getRun(recorded.inspection_run_id);
+  assert.deepEqual(run.findings.map((finding) => finding.candidate_capability).sort(), ["governance.baseline.rebuild_empty", "runtime_persistence.baseline.rebuild_empty"]);
   const proof = await h.authority.resolveProof({ expected_sha: SHA, target_key: "staging-runtime", inspection_run_id: recorded.inspection_run_id });
   assert.equal(proof.composite_target_fingerprint, DB_TARGET);
   assert.deepEqual(proof.selected_roles, ["governance", "runtime_persistence"]);
@@ -162,28 +166,45 @@ test("server rejects a structurally valid but non-canonical object-count fingerp
   await assert.rejects(() => h.authority.recordInspection(inspectionEnvelope({ correlation: "staging-authority-test-tamper", tamperRole: "governance" })), (error) => error?.code === "STAGING_REBUILD_EMPTY_INSPECTION_FINGERPRINT_MISMATCH");
 });
 
-test("prepare is deterministic for the same durable inspection and idempotency key", async () => {
+test("prepare is deterministic and emits one canonical remediation plan per selected role", async () => {
   const h = harness();
   const recorded = await h.authority.recordInspection(inspectionEnvelope({ correlation: "staging-authority-test-plan" }));
   const first = await h.authority.prepare({ expected_sha: SHA, inspection_run_id: recorded.inspection_run_id, idempotency_key: "staging-authority-idempotency-001" });
   const second = await h.authority.prepare({ expected_sha: SHA, inspection_run_id: recorded.inspection_run_id, idempotency_key: "staging-authority-idempotency-001" });
-  assert.equal(first.plan_id, second.plan_id);
-  assert.equal(first.authority_plan_hash, second.authority_plan_hash);
-  assert.equal(first.step_id, second.step_id);
+  assert.equal(first.approval_set_hash, second.approval_set_hash);
+  assert.equal(first.approval_confirmation, second.approval_confirmation);
   assert.equal(first.target_fingerprint, DB_TARGET);
   assert.equal(first.control_plane_target_fingerprint, CONTROL_TARGET);
+  assert.equal(first.role_plans.length, 2);
+  assert.deepEqual(first.role_plans, second.role_plans);
+  assert.deepEqual(first.role_plans.map((plan) => plan.capability_key).sort(), ["governance.baseline.rebuild_empty", "runtime_persistence.baseline.rebuild_empty"]);
+  for (const rolePlan of first.role_plans) {
+    assert.equal(rolePlan.idempotency_key, `staging-authority-idempotency-001:${rolePlan.role}`);
+    const persisted = await h.store.getPlan(rolePlan.plan_id);
+    assert.equal(persisted.contract, "mad4b.recovery-remediation-plan.v1");
+    assert.equal(persisted.steps.length, 1);
+    assert.equal(persisted.steps[0].capability_key, `${rolePlan.role}.baseline.rebuild_empty`);
+    assert.deepEqual(persisted.role_selection_proof.selected_roles, [rolePlan.role]);
+  }
 });
 
-test("approval retry with the same idempotency key returns the same persisted single-use ticket", async () => {
+test("approval retry returns the same persisted role-specific single-use tickets", async () => {
   const h = harness();
   const recorded = await h.authority.recordInspection(inspectionEnvelope({ correlation: "staging-authority-test-approve" }));
   const prepared = await h.authority.prepare({ expected_sha: SHA, inspection_run_id: recorded.inspection_run_id, idempotency_key: "staging-authority-idempotency-approve" });
-  const input = { plan_id: prepared.plan_id, authority_plan_hash: prepared.authority_plan_hash, step_id: prepared.step_id, idempotency_key: "staging-authority-idempotency-approve", approval_confirmation: prepared.approval_confirmation };
+  const input = { expected_sha: SHA, inspection_run_id: recorded.inspection_run_id, idempotency_key: "staging-authority-idempotency-approve", approval_confirmation: prepared.approval_confirmation };
   const first = await h.authority.approveAndIssue(input);
   const second = await h.authority.approveAndIssue(input);
-  assert.equal(first.execution_ticket_id, second.execution_ticket_id);
-  assert.equal(first.execution_ticket_hash, second.execution_ticket_hash);
-  assert.equal(first.target_fingerprint, DB_TARGET);
+  assert.equal(first.status, "role_execution_tickets_issued");
+  assert.equal(first.role_issuances.length, 2);
+  assert.deepEqual(first.role_issuances.map((entry) => [entry.target_role, entry.execution_ticket_id, entry.execution_ticket_hash]), second.role_issuances.map((entry) => [entry.target_role, entry.execution_ticket_id, entry.execution_ticket_hash]));
+  assert.deepEqual(first.selected_capability_keys.sort(), ["governance.baseline.rebuild_empty", "runtime_persistence.baseline.rebuild_empty"]);
+  for (const issuance of first.role_issuances) {
+    assert.equal(issuance.canonical_capability_key, `${issuance.target_role}.baseline.rebuild_empty`);
+    assert.deepEqual(issuance.selected_zero_object_roles, [issuance.target_role]);
+    assert.deepEqual(issuance.role_selection_proof.selected_roles, [issuance.target_role]);
+    assert.equal(issuance.target_fingerprint, DB_TARGET);
+  }
   await assert.rejects(() => h.authority.approveAndIssue({ ...input, idempotency_key: "different-idempotency-key" }), (error) => error?.code === "RECOVERY_APPROVAL_INVALID");
 });
 
