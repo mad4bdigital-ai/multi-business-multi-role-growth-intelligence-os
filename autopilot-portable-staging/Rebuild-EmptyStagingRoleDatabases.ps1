@@ -79,12 +79,12 @@ if ($Apply -and -not [string]::IsNullOrWhiteSpace($VerifiedRequestFile)) {
   $remoteLine = Native-Text "git" @("-C", $repo, "-c", "protocol.version=0", "-c", "http.version=HTTP/1.1", "ls-remote", "origin", "refs/heads/main")
   Require ((($remoteLine -split '\s+')[0]).ToLowerInvariant() -eq $ExpectedCommit) "origin/main moved away from the exact approved checkout"
   & node $verifiedRunner --request-file $verifiedPath --env-file $envFile
-  Require ($LASTEXITCODE -eq 0) "Governed selective rebuild execution failed or requires reconciliation"
-  Write-Host "STAGING_REBUILD_EMPTY_SCHEMA_READY: commit=$ExpectedCommit grants=not_applied runtime_certification=not_asserted gateway_apply_certification=pending next_action=database.access_repair"
+  Require ($LASTEXITCODE -eq 0) "Governed role-specific rebuild execution failed or requires reconciliation"
+  Write-Host "STAGING_REBUILD_EMPTY_ROLE_READY: commit=$ExpectedCommit request=$verifiedPath grants=not_applied runtime_certification=not_asserted gateway_apply_certification=pending"
   exit 0
 }
 if ($Apply -and [string]::IsNullOrWhiteSpace($VerifiedRequestFile) -and [string]::IsNullOrWhiteSpace($ApprovalConfirmation)) {
-  Fail "-Apply requires either a server-issued -VerifiedRequestFile or the exact -ApprovalConfirmation returned by Recovery prepare"
+  Fail "-Apply requires either one server-issued role-specific -VerifiedRequestFile or the exact set-level -ApprovalConfirmation returned by Recovery prepare"
 }
 
 $roles = @(
@@ -138,7 +138,8 @@ Require ($inspectionReceipt.status -ceq "durable_full_inspection_recorded" -and 
 
 $prepareInput = [ordered]@{ expected_sha = $ExpectedCommit; inspection_run_id = $inspectionReceipt.inspection_run_id; idempotency_key = $CorrelationId }
 $prepareReceipt = Invoke-RecoverySystemTool "staging_recovery_rebuild_empty_prepare" $prepareInput $apiKey
-Require ($prepareReceipt.status -in @("approval_required", "execution_ticket_already_issued") -and $prepareReceipt.database_mutation_performed -eq $false) "Staging rebuild plan did not remain inside the Recovery approval lifecycle"
+Require ($prepareReceipt.status -in @("approval_required", "execution_tickets_already_issued") -and $prepareReceipt.database_mutation_performed -eq $false) "Staging role-specific rebuild plans did not remain inside the Recovery approval lifecycle"
+Require (@($prepareReceipt.role_plans).Count -eq @($inspectionReceipt.selected_zero_object_roles).Count) "Recovery prepare did not emit exactly one canonical role plan per selected zero-object role"
 $preparePath = Join-Path $EvidenceDirectory "prepare-$CorrelationId.json"
 Save-Json $preparePath $prepareReceipt
 
@@ -150,24 +151,36 @@ if ([string]::IsNullOrWhiteSpace($ApprovalConfirmation)) {
   exit 0
 }
 
-Require ($ApprovalConfirmation -ceq $prepareReceipt.approval_confirmation) "Approval confirmation does not match the exact Recovery plan/step/SHA/role selection"
+Require ($ApprovalConfirmation -ceq $prepareReceipt.approval_confirmation) "Approval confirmation does not match the exact server-derived Recovery role-plan set/SHA/inspection"
 $approveInput = [ordered]@{
-  plan_id = $prepareReceipt.plan_id
-  authority_plan_hash = $prepareReceipt.authority_plan_hash
-  step_id = $prepareReceipt.step_id
+  expected_sha = $ExpectedCommit
+  inspection_run_id = $inspectionReceipt.inspection_run_id
   idempotency_key = $CorrelationId
   approval_confirmation = $ApprovalConfirmation
 }
 $approvalReceipt = Invoke-RecoverySystemTool "staging_recovery_rebuild_empty_approve" $approveInput $apiKey
-Require ($approvalReceipt.status -ceq "execution_ticket_issued_local_handoff_ready" -and $approvalReceipt.local_handoff.verified_request -and $approvalReceipt.database_mutation_performed -eq $false) "Recovery authority did not issue the verified local selective rebuild handoff"
-$verifiedPath = Join-Path $EvidenceDirectory $approvalReceipt.local_handoff.request_file_name
-Save-Json $verifiedPath $approvalReceipt.local_handoff.verified_request
-Write-Host "STAGING_REBUILD_EMPTY_VERIFIED_HANDOFF_READY: commit=$ExpectedCommit selected_roles=$([string]::Join(',', $approvalReceipt.selected_zero_object_roles)) preserved_roles=$([string]::Join(',', $approvalReceipt.preserved_nonempty_roles)) request=$verifiedPath mutation=false"
+$roleHandoffs = @($approvalReceipt.role_handoffs)
+Require ($approvalReceipt.status -ceq "role_execution_tickets_issued_local_handoffs_ready" -and $approvalReceipt.database_mutation_performed -eq $false) "Recovery authority did not issue the canonical role-specific local handoffs"
+Require ($roleHandoffs.Count -eq @($inspectionReceipt.selected_zero_object_roles).Count -and $roleHandoffs.Count -gt 0) "Recovery authority returned an incomplete role-handoff set"
+$verifiedPaths = @()
+foreach ($handoff in $roleHandoffs) {
+  Require (-not [string]::IsNullOrWhiteSpace([string]$handoff.role) -and -not [string]::IsNullOrWhiteSpace([string]$handoff.capability_key)) "Role handoff is missing its canonical role/capability binding"
+  Require ($handoff.capability_key -ceq "$($handoff.role).baseline.rebuild_empty") "Role handoff capability is not the canonical role-specific Recovery capability"
+  Require ($null -ne $handoff.verified_request) "Role handoff is missing its verified local request"
+  $verifiedPath = Join-Path $EvidenceDirectory ([string]$handoff.request_file_name)
+  Save-Json $verifiedPath $handoff.verified_request
+  $verifiedPaths += [pscustomobject]@{ role = [string]$handoff.role; capability_key = [string]$handoff.capability_key; path = $verifiedPath }
+}
+Write-Host "STAGING_REBUILD_EMPTY_ROLE_HANDOFFS_READY: commit=$ExpectedCommit selected_roles=$([string]::Join(',', $approvalReceipt.selected_zero_object_roles)) preserved_roles=$([string]::Join(',', $approvalReceipt.preserved_nonempty_roles)) handoffs=$($verifiedPaths.Count) mutation=false"
+foreach ($entry in $verifiedPaths) { Write-Host "role=$($entry.role) capability=$($entry.capability_key) request=$($entry.path)" }
 
 if ($Apply) {
   $remoteLine = Native-Text "git" @("-C", $repo, "-c", "protocol.version=0", "-c", "http.version=HTTP/1.1", "ls-remote", "origin", "refs/heads/main")
   Require ((($remoteLine -split '\s+')[0]).ToLowerInvariant() -eq $ExpectedCommit) "origin/main moved away from the exact approved checkout"
-  & node $verifiedRunner --request-file $verifiedPath --env-file $envFile
-  Require ($LASTEXITCODE -eq 0) "Governed selective rebuild execution failed or requires reconciliation"
-  Write-Host "STAGING_REBUILD_EMPTY_SCHEMA_READY: commit=$ExpectedCommit grants=not_applied runtime_certification=not_asserted gateway_apply_certification=pending next_action=database.access_repair"
+  foreach ($entry in $verifiedPaths) {
+    & node $verifiedRunner --request-file $entry.path --env-file $envFile
+    Require ($LASTEXITCODE -eq 0) "Governed role-specific rebuild failed or requires reconciliation for role $($entry.role)"
+    Write-Host "STAGING_REBUILD_EMPTY_ROLE_READY: role=$($entry.role) capability=$($entry.capability_key) commit=$ExpectedCommit"
+  }
+  Write-Host "STAGING_REBUILD_EMPTY_SCHEMA_READY: commit=$ExpectedCommit roles=$([string]::Join(',', $approvalReceipt.selected_zero_object_roles)) grants=not_applied runtime_certification=not_asserted gateway_apply_certification=pending next_action=database.access_repair"
 }
