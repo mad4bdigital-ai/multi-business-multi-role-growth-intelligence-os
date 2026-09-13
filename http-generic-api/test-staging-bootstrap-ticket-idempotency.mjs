@@ -63,7 +63,7 @@ function expected(idempotencyKey) {
   };
 }
 
-function readbackEvidence(ticketId, idempotencyKey, reservationGeneration) {
+function readbackEvidence(ticketId, idempotencyKey, reservationGeneration, overrides = {}) {
   return {
     contract: "mad4b.staging-bootstrap-local-readback-evidence.v1",
     ticket_id: ticketId,
@@ -88,10 +88,11 @@ function readbackEvidence(ticketId, idempotencyKey, reservationGeneration) {
     postconditions_fingerprint: "9".repeat(64),
     mutation_evidence_fingerprint: "a".repeat(64),
     secrets_included: false,
+    ...overrides,
   };
 }
 
-test("reservation, execution-start, readback and finalization are replay-safe for the same idempotency binding", async () => {
+test("reservation, execution-start, semantic readback retry and finalization are replay-safe for the same idempotency binding", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "staging-ticket-idempotency-"));
   try {
     const env = stagingEnv(root);
@@ -114,11 +115,16 @@ test("reservation, execution-start, readback and finalization are replay-safe fo
     assert.equal(executingRetry.idempotent_replay, true);
     assert.deepEqual(executingRetry.execution_receipt, executing.execution_receipt);
 
-    const evidence = readbackEvidence(ticket.ticket_id, idempotencyKey, reserved.reservation_generation);
+    const evidence = readbackEvidence(ticket.ticket_id, idempotencyKey, reserved.reservation_generation, { observed_at: new Date(Date.now() - 1000).toISOString() });
     const readback = await authority.attestReadbackForBootstrap({ ticket_id: ticket.ticket_id, ticket_hash: ticket.ticket_hash, expected: binding, reservation_receipt: reserved.reservation_receipt, execution_receipt: executing.execution_receipt, evidence });
-    const readbackRetry = await authority.attestReadbackForBootstrap({ ticket_id: ticket.ticket_id, ticket_hash: ticket.ticket_hash, expected: binding, reservation_receipt: reserved.reservation_receipt, execution_receipt: executing.execution_receipt, evidence });
+    const retryEvidence = readbackEvidence(ticket.ticket_id, idempotencyKey, reserved.reservation_generation, { observed_at: new Date().toISOString() });
+    const readbackRetry = await authority.attestReadbackForBootstrap({ ticket_id: ticket.ticket_id, ticket_hash: ticket.ticket_hash, expected: binding, reservation_receipt: reserved.reservation_receipt, execution_receipt: executing.execution_receipt, evidence: retryEvidence });
     assert.equal(readbackRetry.verified, true);
     assert.equal(readbackRetry.idempotent_replay, true);
+    assert.equal(readbackRetry.semantic_retry_match, true);
+    assert.notEqual(readbackRetry.retry_evidence_hash, readback.evidence_hash);
+    assert.equal(readbackRetry.evidence_hash, readback.evidence_hash);
+    assert.equal(readbackRetry.result_fingerprint, readback.result_fingerprint);
     assert.deepEqual(readbackRetry.readback_receipt, readback.readback_receipt);
 
     const finalized = await authority.finalizeForBootstrap({ ticket_id: ticket.ticket_id, ticket_hash: ticket.ticket_hash, expected: binding, readback_receipt: readback.readback_receipt });
@@ -128,6 +134,38 @@ test("reservation, execution-start, readback and finalization are replay-safe fo
     assert.equal(finalizedRetry.idempotent_replay, true);
     assert.equal(finalizedRetry.result_fingerprint, finalized.result_fingerprint);
     assert.equal(finalizedRetry.audit.ticket_id, ticket.ticket_id);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("semantic readback changes still fail closed even when observed_at is fresh", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "staging-ticket-idempotency-readback-conflict-"));
+  try {
+    const env = stagingEnv(root);
+    const roots = _testingStagingRecoveryAuthorityBinding.roots(env);
+    const graph = _testingStagingRecoveryAuthorityBinding.adapters(roots.readiness, env).adapters;
+    const { ticket, idempotencyKey } = await createTicket(graph, "readback-conflict");
+    const authority = createStagingBootstrapExecutionAuthority({ env });
+    const binding = expected(idempotencyKey);
+    const reserved = await authority.verifyForBootstrap({ ticket_id: ticket.ticket_id, ticket_hash: ticket.ticket_hash, expected: binding });
+    const executing = await authority.markExecutingForBootstrap({ ticket_id: ticket.ticket_id, ticket_hash: ticket.ticket_hash, expected: binding, reservation_receipt: reserved.reservation_receipt });
+    const evidence = readbackEvidence(ticket.ticket_id, idempotencyKey, reserved.reservation_generation);
+    await authority.attestReadbackForBootstrap({ ticket_id: ticket.ticket_id, ticket_hash: ticket.ticket_hash, expected: binding, reservation_receipt: reserved.reservation_receipt, execution_receipt: executing.execution_receipt, evidence });
+    await assert.rejects(
+      () => authority.attestReadbackForBootstrap({
+        ticket_id: ticket.ticket_id,
+        ticket_hash: ticket.ticket_hash,
+        expected: binding,
+        reservation_receipt: reserved.reservation_receipt,
+        execution_receipt: executing.execution_receipt,
+        evidence: readbackEvidence(ticket.ticket_id, idempotencyKey, reserved.reservation_generation, {
+          observed_at: new Date().toISOString(),
+          mutation_evidence_fingerprint: "f".repeat(64),
+        }),
+      }),
+      (error) => error?.code === "RECOVERY_IDEMPOTENCY_CONFLICT",
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }
