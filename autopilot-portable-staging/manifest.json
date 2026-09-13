@@ -38,7 +38,7 @@
     },
     {
       "path": "autopilot-portable-staging/README.md",
-      "sha256": "54ef225a8470321c095dd51eec9454d5dc3fcec633af73997dc00d145ee1d42a"
+      "sha256": "4b2b436696c5f2443a3a13db96a3d43436f147ebb13c1cdf19db672ec983e038"
     },
     {
       "path": "autopilot-portable-staging/Show-StagingLogs.ps1",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "45de036a3dd02e71c653082ba1c4de0ec7733ba10c6091cdfe70b7395b5d1694"
+      "sha256": "54f228d8d574afa50ad02b5f8ca1404ef92356e1032720f617a08d464370a549"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",

@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7674,
+  "file_count": 7676,
   "route_count": 1103,
   "write_route_count": 670,
   "classified_write_surface_count": 42,
@@ -6268,8 +6268,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js#POST:/system/tools/call:0",
-      "source_line": 358,
-      "source_offset": 16024,
+      "source_line": 360,
+      "source_offset": 15965,
       "method": "POST",
       "path": "/system/tools/call",
       "file": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
@@ -6277,8 +6277,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js#POST:/admin/system/tools/call:1",
-      "source_line": 359,
-      "source_offset": 16106,
+      "source_line": 361,
+      "source_offset": 16047,
       "method": "POST",
       "path": "/admin/system/tools/call",
       "file": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
@@ -37462,10 +37462,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
-        "source_line": 358,
+        "source_line": 360,
         "handler_window_lines": [
-          358,
-          358
+          360,
+          360
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -37522,10 +37522,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
-        "source_line": 359,
+        "source_line": 361,
         "handler_window_lines": [
-          359,
-          373
+          361,
+          374
         ],
         "evidence_flags": {
           "handler_window_present": true,
