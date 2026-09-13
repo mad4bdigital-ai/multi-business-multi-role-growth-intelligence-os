@@ -73,6 +73,15 @@ function harness() {
   let controlTarget = CONTROL_TARGET;
 
   const store = {
+    recovery_store_contract: "mad4b.recovery-durable-store.v1",
+    independent_of_target_databases: true,
+    target_database_binding: "forbidden",
+    shared_replica_safe: true,
+    schema_auto_apply: false,
+    provider_accessed: false,
+    payload_integrity_verified_on_read: true,
+    executionTicketVerifier: { async verify() { return true; } },
+    async getReadiness() { return { contract: "mad4b.recovery-control-store-readiness.v1", ready: true, scope: "durable_inspection", database_mutation_performed: false, schema_auto_apply: false, secrets_included: false }; },
     async putRun(value) { runs.set(value.run_id, structuredClone(value)); },
     async getRun(id) { return runs.has(id) ? structuredClone(runs.get(id)) : null; },
     async putFinding(value) { findings.set(value.finding_id, structuredClone(value)); },
@@ -95,6 +104,15 @@ function harness() {
     async markApprovalUsed(id) { const value = approvals.get(id); if (!value) return { already_finalized: true }; approvals.set(id, { ...value, used: true }); return { finalized: true }; },
     async putExecutionTicket(value) { const existing = tickets.get(value.ticket_id); if (existing && existing.ticket_hash !== value.ticket_hash) throw new Error("ticket collision"); tickets.set(value.ticket_id, structuredClone(value)); },
     async getExecutionTicket(id) { return tickets.has(id) ? structuredClone(tickets.get(id)) : null; },
+    async getRunByIdempotency() { return null; },
+    async appendEvidenceEvent() {},
+    async putIdempotencyReceipt() {},
+    async claimExecution() { return { claimed: true }; },
+    async reserveExecutionTicket() { return { reserved: true }; },
+    async releaseExecutionTicket() { return { released: true }; },
+    async finalizeExecutionTicket() { return { finalized: true }; },
+    async releaseExecutionClaim() { return { released: true }; },
+    async finalizeApproval({ approval_id: id } = {}) { return this.markApprovalUsed(id); },
   };
 
   const graph = {

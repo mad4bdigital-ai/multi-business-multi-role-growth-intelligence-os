@@ -43,10 +43,10 @@ function stagingRebuildRecoverySurfaceRequired() {
 }
 
 function attachVerifiedStagingLocalRequest(plan, receipt, input = {}) {
-  const supported = plan?.environment_key === "staging_local_windows_docker"
-    && plan?.operation_key === "database.repair"
-    && plan?.runbook_key === "database.access_repair";
-  if (receipt?.status !== "local_execution_required" || !supported) return receipt;
+  if (receipt?.status !== "local_execution_required"
+    || plan?.environment_key !== "staging_local_windows_docker"
+    || plan?.operation_key !== "database.repair"
+    || plan?.runbook_key !== "database.access_repair") return receipt;
   const verifiedRequest = buildVerifiedHostBreakglassLocalRequest({ ...plan, authority_plan_hash: input.authority_plan_hash || null });
   const requestFileName = `verified-staging-access-repair-${plan.plan_sha256.slice(0, 16)}.json`;
   return {
