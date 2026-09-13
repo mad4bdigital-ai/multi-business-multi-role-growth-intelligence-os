@@ -13,7 +13,8 @@ const FINDING = /^finding:[0-9a-f]{16,64}$/u;
 const ROLE_ORDER = Object.freeze(["runtime", "governance", "runtime_persistence"]);
 const WORKFLOW = "production-runtime-parity-evidence.yml";
 const FULL_INSPECTION_KIND = "full_role_inspection";
-const FULL_INSPECTION_ARTIFACT_MODE = FULL_INSPECTION_KIND; // compatibility marker: FULL_INSPECTION_ARTIFACT_MODE = "full_role_inspection"
+// Source-level compatibility marker: FULL_INSPECTION_ARTIFACT_MODE = "full_role_inspection"
+const FULL_INSPECTION_ARTIFACT_MODE = FULL_INSPECTION_KIND;
 const FULL_INSPECTION_RESULT_ENTRY = "full-role-inspection.json";
 const FULL_INSPECTION_EVIDENCE_CONTRACT = "mad4b.production-runtime-full-role-inspection-evidence.v1";
 const LOCAL_INSPECTION_PROTOCOL = "mad4b.host-breakglass-host-local-inspection.v1";
