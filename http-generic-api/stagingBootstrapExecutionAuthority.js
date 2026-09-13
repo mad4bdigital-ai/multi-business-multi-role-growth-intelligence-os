@@ -47,7 +47,7 @@ function hasSensitiveKey(value, depth = 0) {
 
 function normalizeExpected(expected = {}) {
   if (!isObject(expected)) fail("RECOVERY_TICKET_BINDING_MISMATCH", "Expected Staging bootstrap ticket binding is required.", {}, 400);
-  const allowed = new Set(["production_sha", "expected_sha", "target_key", "target_fingerprint", "operation", "plan_hash", "idempotency_key", "role_selection_hash", "grant_binding_hash"]);
+  const allowed = new Set(["production_sha", "expected_sha", "target_key", "target_fingerprint", "operation", "plan_hash", "step_id", "idempotency_key", "role_selection_hash", "grant_binding_hash"]);
   const unexpected = Object.keys(expected).filter((key) => !allowed.has(key));
   if (unexpected.length || hasSensitiveKey(expected)) fail("RECOVERY_TICKET_BINDING_MISMATCH", "Expected bootstrap ticket binding contains forbidden fields.", { fields: unexpected }, 400);
   const operation = text(expected.operation, 96);
