@@ -162,6 +162,7 @@
         "http-generic-api/config/recovery-kernel-manifest.json",
         "http-generic-api/test-openapi-split-governance.mjs",
         "http-generic-api/test-host-local-runtime-inspection.mjs",
+        "http-generic-api/test-production-runtime-full-role-inspection-workflow.mjs",
         "http-generic-api/routes/deploymentInfoRoutes.js",
         "docs/governance/runtime-breakglass-environments.md"
       ]
