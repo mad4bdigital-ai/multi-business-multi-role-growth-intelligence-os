@@ -80,11 +80,12 @@ const expectedTargetFingerprint = computeTargetBindingFingerprint({
 assert.equal(computeStagingDatabaseTargetFingerprint({ envFile: tempEnv }), expectedTargetFingerprint);
 fs.rmSync(tempDir, { recursive: true, force: true });
 
-const importer = fs.readFileSync(path.join(root, "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1"), "utf8");
 const replay = fs.readFileSync(path.join(root, "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs"), "utf8");
 const entry = fs.readFileSync(path.join(root, "autopilot-portable-staging/Rebuild-EmptyStagingRoleDatabases.ps1"), "utf8");
 const authority = fs.readFileSync(path.join(root, "http-generic-api/stagingRebuildEmptyAuthority.js"), "utf8");
 const handoff = fs.readFileSync(path.join(root, "http-generic-api/stagingRebuildEmptyHandoff.js"), "utf8");
+const kernelBridge = fs.readFileSync(path.join(root, "http-generic-api/recoveryKernelInspectionBridge.js"), "utf8");
+const rolePlanAdapter = fs.readFileSync(path.join(root, "http-generic-api/stagingRoleRebuildPlanAdapter.js"), "utf8");
 const bundleBinding = fs.readFileSync(path.join(root, "http-generic-api/stagingRoleBundleBinding.js"), "utf8");
 const bundleVerifier = fs.readFileSync(path.join(root, "http-generic-api/stagingRebuildBundleVerifier.js"), "utf8");
 const adminRoutes = fs.readFileSync(path.join(root, "http-generic-api/routes/adminHostBreakglassRoutes.js"), "utf8");
@@ -94,12 +95,10 @@ const systemTools = fs.readFileSync(path.join(root, "http-generic-api/stagingRec
 const localVerified = fs.readFileSync(path.join(root, "http-generic-api/scripts/host-breakglass-local-verified.mjs"), "utf8");
 const localRunner = fs.readFileSync(path.join(root, "http-generic-api/scripts/host-breakglass-local.mjs"), "utf8");
 
-assert.match(importer, /function Assert-EmptyRoleDatabases/u);
-for (const surface of ["information_schema.TABLES", "information_schema.ROUTINES", "information_schema.TRIGGERS", "information_schema.EVENTS"]) assert.ok(importer.includes(surface) && entry.includes(surface), `${surface} must remain covered by root census surfaces`);
+for (const surface of ["information_schema.TABLES", "information_schema.ROUTINES", "information_schema.TRIGGERS", "information_schema.EVENTS"]) assert.ok(entry.includes(surface), `${surface} must remain covered by the governed local census`);
 assert.match(entry, /information_schema\.VIEWS/u);
 assert.match(entry, /TABLE_TYPE='BASE TABLE'/u);
 assert.match(replay, /views: plan\.roles\[role\]\.views/u);
-assert.match(importer, /Assert-SetEqual \$item\.ExpectedViews \$observedViews/u);
 assert.match(entry, /classify-staging-empty-role-census\.mjs/u);
 assert.match(entry, /prepare-staging-rebuild-empty-inspection\.mjs/u);
 assert.match(entry, /--env-file \$envFile/u);
@@ -109,6 +108,8 @@ assert.doesNotMatch(entry, /\/admin\/runtime-bootstrap\/staging\/rebuild-empty\/
 assert.match(entry, /host-breakglass-local-verified\.mjs/u);
 assert.doesNotMatch(entry, /Clone-StagingDatabases\.ps1|Clone-StagingDatabases\.Legacy\.ps1|-Mode schema_only -Apply|staging-empty-governance-certification-seed\.sql/u);
 assert.match(entry, /Legacy REBUILD_EMPTY_LOCAL_STAGING_DATABASES confirmation is retired/u);
+assert.match(entry, /role_execution_tickets_issued_local_handoffs_ready/u);
+assert.match(entry, /capability_key -ceq "\$\(\$handoff\.role\)\.baseline\.rebuild_empty"/u);
 assert.match(entry, /grants=not_applied runtime_certification=not_asserted gateway_apply_certification=pending next_action=database\.access_repair/u);
 assert.doesNotMatch(entry, /Repair-StagingDatabaseReadiness|GrantConfirmation|RepairConfirmation/u);
 
@@ -119,10 +120,23 @@ assert.match(authority, /caller_role_selection_allowed: false/u);
 assert.match(authority, /access_repair_separate: true/u);
 assert.match(authority, /role_bundle_bindings/u);
 assert.match(authority, /STAGING_REBUILD_EMPTY_INSPECTION_FINGERPRINT_MISMATCH/u);
+assert.match(authority, /RECOVERY_CANONICAL_INSPECTION_CLASSIFICATION_MISMATCH/u);
+assert.match(authority, /canonical_finding_classifier: "RecoveryKernel\.findingsFromInspection"/u);
 assert.match(authority, /control_plane_target_fingerprint/u);
 assert.match(authority, /database_target_fingerprint/u);
-assert.match(authority, /idempotency_key: idempotencyKey/u);
 assert.match(authority, /approved_idempotency_key/u);
+assert.match(authority, /role_issuances/u);
+assert.match(kernelBridge, /_testingRecoveryKernel\.findingsFromInspection/u);
+assert.match(kernelBridge, /_testingRecoveryKernel\.classifyFinding/u);
+for (const role of roles) assert.ok(rolePlanAdapter.includes(`${role}.baseline.rebuild_empty`) || rolePlanAdapter.includes("${role}.baseline.rebuild_empty"));
+assert.match(rolePlanAdapter, /contract: "mad4b\.recovery-remediation-plan\.v1"/u);
+assert.match(rolePlanAdapter, /selected_roles: \[role\]/u);
+assert.match(rolePlanAdapter, /caller_role_selection_allowed: false/u);
+assert.doesNotMatch(systemTools, /capability_key: "staging_database_rebuild_empty"/u);
+assert.match(systemTools, /capability_key: "database_full_inspection"/u);
+assert.match(systemTools, /capability_key: "remediation_plan_create"/u);
+assert.match(systemTools, /capability_key: "remediation_step_execute"/u);
+assert.match(systemTools, /caller_selected_rebuild_plan_or_step: false/u);
 assert.match(handoff, /verified_local_execution_transport_only|buildVerifiedHostBreakglassLocalRequest/u);
 assert.match(bundleBinding, /computeStagingRoleBundleBindings/u);
 assert.match(bundleBinding, /validateSchemaBundleManifest/u);
@@ -146,4 +160,4 @@ assert.match(localRunner, /preserved_roles_unchanged: true/u);
 assert.match(localRunner, /RECOVERY_PRESERVED_ROLE_CHANGED/u);
 assert.match(localRunner, /BOOTSTRAP_ROLE_OBJECT_COUNT_FINGERPRINTS: plan\.role_selection_proof \? JSON\.stringify\(plan\.role_selection_proof\)/u);
 assert.match(localRunner, /BOOTSTRAP_PLAN_SHA256: authorityPlanHash/u);
-console.log("Staging mixed-topology selective rebuild Recovery authority, target binding, handoff and preservation contracts passed");
+console.log("Staging canonical role-specific rebuild Recovery authority, target binding, handoff and preservation contracts passed");
