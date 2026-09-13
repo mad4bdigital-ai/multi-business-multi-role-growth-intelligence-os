@@ -445,7 +445,16 @@ export function createStagingRebuildEmptyAuthority({ env = process.env, adapters
       if (!existingPlan) await store.putPlan(plan);
       const effectivePlan = existingPlan || plan;
       const effectiveStep = effectivePlan.steps?.find((entry) => entry.step_id === step.step_id) || step;
-      const challenge = await createApprovalChallenge({ plan_id: effectivePlan.plan_id, plan_hash: effectivePlan.plan_hash, step_id: effectiveStep.step_id }, { approvalIssuer: graph.approvalIssuer, approvalStore: graph.approvalStore, recoveryStore: store });
+      let challenge = await store.getApprovalByPlanStep(effectivePlan.plan_id, effectiveStep.step_id);
+      const approvedOrTicketed = effectivePlan.status === "approved" || Boolean(effectivePlan.execution_ticket_id);
+      if (approvedOrTicketed) {
+        if (!challenge) fail("RECOVERY_APPROVAL_INVALID", "Approved rebuild-empty plan is missing its durable approval challenge.", { plan_id: effectivePlan.plan_id }, 409);
+      } else {
+        const expiresAt = Date.parse(challenge?.expires_at || 0);
+        const reusable = Boolean(challenge && challenge.used !== true && Number.isFinite(expiresAt) && expiresAt > Date.now());
+        if (challenge?.used === true) fail("RECOVERY_APPROVAL_INVALID", "Rebuild-empty prepare found a consumed approval before the plan reached approved state.", { plan_id: effectivePlan.plan_id }, 409);
+        if (!reusable) challenge = await createApprovalChallenge({ plan_id: effectivePlan.plan_id, plan_hash: effectivePlan.plan_hash, step_id: effectiveStep.step_id }, { approvalIssuer: graph.approvalIssuer, approvalStore: graph.approvalStore, recoveryStore: store });
+      }
       return {
         ok: true,
         contract: STAGING_REBUILD_EMPTY_AUTHORITY_CONTRACT,
