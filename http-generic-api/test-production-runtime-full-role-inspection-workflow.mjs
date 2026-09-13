@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -80,6 +81,39 @@ test("full-role inspection validates all three roles and emits only sanitized du
   // The durable artifact is explicitly checked for raw identity/credential field names.
   assert.match(step, /connection_string/u);
   assert.match(step, /raw_values_exposed == false/u);
+});
+
+test("full-role role/classification consistency predicate is valid jq and guards the workflow source", () => {
+  const step = section(
+    "- name: Run Hostinger-side full role inspection",
+    "- name: Run Hostinger-side runtime environment dry-run",
+  );
+
+  assert.doesNotMatch(step, /all\(\$roles\[\] as \$role;/u);
+  assert.match(
+    step,
+    /\(\[ \$roles\[\] as \$role \| \(\(\$root\.role_database_object_classifications\[\$role\] == "zero_objects"\) == \(\$root\.role_database_object_counts\[\$role\]\.total == 0\)\) \] \| all\)/u,
+  );
+
+  const predicate = `
+    (["governance","runtime","runtime_persistence"]) as $roles |
+    {
+      role_database_object_classifications:{
+        governance:"zero_objects",
+        runtime:"nonempty_objects",
+        runtime_persistence:"nonempty_objects"
+      },
+      role_database_object_counts:{
+        governance:{total:0},
+        runtime:{total:1},
+        runtime_persistence:{total:1}
+      }
+    } as $root |
+    ([ $roles[] as $role | (($root.role_database_object_classifications[$role] == "zero_objects") == ($root.role_database_object_counts[$role].total == 0)) ] | all)
+  `;
+
+  const result = spawnSync("jq", ["-n", "-e", predicate], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
 });
 
 test("Production full-role evidence cannot be consumed as Staging rebuild mutation authority", () => {
