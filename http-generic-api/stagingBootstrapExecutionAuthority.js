@@ -136,7 +136,7 @@ function lifecycleBase({ ticketId, ticketHash, binding }) {
 }
 
 function validateReadbackEvidence(evidence, { ticketId, binding, reservationGeneration, now = Date.now() } = {}) {
-  if (!isObject(evidence) || evidence.contract !== STAGING_BOOTSTRAP_READBACK_EVIDENCE_CONTRACT || evidence.secrets_included !== false || hasSensitiveKey(evidence)) fail("RECOVERY_READBACK_UNVERIFIED", "Readback evidence is missing, malformed, or contains forbidden sensitive fields.", { reconciliation_required: true }, 409);
+  if (!isObject(evidence) || evidence.contract !== STAGING_BOOTSTRAP_READBACK_EVIDENCE_CONTRACT || evidence.secrets_included !== false || hasSensitiveKey(signerProjection(evidence))) fail("RECOVERY_READBACK_UNVERIFIED", "Readback evidence is missing, malformed, or contains forbidden sensitive fields.", { reconciliation_required: true }, 409);
   const allowed = new Set(["contract", "ticket_id", "reservation_generation", "expected_sha", "target_key", "target_fingerprint", "operation", "plan_hash", "idempotency_key", "grant_binding_hash", "role_selection_hash", "status", "observed_at", "same_cycle", "database_mutation_performed", "grant_readback_by_role", "postconditions_fingerprint", "mutation_evidence_fingerprint", "secrets_included"]);
   const unexpected = Object.keys(evidence).filter((key) => !allowed.has(key));
   if (unexpected.length) fail("RECOVERY_READBACK_UNVERIFIED", "Readback evidence contains fields outside the fixed contract.", { fields: unexpected, reconciliation_required: true }, 409);
