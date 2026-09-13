@@ -24,6 +24,7 @@ $bundleManifest = Join-Path $PSScriptRoot "staging-db-dumps\staging-schema-bundl
 $compose = @("-f", (Join-Path $api "docker-compose.yml"), "-f", (Join-Path $api "docker-compose.staging.yml"), "--env-file", $envFile)
 if ([string]::IsNullOrWhiteSpace($EvidenceDirectory)) { $EvidenceDirectory = Join-Path $PSScriptRoot "logs\rebuild-empty" }
 if ([string]::IsNullOrWhiteSpace($CorrelationId)) { $CorrelationId = "staging-rebuild-empty-$([Guid]::NewGuid().ToString('N'))" }
+$rebuildSetLockPath = Join-Path $PSScriptRoot "logs\staging-rebuild-empty.apply.lock"
 
 function Fail([string]$Message) { throw "STAGING_REBUILD_EMPTY_FAIL_CLOSED: $Message" }
 function Require([bool]$Condition, [string]$Message) { if (-not $Condition) { Fail $Message } }
@@ -41,6 +42,19 @@ function Save-Json([string]$Path, $Value) {
   $parent = Split-Path -Parent $Path
   if (-not [string]::IsNullOrWhiteSpace($parent)) { New-Item -ItemType Directory -Force -Path $parent | Out-Null }
   $Value | ConvertTo-Json -Depth 32 | Set-Content -LiteralPath $Path -Encoding UTF8
+}
+function Acquire-RebuildSetLock() {
+  $parent = Split-Path -Parent $rebuildSetLockPath
+  New-Item -ItemType Directory -Force -Path $parent | Out-Null
+  try {
+    return [System.IO.File]::Open($rebuildSetLockPath, [System.IO.FileMode]::OpenOrCreate, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None)
+  } catch {
+    Fail "Another governed Staging rebuild_empty apply is already active; concurrent local mutation is denied"
+  }
+}
+function Assert-OriginMainExact() {
+  $remoteLine = Native-Text "git" @("-C", $repo, "-c", "protocol.version=0", "-c", "http.version=HTTP/1.1", "ls-remote", "origin", "refs/heads/main")
+  Require ((($remoteLine -split '\s+')[0]).ToLowerInvariant() -eq $ExpectedCommit) "origin/main moved away from the exact approved checkout"
 }
 function Invoke-Authority([string]$Path, $Body, [string]$ApiKey) {
   $uri = "$($AuthorityUrl.TrimEnd('/'))$Path"
@@ -76,11 +90,15 @@ Require ($LASTEXITCODE -eq 0) "Local Staging Compose model is invalid"
 if ($Apply -and -not [string]::IsNullOrWhiteSpace($VerifiedRequestFile)) {
   $verifiedPath = [IO.Path]::GetFullPath($VerifiedRequestFile)
   Require (Test-Path -LiteralPath $verifiedPath -PathType Leaf) "Verified local request file is missing"
-  $remoteLine = Native-Text "git" @("-C", $repo, "-c", "protocol.version=0", "-c", "http.version=HTTP/1.1", "ls-remote", "origin", "refs/heads/main")
-  Require ((($remoteLine -split '\s+')[0]).ToLowerInvariant() -eq $ExpectedCommit) "origin/main moved away from the exact approved checkout"
-  & node $verifiedRunner --request-file $verifiedPath --env-file $envFile
-  Require ($LASTEXITCODE -eq 0) "Governed role-specific rebuild execution failed or requires reconciliation"
-  Write-Host "STAGING_REBUILD_EMPTY_ROLE_READY: commit=$ExpectedCommit request=$verifiedPath grants=not_applied runtime_certification=not_asserted gateway_apply_certification=pending"
+  $setLock = Acquire-RebuildSetLock
+  try {
+    Assert-OriginMainExact
+    & node $verifiedRunner --request-file $verifiedPath --env-file $envFile
+    Require ($LASTEXITCODE -eq 0) "Governed role-specific rebuild execution failed or requires reconciliation"
+    Write-Host "STAGING_REBUILD_EMPTY_ROLE_READY: commit=$ExpectedCommit request=$verifiedPath grants=not_applied runtime_certification=not_asserted gateway_apply_certification=pending"
+  } finally {
+    if ($null -ne $setLock) { $setLock.Dispose() }
+  }
   exit 0
 }
 if ($Apply -and [string]::IsNullOrWhiteSpace($VerifiedRequestFile) -and [string]::IsNullOrWhiteSpace($ApprovalConfirmation)) {
@@ -175,12 +193,16 @@ Write-Host "STAGING_REBUILD_EMPTY_ROLE_HANDOFFS_READY: commit=$ExpectedCommit se
 foreach ($entry in $verifiedPaths) { Write-Host "role=$($entry.role) capability=$($entry.capability_key) request=$($entry.path)" }
 
 if ($Apply) {
-  $remoteLine = Native-Text "git" @("-C", $repo, "-c", "protocol.version=0", "-c", "http.version=HTTP/1.1", "ls-remote", "origin", "refs/heads/main")
-  Require ((($remoteLine -split '\s+')[0]).ToLowerInvariant() -eq $ExpectedCommit) "origin/main moved away from the exact approved checkout"
-  foreach ($entry in $verifiedPaths) {
-    & node $verifiedRunner --request-file $entry.path --env-file $envFile
-    Require ($LASTEXITCODE -eq 0) "Governed role-specific rebuild failed or requires reconciliation for role $($entry.role)"
-    Write-Host "STAGING_REBUILD_EMPTY_ROLE_READY: role=$($entry.role) capability=$($entry.capability_key) commit=$ExpectedCommit"
+  $setLock = Acquire-RebuildSetLock
+  try {
+    foreach ($entry in $verifiedPaths) {
+      Assert-OriginMainExact
+      & node $verifiedRunner --request-file $entry.path --env-file $envFile
+      Require ($LASTEXITCODE -eq 0) "Governed role-specific rebuild failed or requires reconciliation for role $($entry.role)"
+      Write-Host "STAGING_REBUILD_EMPTY_ROLE_READY: role=$($entry.role) capability=$($entry.capability_key) commit=$ExpectedCommit"
+    }
+    Write-Host "STAGING_REBUILD_EMPTY_SCHEMA_READY: commit=$ExpectedCommit roles=$([string]::Join(',', $approvalReceipt.selected_zero_object_roles)) grants=not_applied runtime_certification=not_asserted gateway_apply_certification=pending next_action=database.access_repair"
+  } finally {
+    if ($null -ne $setLock) { $setLock.Dispose() }
   }
-  Write-Host "STAGING_REBUILD_EMPTY_SCHEMA_READY: commit=$ExpectedCommit roles=$([string]::Join(',', $approvalReceipt.selected_zero_object_roles)) grants=not_applied runtime_certification=not_asserted gateway_apply_certification=pending next_action=database.access_repair"
 }
