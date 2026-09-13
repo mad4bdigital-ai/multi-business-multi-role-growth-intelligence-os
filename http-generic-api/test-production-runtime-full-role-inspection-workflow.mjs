@@ -8,8 +8,10 @@ import { fileURLToPath } from "node:url";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WORKFLOW_PATH = path.resolve(HERE, "..", ".github", "workflows", "production-runtime-parity-evidence.yml");
 const STAGING_REBUILD_AUTHORITY_PATH = path.resolve(HERE, "stagingRebuildEmptyAuthority.js");
+const ROLE_SELECTION_RESOLVER_PATH = path.resolve(HERE, "hostBreakglassRoleSelectionArtifact.js");
 const workflow = fs.readFileSync(WORKFLOW_PATH, "utf8");
 const stagingRebuildAuthority = fs.readFileSync(STAGING_REBUILD_AUTHORITY_PATH, "utf8");
+const roleSelectionResolver = fs.readFileSync(ROLE_SELECTION_RESOLVER_PATH, "utf8");
 
 function section(start, end) {
   const startIndex = workflow.indexOf(start);
@@ -53,7 +55,7 @@ test("full-role inspection calls only the protected role census endpoint with bo
   assert.doesNotMatch(step, /bootstrap_migration_confirmation|bootstrap_grants_confirmation|bootstrap_rebuild_confirmation/u);
 });
 
-test("full-role inspection validates all three roles and emits only sanitized durable evidence", () => {
+test("full-role inspection validates all three roles and emits mutation-grade sanitized durable evidence", () => {
   const step = section(
     "- name: Run Hostinger-side full role inspection",
     "- name: Run Hostinger-side runtime environment dry-run",
@@ -62,6 +64,12 @@ test("full-role inspection validates all three roles and emits only sanitized du
   assert.match(step, /mad4b\.host-breakglass-host-local-inspection\.v1/u);
   assert.match(step, /mad4b\.production-runtime-full-role-inspection-evidence\.v1/u);
   assert.match(step, /full_inspection_catalog/u);
+  assert.match(step, /\$root\.full_inspection == true/u);
+  assert.match(step, /\$root\.target_binding\.target_fingerprint/u);
+  assert.match(step, /target_binding:\{target_fingerprint:\.target_binding\.target_fingerprint\}/u);
+  assert.match(step, /source_binding:\{expected_sha:\$expected_sha\}/u);
+  assert.match(step, /expected_sha:\$expected_sha/u);
+  assert.match(step, /full_inspection:true/u);
   assert.match(step, /role_database_object_counts/u);
   assert.match(step, /role_database_object_classifications/u);
   assert.match(step, /role_database_object_count_fingerprints/u);
@@ -78,9 +86,23 @@ test("full-role inspection validates all three roles and emits only sanitized du
   assert.match(step, /rm -f "\$\{payload_file\}" "\$\{header_file\}" "\$\{raw_result_file\}"/u);
   assert.match(step, /rm -f "\$\{raw_result_file\}"/u);
 
-  // The durable artifact is explicitly checked for raw identity/credential field names.
+  // The durable artifact preserves only the target hash, never raw database/principal identity.
+  assert.match(step, /target_fingerprint/u);
   assert.match(step, /connection_string/u);
   assert.match(step, /raw_values_exposed == false/u);
+});
+
+test("full-role producer and role-selection consumer use one canonical artifact contract", () => {
+  const upload = section(
+    "- name: Upload bounded no-secret bootstrap evidence",
+    "\n\n  live:",
+  );
+  assert.match(upload, /name: production-runtime-bootstrap-\$\{\{ inputs\.bootstrap_mode \}\}-\$\{\{ inputs\.expected_sha \}\}-\$\{\{ github\.run_id \}\}/u);
+  assert.match(roleSelectionResolver, /FULL_INSPECTION_ARTIFACT_MODE = "full_role_inspection"/u);
+  assert.match(roleSelectionResolver, /FULL_INSPECTION_RESULT_ENTRY = "full-role-inspection\.json"/u);
+  assert.match(roleSelectionResolver, /production-runtime-bootstrap-\$\{FULL_INSPECTION_ARTIFACT_MODE\}-\$\{expectedSha\}-\$\{runId\}/u);
+  assert.doesNotMatch(roleSelectionResolver, /production-runtime-bootstrap-dry_run-\$\{expectedSha\}-\$\{runId\}/u);
+  assert.match(roleSelectionResolver, /extractZipEntry\(zip, FULL_INSPECTION_RESULT_ENTRY, MAX_RESULT_BYTES\)/u);
 });
 
 test("full-role role/classification consistency predicate is valid jq and guards the workflow source", () => {
@@ -145,8 +167,8 @@ test("Production full-role evidence cannot be consumed as Staging rebuild mutati
   assert.match(stagingRebuildAuthority, /role_selection_required: true/u);
 });
 
-test("pull-request contract executes the source-level full-role workflow regression", () => {
+test("pull-request contract executes the full-role and role-selection regressions", () => {
   assert.match(workflow, /Validate Production full-role inspection workflow contract/u);
   assert.match(workflow, /if: github\.event_name == 'pull_request'/u);
-  assert.match(workflow, /node --test test-production-runtime-full-role-inspection-workflow\.mjs/u);
+  assert.match(workflow, /node --test test-production-runtime-full-role-inspection-workflow\.mjs test-host-breakglass-role-selection-artifact\.mjs/u);
 });

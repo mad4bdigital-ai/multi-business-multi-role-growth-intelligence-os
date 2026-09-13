@@ -12,6 +12,8 @@
       "http-generic-api/scripts/production-runtime-parity-evidence.mjs",
       "http-generic-api/scripts/test-production-runtime-parity-evidence.mjs",
       "http-generic-api/test-production-runtime-full-role-inspection-workflow.mjs",
+      "http-generic-api/hostBreakglassRoleSelectionArtifact.js",
+      "http-generic-api/test-host-breakglass-role-selection-artifact.mjs",
       "http-generic-api/hostLocalRuntimeInspection.js",
       "http-generic-api/test-host-local-runtime-inspection.mjs",
       "http-generic-api/routes/deploymentInfoRoutes.js",
@@ -23,9 +25,9 @@
   },
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
-    "declared_targets": ["production"],
+    "declared_targets": ["staging", "production"],
     "cross_environment_reviewed": true,
-    "live_staging_certification_required": false,
+    "live_staging_certification_required": true,
     "production_mutation_allowed": false
   },
   "phases": [
@@ -92,7 +94,7 @@
           "level": "synthetic_runtime",
           "actor": "repository automation using the Production environment",
           "entrypoint": "Production Runtime Parity Evidence workflow_dispatch with bootstrap_mode=full_role_inspection and bootstrap_target_source=host_local_role_env",
-          "terminal_outcome": "A trusted-main dispatch bound to the exact current Production SHA invokes only the protected Hostinger role-census endpoint, inspects runtime, governance, and runtime_persistence read-only, and uploads a sanitized run-bound durable-full-inspection artifact without exposing raw database/principal identity or acquiring migration, grant, rebuild, SQL, shell, provider, or repository mutation authority.",
+          "terminal_outcome": "A trusted-main dispatch bound to the exact current Production SHA invokes only the protected Hostinger role-census endpoint, inspects runtime, governance, and runtime_persistence read-only, uploads a sanitized run-bound durable-full-inspection artifact, and allows the canonical proof resolver to consume only that exact read-only evidence without exposing raw database/principal identity or acquiring migration, grant, rebuild, SQL, shell, provider, or repository mutation authority.",
           "steps": [
             "Require workflow_dispatch to originate from refs/heads/main and require expected_sha to equal the live Production branch head before any Hostinger database connection.",
             "Select bootstrap_mode=full_role_inspection together with bootstrap_target_source=host_local_role_env; reject every other pairing.",
@@ -101,7 +103,9 @@
             "Call POST /deployment-info/runtime-bootstrap-role-dry-run using the existing BACKEND_API_KEY and a request body containing only expected_sha and target_key=production-runtime.",
             "Require the host-side adapter contract to bind database.inspect/database.full_inspection/dry_run internally and to return the exact runtime, governance, and runtime_persistence role set.",
             "Validate non-negative tables/views/triggers/routines/events totals, zero_objects versus nonempty_objects classification, SHA-256 object-count fingerprints, and selected_rebuild_roles equal to the zero-object role set without executing rebuild.",
-            "Build a new sanitized mad4b.production-runtime-full-role-inspection-evidence.v1 artifact containing only role counts, classifications, fingerprints, exact source binding, and false mutation attestations; delete the raw Hostinger response before artifact upload."
+            "Build a new sanitized mad4b.production-runtime-full-role-inspection-evidence.v1 artifact containing only role counts, classifications, fingerprints, exact source binding, target fingerprint, and false mutation attestations; delete the raw Hostinger response before artifact upload.",
+            "Require resolveDurableRoleSelectionProof() to read only the canonical full_role_inspection artifact and full-role-inspection.json fallback, verify exact source SHA and target fingerprint, and derive selected roles exactly from proven zero-object roles.",
+            "Require live Staging certification before promotion because the proof consumer is shared-runtime code, while keeping Production mutation separately authorized."
           ],
           "assertions": [
             "full_role_inspection is accepted only with host_local_role_env and host_local_role_env is accepted only for full_role_inspection",
@@ -112,9 +116,11 @@
             "runtime, governance, and runtime_persistence are the exact and complete inspected role set",
             "each role has bounded tables/views/triggers/routines/events object counts, a matching zero/nonempty classification, and a lowercase SHA-256 object-count fingerprint",
             "selected_rebuild_roles is only evidence and must exactly equal the observed zero-object role set; no rebuild is dispatched or authorized",
+            "the durable proof resolver rejects legacy dry_run artifacts and accepts only canonical full_role_inspection evidence bound to the expected Production SHA and a lowercase SHA-256 target fingerprint",
             "database_mutation_performed, migration_apply_performed, grant_mutation_performed, workflow_dispatch_performed, repository_mutation_performed, and provider_mutation_performed are false",
             "the raw Hostinger response remains runner-temporary and is deleted; only the sanitized full-role evidence document enters the GitHub artifact",
             "the sanitized artifact contains no raw database, principal, password, secret, or connection_string fields and declares raw_values_exposed=false and secrets_included=false",
+            "shared-runtime impact is declared for staging and production, live Staging certification remains required, and production_mutation_allowed remains false",
             "Production mutation remains outside this journey and outside the merge authorization of this feature"
           ],
           "tests": [
@@ -123,6 +129,13 @@
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-production-runtime-full-role-inspection-workflow.mjs",
+              "args": []
+            },
+            {
+              "id": "production-full-role-selection-artifact-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-host-breakglass-role-selection-artifact.mjs",
               "args": []
             },
             {
@@ -135,6 +148,8 @@
           ],
           "evidence_paths": [
             ".github/workflows/production-runtime-parity-evidence.yml",
+            "http-generic-api/hostBreakglassRoleSelectionArtifact.js",
+            "http-generic-api/test-host-breakglass-role-selection-artifact.mjs",
             "http-generic-api/hostLocalRuntimeInspection.js",
             "http-generic-api/routes/deploymentInfoRoutes.js",
             "http-generic-api/test-production-runtime-full-role-inspection-workflow.mjs",
