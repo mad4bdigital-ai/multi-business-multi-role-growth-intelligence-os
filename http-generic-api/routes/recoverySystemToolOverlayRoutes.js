@@ -9,6 +9,9 @@ import {
   stagingRecoveryAccessRepairExecute,
   stagingRecoveryAccessRepairPrepare,
   stagingRecoveryCertificationCanaryPlanCreate,
+  stagingRecoveryRebuildEmptyApprove,
+  stagingRecoveryRebuildEmptyInspectionRecord,
+  stagingRecoveryRebuildEmptyPrepare,
   stagingRecoverySystemSurfaceReadiness,
 } from "../stagingRecoverySystemTools.js";
 import {
@@ -25,6 +28,11 @@ import {
 export const RECOVERY_SYSTEM_TOOL_OVERLAY_CONTRACT = "mad4b.recovery-system-tool-overlay.v1";
 
 const BRIDGE_TOOL_NAME = "recovery_kernel_execute_approved_step";
+const STAGING_REBUILD_ROLE_CAPABILITIES = Object.freeze([
+  "runtime.baseline.rebuild_empty",
+  "governance.baseline.rebuild_empty",
+  "runtime_persistence.baseline.rebuild_empty",
+]);
 const STAGING_TOOL_NAMES = new Set([
   "staging_recovery_certification_canary_plan_create",
   "staging_recovery_access_repair_prepare",
@@ -33,6 +41,9 @@ const STAGING_TOOL_NAMES = new Set([
   "staging_recovery_schema_repair_prepare",
   "staging_recovery_schema_repair_approve",
   "staging_recovery_schema_repair_execute",
+  "staging_recovery_rebuild_empty_inspection_record",
+  "staging_recovery_rebuild_empty_prepare",
+  "staging_recovery_rebuild_empty_approve",
   "staging_recovery_system_surface_readiness",
 ]);
 const BRIDGE_ALLOWED_KEYS = new Set([
@@ -171,11 +182,20 @@ export function projectRecoveryCapabilitiesForSystemSurface(env = process.env, d
         caller_database_allowed: false,
       },
     ],
-    control_plane_state_write_capabilities: ["staging_certification_canary_plan_create", "staging_database_access_repair", "staging_database_schema_repair"],
+    control_plane_state_write_capabilities: [
+      "staging_certification_canary_plan_create",
+      "staging_database_access_repair",
+      "staging_database_schema_repair",
+      "database_full_inspection",
+      "remediation_plan_create",
+      "remediation_step_execute",
+    ],
     target_database_mutation_capabilities: [
       ...(executionReady ? ["staging_database_access_repair"] : []),
       ...(schemaExecutionReady ? ["staging_database_schema_repair"] : []),
     ],
+    rebuild_role_capability_keys: [...STAGING_REBUILD_ROLE_CAPABILITIES],
+    local_handoff_mutation_capabilities: [...STAGING_REBUILD_ROLE_CAPABILITIES],
     production_authority: false,
     secrets_included: false,
   };
@@ -257,6 +277,9 @@ async function executeOverlayTool(name, args, deps = {}) {
       if (!stagingSchemaExecutionDependenciesReady(deps)) throw Object.assign(new Error("Staging schema-repair execution dependencies are incomplete."), { status: 503, code: "STAGING_SCHEMA_REPAIR_EXECUTION_UNAVAILABLE" });
       return stagingRecoverySchemaRepairExecute(args, { env: runtimeEnv, adapters: deps });
     }
+    if (name === "staging_recovery_rebuild_empty_inspection_record") return stagingRecoveryRebuildEmptyInspectionRecord(args, { env: runtimeEnv, adapters: deps });
+    if (name === "staging_recovery_rebuild_empty_prepare") return stagingRecoveryRebuildEmptyPrepare(args, { env: runtimeEnv, adapters: deps });
+    if (name === "staging_recovery_rebuild_empty_approve") return stagingRecoveryRebuildEmptyApprove(args, { env: runtimeEnv, adapters: deps });
     if (name === "staging_recovery_system_surface_readiness") return stagingRecoverySystemSurfaceReadiness(args, { env: runtimeEnv });
   }
 

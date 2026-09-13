@@ -1,0 +1,136 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-empty-role-db-bootstrap-20260912",
+  "title": "Govern selective empty-role Staging database reconstruction",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-empty-role-db-bootstrap-20260912.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/config/host-breakglass-catalog.json",
+      "autopilot-portable-staging/Rebuild-EmptyStagingRoleDatabases.ps1",
+      "http-generic-api/scripts/classify-staging-empty-role-census.mjs",
+      "http-generic-api/scripts/prepare-staging-rebuild-empty-inspection.mjs",
+      "http-generic-api/recoveryKernelInspectionBridge.js",
+      "http-generic-api/stagingRoleRebuildPlanAdapter.js",
+      "http-generic-api/stagingRebuildEmptyAuthority.js",
+      "http-generic-api/stagingRebuildEmptyHandoff.js",
+      "http-generic-api/stagingRebuildBundleVerifier.js",
+      "http-generic-api/stagingRoleBundleBinding.js",
+      "http-generic-api/stagingRecoverySystemTools.js",
+      "http-generic-api/stagingBootstrapExecutionAuthority.js",
+      "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
+      "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
+      "http-generic-api/routes/adminHostBreakglassRoutes.js",
+      "http-generic-api/hostBreakglassLocalRequest.js",
+      "http-generic-api/scripts/host-breakglass-local-verified.mjs",
+      "http-generic-api/scripts/host-breakglass-local.mjs",
+      "http-generic-api/test-staging-empty-role-db-bootstrap.mjs",
+      "http-generic-api/test-staging-rebuild-empty-authority.mjs",
+      "http-generic-api/test-staging-bootstrap-ticket-idempotency.mjs",
+      "http-generic-api/test-admin-host-breakglass-routes.mjs",
+      "autopilot-portable-staging/README.md"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": { "minimum_phase": "mvp" },
+  "phases": [{
+    "id": "mvp",
+    "status": "implemented",
+    "objective": "Allow only server-authorized reconstruction of the exact Staging roles proven zero-object by a durable full inspection, using canonical Recovery Kernel findings and role-specific baseline.rebuild_empty remediation capabilities while preserving non-empty roles, keeping Host Breakglass as local execution transport only, serializing the canonical local apply path, and requiring separate access-repair approval for grants.",
+    "e2e_journeys": [{
+      "id": "selective-empty-role-rebuild-fail-closed",
+      "end_to_end": true,
+      "level": "synthetic_runtime",
+      "actor": "local Staging database operator through the private Recovery System Tool surface",
+      "entrypoint": "Rebuild-EmptyStagingRoleDatabases.ps1 on an exact clean main checkout; orchestration enters staging_recovery_rebuild_empty_* Recovery System Tools and never a parallel runtime-bootstrap rebuild authority.",
+      "terminal_outcome": "Canonical Recovery Kernel findings select only zero-object roles; each selected role has one role-specific remediation plan, approval-bound execution ticket and verified local handoff; the canonical local apply path holds one exclusive set-level host lock across the role sequence and revalidates origin/main before every role; preserved non-empty roles retain equal before/after fingerprints; lifecycle retries reuse durable semantic results; grants remain unapplied and Gateway apply certification remains pending.",
+      "steps": [
+        "Inspect all three local role databases read-only across base tables, views, triggers, routines and events; treat the local census only as candidate evidence.",
+        "Bind the census to the exact local database/principal target fingerprint, exact source SHA and exact generated role bundle bindings; normalize and recompute fingerprints server-side, then classify zero-object findings through RecoveryKernel.findingsFromInspection before persisting the durable Recovery inspection.",
+        "Create one deterministic mad4b.recovery-remediation-plan.v1 step for every server-selected role using runtime.baseline.rebuild_empty, governance.baseline.rebuild_empty or runtime_persistence.baseline.rebuild_empty; bind all role plans into one exact set-level approval confirmation.",
+        "Consume only expected SHA, durable inspection run, idempotency key and the exact set-level confirmation; caller-selected role, plan and step references are forbidden. Issue one single-use execution ticket and verified Host Breakglass local handoff for each canonical role plan.",
+        "When -Apply is used, acquire one exclusive local set-level lock before any role handoff and keep it through the complete canonical role sequence; fail closed on concurrent local apply and revalidate origin/main against the exact approved SHA immediately before every role execution.",
+        "Before each local mutation, recompute the exact role bundle binding and verify it against the server-held role-specific ticket through the internal Staging Recovery bootstrap authority.",
+        "For every role ticket, reserve execution, record execution start, attest same-cycle readback and finalize through durable lifecycle receipts. Retry with a different observation timestamp but identical semantic readback returns the first persisted receipt; a changed semantic fingerprint fails closed.",
+        "Immediately before each role DDL, recheck that selected role remains zero-object; rebuild only that role; then perform same-cycle readback proving all non-selected roles are unchanged relative to that execution boundary. Stop and require reconciliation on partial or unknown outcomes.",
+        "End with grants not applied; database.access_repair and any later Gateway/provider certification remain separate governed operations."
+      ],
+      "assertions": [
+        "A mixed topology is valid only when at least one role is zero-object; non-empty roles are excluded from mutation rather than blocking eligible empty roles.",
+        "Caller-selected role sets are non-authoritative; durable Recovery inspection evidence plus RecoveryKernel.findingsFromInspection determine eligible roles and canonical role-specific capabilities.",
+        "There is no staging_database_rebuild_empty execution capability: every consequential rebuild step is exactly one registered role-specific *.baseline.rebuild_empty capability inside a mad4b.recovery-remediation-plan.v1 plan.",
+        "The Recovery System Tool surface is the sole Staging rebuild orchestration authority; Host Breakglass is transport only and the former /admin/runtime-bootstrap/staging/rebuild-empty lifecycle is absent.",
+        "The approval surface never accepts caller-selected rebuild plan_id, step_id or role; one set-level approval binds the complete server-derived role-plan set and each resulting ticket remains single-role.",
+        "The canonical local -Apply path is serialized by one exclusive host-level set lock across all selected role handoffs, and origin/main is revalidated against the exact approved SHA before each role; this is a local Staging operator-path invariant and is not represented as a distributed multi-host transaction.",
+        "Reservation and execution-start retries return the original durable receipts; readback retry uses the canonical semantic result fingerprint as its idempotency boundary while retaining the first durable evidence receipt; attempts to change semantic readback or rebind the idempotency key fail closed.",
+        "Every selected role is rechecked zero-object immediately before DDL and verified after replay; every non-selected role has identical before/after canonical object-count fingerprints for that execution cycle before ticket finalization.",
+        "Schema rebuild never applies grants, never creates missing databases, never authorizes Production/provider mutation and leaves Gateway apply certification pending."
+      ],
+      "tests": [
+        {
+          "id": "staging-selective-rebuild-contract",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-staging-empty-role-db-bootstrap.mjs",
+          "args": []
+        },
+        {
+          "id": "staging-selective-rebuild-authority-lifecycle",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-staging-rebuild-empty-authority.mjs",
+          "args": []
+        },
+        {
+          "id": "staging-bootstrap-ticket-idempotency",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-staging-bootstrap-ticket-idempotency.mjs",
+          "args": []
+        },
+        {
+          "id": "host-breakglass-no-parallel-staging-authority",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-admin-host-breakglass-routes.mjs",
+          "args": []
+        }
+      ],
+      "evidence_paths": [
+        ".changes/e2e/staging-empty-role-db-bootstrap-20260912.json",
+        "http-generic-api/config/host-breakglass-catalog.json",
+        "autopilot-portable-staging/Rebuild-EmptyStagingRoleDatabases.ps1",
+        "http-generic-api/scripts/prepare-staging-rebuild-empty-inspection.mjs",
+        "http-generic-api/recoveryKernelInspectionBridge.js",
+        "http-generic-api/stagingRoleRebuildPlanAdapter.js",
+        "http-generic-api/stagingRebuildEmptyAuthority.js",
+        "http-generic-api/stagingRebuildEmptyHandoff.js",
+        "http-generic-api/stagingRebuildBundleVerifier.js",
+        "http-generic-api/stagingRoleBundleBinding.js",
+        "http-generic-api/stagingRecoverySystemTools.js",
+        "http-generic-api/stagingBootstrapExecutionAuthority.js",
+        "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
+        "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
+        "http-generic-api/routes/adminHostBreakglassRoutes.js",
+        "http-generic-api/hostBreakglassLocalRequest.js",
+        "http-generic-api/scripts/host-breakglass-local-verified.mjs",
+        "http-generic-api/scripts/host-breakglass-local.mjs",
+        "http-generic-api/test-staging-empty-role-db-bootstrap.mjs",
+        "http-generic-api/test-staging-rebuild-empty-authority.mjs",
+        "http-generic-api/test-staging-bootstrap-ticket-idempotency.mjs",
+        "http-generic-api/test-admin-host-breakglass-routes.mjs",
+        "autopilot-portable-staging/README.md"
+      ]
+    }]
+  }]
+}

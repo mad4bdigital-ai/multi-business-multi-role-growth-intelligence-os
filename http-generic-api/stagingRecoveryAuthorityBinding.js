@@ -121,8 +121,9 @@ async function keys(root, name) {
 }
 
 function ticketAuthorities(root) {
-  const signer = Object.freeze({ async sign({ payload, ticket_hash }) { const k = await keys(root, "execution-ticket"); return sign(null, Buffer.from(canonical({ payload, ticket_hash })), k.privateKey).toString("base64url"); } });
-  const verifier = Object.freeze({ async verify({ ticket, ticket_hash }) { if (!ticket?.signature) return false; const k = await keys(root, "execution-ticket"); const payload = Object.fromEntries(Object.entries(ticket).filter(([x]) => !["ticket_id", "ticket_hash", "signature", "issued_at", "single_use", "content_not_included", "secrets_included"].includes(x))); return verify(null, Buffer.from(canonical({ payload, ticket_hash })), k.publicKey, Buffer.from(ticket.signature, "base64url")); } });
+  const signaturePayload = (value = {}) => Object.fromEntries(Object.entries(value).filter(([x]) => !["ticket_id", "ticket_hash", "signature", "issued_at", "single_use", "content_not_included", "secrets_included"].includes(x)));
+  const signer = Object.freeze({ async sign({ payload, ticket_hash }) { const k = await keys(root, "execution-ticket"); return sign(null, Buffer.from(canonical({ payload: signaturePayload(payload), ticket_hash })), k.privateKey).toString("base64url"); } });
+  const verifier = Object.freeze({ async verify({ ticket, ticket_hash }) { if (!ticket?.signature) return false; const k = await keys(root, "execution-ticket"); const payload = signaturePayload(ticket); return verify(null, Buffer.from(canonical({ payload, ticket_hash })), k.publicKey, Buffer.from(ticket.signature, "base64url")); } });
   return { signer, verifier };
 }
 
@@ -177,7 +178,7 @@ function recoveryStore(root, executionTicketVerifier) {
     async putPlan(v) { await put("plans", v.plan_id, v); },
     async getPlan(id) { return get("plans", id); },
     async putFinding(v) { await put("findings", v.finding_id, v); },
-    async getFinding(id) { return get("findings", id); },
+    async getFinding(id) { return findings.has(id) ? structuredClone(findings.get(id)) : null; },
     async getRunByIdempotency(id) { const receipt = await get("receipts", id); if (receipt) return receipt; const index = await get("run-idempotency", id); return index?.run_id ? get("runs", index.run_id) : null; },
     async appendEvidenceEvent(run_id, event) { const id = `${Date.now()}:${randomUUID()}`; await writeIntegrityJson(file("evidence", id), { run_id, ...event }, true); },
     async putIdempotencyReceipt(id, v) { await put("receipts", id, v); },

@@ -50,6 +50,8 @@ test("Staging local handoff emits an exact non-placeholder verified request boun
     execution_ticket_id: null,
     execution_ticket_hash: null,
     grant_binding_hash: null,
+    authority_plan_hash: null,
+    role_selection_proof: null,
   });
 
   const rebuilt = rebuildVerifiedStagingAccessRepairPlan(handoff.verified_request);

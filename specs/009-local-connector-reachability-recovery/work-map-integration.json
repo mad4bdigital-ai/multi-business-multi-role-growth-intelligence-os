@@ -3,8 +3,8 @@
   "feature_key": "009-local-connector-reachability-recovery",
   "review_state": "draft",
   "registry": {
-    "fingerprint": "250d1c45562dfc86f518b66587bc473d18f2503d20dfe0cca7d00c203c759224",
-    "index_source_hash": "0c7700665ad0e94b0f7514235be21e12908e6b33c15565844c6470d5e6ae93cb",
+    "fingerprint": "776e8e243280696e5c9cdef166eced16d08822c18bddb059e04dd469df5f393f",
+    "index_source_hash": "74922cb93726ea38f9519ea857cc48bf9da323c9998f0846dcc0c7c82bcf46ec",
     "coverage_source_hash": "46ea560e1508d267b4e666bda9f7ac4b00689d3d23cd8d17c6c88bae3bde540d",
     "map_count": 19,
     "domain_count": 16,

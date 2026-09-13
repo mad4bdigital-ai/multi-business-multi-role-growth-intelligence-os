@@ -1091,6 +1091,39 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/host-breakglass-local-verified.mjs|backendApiKey|environment_reference|staging.recovery.backend.api.key",
+      "owner": "staging-recovery-governance",
+      "reason": "Existing server-issued backend authentication is read from the bounded Staging environment only to verify the exact role-bundle binding before local execution; no secret value is stored and this entry grants no database, provider, or Production authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "secret_reference_only",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/host-breakglass-local-verified.mjs|baseUrl|environment_reference|staging.recovery.admin.url",
+      "owner": "staging-recovery-governance",
+      "reason": "Staging Recovery verification endpoint selection is constrained in code to activation-dev.mad4b.com and is used only for exact ticket role-bundle verification; it grants no database, provider, or Production authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/host-breakglass-local.mjs|HOST_BREAKGLASS_ROLE_BUNDLE_VERIFICATION|environment_reference|host.breakglass.role.bundle.verification",
+      "owner": "staging-recovery-governance",
+      "reason": "Process-local sentinel passed by the verified wrapper after server validation of exact ticket role-bundle bindings; it is not caller authority, contains no secret, and grants no Production or provider authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {

@@ -11,17 +11,28 @@
       ".github/workflows/production-runtime-parity-evidence.yml",
       "http-generic-api/scripts/production-runtime-parity-evidence.mjs",
       "http-generic-api/scripts/test-production-runtime-parity-evidence.mjs",
+      "http-generic-api/test-production-runtime-full-role-inspection-workflow.mjs",
+      "http-generic-api/hostLocalRuntimeInspection.js",
+      "http-generic-api/test-host-local-runtime-inspection.mjs",
+      "http-generic-api/routes/deploymentInfoRoutes.js",
       "http-generic-api/config/deployment-branch-policy.json"
     ]
   },
   "merge_contract": {
     "minimum_phase": "mvp"
   },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": false,
+    "production_mutation_allowed": false
+  },
   "phases": [
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Provide a workflow-dispatch-only verifier that binds the single Hostinger Production runtime auth.mad4b.com to exact protected Production DNS, TLS, HTTP, service, branch, and deployed-commit identity without conflating the independent Cloudflare local connector or planned local staging runtime.",
+      "objective": "Provide workflow-dispatch-only Hostinger Production runtime verification plus a separately selected zero-touch full role inspection that binds the exact Production deployment to runtime, governance, and runtime_persistence object-count evidence without granting database mutation authority.",
       "e2e_journeys": [
         {
           "id": "validate-production-runtime-parity-verifier",
@@ -73,6 +84,62 @@
             "http-generic-api/scripts/production-runtime-parity-evidence.mjs",
             "http-generic-api/scripts/test-production-runtime-parity-evidence.mjs",
             "http-generic-api/config/deployment-branch-policy.json"
+          ]
+        },
+        {
+          "id": "governed-production-full-role-inspection",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository automation using the Production environment",
+          "entrypoint": "Production Runtime Parity Evidence workflow_dispatch with bootstrap_mode=full_role_inspection and bootstrap_target_source=host_local_role_env",
+          "terminal_outcome": "A trusted-main dispatch bound to the exact current Production SHA invokes only the protected Hostinger role-census endpoint, inspects runtime, governance, and runtime_persistence read-only, and uploads a sanitized run-bound durable-full-inspection artifact without exposing raw database/principal identity or acquiring migration, grant, rebuild, SQL, shell, provider, or repository mutation authority.",
+          "steps": [
+            "Require workflow_dispatch to originate from refs/heads/main and require expected_sha to equal the live Production branch head before any Hostinger database connection.",
+            "Select bootstrap_mode=full_role_inspection together with bootstrap_target_source=host_local_role_env; reject every other pairing.",
+            "Reject execution tickets, migration/grant/rebuild confirmations, caller role selection, prior inspection bindings, and recovery envelopes for full_role_inspection.",
+            "Reconfirm public Hostinger /version and /deployment-info parity against the exact Production SHA and branch.",
+            "Call POST /deployment-info/runtime-bootstrap-role-dry-run using the existing BACKEND_API_KEY and a request body containing only expected_sha and target_key=production-runtime.",
+            "Require the host-side adapter contract to bind database.inspect/database.full_inspection/dry_run internally and to return the exact runtime, governance, and runtime_persistence role set.",
+            "Validate non-negative tables/views/triggers/routines/events totals, zero_objects versus nonempty_objects classification, SHA-256 object-count fingerprints, and selected_rebuild_roles equal to the zero-object role set without executing rebuild.",
+            "Build a new sanitized mad4b.production-runtime-full-role-inspection-evidence.v1 artifact containing only role counts, classifications, fingerprints, exact source binding, and false mutation attestations; delete the raw Hostinger response before artifact upload."
+          ],
+          "assertions": [
+            "full_role_inspection is accepted only with host_local_role_env and host_local_role_env is accepted only for full_role_inspection",
+            "the full-role mode accepts no execution ticket, mutation confirmation, caller-selected role proof, or recovery envelope",
+            "the caller payload contains only expected_sha and target_key; database names, principals, passwords, migrations, source overrides, SQL, shell, and workflow controls are not caller inputs",
+            "the endpoint is exactly https://auth.mad4b.com/deployment-info/runtime-bootstrap-role-dry-run and the existing Production BACKEND_API_KEY is reused without introducing a new secret",
+            "the Hostinger response must be mad4b.host-breakglass-host-local-inspection.v1 with mode=dry_run, operation=read_only, target_source=host_local_role_env, migration_selected=false, and migration_selection=full_inspection_catalog",
+            "runtime, governance, and runtime_persistence are the exact and complete inspected role set",
+            "each role has bounded tables/views/triggers/routines/events object counts, a matching zero/nonempty classification, and a lowercase SHA-256 object-count fingerprint",
+            "selected_rebuild_roles is only evidence and must exactly equal the observed zero-object role set; no rebuild is dispatched or authorized",
+            "database_mutation_performed, migration_apply_performed, grant_mutation_performed, workflow_dispatch_performed, repository_mutation_performed, and provider_mutation_performed are false",
+            "the raw Hostinger response remains runner-temporary and is deleted; only the sanitized full-role evidence document enters the GitHub artifact",
+            "the sanitized artifact contains no raw database, principal, password, secret, or connection_string fields and declares raw_values_exposed=false and secrets_included=false",
+            "Production mutation remains outside this journey and outside the merge authorization of this feature"
+          ],
+          "tests": [
+            {
+              "id": "production-full-role-inspection-workflow-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-runtime-full-role-inspection-workflow.mjs",
+              "args": []
+            },
+            {
+              "id": "production-host-local-role-inspection-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-host-local-runtime-inspection.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/production-runtime-parity-evidence.yml",
+            "http-generic-api/hostLocalRuntimeInspection.js",
+            "http-generic-api/routes/deploymentInfoRoutes.js",
+            "http-generic-api/test-production-runtime-full-role-inspection-workflow.mjs",
+            "http-generic-api/test-host-local-runtime-inspection.mjs",
+            ".changes/e2e/production-runtime-parity-evidence.json"
           ]
         }
       ]

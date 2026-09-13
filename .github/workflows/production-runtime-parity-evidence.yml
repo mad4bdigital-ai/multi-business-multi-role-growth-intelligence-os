@@ -21,6 +21,7 @@ on:
       - 'http-generic-api/test-runtime-recovery-snapshot-routes.mjs'
       - 'http-generic-api/scripts/production-runtime-parity-evidence.mjs'
       - 'http-generic-api/scripts/test-production-runtime-parity-evidence.mjs'
+      - 'http-generic-api/test-production-runtime-full-role-inspection-workflow.mjs'
       - 'http-generic-api/config/deployment-branch-policy.json'
       - 'http-generic-api/config/runtime-bootstrap-contract.json'
       - 'http-generic-api/config/runtime-breakglass-catalog.json'
@@ -94,7 +95,7 @@ on:
         default: runtime
         type: string
       bootstrap_mode:
-        description: Disabled by default; plan is local metadata, dry_run is DB read-only, and migration/grants require separate approvals.
+        description: Disabled by default; plan is local metadata, dry_run and full_role_inspection are DB read-only, and migration/grants require separate approvals.
         required: false
         default: disabled
         type: choice
@@ -102,6 +103,7 @@ on:
           - disabled
           - plan
           - dry_run
+          - full_role_inspection
           - apply_migration
           - apply_grants
           - execute_sql_capsule
@@ -112,13 +114,14 @@ on:
         default: production-runtime
         type: string
       bootstrap_target_source:
-        description: Target source; repository_allowlist uses GitHub target binding, hostinger_runtime_env calls the protected Hostinger runtime dry-run route and is dry-run-only.
+        description: Target source; repository_allowlist uses GitHub target binding, hostinger_runtime_env is legacy single-runtime dry-run only, and host_local_role_env enables only the three-role full inspection census.
         required: false
         default: repository_allowlist
         type: choice
         options:
           - repository_allowlist
           - hostinger_runtime_env
+          - host_local_role_env
       bootstrap_migration:
         description: 20260815 is the only apply candidate; 225/1048 remain verification-only.
         required: false
@@ -213,6 +216,11 @@ jobs:
         working-directory: http-generic-api
         run: node scripts/test-production-runtime-parity-evidence.mjs
 
+      - name: Validate Production full-role inspection workflow contract
+        if: github.event_name == 'pull_request'
+        working-directory: http-generic-api
+        run: node --test test-production-runtime-full-role-inspection-workflow.mjs
+
       - name: Validate recovery operator, centralized policy, and runner ancestry
         run: node --test .github/ops/test-production-runtime-recovery.mjs .github/ops/test-production-runtime-recovery-policy.mjs
 
@@ -288,17 +296,39 @@ jobs:
           BOOTSTRAP_TARGET_SOURCE: ${{ inputs.bootstrap_target_source }}
           BOOTSTRAP_EXECUTION_TICKET_ID: ${{ inputs.bootstrap_execution_ticket_id }}
           BOOTSTRAP_EXECUTION_TICKET_HASH: ${{ inputs.bootstrap_execution_ticket_hash }}
+          BOOTSTRAP_MIGRATION_CONFIRMATION: ${{ inputs.bootstrap_migration_confirmation }}
+          BOOTSTRAP_GRANTS_CONFIRMATION: ${{ inputs.bootstrap_grants_confirmation }}
+          BOOTSTRAP_REBUILD_CONFIRMATION: ${{ inputs.bootstrap_rebuild_confirmation }}
+          BOOTSTRAP_ROLE_SELECTION: ${{ inputs.bootstrap_role_selection }}
+          BOOTSTRAP_INSPECTION_RUN_ID: ${{ inputs.bootstrap_inspection_run_id }}
+          BOOTSTRAP_ROLE_SELECTION_HASH: ${{ inputs.bootstrap_role_selection_hash }}
+          BOOTSTRAP_ROLE_OBJECT_COUNT_FINGERPRINTS: ${{ inputs.bootstrap_role_object_count_fingerprints }}
+          RECOVERY_ENVELOPE: ${{ inputs.recovery_envelope }}
           HOST_BREAKGLASS_OPERATION: ${{ fromJSON(inputs.recovery_envelope || '{"host_breakglass":{}}').host_breakglass.operation || '' }}
         shell: bash
         run: |
           set -Eeuo pipefail
           case "${BOOTSTRAP_TARGET_SOURCE}" in
-            repository_allowlist|hostinger_runtime_env) ;;
+            repository_allowlist|hostinger_runtime_env|host_local_role_env) ;;
             *) echo '{"ok":false,"code":"bootstrap_target_source_denied","secrets_included":false}' >&2; exit 1 ;;
           esac
           if [[ "${BOOTSTRAP_TARGET_SOURCE}" == "hostinger_runtime_env" && "${BOOTSTRAP_MODE}" != "dry_run" ]]; then
             echo '{"ok":false,"code":"hostinger_runtime_env_dry_run_only","secrets_included":false}' >&2
             exit 1
+          fi
+          if [[ "${BOOTSTRAP_TARGET_SOURCE}" == "host_local_role_env" && "${BOOTSTRAP_MODE}" != "full_role_inspection" ]]; then
+            echo '{"ok":false,"code":"host_local_role_env_full_role_inspection_only","secrets_included":false}' >&2
+            exit 1
+          fi
+          if [[ "${BOOTSTRAP_MODE}" == "full_role_inspection" && "${BOOTSTRAP_TARGET_SOURCE}" != "host_local_role_env" ]]; then
+            echo '{"ok":false,"code":"full_role_inspection_requires_host_local_role_env","secrets_included":false}' >&2
+            exit 1
+          fi
+          if [[ "${BOOTSTRAP_MODE}" == "full_role_inspection" ]]; then
+            if [[ -n "${BOOTSTRAP_EXECUTION_TICKET_ID}" || -n "${BOOTSTRAP_EXECUTION_TICKET_HASH}" || -n "${BOOTSTRAP_MIGRATION_CONFIRMATION}" || -n "${BOOTSTRAP_GRANTS_CONFIRMATION}" || -n "${BOOTSTRAP_REBUILD_CONFIRMATION}" || -n "${BOOTSTRAP_ROLE_SELECTION}" || -n "${BOOTSTRAP_INSPECTION_RUN_ID}" || -n "${BOOTSTRAP_ROLE_SELECTION_HASH}" || -n "${BOOTSTRAP_ROLE_OBJECT_COUNT_FINGERPRINTS}" || -n "${RECOVERY_ENVELOPE}" || -n "${HOST_BREAKGLASS_OPERATION}" ]]; then
+              echo '{"ok":false,"code":"full_role_inspection_mutation_authority_denied","secrets_included":false}' >&2
+              exit 1
+            fi
           fi
           if [[ "${BOOTSTRAP_MODE}" == "apply_migration" || "${BOOTSTRAP_MODE}" == "apply_grants" || "${BOOTSTRAP_MODE}" == "execute_sql_capsule" || "${BOOTSTRAP_MODE}" == "execute_shell_capsule" ]]; then
             [[ "${BOOTSTRAP_TARGET_SOURCE}" == "repository_allowlist" ]]
@@ -468,6 +498,157 @@ jobs:
           done
           echo '{"ok":false,"code":"host_breakglass_post_capsule_parity_failed","secrets_included":false}' >&2
           exit 1
+      - name: Run Hostinger-side full role inspection
+        if: inputs.bootstrap_mode == 'full_role_inspection' && inputs.bootstrap_target_source == 'host_local_role_env'
+        env:
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          EXPECTED_REPOSITORY: ${{ github.repository }}
+          TARGET_KEY: ${{ inputs.bootstrap_target_key }}
+          RUNTIME_ROLE_INSPECTION_URL: https://auth.mad4b.com/deployment-info/runtime-bootstrap-role-dry-run
+          BOOTSTRAP_RESULT_PATH: ${{ github.workspace }}/.bootstrap/production-runtime-bootstrap/full-role-inspection.json
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "${EXPECTED_SHA}" =~ ^[0-9a-fA-F]{40}$ ]]
+          [[ "${EXPECTED_REPOSITORY}" == "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os" ]]
+          [[ "${TARGET_KEY}" == "production-runtime" ]]
+          [[ "${RUNTIME_ROLE_INSPECTION_URL}" == "https://auth.mad4b.com/deployment-info/runtime-bootstrap-role-dry-run" ]]
+          [[ -n "${BACKEND_API_KEY}" ]]
+          mkdir -p "$(dirname "${BOOTSTRAP_RESULT_PATH}")"
+          payload_file="${RUNNER_TEMP}/runtime-full-role-inspection-payload.json"
+          header_file="${RUNNER_TEMP}/runtime-full-role-inspection-header.txt"
+          raw_result_file="${RUNNER_TEMP}/raw-full-role-inspection.json"
+          umask 077
+          cleanup_full_role_inspection() {
+            rm -f "${payload_file}" "${header_file}" "${raw_result_file}"
+          }
+          trap cleanup_full_role_inspection EXIT
+          jq -n \
+            --arg expected_sha "${EXPECTED_SHA,,}" \
+            --arg target_key "${TARGET_KEY}" \
+            '{expected_sha:$expected_sha,target_key:$target_key}' \
+            > "${payload_file}"
+          printf 'header = "x-api-key: %s"\n' "${BACKEND_API_KEY}" > "${header_file}"
+          http_status="$(curl --proto '=https' --tlsv1.2 --silent --show-error --connect-timeout 10 --max-time 300 --config "${header_file}" -H 'content-type: application/json' --data-binary "@${payload_file}" -o "${raw_result_file}" -w '%{http_code}' "${RUNTIME_ROLE_INSPECTION_URL}")"
+          rm -f "${payload_file}" "${header_file}"
+          [[ "$(wc -c < "${raw_result_file}")" -le 262144 ]]
+          jq -e \
+            --argjson status "${http_status}" \
+            --arg expected_sha "${EXPECTED_SHA,,}" \
+            --arg expected_repository "${EXPECTED_REPOSITORY}" \
+            --arg target_key "${TARGET_KEY}" '
+            def nnint: (type == "number") and (. >= 0) and (floor == .);
+            def counts_ok:
+              (.tables | nnint) and
+              (.views | nnint) and
+              (.triggers | nnint) and
+              (.routines | nnint) and
+              (.events | nnint) and
+              (.total | nnint) and
+              (.total == (.tables + .views + .triggers + .routines + .events)) and
+              (.secrets_included == false);
+            . as $root |
+            ($root.role_database_object_counts | keys | sort) as $count_roles |
+            ($root.role_database_object_classifications | keys | sort) as $class_roles |
+            ($root.role_database_object_count_fingerprints | keys | sort) as $fingerprint_roles |
+            (["governance","runtime","runtime_persistence"]) as $roles |
+            ([ $root.role_database_object_classifications | to_entries[] | select(.value == "zero_objects") | .key ] | sort) as $zero_roles |
+            ($root.selected_rebuild_roles // []) as $selected |
+            ($status == 200) and
+            ($root.ok != false) and
+            ($root.contract == "mad4b.host-breakglass-host-local-inspection.v1") and
+            ($root.status == "host_local_inspection_complete") and
+            ($root.mode == "dry_run") and
+            ($root.operation == "read_only") and
+            ($root.target_source == "host_local_role_env") and
+            ($root.target_key == $target_key) and
+            ($root.expected_sha == $expected_sha) and
+            ($root.expected_branch == "Production") and
+            ($root.expected_repository == $expected_repository) and
+            ($root.migration == null) and
+            ($root.migration_selected == false) and
+            ($root.migration_selection == "full_inspection_catalog") and
+            ($root.read_only == true) and
+            ($root.database_connection_performed == true) and
+            ($root.database_mutation_performed == false) and
+            ($root.migration_apply_performed == false) and
+            ($root.grant_mutation_performed == false) and
+            ($root.workflow_dispatch_performed == false) and
+            ($root.raw_values_exposed == false) and
+            ($root.secrets_included == false) and
+            ($count_roles == $roles) and
+            ($class_roles == $roles) and
+            ($fingerprint_roles == $roles) and
+            (all($root.role_database_object_counts[]; counts_ok)) and
+            (all($root.role_database_object_classifications[]; . == "zero_objects" or . == "nonempty_objects")) and
+            (all($root.role_database_object_count_fingerprints[]; type == "string" and test("^[0-9a-f]{64}$"))) and
+            (all($roles[] as $role; (($root.role_database_object_classifications[$role] == "zero_objects") == ($root.role_database_object_counts[$role].total == 0)))) and
+            (($selected | type) == "array") and
+            (($selected | unique | length) == ($selected | length)) and
+            (all($selected[]; . == "runtime" or . == "governance" or . == "runtime_persistence")) and
+            (($selected | sort) == $zero_roles)
+          ' "${raw_result_file}" >/dev/null || {
+            rm -f "${raw_result_file}"
+            echo '{"ok":false,"code":"host_local_full_role_inspection_failed_or_unsafe","secrets_included":false}' >&2
+            exit 1
+          }
+          inspection_run_id="github-actions:${GITHUB_RUN_ID}:${GITHUB_RUN_ATTEMPT}"
+          jq \
+            --arg inspection_run_id "${inspection_run_id}" \
+            --arg tooling_sha "${GITHUB_SHA}" \
+            --arg expected_sha "${EXPECTED_SHA,,}" \
+            --arg expected_repository "${EXPECTED_REPOSITORY}" '
+            {
+              contract:"mad4b.production-runtime-full-role-inspection-evidence.v1",
+              inspection_run_id:$inspection_run_id,
+              source:"durable_full_inspection",
+              workflow:"production-runtime-parity-evidence.yml",
+              workflow_tooling_sha:$tooling_sha,
+              expected_production_sha:$expected_sha,
+              expected_branch:"Production",
+              expected_repository:$expected_repository,
+              target_key:.target_key,
+              target_source:.target_source,
+              mode:.mode,
+              status:.status,
+              operation:.operation,
+              roles:["runtime","governance","runtime_persistence"],
+              role_database_object_counts:.role_database_object_counts,
+              role_database_object_classifications:.role_database_object_classifications,
+              role_database_object_count_fingerprints:.role_database_object_count_fingerprints,
+              zero_object_roles:([.role_database_object_classifications | to_entries[] | select(.value == "zero_objects") | .key] | sort),
+              nonempty_roles:([.role_database_object_classifications | to_entries[] | select(.value == "nonempty_objects") | .key] | sort),
+              selected_rebuild_roles:((.selected_rebuild_roles // []) | sort),
+              role_selection_source:.role_selection_source,
+              read_only:true,
+              database_connection_performed:true,
+              database_mutation_performed:false,
+              migration_selected:false,
+              migration_apply_performed:false,
+              grant_mutation_performed:false,
+              workflow_dispatch_performed:false,
+              repository_mutation_performed:false,
+              provider_mutation_performed:false,
+              raw_values_exposed:false,
+              secrets_included:false
+            }
+          ' "${raw_result_file}" > "${BOOTSTRAP_RESULT_PATH}"
+          rm -f "${raw_result_file}"
+          jq -e '
+            (.contract == "mad4b.production-runtime-full-role-inspection-evidence.v1") and
+            (.source == "durable_full_inspection") and
+            (.read_only == true) and
+            (.database_mutation_performed == false) and
+            (.migration_apply_performed == false) and
+            (.grant_mutation_performed == false) and
+            (.workflow_dispatch_performed == false) and
+            (.repository_mutation_performed == false) and
+            (.provider_mutation_performed == false) and
+            (.raw_values_exposed == false) and
+            (.secrets_included == false) and
+            ([.. | objects | keys[] | select(. == "database" or . == "principal" or . == "password" or . == "secret" or . == "connection_string")] | length == 0)
+          ' "${BOOTSTRAP_RESULT_PATH}" >/dev/null
       - name: Run Hostinger-side runtime environment dry-run
         if: inputs.bootstrap_target_source == 'hostinger_runtime_env'
         env:
