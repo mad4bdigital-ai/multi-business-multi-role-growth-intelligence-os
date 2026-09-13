@@ -519,6 +519,11 @@ jobs:
           payload_file="${RUNNER_TEMP}/runtime-full-role-inspection-payload.json"
           header_file="${RUNNER_TEMP}/runtime-full-role-inspection-header.txt"
           raw_result_file="${RUNNER_TEMP}/raw-full-role-inspection.json"
+          umask 077
+          cleanup_full_role_inspection() {
+            rm -f "${payload_file}" "${header_file}" "${raw_result_file}"
+          }
+          trap cleanup_full_role_inspection EXIT
           jq -n \
             --arg expected_sha "${EXPECTED_SHA,,}" \
             --arg target_key "${TARGET_KEY}" \
