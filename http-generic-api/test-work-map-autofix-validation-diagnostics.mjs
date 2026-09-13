@@ -7,7 +7,9 @@ import { fileURLToPath } from "node:url";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const workflowPath = path.join(repoRoot, ".github", "workflows", "spec-kit-work-map-autofix.yml");
+const bootstrapWorkflowPath = path.join(repoRoot, ".github", "workflows", "spec-kit-work-map-recovery-bootstrap.yml");
 const workflow = fs.readFileSync(workflowPath, "utf8");
+const bootstrapWorkflow = fs.readFileSync(bootstrapWorkflowPath, "utf8");
 
 const initializationStart = workflow.indexOf("      - name: Initialize diagnostics and validate inputs");
 const trustedIdentityStart = workflow.indexOf("      - name: Require trusted follow-up writer identity");
@@ -127,5 +129,35 @@ assert.match(workflow, /if: always\(\)[\s\S]*actions\/upload-artifact@ea165f8d65
 assert.doesNotMatch(validationBlock, /git push/);
 assert.doesNotMatch(validationBlock, /--force/);
 assert.doesNotMatch(validationBlock, /platform-work-map-generator\.mjs --write/);
+
+// Recovery bootstrap publication is observational only: inability to post a PR comment
+// must never convert a successfully delegated recovery into a false execution failure.
+assert.match(
+  bootstrapWorkflow,
+  /permissions:\s*\n\s*actions: write\s*\n\s*contents: read\s*\n\s*issues: write\s*\n\s*pull-requests: read/u,
+  "bootstrap must retain least-privilege pull-request read access",
+);
+assert.doesNotMatch(bootstrapWorkflow, /pull-requests: write/u, "bootstrap publication must not require broader PR write authority");
+assert.match(bootstrapWorkflow, /canonical evidence: uploaded bootstrap artifact/u);
+assert.match(bootstrapWorkflow, /PR comment: supplemental only/u);
+assert.match(bootstrapWorkflow, />> "\$\{GITHUB_STEP_SUMMARY\}"/u);
+assert.match(
+  bootstrapWorkflow,
+  /if ! gh api --method POST "repos\/\$\{GITHUB_REPOSITORY\}\/issues\/\$\{PR_NUMBER\}\/comments" -f body="\$\{body\}"; then/u,
+  "supplemental comment publication must be explicitly non-fatal",
+);
+assert.match(
+  bootstrapWorkflow,
+  /::warning::PR comment publication is supplemental and was unavailable; canonical bootstrap evidence remains in the uploaded artifact and job summary\./u,
+);
+assert.match(bootstrapWorkflow, /direct_repository_mutation:false/u);
+assert.match(bootstrapWorkflow, /authorization_consumed:false/u);
+assert.match(bootstrapWorkflow, /protected_branch_mutation:false/u);
+assert.match(bootstrapWorkflow, /force_push:false/u);
+assert.match(
+  bootstrapWorkflow,
+  /- name: Upload bounded bootstrap evidence\s*\n\s*if: always\(\)[\s\S]*name: spec-kit-work-map-recovery-bootstrap-\$\{\{ github\.run_id \}\}/u,
+  "canonical bootstrap artifact must remain uploadable regardless of supplemental publication outcome",
+);
 
 console.log("Work Map Autofix complete failure-set diagnostics regression passed.");
