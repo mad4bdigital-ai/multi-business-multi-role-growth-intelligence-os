@@ -70,6 +70,9 @@ test("full-role inspection validates all three roles and emits only sanitized du
   assert.match(step, /repository_mutation_performed:false/u);
   assert.match(step, /provider_mutation_performed:false/u);
   assert.match(step, /secrets_included:false/u);
+  assert.match(step, /umask 077/u);
+  assert.match(step, /trap cleanup_full_role_inspection EXIT/u);
+  assert.match(step, /rm -f "\$\{payload_file\}" "\$\{header_file\}" "\$\{raw_result_file\}"/u);
   assert.match(step, /rm -f "\$\{raw_result_file\}"/u);
 
   // The durable artifact is explicitly checked for raw identity/credential field names.
