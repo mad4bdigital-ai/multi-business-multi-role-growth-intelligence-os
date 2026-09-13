@@ -2,62 +2,58 @@ import { createHash, randomUUID } from "node:crypto";
 import { verifyExecutionTicket } from "./recoveryExecutionTicket.js";
 import { stagingRecoveryAuthorityInternals } from "./stagingRecoveryAuthorityBinding.js";
 
-export const STAGING_BOOTSTRAP_EXECUTION_AUTHORITY_CONTRACT = "mad4b.staging-bootstrap-execution-authority.v2";
+export const STAGING_BOOTSTRAP_EXECUTION_AUTHORITY_CONTRACT = "mad4b.staging-bootstrap-execution-authority.v1";
 export const STAGING_BOOTSTRAP_RESERVATION_RECEIPT_CONTRACT = "mad4b.staging-bootstrap-reservation-receipt.v1";
 export const STAGING_BOOTSTRAP_EXECUTION_RECEIPT_CONTRACT = "mad4b.staging-bootstrap-execution-receipt.v1";
-export const STAGING_BOOTSTRAP_READBACK_EVIDENCE_CONTRACT = "mad4b.staging-bootstrap-local-readback-evidence.v1";
 export const STAGING_BOOTSTRAP_READBACK_RECEIPT_CONTRACT = "mad4b.staging-bootstrap-readback-receipt.v1";
+export const STAGING_BOOTSTRAP_READBACK_EVIDENCE_CONTRACT = "mad4b.staging-bootstrap-local-readback-evidence.v1";
 export const STAGING_BOOTSTRAP_LIFECYCLE_RECEIPT_CONTRACT = "mad4b.staging-bootstrap-lifecycle-receipt.v1";
 const SHA40 = /^[0-9a-f]{40}$/u;
 const SHA256 = /^[0-9a-f]{64}$/u;
 const TICKET_ID = /^ticket:[A-Za-z0-9._:-]{8,160}$/u;
-const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$/u;
 const ROLE = /^(runtime|governance|runtime_persistence)$/u;
-const ALLOWED_OPERATIONS = new Set(["grants", "migration", "database.rebuild_empty"]);
-const SENSITIVE_KEY_RE = /(password|secret|credential|authorization|private[_-]?key|connection[_-]?string|database[_-]?name|db[_-]?(?:user|password)|hostname|username|raw[_-]?sql|command)/iu;
-const PROTOCOL_WINDOWS_MS = Object.freeze({ reservation: 10 * 60 * 1000, readback: 5 * 60 * 1000, clockSkew: 60 * 1000 });
+const SENSITIVE_KEY = /(?:password|secret|token|authorization|cookie|private[_-]?key|credential|database_url|mysql_url)/iu;
+const PROTOCOL_WINDOWS_MS = Object.freeze({ reservation: 10 * 60 * 1000, readback: 10 * 60 * 1000, clockSkew: 60 * 1000 });
 
 const text = (value, max = 512) => String(value ?? "").trim().slice(0, max);
-const isObject = (value) => Boolean(value && typeof value === "object" && !Array.isArray(value));
 const stable = (value) => Array.isArray(value) ? value.map(stable) : value && typeof value === "object" ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, stable(value[key])])) : value;
 const digest = (value) => createHash("sha256").update(JSON.stringify(stable(value))).digest("hex");
+const isObject = (value) => Boolean(value && typeof value === "object" && !Array.isArray(value));
 
-function fail(code, message, details = {}, status = 503) {
-  throw Object.assign(new Error(message), { code, status, details: { ...details, secrets_included: false } });
+function fail(code, message, details = {}, status = 409) {
+  throw Object.assign(new Error(message), { code, status, details: { ...details, production_authority: false, secrets_included: false } });
 }
 
-function requireSha(value, field, pattern = SHA256, code = "RECOVERY_TICKET_BINDING_MISMATCH") {
+function requireSha(value, field, pattern = SHA256) {
   const normalized = text(value, 128).toLowerCase();
-  if (!pattern.test(normalized)) fail(code, `${field} must be a full SHA value.`, { field }, 409);
+  if (!pattern.test(normalized)) fail(field === "expected_sha" ? "STAGING_SHA_MISMATCH" : "RECOVERY_TICKET_BINDING_MISMATCH", `${field} is invalid.`, { field }, 400);
   return normalized;
 }
 
 function hasSensitiveKey(value, depth = 0) {
-  if (depth > 8 || value == null) return false;
-  if (Array.isArray(value)) return value.some((item) => hasSensitiveKey(item, depth + 1));
-  if (!isObject(value)) return false;
-  return Object.entries(value).some(([key, child]) => {
-    if (key === "secrets_included" && child === false) return false;
-    return SENSITIVE_KEY_RE.test(key) || hasSensitiveKey(child, depth + 1);
-  });
+  if (depth > 10 || !value || typeof value !== "object") return false;
+  if (Array.isArray(value)) return value.some((entry) => hasSensitiveKey(entry, depth + 1));
+  return Object.entries(value).some(([key, entry]) => SENSITIVE_KEY.test(key) || hasSensitiveKey(entry, depth + 1));
 }
 
 function normalizeExpected(expected = {}) {
-  const operation = text(expected.operation, 96);
-  const targetKey = text(expected.target_key, 128);
-  const idempotencyKey = text(expected.idempotency_key, 160);
-  if (!ALLOWED_OPERATIONS.has(operation) || targetKey !== "staging-runtime" || !SAFE_ID.test(idempotencyKey)) fail("RECOVERY_TICKET_BINDING_MISMATCH", "Staging bootstrap ticket binding is invalid.", { operation, target_key: targetKey }, 409);
+  if (!isObject(expected)) fail("RECOVERY_TICKET_BINDING_MISMATCH", "Expected Staging bootstrap ticket binding is required.", {}, 400);
+  const allowed = new Set(["production_sha", "expected_sha", "target_key", "target_fingerprint", "operation", "plan_hash", "idempotency_key", "role_selection_hash", "grant_binding_hash"]);
+  const unexpected = Object.keys(expected).filter((key) => !allowed.has(key));
+  if (unexpected.length || hasSensitiveKey(expected)) fail("RECOVERY_TICKET_BINDING_MISMATCH", "Expected bootstrap ticket binding contains forbidden fields.", { fields: unexpected }, 400);
   const binding = {
-    production_sha: requireSha(expected.production_sha || expected.expected_sha, "expected_sha", SHA40, "STAGING_SHA_MISMATCH"),
-    target_key: targetKey,
+    production_sha: requireSha(expected.production_sha || expected.expected_sha, "expected_sha", SHA40),
+    target_key: text(expected.target_key, 128),
     target_fingerprint: requireSha(expected.target_fingerprint, "target_fingerprint"),
-    operation,
+    operation: text(expected.operation, 96),
     plan_hash: requireSha(expected.plan_hash, "plan_hash"),
-    idempotency_key: idempotencyKey,
-    role_selection_hash: text(expected.role_selection_hash, 128) ? requireSha(expected.role_selection_hash, "role_selection_hash") : null,
-    grant_binding_hash: text(expected.grant_binding_hash, 128) ? requireSha(expected.grant_binding_hash, "grant_binding_hash") : null,
+    idempotency_key: text(expected.idempotency_key, 160),
+    role_selection_hash: text(expected.role_selection_hash, 128).toLowerCase() || null,
+    grant_binding_hash: text(expected.grant_binding_hash, 128).toLowerCase() || null,
   };
-  if (operation === "grants" && !binding.grant_binding_hash) fail("RECOVERY_TICKET_BINDING_MISMATCH", "Grant repair requires an exact grant binding hash.", {}, 409);
+  if (!binding.target_key || !binding.operation || !binding.idempotency_key) fail("RECOVERY_TICKET_BINDING_MISMATCH", "Expected bootstrap ticket binding is incomplete.", {}, 400);
+  if (binding.role_selection_hash && !SHA256.test(binding.role_selection_hash)) fail("RECOVERY_TICKET_BINDING_MISMATCH", "role_selection_hash is invalid.", {}, 400);
+  if (binding.grant_binding_hash && !SHA256.test(binding.grant_binding_hash)) fail("RECOVERY_TICKET_BINDING_MISMATCH", "grant_binding_hash is invalid.", {}, 400);
   return binding;
 }
 
@@ -67,32 +63,25 @@ function resolveAuthorityGraph(env = process.env) {
   return stagingRecoveryAuthorityInternals.adapters(roots.readiness, env).adapters;
 }
 
-function receiptPayload(receipt) {
-  if (!isObject(receipt)) return null;
-  return Object.fromEntries(Object.entries(receipt).filter(([key]) => !["receipt_hash", "signature", "secrets_included"].includes(key)));
+function signerProjection(payload = {}) {
+  return Object.fromEntries(Object.entries(payload).filter(([key]) => !["receipt_hash", "signature", "issued_at", "secrets_included"].includes(key)));
 }
 
-function signerProjection(payload) {
-  return Object.fromEntries(Object.entries(payload).filter(([key]) => key !== "ticket_id"));
+async function signReceipt(signer, payload, contract) {
+  if (!signer?.sign) fail("RECOVERY_STAGING_BOOTSTRAP_SIGNER_UNAVAILABLE", "Staging bootstrap receipt signer is unavailable.", {}, 503);
+  const body = stable({ ...payload, contract });
+  const receiptHash = digest(body);
+  const signature = text(await signer.sign({ payload: body, ticket_hash: receiptHash }), 4096);
+  if (!signature) fail("RECOVERY_STAGING_BOOTSTRAP_SIGNER_UNAVAILABLE", "Staging bootstrap receipt signer returned no signature.", {}, 503);
+  return { ...body, receipt_hash: receiptHash, signature, secrets_included: false };
 }
 
-async function signReceipt(signer, payload, domain) {
-  const receiptHash = digest({ domain, payload });
-  const signature = await signer.sign({ payload: signerProjection(payload), ticket_hash: receiptHash });
-  if (!text(signature, 4096)) fail("RECOVERY_READBACK_UNVERIFIED", "Server receipt signing failed closed.");
-  return { ...payload, receipt_hash: receiptHash, signature, secrets_included: false };
-}
-
-async function verifyReceipt(verifier, receipt, { contract, domain, now = Date.now() } = {}) {
-  const payload = receiptPayload(receipt);
-  if (!payload || payload.contract !== contract || receipt?.secrets_included !== false) fail("RECOVERY_READBACK_UNVERIFIED", "Server receipt envelope is invalid.", {}, 409);
-  const receiptHash = requireSha(receipt.receipt_hash, "receipt_hash", SHA256, "RECOVERY_READBACK_UNVERIFIED");
-  if (receiptHash !== digest({ domain, payload })) fail("RECOVERY_READBACK_UNVERIFIED", "Server receipt hash does not match its canonical payload.", {}, 409);
-  const valid = await verifier.verify({ ticket: { ...payload, ticket_hash: receiptHash, signature: receipt.signature, secrets_included: false }, ticket_hash: receiptHash });
-  if (valid !== true) fail("RECOVERY_READBACK_UNVERIFIED", "Server receipt signature verification failed.", {}, 409);
-  const issuedAt = Date.parse(payload.receipt_issued_at || "");
-  const expiresAt = Date.parse(payload.receipt_expires_at || "");
-  if (!Number.isFinite(issuedAt) || !Number.isFinite(expiresAt) || issuedAt > Number(now) + PROTOCOL_WINDOWS_MS.clockSkew || expiresAt <= Number(now)) fail("RECOVERY_READBACK_STALE", "Server receipt is stale or has an invalid timestamp.", { reconciliation_required: true, automatic_rerun_allowed: false }, 409);
+async function verifyReceipt(verifier, receipt, { contract, domain } = {}) {
+  if (!isObject(receipt) || receipt.contract !== contract || receipt.secrets_included !== false || hasSensitiveKey(signerProjection(receipt))) fail("RECOVERY_RECEIPT_INVALID", "Staging bootstrap protocol receipt is malformed.", { expected_contract: contract }, 409);
+  const payload = signerProjection(receipt);
+  const receiptHash = digest(payload);
+  if (receipt.receipt_hash !== receiptHash) fail("RECOVERY_RECEIPT_INVALID", "Staging bootstrap protocol receipt hash is invalid.", { expected_contract: contract }, 409);
+  if (!verifier?.verify || (await verifier.verify({ ticket: { ...payload, ticket_hash: receiptHash, signature: receipt.signature }, ticket_hash: receiptHash, domain })) !== true) fail("RECOVERY_RECEIPT_INVALID", "Staging bootstrap protocol receipt signature is invalid.", { expected_contract: contract }, 401);
   return payload;
 }
 
@@ -329,10 +318,15 @@ export function createStagingBootstrapExecutionAuthority({ env = process.env } =
       if (prior?.finalized) return { verified: true, finalized: true, idempotent_replay: true, lifecycle_state: "finalized", evidence_hash: prior.audit.evidence_hash, result_fingerprint: prior.audit.result_fingerprint, secrets_included: false };
       if (prior?.lifecycle?.execution_receipt?.receipt_hash !== execution_receipt.receipt_hash) fail("RECOVERY_READBACK_UNVERIFIED", "Readback retry is not bound to the durable execution-start receipt.", { reconciliation_required: true, automatic_rerun_allowed: false }, 409);
       if (prior?.lifecycle?.readback_receipt) {
-        if (prior.lifecycle.readback_evidence_hash !== readback.evidence_hash || prior.lifecycle.result_fingerprint !== readback.result_fingerprint) fail("RECOVERY_IDEMPOTENCY_CONFLICT", "Readback retry changed evidence for an existing ticket lifecycle.", { reconciliation_required: true, automatic_rerun_allowed: false }, 409);
+        // Observation timestamps and transport-level evidence hashes may legitimately
+        // differ across retries of the same independently verified readback. The
+        // canonical result fingerprint intentionally excludes observed_at and is the
+        // semantic idempotency boundary. Never replace the first durable receipt.
+        if (prior.lifecycle.result_fingerprint !== readback.result_fingerprint) fail("RECOVERY_IDEMPOTENCY_CONFLICT", "Readback retry changed the canonical semantic result for an existing ticket lifecycle.", { reconciliation_required: true, automatic_rerun_allowed: false }, 409);
         const persisted = await verifyReceipt(signatureVerifier, prior.lifecycle.readback_receipt, { contract: STAGING_BOOTSTRAP_READBACK_RECEIPT_CONTRACT, domain: STAGING_BOOTSTRAP_READBACK_RECEIPT_CONTRACT });
         assertReceiptBinding(persisted, { ticketId, ticketHash, binding, reservationGeneration: reservation.reservation_generation });
-        return { verified: true, idempotent_replay: true, lifecycle_state: "verifying", readback_receipt: prior.lifecycle.readback_receipt, evidence_hash: readback.evidence_hash, result_fingerprint: readback.result_fingerprint, secrets_included: false };
+        if (persisted.result_fingerprint !== prior.lifecycle.result_fingerprint || persisted.evidence_hash !== prior.lifecycle.readback_evidence_hash) fail("RECOVERY_READBACK_UNVERIFIED", "Persisted readback receipt no longer matches the durable first-observation lifecycle state.", { reconciliation_required: true, automatic_rerun_allowed: false }, 409);
+        return { verified: true, idempotent_replay: true, lifecycle_state: "verifying", readback_receipt: prior.lifecycle.readback_receipt, evidence_hash: prior.lifecycle.readback_evidence_hash, result_fingerprint: prior.lifecycle.result_fingerprint, retry_evidence_hash: readback.evidence_hash, semantic_retry_match: true, secrets_included: false };
       }
       const now = Date.now();
       const payload = {
