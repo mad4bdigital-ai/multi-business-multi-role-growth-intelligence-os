@@ -103,6 +103,7 @@
           ".dockerignore",
           ".gitignore",
           "http-generic-api/scripts/prepare-staging-build-context.mjs",
+          "http-generic-api/scripts/prepare-staging-rebuild-empty-inspection.mjs",
           "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs",
           "http-generic-api/scripts/classify-staging-empty-role-census.mjs",
           "http-generic-api/docker-compose.staging.yml",
