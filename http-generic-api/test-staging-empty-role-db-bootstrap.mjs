@@ -110,6 +110,14 @@ assert.doesNotMatch(entry, /Clone-StagingDatabases\.ps1|Clone-StagingDatabases\.
 assert.match(entry, /Legacy REBUILD_EMPTY_LOCAL_STAGING_DATABASES confirmation is retired/u);
 assert.match(entry, /role_execution_tickets_issued_local_handoffs_ready/u);
 assert.match(entry, /capability_key -ceq "\$\(\$handoff\.role\)\.baseline\.rebuild_empty"/u);
+assert.match(entry, /staging-rebuild-empty\.apply\.lock/u);
+assert.match(entry, /function Acquire-RebuildSetLock/u);
+assert.match(entry, /\[System\.IO\.FileShare\]::None/u);
+assert.match(entry, /function Assert-OriginMainExact/u);
+const setApplyLock = entry.lastIndexOf("$setLock = Acquire-RebuildSetLock");
+const roleApplyLoop = entry.indexOf("foreach ($entry in $verifiedPaths)", setApplyLock);
+const exactMainCheck = entry.indexOf("Assert-OriginMainExact", roleApplyLoop);
+assert.ok(setApplyLock >= 0 && roleApplyLoop > setApplyLock && exactMainCheck > roleApplyLoop, "set-level lock must cover the multi-role apply loop and origin/main must be rechecked before each role");
 assert.match(entry, /grants=not_applied runtime_certification=not_asserted gateway_apply_certification=pending next_action=database\.access_repair/u);
 assert.doesNotMatch(entry, /Repair-StagingDatabaseReadiness|GrantConfirmation|RepairConfirmation/u);
 
