@@ -1,19 +1,18 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import { createApprovalChallenge } from "./recoveryKernel.js";
 import { issueExecutionTicket } from "./recoveryExecutionTicket.js";
 import { buildApprovalBinding, validateRoleBundleBinding } from "./recoveryExecutionBinding.js";
 import { computeRoleSelectionProofHash } from "./roleSelectionProof.js";
+import { deriveCanonicalRecoveryFindingsFromInspection, assertCanonicalRoleRebuildFinding } from "./recoveryKernelInspectionBridge.js";
+import { buildStagingRoleRebuildPlan, buildRolePlanSetConfirmation } from "./stagingRoleRebuildPlanAdapter.js";
 import { stagingRecoveryAuthorityInternals } from "./stagingRecoveryAuthorityBinding.js";
 
-export const STAGING_REBUILD_EMPTY_AUTHORITY_CONTRACT = "mad4b.staging-rebuild-empty-authority.v1";
-export const STAGING_REBUILD_EMPTY_CAPABILITY = "staging_database_rebuild_empty";
+export const STAGING_REBUILD_EMPTY_AUTHORITY_CONTRACT = "mad4b.staging-rebuild-empty-authority.v2";
 const ROLES = Object.freeze(["runtime", "governance", "runtime_persistence"]);
 const SHA40 = /^[0-9a-f]{40}$/u;
 const SHA256 = /^[0-9a-f]{64}$/u;
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$/u;
 const RUN_ID = /^run:[A-Za-z0-9._:-]{8,160}$/u;
-const PLAN_ID = /^plan:[0-9a-f]{32}$/u;
-const STEP_ID = /^step:[0-9a-f]{32}$/u;
 
 const text = (value, max = 512) => String(value ?? "").trim().slice(0, max);
 const stable = (value) => Array.isArray(value)
@@ -214,112 +213,47 @@ function proofFromRun(run) {
   return { ...proof, selection_hash: computeRoleSelectionProofHash(proof) };
 }
 
-function buildPlan({ expectedSha, idempotencyKey, run, proof, attestation }) {
-  const stepBase = {
-    ordinal: 1,
-    classification: "staging_selective_empty_role_rebuild",
-    capability_key: STAGING_REBUILD_EMPTY_CAPABILITY,
-    operation: "database.rebuild_empty",
-    action: "apply_migration",
-    target_role: "composite",
-    target_fingerprint: run.target_fingerprint,
-    selected_roles: [...proof.selected_roles],
-    role_selection_hash: proof.selection_hash,
-    mutation_class: "C5",
-    consequential: true,
-    approval_required: true,
-    execution_ticket_required: true,
-    verification_before_finalization: true,
-    grants_included: false,
-    raw_sql_allowed: false,
-    caller_role_selection_allowed: false,
-    rollback: "forward_only_reconciliation_before_any_replay",
+function approvalContext(plan, step, approval) {
+  return {
+    plan_hash: plan.plan_hash,
+    step_id: step.step_id,
+    step_hash: step.step_hash,
+    expected_sha: plan.expected_sha,
+    target_key: plan.target_key,
+    target_fingerprint: plan.target_fingerprint,
+    composite_target_fingerprint: plan.target_fingerprint,
+    step_target_fingerprint: step.target_fingerprint,
+    target_role: step.target_role,
+    operation: step.operation,
+    approval_id: approval.approval_id,
+    approval_hash: approval.challenge_hash,
   };
-  const stepHash = digest(stepBase);
-  const step = { ...stepBase, step_id: `step:${stepHash.slice(0, 32)}`, step_hash: stepHash };
-  const planIdentity = {
-    expected_sha: expectedSha,
-    inspection_run_id: run.run_id,
-    inspection_evidence_hash: run.inspection_evidence_hash,
-    role_selection_hash: proof.selection_hash,
-    target_fingerprint: run.target_fingerprint,
-    control_plane_target_fingerprint: run.control_plane_target_fingerprint,
-    step_hash: stepHash,
-    idempotency_key: idempotencyKey,
-  };
-  const planId = `plan:${digest(planIdentity).slice(0, 32)}`;
-  const base = {
-    contract: "mad4b.recovery-remediation-plan.v1",
-    plan_id: planId,
-    environment: "staging",
-    repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
-    branch: "main",
-    expected_sha: expectedSha,
-    expected_sha_at_creation: expectedSha,
-    target_key: "staging-runtime",
-    target_fingerprint: run.target_fingerprint,
-    target_fingerprint_at_creation: run.target_fingerprint,
-    target_fingerprints: { composite: run.target_fingerprint },
-    control_plane_target_fingerprint: run.control_plane_target_fingerprint,
-    manifest_hash: attestation.recovery_manifest_hash,
-    runtime_attestation_hash: attestation.attestation_hash,
-    inspection_run_id: run.run_id,
-    inspection_evidence_hash: run.inspection_evidence_hash,
-    finding_ids: [...proof.finding_ids],
-    role_selection_hash: proof.selection_hash,
-    role_selection_proof: proof,
-    role_bundle_bindings: structuredClone(run.evidence.inspection.role_bundle_bindings),
-    preserved_nonempty_roles: [...run.evidence.inspection.preserved_nonempty_roles],
-    proof: {
-      manifest_bound: true,
-      target_fingerprint_bound: true,
-      role_selection_provenance_bound: true,
-      deployment_attestation_bound: true,
-      authority_resolved: true,
-      preconditions_satisfied: true,
-      unknown_drift: false,
-    },
-    steps: [step],
-    status: "planned",
-    repair_key: STAGING_REBUILD_EMPTY_CAPABILITY,
-    required_approval: "server_managed_staging_selective_empty_role_rebuild",
-    execution_allowed: false,
-    database_independent_control_plane: true,
-    production_live_enabled: false,
-    database_mutation_performed: false,
-    grant_mutation_performed: false,
-    provider_mutation_performed: false,
-    raw_sql_allowed: false,
-    caller_role_selection_allowed: false,
-    access_repair_separate: true,
-    idempotency_key: idempotencyKey,
-    secrets_included: false,
-  };
-  return { step, plan: { ...base, plan_hash: digest(base) } };
 }
 
-function approvalConfirmation(plan, step) {
-  return `APPROVE_STAGING_DATABASE_REBUILD_EMPTY:${plan.plan_hash}:${step.step_hash}:${plan.expected_sha}:${plan.target_key}:${plan.role_selection_hash}`;
-}
-
-function issuedTicketReceipt(plan, ticket) {
+function issuedRoleTicketReceipt(plan, step, ticket, run) {
   return {
     ok: true,
     contract: STAGING_REBUILD_EMPTY_AUTHORITY_CONTRACT,
     status: "execution_ticket_issued",
+    canonical_capability_key: step.capability_key,
+    target_role: step.target_role,
     plan_id: plan.plan_id,
     authority_plan_hash: plan.plan_hash,
-    step_id: plan.steps?.[0]?.step_id || null,
+    step_id: step.step_id,
+    step_hash: step.step_hash,
     expected_sha: plan.expected_sha,
     target_key: plan.target_key,
     target_fingerprint: plan.target_fingerprint,
+    database_target_fingerprint: plan.database_target_fingerprint,
     control_plane_target_fingerprint: plan.control_plane_target_fingerprint,
-    inspection_run_id: plan.inspection_run_id,
+    inspection_run_id: plan.role_selection_proof.inspection_run_id,
     role_selection_proof: structuredClone(plan.role_selection_proof),
-    selected_zero_object_roles: [...plan.role_selection_proof.selected_roles],
-    preserved_nonempty_roles: [...plan.preserved_nonempty_roles],
+    selected_zero_object_roles: [step.target_role],
+    inspection_selected_zero_object_roles: [...run.evidence.inspection.selected_zero_object_roles],
+    preserved_nonempty_roles: [...run.evidence.inspection.preserved_nonempty_roles],
     execution_ticket_id: ticket.ticket_id,
     execution_ticket_hash: ticket.ticket_hash,
+    idempotency_key: plan.idempotency_key,
     execution_ticket_signature_returned: false,
     approval_token_returned: false,
     grants_included: false,
@@ -334,23 +268,61 @@ export function createStagingRebuildEmptyAuthority({ env = process.env, adapters
   const graph = authorityGraph(env, injectedGraph, adapters);
   const store = graph.recoveryStore;
   if (!store?.putRun || !store?.getRun || !store?.putFinding || !store?.putPlan || !store?.getPlan || !store?.getApprovalByPlanStep || !store?.putExecutionTicket || !store?.getExecutionTicket || !store?.reserveApproval || !store?.releaseApprovalReservation || !store?.markApprovalUsed || !graph.approvalIssuer?.createChallenge || !graph.approvalVerifier?.verify || !graph.executionTicketSigner?.sign) {
-    fail("RECOVERY_APPROVAL_CHALLENGE_AUTHORITY_UNAVAILABLE", "Staging rebuild-empty durable approval/ticket authorities are incomplete.", {}, 503);
+    fail("RECOVERY_APPROVAL_CHALLENGE_AUTHORITY_UNAVAILABLE", "Staging rebuild-empty durable Recovery authorities are incomplete.", {}, 503);
   }
+
+  const getRun = async (expectedSha, inspectionRunId) => {
+    const run = await store.getRun(inspectionRunId);
+    if (!run || run.expected_sha !== expectedSha || run.target_key !== "staging-runtime" || run.durable_full_inspection !== true) fail("RECOVERY_ROLE_SELECTION_PROVENANCE_UNAVAILABLE", "Rebuild-empty requires the exact durable Staging inspection run.", { inspection_run_id: inspectionRunId }, 404);
+    return run;
+  };
+
+  const prepareRoleSet = async ({ expectedSha, inspectionRunId, idempotencyKey }) => {
+    const run = await getRun(expectedSha, inspectionRunId);
+    const proof = proofFromRun(run);
+    const attestation = await attestExactDeployment(graph, expectedSha, run.control_plane_target_fingerprint);
+    const entries = [];
+    for (const role of proof.selected_roles) {
+      const built = buildStagingRoleRebuildPlan({ expectedSha, idempotencyKey, run, role, attestation });
+      const existingPlan = await store.getPlan(built.plan.plan_id);
+      if (existingPlan && (existingPlan.plan_hash !== built.plan.plan_hash || existingPlan.idempotency_key !== built.plan.idempotency_key || existingPlan.steps?.[0]?.capability_key !== `${role}.baseline.rebuild_empty`)) {
+        fail("RECOVERY_IDEMPOTENCY_CONFLICT", "Role-specific rebuild prepare is already bound to different canonical Recovery content.", { role, plan_id: built.plan.plan_id }, 409);
+      }
+      if (!existingPlan) await store.putPlan(built.plan);
+      const plan = existingPlan || built.plan;
+      const step = plan.steps?.[0];
+      if (!step || step.capability_key !== `${role}.baseline.rebuild_empty` || step.target_role !== role || step.operation !== "database.rebuild_empty") {
+        fail("RECOVERY_ROLE_REBUILD_PLAN_INVALID", "Persisted Staging rebuild plan is not the canonical role-specific Recovery capability.", { role, plan_id: plan.plan_id }, 409);
+      }
+      let approval = await store.getApprovalByPlanStep(plan.plan_id, step.step_id);
+      const approvedOrTicketed = plan.status === "approved" || Boolean(plan.execution_ticket_id);
+      if (approvedOrTicketed) {
+        if (!approval) fail("RECOVERY_APPROVAL_INVALID", "Approved role rebuild plan is missing its durable Recovery approval challenge.", { role, plan_id: plan.plan_id }, 409);
+      } else {
+        const expiresAt = Date.parse(approval?.expires_at || 0);
+        const reusable = Boolean(approval && approval.used !== true && Number.isFinite(expiresAt) && expiresAt > Date.now());
+        if (approval?.used === true) fail("RECOVERY_APPROVAL_INVALID", "Role rebuild prepare found a consumed approval before ticket issuance was durably attached to the plan.", { role, plan_id: plan.plan_id }, 409);
+        if (!reusable) approval = await createApprovalChallenge({ plan_id: plan.plan_id, plan_hash: plan.plan_hash, step_id: step.step_id }, { approvalIssuer: graph.approvalIssuer, approvalStore: graph.approvalStore, recoveryStore: store });
+      }
+      entries.push({ role, plan, step, approval });
+    }
+    const approvalSet = buildRolePlanSetConfirmation(entries, expectedSha, inspectionRunId);
+    return { run, proof, attestation, entries, approvalSet };
+  };
 
   const resolveProof = async (input = {}) => {
     const expectedSha = requireSha(input.expected_sha, "expected_sha", SHA40);
     const targetKey = text(input.target_key || "staging-runtime", 128);
     if (targetKey !== "staging-runtime") fail("RECOVERY_TICKET_BINDING_MISMATCH", "Staging rebuild_empty is bound to staging-runtime.", { target_key: targetKey }, 400);
     const inspectionRunId = requireSafeId(input.inspection_run_id || input.role_selection_proof?.inspection_run_id, "inspection_run_id", RUN_ID);
-    const run = await store.getRun(inspectionRunId);
-    if (!run || run.expected_sha !== expectedSha || run.target_key !== targetKey || run.durable_full_inspection !== true) fail("RECOVERY_ROLE_SELECTION_PROVENANCE_UNAVAILABLE", "Requested inspection run is not a durable exact-SHA Staging full inspection.", { inspection_run_id: inspectionRunId }, 404);
+    const run = await getRun(expectedSha, inspectionRunId);
     await attestExactDeployment(graph, expectedSha, run.control_plane_target_fingerprint);
     return proofFromRun(run);
   };
 
   return Object.freeze({
     contract: STAGING_REBUILD_EMPTY_AUTHORITY_CONTRACT,
-    capability: STAGING_REBUILD_EMPTY_CAPABILITY,
+    canonical_capabilities: ROLES.map((role) => `${role}.baseline.rebuild_empty`),
     production_authority: false,
     resolveProof,
 
@@ -364,30 +336,17 @@ export function createStagingRebuildEmptyAuthority({ env = process.env, adapters
       const inspection = normalizeInspection(input, expectedSha, attestation.control_plane_target_fingerprint);
       const inspectionEvidenceHash = digest(inspection);
       const runId = `run:${digest({ expected_sha: expectedSha, target_key: targetKey, target_fingerprint: inspection.target_fingerprint, control_plane_target_fingerprint: attestation.control_plane_target_fingerprint, inspection_evidence_hash: inspectionEvidenceHash, correlation_id: correlationId }).slice(0, 32)}`;
-      const findingIdsByRole = {};
-      const findings = [];
-      for (const role of inspection.selected_zero_object_roles) {
-        const findingBase = {
-          contract: "mad4b.staging-rebuild-empty-finding.v1",
-          category: "empty_uninitialized_database",
-          candidate_capability: `${role}.baseline.rebuild_empty`,
-          target_role: role,
-          target_fingerprint: inspection.target_fingerprint,
-          inspection_run_id: runId,
-          inspection_evidence_hash: inspectionEvidenceHash,
-          object_count_fingerprint: inspection.role_database_object_count_fingerprints[role],
-          role_bundle_binding: inspection.role_bundle_bindings[role],
-          mutation_required: true,
-          repairability: "deterministic",
-          server_selected_from_full_inspection: true,
-          secrets_included: false,
-        };
-        const findingId = `finding:${digest(findingBase).slice(0, 32)}`;
-        findingIdsByRole[role] = findingId;
-        findings.push({ finding_id: findingId, ...findingBase });
+      const canonicalFindings = deriveCanonicalRecoveryFindingsFromInspection(inspection)
+        .filter((finding) => /^(runtime|governance|runtime_persistence)\.baseline\.rebuild_empty$/u.test(text(finding?.candidate_capability, 160)))
+        .map((finding) => ({ ...finding, inspection_run_id: runId, inspection_evidence_hash: inspectionEvidenceHash }));
+      const findingRoles = canonicalFindings.map((finding) => assertCanonicalRoleRebuildFinding(finding).target_role).sort();
+      const selectedRoles = [...inspection.selected_zero_object_roles].sort();
+      if (JSON.stringify(findingRoles) !== JSON.stringify(selectedRoles)) {
+        fail("RECOVERY_CANONICAL_INSPECTION_CLASSIFICATION_MISMATCH", "Canonical Recovery Kernel findings disagree with the normalized Staging full inspection; no durable role selection was recorded.", { canonical_roles: findingRoles, normalized_roles: selectedRoles }, 409);
       }
+      const findingIdsByRole = Object.fromEntries(canonicalFindings.map((finding) => [finding.subject.target_role, finding.finding_id]));
       const run = {
-        contract: "mad4b.staging-durable-full-inspection-run.v2",
+        contract: "mad4b.staging-durable-full-inspection-run.v3",
         run_id: runId,
         status: "classified",
         phase: "classified",
@@ -398,15 +357,16 @@ export function createStagingRebuildEmptyAuthority({ env = process.env, adapters
         correlation_id: correlationId,
         inspection_evidence_hash: inspectionEvidenceHash,
         durable_full_inspection: true,
+        canonical_finding_classifier: "RecoveryKernel.findingsFromInspection",
         finding_ids_by_role: findingIdsByRole,
-        findings,
-        evidence: { inspection, deployment_attestation_hash: attestation.attestation_hash, secrets_included: false },
+        findings: canonicalFindings,
+        evidence: { inspection, findings: canonicalFindings, deployment_attestation_hash: attestation.attestation_hash, secrets_included: false },
         database_mutation_performed: false,
         provider_mutation_performed: false,
         production_authority: false,
         secrets_included: false,
       };
-      for (const finding of findings) await store.putFinding(finding);
+      for (const finding of canonicalFindings) await store.putFinding(finding);
       await store.putRun(run);
       const proof = proofFromRun(run);
       return {
@@ -418,9 +378,11 @@ export function createStagingRebuildEmptyAuthority({ env = process.env, adapters
         target_fingerprint: run.target_fingerprint,
         control_plane_target_fingerprint: run.control_plane_target_fingerprint,
         selected_zero_object_roles: [...proof.selected_roles],
+        selected_capability_keys: proof.selected_roles.map((role) => `${role}.baseline.rebuild_empty`),
         preserved_nonempty_roles: [...inspection.preserved_nonempty_roles],
         role_selection_hash: proof.selection_hash,
         role_selection_authoritative: true,
+        canonical_finding_classifier: run.canonical_finding_classifier,
         database_mutation_performed: false,
         grant_mutation_performed: false,
         production_authority: false,
@@ -433,49 +395,38 @@ export function createStagingRebuildEmptyAuthority({ env = process.env, adapters
       const expectedSha = requireSha(input.expected_sha, "expected_sha", SHA40);
       const inspectionRunId = requireSafeId(input.inspection_run_id, "inspection_run_id", RUN_ID);
       const idempotencyKey = requireSafeId(input.idempotency_key, "idempotency_key");
-      const run = await store.getRun(inspectionRunId);
-      if (!run || run.expected_sha !== expectedSha || run.target_key !== "staging-runtime" || run.durable_full_inspection !== true) fail("RECOVERY_ROLE_SELECTION_PROVENANCE_UNAVAILABLE", "Rebuild-empty prepare requires the exact durable Staging inspection run.", { inspection_run_id: inspectionRunId }, 404);
-      const proof = proofFromRun(run);
-      const attestation = await attestExactDeployment(graph, expectedSha, run.control_plane_target_fingerprint);
-      const { step, plan } = buildPlan({ expectedSha, idempotencyKey, run, proof, attestation });
-      const existingPlan = await store.getPlan(plan.plan_id);
-      if (existingPlan && (existingPlan.plan_hash !== plan.plan_hash || existingPlan.idempotency_key !== idempotencyKey)) {
-        fail("RECOVERY_IDEMPOTENCY_CONFLICT", "Rebuild-empty prepare idempotency key is already bound to different plan content.", { plan_id: plan.plan_id }, 409);
-      }
-      if (!existingPlan) await store.putPlan(plan);
-      const effectivePlan = existingPlan || plan;
-      const effectiveStep = effectivePlan.steps?.find((entry) => entry.step_id === step.step_id) || step;
-      let challenge = await store.getApprovalByPlanStep(effectivePlan.plan_id, effectiveStep.step_id);
-      const approvedOrTicketed = effectivePlan.status === "approved" || Boolean(effectivePlan.execution_ticket_id);
-      if (approvedOrTicketed) {
-        if (!challenge) fail("RECOVERY_APPROVAL_INVALID", "Approved rebuild-empty plan is missing its durable approval challenge.", { plan_id: effectivePlan.plan_id }, 409);
-      } else {
-        const expiresAt = Date.parse(challenge?.expires_at || 0);
-        const reusable = Boolean(challenge && challenge.used !== true && Number.isFinite(expiresAt) && expiresAt > Date.now());
-        if (challenge?.used === true) fail("RECOVERY_APPROVAL_INVALID", "Rebuild-empty prepare found a consumed approval before the plan reached approved state.", { plan_id: effectivePlan.plan_id }, 409);
-        if (!reusable) challenge = await createApprovalChallenge({ plan_id: effectivePlan.plan_id, plan_hash: effectivePlan.plan_hash, step_id: effectiveStep.step_id }, { approvalIssuer: graph.approvalIssuer, approvalStore: graph.approvalStore, recoveryStore: store });
-      }
+      const prepared = await prepareRoleSet({ expectedSha, inspectionRunId, idempotencyKey });
+      const allApproved = prepared.entries.every((entry) => entry.plan.status === "approved" && entry.plan.execution_ticket_id && entry.plan.execution_ticket_hash);
       return {
         ok: true,
         contract: STAGING_REBUILD_EMPTY_AUTHORITY_CONTRACT,
-        status: effectivePlan.status === "approved" ? "execution_ticket_already_issued" : "approval_required",
-        plan_id: effectivePlan.plan_id,
-        authority_plan_hash: effectivePlan.plan_hash,
-        step_id: effectiveStep.step_id,
-        step_hash: effectiveStep.step_hash,
-        approval_id: challenge.approval_id,
-        approval_hash: challenge.challenge_hash,
-        approval_confirmation: approvalConfirmation(effectivePlan, effectiveStep),
-        expected_sha: effectivePlan.expected_sha,
-        target_key: effectivePlan.target_key,
-        target_fingerprint: effectivePlan.target_fingerprint,
-        control_plane_target_fingerprint: effectivePlan.control_plane_target_fingerprint,
-        inspection_run_id: effectivePlan.inspection_run_id,
-        role_selection_proof: structuredClone(effectivePlan.role_selection_proof),
-        selected_zero_object_roles: [...effectivePlan.role_selection_proof.selected_roles],
-        preserved_nonempty_roles: [...effectivePlan.preserved_nonempty_roles],
+        status: allApproved ? "execution_tickets_already_issued" : "approval_required",
+        expected_sha: expectedSha,
+        target_key: "staging-runtime",
+        target_fingerprint: prepared.run.target_fingerprint,
+        control_plane_target_fingerprint: prepared.run.control_plane_target_fingerprint,
+        inspection_run_id: inspectionRunId,
+        role_selection_proof: structuredClone(prepared.proof),
+        selected_zero_object_roles: [...prepared.proof.selected_roles],
+        selected_capability_keys: prepared.entries.map((entry) => entry.step.capability_key),
+        preserved_nonempty_roles: [...prepared.run.evidence.inspection.preserved_nonempty_roles],
+        approval_set_hash: prepared.approvalSet.set_hash,
+        approval_confirmation: prepared.approvalSet.confirmation,
+        role_plans: prepared.entries.map((entry) => ({
+          role: entry.role,
+          capability_key: entry.step.capability_key,
+          plan_id: entry.plan.plan_id,
+          authority_plan_hash: entry.plan.plan_hash,
+          step_id: entry.step.step_id,
+          step_hash: entry.step.step_hash,
+          approval_id: entry.approval.approval_id,
+          approval_hash: entry.approval.challenge_hash,
+          idempotency_key: entry.plan.idempotency_key,
+          status: entry.plan.status,
+        })),
         grants_included: false,
         access_repair_separate: true,
+        caller_role_selection_allowed: false,
         approval_token_not_returned: true,
         execution_ticket_not_returned: true,
         database_mutation_performed: false,
@@ -485,87 +436,98 @@ export function createStagingRebuildEmptyAuthority({ env = process.env, adapters
     },
 
     async approveAndIssue(input = {}) {
-      assertExactKeys(input, new Set(["plan_id", "authority_plan_hash", "step_id", "idempotency_key", "approval_confirmation"]), "Rebuild-empty approval");
-      const planId = requireSafeId(input.plan_id, "plan_id", PLAN_ID);
-      const planHash = requireSha(input.authority_plan_hash, "authority_plan_hash");
-      const stepId = requireSafeId(input.step_id, "step_id", STEP_ID);
+      assertExactKeys(input, new Set(["expected_sha", "inspection_run_id", "idempotency_key", "approval_confirmation"]), "Rebuild-empty approval");
+      const expectedSha = requireSha(input.expected_sha, "expected_sha", SHA40);
+      const inspectionRunId = requireSafeId(input.inspection_run_id, "inspection_run_id", RUN_ID);
       const idempotencyKey = requireSafeId(input.idempotency_key, "idempotency_key");
-      const plan = await store.getPlan(planId);
-      if (!plan || plan.plan_hash !== planHash || plan.repair_key !== STAGING_REBUILD_EMPTY_CAPABILITY || plan.environment !== "staging" || plan.target_key !== "staging-runtime" || plan.caller_role_selection_allowed !== false || plan.access_repair_separate !== true) fail("RECOVERY_TICKET_BINDING_MISMATCH", "Approval does not resolve to the fixed selective Staging rebuild-empty plan.", {}, 409);
-      if (plan.execution_ticket_id || plan.status === "approved") {
-        if (plan.approved_idempotency_key === idempotencyKey && plan.execution_ticket_id && plan.execution_ticket_hash) {
-          const existingTicket = await store.getExecutionTicket(plan.execution_ticket_id);
-          if (existingTicket?.ticket_hash === plan.execution_ticket_hash) return issuedTicketReceipt(plan, existingTicket);
+      const prepared = await prepareRoleSet({ expectedSha, inspectionRunId, idempotencyKey });
+      if (text(input.approval_confirmation, 1024) !== prepared.approvalSet.confirmation) {
+        fail("RECOVERY_APPROVAL_INVALID", "Exact high-level approval for the complete server-derived role-plan set is required.", { confirmation_formula: "APPROVE_STAGING_ROLE_REBUILD_SET:<set_hash>:<expected_sha>:<inspection_run_id>" }, 401);
+      }
+      await attestExactDeployment(graph, expectedSha, prepared.run.control_plane_target_fingerprint);
+      const issuances = [];
+      for (const entry of prepared.entries) {
+        let plan = await store.getPlan(entry.plan.plan_id);
+        const step = plan.steps?.[0];
+        const role = entry.role;
+        if (plan.execution_ticket_id || plan.status === "approved") {
+          if (plan.approved_idempotency_key === plan.idempotency_key && plan.execution_ticket_id && plan.execution_ticket_hash) {
+            const existingTicket = await store.getExecutionTicket(plan.execution_ticket_id);
+            if (existingTicket?.ticket_hash === plan.execution_ticket_hash) {
+              issuances.push(issuedRoleTicketReceipt(plan, step, existingTicket, prepared.run));
+              continue;
+            }
+          }
+          fail("RECOVERY_APPROVAL_INVALID", "Role rebuild approval already issued a ticket for a different request or lost its durable ticket binding.", { role, plan_id: plan.plan_id }, 409);
         }
-        fail("RECOVERY_APPROVAL_INVALID", "This rebuild-empty approval already issued its single-use ticket for a different request.", {}, 409);
+        const approval = await store.getApprovalByPlanStep(plan.plan_id, step.step_id);
+        if (!approval || approval.used === true || Date.parse(approval.expires_at || 0) <= Date.now()) fail("RECOVERY_APPROVAL_INVALID", "The role-plan approval challenge is absent, expired, or already used.", { role }, 401);
+        const issuedApproval = await graph.approvalIssuer.createChallenge(approval);
+        const approvalToken = issuedApproval?.server_token;
+        const context = approvalContext(plan, step, approval);
+        if ((await graph.approvalVerifier.verify({ token: approvalToken, approval, context })) !== true) fail("RECOVERY_APPROVAL_INVALID", "Server-managed Recovery approval verification failed closed.", { role }, 401);
+        const approvalBinding = buildApprovalBinding({ approvalId: approval.approval_id, approvalHash: approval.challenge_hash, approvalVersion: approval.approval_version || "v1", planHash: plan.plan_hash, stepId: step.step_id, stepHash: step.step_hash, targetKey: plan.target_key, targetFingerprint: plan.target_fingerprint, targetRole: role, operation: step.operation });
+        const reservation = await store.reserveApproval({ ...context, approval_hash: approvalBinding.approval_hash, approval_binding_hash: approvalBinding.binding_hash, idempotency_key: plan.idempotency_key, execution_ticket_id: null });
+        if (reservation?.reserved !== true && reservation?.same_idempotency !== true && reservation?.existing !== true) fail("RECOVERY_APPROVAL_INVALID", "The role-plan approval challenge is already reserved or consumed.", { role, reconciliation_required: true }, 409);
+        let ticketPersisted = false;
+        try {
+          const ticket = await issueExecutionTicket({
+            inspection_run_id: plan.role_selection_proof.inspection_run_id,
+            inspection_evidence_hash: plan.role_selection_proof.inspection_evidence_hash,
+            finding_ids: plan.finding_ids,
+            selected_roles: [role],
+            role_selection_required: true,
+            role_selection_hash: plan.role_selection_hash,
+            role_object_count_fingerprints: plan.role_selection_proof.role_object_count_fingerprints,
+            role_bundle_bindings: plan.role_bundle_bindings,
+            target_fingerprints: { composite: plan.target_fingerprint, [role]: plan.target_fingerprint },
+            deployment_attestation_hash: plan.runtime_attestation_hash,
+            approval_id: approvalBinding.approval_id,
+            approval_hash: approvalBinding.approval_hash,
+            approval_version: approvalBinding.approval_version,
+            approval_binding: approvalBinding,
+            production_sha: plan.expected_sha,
+            target_key: plan.target_key,
+            target_fingerprint: plan.target_fingerprint,
+            plan_hash: plan.plan_hash,
+            step_hash: step.step_hash,
+            step_id: step.step_id,
+            target_role: role,
+            operation: "database.rebuild_empty",
+            idempotency_key: plan.idempotency_key,
+            expires_at: approval.expires_at,
+            nonce: `nonce:${digest({ plan_hash: plan.plan_hash, approval_id: approval.approval_id, idempotency_key: plan.idempotency_key, role })}`,
+          }, { signer: graph.executionTicketSigner });
+          await store.putExecutionTicket(ticket);
+          ticketPersisted = true;
+          plan = { ...plan, status: "approved", execution_ticket_id: ticket.ticket_id, execution_ticket_hash: ticket.ticket_hash, approved_idempotency_key: plan.idempotency_key, approved_at: new Date().toISOString() };
+          await store.putPlan(plan);
+          await store.markApprovalUsed(approval.approval_id);
+          issuances.push(issuedRoleTicketReceipt(plan, step, ticket, prepared.run));
+        } catch (error) {
+          if (!ticketPersisted) await store.releaseApprovalReservation({ approval_id: approval.approval_id, idempotency_key: plan.idempotency_key }).catch(() => {});
+          throw error;
+        }
       }
-      const step = plan.steps?.find((entry) => entry.step_id === stepId);
-      if (!step || step.operation !== "database.rebuild_empty" || step.role_selection_hash !== plan.role_selection_hash || step.grants_included !== false) fail("RECOVERY_TICKET_BINDING_MISMATCH", "Approval step is not the fixed selective rebuild-empty capability.", {}, 409);
-      if (text(input.approval_confirmation, 1024) !== approvalConfirmation(plan, step)) fail("RECOVERY_APPROVAL_INVALID", "Exact high-level Staging rebuild-empty approval confirmation is required.", { confirmation_formula: "APPROVE_STAGING_DATABASE_REBUILD_EMPTY:<authority_plan_hash>:<step_hash>:<expected_sha>:staging-runtime:<role_selection_hash>" }, 401);
-      const attestation = await attestExactDeployment(graph, plan.expected_sha, plan.control_plane_target_fingerprint);
-      const approval = await store.getApprovalByPlanStep(plan.plan_id, step.step_id);
-      if (!approval || approval.used === true || Date.parse(approval.expires_at || 0) <= Date.now()) fail("RECOVERY_APPROVAL_INVALID", "The plan-bound approval challenge is absent, expired, or already used.", {}, 401);
-      const issuedApproval = await graph.approvalIssuer.createChallenge(approval);
-      const approvalToken = issuedApproval?.server_token;
-      const approvalContext = {
-        plan_hash: plan.plan_hash,
-        step_id: step.step_id,
-        step_hash: step.step_hash,
-        expected_sha: plan.expected_sha,
-        target_key: plan.target_key,
-        target_fingerprint: plan.target_fingerprint,
-        composite_target_fingerprint: plan.target_fingerprint,
-        step_target_fingerprint: step.target_fingerprint,
-        target_role: step.target_role,
-        operation: step.operation,
-        approval_id: approval.approval_id,
-        approval_hash: approval.challenge_hash,
+      return {
+        ok: true,
+        contract: STAGING_REBUILD_EMPTY_AUTHORITY_CONTRACT,
+        status: "role_execution_tickets_issued",
+        expected_sha: expectedSha,
+        inspection_run_id: inspectionRunId,
+        approval_set_hash: prepared.approvalSet.set_hash,
+        selected_zero_object_roles: [...prepared.proof.selected_roles],
+        selected_capability_keys: issuances.map((entry) => entry.canonical_capability_key),
+        preserved_nonempty_roles: [...prepared.run.evidence.inspection.preserved_nonempty_roles],
+        role_issuances: issuances,
+        grants_included: false,
+        access_repair_separate: true,
+        database_mutation_performed: false,
+        production_authority: false,
+        secrets_included: false,
       };
-      if ((await graph.approvalVerifier.verify({ token: approvalToken, approval, context: approvalContext })) !== true) fail("RECOVERY_APPROVAL_INVALID", "Server-managed approval verification failed closed.", {}, 401);
-      const approvalBinding = buildApprovalBinding({ approvalId: approval.approval_id, approvalHash: approval.challenge_hash, approvalVersion: approval.approval_version || "v1", planHash: plan.plan_hash, stepId: step.step_id, stepHash: step.step_hash, targetKey: plan.target_key, targetFingerprint: plan.target_fingerprint, targetRole: step.target_role, operation: step.operation });
-      const reservation = await store.reserveApproval({ ...approvalContext, approval_hash: approvalBinding.approval_hash, approval_binding_hash: approvalBinding.binding_hash, idempotency_key: idempotencyKey, execution_ticket_id: null });
-      if (reservation?.reserved !== true && reservation?.same_idempotency !== true) fail("RECOVERY_APPROVAL_INVALID", "The rebuild-empty approval challenge is already reserved or consumed.", { reconciliation_required: true }, 409);
-      let ticketPersisted = false;
-      try {
-        const ticket = await issueExecutionTicket({
-          inspection_run_id: plan.inspection_run_id,
-          inspection_evidence_hash: plan.inspection_evidence_hash,
-          finding_ids: plan.finding_ids,
-          selected_roles: plan.role_selection_proof.selected_roles,
-          role_selection_required: true,
-          role_selection_hash: plan.role_selection_hash,
-          role_object_count_fingerprints: plan.role_selection_proof.role_object_count_fingerprints,
-          role_bundle_bindings: plan.role_bundle_bindings,
-          target_fingerprints: { composite: plan.target_fingerprint },
-          deployment_attestation_hash: attestation.attestation_hash,
-          approval_id: approvalBinding.approval_id,
-          approval_hash: approvalBinding.approval_hash,
-          approval_version: approvalBinding.approval_version,
-          approval_binding: approvalBinding,
-          production_sha: plan.expected_sha,
-          target_key: plan.target_key,
-          target_fingerprint: plan.target_fingerprint,
-          plan_hash: plan.plan_hash,
-          step_hash: step.step_hash,
-          step_id: step.step_id,
-          target_role: "composite",
-          operation: "database.rebuild_empty",
-          idempotency_key: idempotencyKey,
-          expires_at: approval.expires_at,
-          nonce: `nonce:${digest({ plan_hash: plan.plan_hash, approval_id: approval.approval_id, idempotency_key: idempotencyKey })}`,
-        }, { signer: graph.executionTicketSigner });
-        await store.putExecutionTicket(ticket);
-        ticketPersisted = true;
-        const approvedPlan = { ...plan, status: "approved", execution_ticket_id: ticket.ticket_id, execution_ticket_hash: ticket.ticket_hash, approved_idempotency_key: idempotencyKey, approved_at: new Date().toISOString() };
-        await store.putPlan(approvedPlan);
-        await store.markApprovalUsed(approval.approval_id);
-        return issuedTicketReceipt(approvedPlan, ticket);
-      } catch (error) {
-        if (!ticketPersisted) await store.releaseApprovalReservation({ approval_id: approval.approval_id, idempotency_key: idempotencyKey }).catch(() => {});
-        throw error;
-      }
     },
   });
 }
 
-export const _testingStagingRebuildEmptyAuthority = Object.freeze({ normalizeInspection, proofFromRun, buildPlan, approvalConfirmation, objectCountsFingerprint, digest });
+export const _testingStagingRebuildEmptyAuthority = Object.freeze({ normalizeInspection, proofFromRun, objectCountsFingerprint, digest });
