@@ -28,6 +28,11 @@ import {
 export const RECOVERY_SYSTEM_TOOL_OVERLAY_CONTRACT = "mad4b.recovery-system-tool-overlay.v1";
 
 const BRIDGE_TOOL_NAME = "recovery_kernel_execute_approved_step";
+const STAGING_REBUILD_ROLE_CAPABILITIES = Object.freeze([
+  "runtime.baseline.rebuild_empty",
+  "governance.baseline.rebuild_empty",
+  "runtime_persistence.baseline.rebuild_empty",
+]);
 const STAGING_TOOL_NAMES = new Set([
   "staging_recovery_certification_canary_plan_create",
   "staging_recovery_access_repair_prepare",
@@ -176,24 +181,21 @@ export function projectRecoveryCapabilitiesForSystemSurface(env = process.env, d
         raw_sql_allowed: false,
         caller_database_allowed: false,
       },
-      {
-        capability_key: "staging_database_rebuild_empty",
-        risk_class: "C5",
-        state_scope: "durable_full_inspection_plan_approval_verified_local_handoff",
-        target_database_mutation: false,
-        local_execution_transport_required: true,
-        selected_role_only: true,
-        grants_included: false,
-        provider_mutation: false,
-        production_authority: false,
-      },
     ],
-    control_plane_state_write_capabilities: ["staging_certification_canary_plan_create", "staging_database_access_repair", "staging_database_schema_repair", "staging_database_rebuild_empty"],
+    control_plane_state_write_capabilities: [
+      "staging_certification_canary_plan_create",
+      "staging_database_access_repair",
+      "staging_database_schema_repair",
+      "database_full_inspection",
+      "remediation_plan_create",
+      "remediation_step_execute",
+    ],
     target_database_mutation_capabilities: [
       ...(executionReady ? ["staging_database_access_repair"] : []),
       ...(schemaExecutionReady ? ["staging_database_schema_repair"] : []),
     ],
-    local_handoff_mutation_capabilities: ["staging_database_rebuild_empty"],
+    rebuild_role_capability_keys: [...STAGING_REBUILD_ROLE_CAPABILITIES],
+    local_handoff_mutation_capabilities: [...STAGING_REBUILD_ROLE_CAPABILITIES],
     production_authority: false,
     secrets_included: false,
   };
