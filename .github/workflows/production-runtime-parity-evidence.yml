@@ -583,7 +583,7 @@ jobs:
             (all($root.role_database_object_counts[]; counts_ok)) and
             (all($root.role_database_object_classifications[]; . == "zero_objects" or . == "nonempty_objects")) and
             (all($root.role_database_object_count_fingerprints[]; type == "string" and test("^[0-9a-f]{64}$"))) and
-            (all($roles[] as $role; (($root.role_database_object_classifications[$role] == "zero_objects") == ($root.role_database_object_counts[$role].total == 0)))) and
+            ([ $roles[] as $role | (($root.role_database_object_classifications[$role] == "zero_objects") == ($root.role_database_object_counts[$role].total == 0)) ] | all) and
             (($selected | type) == "array") and
             (($selected | unique | length) == ($selected | length)) and
             (all($selected[]; . == "runtime" or . == "governance" or . == "runtime_persistence")) and
