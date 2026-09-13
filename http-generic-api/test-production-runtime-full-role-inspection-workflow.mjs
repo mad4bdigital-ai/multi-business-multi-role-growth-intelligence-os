@@ -6,7 +6,9 @@ import { fileURLToPath } from "node:url";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WORKFLOW_PATH = path.resolve(HERE, "..", ".github", "workflows", "production-runtime-parity-evidence.yml");
+const STAGING_REBUILD_AUTHORITY_PATH = path.resolve(HERE, "stagingRebuildEmptyAuthority.js");
 const workflow = fs.readFileSync(WORKFLOW_PATH, "utf8");
+const stagingRebuildAuthority = fs.readFileSync(STAGING_REBUILD_AUTHORITY_PATH, "utf8");
 
 function section(start, end) {
   const startIndex = workflow.indexOf(start);
@@ -78,6 +80,34 @@ test("full-role inspection validates all three roles and emits only sanitized du
   // The durable artifact is explicitly checked for raw identity/credential field names.
   assert.match(step, /connection_string/u);
   assert.match(step, /raw_values_exposed == false/u);
+});
+
+test("Production full-role evidence cannot be consumed as Staging rebuild mutation authority", () => {
+  // Production evidence is deliberately a different contract from the durable Staging
+  // inspection run that is allowed to participate in rebuild planning and ticket issuance.
+  assert.doesNotMatch(stagingRebuildAuthority, /mad4b\.production-runtime-full-role-inspection-evidence\.v1/u);
+  assert.match(stagingRebuildAuthority, /mad4b\.staging-durable-full-inspection\.v2/u);
+  assert.match(stagingRebuildAuthority, /targetKey !== "staging-runtime"/u);
+  assert.match(stagingRebuildAuthority, /proof\.source !== "durable_full_inspection"/u);
+  assert.match(stagingRebuildAuthority, /caller_role_selection_allowed: false/u);
+
+  // Recording recomputes canonical Staging role selection from counts and bundle bindings;
+  // prepare/approve accept only durable run references, never caller-selected roles.
+  assert.match(
+    stagingRebuildAuthority,
+    /assertExactKeys\(input, new Set\(\["expected_sha", "target_key", "correlation_id", "inspection", "role_bundle_bindings"\]\), "Rebuild-empty inspection recording"\)/u,
+  );
+  assert.match(
+    stagingRebuildAuthority,
+    /assertExactKeys\(input, new Set\(\["expected_sha", "inspection_run_id", "idempotency_key"\]\), "Rebuild-empty prepare"\)/u,
+  );
+  assert.match(
+    stagingRebuildAuthority,
+    /assertExactKeys\(input, new Set\(\["expected_sha", "inspection_run_id", "idempotency_key", "approval_confirmation"\]\), "Rebuild-empty approval"\)/u,
+  );
+  assert.match(stagingRebuildAuthority, /issueExecutionTicket\(\{/u);
+  assert.match(stagingRebuildAuthority, /operation: "database\.rebuild_empty"/u);
+  assert.match(stagingRebuildAuthority, /role_selection_required: true/u);
 });
 
 test("pull-request contract executes the source-level full-role workflow regression", () => {
