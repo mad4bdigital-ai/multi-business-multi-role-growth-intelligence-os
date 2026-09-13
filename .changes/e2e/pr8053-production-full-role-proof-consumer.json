@@ -1,0 +1,114 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr8053-production-full-role-proof-consumer",
+  "title": "PR8053 Production full-role proof consumer environment impact closure",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr8053-production-full-role-proof-consumer.json",
+      ".github/workflows/production-runtime-parity-evidence.yml",
+      "http-generic-api/hostBreakglassRoleSelectionArtifact.js",
+      "http-generic-api/test-host-breakglass-role-selection-artifact.mjs",
+      "http-generic-api/test-production-runtime-full-role-inspection-workflow.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Bind the durable Production full-role inspection producer to the canonical role-selection proof consumer while preserving fail-closed cross-environment review and all existing mutation boundaries.",
+      "e2e_journeys": [
+        {
+          "id": "production-full-role-proof-consumer-closure",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed repository automation and recovery proof resolver",
+          "entrypoint": "Evaluate the exact PR head and resolve a canonical read-only full-role inspection artifact into mutation-grade role-selection proof without executing any mutation.",
+          "terminal_outcome": "The consumer accepts only the canonical full_role_inspection artifact and exact source/target bindings, derives selected roles exactly from proven zero-object roles, and the shared-runtime change remains explicitly governed for staging and production with live staging certification required.",
+          "steps": [
+            "Classify the exact base-to-head change set against the canonical environment-impact policy.",
+            "Require the canonical full_role_inspection artifact name and full-role-inspection.json entry instead of the legacy dry_run artifact contract.",
+            "Require full_inspection=true, exact Production SHA binding, a canonical target fingerprint, and selected rebuild roles equal to the proven zero-object role set.",
+            "Reject ambiguous, stale, legacy, mismatched, or mutation-bearing evidence fail closed.",
+            "Require live Staging certification for the shared-runtime consumer change before any governed promotion decision.",
+            "Keep Production mutation, database mutation, migration apply, grant mutation, provider mutation, and Breakglass execution outside this PR."
+          ],
+          "assertions": [
+            "The environment impact declaration is bound to the canonical deployment branch policy.",
+            "Shared-runtime impact is explicitly declared for both staging and production and cross-environment review is true.",
+            "Live staging certification remains required.",
+            "production_mutation_allowed is false.",
+            "The durable proof resolver accepts only canonical read-only full-role evidence bound to the expected Production SHA and target fingerprint.",
+            "Selected rebuild roles must exactly equal the zero-object roles proven by the durable inspection artifact.",
+            "No Production deploy, database/schema/grant mutation, provider mutation, Breakglass execution, raw SQL, or shell authority is introduced or authorized by this declaration.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "pr8053-environment-impact-closure",
+              "runner": "node",
+              "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+              "args": [
+                "--base-sha",
+                "BASE_SHA",
+                "--head-sha",
+                "HEAD_SHA"
+              ]
+            },
+            {
+              "id": "pr8053-role-selection-artifact-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-host-breakglass-role-selection-artifact.mjs",
+              "args": []
+            },
+            {
+              "id": "pr8053-production-full-role-inspection-workflow-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-runtime-full-role-inspection-workflow.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/pr8053-production-full-role-proof-consumer.json",
+            "http-generic-api/config/deployment-branch-policy.json",
+            ".github/workflows/production-runtime-parity-evidence.yml",
+            "http-generic-api/hostBreakglassRoleSelectionArtifact.js",
+            "http-generic-api/test-host-breakglass-role-selection-artifact.mjs",
+            "http-generic-api/test-production-runtime-full-role-inspection-workflow.mjs"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "environment-impact-closure",
+          "runner": "node",
+          "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+          "args": [
+            "--base-sha",
+            "BASE_SHA",
+            "--head-sha",
+            "HEAD_SHA"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
