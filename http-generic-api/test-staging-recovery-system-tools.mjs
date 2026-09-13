@@ -43,6 +43,11 @@ const BUSINESS_TOOLS = [
   "staging_recovery_access_repair_execute",
   "staging_recovery_access_repair_approve",
 ];
+const REBUILD_EMPTY_TOOLS = [
+  "staging_recovery_rebuild_empty_inspection_record",
+  "staging_recovery_rebuild_empty_prepare",
+  "staging_recovery_rebuild_empty_approve",
+];
 const FORBIDDEN_CALLER_FIELDS = new Set([
   "target_key",
   "target_fingerprint",
@@ -100,6 +105,7 @@ test("Staging Recovery System Tool descriptors are advertised only for unambiguo
   const tools = buildStagingRecoverySystemTools(STAGING_ENV);
   assert.deepEqual(tools.map((tool) => tool.name), [
     ...BUSINESS_TOOLS,
+    ...REBUILD_EMPTY_TOOLS,
     "staging_recovery_system_surface_readiness",
   ]);
   for (const tool of tools) {
@@ -122,6 +128,34 @@ test("bounded Staging Recovery schemas never accept caller-selected execution or
   }
   const prepare = tools.find((entry) => entry.name === "staging_recovery_access_repair_prepare");
   assert.deepEqual(prepare.inputSchema.required, ["expected_sha", "idempotency_key"]);
+});
+
+test("rebuild-empty Recovery descriptors expose only the bounded inspection, planning, and approval contracts", () => {
+  const tools = buildStagingRecoverySystemTools(STAGING_ENV);
+  const byName = new Map(tools.map((tool) => [tool.name, tool]));
+  for (const name of REBUILD_EMPTY_TOOLS) {
+    const tool = byName.get(name);
+    assert.ok(tool, `${name} descriptor missing`);
+    assert.equal(tool.inputSchema.additionalProperties, false);
+  }
+
+  const inspection = byName.get("staging_recovery_rebuild_empty_inspection_record").inputSchema;
+  assert.deepEqual(inspection.required, ["expected_sha", "target_key", "correlation_id", "inspection", "role_bundle_bindings"]);
+  assert.equal(inspection.properties.target_key.const, "staging-runtime");
+
+  const prepare = byName.get("staging_recovery_rebuild_empty_prepare").inputSchema;
+  assert.deepEqual(prepare.required, ["expected_sha", "inspection_run_id", "idempotency_key"]);
+
+  const approve = byName.get("staging_recovery_rebuild_empty_approve").inputSchema;
+  assert.deepEqual(approve.required, ["expected_sha", "inspection_run_id", "idempotency_key", "approval_confirmation"]);
+
+  for (const schema of [inspection, prepare, approve]) {
+    for (const forbidden of ["target_fingerprint", "operation", "raw_sql", "sql", "query", "command", "script", "credentials", "credential", "approval_token", "execution_ticket_id", "execution_ticket_hash", "signature", "grant_binding_hash", "plan_id", "step_id", "selected_roles", "target_role"]) {
+      assert.equal(Object.hasOwn(schema.properties || {}, forbidden), false, `rebuild-empty schema must not expose ${forbidden}`);
+    }
+  }
+  assert.equal(Object.hasOwn(prepare.properties, "target_key"), false);
+  assert.equal(Object.hasOwn(approve.properties, "target_key"), false);
 });
 
 test("Production and conflicting-environment calls fail before any Staging recovery authority can be constructed", async () => {
