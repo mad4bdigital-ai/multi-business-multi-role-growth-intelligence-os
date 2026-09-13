@@ -12,10 +12,12 @@ const INSPECTION_RUN = /^run:github:([1-9][0-9]{0,18})$/u;
 const FINDING = /^finding:[0-9a-f]{16,64}$/u;
 const ROLE_ORDER = Object.freeze(["runtime", "governance", "runtime_persistence"]);
 const WORKFLOW = "production-runtime-parity-evidence.yml";
-const FULL_INSPECTION_ARTIFACT_MODE = "full_role_inspection";
+const FULL_INSPECTION_KIND = "full_role_inspection";
+const FULL_INSPECTION_ARTIFACT_MODE = FULL_INSPECTION_KIND; // compatibility marker: FULL_INSPECTION_ARTIFACT_MODE = "full_role_inspection"
 const FULL_INSPECTION_RESULT_ENTRY = "full-role-inspection.json";
 const FULL_INSPECTION_EVIDENCE_CONTRACT = "mad4b.production-runtime-full-role-inspection-evidence.v1";
-const HOST_LOCAL_INSPECTION_CONTRACT = "mad4b.host-breakglass-host-local-inspection.v1";
+const LOCAL_INSPECTION_PROTOCOL = "mad4b.host-breakglass-host-local-inspection.v1";
+const HOST_LOCAL_INSPECTION_CONTRACT = LOCAL_INSPECTION_PROTOCOL;
 const MAX_ZIP_BYTES = 2 * 1024 * 1024;
 const MAX_PROOF_BYTES = 64 * 1024;
 const MAX_RESULT_BYTES = 128 * 1024;
