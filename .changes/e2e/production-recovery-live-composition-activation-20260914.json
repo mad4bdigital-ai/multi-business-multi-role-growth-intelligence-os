@@ -1,0 +1,83 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-recovery-live-composition-activation-20260914",
+  "title": "Certified server-managed Production Recovery composition activation",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": { "include": [
+    ".changes/e2e/production-recovery-live-composition-activation-20260914.json",
+    ".github/derived-state-governance.json",
+    "docs/recovery-action-ticket-bridge.md",
+    "http-generic-api/productionRecoveryCompositionFactory.js",
+    "http-generic-api/serverManagedRecoveryBindingProvider.js",
+    "http-generic-api/server.js",
+    "http-generic-api/config/recovery-kernel-manifest.json",
+    "http-generic-api/config/runtime-bootstrap-contract.json",
+    "http-generic-api/config/host-breakglass-tool-contracts.json",
+    "http-generic-api/config/repository-governance-constitution.json",
+    "http-generic-api/test-production-recovery-composition-factory.mjs",
+    "http-generic-api/test-server-managed-recovery-binding.mjs"
+  ] },
+  "merge_contract": { "minimum_phase": "mvp" },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false,
+    "live_migration_executed": false,
+    "live_grant_executed": false,
+    "deployment_or_restart_executed": false
+  },
+  "phases": [{
+    "id": "mvp",
+    "status": "implemented",
+    "objective": "Preserve explicit Hostinger production_live intent through the server composition root and activate only a complete certified server-managed authority graph while every absent, mismatched or incomplete authority remains fail-closed.",
+    "e2e_journeys": [{
+      "id": "server-managed-production-live-composition",
+      "end_to_end": true,
+      "level": "synthetic_runtime",
+      "actor": "Production Recovery composition root",
+      "entrypoint": "Strict Hostinger Production runtime with explicit production_live binding intent",
+      "terminal_outcome": "A complete certified server-managed envelope activates Production Recovery dependencies; absent or mismatched authority remains fail-closed without provider or database mutation.",
+      "steps": [
+        "Resolve strict Production Hostinger runtime identity and explicit production_live intent.",
+        "Load only the configured server-managed binding provider.",
+        "Validate the secret-free Production envelope and complete adapter graph.",
+        "Derive readiness from mutation-grade durability, exact-SHA authorization, server-side approval resolution and same-cycle readback.",
+        "Expose mutation dependencies only when every gate passes."
+      ],
+      "assertions": [
+        "The default mode remains disabled.",
+        "Missing provider configuration remains fail-closed.",
+        "A provider envelope whose requested mode does not match production_live remains fail-closed.",
+        "Caller, GPT and Local Connector inputs remain forbidden.",
+        "Composition performs no provider or target database operation."
+      ],
+      "tests": [
+        {"id":"production-recovery-composition-activation","runner":"node","working_directory":"http-generic-api","path":"test-production-recovery-composition-factory.mjs","args":[]},
+        {"id":"production-recovery-binding-mode","runner":"node","working_directory":"http-generic-api","path":"test-server-managed-recovery-binding.mjs","args":[]}
+      ],
+      "evidence_paths": [
+        "http-generic-api/productionRecoveryCompositionFactory.js",
+        "http-generic-api/serverManagedRecoveryBindingProvider.js",
+        "http-generic-api/server.js"
+      ]
+    }],
+    "tests": [
+      {"id":"production-recovery-composition-activation","runner":"node","working_directory":"http-generic-api","path":"test-production-recovery-composition-factory.mjs","args":[]},
+      {"id":"production-recovery-binding-mode","runner":"node","working_directory":"http-generic-api","path":"test-server-managed-recovery-binding.mjs","args":[]}
+    ]
+  }],
+  "safety": {
+    "repository_only": true,
+    "production_mutation_allowed": false,
+    "database_mutation": false,
+    "migration_apply": false,
+    "grant_execution": false,
+    "provider_call": false,
+    "production_deploy": false,
+    "secrets_included": false
+  }
+}

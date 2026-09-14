@@ -186,7 +186,7 @@ test("explicit Hostinger Production intent is validated as a candidate while exe
     RECOVERY_SERVER_MANAGED_BINDING_MODE: "production_live",
   };
   assert.equal(getServerManagedRecoveryBindingIntent(env), "production_live");
-  assert.equal(getServerManagedRecoveryBindingMode(env), "injected_non_live");
+  assert.equal(getServerManagedRecoveryBindingMode(env), "production_live");
   assert.equal(getServerManagedRecoveryBindingIntent({
     NODE_ENV: "production",
     DEPLOYMENT_ENVIRONMENT: "production",
@@ -377,11 +377,11 @@ test("server-derived deployment identity ignores caller expected_sha and rejects
   );
 });
 
-test("direct production_live construction remains explicitly forbidden", () => {
-  assert.throws(
-    () => createProductionRecoveryComposition({ mode: "production_live", serverManagedBindingProvider: () => createValidEnvelope() }),
-    (error) => error.code === "RECOVERY_PRODUCTION_LIVE_DIRECT_CONSTRUCTION_FORBIDDEN" && error.status === 503,
-  );
+test("production_live with an incomplete server-managed envelope remains fail-closed", () => {
+  const composition = createProductionRecoveryComposition({ mode: "production_live", serverManagedBindingProvider: () => createValidEnvelope() });
+  assert.equal(composition.mode, "fail_closed");
+  assert.equal(composition.live_activation, false);
+  assert.equal(composition.productionRecoveryCompositionFactory.denial_reason, "production_live_server_managed_intent_mismatch");
 });
 
 test("readiness construction performs no adapter, provider, database, or mutation calls", () => {

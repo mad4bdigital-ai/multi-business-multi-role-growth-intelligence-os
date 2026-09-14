@@ -203,11 +203,7 @@ export function getServerManagedRecoveryBindingIntent(env = process.env) {
 }
 
 export function getServerManagedRecoveryBindingMode(env = process.env) {
-  const intent = getServerManagedRecoveryBindingIntent(env);
-  // The server root currently constructs the provider only for injected_non_live.
-  // A Production live request therefore enters as a non-live candidate graph. The
-  // factory validates that graph but keeps route mutation authority fail-closed.
-  return intent === "production_live" ? "injected_non_live" : intent;
+  return getServerManagedRecoveryBindingIntent(env);
 }
 
 // Separate read-only export: resolving evidence must not instantiate a mutation

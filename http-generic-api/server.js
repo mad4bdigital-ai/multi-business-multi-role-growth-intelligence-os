@@ -3174,7 +3174,7 @@ const executionFacade = createExecutionFacade({
 });
 
 const recoveryBindingMode = getServerManagedRecoveryBindingMode(process.env);
-const recoveryBindingProvider = recoveryBindingMode === "injected_non_live"
+const recoveryBindingProvider = ["injected_non_live", "production_live"].includes(recoveryBindingMode)
   ? createServerManagedRecoveryBindingProvider({ env: process.env })
   : null;
 const recoveryComposition = createProductionRecoveryComposition({
@@ -3191,8 +3191,9 @@ const runtimeBootstrapReader = (options = {}) => runBootstrap({
 const productionActivationReadinessReader = async () => runProductionActivationReadiness({
   ...await recoveryCompositionDependencies.recoveryReadinessEvidenceReader(),
   recoveryComposition,
-  productionLiveRequested: false,
-  productionLiveEnabled: false,
+  productionLiveRequested: recoveryBindingMode === "production_live",
+  productionLiveEnabled: recoveryComposition.mode === "production_live"
+    && recoveryComposition.live_activation === true,
 });
 registerRoutes(app, {
   ...recoveryCompositionDependencies,
