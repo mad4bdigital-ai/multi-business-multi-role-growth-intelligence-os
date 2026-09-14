@@ -79,6 +79,7 @@
             "All three local MariaDB services are started with utf8mb4_unicode_ci as server default and the repair readback confirms the database default.",
             "The direct Runtime Persistence CLI awaits pool.end() whenever it creates a closable pool, records secret-free cleanup evidence, and treats cleanup failure or a missing pool end() method as blocked readiness.",
             "The reusable runRuntimePersistenceOperationalReadiness() function remains non-closing so long-lived application callers retain ownership of their pool lifecycle.",
+            "The canonical role migration manifest declares exactly 19 required runtime support tables, and the legacy clone dry-run guard rejects the stale 11-table cardinality.",
             "The repair performs no database reset, schema replay, data-directory move, backup deletion, Production access, Hostinger/Cloudflare mutation, or provider mutation."
           ],
           "tests": [

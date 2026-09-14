@@ -178,7 +178,7 @@ $canonicalRuntimeCensus = @($roleMigrationManifest.validation.required_runtime_t
 Require ($canonicalRuntimeCensus.Count -eq 18) "Canonical Staging role manifest must declare exactly 18 runtime census tables."
 Assert-SetEqual $canonicalRuntimeCensus $requiredRuntimeCensus "schema bundle runtime census projection"
 $requiredRuntimeSupportTables = @($roleMigrationManifest.validation.required_runtime_support_tables)
-Require ($requiredRuntimeSupportTables.Count -eq 11) "Canonical Staging role manifest must declare exactly 11 runtime support tables."
+Require ($requiredRuntimeSupportTables.Count -eq 19) "Canonical Staging role manifest must declare exactly 19 runtime support tables."
 Assert-ContainsSet $requiredRuntimeSupportTables @($roleMigrationManifest.roles.runtime.required_tables) "canonical runtime support declaration"
 
 $canonicalSeedManifest = $bundleManifest.canonical_seed_lifecycle
