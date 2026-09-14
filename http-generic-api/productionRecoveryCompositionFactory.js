@@ -305,22 +305,6 @@ export function createProductionRecoveryComposition({
     return failClosedComposition(source, "production_live_activation_not_requested");
   }
 
-  // Direct production_live construction remains forbidden. Production can activate
-  // only through the deployment-owned provider path used by the server composition
-  // root, where caller/GPT credentials and provider controls are unavailable.
-  if (mode === "production_live") {
-    throw factoryError(
-      "RECOVERY_PRODUCTION_LIVE_DIRECT_CONSTRUCTION_FORBIDDEN",
-      "production_live cannot be constructed directly; only the server-managed deployment provider may present a certified Production live authorization envelope.",
-      {
-        factory_contract: PRODUCTION_RECOVERY_COMPOSITION_FACTORY_CONTRACT,
-        live_activation: false,
-        provider_accessed: false,
-        database_mutation_performed: false,
-      },
-    );
-  }
-
   if (typeof serverManagedBindingProvider !== "function") {
     return failClosedComposition(source, "server_managed_binding_provider_not_configured");
   }
@@ -331,6 +315,9 @@ export function createProductionRecoveryComposition({
       requested_mode: mode,
     })),
   );
+  if (mode === "production_live" && envelope.requested_mode !== "production_live") {
+    return failClosedComposition(source, "production_live_server_managed_intent_mismatch", { envelope });
+  }
   const candidate = createRecoveryComposition({
     mode: "injected_non_live",
     adapters: envelope.adapters,
