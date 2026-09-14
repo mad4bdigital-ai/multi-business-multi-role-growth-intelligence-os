@@ -15,7 +15,7 @@
       "http-generic-api/scripts/e2e-production-recovery-control-store-operational.mjs",
       "http-generic-api/scripts/e2e-production-recovery-control-store-resilient.mjs",
       "http-generic-api/scripts/production-recovery-control-store-resilient-certification.mjs",
-      ".github/workflows/production-recovery-resilient-certification.yml"
+      ".github/workflows/brand-skill-mariadb-certification.yml"
     ]
   },
   "merge_contract": {
@@ -150,7 +150,7 @@
             "Apply only the existing Recovery control-store CREATE TABLE IF NOT EXISTS schema to the disposable database.",
             "Create two independent pools and race approval and execution-ticket reservations against shared durable state.",
             "Finalize the winning execution ticket and prove it cannot be reserved again.",
-            "Acquire a short fenced lease, prove a competing lease is busy, then take over only after expiry with a strictly higher fence generation.",
+            "Acquire a short fenced lease, prove a competing lease is busy, then take over only after expiry with a strictly higher durable fence generation.",
             "Destroy the original pools, create a new pool, and prove run/idempotency, receipt and finalized-ticket state remain durable.",
             "Discard the first execution-claim response deliberately, retry through another replica, and resolve the existing durable claim without duplication.",
             "Replay identical append-only evidence and prove the second append is rejected by the durable event hash.",
@@ -181,7 +181,7 @@
             "http-generic-api/productionRecoveryControlStore.js",
             "http-generic-api/scripts/e2e-production-recovery-control-store-resilient.mjs",
             "http-generic-api/scripts/production-recovery-control-store-resilient-certification.mjs",
-            ".github/workflows/production-recovery-resilient-certification.yml"
+            ".github/workflows/brand-skill-mariadb-certification.yml"
           ]
         }
       ]
