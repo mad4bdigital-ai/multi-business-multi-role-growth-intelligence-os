@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -91,6 +92,13 @@ for (const source of [logger, healthMonitor, doctor, maintenanceCmd, installer, 
   assert.doesNotMatch(source, /JWT_SECRET\s*=\s*[A-Za-z0-9]{20,}/i);
 }
 
+const gatewaySeedContract = spawnSync(
+  process.execPath,
+  [path.join(root, "http-generic-api", "staging-governance-authority-seed-recovery-contract.mjs")],
+  { cwd: root, encoding: "utf8" },
+);
+assert.equal(gatewaySeedContract.status, 0, gatewaySeedContract.stderr || gatewaySeedContract.stdout);
+
 console.log(JSON.stringify({
   ok: true,
   contract: "mad4b.staging-operations-logging.v1",
@@ -104,4 +112,5 @@ console.log(JSON.stringify({
   correlation_id: true,
   maintenance_doctor: true,
   destructive_repair: false,
+  gateway_authority_seed_recovery_contract: true,
 }));
