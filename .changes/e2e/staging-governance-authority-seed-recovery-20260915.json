@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "staging-governance-authority-seed-recovery-20260915",
-  "title": "Restore Staging Gateway governance authority after schema-only recovery",
+  "title": "Restore role-owned Staging Gateway authority after schema-only recovery",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
@@ -11,16 +11,16 @@
       ".gitattributes",
       "autopilot-portable-staging/Recover-StagingDatabases.ps1",
       "autopilot-portable-staging/Replay-StagingGovernanceAuthoritySeed.ps1",
-      "http-generic-api/config/staging-governance-authority-seed-manifest.json",
-      "http-generic-api/config/staging-governance-authority-seed.sql",
+      "autopilot-portable-staging/Replay-StagingGatewayAuthoritySeeds.ps1",
+      "http-generic-api/config/staging-gateway-authority-seed-manifest.json",
+      "http-generic-api/config/staging-gateway-runtime-authority-seed.sql",
+      "http-generic-api/config/staging-gateway-governance-authority-seed.sql",
       "http-generic-api/test-staging-governance-authority-seed-recovery.mjs"
     ]
   },
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
-    "declared_targets": [
-      "staging"
-    ],
+    "declared_targets": ["staging"],
     "cross_environment_reviewed": true,
     "live_staging_certification_required": true,
     "production_mutation_allowed": false
@@ -33,44 +33,61 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Replay only the exact Staging Activation Gateway governance authority rows after schema-only local database recovery while preserving pending certification and all provider/Production boundaries.",
+      "objective": "Replay the exact Staging Activation Gateway authority metadata into its canonical Runtime and Governance ownership domains after schema-only local database recovery while preserving pending provider certification and every Production/provider boundary.",
       "e2e_journeys": [
         {
-          "id": "staging-governance-authority-seed-replay",
+          "id": "staging-gateway-role-aware-authority-seed-replay",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "local Staging database recovery operator",
           "entrypoint": "Recover-StagingDatabases.ps1 on an exact clean main checkout after role-aware schema import",
-          "terminal_outcome": "The exact profile-owned Staging Gateway authority requirement, route, apply policy and Worker resource binding exist in Governance DB; dispatch certification remains pending and disabled; grant reconciliation then proceeds without any provider or Production mutation.",
+          "terminal_outcome": "Runtime-owned authority requirement/route rows and Governance-owned apply-policy/resource-binding/certification rows are restored to their canonical databases; the exact Worker binding is visible through the existing Governance Authority Store routing boundary; dispatch certification remains pending and disabled; grant reconciliation proceeds afterward without provider or Production mutation.",
           "steps": [
-            "Build and import the role-aware schema-only Staging bundles using the existing recovery lifecycle.",
-            "Validate the dedicated governance authority seed manifest, seed checksum, local Docker target, exact source SHA and required Governance tables before seed mutation.",
-            "Replay five idempotent Governance rows with local database root and perform exact same-cycle readback for authority identity, policy hash, resource binding and pending certification.",
-            "Continue existing role grant reconciliation only after the authority seed readback passes; Cloudflare, DNS, custom-domain and Production mutations remain forbidden."
+            "Build and import the existing role-aware schema-only Staging bundles.",
+            "Validate one canonical Gateway authority seed manifest whose Runtime and Governance seed files are independently SHA-256-bound and LF-pinned.",
+            "Preflight only platform_resource_authority_requirements and resource_authority_route_family_registry in Runtime, and only capability_apply_authorization_policy_registry, platform_resource_authority_bindings and runtime_dispatch_certification_registry in Governance.",
+            "Replay the two Runtime rows with local Runtime root and the three Governance rows with local Governance root, using idempotent INSERT/ON DUPLICATE statements only.",
+            "Perform exact same-cycle readback for authority identity, policy hash, resource binding and pending certification before recovery is allowed to continue to grant reconciliation.",
+            "Rely on the existing Activation Gateway rollout wrapper boundary that routes platform_resource_authority_bindings queries to the Governance Authority Store and preserves workspace/runtime reads on Runtime."
           ],
           "assertions": [
-            "The profile binding 5a2b04f8-bb99-4f65-a924-0f55d3080376 is restored by the canonical recovery path rather than by manual raw SQL.",
-            "The Staging apply policy remains bound to admin_cloudflare_v1, activation_gateway.staging_apply and the exact policy hash.",
-            "runtime_dispatch_certification_registry remains pending with dispatch_allowed=0 and apply_allowed=0 until independent same-cycle certification.",
-            "The seed contains no GRANT, REVOKE, user/database DDL, external-data SQL, provider call or secret payload.",
-            "The Governance seed SQL is pinned to LF in .gitattributes so the reviewed SHA-256 is stable on Windows checkout."
+            "The profile binding 5a2b04f8-bb99-4f65-a924-0f55d3080376 is restored by the canonical recovery path rather than manual raw SQL.",
+            "platform_resource_authority_bindings, capability_apply_authorization_policy_registry and runtime_dispatch_certification_registry remain Governance-owned and Runtime-excluded.",
+            "Runtime authority requirement and route metadata are not incorrectly written into Governance DB.",
+            "The Staging apply policy remains bound to admin_cloudflare_v1, activation_gateway.staging_apply and policy hash c6468e051b8456d4d3ffc6478cdb98f7048b69c8ca6742f4dca27e1eb4023f32.",
+            "runtime_dispatch_certification_registry is forced to pending with dispatch_allowed=0 and apply_allowed=0 until independent same-cycle certification.",
+            "Neither seed contains GRANT, REVOKE, user/database DDL, external-data SQL, provider calls or secret payloads.",
+            "Both seed SQL files are pinned to LF so the reviewed SHA-256 values are stable on Windows checkout.",
+            "No Cloudflare, DNS, custom-domain, Hostinger or Production mutation is authorized by this change."
           ],
           "tests": [
             {
-              "id": "staging-governance-authority-seed-recovery-contract",
+              "id": "staging-gateway-role-aware-authority-seed-recovery-contract",
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-staging-governance-authority-seed-recovery.mjs",
+              "args": []
+            },
+            {
+              "id": "existing-governance-authority-store-boundary",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-activation-gateway-rollout-surface.mjs",
               "args": []
             }
           ],
           "evidence_paths": [
             ".changes/e2e/staging-governance-authority-seed-recovery-20260915.json",
+            ".changes/e2e/pr8061-staging-gateway-governance-authority-store.json",
             ".gitattributes",
             "autopilot-portable-staging/Recover-StagingDatabases.ps1",
             "autopilot-portable-staging/Replay-StagingGovernanceAuthoritySeed.ps1",
-            "http-generic-api/config/staging-governance-authority-seed-manifest.json",
-            "http-generic-api/config/staging-governance-authority-seed.sql",
+            "autopilot-portable-staging/Replay-StagingGatewayAuthoritySeeds.ps1",
+            "http-generic-api/activationGatewayRolloutTool.js",
+            "http-generic-api/config/staging-database-role-migration-manifest.json",
+            "http-generic-api/config/staging-gateway-authority-seed-manifest.json",
+            "http-generic-api/config/staging-gateway-runtime-authority-seed.sql",
+            "http-generic-api/config/staging-gateway-governance-authority-seed.sql",
             "http-generic-api/test-staging-governance-authority-seed-recovery.mjs"
           ]
         }
