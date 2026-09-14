@@ -11,7 +11,7 @@
       ".changes/e2e/staging-governance-readiness-overlay-20260914.json",
       "http-generic-api/governanceDbPrivilegeContract.js",
       "http-generic-api/governanceDbPrivilegeReadinessService.js",
-      "http-generic-api/test-staging-governance-db-privilege-readiness.mjs"
+      "http-generic-api/test-governance-db-privilege-readiness.mjs"
     ]
   },
   "environment_impact": {
@@ -57,14 +57,7 @@
           ],
           "tests": [
             {
-              "id": "staging-governance-db-privilege-readiness-overlay",
-              "runner": "node",
-              "working_directory": "http-generic-api",
-              "path": "test-staging-governance-db-privilege-readiness.mjs",
-              "args": []
-            },
-            {
-              "id": "governance-db-privilege-readiness-base-regression",
+              "id": "governance-db-privilege-readiness-staging-overlay-and-base-regression",
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-governance-db-privilege-readiness.mjs",
@@ -74,7 +67,7 @@
           "evidence_paths": [
             "http-generic-api/governanceDbPrivilegeContract.js",
             "http-generic-api/governanceDbPrivilegeReadinessService.js",
-            "http-generic-api/test-staging-governance-db-privilege-readiness.mjs"
+            "http-generic-api/test-governance-db-privilege-readiness.mjs"
           ]
         }
       ]
