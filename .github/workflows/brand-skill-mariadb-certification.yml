@@ -84,6 +84,7 @@ jobs:
         env:
           DB_HOST: 127.0.0.1
           DB_PORT: 3306
+          # database-runtime-identity-policy: allow database_identity_literal -- Disposable CI-only MariaDB fixture; never a deployed App Env identity or Production target.
           DB_NAME: brand_skill_cert_ci
           DB_USER: brand_skill_cert
           DB_PASSWORD: brand_skill_cert
