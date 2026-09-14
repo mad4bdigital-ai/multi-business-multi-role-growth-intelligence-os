@@ -8,6 +8,7 @@
   "scope": {
     "include": [
       ".changes/e2e/staging-governance-authority-seed-recovery-20260915.json",
+      ".gitattributes",
       "autopilot-portable-staging/Recover-StagingDatabases.ps1",
       "autopilot-portable-staging/Replay-StagingGovernanceAuthoritySeed.ps1",
       "http-generic-api/config/staging-governance-authority-seed-manifest.json",
@@ -51,7 +52,8 @@
             "The profile binding 5a2b04f8-bb99-4f65-a924-0f55d3080376 is restored by the canonical recovery path rather than by manual raw SQL.",
             "The Staging apply policy remains bound to admin_cloudflare_v1, activation_gateway.staging_apply and the exact policy hash.",
             "runtime_dispatch_certification_registry remains pending with dispatch_allowed=0 and apply_allowed=0 until independent same-cycle certification.",
-            "The seed contains no GRANT, REVOKE, user/database DDL, external-data SQL, provider call or secret payload."
+            "The seed contains no GRANT, REVOKE, user/database DDL, external-data SQL, provider call or secret payload.",
+            "The Governance seed SQL is pinned to LF in .gitattributes so the reviewed SHA-256 is stable on Windows checkout."
           ],
           "tests": [
             {
@@ -64,6 +66,7 @@
           ],
           "evidence_paths": [
             ".changes/e2e/staging-governance-authority-seed-recovery-20260915.json",
+            ".gitattributes",
             "autopilot-portable-staging/Recover-StagingDatabases.ps1",
             "autopilot-portable-staging/Replay-StagingGovernanceAuthoritySeed.ps1",
             "http-generic-api/config/staging-governance-authority-seed-manifest.json",
