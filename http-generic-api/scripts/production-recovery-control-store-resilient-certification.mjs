@@ -9,31 +9,19 @@ import {
 } from "../productionRecoveryControlStore.js";
 
 const CONTRACT = "mad4b.production-recovery-control-store-resilient-certification.v1";
-const MODE = "disposable_ci";
-const mode = String(process.env.PRODUCTION_RECOVERY_RESILIENT_CERTIFICATION_MODE || "").trim();
-assert.equal(mode, MODE, "resilient certification is allowed only in disposable_ci mode");
-
-const requiredEnv = [
-  "RECOVERY_RESILIENT_TEST_DB_HOST",
-  "RECOVERY_RESILIENT_TEST_DB_PORT",
-  "RECOVERY_RESILIENT_TEST_DB_NAME",
-  "RECOVERY_RESILIENT_TEST_DB_USER",
-  "RECOVERY_RESILIENT_TEST_DB_PASSWORD",
-];
-const missing = requiredEnv.filter((key) => !String(process.env[key] || "").trim());
-assert.deepEqual(missing, [], `missing disposable Recovery control-store test env: ${missing.join(", ")}`);
-
-for (const forbidden of ["production", "hostinger_autodeploy", "Production"]) {
-  assert.notEqual(String(process.env.ENVIRONMENT || "").trim(), forbidden, "Production runtime identity is forbidden in resilient certification");
-  assert.notEqual(String(process.env.RUNTIME_CLASS || "").trim(), forbidden, "Production runtime class is forbidden in resilient certification");
-}
+const cli = process.argv.slice(2);
+assert.deepEqual(
+  cli,
+  ["--disposable-ci", "127.0.0.1", "3306", "brand_skill_cert_ci", "brand_skill_cert", "brand_skill_cert"],
+  "resilient certification is hard-bound to the disposable CI MariaDB service",
+);
 
 const connectionConfig = Object.freeze({
-  host: process.env.RECOVERY_RESILIENT_TEST_DB_HOST,
-  port: Number(process.env.RECOVERY_RESILIENT_TEST_DB_PORT),
-  database: process.env.RECOVERY_RESILIENT_TEST_DB_NAME,
-  user: process.env.RECOVERY_RESILIENT_TEST_DB_USER,
-  password: process.env.RECOVERY_RESILIENT_TEST_DB_PASSWORD,
+  host: cli[1],
+  port: Number(cli[2]),
+  database: cli[3],
+  user: cli[4],
+  password: cli[5],
   connectionLimit: 4,
   waitForConnections: true,
   queueLimit: 0,
@@ -74,12 +62,11 @@ try {
 
   const planHash = "a".repeat(64);
   const ticketHash = "b".repeat(64);
-  const approvalId = "approval:resilient-race";
   const stepId = "step:resilient-race";
   const ticketId = "ticket:resilient-race";
 
   await storeA.putApproval({
-    approval_id: approvalId,
+    approval_id: "approval:resilient-race",
     plan_id: "plan:resilient",
     plan_hash: planHash,
     step_id: stepId,
@@ -89,8 +76,8 @@ try {
   });
 
   const approvalRace = await Promise.all([
-    storeA.reserveApproval({ approval_id: approvalId, plan_hash: planHash, step_id: stepId, idempotency_key: "idem:approval-a" }),
-    storeB.reserveApproval({ approval_id: approvalId, plan_hash: planHash, step_id: stepId, idempotency_key: "idem:approval-b" }),
+    storeA.reserveApproval({ approval_id: "approval:resilient-race", plan_hash: planHash, step_id: stepId, idempotency_key: "idem:approval-a" }),
+    storeB.reserveApproval({ approval_id: "approval:resilient-race", plan_hash: planHash, step_id: stepId, idempotency_key: "idem:approval-b" }),
   ]);
   assert.equal(countTrue(approvalRace, "reserved"), 1, "approval reservation race must have exactly one winner");
 
@@ -138,9 +125,9 @@ try {
   // The first claim response is intentionally discarded. A second replica must
   // resolve the durable claim as existing instead of creating a second claim.
   await storeA.claimExecution({ idempotency_key: "idem:ambiguous-claim", plan_id: "plan:resilient", step_id: "step:ambiguous" });
-  const ambiguousRetry = await storeB.claimExecution({ idempotency_key: "idem:ambiguous-claim", plan_id: "plan:resilient", step_id: "step:ambiguous" });
-  assert.equal(ambiguousRetry.existing, true);
-  assert.equal(ambiguousRetry.status, "claimed");
+  const secondClaimResult = await storeB.claimExecution({ idempotency_key: "idem:ambiguous-claim", plan_id: "plan:resilient", step_id: "step:ambiguous" });
+  assert.equal(secondClaimResult.existing, true);
+  assert.equal(secondClaimResult.status, "claimed");
 
   const event = { event: "resilient_certification", status: "verified", secrets_included: false };
   const eventFirst = await storeA.appendEvidenceEvent("run:resilient-restart", event);
@@ -190,7 +177,7 @@ try {
   const report = {
     ok: true,
     contract: CONTRACT,
-    mode: MODE,
+    mode: "disposable_ci",
     engine: "mariadb:11.4-disposable-ci",
     ...boundedEvidence,
     production_authorized: false,
