@@ -19,9 +19,9 @@ function schemaName(value = "") {
   return text(value);
 }
 
-function requiredPrivilegeKeys() {
+function requiredPrivilegeKeys(expectedPrivilegeMatrix = GOVERNANCE_DB_PRIVILEGE_MATRIX) {
   const keys = [];
-  for (const [table, operations] of Object.entries(GOVERNANCE_DB_PRIVILEGE_MATRIX)) {
+  for (const [table, operations] of Object.entries(expectedPrivilegeMatrix)) {
     for (const operation of operations) keys.push(`${table}:${operation}`);
   }
   return keys;
@@ -34,6 +34,7 @@ export function evaluateGovernanceDbPrivilegeReadiness({
   tablePrivileges = [],
   columnPrivileges = [],
   applicableRoles = [],
+  expectedPrivilegeMatrix = GOVERNANCE_DB_PRIVILEGE_MATRIX,
 } = {}) {
   const targetDatabase = schemaName(database);
   if (!targetDatabase) {
@@ -69,12 +70,12 @@ export function evaluateGovernanceDbPrivilegeReadiness({
     const observedPrivilege = privilege(row?.PRIVILEGE_TYPE ?? row?.privilege_type);
     if (!observedSchema || !observedTable || !observedPrivilege) continue;
 
-    if (observedSchema !== targetDatabase || !Object.hasOwn(GOVERNANCE_DB_PRIVILEGE_MATRIX, observedTable)) {
+    if (observedSchema !== targetDatabase || !Object.hasOwn(expectedPrivilegeMatrix, observedTable)) {
       unexpectedTableScopeCount += 1;
       continue;
     }
 
-    const allowed = new Set(GOVERNANCE_DB_PRIVILEGE_MATRIX[observedTable]);
+    const allowed = new Set(expectedPrivilegeMatrix[observedTable]);
     if (!allowed.has(observedPrivilege)) {
       unexpectedTablePrivilegeCount += 1;
       continue;
@@ -93,7 +94,8 @@ export function evaluateGovernanceDbPrivilegeReadiness({
     if (observedRole || Object.keys(row ?? {}).length > 0) applicableRoleCount += 1;
   }
 
-  const missingRequired = requiredPrivilegeKeys().filter((key) => !observedRequired.has(key));
+  const requiredKeys = requiredPrivilegeKeys(expectedPrivilegeMatrix);
+  const missingRequired = requiredKeys.filter((key) => !observedRequired.has(key));
   const checks = {
     required_table_privileges_complete: missingRequired.length === 0,
     no_unexpected_global_privileges: unexpectedGlobalPrivilegeCount === 0,
@@ -108,7 +110,7 @@ export function evaluateGovernanceDbPrivilegeReadiness({
     contract: "mad4b.governance-db-privilege-readiness.v1",
     ready: Object.values(checks).every((value) => value === true),
     checks,
-    required_privilege_count: requiredPrivilegeKeys().length,
+    required_privilege_count: requiredKeys.length,
     observed_required_privilege_count: observedRequired.size,
     missing_required: missingRequired,
     unexpected_global_privilege_count: unexpectedGlobalPrivilegeCount,
