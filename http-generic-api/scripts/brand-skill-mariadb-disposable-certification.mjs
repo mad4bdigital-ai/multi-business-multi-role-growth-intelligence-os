@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { execFileSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -224,6 +225,45 @@ async function certifyLifecycleContracts(pool) {
   }
 }
 
+async function certifyProductionRecoveryResilient() {
+  execFileSync(process.execPath, [
+    path.join(API_DIR, "scripts", "e2e-production-recovery-control-store-resilient.mjs"),
+  ], { cwd: API_DIR, stdio: "inherit" });
+
+  // database-runtime-identity-policy: allow database_identity_literal -- Disposable CI-only MariaDB fixture shared with the existing Brand Skill certification workflow.
+  execFileSync(process.execPath, [path.join(API_DIR, "scripts", "production-recovery-control-store-resilient-certification.mjs"), "--disposable-ci", "127.0.0.1", "3306", "brand_skill_cert_ci", "brand_skill_cert", "brand_skill_cert"], {
+    cwd: API_DIR,
+    stdio: "inherit",
+  });
+
+  const report = JSON.parse(await readFile(
+    path.join(API_DIR, "artifacts", "production-recovery-control-store-resilient.json"),
+    "utf8",
+  ));
+  const requiredTrue = [
+    "approval_race_single_winner",
+    "execution_ticket_race_single_winner",
+    "execution_ticket_replay_rejected",
+    "fencing_takeover_monotonic",
+    "stale_fence_rejected",
+    "restart_durability_verified",
+    "ambiguous_claim_retry_resolved_existing",
+    "append_only_evidence_replay_safe",
+    "no_secret_receipt_verified",
+  ];
+  assertContract(report.ok === true, "PRODUCTION_RECOVERY_RESILIENT_CERTIFICATION_FAILED");
+  assertContract(report.mode === "disposable_ci", "PRODUCTION_RECOVERY_RESILIENT_MODE_INVALID");
+  assertContract(requiredTrue.every((key) => report[key] === true), "PRODUCTION_RECOVERY_RESILIENT_ASSERTION_FAILED");
+  assertContract(report.production_authorized === false, "PRODUCTION_RECOVERY_RESILIENT_PRODUCTION_AUTHORIZED");
+  assertContract(report.production_database_connection_performed === false, "PRODUCTION_RECOVERY_RESILIENT_PRODUCTION_CONNECTION_PERFORMED");
+  assertContract(report.production_database_mutation_performed === false, "PRODUCTION_RECOVERY_RESILIENT_PRODUCTION_MUTATION_PERFORMED");
+  assertContract(report.provider_mutation_performed === false, "PRODUCTION_RECOVERY_RESILIENT_PROVIDER_MUTATION_PERFORMED");
+  assertContract(report.deployment_or_restart_executed === false, "PRODUCTION_RECOVERY_RESILIENT_DEPLOYMENT_PERFORMED");
+  assertContract(report.live_activation_performed === false, "PRODUCTION_RECOVERY_RESILIENT_LIVE_ACTIVATION_PERFORMED");
+  assertContract(report.secrets_included === false, "PRODUCTION_RECOVERY_RESILIENT_SECRET_EVIDENCE");
+  return report;
+}
+
 async function main() {
   const pool = getPool();
   const sql = await readFile(MIGRATION_PATH, "utf8");
@@ -251,6 +291,7 @@ async function main() {
   const emptyStateBeforeFixtures = await inspectEmptyState(pool);
   const lifecycle = await certifyLifecycleContracts(pool);
   const emptyStateAfterRollback = await inspectEmptyState(pool);
+  const productionRecoveryResilient = await certifyProductionRecoveryResilient();
 
   const artifact = {
     ok: true,
@@ -265,6 +306,7 @@ async function main() {
     empty_state_before_fixtures: emptyStateBeforeFixtures,
     lifecycle,
     empty_state_after_rollback: emptyStateAfterRollback,
+    production_recovery_resilient: productionRecoveryResilient,
     applies_to_disposable_only: true,
     production_authorized: false,
     staging_apply_authorized: false,
