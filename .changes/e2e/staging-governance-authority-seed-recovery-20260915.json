@@ -12,10 +12,12 @@
       "autopilot-portable-staging/Recover-StagingDatabases.ps1",
       "autopilot-portable-staging/Replay-StagingGovernanceAuthoritySeed.ps1",
       "autopilot-portable-staging/Replay-StagingGatewayAuthoritySeeds.ps1",
+      "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/config/staging-gateway-authority-seed-manifest.json",
       "http-generic-api/config/staging-gateway-runtime-authority-seed.sql",
       "http-generic-api/config/staging-gateway-governance-authority-seed.sql",
-      "http-generic-api/test-staging-governance-authority-seed-recovery.mjs"
+      "http-generic-api/staging-governance-authority-seed-recovery-contract.mjs",
+      "http-generic-api/test-staging-operations-logging-contract.mjs"
     ]
   },
   "environment_impact": {
@@ -58,6 +60,7 @@
             "runtime_dispatch_certification_registry is forced to pending with dispatch_allowed=0 and apply_allowed=0 until independent same-cycle certification.",
             "Neither seed contains GRANT, REVOKE, user/database DDL, external-data SQL, provider calls or secret payloads.",
             "Both seed SQL files are pinned to LF so the reviewed SHA-256 values are stable on Windows checkout.",
+            "The two seed SQL files are explicitly registered as staging_schema_bootstrap semantic executables; their contract verifier is executed through an already-registered Staging test authority.",
             "No Cloudflare, DNS, custom-domain, Hostinger or Production mutation is authorized by this change."
           ],
           "tests": [
@@ -65,7 +68,14 @@
               "id": "staging-gateway-role-aware-authority-seed-recovery-contract",
               "runner": "node",
               "working_directory": "http-generic-api",
-              "path": "test-staging-governance-authority-seed-recovery.mjs",
+              "path": "staging-governance-authority-seed-recovery-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "registered-staging-authority-contract-runner",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-operations-logging-contract.mjs",
               "args": []
             },
             {
@@ -84,11 +94,13 @@
             "autopilot-portable-staging/Replay-StagingGovernanceAuthoritySeed.ps1",
             "autopilot-portable-staging/Replay-StagingGatewayAuthoritySeeds.ps1",
             "http-generic-api/activationGatewayRolloutTool.js",
+            "http-generic-api/config/repository-governance-constitution.json",
             "http-generic-api/config/staging-database-role-migration-manifest.json",
             "http-generic-api/config/staging-gateway-authority-seed-manifest.json",
             "http-generic-api/config/staging-gateway-runtime-authority-seed.sql",
             "http-generic-api/config/staging-gateway-governance-authority-seed.sql",
-            "http-generic-api/test-staging-governance-authority-seed-recovery.mjs"
+            "http-generic-api/staging-governance-authority-seed-recovery-contract.mjs",
+            "http-generic-api/test-staging-operations-logging-contract.mjs"
           ]
         }
       ]
