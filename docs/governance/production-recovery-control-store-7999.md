@@ -1,6 +1,6 @@
 # Production Recovery control-store boundary (#7999)
 
-This workstream now contains two source-only phases for the independent Production Recovery control store: the dedicated database identity boundary and the operational durable store/fenced-lock adapter. Neither phase activates Production Recovery or applies schema to a live database.
+This workstream now contains three source-governed phases for the independent Production Recovery control store: the dedicated database identity boundary, the operational durable store/fenced-lock adapter, and resilient certification against disposable non-Production MariaDB. None of these phases activates Production Recovery or applies schema to a live database.
 
 ## Authority boundary
 
@@ -31,21 +31,52 @@ The operational phase adds `productionRecoveryControlStore.js` with:
 
 Construction of the store and lock adapters is lazy with respect to the database pool. Merely importing the module, constructing the adapters or reading the schema plan does not connect to MySQL.
 
+## Resilient phase
+
+The resilient phase is certified only against a disposable non-Production MariaDB 11.4 service created by GitHub Actions for the exact pull-request candidate. The certification workflow uses fixed CI-only credentials and does not consume repository or environment secrets.
+
+The certification creates the already-declared control-store schema only inside that disposable database and proves:
+
+- two independent connection pools competing for the same approval reservation produce exactly one winner;
+- two independent connection pools competing for the same execution-ticket reservation produce exactly one winner;
+- a finalized execution ticket cannot be reserved again, including after all original pools are destroyed and a new pool is created;
+- an expired fenced lease can be taken over only with a strictly higher durable `fence_counter`;
+- the stale fencing token is rejected after takeover while the new fence remains valid;
+- run/idempotency and idempotency-receipt state survive connection-pool recreation;
+- retry after a deliberately discarded execution-claim response resolves the existing durable claim instead of creating a second claim;
+- identical append-only evidence is replay-safe;
+- the bounded certification artifact contains no approval token, private key, password, ticket signature, credential material, or Production authorization.
+
+The workflow and certification artifact explicitly state:
+
+```text
+production_authorized=false
+production_database_connection_performed=false
+production_database_mutation_performed=false
+provider_mutation_performed=false
+deployment_or_restart_executed=false
+live_activation_performed=false
+secrets_included=false
+```
+
+These fields refer to Production. The workflow intentionally creates and mutates only its ephemeral CI MariaDB service and destroys it with the job.
+
 ## Still intentionally missing
 
 This phase does **not**:
 
-- provision the Recovery control database or database principal;
-- apply the schema statements;
-- run live concurrent writers or restart-durability tests;
+- provision the Recovery control database or database principal on Hostinger;
+- apply the schema statements to Production;
 - bind the store into the complete Production Recovery adapter graph;
 - configure `RECOVERY_SERVER_MANAGED_BINDING_MODULE` for Production;
+- configure `RECOVERY_SERVER_MANAGED_BINDING_MODE=production_live` in Production;
+- provide the remaining Production deployment-owned approval, ticket-signing, mutation-execution, independent-readback, deployment-attestation, proof-resolver and migration-ledger authorities;
 - issue Production approvals or execution tickets;
 - deploy or restart Hostinger;
 - enable `production_live`;
 - authorize any Production mutation.
 
-The next `resilient` phase must exercise replay prevention, concurrent reservation races, fence takeover, restart durability and ambiguous-outcome behavior against a disposable non-Production control store. Only after that should the remaining Production authority adapters and fresh activation evidence be composed.
+The next `canary` phase must bind the complete concrete adapter graph to fresh signed Staging certification and exact Production deployment evidence while keeping Production mutation disabled. Only after that evidence converges may a separately authorized Production activation/promotion path be considered.
 
 ## Safety
 
