@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "mad4b.staging.gateway-authority-seed-manifest.v1",
+  "status": "active_local_staging_only",
+  "replay_mode": "explicit_local_staging_only",
+  "execution_identity": "local_database_root",
+  "roles": {
+    "runtime": {
+      "database_env": "DB_NAME",
+      "root_password_env": "RUNTIME_DB_ROOT_PASSWORD",
+      "container_service": "runtime-db",
+      "seed_file": "http-generic-api/config/staging-gateway-runtime-authority-seed.sql",
+      "seed_sha256": "0b3d690b3a7af74cf630ff7e7b97f97e66f7b1e8ea02e21db2c244582d64b2ff",
+      "expected_statement_count": 2,
+      "exact_rows": {
+        "platform_resource_authority_requirements": "staging_activation_gateway_apply_authority_v1",
+        "resource_authority_route_family_registry": "staging_activation_gateway_apply_v1"
+      }
+    },
+    "governance": {
+      "database_env": "GOVERNANCE_DB_NAME",
+      "root_password_env": "GOVERNANCE_DB_ROOT_PASSWORD",
+      "container_service": "governance-db",
+      "seed_file": "http-generic-api/config/staging-gateway-governance-authority-seed.sql",
+      "seed_sha256": "3a389847b2286f6b04ad2421af41ac3e3817173505aa9d85f891ebaab066051a",
+      "expected_statement_count": 3,
+      "exact_rows": {
+        "capability_apply_authorization_policy_registry": "staging_activation_gateway_apply_policy_v1",
+        "platform_resource_authority_bindings": "5a2b04f8-bb99-4f65-a924-0f55d3080376",
+        "runtime_dispatch_certification_registry": "staging_activation_gateway_apply_v1"
+      }
+    }
+  },
+  "certification_posture": {
+    "certification_status": "pending",
+    "dispatch_allowed": false,
+    "apply_allowed": false,
+    "requires_independent_same_cycle_certification": true
+  },
+  "safety": {
+    "local_staging_only": true,
+    "production_access_forbidden": true,
+    "provider_access_forbidden": true,
+    "hostinger_mutation": false,
+    "cloudflare_mutation": false,
+    "dns_mutation": false,
+    "custom_domain_mutation": false,
+    "grant_mutation": false,
+    "provider_credentials_included": false,
+    "secrets_included": false
+  },
+  "readback_required": true
+}
