@@ -141,7 +141,7 @@
         {
           "id": "production-recovery-control-store-resilient-certification",
           "end_to_end": true,
-          "level": "ci_disposable_runtime",
+          "level": "live_non_production",
           "actor": "Production Recovery control-store certification harness",
           "entrypoint": "Run the exact pull-request candidate against an ephemeral MariaDB 11.4 service using two independent connection pools and CI-only credentials.",
           "terminal_outcome": "Concurrent approval/ticket reservations have one durable winner, finalized tickets reject replay after pool recreation, fenced-lock takeover increments the generation and invalidates the stale fence, durable runs/receipts survive new connections, ambiguous claim retry resolves the existing claim, and bounded evidence remains secret-free without touching Production.",
