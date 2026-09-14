@@ -6,9 +6,13 @@ import { resolve } from "node:path";
 const root = resolve(import.meta.dirname, "../..");
 const apiRoot = resolve(root, "http-generic-api");
 const workflowPath = ".github/workflows/brand-skill-mariadb-certification.yml";
-const harnessPath = "http-generic-api/scripts/brand-skill-mariadb-disposable-certification.mjs";
 const workflow = readFileSync(resolve(root, workflowPath), "utf8");
-const harness = readFileSync(resolve(root, harnessPath), "utf8");
+const disposableCertificationPath =
+  "http-generic-api/scripts/brand-skill-mariadb-disposable-certification.mjs";
+const disposableCertification = readFileSync(
+  resolve(root, disposableCertificationPath),
+  "utf8",
+);
 const declaration = JSON.parse(readFileSync(resolve(root, ".changes/e2e/production-recovery-control-store-7999.json"), "utf8"));
 const certification = readFileSync(resolve(apiRoot, "scripts/production-recovery-control-store-resilient-certification.mjs"), "utf8");
 const documentation = readFileSync(resolve(root, "docs/governance/production-recovery-control-store-7999.md"), "utf8");
@@ -20,6 +24,7 @@ assert.ok(Array.isArray(resilient?.e2e_journeys) && resilient.e2e_journeys.lengt
 
 for (const requiredPath of [
   workflowPath,
+  disposableCertificationPath,
   "http-generic-api/scripts/production-recovery-control-store-resilient-certification.mjs",
   "http-generic-api/scripts/e2e-production-recovery-control-store-resilient.mjs",
 ]) {
@@ -27,19 +32,70 @@ for (const requiredPath of [
 }
 
 assert.match(workflow, /image:\s*mariadb:11\.4/u);
-const disposableJobStart = workflow.indexOf("  disposable-mariadb-certification:");
-const stagingJobStart = workflow.indexOf("  staging-read-only-preflight:", disposableJobStart);
-assert.ok(disposableJobStart >= 0 && stagingJobStart > disposableJobStart, "governed disposable MariaDB certification job must remain present");
-const disposableJob = workflow.slice(disposableJobStart, stagingJobStart);
-assert.match(disposableJob, /node scripts\/brand-skill-mariadb-disposable-certification\.mjs/u);
-assert.doesNotMatch(disposableJob, /\$\{\{\s*secrets\./u);
 
-assert.match(harness, /e2e-production-recovery-control-store-resilient\.mjs/u);
-assert.match(harness, /production-recovery-control-store-resilient-certification\.mjs/u);
-assert.match(harness, /--disposable-ci["'],\s*["']127\.0\.0\.1["'],\s*["']3306["'],\s*["']brand_skill_cert_ci["'],\s*["']brand_skill_cert["'],\s*["']brand_skill_cert["']/u);
-assert.doesNotMatch(harness, /\$\{\{\s*secrets\./u);
-assert.doesNotMatch(harness, /RECOVERY_SERVER_MANAGED_BINDING_MODE/u);
-assert.doesNotMatch(harness, /RECOVERY_SERVER_MANAGED_BINDING_MODULE/u);
+const disposableWorkflowStepStart = workflow.indexOf(
+  "- name: Certify migration on disposable MariaDB",
+);
+
+const disposableWorkflowStepEnd = workflow.indexOf(
+  "- name: Validate bounded disposable evidence",
+  disposableWorkflowStepStart,
+);
+
+assert.ok(
+  disposableWorkflowStepStart >= 0 &&
+    disposableWorkflowStepEnd > disposableWorkflowStepStart,
+  "resilient certification must reuse the governed MariaDB certification workflow surface",
+);
+
+const disposableWorkflowSection = workflow.slice(
+  disposableWorkflowStepStart,
+  disposableWorkflowStepEnd,
+);
+
+assert.match(
+  disposableWorkflowSection,
+  /node scripts\/brand-skill-mariadb-disposable-certification\.mjs/u,
+);
+
+const resilientRunnerStart = disposableCertification.indexOf(
+  "async function certifyProductionRecoveryResilient()",
+);
+
+const resilientRunnerEnd = disposableCertification.indexOf(
+  "async function main()",
+  resilientRunnerStart,
+);
+
+assert.ok(
+  resilientRunnerStart >= 0 && resilientRunnerEnd > resilientRunnerStart,
+  "disposable MariaDB runner must expose the Production Recovery resilient certification boundary",
+);
+
+const resilientRunner = disposableCertification.slice(
+  resilientRunnerStart,
+  resilientRunnerEnd,
+);
+
+assert.match(
+  resilientRunner,
+  /e2e-production-recovery-control-store-resilient\.mjs/u,
+);
+
+assert.match(
+  resilientRunner,
+  /production-recovery-control-store-resilient-certification\.mjs/u,
+);
+
+assert.match(
+  resilientRunner,
+  /"--disposable-ci"[\s\S]*?"127\.0\.0\.1"[\s\S]*?"3306"[\s\S]*?"brand_skill_cert_ci"[\s\S]*?"brand_skill_cert"[\s\S]*?"brand_skill_cert"/u,
+);
+
+assert.doesNotMatch(resilientRunner, /process\.env/u);
+assert.doesNotMatch(resilientRunner, /RECOVERY_SERVER_MANAGED_BINDING_MODE/u);
+assert.doesNotMatch(resilientRunner, /RECOVERY_SERVER_MANAGED_BINDING_MODULE/u);
+
 assert.equal(workflow.includes("production-recovery-resilient-certification.yml"), false, "resilient certification must not add a new workflow surface");
 
 for (const marker of [
@@ -74,7 +130,6 @@ process.stdout.write(`${JSON.stringify({
   current_phase: declaration.current_phase,
   disposable_engine: "mariadb:11.4",
   reused_workflow_surface: workflowPath,
-  reused_harness_surface: harnessPath,
   concurrent_reservations_covered: true,
   fencing_takeover_covered: true,
   restart_durability_covered: true,
