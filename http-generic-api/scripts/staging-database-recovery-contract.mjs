@@ -50,6 +50,23 @@ assert.match(recovery, /hostinger_mutation = \$false/);
 assert.match(recovery, /cloudflare_mutation = \$false/);
 assert.match(recovery, /secrets_included = \$false/);
 
+const recoveryGrantStart = recovery.indexOf("function Reconcile-RoleGrant");
+const recoveryGrantEnd = recovery.indexOf("\n}\n\nif ([string]::IsNullOrWhiteSpace($RepositoryPath))", recoveryGrantStart);
+assert.ok(recoveryGrantStart >= 0 && recoveryGrantEnd > recoveryGrantStart);
+const recoveryGrantFunction = recovery.slice(recoveryGrantStart, recoveryGrantEnd + 2);
+assert.match(recoveryGrantFunction, /information_schema\.TABLES/);
+assert.match(recoveryGrantFunction, /\$grant\.PSObject\.Properties\["required"\]/);
+assert.match(recoveryGrantFunction, /if \(\$surfaceCount -eq 1\) \{\s*\$effectiveGrants \+= \$grant\s*\} elseif \(\$required\) \{\s*Fail "\$\(\$Role\.Key\) required grant surface is missing before authority mutation: \$surface"\s*\} else \{\s*\$missingOptionalSurfaces \+= \$surface\s*\}/);
+assert.equal((recoveryGrantFunction.match(/foreach \(\$grant in @\(\$effectiveGrants\)\)/g) || []).length, 2);
+const recoveryMutationSection = recoveryGrantFunction.slice(recoveryGrantFunction.indexOf("$account ="));
+assert.doesNotMatch(recoveryMutationSection, /foreach \(\$grant in @\(\$plan\.grants\)\)/);
+const requiredSurfaceFailureIndex = recoveryGrantFunction.indexOf("required grant surface is missing before authority mutation");
+const revokeMutationIndex = recoveryGrantFunction.indexOf("REVOKE ALL PRIVILEGES, GRANT OPTION");
+assert.ok(requiredSurfaceFailureIndex >= 0 && revokeMutationIndex > requiredSurfaceFailureIndex);
+assert.match(recoveryGrantFunction, /missing_optional_surfaces = @\(\$missingOptionalSurfaces\)/);
+assert.match(recoveryGrantFunction, /missing_optional_surface_is_blocking = \$false/);
+assert.match(recoveryGrantFunction, /required_surface_preflight_completed = \$true/);
+
 assert.match(recovery, /for \(\$attempt = 1; \$attempt -le 60; \$attempt\+\+\)/);
 assert.match(recovery, /\$previousErrorActionPreference = \$ErrorActionPreference/);
 assert.match(recovery, /\$ErrorActionPreference = "Continue"/);
@@ -218,6 +235,9 @@ assert.throws(() => buildReplayPlanFromBundleTexts({
 assert.match(grantPlan, /STAGING_ROLE_GRANT_POLICIES/);
 assert.doesNotMatch(grantPlan, /const spec = BOOTSTRAP_ROLE_GRANT_POLICIES\[role\]/);
 assert.match(grantPlan, /runtime_persistence/);
+assert.match(grantPlan, /required: !optionalSet\.has\(table\)/);
+assert.match(grantPlan, /missing_optional_surface_is_blocking: false/);
+assert.match(grantPlan, /missing_required_surface_is_blocking: true/);
 assert.match(grantPlan, /broad_schema_grants_allowed: false/);
 assert.match(grantPlan, /grant_option_allowed: false/);
 assert.match(grantPlan, /production_accessed: false/);
@@ -225,6 +245,7 @@ assert.match(grantPlan, /provider_accessed: false/);
 assert.match(grantPlan, /secrets_included: false/);
 assert.match(grantContracts, /GOVERNANCE_DB_PRIVILEGE_MATRIX/);
 assert.match(grantContracts, /runtime_persistence: buildGrantSpec/);
+assert.match(grantContracts, /STAGING_RUNTIME_OPTIONAL_READ_SURFACES[\s\S]*?"v_platform_evolution_activation_card"/);
 
 console.log(JSON.stringify({
   ok: true,
@@ -234,6 +255,9 @@ console.log(JSON.stringify({
   explicit_reset_confirmation_required: true,
   explicit_grant_confirmation_required: true,
   canonical_runtime_support_contract_required: true,
+  optional_grant_surfaces_filtered_before_mutation: true,
+  missing_optional_grant_surface_is_non_blocking: true,
+  missing_required_grant_surface_is_pre_mutation_blocking: true,
   windows_powershell_transient_db_probe_safe: true,
   windows_powershell_native_user_argument_safe: true,
   schema_view_definer_rebound_to_authenticated_role: true,
