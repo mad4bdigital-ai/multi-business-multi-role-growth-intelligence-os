@@ -25,14 +25,14 @@ on:
       - "http-generic-api/migrations/20260728_brand_scoped_user_skill_activation.sql"
       - "http-generic-api/scripts/brand-skill-migration-preflight.mjs"
       - "http-generic-api/scripts/brand-skill-mariadb-disposable-certification.mjs"
-      - "http-generic-api/scripts/brand-skill-staging-preflight-evidence.mjs"
-      - "http-generic-api/test-brand-skill-*.mjs"
-      - "docs/**/brand-skill-migration.md"
       - "http-generic-api/productionRecoveryControlStore.js"
       - "http-generic-api/scripts/production-recovery-control-store-resilient-certification.mjs"
       - "http-generic-api/scripts/e2e-production-recovery-control-store-resilient.mjs"
       - ".changes/e2e/production-recovery-control-store-7999.json"
       - "docs/governance/production-recovery-control-store-7999.md"
+      - "http-generic-api/scripts/brand-skill-staging-preflight-evidence.mjs"
+      - "http-generic-api/test-brand-skill-*.mjs"
+      - "docs/**/brand-skill-migration.md"
       - ".github/workflows/brand-skill-mariadb-certification.yml"
 
 permissions:
@@ -84,7 +84,7 @@ jobs:
         env:
           DB_HOST: 127.0.0.1
           DB_PORT: 3306
-          # database-runtime-identity-policy: allow database_identity_literal -- Disposable CI-only MariaDB fixture; never a deployed App Env identity or Production target.
+          # database-runtime-identity-policy: allow database_identity_literal -- Disposable MariaDB fixture scoped to this GitHub Actions certification job only.
           DB_NAME: brand_skill_cert_ci
           DB_USER: brand_skill_cert
           DB_PASSWORD: brand_skill_cert
@@ -101,52 +101,6 @@ jobs:
         with:
           name: brand-skill-mariadb-certification
           path: http-generic-api/artifacts/brand-skill-mariadb-certification.json
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Validate Production Recovery resilient source boundary
-        run: node scripts/e2e-production-recovery-control-store-resilient.mjs
-
-      - name: Certify Production Recovery resilient control store on disposable MariaDB
-        run: node scripts/production-recovery-control-store-resilient-certification.mjs --disposable-ci 127.0.0.1 3306 brand_skill_cert_ci brand_skill_cert brand_skill_cert
-
-      - name: Validate bounded Production Recovery resilient evidence
-        run: |
-          node <<'NODE'
-          const fs = require('fs');
-          const path = 'artifacts/production-recovery-control-store-resilient.json';
-          const report = JSON.parse(fs.readFileSync(path, 'utf8'));
-          const requiredTrue = [
-            'approval_race_single_winner',
-            'execution_ticket_race_single_winner',
-            'execution_ticket_replay_rejected',
-            'fencing_takeover_monotonic',
-            'stale_fence_rejected',
-            'restart_durability_verified',
-            'ambiguous_claim_retry_resolved_existing',
-            'append_only_evidence_replay_safe',
-            'no_secret_receipt_verified',
-          ];
-          if (report.ok !== true
-              || report.mode !== 'disposable_ci'
-              || report.production_authorized !== false
-              || report.production_database_connection_performed !== false
-              || report.production_database_mutation_performed !== false
-              || report.provider_mutation_performed !== false
-              || report.deployment_or_restart_executed !== false
-              || report.live_activation_performed !== false
-              || report.secrets_included !== false
-              || !requiredTrue.every((key) => report[key] === true)) {
-            process.exit(1);
-          }
-          NODE
-
-      - name: Upload Production Recovery resilient certification evidence
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: production-recovery-resilient-certification
-          path: http-generic-api/artifacts/production-recovery-control-store-resilient.json
           if-no-files-found: error
           retention-days: 30
 

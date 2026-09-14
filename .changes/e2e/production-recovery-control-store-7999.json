@@ -14,6 +14,7 @@
       "http-generic-api/scripts/e2e-recovery-control-db-isolation.mjs",
       "http-generic-api/scripts/e2e-production-recovery-control-store-operational.mjs",
       "http-generic-api/scripts/e2e-production-recovery-control-store-resilient.mjs",
+      "http-generic-api/scripts/brand-skill-mariadb-disposable-certification.mjs",
       "http-generic-api/scripts/production-recovery-control-store-resilient-certification.mjs",
       ".github/workflows/brand-skill-mariadb-certification.yml"
     ]
@@ -180,6 +181,7 @@
             "docs/governance/production-recovery-control-store-7999.md",
             "http-generic-api/productionRecoveryControlStore.js",
             "http-generic-api/scripts/e2e-production-recovery-control-store-resilient.mjs",
+            "http-generic-api/scripts/brand-skill-mariadb-disposable-certification.mjs",
             "http-generic-api/scripts/production-recovery-control-store-resilient-certification.mjs",
             ".github/workflows/brand-skill-mariadb-certification.yml"
           ]
