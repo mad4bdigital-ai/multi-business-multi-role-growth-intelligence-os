@@ -4,7 +4,7 @@
   "feature_key": "production-recovery-control-store-7999",
   "title": "Production Recovery independent control-store boundary",
   "delivery_mode": "single_pr",
-  "current_phase": "operational",
+  "current_phase": "resilient",
   "scope": {
     "include": [
       ".changes/e2e/production-recovery-control-store-7999.json",
@@ -12,7 +12,10 @@
       "http-generic-api/recoveryControlDb.js",
       "http-generic-api/productionRecoveryControlStore.js",
       "http-generic-api/scripts/e2e-recovery-control-db-isolation.mjs",
-      "http-generic-api/scripts/e2e-production-recovery-control-store-operational.mjs"
+      "http-generic-api/scripts/e2e-production-recovery-control-store-operational.mjs",
+      "http-generic-api/scripts/e2e-production-recovery-control-store-resilient.mjs",
+      "http-generic-api/scripts/production-recovery-control-store-resilient-certification.mjs",
+      ".github/workflows/production-recovery-resilient-certification.yml"
     ]
   },
   "merge_contract": {
@@ -132,8 +135,56 @@
     },
     {
       "id": "resilient",
-      "status": "planned",
-      "objective": "Prove replay prevention, concurrent reservations, fencing, restart durability, ambiguous outcomes and no-secret receipts against a disposable non-Production control store."
+      "status": "implemented",
+      "objective": "Prove replay prevention, concurrent reservations, fencing, restart durability, ambiguous outcomes and no-secret receipts against a disposable non-Production control store.",
+      "e2e_journeys": [
+        {
+          "id": "production-recovery-control-store-resilient-certification",
+          "end_to_end": true,
+          "level": "ci_disposable_runtime",
+          "actor": "Production Recovery control-store certification harness",
+          "entrypoint": "Run the exact pull-request candidate against an ephemeral MariaDB 11.4 service using two independent connection pools and CI-only credentials.",
+          "terminal_outcome": "Concurrent approval/ticket reservations have one durable winner, finalized tickets reject replay after pool recreation, fenced-lock takeover increments the generation and invalidates the stale fence, durable runs/receipts survive new connections, ambiguous claim retry resolves the existing claim, and bounded evidence remains secret-free without touching Production.",
+          "steps": [
+            "Start disposable MariaDB 11.4 inside GitHub Actions with fixed CI-only credentials and no repository secrets.",
+            "Apply only the existing Recovery control-store CREATE TABLE IF NOT EXISTS schema to the disposable database.",
+            "Create two independent pools and race approval and execution-ticket reservations against shared durable state.",
+            "Finalize the winning execution ticket and prove it cannot be reserved again.",
+            "Acquire a short fenced lease, prove a competing lease is busy, then take over only after expiry with a strictly higher fence generation.",
+            "Destroy the original pools, create a new pool, and prove run/idempotency, receipt and finalized-ticket state remain durable.",
+            "Discard the first execution-claim response deliberately, retry through another replica, and resolve the existing durable claim without duplication.",
+            "Replay identical append-only evidence and prove the second append is rejected by the durable event hash.",
+            "Publish only bounded booleans and contract metadata; do not publish connection credentials, ticket material, approval material or fencing tokens."
+          ],
+          "assertions": [
+            "Exactly one approval reservation wins under concurrent replicas.",
+            "Exactly one execution-ticket reservation wins under concurrent replicas.",
+            "A finalized ticket remains non-replayable after connection-pool recreation.",
+            "Expired lock takeover increments the durable fence counter and invalidates the previous fence.",
+            "Run/idempotency and receipt evidence survive recreation of all original pools.",
+            "Retry after a deliberately discarded claim response resolves the existing claim instead of creating a second claim.",
+            "Identical append-only evidence is replay-safe.",
+            "The certification uses only disposable CI MariaDB and reports production_authorized=false, live_activation_performed=false and secrets_included=false."
+          ],
+          "tests": [
+            {
+              "id": "production-recovery-control-store-resilient-source-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/e2e-production-recovery-control-store-resilient.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/production-recovery-control-store-7999.json",
+            "docs/governance/production-recovery-control-store-7999.md",
+            "http-generic-api/productionRecoveryControlStore.js",
+            "http-generic-api/scripts/e2e-production-recovery-control-store-resilient.mjs",
+            "http-generic-api/scripts/production-recovery-control-store-resilient-certification.mjs",
+            ".github/workflows/production-recovery-resilient-certification.yml"
+          ]
+        }
+      ]
     },
     {
       "id": "canary",
