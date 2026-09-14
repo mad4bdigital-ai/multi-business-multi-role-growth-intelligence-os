@@ -125,14 +125,11 @@ test("missing server-managed binding provider fails closed rather than discoveri
   assert.equal(composition.productionRecoveryCompositionFactory.provider_accessed, false);
 });
 
-test("direct production_live construction remains forbidden even with adapters", () => {
-  assert.throws(
-    () => createProductionRecoveryComposition({
-      mode: "production_live",
-      serverManagedBindingProvider: () => liveEnvelope(),
-    }),
-    (error) => error.code === "RECOVERY_PRODUCTION_LIVE_DIRECT_CONSTRUCTION_FORBIDDEN" && error.status === 503,
-  );
+test("production_live without a server-managed provider remains fail-closed", () => {
+  const composition = createProductionRecoveryComposition({ mode: "production_live" });
+  assert.equal(composition.mode, "fail_closed");
+  assert.equal(composition.mutation_authority_available, false);
+  assert.equal(composition.productionRecoveryCompositionFactory.denial_reason, "server_managed_binding_provider_not_configured");
 });
 
 test("only a server-managed, secret-free envelope can resolve the non-live graph", () => {
@@ -258,7 +255,7 @@ test("stores without verified payload integrity cannot survive fail-closed proje
 
 test("certified Production candidate activates only with independent bootstrap evidence and server-side approval resolution", () => {
   const composition = createProductionRecoveryComposition({
-    mode: "injected_non_live",
+    mode: "production_live",
     source: "test_certified_production_candidate",
     serverManagedBindingProvider: () => liveEnvelope(),
   });
@@ -334,13 +331,13 @@ test("secret-bearing binding metadata is rejected before adapter validation", ()
   );
 });
 
-test("manifest keeps Production disabled by default while the certified server-managed path is repository-supported", () => {
-  assert.equal(manifest.production_live_composition.enabled, false);
-  assert.equal(manifest.production_live_composition.repository_live_adapter_wiring, false);
+test("manifest enables only the certified server-managed Production path", () => {
+  assert.equal(manifest.production_live_composition.enabled, true);
+  assert.equal(manifest.production_live_composition.repository_live_adapter_wiring, true);
   assert.equal(manifest.production_live_composition.server_managed_adapter_factory_wired, true);
   assert.equal(manifest.production_live_composition.live_provider_authority_configured, false);
-  assert.equal(runtimeBootstrapContract.mutation_authority.production_live_composition_enabled, false);
-  assert.equal(runtimeBootstrapContract.mutation_authority.provider_wiring_in_repository, false);
+  assert.equal(runtimeBootstrapContract.mutation_authority.production_live_composition_enabled, true);
+  assert.equal(runtimeBootstrapContract.mutation_authority.provider_wiring_in_repository, true);
   assert.equal(runtimeBootstrapContract.mutation_authority.server_managed_adapter_factory_wired, true);
 });
 

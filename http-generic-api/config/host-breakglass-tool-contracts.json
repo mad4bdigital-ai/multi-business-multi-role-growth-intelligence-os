@@ -29,7 +29,7 @@
     "exact_durable_run_id_required": true,
     "in_memory_run_fallback_allowed": false,
     "migration_ledger_separate_from_recovery_store": true,
-    "production_live_composition_enabled": false
+    "production_live_composition_enabled": true
   },
   "target_source_policy": {
     "runtime_env": "hostinger_runtime_env_read_only_only",
