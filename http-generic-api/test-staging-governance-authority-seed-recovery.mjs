@@ -9,11 +9,13 @@ const manifestPath = path.join(root, "http-generic-api", "config", "staging-gove
 const seedPath = path.join(root, "http-generic-api", "config", "staging-governance-authority-seed.sql");
 const helperPath = path.join(portable, "Replay-StagingGovernanceAuthoritySeed.ps1");
 const recoveryPath = path.join(portable, "Recover-StagingDatabases.ps1");
+const attributesPath = path.join(root, ".gitattributes");
 
 const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
 const seed = fs.readFileSync(seedPath, "utf8");
 const helper = fs.readFileSync(helperPath, "utf8");
 const recovery = fs.readFileSync(recoveryPath, "utf8");
+const attributes = fs.readFileSync(attributesPath, "utf8");
 
 const sha256 = (value) => crypto.createHash("sha256").update(value).digest("hex");
 
@@ -43,6 +45,7 @@ assert.deepEqual(manifest.safety, {
   secrets_included: false,
 });
 
+assert.match(attributes, /^http-generic-api\/config\/staging-governance-authority-seed\.sql text eol=lf$/mu);
 assert.equal((seed.match(/^\s*INSERT\s+INTO\b/gimu) || []).length, 5);
 for (const exact of [
   "staging_activation_gateway_apply_authority_v1",
