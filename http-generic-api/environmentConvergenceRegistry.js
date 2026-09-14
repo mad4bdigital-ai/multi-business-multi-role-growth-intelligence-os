@@ -228,7 +228,14 @@ export function classifyEnvironmentCertification(report = {}, {
     || classified.some((entry) => entry.failure_kind === "integrity_failure");
   const hasGovernedDrift = classified.some((entry) => entry.failure_kind === "convergence_drift" && entry.repairability === "governed");
   const hasUnclassified = unclassified.length > 0;
-  const hasManualBlock = classified.some((entry) => ["manual_or_external", "manual_non_repairable"].includes(entry.repairability));
+  const hasManualBlock = classified.some((entry) => {
+    const manual = ["manual_or_external", "manual_non_repairable"].includes(entry.repairability);
+    if (!manual) return false;
+    const deferUntilVerification = hasGovernedDrift
+      && entry.repairability === "manual_or_external"
+      && entry.failure_kind === "readiness_failure";
+    return !deferUntilVerification;
+  });
 
   let status = "converged";
   if (hasIntegrityFailure || hasUnclassified || hasManualBlock) status = "blocked";
