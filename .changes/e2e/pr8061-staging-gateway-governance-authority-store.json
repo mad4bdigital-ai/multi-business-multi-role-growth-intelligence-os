@@ -15,7 +15,9 @@
       "http-generic-api/test-staging-schema-bundle-builder.mjs",
       "autopilot-portable-staging/manifest.json",
       "docs/remote-mcp-write-scope-inventory.md",
-      "http-generic-api/remote-mcp-write-scope-inventory.generated.json"
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/environmentConvergenceRegistry.js",
+      "http-generic-api/test-environment-convergence-packaged-policy.mjs"
     ]
   },
   "merge_contract": {
@@ -32,7 +34,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Preserve the Runtime/Governance database ownership boundary for the Staging Activation Gateway and align the existing schema-role manifest with the governed Staging grant surface, without adding a migration or allowing production/provider mutation.",
+      "objective": "Preserve the Runtime/Governance database ownership boundary for the Staging Activation Gateway, align the existing schema-role manifest with the governed Staging grant surface, and keep downstream readiness verification from deadlocking the immutable governed Gateway convergence plan, without adding a migration or allowing production/provider mutation.",
       "e2e_journeys": [
         {
           "id": "pr8061-governance-authority-store-boundary",
@@ -99,6 +101,44 @@
             "http-generic-api/test-staging-schema-bundle-builder.mjs",
             "http-generic-api/remote-mcp-write-scope-inventory.generated.json"
           ]
+        },
+        {
+          "id": "pr8061-governed-convergence-readiness-deferral",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Environment convergence controller",
+          "entrypoint": "http-generic-api/environmentConvergenceRegistry.js",
+          "terminal_outcome": "A live-equivalent Staging failure set containing governed Gateway drift plus gateway_upstream_ready=false reaches immutable approval-required plan construction, while unavailable Gateway health remains blocked and no provider or Production mutation authority is introduced.",
+          "steps": [
+            "Classify gateway_recovery_trusted_ingress and gateway_exact_commit as governed convergence drift.",
+            "Classify gateway_upstream_ready=false as manual_or_external readiness rather than provider-mutation plan content.",
+            "Permit plan construction only when governed drift exists, deferring downstream readiness to post-apply verification.",
+            "Keep gateway_health_reachable=false blocking so dependency availability cannot be bypassed.",
+            "Keep automatic_apply_allowed false; operator acknowledgement and server-governed execution authority remain separate requirements."
+          ],
+          "assertions": [
+            "The live-equivalent degraded failure set is reconciliation_required rather than blocked.",
+            "The convergence engine emits approval_required with an immutable plan SHA-256.",
+            "The immutable provider-mutation plan contains only governed drift and does not treat gateway_upstream_ready as an apply mutation.",
+            "gateway_health_reachable=false remains blocked.",
+            "No Production deploy, provider mutation, Cloudflare mutation, database mutation, migration apply, Breakglass, or authority widening is performed by this change."
+          ],
+          "tests": [
+            {
+              "id": "pr8061-environment-convergence-packaged-policy-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-environment-convergence-packaged-policy.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/pr8061-staging-gateway-governance-authority-store.json",
+            "http-generic-api/environmentConvergenceRegistry.js",
+            "http-generic-api/test-environment-convergence-packaged-policy.mjs",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/config/environment-convergence-registry.json"
+          ]
         }
       ],
       "tests": [
@@ -125,6 +165,13 @@
           "runner": "node",
           "path": "http-generic-api/scripts/environment-impact-closure.mjs",
           "args": ["--base-sha", "BASE_SHA", "--head-sha", "HEAD_SHA"]
+        },
+        {
+          "id": "pr8061-environment-convergence-packaged-policy-regression",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-environment-convergence-packaged-policy.mjs",
+          "args": []
         }
       ]
     }
