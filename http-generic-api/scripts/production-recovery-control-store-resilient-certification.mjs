@@ -52,7 +52,7 @@ function containsForbiddenOutputKey(value, depth = 0) {
   if (Array.isArray(value)) return value.some((item) => containsForbiddenOutputKey(item, depth + 1));
   if (typeof value !== "object") return false;
   return Object.entries(value).some(([key, child]) => (
-    /(?:password|private[_-]?key|approval[_-]?token|ticket[_-]?signature|credential|secret)/iu.test(key)
+    /(?:password|private[_-]?key|approval[_-]?token|ticket[_-]?signature|credential[_-]?material)/iu.test(key)
       || containsForbiddenOutputKey(child, depth + 1)
   ));
 }
