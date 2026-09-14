@@ -67,17 +67,20 @@
             {
               "id": "pr8061-activation-gateway-rollout-surface",
               "runner": "node",
-              "path": "http-generic-api/test-activation-gateway-rollout-surface.mjs"
+              "working_directory": "http-generic-api",
+              "path": "test-activation-gateway-rollout-surface.mjs"
             },
             {
               "id": "pr8061-staging-database-readiness-role-manifest",
               "runner": "node",
-              "path": "http-generic-api/test-staging-database-readiness-repair.mjs"
+              "working_directory": "http-generic-api",
+              "path": "test-staging-database-readiness-repair.mjs"
             },
             {
               "id": "pr8061-staging-schema-bundle-role-boundary",
               "runner": "node",
-              "path": "http-generic-api/test-staging-schema-bundle-builder.mjs"
+              "working_directory": "http-generic-api",
+              "path": "test-staging-schema-bundle-builder.mjs"
             },
             {
               "id": "pr8061-environment-impact-closure",
@@ -102,17 +105,20 @@
         {
           "id": "pr8061-activation-gateway-rollout-surface",
           "runner": "node",
-          "path": "http-generic-api/test-activation-gateway-rollout-surface.mjs"
+          "working_directory": "http-generic-api",
+          "path": "test-activation-gateway-rollout-surface.mjs"
         },
         {
           "id": "pr8061-staging-database-readiness-role-manifest",
           "runner": "node",
-          "path": "http-generic-api/test-staging-database-readiness-repair.mjs"
+          "working_directory": "http-generic-api",
+          "path": "test-staging-database-readiness-repair.mjs"
         },
         {
           "id": "pr8061-staging-schema-bundle-role-boundary",
           "runner": "node",
-          "path": "http-generic-api/test-staging-schema-bundle-builder.mjs"
+          "working_directory": "http-generic-api",
+          "path": "test-staging-schema-bundle-builder.mjs"
         },
         {
           "id": "pr8061-environment-impact-closure",
