@@ -12,6 +12,7 @@
       ".gitattributes",
       "docs/staging-sql-line-ending-contract.md",
       "autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1",
+      "autopilot-portable-staging/Recover-StagingDatabases.ps1",
       "http-generic-api/databasePrivilegeContracts.js",
       "http-generic-api/scripts/staging-role-grant-plan.mjs",
       "http-generic-api/environmentBranchAuthority.js",
@@ -45,7 +46,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Repair the causal local Staging readiness failures without replaying schema or resetting recovered databases: preserve MCP catalog read visibility and MySQL-primary SQL-cache policy visibility after grant reconciliation, keep Governance readiness independent from runtime SQL authority in local Staging, converge MariaDB database default collation, materialize the checksum-bound SQL-cache authority seed with canonical LF bytes on Windows, and ensure the direct Runtime Persistence readiness CLI closes its owned MySQL pool before process exit.",
+      "objective": "Repair the causal local Staging readiness failures without replaying schema or resetting recovered databases: preserve MCP catalog read visibility and MySQL-primary SQL-cache policy visibility after grant reconciliation, keep Governance readiness independent from runtime SQL authority in local Staging, converge MariaDB database default collation, materialize the checksum-bound SQL-cache authority seed with canonical LF bytes on Windows, ensure the direct Runtime Persistence readiness CLI closes its owned MySQL pool before process exit, and keep destructive Recovery grant reconciliation aligned with the same required-versus-optional surface semantics before authority mutation.",
       "e2e_journeys": [
         {
           "id": "local-staging-readiness-repair",
@@ -53,13 +54,14 @@
           "level": "synthetic_runtime",
           "actor": "Local Windows Docker Staging recovery operator",
           "entrypoint": "autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1",
-          "terminal_outcome": "Recovered local Staging databases are repaired in place, least-privilege grants and default collation converge, the checksum-bound SQL-cache authority seed materializes with reviewed LF bytes, SQL-cache runtime policy can load from MySQL primary authority, direct Runtime Persistence CLI probes close their owned pool, and Auto Pilot certification can reach ready without destructive reset or Production/provider access.",
+          "terminal_outcome": "Recovered local Staging databases are repaired in place, least-privilege grants and default collation converge, the checksum-bound SQL-cache authority seed materializes with reviewed LF bytes, SQL-cache runtime policy can load from MySQL primary authority, direct Runtime Persistence CLI probes close their owned pool, destructive Recovery preflights optional grant surfaces consistently, and Auto Pilot certification can reach ready without unauthorized Production/provider access.",
           "steps": [
             "Bind the repair to exact local HEAD and origin/main and reject remote Docker contexts or unsafe mutation flags.",
             "Materialize the checksum-bound 1023 SQL-cache authority seed as LF on Windows through the exact-path Git attribute before exact SHA256 validation.",
             "Recreate only database containers when the Staging MariaDB server collation command changes while preserving bind-mounted data directories.",
             "Set database defaults to utf8mb4_unicode_ci and read them back without altering recovered table data.",
             "Reconcile repository-owned local Staging grants so the runtime principal retains its existing bounded write tables plus SELECT-only access to the two MCP catalog tables and sql_cache_runtime_policies.",
+            "Apply the same repository-owned grant-plan semantics in destructive Recovery: preflight every surface through INFORMATION_SCHEMA.TABLES before authority mutation, grant only effective present surfaces, record missing optional surfaces as degraded evidence, and fail closed before REVOKE or GRANT when a required surface is absent.",
             "Extract the reviewed sql_cache_policy_v2 INSERT after exact checksum validation and require its exact ordinal INSERT prefix before any execution.",
             "Replay the reviewed SQL-cache authority seed through local database root only, then require exact readback while preserving runtime SELECT-only authority.",
             "Use repository-only environment branch authority for local Staging Governance readiness while leaving Production SQL-first behavior unchanged.",
@@ -80,6 +82,8 @@
             "The direct Runtime Persistence CLI awaits pool.end() whenever it creates a closable pool, records secret-free cleanup evidence, and treats cleanup failure or a missing pool end() method as blocked readiness.",
             "The reusable runRuntimePersistenceOperationalReadiness() function remains non-closing so long-lived application callers retain ownership of their pool lifecycle.",
             "The canonical role migration manifest declares exactly 19 required runtime support tables, and the legacy clone dry-run guard rejects the stale 11-table cardinality.",
+            "v_platform_evolution_activation_card remains an optional Staging runtime read surface; when absent it is omitted from Recovery GRANT SQL and recorded as non-blocking degraded evidence.",
+            "Any missing required Recovery grant surface remains fail-closed before CREATE USER, ALTER USER, REVOKE, or GRANT authority mutation.",
             "The repair performs no database reset, schema replay, data-directory move, backup deletion, Production access, Hostinger/Cloudflare mutation, or provider mutation."
           ],
           "tests": [
@@ -96,12 +100,20 @@
               "working_directory": "http-generic-api",
               "path": "test-runtime-persistence-operational-readiness.mjs",
               "args": []
+            },
+            {
+              "id": "staging-database-recovery-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/staging-database-recovery-contract.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             ".gitattributes",
             "docs/staging-sql-line-ending-contract.md",
             "autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1",
+            "autopilot-portable-staging/Recover-StagingDatabases.ps1",
             "http-generic-api/test-staging-database-readiness-repair.mjs",
             "http-generic-api/test-runtime-persistence-operational-readiness.mjs",
             ".github/governance/test-authority-registry.json",
