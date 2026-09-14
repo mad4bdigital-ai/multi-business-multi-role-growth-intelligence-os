@@ -22,6 +22,19 @@ const runtimePersistenceReadiness = read("http-generic-api/scripts/runtime-persi
 const importer = read("autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1");
 const sqlCacheMigration = read("http-generic-api/migrations/1023_sprint69_sql_cache_runtime_policy.sql");
 const roleManifest = readJson("http-generic-api/config/staging-database-role-migration-manifest.json");
+for (const table of STAGING_ROLE_GRANT_POLICIES.governance.required_tables) {
+  assert.equal(
+    roleManifest.roles.governance.required_tables.includes(table),
+    true,
+    `governance grant-required surface missing from role manifest: ${table}`,
+  );
+
+  assert.equal(
+    roleManifest.roles.runtime.excluded_tables.includes(table),
+    true,
+    `runtime must exclude governance grant-required surface: ${table}`,
+  );
+}
 const autoDeployPolicy = readJson("autopilot-portable-staging/auto-deploy-policy.json");
 const oneClickPolicy = readJson("autopilot-portable-staging/autopilot-one-click-policy.json");
 
