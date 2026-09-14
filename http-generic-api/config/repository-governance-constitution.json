@@ -363,6 +363,7 @@
     "waiver_requires_digest_and_expiry": true
   },
   "control_plane_paths": [
+    ".changes/e2e/staging-governance-authority-seed-recovery-20260915.json",
     ".changes/e2e/staging-convergence-bom-json-20260911.json",
     ".changes/e2e/production-runtime-parity-evidence.json",
     ".github/workflows/e2e-phase-governance.yml",
