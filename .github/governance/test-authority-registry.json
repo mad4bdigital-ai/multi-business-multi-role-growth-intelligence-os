@@ -80,6 +80,13 @@
       ]
     },
     {
+      "id": "governed_migration_capability_envelope_authorization",
+      "test_paths": [
+        "http-generic-api/test-capability-resolution-envelope-ledger.mjs",
+        "http-generic-api/test-governed-migration-authorization-bootstrap.mjs"
+      ]
+    },
+    {
       "id": "governed_migration_runner_diagnostics",
       "test_paths": [
         "http-generic-api/test-governed-migration-execution-tool.mjs",
