@@ -6,7 +6,7 @@
   "files": [
     {
       "path": ".gitattributes",
-      "sha256": "8aafbf19990f61307c2cc9147ff69907dcc72d4fd24f489312ca33fefd303c32"
+      "sha256": "4dcddff86173eda399349223bd2bdc1b9668c98249d15794a94e21dfdfab1a77"
     },
     {
       "path": ".dockerignore",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "77ff840e1e5410e7cd1e54e6c6ab0b68d7eaa8e3440af699ceba54045addb7da"
+      "sha256": "0ab9a13ce3fa41a64a1a29332ee51aefd46a89b4429e03ad4da49e3d6681c437"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -262,7 +262,7 @@
     },
     {
       "path": "http-generic-api/test-staging-operations-logging-contract.mjs",
-      "sha256": "affe85934ad7aaa71cedcc9ad78483ff16ca0627fef91eb8db3f231db5e3559f"
+      "sha256": "bc98a71ec5e1bb396002ca74bf27ce0c93d83167d608d82569aec9f39b35f49f"
     },
     {
       "path": "http-generic-api/test-staging-runtime-oauth-profile.mjs",

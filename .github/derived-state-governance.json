@@ -72,6 +72,7 @@
     "draft_pr_automerge_forbidden": true,
     "automation_control_surface_changes_require_manual_merge": true,
     "automation_control_paths": [
+      ".changes/e2e/staging-governance-authority-seed-recovery-20260915.json",
       ".changes/e2e/staging-convergence-bom-json-20260911.json",
       ".github/workflows/e2e-phase-governance.yml",
       ".github/workflows/staging-admin-schema-contract.yml",
