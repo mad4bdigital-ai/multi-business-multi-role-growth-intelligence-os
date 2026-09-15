@@ -10,7 +10,8 @@ const read = (relative) => fs.readFileSync(path.join(repoRoot, relative), "utf8"
 
 const envHelper = read("autopilot-portable-staging/Staging-Environment.ps1");
 const entrypoint = read("autopilot-portable-staging/Invoke-Staging-One-Click.ps1");
-const launcher = `${entrypoint}\n${read("autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1")}`;
+const core = read("autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1");
+const launcher = `${entrypoint}\n${core}`;
 const windowsCloudflared = read("autopilot-portable-staging/Staging-WindowsCloudflared.ps1");
 const bootstrap = read("autopilot-portable-staging/Bootstrap-Staging-One-Click.ps1");
 const oneClick = read("autopilot-portable-staging/One-Click-Staging.ps1");
@@ -155,7 +156,9 @@ assert.doesNotMatch(
 );
 assert.match(launcher, /ProcessId -ne \$initialPid/);
 assert.match(launcher, /RequireTunnelToken:\(\$TunnelMode -eq 'docker_sidecar'\)/);
-assert.match(launcher, /'-BuildMode',\$BuildMode,'-AutoDeployTunnelMode',\$TunnelMode,'-NoTunnel'/);
+assert.match(core, /'-BuildMode',\$BuildMode,'-AutoDeployTunnelMode',\$TunnelMode,'-NoTunnel'/);
+assert.doesNotMatch(core, /if \(\$EnableActivationGateway\) \{ \$bootstrapArgs \+= '-EnableActivationGateway' \}/);
+assert.match(core, /Initialize-StagingEnvironment[\s\S]*?-EnableActivationGateway:\$EnableActivationGateway[\s\S]*?Invoke-Checked 'powershell\.exe' \$bootstrapArgs[\s\S]*?Initialize-StagingEnvironment[\s\S]*?-EnableActivationGateway:\$EnableActivationGateway/);
 assert.match(bootstrap, /"-AutoDeployTunnelMode", \$AutoDeployTunnelMode/);
 assert.match(oneClick, /"-TunnelMode", \$AutoDeployTunnelMode/);
 assert.match(autoDeployInstaller, /-TunnelMode \$TunnelMode/);
