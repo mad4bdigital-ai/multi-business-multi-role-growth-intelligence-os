@@ -314,7 +314,9 @@ Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ORIGIN_APP' 'http://127.0.0.1:80
 
 $bootstrap = Join-Path $root 'Bootstrap-Staging-One-Click.ps1'
 $bootstrapArgs = @('-NoLogo','-NoProfile','-ExecutionPolicy','Bypass','-File',$bootstrap,'-RepositoryPath',$RepositoryPath,'-BuildMode',$BuildMode,'-AutoDeployTunnelMode',$TunnelMode,'-NoTunnel')
-if ($EnableActivationGateway) { $bootstrapArgs += '-EnableActivationGateway' }
+# The internal bootstrap is intentionally local-only. Do not inherit the Activation
+# execution gate here: the Core re-applies EnableActivationGateway after bootstrap,
+# then performs the selected canonical tunnel transition and governed readiness checks.
 if ($NoAutoDeploy) { $bootstrapArgs += '-NoAutoDeploy' }
 if ($RequireSchemaBundle) { $bootstrapArgs += '-RequireSchemaBundle' }
 if ($ApplySchemaBundle) { $bootstrapArgs += '-ApplySchemaBundle' }
