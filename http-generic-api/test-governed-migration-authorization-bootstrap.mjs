@@ -188,13 +188,27 @@ function seedAuthorization(pool, checksum) {
   });
 }
 
-const resolvedEnvelope = async () => ({
-  ok: true,
-  envelope_id: ENVELOPE_ID,
-  apply_allowed: true,
-  dispatch_allowed: true,
-  secrets_included: false,
-});
+const resolvedEnvelope = async (request = {}) => {
+  assert.deepEqual(request.acceptedAppKeys, ["platform_orchestration"]);
+  assert.deepEqual(request.acceptedCapabilityKeys, ["migration_release_orchestrator"]);
+  assert.deepEqual(request.acceptedIntents, [
+    "governed_migration_authorization_bootstrap",
+    "migration_authorization_bootstrap",
+    "governed.migration.authorization.bootstrap",
+  ]);
+
+  return {
+    ok: true,
+    envelope_id: ENVELOPE_ID,
+    app_key: "platform_orchestration",
+    capability_key: "migration_release_orchestrator",
+    operation_intent: "governed_migration_authorization_bootstrap",
+    apply_allowed: false,
+    dispatch_allowed: true,
+    blocking_gap_count: 0,
+    secrets_included: false,
+  };
+};
 
 async function main() {
   assert.equal(
