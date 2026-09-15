@@ -9,7 +9,7 @@ import {
 import { splitSqlStatements } from "./releaseReadiness.js";
 
 const MIGRATION = "1020_sprint69_multi_surface_tenant_agent_runtime.sql";
-const SQL = readFileSync(`migrations/${MIGRATION}`, "utf8");
+const SQL = readFileSync(new URL(`migrations/${MIGRATION}`, import.meta.url), "utf8");
 const CHECKSUM = createHash("sha256").update(SQL, "utf8").digest("hex");
 const STATEMENT_COUNT = splitSqlStatements(SQL).length;
 const MERGE_SHA = "9c091abb332f92995fdc44cfee8f6f2dd168df88";
@@ -188,13 +188,27 @@ function seedAuthorization(pool, checksum) {
   });
 }
 
-const resolvedEnvelope = async () => ({
-  ok: true,
-  envelope_id: ENVELOPE_ID,
-  apply_allowed: true,
-  dispatch_allowed: true,
-  secrets_included: false,
-});
+const resolvedEnvelope = async (request = {}) => {
+  assert.deepEqual(request.acceptedAppKeys, ["platform_orchestration"]);
+  assert.deepEqual(request.acceptedCapabilityKeys, ["migration_release_orchestrator"]);
+  assert.deepEqual(request.acceptedIntents, [
+    "governed_migration_authorization_bootstrap",
+    "migration_authorization_bootstrap",
+    "governed.migration.authorization.bootstrap",
+  ]);
+
+  return {
+    ok: true,
+    envelope_id: ENVELOPE_ID,
+    app_key: "platform_orchestration",
+    capability_key: "migration_release_orchestrator",
+    operation_intent: "governed_migration_authorization_bootstrap",
+    apply_allowed: false,
+    dispatch_allowed: true,
+    blocking_gap_count: 0,
+    secrets_included: false,
+  };
+};
 
 async function main() {
   assert.equal(
@@ -405,9 +419,9 @@ async function main() {
     (error) => error?.code === "capability_resolution_envelope_not_dispatch_ready"
   );
 
-  const routeSource = readFileSync("routes/gptToolsRoutes.js", "utf8");
-  const manifestSource = readFileSync("scripts/test-manifest.mjs", "utf8");
-  const wrapperSource = readFileSync("governedMigrationAuthorizationBootstrap.js", "utf8");
+  const routeSource = readFileSync(new URL("routes/gptToolsRoutes.js", import.meta.url), "utf8");
+  const manifestSource = readFileSync(new URL("scripts/test-manifest.mjs", import.meta.url), "utf8");
+  const wrapperSource = readFileSync(new URL("governedMigrationAuthorizationBootstrap.js", import.meta.url), "utf8");
   assert.ok(routeSource.includes("governed_migration_authorization_bootstrap"));
   assert.ok(routeSource.includes("bootstrapGovernedMigrationAuthorization"));
   assert.ok(routeSource.includes("previous_checksum_sha256"));

@@ -387,6 +387,8 @@ async function resolveBootstrapEnvelope({ pool, input, auth, resolveEnvelope }) 
   const resolved = await resolveEnvelope({
     pool,
     source: input,
+    acceptedAppKeys: ["platform_orchestration"],
+    acceptedCapabilityKeys: ["migration_release_orchestrator"],
     acceptedIntents: ACCEPTED_OPERATION_INTENTS,
     expectedTenantId: auth?.tenant_id || PLATFORM_TENANT_ID,
     expectedUserId: auth?.user_id || "",

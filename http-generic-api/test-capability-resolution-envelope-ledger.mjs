@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { buildMigrationAuthorizationEnvelopeDryRun } from "./scripts/capability-resolution-envelope-create.mjs";
 
 const script = readFileSync(new URL("./scripts/capability-resolution-envelope-create.mjs", import.meta.url), "utf8");
 const migration = readFileSync(new URL("./migrations/225_sprint67_capability_resolution_envelope_ledger.sql", import.meta.url), "utf8");
@@ -39,5 +40,46 @@ assert.doesNotMatch(migration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
 assert.match(adminCli, /capability_resolution_envelope_create/);
 assert.match(adminCli, /scripts\/capability-resolution-envelope-create\.mjs/);
 assert.match(runner, /225_sprint67_capability_resolution_envelope_ledger\.sql/);
+
+const migrationAuthorizationEnvelope = buildMigrationAuthorizationEnvelopeDryRun({
+  dryRunArgs: {
+    tenantId: "00000000-0000-0000-0000-000000000000",
+    userId: "0e76b224-7671-47dd-ad68-014fb042df80",
+    principalType: "user",
+    principalId: "0e76b224-7671-47dd-ad68-014fb042df80",
+    appKey: "platform_orchestration",
+    capabilityKey: "migration_release_orchestrator",
+    operationIntent: "governed_migration_authorization_bootstrap",
+    runtimeSurface: "auth_host",
+  },
+});
+
+assert.equal(migrationAuthorizationEnvelope.decision, "ready_requires_approval");
+assert.equal(migrationAuthorizationEnvelope.gates.dispatch_allowed, true);
+assert.equal(migrationAuthorizationEnvelope.gates.apply_allowed, false);
+assert.equal(migrationAuthorizationEnvelope.gates.approval_required, true);
+assert.equal(migrationAuthorizationEnvelope.blocking_gaps.length, 0);
+assert.equal(migrationAuthorizationEnvelope.capability.app_key, "platform_orchestration");
+assert.equal(migrationAuthorizationEnvelope.capability.capability_key, "migration_release_orchestrator");
+assert.equal(migrationAuthorizationEnvelope.request_context.operation_intent, "governed_migration_authorization_bootstrap");
+assert.equal(migrationAuthorizationEnvelope.selected_source.selected_runtime_surface, "auth_host");
+assert.equal(migrationAuthorizationEnvelope.provider_call_executed, false);
+assert.equal(migrationAuthorizationEnvelope.external_write_executed, false);
+assert.equal(migrationAuthorizationEnvelope.credential_payload_read, false);
+assert.equal(migrationAuthorizationEnvelope.secrets_included, false);
+
+assert.throws(
+  () => buildMigrationAuthorizationEnvelopeDryRun({
+    dryRunArgs: {
+      tenantId: "00000000-0000-0000-0000-000000000000",
+      userId: "0e76b224-7671-47dd-ad68-014fb042df80",
+      appKey: "platform_orchestration",
+      capabilityKey: "migration_release_orchestrator",
+      operationIntent: "governed_migration_authorization_bootstrap",
+      runtimeSurface: "system_layer",
+    },
+  }),
+  (error) => error?.code === "migration_authorization_capability_surface_mismatch"
+);
 
 console.log("Capability resolution envelope ledger guard passed");
