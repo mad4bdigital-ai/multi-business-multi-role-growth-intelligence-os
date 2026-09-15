@@ -249,6 +249,7 @@ $Builder = Join-Path $script:ApiPath "scripts\build-staging-schema-bundle.mjs"
 $script:GrantPlanScript = Join-Path $script:ApiPath "scripts\staging-role-grant-plan.mjs"
 $Clone = Join-Path $PSScriptRoot "Clone-StagingDatabases.ps1"
 $StartAutoPilot = Join-Path $PSScriptRoot "Start-AutoPilot.ps1"
+$GovernanceAuthoritySeedReplay = Join-Path $PSScriptRoot "Replay-StagingGovernanceAuthoritySeed.ps1"
 $DumpDirectory = Join-Path $PSScriptRoot "staging-db-dumps"
 $DataRoot = Join-Path $script:ApiPath ".staging-data"
 $RecoveryStatePath = Join-Path $DumpDirectory "staging-database-recovery-state.json"
@@ -265,6 +266,7 @@ Require (Test-Path -LiteralPath $Builder) "Missing Staging schema bundle builder
 Require (Test-Path -LiteralPath $script:GrantPlanScript) "Missing Staging role grant-plan helper"
 Require (Test-Path -LiteralPath $Clone) "Missing Staging schema importer"
 Require (Test-Path -LiteralPath $StartAutoPilot) "Missing Auto Pilot launcher"
+Require (Test-Path -LiteralPath $GovernanceAuthoritySeedReplay) "Missing Staging Governance authority seed replay helper"
 
 Require-Command "git"
 Require-Command "node"
@@ -321,6 +323,7 @@ try {
         backup_root = $backupRoot
         roles = @($roleConfig | ForEach-Object { $_.Key })
         schema_bundle = [ordered]@{ status = "validated"; directory = $DumpDirectory }
+        governance_authority_seed = [ordered]@{ status = "pending"; certification_status = "pending"; dispatch_allowed = $false; apply_allowed = $false }
         grants = [ordered]@{ status = "pending"; readback = @() }
         production_accessed = $false
         provider_accessed = $false
@@ -353,6 +356,13 @@ try {
     Write-JsonAtomic $RecoveryStatePath $script:RecoveryState
     & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $Clone -DumpDirectory $DumpDirectory -ExpectedCommit $ExpectedCommit -Mode schema_only -Apply
     Require ($LASTEXITCODE -eq 0) "Staging schema bundle apply failed"
+
+    $script:RecoveryState.status = "governance_authority_seed_replay"
+    Write-JsonAtomic $RecoveryStatePath $script:RecoveryState
+    & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $GovernanceAuthoritySeedReplay -RepositoryPath $RepositoryPath -ExpectedCommit $ExpectedCommit
+    Require ($LASTEXITCODE -eq 0) "Staging Governance authority seed replay failed"
+    $script:RecoveryState.governance_authority_seed = [ordered]@{ status = "completed"; certification_status = "pending"; dispatch_allowed = $false; apply_allowed = $false }
+    Write-JsonAtomic $RecoveryStatePath $script:RecoveryState
 
     $script:RecoveryState.status = "grant_reconciliation"
     Write-JsonAtomic $RecoveryStatePath $script:RecoveryState
