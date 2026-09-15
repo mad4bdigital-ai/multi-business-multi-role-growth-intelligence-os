@@ -35,7 +35,12 @@ assert.deepEqual(ready.checks, {
   governance_db_privilege_ready: true,
   runtime_persistence_ready: true,
   mutation_attestation_complete: true,
+  recovery_live_state_consistent: true,
 });
+assert.equal(ready.actual_composition_live_state.source, "actual_recovery_composition");
+assert.equal(ready.actual_composition_live_state.enabled, false);
+assert.equal(ready.actual_composition_live_state.contradiction, false);
+assert.equal(ready.live_state_contradiction, false);
 assert.equal(ready.read_only_probe, true);
 assert.equal(ready.mutation_attestation.complete, true);
 assert.deepEqual(ready.mutation_attestation.unknown_dimensions, []);
@@ -66,6 +71,7 @@ assert.equal(blocked.status, "blocked");
 assert.equal(blocked.hard_activation_blocked_until_ready, true);
 assert.equal(blocked.checks.governance_db_privilege_ready, false);
 assert.equal(blocked.checks.mutation_attestation_complete, true);
+assert.equal(blocked.checks.recovery_live_state_consistent, true);
 assert.equal(blocked.dimensions.governance_db_privilege.code, "ER_ACCESS_DENIED_ERROR");
 assert.equal(blocked.sql_mutation_performed, false);
 assert.equal(blocked.secrets_included, false);
@@ -78,6 +84,7 @@ const mutating = await runProductionActivationReadiness({
 assert.equal(mutating.ok, false);
 assert.equal(mutating.status, "blocked");
 assert.equal(mutating.checks.mutation_attestation_complete, false);
+assert.equal(mutating.checks.recovery_live_state_consistent, true);
 assert.equal(mutating.read_only_probe, false);
 assert.equal(mutating.sql_mutation_performed, true);
 assert.deepEqual(mutating.mutation_attestation.unknown_dimensions, ["governance_db_privilege"]);
@@ -89,6 +96,7 @@ const incompleteEvidence = await runProductionActivationReadiness({
 });
 assert.equal(incompleteEvidence.ok, false);
 assert.equal(incompleteEvidence.checks.mutation_attestation_complete, false);
+assert.equal(incompleteEvidence.checks.recovery_live_state_consistent, true);
 assert.equal(incompleteEvidence.read_only_probe, false);
 assert.deepEqual(incompleteEvidence.mutation_attestation.unknown_dimensions, ["governance_db_privilege"]);
 assert.equal(incompleteEvidence.sql_mutation_performed, false);
@@ -104,6 +112,7 @@ assert.equal(thrown.dimensions.mcp_catalog_schema.code, "ECONNREFUSED");
 assert.equal(thrown.dimensions.mcp_catalog_schema.read_only_probe, false);
 assert.equal(thrown.dimensions.mcp_catalog_schema.sql_mutation_performed, null);
 assert.equal(thrown.checks.mutation_attestation_complete, false);
+assert.equal(thrown.checks.recovery_live_state_consistent, true);
 assert.equal(thrown.read_only_probe, false);
 assert.deepEqual(thrown.mutation_attestation.unknown_dimensions, ["mcp_catalog_schema"]);
 assert.equal(thrown.sql_mutation_performed, false);

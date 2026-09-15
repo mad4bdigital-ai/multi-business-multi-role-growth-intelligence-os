@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
+import { STAGING_ROLE_GRANT_POLICIES } from "./databasePrivilegeContracts.js";
 import {
   GOVERNANCE_DB_PRIVILEGE_MATRIX,
   assertGovernanceDbPrivilegeReadiness,
@@ -14,18 +15,23 @@ import {
 } from "./governanceDbPrivilegeReadinessRuntime.js";
 
 const database = "growth_os";
+const stagingPrivilegeMatrix = STAGING_ROLE_GRANT_POLICIES.governance.required_operations_by_table;
 
-function completeTablePrivileges() {
-  return Object.entries(GOVERNANCE_DB_PRIVILEGE_MATRIX).flatMap(([table, operations]) =>
+function completeTablePrivileges(matrix = GOVERNANCE_DB_PRIVILEGE_MATRIX) {
+  return Object.entries(matrix).flatMap(([table, operations]) =>
     operations.map((operation) => ({ TABLE_SCHEMA: database, TABLE_NAME: table, PRIVILEGE_TYPE: operation })),
   );
 }
 
-function completeSchemaRows() {
-  return Object.keys(GOVERNANCE_DB_PRIVILEGE_MATRIX).map((table) => ({ TABLE_NAME: table }));
+function completeSchemaRows(matrix = GOVERNANCE_DB_PRIVILEGE_MATRIX) {
+  return Object.keys(matrix).map((table) => ({ TABLE_NAME: table }));
 }
 
-function createReadinessConnection({ schemaRows = completeSchemaRows(), queries = [] } = {}) {
+function createReadinessConnection({
+  schemaRows = completeSchemaRows(),
+  tablePrivileges = completeTablePrivileges(),
+  queries = [],
+} = {}) {
   return {
     async ping() {},
     async query(sql) {
@@ -34,7 +40,7 @@ function createReadinessConnection({ schemaRows = completeSchemaRows(), queries 
       if (sql.includes("information_schema.TABLES")) return [schemaRows];
       if (sql.includes("USER_PRIVILEGES")) return [[{ PRIVILEGE_TYPE: "USAGE" }]];
       if (sql.includes("SCHEMA_PRIVILEGES")) return [[]];
-      if (sql.includes("TABLE_PRIVILEGES")) return [completeTablePrivileges()];
+      if (sql.includes("TABLE_PRIVILEGES")) return [tablePrivileges];
       if (sql.includes("COLUMN_PRIVILEGES")) return [[]];
       if (sql.includes("APPLICABLE_ROLES")) return [[]];
       throw new Error(`Unexpected query: ${sql}`);
@@ -57,6 +63,9 @@ const readinessDeps = (connection) => ({
 const requiredPrivilegeCount = Object.values(GOVERNANCE_DB_PRIVILEGE_MATRIX)
   .reduce((count, operations) => count + operations.length, 0);
 const requiredSchemaTableCount = Object.keys(GOVERNANCE_DB_PRIVILEGE_MATRIX).length;
+const stagingRequiredPrivilegeCount = Object.values(stagingPrivilegeMatrix)
+  .reduce((count, operations) => count + operations.length, 0);
+const stagingRequiredSchemaTableCount = Object.keys(stagingPrivilegeMatrix).length;
 
 {
   assert.deepEqual(GOVERNANCE_DB_PRIVILEGE_MATRIX.platform_resource_authority_bindings, ["SELECT", "INSERT"]);
@@ -176,6 +185,63 @@ const requiredSchemaTableCount = Object.keys(GOVERNANCE_DB_PRIVILEGE_MATRIX).len
 }
 
 {
+  assert.equal(requiredSchemaTableCount, 17);
+  assert.equal(requiredPrivilegeCount, 39);
+  assert.equal(stagingRequiredSchemaTableCount, 20);
+  assert.equal(stagingRequiredPrivilegeCount, 46);
+  assert.deepEqual(stagingPrivilegeMatrix.staging_activation_gateway_execution_artifacts, ["SELECT", "INSERT"]);
+  assert.deepEqual(stagingPrivilegeMatrix.staging_activation_gateway_execution_plans, ["SELECT", "INSERT", "UPDATE"]);
+  assert.deepEqual(stagingPrivilegeMatrix.staging_activation_gateway_envelope_plan_bindings, ["SELECT", "INSERT"]);
+
+  const defaultResult = evaluateGovernanceDbPrivilegeReadiness({
+    database,
+    tablePrivileges: completeTablePrivileges(stagingPrivilegeMatrix),
+  });
+  assert.equal(defaultResult.ready, false);
+  assert.equal(defaultResult.required_privilege_count, 39);
+  assert.equal(defaultResult.observed_required_privilege_count, 39);
+  assert.equal(defaultResult.unexpected_table_scope_count, 7);
+
+  const stagingResult = evaluateGovernanceDbPrivilegeReadiness({
+    database,
+    tablePrivileges: completeTablePrivileges(stagingPrivilegeMatrix),
+    expectedPrivilegeMatrix: stagingPrivilegeMatrix,
+  });
+  assert.equal(stagingResult.ready, true);
+  assert.equal(stagingResult.required_privilege_count, 46);
+  assert.equal(stagingResult.observed_required_privilege_count, 46);
+  assert.equal(stagingResult.unexpected_table_scope_count, 0);
+  assert.deepEqual(stagingResult.missing_required, []);
+}
+
+{
+  const rows = completeTablePrivileges(stagingPrivilegeMatrix).filter(
+    (row) => !(row.TABLE_NAME === "staging_activation_gateway_execution_plans" && row.PRIVILEGE_TYPE === "UPDATE"),
+  );
+  const result = evaluateGovernanceDbPrivilegeReadiness({
+    database,
+    tablePrivileges: rows,
+    expectedPrivilegeMatrix: stagingPrivilegeMatrix,
+  });
+  assert.equal(result.ready, false);
+  assert.deepEqual(result.missing_required, ["staging_activation_gateway_execution_plans:UPDATE"]);
+}
+
+{
+  const result = evaluateGovernanceDbPrivilegeReadiness({
+    database,
+    tablePrivileges: [
+      ...completeTablePrivileges(stagingPrivilegeMatrix),
+      { TABLE_SCHEMA: database, TABLE_NAME: "unexpected_governance_surface", PRIVILEGE_TYPE: "SELECT" },
+    ],
+    expectedPrivilegeMatrix: stagingPrivilegeMatrix,
+  });
+  assert.equal(result.ready, false);
+  assert.equal(result.unexpected_table_scope_count, 1);
+  assert.equal(result.checks.no_unexpected_table_scopes, false);
+}
+
+{
   const queries = [];
   const connection = createReadinessConnection({ queries });
   const result = await runGovernanceDbPrivilegeReadiness(
@@ -194,6 +260,30 @@ const requiredSchemaTableCount = Object.keys(GOVERNANCE_DB_PRIVILEGE_MATRIX).len
   assert.equal(result.sql_mutation_performed, false);
   assert.equal(result.secrets_included, false);
   assert.equal(queries.some((query) => query.includes("information_schema.TABLES")), true);
+  assert.equal(queries.includes("release"), true);
+}
+
+{
+  const queries = [];
+  const connection = createReadinessConnection({
+    schemaRows: completeSchemaRows(stagingPrivilegeMatrix),
+    tablePrivileges: completeTablePrivileges(stagingPrivilegeMatrix),
+    queries,
+  });
+  const result = await runGovernanceDbPrivilegeReadiness(
+    { env: { DEPLOYMENT_ENVIRONMENT: "staging_local_windows_docker" } },
+    readinessDeps(connection),
+  );
+  assert.equal(result.ready, true);
+  assert.equal(result.status, "ready");
+  assert.equal(result.schema_readiness.required_table_count, stagingRequiredSchemaTableCount);
+  assert.equal(result.schema_readiness.observed_required_table_count, stagingRequiredSchemaTableCount);
+  assert.equal(result.privilege_readiness.required_privilege_count, stagingRequiredPrivilegeCount);
+  assert.equal(result.privilege_readiness.observed_required_privilege_count, stagingRequiredPrivilegeCount);
+  assert.equal(result.privilege_readiness.unexpected_table_scope_count, 0);
+  assert.equal(result.sql_mutation_performed, false);
+  assert.equal(result.provider_mutation_performed, false);
+  assert.equal(result.deployment_performed, false);
   assert.equal(queries.includes("release"), true);
 }
 

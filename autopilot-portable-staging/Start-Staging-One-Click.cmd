@@ -8,7 +8,7 @@ if not exist "%LAUNCHER%" (
 )
 
 set "TUNNEL_MODE=%~1"
-if "%TUNNEL_MODE%"=="" set "TUNNEL_MODE=windows_service"
+if "%TUNNEL_MODE%"=="" set "TUNNEL_MODE=disabled"
 if /I not "%TUNNEL_MODE%"=="windows_service" if /I not "%TUNNEL_MODE%"=="docker_sidecar" if /I not "%TUNNEL_MODE%"=="disabled" (
   echo Invalid tunnel mode: %TUNNEL_MODE%
   echo Usage: Start-Staging-One-Click.cmd [windows_service^|docker_sidecar^|disabled]
@@ -17,10 +17,14 @@ if /I not "%TUNNEL_MODE%"=="windows_service" if /I not "%TUNNEL_MODE%"=="docker_
 )
 
 echo Starting governed Staging One-Click mode=%TUNNEL_MODE%
-echo windows_service: Windows cloudflared -^> 127.0.0.1:8080
-echo docker_sidecar : Compose cloudflared -^> 127.0.0.1:8080 ^(shared app network namespace^)
-echo disabled       : local-only Staging
-powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$p=Start-Process powershell.exe -Verb RunAs -Wait -PassThru -ArgumentList '-NoLogo','-NoProfile','-ExecutionPolicy','Bypass','-File','%LAUNCHER%','-TunnelMode','%TUNNEL_MODE%','-NoAutoDeploy'; exit $p.ExitCode"
+echo windows_service: Windows cloudflared -^> 127.0.0.1:8080 ^(explicit public mode; Activation Gateway enabled^), shared app network namespace
+echo docker_sidecar : Compose cloudflared -^> 127.0.0.1:8080 ^(explicit public mode; Activation Gateway enabled^)
+echo disabled       : local-only Staging ^(safe default^)
+if /I "%TUNNEL_MODE%"=="disabled" (
+  powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$p=Start-Process powershell.exe -Verb RunAs -Wait -PassThru -ArgumentList '-NoLogo','-NoProfile','-ExecutionPolicy','Bypass','-File','%LAUNCHER%','-TunnelMode','%TUNNEL_MODE%','-NoAutoDeploy'; exit $p.ExitCode"
+) else (
+  powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$p=Start-Process powershell.exe -Verb RunAs -Wait -PassThru -ArgumentList '-NoLogo','-NoProfile','-ExecutionPolicy','Bypass','-File','%LAUNCHER%','-TunnelMode','%TUNNEL_MODE%','-EnableActivationGateway','-NoAutoDeploy'; exit $p.ExitCode"
+)
 set "CODE=%ERRORLEVEL%"
 echo.
 echo Auto Pilot log directory: "%~dp0logs"

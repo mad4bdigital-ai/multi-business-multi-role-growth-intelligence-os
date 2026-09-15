@@ -162,7 +162,10 @@ internal static class Program
 
     private sealed class MainForm : Form
     {
-        private readonly System.Windows.Forms.Timer _desktopCommandTimer = new() { Interval = 5000 };
+        // Keep background command polling comfortably below the shared auth-host
+        // request budget. User-initiated pairing, update and repair requests must
+        // not be starved by an idle linked desktop.
+        private readonly System.Windows.Forms.Timer _desktopCommandTimer = new() { Interval = 30000 };
         private bool _desktopCommandPollRunning;
         private int _desktopCommandPollFailureCount;
         private DateTimeOffset _desktopCommandPollBackoffUntil = DateTimeOffset.MinValue;
@@ -382,9 +385,18 @@ internal static class Program
                 var start = response.Payload;
                 if (!response.IsSuccessStatusCode || start?.Ok != true || string.IsNullOrWhiteSpace(start.UserCode) || string.IsNullOrWhiteSpace(start.PollToken))
                 {
-                    _status.Text = "Could not create pairing code: " + (start?.Error?.Message ?? response.ReasonPhrase ?? "unknown error");
-                    _pairingCode.Text = "Pairing code: failed";
-                    _output.Text = response.RawText;
+                    var retryAfter = response.RetryAfterSeconds;
+                    _status.Text = (int)response.StatusCode == 429
+                        ? $"Pairing code request rate limited. Retry after {retryAfter ?? 120} seconds."
+                        : "Could not create pairing code: " + (start?.Error?.Message ?? response.ReasonPhrase ?? "unknown error");
+                    _pairingCode.Text = (int)response.StatusCode == 429 ? "Pairing code: paused" : "Pairing code: failed";
+                    _output.Text = JsonSerializer.Serialize(new
+                    {
+                        pairing_code = (int)response.StatusCode == 429 ? "rate_limited" : "failed",
+                        status_code = (int)response.StatusCode,
+                        retry_after_seconds = (int)response.StatusCode == 429 ? retryAfter ?? 120 : (int?)null,
+                        secrets_included = false
+                    }, _json);
                     return;
                 }
 
@@ -496,6 +508,7 @@ internal static class Program
                 var text = await response.Content.ReadAsStringAsync();
                 if (!response.IsSuccessStatusCode)
                 {
+                    var retryAfterSeconds = RetryAfterSeconds(response, 120);
                     _status.Text = actionName + " blocked: could not verify the latest Local Manager version.";
                     _output.Text = JsonSerializer.Serialize(new
                     {
@@ -503,6 +516,7 @@ internal static class Program
                         action = actionName,
                         reason = "update_check_failed",
                         status_code = (int)response.StatusCode,
+                        retry_after_seconds = response.StatusCode == System.Net.HttpStatusCode.TooManyRequests ? retryAfterSeconds : (int?)null,
                         current_version = CurrentSemVer(),
                         secrets_included = false
                     }, _json);
@@ -1513,8 +1527,17 @@ internal static class Program
                 {
                     if (userInitiated)
                     {
-                        _status.Text = "Could not check for updates.";
-                        _output.Text = text;
+                        var retryAfterSeconds = RetryAfterSeconds(response, 120);
+                        _status.Text = response.StatusCode == System.Net.HttpStatusCode.TooManyRequests
+                            ? $"Update check rate limited. Retry after {retryAfterSeconds} seconds."
+                            : "Could not check for updates.";
+                        _output.Text = JsonSerializer.Serialize(new
+                        {
+                            update_check = "failed",
+                            status_code = (int)response.StatusCode,
+                            retry_after_seconds = response.StatusCode == System.Net.HttpStatusCode.TooManyRequests ? retryAfterSeconds : (int?)null,
+                            secrets_included = false
+                        }, _json);
                     }
                     return;
                 }
@@ -1633,7 +1656,10 @@ internal static class Program
                     if (response.StatusCode != System.Net.HttpStatusCode.Unauthorized && response.StatusCode != System.Net.HttpStatusCode.Forbidden)
                     {
                         var failure = AutopilotNetworkRecovery.ClassifyHttp(response.StatusCode, text);
-                        RegisterDesktopCommandPollFailure(failure.Message, failure.Diagnostic);
+                        RegisterDesktopCommandPollFailure(
+                            failure.Message,
+                            failure.Diagnostic,
+                            response.StatusCode == System.Net.HttpStatusCode.TooManyRequests ? RetryAfterSeconds(response, 120) : null);
                     }
                     return;
                 }
@@ -1653,16 +1679,17 @@ internal static class Program
                 _desktopCommandPollRunning = false;
             }
         }
-        private void RegisterDesktopCommandPollFailure(string message, string? diagnostic = null)
+        private void RegisterDesktopCommandPollFailure(string message, string? diagnostic = null, int? serverRetryAfterSeconds = null)
         {
             _desktopCommandPollFailureCount += 1;
-            var backoffSeconds = Math.Min(300, _desktopCommandPollFailureCount switch
+            var localBackoffSeconds = _desktopCommandPollFailureCount switch
             {
                 <= 1 => 15,
                 2 => 30,
                 3 => 60,
                 _ => 120
-            });
+            };
+            var backoffSeconds = Math.Min(300, Math.Max(localBackoffSeconds, serverRetryAfterSeconds ?? 0));
             _desktopCommandPollBackoffUntil = DateTimeOffset.UtcNow.AddSeconds(backoffSeconds);
 
             // Desktop command polling is a background convenience path. Do not keep
@@ -1683,6 +1710,20 @@ internal static class Program
                     secrets_included = false
                 }, _json);
             }
+        }
+
+        private static int RetryAfterSeconds(HttpResponseMessage response, int fallbackSeconds)
+        {
+            var retryAfter = response.Headers.RetryAfter;
+            if (retryAfter?.Delta is TimeSpan delta)
+            {
+                return Math.Clamp((int)Math.Ceiling(delta.TotalSeconds), 1, 300);
+            }
+            if (retryAfter?.Date is DateTimeOffset retryAt)
+            {
+                return Math.Clamp((int)Math.Ceiling((retryAt - DateTimeOffset.UtcNow).TotalSeconds), 1, 300);
+            }
+            return Math.Clamp(fallbackSeconds, 1, 300);
         }
 
         private async Task ExecuteDesktopCommandAsync(HttpClient client, string token, JsonElement command)

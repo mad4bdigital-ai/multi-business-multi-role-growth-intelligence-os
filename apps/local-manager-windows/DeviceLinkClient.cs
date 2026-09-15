@@ -92,7 +92,21 @@ internal sealed class DeviceLinkClient
             response.IsSuccessStatusCode,
             response.ReasonPhrase,
             text,
-            payload);
+            payload,
+            RetryAfterSeconds(response));
+    }
+
+    private static int? RetryAfterSeconds(HttpResponseMessage response)
+    {
+        if (response.Headers.RetryAfter?.Delta is TimeSpan delta)
+        {
+            return Math.Clamp((int)Math.Ceiling(delta.TotalSeconds), 1, 300);
+        }
+        if (response.Headers.RetryAfter?.Date is DateTimeOffset retryAt)
+        {
+            return Math.Clamp((int)Math.Ceiling((retryAt - DateTimeOffset.UtcNow).TotalSeconds), 1, 300);
+        }
+        return null;
     }
 }
 
@@ -101,7 +115,8 @@ internal sealed record DeviceLinkHttpResult<T>(
     bool IsSuccessStatusCode,
     string? ReasonPhrase,
     string RawText,
-    T? Payload);
+    T? Payload,
+    int? RetryAfterSeconds);
 
 internal sealed class DeviceLinkError
 {

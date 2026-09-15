@@ -87,6 +87,9 @@
         "runtime_verification_runs",
         "runtime_verification_evidence_chunks",
         "deployment_attestations",
+        "staging_activation_gateway_execution_artifacts",
+        "staging_activation_gateway_execution_plans",
+        "staging_activation_gateway_envelope_plan_bindings",
         "governed_tool_response_chunks"
       ],
       "ownership_policy": "all_disposable_runtime_base_tables_except_explicit_governance_and_persistence_exclusions"
@@ -113,7 +116,10 @@
         "runtime_break_glass_audit_events",
         "runtime_verification_runs",
         "runtime_verification_evidence_chunks",
-        "deployment_attestations"
+        "deployment_attestations",
+        "staging_activation_gateway_execution_artifacts",
+        "staging_activation_gateway_execution_plans",
+        "staging_activation_gateway_envelope_plan_bindings"
       ],
       "ownership_policy": "explicit_governance_contract_tables_only"
     },

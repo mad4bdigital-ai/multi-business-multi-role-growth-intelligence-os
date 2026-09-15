@@ -190,10 +190,13 @@ test("Staging bootstrap authority enforces reserved to executing to verifying to
     assert.equal(first.reservation_receipt.contract, "mad4b.staging-bootstrap-reservation-receipt.v1");
 
     const replay = await authority.verifyForBootstrap({ ticket_id: ticket.ticket_id, ticket_hash: ticket.ticket_hash, expected });
-    assert.equal(replay.valid, false);
-    assert.equal(replay.error_code, "RECOVERY_TICKET_ALREADY_RESERVED");
-    assert.equal(replay.reconciliation_required, true);
-    assert.equal(replay.automatic_rerun_allowed, false);
+    assert.equal(replay.valid, true);
+    assert.equal(replay.reserved, true);
+    assert.equal(replay.idempotent_replay, true);
+    assert.equal(replay.lifecycle_state, "reserved");
+    assert.equal(replay.reservation_generation, first.reservation_generation);
+    assert.equal(replay.reservation_receipt.receipt_hash, first.reservation_receipt.receipt_hash);
+    assert.equal(replay.reconciliation_required, false);
 
     await assert.rejects(
       () => authority.finalizeForBootstrap({

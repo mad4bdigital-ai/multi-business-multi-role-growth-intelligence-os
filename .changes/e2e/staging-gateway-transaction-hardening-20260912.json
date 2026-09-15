@@ -1,0 +1,97 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-gateway-transaction-hardening-20260912",
+  "title": "Fail-closed Staging Gateway execution plans and version transactions",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-gateway-transaction-hardening-20260912.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+      "http-generic-api/stagingGatewayExecutionPlanStore.js",
+      "http-generic-api/databasePrivilegeContracts.js",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/activation-surfaces/exclusions/staging_activation_gateway_envelope_plan_bindings.json",
+      "http-generic-api/migrations/20260912_staging_activation_gateway_transaction_hardening.sql",
+      "http-generic-api/routes/gptToolsRoutes.js",
+      "http-generic-api/routes/gptToolsRoutesLegacy.js",
+      "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs",
+      "http-generic-api/test-staging-database-readiness-repair.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+          "objective": "Bind the acknowledged convergence plan to a durable encrypted execution artifact and keep Staging external writes blocked pending independent live certification.",
+      "e2e_journeys": [
+        {
+          "id": "staging-gateway-transaction-contract",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging server authority",
+          "entrypoint": "Create two distinct plan artifacts from one exact acknowledged convergence plan.",
+          "terminal_outcome": "Encrypted artifacts are distinct, stale plan identity fails closed, Version metadata groups secrets, rollback verifies the previous deployment, and dispatch certification remains pending.",
+          "steps": [
+            "Create and encrypt two independent execution artifacts.",
+            "Reject a wrong convergence plan and a missing durable audit sink before provider writes.",
+            "Build one candidate Version containing code and all secret bindings.",
+            "Verify force rollback and disallow deletion when previous script existence is unknown.",
+            "Leave live external-write certification pending until separate same-cycle evidence exists."
+          ],
+          "assertions": [
+            "Execution plan hashes bind exact convergence plan, commit, policy, binding, workspace and artifact digests.",
+            "The second dry-run does not alter the first artifact or its random keys.",
+            "An apply never invokes the bundle builder.",
+            "An acknowledged handoff is not execution authority.",
+            "No Production mutation, DNS write or live provider mutation is performed by tests.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "staging-gateway-transaction-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-smart-gateway-convergence-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-gateway-transaction-hardening-20260912.json",
+            ".github/derived-state-governance.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+            "http-generic-api/stagingGatewayExecutionPlanStore.js",
+            "http-generic-api/databasePrivilegeContracts.js",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/activation-surfaces/exclusions/staging_activation_gateway_envelope_plan_bindings.json",
+            "http-generic-api/migrations/20260912_staging_activation_gateway_transaction_hardening.sql",
+            "http-generic-api/routes/gptToolsRoutes.js",
+            "http-generic-api/routes/gptToolsRoutesLegacy.js",
+            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+            "http-generic-api/test-staging-schema-bundle-builder.mjs",
+            "http-generic-api/test-staging-database-readiness-repair.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

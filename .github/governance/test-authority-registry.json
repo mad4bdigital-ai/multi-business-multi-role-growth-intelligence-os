@@ -19,13 +19,16 @@
       "id": "activation_environment_and_gateway_regressions",
       "test_paths": [
         "http-generic-api/test-activation-gateway-host-profile.mjs",
+        "http-generic-api/test-activation-gateway-rollout-surface.mjs",
         "http-generic-api/test-activation-gateway.mjs",
+        "http-generic-api/test-environment-convergence-packaged-policy.mjs",
         "http-generic-api/test-auth-oauth-routes.mjs",
         "http-generic-api/test-chatgpt-mcp-metadata-routing.mjs",
         "http-generic-api/test-frontend-surface-dispatch.mjs",
         "http-generic-api/test-platform-routes.mjs",
         "http-generic-api/test-runtime-environment-resolver.mjs",
         "http-generic-api/test-staging-activation-gateway.mjs",
+        "http-generic-api/test-staging-environment-certification-contract.mjs",
         "http-generic-api/test-staging-activation-oauth-profile-enabled.mjs",
         "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
         "http-generic-api/test-staging-runtime-oauth-profile.mjs",
@@ -40,6 +43,7 @@
         "http-generic-api/scripts/github-review-policy-target.mjs",
         ".github/ops/github-main-review-policy-live-activation.mjs",
         "http-generic-api/test-github-repository-policy-live-activation-contract.mjs",
+        "http-generic-api/test-github-repository-policy-1050-governed-rollout.mjs",
         "http-generic-api/test-github-repository-policy-1051-metadata-state.mjs"
       ]
     },
@@ -76,6 +80,13 @@
       ]
     },
     {
+      "id": "governed_migration_capability_envelope_authorization",
+      "test_paths": [
+        "http-generic-api/test-capability-resolution-envelope-ledger.mjs",
+        "http-generic-api/test-governed-migration-authorization-bootstrap.mjs"
+      ]
+    },
+    {
       "id": "governed_migration_runner_diagnostics",
       "test_paths": [
         "http-generic-api/test-governed-migration-execution-tool.mjs",
@@ -109,6 +120,7 @@
         "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
         "http-generic-api/test-openapi-detail-closure-batch.mjs",
         "http-generic-api/test-host-breakglass-catalog.mjs",
+        "http-generic-api/test-host-breakglass-local-request.mjs",
         "http-generic-api/test-role-selection-proof-contract.mjs",
         "http-generic-api/test-host-breakglass-role-selection-artifact.mjs",
         "http-generic-api/test-admin-host-breakglass-routes.mjs",
@@ -157,6 +169,7 @@
         "http-generic-api/config/recovery-kernel-manifest.json",
         "http-generic-api/test-openapi-split-governance.mjs",
         "http-generic-api/test-host-local-runtime-inspection.mjs",
+        "http-generic-api/test-production-runtime-full-role-inspection-workflow.mjs",
         "http-generic-api/routes/deploymentInfoRoutes.js",
         "docs/governance/runtime-breakglass-environments.md"
       ]
@@ -187,6 +200,7 @@
         "http-generic-api/test-connector-local-api-key-registry.mjs",
         "http-generic-api/test-windows-staging-bootstrap-supervisor.mjs",
         "http-generic-api/test-local-manager-tool-release-owner.mjs",
+        "http-generic-api/test-local-manager-repair-connector-command.mjs",
         "http-generic-api/test-connect-routes.mjs",
         "http-generic-api/test-local-manager-cloudflare-origin-classification.mjs",
         "http-generic-api/test-local-manager-signed-installer-coordinator.mjs",
@@ -274,6 +288,9 @@
         "http-generic-api/recoveryReadinessEvidence.js",
         "http-generic-api/test-recovery-composition.mjs",
         "http-generic-api/test-production-recovery-composition-factory.mjs",
+        "http-generic-api/test-production-activation-readiness.mjs",
+        "http-generic-api/test-production-recovery-durable-evidence.mjs",
+        "http-generic-api/test-recovery-system-tool-store-authority-separation.mjs",
         "http-generic-api/test-server-managed-recovery-binding.mjs",
         "http-generic-api/test-staging-recovery-authority-binding.mjs",
         "http-generic-api/test-staging-pr-head-recovery-readiness.mjs",
@@ -447,6 +464,7 @@
         "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
         "http-generic-api/test-staging-one-click-autopilot-core.mjs",
         "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+        "http-generic-api/test-staging-convergence-acknowledgement-cli.mjs",
         "http-generic-api/test-staging-schema-governance-powershell-revision-contract.mjs",
         "http-generic-api/test-staging-auto-deploy-contract.mjs",
         "http-generic-api/test-staging-cloudflared-log-release.mjs",
@@ -472,6 +490,9 @@
       "id": "staging_schema_bundle_bootstrap",
       "test_paths": [
         "http-generic-api/test-staging-schema-bundle-builder.mjs",
+        "http-generic-api/test-staging-empty-role-db-bootstrap.mjs",
+        "http-generic-api/test-staging-bootstrap-ticket-idempotency.mjs",
+        "http-generic-api/test-staging-rebuild-empty-authority.mjs",
         "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
         "http-generic-api/test-database-foreign-key-compatibility-policy.mjs",
         "http-generic-api/test-mariadb-collation-ci-guard.mjs",
@@ -683,7 +704,8 @@
         "http-generic-api/test-recovery-kernel.mjs",
         "http-generic-api/test-openapi-split-governance.mjs",
         "http-generic-api/test-staging-independent-schema-contract.mjs",
-        "http-generic-api/test-role-selection-proof-contract.mjs"
+        "http-generic-api/test-role-selection-proof-contract.mjs",
+        "http-generic-api/test-host-breakglass-local-request.mjs"
       ],
       "protected_by_verifiers": []
     },
@@ -704,6 +726,7 @@
       "protected_by_tests": [
         "http-generic-api/test-recovery-composition.mjs",
         "http-generic-api/test-production-recovery-composition-factory.mjs",
+        "http-generic-api/test-recovery-system-tool-store-authority-separation.mjs",
         "http-generic-api/test-server-managed-recovery-binding.mjs",
         "http-generic-api/test-recovery-activation-readiness.mjs",
         "http-generic-api/test-staging-recovery-admin-surface.mjs",

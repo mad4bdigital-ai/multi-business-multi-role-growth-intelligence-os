@@ -1,0 +1,180 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr8061-staging-gateway-governance-authority-store",
+  "title": "PR8061 Staging Gateway Governance Authority Store boundary repair",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr8061-staging-gateway-governance-authority-store.json",
+      "http-generic-api/activationGatewayRolloutTool.js",
+      "http-generic-api/test-activation-gateway-rollout-surface.mjs",
+      "http-generic-api/config/staging-database-role-migration-manifest.json",
+      "http-generic-api/test-staging-database-readiness-repair.mjs",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs",
+      "autopilot-portable-staging/manifest.json",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/environmentConvergenceRegistry.js",
+      "http-generic-api/test-environment-convergence-packaged-policy.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Preserve the Runtime/Governance database ownership boundary for the Staging Activation Gateway, align the existing schema-role manifest with the governed Staging grant surface, and keep downstream readiness verification from deadlocking the immutable governed Gateway convergence plan, without adding a migration or allowing production/provider mutation.",
+      "e2e_journeys": [
+        {
+          "id": "pr8061-governance-authority-store-boundary",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed CI",
+          "entrypoint": "Build the Staging Activation Gateway rollout plan with distinct Runtime and Governance query executors and validate the existing database-role manifest against the Staging grant contract.",
+          "terminal_outcome": "Governance-owned authority bindings and gateway execution tables remain Governance-owned, Runtime excludes those Governance surfaces, required schema tables are already supplied by existing migrations, and no provider or production mutation occurs.",
+          "steps": [
+            "Classify the shared runtime change against canonical environment-impact policy.",
+            "Execute the registered Activation Gateway rollout surface regression in dry-run mode.",
+            "Verify platform_resource_authority_bindings never reaches the Runtime executor.",
+            "Verify workspace_registry remains a Runtime DB read.",
+            "Verify a Runtime executor cannot be reused as the Governance Authority Store.",
+            "Verify every Governance grant-required table is present in roles.governance.required_tables and excluded from the Runtime role manifest.",
+            "Execute the schema-bundle builder regression that requires every Governance table to remain Runtime-excluded.",
+            "Require live Staging certification before any governed Staging apply path is considered complete."
+          ],
+          "assertions": [
+            "The environment impact declaration source of truth is the canonical deployment branch policy.",
+            "Both staging and production are explicitly declared because the changed runtime module is shared, and cross-environment review is explicit.",
+            "Live Staging certification remains required.",
+            "production_mutation_allowed is false.",
+            "The Runtime DB does not serve platform_resource_authority_bindings.",
+            "The three Staging Activation Gateway execution tables are Governance-required and Runtime-excluded in the role manifest.",
+            "The grant policy and schema-role manifest cannot drift without failing regression tests.",
+            "No new migration is introduced because the required tables are already created by the existing migration set.",
+            "No SQL/GRANT changes, Cloudflare/provider writes, Production deployment, or Production mutation are introduced.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "pr8061-activation-gateway-rollout-surface",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-activation-gateway-rollout-surface.mjs"
+            },
+            {
+              "id": "pr8061-staging-database-readiness-role-manifest",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-database-readiness-repair.mjs"
+            },
+            {
+              "id": "pr8061-staging-schema-bundle-role-boundary",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-schema-bundle-builder.mjs"
+            },
+            {
+              "id": "pr8061-environment-impact-closure",
+              "runner": "node",
+              "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+              "args": ["--base-sha", "BASE_SHA", "--head-sha", "HEAD_SHA"]
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/pr8061-staging-gateway-governance-authority-store.json",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/activationGatewayRolloutTool.js",
+            "http-generic-api/test-activation-gateway-rollout-surface.mjs",
+            "http-generic-api/config/staging-database-role-migration-manifest.json",
+            "http-generic-api/test-staging-database-readiness-repair.mjs",
+            "http-generic-api/test-staging-schema-bundle-builder.mjs",
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json"
+          ]
+        },
+        {
+          "id": "pr8061-governed-convergence-readiness-deferral",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Environment convergence controller",
+          "entrypoint": "http-generic-api/environmentConvergenceRegistry.js",
+          "terminal_outcome": "A live-equivalent Staging failure set containing governed Gateway drift plus gateway_upstream_ready=false reaches immutable approval-required plan construction, while unavailable Gateway health remains blocked and no provider or Production mutation authority is introduced.",
+          "steps": [
+            "Classify gateway_recovery_trusted_ingress and gateway_exact_commit as governed convergence drift.",
+            "Classify gateway_upstream_ready=false as manual_or_external readiness rather than provider-mutation plan content.",
+            "Permit plan construction only when governed drift exists, deferring downstream readiness to post-apply verification.",
+            "Keep gateway_health_reachable=false blocking so dependency availability cannot be bypassed.",
+            "Keep automatic_apply_allowed false; operator acknowledgement and server-governed execution authority remain separate requirements."
+          ],
+          "assertions": [
+            "The live-equivalent degraded failure set is reconciliation_required rather than blocked.",
+            "The convergence engine emits approval_required with an immutable plan SHA-256.",
+            "The immutable provider-mutation plan contains only governed drift and does not treat gateway_upstream_ready as an apply mutation.",
+            "gateway_health_reachable=false remains blocked.",
+            "No Production deploy, provider mutation, Cloudflare mutation, database mutation, migration apply, Breakglass, or authority widening is performed by this change."
+          ],
+          "tests": [
+            {
+              "id": "pr8061-environment-convergence-packaged-policy-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-environment-convergence-packaged-policy.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/pr8061-staging-gateway-governance-authority-store.json",
+            "http-generic-api/environmentConvergenceRegistry.js",
+            "http-generic-api/test-environment-convergence-packaged-policy.mjs",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/config/environment-convergence-registry.json"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "pr8061-activation-gateway-rollout-surface",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-activation-gateway-rollout-surface.mjs"
+        },
+        {
+          "id": "pr8061-staging-database-readiness-role-manifest",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-staging-database-readiness-repair.mjs"
+        },
+        {
+          "id": "pr8061-staging-schema-bundle-role-boundary",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-staging-schema-bundle-builder.mjs"
+        },
+        {
+          "id": "pr8061-environment-impact-closure",
+          "runner": "node",
+          "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+          "args": ["--base-sha", "BASE_SHA", "--head-sha", "HEAD_SHA"]
+        },
+        {
+          "id": "pr8061-environment-convergence-packaged-policy-regression",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-environment-convergence-packaged-policy.mjs",
+          "args": []
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

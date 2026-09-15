@@ -60,7 +60,7 @@ assert.deepEqual(runtimeVerification, canonicalVerification);
 assert.equal(runtimeVerification.ok, true);
 assert.equal(runtimeVerification.stale, false);
 
-const rolloutSource = fs.readFileSync(path.join(__dirname, "activationGatewayRolloutTool.js"), "utf8");
+const rolloutSource = fs.readFileSync(path.join(__dirname, "activationGatewayRolloutToolProduction.js"), "utf8");
 assert.doesNotMatch(rolloutSource, /\.\.\/edge\/activation-gateway/);
 assert.doesNotMatch(rolloutSource, /edge\/activation-gateway\/src/);
 assert.match(rolloutSource, /activation-gateway-runtime/);

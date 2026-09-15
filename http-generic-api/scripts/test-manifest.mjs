@@ -38,6 +38,7 @@ const upstreamCommands = [
   "node test-server-managed-recovery-binding.mjs",
   "node test-recovery-action-bridge.mjs",
   "node test-recovery-action-bridge-system-layer.mjs",
+  "node test-recovery-system-tool-store-authority-separation.mjs",
   "node test-fixed-host-local-system-tool.mjs",
   "node test-migration-execution-safety.mjs",
   "node test-recovery-execution-binding.mjs",

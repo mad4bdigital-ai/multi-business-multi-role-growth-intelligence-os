@@ -13,6 +13,15 @@ const REPOSITORY_POLICY_RUNTIME_SURFACE = "system_layer";
 const REPOSITORY_POLICY_SOURCE_TIER = "platform_managed_fallback";
 const DEFAULT_REPOSITORY_BINDING_KEY = "growth_intelligence_platform.github.primary.production";
 
+const MIGRATION_AUTHORIZATION_APP_KEY = "platform_orchestration";
+const MIGRATION_AUTHORIZATION_CAPABILITY_KEY = "migration_release_orchestrator";
+const MIGRATION_AUTHORIZATION_RUNTIME_SURFACE = "auth_host";
+const MIGRATION_AUTHORIZATION_OPERATION_INTENTS = new Set([
+  "governed_migration_authorization_bootstrap",
+  "migration_authorization_bootstrap",
+  "governed.migration.authorization.bootstrap",
+]);
+
 function parseArgs(argv = process.argv.slice(2)) {
   const passthrough = [];
   const args = { requestedBy: "gpt_admin", ttlMinutes: 60 };
@@ -265,13 +274,123 @@ export async function buildRepositoryPolicyEnvelopeDryRun({ dryRunArgs = {}, bin
   };
 }
 
+function migrationAuthorizationEnvelopeRequested(dryRunArgs = {}) {
+  return dryRunArgs.appKey === MIGRATION_AUTHORIZATION_APP_KEY
+    && dryRunArgs.capabilityKey === MIGRATION_AUTHORIZATION_CAPABILITY_KEY
+    && MIGRATION_AUTHORIZATION_OPERATION_INTENTS.has(dryRunArgs.operationIntent);
+}
+
+export function buildMigrationAuthorizationEnvelopeDryRun({ dryRunArgs = {} } = {}) {
+  if (!migrationAuthorizationEnvelopeRequested(dryRunArgs)) return null;
+
+  if (dryRunArgs.runtimeSurface && dryRunArgs.runtimeSurface !== MIGRATION_AUTHORIZATION_RUNTIME_SURFACE) {
+    const err = new Error(
+      "Governed migration authorization envelopes require runtime_surface=auth_host."
+    );
+    err.code = "migration_authorization_capability_surface_mismatch";
+    throw err;
+  }
+
+  if (dryRunArgs.requestedSourceTier) {
+    const err = new Error(
+      "Governed migration authorization envelopes do not accept a caller-selected source tier."
+    );
+    err.code = "migration_authorization_capability_source_tier_forbidden";
+    throw err;
+  }
+
+  const tenantId = safeText(dryRunArgs.tenantId, 64);
+  const userId = safeText(dryRunArgs.userId, 64);
+  const principalType = safeText(dryRunArgs.principalType || "user", 32);
+  const principalId = safeText(dryRunArgs.principalId || userId, 64);
+
+  if (!tenantId || !userId) {
+    const err = new Error(
+      "Governed migration authorization envelope creation requires explicit tenant and admin user ids."
+    );
+    err.code = "migration_authorization_capability_principal_required";
+    throw err;
+  }
+
+  if (principalType !== "user" || principalId !== userId) {
+    const err = new Error(
+      "Governed migration authorization envelopes must be bound to the exact requesting admin user."
+    );
+    err.code = "migration_authorization_capability_principal_mismatch";
+    throw err;
+  }
+
+  return {
+    schema_version: "capability_resolution_dry_run.v1",
+    request_context: {
+      tenant_id: tenantId,
+      user_id: userId,
+      principal: {
+        principal_type: "user",
+        principal_id: userId,
+      },
+      workspace_id: safeText(dryRunArgs.workspaceId, 64) || null,
+      workspace_key: safeText(dryRunArgs.workspaceKey, 191) || null,
+      workspace_type: safeText(dryRunArgs.workspaceType, 64) || null,
+      user_role: safeText(dryRunArgs.userRole, 64) || "Admin",
+      brand_key: safeText(dryRunArgs.brandKey, 191) || null,
+      business_activity_type: safeText(dryRunArgs.businessActivityType, 191) || null,
+      operation_intent: dryRunArgs.operationIntent,
+      operation_mode: safeText(dryRunArgs.operationMode, 64) || "authorization_bootstrap",
+      resource_type: safeText(dryRunArgs.resourceType, 128) || null,
+      resource_uri: safeText(dryRunArgs.resourceUri, 512) || null,
+    },
+    capability: {
+      app_key: MIGRATION_AUTHORIZATION_APP_KEY,
+      capability_key: MIGRATION_AUTHORIZATION_CAPABILITY_KEY,
+      risk_class: "medium",
+      effect_class: "internal_registry_write",
+    },
+    selected_source: {
+      selected_source_tier: null,
+      selected_runtime_surface: MIGRATION_AUTHORIZATION_RUNTIME_SURFACE,
+      active_credential_binding_count: 0,
+      credential_source_candidates: [],
+      provider_auth_source: "none",
+      secrets_included: false,
+    },
+    authority: {
+      status: "resolved_internal_governance_authority",
+      authorization_source: "governed_migration_authorization_bootstrap",
+      secrets_included: false,
+    },
+    gates: {
+      dispatch_allowed: true,
+      apply_allowed: false,
+      approval_required: true,
+      quota_required: false,
+      audit_required: true,
+      readback_required: true,
+      secrets_included: false,
+    },
+    decision: "ready_requires_approval",
+    blocking_gaps: [],
+    inputs: {
+      app_key: MIGRATION_AUTHORIZATION_APP_KEY,
+      capability_key: MIGRATION_AUTHORIZATION_CAPABILITY_KEY,
+      operation_intent: dryRunArgs.operationIntent,
+      runtime_surface: MIGRATION_AUTHORIZATION_RUNTIME_SURFACE,
+    },
+    provider_call_executed: false,
+    external_write_executed: false,
+    credential_payload_read: false,
+    secrets_included: false,
+  };
+}
+
 export async function createCapabilityResolutionEnvelopeLedger(args = parseArgs(), deps = {}) {
   const dryRunArgs = buildDryRunArgs(args.passthrough);
   const bindingContext = buildBindingContext(args.passthrough);
   const readPool = deps.readPool || getPool();
   const repositoryPolicyDryRun = await buildRepositoryPolicyEnvelopeDryRun({ dryRunArgs, bindingContext, pool: readPool });
+  const migrationAuthorizationDryRun = buildMigrationAuthorizationEnvelopeDryRun({ dryRunArgs });
   const runDryRun = deps.runDryRun || runCapabilityResolutionDryRun;
-  const dryRun = repositoryPolicyDryRun || await runDryRun(dryRunArgs);
+  const dryRun = repositoryPolicyDryRun || migrationAuthorizationDryRun || await runDryRun(dryRunArgs);
   const envelope = redactDangerousKeys({
     ...dryRun,
     request_context: { ...(dryRun.request_context || {}), ...bindingContext },

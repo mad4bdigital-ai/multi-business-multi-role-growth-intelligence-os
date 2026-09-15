@@ -41,7 +41,7 @@ const MIGRATION = "1051_github_repository_policy_live_apply_authority.sql";
 const MIGRATION_PATH = `http-generic-api/migrations/${MIGRATION}`;
 const MIGRATION_BLOB_SHA = "a705b4425c962b65efae3f92a7e9ef20706e0841";
 const ENVELOPE_CREATOR_PATH = "http-generic-api/scripts/capability-resolution-envelope-create.mjs";
-const ENVELOPE_CREATOR_BLOB_SHA = "3ee2196a86cc66d5dc7de771b6fdaccd8fa45f14";
+const ENVELOPE_CREATOR_BLOB_SHA = "ecbadfc10975620a571f297fc8bb73f179b38a58";
 const EXPECTED_MIGRATION_STATEMENTS = 6;
 
 let stage = "start";

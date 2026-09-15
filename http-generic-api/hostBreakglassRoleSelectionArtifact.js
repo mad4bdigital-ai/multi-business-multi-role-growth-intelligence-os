@@ -12,6 +12,13 @@ const INSPECTION_RUN = /^run:github:([1-9][0-9]{0,18})$/u;
 const FINDING = /^finding:[0-9a-f]{16,64}$/u;
 const ROLE_ORDER = Object.freeze(["runtime", "governance", "runtime_persistence"]);
 const WORKFLOW = "production-runtime-parity-evidence.yml";
+const FULL_INSPECTION_KIND = "full_role_inspection";
+// Source-level compatibility marker: FULL_INSPECTION_ARTIFACT_MODE = "full_role_inspection"
+const FULL_INSPECTION_ARTIFACT_MODE = FULL_INSPECTION_KIND;
+const FULL_INSPECTION_RESULT_ENTRY = "full-role-inspection.json";
+const FULL_INSPECTION_EVIDENCE_CONTRACT = "mad4b.production-runtime-full-role-inspection-evidence.v1";
+const LOCAL_INSPECTION_PROTOCOL = "mad4b.host-breakglass-host-local-inspection.v1";
+const HOST_LOCAL_INSPECTION_CONTRACT = LOCAL_INSPECTION_PROTOCOL;
 const MAX_ZIP_BYTES = 2 * 1024 * 1024;
 const MAX_PROOF_BYTES = 64 * 1024;
 const MAX_RESULT_BYTES = 128 * 1024;
@@ -38,6 +45,16 @@ function stable(value) {
 function sha256(value) {
   const bytes = Buffer.isBuffer(value) ? value : Buffer.from(typeof value === "string" ? value : JSON.stringify(stable(value)), "utf8");
   return createHash("sha256").update(bytes).digest("hex");
+}
+
+function expectedFullInspectionArtifactName(expectedSha, runId) {
+  return `production-runtime-bootstrap-${FULL_INSPECTION_ARTIFACT_MODE}-${expectedSha}-${runId}`;
+}
+
+function missingZipEntry(error, expectedName) {
+  return error?.code === "host_breakglass_role_selection_artifact_invalid"
+    && error?.details?.expected_name === expectedName
+    && Number(error?.details?.match_count) === 0;
 }
 
 async function resolveToken({ env = process.env, fetchImpl = fetch, tokenResolver = getGitHubAppInstallationToken } = {}) {
@@ -133,16 +150,24 @@ function extractZipEntry(zip, expectedName, maxBytes = MAX_PROOF_BYTES) {
 
 function deriveProofFromResult(result, { expectedSha, targetKey, runId, correlationId, artifactCreatedAt, now = Date.now() } = {}) {
   if (!result || typeof result !== "object" || Array.isArray(result)) fail(409, "host_breakglass_role_selection_artifact_invalid", "Full-inspection result is not a JSON object.");
+  if (result.contract && ![FULL_INSPECTION_EVIDENCE_CONTRACT, HOST_LOCAL_INSPECTION_CONTRACT].includes(result.contract)) {
+    fail(409, "host_breakglass_role_selection_artifact_invalid", "Full-inspection artifact contract is not canonical.");
+  }
   if (result.secrets_included !== false || result.database_mutation_performed !== false || result.migration_apply_performed !== false || result.grant_mutation_performed !== false || result.mode !== "dry_run" || result.operation !== "read_only" || result.full_inspection !== true) {
     fail(409, "host_breakglass_role_selection_artifact_invalid", "Durable role-selection proof requires a no-secret, read-only full inspection.");
   }
-  if (text(result.source_binding?.expected_sha || result.source_binding?.repository_sha || expectedSha, 64).toLowerCase() !== expectedSha) fail(409, "host_breakglass_role_selection_sha_mismatch", "Full-inspection artifact is bound to a different source SHA.");
+  const resultExpectedSha = text(result.source_binding?.expected_sha || result.source_binding?.repository_sha || result.expected_sha || result.expected_production_sha || expectedSha, 64).toLowerCase();
+  if (resultExpectedSha !== expectedSha) fail(409, "host_breakglass_role_selection_sha_mismatch", "Full-inspection artifact is bound to a different source SHA.");
   if (text(result.target_key, 128) !== targetKey) fail(409, "host_breakglass_role_selection_target_mismatch", "Full-inspection artifact is bound to a different target key.");
   const selectedRoles = canonicalizeRoleSelection(result.selected_rebuild_roles);
   if (!selectedRoles.length) fail(409, "host_breakglass_role_selection_no_zero_object_roles", "Full inspection did not identify any selected zero-object role.");
   const classifications = result.role_database_object_classifications && typeof result.role_database_object_classifications === "object" ? result.role_database_object_classifications : {};
   const counts = result.role_database_object_counts && typeof result.role_database_object_counts === "object" ? result.role_database_object_counts : {};
   const fingerprints = result.role_database_object_count_fingerprints && typeof result.role_database_object_count_fingerprints === "object" ? result.role_database_object_count_fingerprints : {};
+  const derivedZeroRoles = ROLE_ORDER.filter((role) => classifications[role] === "zero_objects" && Number(counts?.[role]?.total) === 0);
+  if (JSON.stringify(selectedRoles) !== JSON.stringify(derivedZeroRoles)) {
+    fail(409, "host_breakglass_role_selection_mismatch", "Selected rebuild roles must exactly match the zero-object roles proven by the durable inspection artifact.", { selected_roles: selectedRoles, derived_zero_roles: derivedZeroRoles });
+  }
   const roleObjectCountFingerprints = {};
   const selectedRoleCounts = {};
   const selectedRoleClassifications = {};
@@ -154,7 +179,7 @@ function deriveProofFromResult(result, { expectedSha, targetKey, runId, correlat
     selectedRoleCounts[role] = { total: Number(counts[role].total), tables: Number(counts[role].tables || 0), views: Number(counts[role].views || 0), triggers: Number(counts[role].triggers || 0), routines: Number(counts[role].routines || 0), events: Number(counts[role].events || 0) };
     selectedRoleClassifications[role] = classifications[role];
   }
-  const compositeTargetFingerprint = text(result.target_binding?.target_fingerprint, 128).toLowerCase();
+  const compositeTargetFingerprint = text(result.target_binding?.target_fingerprint || result.composite_target_fingerprint, 128).toLowerCase();
   if (!SHA256.test(compositeTargetFingerprint)) fail(409, "host_breakglass_role_selection_target_fingerprint_invalid", "Full-inspection artifact lacks a canonical target fingerprint.");
   const generatedAtMs = Date.parse(artifactCreatedAt || "");
   if (!Number.isFinite(generatedAtMs) || Number(now) - generatedAtMs > MAX_ARTIFACT_AGE_MS || generatedAtMs > Number(now) + 60_000) fail(409, "host_breakglass_role_selection_artifact_expired", "Full-inspection artifact is stale or has an invalid creation time.");
@@ -240,7 +265,7 @@ export async function resolveDurableRoleSelectionProof(input = {}, {
   const correlationId = runName.startsWith(prefix) && runName.endsWith(suffix) ? runName.slice(prefix.length, -suffix.length) : "";
   if (String(run.id) !== String(runId) || !String(run.path || "").endsWith(WORKFLOW) || run.event !== "workflow_dispatch" || run.head_branch !== "main" || run.status !== "completed" || run.conclusion !== "success" || !SAFE_CORRELATION.test(correlationId)) fail(409, "host_breakglass_role_selection_provenance_mismatch", "Referenced GitHub run is not the canonical successful full-inspection authority for this SHA.");
   const artifacts = await githubJson(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/actions/runs/${encodeURIComponent(runId)}/artifacts?per_page=100`, { token, fetchImpl });
-  const expectedArtifactName = `production-runtime-bootstrap-dry_run-${expectedSha}-${runId}`;
+  const expectedArtifactName = expectedFullInspectionArtifactName(expectedSha, runId);
   const matches = (Array.isArray(artifacts.artifacts) ? artifacts.artifacts : []).filter((artifact) => artifact?.name === expectedArtifactName && artifact?.expired !== true);
   if (matches.length !== 1) fail(409, matches.length ? "host_breakglass_role_selection_artifact_ambiguous" : "host_breakglass_role_selection_artifact_missing", "Exactly one non-expired durable full-inspection artifact is required.", { artifact_name: expectedArtifactName, candidate_count: matches.length });
   const artifact = matches[0];
@@ -250,8 +275,8 @@ export async function resolveDurableRoleSelectionProof(input = {}, {
   try {
     proof = JSON.parse(extractZipEntry(zip, "role-selection-proof.json", MAX_PROOF_BYTES).toString("utf8"));
   } catch (error) {
-    if (error?.code) throw error;
-    const rawResult = extractZipEntry(zip, "result.json", MAX_RESULT_BYTES);
+    if (!missingZipEntry(error, "role-selection-proof.json")) throw error;
+    const rawResult = extractZipEntry(zip, FULL_INSPECTION_RESULT_ENTRY, MAX_RESULT_BYTES);
     let result;
     try { result = JSON.parse(rawResult.toString("utf8")); } catch { fail(409, "host_breakglass_role_selection_artifact_invalid", "Durable full-inspection result JSON is invalid."); }
     proof = deriveProofFromResult(result, { expectedSha, targetKey, runId, correlationId, artifactCreatedAt: createdAt, now });
@@ -259,4 +284,12 @@ export async function resolveDurableRoleSelectionProof(input = {}, {
   return validateCanonicalProof(proof, { expected_sha: expectedSha, target_key: targetKey, run_id: runId, correlation_id: correlationId }, now);
 }
 
-export const __hostBreakglassRoleSelectionArtifactTest = Object.freeze({ extractZipEntry, deriveProofFromResult, validateCanonicalProof, sha256 });
+export const __hostBreakglassRoleSelectionArtifactTest = Object.freeze({
+  extractZipEntry,
+  deriveProofFromResult,
+  validateCanonicalProof,
+  expectedFullInspectionArtifactName,
+  missingZipEntry,
+  FULL_INSPECTION_RESULT_ENTRY,
+  sha256,
+});

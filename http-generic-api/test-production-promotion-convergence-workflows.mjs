@@ -331,6 +331,8 @@ for (const required of [
 ]) assert.match(evidenceHelper, required);
 assert.doesNotMatch(evidenceHelper, /candidate_tree_matches_main: true/u);
 
+await import("./test-response-chunk-ownership-governed-rollout-control.mjs");
+
 console.log(JSON.stringify({
   contract: "mad4b.production-promotion-release-cut-convergence.v2",
   ok: true,

@@ -9,8 +9,17 @@ import {
   stagingRecoveryAccessRepairExecute,
   stagingRecoveryAccessRepairPrepare,
   stagingRecoveryCertificationCanaryPlanCreate,
+  stagingRecoveryRebuildEmptyApprove,
+  stagingRecoveryRebuildEmptyInspectionRecord,
+  stagingRecoveryRebuildEmptyPrepare,
   stagingRecoverySystemSurfaceReadiness,
 } from "../stagingRecoverySystemTools.js";
+import {
+  buildStagingSchemaRepairSystemTools,
+  stagingRecoverySchemaRepairApprove,
+  stagingRecoverySchemaRepairExecute,
+  stagingRecoverySchemaRepairPrepare,
+} from "../stagingSchemaRepairSystemTools.js";
 import {
   issueAndExecuteApprovedRecoveryStep,
   sanitizeRecoveryActionBridgeOutput,
@@ -19,11 +28,22 @@ import {
 export const RECOVERY_SYSTEM_TOOL_OVERLAY_CONTRACT = "mad4b.recovery-system-tool-overlay.v1";
 
 const BRIDGE_TOOL_NAME = "recovery_kernel_execute_approved_step";
+const STAGING_REBUILD_ROLE_CAPABILITIES = Object.freeze([
+  "runtime.baseline.rebuild_empty",
+  "governance.baseline.rebuild_empty",
+  "runtime_persistence.baseline.rebuild_empty",
+]);
 const STAGING_TOOL_NAMES = new Set([
   "staging_recovery_certification_canary_plan_create",
   "staging_recovery_access_repair_prepare",
   "staging_recovery_access_repair_approve",
   "staging_recovery_access_repair_execute",
+  "staging_recovery_schema_repair_prepare",
+  "staging_recovery_schema_repair_approve",
+  "staging_recovery_schema_repair_execute",
+  "staging_recovery_rebuild_empty_inspection_record",
+  "staging_recovery_rebuild_empty_prepare",
+  "staging_recovery_rebuild_empty_approve",
   "staging_recovery_system_surface_readiness",
 ]);
 const BRIDGE_ALLOWED_KEYS = new Set([
@@ -77,7 +97,7 @@ export function synchronizeRecoverySystemToolDescriptors(env = process.env) {
     }
   }
   if (isStagingRecoverySystemEnvironment(env)) {
-    SYSTEM_LAYER_TOOLS.push(...buildStagingRecoverySystemTools(env));
+    SYSTEM_LAYER_TOOLS.push(...buildStagingRecoverySystemTools(env), ...buildStagingSchemaRepairSystemTools(env));
   }
   return {
     bridge_v2: true,
@@ -102,10 +122,33 @@ function stagingExecutionDependenciesReady(deps = {}) {
   );
 }
 
+function stagingSchemaExecutionDependenciesReady(deps = {}) {
+  const executor = deps.hostBreakglassMutationExecutor;
+  return Boolean(
+    (typeof executor === "function" || typeof executor?.execute === "function")
+    && typeof deps.recoveryLock?.acquire === "function"
+    && typeof deps.recoveryLock?.heartbeat === "function"
+    && typeof deps.recoveryLock?.assertFence === "function"
+    && typeof deps.recoveryLock?.release === "function"
+    && typeof deps.readbackVerifier?.verify === "function"
+    && deps.readbackVerifier?.independent_authority === true
+    && deps.readbackVerifier?.role_aware === true
+    && deps.readbackVerifier?.mutation_authority !== true
+    && typeof deps.deploymentIdentityProvider?.readAttestation === "function"
+    && typeof deps.recoveryStore?.getPlan === "function"
+    && typeof deps.recoveryStore?.getExecutionTicket === "function"
+    && typeof deps.recoveryStore?.reserveExecutionTicket === "function"
+    && typeof deps.recoveryStore?.finalizeExecutionTicket === "function"
+    && typeof deps.recoveryStore?.markApprovalUsed === "function"
+    && typeof deps.migrationLedger?.finalize === "function"
+  );
+}
+
 export function projectRecoveryCapabilitiesForSystemSurface(env = process.env, deps = {}) {
   const kernel = getRecoveryCapabilities({ env });
   if (!isStagingRecoverySystemEnvironment(env)) return kernel;
   const executionReady = stagingExecutionDependenciesReady(deps);
+  const schemaExecutionReady = stagingSchemaExecutionDependenciesReady(deps);
   return {
     ...kernel,
     environment_view: "staging_bounded_control_plane",
@@ -128,9 +171,31 @@ export function projectRecoveryCapabilitiesForSystemSurface(env = process.env, d
         provider_mutation: false,
         production_authority: false,
       },
+      {
+        capability_key: "staging_database_schema_repair",
+        risk_class: "C3",
+        state_scope: schemaExecutionReady ? "allowlist_plan_approval_execute_same_cycle_readback" : "allowlist_plan_approval_ticket_only",
+        target_database_mutation: schemaExecutionReady,
+        provider_mutation: false,
+        production_authority: false,
+        raw_sql_allowed: false,
+        caller_database_allowed: false,
+      },
     ],
-    control_plane_state_write_capabilities: ["staging_certification_canary_plan_create", "staging_database_access_repair"],
-    target_database_mutation_capabilities: executionReady ? ["staging_database_access_repair"] : [],
+    control_plane_state_write_capabilities: [
+      "staging_certification_canary_plan_create",
+      "staging_database_access_repair",
+      "staging_database_schema_repair",
+      "database_full_inspection",
+      "remediation_plan_create",
+      "remediation_step_execute",
+    ],
+    target_database_mutation_capabilities: [
+      ...(executionReady ? ["staging_database_access_repair"] : []),
+      ...(schemaExecutionReady ? ["staging_database_schema_repair"] : []),
+    ],
+    rebuild_role_capability_keys: [...STAGING_REBUILD_ROLE_CAPABILITIES],
+    local_handoff_mutation_capabilities: [...STAGING_REBUILD_ROLE_CAPABILITIES],
     production_authority: false,
     secrets_included: false,
   };
@@ -206,6 +271,15 @@ async function executeOverlayTool(name, args, deps = {}) {
       if (!stagingExecutionDependenciesReady(deps)) throw Object.assign(new Error("Staging access-repair execution dependencies are incomplete."), { status: 503, code: "STAGING_RECOVERY_EXECUTION_UNAVAILABLE" });
       return stagingRecoveryAccessRepairExecute(args, { env: runtimeEnv, adapters: deps });
     }
+    if (name === "staging_recovery_schema_repair_prepare") return stagingRecoverySchemaRepairPrepare(args, { env: runtimeEnv, adapters: deps });
+    if (name === "staging_recovery_schema_repair_approve") return stagingRecoverySchemaRepairApprove(args, { env: runtimeEnv, adapters: deps });
+    if (name === "staging_recovery_schema_repair_execute") {
+      if (!stagingSchemaExecutionDependenciesReady(deps)) throw Object.assign(new Error("Staging schema-repair execution dependencies are incomplete."), { status: 503, code: "STAGING_SCHEMA_REPAIR_EXECUTION_UNAVAILABLE" });
+      return stagingRecoverySchemaRepairExecute(args, { env: runtimeEnv, adapters: deps });
+    }
+    if (name === "staging_recovery_rebuild_empty_inspection_record") return stagingRecoveryRebuildEmptyInspectionRecord(args, { env: runtimeEnv, adapters: deps });
+    if (name === "staging_recovery_rebuild_empty_prepare") return stagingRecoveryRebuildEmptyPrepare(args, { env: runtimeEnv, adapters: deps });
+    if (name === "staging_recovery_rebuild_empty_approve") return stagingRecoveryRebuildEmptyApprove(args, { env: runtimeEnv, adapters: deps });
     if (name === "staging_recovery_system_surface_readiness") return stagingRecoverySystemSurfaceReadiness(args, { env: runtimeEnv });
   }
 
@@ -295,5 +369,6 @@ export const _testingRecoverySystemToolOverlay = Object.freeze({
   bridgeDescriptor,
   validateBridgeArgs,
   stagingExecutionDependenciesReady,
+  stagingSchemaExecutionDependenciesReady,
   executeOverlayTool,
 });

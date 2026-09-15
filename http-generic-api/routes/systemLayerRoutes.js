@@ -112,7 +112,6 @@ const SHARED_ADMIN_RECOVERY_READONLY_CAPABILITIES = new Set([
   "finding_details",
   "remediation_plan_create",
   "remediation_plan_preview",
-  "approval_challenge_create",
   "remediation_step_verify",
   "recovery_run_get",
   "recovery_evidence_get",
@@ -127,9 +126,16 @@ const SHARED_ADMIN_RECOVERY_READONLY_CAPABILITIES = new Set([
   "unsupported_recovery_escalate",
   "ssh_session_preview",
   "sql_session_preview",
-  "ephemeral_capability_create",
   "system_tool_get",
   "system_tools_search",
+]);
+
+const CONTROL_CAPABILITIES_FORBIDDEN_ON_READ_BRIDGE = new Set([
+  "approval_challenge_create",
+  "ephemeral_capability_create",
+  "remediation_step_execute",
+  "host_breakglass_execute",
+  "unsupported_capability_execute",
 ]);
 
 const SYSTEM_LAYER_TOOLS = [
@@ -2406,7 +2412,35 @@ function recoveryEnvironmentIsProduction(env = process.env) {
   });
 }
 
+export function resolveSystemRecoveryStores(deps = {}) {
+  const hasExplicitReadOnly = Object.prototype.hasOwnProperty.call(deps, "readOnlyRecoveryStore");
+  const hasExplicitMutation = Object.prototype.hasOwnProperty.call(deps, "mutationRecoveryStore");
+  return Object.freeze({
+    readOnlyRecoveryStore: hasExplicitReadOnly
+      ? (deps.readOnlyRecoveryStore ?? null)
+      : (deps.recoveryStore ?? null),
+    mutationRecoveryStore: hasExplicitMutation
+      ? (deps.mutationRecoveryStore ?? null)
+      : (deps.recoveryStore ?? null),
+    explicit_read_only_boundary: hasExplicitReadOnly,
+    explicit_mutation_boundary: hasExplicitMutation,
+  });
+}
+
+function privateRecoverySurfaceError(capabilityKey) {
+  const error = new Error("Consequential Recovery control or execution is not available through the read-only fixed Admin System Tool bridge.");
+  error.status = 404;
+  error.code = "recovery_kernel_private_surface_required";
+  error.details = {
+    capability_key: capabilityKey,
+    required_surface: "recovery_kernel_create_approval_challenge_or_execute_approved_step",
+    secrets_included: false,
+  };
+  return error;
+}
+
 async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
+  const stores = resolveSystemRecoveryStores(deps);
   if (!LOCAL_SYSTEM_TOOL_NAMES.has(name)) {
     const tenantRegistryTool = await callTenantEndpointRegistryToolIfAvailable(name, args, auth, deps);
     if (tenantRegistryTool.handled) return tenantRegistryTool.result;
@@ -2445,13 +2479,13 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
         throw error;
       }
       assertApprovalChallengeAuthorities({
-        recoveryStore: deps.recoveryStore,
+        recoveryStore: stores.mutationRecoveryStore,
         approvalIssuer: deps.approvalIssuer,
         approvalStore: deps.approvalStore,
       });
       const result = await callRecoveryKernelCapability("approval_challenge_create", args, {
         env: deps.recoveryKernelEnv || deps.env || process.env,
-        recoveryStore: deps.recoveryStore,
+        recoveryStore: stores.mutationRecoveryStore,
         approvalIssuer: deps.approvalIssuer,
         approvalStore: deps.approvalStore,
         adminPrincipal: recoveryAdminPrincipalFromAuth(auth),
@@ -2477,7 +2511,7 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
       const result = await issueAndExecuteApprovedRecoveryStep(args, {
         env: deps.recoveryKernelEnv || deps.env || process.env,
         adminPrincipal: recoveryAdminPrincipalFromAuth(auth),
-        recoveryStore: deps.recoveryStore,
+        recoveryStore: stores.mutationRecoveryStore,
         executionTicketSigner: deps.executionTicketSigner,
         approvalVerifier: deps.approvalVerifier,
         approvalStore: deps.approvalStore,
@@ -2506,12 +2540,11 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
         throw error;
       }
       const capabilityKey = args.capability_key.trim();
+      if (CONTROL_CAPABILITIES_FORBIDDEN_ON_READ_BRIDGE.has(capabilityKey)) {
+        throw privateRecoverySurfaceError(capabilityKey);
+      }
       if (!SHARED_ADMIN_RECOVERY_READONLY_CAPABILITIES.has(capabilityKey)) {
-        const error = new Error("Consequential Recovery execution is not available through the shared non-consequential Admin System Action.");
-        error.status = 404;
-        error.code = "recovery_kernel_private_surface_required";
-        error.details = { capability_key: capabilityKey, required_surface: "admin_recovery_production_or_host_breakglass", secrets_included: false };
-        throw error;
+        throw privateRecoverySurfaceError(capabilityKey);
       }
       const stagingSafe = new Set(["recovery_capabilities", "system_tool_get", "system_tools_search"]);
       const env = deps.recoveryKernelEnv || deps.env || process.env;
@@ -2526,7 +2559,7 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
         env,
         repoRoot: deps.hostLocalInspectionRepoRoot,
         hostLocalExecutor: deps.hostLocalInspectionExecutor,
-        recoveryStore: deps.recoveryStore,
+        recoveryStore: stores.readOnlyRecoveryStore,
         approvalIssuer: deps.approvalIssuer,
         approvalVerifier: deps.approvalVerifier,
         approvalStore: deps.approvalStore,
@@ -2750,6 +2783,8 @@ export function buildSystemLayerRoutes(deps) {
     productionActivationReadinessExecutor,
     recoveryKernelEnv,
     recoveryStore,
+    readOnlyRecoveryStore,
+    mutationRecoveryStore,
     approvalIssuer,
     approvalVerifier,
     approvalStore,
@@ -2761,6 +2796,10 @@ export function buildSystemLayerRoutes(deps) {
     systemToolLookup,
     env,
   } = deps;
+  const recoveryStoreBindings = {
+    ...(Object.prototype.hasOwnProperty.call(deps, "readOnlyRecoveryStore") ? { readOnlyRecoveryStore } : {}),
+    ...(Object.prototype.hasOwnProperty.call(deps, "mutationRecoveryStore") ? { mutationRecoveryStore } : {}),
+  };
   const router = Router();
   const adminOnly = [requireBackendApiKey, requireAdminPrincipal];
   const authenticated = [requireBackendApiKey];
@@ -2846,6 +2885,7 @@ export function buildSystemLayerRoutes(deps) {
           productionActivationReadinessExecutor,
           recoveryKernelEnv,
           recoveryStore,
+          ...recoveryStoreBindings,
           approvalIssuer,
           approvalVerifier,
           approvalStore,
@@ -2952,6 +2992,7 @@ export function buildSystemLayerRoutes(deps) {
           productionActivationReadinessExecutor,
           recoveryKernelEnv,
           recoveryStore,
+          ...recoveryStoreBindings,
           approvalIssuer,
           approvalVerifier,
           approvalStore,

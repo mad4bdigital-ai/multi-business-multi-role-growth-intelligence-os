@@ -22,6 +22,19 @@ const runtimePersistenceReadiness = read("http-generic-api/scripts/runtime-persi
 const importer = read("autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1");
 const sqlCacheMigration = read("http-generic-api/migrations/1023_sprint69_sql_cache_runtime_policy.sql");
 const roleManifest = readJson("http-generic-api/config/staging-database-role-migration-manifest.json");
+for (const table of STAGING_ROLE_GRANT_POLICIES.governance.required_tables) {
+  assert.equal(
+    roleManifest.roles.governance.required_tables.includes(table),
+    true,
+    `governance grant-required surface missing from role manifest: ${table}`,
+  );
+
+  assert.equal(
+    roleManifest.roles.runtime.excluded_tables.includes(table),
+    true,
+    `runtime must exclude governance grant-required surface: ${table}`,
+  );
+}
 const autoDeployPolicy = readJson("autopilot-portable-staging/auto-deploy-policy.json");
 const oneClickPolicy = readJson("autopilot-portable-staging/autopilot-one-click-policy.json");
 
@@ -84,7 +97,18 @@ for (const identityTable of ["users", "memberships", "tenants"]) {
   assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table[identityTable], ["SELECT"]);
   assert.equal(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_tables.includes(identityTable), false);
 }
-assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.governance, BOOTSTRAP_ROLE_GRANT_POLICIES.governance);
+for (const [table, operations] of Object.entries(BOOTSTRAP_ROLE_GRANT_POLICIES.governance.required_operations_by_table)) {
+  assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.governance.required_operations_by_table[table], operations);
+}
+for (const [table, operations] of Object.entries({
+  staging_activation_gateway_execution_artifacts: ["SELECT", "INSERT"],
+  staging_activation_gateway_execution_plans: ["SELECT", "INSERT", "UPDATE"],
+  staging_activation_gateway_envelope_plan_bindings: ["SELECT", "INSERT"],
+})) {
+  assert.equal(STAGING_ROLE_GRANT_POLICIES.governance.required_tables.includes(table), true);
+  assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.governance.required_operations_by_table[table], operations);
+  assert.equal(BOOTSTRAP_ROLE_GRANT_POLICIES.governance.required_tables.includes(table), false);
+}
 assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime_persistence, BOOTSTRAP_ROLE_GRANT_POLICIES.runtime_persistence);
 
 assert.match(grantPlan, /STAGING_ROLE_GRANT_POLICIES/);
