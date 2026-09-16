@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { buildVersionPayload, readDeploymentManifest } from "../deploymentManifest.js";
+import { buildStagingTrustedIngressCertificationEvidence } from "../stagingTrustedIngressCertificationEvidence.js";
 
 export function buildHealthRoutes(deps) {
   const {
@@ -12,10 +13,11 @@ export function buildHealthRoutes(deps) {
     SERVICE_VERSION,
     QUEUE_WORKER_ENABLED
   } = deps;
+  const runtimeEnv = deps?.env || process.env;
 
   const router = Router();
 
-  router.get("/health", async (_req, res) => {
+  router.get("/health", async (req, res) => {
     const counts = {
       queued: 0,
       running: 0,
@@ -51,6 +53,12 @@ export function buildHealthRoutes(deps) {
     const dependencyStatus = queueDependencyHealthy && dbHealth.connected !== false
       ? "healthy"
       : "degraded";
+    const includeStagingTrustedIngressReadiness = String(
+      req.query?.include_staging_trusted_ingress_readiness || "",
+    ).trim() === "1";
+    const stagingTrustedIngressReadiness = includeStagingTrustedIngressReadiness
+      ? buildStagingTrustedIngressCertificationEvidence(runtimeEnv)
+      : undefined;
 
     res.json({
       ok: true,
@@ -80,6 +88,9 @@ export function buildHealthRoutes(deps) {
           ...(dbHealth.skipped ? { skipped: true } : {})
         }
       },
+      ...(includeStagingTrustedIngressReadiness ? {
+        staging_trusted_ingress_readiness: stagingTrustedIngressReadiness,
+      } : {}),
       timestamp: new Date().toISOString()
     });
   });
