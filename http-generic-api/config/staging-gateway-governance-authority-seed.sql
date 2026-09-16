@@ -26,7 +26,7 @@ VALUES
    'resource_binding_id', '5a2b04f8-bb99-4f65-a924-0f55d3080376',
    'script_name', 'mad4b-activation-gateway-staging',
    'policy_key', 'activation_gateway_staging',
-   'expected_policy_hash', 'c6468e051b8456d4d3ffc6478cdb98f7048b69c8ca6742f4dca27e1eb4023f32',
+   'expected_policy_hash', 'dd5f152c4a226d07c75cf33dae3ab3a0cbf6e9913b623724429a96b2d4f96a96',
    'public_host', 'activation-dev.mad4b.com',
    'runtime_surface', 'activation_gateway_dark_deploy',
    'feature_flag', 'STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED',

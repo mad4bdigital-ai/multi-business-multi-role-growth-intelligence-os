@@ -229,12 +229,14 @@ const adminActivationStaging = loadYaml(registry.surfaces.activation_admin_stagi
 const adminRecoveryProduction = loadYaml(registry.surfaces.admin_recovery_production.output_file);
 assert.equal(Object.keys(adminActivationProduction.paths).filter((path) => path.startsWith("/admin/recovery/kernel/")).length, 0);
 assert.equal(Object.keys(adminRecoveryProduction.paths).filter((path) => path.startsWith("/admin/recovery/kernel/")).length, 6);
-assert.equal(Object.keys(adminActivationStaging.paths).filter((path) => path.startsWith("/admin/recovery/staging/")).length, 3);
+assert.equal(Object.keys(adminActivationStaging.paths).filter((path) => path.startsWith("/admin/recovery/staging/")).length, 5);
+assert.equal(adminActivationStaging.paths["/admin/recovery/staging/gateway/rollout-plan"]?.post?.["x-openai-isConsequential"], false);
+assert.equal(adminActivationStaging.paths["/admin/recovery/staging/gateway/dark-deploy-dry-run"]?.post?.["x-openai-isConsequential"], true);
 assert.equal(adminActivationProduction["x-mad4b-registration"]?.registration_set, "admin_activation_production");
 assert.equal(adminActivationStaging["x-mad4b-registration"]?.registration_set, "admin_activation_staging");
 assert.equal(adminActivationProduction["x-custom-gpt-generation"]?.operation_count, 9);
 assert.equal(adminRecoveryProduction["x-custom-gpt-generation"]?.operation_count, 6);
-assert.equal(adminActivationStaging["x-custom-gpt-generation"]?.operation_count, 12);
+assert.equal(adminActivationStaging["x-custom-gpt-generation"]?.operation_count, 14);
 assert.equal(Object.keys(adminCore.paths).some((path) => path.startsWith("/activation") || path.startsWith("/tenant/activation")), false);
 assert.equal(Object.keys(tenantCore.paths).some((path) => path.startsWith("/activation") || path.startsWith("/tenant/activation")), false);
 assert.equal(Object.keys(adminActivation.paths).every((path) => path.startsWith("/activation")), true);
