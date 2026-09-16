@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "dac3d371b0b8acbfe80c701ae9e2411d5d29680c2a24b96377c42e0c49581f4a",
+    "source_digest": "6445bc23f786765265ba7ae91bb43c949e35b8b839b997b36d5e3aab6617845f",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,12 +11,12 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "480b1c205b0e850554897d50b37bdd02f888bfbef8297952df00166e428b3a9d",
+        "sha256": "7389c51b9c791d516e14fe9caa3d8ff682671609c1213d3f34e8784f314567f0",
         "present": true
       },
       {
         "file": "frontend-surface-policy.json",
-        "sha256": "55800b558d9463875cc1000c09f2cbdd09eae7daa7752b66fc089eca00b8354c",
+        "sha256": "222ea504b2e232d5afd2c8d24b074c789ab4557492d4550013ce2bc55a833fb7",
         "present": true
       },
       {
@@ -126,7 +126,7 @@
       },
       {
         "file": "openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
-        "sha256": "df288d095575b5bf5ddc5b242d954dbcb3c6d9e06c8f5a8b8eaa0adf4cbed442",
+        "sha256": "36f2854b1720ea25397b0b93c7280152ee285ade5ec2da20f1f075363a2fcce6",
         "present": true
       },
       {
@@ -981,7 +981,7 @@
       },
       {
         "file": "routes/stagingRecoveryAdminRoutes.js",
-        "sha256": "46c063f64fde56daee0f47cf9ed4a83ec80e2662a8aa2ca5687525f39627f2c5",
+        "sha256": "623193502317fdfd326b4c9f0e4e450e6559cceab62915e4c585303708897a43",
         "present": true
       },
       {
@@ -1086,7 +1086,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "e1cb4f2bfffa51540ce2374ff9fa674ec5b1dd97a26425b95e8490b07957c04c",
+        "sha256": "b5dc262fd94f49fc4a1def989e7048562e738316bd6d641252a22ead09f924dc",
         "present": true
       },
       {
@@ -1121,7 +1121,7 @@
       },
       {
         "file": "test-recovery-execution-ticket.mjs",
-        "sha256": "9512a2865814ae361864ae5cad05c20378212713c3708e7e2a19400d4d4f1437",
+        "sha256": "893548905a4b56100445f0bcc170472648369f6791b9cdca88e33218091c9dde",
         "present": true
       },
       {
@@ -1146,7 +1146,12 @@
       },
       {
         "file": "test-staging-recovery-admin-surface.mjs",
-        "sha256": "0f72642852609b802fdbab123dfb9464501c32795b2b87b653baffc044094b98",
+        "sha256": "ea64fa7cc70108a4dc26df00b37bc9767e6a81e312f4696fbb510f702272ae12",
+        "present": true
+      },
+      {
+        "file": "test-staging-recovery-gateway-preflight.mjs",
+        "sha256": "c11c06cfea2a64fb76d8e45bdd67d23149c6e1d5a89c83c6a30716055b4c3d8f",
         "present": true
       },
       {
@@ -1184,29 +1189,29 @@
     "mounted_family_count": 173,
     "mounted_route_file_count": 143,
     "mixed_scope_route_file_count": 25,
-    "operation_count": 1066,
-    "openapi_documented_count": 1050,
-    "openapi_canonical_documented_count": 732,
+    "operation_count": 1068,
+    "openapi_documented_count": 1052,
+    "openapi_canonical_documented_count": 734,
     "openapi_generated_index_count": 318,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
     "openapi_detail_gap_count": 318,
     "openapi_detail_gap_policy": "accepted_generated_index_only",
     "auth_parity_counts": {
-      "equivalent": 1050,
+      "equivalent": 1052,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 646,
+    "non_get_candidate_count": 648,
     "unresolved_operation_class_count": 0,
-    "classified_mutation_count": 22,
-    "governed_mutation_operation_count": 22,
+    "classified_mutation_count": 23,
+    "governed_mutation_operation_count": 23,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 0,
     "test_owned_family_count": 173,
     "untested_family_count": 0,
-    "test_owned_operation_count": 1066,
+    "test_owned_operation_count": 1068,
     "untested_operation_count": 0,
     "ready_task_count": 173,
     "blocked_task_count": 0,
@@ -3738,7 +3743,7 @@
       "family_key": "staging-recovery-admin",
       "label": "staging recovery admin",
       "source_file": "routes/stagingRecoveryAdminRoutes.js",
-      "source_digest": "46c063f64fde56daee0f47cf9ed4a83ec80e2662a8aa2ca5687525f39627f2c5",
+      "source_digest": "623193502317fdfd326b4c9f0e4e450e6559cceab62915e4c585303708897a43",
       "mount_prefix": "/",
       "mount_order": 13507,
       "split_from_mixed_scope_file": false,
@@ -3953,6 +3958,189 @@
           },
           "mutation_candidate": false,
           "mutation": false
+        },
+        {
+          "method": "POST",
+          "path": "/admin/recovery/staging/gateway/rollout-plan",
+          "signature": "POST /admin/recovery/staging/gateway/rollout-plan",
+          "source_file": "routes/stagingRecoveryAdminRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "router.use:requireAdminPrincipal",
+              "router.use:requireBackendApiKey",
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "backendBearerAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [
+            "test-staging-recovery-gateway-preflight.mjs"
+          ],
+          "governance": {
+            "classification": "preflight",
+            "classification_source": "operation_rule",
+            "mutation_candidate": true,
+            "governed": true,
+            "controls": null,
+            "parameter_bindings": {
+              "expected_source_commit": "request.body.expected_source_commit",
+              "expected_policy_hash": "request.body.expected_policy_hash",
+              "environment_convergence_plan_sha256": "request.body.environment_convergence_plan_sha256",
+              "resource_binding": "server.profile.activation_gateway_staging"
+            },
+            "blockers": [],
+            "rule_id": "staging-recovery-gateway-rollout-preview",
+            "owner": "runtime-operations",
+            "rationale": "Resolves the profile-owned Staging Gateway target and validates exact source, policy, convergence-plan, workspace, bundle, and provider-readiness evidence without persisting a plan or contacting the provider.",
+            "evidence_refs": [
+              "routes/stagingRecoveryAdminRoutes.js",
+              "stagingActivationGatewayApplyAdapter.js",
+              "stagingRecoveryGatewayPreflight.js",
+              "test-staging-recovery-gateway-preflight.mjs",
+              "test-staging-recovery-route-policy.mjs"
+            ]
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        },
+        {
+          "method": "POST",
+          "path": "/admin/recovery/staging/gateway/dark-deploy-dry-run",
+          "signature": "POST /admin/recovery/staging/gateway/dark-deploy-dry-run",
+          "source_file": "routes/stagingRecoveryAdminRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "router.use:requireAdminPrincipal",
+              "router.use:requireBackendApiKey",
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "backendBearerAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [
+            "test-staging-recovery-gateway-preflight.mjs"
+          ],
+          "governance": {
+            "classification": "state_change",
+            "classification_source": "operation_rule",
+            "mutation_candidate": true,
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "exact_release_policy_convergence_and_server_resource_binding"
+              },
+              "approval": {
+                "mode": "not_required_for_non_executing_plan_prepare"
+              },
+              "readback": {
+                "mode": "inline_post_commit",
+                "same_cycle": true
+              },
+              "rollback": {
+                "mode": "expiry_without_execution",
+                "rationale": "The encrypted plan is short-lived and non-executable without a separately issued capability envelope, execution nonce, and certified apply authority."
+              }
+            },
+            "parameter_bindings": {
+              "expected_source_commit": "request.body.expected_source_commit",
+              "expected_policy_hash": "request.body.expected_policy_hash",
+              "environment_convergence_plan_sha256": "request.body.environment_convergence_plan_sha256",
+              "resource_binding": "server.profile.activation_gateway_staging"
+            },
+            "blockers": [],
+            "rule_id": "staging-recovery-gateway-dark-deploy-dry-run",
+            "owner": "runtime-operations",
+            "rationale": "May persist only a short-lived encrypted Governance execution plan after exact-bound Staging preflight; it cannot contact Cloudflare, mutate DNS, mutate a target database, target Production, or issue apply authority.",
+            "evidence_refs": [
+              "routes/stagingRecoveryAdminRoutes.js",
+              "stagingActivationGatewayApplyAdapter.js",
+              "stagingRecoveryGatewayPreflight.js",
+              "test-staging-recovery-gateway-preflight.mjs",
+              "test-staging-recovery-route-policy.mjs"
+            ]
+          },
+          "mutation_candidate": true,
+          "mutation": true
         },
         {
           "method": "POST",
@@ -4260,7 +4448,8 @@
       "evidence_routes": [],
       "tests": [
         "test-recovery-execution-ticket.mjs",
-        "test-staging-recovery-admin-surface.mjs"
+        "test-staging-recovery-admin-surface.mjs",
+        "test-staging-recovery-gateway-preflight.mjs"
       ],
       "untested_operations": [],
       "resources": [],
@@ -4290,11 +4479,12 @@
         "routes/stagingRecoveryAdminRoutes.js",
         "scripts/test-manifest.mjs",
         "test-recovery-execution-ticket.mjs",
-        "test-staging-recovery-admin-surface.mjs"
+        "test-staging-recovery-admin-surface.mjs",
+        "test-staging-recovery-gateway-preflight.mjs"
       ],
       "surface_decision": {
         "decision": "internal_only",
-        "rationale": "The Staging Recovery Admin surface is a private API-only contract for activation-dev readiness and certification status. It is not a browser navigation surface, advertises GET-only operations, forbids Production authority, and keeps consequential certification in a separate workflow.",
+        "rationale": "The Staging Recovery Admin surface is a private API-only contract for activation-dev readiness, certification status, and exact-bound Gateway preflight. It is not a browser navigation surface, forbids provider apply and Production authority, and keeps consequential execution in a separate certified workflow.",
         "owner": "runtime-operations",
         "rule_id": "staging-recovery-admin-private-surface",
         "evidence_refs": [
@@ -97932,7 +98122,8 @@
         "routes/stagingRecoveryAdminRoutes.js",
         "scripts/test-manifest.mjs",
         "test-recovery-execution-ticket.mjs",
-        "test-staging-recovery-admin-surface.mjs"
+        "test-staging-recovery-admin-surface.mjs",
+        "test-staging-recovery-gateway-preflight.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -97947,7 +98138,8 @@
         "node scripts/frontend-surface-dispatch.mjs --check",
         "node scripts/resource-api-coverage-audit.mjs --changed",
         "node test-recovery-execution-ticket.mjs",
-        "node test-staging-recovery-admin-surface.mjs"
+        "node test-staging-recovery-admin-surface.mjs",
+        "node test-staging-recovery-gateway-preflight.mjs"
       ]
     },
     {

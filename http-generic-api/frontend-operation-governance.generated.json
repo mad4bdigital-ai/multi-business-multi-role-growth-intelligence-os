@@ -2,7 +2,7 @@
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
     "id": "frontend-operation-governance-generator-v6-root-workspace-brand-container",
-    "source_digest": "1919d67edcbb9a2a1e19b218866c132ca9d91e6b68e09efcb8a23698f45974ce",
+    "source_digest": "34ef66c9e8162616a63bcf102849a6aec1b9ac6addc424012e848b34a984def0",
     "fail_closed": true
   },
   "source_authority": [
@@ -13,7 +13,7 @@
     },
     {
       "file": "frontend-operation-governance-tests.json",
-      "sha256": "53cf5e9eff38d9c56b7553527cb15393fc199b748ccfceeedf32de3332ebd134",
+      "sha256": "b06ed8d42a21f3f5514e244d06bb121db45a7ef66e8a8b6bd3b62ef698ef05b9",
       "present": true
     },
     {
@@ -73,7 +73,7 @@
     },
     {
       "file": "scripts/test-manifest.mjs",
-      "sha256": "e1cb4f2bfffa51540ce2374ff9fa674ec5b1dd97a26425b95e8490b07957c04c",
+      "sha256": "b5dc262fd94f49fc4a1def989e7048562e738316bd6d641252a22ead09f924dc",
       "present": true
     },
     {
@@ -272,7 +272,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-closeout-transaction-v1",
-        "source_digest": "3fd7b0a0385c5c56b3e5501c97834e8c8fc90ba269f3afedff8f3cbf91b29c5e",
+        "source_digest": "eb6bc02a31ec267603543283b4549b09cfd79f6274289313432fbfabc60700cf",
         "fail_closed": true
       }
     },
@@ -316,7 +316,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-promotion-transaction-v1",
-        "source_digest": "3fd7b0a0385c5c56b3e5501c97834e8c8fc90ba269f3afedff8f3cbf91b29c5e",
+        "source_digest": "eb6bc02a31ec267603543283b4549b09cfd79f6274289313432fbfabc60700cf",
         "fail_closed": true
       }
     },
@@ -361,7 +361,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-rollback-transaction-v1",
-        "source_digest": "3fd7b0a0385c5c56b3e5501c97834e8c8fc90ba269f3afedff8f3cbf91b29c5e",
+        "source_digest": "eb6bc02a31ec267603543283b4549b09cfd79f6274289313432fbfabc60700cf",
         "fail_closed": true
       }
     },

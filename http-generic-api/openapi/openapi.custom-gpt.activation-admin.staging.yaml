@@ -13,7 +13,7 @@ tags:
   - name: runtime-verification
     description: Runtime verification control plane, production parity ledger, and paginated evidence surfaces.
   - name: staging-recovery
-    description: Staging-only Recovery authority and certification evidence.
+    description: Staging-only Recovery authority, certification evidence, and bounded Gateway preflight.
 components:
   securitySchemes:
     backendBearerAuth:
@@ -958,7 +958,7 @@ components:
       properties:
         contract:
           type: string
-          const: mad4b.staging-recovery-admin-surface.v1
+          const: mad4b.staging-recovery-admin-surface.v2
         surface:
           type: string
           const: staging_recovery_admin
@@ -994,7 +994,7 @@ components:
           type: boolean
         contract:
           type: string
-          const: mad4b.staging-recovery-admin-surface.v1
+          const: mad4b.staging-recovery-admin-surface.v2
         status:
           type: string
           enum:
@@ -1049,7 +1049,7 @@ components:
           type: boolean
         contract:
           type: string
-          const: mad4b.staging-recovery-admin-surface.v1
+          const: mad4b.staging-recovery-admin-surface.v2
         environment:
           type: string
           const: staging
@@ -1084,6 +1084,139 @@ components:
         secrets_included:
           type: boolean
           const: false
+    adminrecoverystaging_GatewayPreflightRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - expected_source_commit
+        - expected_policy_hash
+        - environment_convergence_plan_sha256
+      properties:
+        expected_source_commit:
+          type: string
+          pattern: ^[0-9a-f]{40}$
+          description: Exact current Staging main commit. The server revalidates it against canonical deployment identity.
+        expected_policy_hash:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+          description: Exact Staging Activation Gateway policy hash from the environment profile.
+        environment_convergence_plan_sha256:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+          description: Exact acknowledged convergence-plan digest used only as a binding assertion; it is not execution authority.
+    adminrecoverystaging_GatewayRolloutPreviewResponse:
+      type: object
+      additionalProperties: true
+      required:
+        - ok
+        - contract
+        - operation
+        - mode
+        - environment
+        - preflight_ready
+        - apply_ready
+        - execution_plan_issued
+        - provider_mutation_performed
+        - governance_state_mutation_performed
+        - target_database_mutation_performed
+        - production_mutation_performed
+        - secrets_included
+      properties:
+        ok:
+          type: boolean
+        contract:
+          type: string
+          const: mad4b.staging-recovery-gateway-preflight.v1
+        operation:
+          type: string
+          const: activation_gateway_rollout_plan
+        mode:
+          type: string
+          const: preview
+        environment:
+          type: string
+          const: staging
+        preflight_ready:
+          type: boolean
+        apply_ready:
+          type: boolean
+          const: false
+        execution_plan_issued:
+          type: boolean
+          const: false
+        provider_mutation_performed:
+          type: boolean
+          const: false
+        governance_state_mutation_performed:
+          type: boolean
+          const: false
+        target_database_mutation_performed:
+          type: boolean
+          const: false
+        production_mutation_performed:
+          type: boolean
+          const: false
+        secrets_included:
+          type: boolean
+          const: false
+    adminrecoverystaging_GatewayDarkDeployDryRunResponse:
+      type: object
+      additionalProperties: true
+      required:
+        - ok
+        - contract
+        - operation
+        - mode
+        - environment
+        - execution_plan_issued
+        - apply_authority_issued
+        - capability_envelope_issued
+        - execution_nonce_issued
+        - provider_mutation_performed
+        - governance_state_mutation_performed
+        - target_database_mutation_performed
+        - production_mutation_performed
+        - secrets_included
+      properties:
+        ok:
+          type: boolean
+        contract:
+          type: string
+          const: mad4b.staging-recovery-gateway-preflight.v1
+        operation:
+          type: string
+          const: activation_gateway_dark_deploy_dry_run
+        mode:
+          type: string
+          const: dry_run
+        environment:
+          type: string
+          const: staging
+        execution_plan_issued:
+          type: boolean
+        apply_authority_issued:
+          type: boolean
+          const: false
+        capability_envelope_issued:
+          type: boolean
+          const: false
+        execution_nonce_issued:
+          type: boolean
+          const: false
+        provider_mutation_performed:
+          type: boolean
+          const: false
+        governance_state_mutation_performed:
+          type: boolean
+        target_database_mutation_performed:
+          type: boolean
+          const: false
+        production_mutation_performed:
+          type: boolean
+          const: false
+        secrets_included:
+          type: boolean
+          const: false
   responses:
     Unauthorized:
       description: Invalid or missing backend API key
@@ -1104,7 +1237,7 @@ components:
           schema:
             $ref: "#/components/schemas/adminrecoverystaging_ErrorResponse"
     adminrecoverystaging_NotFound:
-      description: Surface is not available outside a declared Staging runtime.
+      description: Surface is not available outside a declared Staging runtime or trusted Activation Gateway ingress.
       content:
         application/json:
           schema:
@@ -1974,6 +2107,104 @@ paths:
           $ref: "#/components/responses/adminrecoverystaging_NotFound"
       x-mad4b-embedded-surface: admin_recovery_staging
       x-mad4b-registration-set: admin_activation_staging
+  /admin/recovery/staging/gateway/rollout-plan:
+    post:
+      tags:
+        - staging-recovery
+      operationId: previewStagingActivationGatewayRolloutPlan
+      x-openai-isConsequential: false
+      summary: Preview the server-bound Staging Activation Gateway rollout plan
+      description: Resolves the profile-owned Cloudflare Worker binding and exact release/policy checks server-side. No execution plan is persisted, no provider request is sent, and no apply authority is issued.
+      security:
+        - backendBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/adminrecoverystaging_GatewayPreflightRequest"
+      responses:
+        "200":
+          description: Non-persistent Gateway rollout preview.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/adminrecoverystaging_GatewayRolloutPreviewResponse"
+        "400":
+          description: Invalid or forbidden caller-selected authority fields.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/adminrecoverystaging_ErrorResponse"
+        "401":
+          $ref: "#/components/responses/adminrecoverystaging_Unauthorized"
+        "403":
+          $ref: "#/components/responses/adminrecoverystaging_Forbidden"
+        "404":
+          $ref: "#/components/responses/adminrecoverystaging_NotFound"
+        "409":
+          description: Exact source/policy binding mismatch.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/adminrecoverystaging_ErrorResponse"
+        "503":
+          description: Server-owned Staging authority or database binding is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/adminrecoverystaging_ErrorResponse"
+      x-mad4b-embedded-surface: admin_recovery_staging
+      x-mad4b-registration-set: admin_activation_staging
+  /admin/recovery/staging/gateway/dark-deploy-dry-run:
+    post:
+      tags:
+        - staging-recovery
+      operationId: prepareStagingActivationGatewayDarkDeployDryRun
+      x-openai-isConsequential: true
+      summary: Prepare a server-bound Staging Activation Gateway dark-deploy dry-run
+      description: Forces dry_run mode. When all checks pass, the server may persist a short-lived encrypted execution plan in the Governance control plane. It never contacts Cloudflare for a write, never mutates DNS or custom domains, never mutates a target/business database, never targets Production, and never issues a capability envelope, execution nonce, or apply authority.
+      security:
+        - backendBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/adminrecoverystaging_GatewayPreflightRequest"
+      responses:
+        "200":
+          description: Bounded dry-run result. A persisted plan still requires separately governed apply authority.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/adminrecoverystaging_GatewayDarkDeployDryRunResponse"
+        "400":
+          description: Invalid or forbidden caller-selected authority fields.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/adminrecoverystaging_ErrorResponse"
+        "401":
+          $ref: "#/components/responses/adminrecoverystaging_Unauthorized"
+        "403":
+          $ref: "#/components/responses/adminrecoverystaging_Forbidden"
+        "404":
+          $ref: "#/components/responses/adminrecoverystaging_NotFound"
+        "409":
+          description: Exact release, policy, convergence-plan, or plan lifecycle mismatch.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/adminrecoverystaging_ErrorResponse"
+        "503":
+          description: Dedicated Governance/runtime authority needed for the dry-run is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/adminrecoverystaging_ErrorResponse"
+      x-mad4b-embedded-surface: admin_recovery_staging
+      x-mad4b-registration-set: admin_activation_staging
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
@@ -2104,7 +2335,7 @@ x-custom-gpt-generation:
   catalog_policy: null
   static_operation_ids: null
   dynamic_operation_ids: null
-  operation_count: 12
+  operation_count: 14
   warning_operation_limit: 16
   warning_budget_exceeded: false
   hard_operation_limit: 20
@@ -2131,6 +2362,6 @@ x-mad4b-registration:
   secrets_included: false
   auth_profile: admin_service
   gateway_host: activation-dev.mad4b.com
-  operation_count: 12
+  operation_count: 14
   hard_operation_limit: 20
   warning_operation_limit: 16

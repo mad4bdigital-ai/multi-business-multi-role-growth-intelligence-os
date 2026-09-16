@@ -1,5 +1,5 @@
 {
-  "content_hash_sha256": "c6468e051b8456d4d3ffc6478cdb98f7048b69c8ca6742f4dca27e1eb4023f32",
+  "content_hash_sha256": "dd5f152c4a226d07c75cf33dae3ab3a0cbf6e9913b623724429a96b2d4f96a96",
   "deployment_signature_required": true,
   "manifest_version": 1,
   "mutation_stale_policy": "deny",
@@ -306,6 +306,46 @@
         "getStagingRecoveryAdminContract"
       ],
       "path": "/admin/recovery/staging/contract",
+      "request_body_limit_bytes": 1048576,
+      "response_body_limit_bytes": 5242880,
+      "surfaces": [
+        "activation_admin_staging",
+        "admin_recovery_staging"
+      ],
+      "timeout_ms": 30000
+    },
+    {
+      "allowed_query_parameters": [],
+      "auth_profiles": [
+        "admin_service"
+      ],
+      "freshness_class": "mutation_strict",
+      "method": "POST",
+      "mutation": true,
+      "operation_ids": [
+        "prepareStagingActivationGatewayDarkDeployDryRun"
+      ],
+      "path": "/admin/recovery/staging/gateway/dark-deploy-dry-run",
+      "request_body_limit_bytes": 1048576,
+      "response_body_limit_bytes": 5242880,
+      "surfaces": [
+        "activation_admin_staging",
+        "admin_recovery_staging"
+      ],
+      "timeout_ms": 30000
+    },
+    {
+      "allowed_query_parameters": [],
+      "auth_profiles": [
+        "admin_service"
+      ],
+      "freshness_class": "mutation_strict",
+      "method": "POST",
+      "mutation": true,
+      "operation_ids": [
+        "previewStagingActivationGatewayRolloutPlan"
+      ],
+      "path": "/admin/recovery/staging/gateway/rollout-plan",
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
@@ -729,7 +769,7 @@
   "warning_budget": [
     {
       "exceeded": false,
-      "operation_count": 12,
+      "operation_count": 14,
       "surface": "activation_admin_staging",
       "warning_limit": 16
     },
