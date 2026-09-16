@@ -70,7 +70,7 @@ components:
       additionalProperties: true
       required: [contract, surface, environment, server_uri, operation_policy, paths, secrets_included]
       properties:
-        contract: { type: string, const: mad4b.staging-recovery-admin-surface.v1 }
+        contract: { type: string, const: mad4b.staging-recovery-admin-surface.v2 }
         surface: { type: string, const: staging_recovery_admin }
         environment: { type: string, const: staging }
         server_uri: { type: string, const: https://activation-dev.mad4b.com }
@@ -87,7 +87,7 @@ components:
       required: [ok, contract, status, ready, environment, production_live, secrets_included]
       properties:
         ok: { type: boolean }
-        contract: { type: string, const: mad4b.staging-recovery-admin-surface.v1 }
+        contract: { type: string, const: mad4b.staging-recovery-admin-surface.v2 }
         status: { type: string, enum: [ready, blocked] }
         ready: { type: boolean }
         environment: { type: string, const: staging }
@@ -108,7 +108,7 @@ components:
       required: [ok, contract, environment, certification, live_certification, production_live, secrets_included]
       properties:
         ok: { type: boolean }
-        contract: { type: string, const: mad4b.staging-recovery-admin-surface.v1 }
+        contract: { type: string, const: mad4b.staging-recovery-admin-surface.v2 }
         environment: { type: string, const: staging }
         certification:
           type: object
