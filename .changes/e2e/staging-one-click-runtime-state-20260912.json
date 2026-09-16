@@ -10,7 +10,10 @@
     "include": [
       ".changes/e2e/staging-one-click-runtime-state-20260912.json",
       "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
+      "autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1",
       "autopilot-portable-staging/Start-Staging-One-Click.cmd",
+      "autopilot-portable-staging/manifest.json",
+      "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs",
       "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
       "http-generic-api/hostBreakglassLocalRequest.js",
       "http-generic-api/routes/adminHostBreakglassRoutes.js",
@@ -115,6 +118,41 @@
             "http-generic-api/routes/adminHostBreakglassRoutes.js",
             "http-generic-api/scripts/host-breakglass-local-verified.mjs",
             "http-generic-api/test-host-breakglass-local-request.mjs"
+          ]
+        },
+        {
+          "id": "staging-activation-bootstrap-deadlock",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging Auto Pilot operator",
+          "entrypoint": "Invoke-Staging-One-Click.ps1 with EnableActivationGateway and a governed public Staging tunnel mode",
+          "terminal_outcome": "The internal bootstrap remains local-only and no longer reacquires the Activation Gateway execution gate; the Core preserves the flag and applies it only around the canonical tunnel transition and governed readiness checks.",
+          "steps": [
+            "Run the internal bootstrap with -NoTunnel without forwarding -EnableActivationGateway into the local-only bootstrap phase.",
+            "Re-apply the Activation Gateway flag at the Core environment boundary before and after bootstrap, then continue through the canonical tunnel transition and readiness checks.",
+            "Refresh the registered portable Staging manifest only through the governed generated-artifact writer and require live Staging certification before merge readiness."
+          ],
+          "assertions": [
+            "The bootstrap argument list contains -NoTunnel and does not append -EnableActivationGateway.",
+            "The Core preserves EnableActivationGateway across the bootstrap boundary and does not widen provider, database, Production, or DNS mutation authority.",
+            "Activation Gateway exact-commit readiness remains fail-closed after the canonical tunnel transition; this change only removes the circular pre-tunnel gate.",
+            "The portable Staging manifest is treated as a registered generated artifact and is not manually edited.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "staging-dual-mode-one-click-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/staging-dual-mode-one-click-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-one-click-runtime-state-20260912.json",
+            "autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1",
+            "autopilot-portable-staging/manifest.json",
+            "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs"
           ]
         }
       ]
