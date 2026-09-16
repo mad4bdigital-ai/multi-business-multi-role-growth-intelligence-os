@@ -1,3 +1,6 @@
+// frontend-surface-operation: post /admin/recovery/staging/gateway/rollout-plan
+// frontend-surface-operation: post /admin/recovery/staging/gateway/dark-deploy-dry-run
+
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
