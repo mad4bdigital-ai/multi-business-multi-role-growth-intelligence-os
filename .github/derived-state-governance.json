@@ -74,6 +74,7 @@
     "automation_control_paths": [
       ".changes/e2e/staging-governance-authority-seed-recovery-20260915.json",
       ".changes/e2e/staging-convergence-bom-json-20260911.json",
+      ".changes/e2e/staging-live-certification-runtime-trust-evidence-20260916.json",
       ".github/workflows/e2e-phase-governance.yml",
       ".github/workflows/staging-admin-schema-contract.yml",
       ".github/workflows/remote-mcp-oauth-path-format-guard.yml",
