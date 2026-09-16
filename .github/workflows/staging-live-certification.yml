@@ -93,6 +93,93 @@ jobs:
             echo "STAGING_CERT_EXPECTED_CONTEXT_FILE_SET_SHA256=$context_file_set"
           } >> "$GITHUB_ENV"
 
+      - name: Verify live Staging recovery trust bridge
+        env:
+          EXPECTED_HEAD_SHA: ${{ steps.identity.outputs.release_cut_sha }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          origin_health="$RUNNER_TEMP/staging-origin-health.json"
+          gateway_ready="$RUNNER_TEMP/staging-gateway-ready.json"
+          recovery_probe="$RUNNER_TEMP/staging-recovery-ingress-probe.json"
+          expected_policy_hash="$(jq -er '.content_hash_sha256' edge/activation-gateway/generated/route-policy.staging.json)"
+          [[ "$expected_policy_hash" =~ ^[0-9a-f]{64}$ ]] || { echo "::error::repository Staging Gateway policy hash is invalid"; exit 1; }
+
+          origin_status="$(curl --silent --show-error --max-time 15 --output "$origin_health" --write-out '%{http_code}' https://dev.mad4b.com/health)"
+          [[ "$origin_status" == "200" ]] || { echo "::error::Staging origin health returned HTTP $origin_status"; cat "$origin_health"; exit 1; }
+          jq -e --arg cut "$EXPECTED_HEAD_SHA" '
+            .ok == true and
+            .staging_recovery_trusted_ingress.contract == "mad4b.staging-recovery-trusted-ingress-health.v1" and
+            .staging_recovery_trusted_ingress.environment == "staging" and
+            .staging_recovery_trusted_ingress.ready == true and
+            .staging_recovery_trusted_ingress.runtime_identity_ok == true and
+            .staging_recovery_trusted_ingress.attestation_mode == "signature" and
+            .staging_recovery_trusted_ingress.proxy_headers_enabled == true and
+            .staging_recovery_trusted_ingress.caller_headers_stripped == true and
+            .staging_recovery_trusted_ingress.signed_attestation_configured == true and
+            .staging_recovery_trusted_ingress.canonical_host_exact == true and
+            .staging_recovery_trusted_ingress.audience_exact == true and
+            .staging_recovery_trusted_ingress.issuer_exact == true and
+            .staging_recovery_trusted_ingress.key_id_configured == true and
+            .staging_recovery_trusted_ingress.expected_deployment_sha == $cut and
+            .staging_recovery_trusted_ingress.replay_directory_exact == true and
+            .staging_recovery_trusted_ingress.secrets_included == false
+          ' "$origin_health" >/dev/null || { echo "::error::Staging origin trusted-ingress runtime evidence is not exact"; cat "$origin_health"; exit 1; }
+
+          gateway_status="$(curl --silent --show-error --max-time 15 --output "$gateway_ready" --write-out '%{http_code}' https://activation-dev.mad4b.com/ready)"
+          [[ "$gateway_status" == "200" ]] || { echo "::error::Staging Activation Gateway ready returned HTTP $gateway_status"; cat "$gateway_ready"; exit 1; }
+          jq -e --arg cut "$EXPECTED_HEAD_SHA" --arg policy "$expected_policy_hash" '
+            .ok == true and .upstreamReady == true and .upstreamEvidenceVerified == true and
+            .policyHash == $policy and .upstreamPolicyHash == $policy and .upstreamSourceCommit == $cut and
+            .recoveryTrustedIngress.contract == "mad4b.staging.activation-recovery-origin-trust.v2" and
+            .recoveryTrustedIngress.deployment_sha == $cut and
+            .recoveryTrustedIngress.source_commit == $cut and
+            .recoveryTrustedIngress.worker_build_sha == $cut and
+            (.recoveryTrustedIngress.worker_bundle_sha256 | test("^[0-9a-f]{64}$")) and
+            .recoveryTrustedIngress.policy_hash == $policy and
+            .recoveryTrustedIngress.gateway_host == "activation-dev.mad4b.com" and
+            .recoveryTrustedIngress.canonical_host == "activation-dev.mad4b.com" and
+            .recoveryTrustedIngress.audience == "https://dev.mad4b.com" and
+            .recoveryTrustedIngress.issuer == "https://activation-dev.mad4b.com" and
+            (.recoveryTrustedIngress.key_id | test("^[A-Za-z0-9._:-]{16,128}$")) and
+            (.recoveryTrustedIngress.public_key | startswith("-----BEGIN PUBLIC KEY-----")) and
+            .recoveryTrustedIngress.trusted_ingress_mode == "signature" and
+            .recoveryTrustedIngress.strip_caller_headers == true and
+            .recoveryTrustedIngress.replay_store_scope == "single_filesystem" and
+            .recoveryTrustedIngress.provider_credentials_included == false and
+            .recoveryTrustedIngress.production_deploy == false and
+            .recoveryTrustedIngress.database_mutation == false and
+            .recoveryTrustedIngress.secrets_included == false
+          ' "$gateway_ready" >/dev/null || { echo "::error::Staging Gateway trusted-ingress evidence is not exact"; cat "$gateway_ready"; exit 1; }
+
+          request_id="staging-cert-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          probe_status="$(curl --silent --show-error --max-time 15 --header "x-request-id: $request_id" --output "$recovery_probe" --write-out '%{http_code}' https://activation-dev.mad4b.com/admin/recovery/staging/contract)"
+          if [[ "$probe_status" == "401" ]]; then
+            jq -e '.ok == false and .error.code == "missing_backend_api_key"' "$recovery_probe" >/dev/null || { echo "::error::signed Recovery probe did not reach the expected backend auth guard"; cat "$recovery_probe"; exit 1; }
+          elif [[ "$probe_status" == "403" ]]; then
+            jq -e '.ok == false and .error.code == "admin_backend_api_key_required"' "$recovery_probe" >/dev/null || { echo "::error::signed Recovery probe did not reach the expected admin auth guard"; cat "$recovery_probe"; exit 1; }
+          else
+            echo "::error::signed Recovery probe returned unexpected HTTP $probe_status"
+            cat "$recovery_probe"
+            exit 1
+          fi
+
+          public_key_delimiter="MAD4B_STAGING_PUBLIC_KEY_$(cat /proc/sys/kernel/random/uuid | tr '-' '_')"
+          {
+            echo "REMOTE_MCP_TRUSTED_INGRESS_MODE=signature"
+            echo "REMOTE_MCP_TRUST_PROXY_HOST_HEADERS=true"
+            echo "REMOTE_MCP_TRUSTED_INGRESS_STRIP_CALLER_HEADERS=true"
+            echo "REMOTE_MCP_TRUSTED_INGRESS_KEY_ID=$(jq -er '.recoveryTrustedIngress.key_id' "$gateway_ready")"
+            echo "REMOTE_MCP_TRUSTED_INGRESS_CANONICAL_HOST=activation-dev.mad4b.com"
+            echo "REMOTE_MCP_TRUSTED_INGRESS_AUDIENCE=https://dev.mad4b.com"
+            echo "REMOTE_MCP_TRUSTED_INGRESS_ISSUER=https://activation-dev.mad4b.com"
+            echo "REMOTE_MCP_EXPECTED_DEPLOYMENT_SHA=$EXPECTED_HEAD_SHA"
+            echo "RECOVERY_STAGING_INGRESS_REPLAY_DIRECTORY=/app/data/recovery-ingress"
+            echo "REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY<<$public_key_delimiter"
+            jq -er '.recoveryTrustedIngress.public_key' "$gateway_ready"
+            echo "$public_key_delimiter"
+          } >> "$GITHUB_ENV"
+
       - name: Certify live Staging against exact main release cut
         env:
           STAGING_CERT_EXPECTED_COMMIT: ${{ steps.identity.outputs.release_cut_sha }}

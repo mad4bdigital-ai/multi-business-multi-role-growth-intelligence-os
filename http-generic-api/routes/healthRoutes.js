@@ -1,5 +1,60 @@
 import { Router } from "express";
 import { buildVersionPayload, readDeploymentManifest } from "../deploymentManifest.js";
+import { buildTrustedIngressReadiness } from "../trustedIngressContract.js";
+
+function exactText(value, expected) {
+  return String(value || "").trim() === expected;
+}
+
+export function buildStagingRecoveryTrustedIngressHealth(env = process.env) {
+  const readiness = buildTrustedIngressReadiness(env);
+  if (readiness.environment !== "staging") return null;
+
+  const expectedDeploymentSha = String(env?.REMOTE_MCP_EXPECTED_DEPLOYMENT_SHA || "").trim().toLowerCase();
+  const keyId = String(env?.REMOTE_MCP_TRUSTED_INGRESS_KEY_ID || "").trim();
+  const replayDirectory = String(env?.RECOVERY_STAGING_INGRESS_REPLAY_DIRECTORY || "").trim();
+  const canonicalHosts = Array.isArray(readiness?.canonical_host_policy?.hosts)
+    ? readiness.canonical_host_policy.hosts
+    : [];
+  const canonicalHostExact = readiness?.canonical_host_policy?.valid === true
+    && canonicalHosts.length === 1
+    && canonicalHosts[0] === "activation-dev.mad4b.com";
+  const audienceExact = exactText(env?.REMOTE_MCP_TRUSTED_INGRESS_AUDIENCE, "https://dev.mad4b.com");
+  const issuerExact = exactText(env?.REMOTE_MCP_TRUSTED_INGRESS_ISSUER, "https://activation-dev.mad4b.com");
+  const keyIdConfigured = /^[A-Za-z0-9._:-]{16,128}$/u.test(keyId);
+  const expectedDeploymentShaValid = /^[0-9a-f]{40}$/u.test(expectedDeploymentSha);
+  const replayDirectoryExact = replayDirectory === "/app/data/recovery-ingress";
+
+  const ready = readiness.runtime_identity_ok === true
+    && readiness.attestation_mode === "signature"
+    && readiness.proxy_headers_enabled === true
+    && readiness.caller_headers_stripped === true
+    && readiness.signed_attestation_configured === true
+    && canonicalHostExact
+    && audienceExact
+    && issuerExact
+    && keyIdConfigured
+    && expectedDeploymentShaValid
+    && replayDirectoryExact;
+
+  return {
+    contract: "mad4b.staging-recovery-trusted-ingress-health.v1",
+    environment: "staging",
+    ready,
+    runtime_identity_ok: readiness.runtime_identity_ok === true,
+    attestation_mode: readiness.attestation_mode,
+    proxy_headers_enabled: readiness.proxy_headers_enabled === true,
+    caller_headers_stripped: readiness.caller_headers_stripped === true,
+    signed_attestation_configured: readiness.signed_attestation_configured === true,
+    canonical_host_exact: canonicalHostExact,
+    audience_exact: audienceExact,
+    issuer_exact: issuerExact,
+    key_id_configured: keyIdConfigured,
+    expected_deployment_sha: expectedDeploymentShaValid ? expectedDeploymentSha : null,
+    replay_directory_exact: replayDirectoryExact,
+    secrets_included: false,
+  };
+}
 
 export function buildHealthRoutes(deps) {
   const {
@@ -12,6 +67,7 @@ export function buildHealthRoutes(deps) {
     SERVICE_VERSION,
     QUEUE_WORKER_ENABLED
   } = deps;
+  const runtimeEnv = deps?.env || process.env;
 
   const router = Router();
 
@@ -51,6 +107,7 @@ export function buildHealthRoutes(deps) {
     const dependencyStatus = queueDependencyHealthy && dbHealth.connected !== false
       ? "healthy"
       : "degraded";
+    const stagingRecoveryTrustedIngress = buildStagingRecoveryTrustedIngressHealth(runtimeEnv);
 
     res.json({
       ok: true,
@@ -80,6 +137,9 @@ export function buildHealthRoutes(deps) {
           ...(dbHealth.skipped ? { skipped: true } : {})
         }
       },
+      ...(stagingRecoveryTrustedIngress ? {
+        staging_recovery_trusted_ingress: stagingRecoveryTrustedIngress,
+      } : {}),
       timestamp: new Date().toISOString()
     });
   });

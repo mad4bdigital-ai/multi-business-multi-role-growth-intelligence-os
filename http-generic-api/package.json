@@ -32,7 +32,7 @@
     "schemas:check": "npm run resources:openapi:check && node scripts/generate-custom-gpt-schemas.mjs --check",
     "schemas:builder-guard": "node scripts/openapi-builder-schema-guard.mjs",
     "registration:topology:check": "node scripts/validate-registration-topology.mjs",
-    "test:activation:identity": "node test-runtime-environment-resolver.mjs && node test-activation-gateway-host-profile.mjs && node test-staging-activation-gateway.mjs && node test-staging-recovery-admin-surface.mjs && node test-staging-activation-oauth-profile-enabled.mjs",
+    "test:activation:identity": "node test-runtime-environment-resolver.mjs && node test-activation-gateway-host-profile.mjs && node test-staging-activation-gateway.mjs && node test-staging-recovery-admin-surface.mjs && node test-staging-activation-oauth-profile-enabled.mjs && node test-staging-recovery-trust-health.mjs",
     "openapi:response-objects:guard": "node scripts/openapi-response-object-guard.mjs",
     "openapi:lint:compat": "node scripts/openapi-lint-and-compatibility.mjs",
     "test:openapi:response-objects": "node test-openapi-response-object-guard.mjs",
