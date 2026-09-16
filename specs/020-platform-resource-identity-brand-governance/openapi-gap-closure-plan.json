@@ -6,11 +6,11 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "dac3d371b0b8acbfe80c701ae9e2411d5d29680c2a24b96377c42e0c49581f4a",
-    "dispatch_artifact_sha256": "ee57187aa7b0696669946ba1b2b29b1755431813e725ffd027fce402f47ecf43"
+    "dispatch_source_digest": "a65664d15df15d6d496275a4e950c5b81837ab5d202f8704a90011c5099c8835",
+    "dispatch_artifact_sha256": "7fd8a0dbf5cebd1f7af50d98f4eab9d7bac08650a3fb9252fc5858317a3ecb58"
   },
   "coverage": {
-    "operation_count": 1066,
+    "operation_count": 1068,
     "mounted_family_count": 173,
     "openapi_gap_count": 0,
     "auth_contract_gap_count": 0,
@@ -1419,7 +1419,7 @@
       "surface_decision": "internal_only",
       "priority": "P2_detail_traceability",
       "detail_gap_count": 3,
-      "operation_count": 6,
+      "operation_count": 8,
       "untested_operation_count": 0,
       "unresolved_operation_count": 0,
       "next_action": "add_detail_evidence_without_claiming_canonical_coverage",
@@ -1448,7 +1448,8 @@
         "routes/stagingRecoveryAdminRoutes.js",
         "scripts/test-manifest.mjs",
         "test-recovery-execution-ticket.mjs",
-        "test-staging-recovery-admin-surface.mjs"
+        "test-staging-recovery-admin-surface.mjs",
+        "test-staging-recovery-gateway-preflight.mjs"
       ]
     },
     {
