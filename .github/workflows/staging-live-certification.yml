@@ -44,6 +44,10 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Install locked runtime dependencies
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts
+
       - name: Resolve exact main release cut from certified candidate
         id: identity
         shell: bash
