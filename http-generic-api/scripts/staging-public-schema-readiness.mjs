@@ -62,7 +62,7 @@ if (activationRequired) {
       server: "https://activation-dev.mad4b.com",
       securityScheme: "backendBearerAuth",
       securityType: "http",
-      titleToken: "Admin Activation",
+      titleToken: "Activation Admin Actions",
     },
   );
 }
