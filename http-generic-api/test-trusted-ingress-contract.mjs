@@ -4,13 +4,15 @@ import { generateKeyPairSync, sign } from "node:crypto";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import http from "node:http";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { loadActivationGatewayProfilePolicy, readEnvironmentConvergenceRegistry } from "./environmentConvergenceRegistry.js";
 import { assertTrustedIngressReadyForProduction, buildTrustedIngressReadiness } from "./trustedIngressContract.js";
 import { buildStagingTrustedIngressCertificationEvidence } from "./stagingTrustedIngressCertificationEvidence.js";
 
 const execFileAsync = promisify(execFile);
+const apiRoot = dirname(fileURLToPath(import.meta.url));
 
 const pending = buildTrustedIngressReadiness({ NODE_ENV: "staging", REMOTE_MCP_TRUST_PROXY_HOST_HEADERS: "true" });
 assert.equal(pending.ready, false);
@@ -230,7 +232,7 @@ const binderRoot = await mkdtemp(join(tmpdir(), "staging-cert-trust-binder-"));
 const binderEnvFile = join(binderRoot, "github-env.txt");
 try {
   const { stdout } = await execFileAsync(process.execPath, ["scripts/prepare-staging-cert-trust-evidence.mjs"], {
-    cwd: process.cwd(),
+    cwd: apiRoot,
     env: {
       ...process.env,
       STAGING_CERT_EXPECTED_COMMIT: deploymentSha,
