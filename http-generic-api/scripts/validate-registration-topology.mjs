@@ -292,7 +292,18 @@ function validateGatewayPolicies(registry, errors, evidence) {
     }
     if (policyKey === "activation_gateway_staging") {
       const recoveryRoutes = (policy.routes || []).filter((route) => String(route.path).startsWith("/admin/recovery/staging/"));
-      if (recoveryRoutes.length !== 3 || recoveryRoutes.some((route) => route.mutation !== false)) fail(errors, `${policyKey}: Recovery route set is not exactly three GET-only routes`);
+      const expectedRecoveryRoutes = new Map([
+        ["GET /admin/recovery/staging/contract", false],
+        ["GET /admin/recovery/staging/readiness", false],
+        ["GET /admin/recovery/staging/certification", false],
+        ["POST /admin/recovery/staging/gateway/rollout-plan", true],
+        ["POST /admin/recovery/staging/gateway/dark-deploy-dry-run", true],
+      ]);
+      const observedRecoveryRoutes = new Map(recoveryRoutes.map((route) => [`${route.method} ${route.path}`, route.mutation]));
+      if (observedRecoveryRoutes.size !== expectedRecoveryRoutes.size
+        || [...expectedRecoveryRoutes].some(([signature, mutation]) => observedRecoveryRoutes.get(signature) !== mutation)) {
+        fail(errors, `${policyKey}: Recovery route set must contain exactly three strict reads and two bounded Gateway preflight POSTs`);
+      }
       if (policy.public_host !== "activation-dev.mad4b.com" || policy.upstream_origin !== "https://dev.mad4b.com") fail(errors, `${policyKey}: public/upstream identity is not canonical`);
       if (Number(policy.read_stale_grace_seconds) !== 0) fail(errors, `${policyKey}: stale read grace must be zero`);
     }
