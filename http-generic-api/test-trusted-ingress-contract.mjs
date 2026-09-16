@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { generateKeyPairSync, sign } from "node:crypto";
 import { assertTrustedIngressReadyForProduction, buildTrustedIngressReadiness } from "./trustedIngressContract.js";
+import { buildStagingTrustedIngressCertificationEvidence } from "./stagingTrustedIngressCertificationEvidence.js";
 
 const pending = buildTrustedIngressReadiness({ NODE_ENV: "staging", REMOTE_MCP_TRUST_PROXY_HOST_HEADERS: "true" });
 assert.equal(pending.ready, false);
@@ -114,5 +115,42 @@ const wildcardHostEnv = {
 const wildcardHostReadiness = buildTrustedIngressReadiness(wildcardHostEnv);
 assert.equal(wildcardHostReadiness.signed_attestation_configured, false);
 assert.equal(wildcardHostReadiness.canonical_host_policy.valid, false);
+
+const stagingCertificationEvidence = buildStagingTrustedIngressCertificationEvidence({
+  NODE_ENV: "staging",
+  DEPLOYMENT_ENVIRONMENT: "staging_local_windows_docker",
+  REMOTE_MCP_ENVIRONMENT: "staging",
+  REMOTE_MCP_TRUST_PROXY_HOST_HEADERS: "true",
+  REMOTE_MCP_TRUSTED_INGRESS_MODE: "signature",
+  REMOTE_MCP_TRUSTED_INGRESS_STRIP_CALLER_HEADERS: "true",
+  REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY: publicKeyPem,
+  REMOTE_MCP_TRUSTED_INGRESS_KEY_ID: "staging-key-1234567890",
+  REMOTE_MCP_TRUSTED_INGRESS_CANONICAL_HOST: "activation-dev.mad4b.com",
+  REMOTE_MCP_TRUSTED_INGRESS_AUDIENCE: "https://dev.mad4b.com",
+  REMOTE_MCP_TRUSTED_INGRESS_ISSUER: "https://activation-dev.mad4b.com",
+  REMOTE_MCP_EXPECTED_DEPLOYMENT_SHA: deploymentSha,
+  RECOVERY_STAGING_INGRESS_REPLAY_DIRECTORY: "/app/data/recovery-ingress",
+});
+assert.equal(stagingCertificationEvidence.available, true);
+assert.equal(stagingCertificationEvidence.configured, true);
+assert.equal(stagingCertificationEvidence.environment, "staging");
+assert.equal(stagingCertificationEvidence.runtime_identity_ok, true);
+assert.equal(stagingCertificationEvidence.observed.attestation_mode, "signature");
+assert.equal(stagingCertificationEvidence.observed.proxy_headers_enabled, true);
+assert.equal(stagingCertificationEvidence.observed.caller_headers_stripped, true);
+assert.deepEqual(stagingCertificationEvidence.observed.canonical_hosts, ["activation-dev.mad4b.com"]);
+assert.equal(stagingCertificationEvidence.observed.public_key_ed25519, true);
+assert.match(stagingCertificationEvidence.observed.public_key_sha256, /^[0-9a-f]{64}$/u);
+assert.equal(stagingCertificationEvidence.observed.deployment_sha, deploymentSha);
+assert.equal(stagingCertificationEvidence.observed.replay_directory, "/app/data/recovery-ingress");
+assert.equal(stagingCertificationEvidence.raw_public_key_exposed, false);
+assert.equal(stagingCertificationEvidence.read_only, true);
+assert.equal(stagingCertificationEvidence.secrets_included, false);
+
+const nonStagingCertificationEvidence = buildStagingTrustedIngressCertificationEvidence({ NODE_ENV: "production" });
+assert.equal(nonStagingCertificationEvidence.available, false);
+assert.equal(nonStagingCertificationEvidence.configured, false);
+assert.equal(nonStagingCertificationEvidence.raw_public_key_exposed, false);
+assert.equal(nonStagingCertificationEvidence.secrets_included, false);
 
 console.log("Trusted ingress contract tests passed.");
