@@ -264,11 +264,22 @@ test("Staging bootstrap authority enforces reserved to executing to verifying to
   }
 });
 
-test("Staging Recovery keeps internal bootstrap authority POSTs out of the advertised GPT operation set", () => {
+test("Staging Recovery exposes only bounded Gateway preflight POSTs and keeps bootstrap authority internal", () => {
   const contract = buildStagingRecoveryAdminContract();
-  assert.deepEqual(contract.operation_policy.advertised_methods, ["GET"]);
+  assert.deepEqual(contract.operation_policy.advertised_methods, ["GET", "POST"]);
+  assert.deepEqual(contract.operation_policy.gateway_preflight_methods, ["POST"]);
+  assert.equal(contract.operation_policy.consequential_gateway_apply_exposed, false);
+  assert.equal(contract.operation_policy.provider_mutation_allowed, false);
+  assert.equal(contract.operation_policy.target_database_mutation_allowed, false);
+  assert.equal(contract.operation_policy.production_mutation_allowed, false);
   assert.deepEqual(contract.operation_policy.internal_execution_authority_methods, ["POST"]);
-  assert.equal(contract.paths.length, 3);
+  assert.deepEqual(contract.paths, [
+    "/admin/recovery/staging/contract",
+    "/admin/recovery/staging/readiness",
+    "/admin/recovery/staging/certification",
+    "/admin/recovery/staging/gateway/rollout-plan",
+    "/admin/recovery/staging/gateway/dark-deploy-dry-run",
+  ]);
   assert.deepEqual(contract.internal_execution_authority_paths, [
     "/admin/recovery/staging/bootstrap-ticket/verify",
     "/admin/recovery/staging/bootstrap-ticket/finalize",

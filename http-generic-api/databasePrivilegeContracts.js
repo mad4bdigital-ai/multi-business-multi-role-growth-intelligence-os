@@ -77,6 +77,11 @@ const STAGING_RUNTIME_READ_ONLY_TABLES = Object.freeze([
   "activation_freshness_policy_registry",
   "activation_signal_subscription_registry",
   "activation_connector_pack_registry",
+  // Governed Staging discovery reads these runtime-owned registries before it
+  // can resolve dispatch and workspace context. Keep them SELECT-only; neither
+  // surface grants mutation, schema authority, or GRANT OPTION.
+  "platform_tool_dispatch_bindings",
+  "workspace_assets",
 ]);
 
 const STAGING_RUNTIME_OPTIONAL_READ_SURFACES = Object.freeze([
@@ -93,6 +98,11 @@ const STAGING_RUNTIME_OPTIONAL_READ_SURFACES = Object.freeze([
   "operational_alerts",
   "v_platform_evolution_activation_card",
   "v_platform_capability_gaps",
+  // Transitional split-database compatibility: older Staging rebuilds may
+  // still host recipe metadata in Runtime. Grant SELECT only when present;
+  // canonical fresh rebuilds keep these tables in Governance.
+  "platform_resource_recipes",
+  "platform_resource_recipe_steps",
 ]);
 
 const STAGING_RUNTIME_READ_ONLY_MATRIX = Object.freeze(Object.fromEntries(

@@ -22,7 +22,7 @@
       "local_connector_required": false,
       "scope": "optional_diagnostic_only",
       "recovery_admin_surface": {
-        "contract": "mad4b.staging-recovery-admin-surface.v1",
+        "contract": "mad4b.staging-recovery-admin-surface.v2",
         "schema": "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
         "server_uri": "https://activation-dev.mad4b.com",
         "route_prefix": "/admin/recovery/staging/",
@@ -122,7 +122,7 @@
     "live_authority_readiness_contract": "mad4b.recovery-live-authority-readiness.v1",
     "staging_certification_contract": "mad4b.recovery-staging-certification.v1",
     "production_authority_readiness_contract": "mad4b.recovery-production-authority-readiness.v1",
-    "staging_recovery_admin_surface_contract": "mad4b.staging-recovery-admin-surface.v1",
+    "staging_recovery_admin_surface_contract": "mad4b.staging-recovery-admin-surface.v2",
     "required_live_authority_components": ["recoveryStore", "executionTicketSigner", "approvalVerifier", "recoveryLock", "readbackVerifier", "hostLocalMutationExecutor", "deploymentIdentityProvider"],
     "live_activation_requires_separate_release": false,
     "secrets_included": false
