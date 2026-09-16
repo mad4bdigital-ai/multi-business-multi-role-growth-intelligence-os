@@ -44,6 +44,7 @@
           "assertions": [
             "The bootstrap argument list contains -NoTunnel and does not append -EnableActivationGateway.",
             "The Core preserves EnableActivationGateway across the bootstrap boundary and does not widen provider, database, Production, or DNS mutation authority.",
+            "Activation Gateway exact-commit readiness remains fail-closed after the canonical tunnel transition; this change only removes the circular pre-tunnel gate.",
             "The portable Staging manifest is treated as a registered generated artifact and is not manually edited.",
             "secrets_included is false."
           ],
