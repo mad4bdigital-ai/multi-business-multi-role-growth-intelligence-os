@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "7727d48e934f83579bf1433fa621f57b5fc4043d57fdcea7351614ef6edeba67",
+    "source_digest": "dac3d371b0b8acbfe80c701ae9e2411d5d29680c2a24b96377c42e0c49581f4a",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -631,7 +631,7 @@
       },
       {
         "file": "routes/healthRoutes.js",
-        "sha256": "30a7fcc1d198fd03d39df1ed3eb016bad3c5cb963d7a1d9e66ea2f6916f87c3c",
+        "sha256": "cc5b70689c4e30add9e093dc0dc36e6a798ae70cc3c9ece26e144004dafd3987",
         "present": true
       },
       {
@@ -21504,7 +21504,7 @@
       "family_key": "health.public.default",
       "label": "health [default]",
       "source_file": "routes/healthRoutes.js",
-      "source_digest": "30a7fcc1d198fd03d39df1ed3eb016bad3c5cb963d7a1d9e66ea2f6916f87c3c",
+      "source_digest": "cc5b70689c4e30add9e093dc0dc36e6a798ae70cc3c9ece26e144004dafd3987",
       "mount_prefix": "/",
       "mount_order": 16405,
       "split_from_mixed_scope_file": false,
@@ -21678,7 +21678,7 @@
       "family_key": "health.public.health",
       "label": "health [health]",
       "source_file": "routes/healthRoutes.js",
-      "source_digest": "30a7fcc1d198fd03d39df1ed3eb016bad3c5cb963d7a1d9e66ea2f6916f87c3c",
+      "source_digest": "cc5b70689c4e30add9e093dc0dc36e6a798ae70cc3c9ece26e144004dafd3987",
       "mount_prefix": "/",
       "mount_order": 16405,
       "split_from_mixed_scope_file": false,

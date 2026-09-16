@@ -1124,6 +1124,50 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/prepare-staging-cert-trust-evidence.mjs|appBase|environment_reference|staging.cert.app.base.url",
+      "owner": "repository-governance",
+      "reason": "Staging certification application base URL is a non-secret runner-side read-only probe locator constrained to the Staging certification flow; it selects only the existing Staging application origin and grants no runtime, provider, database, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/prepare-staging-cert-trust-evidence.mjs|envFile|environment_reference|staging.cert.trust.env.file",
+      "owner": "repository-governance",
+      "reason": "Staging certification trust env file is an ephemeral GitHub-runner output path used only to pass verified public trusted-ingress values to the existing certifier after exact evidence checks; it contains no secret value and grants no runtime, provider, database, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/prepare-staging-cert-trust-evidence.mjs|environmentBindingWritten|literal_declaration|environmentbindingwritten",
+      "owner": "repository-governance",
+      "reason": "environmentBindingWritten is an internal report-only boolean proving whether transient runner hydration was written after all trusted-ingress checks passed; it is not a configuration authority and grants no runtime, provider, database, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/prepare-staging-cert-trust-evidence.mjs|expectedCommit|environment_reference|staging.cert.expected.commit",
+      "owner": "repository-governance",
+      "reason": "Expected commit is a non-secret exact-candidate SHA freshness binding used only to fail closed unless live Staging trust evidence matches the governed source commit; it grants no runtime, provider, database, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {
