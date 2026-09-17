@@ -187,6 +187,7 @@ assert.match(launcher, /certification_status = \[string\]\$runtimeState\.certifi
 assert.match(launcher, /AUTO_PILOT_ONE_CLICK_DEGRADED/);
 assert.match(launcher, /AUTO_PILOT_ONE_CLICK_READY/);
 assert.match(launcher, /if \(\$EnableActivationGateway\) \{ \$argList \+= "-EnableActivationGateway" \}/);
+assert.match(dualModeCore, /Set-StagingEnvValue \$envFile 'ACTIVATION_STAGING_GATEWAY_ENABLED' 'false'[\s\S]*?Invoke-Checked 'powershell\.exe' \$bootstrapArgs[\s\S]*?Initialize-StagingEnvironment[\s\S]*?-EnableActivationGateway:\$EnableActivationGateway/);
 assert.match(launcher, /if \(\$ApplySchemaBundle\) \{ \$argList \+= "-ApplySchemaBundle" \}/);
 assert.match(launcher, /CLOUDFLARE_TUNNEL_TOKEN/);
 assert.match(launcher, /Read-Host "Staging Tunnel token" -AsSecureString/);
