@@ -311,6 +311,11 @@ Quiesce-StagingTunnelRuntimes
 # Bootstrap the local stack without a tunnel, then restore the selected canonical mode.
 Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ENABLED' 'false'
 Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ORIGIN_APP' 'http://127.0.0.1:8080'
+# The persisted Activation Gateway flag must also be local-only during bootstrap.
+# Bootstrap certification reads .env.staging directly, so leaving this true would
+# reacquire the remote Gateway gate after tunnel quiescence and deadlock before
+# the Core can restore the selected canonical tunnel mode.
+Set-StagingEnvValue $envFile 'ACTIVATION_STAGING_GATEWAY_ENABLED' 'false'
 
 $bootstrap = Join-Path $root 'Bootstrap-Staging-One-Click.ps1'
 $bootstrapArgs = @('-NoLogo','-NoProfile','-ExecutionPolicy','Bypass','-File',$bootstrap,'-RepositoryPath',$RepositoryPath,'-BuildMode',$BuildMode,'-AutoDeployTunnelMode',$TunnelMode,'-NoTunnel')
