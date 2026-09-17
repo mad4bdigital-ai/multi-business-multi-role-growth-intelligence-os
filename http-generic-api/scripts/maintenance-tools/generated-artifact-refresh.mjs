@@ -61,6 +61,7 @@ const WORK_MAP_BOOTSTRAP_STATIC_FEATURE_KEYS = new Set([
 const REMOTE_MCP_WRITE_SCOPE_OUTPUTS = new Set([
   "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
   "docs/remote-mcp-write-scope-inventory.md",
+  "docs/write-scope-shadow-evidence-2026-08-15.json",
   STAGING_MANIFEST_PATH,
 ]);
 const REPOSITORY_INVENTORY_OUTPUTS = new Set([
@@ -509,9 +510,11 @@ function runRemoteMcpWriteScopeRefresh() {
   const beforeHashes = readRemoteMcpWriteScopeHashes();
   run("generate_remote_mcp_write_scope_first_pass", "node", ["scripts/remote-mcp-write-scope-inventory.mjs"], { cwd: repoRoot });
   refreshPortableStagingManifest();
+  run("generate_write_scope_shadow_evidence_first_pass", "node", ["scripts/write-scope-shadow-preflight.mjs"], { cwd: repoRoot });
   const firstPassHashes = readRemoteMcpWriteScopeHashes();
   run("generate_remote_mcp_write_scope_second_pass", "node", ["scripts/remote-mcp-write-scope-inventory.mjs"], { cwd: repoRoot });
   refreshPortableStagingManifest();
+  run("generate_write_scope_shadow_evidence_second_pass", "node", ["scripts/write-scope-shadow-preflight.mjs"], { cwd: repoRoot });
   const secondPassHashes = readRemoteMcpWriteScopeHashes();
   if (JSON.stringify(firstPassHashes) !== JSON.stringify(secondPassHashes)) {
     throw new ToolFailure({
@@ -525,6 +528,7 @@ function runRemoteMcpWriteScopeRefresh() {
   }
   run("verify_remote_mcp_write_scope_current", "node", ["scripts/remote-mcp-write-scope-inventory.mjs", "--check"], { cwd: repoRoot });
   run("verify_remote_mcp_write_scope_contract", "node", ["scripts/test-remote-mcp-write-scope-inventory.mjs"], { cwd: repoRoot });
+  run("verify_write_scope_shadow_evidence_current", "node", ["scripts/write-scope-shadow-preflight.mjs", "--check"], { cwd: repoRoot });
   run("verify_staging_manifest_hash_contract", "node", ["http-generic-api/test-staging-autopilot-closure.mjs"], { cwd: repoRoot });
   return {
     deterministic: true,
