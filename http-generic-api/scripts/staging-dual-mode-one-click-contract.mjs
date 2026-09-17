@@ -159,6 +159,7 @@ assert.match(launcher, /RequireTunnelToken:\(\$TunnelMode -eq 'docker_sidecar'\)
 assert.match(core, /'-BuildMode',\$BuildMode,'-AutoDeployTunnelMode',\$TunnelMode,'-NoTunnel'/);
 assert.doesNotMatch(core, /if \(\$EnableActivationGateway\) \{ \$bootstrapArgs \+= '-EnableActivationGateway' \}/);
 assert.match(core, /Initialize-StagingEnvironment[\s\S]*?-EnableActivationGateway:\$EnableActivationGateway[\s\S]*?Invoke-Checked 'powershell\.exe' \$bootstrapArgs[\s\S]*?Initialize-StagingEnvironment[\s\S]*?-EnableActivationGateway:\$EnableActivationGateway/);
+assert.match(core, /Set-StagingEnvValue \$envFile 'ACTIVATION_STAGING_GATEWAY_ENABLED' 'false'[\s\S]*?Invoke-Checked 'powershell\.exe' \$bootstrapArgs[\s\S]*?Initialize-StagingEnvironment[\s\S]*?-EnableActivationGateway:\$EnableActivationGateway/);
 assert.match(bootstrap, /"-AutoDeployTunnelMode", \$AutoDeployTunnelMode/);
 assert.match(oneClick, /"-TunnelMode", \$AutoDeployTunnelMode/);
 assert.match(autoDeployInstaller, /-TunnelMode \$TunnelMode/);
