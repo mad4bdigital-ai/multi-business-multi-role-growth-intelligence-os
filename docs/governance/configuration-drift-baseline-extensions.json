@@ -1168,6 +1168,17 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/test-staging-recovery-gateway-preflight.mjs|policyHash|literal_declaration|policyhash",
+      "owner": "staging-recovery-governance",
+      "reason": "Test-only policy hash fixture used to prove exact policy binding for governed Staging Activation Gateway preflight; it contains no credential or runtime configuration value and grants no apply, provider, database, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {
