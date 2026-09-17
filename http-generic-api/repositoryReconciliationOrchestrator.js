@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { getPool } from "./db.js";
+import { resolvePlatformResourceRecipePool } from "./platformResourceRecipeStore.js";
 import {
   acquireRepositoryOperationLease,
   assertRepositoryOperationLeaseHolder,
@@ -135,8 +136,13 @@ export function classifyRepositoryReconciliationStepExecution(step = {}) {
 }
 
 export async function loadRepositoryReconciliationRecipe(recipeKey = RECIPE, deps = {}) {
-  const pool = deps.pool || getPool();
-  const [recipes] = await pool.query(
+  const runtimePool = deps.runtimePool || deps.pool || getPool();
+  const recipePool = resolvePlatformResourceRecipePool({
+    recipeStorePool: deps.recipeStorePool,
+    governancePool: deps.governancePool,
+    runtimePool,
+  });
+  const [recipes] = await recipePool.query(
     `SELECT recipe_key, resource_type, operation_key, adapter_key, risk_class, mode,
             requires_capability_envelope, requires_typed_confirmation, requires_same_cycle_readback,
             policy_json, engine_key, status
@@ -146,7 +152,7 @@ export async function loadRepositoryReconciliationRecipe(recipeKey = RECIPE, dep
   if (!recipes?.[0]) {
     throw fail("repository_reconciliation_recipe_missing", "The reconciliation recipe was not found.", 404);
   }
-  const [steps] = await pool.query(
+  const [steps] = await recipePool.query(
     `SELECT step_order, step_key, step_kind, parent_action_key, tool_key, endpoint_key, source_table,
             source_pk_template_json, query_template_json, body_template_json, response_projection_json,
             required, on_error_policy, status
@@ -435,7 +441,11 @@ function engineOwnedStepResult(step, lease) {
 export async function runRepositoryReconciliationOrchestrator(args = {}, deps = {}) {
   const input = normalize(args, deps);
   const pool = deps.pool || getPool();
-  const recipe = await loadRepositoryReconciliationRecipe(input.recipeKey, { pool });
+  const recipe = await loadRepositoryReconciliationRecipe(input.recipeKey, {
+    runtimePool: pool,
+    recipeStorePool: deps.recipeStorePool,
+    governancePool: deps.governancePool,
+  });
   const reconciliation = evidence(await deps.reconcileBranch?.({
     owner: input.owner,
     repo: input.repo,
