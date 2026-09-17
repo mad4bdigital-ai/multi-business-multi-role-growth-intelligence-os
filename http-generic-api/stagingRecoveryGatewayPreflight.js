@@ -35,7 +35,7 @@ export function normalizeStagingRecoveryGatewayPreflightInput(input = {}) {
   if (unexpected.length) {
     throw fail(
       "STAGING_RECOVERY_GATEWAY_PREFLIGHT_FIELD_FORBIDDEN",
-      "Gateway preflight accepts only exact release, policy, and acknowledged convergence-plan bindings.",
+      "Gateway preflight accepts only exact release, policy, and caller-asserted convergence-plan bindings.",
       400,
       { fields: unexpected },
     );
