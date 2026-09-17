@@ -181,6 +181,18 @@ test("preflight fails closed if an implementation reports provider access", asyn
   );
 
   await assert.rejects(
+    () => previewStagingRecoveryGatewayRollout(input, {
+      runtimePool,
+      governancePool,
+      auth,
+      async buildRolloutPlan() {
+        return { ok: true, apply_ready: true, provider_mutation_performed: true };
+      },
+    }),
+    (error) => error?.code === "STAGING_RECOVERY_GATEWAY_PROVIDER_ACCESS_FORBIDDEN",
+  );
+
+  await assert.rejects(
     () => prepareStagingRecoveryGatewayDarkDeployDryRun(input, {
       runtimePool,
       governancePool,
