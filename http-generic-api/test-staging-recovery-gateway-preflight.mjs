@@ -138,4 +138,59 @@ test("dark-deploy dry-run may persist only the governed execution plan and never
   assert.equal(result.convergence_binding.consequential_apply_authority_issued, false);
 });
 
+test("stale policy assertion remains on the Staging adapter and never selects Production", async () => {
+  const staleInput = { ...input, expected_policy_hash: "f".repeat(64) };
+  let stagingBuilderCalls = 0;
+  const result = await previewStagingRecoveryGatewayRollout(staleInput, {
+    runtimePool,
+    governancePool,
+    auth,
+    env: { NODE_ENV: "staging" },
+    async buildRolloutPlan(args) {
+      stagingBuilderCalls += 1;
+      assert.equal(args.expected_policy_hash, staleInput.expected_policy_hash);
+      return {
+        ok: false,
+        adapter: "staging_activation_gateway_profile_apply",
+        classification: "staging_activation_gateway_expected_policy_hash_mismatch",
+        apply_ready: false,
+        checks: [{ key: "expected_policy_hash_matches", ok: false }],
+      };
+    },
+  });
+  assert.equal(stagingBuilderCalls, 1);
+  assert.equal(result.environment, "staging");
+  assert.equal(result.adapter, "staging_activation_gateway_profile_apply");
+  assert.equal(result.preflight_ready, false);
+  assert.equal(result.production_mutation_performed, false);
+  assert.equal(result.provider_accessed, false);
+});
+
+test("preflight fails closed if an implementation reports provider access", async () => {
+  await assert.rejects(
+    () => previewStagingRecoveryGatewayRollout(input, {
+      runtimePool,
+      governancePool,
+      auth,
+      async buildRolloutPlan() {
+        return { ok: true, apply_ready: true, provider_accessed: true, provider_calls_made: 1 };
+      },
+    }),
+    (error) => error?.code === "STAGING_RECOVERY_GATEWAY_PROVIDER_ACCESS_FORBIDDEN"
+      && error?.details?.provider_calls_made === 1,
+  );
+
+  await assert.rejects(
+    () => prepareStagingRecoveryGatewayDarkDeployDryRun(input, {
+      runtimePool,
+      governancePool,
+      auth,
+      async runDarkDeploy() {
+        return { ok: true, apply_ready: true, provider_calls_made: 1, governance_state_mutation: false };
+      },
+    }),
+    (error) => error?.code === "STAGING_RECOVERY_GATEWAY_PROVIDER_ACCESS_FORBIDDEN",
+  );
+});
+
 console.log("Staging Recovery Gateway preflight wrapper tests passed");
