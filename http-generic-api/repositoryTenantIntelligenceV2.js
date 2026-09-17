@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 
 import { getPool } from "./db.js";
 import { resolvePlatformResourceAuthorityPool } from "./platformResourceAuthorityStore.js";
+import { resolvePlatformResourceRecipePool } from "./platformResourceRecipeStore.js";
 
 export const REPOSITORY_PR_RECONCILE_RECIPE_KEY = "repo.pr.reconciliation_sweep";
 export const GITHUB_REPO_RESOURCE_TYPE = "github_repo";
@@ -49,8 +50,12 @@ function requireScope(scope = {}) {
     err.status = 400; err.code = "repository_authority_scope_required"; throw err;
   }
 }
-async function assertReadOnlyRepositoryRecipe(recipeKey = REPOSITORY_PR_RECONCILE_RECIPE_KEY) {
-  const [rows] = await getPool().query(
+async function assertReadOnlyRepositoryRecipe(
+  recipeKey = REPOSITORY_PR_RECONCILE_RECIPE_KEY,
+  { recipeStorePool = null, governancePool = null, runtimePool = getPool() } = {},
+) {
+  const pool = resolvePlatformResourceRecipePool({ recipeStorePool, governancePool, runtimePool });
+  const [rows] = await pool.query(
     `SELECT recipe_key, status, read_only, risk_class FROM platform_resource_recipes WHERE recipe_key = ? LIMIT 1`,
     [recipeKey]
   );
@@ -142,12 +147,25 @@ function repositoryProviderAuthorizationGatedResult(tool, classification, checks
   return { ok:false, tool, status:'authorization_gated', classification, reason_code:'repository_provider_binding_required', checks, provider_calls_made:0, apply_allowed:false, mutations_executed:false, secrets_included:false };
 }
 
-export async function createRepositoryAuthorityBinding(args = {}, { auth, authorityStorePool = null } = {}) {
+export async function createRepositoryAuthorityBinding(
+  args = {},
+  {
+    auth,
+    authorityStorePool = null,
+    recipeStorePool = null,
+    governancePool = null,
+    runtimePool = getPool(),
+  } = {},
+) {
   const repoRef = normalizeGithubRepoRef(args);
   if (!repoRef) { const err = new Error("A GitHub repository owner/repo or github://owner/repo resource_uri is required."); err.status = 400; err.code = "github_repo_ref_required"; throw err; }
   const recipeKey = asString(args.recipe_key || REPOSITORY_PR_RECONCILE_RECIPE_KEY);
   if (recipeKey !== REPOSITORY_PR_RECONCILE_RECIPE_KEY) { const err = new Error("V2 only supports repo.pr.reconciliation_sweep bindings."); err.status = 400; err.code = "unsupported_repository_recipe_binding"; throw err; }
-  await assertReadOnlyRepositoryRecipe(recipeKey);
+  await assertReadOnlyRepositoryRecipe(recipeKey, {
+    recipeStorePool: recipeStorePool || authorityStorePool,
+    governancePool,
+    runtimePool,
+  });
   const scope = principalScope(args, auth); requireScope(scope);
   if (asString(args.permission_level || "read_only") !== "read_only") { const err = new Error("V2 repository authority bindings only allow read_only permission_level."); err.status = 400; err.code = "repository_binding_read_only_required"; throw err; }
   const allowedModes = Array.isArray(args.allowed_modes) ? args.allowed_modes : ["read_only"];
