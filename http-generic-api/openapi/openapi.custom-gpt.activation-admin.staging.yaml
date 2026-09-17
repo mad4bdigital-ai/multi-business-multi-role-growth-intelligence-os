@@ -1103,7 +1103,7 @@ components:
         environment_convergence_plan_sha256:
           type: string
           pattern: ^[0-9a-f]{64}$
-          description: Exact acknowledged convergence-plan digest used only as a binding assertion; it is not execution authority.
+          description: Caller-asserted convergence-plan digest used only as an exact binding assertion. Preflight does not verify server acknowledgement and this value is not execution authority.
     adminrecoverystaging_GatewayRolloutPreviewResponse:
       type: object
       additionalProperties: true
