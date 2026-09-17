@@ -1,0 +1,127 @@
+wordpressStagingPluginDeployPath:
+  post:
+    operationId: wordpressStagingPluginDeploy
+    summary: Plan or execute the reviewed WordPress Staging plugin artifact
+    description: >-
+      Staging-only governed deployment of the exact successful MAD4B Site Control Plane
+      package artifact produced by mad4bdigital-ai/WordPress. The runtime verifies the
+      exact PR HEAD package run, install manifest, control-plane SHA-256, explicit
+      Hostinger Staging target metadata and live WordPress environment/home/site URL plus
+      MCP Adapter 0.6.1 before the first write. Apply additionally requires an exact
+      capability envelope bound to the same WordPress HEAD. Production deployment
+      authority, Breakglass, File Manager, caller-supplied filesystem paths and
+      caller-supplied SSH credentials are not accepted.
+    x-runtime-contract-source: routes/wordpressStagingPluginDeployRoutes.js
+    x-runtime-auth-profile: admin_backend
+    x-contract-completeness: precise-runtime-contract
+    x-custom-gpt-exclude: true
+    x-gpt-action-exclude: true
+    x-openai-isConsequential: true
+    security:
+      - adminBearerAuth: []
+      - backendApiKeyAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - target_id
+              - expected_head_sha
+            properties:
+              target_id:
+                type: string
+                minLength: 1
+                maxLength: 64
+                description: Server-registered active and validated Hostinger Staging target identifier.
+              expected_head_sha:
+                type: string
+                pattern: '^[0-9a-f]{40}$'
+                description: Exact WordPress PR HEAD SHA whose successful reviewed package artifact is allowed to deploy.
+              dry_run:
+                type: boolean
+                default: true
+              approval_reason:
+                type: string
+                minLength: 20
+                maxLength: 1000
+                description: Required for apply; dry-run remains non-mutating.
+              capability_envelope_id:
+                type: string
+                minLength: 1
+                maxLength: 64
+                description: Required for apply and must bind to the exact expected_head_sha and capability.
+              ssh_auth_mode:
+                type: string
+                enum: [password, private_key]
+              timeout_ms:
+                type: integer
+                minimum: 1000
+                maximum: 300000
+    responses:
+      '200':
+        description: Dry-run preflight completed or the approved Staging deployment completed with same-cycle readback.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              required:
+                - ok
+                - contract
+                - environment
+                - origin
+                - expected_head_sha
+                - dry_run
+                - production_authority_used
+                - breakglass_used
+                - caller_supplied_credentials_used
+                - secrets_included
+              properties:
+                ok:
+                  type: boolean
+                contract:
+                  type: string
+                  enum: [mad4b.wordpress-staging-plugin-deploy.v1]
+                environment:
+                  type: string
+                  enum: [staging]
+                origin:
+                  type: string
+                  enum: [https://staging.egypttourgates.com]
+                expected_head_sha:
+                  type: string
+                  pattern: '^[0-9a-f]{40}$'
+                control_plane_version:
+                  type: string
+                mcp_adapter_version:
+                  type: string
+                  enum: ['0.6.1']
+                dry_run:
+                  type: boolean
+                production_authority_used:
+                  type: boolean
+                  const: false
+                breakglass_used:
+                  type: boolean
+                  const: false
+                caller_supplied_credentials_used:
+                  type: boolean
+                  const: false
+                secrets_included:
+                  type: boolean
+                  const: false
+      '400':
+        description: Invalid exact HEAD or request contract.
+      '403':
+        description: Apply attempted without the required approval reason or exact capability envelope.
+      '404':
+        description: Explicit Hostinger Staging target was not found.
+      '409':
+        description: >-
+          Fail-closed identity, target allowlist, artifact provenance, package hash,
+          Staging preflight, handoff contract or capability-envelope mismatch.
+      '502':
+        description: GitHub artifact retrieval, SSH preflight, upload, deploy or same-cycle readback failed.
