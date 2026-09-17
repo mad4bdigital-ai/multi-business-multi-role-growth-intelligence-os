@@ -12,9 +12,13 @@ import { evaluateExternalStagingEvidence } from "../recoveryReadinessEvidence.js
 import { createStagingBootstrapExecutionAuthority } from "../stagingBootstrapExecutionAuthority.js";
 import { createStagingAccessRepairTicketAuthority } from "../stagingAccessRepairTicketAuthority.js";
 import { createStagingRebuildBundleVerifier } from "../stagingRebuildBundleVerifier.js";
+import {
+  prepareStagingRecoveryGatewayDarkDeployDryRun,
+  previewStagingRecoveryGatewayRollout,
+} from "../stagingRecoveryGatewayPreflight.js";
 import { buildRecoverySystemToolOverlayRoutes } from "./recoverySystemToolOverlayRoutes.js";
 
-export const STAGING_RECOVERY_ADMIN_SURFACE_CONTRACT = "mad4b.staging-recovery-admin-surface.v1";
+export const STAGING_RECOVERY_ADMIN_SURFACE_CONTRACT = "mad4b.staging-recovery-admin-surface.v2";
 export const STAGING_RECOVERY_ADMIN_SERVER_URI = "https://activation-dev.mad4b.com";
 export const STAGING_RECOVERY_ADMIN_HOST = "activation-dev.mad4b.com";
 
@@ -23,6 +27,8 @@ const STAGING_RECOVERY_ADVERTISED_PATHS = Object.freeze([
   "/admin/recovery/staging/contract",
   "/admin/recovery/staging/readiness",
   "/admin/recovery/staging/certification",
+  "/admin/recovery/staging/gateway/rollout-plan",
+  "/admin/recovery/staging/gateway/dark-deploy-dry-run",
 ]);
 const STAGING_RECOVERY_INTERNAL_EXECUTION_PATHS = Object.freeze([
   "/admin/recovery/staging/bootstrap-ticket/verify",
@@ -104,8 +110,18 @@ export function buildStagingRecoveryAdminContract() {
     production_authority: false,
     authorization: { scope: "private_admin", server_managed: true, caller_credentials_accepted: false, gpt_credentials_accepted: false, local_connector_production_authority: false },
     operation_policy: {
-      advertised_methods: ["GET"],
-      readiness_only: true,
+      advertised_methods: ["GET", "POST"],
+      readiness_only: false,
+      gateway_preflight_methods: ["POST"],
+      gateway_rollout_preview: "non_persistent_server_bound_preflight",
+      gateway_dark_deploy_dry_run: "governance_control_plane_plan_prepare_only",
+      gateway_convergence_digest_binding: "caller_exact_digest_assertion_not_execution_authority",
+      gateway_convergence_acknowledgement_server_verified_on_preflight: false,
+      governance_control_plane_prepare_allowed: true,
+      consequential_gateway_apply_exposed: false,
+      provider_mutation_allowed: false,
+      target_database_mutation_allowed: false,
+      production_mutation_allowed: false,
       internal_execution_authority_methods: ["POST"],
       consequential_staging_execution: "local_cli_requires_server_ticket_reservation_execution_start_and_same_cycle_readback",
       target_database_mutation_on_this_surface: false,
@@ -129,7 +145,7 @@ export function buildStagingRecoveryAdminContract() {
     internal_execution_authority_paths: [...STAGING_RECOVERY_INTERNAL_EXECUTION_PATHS],
     certification_contract: RECOVERY_STAGING_CERTIFICATION_CONTRACT,
     required_evidence: ["server_derived_deployment_attestation", "complete_staging_authority_graph", "exact_target_fingerprint", "durable_certification_record", "plan_bound_approval", "server_issued_execution_ticket", "exact_role_bundle_binding", "signed_ticket_reservation_receipt", "signed_execution_start_receipt", "signed_same_cycle_readback_receipt", "unknown_outcome_reconciliation_evidence"],
-    forbidden_fallbacks: ["production_authority", "local_connector", "in_memory", "mock_adapter", "caller_generated_ticket", "caller_selected_sql", "caller_selected_command", "caller_asserted_readback", "automatic_replay"],
+    forbidden_fallbacks: ["production_authority", "local_connector", "in_memory", "mock_adapter", "caller_generated_ticket", "caller_selected_sql", "caller_selected_command", "caller_asserted_readback", "caller_selected_resource_binding", "caller_selected_capability_envelope", "automatic_replay"],
     database_mutation_performed: false,
     provider_accessed: false,
     provider_mutation_performed: false,
@@ -185,6 +201,7 @@ export function buildStagingRecoveryAdminRoutes({
   stagingBootstrapExecutionAuthorityFactory = createStagingBootstrapExecutionAuthority,
   stagingAccessRepairTicketAuthorityFactory = createStagingAccessRepairTicketAuthority,
   stagingRebuildBundleVerifierFactory = createStagingRebuildBundleVerifier,
+  gatewayPreflightDeps = null,
   recoveryStore = null,
   executionTicketSigner = null,
   approvalIssuer = null,
@@ -250,6 +267,22 @@ export function buildStagingRecoveryAdminRoutes({
       return res.status(200).json({ ok: result.certification.valid, contract: STAGING_RECOVERY_ADMIN_SURFACE_CONTRACT, environment: "staging", certification: result.certification, live_certification: result.live_certification, production_live: result.production_live, database_mutation_performed: false, provider_mutation_performed: false, secrets_included: false });
     } catch (error) {
       return errorResponse(res, req, Number(error?.status || 503), error?.code || "RECOVERY_STAGING_CERTIFICATION_STATUS_FAILED", "Staging Recovery certification status is unavailable; no mutation was attempted.");
+    }
+  });
+  router.post("/admin/recovery/staging/gateway/rollout-plan", ...guards, async (req, res) => {
+    try {
+      const result = await previewStagingRecoveryGatewayRollout(req.body || {}, { ...(gatewayPreflightDeps || {}), env, auth: req.auth || {} });
+      return res.status(200).json(result);
+    } catch (error) {
+      return errorResponse(res, req, Number(error?.status || 503), error?.code || "RECOVERY_STAGING_GATEWAY_ROLLOUT_PREVIEW_FAILED", "Staging Activation Gateway rollout preview failed closed; no provider mutation was attempted.");
+    }
+  });
+  router.post("/admin/recovery/staging/gateway/dark-deploy-dry-run", ...guards, async (req, res) => {
+    try {
+      const result = await prepareStagingRecoveryGatewayDarkDeployDryRun(req.body || {}, { ...(gatewayPreflightDeps || {}), env, auth: req.auth || {} });
+      return res.status(200).json(result);
+    } catch (error) {
+      return errorResponse(res, req, Number(error?.status || 503), error?.code || "RECOVERY_STAGING_GATEWAY_DRY_RUN_FAILED", "Staging Activation Gateway dry-run failed closed; no provider mutation was attempted.");
     }
   });
 

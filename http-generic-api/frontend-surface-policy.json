@@ -200,7 +200,7 @@
       "scope": "admin",
       "decision": "internal_only",
       "owner": "runtime-operations",
-      "rationale": "The Staging Recovery Admin surface is a private API-only contract for activation-dev readiness and certification status. It is not a browser navigation surface, advertises GET-only operations, forbids Production authority, and keeps consequential certification in a separate workflow.",
+      "rationale": "The Staging Recovery Admin surface is a private API-only contract for activation-dev readiness, certification status, and exact-bound Gateway preflight. It is not a browser navigation surface, forbids provider apply and Production authority, and keeps consequential execution in a separate certified workflow.",
       "evidence_refs": [
         "routes/stagingRecoveryAdminRoutes.js",
         "openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
@@ -2996,6 +2996,62 @@
     }
   ],
   "operation_rules": [
+    {
+      "rule_id": "staging-recovery-gateway-rollout-preview",
+      "operation": "POST /admin/recovery/staging/gateway/rollout-plan",
+      "source_file": "routes/stagingRecoveryAdminRoutes.js",
+      "classification": "preflight",
+      "owner": "runtime-operations",
+      "rationale": "Resolves the profile-owned Staging Gateway target and validates exact source, policy, convergence-plan, workspace, bundle, and provider-readiness evidence without persisting a plan or contacting the provider.",
+      "parameter_bindings": {
+        "expected_source_commit": "request.body.expected_source_commit",
+        "expected_policy_hash": "request.body.expected_policy_hash",
+        "environment_convergence_plan_sha256": "request.body.environment_convergence_plan_sha256",
+        "resource_binding": "server.profile.activation_gateway_staging"
+      },
+      "evidence_refs": [
+        "routes/stagingRecoveryAdminRoutes.js",
+        "stagingRecoveryGatewayPreflight.js",
+        "stagingActivationGatewayApplyAdapter.js",
+        "test-staging-recovery-gateway-preflight.mjs",
+        "test-staging-recovery-route-policy.mjs"
+      ]
+    },
+    {
+      "rule_id": "staging-recovery-gateway-dark-deploy-dry-run",
+      "operation": "POST /admin/recovery/staging/gateway/dark-deploy-dry-run",
+      "source_file": "routes/stagingRecoveryAdminRoutes.js",
+      "classification": "state_change",
+      "owner": "runtime-operations",
+      "rationale": "May persist only a short-lived encrypted Governance execution plan after exact-bound Staging preflight; it cannot contact Cloudflare, mutate DNS, mutate a target database, target Production, or issue apply authority.",
+      "preflight": {
+        "mode": "exact_release_policy_convergence_and_server_resource_binding"
+      },
+      "approval": {
+        "mode": "not_required_for_non_executing_plan_prepare"
+      },
+      "readback": {
+        "mode": "inline_post_commit",
+        "same_cycle": true
+      },
+      "rollback": {
+        "mode": "expiry_without_execution",
+        "rationale": "The encrypted plan is short-lived and non-executable without a separately issued capability envelope, execution nonce, and certified apply authority."
+      },
+      "parameter_bindings": {
+        "expected_source_commit": "request.body.expected_source_commit",
+        "expected_policy_hash": "request.body.expected_policy_hash",
+        "environment_convergence_plan_sha256": "request.body.environment_convergence_plan_sha256",
+        "resource_binding": "server.profile.activation_gateway_staging"
+      },
+      "evidence_refs": [
+        "routes/stagingRecoveryAdminRoutes.js",
+        "stagingRecoveryGatewayPreflight.js",
+        "stagingActivationGatewayApplyAdapter.js",
+        "test-staging-recovery-gateway-preflight.mjs",
+        "test-staging-recovery-route-policy.mjs"
+      ]
+    },
     {
       "rule_id": "local-connector-installer-redeem-external-effect",
       "operation": "POST /connector-agent/installer/redeem",

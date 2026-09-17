@@ -194,6 +194,8 @@ test("Admin Recovery connection is pinned to the existing embedded Staging Recov
     "getStagingRecoveryAdminContract",
     "getStagingRecoveryAdminReadiness",
     "getStagingRecoveryCertificationStatus",
+    "previewStagingActivationGatewayRolloutPlan",
+    "prepareStagingActivationGatewayDarkDeployDryRun",
   ]);
   assert.match(customGptSurfaces, /admin_activation_staging:/);
   assert.match(customGptSurfaces, /admin_recovery_staging/);
@@ -201,11 +203,17 @@ test("Admin Recovery connection is pinned to the existing embedded Staging Recov
   assert.match(customGptSurfaces, /upstream_origin:\s*https:\/\/dev\.mad4b\.com/);
 });
 
-test("Admin Recovery Staging Gateway convergence exposes read/preflight only", () => {
+test("Admin Recovery Staging Gateway convergence exposes bounded preflight but no provider apply", () => {
   const gateway = adminRecoveryConnection.gateway_convergence;
   assert.equal(gateway.trusted_ingress, "https://activation-dev.mad4b.com");
   assert.equal(gateway.upstream_origin, "https://dev.mad4b.com");
   assert.equal(gateway.direct_upstream_registration_allowed, false);
+  assert.equal(gateway.rollout_preview_operation_id, "previewStagingActivationGatewayRolloutPlan");
+  assert.equal(gateway.dark_deploy_dry_run_operation_id, "prepareStagingActivationGatewayDarkDeployDryRun");
+  assert.equal(gateway.rollout_preview_persistent, false);
+  assert.equal(gateway.dark_deploy_dry_run_governance_plan_persistence, true);
+  assert.equal(gateway.operator_acknowledgement_server_verified_on_preflight, false);
+  assert.equal(gateway.operator_acknowledgement_is_execution_authority, false);
   assert.equal(gateway.consequential_apply_exposed, false);
   assert.equal(gateway.apply_authority, "certified_server_side_workflow_only");
   assert.deepEqual(gateway.safe_read_or_preflight_operations, [

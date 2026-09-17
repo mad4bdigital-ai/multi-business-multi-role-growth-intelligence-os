@@ -22,7 +22,7 @@
       "root_password_env": "GOVERNANCE_DB_ROOT_PASSWORD",
       "container_service": "governance-db",
       "seed_file": "http-generic-api/config/staging-gateway-governance-authority-seed.sql",
-      "seed_sha256": "3a389847b2286f6b04ad2421af41ac3e3817173505aa9d85f891ebaab066051a",
+      "seed_sha256": "62c4e52416e16f8a97231a862a1e7f0e2bb7d2bed2c303b0fc6f56c1c2df7134",
       "expected_statement_count": 3,
       "exact_rows": {
         "capability_apply_authorization_policy_registry": "staging_activation_gateway_apply_policy_v1",

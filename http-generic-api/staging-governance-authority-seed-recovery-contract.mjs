@@ -87,7 +87,7 @@ for (const exact of [
   "staging_activation_gateway_apply_policy_v1",
   "5a2b04f8-bb99-4f65-a924-0f55d3080376",
   "mad4b-activation-gateway-staging",
-  "c6468e051b8456d4d3ffc6478cdb98f7048b69c8ca6742f4dca27e1eb4023f32",
+  "dd5f152c4a226d07c75cf33dae3ab3a0cbf6e9913b623724429a96b2d4f96a96",
 ]) {
   assert.match(governanceSeed, new RegExp(exact.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "u"));
 }

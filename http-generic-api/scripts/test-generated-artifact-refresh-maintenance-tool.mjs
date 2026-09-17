@@ -172,12 +172,16 @@ runCheck("tool-remote-mcp-write-scope-refresh", () => {
   for (const output of [
     "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
     "docs/remote-mcp-write-scope-inventory.md",
+    "docs/write-scope-shadow-evidence-2026-08-15.json",
   ]) {
     assert.ok(toolSource.includes(`"${output}"`), `Remote MCP output must be explicitly bounded: ${output}`);
   }
   assert.match(toolSource, /remoteMcpWriteScopeInventoryIsCurrent/u);
   assert.match(toolSource, /generate_remote_mcp_write_scope_first_pass/u);
   assert.match(toolSource, /generate_remote_mcp_write_scope_second_pass/u);
+  assert.match(toolSource, /generate_write_scope_shadow_evidence_first_pass/u);
+  assert.match(toolSource, /generate_write_scope_shadow_evidence_second_pass/u);
+  assert.match(toolSource, /write-scope-shadow-preflight\.mjs", "--check"/u);
   assert.match(toolSource, /remote_mcp_write_scope_not_deterministic/u);
   assert.match(toolSource, /remote-mcp-write-scope-inventory\.mjs", "--check"/u);
   assert.match(toolSource, /test-remote-mcp-write-scope-inventory\.mjs/u);

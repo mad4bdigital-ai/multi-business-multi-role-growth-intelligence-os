@@ -1,0 +1,94 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-recovery-gateway-preflight-20260916",
+  "title": "Expose governed Staging Activation Gateway preflight",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-recovery-gateway-preflight-20260916.json",
+      "http-generic-api/stagingRecoveryGatewayPreflight.js",
+      "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
+      "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
+      "edge/activation-gateway/generated/route-policy.staging.json",
+      "http-generic-api/activation-gateway-runtime/generated/route-policy.staging.json",
+      "http-generic-api/databasePrivilegeContracts.js",
+      "http-generic-api/migrations/20260911_staging_activation_gateway_apply_adapter.sql",
+      "autopilot-portable-staging/Replay-StagingGatewayAuthoritySeeds.ps1",
+      "http-generic-api/test-staging-recovery-gateway-preflight.mjs",
+      "http-generic-api/test-staging-recovery-route-policy.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "production",
+      "staging"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Expose bounded Staging-only rollout preview and dark-deploy dry-run surfaces while retaining server-owned resource binding and fail-closed apply authority.",
+      "e2e_journeys": [
+        {
+          "id": "staging-recovery-gateway-preflight",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging Recovery administrator",
+          "entrypoint": "POST /admin/recovery/staging/gateway/rollout-plan followed by POST /admin/recovery/staging/gateway/dark-deploy-dry-run",
+          "terminal_outcome": "The exact-SHA and exact-policy preflight returns a bounded plan without provider execution, target database mutation, capability envelope, execution nonce, or Production authority.",
+          "steps": [
+            "Resolve the profile-owned activation_gateway_staging resource binding on the server.",
+            "Validate exact source commit, policy hash, convergence-plan digest, trusted ingress, and Admin guards.",
+            "Preview rollout without persistence or provider access.",
+            "Persist only a short-lived Governance execution plan when dry-run is apply-ready.",
+            "Reject caller-selected resource overrides and all consequential apply attempts."
+          ],
+          "assertions": [
+            "Only Staging is in scope and Production mutation remains prohibited.",
+            "Preview performs no governance, target database, provider, DNS, or deployment mutation.",
+            "Dry-run may persist only the bounded Governance plan and issues no apply authority.",
+            "Runtime grants remain SELECT-only and no schema privilege or GRANT OPTION is introduced.",
+            "Live exact-head Staging certification is required before merge eligibility."
+          ],
+          "tests": [
+            {
+              "id": "staging-recovery-gateway-preflight",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-gateway-preflight.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-recovery-route-policy",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-route-policy.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-recovery-gateway-preflight-20260916.json",
+            "http-generic-api/stagingRecoveryGatewayPreflight.js",
+            "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
+            "edge/activation-gateway/generated/route-policy.staging.json",
+            "http-generic-api/activation-gateway-runtime/generated/route-policy.staging.json",
+            "http-generic-api/test-staging-recovery-gateway-preflight.mjs",
+            "http-generic-api/test-staging-recovery-route-policy.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

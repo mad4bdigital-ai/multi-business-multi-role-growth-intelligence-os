@@ -25,6 +25,7 @@ const upstreamCommands = [
   "node test-production-activation-readiness.mjs",
   "node test-staging-independent-schema-contract.mjs",
   "node test-staging-recovery-admin-surface.mjs",
+  "node test-staging-recovery-gateway-preflight.mjs",
   "node test-staging-recovery-route-policy.mjs",
   "node test-staging-recovery-phase-b-concurrency.mjs",
   "node test-staging-recovery-certification-public-trust.mjs",

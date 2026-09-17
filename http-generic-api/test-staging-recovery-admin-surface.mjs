@@ -110,9 +110,11 @@ test("Staging Recovery is embedded in the bounded Staging Admin Activation schem
   const result = validateStagingRecoveryAdminOpenApi({ document, source: fs.readFileSync(schemaPath, "utf8") });
   assert.equal(result.valid, true);
   assert.equal(result.server_uri, STAGING_RECOVERY_ADMIN_SERVER_URI);
-  assert.equal(result.operation_count, 12);
-  assert.equal(result.embedded_recovery_operation_count, 3);
-  assert.deepEqual(result.recovery_methods, ["GET"]);
+  assert.equal(result.operation_count, 14);
+  assert.equal(result.embedded_recovery_operation_count, 5);
+  assert.deepEqual(result.recovery_methods, ["GET", "POST"]);
+  assert.equal(result.rollout_preview_consequential, false);
+  assert.equal(result.dark_deploy_dry_run_consequential, true);
   assert.equal(result.production_authority_allowed, false);
 });
 

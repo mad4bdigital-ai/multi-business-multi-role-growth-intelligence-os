@@ -298,6 +298,7 @@
         "http-generic-api/test-staging-bootstrap-readback-attestation.mjs",
         "http-generic-api/test-recovery-activation-readiness.mjs",
         "http-generic-api/test-staging-recovery-admin-surface.mjs",
+        "http-generic-api/test-staging-recovery-gateway-preflight.mjs",
         "http-generic-api/test-staging-recovery-route-policy.mjs",
         "http-generic-api/test-staging-recovery-certification-protocol.mjs",
         "http-generic-api/test-staging-recovery-certification-public-trust.mjs",
