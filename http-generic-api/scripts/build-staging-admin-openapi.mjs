@@ -23,7 +23,8 @@ const allowedReadOnlyPaths = new Set([
   "/gpt/tools",
   "/device/tools",
   "/admin/schema-import/jobs",
-  "/admin/cli/data-source/census"
+  "/admin/cli/data-source/census",
+  "/platform/remote-runtime/targets/catalog-readonly"
 ]);
 
 function clone(value) {
