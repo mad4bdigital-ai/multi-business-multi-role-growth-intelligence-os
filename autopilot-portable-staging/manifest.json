@@ -150,7 +150,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "7fd8a0dbf5cebd1f7af50d98f4eab9d7bac08650a3fb9252fc5858317a3ecb58"
+      "sha256": "3aa0d5cad7bd3d2ed8534764cd26ce03c1d09bebc0e3ff37553aa1c31ae5a20b"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -382,7 +382,7 @@
     },
     {
       "path": "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml",
-      "sha256": "eb338f17a5d9f6fe9641b470ae15bda8a9121508c9399a446a6617d0cbedbf50"
+      "sha256": "eb3beaf43e335a8df993eb2c77d02e96497b6c0f7ad871bb4d8f42f899a120b3"
     },
     {
       "path": "autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1",
