@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const DEFAULT_REPOSITORY_ROOT = path.resolve(here, "..");
+const DEFAULT_RUNTIME_ROOT = path.join(here, "activation-gateway-runtime");
 const SHA_RE = /^[a-f0-9]{40}$/u;
 const SHA256_RE = /^[a-f0-9]{64}$/u;
 
@@ -36,18 +36,25 @@ function assertLifetimeHours(value) {
 
 export async function buildStagingActivationGatewayBundle({
   sourceSha,
-  repositoryRoot = DEFAULT_REPOSITORY_ROOT,
+  repositoryRoot = "",
   lifetimeHours = 168,
   now = () => Date.now(),
 } = {}) {
   const normalizedSourceSha = String(sourceSha || "").trim().toLowerCase();
   assert.match(normalizedSourceSha, SHA_RE, "source SHA must be an exact 40-character commit");
   const normalizedLifetimeHours = assertLifetimeHours(lifetimeHours);
-  const root = path.resolve(repositoryRoot);
-  const sourceDir = path.join(root, "edge", "activation-gateway", "src");
+  // Runtime builds must load only the generated service-local Gateway bundle.
+  // In the packaged Staging image `here` is /app, so resolving the historical
+  // repository parent would incorrectly target /edge/... which is not packaged.
+  // repositoryRoot is retained only as an internal test/development injection;
+  // it resolves to the same service-local generated bundle under http-generic-api.
+  const root = repositoryRoot
+    ? path.join(path.resolve(repositoryRoot), "http-generic-api", "activation-gateway-runtime")
+    : DEFAULT_RUNTIME_ROOT;
+  const sourceDir = path.join(root, "src");
   const workerPath = path.join(sourceDir, "worker-staging.mjs");
   const gatewayPath = path.join(sourceDir, "gateway.mjs");
-  const policyPath = path.join(root, "edge", "activation-gateway", "generated", "route-policy.staging.json");
+  const policyPath = path.join(root, "generated", "route-policy.staging.json");
   const [workerTemplate, gateway, policyText] = await Promise.all([
     fs.readFile(workerPath, "utf8"),
     fs.readFile(gatewayPath, "utf8"),
