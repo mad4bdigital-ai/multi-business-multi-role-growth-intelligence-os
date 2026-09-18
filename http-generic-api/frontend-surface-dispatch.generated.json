@@ -2,16 +2,16 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "e194106a7d9b9876f9e374559ebdd4b0a1e09640fee6c67ab4628986ec7047b0",
+    "source_digest": "6ecc69f7dcc633a4d40264c7232960271cb9e04333749053cf6815cb11d0ed24",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
-        "sha256": "47af71783edd817abfa6da6d461bb11c59f2842a51e4fec222832b042363ab1d",
+        "sha256": "08f77129df5e1a16ef9895cb8bc31e2e1f906ddca01a3558fe6edaa43dc10948",
         "present": true
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "df3921bc09edf4e96d5f61e974b46fc6cb67ac824499b5bf5c92c59235b2b3a3",
+        "sha256": "f373d9ef8020e35c65c24ec91eb190a0bd237237e11e51c9a9157df9361a8e93",
         "present": true
       },
       {
@@ -26,7 +26,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "ae1494423761e24c6436363bb40500532d400e5eee18d18d5e87c13dd31d388a",
+        "sha256": "1aedc4dd018fb7107d4d64186a9131e1812725a81b5f71e5a2087c0767bef060",
         "present": true
       },
       {
@@ -136,7 +136,7 @@
       },
       {
         "file": "openapi/openapi.custom-gpt.staging-admin.yaml",
-        "sha256": "3f6b0a395856535319080ad30abe3995d018109f82ccea792ceb4b73d119f4be",
+        "sha256": "2c3123387c7bf335335bd2cdd5456059d2cc51f3ec38248ed78bcfa2dd5e3ad3",
         "present": true
       },
       {
@@ -1086,7 +1086,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "a0a25acfdcf85067cf37d98d01b4ed1751b05544c3eacea7348eb3085c27c7b8",
+        "sha256": "5b860b1a39aab455acf2ed8915dda715d55ad201a35a7293ad3ac42b1fa6269b",
         "present": true
       },
       {
@@ -1136,7 +1136,7 @@
       },
       {
         "file": "test-remote-runtime-catalog-probe.mjs",
-        "sha256": "69034e0f19ac8717a0005ce8c091e70bda0b031cbc44ca66eb5b5d55ea7bbb9f",
+        "sha256": "14680a6f207633f4bf4d453867b6cd85aa9dfb9e8d8dae72a2dc5de65aeb9ee5",
         "present": true
       },
       {

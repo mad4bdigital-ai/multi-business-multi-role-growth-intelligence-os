@@ -2384,9 +2384,9 @@ paths:
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: ae1494423761e24c6436363bb40500532d400e5eee18d18d5e87c13dd31d388a
+  source_openapi_sha256: 1aedc4dd018fb7107d4d64186a9131e1812725a81b5f71e5a2087c0767bef060
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
-  registry_sha256: 47af71783edd817abfa6da6d461bb11c59f2842a51e4fec222832b042363ab1d
+  registry_sha256: 08f77129df5e1a16ef9895cb8bc31e2e1f906ddca01a3558fe6edaa43dc10948
   domain_family_policy: http-generic-api/config/domain-family-policy.json
   domain_family_policy_sha256: 5cdcb4b16a07d999dcff35d8a1fef14d441f4bac4ee26b8326cba1b2d92b3d3d
   environment: staging
@@ -2489,6 +2489,10 @@ x-custom-gpt-generation:
         reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
         owner: platform-governance
         review_after: 2026-09-30
+      - operation_id: getRemoteRuntimeTargetCatalogReadonly
+        reason: Staging-only Remote Runtime target catalog is projected only through the dedicated GET-only Staging Admin schema and must not consume or leak into the shared Admin Core surface.
+        owner: platform-governance
+        review_after: 2026-10-15
   catalog_policy: null
   static_operation_ids: null
   dynamic_operation_ids: null
