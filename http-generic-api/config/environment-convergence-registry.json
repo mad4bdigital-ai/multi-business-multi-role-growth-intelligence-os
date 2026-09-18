@@ -159,7 +159,10 @@
             "requires_same_run_preflight": true,
             "caller_selected_provider_target_allowed": false,
             "stale_gateway_bypass_required": true,
-            "automatic_apply_allowed": false
+            "automatic_apply_allowed": false,
+            "environments": [
+              "staging"
+            ]
           }
         },
         "gateway_policy_hash_current": {
