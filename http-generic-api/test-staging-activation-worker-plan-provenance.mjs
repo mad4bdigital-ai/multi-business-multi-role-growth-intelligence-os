@@ -174,6 +174,12 @@ assert.ok(
     < workflow.indexOf("      - name: Verify Cloudflare Worker API authority"),
   "same-run plan/bundle binding must be verified before any Cloudflare provider API access",
 );
+const deployJobStart = workflow.indexOf("  deploy_activation_worker:");
+const deployJobSteps = workflow.indexOf("    steps:", deployJobStart);
+const deployJobHeader = workflow.slice(deployJobStart, deployJobSteps);
+assert.doesNotMatch(deployJobHeader, /secrets\.CLOUDFLARE_(?:ACCOUNT_ID|API_TOKEN)/u);
+assert.match(workflow, /- name: Verify Cloudflare Worker API authority[\s\S]*?env:[\s\S]*?CLOUDFLARE_ACCOUNT_ID: \$\{\{ secrets\.CLOUDFLARE_ACCOUNT_ID \}\}[\s\S]*?CLOUDFLARE_API_TOKEN: \$\{\{ secrets\.CLOUDFLARE_API_TOKEN \}\}/u);
+assert.match(workflow, /- name: Deploy Staging Worker and bound secrets[\s\S]*?env:[\s\S]*?CLOUDFLARE_ACCOUNT_ID: \$\{\{ secrets\.CLOUDFLARE_ACCOUNT_ID \}\}[\s\S]*?CLOUDFLARE_API_TOKEN: \$\{\{ secrets\.CLOUDFLARE_API_TOKEN \}\}/u);
 assert.doesNotMatch(workflow, /\n      CONVERGENCE_PLAN_SHA256: \$\{\{ inputs\.environment_convergence_plan_sha256 \}\}/u);
 assert.doesNotMatch(workflow, /caller_plan_digest_is_execution_authority: true/u);
 
