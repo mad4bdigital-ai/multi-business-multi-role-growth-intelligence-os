@@ -366,7 +366,7 @@ if (requireGateway) {
           && (
             health.body?.error?.code === "GATEWAY_POLICY_STALE"
             || health.body?.code === "GATEWAY_POLICY_STALE"
-            || health.body?.stale === true
+            || (health.body?.service === "activation-gateway" && health.body?.stale === true)
           );
         const gatewayHealthReachable = (health.ok && gatewayHealthJson) || staleGatewayResponse;
         gatewayEvidence.health = health.body || { status: health.status, error: health.error || null };
