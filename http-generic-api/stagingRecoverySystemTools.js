@@ -3,6 +3,7 @@ import { createStagingAccessRepairTicketAuthority } from "./stagingAccessRepairT
 import { stagingRecoveryAuthorityInternals } from "./stagingRecoveryAuthorityBinding.js";
 import { createStagingRebuildEmptyAuthority } from "./stagingRebuildEmptyAuthority.js";
 import { buildStagingRebuildEmptyLocalHandoff } from "./stagingRebuildEmptyHandoff.js";
+import { prepareStagingRecoveryGatewayDarkDeployDryRun } from "./stagingRecoveryGatewayPreflight.js";
 
 export const STAGING_RECOVERY_SYSTEM_SURFACE_CONTRACT = "mad4b.staging-recovery-system-surface.v1";
 export const STAGING_RECOVERY_SYSTEM_SOURCE_KEY = "staging_recovery_system_surface_v1";
@@ -281,6 +282,27 @@ export async function stagingRecoveryRebuildEmptyApprove(input = {}, { env = pro
   };
 }
 
+export async function stagingRecoveryActivationGatewayDarkDeployDryRun(input = {}, { env = process.env, ...deps } = {}) {
+  requireStagingEnvironment(env);
+  const result = await prepareStagingRecoveryGatewayDarkDeployDryRun(input, { ...deps, env });
+  return {
+    ...result,
+    system_tool: "staging_recovery_activation_gateway_dark_deploy_dry_run",
+    system_surface_contract: STAGING_RECOVERY_SYSTEM_SURFACE_CONTRACT,
+    caller_selected_account_id: false,
+    caller_selected_script_name: false,
+    caller_selected_resource_binding: false,
+    caller_selected_capability_envelope: false,
+    provider_target_caller_selectable: false,
+    provider_accessed: false,
+    provider_mutation_performed: false,
+    target_database_mutation_performed: false,
+    production_mutation_performed: false,
+    production_authority: false,
+    secrets_included: false,
+  };
+}
+
 export async function stagingRecoverySystemSurfaceReadiness(_input = {}, { env = process.env } = {}) {
   const available = isStagingRecoverySystemEnvironment(env);
   if (!available) {
@@ -457,6 +479,26 @@ const descriptors = Object.freeze([
         inspection_run_id: { type: "string", minLength: 12, maxLength: 180 },
         idempotency_key: { type: "string", minLength: 8, maxLength: 160 },
         approval_confirmation: { type: "string", minLength: 32, maxLength: 1024 },
+      },
+    },
+  },
+  {
+    name: "staging_recovery_activation_gateway_dark_deploy_dry_run",
+    handler: "stagingRecoveryActivationGatewayDarkDeployDryRun",
+    description: "Staging-only Admin Recovery dry-run for the profile-owned Activation Gateway Worker. The caller supplies only the exact source commit, policy hash, and environment-convergence-plan digest; account, script, resource binding, workspace and capability authority remain server-resolved. It may persist only the short-lived Governance execution plan when all readiness checks pass and never contacts or mutates the provider.",
+    source_key: STAGING_RECOVERY_SYSTEM_SOURCE_KEY,
+    capability_key: "activation_gateway_dark_deploy_dry_run",
+    catalog_level: "private_recovery",
+    tags: ["recovery", "staging", "private", "activation_gateway", "dry_run", "server_resolved_target", "no_provider_write"],
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["expected_source_commit", "expected_policy_hash", "environment_convergence_plan_sha256"],
+      properties: {
+        expected_source_commit: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
+        expected_policy_hash: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
+        environment_convergence_plan_sha256: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
       },
     },
   },
