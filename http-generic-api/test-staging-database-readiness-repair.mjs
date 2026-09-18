@@ -72,10 +72,12 @@ assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes("platf
 assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.platform_runtime_config, ["SELECT"]);
 assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.platform_tool_dispatch_bindings, ["SELECT"]);
 assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.workspace_assets, ["SELECT"]);
-assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.platform_resource_recipes, ["SELECT"]);
-assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.platform_resource_recipe_steps, ["SELECT"]);
-assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.optional_tables.includes("platform_resource_recipes"), true);
-assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.optional_tables.includes("platform_resource_recipe_steps"), true);
+assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes("platform_resource_recipes"), false);
+assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes("platform_resource_recipe_steps"), false);
+assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.platform_resource_recipes, undefined);
+assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.platform_resource_recipe_steps, undefined);
+assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.optional_tables.includes("platform_resource_recipes"), false);
+assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.optional_tables.includes("platform_resource_recipe_steps"), false);
 assert.equal(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_tables.includes("platform_runtime_config"), false);
 for (const operationalReadSurface of [
   "v_activation_pending_tasks",

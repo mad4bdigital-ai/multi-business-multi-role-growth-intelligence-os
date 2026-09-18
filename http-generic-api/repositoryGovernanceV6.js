@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 
 import { getPool } from "./db.js";
 import { resolvePlatformResourceAuthorityPool } from "./platformResourceAuthorityStore.js";
+import { getPlatformResourceRecipeByKey } from "./platformResourceRecipeStore.js";
 import { getGitHubAppInstallationToken } from "./githubAppAuth.js";
 import { markCapabilityEnvelopeReferenced, resolveCapabilityExecutionEnvelope } from "./capabilityResolutionEnvelopeGuard.js";
 import {
@@ -446,7 +447,7 @@ const MUTATION_PERMISSION_BY_RECIPE = {
 
 export async function createRepositoryMutationAuthorityBindingV6(
   args = {},
-  { auth = {}, readPool = null, writerPool = null, authorityStorePool = null } = {},
+  { auth = {}, readPool = null, writerPool = null, authorityStorePool = null, recipeStorePool = null, governancePool = null } = {},
 ) {
   if (!isAdmin(auth)) { const err = new Error("Repository mutation authority binding creation is admin-only."); err.status = 403; err.code = "repository_mutation_binding_admin_required"; throw err; }
   const repoRef = normalizeGithubRepoRef(args);
@@ -455,11 +456,11 @@ export async function createRepositoryMutationAuthorityBindingV6(
   const recipeKey = s(args.recipe_key);
   const requiredPermission = MUTATION_PERMISSION_BY_RECIPE[recipeKey];
   if (!requiredPermission) { const err = new Error("Unsupported repository mutation recipe."); err.status = 400; err.code = "repository_mutation_recipe_unsupported"; throw err; }
-  const [[recipe]] = await runtimeReadPool.query(
-    `SELECT recipe_key, status, risk_class, read_only, requires_capability_envelope, requires_typed_confirmation, requires_same_cycle_readback
-       FROM platform_resource_recipes WHERE recipe_key = ? LIMIT 1`,
-    [recipeKey]
-  );
+  const recipe = await getPlatformResourceRecipeByKey(recipeKey, {
+    recipeStorePool,
+    governancePool,
+    runtimePool: runtimeReadPool,
+  });
   if (!recipe || recipe.status !== "active" || recipe.risk_class !== "mutation" || Number(recipe.read_only) !== 0 || !Number(recipe.requires_capability_envelope) || !Number(recipe.requires_typed_confirmation) || !Number(recipe.requires_same_cycle_readback)) {
     const err = new Error(`Repository mutation recipe ${recipeKey} is not active with all required gates.`); err.status = 409; err.code = "repository_mutation_recipe_not_active"; err.details = recipe || null; throw err;
   }
@@ -750,13 +751,15 @@ async function readbackRepositoryMutationV6({ repoRef, item, expected, token }) 
   }
   return { ok: false, action: item.action, reason_code: "repository_mutation_readback_not_supported", secrets_included: false };
 }
-async function loadActiveMutationRecipeV6(recipeKey = "") {
-  const [[recipe]] = await getPool().query(
-    `SELECT recipe_key, status, risk_class, mode, read_only, requires_dry_run, requires_capability_envelope,
-            requires_typed_confirmation, requires_same_cycle_readback, authority_requirement_key, policy_json
-       FROM platform_resource_recipes WHERE recipe_key=? LIMIT 1`,
-    [s(recipeKey)]
-  );
+async function loadActiveMutationRecipeV6(
+  recipeKey = "",
+  { recipeStorePool = null, governancePool = null, runtimePool = getPool() } = {},
+) {
+  const recipe = await getPlatformResourceRecipeByKey(s(recipeKey), {
+    recipeStorePool,
+    governancePool,
+    runtimePool,
+  });
   const valid = recipe && recipe.status === "active" && recipe.risk_class === "mutation" && recipe.mode === "apply"
     && Number(recipe.read_only) === 0 && Number(recipe.requires_dry_run) === 1
     && Number(recipe.requires_capability_envelope) === 1 && Number(recipe.requires_typed_confirmation) === 1
@@ -994,7 +997,7 @@ export async function tenantRepositoryGovernanceV6ReadinessSmoke(args = {}, { au
   if(!providerBinding) return {ok:false,tool:'tenant_repository_governance_v6_readiness_smoke',status:'authorization_gated',classification:'repository_governance_v6_authorization_gated',reason_code:'repository_provider_binding_required',checks:[{name:'provider_binding_required',pass:true},{name:'no_mutation',pass:true},{name:'no_secrets',pass:true}],apply_allowed:false,mutations_executed:false,secrets_included:false};
   const tenantId=providerBinding.tenant_id,workspaceId=providerBinding.workspace_id||null;
   const report=await tenantRepositoryIntelligenceV6Report({tenant_id:tenantId,workspace_id:workspaceId,owner:repoRef.owner,repo:repoRef.repo,limit:1,equivalence_file_limit:1,record_evidence:true},{auth:{...auth,is_admin:true},runGovernedResource:readinessRunGovernedResource});
-  const [[commentRecipe]]=await getPool().query(`SELECT status,risk_class,mode,read_only,requires_capability_envelope,requires_typed_confirmation,requires_same_cycle_readback FROM platform_resource_recipes WHERE recipe_key='repo.pr.comment_advisory' LIMIT 1`);let plannedMutationBlocked=false;try{await loadActiveMutationRecipeV6('repo.pr.label')}catch(error){plannedMutationBlocked=error?.code==='repository_mutation_recipe_not_active'}const [[tableCount]]=await getPool().query(`SELECT COUNT(*) AS c FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN ('repository_mutation_plans_v6','repository_mutation_runs_v6')`);const descriptorNames=TENANT_REPOSITORY_GOVERNANCE_V6_SYSTEM_TOOLS.map((tool)=>tool.name);const checks=[{name:'scope_hierarchy_validated',pass:report?.report?.scope?.validated===true},{name:'provider_binding_validated',pass:report?.report?.provider?.ok===true},{name:'deep_pr_evidence_present',pass:Array.isArray(report?.report?.pull_requests)},{name:'provider_bound_authority_present',pass:Boolean(providerBinding.source_system_id||providerBinding.source_installation_id||['admin_grant','platform_managed','system_seed'].includes(s(providerBinding.authority_source).toLowerCase()))},{name:'comment_recipe_active_and_gated',pass:commentRecipe?.status==='active'&&commentRecipe?.risk_class==='mutation'&&commentRecipe?.mode==='apply'&&Number(commentRecipe?.read_only)===0&&Number(commentRecipe?.requires_capability_envelope)===1&&Number(commentRecipe?.requires_typed_confirmation)===1&&Number(commentRecipe?.requires_same_cycle_readback)===1},{name:'planned_mutation_fails_closed',pass:plannedMutationBlocked},{name:'plan_and_run_ledgers_present',pass:Number(tableCount?.c||0)===2},{name:'six_descriptor_tools_present',pass:descriptorNames.length===6&&descriptorNames.includes('tenant_repository_mutation_apply_v6')&&descriptorNames.includes('tenant_repository_mutation_readback_v6')},{name:'no_mutation',pass:report?.mutations_executed===false},{name:'no_secrets',pass:report?.secrets_included===false}];const ok=checks.every((item)=>item.pass);return {ok,tool:'tenant_repository_governance_v6_readiness_smoke',status:ok?'pass':'fail',classification:ok?'repository_governance_v6_ready':'repository_governance_v6_not_ready',checks,descriptor_tools:descriptorNames,binding_id:providerBinding.binding_id,apply_allowed:false,mutations_executed:false,secrets_included:false};
+  const commentRecipe=await getPlatformResourceRecipeByKey('repo.pr.comment_advisory',{runtimePool:getPool()});let plannedMutationBlocked=false;try{await loadActiveMutationRecipeV6('repo.pr.label')}catch(error){plannedMutationBlocked=error?.code==='repository_mutation_recipe_not_active'}const [[tableCount]]=await getPool().query(`SELECT COUNT(*) AS c FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN ('repository_mutation_plans_v6','repository_mutation_runs_v6')`);const descriptorNames=TENANT_REPOSITORY_GOVERNANCE_V6_SYSTEM_TOOLS.map((tool)=>tool.name);const checks=[{name:'scope_hierarchy_validated',pass:report?.report?.scope?.validated===true},{name:'provider_binding_validated',pass:report?.report?.provider?.ok===true},{name:'deep_pr_evidence_present',pass:Array.isArray(report?.report?.pull_requests)},{name:'provider_bound_authority_present',pass:Boolean(providerBinding.source_system_id||providerBinding.source_installation_id||['admin_grant','platform_managed','system_seed'].includes(s(providerBinding.authority_source).toLowerCase()))},{name:'comment_recipe_active_and_gated',pass:commentRecipe?.status==='active'&&commentRecipe?.risk_class==='mutation'&&commentRecipe?.mode==='apply'&&Number(commentRecipe?.read_only)===0&&Number(commentRecipe?.requires_capability_envelope)===1&&Number(commentRecipe?.requires_typed_confirmation)===1&&Number(commentRecipe?.requires_same_cycle_readback)===1},{name:'planned_mutation_fails_closed',pass:plannedMutationBlocked},{name:'plan_and_run_ledgers_present',pass:Number(tableCount?.c||0)===2},{name:'six_descriptor_tools_present',pass:descriptorNames.length===6&&descriptorNames.includes('tenant_repository_mutation_apply_v6')&&descriptorNames.includes('tenant_repository_mutation_readback_v6')},{name:'no_mutation',pass:report?.mutations_executed===false},{name:'no_secrets',pass:report?.secrets_included===false}];const ok=checks.every((item)=>item.pass);return {ok,tool:'tenant_repository_governance_v6_readiness_smoke',status:ok?'pass':'fail',classification:ok?'repository_governance_v6_ready':'repository_governance_v6_not_ready',checks,descriptor_tools:descriptorNames,binding_id:providerBinding.binding_id,apply_allowed:false,mutations_executed:false,secrets_included:false};
 }
 
 export const TENANT_REPOSITORY_GOVERNANCE_V6_SYSTEM_TOOLS = [

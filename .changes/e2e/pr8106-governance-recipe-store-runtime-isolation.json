@@ -1,0 +1,108 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr8106-governance-recipe-store-runtime-isolation",
+  "title": "PR8106 Governance recipe-store runtime isolation",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr8106-governance-recipe-store-runtime-isolation.json",
+      "http-generic-api/platformResourceRecipeStore.js",
+      "http-generic-api/platformResourceRecipeCapability.js",
+      "http-generic-api/repositoryReconciliationOrchestrator.js",
+      "http-generic-api/repositoryTenantIntelligenceV2.js",
+      "http-generic-api/repositoryGovernanceV6.js",
+      "http-generic-api/releaseReadiness.js",
+      "http-generic-api/databasePrivilegeContracts.js",
+      "http-generic-api/test-platform-resource-recipe-store.mjs",
+      "http-generic-api/test-platform-resource-recipe-capability.mjs",
+      "http-generic-api/test-repository-governance-v6.mjs",
+      "http-generic-api/test-platform-resource-authority-write-authority.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Move Governance-owned platform resource recipe and recipe-step reads off the Runtime DB identity while preserving Runtime-owned resource type, adapter, provider, and tenant-state reads.",
+      "e2e_journeys": [
+        {
+          "id": "governance-recipe-store-isolation-readback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed CI",
+          "entrypoint": "Execute recipe-store, capability, repository-governance, and authority-write regressions against the exact PR head.",
+          "terminal_outcome": "Governance recipe reads use only the Governance Recipe Store, Runtime metadata remains on Runtime, Runtime recipe-table grants are absent, and no Production mutation or deployment is authorized.",
+          "steps": [
+            "Resolve platform_resource_recipes and platform_resource_recipe_steps through the Governance Recipe Store.",
+            "Reject the Runtime pool when supplied as the Governance Recipe Store executor.",
+            "Enrich recipe rows with Runtime-owned resource type and adapter metadata only after the Governance read completes.",
+            "Exercise repository mutation-authority validation with a dedicated Governance recipe pool and a Runtime pool that rejects Governance recipe reads.",
+            "Verify the privilege contract keeps recipe tables in the Governance matrix and out of Runtime read surfaces.",
+            "Require live Staging certification before any promotion decision."
+          ],
+          "assertions": [
+            "platform_resource_recipes and platform_resource_recipe_steps remain Governance-owned.",
+            "Runtime DB identity cannot serve Governance recipe reads.",
+            "Repository Governance V6 does not issue direct SQL reads against platform_resource_recipes.",
+            "Release readiness consumes the Governance Recipe Store helper rather than Runtime recipe SQL.",
+            "production_mutation_allowed is false.",
+            "No Production deployment, provider mutation, database mutation, credential payload read, Breakglass, or raw SQL execution is introduced.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "platform-resource-recipe-store-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-resource-recipe-store.mjs",
+              "args": []
+            },
+            {
+              "id": "platform-resource-recipe-capability-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-resource-recipe-capability.mjs",
+              "args": []
+            },
+            {
+              "id": "repository-governance-v6-recipe-store",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-repository-governance-v6.mjs",
+              "args": []
+            },
+            {
+              "id": "platform-resource-authority-write-authority",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-resource-authority-write-authority.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/pr8106-governance-recipe-store-runtime-isolation.json",
+            "http-generic-api/platformResourceRecipeStore.js",
+            "http-generic-api/platformResourceRecipeCapability.js",
+            "http-generic-api/repositoryGovernanceV6.js",
+            "http-generic-api/releaseReadiness.js",
+            "http-generic-api/databasePrivilegeContracts.js",
+            "http-generic-api/test-platform-resource-authority-write-authority.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

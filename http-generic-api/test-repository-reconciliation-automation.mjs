@@ -1,4 +1,11 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+
+const reconciliationSource = fs.readFileSync(new URL("./repositoryReconciliationOrchestrator.js", import.meta.url), "utf8");
+assert.doesNotMatch(reconciliationSource, /FROM\s+platform_resource_recipes/i);
+assert.doesNotMatch(reconciliationSource, /FROM\s+platform_resource_recipe_steps/i);
+assert.match(reconciliationSource, /getPlatformResourceRecipeByKey/);
+assert.match(reconciliationSource, /listPlatformResourceRecipeSteps/);
 import {
   acquireRepositoryOperationLease,
   assertRepositoryOperationLeaseHolder,
@@ -8,7 +15,8 @@ import {
 import { runRepositoryReconciliationOrchestrator } from "./repositoryReconciliationOrchestrator.js";
 
 class Pool {
-  constructor() {
+  constructor({ allowRecipes = true } = {}) {
+    this.allowRecipes = allowRecipes;
     this.leases = [];
     this.recipe = {
       recipe_key: "repo.pr.reconcile_and_finalize",
@@ -102,13 +110,20 @@ class Pool {
       }
       return [{ affectedRows: row ? 1 : 0 }];
     }
-    if (q.includes("FROM platform_resource_recipes")) return [[this.recipe]];
-    if (q.includes("FROM platform_resource_recipe_steps")) return [this.steps];
+    if (q.includes("FROM platform_resource_recipes")) {
+      if (!this.allowRecipes) throw new Error("Runtime pool must not read platform_resource_recipes");
+      return [[this.recipe]];
+    }
+    if (q.includes("FROM platform_resource_recipe_steps")) {
+      if (!this.allowRecipes) throw new Error("Runtime pool must not read platform_resource_recipe_steps");
+      return [this.steps];
+    }
     throw new Error(`Unexpected SQL in test fake pool: ${q.slice(0, 180)}`);
   }
 }
 
-const pool = new Pool();
+const pool = new Pool({ allowRecipes: false });
+const recipeStorePool = new Pool({ allowRecipes: true });
 const lease = {
   repository_owner: "o",
   repository_name: "r",
@@ -166,7 +181,7 @@ const reconcileBranch = async () => ({
     branch_ref_sha: "c".repeat(40),
   },
 });
-const result = await runRepositoryReconciliationOrchestrator(args, { pool, reconcileBranch });
+const result = await runRepositoryReconciliationOrchestrator(args, { pool, recipeStorePool, reconcileBranch });
 assert.equal(result.ok, true);
 assert.equal(result.apply_allowed, false);
 assert.equal(result.plan.plan.force_push_allowed, false);
@@ -180,7 +195,7 @@ await assert.rejects(
     plan_sha256: result.plan.plan_sha256,
     capability_envelope_id: "e",
     approval_hold_id: "h",
-  }, { pool, reconcileBranch }),
+  }, { pool, recipeStorePool, reconcileBranch }),
   (error) => error.code === "repository_reconciliation_recipe_not_active",
 );
 

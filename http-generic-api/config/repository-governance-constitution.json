@@ -645,7 +645,9 @@
     ".changes/e2e/staging-one-click-runtime-state-20260912.json",
     ".changes/e2e/staging-gateway-transaction-hardening-20260912.json",
     ".changes/e2e/pr8081-governed-migration-capability-envelope-environment-impact.json",
-    ".changes/e2e/staging-recovery-gateway-preflight-20260916.json"
+    ".changes/e2e/staging-recovery-gateway-preflight-20260916.json",
+    ".changes/e2e/governance-db-authority-store-isolation.json",
+    ".changes/e2e/pr8106-governance-recipe-store-runtime-isolation.json"
   ],
   "derived_state": {
     "registry": ".github/derived-state-governance.json",

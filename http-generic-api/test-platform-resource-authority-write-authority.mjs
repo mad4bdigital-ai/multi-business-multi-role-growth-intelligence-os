@@ -137,19 +137,25 @@ const repositoryReadPool = {
   async query(sql) {
     repositoryReadQueries.push(sql);
     assert.doesNotMatch(sql, /^\s*(INSERT|UPDATE|DELETE)\b/i, "repository binding read pool must remain read-only");
-    if (/FROM platform_resource_recipes/.test(sql)) {
-      return [[{
-        recipe_key: "repo.pr.comment_advisory",
-        status: "active",
-        risk_class: "mutation",
-        read_only: 0,
-        requires_capability_envelope: 1,
-        requires_typed_confirmation: 1,
-        requires_same_cycle_readback: 1,
-      }]];
-    }
+    assert.doesNotMatch(sql, /platform_resource_recipe(?:s|_steps)/i, "runtime reader must not serve Governance recipe reads");
     if (/FROM platform_resource_authority_bindings/.test(sql)) return [[]];
     throw new Error(`Unexpected runtime read query: ${sql}`);
+  },
+};
+let repositoryRecipeQueries = 0;
+const repositoryRecipeStorePool = {
+  async query(sql) {
+    repositoryRecipeQueries += 1;
+    assert.match(sql, /FROM platform_resource_recipes/i);
+    return [[{
+      recipe_key: "repo.pr.comment_advisory",
+      status: "active",
+      risk_class: "mutation",
+      read_only: 0,
+      requires_capability_envelope: 1,
+      requires_typed_confirmation: 1,
+      requires_same_cycle_readback: 1,
+    }]];
   },
 };
 
@@ -199,11 +205,13 @@ const repositoryBinding = await createRepositoryMutationAuthorityBindingV6({
 }, {
   auth: { is_admin: true, user_id: "platform-admin-test" },
   readPool: repositoryReadPool,
+  recipeStorePool: repositoryRecipeStorePool,
   writerPool: repositoryWriterPool,
 });
 assert.equal(repositoryBinding.created, true);
 assert.equal(repositoryWriterCalls, 3, "repository duplicate lookup, insert, and exact readback must share the Governance writer");
-assert.equal(repositoryReadQueries.length, 1, "runtime reader must not read platform_resource_authority_bindings; only recipe/provider validation remains");
+assert.equal(repositoryRecipeQueries, 1, "recipe validation must use the dedicated Governance recipe store");
+assert.equal(repositoryReadQueries.length, 0, "runtime reader must not serve Governance recipe or authority-binding reads");
 assert.equal(repositoryBinding.binding.tenant_id, repositoryTenantId);
 assert.equal(repositoryBinding.binding.resource_uri, "github://mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os");
 assert.equal(repositoryBinding.binding.recipe_key, "repo.pr.comment_advisory");
@@ -245,6 +253,7 @@ await assert.rejects(
   }, {
     auth: { is_admin: true, user_id: "platform-admin-test" },
     readPool: repositoryReadPool,
+    recipeStorePool: repositoryRecipeStorePool,
     writerPool: repositoryMismatchWriter,
   }),
   (error) => error?.code === "repository_mutation_binding_readback_failed"
