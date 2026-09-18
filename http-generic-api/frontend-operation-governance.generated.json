@@ -2,7 +2,7 @@
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
     "id": "frontend-operation-governance-generator-v6-root-workspace-brand-container",
-    "source_digest": "c3c60952f7d733b26e48d6894b5b41e95aefd0a50612bb49016827f66b29891c",
+    "source_digest": "5dfcad5fb3b68d19594e34f3c6b79110dc310d2d227cd71e2f190cf1826bd833",
     "fail_closed": true
   },
   "source_authority": [
@@ -13,7 +13,7 @@
     },
     {
       "file": "frontend-operation-governance-tests.json",
-      "sha256": "b06ed8d42a21f3f5514e244d06bb121db45a7ef66e8a8b6bd3b62ef698ef05b9",
+      "sha256": "ca3910fa89bfa04b62d50a78afc506cd3db075af1dd7f1f3b3a08bf16fce1d09",
       "present": true
     },
     {
@@ -73,7 +73,7 @@
     },
     {
       "file": "scripts/test-manifest.mjs",
-      "sha256": "b59f62a584ea07ba0cdea72897de51beedfd2a1972400fc54b254576fce4f464",
+      "sha256": "5b860b1a39aab455acf2ed8915dda715d55ad201a35a7293ad3ac42b1fa6269b",
       "present": true
     },
     {
@@ -272,7 +272,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-closeout-transaction-v1",
-        "source_digest": "b8ffc82d9dc258bc627ea079350327723e63962efaf5faa30bd89a3564adc98b",
+        "source_digest": "15b41609b98cfe242645115cfb8e72113d6aa01dd8b69b9d300af716eb639a58",
         "fail_closed": true
       }
     },
@@ -316,7 +316,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-promotion-transaction-v1",
-        "source_digest": "b8ffc82d9dc258bc627ea079350327723e63962efaf5faa30bd89a3564adc98b",
+        "source_digest": "15b41609b98cfe242645115cfb8e72113d6aa01dd8b69b9d300af716eb639a58",
         "fail_closed": true
       }
     },
@@ -361,7 +361,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-rollback-transaction-v1",
-        "source_digest": "b8ffc82d9dc258bc627ea079350327723e63962efaf5faa30bd89a3564adc98b",
+        "source_digest": "15b41609b98cfe242645115cfb8e72113d6aa01dd8b69b9d300af716eb639a58",
         "fail_closed": true
       }
     },

@@ -55,6 +55,11 @@ assert.equal(stagingSchema["x-mad4b-environment"], "staging");
 assert.equal(stagingSchema["x-mad4b-surface"], "admin-custom-gpt-read-only");
 assert.ok(operations(stagingSchema).length > 0);
 assert.ok(operations(stagingSchema).every(({ method }) => method === "GET"));
+const stagingRemoteRuntimeCatalog = stagingSchema.paths?.["/platform/remote-runtime/targets/catalog-readonly"];
+assert.ok(stagingRemoteRuntimeCatalog?.get, "Staging Admin must expose GET Remote Runtime target catalog read-only projection");
+assert.equal(stagingRemoteRuntimeCatalog?.post, undefined, "Staging Admin must not expose POST on the read-only projection");
+assert.equal(stagingRemoteRuntimeCatalog.get.operationId, "getRemoteRuntimeTargetCatalogReadonly");
+assert.equal(stagingSchema.paths?.["/gpt/tools/call"], undefined, "Staging Admin must not promote tools/call mutation transport");
 assert.ok(operations(productionSchema).some(({ method }) => method !== "GET"));
 
 for (const phrase of [
@@ -74,6 +79,7 @@ console.log(JSON.stringify({
   environments: ["staging", "production"],
   staging_operation_count: operations(stagingSchema).length,
   staging_methods: ["GET"],
+  remote_runtime_target_catalog_readonly: true,
   production_non_get_detected: true,
   cross_environment_fallback: false,
   production_promotion_required_for_non_get: true,

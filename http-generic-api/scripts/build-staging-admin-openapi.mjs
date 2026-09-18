@@ -5,7 +5,10 @@ import YAML from "yaml";
 const here = path.dirname(new URL(import.meta.url).pathname);
 const apiRoot = path.resolve(here, "..");
 const sourcePath = path.join(apiRoot, "openapi", "openapi.custom-gpt.auth-dispatcher.yaml");
+const remoteRuntimeReadonlyContractPath = path.join(apiRoot, "openapi", "remote-runtime-target-catalog-readonly.yaml");
 const targetPath = path.join(apiRoot, "openapi", "openapi.custom-gpt.staging-admin.yaml");
+const remoteRuntimeCatalogContractPath = path.join(apiRoot, "openapi", "remote-runtime-target-catalog-readonly.yaml");
+const remoteRuntimeCatalogRoute = "/platform/remote-runtime/targets/catalog-readonly";
 const stagingHost = "https://dev.mad4b.com";
 const forbiddenHosts = ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com", "activation-dev.mad4b.com"];
 const allowedReadOnlyPaths = new Set([
@@ -23,7 +26,8 @@ const allowedReadOnlyPaths = new Set([
   "/gpt/tools",
   "/device/tools",
   "/admin/schema-import/jobs",
-  "/admin/cli/data-source/census"
+  "/admin/cli/data-source/census",
+  "/platform/remote-runtime/targets/catalog-readonly"
 ]);
 
 function clone(value) {
@@ -51,11 +55,19 @@ function replaceStagingHosts(value) {
 }
 
 if (!fs.existsSync(sourcePath)) fail(`missing source schema: ${sourcePath}`);
+if (!fs.existsSync(remoteRuntimeReadonlyContractPath)) fail(`missing Staging-only supplemental contract: ${remoteRuntimeReadonlyContractPath}`);
 const source = YAML.parse(fs.readFileSync(sourcePath, "utf8"));
+const remoteRuntimeReadonlyContract = YAML.parse(fs.readFileSync(remoteRuntimeReadonlyContractPath, "utf8"));
+const stagingOnlyPath = "/platform/remote-runtime/targets/catalog-readonly";
+const stagingOnlySupplementalPaths = new Map([
+  [stagingOnlyPath, remoteRuntimeReadonlyContract.remoteRuntimeTargetCatalogReadonlyPath],
+]);
+if (source.paths?.[stagingOnlyPath]) fail("Staging-only Remote Runtime catalog must not be inherited from shared admin_core");
+if (!stagingOnlySupplementalPaths.get(stagingOnlyPath)?.get) fail("Staging-only Remote Runtime catalog supplemental GET contract is missing");
 const document = clone(source);
 const paths = {};
 for (const pathKey of allowedReadOnlyPaths) {
-  const sourcePathDefinition = source.paths?.[pathKey];
+  const sourcePathDefinition = source.paths?.[pathKey] || stagingOnlySupplementalPaths.get(pathKey);
   if (!sourcePathDefinition?.get) fail(`source schema is missing required GET path: ${pathKey}`);
   paths[pathKey] = { get: replaceStagingHosts(clone(sourcePathDefinition.get)) };
 }
@@ -99,7 +111,8 @@ document["x-mad4b-staging-boundary"] = {
 document["x-staging-generation"] = {
   source_artifact: "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml",
   source_surface: "admin_core",
-  path_policy: "GET_only_allowlist",
+  supplemental_source_artifacts: ["http-generic-api/openapi/remote-runtime-target-catalog-readonly.yaml"],
+  path_policy: "GET_only_allowlist_plus_staging_supplemental_contracts",
   allowed_paths: [...allowedReadOnlyPaths],
   secrets_included: false
 };

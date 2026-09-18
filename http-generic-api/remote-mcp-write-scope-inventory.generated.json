@@ -8,8 +8,8 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7699,
-  "route_count": 1105,
+  "file_count": 7702,
+  "route_count": 1106,
   "write_route_count": 672,
   "classified_write_surface_count": 43,
   "classified_write_route_count": 672,
@@ -5053,8 +5053,8 @@
     },
     {
       "route_id": "http-generic-api/routes/operationalConsoleRoutes.js#GET:/operational/console:0",
-      "source_line": 21,
-      "source_offset": 662,
+      "source_line": 33,
+      "source_offset": 1124,
       "method": "GET",
       "path": "/operational/console",
       "file": "http-generic-api/routes/operationalConsoleRoutes.js",
@@ -5062,10 +5062,19 @@
     },
     {
       "route_id": "http-generic-api/routes/operationalConsoleRoutes.js#GET:/operational/console/evidence:1",
-      "source_line": 30,
-      "source_offset": 923,
+      "source_line": 42,
+      "source_offset": 1385,
       "method": "GET",
       "path": "/operational/console/evidence",
+      "file": "http-generic-api/routes/operationalConsoleRoutes.js",
+      "write": false
+    },
+    {
+      "route_id": "http-generic-api/routes/operationalConsoleRoutes.js#GET:/platform/remote-runtime/targets/catalog-readonly:2",
+      "source_line": 51,
+      "source_offset": 1650,
+      "method": "GET",
+      "path": "/platform/remote-runtime/targets/catalog-readonly",
       "file": "http-generic-api/routes/operationalConsoleRoutes.js",
       "write": false
     },

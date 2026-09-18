@@ -221,6 +221,10 @@ surfaces:
           reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
           owner: platform-governance
           review_after: 2026-09-30
+        - operation_id: getRemoteRuntimeTargetCatalogReadonly
+          reason: Staging-only Remote Runtime target catalog is projected only through the dedicated GET-only Staging Admin schema and must not consume or leak into the shared Admin Core surface.
+          owner: platform-governance
+          review_after: 2026-10-15
     selector:
       source_markers:
         - admin_core

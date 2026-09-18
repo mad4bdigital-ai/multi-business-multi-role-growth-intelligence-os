@@ -10,7 +10,7 @@
   "unbound_operation_count": 36,
   "all_operations_accounted_for": true,
   "write_activation_allowed": false,
-  "source_fingerprint_sha256": "d2d2d9faffb95f200556c00ae584c60aa1130c43fab0f22f6a3397db50a3b8a9",
+  "source_fingerprint_sha256": "31725e5ba1d270930435afe2f1521acae076fee86efb68de008745816aad3003",
   "operations": [
     {
       "surface": "openapi.tenant-gpt.auth",

@@ -9,6 +9,7 @@ const CONTRACT = "mad4b.governed-generated-artifact-refresh.v1";
 const INVENTORY_SELF_HOSTING_CONTRACT = "mad4b.repository-inventory-self-hosting.v1";
 const CONFIRMATION = "APPLY_GENERATED_ARTIFACT_REFRESH";
 const FULL_SHA_PATTERN = /^[0-9a-f]{40}$/u;
+const SHA256_PATTERN = /^[0-9a-f]{64}$/u;
 const TARGET_BRANCH_PATTERN = /^(?:gpt|fix|feat|chore|docs|release)\/[A-Za-z0-9._/-]+$/u;
 const PROTECTED_BRANCHES = new Set(["main", "Production"]);
 const MAX_DIAGNOSTIC_CHARS = 4000;
@@ -34,10 +35,28 @@ const FRONTEND_OPENAPI_ALLOWED_CHANGED_FILES = new Set([
   "http-generic-api/frontend-surface-dispatch.generated.json",
   "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
   "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml",
+  "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.production.yaml",
+  "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml",
   "http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml",
+  "http-generic-api/openapi/openapi.custom-gpt.activation-admin.production.yaml",
+  "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml",
+  "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml",
   "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
+  "http-generic-api/openapi/openapi.tenant-gpt.auth.production.yaml",
+  "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml",
   "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
+  "http-generic-api/openapi/openapi.tenant-gpt.activation.production.yaml",
+  "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
+  "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
+  "http-generic-api/openapi/openapi-mutation-policy.generated.json",
   "http-generic-api/openapi.gpt-action.local-connector.yaml",
+  "edge/activation-gateway/generated/route-policy.json",
+  "edge/activation-gateway/generated/route-policy.staging.json",
+  "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
+  "http-generic-api/activation-gateway-runtime/generated/route-policy.staging.json",
+  "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
+  "http-generic-api/config/environment-convergence-registry.json",
+  "autopilot-portable-staging/activation-gateway-smart-convergence-policy.json",
   "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
   "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
   OPENAPI_DETAIL_BATCH_OUTPUT,
@@ -402,6 +421,81 @@ function resolveRecipe(requestedRecipe, candidateSourceFiles) {
   return normalized;
 }
 
+function syncActivationGatewayProfilePolicyHashes() {
+  const registryPath = path.join(apiDir, "config", "environment-convergence-registry.json");
+  const registry = JSON.parse(fs.readFileSync(registryPath, "utf8"));
+  const bindings = [
+    {
+      environment: "staging",
+      policyKey: "activation_gateway_staging",
+      policyPath: path.join(repoRoot, "edge", "activation-gateway", "generated", "route-policy.staging.json"),
+    },
+    {
+      environment: "production",
+      policyKey: "activation_gateway",
+      policyPath: path.join(apiDir, "activation-gateway-runtime", "generated", "route-policy.json"),
+    },
+  ];
+  for (const binding of bindings) {
+    const policy = JSON.parse(fs.readFileSync(binding.policyPath, "utf8"));
+    const policyHash = String(policy?.content_hash_sha256 || "").trim().toLowerCase();
+    if (policy?.policy_key !== binding.policyKey || !SHA256_PATTERN.test(policyHash)) {
+      throw new ToolFailure({
+        code: "activation_gateway_policy_identity_invalid",
+        step: "sync_activation_gateway_profile_policy_hashes",
+        command: `validate ${binding.environment} Activation Gateway policy identity`,
+        status: 1,
+        stderr: "Generated Activation Gateway policy key or content hash is invalid.",
+      });
+    }
+    const gatewayProfile = registry?.profiles?.[binding.environment]?.activation_gateway;
+    if (!gatewayProfile || gatewayProfile.policy_key !== binding.policyKey) {
+      throw new ToolFailure({
+        code: "environment_convergence_gateway_profile_invalid",
+        step: "sync_activation_gateway_profile_policy_hashes",
+        command: `validate ${binding.environment} convergence gateway profile`,
+        status: 1,
+        stderr: "Environment convergence registry is missing the exact Activation Gateway profile.",
+      });
+    }
+    gatewayProfile.expected_policy_hash = policyHash;
+  }
+  fs.writeFileSync(registryPath, `${JSON.stringify(registry, null, 2)}\n`, "utf8");
+}
+
+function syncStagingSmartConvergencePolicyHash() {
+  const registryPath = path.join(apiDir, "config", "environment-convergence-registry.json");
+  const smartPolicyPath = path.join(repoRoot, "autopilot-portable-staging", "activation-gateway-smart-convergence-policy.json");
+  const registry = JSON.parse(fs.readFileSync(registryPath, "utf8"));
+  const smartPolicy = JSON.parse(fs.readFileSync(smartPolicyPath, "utf8"));
+  const expectedHash = String(registry?.profiles?.staging?.activation_gateway?.expected_policy_hash || "").trim().toLowerCase();
+
+  if (!SHA256_PATTERN.test(expectedHash)) {
+    throw new ToolFailure({
+      code: "staging_smart_convergence_registry_hash_invalid",
+      step: "sync_staging_smart_convergence_policy_hash",
+      command: "validate Staging convergence registry expected_policy_hash",
+      status: 1,
+      stderr: "Staging convergence registry does not expose a valid Activation Gateway expected policy hash.",
+    });
+  }
+  if (smartPolicy?.contract !== "mad4b.staging.activation-gateway-smart-convergence-policy.v3"
+    || smartPolicy?.environment !== "staging"
+    || smartPolicy?.policy_identity?.policy_key !== "activation_gateway_staging"
+    || smartPolicy?.policy_identity?.public_host !== "activation-dev.mad4b.com") {
+    throw new ToolFailure({
+      code: "staging_smart_convergence_policy_identity_invalid",
+      step: "sync_staging_smart_convergence_policy_hash",
+      command: "validate Staging smart convergence policy identity",
+      status: 1,
+      stderr: "Staging smart convergence policy identity drifted outside the reviewed contract.",
+    });
+  }
+
+  smartPolicy.policy_identity.expected_policy_hash = expectedHash;
+  fs.writeFileSync(smartPolicyPath, `${JSON.stringify(smartPolicy, null, 2)}\n`, "utf8");
+}
+
 function refreshPortableStagingManifest() {
   run("refresh_portable_staging_manifest", "node", ["scripts/generate-portable-staging-manifest.mjs", "--write"], { cwd: apiDir });
 }
@@ -411,11 +505,21 @@ function runFrontendOpenApiRefresh() {
   run("sync_precise_registry", "node", ["scripts/openapi-precise-contract-registry-sync.mjs", "--write"], { cwd: apiDir });
   run("autofill_openapi_routes", "node", ["scripts/openapi-autofill-missing-routes.mjs", "--write"], { cwd: apiDir });
   run("sync_openapi_runtime_auth", "node", ["scripts/openapi-runtime-auth-sync.mjs", "--write"], { cwd: apiDir });
+  // Materialize every OpenAPI source artifact before computing the frontend
+  // dispatch source digest. The Staging Admin schema is included in the
+  // frontend dispatcher OpenAPI reference authority, so generating it after
+  // the dispatch makes the detail-gap artifact stale within the same recipe.
+  run("generate_custom_gpt_schemas", "node", ["scripts/generate-custom-gpt-schemas.mjs", "--write"], { cwd: apiDir });
+  run("generate_openapi_mutation_policy", "node", ["scripts/generate-openapi-mutation-policy.mjs"], { cwd: apiDir });
+  run("generate_staging_admin_openapi", "node", ["scripts/build-staging-admin-openapi.mjs"], { cwd: apiDir });
+  run("generate_activation_staging_policy", "node", ["scripts/generate-activation-staging-policy.mjs", "--write"], { cwd: apiDir });
   run("generate_frontend_dispatch", "npm", ["run", "frontend:dispatch:generate", "--", "--baseline-ref=main"], { cwd: apiDir });
   run("generate_openapi_detail_gap_classification", "npm", ["run", "openapi:detail-gaps:generate"], { cwd: apiDir });
   run("generate_openapi_gap_closure_plan", "npm", ["run", "openapi:gap-closure-plan:generate"], { cwd: apiDir });
   run("generate_openapi_detail_closure_batch", "npm", ["run", "openapi:detail-batch:write"], { cwd: repoRoot });
-  run("generate_custom_gpt_schemas", "node", ["scripts/generate-custom-gpt-schemas.mjs", "--write"], { cwd: apiDir });
+  run("sync_activation_gateway_runtime_bundle", "npm", ["run", "activation-gateway:bundle:sync"], { cwd: apiDir });
+  syncActivationGatewayProfilePolicyHashes();
+  syncStagingSmartConvergencePolicyHash();
   refreshPortableStagingManifest();
 
   const verificationCommands = [
@@ -429,6 +533,9 @@ function runFrontendOpenApiRefresh() {
     ["verify_auth_parity", "node", ["test-frontend-auth-openapi-parity.mjs"]],
     ["verify_openapi_route_coverage", "node", ["test-openapi-route-coverage.mjs"]],
     ["verify_openapi_auth", "npm", ["run", "openapi:auth:check"]],
+    ["verify_ci_path_guard", "npm", ["run", "ci:path-guard"]],
+    ["verify_activation_staging_policy", "node", ["scripts/generate-activation-staging-policy.mjs", "--check"]],
+    ["verify_staging_smart_gateway_convergence_contract", "node", ["test-staging-smart-gateway-convergence-contract.mjs"]],
     ["verify_schema_guard", "npm", ["run", "schemas:guard"]],
     ["verify_staging_manifest_hash_contract", "node", ["test-staging-autopilot-closure.mjs"]],
   ];

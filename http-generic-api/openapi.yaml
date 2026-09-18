@@ -23698,3 +23698,78 @@ paths:
     $ref: ./openapi/openapi.custom-gpt.staging-act-as-user-control.yaml#/paths/~1admin~1act-as-user~1sessions
   /admin/act-as-user/sessions/{sessionId}/revoke:
     $ref: ./openapi/openapi.custom-gpt.staging-act-as-user-control.yaml#/paths/~1admin~1act-as-user~1sessions~1{sessionId}~1revoke
+  /platform/remote-runtime/targets/catalog-readonly:
+    get:
+      operationId: getRemoteRuntimeTargetCatalogReadonly
+      summary: Read the Remote Runtime target catalog through the Staging Admin read-only projection
+      description: Read-only administrative projection of Remote Runtime targets and command allowlists. It reuses the canonical listRemoteRuntimeTargets service and never opens SSH, executes local shell commands, accesses the filesystem, returns credential values, mutates targets, validates targets, or grants deployment authority.
+      tags:
+        - staging-admin
+        - admin-control
+      x-runtime-contract-source: routes/operationalConsoleRoutes.js
+      x-runtime-auth-profile: admin_backend
+      x-contract-completeness: precise-runtime-contract
+      x-openai-isConsequential: false
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: user_id
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: target_kind
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - hosting_account
+              - local_path
+        - name: provider_family
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - planned
+              - active
+              - disabled
+              - archived
+        - name: include_commands
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 250
+            default: 100
+      responses:
+        "200":
+          description: Read-only Remote Runtime target catalog.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          description: Backend API key authentication is required.
+        "403":
+          description: Admin principal authorization is required.

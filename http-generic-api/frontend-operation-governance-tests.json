@@ -36,6 +36,10 @@
     {
       "file": "test-staging-recovery-gateway-preflight.mjs",
       "evidence_scope": "staging-recovery-gateway-preflight"
+    },
+    {
+      "file": "test-remote-runtime-catalog-probe.mjs",
+      "evidence_scope": "remote-runtime-target-catalog-readonly"
     }
   ]
 }

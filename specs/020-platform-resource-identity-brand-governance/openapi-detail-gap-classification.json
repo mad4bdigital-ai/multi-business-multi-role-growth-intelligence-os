@@ -6,13 +6,13 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "1644c3ce2d4b2384240daff9d213b55f76e71e950fce35a6febb1550c0c039f5",
-    "dispatch_artifact_sha256": "2b942e9d8803fe6dc1c5d26fc6419d4d145106f893a7d07f5f1cfded6a79a006"
+    "dispatch_source_digest": "6ecc69f7dcc633a4d40264c7232960271cb9e04333749053cf6815cb11d0ed24",
+    "dispatch_artifact_sha256": "36538c4fe35e13a36ed0638829600c83fd3565b4a4e8cc6bd9701b886c27e274"
   },
   "coverage": {
-    "operation_count": 1068,
-    "openapi_documented_count": 1052,
-    "openapi_canonical_documented_count": 734,
+    "operation_count": 1069,
+    "openapi_documented_count": 1053,
+    "openapi_canonical_documented_count": 735,
     "openapi_generated_index_count": 318,
     "openapi_gap_count": 0,
     "auth_contract_gap_count": 0,
