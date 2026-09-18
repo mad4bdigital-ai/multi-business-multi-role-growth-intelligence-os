@@ -1,0 +1,87 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-gateway-runtime-bundle-path-20260918",
+  "title": "Package Staging Activation Gateway worker in the service-local runtime bundle",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-gateway-runtime-bundle-path-20260918.json",
+      "http-generic-api/stagingActivationGatewayBundle.js",
+      "http-generic-api/scripts/sync-activation-gateway-runtime-bundle.mjs",
+      "http-generic-api/activation-gateway-runtime/src/worker-staging.mjs",
+      "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
+      "http-generic-api/test-activation-gateway-runtime-bundle-parity.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make the server-governed Staging Activation Gateway dry-run build only from the generated service-local runtime bundle that is actually packaged under /app, include the staging Worker entrypoint in that bundle, retain byte parity with the canonical edge source, and keep provider, database, DNS and Production mutation outside this repair.",
+      "e2e_journeys": [
+        {
+          "id": "staging-gateway-packaged-runtime-bundle",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Server-governed Staging Activation Gateway dry-run authority",
+          "entrypoint": "http-generic-api/stagingActivationGatewayBundle.js",
+          "terminal_outcome": "The dry-run can build the exact Staging Worker from /app/activation-gateway-runtime without reading /edge, while the service-local worker, gateway and policy remain byte-identical to canonical source and no provider execution occurs.",
+          "steps": [
+            "Synchronize worker-staging.mjs into the service-local activation-gateway-runtime bundle with the canonical bundle generator.",
+            "Resolve the bundle builder default root to http-generic-api/activation-gateway-runtime rather than the repository parent.",
+            "Retain repositoryRoot only as an internal test/development injection that still resolves through the service-local bundle.",
+            "Build the exact-SHA Staging bundle and policy identity from the packaged runtime files.",
+            "Run runtime-bundle parity and Staging governed-convergence regressions before any live retry."
+          ],
+          "assertions": [
+            "The packaged runtime contains src/worker-staging.mjs and the bundle manifest covers it.",
+            "The server bundle builder does not construct edge/activation-gateway paths at runtime.",
+            "worker-staging.mjs, gateway.mjs and route-policy.staging.json remain canonical-source parity checked.",
+            "The repair does not weaken Gateway policy freshness, trusted ingress, caller target override, capability envelope or apply gates.",
+            "No Cloudflare/provider/DNS/database/Production mutation is performed by this source repair."
+          ],
+          "tests": [
+            {
+              "id": "activation-gateway-runtime-bundle-parity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-activation-gateway-runtime-bundle-parity.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-smart-gateway-convergence-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-smart-gateway-convergence-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-gateway-runtime-bundle-path-20260918.json",
+            "http-generic-api/stagingActivationGatewayBundle.js",
+            "http-generic-api/scripts/sync-activation-gateway-runtime-bundle.mjs",
+            "http-generic-api/activation-gateway-runtime/src/worker-staging.mjs",
+            "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
+            "http-generic-api/test-activation-gateway-runtime-bundle-parity.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
