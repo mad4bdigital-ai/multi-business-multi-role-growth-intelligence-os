@@ -46,11 +46,12 @@ test("Staging Recovery tools are absent from Production catalog and present only
 
   const staging = synchronizeRecoverySystemToolDescriptors(STAGING_ENV);
   assert.equal(staging.staging_advertised, true);
-  assert.equal(staging.staging_tool_count, 11);
+  assert.equal(staging.staging_tool_count, 12);
   assert.deepEqual(
     SYSTEM_LAYER_TOOLS.filter((entry) => entry.source_key === "staging_recovery_system_surface_v1").map((entry) => entry.name),
     [
       "staging_recovery_certification_canary_plan_create",
+      "staging_recovery_activation_gateway_dark_deploy_dry_run",
       "staging_recovery_access_repair_prepare",
       "staging_recovery_access_repair_execute",
       "staging_recovery_access_repair_approve",
@@ -66,6 +67,42 @@ test("Staging Recovery tools are absent from Production catalog and present only
 
   synchronizeRecoverySystemToolDescriptors(PRODUCTION_ENV);
   assert.equal(SYSTEM_LAYER_TOOLS.some((entry) => entry.source_key === "staging_recovery_system_surface_v1"), false);
+});
+
+test("Staging Gateway dry-run dispatch stays on the server-resolved Recovery overlay", async () => {
+  const input = {
+    expected_source_commit: "a".repeat(40),
+    expected_policy_hash: "b".repeat(64),
+    environment_convergence_plan_sha256: "c".repeat(64),
+  };
+  let observed = null;
+  const result = await _testingRecoverySystemToolOverlay.executeOverlayTool(
+    "staging_recovery_activation_gateway_dark_deploy_dry_run",
+    input,
+    {
+      env: STAGING_ENV,
+      auth: { mode: "backend_api_key", principal_type: "admin", is_admin: true },
+      gatewayPreflightDeps: {
+        runDarkDeploy: async (args, deps) => {
+          observed = { args: { ...args }, auth: { ...(deps.auth || {}) } };
+          return {
+            ok: true,
+            apply_ready: false,
+            governance_state_mutation: false,
+            provider_accessed: false,
+            provider_mutation_performed: false,
+            secrets_included: false,
+          };
+        },
+      },
+    },
+  );
+  assert.deepEqual(observed.args, { mode: "dry_run", ...input });
+  assert.equal(observed.auth.is_admin, true);
+  assert.equal(result.system_tool, "staging_recovery_activation_gateway_dark_deploy_dry_run");
+  assert.equal(result.provider_accessed, false);
+  assert.equal(result.provider_mutation_performed, false);
+  assert.equal(result.production_authority, false);
 });
 
 test("Staging capability reporting separates kernel discovery from bounded System control-plane writes", () => {
