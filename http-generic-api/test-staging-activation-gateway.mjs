@@ -189,11 +189,94 @@ assert.equal(exactCommitClassification.next_governed_handoff.plan_capability, "e
 assert.equal(exactCommitClassification.next_governed_handoff.apply_capability, "activation_gateway_dark_deploy");
 assert.equal(exactCommitClassification.next_governed_handoff.apply_block_reason, null);
 
+const staleGatewayReport = {
+  outcome: "degraded",
+  expected: { commit_sha: desiredCommit },
+  gateway: {
+    health: {
+      sourceCommit: desiredCommit,
+      policyKey: stagingGatewayPolicy.policy_key,
+      policyHash: stagingGatewayPolicy.content_hash_sha256,
+      stale: true,
+    },
+    profile_validation: {
+      observed_public_host: stagingGatewayPolicy.public_host,
+    },
+  },
+  integrity_checks: [],
+  readiness_checks: [{
+    key: "gateway_policy_not_stale",
+    ok: false,
+    severity: "readiness",
+    detail: { stale: true, source_commit: desiredCommit, gateway_error_code: "GATEWAY_POLICY_STALE" },
+  }],
+};
+const staleClassification = classifyEnvironmentCertification(staleGatewayReport, {
+  environment: "staging",
+  registry: convergenceRegistry,
+});
+assert.equal(staleClassification.status, "reconciliation_required");
+assert.equal(staleClassification.next_governed_handoff.current_authority_adapter, "staging_activation_worker_workflow");
+assert.equal(staleClassification.next_governed_handoff.target_authority_model, "server_governed_out_of_band");
+assert.equal(staleClassification.next_governed_handoff.plan_capability, "staging_activation_worker_refresh_dry_run");
+assert.equal(staleClassification.next_governed_handoff.apply_capability, "deploy_activation_worker");
+assert.equal(staleClassification.next_governed_handoff.execution_surface, "staging_activation_worker_workflow");
+assert.equal(staleClassification.next_governed_handoff.transport, "github_actions");
+assert.equal(staleClassification.next_governed_handoff.workflow, ".github/workflows/staging-main-deploy-eligibility.yml");
+assert.equal(staleClassification.next_governed_handoff.dry_run_operation, "activation_worker_refresh_dry_run");
+assert.equal(staleClassification.next_governed_handoff.apply_operation, "deploy_activation_worker");
+assert.equal(staleClassification.next_governed_handoff.requires_exact_main, true);
+assert.equal(staleClassification.next_governed_handoff.requires_same_run_preflight, true);
+assert.equal(staleClassification.next_governed_handoff.caller_selected_provider_target_allowed, false);
+assert.equal(staleClassification.next_governed_handoff.stale_gateway_bypass_required, true);
+assert.equal(staleClassification.next_governed_handoff.automatic_apply_allowed, false);
+
+const mixedGatewayDriftReport = structuredClone(staleGatewayReport);
+mixedGatewayDriftReport.gateway.health.sourceCommit = observedCommit;
+mixedGatewayDriftReport.readiness_checks = [
+  {
+    key: "gateway_exact_commit",
+    ok: false,
+    severity: "readiness",
+    detail: { expected: desiredCommit, observed: observedCommit },
+  },
+  ...staleGatewayReport.readiness_checks,
+];
+const mixedGatewayClassification = classifyEnvironmentCertification(mixedGatewayDriftReport, {
+  environment: "staging",
+  registry: convergenceRegistry,
+});
+assert.equal(mixedGatewayClassification.classified_failures[0].check_key, "gateway_exact_commit");
+assert.equal(mixedGatewayClassification.next_governed_handoff.stale_gateway_bypass_required, true);
+assert.equal(mixedGatewayClassification.next_governed_handoff.current_authority_adapter, "staging_activation_worker_workflow");
+
 const releaseSpec = {
   repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
   source_branch: "main",
   commit_sha: desiredCommit,
 };
+const staleApprovalRequired = runEnvironmentConvergence({
+  environment: "staging",
+  releaseSpec,
+  certificationReport: staleGatewayReport,
+  registry: convergenceRegistry,
+});
+assert.equal(staleApprovalRequired.status, "approval_required");
+assert.equal(staleApprovalRequired.plan.execution_target.server_resolved, true);
+assert.equal(staleApprovalRequired.plan.execution_target.caller_target_override_allowed, false);
+assert.equal(staleApprovalRequired.plan.execution_target.runtime_surface, "staging_activation_worker_workflow");
+assert.equal(staleApprovalRequired.plan.execution_target.execution_ready, true);
+assert.equal(staleApprovalRequired.plan.governed_handoff.current_authority_adapter, "staging_activation_worker_workflow");
+assert.equal(staleApprovalRequired.plan.governed_handoff.transport, "github_actions");
+assert.equal(staleApprovalRequired.plan.governed_handoff.workflow, ".github/workflows/staging-main-deploy-eligibility.yml");
+assert.equal(staleApprovalRequired.plan.governed_handoff.dry_run_operation, "activation_worker_refresh_dry_run");
+assert.equal(staleApprovalRequired.plan.governed_handoff.apply_operation, "deploy_activation_worker");
+assert.equal(staleApprovalRequired.plan.governed_handoff.requires_same_run_preflight, true);
+assert.equal(staleApprovalRequired.plan.governed_handoff.stale_gateway_bypass_required, true);
+assert.equal(staleApprovalRequired.plan.governed_handoff.automatic_apply_allowed, false);
+assert.equal(staleApprovalRequired.safety.workflow_dispatch, false);
+assert.equal(staleApprovalRequired.safety.provider_mutation, false);
+
 const approvalRequired = runEnvironmentConvergence({
   environment: "staging",
   releaseSpec,
