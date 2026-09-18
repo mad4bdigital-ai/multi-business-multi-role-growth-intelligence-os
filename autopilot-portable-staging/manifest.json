@@ -138,7 +138,7 @@
     },
     {
       "path": "http-generic-api/docker-compose.staging.yml",
-      "sha256": "7a5bfb4cdf8f0539a47f3f31ec4e5e1144a223eaa92b2db98e4e29fc28a5c790"
+      "sha256": "6f0a4bcf4e60b54227d73515e622482c577d5a75ccecc2d4e2a5c8aa31dc9ed6"
     },
     {
       "path": "http-generic-api/docker-compose.yml",
@@ -342,7 +342,7 @@
     },
     {
       "path": "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
-      "sha256": "a40bd1cc4e93682d9cc2fa10d545e4629a35fde5500d73e5cc8435207050d925"
+      "sha256": "d62111f0c03edc65a81db4f82b8d6c66b67c0e0e908cc1c2944a40180189e888"
     },
     {
       "path": "http-generic-api/docker-compose.staging.windows-service.yml",
