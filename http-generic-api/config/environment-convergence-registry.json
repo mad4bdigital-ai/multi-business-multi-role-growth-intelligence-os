@@ -55,8 +55,8 @@
           "target_key": "activation_gateway_staging",
           "bundle_binding": {
             "bundle_key": "activation_gateway_staging_worker",
-            "entrypoint": "edge/activation-gateway/src/worker-staging.mjs",
-            "policy_path": "edge/activation-gateway/generated/route-policy.staging.json"
+            "entrypoint": "http-generic-api/activation-gateway-runtime/src/worker-staging.mjs",
+            "policy_path": "http-generic-api/activation-gateway-runtime/generated/route-policy.staging.json"
           },
           "resource_binding": {
             "resource_type": "cloudflare_worker",
