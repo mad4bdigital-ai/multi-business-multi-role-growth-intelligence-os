@@ -23,7 +23,9 @@
       "http-generic-api/test-activation-gateway-runtime-bundle-parity.mjs",
       "http-generic-api/test-staging-activation-gateway.mjs",
       "http-generic-api/test-staging-autopilot-closure.mjs",
-      "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
+      "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+      "autopilot-portable-staging/activation-gateway-smart-convergence-policy.json",
+      "http-generic-api/stagingActivationGatewayApplyAdapter.js"
     ]
   },
   "environment_impact": {
@@ -63,7 +65,8 @@
             "Bind the immutable convergence plan execution surface to staging_activation_worker_workflow for stale recovery while keeping the same server-resolved Staging Worker target and caller_target_override_allowed=false.",
             "Run activation_worker_refresh_dry_run on exact current main with exact policy hash and environment convergence plan SHA-256, build the signed bundle in memory, publish only non-secret evidence, and perform no provider access.",
             "Require deploy_activation_worker to depend on the same-run refresh preflight, require explicit typed confirmation, exact current main, exact policy hash and plan SHA, then verify public exact-SHA/policy health if a later apply is separately authorized.",
-            "Validate the current origin trust contract as mad4b.staging.activation-recovery-origin-trust.v2 and explicitly allow only the safe provider_credentials_included=false metadata field in the secret-name guard."
+            "Validate the current origin trust contract as mad4b.staging.activation-recovery-origin-trust.v2 and explicitly allow only the safe provider_credentials_included=false metadata field in the secret-name guard.",
+            "Bind the server-resolved execution target and Staging apply adapter to the packaged runtime worker and policy paths, while retaining edge/activation-gateway only as the canonical source identity checked by parity."
           ],
           "assertions": [
             "The packaged runtime contains src/worker-staging.mjs and the bundle manifest covers it.",
@@ -80,7 +83,8 @@
             "The Staging Worker workflow validates origin trust v2, policy hash, policy key, sourceCommit and workerBuildSha before classifying a later deploy as healthy.",
             "AutoPilot/One-Click still never dispatches the stale recovery workflow, reads Cloudflare credentials, or performs provider mutation.",
             "The stale-policy out-of-band handoff is scoped only to Staging; Production stale-policy classification remains on the production activation_gateway_dark_deploy authority and never routes through the Staging workflow.",
-            "The critical Staging Gateway repair declaration is registered exactly in Constitution.control_plane_paths and convergence.automation_control_paths, with no broader control-plane pattern or autonomous merge authority."
+            "The critical Staging Gateway repair declaration is registered exactly in Constitution.control_plane_paths and convergence.automation_control_paths, with no broader control-plane pattern or autonomous merge authority.",
+            "The canonical Staging policy source remains under edge/activation-gateway, while every server-resolved execution bundle binding and adapter entrypoint resolves only through the packaged http-generic-api/activation-gateway-runtime tree."
           ],
           "tests": [
             {
@@ -129,7 +133,9 @@
             "http-generic-api/test-activation-gateway-runtime-bundle-parity.mjs",
             "http-generic-api/test-staging-activation-gateway.mjs",
             "http-generic-api/test-staging-autopilot-closure.mjs",
-            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
+            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+            "autopilot-portable-staging/activation-gateway-smart-convergence-policy.json",
+            "http-generic-api/stagingActivationGatewayApplyAdapter.js"
           ]
         }
       ]
