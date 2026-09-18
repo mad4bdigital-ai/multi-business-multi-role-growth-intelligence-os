@@ -51,7 +51,7 @@ test("Staging Recovery tools are absent from Production catalog and present only
     SYSTEM_LAYER_TOOLS.filter((entry) => entry.source_key === "staging_recovery_system_surface_v1").map((entry) => entry.name),
     [
       "staging_recovery_certification_canary_plan_create",
-      "staging_recovery_activation_gateway_dark_deploy_dry_run",
+      "prepareStagingActivationGatewayDarkDeployDryRun",
       "staging_recovery_access_repair_prepare",
       "staging_recovery_access_repair_execute",
       "staging_recovery_access_repair_approve",
@@ -77,7 +77,7 @@ test("Staging Gateway dry-run dispatch stays on the server-resolved Recovery ove
   };
   let observed = null;
   const result = await _testingRecoverySystemToolOverlay.executeOverlayTool(
-    "staging_recovery_activation_gateway_dark_deploy_dry_run",
+    "prepareStagingActivationGatewayDarkDeployDryRun",
     input,
     {
       env: STAGING_ENV,
@@ -99,7 +99,7 @@ test("Staging Gateway dry-run dispatch stays on the server-resolved Recovery ove
   );
   assert.deepEqual(observed.args, { mode: "dry_run", ...input });
   assert.equal(observed.auth.is_admin, true);
-  assert.equal(result.system_tool, "staging_recovery_activation_gateway_dark_deploy_dry_run");
+  assert.equal(result.system_tool, "prepareStagingActivationGatewayDarkDeployDryRun");
   assert.equal(result.provider_accessed, false);
   assert.equal(result.provider_mutation_performed, false);
   assert.equal(result.production_authority, false);
