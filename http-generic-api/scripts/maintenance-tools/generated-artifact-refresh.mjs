@@ -9,6 +9,7 @@ const CONTRACT = "mad4b.governed-generated-artifact-refresh.v1";
 const INVENTORY_SELF_HOSTING_CONTRACT = "mad4b.repository-inventory-self-hosting.v1";
 const CONFIRMATION = "APPLY_GENERATED_ARTIFACT_REFRESH";
 const FULL_SHA_PATTERN = /^[0-9a-f]{40}$/u;
+const SHA256_PATTERN = /^[0-9a-f]{64}$/u;
 const TARGET_BRANCH_PATTERN = /^(?:gpt|fix|feat|chore|docs|release)\/[A-Za-z0-9._/-]+$/u;
 const PROTECTED_BRANCHES = new Set(["main", "Production"]);
 const MAX_DIAGNOSTIC_CHARS = 4000;
@@ -426,7 +427,7 @@ function syncActivationGatewayProfilePolicyHashes() {
   for (const binding of bindings) {
     const policy = JSON.parse(fs.readFileSync(binding.policyPath, "utf8"));
     const policyHash = String(policy?.content_hash_sha256 || "").trim().toLowerCase();
-    if (policy?.policy_key !== binding.policyKey || !FULL_SHA_PATTERN.test(policyHash)) {
+    if (policy?.policy_key !== binding.policyKey || !SHA256_PATTERN.test(policyHash)) {
       throw new ToolFailure({
         code: "activation_gateway_policy_identity_invalid",
         step: "sync_activation_gateway_profile_policy_hashes",
