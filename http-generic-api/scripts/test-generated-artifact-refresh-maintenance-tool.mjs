@@ -118,6 +118,7 @@ runCheck("tool-canonical-auth-repair", () => {
   const detailGapIndex = toolSource.indexOf("generate_openapi_detail_gap_classification");
   const customGptIndex = toolSource.indexOf("generate_custom_gpt_schemas");
   const activationBundleIndex = toolSource.indexOf("sync_activation_gateway_runtime_bundle");
+  const convergenceHashIndex = toolSource.indexOf("syncActivationGatewayProfilePolicyHashes");
   const gapClosureIndex = toolSource.indexOf("generate_openapi_gap_closure_plan");
   const detailBatchIndex = toolSource.indexOf("generate_openapi_detail_closure_batch");
   assert.ok(authSyncIndex >= 0 && dispatchIndex > authSyncIndex, "auth repair must precede frontend projection generation");
@@ -126,6 +127,7 @@ runCheck("tool-canonical-auth-repair", () => {
   assert.ok(detailBatchIndex > gapClosureIndex, "detail-batch generation must follow gap-closure planning");
   assert.ok(customGptIndex > detailBatchIndex, "Custom GPT schemas must follow the OpenAPI detail batch");
   assert.ok(activationBundleIndex > customGptIndex, "Activation Gateway runtime bundle sync must follow schema generation");
+  assert.ok(convergenceHashIndex >= 0, "OpenAPI refresh must bind generated gateway policy hashes into convergence profiles");
   assert.match(toolSource, /openapi:detail-batch:write/u);
   assert.match(toolSource, /openapi-detail-closure-batch-full\.json/u);
   assert.match(toolSource, /openapi:detail-batch:check/u);
@@ -134,6 +136,9 @@ runCheck("tool-canonical-auth-repair", () => {
   assert.match(toolSource, /activation-gateway:bundle:sync/u);
   assert.match(toolSource, /http-generic-api\/activation-gateway-runtime\/generated\/route-policy\.json/u);
   assert.match(toolSource, /http-generic-api\/activation-gateway-runtime\/bundle-manifest\.json/u);
+  assert.match(toolSource, /http-generic-api\/config\/environment-convergence-registry\.json/u);
+  assert.match(toolSource, /activation_gateway_policy_identity_invalid/u);
+  assert.match(toolSource, /environment_convergence_gateway_profile_invalid/u);
   assert.match(toolSource, /openapi:detail-gaps:check/u);
   assert.match(toolSource, /openapi:gap-closure-plan:check/u);
 });
