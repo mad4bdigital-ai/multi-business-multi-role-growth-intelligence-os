@@ -93,7 +93,8 @@
             "Accept acknowledgement only when the operator-supplied plan digest exactly matches the workflow-owned current plan; then require status=handoff_ready with acknowledged_for_handoff while operator_acknowledgement_is_execution_authority remains false.",
             "Bind source SHA, canonical policy SHA, authoritative convergence-plan SHA and deterministic Worker bundle SHA into a same-run preflight binding digest.",
             "Pass authoritative_plan_sha256, worker_bundle_sha256 and preflight_binding_sha256 to deploy only through needs.activation_worker_refresh_preflight.outputs; rebuild the Worker artifact and verify the same binding before any provider API preflight or deploy.",
-            "When stale Gateway recovery is the selected first handoff, defer only gateway_recovery_trusted_ingress from the current plan digest because that local trust can only be re-certified after the Worker refresh; preserve it explicitly in deferred_reasons."
+            "When stale Gateway recovery is the selected first handoff, defer only gateway_recovery_trusted_ingress from the current plan digest because that local trust can only be re-certified after the Worker refresh; preserve it explicitly in deferred_reasons.",
+            "Keep the stale-worker plan hash portable across local One-Click and remote GitHub execution by binding it to the desired exact-main release commit, not to the obsolete observed Worker commit; retain the obsolete observed commit as evidence outside the plan hash."
           ],
           "assertions": [
             "The packaged runtime contains src/worker-staging.mjs and the bundle manifest covers it.",
@@ -122,7 +123,8 @@
             "The stale-recovery preflight fails closed unless the profile-owned public health response identifies the activation-gateway service with stale=true and GATEWAY_POLICY_STALE semantics.",
             "The workflow-owned convergence plan must reach handoff_ready with acknowledged_for_handoff before deploy outputs are emitted.",
             "deploy_activation_worker consumes the authoritative plan and deterministic Worker bundle identity only from trusted same-run preflight outputs and recomputes the binding before provider access.",
-            "One-Click and the out-of-band workflow derive the same stale-worker plan identity even when local Recovery trust is stale: gateway_recovery_trusted_ingress remains visible but is topologically deferred and cannot silently disappear."
+            "One-Click and the out-of-band workflow derive the same stale-worker plan identity even when local Recovery trust is stale: gateway_recovery_trusted_ingress remains visible but is topologically deferred and cannot silently disappear.",
+            "For gateway_policy_not_stale handoff, gateway_exact_commit drift has desired_release_commit equal to exact main and observed_release_commit null in the plan identity, while the actual stale Worker source remains visible in non-authoritative evidence."
           ],
           "tests": [
             {

@@ -59,6 +59,11 @@ try {
   assert.equal(stalePlan.reasons.includes("gateway_recovery_trusted_ingress"), false);
   assert.deepEqual(stalePlan.deferred_reasons, ["gateway_recovery_trusted_ingress"]);
   assert.equal(stalePlan.plan.drift.some((entry) => entry.check_key === "gateway_recovery_trusted_ingress"), false);
+  const staleExactCommitDrift = stalePlan.plan.drift.find((entry) => entry.check_key === "gateway_exact_commit");
+  assert.equal(staleExactCommitDrift?.desired_release_commit, commit);
+  assert.equal(staleExactCommitDrift?.observed_release_commit, null);
+  assert.equal(stalePlan.runtime_observed_gateway_source_commit, "b".repeat(40));
+  assert.equal(stalePlan.plan_observed_gateway_source_commit, null);
   const staleAccepted = run(stalePlan.plan.plan_sha256);
   assert.equal(staleAccepted.status, 0, staleAccepted.stderr);
   const staleHandoff = JSON.parse(staleAccepted.stdout);

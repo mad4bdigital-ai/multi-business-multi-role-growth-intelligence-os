@@ -156,7 +156,7 @@ export async function verifyStagingActivationWorkerHandoff({
   const certificationReport = {
     outcome: "degraded",
     expected: { commit_sha: source },
-    gateway: { health: { sourceCommit: health.sourceCommit || null } },
+    gateway: { health: { sourceCommit: null } },
     integrity_checks: [],
     readiness_checks: readinessChecks,
   };
@@ -249,6 +249,8 @@ export async function verifyStagingActivationWorkerHandoff({
       policy_hash: health.policyHash || null,
       stale: true,
     },
+    stale_plan_identity_uses_desired_release_commit: true,
+    stale_plan_observed_release_commit_in_hash: false,
     exact_current_main_required: true,
     same_run_preflight_required_for_apply: true,
     provider_target_caller_selectable: false,

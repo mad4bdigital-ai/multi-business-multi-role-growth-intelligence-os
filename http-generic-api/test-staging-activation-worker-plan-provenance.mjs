@@ -40,7 +40,7 @@ const authoritativePreview = runEnvironmentConvergence({
   certificationReport: {
     outcome: "degraded",
     expected: { commit_sha: sourceSha },
-    gateway: { health: { sourceCommit: oldSha } },
+    gateway: { health: { sourceCommit: null } },
     integrity_checks: [],
     readiness_checks: [
       { key: "gateway_policy_not_stale", ok: false, severity: "readiness", detail: { stale: true } },
@@ -86,6 +86,11 @@ assert.equal(first.production_mutation_performed, false);
 assert.equal(first.authoritative_plan_sha256, acknowledgedPlanSha);
 assert.equal(first.caller_parent_convergence_plan_sha256, acknowledgedPlanSha);
 assert.equal(first.caller_plan_digest_matches_authoritative, true);
+assert.equal(first.stale_plan_identity_uses_desired_release_commit, true);
+assert.equal(first.stale_plan_observed_release_commit_in_hash, false);
+const exactCommitDrift = authoritativePreview.plan.drift.find((entry) => entry.check_key === "gateway_exact_commit");
+assert.equal(exactCommitDrift?.desired_release_commit, sourceSha);
+assert.equal(exactCommitDrift?.observed_release_commit, null);
 
 const rebuiltBinding = buildStagingActivationWorkerPreflightBinding({
   sourceSha,
