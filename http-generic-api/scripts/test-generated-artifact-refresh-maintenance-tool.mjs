@@ -122,13 +122,13 @@ runCheck("tool-canonical-auth-repair", () => {
   const convergenceHashIndex = toolSource.indexOf("syncActivationGatewayProfilePolicyHashes");
   const gapClosureIndex = toolSource.indexOf("generate_openapi_gap_closure_plan");
   const detailBatchIndex = toolSource.indexOf("generate_openapi_detail_closure_batch");
-  assert.ok(authSyncIndex >= 0 && dispatchIndex > authSyncIndex, "auth repair must precede frontend projection generation");
+  assert.ok(authSyncIndex >= 0 && customGptIndex > authSyncIndex, "auth repair must precede shared Custom GPT schema generation");
+  assert.ok(stagingAdminIndex > customGptIndex, "Staging Admin schema must follow shared Custom GPT schema generation");
+  assert.ok(dispatchIndex > stagingAdminIndex, "frontend projection generation must follow every OpenAPI source artifact");
   assert.ok(detailGapIndex > dispatchIndex, "detail-gap classification must follow frontend dispatch generation");
   assert.ok(gapClosureIndex > detailGapIndex, "gap-closure planning must follow detail-gap classification");
   assert.ok(detailBatchIndex > gapClosureIndex, "detail-batch generation must follow gap-closure planning");
-  assert.ok(customGptIndex > detailBatchIndex, "Custom GPT schemas must follow the OpenAPI detail batch");
-  assert.ok(stagingAdminIndex > customGptIndex, "Staging Admin schema must follow shared Custom GPT schema generation");
-  assert.ok(activationBundleIndex > stagingAdminIndex, "Activation Gateway runtime bundle sync must follow all schema generation");
+  assert.ok(activationBundleIndex > detailBatchIndex, "Activation Gateway runtime bundle sync must follow OpenAPI derived-state generation");
   assert.ok(convergenceHashIndex >= 0, "OpenAPI refresh must bind generated gateway policy hashes into convergence profiles");
   assert.match(toolSource, /openapi:detail-batch:write/u);
   assert.match(toolSource, /openapi-detail-closure-batch-full\.json/u);
