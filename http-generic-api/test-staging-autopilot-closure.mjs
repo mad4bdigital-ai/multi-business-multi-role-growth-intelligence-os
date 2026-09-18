@@ -208,6 +208,7 @@ assert.doesNotMatch(liveCertification, /STAGING_CERT_GATEWAY_POLICY_PATH/);
 assert.match(liveCertification, /integrityChecks\.push\(check\("gateway_environment_profile_current", profileValidation\.ok/);
 assert.match(liveCertification, /const staleGatewayResponse = health\.status === 503/);
 assert.match(liveCertification, /health\.body\?\.error\?\.code === "GATEWAY_POLICY_STALE"/);
+assert.match(liveCertification, /health\.body\?\.service === "activation-gateway" && health\.body\?\.stale === true/);
 assert.match(liveCertification, /const gatewayHealthReachable = \(health\.ok && gatewayHealthJson\) \|\| staleGatewayResponse/);
 assert.match(liveCertification, /integrityChecks\.push\(check\("gateway_health_reachable", gatewayHealthReachable/);
 assert.match(liveCertification, /if \(gatewayHealthReachable\) \{[\s\S]*readinessChecks\.push\(check\("gateway_policy_not_stale"/);
