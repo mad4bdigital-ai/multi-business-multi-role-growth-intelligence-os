@@ -231,6 +231,22 @@ assert.equal(staleClassification.next_governed_handoff.caller_selected_provider_
 assert.equal(staleClassification.next_governed_handoff.stale_gateway_bypass_required, true);
 assert.equal(staleClassification.next_governed_handoff.automatic_apply_allowed, false);
 
+const productionStaleGatewayReport = structuredClone(staleGatewayReport);
+productionStaleGatewayReport.gateway.health.policyKey = productionGatewayPolicy.policy_key;
+productionStaleGatewayReport.gateway.health.policyHash = productionGatewayPolicy.content_hash_sha256;
+const productionStaleClassification = classifyEnvironmentCertification(productionStaleGatewayReport, {
+  environment: "production",
+  registry: convergenceRegistry,
+});
+assert.equal(productionStaleClassification.status, "reconciliation_required");
+assert.equal(productionStaleClassification.next_governed_handoff.current_authority_adapter, "activation_gateway_dark_deploy");
+assert.equal(productionStaleClassification.next_governed_handoff.target_authority_model, "server_governed");
+assert.equal(productionStaleClassification.next_governed_handoff.plan_capability, "activation_gateway_rollout_plan");
+assert.equal(productionStaleClassification.next_governed_handoff.apply_capability, "activation_gateway_dark_deploy");
+assert.equal(productionStaleClassification.next_governed_handoff.execution_surface, null);
+assert.equal(productionStaleClassification.next_governed_handoff.stale_gateway_bypass_required, false);
+assert.equal(productionStaleClassification.next_governed_handoff.automatic_apply_allowed, false);
+
 const mixedGatewayDriftReport = structuredClone(staleGatewayReport);
 mixedGatewayDriftReport.gateway.health.sourceCommit = observedCommit;
 mixedGatewayDriftReport.readiness_checks = [
