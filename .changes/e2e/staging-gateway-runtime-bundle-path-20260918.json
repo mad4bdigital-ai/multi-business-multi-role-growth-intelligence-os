@@ -37,7 +37,9 @@
       ".dockerignore",
       "autopilot-portable-staging/manifest.json",
       "docs/remote-mcp-write-scope-inventory.md",
-      "http-generic-api/remote-mcp-write-scope-inventory.generated.json"
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/scripts/staging-activation-worker-handoff-verifier.mjs",
+      "http-generic-api/test-staging-activation-worker-plan-provenance.mjs"
     ]
   },
   "environment_impact": {
@@ -83,7 +85,12 @@
             "Expose only expected_source_commit, expected_policy_hash and environment_convergence_plan_sha256 on that System Tool; account_id, script_name, workspace_id, resource_binding_id, capability_envelope_id, execution_nonce and confirmation remain server-controlled or unavailable on the dry-run surface.",
             "Pass the authenticated principal and the same server-side preflight dependencies through the Recovery System Tool overlay so workspace and profile authority are resolved identically to the dedicated Admin route.",
             "Add v_platform_capability_readiness_vector to the Staging runtime optional read surfaces so the role receives SELECT only when the view exists; a missing view remains non-blocking degraded evidence and never expands schema privileges.",
-            "Package an allowlisted canonical-knowledge snapshot from the exact secret-free Git-archive build context under /app/repo-inspect, and set REPO_INSPECT_ROOT there so Staging repo_inspect list/read/search can resolve the required repository-root references instead of failing ENOENT against the flattened service image."
+            "Package an allowlisted canonical-knowledge snapshot from the exact secret-free Git-archive build context under /app/repo-inspect, and set REPO_INSPECT_ROOT there so Staging repo_inspect list/read/search can resolve the required repository-root references instead of failing ENOENT against the flattened service image.",
+            "Treat environment_convergence_plan_sha256 supplied by the caller as trace-only parent evidence; it never selects or authorizes the provider apply path.",
+            "Read only the profile-owned activation-dev.mad4b.com/health surface, require cryptographically identified GATEWAY_POLICY_STALE service identity, and reconstruct the current Staging convergence plan through the shared environment convergence engine.",
+            "Create an internal acknowledgement for that workflow-owned plan, require status=handoff_ready with acknowledged_for_handoff, and keep operator_acknowledgement_is_execution_authority=false.",
+            "Bind source SHA, canonical policy SHA, authoritative convergence-plan SHA and deterministic Worker bundle SHA into a same-run preflight binding digest.",
+            "Pass authoritative_plan_sha256, worker_bundle_sha256 and preflight_binding_sha256 to deploy only through needs.activation_worker_refresh_preflight.outputs; rebuild the Worker artifact and verify the same binding before any provider API preflight or deploy."
           ],
           "assertions": [
             "The packaged runtime contains src/worker-staging.mjs and the bundle manifest covers it.",
@@ -107,7 +114,11 @@
             "The Staging Gateway dry-run System Tool rejects caller-selected account, script, workspace, resource binding, capability envelope, execution nonce and confirmation fields before execution.",
             "System Tool dry-run dispatch reaches the same server-resolved preflight path and preserves provider_accessed=false, provider_mutation_performed=false and production_authority=false.",
             "v_platform_capability_readiness_vector is an optional Staging runtime SELECT-only surface; its absence cannot trigger broad schema grants and its presence does not grant INSERT, UPDATE, DELETE, DDL or GRANT OPTION.",
-            "The Staging image exposes repo_inspect source only from the exact Git-archive build context and the Docker context explicitly allowlists the required docs/canonicals/root knowledge files while ignored local material remains excluded."
+            "The Staging image exposes repo_inspect source only from the exact Git-archive build context and the Docker context explicitly allowlists the required docs/canonicals/root knowledge files while ignored local material remains excluded.",
+            "A syntactically valid arbitrary caller convergence-plan digest cannot influence authoritative_plan_sha256, worker_bundle_sha256 or preflight_binding_sha256 and is never execution authority.",
+            "The stale-recovery preflight fails closed unless the profile-owned public health response identifies the activation-gateway service with stale=true and GATEWAY_POLICY_STALE semantics.",
+            "The workflow-owned convergence plan must reach handoff_ready with acknowledged_for_handoff before deploy outputs are emitted.",
+            "deploy_activation_worker consumes the authoritative plan and deterministic Worker bundle identity only from trusted same-run preflight outputs and recomputes the binding before provider access."
           ],
           "tests": [
             {
@@ -158,6 +169,13 @@
               "working_directory": "http-generic-api",
               "path": "scripts/staging-database-recovery-contract.mjs",
               "args": []
+            },
+            {
+              "id": "staging-activation-worker-plan-provenance",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-activation-worker-plan-provenance.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -191,9 +209,11 @@
             ".dockerignore",
             "autopilot-portable-staging/manifest.json",
             "docs/remote-mcp-write-scope-inventory.md",
-            "http-generic-api/remote-mcp-write-scope-inventory.generated.json"
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+            "http-generic-api/scripts/staging-activation-worker-handoff-verifier.mjs",
+            "http-generic-api/test-staging-activation-worker-plan-provenance.mjs"
           ],
-          "objective": "Make the server-governed Staging Activation Gateway dry-run build only from the generated service-local runtime bundle actually packaged under /app, and close the stale-policy circular recovery dependency by classifying signed JSON GATEWAY_POLICY_STALE health responses causally and routing stale Gateway drift to an exact-main, out-of-band server-side refresh workflow that performs a non-secret dry-run/preflight before any explicitly authorized Worker deploy. Keep all normal Gateway and Recovery routes fail-closed while stale and keep provider, database, DNS, custom-domain and Production mutation outside the dry-run. In the same governed journey, expose the exact Staging Recovery dry-run operation through the private System Tool catalog without falling back to the generic caller-account rollout contract; keep account, script, workspace, resource binding and apply authority server-resolved. Also keep live readiness diagnostics least-privilege by granting the Staging runtime role optional SELECT-only access to v_platform_capability_readiness_vector when that surface exists, and package only the allowlisted exact-build repository knowledge snapshot needed by repo_inspect list/read/search."
+          "objective": "Make the server-governed Staging Activation Gateway dry-run build only from the generated service-local runtime bundle actually packaged under /app, and close the stale-policy circular recovery dependency by classifying signed JSON GATEWAY_POLICY_STALE health responses causally and routing stale Gateway drift to an exact-main, out-of-band server-side refresh workflow that performs a non-secret dry-run/preflight before any explicitly authorized Worker deploy. Keep all normal Gateway and Recovery routes fail-closed while stale and keep provider, database, DNS, custom-domain and Production mutation outside the dry-run. In the same governed journey, expose the exact Staging Recovery dry-run operation through the private System Tool catalog without falling back to the generic caller-account rollout contract; keep account, script, workspace, resource binding and apply authority server-resolved. Also keep live readiness diagnostics least-privilege by granting the Staging runtime role optional SELECT-only access to v_platform_capability_readiness_vector when that surface exists, and package only the allowlisted exact-build repository knowledge snapshot needed by repo_inspect list/read/search. The out-of-band stale apply no longer treats the caller-supplied convergence-plan digest as execution authority: the workflow reconstructs a live profile-owned Staging plan from exact-main plus Activation Gateway health, requires an acknowledged handoff_ready state, binds that authoritative plan to the deterministic Worker bundle SHA-256, and carries only trusted same-run job outputs into deploy."
         }
       ]
     }

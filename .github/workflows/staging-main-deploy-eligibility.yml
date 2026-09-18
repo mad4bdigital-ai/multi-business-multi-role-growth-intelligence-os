@@ -23,7 +23,7 @@ on:
         required: false
         type: string
       environment_convergence_plan_sha256:
-        description: Exact immutable environment convergence plan SHA-256
+        description: Optional caller-observed parent convergence-plan SHA-256 for trace only; never execution authority
         required: false
         type: string
       confirmation:
@@ -191,10 +191,15 @@ jobs:
     needs: eligibility
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    outputs:
+      authoritative_plan_sha256: ${{ steps.handoff.outputs.authoritative_plan_sha256 }}
+      worker_bundle_sha256: ${{ steps.handoff.outputs.worker_bundle_sha256 }}
+      preflight_binding_sha256: ${{ steps.handoff.outputs.preflight_binding_sha256 }}
     env:
       SOURCE_SHA: ${{ inputs.source_sha }}
       EXPECTED_POLICY_HASH: ${{ inputs.expected_policy_hash }}
-      CONVERGENCE_PLAN_SHA256: ${{ inputs.environment_convergence_plan_sha256 }}
+      CALLER_CONVERGENCE_PLAN_SHA256: ${{ inputs.environment_convergence_plan_sha256 }}
+      PUBLIC_HEALTH_URL: https://activation-dev.mad4b.com/health
     steps:
       - name: Validate exact stale-recovery dry-run identity
         shell: bash
@@ -203,7 +208,9 @@ jobs:
           test "$SOURCE_SHA" = "${SOURCE_SHA,,}"
           [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
           [[ "$EXPECTED_POLICY_HASH" =~ ^[a-f0-9]{64}$ ]]
-          [[ "$CONVERGENCE_PLAN_SHA256" =~ ^[a-f0-9]{64}$ ]]
+          if test -n "$CALLER_CONVERGENCE_PLAN_SHA256"; then
+            [[ "$CALLER_CONVERGENCE_PLAN_SHA256" =~ ^[a-f0-9]{64}$ ]]
+          fi
 
       - name: Checkout exact current main candidate
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -226,48 +233,28 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Build non-secret exact-SHA refresh plan in memory
+      - name: Verify live server-governed handoff and build same-run binding
+        id: handoff
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/staging-activation-worker-refresh"
-          node --input-type=module <<'NODE'
-          import fs from "node:fs";
-          import path from "node:path";
-          import { buildStagingActivationGatewayBundle } from "./http-generic-api/stagingActivationGatewayBundle.js";
-          const sourceSha = String(process.env.SOURCE_SHA || "").trim().toLowerCase();
-          const expectedPolicyHash = String(process.env.EXPECTED_POLICY_HASH || "").trim().toLowerCase();
-          const convergencePlanSha256 = String(process.env.CONVERGENCE_PLAN_SHA256 || "").trim().toLowerCase();
-          const bundle = await buildStagingActivationGatewayBundle({ sourceSha });
-          if (bundle.source_sha !== sourceSha) throw new Error("stale recovery source SHA mismatch");
-          if (bundle.policy_hash !== expectedPolicyHash) throw new Error("stale recovery policy hash mismatch");
-          if (bundle.origin_trust?.contract !== "mad4b.staging.activation-recovery-origin-trust.v2") throw new Error("stale recovery origin trust contract mismatch");
-          if (bundle.origin_trust?.source_commit !== sourceSha || bundle.origin_trust?.worker_build_sha !== sourceSha) throw new Error("stale recovery origin trust identity mismatch");
-          if (bundle.origin_trust?.policy_hash !== expectedPolicyHash) throw new Error("stale recovery origin trust policy mismatch");
-          const evidence = {
-            contract: "mad4b.staging.activation-worker-refresh-dry-run.v1",
-            operation: "activation_worker_refresh_dry_run",
-            source_sha: sourceSha,
-            policy_hash: expectedPolicyHash,
-            environment_convergence_plan_sha256: convergencePlanSha256,
-            worker_bundle_sha256: bundle.worker_bundle_sha256,
-            origin_trust_contract: bundle.origin_trust.contract,
-            expires_at: bundle.expires_at,
-            exact_current_main_required: true,
-            same_run_preflight_required_for_apply: true,
-            provider_accessed: false,
-            provider_mutation_performed: false,
-            database_mutation_performed: false,
-            dns_mutation_performed: false,
-            custom_domain_mutation_performed: false,
-            production_mutation_performed: false,
-            secrets_included: false,
-            status: "dry_run_ready"
-          };
-          const output = path.join(process.env.RUNNER_TEMP, "staging-activation-worker-refresh", "evidence.json");
-          fs.writeFileSync(output, `${JSON.stringify(evidence, null, 2)}\n`);
-          console.log(JSON.stringify(evidence));
-          NODE
+          summary="$(node http-generic-api/scripts/staging-activation-worker-handoff-verifier.mjs \
+            --source-sha="$SOURCE_SHA" \
+            --expected-policy-hash="$EXPECTED_POLICY_HASH" \
+            --caller-plan-sha256="$CALLER_CONVERGENCE_PLAN_SHA256" \
+            --health-url="$PUBLIC_HEALTH_URL" \
+            --output="$RUNNER_TEMP/staging-activation-worker-refresh/evidence.json")"
+          echo "$summary"
+          authoritative_plan_sha256="$(jq -r '.authoritative_plan_sha256' <<<"$summary")"
+          worker_bundle_sha256="$(jq -r '.worker_bundle_sha256' <<<"$summary")"
+          preflight_binding_sha256="$(jq -r '.preflight_binding_sha256' <<<"$summary")"
+          [[ "$authoritative_plan_sha256" =~ ^[a-f0-9]{64}$ ]]
+          [[ "$worker_bundle_sha256" =~ ^[a-f0-9]{64}$ ]]
+          [[ "$preflight_binding_sha256" =~ ^[a-f0-9]{64}$ ]]
+          echo "authoritative_plan_sha256=$authoritative_plan_sha256" >> "$GITHUB_OUTPUT"
+          echo "worker_bundle_sha256=$worker_bundle_sha256" >> "$GITHUB_OUTPUT"
+          echo "preflight_binding_sha256=$preflight_binding_sha256" >> "$GITHUB_OUTPUT"
 
       - name: Upload stale-recovery dry-run evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -289,7 +276,10 @@ jobs:
       SOURCE_SHA: ${{ inputs.source_sha }}
       CONFIRMATION: ${{ inputs.confirmation }}
       EXPECTED_POLICY_HASH: ${{ inputs.expected_policy_hash }}
-      CONVERGENCE_PLAN_SHA256: ${{ inputs.environment_convergence_plan_sha256 }}
+      CALLER_CONVERGENCE_PLAN_SHA256: ${{ inputs.environment_convergence_plan_sha256 }}
+      VERIFIED_CONVERGENCE_PLAN_SHA256: ${{ needs.activation_worker_refresh_preflight.outputs.authoritative_plan_sha256 }}
+      VERIFIED_WORKER_BUNDLE_SHA256: ${{ needs.activation_worker_refresh_preflight.outputs.worker_bundle_sha256 }}
+      PREFLIGHT_BINDING_SHA256: ${{ needs.activation_worker_refresh_preflight.outputs.preflight_binding_sha256 }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       WORKER_NAME: mad4b-activation-gateway-staging
@@ -305,7 +295,12 @@ jobs:
           test "$SOURCE_SHA" = "${SOURCE_SHA,,}"
           [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
           [[ "$EXPECTED_POLICY_HASH" =~ ^[a-f0-9]{64}$ ]]
-          [[ "$CONVERGENCE_PLAN_SHA256" =~ ^[a-f0-9]{64}$ ]]
+          if test -n "$CALLER_CONVERGENCE_PLAN_SHA256"; then
+            [[ "$CALLER_CONVERGENCE_PLAN_SHA256" =~ ^[a-f0-9]{64}$ ]]
+          fi
+          [[ "$VERIFIED_CONVERGENCE_PLAN_SHA256" =~ ^[a-f0-9]{64}$ ]]
+          [[ "$VERIFIED_WORKER_BUNDLE_SHA256" =~ ^[a-f0-9]{64}$ ]]
+          [[ "$PREFLIGHT_BINDING_SHA256" =~ ^[a-f0-9]{64}$ ]]
           test -n "$CLOUDFLARE_ACCOUNT_ID"
           test -n "$CLOUDFLARE_API_TOKEN"
 
@@ -368,6 +363,35 @@ jobs:
             and .secrets_included == false
             and ([keys[] | select(. != "secrets_included" and . != "provider_credentials_included" and test("private|secret|credential|token"; "i"))] | length == 0)
           ' "$ARTIFACT_DIR/origin-trust.json" >/dev/null
+
+      - name: Verify same-run plan and Worker bundle binding
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -e --arg bundle_sha "$VERIFIED_WORKER_BUNDLE_SHA256" '
+            .worker_bundle_sha256 == $bundle_sha
+            and .source_commit == env.SOURCE_SHA
+            and .policy_hash == env.EXPECTED_POLICY_HASH
+          ' "$ARTIFACT_DIR/deployment-evidence.json" >/dev/null
+          node --input-type=module <<'NODE'
+          import { buildStagingActivationWorkerPreflightBinding } from "./http-generic-api/scripts/staging-activation-worker-handoff-verifier.mjs";
+          const binding = buildStagingActivationWorkerPreflightBinding({
+            sourceSha: process.env.SOURCE_SHA,
+            expectedPolicyHash: process.env.EXPECTED_POLICY_HASH,
+            authoritativePlanSha256: process.env.VERIFIED_CONVERGENCE_PLAN_SHA256,
+            workerBundleSha256: process.env.VERIFIED_WORKER_BUNDLE_SHA256,
+          });
+          if (binding.preflight_binding_sha256 !== process.env.PREFLIGHT_BINDING_SHA256) {
+            throw new Error("same-run stale recovery binding mismatch");
+          }
+          console.log(JSON.stringify({
+            authoritative_plan_sha256: process.env.VERIFIED_CONVERGENCE_PLAN_SHA256,
+            worker_bundle_sha256: process.env.VERIFIED_WORKER_BUNDLE_SHA256,
+            preflight_binding_sha256: binding.preflight_binding_sha256,
+            caller_plan_digest_is_execution_authority: false,
+            same_run_preflight_verified: true,
+          }));
+          NODE
 
       - name: Verify pinned Wrangler deployment capability
         shell: bash
