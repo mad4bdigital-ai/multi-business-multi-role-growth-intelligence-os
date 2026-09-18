@@ -23,7 +23,9 @@
       "http-generic-api/test-environment-impact-closure.mjs",
       "http-generic-api/test-remote-runtime-catalog-probe.mjs",
       ".github/derived-state-governance.json",
-      "http-generic-api/config/repository-governance-constitution.json"
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
+      "http-generic-api/test-openapi-precise-inline-registry-transition.mjs"
     ]
   },
   "merge_contract": {
@@ -65,7 +67,8 @@
             "The operation does not consume a shared Admin Core Custom GPT operation slot.",
             "Staging live certification remains required because shared runtime/OpenAPI and Staging policy surfaces change.",
             "production_mutation_allowed remains false and secrets_included remains false.",
-            "The critical declaration is registered in Constitution.control_plane_paths and convergence.automation_control_paths before merge."
+            "The critical declaration is registered in Constitution.control_plane_paths and convergence.automation_control_paths before merge.",
+            "The precise registry writer accepts only the exact predecessor whose sole drift is the reviewed admin-control tag promotion; any other predecessor drift remains fail-closed."
           ],
           "tests": [
             {
@@ -88,6 +91,13 @@
               "working_directory": ".",
               "path": "http-generic-api/test-environment-impact-closure.mjs",
               "args": []
+            },
+            {
+              "id": "pr8108-openapi-precise-inline-transition",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-openapi-precise-inline-registry-transition.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -97,7 +107,9 @@
             "http-generic-api/routes/operationalConsoleRoutes.js",
             "http-generic-api/test-remote-runtime-catalog-probe.mjs",
             "canonicals/openapi/custom-gpt-surfaces.yaml",
-            "http-generic-api/config/deployment-branch-policy.json"
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
+            "http-generic-api/test-openapi-precise-inline-registry-transition.mjs"
           ]
         }
       ]
