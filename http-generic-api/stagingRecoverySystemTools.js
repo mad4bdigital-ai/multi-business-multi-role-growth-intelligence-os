@@ -287,7 +287,7 @@ export async function stagingRecoveryActivationGatewayDarkDeployDryRun(input = {
   const result = await prepareStagingRecoveryGatewayDarkDeployDryRun(input, { ...deps, env });
   return {
     ...result,
-    system_tool: "staging_recovery_activation_gateway_dark_deploy_dry_run",
+    system_tool: "prepareStagingActivationGatewayDarkDeployDryRun",
     system_surface_contract: STAGING_RECOVERY_SYSTEM_SURFACE_CONTRACT,
     caller_selected_account_id: false,
     caller_selected_script_name: false,
@@ -483,7 +483,7 @@ const descriptors = Object.freeze([
     },
   },
   {
-    name: "staging_recovery_activation_gateway_dark_deploy_dry_run",
+    name: "prepareStagingActivationGatewayDarkDeployDryRun",
     handler: "stagingRecoveryActivationGatewayDarkDeployDryRun",
     description: "Staging-only Admin Recovery dry-run for the profile-owned Activation Gateway Worker. The caller supplies only the exact source commit, policy hash, and environment-convergence-plan digest; account, script, resource binding, workspace and capability authority remain server-resolved. It may persist only the short-lived Governance execution plan when all readiness checks pass and never contacts or mutates the provider.",
     source_key: STAGING_RECOVERY_SYSTEM_SOURCE_KEY,
