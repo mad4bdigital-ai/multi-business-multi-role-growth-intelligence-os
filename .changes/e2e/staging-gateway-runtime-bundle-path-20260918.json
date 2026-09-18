@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "staging-gateway-runtime-bundle-path-20260918",
-  "title": "Package Staging Activation Gateway worker in the service-local runtime bundle",
+  "title": "Repair Staging Activation Gateway packaged runtime and stale-policy recovery",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
@@ -12,7 +12,15 @@
       "http-generic-api/scripts/sync-activation-gateway-runtime-bundle.mjs",
       "http-generic-api/activation-gateway-runtime/src/worker-staging.mjs",
       "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
-      "http-generic-api/test-activation-gateway-runtime-bundle-parity.mjs"
+      "http-generic-api/test-activation-gateway-runtime-bundle-parity.mjs",
+      "http-generic-api/scripts/staging-live-certification.mjs",
+      "http-generic-api/environmentConvergenceRegistry.js",
+      "http-generic-api/environmentConvergenceEngine.js",
+      "http-generic-api/config/environment-convergence-registry.json",
+      ".github/workflows/staging-main-deploy-eligibility.yml",
+      "http-generic-api/test-staging-activation-gateway.mjs",
+      "http-generic-api/test-staging-autopilot-closure.mjs",
+      "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
     ]
   },
   "environment_impact": {
@@ -32,7 +40,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Make the server-governed Staging Activation Gateway dry-run build only from the generated service-local runtime bundle that is actually packaged under /app, include the staging Worker entrypoint in that bundle, retain byte parity with the canonical edge source, and keep provider, database, DNS and Production mutation outside this repair.",
+      "objective": "Make the server-governed Staging Activation Gateway dry-run build only from the generated service-local runtime bundle actually packaged under /app, and close the stale-policy circular recovery dependency by classifying signed JSON GATEWAY_POLICY_STALE health responses causally and routing stale Gateway drift to an exact-main, out-of-band server-side refresh workflow that performs a non-secret dry-run/preflight before any explicitly authorized Worker deploy. Keep all normal Gateway and Recovery routes fail-closed while stale and keep provider, database, DNS, custom-domain and Production mutation outside the dry-run.",
       "e2e_journeys": [
         {
           "id": "staging-gateway-packaged-runtime-bundle",
@@ -40,20 +48,34 @@
           "level": "synthetic_runtime",
           "actor": "Server-governed Staging Activation Gateway dry-run authority",
           "entrypoint": "http-generic-api/stagingActivationGatewayBundle.js",
-          "terminal_outcome": "The dry-run can build the exact Staging Worker from /app/activation-gateway-runtime without reading /edge, while the service-local worker, gateway and policy remain byte-identical to canonical source and no provider execution occurs.",
+          "terminal_outcome": "The dry-run can build the exact Staging Worker from /app/activation-gateway-runtime without reading /edge. A stale but cryptographically identified Gateway health response is classified as reachable-but-stale rather than generic unreachability, and convergence selects the exact-main out-of-band Staging Worker refresh workflow with a same-run non-secret dry-run/preflight before any separately authorized deploy. No launcher/provider mutation occurs.",
           "steps": [
             "Synchronize worker-staging.mjs into the service-local activation-gateway-runtime bundle with the canonical bundle generator.",
             "Resolve the bundle builder default root to http-generic-api/activation-gateway-runtime rather than the repository parent.",
             "Retain repositoryRoot only as an internal test/development injection that still resolves through the service-local bundle.",
             "Build the exact-SHA Staging bundle and policy identity from the packaged runtime files.",
-            "Run runtime-bundle parity and Staging governed-convergence regressions before any live retry."
+            "Run runtime-bundle parity and Staging governed-convergence regressions before any live retry.",
+            "Treat only an object-valued HTTP 503 carrying GATEWAY_POLICY_STALE or stale=true as reachable-but-stale; keep TLS/network failures, 502 and unrelated non-success responses classified as gateway_health_reachable failures.",
+            "Prioritize the stale-policy handoff over other governed Gateway drift so an exact-commit mismatch cannot send execution back through the stale Activation Gateway.",
+            "Bind the immutable convergence plan execution surface to staging_activation_worker_workflow for stale recovery while keeping the same server-resolved Staging Worker target and caller_target_override_allowed=false.",
+            "Run activation_worker_refresh_dry_run on exact current main with exact policy hash and environment convergence plan SHA-256, build the signed bundle in memory, publish only non-secret evidence, and perform no provider access.",
+            "Require deploy_activation_worker to depend on the same-run refresh preflight, require explicit typed confirmation, exact current main, exact policy hash and plan SHA, then verify public exact-SHA/policy health if a later apply is separately authorized.",
+            "Validate the current origin trust contract as mad4b.staging.activation-recovery-origin-trust.v2 and explicitly allow only the safe provider_credentials_included=false metadata field in the secret-name guard."
           ],
           "assertions": [
             "The packaged runtime contains src/worker-staging.mjs and the bundle manifest covers it.",
             "The server bundle builder does not construct edge/activation-gateway paths at runtime.",
             "worker-staging.mjs, gateway.mjs and route-policy.staging.json remain canonical-source parity checked.",
             "The repair does not weaken Gateway policy freshness, trusted ingress, caller target override, capability envelope or apply gates.",
-            "No Cloudflare/provider/DNS/database/Production mutation is performed by this source repair."
+            "No Cloudflare/provider/DNS/database/Production mutation is performed by this source repair.",
+            "The generated service-local runtime bundle includes worker-staging.mjs and remains byte-identical to canonical edge source.",
+            "GATEWAY_POLICY_STALE does not weaken read_stale_grace_seconds=0 or mutation_stale_policy=deny; normal Gateway routes remain unavailable while stale.",
+            "A stale Gateway handoff uses staging_activation_worker_workflow through server_governed_out_of_band authority rather than activation_gateway_dark_deploy behind the stale Gateway.",
+            "When stale and exact-commit drift coexist, stale recovery is the selected next_governed_handoff regardless of failure ordering.",
+            "The stale refresh dry-run is exact-main and plan-bound, writes only no-secret evidence, and reports provider_accessed=false and provider_mutation_performed=false.",
+            "Worker deployment remains a separate consequential operation with explicit DEPLOY_STAGING_ACTIVATION_WORKER confirmation and cannot run unless the same workflow run completed the refresh preflight.",
+            "The Staging Worker workflow validates origin trust v2, policy hash, policy key, sourceCommit and workerBuildSha before classifying a later deploy as healthy.",
+            "AutoPilot/One-Click still never dispatches the stale recovery workflow, reads Cloudflare credentials, or performs provider mutation."
           ],
           "tests": [
             {
@@ -69,6 +91,20 @@
               "working_directory": "http-generic-api",
               "path": "test-staging-smart-gateway-convergence-contract.mjs",
               "args": []
+            },
+            {
+              "id": "staging-activation-gateway-convergence",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-activation-gateway.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-autopilot-closure",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-autopilot-closure.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -77,7 +113,15 @@
             "http-generic-api/scripts/sync-activation-gateway-runtime-bundle.mjs",
             "http-generic-api/activation-gateway-runtime/src/worker-staging.mjs",
             "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
-            "http-generic-api/test-activation-gateway-runtime-bundle-parity.mjs"
+            "http-generic-api/test-activation-gateway-runtime-bundle-parity.mjs",
+            "http-generic-api/scripts/staging-live-certification.mjs",
+            "http-generic-api/environmentConvergenceRegistry.js",
+            "http-generic-api/environmentConvergenceEngine.js",
+            "http-generic-api/config/environment-convergence-registry.json",
+            ".github/workflows/staging-main-deploy-eligibility.yml",
+            "http-generic-api/test-staging-activation-gateway.mjs",
+            "http-generic-api/test-staging-autopilot-closure.mjs",
+            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
           ]
         }
       ]
