@@ -236,8 +236,15 @@ export function buildEnvironmentConvergencePlan({
     throw new Error("environment_convergence_governed_drift_missing");
   }
 
-  const executionTarget = resolveEnvironmentExecutionTarget(environmentKey, profile);
-  const firstHandoff = governedFailures[0].handoff;
+  const profileExecutionTarget = resolveEnvironmentExecutionTarget(environmentKey, profile);
+  const firstHandoff = classification.next_governed_handoff || governedFailures[0].handoff;
+  const executionTarget = firstHandoff.execution_surface
+    ? {
+        ...profileExecutionTarget,
+        runtime_surface: firstHandoff.execution_surface,
+        execution_ready: firstHandoff.execution_ready === true,
+      }
+    : profileExecutionTarget;
   const policyIdentity = gatewayPolicyIdentity(certificationReport, profile);
   const body = {
     contract: "mad4b.environment-convergence-plan.v1",
@@ -269,6 +276,15 @@ export function buildEnvironmentConvergencePlan({
       target_authority_model: firstHandoff.target_authority_model,
       plan_capability: firstHandoff.plan_capability,
       apply_capability: firstHandoff.apply_capability,
+      execution_surface: firstHandoff.execution_surface || executionTarget.runtime_surface,
+      transport: firstHandoff.transport || null,
+      workflow: firstHandoff.workflow || null,
+      dry_run_operation: firstHandoff.dry_run_operation || null,
+      apply_operation: firstHandoff.apply_operation || null,
+      requires_exact_main: firstHandoff.requires_exact_main === true,
+      requires_same_run_preflight: firstHandoff.requires_same_run_preflight === true,
+      caller_selected_provider_target_allowed: firstHandoff.caller_selected_provider_target_allowed === true,
+      stale_gateway_bypass_required: firstHandoff.stale_gateway_bypass_required === true,
       profile_binding_required: firstHandoff.profile_binding_required === true,
       execution_target: executionTarget,
       execution_ready: firstHandoff.execution_ready === true && executionTarget.execution_ready === true,
