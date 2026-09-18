@@ -21,7 +21,9 @@
       "http-generic-api/scripts/test-manifest.mjs",
       "http-generic-api/test-custom-gpt-environment-aware-contract.mjs",
       "http-generic-api/test-environment-impact-closure.mjs",
-      "http-generic-api/test-remote-runtime-catalog-probe.mjs"
+      "http-generic-api/test-remote-runtime-catalog-probe.mjs",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json"
     ]
   },
   "merge_contract": {
@@ -62,7 +64,8 @@
             "The canonical POST catalog remains unchanged and the new projection accepts query input only.",
             "The operation does not consume a shared Admin Core Custom GPT operation slot.",
             "Staging live certification remains required because shared runtime/OpenAPI and Staging policy surfaces change.",
-            "production_mutation_allowed remains false and secrets_included remains false."
+            "production_mutation_allowed remains false and secrets_included remains false.",
+            "The critical declaration is registered in Constitution.control_plane_paths and convergence.automation_control_paths before merge."
           ],
           "tests": [
             {
