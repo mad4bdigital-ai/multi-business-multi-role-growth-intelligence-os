@@ -224,13 +224,27 @@ assert.match(migrationSource, /caller_selected_provider_target/u);
 assert.match(migrationSource, /dns_write_allowed', FALSE/u);
 assert.match(migrationSource, /production_mutation_allowed', FALSE/u);
 
-// The legacy workflow remains deployment infrastructure but is not callable by AutoPilot.
+// The out-of-band stale recovery workflow remains server-side infrastructure and is never dispatched by AutoPilot.
+assert.match(workflow, /activation_worker_refresh_dry_run/u);
+assert.match(workflow, /environment_convergence_plan_sha256/u);
+assert.match(workflow, /expected_policy_hash/u);
+assert.match(workflow, /mad4b\.staging\.activation-worker-refresh-dry-run\.v1/u);
+assert.match(workflow, /provider_accessed: false/u);
+assert.match(workflow, /provider_mutation_performed: false/u);
+assert.match(workflow, /same_run_preflight_required_for_apply: true/u);
+assert.match(workflow, /activation_worker_refresh_preflight/u);
+assert.match(workflow, /needs:[\s\S]*activation_worker_refresh_preflight/u);
 assert.match(workflow, /operation == 'deploy_activation_worker'/u);
 assert.match(workflow, /DEPLOY_STAGING_ACTIVATION_WORKER/u);
 assert.match(workflow, /mad4b-activation-gateway-staging/u);
 assert.match(workflow, /test "\$\(git rev-parse origin\/main\)" = "\$SOURCE_SHA"/u);
+assert.match(workflow, /mad4b\.staging\.activation-recovery-origin-trust\.v2/u);
+assert.doesNotMatch(workflow, /mad4b\.staging\.activation-recovery-origin-trust\.v1/u);
+assert.match(workflow, /\.provider_credentials_included == false/u);
 assert.match(workflow, /\.sourceCommit == \$sha/u);
 assert.match(workflow, /\.workerBuildSha == \$sha/u);
+assert.match(workflow, /\.policyKey == "activation_gateway_staging"/u);
+assert.match(workflow, /\.policyHash == \$policy_hash/u);
 assert.match(workflow, /\.stale == false/u);
 assert.match(workflow, /\.secretsIncluded == false/u);
 assert.match(workflow, /origin-trust\.json/u);
