@@ -5,6 +5,7 @@ import {
   PLATFORM_RESOURCE_RECIPE_TABLES,
   assertPlatformResourceRecipeStoreSource,
   getPlatformResourceRecipeByKey,
+  listPlatformResourceRecipes,
   listPlatformResourceRecipesByKeys,
   listPlatformResourceRecipeSteps,
   resolvePlatformResourceRecipePool,
@@ -22,6 +23,14 @@ const governancePool = {
   async query(sql, params) {
     governanceQueries.push({ sql, params });
     if (sql.includes("FROM platform_resource_recipes")) {
+      if (sql.includes("ORDER BY r.status")) {
+        return [[{
+          recipe_key: "google_drive.folder.inspect_tree",
+          resource_type: "drive_folder",
+          adapter_key: "google_drive.folder.inspect.adapter",
+          status: "active",
+        }]];
+      }
       if (sql.includes("WHERE recipe_key IN")) {
         return [[
           {
@@ -127,6 +136,25 @@ assert.deepEqual(recipes.map((row) => row.recipe_key), [
   "repo.pr.label",
 ]);
 
+const catalogRows = await listPlatformResourceRecipes(
+  {
+    resourceType: "drive_folder",
+    operationKey: "inspect_tree",
+    status: "active",
+    providerResourceTypes: ["drive_folder", "drive_folder"],
+    search: "Drive",
+    searchResourceTypes: ["drive_folder", "drive_folder"],
+    searchAdapterKeys: ["google_drive.folder.inspect.adapter", "google_drive.folder.inspect.adapter"],
+    limit: 10,
+  },
+  {
+    recipeStorePool: governancePool,
+    runtimePool,
+  },
+);
+assert.equal(catalogRows.length, 1);
+assert.equal(catalogRows[0]?.recipe_key, "google_drive.folder.inspect_tree");
+
 const steps = await listPlatformResourceRecipeSteps("repo.pr.comment_advisory", {
   recipeStorePool: governancePool,
   runtimePool,
@@ -135,12 +163,27 @@ assert.equal(steps.length, 1);
 assert.equal(steps[0]?.step_key, "readback");
 
 assert.equal(runtimeQueryCount, 0);
-assert.equal(governanceQueries.length, 3);
+assert.equal(governanceQueries.length, 4);
 assert.match(governanceQueries[0].sql, /FROM platform_resource_recipes/i);
 assert.match(governanceQueries[1].sql, /WHERE recipe_key IN/i);
-assert.match(governanceQueries[2].sql, /FROM platform_resource_recipe_steps/i);
+assert.match(governanceQueries[2].sql, /ORDER BY r\.status/i);
+assert.match(governanceQueries[2].sql, /r\.resource_type IN \(\?\)/i);
+assert.match(governanceQueries[2].sql, /r\.adapter_key IN \(\?\)/i);
+assert.match(governanceQueries[3].sql, /FROM platform_resource_recipe_steps/i);
 assert.deepEqual(governanceQueries[0].params, ["repo.pr.comment_advisory"]);
 assert.deepEqual(governanceQueries[1].params, ["repo.pr.comment_advisory", "repo.pr.label"]);
-assert.deepEqual(governanceQueries[2].params, ["repo.pr.comment_advisory"]);
+assert.deepEqual(governanceQueries[2].params, [
+  "drive_folder",
+  "inspect_tree",
+  "active",
+  "drive_folder",
+  "%Drive%",
+  "%Drive%",
+  "%Drive%",
+  "drive_folder",
+  "google_drive.folder.inspect.adapter",
+  10,
+]);
+assert.deepEqual(governanceQueries[3].params, ["repo.pr.comment_advisory"]);
 
 console.log("Platform Resource Recipe Store contract tests passed.");

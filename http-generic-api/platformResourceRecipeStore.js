@@ -126,6 +126,80 @@ export async function listPlatformResourceRecipesByKeys(recipeKeys = [], deps = 
   return Array.isArray(rows) ? rows : [];
 }
 
+function normalizedStringList(values = []) {
+  return [...new Set(
+    (Array.isArray(values) ? values : [])
+      .map((value) => String(value ?? "").trim())
+      .filter(Boolean),
+  )];
+}
+
+export async function listPlatformResourceRecipes(filters = {}, deps = {}) {
+  const pool = resolvePlatformResourceRecipePool(deps);
+  assertPlatformResourceRecipeStoreSource({ pool, runtimePool: deps.runtimePool });
+
+  const conditions = ["1=1"];
+  const params = [];
+  const addExact = (column, value) => {
+    const normalized = String(value ?? "").trim();
+    if (!normalized) return;
+    conditions.push(`${column} = ?`);
+    params.push(normalized);
+  };
+
+  addExact("r.resource_type", filters.resourceType);
+  addExact("r.operation_key", filters.operationKey);
+  addExact("r.status", filters.status);
+
+  if (Array.isArray(filters.providerResourceTypes)) {
+    const resourceTypes = normalizedStringList(filters.providerResourceTypes);
+    if (!resourceTypes.length) return [];
+    conditions.push(`r.resource_type IN (${resourceTypes.map(() => "?").join(",")})`);
+    params.push(...resourceTypes);
+  }
+
+  const search = String(filters.search ?? "").trim();
+  if (search) {
+    const like = `%${search}%`;
+    const searchClauses = [
+      "r.recipe_key LIKE ?",
+      "r.operation_key LIKE ?",
+      "r.resource_type LIKE ?",
+    ];
+    params.push(like, like, like);
+
+    const searchResourceTypes = normalizedStringList(filters.searchResourceTypes);
+    if (searchResourceTypes.length) {
+      searchClauses.push(`r.resource_type IN (${searchResourceTypes.map(() => "?").join(",")})`);
+      params.push(...searchResourceTypes);
+    }
+
+    const searchAdapterKeys = normalizedStringList(filters.searchAdapterKeys);
+    if (searchAdapterKeys.length) {
+      searchClauses.push(`r.adapter_key IN (${searchAdapterKeys.map(() => "?").join(",")})`);
+      params.push(...searchAdapterKeys);
+    }
+
+    conditions.push(`(${searchClauses.join(" OR ")})`);
+  }
+
+  const parsedLimit = Number.parseInt(filters.limit, 10);
+  const limit = Number.isFinite(parsedLimit) && parsedLimit > 0
+    ? Math.min(parsedLimit, 200)
+    : 50;
+  params.push(limit);
+
+  const [rows] = await pool.query(
+    `SELECT r.*
+       FROM platform_resource_recipes r
+      WHERE ${conditions.join(" AND ")}
+      ORDER BY r.status = 'active' DESC, r.resource_type ASC, r.recipe_key ASC
+      LIMIT ?`,
+    params,
+  );
+  return Array.isArray(rows) ? rows : [];
+}
+
 export async function listPlatformResourceRecipeSteps(recipeKey, deps = {}) {
   const key = normalizedRecipeKey(recipeKey);
   const pool = resolvePlatformResourceRecipePool(deps);

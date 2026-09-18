@@ -2,6 +2,11 @@ import { createHash, randomUUID } from "node:crypto";
 
 import { getPool } from "./db.js";
 import { resolvePlatformResourceAuthorityPool } from "./platformResourceAuthorityStore.js";
+import {
+  getPlatformResourceRecipeByKey,
+  listPlatformResourceRecipes,
+  listPlatformResourceRecipeSteps,
+} from "./platformResourceRecipeStore.js";
 import { getGitHubAppInstallationToken } from "./githubAppAuth.js";
 import { markCapabilityEnvelopeReferenced, resolveCapabilityExecutionEnvelope } from "./capabilityResolutionEnvelopeGuard.js";
 import { buildGoogleDriveMultipartRelatedJsonPayload } from "./providerTransportEncoderRegistry.js";
@@ -390,7 +395,110 @@ function normalizeStepRow(row = {}) {
   };
 }
 
-async function getRecipeByKey(recipeKey) {
+function uniqueStrings(values = []) {
+  return [...new Set(
+    (Array.isArray(values) ? values : [])
+      .map((value) => asString(value))
+      .filter(Boolean),
+  )];
+}
+
+function resolveRuntimeRecipeMetadataPool(deps = {}) {
+  const pool = deps.runtimePool || getPool();
+  if (!pool || typeof pool.query !== "function") {
+    const err = new Error("Runtime recipe metadata pool must expose a query method.");
+    err.status = 503;
+    err.code = "resource_recipe_runtime_metadata_pool_invalid";
+    throw err;
+  }
+  return pool;
+}
+
+async function enrichRecipeRowsWithRuntimeMetadata(rows = [], runtimePool) {
+  const recipes = Array.isArray(rows) ? rows : [];
+  if (!recipes.length) return [];
+
+  const resourceTypes = uniqueStrings(recipes.map((row) => row.resource_type));
+  const adapterKeys = uniqueStrings(recipes.map((row) => row.adapter_key));
+
+  const [typeResult, adapterResult] = await Promise.all([
+    resourceTypes.length
+      ? runtimePool.query(
+          `SELECT resource_type, resource_family, provider_key, display_name
+             FROM platform_resource_types
+            WHERE resource_type IN (${resourceTypes.map(() => "?").join(",")})`,
+          resourceTypes,
+        )
+      : Promise.resolve([[]]),
+    adapterKeys.length
+      ? runtimePool.query(
+          `SELECT adapter_key, adapter_kind, installed_tool_key
+             FROM platform_resource_adapters
+            WHERE adapter_key IN (${adapterKeys.map(() => "?").join(",")})`,
+          adapterKeys,
+        )
+      : Promise.resolve([[]]),
+  ]);
+
+  const typeRows = Array.isArray(typeResult?.[0]) ? typeResult[0] : [];
+  const adapterRows = Array.isArray(adapterResult?.[0]) ? adapterResult[0] : [];
+  const typeByKey = new Map(typeRows.map((row) => [row.resource_type, row]));
+  const adapterByKey = new Map(adapterRows.map((row) => [row.adapter_key, row]));
+
+  return recipes.map((row) => ({
+    ...row,
+    resource_family: typeByKey.get(row.resource_type)?.resource_family || null,
+    provider_key: typeByKey.get(row.resource_type)?.provider_key || null,
+    adapter_kind: adapterByKey.get(row.adapter_key)?.adapter_kind || null,
+    installed_tool_key: adapterByKey.get(row.adapter_key)?.installed_tool_key || null,
+  }));
+}
+
+async function loadCatalogRuntimeCandidates(args = {}, runtimePool) {
+  const providerKey = asString(args.provider_key);
+  const search = asString(args.search);
+  let providerResourceTypes = null;
+  let searchResourceTypes = [];
+  let searchAdapterKeys = [];
+
+  if (providerKey) {
+    const [rows] = await runtimePool.query(
+      `SELECT resource_type
+         FROM platform_resource_types
+        WHERE provider_key = ?`,
+      [providerKey],
+    );
+    providerResourceTypes = uniqueStrings((rows || []).map((row) => row.resource_type));
+  }
+
+  if (search) {
+    const like = `%${search}%`;
+    const [typeResult, adapterResult] = await Promise.all([
+      runtimePool.query(
+        `SELECT resource_type
+           FROM platform_resource_types
+          WHERE display_name LIKE ?`,
+        [like],
+      ),
+      runtimePool.query(
+        `SELECT adapter_key
+           FROM platform_resource_adapters
+          WHERE adapter_key LIKE ?`,
+        [like],
+      ),
+    ]);
+    searchResourceTypes = uniqueStrings((typeResult?.[0] || []).map((row) => row.resource_type));
+    searchAdapterKeys = uniqueStrings((adapterResult?.[0] || []).map((row) => row.adapter_key));
+  }
+
+  return {
+    providerResourceTypes,
+    searchResourceTypes,
+    searchAdapterKeys,
+  };
+}
+
+async function getRecipeByKey(recipeKey, deps = {}) {
   const key = asString(recipeKey);
   if (!key) {
     const err = new Error("recipe_key is required.");
@@ -399,42 +507,37 @@ async function getRecipeByKey(recipeKey) {
     throw err;
   }
 
-  const [rows] = await getPool().query(
-    `SELECT r.*, t.resource_family, t.provider_key, a.adapter_kind, a.installed_tool_key
-       FROM platform_resource_recipes r
-       LEFT JOIN platform_resource_types t ON t.resource_type = r.resource_type
-       LEFT JOIN platform_resource_adapters a ON a.adapter_key = r.adapter_key
-      WHERE r.recipe_key = ?
-      LIMIT 1`,
-    [key]
-  );
+  const runtimePool = resolveRuntimeRecipeMetadataPool(deps);
+  const row = await getPlatformResourceRecipeByKey(key, {
+    recipeStorePool: deps.recipeStorePool,
+    governancePool: deps.governancePool,
+    runtimePool,
+  });
 
-  if (!rows.length) {
+  if (!row) {
     const err = new Error(`Resource recipe ${key} not found.`);
     err.status = 404;
     err.code = "resource_recipe_not_found";
     throw err;
   }
 
-  return normalizeRecipeRow(rows[0]);
+  const [enriched] = await enrichRecipeRowsWithRuntimeMetadata([row], runtimePool);
+  return normalizeRecipeRow(enriched);
 }
 
-async function listRecipeSteps(recipeKey) {
-  const [rows] = await getPool().query(
-    `SELECT step_order, step_key, step_kind, parent_action_key, endpoint_key, tool_key,
-            source_table, source_pk_template_json, query_template_json, body_template_json,
-            response_projection_json, required, on_error_policy, status
-       FROM platform_resource_recipe_steps
-      WHERE recipe_key = ?
-      ORDER BY step_order ASC, step_id ASC`,
-    [recipeKey]
-  );
+async function listRecipeSteps(recipeKey, deps = {}) {
+  const runtimePool = resolveRuntimeRecipeMetadataPool(deps);
+  const rows = await listPlatformResourceRecipeSteps(recipeKey, {
+    recipeStorePool: deps.recipeStorePool,
+    governancePool: deps.governancePool,
+    runtimePool,
+  });
   return rows.map(normalizeStepRow);
 }
 
-export async function resolveGovernedResource(args = {}) {
+export async function resolveGovernedResource(args = {}, deps = {}) {
   const resolved = resolveResourceRefInput(args);
-  const recipe = args.recipe_key ? await getRecipeByKey(args.recipe_key) : null;
+  const recipe = args.recipe_key ? await getRecipeByKey(args.recipe_key, deps) : null;
 
   return {
     ok: Boolean(resolved),
@@ -448,59 +551,43 @@ export async function resolveGovernedResource(args = {}) {
   };
 }
 
-export async function catalogGovernedResources(args = {}) {
-  const conditions = ["1=1"];
-  const params = [];
-
-  for (const [argKey, column] of [
-    ["provider_key", "t.provider_key"],
-    ["resource_type", "r.resource_type"],
-    ["operation_key", "r.operation_key"],
-  ]) {
-    if (args[argKey]) {
-      conditions.push(`${column} = ?`);
-      params.push(asString(args[argKey]));
-    }
+export async function catalogGovernedResources(args = {}, deps = {}) {
+  const status = asString(args.status);
+  if (status && !VALID_RECIPE_STATUSES.has(status)) {
+    const err = new Error("status must be one of: planned, active, disabled.");
+    err.status = 400;
+    err.code = "invalid_status";
+    throw err;
   }
 
-  if (args.status) {
-    const status = asString(args.status);
-    if (!VALID_RECIPE_STATUSES.has(status)) {
-      const err = new Error("status must be one of: planned, active, disabled.");
-      err.status = 400;
-      err.code = "invalid_status";
-      throw err;
-    }
-    conditions.push("r.status = ?");
-    params.push(status);
-  }
-
+  const runtimePool = resolveRuntimeRecipeMetadataPool(deps);
   const search = asString(args.search);
-  if (search) {
-    conditions.push("(r.recipe_key LIKE ? OR r.operation_key LIKE ? OR r.resource_type LIKE ? OR t.display_name LIKE ? OR a.adapter_key LIKE ?)");
-    const like = `%${search}%`;
-    params.push(like, like, like, like, like);
-  }
-
   const limit = clampLimit(args.limit, 50, 200);
-  params.push(limit);
-
-  const [rows] = await getPool().query(
-    `SELECT r.*, t.resource_family, t.provider_key, a.adapter_kind, a.installed_tool_key
-       FROM platform_resource_recipes r
-       LEFT JOIN platform_resource_types t ON t.resource_type = r.resource_type
-       LEFT JOIN platform_resource_adapters a ON a.adapter_key = r.adapter_key
-      WHERE ${conditions.join(" AND ")}
-      ORDER BY r.status = 'active' DESC, r.resource_type ASC, r.recipe_key ASC
-      LIMIT ?`,
-    params
+  const runtimeCandidates = await loadCatalogRuntimeCandidates(args, runtimePool);
+  const rows = await listPlatformResourceRecipes(
+    {
+      resourceType: asString(args.resource_type),
+      operationKey: asString(args.operation_key),
+      status,
+      providerResourceTypes: runtimeCandidates.providerResourceTypes,
+      search,
+      searchResourceTypes: runtimeCandidates.searchResourceTypes,
+      searchAdapterKeys: runtimeCandidates.searchAdapterKeys,
+      limit,
+    },
+    {
+      recipeStorePool: deps.recipeStorePool,
+      governancePool: deps.governancePool,
+      runtimePool,
+    },
   );
 
-  const recipes = rows.map(normalizeRecipeRow);
+  const enrichedRows = await enrichRecipeRowsWithRuntimeMetadata(rows, runtimePool);
+  const recipes = enrichedRows.map(normalizeRecipeRow);
   const stepsByRecipe = {};
   if (args.include_steps === true) {
     for (const recipe of recipes) {
-      stepsByRecipe[recipe.recipe_key] = await listRecipeSteps(recipe.recipe_key);
+      stepsByRecipe[recipe.recipe_key] = await listRecipeSteps(recipe.recipe_key, deps);
     }
   }
 
@@ -2236,10 +2323,10 @@ async function resolvePlatformResourceAuthorityBinding(plan = {}, args = {}, mod
   };
 }
 
-export async function planGovernedResource(args = {}) {
-  const recipe = await getRecipeByKey(args.recipe_key);
+export async function planGovernedResource(args = {}, deps = {}) {
+  const recipe = await getRecipeByKey(args.recipe_key, deps);
   const resolved = resolveResourceRefInput({ ...args, resource_type: recipe.resource_type });
-  const steps = await listRecipeSteps(recipe.recipe_key);
+  const steps = await listRecipeSteps(recipe.recipe_key, deps);
   const dryRun = args.dry_run !== false;
   const requestedOptions = args.options && typeof args.options === "object" ? args.options : {};
 
@@ -2299,7 +2386,7 @@ export async function planGovernedResource(args = {}) {
 }
 
 export async function runGovernedResource(args = {}, deps = {}) {
-  const plan = await planGovernedResource({ ...args, dry_run: true });
+  const plan = await planGovernedResource({ ...args, dry_run: true }, deps);
   const mode = asString(args.mode || "plan") || "plan";
   const applyRequested = mode === "apply" || args.apply === true;
   const recipe = plan.recipe || {};
