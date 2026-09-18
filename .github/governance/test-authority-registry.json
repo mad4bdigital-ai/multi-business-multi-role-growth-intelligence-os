@@ -544,6 +544,13 @@
       "test_paths": [
         "http-generic-api/test-workspace-brand-core-asset-materialization.mjs"
       ]
+    },
+    {
+      "id": "staging_admin_remote_runtime_catalog_readonly",
+      "test_paths": [
+        "http-generic-api/test-custom-gpt-environment-aware-contract.mjs",
+        "http-generic-api/test-remote-runtime-catalog-probe.mjs"
+      ]
     }
   ],
   "discovery": {
