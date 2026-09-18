@@ -50,9 +50,10 @@
     "expected_policy_hash": "dd5f152c4a226d07c75cf33dae3ab3a0cbf6e9913b623724429a96b2d4f96a96",
     "public_host": "activation-dev.mad4b.com",
     "bundle_key": "activation_gateway_staging_worker",
-    "entrypoint": "edge/activation-gateway/src/worker-staging.mjs",
+    "entrypoint": "http-generic-api/activation-gateway-runtime/src/worker-staging.mjs",
     "caller_policy_path_override_allowed": false,
-    "plan_hash_binds_policy_hash": true
+    "plan_hash_binds_policy_hash": true,
+    "runtime_policy_path": "http-generic-api/activation-gateway-runtime/generated/route-policy.staging.json"
   },
   "postconditions": {
     "public_health_url": "https://activation-dev.mad4b.com/health",
