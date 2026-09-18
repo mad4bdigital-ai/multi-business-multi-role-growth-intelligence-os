@@ -169,6 +169,11 @@ assert.match(workflow, /VERIFIED_WORKER_BUNDLE_SHA256: \$\{\{ needs\.activation_
 assert.match(workflow, /PREFLIGHT_BINDING_SHA256: \$\{\{ needs\.activation_worker_refresh_preflight\.outputs\.preflight_binding_sha256 \}\}/u);
 assert.match(workflow, /staging-activation-worker-handoff-verifier\.mjs/u);
 assert.match(workflow, /buildStagingActivationWorkerPreflightBinding/u);
+assert.ok(
+  workflow.indexOf("      - name: Verify same-run plan and Worker bundle binding")
+    < workflow.indexOf("      - name: Verify Cloudflare Worker API authority"),
+  "same-run plan/bundle binding must be verified before any Cloudflare provider API access",
+);
 assert.doesNotMatch(workflow, /\n      CONVERGENCE_PLAN_SHA256: \$\{\{ inputs\.environment_convergence_plan_sha256 \}\}/u);
 assert.doesNotMatch(workflow, /caller_plan_digest_is_execution_authority: true/u);
 

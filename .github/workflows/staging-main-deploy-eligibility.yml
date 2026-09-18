@@ -317,23 +317,6 @@ jobs:
           test "$(git rev-parse origin/main)" = "$SOURCE_SHA"
           test -z "$(git status --porcelain)"
 
-      - name: Verify Cloudflare Worker API authority
-        shell: bash
-        run: |
-          set -euo pipefail
-          response_file="$(mktemp)"
-          trap 'rm -f "$response_file"' EXIT
-          status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
-            --connect-timeout 10 --max-time 20 \
-            --header "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts" || true)"
-          if test "$status" != "200" || ! jq -e '.success == true' "$response_file" >/dev/null 2>&1; then
-            jq -c '{success, errors: [.errors[]? | {code, message}], messages: [.messages[]? | {code, message}]}' "$response_file" || true
-            echo "::error::Cloudflare Worker API authority preflight failed (HTTP $status). Check CLOUDFLARE_API_TOKEN, its account scope, and Workers Scripts Edit permission."
-            exit 1
-          fi
-          echo "Cloudflare Worker API authority preflight passed."
-
       - name: Build signed exact-SHA Worker artifact
         shell: bash
         run: |
@@ -389,6 +372,23 @@ jobs:
             same_run_preflight_verified: true,
           }));
           NODE
+
+      - name: Verify Cloudflare Worker API authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
+          status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
+            --connect-timeout 10 --max-time 20 \
+            --header "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts" || true)"
+          if test "$status" != "200" || ! jq -e '.success == true' "$response_file" >/dev/null 2>&1; then
+            jq -c '{success, errors: [.errors[]? | {code, message}], messages: [.messages[]? | {code, message}]}' "$response_file" || true
+            echo "::error::Cloudflare Worker API authority preflight failed (HTTP $status). Check CLOUDFLARE_API_TOKEN, its account scope, and Workers Scripts Edit permission."
+            exit 1
+          fi
+          echo "Cloudflare Worker API authority preflight passed."
 
       - name: Verify pinned Wrangler deployment capability
         shell: bash
