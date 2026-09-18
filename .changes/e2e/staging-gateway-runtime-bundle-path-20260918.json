@@ -33,7 +33,8 @@
       "http-generic-api/test-recovery-system-tool-overlay.mjs",
       "http-generic-api/databasePrivilegeContracts.js",
       "http-generic-api/scripts/staging-database-recovery-contract.mjs",
-      "http-generic-api/Dockerfile.staging"
+      "http-generic-api/Dockerfile.staging",
+      ".dockerignore"
     ]
   },
   "environment_impact": {
@@ -79,7 +80,7 @@
             "Expose only expected_source_commit, expected_policy_hash and environment_convergence_plan_sha256 on that System Tool; account_id, script_name, workspace_id, resource_binding_id, capability_envelope_id, execution_nonce and confirmation remain server-controlled or unavailable on the dry-run surface.",
             "Pass the authenticated principal and the same server-side preflight dependencies through the Recovery System Tool overlay so workspace and profile authority are resolved identically to the dedicated Admin route.",
             "Add v_platform_capability_readiness_vector to the Staging runtime optional read surfaces so the role receives SELECT only when the view exists; a missing view remains non-blocking degraded evidence and never expands schema privileges.",
-            "Package the exact secret-free Git-archive build context under /app/repo-inspect and set REPO_INSPECT_ROOT there so Staging repo_inspect list/read/search can resolve repository-root canonical files instead of failing ENOENT against the flattened service image."
+            "Package an allowlisted canonical-knowledge snapshot from the exact secret-free Git-archive build context under /app/repo-inspect, and set REPO_INSPECT_ROOT there so Staging repo_inspect list/read/search can resolve the required repository-root references instead of failing ENOENT against the flattened service image."
           ],
           "assertions": [
             "The packaged runtime contains src/worker-staging.mjs and the bundle manifest covers it.",
@@ -103,7 +104,7 @@
             "The Staging Gateway dry-run System Tool rejects caller-selected account, script, workspace, resource binding, capability envelope, execution nonce and confirmation fields before execution.",
             "System Tool dry-run dispatch reaches the same server-resolved preflight path and preserves provider_accessed=false, provider_mutation_performed=false and production_authority=false.",
             "v_platform_capability_readiness_vector is an optional Staging runtime SELECT-only surface; its absence cannot trigger broad schema grants and its presence does not grant INSERT, UPDATE, DELETE, DDL or GRANT OPTION.",
-            "The Staging image exposes a repo_inspect source snapshot only from the exact Git-archive build context, removes generated build-context metadata from that snapshot, and never relies on an operator filesystem mount or ignored local files."
+            "The Staging image exposes repo_inspect source only from the exact Git-archive build context and the Docker context explicitly allowlists the required docs/canonicals/root knowledge files while ignored local material remains excluded."
           ],
           "tests": [
             {
@@ -183,7 +184,8 @@
             "http-generic-api/test-recovery-system-tool-overlay.mjs",
             "http-generic-api/databasePrivilegeContracts.js",
             "http-generic-api/scripts/staging-database-recovery-contract.mjs",
-            "http-generic-api/Dockerfile.staging"
+            "http-generic-api/Dockerfile.staging",
+            ".dockerignore"
           ],
           "objective": "undefined The same Staging Recovery authority must also be directly discoverable through the private System Tool catalog without falling back to the generic account_id-based rollout tool, and the Staging runtime role must receive only optional SELECT access to the capability-readiness vector required by live readiness diagnostics."
         }
