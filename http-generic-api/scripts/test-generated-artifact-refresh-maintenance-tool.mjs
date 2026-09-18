@@ -118,13 +118,15 @@ runCheck("tool-canonical-auth-repair", () => {
   const detailGapIndex = toolSource.indexOf("generate_openapi_detail_gap_classification");
   const customGptIndex = toolSource.indexOf("generate_custom_gpt_schemas");
   const stagingAdminIndex = toolSource.indexOf("generate_staging_admin_openapi");
+  const activationStagingPolicyIndex = toolSource.indexOf("generate_activation_staging_policy");
   const activationBundleIndex = toolSource.indexOf("sync_activation_gateway_runtime_bundle");
   const convergenceHashIndex = toolSource.indexOf("syncActivationGatewayProfilePolicyHashes");
   const gapClosureIndex = toolSource.indexOf("generate_openapi_gap_closure_plan");
   const detailBatchIndex = toolSource.indexOf("generate_openapi_detail_closure_batch");
   assert.ok(authSyncIndex >= 0 && customGptIndex > authSyncIndex, "auth repair must precede shared Custom GPT schema generation");
   assert.ok(stagingAdminIndex > customGptIndex, "Staging Admin schema must follow shared Custom GPT schema generation");
-  assert.ok(dispatchIndex > stagingAdminIndex, "frontend projection generation must follow every OpenAPI source artifact");
+  assert.ok(activationStagingPolicyIndex > stagingAdminIndex, "Staging Activation policy must follow generated Staging surfaces");
+  assert.ok(dispatchIndex > activationStagingPolicyIndex, "frontend projection generation must follow OpenAPI and Staging policy materialization");
   assert.ok(detailGapIndex > dispatchIndex, "detail-gap classification must follow frontend dispatch generation");
   assert.ok(gapClosureIndex > detailGapIndex, "gap-closure planning must follow detail-gap classification");
   assert.ok(detailBatchIndex > gapClosureIndex, "detail-batch generation must follow gap-closure planning");
@@ -142,6 +144,8 @@ runCheck("tool-canonical-auth-repair", () => {
   assert.match(toolSource, /http-generic-api\/openapi\/openapi\.custom-gpt\.staging-admin\.yaml/u);
   assert.match(toolSource, /http-generic-api\/openapi\/openapi\.custom-gpt\.auth-dispatcher\.production\.yaml/u);
   assert.match(toolSource, /scripts\/build-staging-admin-openapi\.mjs/u);
+  assert.match(toolSource, /scripts\/generate-activation-staging-policy\.mjs/u);
+  assert.match(toolSource, /verify_activation_staging_policy/u);
   assert.match(toolSource, /SHA256_PATTERN = \/\^\[0-9a-f\]\{64\}\$\/u/u);
   assert.match(toolSource, /activation_gateway_policy_identity_invalid/u);
   assert.match(toolSource, /environment_convergence_gateway_profile_invalid/u);
