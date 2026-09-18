@@ -43,6 +43,7 @@ const FRONTEND_OPENAPI_ALLOWED_CHANGED_FILES = new Set([
   "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
   "http-generic-api/activation-gateway-runtime/generated/route-policy.staging.json",
   "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
+  "http-generic-api/config/environment-convergence-registry.json",
   "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
   "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
   OPENAPI_DETAIL_BATCH_OUTPUT,
@@ -407,6 +408,48 @@ function resolveRecipe(requestedRecipe, candidateSourceFiles) {
   return normalized;
 }
 
+function syncActivationGatewayProfilePolicyHashes() {
+  const registryPath = path.join(apiDir, "config", "environment-convergence-registry.json");
+  const registry = JSON.parse(fs.readFileSync(registryPath, "utf8"));
+  const bindings = [
+    {
+      environment: "staging",
+      policyKey: "activation_gateway_staging",
+      policyPath: path.join(repoRoot, "edge", "activation-gateway", "generated", "route-policy.staging.json"),
+    },
+    {
+      environment: "production",
+      policyKey: "activation_gateway",
+      policyPath: path.join(apiDir, "activation-gateway-runtime", "generated", "route-policy.json"),
+    },
+  ];
+  for (const binding of bindings) {
+    const policy = JSON.parse(fs.readFileSync(binding.policyPath, "utf8"));
+    const policyHash = String(policy?.content_hash_sha256 || "").trim().toLowerCase();
+    if (policy?.policy_key !== binding.policyKey || !FULL_SHA_PATTERN.test(policyHash)) {
+      throw new ToolFailure({
+        code: "activation_gateway_policy_identity_invalid",
+        step: "sync_activation_gateway_profile_policy_hashes",
+        command: `validate ${binding.environment} Activation Gateway policy identity`,
+        status: 1,
+        stderr: "Generated Activation Gateway policy key or content hash is invalid.",
+      });
+    }
+    const gatewayProfile = registry?.profiles?.[binding.environment]?.activation_gateway;
+    if (!gatewayProfile || gatewayProfile.policy_key !== binding.policyKey) {
+      throw new ToolFailure({
+        code: "environment_convergence_gateway_profile_invalid",
+        step: "sync_activation_gateway_profile_policy_hashes",
+        command: `validate ${binding.environment} convergence gateway profile`,
+        status: 1,
+        stderr: "Environment convergence registry is missing the exact Activation Gateway profile.",
+      });
+    }
+    gatewayProfile.expected_policy_hash = policyHash;
+  }
+  fs.writeFileSync(registryPath, `${JSON.stringify(registry, null, 2)}\n`, "utf8");
+}
+
 function refreshPortableStagingManifest() {
   run("refresh_portable_staging_manifest", "node", ["scripts/generate-portable-staging-manifest.mjs", "--write"], { cwd: apiDir });
 }
@@ -422,6 +465,7 @@ function runFrontendOpenApiRefresh() {
   run("generate_openapi_detail_closure_batch", "npm", ["run", "openapi:detail-batch:write"], { cwd: repoRoot });
   run("generate_custom_gpt_schemas", "node", ["scripts/generate-custom-gpt-schemas.mjs", "--write"], { cwd: apiDir });
   run("sync_activation_gateway_runtime_bundle", "npm", ["run", "activation-gateway:bundle:sync"], { cwd: apiDir });
+  syncActivationGatewayProfilePolicyHashes();
   refreshPortableStagingManifest();
 
   const verificationCommands = [
