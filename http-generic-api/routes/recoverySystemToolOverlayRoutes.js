@@ -36,7 +36,7 @@ const STAGING_REBUILD_ROLE_CAPABILITIES = Object.freeze([
 ]);
 const STAGING_TOOL_NAMES = new Set([
   "staging_recovery_certification_canary_plan_create",
-  "staging_recovery_activation_gateway_dark_deploy_dry_run",
+  "prepareStagingActivationGatewayDarkDeployDryRun",
   "staging_recovery_access_repair_prepare",
   "staging_recovery_access_repair_approve",
   "staging_recovery_access_repair_execute",
@@ -267,7 +267,7 @@ async function executeOverlayTool(name, args, deps = {}) {
       });
     }
     if (name === "staging_recovery_certification_canary_plan_create") return stagingRecoveryCertificationCanaryPlanCreate(args, { env: runtimeEnv });
-    if (name === "staging_recovery_activation_gateway_dark_deploy_dry_run") {
+    if (name === "prepareStagingActivationGatewayDarkDeployDryRun") {
       return stagingRecoveryActivationGatewayDarkDeployDryRun(args, {
         ...(deps.gatewayPreflightDeps || {}),
         env: runtimeEnv,
