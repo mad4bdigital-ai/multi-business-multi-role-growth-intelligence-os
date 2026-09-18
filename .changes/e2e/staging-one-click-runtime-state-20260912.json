@@ -129,11 +129,13 @@
           "terminal_outcome": "The internal bootstrap remains local-only and no longer reacquires the Activation Gateway execution gate; the Core preserves the flag and applies it only around the canonical tunnel transition and governed readiness checks.",
           "steps": [
             "Run the internal bootstrap with -NoTunnel without forwarding -EnableActivationGateway into the local-only bootstrap phase.",
+            "Force ACTIVATION_STAGING_GATEWAY_ENABLED=false in the persisted Staging env for the local-only bootstrap window so certification cannot reacquire the remote Gateway gate after tunnel quiescence.",
             "Re-apply the Activation Gateway flag at the Core environment boundary before and after bootstrap, then continue through the canonical tunnel transition and readiness checks.",
             "Refresh the registered portable Staging manifest only through the governed generated-artifact writer and require live Staging certification before merge readiness."
           ],
           "assertions": [
             "The bootstrap argument list contains -NoTunnel and does not append -EnableActivationGateway.",
+            "The persisted Activation Gateway enablement is false before bootstrap execution and is restored only by the post-bootstrap Initialize-StagingEnvironment boundary.",
             "The Core preserves EnableActivationGateway across the bootstrap boundary and does not widen provider, database, Production, or DNS mutation authority.",
             "Activation Gateway exact-commit readiness remains fail-closed after the canonical tunnel transition; this change only removes the circular pre-tunnel gate.",
             "The portable Staging manifest is treated as a registered generated artifact and is not manually edited.",
