@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "1cac9a148c5991f21873c67da059cb16baa6950ae88aac49087a1345de8fc8ad"
+      "sha256": "a4d4ff2406e1fd88ba008e67f86a9a0c29d252f37d7bf3e23c2373b655252c08"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
@@ -394,7 +394,7 @@
     },
     {
       "path": "autopilot-portable-staging/activation-gateway-smart-convergence-policy.json",
-      "sha256": "49cc80991eab314d2c7c320405e51771f1feca29a605321a5b20dcef5af01802"
+      "sha256": "79c7d05209f496669b73d305a06d82c3cec49ad5ac4f6331caf8e78da738dfa3"
     },
     {
       "path": "autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1",

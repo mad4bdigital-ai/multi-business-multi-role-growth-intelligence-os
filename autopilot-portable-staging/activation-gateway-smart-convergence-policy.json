@@ -47,7 +47,7 @@
   "policy_identity": {
     "policy_key": "activation_gateway_staging",
     "policy_path": "edge/activation-gateway/generated/route-policy.staging.json",
-    "expected_policy_hash": "dd5f152c4a226d07c75cf33dae3ab3a0cbf6e9913b623724429a96b2d4f96a96",
+    "expected_policy_hash": "460a8aadf6ef072976ba07a81b3eef0636294f85dd68e7bbcfeada414e46c999",
     "public_host": "activation-dev.mad4b.com",
     "bundle_key": "activation_gateway_staging_worker",
     "entrypoint": "edge/activation-gateway/src/worker-staging.mjs",
