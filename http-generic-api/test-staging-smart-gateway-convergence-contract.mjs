@@ -119,7 +119,8 @@ assert.equal(staging.apply_block_reason, null);
 assert.equal(staging.execution_target.resource_binding.resource_binding_id, bindingId);
 assert.equal(staging.execution_target.runtime_surface, "activation_gateway_dark_deploy");
 assert.equal(staging.execution_target.bundle_binding.bundle_key, "activation_gateway_staging_worker");
-assert.equal(staging.execution_target.bundle_binding.entrypoint, "edge/activation-gateway/src/worker-staging.mjs");
+assert.equal(staging.execution_target.bundle_binding.entrypoint, "http-generic-api/activation-gateway-runtime/src/worker-staging.mjs");
+assert.equal(staging.execution_target.bundle_binding.policy_path, "http-generic-api/activation-gateway-runtime/generated/route-policy.staging.json");
 assert.equal(registry.dependencies.activation_gateway.checks.gateway_recovery_trusted_ingress.repairability, "governed");
 for (const requiredBoundaryPath of [
   "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
