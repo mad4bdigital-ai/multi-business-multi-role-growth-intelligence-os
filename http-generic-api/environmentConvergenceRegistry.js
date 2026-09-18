@@ -184,8 +184,14 @@ export function classifyEnvironmentCertification(report = {}, {
       continue;
     }
 
-    const override = metadata?.handoff_override && typeof metadata.handoff_override === "object"
+    const candidateOverride = metadata?.handoff_override && typeof metadata.handoff_override === "object"
       ? metadata.handoff_override
+      : null;
+    const overrideEnvironments = Array.isArray(candidateOverride?.environments)
+      ? candidateOverride.environments.map((value) => compact(value).toLowerCase()).filter(Boolean)
+      : [];
+    const override = candidateOverride && (overrideEnvironments.length === 0 || overrideEnvironments.includes(environmentKey))
+      ? candidateOverride
       : null;
     const planCapability = override?.plan_capability
       || (hasOwn(gatewayProfile, "plan_capability") ? gatewayProfile.plan_capability : metadata.plan_capability);
@@ -313,6 +319,9 @@ export function validateEnvironmentConvergenceRegistry(registry = readEnvironmen
   const staleOverride = registry?.dependencies?.activation_gateway?.checks?.gateway_policy_not_stale?.handoff_override;
   if (
     !staleOverride
+    || !Array.isArray(staleOverride.environments)
+    || staleOverride.environments.length !== 1
+    || staleOverride.environments[0] !== "staging"
     || staleOverride.current_authority_adapter !== "staging_activation_worker_workflow"
     || staleOverride.target_authority_model !== "server_governed_out_of_band"
     || staleOverride.transport !== "github_actions"
