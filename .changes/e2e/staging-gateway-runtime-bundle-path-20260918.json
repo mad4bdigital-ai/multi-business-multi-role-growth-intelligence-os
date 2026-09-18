@@ -39,7 +39,9 @@
       "docs/remote-mcp-write-scope-inventory.md",
       "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "http-generic-api/scripts/staging-activation-worker-handoff-verifier.mjs",
-      "http-generic-api/test-staging-activation-worker-plan-provenance.mjs"
+      "http-generic-api/test-staging-activation-worker-plan-provenance.mjs",
+      "http-generic-api/scripts/staging-environment-convergence-plan.mjs",
+      "http-generic-api/test-staging-convergence-acknowledgement-cli.mjs"
     ]
   },
   "environment_impact": {
@@ -90,7 +92,8 @@
             "Read only the profile-owned activation-dev.mad4b.com/health surface, require cryptographically identified GATEWAY_POLICY_STALE service identity, and reconstruct the current Staging convergence plan through the shared environment convergence engine.",
             "Accept acknowledgement only when the operator-supplied plan digest exactly matches the workflow-owned current plan; then require status=handoff_ready with acknowledged_for_handoff while operator_acknowledgement_is_execution_authority remains false.",
             "Bind source SHA, canonical policy SHA, authoritative convergence-plan SHA and deterministic Worker bundle SHA into a same-run preflight binding digest.",
-            "Pass authoritative_plan_sha256, worker_bundle_sha256 and preflight_binding_sha256 to deploy only through needs.activation_worker_refresh_preflight.outputs; rebuild the Worker artifact and verify the same binding before any provider API preflight or deploy."
+            "Pass authoritative_plan_sha256, worker_bundle_sha256 and preflight_binding_sha256 to deploy only through needs.activation_worker_refresh_preflight.outputs; rebuild the Worker artifact and verify the same binding before any provider API preflight or deploy.",
+            "When stale Gateway recovery is the selected first handoff, defer only gateway_recovery_trusted_ingress from the current plan digest because that local trust can only be re-certified after the Worker refresh; preserve it explicitly in deferred_reasons."
           ],
           "assertions": [
             "The packaged runtime contains src/worker-staging.mjs and the bundle manifest covers it.",
@@ -118,7 +121,8 @@
             "A syntactically valid arbitrary convergence-plan digest is rejected unless it exactly equals the workflow-reconstructed current Staging plan; even a matching acknowledgement is never provider execution authority.",
             "The stale-recovery preflight fails closed unless the profile-owned public health response identifies the activation-gateway service with stale=true and GATEWAY_POLICY_STALE semantics.",
             "The workflow-owned convergence plan must reach handoff_ready with acknowledged_for_handoff before deploy outputs are emitted.",
-            "deploy_activation_worker consumes the authoritative plan and deterministic Worker bundle identity only from trusted same-run preflight outputs and recomputes the binding before provider access."
+            "deploy_activation_worker consumes the authoritative plan and deterministic Worker bundle identity only from trusted same-run preflight outputs and recomputes the binding before provider access.",
+            "One-Click and the out-of-band workflow derive the same stale-worker plan identity even when local Recovery trust is stale: gateway_recovery_trusted_ingress remains visible but is topologically deferred and cannot silently disappear."
           ],
           "tests": [
             {
@@ -176,6 +180,13 @@
               "working_directory": "http-generic-api",
               "path": "test-staging-activation-worker-plan-provenance.mjs",
               "args": []
+            },
+            {
+              "id": "staging-convergence-acknowledgement-cli",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-convergence-acknowledgement-cli.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -211,9 +222,11 @@
             "docs/remote-mcp-write-scope-inventory.md",
             "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
             "http-generic-api/scripts/staging-activation-worker-handoff-verifier.mjs",
-            "http-generic-api/test-staging-activation-worker-plan-provenance.mjs"
+            "http-generic-api/test-staging-activation-worker-plan-provenance.mjs",
+            "http-generic-api/scripts/staging-environment-convergence-plan.mjs",
+            "http-generic-api/test-staging-convergence-acknowledgement-cli.mjs"
           ],
-          "objective": "Make the server-governed Staging Activation Gateway dry-run build only from the generated service-local runtime bundle actually packaged under /app, and close the stale-policy circular recovery dependency by classifying signed JSON GATEWAY_POLICY_STALE health responses causally and routing stale Gateway drift to an exact-main, out-of-band server-side refresh workflow that performs a non-secret dry-run/preflight before any explicitly authorized Worker deploy. Keep all normal Gateway and Recovery routes fail-closed while stale and keep provider, database, DNS, custom-domain and Production mutation outside the dry-run. In the same governed journey, expose the exact Staging Recovery dry-run operation through the private System Tool catalog without falling back to the generic caller-account rollout contract; keep account, script, workspace, resource binding and apply authority server-resolved. Also keep live readiness diagnostics least-privilege by granting the Staging runtime role optional SELECT-only access to v_platform_capability_readiness_vector when that surface exists, and package only the allowlisted exact-build repository knowledge snapshot needed by repo_inspect list/read/search. The out-of-band stale apply no longer trusts a syntactically valid caller digest: the workflow reconstructs a live profile-owned Staging plan from exact-main plus Activation Gateway health, requires the operator-supplied digest to equal that authoritative plan before it can become acknowledged_for_handoff, then binds the verified plan to the deterministic Worker bundle SHA-256 and carries only trusted same-run job outputs into deploy."
+          "objective": "Make the server-governed Staging Activation Gateway dry-run build only from the generated service-local runtime bundle actually packaged under /app, and close the stale-policy circular recovery dependency by classifying signed JSON GATEWAY_POLICY_STALE health responses causally and routing stale Gateway drift to an exact-main, out-of-band server-side refresh workflow that performs a non-secret dry-run/preflight before any explicitly authorized Worker deploy. Keep all normal Gateway and Recovery routes fail-closed while stale and keep provider, database, DNS, custom-domain and Production mutation outside the dry-run. In the same governed journey, expose the exact Staging Recovery dry-run operation through the private System Tool catalog without falling back to the generic caller-account rollout contract; keep account, script, workspace, resource binding and apply authority server-resolved. Also keep live readiness diagnostics least-privilege by granting the Staging runtime role optional SELECT-only access to v_platform_capability_readiness_vector when that surface exists, and package only the allowlisted exact-build repository knowledge snapshot needed by repo_inspect list/read/search. The out-of-band stale apply no longer trusts a syntactically valid caller digest: the workflow reconstructs a live profile-owned Staging plan from exact-main plus Activation Gateway health, requires the operator-supplied digest to equal that authoritative plan before it can become acknowledged_for_handoff, then binds the verified plan to the deterministic Worker bundle SHA-256 and carries only trusted same-run job outputs into deploy. Stale-worker plan identity is also made portable across the local One-Click and remote workflow boundary by topologically deferring the local-only recovery-trust drift until after Worker refresh while retaining that drift as explicit deferred evidence."
         }
       ]
     }

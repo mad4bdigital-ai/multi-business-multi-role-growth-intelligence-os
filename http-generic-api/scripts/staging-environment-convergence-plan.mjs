@@ -87,11 +87,16 @@ try {
   const runtime = readJson(args.runtimeState, "AutoPilot runtime state");
   const preflight = readJson(args.preflight, "Staging schema/governance preflight report");
   const commit = validateInputs(runtime, preflight);
-  const reasons = values([
+  const observedReasons = values([
     ...values(runtime.certification_blocking_failures),
     ...values(runtime.certification_degraded_reasons),
     ...(args.recoveryTrustExact ? [] : ["gateway_recovery_trusted_ingress"]),
   ]);
+  const staleWorkerRefreshRequired = observedReasons.includes("gateway_policy_not_stale");
+  const deferredReasons = staleWorkerRefreshRequired && observedReasons.includes("gateway_recovery_trusted_ingress")
+    ? ["gateway_recovery_trusted_ingress"]
+    : [];
+  const reasons = observedReasons.filter((reason) => !deferredReasons.includes(reason));
 
   if (reasons.length === 0) {
     if (args.acknowledgedPlanSha256) {
@@ -101,6 +106,9 @@ try {
       contract: "mad4b.staging-environment-convergence-bridge.v1",
       status: "not_required",
       expected_commit: commit,
+      observed_reasons: observedReasons,
+      reasons,
+      deferred_reasons: deferredReasons,
       report: { convergence: { status: "converged", next_governed_handoff: null } },
       convergence_run: null,
       safety: { provider_mutation: false, workflow_dispatch: false, production_mutation: false, database_mutation: false, secrets_included: false },
@@ -155,7 +163,9 @@ try {
     contract: "mad4b.staging-environment-convergence-bridge.v1",
     status: finalRun.status,
     expected_commit: commit,
+    observed_reasons: observedReasons,
     reasons,
+    deferred_reasons: deferredReasons,
     report: { convergence: finalRun.classification || null },
     plan: finalRun.plan || null,
     approval_checkpoint: finalRun.approval_checkpoint || null,
