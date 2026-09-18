@@ -109,6 +109,13 @@ assert.match(stagingCompose, /app:\s*[\s\S]*?ports:\s*!reset\s*\[\]/);
 assert.equal((stagingCompose.match(/ports:\s*!reset\s*\[\]/g) || []).length, 2, "Staging must reset inherited Redis and app host publications");
 assert.doesNotMatch(stagingCompose, /^\s+ports:\s*\[\]\s*$/m);
 assert.match(stagingCompose, /cloudflared:[\s\S]*?--token/);
+assert.doesNotMatch(stagingCompose, /^\s+TUNNEL_HOSTNAME:/m, "Named Tunnel sidecar must not set the ignored singular TUNNEL_HOSTNAME option");
+assert.match(
+  windowsCloudflared,
+  /\$ErrorActionPreference = 'Continue'[\s\S]*?docker logs --tail 500 \$ContainerId 2>&1[\s\S]*?\$dockerExitCode = \[int\]\$LASTEXITCODE[\s\S]*?\$ErrorActionPreference = \$previousErrorActionPreference/,
+  "Docker cloudflared stderr logs must be captured as evidence without inheriting fail-closed ErrorActionPreference",
+);
+assert.match(windowsCloudflared, /Unable to read Docker cloudflared logs: docker exited with code/);
 
 assert.match(entrypoint, /ValidateSet\('disabled','windows_service','docker_sidecar'\)/);
 assert.match(entrypoint, /ValidateRange\(65,300\)/);
