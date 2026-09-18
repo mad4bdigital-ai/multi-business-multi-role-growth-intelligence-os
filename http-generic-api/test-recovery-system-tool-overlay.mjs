@@ -111,6 +111,7 @@ test("Staging capability reporting separates kernel discovery from bounded Syste
   assert.equal(staging.kernel_environment_view, "staging_discovery_only");
   assert.deepEqual(staging.control_plane_state_write_capabilities, [
     "staging_certification_canary_plan_create",
+    "activation_gateway_dark_deploy_dry_run",
     "staging_database_access_repair",
     "staging_database_schema_repair",
     "database_full_inspection",
@@ -124,6 +125,13 @@ test("Staging capability reporting separates kernel discovery from bounded Syste
   assert.equal(staging.target_database_mutation_capabilities.includes("staging_database_rebuild_empty"), false);
   assert.equal(staging.system_surface_extensions.some((entry) => entry.capability_key === "staging_database_rebuild_empty"), false);
   assert.equal(staging.system_surface_extensions.find((entry) => entry.capability_key === "staging_database_schema_repair").state_scope, "allowlist_plan_approval_ticket_only");
+  const gatewayDryRun = staging.system_surface_extensions.find((entry) => entry.capability_key === "activation_gateway_dark_deploy_dry_run");
+  assert.equal(gatewayDryRun.state_scope, "short_lived_governance_execution_plan_only");
+  assert.equal(gatewayDryRun.target_database_mutation, false);
+  assert.equal(gatewayDryRun.provider_mutation, false);
+  assert.equal(gatewayDryRun.production_authority, false);
+  assert.equal(gatewayDryRun.caller_selected_target, false);
+  assert.equal(gatewayDryRun.apply_authority_issued, false);
   assert.equal(staging.production_authority, false);
   assert.equal(staging.secrets_included, false);
 
