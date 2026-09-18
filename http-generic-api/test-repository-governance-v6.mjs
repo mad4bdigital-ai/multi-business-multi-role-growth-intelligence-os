@@ -5,6 +5,7 @@ import {
   TENANT_REPOSITORY_GOVERNANCE_V6_SYSTEM_TOOLS,
   buildCloseSupersededWriteV6,
   buildRepositoryMutationPlanV6,
+  createRepositoryMutationAuthorityBindingV6,
   resolveRepositoryPrincipalScopeV6,
 } from "./repositoryGovernanceV6.js";
 import { buildBindingContext } from "./scripts/capability-resolution-envelope-create.mjs";
@@ -84,6 +85,45 @@ const adminScope = resolveRepositoryPrincipalScopeV6(
 );
 assert.equal(adminScope.tenant_id, "tenant-b");
 assert.equal(adminScope.user_id, "user-b");
+
+let runtimeRecipeQueryCount = 0;
+const runtimeReadPool = {
+  async query(sql) {
+    if (String(sql).includes("platform_resource_recipes")) runtimeRecipeQueryCount += 1;
+    throw new Error(`Runtime DB must not serve Governance recipe reads: ${sql}`);
+  },
+};
+const governanceRecipePool = {
+  async query(sql, params) {
+    assert.match(String(sql), /FROM platform_resource_recipes/);
+    assert.deepEqual(params, ["repo.pr.comment_advisory"]);
+    return [[{
+      recipe_key: "repo.pr.comment_advisory",
+      status: "planned",
+      risk_class: "mutation",
+      read_only: 0,
+      requires_capability_envelope: 1,
+      requires_typed_confirmation: 1,
+      requires_same_cycle_readback: 1,
+    }]];
+  },
+};
+await assert.rejects(
+  () => createRepositoryMutationAuthorityBindingV6(
+    {
+      owner: "example-owner",
+      repo: "example-repo",
+      recipe_key: "repo.pr.comment_advisory",
+    },
+    {
+      auth: { is_admin: true },
+      readPool: runtimeReadPool,
+      recipeStorePool: governanceRecipePool,
+    },
+  ),
+  (error) => error?.code === "repository_mutation_recipe_not_active",
+);
+assert.equal(runtimeRecipeQueryCount, 0);
 
 const report = {
   schema_version: "tenant_repository_intelligence_report.v6",
@@ -336,6 +376,8 @@ assert.match(releaseSource, /applyPolicy\.operation_intent !== "repo\.pr\.commen
 assert.match(releaseSource, /Number\(certification\.apply_allowed\) !== 0/);
 assert.match(releaseSource, /Admin-only V6 tools exposed to tenant catalog/);
 assert.match(releaseSource, /tenant_catalog_admin_exposure/);
+assert.doesNotMatch(releaseSource, /FROM platform_resource_recipes/);
+assert.doesNotMatch(v6Source, /FROM platform_resource_recipes/);
 
 const envelopeCreatorSource = fs.readFileSync(new URL("./scripts/capability-resolution-envelope-create.mjs", import.meta.url), "utf8");
 for (const flag of ["--plan-id", "--plan-item-id", "--resource-uri", "--recipe-key", "--expected-commit-sha"]) assert.match(envelopeCreatorSource, new RegExp(flag));

@@ -108,6 +108,24 @@ export async function getPlatformResourceRecipeByKey(recipeKey, deps = {}) {
   return rows?.[0] || null;
 }
 
+export async function listPlatformResourceRecipesByKeys(recipeKeys = [], deps = {}) {
+  const keys = [...new Set(
+    (Array.isArray(recipeKeys) ? recipeKeys : [])
+      .map((recipeKey) => String(recipeKey ?? "").trim())
+      .filter(Boolean),
+  )];
+  if (!keys.length) return [];
+  const pool = resolvePlatformResourceRecipePool(deps);
+  assertPlatformResourceRecipeStoreSource({ pool, runtimePool: deps.runtimePool });
+  const [rows] = await pool.query(
+    `SELECT *
+       FROM platform_resource_recipes
+      WHERE recipe_key IN (${keys.map(() => "?").join(",")})`,
+    keys,
+  );
+  return Array.isArray(rows) ? rows : [];
+}
+
 export async function listPlatformResourceRecipeSteps(recipeKey, deps = {}) {
   const key = normalizedRecipeKey(recipeKey);
   const pool = resolvePlatformResourceRecipePool(deps);

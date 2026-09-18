@@ -5,6 +5,7 @@ import {
   PLATFORM_RESOURCE_RECIPE_TABLES,
   assertPlatformResourceRecipeStoreSource,
   getPlatformResourceRecipeByKey,
+  listPlatformResourceRecipesByKeys,
   listPlatformResourceRecipeSteps,
   resolvePlatformResourceRecipePool,
 } from "./platformResourceRecipeStore.js";
@@ -21,6 +22,22 @@ const governancePool = {
   async query(sql, params) {
     governanceQueries.push({ sql, params });
     if (sql.includes("FROM platform_resource_recipes")) {
+      if (sql.includes("WHERE recipe_key IN")) {
+        return [[
+          {
+            recipe_key: "repo.pr.comment_advisory",
+            status: "active",
+            risk_class: "mutation",
+            mode: "apply",
+          },
+          {
+            recipe_key: "repo.pr.label",
+            status: "planned",
+            risk_class: "mutation",
+            mode: "apply",
+          },
+        ]];
+      }
       return [[{
         recipe_key: "repo.pr.comment_advisory",
         status: "active",
@@ -98,6 +115,18 @@ const recipe = await getPlatformResourceRecipeByKey("repo.pr.comment_advisory", 
 assert.equal(recipe?.recipe_key, "repo.pr.comment_advisory");
 assert.equal(recipe?.status, "active");
 
+const recipes = await listPlatformResourceRecipesByKeys(
+  ["repo.pr.comment_advisory", "repo.pr.label", "repo.pr.comment_advisory"],
+  {
+    recipeStorePool: governancePool,
+    runtimePool,
+  },
+);
+assert.deepEqual(recipes.map((row) => row.recipe_key), [
+  "repo.pr.comment_advisory",
+  "repo.pr.label",
+]);
+
 const steps = await listPlatformResourceRecipeSteps("repo.pr.comment_advisory", {
   recipeStorePool: governancePool,
   runtimePool,
@@ -106,10 +135,12 @@ assert.equal(steps.length, 1);
 assert.equal(steps[0]?.step_key, "readback");
 
 assert.equal(runtimeQueryCount, 0);
-assert.equal(governanceQueries.length, 2);
+assert.equal(governanceQueries.length, 3);
 assert.match(governanceQueries[0].sql, /FROM platform_resource_recipes/i);
-assert.match(governanceQueries[1].sql, /FROM platform_resource_recipe_steps/i);
+assert.match(governanceQueries[1].sql, /WHERE recipe_key IN/i);
+assert.match(governanceQueries[2].sql, /FROM platform_resource_recipe_steps/i);
 assert.deepEqual(governanceQueries[0].params, ["repo.pr.comment_advisory"]);
-assert.deepEqual(governanceQueries[1].params, ["repo.pr.comment_advisory"]);
+assert.deepEqual(governanceQueries[1].params, ["repo.pr.comment_advisory", "repo.pr.label"]);
+assert.deepEqual(governanceQueries[2].params, ["repo.pr.comment_advisory"]);
 
 console.log("Platform Resource Recipe Store contract tests passed.");

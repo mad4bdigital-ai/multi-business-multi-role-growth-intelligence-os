@@ -16,6 +16,7 @@
 
 import { getPool } from "./db.js";
 import { resolvePlatformResourceAuthorityPool } from "./platformResourceAuthorityStore.js";
+import { listPlatformResourceRecipesByKeys } from "./platformResourceRecipeStore.js";
 import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
@@ -2218,12 +2219,9 @@ async function checkRepositoryGovernanceV6Readiness() {
       `SELECT policy_key, active, blocking FROM execution_policies WHERE policy_group = 'Repository Intelligence Governance' AND policy_key = 'governed_repository_engine_v6_policy_v1' LIMIT 1`
     );
     const recipeKeys = Object.keys(expectedRecipeStates);
-    const [recipeRows] = await getPool().query(
-      `SELECT recipe_key, status, read_only, requires_capability_envelope, requires_typed_confirmation, requires_same_cycle_readback
-         FROM platform_resource_recipes
-        WHERE recipe_key IN (${recipeKeys.map(() => "?").join(",")})`,
-      recipeKeys
-    );
+    const recipeRows = await listPlatformResourceRecipesByKeys(recipeKeys, {
+      runtimePool: getPool(),
+    });
     const [bindingColumnRows] = await getPool().query(
       `SELECT column_name FROM information_schema.columns
         WHERE table_schema = DATABASE()
