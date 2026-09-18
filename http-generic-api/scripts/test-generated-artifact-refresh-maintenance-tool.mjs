@@ -137,6 +137,7 @@ runCheck("tool-canonical-auth-repair", () => {
   assert.match(toolSource, /http-generic-api\/activation-gateway-runtime\/generated\/route-policy\.json/u);
   assert.match(toolSource, /http-generic-api\/activation-gateway-runtime\/bundle-manifest\.json/u);
   assert.match(toolSource, /http-generic-api\/config\/environment-convergence-registry\.json/u);
+  assert.match(toolSource, /SHA256_PATTERN = \/\^\[0-9a-f\]\{64\}\$\/u/u);
   assert.match(toolSource, /activation_gateway_policy_identity_invalid/u);
   assert.match(toolSource, /environment_convergence_gateway_profile_invalid/u);
   assert.match(toolSource, /openapi:detail-gaps:check/u);
