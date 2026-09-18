@@ -17,6 +17,7 @@ import {
   isStagingRecoverySystemEnvironment,
   stagingRecoveryAccessRepairApprove,
   stagingRecoveryAccessRepairPrepare,
+  stagingRecoveryActivationGatewayDarkDeployDryRun,
   stagingRecoveryCertificationCanaryPlanCreate,
   stagingRecoverySystemSurfaceReadiness,
 } from "./stagingRecoverySystemTools.js";
@@ -43,6 +44,7 @@ const BUSINESS_TOOLS = [
   "staging_recovery_access_repair_execute",
   "staging_recovery_access_repair_approve",
 ];
+const GATEWAY_DRY_RUN_TOOL = "staging_recovery_activation_gateway_dark_deploy_dry_run";
 const REBUILD_EMPTY_TOOLS = [
   "staging_recovery_rebuild_empty_inspection_record",
   "staging_recovery_rebuild_empty_prepare",
@@ -66,6 +68,13 @@ const FORBIDDEN_CALLER_FIELDS = new Set([
   "grant_binding_hash",
   "repository_path",
   "ref",
+  "account_id",
+  "script_name",
+  "resource_binding_id",
+  "workspace_id",
+  "capability_envelope_id",
+  "execution_nonce",
+  "confirm",
 ]);
 
 const SHA = "a".repeat(40);
@@ -106,6 +115,7 @@ test("Staging Recovery System Tool descriptors are advertised only for unambiguo
   assert.deepEqual(tools.map((tool) => tool.name), [
     ...BUSINESS_TOOLS,
     ...REBUILD_EMPTY_TOOLS,
+    GATEWAY_DRY_RUN_TOOL,
     "staging_recovery_system_surface_readiness",
   ]);
   for (const tool of tools) {
@@ -128,6 +138,19 @@ test("bounded Staging Recovery schemas never accept caller-selected execution or
   }
   const prepare = tools.find((entry) => entry.name === "staging_recovery_access_repair_prepare");
   assert.deepEqual(prepare.inputSchema.required, ["expected_sha", "idempotency_key"]);
+
+  const gatewayDryRun = tools.find((entry) => entry.name === GATEWAY_DRY_RUN_TOOL);
+  assert.ok(gatewayDryRun, "Staging Gateway dry-run descriptor missing");
+  assert.equal(gatewayDryRun.inputSchema.additionalProperties, false);
+  assert.deepEqual(gatewayDryRun.inputSchema.required, [
+    "expected_source_commit",
+    "expected_policy_hash",
+    "environment_convergence_plan_sha256",
+  ]);
+  const gatewayProperties = new Set(Object.keys(gatewayDryRun.inputSchema.properties || {}));
+  for (const forbidden of FORBIDDEN_CALLER_FIELDS) {
+    assert.equal(gatewayProperties.has(forbidden), false, `Gateway dry-run must not expose ${forbidden}`);
+  }
 });
 
 test("rebuild-empty Recovery descriptors expose only the bounded inspection, planning, and approval contracts", () => {
@@ -156,6 +179,49 @@ test("rebuild-empty Recovery descriptors expose only the bounded inspection, pla
   }
   assert.equal(Object.hasOwn(prepare.properties, "target_key"), false);
   assert.equal(Object.hasOwn(approve.properties, "target_key"), false);
+});
+
+test("Staging Gateway dry-run System Tool forwards only immutable release bindings and never caller-selected provider authority", async () => {
+  const input = {
+    expected_source_commit: "a".repeat(40),
+    expected_policy_hash: "b".repeat(64),
+    environment_convergence_plan_sha256: "c".repeat(64),
+  };
+  let observed = null;
+  const result = await stagingRecoveryActivationGatewayDarkDeployDryRun(input, {
+    env: STAGING_ENV,
+    runDarkDeploy: async (args) => {
+      observed = { ...args };
+      return {
+        ok: true,
+        apply_ready: true,
+        governance_state_mutation: true,
+        provider_accessed: false,
+        provider_mutation_performed: false,
+        secrets_included: false,
+      };
+    },
+  });
+  assert.deepEqual(observed, { mode: "dry_run", ...input });
+  assert.equal(result.system_tool, GATEWAY_DRY_RUN_TOOL);
+  assert.equal(result.execution_plan_issued, true);
+  assert.equal(result.apply_authority_issued, false);
+  assert.equal(result.caller_selected_account_id, false);
+  assert.equal(result.caller_selected_script_name, false);
+  assert.equal(result.caller_selected_resource_binding, false);
+  assert.equal(result.caller_selected_capability_envelope, false);
+  assert.equal(result.provider_accessed, false);
+  assert.equal(result.provider_mutation_performed, false);
+  assert.equal(result.production_mutation_performed, false);
+
+  await assert.rejects(
+    () => stagingRecoveryActivationGatewayDarkDeployDryRun({ ...input, account_id: "caller-selected" }, {
+      env: STAGING_ENV,
+      runDarkDeploy: async () => ({ ok: true }),
+    }),
+    (error) => error?.code === "STAGING_RECOVERY_GATEWAY_PREFLIGHT_FIELD_FORBIDDEN"
+      && error?.details?.fields?.includes("account_id"),
+  );
 });
 
 test("Production and conflicting-environment calls fail before any Staging recovery authority can be constructed", async () => {
