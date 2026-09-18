@@ -548,6 +548,7 @@
     {
       "id": "platform_resource_recipe_governance_isolation",
       "test_paths": [
+        "http-generic-api/test-platform-resource-recipe-capability.mjs",
         "http-generic-api/test-platform-resource-recipe-store.mjs",
         "http-generic-api/test-repository-governance-v6.mjs",
         "http-generic-api/test-repository-reconciliation-automation.mjs",
