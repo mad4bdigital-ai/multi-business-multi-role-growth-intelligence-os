@@ -44,7 +44,7 @@ const BUSINESS_TOOLS = [
   "staging_recovery_access_repair_execute",
   "staging_recovery_access_repair_approve",
 ];
-const GATEWAY_DRY_RUN_TOOL = "staging_recovery_activation_gateway_dark_deploy_dry_run";
+const GATEWAY_DRY_RUN_TOOL = "prepareStagingActivationGatewayDarkDeployDryRun";
 const REBUILD_EMPTY_TOOLS = [
   "staging_recovery_rebuild_empty_inspection_record",
   "staging_recovery_rebuild_empty_prepare",
