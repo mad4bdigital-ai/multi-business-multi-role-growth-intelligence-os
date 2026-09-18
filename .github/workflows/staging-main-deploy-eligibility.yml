@@ -12,9 +12,18 @@ on:
         type: choice
         options:
           - eligibility
+          - activation_worker_refresh_dry_run
           - deploy_activation_worker
       source_sha:
         description: Exact current main SHA for Activation Worker deployment
+        required: false
+        type: string
+      expected_policy_hash:
+        description: Exact activation_gateway_staging policy hash for refresh dry-run/deploy
+        required: false
+        type: string
+      environment_convergence_plan_sha256:
+        description: Exact immutable environment convergence plan SHA-256
         required: false
         type: string
       confirmation:
@@ -176,15 +185,111 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  activation_worker_refresh_preflight:
+    name: Stale Gateway refresh dry-run
+    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.operation == 'activation_worker_refresh_dry_run' || inputs.operation == 'deploy_activation_worker') }}
+    needs: eligibility
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      SOURCE_SHA: ${{ inputs.source_sha }}
+      EXPECTED_POLICY_HASH: ${{ inputs.expected_policy_hash }}
+      CONVERGENCE_PLAN_SHA256: ${{ inputs.environment_convergence_plan_sha256 }}
+    steps:
+      - name: Validate exact stale-recovery dry-run identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$SOURCE_SHA" = "${SOURCE_SHA,,}"
+          [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$EXPECTED_POLICY_HASH" =~ ^[a-f0-9]{64}$ ]]
+          [[ "$CONVERGENCE_PLAN_SHA256" =~ ^[a-f0-9]{64}$ ]]
+
+      - name: Checkout exact current main candidate
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Require exact current main for stale recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git rev-parse origin/main)" = "$SOURCE_SHA"
+          test -z "$(git status --porcelain)"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288ca8642d1e84afbd3f7fcc4a7b6c09 # v4
+        with:
+          node-version: "22"
+
+      - name: Build non-secret exact-SHA refresh plan in memory
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/staging-activation-worker-refresh"
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          import path from "node:path";
+          import { buildStagingActivationGatewayBundle } from "./http-generic-api/stagingActivationGatewayBundle.js";
+          const sourceSha = String(process.env.SOURCE_SHA || "").trim().toLowerCase();
+          const expectedPolicyHash = String(process.env.EXPECTED_POLICY_HASH || "").trim().toLowerCase();
+          const convergencePlanSha256 = String(process.env.CONVERGENCE_PLAN_SHA256 || "").trim().toLowerCase();
+          const bundle = await buildStagingActivationGatewayBundle({ sourceSha });
+          if (bundle.source_sha !== sourceSha) throw new Error("stale recovery source SHA mismatch");
+          if (bundle.policy_hash !== expectedPolicyHash) throw new Error("stale recovery policy hash mismatch");
+          if (bundle.origin_trust?.contract !== "mad4b.staging.activation-recovery-origin-trust.v2") throw new Error("stale recovery origin trust contract mismatch");
+          if (bundle.origin_trust?.source_commit !== sourceSha || bundle.origin_trust?.worker_build_sha !== sourceSha) throw new Error("stale recovery origin trust identity mismatch");
+          if (bundle.origin_trust?.policy_hash !== expectedPolicyHash) throw new Error("stale recovery origin trust policy mismatch");
+          const evidence = {
+            contract: "mad4b.staging.activation-worker-refresh-dry-run.v1",
+            operation: "activation_worker_refresh_dry_run",
+            source_sha: sourceSha,
+            policy_hash: expectedPolicyHash,
+            environment_convergence_plan_sha256: convergencePlanSha256,
+            worker_bundle_sha256: bundle.worker_bundle_sha256,
+            origin_trust_contract: bundle.origin_trust.contract,
+            expires_at: bundle.expires_at,
+            exact_current_main_required: true,
+            same_run_preflight_required_for_apply: true,
+            provider_accessed: false,
+            provider_mutation_performed: false,
+            database_mutation_performed: false,
+            dns_mutation_performed: false,
+            custom_domain_mutation_performed: false,
+            production_mutation_performed: false,
+            secrets_included: false,
+            status: "dry_run_ready"
+          };
+          const output = path.join(process.env.RUNNER_TEMP, "staging-activation-worker-refresh", "evidence.json");
+          fs.writeFileSync(output, `${JSON.stringify(evidence, null, 2)}\n`);
+          console.log(JSON.stringify(evidence));
+          NODE
+
+      - name: Upload stale-recovery dry-run evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: staging-activation-worker-refresh-dry-run-${{ inputs.source_sha }}
+          path: ${{ runner.temp }}/staging-activation-worker-refresh/evidence.json
+          if-no-files-found: error
+          retention-days: 30
+
   deploy_activation_worker:
     name: Deploy exact main SHA to Staging Worker
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'deploy_activation_worker' }}
-    needs: eligibility
+    needs:
+      - eligibility
+      - activation_worker_refresh_preflight
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
       SOURCE_SHA: ${{ inputs.source_sha }}
       CONFIRMATION: ${{ inputs.confirmation }}
+      EXPECTED_POLICY_HASH: ${{ inputs.expected_policy_hash }}
+      CONVERGENCE_PLAN_SHA256: ${{ inputs.environment_convergence_plan_sha256 }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       WORKER_NAME: mad4b-activation-gateway-staging
@@ -199,6 +304,8 @@ jobs:
           test "$CONFIRMATION" = "DEPLOY_STAGING_ACTIVATION_WORKER"
           test "$SOURCE_SHA" = "${SOURCE_SHA,,}"
           [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$EXPECTED_POLICY_HASH" =~ ^[a-f0-9]{64}$ ]]
+          [[ "$CONVERGENCE_PLAN_SHA256" =~ ^[a-f0-9]{64}$ ]]
           test -n "$CLOUDFLARE_ACCOUNT_ID"
           test -n "$CLOUDFLARE_API_TOKEN"
 
@@ -243,10 +350,11 @@ jobs:
             --source-sha="$SOURCE_SHA" \
             --output-dir="$ARTIFACT_DIR" \
             --lifetime-hours=168
-          jq -e --arg sha "$SOURCE_SHA" '
-            .contract == "mad4b.staging.activation-recovery-origin-trust.v1"
+          jq -e --arg sha "$SOURCE_SHA" --arg policy_hash "$EXPECTED_POLICY_HASH" '
+            .contract == "mad4b.staging.activation-recovery-origin-trust.v2"
             and .source_commit == $sha
             and .worker_build_sha == $sha
+            and .policy_hash == $policy_hash
             and .gateway_host == "activation-dev.mad4b.com"
             and .canonical_host == "activation-dev.mad4b.com"
             and .audience == "https://dev.mad4b.com"
@@ -288,11 +396,13 @@ jobs:
             status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
               --connect-timeout 10 --max-time 20 "$PUBLIC_HEALTH_URL" || true)"
             if test "$status" = "200" \
-              && jq -e --arg sha "$SOURCE_SHA" '
+              && jq -e --arg sha "$SOURCE_SHA" --arg policy_hash "$EXPECTED_POLICY_HASH" '
                 .ok == true
                 and .stale == false
                 and .sourceCommit == $sha
                 and .workerBuildSha == $sha
+                and .policyKey == "activation_gateway_staging"
+                and .policyHash == $policy_hash
                 and .secretsIncluded == false
               ' "$response_file" >/dev/null; then
               jq '{ok, service, policyKey, policyHash, deploymentId, sourceCommit, workerBuildSha, workerBundleSha256, stale, secretsIncluded}' "$response_file"
