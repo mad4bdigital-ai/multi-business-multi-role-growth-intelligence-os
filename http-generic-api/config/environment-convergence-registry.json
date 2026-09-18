@@ -143,7 +143,24 @@
           "plan_capability": "activation_gateway_rollout_plan",
           "apply_capability": "activation_gateway_dark_deploy",
           "profile_binding_required": true,
-          "automatic_apply_allowed": false
+          "automatic_apply_allowed": false,
+          "handoff_override": {
+            "authority": "server_governed",
+            "current_authority_adapter": "staging_activation_worker_workflow",
+            "target_authority_model": "server_governed_out_of_band",
+            "plan_capability": "staging_activation_worker_refresh_dry_run",
+            "apply_capability": "deploy_activation_worker",
+            "execution_surface": "staging_activation_worker_workflow",
+            "transport": "github_actions",
+            "workflow": ".github/workflows/staging-main-deploy-eligibility.yml",
+            "dry_run_operation": "activation_worker_refresh_dry_run",
+            "apply_operation": "deploy_activation_worker",
+            "requires_exact_main": true,
+            "requires_same_run_preflight": true,
+            "caller_selected_provider_target_allowed": false,
+            "stale_gateway_bypass_required": true,
+            "automatic_apply_allowed": false
+          }
         },
         "gateway_policy_hash_current": {
           "failure_kind": "convergence_drift",
