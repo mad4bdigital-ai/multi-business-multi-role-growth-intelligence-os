@@ -18,6 +18,10 @@ const SUPPORT_TICKET_ROUTE_FILE = "routes/supportTicketRoutes.js";
 const PLATFORM_PLUGIN_ROUTE_FILE = "routes/tenantPlatformPluginRoutes.js";
 const PLATFORM_PLUGIN_RESOLVE_SIGNATURE = "POST /tenant/platform/plugins/resolve";
 const PLATFORM_PLUGIN_RESOLVE_OPERATION_ID = "tenantPlatformPluginResolve";
+const REMOTE_RUNTIME_CATALOG_READONLY_SIGNATURE = "GET /platform/remote-runtime/targets/catalog-readonly";
+const REMOTE_RUNTIME_CATALOG_READONLY_OPERATION_ID = "getRemoteRuntimeTargetCatalogReadonly";
+const REMOTE_RUNTIME_CATALOG_READONLY_ROUTE_FILE = "routes/operationalConsoleRoutes.js";
+const REMOTE_RUNTIME_CATALOG_READONLY_PATH_ITEM_REF = "./openapi/remote-runtime-target-catalog-readonly.yaml#/remoteRuntimeTargetCatalogReadonlyPath";
 const LEGACY_REGISTERED_PATH_TRANSITIONS = new Map([
   [
     "POST /admin/support/tickets/{ticket_id}/external-delivery/completion-certification",
@@ -315,6 +319,29 @@ function isKnownWorkspaceV2RegisteredOperation(operation, contract) {
     && (previousWorkspaceOnly || previousCanonicalBrandWorkspace);
 }
 
+function isKnownRemoteRuntimeCatalogReadonlyPredecessor(operation, contract) {
+  if (!operation || typeof operation !== "object") return false;
+  if (contract.signature !== REMOTE_RUNTIME_CATALOG_READONLY_SIGNATURE
+    || contract.route_file !== REMOTE_RUNTIME_CATALOG_READONLY_ROUTE_FILE
+    || contract.path_item_ref !== REMOTE_RUNTIME_CATALOG_READONLY_PATH_ITEM_REF
+    || contract.composition_mode !== "inline") return false;
+
+  const canonicalPathItem = loadReferencedPathItem(contract.path_item_ref);
+  const canonicalOperation = canonicalPathItem?.get;
+  if (!canonicalOperation || typeof canonicalOperation !== "object") return false;
+  if (canonicalOperation.operationId !== REMOTE_RUNTIME_CATALOG_READONLY_OPERATION_ID
+    || canonicalOperation["x-runtime-contract-source"] !== REMOTE_RUNTIME_CATALOG_READONLY_ROUTE_FILE
+    || canonicalOperation["x-runtime-auth-profile"] !== "admin_backend"
+    || canonicalOperation["x-contract-completeness"] !== "precise-runtime-contract"
+    || canonicalOperation["x-openai-isConsequential"] !== false
+    || canonicalSecurity(canonicalOperation.security) !== canonicalSecurity(expectedSecurity("admin_backend"))
+    || !equivalent(canonicalOperation.tags, ["staging-admin", "admin-control"])) return false;
+
+  const predecessor = JSON.parse(JSON.stringify(canonicalOperation));
+  predecessor.tags = predecessor.tags.filter((tag) => tag !== "admin-control");
+  return equivalent(operation, predecessor);
+}
+
 function inspectReplaceableRegisteredPath(current, routePath, pathItemRef, contracts) {
   if (!current || typeof current !== "object" || Array.isArray(current) || current.$ref) return null;
   const currentKeys = Object.keys(current);
@@ -333,7 +360,8 @@ function inspectReplaceableRegisteredPath(current, routePath, pathItemRef, contr
     const operation = current[contract.method.toLowerCase()];
     return !isRuntimeDerivedRegisteredOperation(operation, contract.method)
       && !isKnownLegacyRegisteredOperation(operation, contract)
-      && !isKnownWorkspaceV2RegisteredOperation(operation, contract);
+      && !isKnownWorkspaceV2RegisteredOperation(operation, contract)
+      && !isKnownRemoteRuntimeCatalogReadonlyPredecessor(operation, contract);
   })) return null;
 
   return {
