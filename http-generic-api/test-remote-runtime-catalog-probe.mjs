@@ -11,6 +11,7 @@ const migration = readFileSync("migrations/151_sprint65_remote_runtime_catalog_p
 const openapi = readFileSync("openapi.yaml", "utf8");
 const readonlyPrecise = readFileSync("openapi/remote-runtime-target-catalog-readonly.yaml", "utf8");
 const readonlyRegistry = readFileSync("openapi-route-contracts.d/remote-runtime-target-catalog-readonly.yaml", "utf8");
+const stagingAdminBuilder = readFileSync("scripts/build-staging-admin-openapi.mjs", "utf8");
 
 const catalogStart = service.indexOf("export async function listRemoteRuntimeTargets");
 const catalogEnd = service.indexOf("\nexport async function ", catalogStart + 1);
@@ -68,12 +69,14 @@ assert(openapi.includes("x-openai-isConsequential: false"), "OpenAPI must mark c
 assert(openapi.includes("never opens SSH"), "OpenAPI must document no SSH execution");
 
 assert.match(readonlyPrecise, /operationId:\s*getRemoteRuntimeTargetCatalogReadonly/);
-assert.match(readonlyPrecise, /x-custom-gpt-surfaces:\s*\[admin_core\]/);
+assert.doesNotMatch(readonlyPrecise, /x-custom-gpt-surfaces:\s*\[[^\]]*admin_core/, "Staging-only catalog must not consume shared admin_core operation budget");
 assert.match(readonlyPrecise, /x-openai-isConsequential:\s*false/);
 assert.match(readonlyPrecise, /x-runtime-contract-source:\s*routes\/operationalConsoleRoutes\.js/);
 assert.match(readonlyPrecise, /never opens SSH/);
 assert.match(readonlyPrecise, /never[\s\S]*returns credential values/);
 assert.match(readonlyRegistry, /GET \/platform\/remote-runtime\/targets\/catalog-readonly/);
 assert.match(readonlyRegistry, /composition_mode:\s*inline/);
+assert.match(stagingAdminBuilder, /remote-runtime-target-catalog-readonly\.yaml/, "Staging Admin builder must consume the supplemental precise contract directly");
+assert.match(stagingAdminBuilder, /must not be inherited from shared admin_core/, "Staging Admin builder must fail closed if the route leaks into shared admin_core");
 
 console.log("remote runtime catalog/probe tests passed");
