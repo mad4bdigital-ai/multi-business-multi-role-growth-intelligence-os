@@ -37,6 +37,7 @@ for (const requiredPath of [
 
 const compose = parse(read("http-generic-api/docker-compose.staging.yml"));
 const dockerfile = read("http-generic-api/Dockerfile.staging");
+const dockerignore = read(".dockerignore");
 const env = read("http-generic-api/.env.staging.example");
 const policy = JSON.parse(read("http-generic-api/config/domain-family-policy.json"));
 const deploymentPolicy = JSON.parse(read("http-generic-api/config/deployment-branch-policy.json"));
@@ -104,6 +105,19 @@ assert.match(dockerfile, /COPY \. \/app\/repo-inspect\//);
 assert.match(dockerfile, /ENV REPO_INSPECT_ROOT=\/app\/repo-inspect/);
 assert.match(dockerfile, /rm -f \/app\/repo-inspect\/\.staging-build-context\.json/);
 assert.match(dockerfile, /local_ignored_files_included!==false/);
+for (const requiredRepoInspectSource of [
+  "!docs/**",
+  "!canonicals/**",
+  "!AI_Agent_Knowledge_Guide.md",
+  "!GPT_Admin_Assistant_Knowledge_Guide.md",
+  "!system_bootstrap.md",
+  "!memory_schema.json",
+  "!direct_instructions_registry_patch.md",
+  "!module_loader.md",
+  "!prompt_router.md",
+]) {
+  assert.ok(dockerignore.includes(requiredRepoInspectSource), `Staging Docker context missing repo_inspect source allowlist: ${requiredRepoInspectSource}`);
+}
 assert.doesNotMatch(dockerfile, /new Date\(\)\.toISOString\(\)/);
 assert.match(autopilot, /Working tree is not clean/);
 assert.match(autopilot, /DOCKER_HOST/);
