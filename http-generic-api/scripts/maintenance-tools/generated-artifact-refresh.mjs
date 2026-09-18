@@ -470,12 +470,16 @@ function runFrontendOpenApiRefresh() {
   run("sync_precise_registry", "node", ["scripts/openapi-precise-contract-registry-sync.mjs", "--write"], { cwd: apiDir });
   run("autofill_openapi_routes", "node", ["scripts/openapi-autofill-missing-routes.mjs", "--write"], { cwd: apiDir });
   run("sync_openapi_runtime_auth", "node", ["scripts/openapi-runtime-auth-sync.mjs", "--write"], { cwd: apiDir });
+  // Materialize every OpenAPI source artifact before computing the frontend
+  // dispatch source digest. The Staging Admin schema is included in the
+  // frontend dispatcher OpenAPI reference authority, so generating it after
+  // the dispatch makes the detail-gap artifact stale within the same recipe.
+  run("generate_custom_gpt_schemas", "node", ["scripts/generate-custom-gpt-schemas.mjs", "--write"], { cwd: apiDir });
+  run("generate_staging_admin_openapi", "node", ["scripts/build-staging-admin-openapi.mjs"], { cwd: apiDir });
   run("generate_frontend_dispatch", "npm", ["run", "frontend:dispatch:generate", "--", "--baseline-ref=main"], { cwd: apiDir });
   run("generate_openapi_detail_gap_classification", "npm", ["run", "openapi:detail-gaps:generate"], { cwd: apiDir });
   run("generate_openapi_gap_closure_plan", "npm", ["run", "openapi:gap-closure-plan:generate"], { cwd: apiDir });
   run("generate_openapi_detail_closure_batch", "npm", ["run", "openapi:detail-batch:write"], { cwd: repoRoot });
-  run("generate_custom_gpt_schemas", "node", ["scripts/generate-custom-gpt-schemas.mjs", "--write"], { cwd: apiDir });
-  run("generate_staging_admin_openapi", "node", ["scripts/build-staging-admin-openapi.mjs"], { cwd: apiDir });
   run("sync_activation_gateway_runtime_bundle", "npm", ["run", "activation-gateway:bundle:sync"], { cwd: apiDir });
   syncActivationGatewayProfilePolicyHashes();
   refreshPortableStagingManifest();
