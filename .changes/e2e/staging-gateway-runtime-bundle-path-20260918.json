@@ -34,7 +34,10 @@
       "http-generic-api/databasePrivilegeContracts.js",
       "http-generic-api/scripts/staging-database-recovery-contract.mjs",
       "http-generic-api/Dockerfile.staging",
-      ".dockerignore"
+      ".dockerignore",
+      "autopilot-portable-staging/manifest.json",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json"
     ]
   },
   "environment_impact": {
@@ -185,7 +188,10 @@
             "http-generic-api/databasePrivilegeContracts.js",
             "http-generic-api/scripts/staging-database-recovery-contract.mjs",
             "http-generic-api/Dockerfile.staging",
-            ".dockerignore"
+            ".dockerignore",
+            "autopilot-portable-staging/manifest.json",
+            "docs/remote-mcp-write-scope-inventory.md",
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json"
           ],
           "objective": "Make the server-governed Staging Activation Gateway dry-run build only from the generated service-local runtime bundle actually packaged under /app, and close the stale-policy circular recovery dependency by classifying signed JSON GATEWAY_POLICY_STALE health responses causally and routing stale Gateway drift to an exact-main, out-of-band server-side refresh workflow that performs a non-secret dry-run/preflight before any explicitly authorized Worker deploy. Keep all normal Gateway and Recovery routes fail-closed while stale and keep provider, database, DNS, custom-domain and Production mutation outside the dry-run. In the same governed journey, expose the exact Staging Recovery dry-run operation through the private System Tool catalog without falling back to the generic caller-account rollout contract; keep account, script, workspace, resource binding and apply authority server-resolved. Also keep live readiness diagnostics least-privilege by granting the Staging runtime role optional SELECT-only access to v_platform_capability_readiness_vector when that surface exists, and package only the allowlisted exact-build repository knowledge snapshot needed by repo_inspect list/read/search."
         }
