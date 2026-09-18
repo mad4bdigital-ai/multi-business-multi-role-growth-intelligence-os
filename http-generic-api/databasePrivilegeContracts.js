@@ -98,6 +98,7 @@ const STAGING_RUNTIME_OPTIONAL_READ_SURFACES = Object.freeze([
   "operational_alerts",
   "v_platform_evolution_activation_card",
   "v_platform_capability_gaps",
+  "v_platform_capability_readiness_vector",
 ]);
 
 const STAGING_RUNTIME_READ_ONLY_MATRIX = Object.freeze(Object.fromEntries(
