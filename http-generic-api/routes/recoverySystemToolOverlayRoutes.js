@@ -8,6 +8,7 @@ import {
   stagingRecoveryAccessRepairApprove,
   stagingRecoveryAccessRepairExecute,
   stagingRecoveryAccessRepairPrepare,
+  stagingRecoveryActivationGatewayDarkDeployDryRun,
   stagingRecoveryCertificationCanaryPlanCreate,
   stagingRecoveryRebuildEmptyApprove,
   stagingRecoveryRebuildEmptyInspectionRecord,
@@ -35,6 +36,7 @@ const STAGING_REBUILD_ROLE_CAPABILITIES = Object.freeze([
 ]);
 const STAGING_TOOL_NAMES = new Set([
   "staging_recovery_certification_canary_plan_create",
+  "staging_recovery_activation_gateway_dark_deploy_dry_run",
   "staging_recovery_access_repair_prepare",
   "staging_recovery_access_repair_approve",
   "staging_recovery_access_repair_execute",
@@ -265,6 +267,13 @@ async function executeOverlayTool(name, args, deps = {}) {
       });
     }
     if (name === "staging_recovery_certification_canary_plan_create") return stagingRecoveryCertificationCanaryPlanCreate(args, { env: runtimeEnv });
+    if (name === "staging_recovery_activation_gateway_dark_deploy_dry_run") {
+      return stagingRecoveryActivationGatewayDarkDeployDryRun(args, {
+        ...(deps.gatewayPreflightDeps || {}),
+        env: runtimeEnv,
+        auth: deps.auth || {},
+      });
+    }
     if (name === "staging_recovery_access_repair_prepare") return stagingRecoveryAccessRepairPrepare(args, { env: runtimeEnv });
     if (name === "staging_recovery_access_repair_approve") return stagingRecoveryAccessRepairApprove(args, { env: runtimeEnv });
     if (name === "staging_recovery_access_repair_execute") {
@@ -319,6 +328,7 @@ export function buildRecoverySystemToolOverlayRoutes({
   deploymentIdentityProvider,
   hostBreakglassMutationExecutor,
   migrationLedger,
+  gatewayPreflightDeps = null,
 } = {}) {
   if (typeof requireBackendApiKey !== "function" || typeof requireAdminPrincipal !== "function") {
     throw Object.assign(new Error("Recovery System Tool overlay requires backend and admin guards."), {
@@ -341,6 +351,7 @@ export function buildRecoverySystemToolOverlayRoutes({
     deploymentIdentityProvider,
     hostBreakglassMutationExecutor,
     migrationLedger,
+    gatewayPreflightDeps,
   };
 
   const handler = async (req, res, next) => {
@@ -350,7 +361,7 @@ export function buildRecoverySystemToolOverlayRoutes({
       || (name === "recovery_kernel_call" && String(args?.capability_key || "").trim() === "recovery_capabilities");
     if (name !== BRIDGE_TOOL_NAME && !STAGING_TOOL_NAMES.has(name) && !capabilityProjection) return next();
     try {
-      const result = await executeOverlayTool(name, args, deps);
+      const result = await executeOverlayTool(name, args, { ...deps, auth: req.auth || {} });
       return res.status(200).json(result);
     } catch (error) {
       return sendError(res, error);
