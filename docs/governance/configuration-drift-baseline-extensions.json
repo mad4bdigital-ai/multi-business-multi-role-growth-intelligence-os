@@ -4,6 +4,72 @@
   "purpose": "Permanent, explicitly reviewed code-owned CI governance inputs that extend the legacy monolithic configuration fingerprint baseline without suppressing drift.",
   "entries": [
     {
+      "fingerprint": ".github/ops/lib/github-review-policy-public-probe-preload.mjs|DEFAULT_MAX_ATTEMPTS|literal_declaration|max.attempts",
+      "owner": "repository-governance",
+      "reason": "Fixed bounded-attempt default for the serialized public exact-SHA policy readiness probes; it is a non-secret code-owned retry invariant and grants no runtime, provider, database, protected-ref, Ruleset Apply, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/lib/github-review-policy-public-probe-preload.mjs|DEFAULT_RETRY_DELAY_MS|literal_declaration|retry.delay.ms",
+      "owner": "repository-governance",
+      "reason": "Fixed bounded retry-delay default for the serialized public exact-SHA policy readiness probes; it is a non-secret code-owned backoff invariant and grants no runtime, provider, database, protected-ref, Ruleset Apply, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/lib/github-review-policy-public-probe-preload.mjs|MAX_RETRY_AFTER_MS|literal_declaration|max.retry.after.ms",
+      "owner": "repository-governance",
+      "reason": "Fixed upper bound for Retry-After handling by the public exact-SHA policy readiness probes; it is a non-secret fail-bounded safety invariant and grants no runtime, provider, database, protected-ref, Ruleset Apply, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/localConnectorInstallerCapability.js|LOCAL_CONNECTOR_INSTALLER_CAPABILITY_MAX_TTL_SECONDS|literal_declaration|local.connector.installer.capability.max.ttl.seconds",
+      "owner": "local-connector",
+      "reason": "Fixed upper lifetime bound for signed installer download capabilities; it is a security invariant, contains no secret, and grants no runtime, provider, database, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/localConnectorInstallerCapability.js|LOCAL_CONNECTOR_INSTALLER_CAPABILITY_MIN_TTL_SECONDS|literal_declaration|local.connector.installer.capability.min.ttl.seconds",
+      "owner": "local-connector",
+      "reason": "Fixed lower lifetime bound for signed installer download capabilities; it is a security invariant, contains no secret, and grants no runtime, provider, database, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/test-local-connector-installer-capability.mjs|scope|literal_declaration|scope",
+      "owner": "test-governance",
+      "reason": "Test-only installer identity scope fixture used to verify environment, tenant, user, device, and configuration binding; it contains no credential and grants no runtime or Production authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": ".github/ops/github-followup-automerge-readiness.mjs|branch|environment_reference|target.branch",
       "owner": "repository-governance",
       "reason": "Target branch is a read-only identity binding used to reject cross-branch auto-merge registration and is constrained by the verifier to the governed main target.",
@@ -191,50 +257,6 @@
       "grants_production_activation": false
     },
     {
-      "fingerprint": ".github/ops/lib/github-review-policy-public-probe-preload.mjs|DEFAULT_MAX_ATTEMPTS|literal_declaration|max.attempts",
-      "owner": "repository-governance",
-      "reason": "Fixed bounded-attempt default for the serialized public exact-SHA policy readiness probes; it is a non-secret code-owned retry invariant and grants no runtime, provider, database, protected-ref, Ruleset Apply, or Production mutation authority.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": ".github/ops/lib/github-review-policy-public-probe-preload.mjs|DEFAULT_RETRY_DELAY_MS|literal_declaration|retry.delay.ms",
-      "owner": "repository-governance",
-      "reason": "Fixed bounded retry-delay default for the serialized public exact-SHA policy readiness probes; it is a non-secret code-owned backoff invariant and grants no runtime, provider, database, protected-ref, Ruleset Apply, or Production mutation authority.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": ".github/ops/lib/github-review-policy-public-probe-preload.mjs|MAX_RETRY_AFTER_MS|literal_declaration|max.retry.after.ms",
-      "owner": "repository-governance",
-      "reason": "Fixed upper bound for Retry-After handling by the public exact-SHA policy readiness probes; it is a non-secret fail-bounded safety invariant and grants no runtime, provider, database, protected-ref, Ruleset Apply, or Production mutation authority.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": ".github/scripts/staging-recovery-sign-certification.mjs|STAGING_RECOVERY_GITHUB_VERIFICATION_REPORT_CONTRACT|literal_declaration|staging.recovery.github.verification.report.contract",
-      "owner": "staging-recovery-governance",
-      "reason": "Static contract identifier for the no-secret GitHub verification report; it is not runtime configuration and grants no signing, repository, provider, database, or Production authority.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
       "fingerprint": ".github/workflows/github-repository-policy-1051-governed-rollout.yml|base|environment_reference|runtime.base.url",
       "owner": "repository-governance",
       "reason": "RUNTIME_BASE_URL is consumed only by the bounded Migration 1051 VERIFY metadata diagnostic to address the existing admin control read surface; the diagnostic remains read-only and grants no runtime, database, provider, protected-ref, or Production mutation authority.",
@@ -263,50 +285,6 @@
       "lifecycle": "permanent",
       "configuration_class": "ci_governance_input",
       "sensitivity": "credential_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": ".github/workflows/staging-main-deploy-eligibility.yml|convergencePlanSha256|environment_reference|convergence.plan.sha256",
-      "owner": "staging-governance",
-      "reason": "Environment convergence plan SHA-256 is a non-secret immutable lineage/correlation reference carried by the Staging Worker refresh dry-run evidence. It is explicitly not execution authority and grants no provider, runtime, database, DNS, protected-ref, or Production mutation authority.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": ".github/workflows/staging-main-deploy-eligibility.yml|expectedPolicyHash|environment_reference|expected.policy.hash",
-      "owner": "staging-governance",
-      "reason": "Expected Staging Activation Gateway policy hash is a non-secret fail-closed release-identity binding used by the refresh preflight and exact post-deploy readback; it grants no provider, runtime, database, DNS, protected-ref, or Production mutation authority.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": ".github/workflows/staging-main-deploy-eligibility.yml|output|environment_reference|runner.temp",
-      "owner": "staging-governance",
-      "reason": "Runner temporary output directory is an ephemeral non-secret evidence location for the Staging Worker refresh dry-run. It is not a deployment target or credential location and grants no runtime, provider, database, DNS, protected-ref, or Production mutation authority.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": ".github/workflows/staging-main-deploy-eligibility.yml|sourceSha|environment_reference|source.sha",
-      "owner": "staging-governance",
-      "reason": "Source SHA is a non-secret exact-current-main identity binding used to fail closed before Staging Worker refresh planning or deployment; it grants no provider, runtime, database, DNS, protected-ref, or Production mutation authority.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
@@ -370,28 +348,6 @@
       "fingerprint": "http-generic-api/databaseGeneratedColumnPolicyGuard.js|requiredDefaultSql|literal_declaration|requireddefaultsql",
       "owner": "repository-governance",
       "reason": "The required-default SQL evidence literal is a code-owned read-only validator binding for the MariaDB ERROR 1364 contract and cannot authorize runtime, database, provider, protected-ref, or Production mutation.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": "http-generic-api/localConnectorInstallerCapability.js|LOCAL_CONNECTOR_INSTALLER_CAPABILITY_MAX_TTL_SECONDS|literal_declaration|local.connector.installer.capability.max.ttl.seconds",
-      "owner": "local-connector",
-      "reason": "Fixed upper lifetime bound for signed installer download capabilities; it is a security invariant, contains no secret, and grants no runtime, provider, database, or Production mutation authority.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": "http-generic-api/localConnectorInstallerCapability.js|LOCAL_CONNECTOR_INSTALLER_CAPABILITY_MIN_TTL_SECONDS|literal_declaration|local.connector.installer.capability.min.ttl.seconds",
-      "owner": "local-connector",
-      "reason": "Fixed lower lifetime bound for signed installer download capabilities; it is a security invariant, contains no secret, and grants no runtime, provider, database, or Production mutation authority.",
       "lifecycle": "permanent",
       "configuration_class": "ci_governance_input",
       "sensitivity": "non_secret_reference",
@@ -543,39 +499,6 @@
       "grants_production_activation": false
     },
     {
-      "fingerprint": "http-generic-api/scripts/host-breakglass-local-verified.mjs|backendApiKey|environment_reference|staging.recovery.backend.api.key",
-      "owner": "staging-recovery-governance",
-      "reason": "Existing server-issued backend authentication is read from the bounded Staging environment only to verify the exact role-bundle binding before local execution; no secret value is stored and this entry grants no database, provider, or Production authority.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "secret_reference_only",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": "http-generic-api/scripts/host-breakglass-local-verified.mjs|baseUrl|environment_reference|staging.recovery.admin.url",
-      "owner": "staging-recovery-governance",
-      "reason": "Staging Recovery verification endpoint selection is constrained in code to activation-dev.mad4b.com and is used only for exact ticket role-bundle verification; it grants no database, provider, or Production authority.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": "http-generic-api/scripts/host-breakglass-local.mjs|HOST_BREAKGLASS_ROLE_BUNDLE_VERIFICATION|environment_reference|host.breakglass.role.bundle.verification",
-      "owner": "staging-recovery-governance",
-      "reason": "Process-local sentinel passed by the verified wrapper after server validation of exact ticket role-bundle bindings; it is not caller authority, contains no secret, and grants no Production or provider authority.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
       "fingerprint": "http-generic-api/scripts/maintenance-tools/configuration-drift-guard.mjs|DEFAULT_BASELINE_EXTENSION|literal_declaration|baseline.extension",
       "owner": "repository-governance",
       "reason": "The default baseline-extension path is the code-owned locator for the permanent configuration governance extension authority. It selects a tracked report-only contract, contains no credential, and grants no runtime, database, protected-ref, or Production mutation authority.",
@@ -601,50 +524,6 @@
       "fingerprint": "http-generic-api/scripts/maintenance-tools/platform-configuration-entry-guard.mjs|DEFAULT_BASELINE_EXTENSION|literal_declaration|baseline.extension",
       "owner": "repository-governance",
       "reason": "The platform configuration entry guard default extension path is a tracked, read-only governance locator used to recognize explicitly reviewed CI inputs; it contains no credential and grants no runtime, database, provider, protected-ref, or Production mutation authority.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": "http-generic-api/scripts/prepare-staging-cert-trust-evidence.mjs|appBase|environment_reference|staging.cert.app.base.url",
-      "owner": "repository-governance",
-      "reason": "Staging certification application base URL is a non-secret runner-side read-only probe locator constrained to the Staging certification flow; it selects only the existing Staging application origin and grants no runtime, provider, database, protected-ref, or Production mutation authority.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": "http-generic-api/scripts/prepare-staging-cert-trust-evidence.mjs|envFile|environment_reference|staging.cert.trust.env.file",
-      "owner": "repository-governance",
-      "reason": "Staging certification trust env file is an ephemeral GitHub-runner output path used only to pass verified public trusted-ingress values to the existing certifier after exact evidence checks; it contains no secret value and grants no runtime, provider, database, protected-ref, or Production mutation authority.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": "http-generic-api/scripts/prepare-staging-cert-trust-evidence.mjs|environmentBindingWritten|literal_declaration|environmentbindingwritten",
-      "owner": "repository-governance",
-      "reason": "environmentBindingWritten is an internal report-only boolean proving whether transient runner hydration was written after all trusted-ingress checks passed; it is not a configuration authority and grants no runtime, provider, database, protected-ref, or Production mutation authority.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": "http-generic-api/scripts/prepare-staging-cert-trust-evidence.mjs|expectedCommit|environment_reference|staging.cert.expected.commit",
-      "owner": "repository-governance",
-      "reason": "Expected commit is a non-secret exact-candidate SHA freshness binding used only to fail closed unless live Staging trust evidence matches the governed source commit; it grants no runtime, provider, database, protected-ref, or Production mutation authority.",
       "lifecycle": "permanent",
       "configuration_class": "ci_governance_input",
       "sensitivity": "non_secret_reference",
@@ -906,28 +785,6 @@
       "grants_production_activation": false
     },
     {
-      "fingerprint": "http-generic-api/stagingRecoveryAuthorityBindingPhaseB.js|STAGING_RECOVERY_PHASE_B_APPROVAL_TOKEN_CONTRACT|literal_declaration|staging.recovery.phase.b.approval.token.contract",
-      "owner": "staging-recovery-governance",
-      "reason": "Static Phase B single-issuance approval-token handle contract identifier; it is not runtime configuration and grants no approval, repository, provider, database, or Production mutation authority.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": "http-generic-api/stagingRecoveryPhaseBConcurrency.js|STAGING_RECOVERY_PHASE_B_CONCURRENCY_CONTRACT|literal_declaration|staging.recovery.phase.b.concurrency.contract",
-      "owner": "staging-recovery-governance",
-      "reason": "Static Phase B concurrency evidence contract identifier; it is not a configurable runtime setting and grants no mutation, provider, database, or Production authority.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
       "fingerprint": "http-generic-api/tenantGptOAuthPreset.js|ACTIVATION_STAGING_GATEWAY_ENABLED|environment_reference|activation.staging.gateway.enabled",
       "owner": "oauth-governance",
       "reason": "The Staging Activation gateway enablement variable is read only to select the documented non-live OAuth preset; it does not activate Production or grant provider/database mutation authority.",
@@ -978,17 +835,6 @@
       "lifecycle": "permanent",
       "configuration_class": "ci_governance_input",
       "sensitivity": "credential_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": "http-generic-api/test-local-connector-installer-capability.mjs|scope|literal_declaration|scope",
-      "owner": "test-governance",
-      "reason": "Test-only installer identity scope fixture used to verify environment, tenant, user, device, and configuration binding; it contains no credential and grants no runtime or Production authority.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
@@ -1159,28 +1005,6 @@
       "grants_production_activation": false
     },
     {
-      "fingerprint": "http-generic-api/test-staging-recovery-certification-protocol.mjs|approval|literal_declaration|approval",
-      "owner": "test-governance",
-      "reason": "Test-only approval fixture used to prove the certification protocol lifecycle binding; it contains no credential or authority value and grants no runtime, repository, database, provider, or Production mutation authority.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": "http-generic-api/test-staging-recovery-gateway-preflight.mjs|policyHash|literal_declaration|policyhash",
-      "owner": "staging-recovery-governance",
-      "reason": "Test-only policy hash fixture used to prove exact policy binding for governed Staging Activation Gateway preflight; it contains no credential or runtime configuration value and grants no apply, provider, database, protected-ref, or Production mutation authority.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
       "fingerprint": "http-generic-api/test-staging-schema-bundle-builder.mjs|defaultFile|literal_declaration|defaultfile",
       "owner": "repository-governance",
       "reason": "The static builder fixture names the governed additive default migration files and is used only for deterministic ordering checks; it grants no runtime, database, provider, protected-ref, or Production mutation authority.",
@@ -1214,9 +1038,185 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": ".github/scripts/staging-recovery-sign-certification.mjs|STAGING_RECOVERY_GITHUB_VERIFICATION_REPORT_CONTRACT|literal_declaration|staging.recovery.github.verification.report.contract",
+      "owner": "staging-recovery-governance",
+      "reason": "Static contract identifier for the no-secret GitHub verification report; it is not runtime configuration and grants no signing, repository, provider, database, or Production authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/stagingRecoveryPhaseBConcurrency.js|STAGING_RECOVERY_PHASE_B_CONCURRENCY_CONTRACT|literal_declaration|staging.recovery.phase.b.concurrency.contract",
+      "owner": "staging-recovery-governance",
+      "reason": "Static Phase B concurrency evidence contract identifier; it is not a configurable runtime setting and grants no mutation, provider, database, or Production authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/test-staging-recovery-certification-protocol.mjs|approval|literal_declaration|approval",
+      "owner": "test-governance",
+      "reason": "Test-only approval fixture used to prove the certification protocol lifecycle binding; it contains no credential or authority value and grants no runtime, repository, database, provider, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/stagingRecoveryAuthorityBindingPhaseB.js|STAGING_RECOVERY_PHASE_B_APPROVAL_TOKEN_CONTRACT|literal_declaration|staging.recovery.phase.b.approval.token.contract",
+      "owner": "staging-recovery-governance",
+      "reason": "Static Phase B single-issuance approval-token handle contract identifier; it is not runtime configuration and grants no approval, repository, provider, database, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": "local-connector/connector-runtime-bootstrap.mjs|policyEnabled|literal_declaration|policyenabled",
       "owner": "local-connector",
       "reason": "The boolean derives whether the environment-bound connector policy pull is active; it is fixed fail-closed bootstrap logic, contains no configured value, and grants no runtime or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/host-breakglass-local-verified.mjs|backendApiKey|environment_reference|staging.recovery.backend.api.key",
+      "owner": "staging-recovery-governance",
+      "reason": "Existing server-issued backend authentication is read from the bounded Staging environment only to verify the exact role-bundle binding before local execution; no secret value is stored and this entry grants no database, provider, or Production authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "secret_reference_only",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/host-breakglass-local-verified.mjs|baseUrl|environment_reference|staging.recovery.admin.url",
+      "owner": "staging-recovery-governance",
+      "reason": "Staging Recovery verification endpoint selection is constrained in code to activation-dev.mad4b.com and is used only for exact ticket role-bundle verification; it grants no database, provider, or Production authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/host-breakglass-local.mjs|HOST_BREAKGLASS_ROLE_BUNDLE_VERIFICATION|environment_reference|host.breakglass.role.bundle.verification",
+      "owner": "staging-recovery-governance",
+      "reason": "Process-local sentinel passed by the verified wrapper after server validation of exact ticket role-bundle bindings; it is not caller authority, contains no secret, and grants no Production or provider authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/prepare-staging-cert-trust-evidence.mjs|appBase|environment_reference|staging.cert.app.base.url",
+      "owner": "repository-governance",
+      "reason": "Staging certification application base URL is a non-secret runner-side read-only probe locator constrained to the Staging certification flow; it selects only the existing Staging application origin and grants no runtime, provider, database, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/prepare-staging-cert-trust-evidence.mjs|envFile|environment_reference|staging.cert.trust.env.file",
+      "owner": "repository-governance",
+      "reason": "Staging certification trust env file is an ephemeral GitHub-runner output path used only to pass verified public trusted-ingress values to the existing certifier after exact evidence checks; it contains no secret value and grants no runtime, provider, database, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/prepare-staging-cert-trust-evidence.mjs|environmentBindingWritten|literal_declaration|environmentbindingwritten",
+      "owner": "repository-governance",
+      "reason": "environmentBindingWritten is an internal report-only boolean proving whether transient runner hydration was written after all trusted-ingress checks passed; it is not a configuration authority and grants no runtime, provider, database, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/prepare-staging-cert-trust-evidence.mjs|expectedCommit|environment_reference|staging.cert.expected.commit",
+      "owner": "repository-governance",
+      "reason": "Expected commit is a non-secret exact-candidate SHA freshness binding used only to fail closed unless live Staging trust evidence matches the governed source commit; it grants no runtime, provider, database, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/test-staging-recovery-gateway-preflight.mjs|policyHash|literal_declaration|policyhash",
+      "owner": "staging-recovery-governance",
+      "reason": "Test-only policy hash fixture used to prove exact policy binding for governed Staging Activation Gateway preflight; it contains no credential or runtime configuration value and grants no apply, provider, database, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/workflows/staging-main-deploy-eligibility.yml|convergencePlanSha256|environment_reference|convergence.plan.sha256",
+      "owner": "staging-gateway-governance",
+      "reason": "Exact immutable environment-convergence plan SHA-256 is a non-secret stale-recovery identity binding used by the server-side dry-run evidence and explicit deploy handoff; it is not execution authority by itself and grants no runtime, provider, database, DNS, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/workflows/staging-main-deploy-eligibility.yml|expectedPolicyHash|environment_reference|expected.policy.hash",
+      "owner": "staging-gateway-governance",
+      "reason": "Expected Staging Activation Gateway policy hash is a non-secret exact-policy identity binding used to fail closed if a stale-recovery dry-run or deploy does not match the governed activation_gateway_staging profile; it grants no provider, database, DNS, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/workflows/staging-main-deploy-eligibility.yml|output|environment_reference|runner.temp",
+      "owner": "staging-gateway-governance",
+      "reason": "RUNNER_TEMP selects only the ephemeral directory for non-secret stale-recovery dry-run evidence inside the GitHub Actions runner; it is not a runtime target and grants no provider, database, DNS, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/workflows/staging-main-deploy-eligibility.yml|sourceSha|environment_reference|source.sha",
+      "owner": "staging-gateway-governance",
+      "reason": "Exact source SHA is a non-secret current-main identity binding for stale-recovery dry-run and deploy verification; the workflow independently proves it equals origin/main before any provider access and this reference alone grants no mutation authority.",
       "lifecycle": "permanent",
       "configuration_class": "ci_governance_input",
       "sensitivity": "non_secret_reference",
