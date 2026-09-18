@@ -476,6 +476,7 @@ function runFrontendOpenApiRefresh() {
   // the dispatch makes the detail-gap artifact stale within the same recipe.
   run("generate_custom_gpt_schemas", "node", ["scripts/generate-custom-gpt-schemas.mjs", "--write"], { cwd: apiDir });
   run("generate_staging_admin_openapi", "node", ["scripts/build-staging-admin-openapi.mjs"], { cwd: apiDir });
+  run("generate_activation_staging_policy", "node", ["scripts/generate-activation-staging-policy.mjs", "--write"], { cwd: apiDir });
   run("generate_frontend_dispatch", "npm", ["run", "frontend:dispatch:generate", "--", "--baseline-ref=main"], { cwd: apiDir });
   run("generate_openapi_detail_gap_classification", "npm", ["run", "openapi:detail-gaps:generate"], { cwd: apiDir });
   run("generate_openapi_gap_closure_plan", "npm", ["run", "openapi:gap-closure-plan:generate"], { cwd: apiDir });
@@ -495,6 +496,7 @@ function runFrontendOpenApiRefresh() {
     ["verify_auth_parity", "node", ["test-frontend-auth-openapi-parity.mjs"]],
     ["verify_openapi_route_coverage", "node", ["test-openapi-route-coverage.mjs"]],
     ["verify_openapi_auth", "npm", ["run", "openapi:auth:check"]],
+    ["verify_activation_staging_policy", "node", ["scripts/generate-activation-staging-policy.mjs", "--check"]],
     ["verify_schema_guard", "npm", ["run", "schemas:guard"]],
     ["verify_staging_manifest_hash_contract", "node", ["test-staging-autopilot-closure.mjs"]],
   ];
