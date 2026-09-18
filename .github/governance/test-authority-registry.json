@@ -556,6 +556,13 @@
         "http-generic-api/test-repository-tenant-intelligence-recipe-store.mjs",
         "http-generic-api/test-platform-resource-authority-write-authority.mjs"
       ]
+    },
+    {
+      "id": "staging_admin_remote_runtime_catalog_readonly",
+      "test_paths": [
+        "http-generic-api/test-custom-gpt-environment-aware-contract.mjs",
+        "http-generic-api/test-remote-runtime-catalog-probe.mjs"
+      ]
     }
   ],
   "discovery": {
