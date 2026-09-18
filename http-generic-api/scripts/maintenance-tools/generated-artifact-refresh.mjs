@@ -35,9 +35,19 @@ const FRONTEND_OPENAPI_ALLOWED_CHANGED_FILES = new Set([
   "http-generic-api/frontend-surface-dispatch.generated.json",
   "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
   "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml",
+  "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.production.yaml",
+  "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml",
   "http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml",
+  "http-generic-api/openapi/openapi.custom-gpt.activation-admin.production.yaml",
+  "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml",
+  "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml",
   "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
+  "http-generic-api/openapi/openapi.tenant-gpt.auth.production.yaml",
+  "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml",
   "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
+  "http-generic-api/openapi/openapi.tenant-gpt.activation.production.yaml",
+  "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
+  "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
   "http-generic-api/openapi.gpt-action.local-connector.yaml",
   "edge/activation-gateway/generated/route-policy.json",
   "edge/activation-gateway/generated/route-policy.staging.json",
@@ -465,6 +475,7 @@ function runFrontendOpenApiRefresh() {
   run("generate_openapi_gap_closure_plan", "npm", ["run", "openapi:gap-closure-plan:generate"], { cwd: apiDir });
   run("generate_openapi_detail_closure_batch", "npm", ["run", "openapi:detail-batch:write"], { cwd: repoRoot });
   run("generate_custom_gpt_schemas", "node", ["scripts/generate-custom-gpt-schemas.mjs", "--write"], { cwd: apiDir });
+  run("generate_staging_admin_openapi", "node", ["scripts/build-staging-admin-openapi.mjs"], { cwd: apiDir });
   run("sync_activation_gateway_runtime_bundle", "npm", ["run", "activation-gateway:bundle:sync"], { cwd: apiDir });
   syncActivationGatewayProfilePolicyHashes();
   refreshPortableStagingManifest();
