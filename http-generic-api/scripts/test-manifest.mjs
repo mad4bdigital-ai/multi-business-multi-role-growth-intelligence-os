@@ -105,6 +105,7 @@ const staticDiscoveryCommands = [
   "node test-frontend-operation-governance-generator.mjs",
   "node test-frontend-surface-dispatch.mjs",
   "node test-frontend-surface-coverage-claims.mjs",
+  "node test-remote-runtime-catalog-probe.mjs",
   "node scripts/test-frontend-dispatch-verification-evidence.mjs",
   "node scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs",
   "node scripts/test-runtime-startup-deployment-evidence.mjs",
