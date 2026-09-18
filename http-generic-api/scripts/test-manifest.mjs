@@ -147,6 +147,8 @@ const staticDiscoveryCommands = [
   "node test-platform-plugin-credential-scope-provenance.mjs",
   "node test-platform-plugin-resolver.mjs",
   "node test-platform-resource-recipe-capability.mjs",
+  "node test-platform-resource-recipe-store.mjs",
+  "node test-repository-tenant-intelligence-recipe-store.mjs",
   "node test-platform-runtime-registry-drift-reconciliation.mjs",
   "node test-production-promotion-candidate-dispatch-input-parity.mjs",
   "node test-production-promotion-convergence-workflows.mjs",

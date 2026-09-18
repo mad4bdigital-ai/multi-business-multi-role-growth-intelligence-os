@@ -198,10 +198,13 @@ includesAll(githubFileContentGatePatchPlanMigration, [
   "secrets_included',false",
 ], "GitHub file content gate and patch plan registry migration");
 
-assert(
-  manifest.includes("node test-platform-resource-recipe-capability.mjs"),
-  "test manifest must include platform resource recipe capability test"
-);
+for (const command of [
+  "node test-platform-resource-recipe-capability.mjs",
+  "node test-platform-resource-recipe-store.mjs",
+  "node test-repository-tenant-intelligence-recipe-store.mjs",
+]) {
+  assert(manifest.includes(command), `test manifest must include ${command}`);
+}
 
 assert.deepEqual(PLATFORM_RESOURCE_RECIPE_TOOL_NAMES, [
   "governed_resource_resolve",
