@@ -12,6 +12,7 @@ const openapi = readFileSync("openapi.yaml", "utf8");
 const readonlyPrecise = readFileSync("openapi/remote-runtime-target-catalog-readonly.yaml", "utf8");
 const readonlyRegistry = readFileSync("openapi-route-contracts.d/remote-runtime-target-catalog-readonly.yaml", "utf8");
 const stagingAdminBuilder = readFileSync("scripts/build-staging-admin-openapi.mjs", "utf8");
+const customGptSurfaces = readFileSync("../canonicals/openapi/custom-gpt-surfaces.yaml", "utf8");
 
 const catalogStart = service.indexOf("export async function listRemoteRuntimeTargets");
 const catalogEnd = service.indexOf("\nexport async function ", catalogStart + 1);
@@ -78,5 +79,6 @@ assert.match(readonlyRegistry, /GET \/platform\/remote-runtime\/targets\/catalog
 assert.match(readonlyRegistry, /composition_mode:\s*inline/);
 assert.match(stagingAdminBuilder, /remote-runtime-target-catalog-readonly\.yaml/, "Staging Admin builder must consume the supplemental precise contract directly");
 assert.match(stagingAdminBuilder, /must not be inherited from shared admin_core/, "Staging Admin builder must fail closed if the route leaks into shared admin_core");
+assert.match(customGptSurfaces, /operation_id:\s*getRemoteRuntimeTargetCatalogReadonly[\s\S]*Staging-only Remote Runtime target catalog is projected only through/, "shared Admin Core registry must carry an explicit exclusion record for the Staging-only operation");
 
 console.log("remote runtime catalog/probe tests passed");
