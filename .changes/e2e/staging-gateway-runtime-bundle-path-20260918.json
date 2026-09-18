@@ -25,7 +25,14 @@
       "http-generic-api/test-staging-autopilot-closure.mjs",
       "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
       "autopilot-portable-staging/activation-gateway-smart-convergence-policy.json",
-      "http-generic-api/stagingActivationGatewayApplyAdapter.js"
+      "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+      "http-generic-api/stagingRecoverySystemTools.js",
+      "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
+      "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
+      "http-generic-api/test-staging-recovery-system-tools.mjs",
+      "http-generic-api/test-recovery-system-tool-overlay.mjs",
+      "http-generic-api/databasePrivilegeContracts.js",
+      "http-generic-api/scripts/staging-database-recovery-contract.mjs"
     ]
   },
   "environment_impact": {
@@ -66,7 +73,11 @@
             "Run activation_worker_refresh_dry_run on exact current main with exact policy hash and environment convergence plan SHA-256, build the signed bundle in memory, publish only non-secret evidence, and perform no provider access.",
             "Require deploy_activation_worker to depend on the same-run refresh preflight, require explicit typed confirmation, exact current main, exact policy hash and plan SHA, then verify public exact-SHA/policy health if a later apply is separately authorized.",
             "Validate the current origin trust contract as mad4b.staging.activation-recovery-origin-trust.v2 and explicitly allow only the safe provider_credentials_included=false metadata field in the secret-name guard.",
-            "Bind the server-resolved execution target and Staging apply adapter to the packaged runtime worker and policy paths, while retaining edge/activation-gateway only as the canonical source identity checked by parity."
+            "Bind the server-resolved execution target and Staging apply adapter to the packaged runtime worker and policy paths, while retaining edge/activation-gateway only as the canonical source identity checked by parity.",
+            "Project a Staging-only private System Tool named staging_recovery_activation_gateway_dark_deploy_dry_run that delegates to the same server-resolved Gateway preflight implementation used by the dedicated Recovery route.",
+            "Expose only expected_source_commit, expected_policy_hash and environment_convergence_plan_sha256 on that System Tool; account_id, script_name, workspace_id, resource_binding_id, capability_envelope_id, execution_nonce and confirmation remain server-controlled or unavailable on the dry-run surface.",
+            "Pass the authenticated principal and the same server-side preflight dependencies through the Recovery System Tool overlay so workspace and profile authority are resolved identically to the dedicated Admin route.",
+            "Add v_platform_capability_readiness_vector to the Staging runtime optional read surfaces so the role receives SELECT only when the view exists; a missing view remains non-blocking degraded evidence and never expands schema privileges."
           ],
           "assertions": [
             "The packaged runtime contains src/worker-staging.mjs and the bundle manifest covers it.",
@@ -85,7 +96,11 @@
             "The stale-policy out-of-band handoff is scoped only to Staging; Production stale-policy classification remains on the production activation_gateway_dark_deploy authority and never routes through the Staging workflow.",
             "The critical Staging Gateway repair declaration is registered exactly in Constitution.control_plane_paths and convergence.automation_control_paths, with no broader control-plane pattern or autonomous merge authority.",
             "The canonical Staging policy source remains under edge/activation-gateway, while every server-resolved execution bundle binding and adapter entrypoint resolves only through the packaged http-generic-api/activation-gateway-runtime tree.",
-            "A generic HTTP 503 with stale=true but without activation-gateway service identity is not sufficient to enter stale-recovery convergence."
+            "A generic HTTP 503 with stale=true but without activation-gateway service identity is not sufficient to enter stale-recovery convergence.",
+            "The private Staging System Tool catalog contains staging_recovery_activation_gateway_dark_deploy_dry_run only in an unambiguous Staging environment and never in Production.",
+            "The Staging Gateway dry-run System Tool rejects caller-selected account, script, workspace, resource binding, capability envelope, execution nonce and confirmation fields before execution.",
+            "System Tool dry-run dispatch reaches the same server-resolved preflight path and preserves provider_accessed=false, provider_mutation_performed=false and production_authority=false.",
+            "v_platform_capability_readiness_vector is an optional Staging runtime SELECT-only surface; its absence cannot trigger broad schema grants and its presence does not grant INSERT, UPDATE, DELETE, DDL or GRANT OPTION."
           ],
           "tests": [
             {
@@ -115,6 +130,27 @@
               "working_directory": "http-generic-api",
               "path": "test-staging-autopilot-closure.mjs",
               "args": []
+            },
+            {
+              "id": "staging-recovery-system-tools",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-system-tools.mjs",
+              "args": []
+            },
+            {
+              "id": "recovery-system-tool-overlay",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-system-tool-overlay.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-database-recovery-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/staging-database-recovery-contract.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -136,8 +172,16 @@
             "http-generic-api/test-staging-autopilot-closure.mjs",
             "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
             "autopilot-portable-staging/activation-gateway-smart-convergence-policy.json",
-            "http-generic-api/stagingActivationGatewayApplyAdapter.js"
-          ]
+            "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+            "http-generic-api/stagingRecoverySystemTools.js",
+            "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
+            "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
+            "http-generic-api/test-staging-recovery-system-tools.mjs",
+            "http-generic-api/test-recovery-system-tool-overlay.mjs",
+            "http-generic-api/databasePrivilegeContracts.js",
+            "http-generic-api/scripts/staging-database-recovery-contract.mjs"
+          ],
+          "objective": "undefined The same Staging Recovery authority must also be directly discoverable through the private System Tool catalog without falling back to the generic account_id-based rollout tool, and the Staging runtime role must receive only optional SELECT access to the capability-readiness vector required by live readiness diagnostics."
         }
       ]
     }
