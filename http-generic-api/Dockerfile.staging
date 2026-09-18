@@ -27,10 +27,10 @@ COPY --from=staging_provenance /staging-build-context.json /staging-build-contex
 COPY http-generic-api/ ./
 
 # repo_inspect is a repository-root API, while the Staging service itself is
-# flattened into /app. Package the same exact Git-archive build context as a
-# read-only source snapshot so list/read/search resolve canonical root paths
-# without depending on an operator filesystem mount. The build-context proof
-# above guarantees ignored/local secrets are not part of this snapshot.
+# flattened into /app. Package the allowlisted canonical knowledge roots from
+# the same exact Git-archive build context as a read-only source snapshot so
+# list/read/search resolve repository-root references without an operator mount.
+# The build-context proof above requires ignored/local secrets to be absent.
 COPY . /app/repo-inspect/
 RUN rm -f /app/repo-inspect/.staging-build-context.json
 
