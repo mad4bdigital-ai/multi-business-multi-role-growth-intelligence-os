@@ -561,7 +561,8 @@
       "id": "staging_admin_remote_runtime_catalog_readonly",
       "test_paths": [
         "http-generic-api/test-custom-gpt-environment-aware-contract.mjs",
-        "http-generic-api/test-remote-runtime-catalog-probe.mjs"
+        "http-generic-api/test-remote-runtime-catalog-probe.mjs",
+        "http-generic-api/test-openapi-precise-inline-registry-transition.mjs"
       ]
     }
   ],
