@@ -144,9 +144,12 @@ services:
     command: ["tunnel", "--no-autoupdate", "run", "--token", "${CLOUDFLARE_TUNNEL_TOKEN:-}"]
     environment:
       TUNNEL_ENVIRONMENT: ${CLOUDFLARE_TUNNEL_ENVIRONMENT:-staging}
+      # Named Tunnel ingress is remotely managed. Keep the canonical host list as
+      # local governance metadata, but do not set cloudflared's singular
+      # TUNNEL_HOSTNAME option; cloudflared ignores it for Named Tunnels and emits
+      # a stderr warning that must not participate in runtime readiness.
       TUNNEL_HOSTNAMES: ${CLOUDFLARE_TUNNEL_HOSTNAMES:-dev.mad4b.com,mcp-dev.mad4b.com}
       TUNNEL_ORIGIN_APP: ${CLOUDFLARE_TUNNEL_ORIGIN_APP:-http://app:8080}
-      TUNNEL_HOSTNAME: ${CLOUDFLARE_TUNNEL_HOSTNAME:-dev.mad4b.com}
       TUNNEL_LOGLEVEL: ${CLOUDFLARE_TUNNEL_LOGLEVEL:-info}
       TUNNEL_GRACE_PERIOD: ${CLOUDFLARE_TUNNEL_GRACE_PERIOD:-30s}
     depends_on:

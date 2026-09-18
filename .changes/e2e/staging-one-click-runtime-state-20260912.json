@@ -18,7 +18,9 @@
       "http-generic-api/hostBreakglassLocalRequest.js",
       "http-generic-api/routes/adminHostBreakglassRoutes.js",
       "http-generic-api/scripts/host-breakglass-local-verified.mjs",
-      "http-generic-api/test-host-breakglass-local-request.mjs"
+      "http-generic-api/test-host-breakglass-local-request.mjs",
+      "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
+      "http-generic-api/docker-compose.staging.yml"
     ]
   },
   "environment_impact": {
@@ -155,6 +157,45 @@
             "autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1",
             "autopilot-portable-staging/manifest.json",
             "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs"
+          ]
+        },
+        {
+          "id": "staging-cloudflared-named-tunnel-warning-handling",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Windows Docker Staging operator",
+          "entrypoint": "Invoke-Staging-One-Click.ps1 with -TunnelMode docker_sidecar -EnableActivationGateway",
+          "terminal_outcome": "The remotely managed Named Tunnel sidecar starts without a singular hostname option, cloudflared stderr WARN records remain readable runtime evidence instead of terminating PowerShell errors, and Docker log collection still fails closed on a non-zero native Docker exit code.",
+          "steps": [
+            "Start the canonical Docker cloudflared sidecar using the token-based Named Tunnel command and the shared app network namespace.",
+            "Keep CLOUDFLARE_TUNNEL_HOSTNAMES as local Staging governance metadata while omitting the ignored singular TUNNEL_HOSTNAME option from the sidecar environment.",
+            "Read cloudflared runtime logs with native stderr captured as text under a bounded local ErrorActionPreference=Continue scope, then restore the caller ErrorActionPreference in finally.",
+            "Require docker logs to return native exit code zero before accepting its output as runtime evidence.",
+            "Continue remote-managed-origin evidence matching for dev.mad4b.com and mcp-dev.mad4b.com against http://127.0.0.1:8080 without provider, DNS, database, or Production mutation."
+          ],
+          "assertions": [
+            "The Docker Named Tunnel sidecar does not export TUNNEL_HOSTNAME.",
+            "A cloudflared WARN record written to stderr does not by itself trigger STAGING_DUAL_MODE_ONE_CLICK_FAIL_CLOSED.",
+            "A non-zero docker logs exit code remains fail-closed and cannot be treated as successful tunnel evidence.",
+            "The caller ErrorActionPreference is restored after each Docker log read.",
+            "Remote managed origin proof still requires both Staging hostnames to bind to the canonical loopback origin.",
+            "The repair performs no Cloudflare provider mutation, DNS mutation, database mutation, schema or migration apply, Production deploy, or secret output."
+          ],
+          "tests": [
+            {
+              "id": "staging-dual-mode-one-click-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/staging-dual-mode-one-click-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-one-click-runtime-state-20260912.json",
+            "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
+            "http-generic-api/docker-compose.staging.yml",
+            "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs",
+            "autopilot-portable-staging/manifest.json"
           ]
         }
       ]
