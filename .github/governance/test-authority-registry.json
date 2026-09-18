@@ -544,6 +544,16 @@
       "test_paths": [
         "http-generic-api/test-workspace-brand-core-asset-materialization.mjs"
       ]
+    },
+    {
+      "id": "platform_resource_recipe_governance_isolation",
+      "test_paths": [
+        "http-generic-api/test-platform-resource-recipe-store.mjs",
+        "http-generic-api/test-repository-governance-v6.mjs",
+        "http-generic-api/test-repository-reconciliation-automation.mjs",
+        "http-generic-api/test-repository-reconciliation-orchestrator-export.mjs",
+        "http-generic-api/test-repository-tenant-intelligence-recipe-store.mjs"
+      ]
     }
   ],
   "discovery": {
