@@ -9,6 +9,7 @@ remoteRuntimeTargetCatalogReadonlyPath:
       targets, validates targets, or grants deployment authority.
     tags:
       - staging-admin
+      - admin-control
     x-runtime-contract-source: routes/operationalConsoleRoutes.js
     x-runtime-auth-profile: admin_backend
     x-contract-completeness: precise-runtime-contract
