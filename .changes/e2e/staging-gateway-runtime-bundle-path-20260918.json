@@ -60,7 +60,7 @@
             "Retain repositoryRoot only as an internal test/development injection that still resolves through the service-local bundle.",
             "Build the exact-SHA Staging bundle and policy identity from the packaged runtime files.",
             "Run runtime-bundle parity and Staging governed-convergence regressions before any live retry.",
-            "Treat only an object-valued HTTP 503 carrying GATEWAY_POLICY_STALE or stale=true as reachable-but-stale; keep TLS/network failures, 502 and unrelated non-success responses classified as gateway_health_reachable failures.",
+            "Treat only an object-valued HTTP 503 carrying GATEWAY_POLICY_STALE, or an activation-gateway /health body with stale=true, as reachable-but-stale; keep TLS/network failures, 502 and unrelated non-success responses classified as gateway_health_reachable failures.",
             "Prioritize the stale-policy handoff over other governed Gateway drift so an exact-commit mismatch cannot send execution back through the stale Activation Gateway.",
             "Bind the immutable convergence plan execution surface to staging_activation_worker_workflow for stale recovery while keeping the same server-resolved Staging Worker target and caller_target_override_allowed=false.",
             "Run activation_worker_refresh_dry_run on exact current main with exact policy hash and environment convergence plan SHA-256, build the signed bundle in memory, publish only non-secret evidence, and perform no provider access.",
@@ -84,7 +84,8 @@
             "AutoPilot/One-Click still never dispatches the stale recovery workflow, reads Cloudflare credentials, or performs provider mutation.",
             "The stale-policy out-of-band handoff is scoped only to Staging; Production stale-policy classification remains on the production activation_gateway_dark_deploy authority and never routes through the Staging workflow.",
             "The critical Staging Gateway repair declaration is registered exactly in Constitution.control_plane_paths and convergence.automation_control_paths, with no broader control-plane pattern or autonomous merge authority.",
-            "The canonical Staging policy source remains under edge/activation-gateway, while every server-resolved execution bundle binding and adapter entrypoint resolves only through the packaged http-generic-api/activation-gateway-runtime tree."
+            "The canonical Staging policy source remains under edge/activation-gateway, while every server-resolved execution bundle binding and adapter entrypoint resolves only through the packaged http-generic-api/activation-gateway-runtime tree.",
+            "A generic HTTP 503 with stale=true but without activation-gateway service identity is not sufficient to enter stale-recovery convergence."
           ],
           "tests": [
             {
