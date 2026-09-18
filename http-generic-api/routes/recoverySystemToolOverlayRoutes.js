@@ -166,6 +166,16 @@ export function projectRecoveryCapabilitiesForSystemSurface(env = process.env, d
         production_authority: false,
       },
       {
+        capability_key: "activation_gateway_dark_deploy_dry_run",
+        risk_class: "C1",
+        state_scope: "short_lived_governance_execution_plan_only",
+        target_database_mutation: false,
+        provider_mutation: false,
+        production_authority: false,
+        caller_selected_target: false,
+        apply_authority_issued: false,
+      },
+      {
         capability_key: "staging_database_access_repair",
         risk_class: "C2",
         state_scope: executionReady ? "plan_approval_execute_readback" : "plan_approval_ticket_only",
@@ -186,6 +196,7 @@ export function projectRecoveryCapabilitiesForSystemSurface(env = process.env, d
     ],
     control_plane_state_write_capabilities: [
       "staging_certification_canary_plan_create",
+      "activation_gateway_dark_deploy_dry_run",
       "staging_database_access_repair",
       "staging_database_schema_repair",
       "database_full_inspection",
