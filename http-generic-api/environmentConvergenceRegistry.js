@@ -322,6 +322,9 @@ export function validateEnvironmentConvergenceRegistry(registry = readEnvironmen
     || !Array.isArray(staleOverride.environments)
     || staleOverride.environments.length !== 1
     || staleOverride.environments[0] !== "staging"
+    || !Array.isArray(staleOverride.environments)
+    || staleOverride.environments.length !== 1
+    || staleOverride.environments[0] !== "staging"
     || staleOverride.current_authority_adapter !== "staging_activation_worker_workflow"
     || staleOverride.target_authority_model !== "server_governed_out_of_band"
     || staleOverride.transport !== "github_actions"
