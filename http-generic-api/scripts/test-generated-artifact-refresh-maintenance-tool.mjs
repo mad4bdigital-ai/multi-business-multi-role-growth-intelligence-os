@@ -117,6 +117,7 @@ runCheck("tool-canonical-auth-repair", () => {
   const dispatchIndex = toolSource.indexOf("generate_frontend_dispatch");
   const detailGapIndex = toolSource.indexOf("generate_openapi_detail_gap_classification");
   const customGptIndex = toolSource.indexOf("generate_custom_gpt_schemas");
+  const stagingAdminIndex = toolSource.indexOf("generate_staging_admin_openapi");
   const activationBundleIndex = toolSource.indexOf("sync_activation_gateway_runtime_bundle");
   const convergenceHashIndex = toolSource.indexOf("syncActivationGatewayProfilePolicyHashes");
   const gapClosureIndex = toolSource.indexOf("generate_openapi_gap_closure_plan");
@@ -126,7 +127,8 @@ runCheck("tool-canonical-auth-repair", () => {
   assert.ok(gapClosureIndex > detailGapIndex, "gap-closure planning must follow detail-gap classification");
   assert.ok(detailBatchIndex > gapClosureIndex, "detail-batch generation must follow gap-closure planning");
   assert.ok(customGptIndex > detailBatchIndex, "Custom GPT schemas must follow the OpenAPI detail batch");
-  assert.ok(activationBundleIndex > customGptIndex, "Activation Gateway runtime bundle sync must follow schema generation");
+  assert.ok(stagingAdminIndex > customGptIndex, "Staging Admin schema must follow shared Custom GPT schema generation");
+  assert.ok(activationBundleIndex > stagingAdminIndex, "Activation Gateway runtime bundle sync must follow all schema generation");
   assert.ok(convergenceHashIndex >= 0, "OpenAPI refresh must bind generated gateway policy hashes into convergence profiles");
   assert.match(toolSource, /openapi:detail-batch:write/u);
   assert.match(toolSource, /openapi-detail-closure-batch-full\.json/u);
@@ -137,6 +139,9 @@ runCheck("tool-canonical-auth-repair", () => {
   assert.match(toolSource, /http-generic-api\/activation-gateway-runtime\/generated\/route-policy\.json/u);
   assert.match(toolSource, /http-generic-api\/activation-gateway-runtime\/bundle-manifest\.json/u);
   assert.match(toolSource, /http-generic-api\/config\/environment-convergence-registry\.json/u);
+  assert.match(toolSource, /http-generic-api\/openapi\/openapi\.custom-gpt\.staging-admin\.yaml/u);
+  assert.match(toolSource, /http-generic-api\/openapi\/openapi\.custom-gpt\.auth-dispatcher\.production\.yaml/u);
+  assert.match(toolSource, /scripts\/build-staging-admin-openapi\.mjs/u);
   assert.match(toolSource, /SHA256_PATTERN = \/\^\[0-9a-f\]\{64\}\$\/u/u);
   assert.match(toolSource, /activation_gateway_policy_identity_invalid/u);
   assert.match(toolSource, /environment_convergence_gateway_profile_invalid/u);
