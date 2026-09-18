@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import {
   buildStagingActivationWorkerPreflightBinding,
@@ -91,6 +93,46 @@ assert.equal(first.stale_plan_observed_release_commit_in_hash, false);
 const exactCommitDrift = authoritativePreview.plan.drift.find((entry) => entry.check_key === "gateway_exact_commit");
 assert.equal(exactCommitDrift?.desired_release_commit, sourceSha);
 assert.equal(exactCommitDrift?.observed_release_commit, null);
+
+const parityDir = fs.mkdtempSync(path.join(os.tmpdir(), "staging-stale-plan-parity-"));
+try {
+  const runtimePath = path.join(parityDir, "runtime.json");
+  const preflightPath = path.join(parityDir, "preflight.json");
+  fs.writeFileSync(runtimePath, JSON.stringify({
+    commit: sourceSha,
+    activation_gateway_source_commit: oldSha,
+    certification_degraded_reasons: ["gateway_policy_not_stale", "gateway_exact_commit"],
+    certification_blocking_failures: [],
+  }));
+  fs.writeFileSync(preflightPath, JSON.stringify({
+    status: "passed",
+    expected_commit: sourceSha,
+    observed_commit: sourceSha,
+    safety: {
+      production_access: false,
+      provider_access: false,
+      database_mutation: false,
+      migration_apply: false,
+    },
+  }));
+  const bridgeScript = path.join(root, "http-generic-api/scripts/staging-environment-convergence-plan.mjs");
+  const bridgeRun = spawnSync(process.execPath, [
+    bridgeScript,
+    "--runtime-state", runtimePath,
+    "--preflight", preflightPath,
+    "--repository", "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+    "--recovery-trust-exact", "false",
+  ], { encoding: "utf8" });
+  assert.equal(bridgeRun.status, 0, bridgeRun.stderr);
+  const bridgePlan = JSON.parse(bridgeRun.stdout);
+  assert.equal(bridgePlan.status, "approval_required");
+  assert.equal(bridgePlan.plan.plan_sha256, first.authoritative_plan_sha256);
+  assert.deepEqual(bridgePlan.deferred_reasons, ["gateway_recovery_trusted_ingress"]);
+  assert.equal(bridgePlan.plan_observed_gateway_source_commit, null);
+  assert.equal(bridgePlan.runtime_observed_gateway_source_commit, oldSha);
+} finally {
+  fs.rmSync(parityDir, { recursive: true, force: true });
+}
 
 const rebuiltBinding = buildStagingActivationWorkerPreflightBinding({
   sourceSha,
