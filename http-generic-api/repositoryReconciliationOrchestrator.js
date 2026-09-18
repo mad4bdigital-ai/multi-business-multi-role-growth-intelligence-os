@@ -1,6 +1,9 @@
 import crypto from "node:crypto";
 import { getPool } from "./db.js";
-import { resolvePlatformResourceRecipePool } from "./platformResourceRecipeStore.js";
+import {
+  getPlatformResourceRecipeByKey,
+  listPlatformResourceRecipeSteps,
+} from "./platformResourceRecipeStore.js";
 import {
   acquireRepositoryOperationLease,
   assertRepositoryOperationLeaseHolder,
@@ -137,31 +140,22 @@ export function classifyRepositoryReconciliationStepExecution(step = {}) {
 
 export async function loadRepositoryReconciliationRecipe(recipeKey = RECIPE, deps = {}) {
   const runtimePool = deps.runtimePool || deps.pool || getPool();
-  const recipePool = resolvePlatformResourceRecipePool({
+  const recipe = await getPlatformResourceRecipeByKey(recipeKey, {
     recipeStorePool: deps.recipeStorePool,
     governancePool: deps.governancePool,
     runtimePool,
   });
-  const [recipes] = await recipePool.query(
-    `SELECT recipe_key, resource_type, operation_key, adapter_key, risk_class, mode,
-            requires_capability_envelope, requires_typed_confirmation, requires_same_cycle_readback,
-            policy_json, engine_key, status
-       FROM platform_resource_recipes WHERE recipe_key=? LIMIT 1`,
-    [recipeKey],
-  );
-  if (!recipes?.[0]) {
+  if (!recipe) {
     throw fail("repository_reconciliation_recipe_missing", "The reconciliation recipe was not found.", 404);
   }
-  const [steps] = await recipePool.query(
-    `SELECT step_order, step_key, step_kind, parent_action_key, tool_key, endpoint_key, source_table,
-            source_pk_template_json, query_template_json, body_template_json, response_projection_json,
-            required, on_error_policy, status
-       FROM platform_resource_recipe_steps WHERE recipe_key=? ORDER BY step_order, step_id`,
-    [recipeKey],
-  );
+  const steps = await listPlatformResourceRecipeSteps(recipeKey, {
+    recipeStorePool: deps.recipeStorePool,
+    governancePool: deps.governancePool,
+    runtimePool,
+  });
   return {
-    ...recipes[0],
-    policy: json(recipes[0].policy_json, {}),
+    ...recipe,
+    policy: json(recipe.policy_json, {}),
     steps: (steps || []).map(normalizeRecipeStep),
     secrets_included: false,
   };

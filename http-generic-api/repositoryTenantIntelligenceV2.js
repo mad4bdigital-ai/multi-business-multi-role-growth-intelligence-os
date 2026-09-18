@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 
 import { getPool } from "./db.js";
 import { resolvePlatformResourceAuthorityPool } from "./platformResourceAuthorityStore.js";
-import { resolvePlatformResourceRecipePool } from "./platformResourceRecipeStore.js";
+import { getPlatformResourceRecipeByKey } from "./platformResourceRecipeStore.js";
 
 export const REPOSITORY_PR_RECONCILE_RECIPE_KEY = "repo.pr.reconciliation_sweep";
 export const GITHUB_REPO_RESOURCE_TYPE = "github_repo";
@@ -54,12 +54,11 @@ async function assertReadOnlyRepositoryRecipe(
   recipeKey = REPOSITORY_PR_RECONCILE_RECIPE_KEY,
   { recipeStorePool = null, governancePool = null, runtimePool = getPool() } = {},
 ) {
-  const pool = resolvePlatformResourceRecipePool({ recipeStorePool, governancePool, runtimePool });
-  const [rows] = await pool.query(
-    `SELECT recipe_key, status, read_only, risk_class FROM platform_resource_recipes WHERE recipe_key = ? LIMIT 1`,
-    [recipeKey]
-  );
-  const row = rows[0];
+  const row = await getPlatformResourceRecipeByKey(recipeKey, {
+    recipeStorePool,
+    governancePool,
+    runtimePool,
+  });
   if (!row || row.status !== "active" || Number(row.read_only) !== 1 || String(row.risk_class) !== "diagnostic") {
     const err = new Error(`Repository recipe ${recipeKey} is not an active read-only diagnostic recipe.`);
     err.status = 409; err.code = "repository_recipe_not_read_only_active"; err.details = row || null; throw err;

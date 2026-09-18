@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 
+import fs from "node:fs";
+
 import { createRepositoryAuthorityBinding } from "./repositoryTenantIntelligenceV2.js";
+
+const v2Source = fs.readFileSync(new URL("./repositoryTenantIntelligenceV2.js", import.meta.url), "utf8");
+assert.doesNotMatch(v2Source, /FROM\s+platform_resource_recipes/i);
+assert.match(v2Source, /getPlatformResourceRecipeByKey/);
 
 const runtimeQueries = [];
 const governanceQueries = [];

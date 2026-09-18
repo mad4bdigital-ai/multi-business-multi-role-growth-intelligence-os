@@ -1,4 +1,11 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+
+const reconciliationSource = fs.readFileSync(new URL("./repositoryReconciliationOrchestrator.js", import.meta.url), "utf8");
+assert.doesNotMatch(reconciliationSource, /FROM\s+platform_resource_recipes/i);
+assert.doesNotMatch(reconciliationSource, /FROM\s+platform_resource_recipe_steps/i);
+assert.match(reconciliationSource, /getPlatformResourceRecipeByKey/);
+assert.match(reconciliationSource, /listPlatformResourceRecipeSteps/);
 import {
   acquireRepositoryOperationLease,
   assertRepositoryOperationLeaseHolder,
