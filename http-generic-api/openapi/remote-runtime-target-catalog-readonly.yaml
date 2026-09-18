@@ -8,7 +8,7 @@ remoteRuntimeTargetCatalogReadonlyPath:
       local shell commands, accesses the filesystem, returns credential values, mutates
       targets, validates targets, or grants deployment authority.
     tags:
-      - platform-plugins
+      - staging-admin
     x-runtime-contract-source: routes/operationalConsoleRoutes.js
     x-runtime-auth-profile: admin_backend
     x-contract-completeness: precise-runtime-contract
