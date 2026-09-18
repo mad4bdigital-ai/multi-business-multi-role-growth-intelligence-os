@@ -98,11 +98,6 @@ const STAGING_RUNTIME_OPTIONAL_READ_SURFACES = Object.freeze([
   "operational_alerts",
   "v_platform_evolution_activation_card",
   "v_platform_capability_gaps",
-  // Transitional split-database compatibility: older Staging rebuilds may
-  // still host recipe metadata in Runtime. Grant SELECT only when present;
-  // canonical fresh rebuilds keep these tables in Governance.
-  "platform_resource_recipes",
-  "platform_resource_recipe_steps",
 ]);
 
 const STAGING_RUNTIME_READ_ONLY_MATRIX = Object.freeze(Object.fromEntries(
