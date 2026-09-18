@@ -72,6 +72,7 @@ assert(openapi.includes("never opens SSH"), "OpenAPI must document no SSH execut
 assert.match(readonlyPrecise, /operationId:\s*getRemoteRuntimeTargetCatalogReadonly/);
 assert.doesNotMatch(readonlyPrecise, /x-custom-gpt-surfaces:\s*\[[^\]]*admin_core/, "Staging-only catalog must not consume shared admin_core operation budget");
 assert.match(readonlyPrecise, /x-openai-isConsequential:\s*false/);
+assert.match(readonlyPrecise, /tags:[\s\S]*- staging-admin[\s\S]*- admin-control/, "Staging-only operation must be an explicit admin_core candidate-by-tag before policy exclusion"); // admin-control candidate tag
 assert.match(readonlyPrecise, /x-runtime-contract-source:\s*routes\/operationalConsoleRoutes\.js/);
 assert.match(readonlyPrecise, /never opens SSH/);
 assert.match(readonlyPrecise, /never[\s\S]*returns credential values/);
