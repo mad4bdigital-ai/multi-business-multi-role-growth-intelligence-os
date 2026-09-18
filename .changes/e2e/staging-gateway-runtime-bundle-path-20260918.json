@@ -75,7 +75,8 @@
             "The stale refresh dry-run is exact-main and plan-bound, writes only no-secret evidence, and reports provider_accessed=false and provider_mutation_performed=false.",
             "Worker deployment remains a separate consequential operation with explicit DEPLOY_STAGING_ACTIVATION_WORKER confirmation and cannot run unless the same workflow run completed the refresh preflight.",
             "The Staging Worker workflow validates origin trust v2, policy hash, policy key, sourceCommit and workerBuildSha before classifying a later deploy as healthy.",
-            "AutoPilot/One-Click still never dispatches the stale recovery workflow, reads Cloudflare credentials, or performs provider mutation."
+            "AutoPilot/One-Click still never dispatches the stale recovery workflow, reads Cloudflare credentials, or performs provider mutation.",
+            "The stale-policy out-of-band handoff is scoped only to Staging; Production stale-policy classification remains on the production activation_gateway_dark_deploy authority and never routes through the Staging workflow."
           ],
           "tests": [
             {
