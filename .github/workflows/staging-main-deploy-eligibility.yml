@@ -23,7 +23,7 @@ on:
         required: false
         type: string
       environment_convergence_plan_sha256:
-        description: Optional caller-observed parent convergence-plan SHA-256 for trace only; never execution authority
+        description: Operator-acknowledged convergence-plan SHA-256; server-verified against the current workflow-owned plan and never execution authority
         required: false
         type: string
       confirmation:
@@ -208,9 +208,7 @@ jobs:
           test "$SOURCE_SHA" = "${SOURCE_SHA,,}"
           [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
           [[ "$EXPECTED_POLICY_HASH" =~ ^[a-f0-9]{64}$ ]]
-          if test -n "$CALLER_CONVERGENCE_PLAN_SHA256"; then
-            [[ "$CALLER_CONVERGENCE_PLAN_SHA256" =~ ^[a-f0-9]{64}$ ]]
-          fi
+          [[ "$CALLER_CONVERGENCE_PLAN_SHA256" =~ ^[a-f0-9]{64}$ ]]
 
       - name: Checkout exact current main candidate
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -295,9 +293,8 @@ jobs:
           test "$SOURCE_SHA" = "${SOURCE_SHA,,}"
           [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
           [[ "$EXPECTED_POLICY_HASH" =~ ^[a-f0-9]{64}$ ]]
-          if test -n "$CALLER_CONVERGENCE_PLAN_SHA256"; then
-            [[ "$CALLER_CONVERGENCE_PLAN_SHA256" =~ ^[a-f0-9]{64}$ ]]
-          fi
+          [[ "$CALLER_CONVERGENCE_PLAN_SHA256" =~ ^[a-f0-9]{64}$ ]]
+          test "$CALLER_CONVERGENCE_PLAN_SHA256" = "$VERIFIED_CONVERGENCE_PLAN_SHA256"
           [[ "$VERIFIED_CONVERGENCE_PLAN_SHA256" =~ ^[a-f0-9]{64}$ ]]
           [[ "$VERIFIED_WORKER_BUNDLE_SHA256" =~ ^[a-f0-9]{64}$ ]]
           [[ "$PREFLIGHT_BINDING_SHA256" =~ ^[a-f0-9]{64}$ ]]

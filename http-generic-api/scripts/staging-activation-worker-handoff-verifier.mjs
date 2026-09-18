@@ -77,7 +77,7 @@ export async function verifyStagingActivationWorkerHandoff({
   const callerPlan = normalized(callerPlanSha256);
   if (!SHA40_RE.test(source)) fail("staging_activation_worker_source_invalid", "Exact current-main SHA is required.");
   if (!SHA256_RE.test(policyHash)) fail("staging_activation_worker_policy_invalid", "Exact canonical policy SHA-256 is required.");
-  if (callerPlan && !SHA256_RE.test(callerPlan)) fail("staging_activation_worker_caller_plan_invalid", "Caller parent plan digest must be blank or SHA-256.");
+  if (!SHA256_RE.test(callerPlan)) fail("staging_activation_worker_caller_plan_invalid", "An exact operator-acknowledged convergence plan SHA-256 is required.");
 
   const registry = readEnvironmentConvergenceRegistry();
   const profile = registry?.profiles?.staging?.activation_gateway;
@@ -187,9 +187,15 @@ export async function verifyStagingActivationWorkerHandoff({
   }
 
   const authoritativePlanSha256 = initialRun.plan.plan_sha256;
+  if (callerPlan !== authoritativePlanSha256) {
+    fail("staging_activation_worker_plan_assertion_mismatch", "Operator acknowledgement does not match the current workflow-owned Staging convergence plan.", {
+      caller_plan_sha256: callerPlan,
+      authoritative_plan_sha256: authoritativePlanSha256,
+    });
+  }
   const acknowledgement = {
     contract: ACK_CONTRACT,
-    plan_sha256: authoritativePlanSha256,
+    plan_sha256: callerPlan,
     environment: "staging",
     commit_sha: source,
   };
@@ -224,8 +230,8 @@ export async function verifyStagingActivationWorkerHandoff({
     environment: "staging",
     source_sha: source,
     policy_hash: policyHash,
-    caller_parent_convergence_plan_sha256: callerPlan || null,
-    caller_plan_digest_matches_authoritative: callerPlan ? callerPlan === authoritativePlanSha256 : null,
+    caller_parent_convergence_plan_sha256: callerPlan,
+    caller_plan_digest_matches_authoritative: true,
     caller_plan_digest_is_execution_authority: false,
     authoritative_plan_sha256: authoritativePlanSha256,
     authoritative_plan_source: "live_profile_owned_gateway_health_plus_environment_convergence_engine",

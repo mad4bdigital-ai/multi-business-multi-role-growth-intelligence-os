@@ -5,6 +5,7 @@ import {
   buildStagingActivationWorkerPreflightBinding,
   verifyStagingActivationWorkerHandoff,
 } from "./scripts/staging-activation-worker-handoff-verifier.mjs";
+import { runEnvironmentConvergence } from "./environmentConvergenceEngine.js";
 
 const root = path.resolve(import.meta.dirname, "..");
 const registry = JSON.parse(fs.readFileSync(path.join(root, "http-generic-api/config/environment-convergence-registry.json"), "utf8"));
@@ -12,8 +13,7 @@ const workflow = fs.readFileSync(path.join(root, ".github/workflows/staging-main
 const profile = registry.profiles.staging.activation_gateway;
 const sourceSha = "a".repeat(40);
 const oldSha = "b".repeat(40);
-const callerPlanA = "c".repeat(64);
-const callerPlanB = "d".repeat(64);
+const arbitraryPlan = "d".repeat(64);
 const staleHealth = {
   ok: false,
   service: "activation-gateway",
@@ -30,20 +30,46 @@ const staleFetch = async () => new Response(JSON.stringify(staleHealth), {
   headers: { "content-type": "application/json" },
 });
 
+const authoritativePreview = runEnvironmentConvergence({
+  environment: "staging",
+  releaseSpec: {
+    repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+    source_branch: "main",
+    commit_sha: sourceSha,
+  },
+  certificationReport: {
+    outcome: "degraded",
+    expected: { commit_sha: sourceSha },
+    gateway: { health: { sourceCommit: oldSha } },
+    integrity_checks: [],
+    readiness_checks: [
+      { key: "gateway_policy_not_stale", ok: false, severity: "readiness", detail: { stale: true } },
+      { key: "gateway_exact_commit", ok: false, severity: "readiness", detail: { expected: sourceSha, observed: oldSha } },
+    ],
+  },
+  registry,
+});
+assert.equal(authoritativePreview.status, "approval_required");
+const acknowledgedPlanSha = authoritativePreview.plan.plan_sha256;
+
 const first = await verifyStagingActivationWorkerHandoff({
   sourceSha,
   expectedPolicyHash: profile.expected_policy_hash,
-  callerPlanSha256: callerPlanA,
+  callerPlanSha256: acknowledgedPlanSha,
   fetchImpl: staleFetch,
   repositoryRoot: root,
 });
-const second = await verifyStagingActivationWorkerHandoff({
-  sourceSha,
-  expectedPolicyHash: profile.expected_policy_hash,
-  callerPlanSha256: callerPlanB,
-  fetchImpl: staleFetch,
-  repositoryRoot: root,
-});
+
+await assert.rejects(
+  verifyStagingActivationWorkerHandoff({
+    sourceSha,
+    expectedPolicyHash: profile.expected_policy_hash,
+    callerPlanSha256: arbitraryPlan,
+    fetchImpl: staleFetch,
+    repositoryRoot: root,
+  }),
+  (error) => error?.code === "staging_activation_worker_plan_assertion_mismatch",
+);
 
 assert.match(first.authoritative_plan_sha256, /^[a-f0-9]{64}$/u);
 assert.match(first.worker_bundle_sha256, /^[a-f0-9]{64}$/u);
@@ -57,10 +83,9 @@ assert.equal(first.provider_target_caller_selectable, false);
 assert.equal(first.provider_accessed, false);
 assert.equal(first.provider_mutation_performed, false);
 assert.equal(first.production_mutation_performed, false);
-assert.equal(first.authoritative_plan_sha256, second.authoritative_plan_sha256);
-assert.equal(first.worker_bundle_sha256, second.worker_bundle_sha256);
-assert.equal(first.preflight_binding_sha256, second.preflight_binding_sha256);
-assert.notEqual(first.caller_parent_convergence_plan_sha256, second.caller_parent_convergence_plan_sha256);
+assert.equal(first.authoritative_plan_sha256, acknowledgedPlanSha);
+assert.equal(first.caller_parent_convergence_plan_sha256, acknowledgedPlanSha);
+assert.equal(first.caller_plan_digest_matches_authoritative, true);
 
 const rebuiltBinding = buildStagingActivationWorkerPreflightBinding({
   sourceSha,
@@ -90,7 +115,7 @@ await assert.rejects(
   (error) => error?.code === "staging_activation_worker_health_target_override_forbidden",
 );
 
-assert.match(workflow, /caller-observed parent convergence-plan SHA-256 for trace only; never execution authority/u);
+assert.match(workflow, /Operator-acknowledged convergence-plan SHA-256; server-verified against the current workflow-owned plan and never execution authority/u);
 assert.match(workflow, /authoritative_plan_sha256: \$\{\{ steps\.handoff\.outputs\.authoritative_plan_sha256 \}\}/u);
 assert.match(workflow, /VERIFIED_CONVERGENCE_PLAN_SHA256: \$\{\{ needs\.activation_worker_refresh_preflight\.outputs\.authoritative_plan_sha256 \}\}/u);
 assert.match(workflow, /VERIFIED_WORKER_BUNDLE_SHA256: \$\{\{ needs\.activation_worker_refresh_preflight\.outputs\.worker_bundle_sha256 \}\}/u);
