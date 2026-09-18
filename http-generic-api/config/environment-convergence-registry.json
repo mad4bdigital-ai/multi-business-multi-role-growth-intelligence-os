@@ -78,7 +78,7 @@
         "policy_key": "activation_gateway",
         "policy_path": "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
         "packaged_policy_path": "/app/activation-gateway-runtime/generated/route-policy.json",
-        "expected_policy_hash": "585b2e07b71832b7a200971d66329326d79640a23f83a29c535100d7abaa64cd",
+        "expected_policy_hash": "2fd0d52b37a42354803b3ab575c97e6492410d72378cd86737c4cb07f37a5b8a",
         "public_host": "activation.mad4b.com",
         "current_authority_adapter": "activation_gateway_dark_deploy",
         "legacy_authority_adapter": null,

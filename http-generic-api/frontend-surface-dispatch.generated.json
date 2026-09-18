@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "1644c3ce2d4b2384240daff9d213b55f76e71e950fce35a6febb1550c0c039f5",
+    "source_digest": "e194106a7d9b9876f9e374559ebdd4b0a1e09640fee6c67ab4628986ec7047b0",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "51e5d31ebc4a540d365486b8fde9c36206d3b3c782517581c0041168cec59a72",
+        "sha256": "df3921bc09edf4e96d5f61e974b46fc6cb67ac824499b5bf5c92c59235b2b3a3",
         "present": true
       },
       {
@@ -26,7 +26,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "423f1ee6cc8399ad9f3eb5d837dbb16a954788899120ed8b5cfef6091a5e5ac8",
+        "sha256": "ae1494423761e24c6436363bb40500532d400e5eee18d18d5e87c13dd31d388a",
         "present": true
       },
       {
@@ -136,7 +136,7 @@
       },
       {
         "file": "openapi/openapi.custom-gpt.staging-admin.yaml",
-        "sha256": "ed621c7b362ee72f9a06699e17d4dcdd6fff2e4990fccd037fad626ca84b8f33",
+        "sha256": "3f6b0a395856535319080ad30abe3995d018109f82ccea792ceb4b73d119f4be",
         "present": true
       },
       {
@@ -731,7 +731,7 @@
       },
       {
         "file": "routes/operationalConsoleRoutes.js",
-        "sha256": "4b4e5efd3b544e2899acb33aba5d995fd75dde5202d785e5e0c7e8c5a32d1905",
+        "sha256": "fbbc852e6d9e64e4b56b84baf46dac3e486d42ecba9d348043e4561fd362f477",
         "present": true
       },
       {
@@ -1086,7 +1086,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "b59f62a584ea07ba0cdea72897de51beedfd2a1972400fc54b254576fce4f464",
+        "sha256": "a0a25acfdcf85067cf37d98d01b4ed1751b05544c3eacea7348eb3085c27c7b8",
         "present": true
       },
       {
@@ -1132,6 +1132,11 @@
       {
         "file": "test-recovery-kernel.mjs",
         "sha256": "838f195fc35d6b56666367bb5322a11fd341b43c34b7e7ecf38edfe5e838c1d3",
+        "present": true
+      },
+      {
+        "file": "test-remote-runtime-catalog-probe.mjs",
+        "sha256": "69034e0f19ac8717a0005ce8c091e70bda0b031cbc44ca66eb5b5d55ea7bbb9f",
         "present": true
       },
       {
@@ -1189,16 +1194,16 @@
     "mounted_family_count": 173,
     "mounted_route_file_count": 143,
     "mixed_scope_route_file_count": 25,
-    "operation_count": 1068,
-    "openapi_documented_count": 1052,
-    "openapi_canonical_documented_count": 734,
+    "operation_count": 1069,
+    "openapi_documented_count": 1053,
+    "openapi_canonical_documented_count": 735,
     "openapi_generated_index_count": 318,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
     "openapi_detail_gap_count": 318,
     "openapi_detail_gap_policy": "accepted_generated_index_only",
     "auth_parity_counts": {
-      "equivalent": 1052,
+      "equivalent": 1053,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
@@ -1211,7 +1216,7 @@
     "unresolved_surface_decision_count": 0,
     "test_owned_family_count": 173,
     "untested_family_count": 0,
-    "test_owned_operation_count": 1068,
+    "test_owned_operation_count": 1069,
     "untested_operation_count": 0,
     "ready_task_count": 173,
     "blocked_task_count": 0,
@@ -21483,7 +21488,7 @@
       "family_key": "operational-console",
       "label": "operational console",
       "source_file": "routes/operationalConsoleRoutes.js",
-      "source_digest": "4b4e5efd3b544e2899acb33aba5d995fd75dde5202d785e5e0c7e8c5a32d1905",
+      "source_digest": "fbbc852e6d9e64e4b56b84baf46dac3e486d42ecba9d348043e4561fd362f477",
       "mount_prefix": "/",
       "mount_order": 16327,
       "split_from_mixed_scope_file": false,
@@ -21631,6 +21636,73 @@
           },
           "mutation_candidate": false,
           "mutation": false
+        },
+        {
+          "method": "GET",
+          "path": "/platform/remote-runtime/targets/catalog-readonly",
+          "signature": "GET /platform/remote-runtime/targets/catalog-readonly",
+          "source_file": "routes/operationalConsoleRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [
+            "test-remote-runtime-catalog-probe.mjs"
+          ],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
         }
       ],
       "openapi_gaps": [],
@@ -21641,7 +21713,8 @@
         "GET /operational/console/evidence"
       ],
       "tests": [
-        "test-frontend-surface-coverage-claims.mjs"
+        "test-frontend-surface-coverage-claims.mjs",
+        "test-remote-runtime-catalog-probe.mjs"
       ],
       "untested_operations": [],
       "resources": [],
@@ -21658,6 +21731,7 @@
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/openapi.custom-gpt.staging-admin.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
         "openapi/support-ticket-admin-execution.yaml",
@@ -21668,7 +21742,8 @@
         "routes/index.js",
         "routes/operationalConsoleRoutes.js",
         "scripts/test-manifest.mjs",
-        "test-frontend-surface-coverage-claims.mjs"
+        "test-frontend-surface-coverage-claims.mjs",
+        "test-remote-runtime-catalog-probe.mjs"
       ],
       "surface_decision": {
         "decision": "internal_only",
@@ -61113,7 +61188,8 @@
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
           "tests": [
-            "test-frontend-surface-coverage-claims.mjs"
+            "test-frontend-surface-coverage-claims.mjs",
+            "test-remote-runtime-catalog-probe.mjs"
           ],
           "governance": {
             "classification": "read_action",
@@ -62269,7 +62345,8 @@
         "POST /platform/plugins/smoke-certifications/policies/rollback-preview"
       ],
       "tests": [
-        "test-frontend-surface-coverage-claims.mjs"
+        "test-frontend-surface-coverage-claims.mjs",
+        "test-remote-runtime-catalog-probe.mjs"
       ],
       "untested_operations": [],
       "resources": [],
@@ -62297,7 +62374,8 @@
         "routes/index.js",
         "routes/platformPluginRoutes.js",
         "scripts/test-manifest.mjs",
-        "test-frontend-surface-coverage-claims.mjs"
+        "test-frontend-surface-coverage-claims.mjs",
+        "test-remote-runtime-catalog-probe.mjs"
       ],
       "surface_decision": {
         "decision": "internal_only",
@@ -96088,6 +96166,7 @@
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/openapi.custom-gpt.staging-admin.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
         "openapi/support-ticket-admin-execution.yaml",
@@ -96098,7 +96177,8 @@
         "routes/index.js",
         "routes/operationalConsoleRoutes.js",
         "scripts/test-manifest.mjs",
-        "test-frontend-surface-coverage-claims.mjs"
+        "test-frontend-surface-coverage-claims.mjs",
+        "test-remote-runtime-catalog-probe.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -96110,7 +96190,8 @@
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
         "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-frontend-surface-coverage-claims.mjs"
+        "node test-frontend-surface-coverage-claims.mjs",
+        "node test-remote-runtime-catalog-probe.mjs"
       ]
     },
     {
@@ -96291,7 +96372,8 @@
         "routes/index.js",
         "routes/platformPluginRoutes.js",
         "scripts/test-manifest.mjs",
-        "test-frontend-surface-coverage-claims.mjs"
+        "test-frontend-surface-coverage-claims.mjs",
+        "test-remote-runtime-catalog-probe.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -96304,7 +96386,8 @@
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
         "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-frontend-surface-coverage-claims.mjs"
+        "node test-frontend-surface-coverage-claims.mjs",
+        "node test-remote-runtime-catalog-probe.mjs"
       ]
     },
     {
