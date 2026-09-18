@@ -8,16 +8,19 @@
   "scope": {
     "include": [
       ".changes/e2e/staging-gateway-runtime-bundle-path-20260918.json",
-      "http-generic-api/stagingActivationGatewayBundle.js",
-      "http-generic-api/scripts/sync-activation-gateway-runtime-bundle.mjs",
-      "http-generic-api/activation-gateway-runtime/src/worker-staging.mjs",
-      "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
-      "http-generic-api/test-activation-gateway-runtime-bundle-parity.mjs",
-      "http-generic-api/scripts/staging-live-certification.mjs",
-      "http-generic-api/environmentConvergenceRegistry.js",
-      "http-generic-api/environmentConvergenceEngine.js",
-      "http-generic-api/config/environment-convergence-registry.json",
+      ".github/derived-state-governance.json",
       ".github/workflows/staging-main-deploy-eligibility.yml",
+      "docs/governance/configuration-drift-baseline-extensions.json",
+      "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
+      "http-generic-api/activation-gateway-runtime/src/worker-staging.mjs",
+      "http-generic-api/config/environment-convergence-registry.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/environmentConvergenceEngine.js",
+      "http-generic-api/environmentConvergenceRegistry.js",
+      "http-generic-api/scripts/staging-live-certification.mjs",
+      "http-generic-api/scripts/sync-activation-gateway-runtime-bundle.mjs",
+      "http-generic-api/stagingActivationGatewayBundle.js",
+      "http-generic-api/test-activation-gateway-runtime-bundle-parity.mjs",
       "http-generic-api/test-staging-activation-gateway.mjs",
       "http-generic-api/test-staging-autopilot-closure.mjs",
       "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
@@ -76,7 +79,8 @@
             "Worker deployment remains a separate consequential operation with explicit DEPLOY_STAGING_ACTIVATION_WORKER confirmation and cannot run unless the same workflow run completed the refresh preflight.",
             "The Staging Worker workflow validates origin trust v2, policy hash, policy key, sourceCommit and workerBuildSha before classifying a later deploy as healthy.",
             "AutoPilot/One-Click still never dispatches the stale recovery workflow, reads Cloudflare credentials, or performs provider mutation.",
-            "The stale-policy out-of-band handoff is scoped only to Staging; Production stale-policy classification remains on the production activation_gateway_dark_deploy authority and never routes through the Staging workflow."
+            "The stale-policy out-of-band handoff is scoped only to Staging; Production stale-policy classification remains on the production activation_gateway_dark_deploy authority and never routes through the Staging workflow.",
+            "The critical Staging Gateway repair declaration is registered exactly in Constitution.control_plane_paths and convergence.automation_control_paths, with no broader control-plane pattern or autonomous merge authority."
           ],
           "tests": [
             {
