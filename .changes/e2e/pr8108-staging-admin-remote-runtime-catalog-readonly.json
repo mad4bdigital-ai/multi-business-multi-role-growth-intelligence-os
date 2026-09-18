@@ -25,7 +25,10 @@
       ".github/derived-state-governance.json",
       "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
-      "http-generic-api/test-openapi-precise-inline-registry-transition.mjs"
+      "http-generic-api/test-openapi-precise-inline-registry-transition.mjs",
+      "http-generic-api/openapi/openapi-mutation-policy.generated.json",
+      "autopilot-portable-staging/activation-gateway-smart-convergence-policy.json",
+      "http-generic-api/scripts/generate-openapi-mutation-policy.mjs"
     ]
   },
   "merge_contract": {
@@ -68,7 +71,8 @@
             "Staging live certification remains required because shared runtime/OpenAPI and Staging policy surfaces change.",
             "production_mutation_allowed remains false and secrets_included remains false.",
             "The critical declaration is registered in Constitution.control_plane_paths and convergence.automation_control_paths before merge.",
-            "The precise registry writer accepts only the exact predecessor whose sole drift is the reviewed admin-control tag promotion; any other predecessor drift remains fail-closed."
+            "The precise registry writer accepts only the exact predecessor whose sole drift is the reviewed admin-control tag promotion; any other predecessor drift remains fail-closed.",
+            "The governed OpenAPI refresh regenerates the mutation-policy fingerprint after base Custom GPT schema generation and synchronizes the Staging smart-convergence expected policy hash after profile hash convergence."
           ],
           "tests": [
             {
@@ -109,7 +113,10 @@
             "canonicals/openapi/custom-gpt-surfaces.yaml",
             "http-generic-api/config/deployment-branch-policy.json",
             "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
-            "http-generic-api/test-openapi-precise-inline-registry-transition.mjs"
+            "http-generic-api/test-openapi-precise-inline-registry-transition.mjs",
+            "http-generic-api/openapi/openapi-mutation-policy.generated.json",
+            "autopilot-portable-staging/activation-gateway-smart-convergence-policy.json",
+            "http-generic-api/scripts/generate-openapi-mutation-policy.mjs"
           ]
         }
       ]
