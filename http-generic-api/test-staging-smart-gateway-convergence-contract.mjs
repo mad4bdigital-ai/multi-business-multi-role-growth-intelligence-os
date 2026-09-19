@@ -91,6 +91,7 @@ assert.equal(policy.policy_identity.public_host, "activation-dev.mad4b.com");
 assert.equal(policy.policy_identity.bundle_key, "activation_gateway_staging_worker");
 assert.equal(policy.policy_identity.entrypoint, "http-generic-api/activation-gateway-runtime/src/worker-staging.mjs");
 assert.equal(policy.policy_identity.runtime_policy_path, "http-generic-api/activation-gateway-runtime/generated/route-policy.staging.json");
+assert.equal(policy.policy_identity.runtime_policy_path, staging.execution_policy_path);
 assert.equal(policy.policy_identity.policy_path, "edge/activation-gateway/generated/route-policy.staging.json");
 assert.equal(policy.policy_identity.caller_policy_path_override_allowed, false);
 assert.equal(policy.policy_identity.plan_hash_binds_policy_hash, true);
@@ -122,6 +123,7 @@ assert.equal(staging.execution_target.runtime_surface, "activation_gateway_dark_
 assert.equal(staging.execution_target.bundle_binding.bundle_key, "activation_gateway_staging_worker");
 assert.equal(staging.execution_target.bundle_binding.entrypoint, "http-generic-api/activation-gateway-runtime/src/worker-staging.mjs");
 assert.equal(staging.execution_target.bundle_binding.policy_path, "http-generic-api/activation-gateway-runtime/generated/route-policy.staging.json");
+assert.equal(staging.execution_target.bundle_binding.policy_path, staging.execution_policy_path);
 assert.equal(registry.dependencies.activation_gateway.checks.gateway_recovery_trusted_ingress.repairability, "governed");
 for (const requiredBoundaryPath of [
   "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
