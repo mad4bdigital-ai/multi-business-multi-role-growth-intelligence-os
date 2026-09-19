@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7701,
+  "file_count": 7703,
   "route_count": 1105,
   "write_route_count": 672,
   "classified_write_surface_count": 43,
@@ -6268,8 +6268,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js#POST:/system/tools/call:0",
-      "source_line": 360,
-      "source_offset": 15965,
+      "source_line": 382,
+      "source_offset": 16828,
       "method": "POST",
       "path": "/system/tools/call",
       "file": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
@@ -6277,8 +6277,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js#POST:/admin/system/tools/call:1",
-      "source_line": 361,
-      "source_offset": 16047,
+      "source_line": 383,
+      "source_offset": 16910,
       "method": "POST",
       "path": "/admin/system/tools/call",
       "file": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
@@ -7978,8 +7978,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#GET:/admin/recovery/staging/contract:0",
-      "source_line": 255,
-      "source_offset": 19352,
+      "source_line": 256,
+      "source_offset": 19378,
       "method": "GET",
       "path": "/admin/recovery/staging/contract",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -7987,8 +7987,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#GET:/admin/recovery/staging/readiness:1",
-      "source_line": 256,
-      "source_offset": 19504,
+      "source_line": 257,
+      "source_offset": 19530,
       "method": "GET",
       "path": "/admin/recovery/staging/readiness",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -7996,8 +7996,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#GET:/admin/recovery/staging/certification:2",
-      "source_line": 264,
-      "source_offset": 20168,
+      "source_line": 265,
+      "source_offset": 20194,
       "method": "GET",
       "path": "/admin/recovery/staging/certification",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -8005,8 +8005,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/gateway/rollout-plan:3",
-      "source_line": 272,
-      "source_offset": 21158,
+      "source_line": 273,
+      "source_offset": 21184,
       "method": "POST",
       "path": "/admin/recovery/staging/gateway/rollout-plan",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -8014,8 +8014,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/gateway/dark-deploy-dry-run:4",
-      "source_line": 280,
-      "source_offset": 21716,
+      "source_line": 281,
+      "source_offset": 21742,
       "method": "POST",
       "path": "/admin/recovery/staging/gateway/dark-deploy-dry-run",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -8023,8 +8023,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-ticket/verify:5",
-      "source_line": 289,
-      "source_offset": 22275,
+      "source_line": 290,
+      "source_offset": 22301,
       "method": "POST",
       "path": "/admin/recovery/staging/bootstrap-ticket/verify",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -8032,8 +8032,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-ticket/finalize:6",
-      "source_line": 323,
-      "source_offset": 25030,
+      "source_line": 324,
+      "source_offset": 25056,
       "method": "POST",
       "path": "/admin/recovery/staging/bootstrap-ticket/finalize",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -8041,8 +8041,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-partial-receipt:7",
-      "source_line": 352,
-      "source_offset": 27580,
+      "source_line": 353,
+      "source_offset": 27606,
       "method": "POST",
       "path": "/admin/recovery/staging/bootstrap-partial-receipt",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -37490,10 +37490,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
-        "source_line": 360,
+        "source_line": 382,
         "handler_window_lines": [
-          360,
-          360
+          382,
+          382
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -37550,10 +37550,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
-        "source_line": 361,
+        "source_line": 383,
         "handler_window_lines": [
-          361,
-          374
+          383,
+          396
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -45037,10 +45037,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
-        "source_line": 272,
+        "source_line": 273,
         "handler_window_lines": [
-          272,
-          279
+          273,
+          280
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -45100,10 +45100,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
-        "source_line": 280,
+        "source_line": 281,
         "handler_window_lines": [
-          280,
-          287
+          281,
+          288
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -45165,10 +45165,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
-        "source_line": 289,
+        "source_line": 290,
         "handler_window_lines": [
-          289,
-          321
+          290,
+          322
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -45234,10 +45234,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
-        "source_line": 323,
+        "source_line": 324,
         "handler_window_lines": [
-          323,
-          350
+          324,
+          351
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -45303,10 +45303,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
-        "source_line": 352,
+        "source_line": 353,
         "handler_window_lines": [
-          352,
-          366
+          353,
+          367
         ],
         "evidence_flags": {
           "handler_window_present": true,
