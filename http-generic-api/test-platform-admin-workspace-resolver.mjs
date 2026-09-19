@@ -16,17 +16,13 @@ const workspaceBase = {
   bootstrap_status: "ready",
 };
 
-function createExecutor(workspaceRows, { activePlatformOwner = true } = {}) {
+function createExecutor(workspaceRows) {
   const calls = [];
   return {
     calls,
     async query(sql, params = []) {
       const statement = String(sql);
       calls.push({ sql: statement, params });
-      if (statement.includes("FROM tenants")) {
-        assert.deepEqual(params, [tenantId]);
-        return [activePlatformOwner ? [{ tenant_id: tenantId }] : []];
-      }
       if (statement.includes("FROM workspace_registry")) {
         assert.match(statement, /workspace_key=\?/u);
         assert.match(statement, /\$\.authority_scope_key/u);
@@ -73,10 +69,9 @@ for (const { name, row } of markerCases) {
     executor,
     tenantId,
     requireReady: true,
-    requireActivePlatformOwnerTenant: true,
   });
   assert.equal(resolved?.workspace_id, workspaceBase.workspace_id, `${name} must resolve the canonical workspace`);
-  assert.equal(executor.calls.filter((call) => call.sql.includes("FROM tenants")).length, 1);
+  assert.equal(executor.calls.filter((call) => call.sql.includes("FROM tenants")).length, 0);
   assert.equal(executor.calls.filter((call) => call.sql.includes("FROM workspace_registry")).length, 1);
 }
 
@@ -112,26 +107,30 @@ await assert.rejects(
     executor: ambiguousExecutor,
     tenantId,
     requireReady: true,
-    requireActivePlatformOwnerTenant: true,
   }),
   (error) => error?.code === "platform_admin_workspace_ambiguous"
     && error?.status === 503
     && error?.details?.candidateCount === 2,
 );
 
-const inactiveTenantExecutor = createExecutor([markerCases[0].row], { activePlatformOwner: false });
-assert.equal(await resolveCanonicalPlatformAdminWorkspace({
-  executor: inactiveTenantExecutor,
-  tenantId,
-  requireReady: true,
-  requireActivePlatformOwnerTenant: true,
-}), null);
-assert.equal(inactiveTenantExecutor.calls.some((call) => call.sql.includes("FROM workspace_registry")), false);
-
 assert.equal(matchesCanonicalPlatformAdminWorkspace({
   ...workspaceBase,
   workspace_key: "platform_repo_governance_zero",
   config_json: "{}",
 }), false);
+
+const globalSentinelExecutor = createExecutor([{
+  ...workspaceBase,
+  tenant_id: tenantId,
+  workspace_key: "platform_repo_governance_zero",
+  config_json: JSON.stringify({ authority_scope_key: "platform:root" }),
+}]);
+const globalSentinelResolved = await resolveCanonicalPlatformAdminWorkspace({
+  executor: globalSentinelExecutor,
+  tenantId,
+  requireReady: true,
+});
+assert.equal(globalSentinelResolved?.tenant_id, tenantId);
+assert.equal(globalSentinelExecutor.calls.some((call) => call.sql.includes("FROM tenants")), false);
 
 console.log("Platform Admin Workspace canonical resolver tests passed.");

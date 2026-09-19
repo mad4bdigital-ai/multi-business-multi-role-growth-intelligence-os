@@ -333,9 +333,6 @@ const previewRuntimePool = {
     if (String(sql).includes("platform_resource_authority_bindings")) {
       throw new Error("Runtime DB must never serve platform_resource_authority_bindings.");
     }
-    if (String(sql).includes("FROM tenants")) {
-      return [[{ tenant_id: "00000000-0000-0000-0000-000000000000" }]];
-    }
     if (String(sql).includes("FROM workspace_registry")) {
       return [[{ workspace_id: "11111111-1111-4111-8111-111111111111", tenant_id: "00000000-0000-0000-0000-000000000000", workspace_key: "platform_repo_governance_zero", display_name: "Platform Admin", workspace_type: "brand", bootstrap_status: "ready", config_json: JSON.stringify({ platform_admin_workspace: true }) }]];
     }

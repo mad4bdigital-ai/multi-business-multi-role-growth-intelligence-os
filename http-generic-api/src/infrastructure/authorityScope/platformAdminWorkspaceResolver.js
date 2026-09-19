@@ -88,19 +88,10 @@ export async function resolveCanonicalPlatformAdminWorkspace({
   executor,
   tenantId,
   requireReady = true,
-  requireActivePlatformOwnerTenant = true,
 } = {}) {
   requireExecutor(executor);
   const normalizedTenantId = cleanString(tenantId);
   if (!normalizedTenantId) return null;
-
-  if (requireActivePlatformOwnerTenant) {
-    const [tenantRows] = await executor.query(
-      "SELECT tenant_id FROM tenants WHERE tenant_id=? AND tenant_type='platform_owner' AND status='active' LIMIT 1",
-      [normalizedTenantId],
-    );
-    if (!Array.isArray(tenantRows) || !tenantRows.length) return null;
-  }
 
   const candidates = await readCanonicalPlatformAdminWorkspaceCandidates({
     executor,

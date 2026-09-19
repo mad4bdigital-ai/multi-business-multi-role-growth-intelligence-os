@@ -195,7 +195,6 @@ async function resolveWorkspace(pool, auth = {}, input = {}) {
         executor: pool,
         tenantId: PLATFORM_TENANT_ID,
         requireReady: true,
-        requireActivePlatformOwnerTenant: true,
       });
     } catch (error) {
       if (error?.code === "platform_admin_workspace_ambiguous") {

@@ -33,7 +33,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Consolidate canonical Platform Admin Workspace resolution so topology verification and the Staging Activation Gateway share one marker contract, require an active platform-owner tenant and a ready workspace for execution, preserve non-ready marked workspaces for read-only topology diagnostics, and fail closed on ambiguity without provider access or mutation.",
+      "objective": "Consolidate canonical Platform Admin Workspace resolution so topology verification and the Staging Activation Gateway share one marker contract, require a ready workspace for execution, preserve non-ready marked workspaces for read-only topology diagnostics, preserve the existing platform-global tenant sentinel boundary, and fail closed on ambiguity without provider access or mutation.",
       "e2e_journeys": [
         {
           "id": "staging-gateway-canonical-platform-workspace-resolution",
@@ -46,7 +46,6 @@
             "Resolve the authenticated backend service principal as service/platform_admin.",
             "Read workspace_registry only from the Runtime DB.",
             "Use the shared canonical Platform Admin Workspace resolver for both topology evidence and the Staging service principal.",
-            "Verify the active platform-owner tenant before executable Staging workspace resolution.",
             "Match the canonical Platform Admin Workspace using workspace_key or config_json authority markers.",
             "Reject more than one ready canonical Platform Admin Workspace instead of selecting an arbitrary row.",
             "Continue resolving the exact Staging Worker resource binding only from the Governance DB.",
@@ -63,7 +62,8 @@
             "Governance DB never serves workspace_registry.",
             "Feature gate false keeps apply_ready=false after successful workspace resolution.",
             "No Cloudflare provider call, provider mutation, database mutation, or Production mutation is introduced.",
-            "secrets_included is false."
+            "secrets_included is false.",
+            "Executable Staging resolution preserves the existing platform-global tenant sentinel boundary and does not add a tenants-table prerequisite."
           ],
           "tests": [
             {
