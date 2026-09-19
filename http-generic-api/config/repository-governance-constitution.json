@@ -224,7 +224,8 @@
         "local-connector/**/*.js",
         "local-connector/**/*.mjs",
         "local-connector/**/*.sh",
-        "local-connector/**/*.ps1"
+        "local-connector/**/*.ps1",
+        "install-local-connector.ps1"
       ]
     },
     {
@@ -302,7 +303,8 @@
       "id": "local_connector",
       "risk": "high",
       "patterns": [
-        "local-connector/**"
+        "local-connector/**",
+        "install-local-connector.ps1"
       ]
     },
     {
