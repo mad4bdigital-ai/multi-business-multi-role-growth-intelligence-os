@@ -21,8 +21,8 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 - Migrations with detected surfaces: 480
 - Migrations reported here: 80
-- OpenAPI operations detected: 1072
-- OpenAPI paths detected: 1057
+- OpenAPI operations detected: 1074
+- OpenAPI paths detected: 1059
 - Documentation targets checked:
 - `Updating Registry Patch Index.md`
 - `deployment_parity_checklist.md`
