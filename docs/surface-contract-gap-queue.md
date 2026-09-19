@@ -4,11 +4,11 @@
 
 ## Summary
 
-- Total queue items: 10
+- Total queue items: 11
 - Critical review: 4
 - High review: 2
 - Medium review: 4
-- Low review: 0
+- Low review: 1
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
 ## Top Queue Items
@@ -153,4 +153,18 @@
 - Remediation actions:
 - `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - `verify_readback_view` → db-readback-review; targets: `v_governed_response_chunk_ownership_readiness`
+
+### 11. `20260911_staging_activation_gateway_apply_adapter.sql`
+
+- Queue class: low_review
+- Score: 170
+- Gap severity: none
+- Missing docs: none
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+- Surface counts: plugins=0, tools=0, views=1, policies=1, routes=0
+- Remediation actions:
+- `verify_policy_seed_readiness` → runtime-policy-review; targets: `staging_activation_gateway_apply_policy_v1`
+- `verify_readback_view` → db-readback-review; targets: `v_only`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
