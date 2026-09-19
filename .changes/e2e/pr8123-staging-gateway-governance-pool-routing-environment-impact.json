@@ -12,7 +12,9 @@
       "http-generic-api/environmentConvergenceRegistry.js",
       "http-generic-api/stagingActivationGatewayApplyAdapter.js",
       "http-generic-api/stagingRecoveryGatewayPreflight.js",
-      "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
+      "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+      "http-generic-api/activationGatewayRolloutTool.js",
+      "http-generic-api/test-staging-recovery-gateway-preflight.mjs"
     ]
   },
   "merge_contract": {
@@ -20,7 +22,10 @@
   },
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
-    "declared_targets": ["staging", "production"],
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
     "cross_environment_reviewed": true,
     "live_staging_certification_required": true,
     "production_mutation_allowed": false
@@ -42,7 +47,7 @@
             "Classify the exact base-to-head paths against the canonical environment-impact policy.",
             "Verify resource binding, capability envelope, and dispatch certification reads use the Governance DB pool.",
             "Verify workspace resolution remains on the Runtime DB pool.",
-            "Verify the Recovery Gateway preflight uses the canonical rollout surface.",
+            "Verify the Staging Recovery Gateway preflight is server-hard-bound to the Staging adapter and cannot select Production from caller assertions.",
             "Verify provider apply still requires live authority preflight and no Production mutation is authorized."
           ],
           "assertions": [
@@ -52,9 +57,17 @@
             "production_mutation_allowed is false.",
             "Runtime and Governance database pools cannot be explicitly composed as the same pool.",
             "No database write, provider mutation, credential payload read, or Production activation is introduced.",
-            "secrets_included is false."
+            "secrets_included is false.",
+            "Staging Recovery never selects the Production rollout implementation from expected_policy_hash or other caller assertions.",
+            "Governance authority reads never fall back to the Runtime DB pool."
           ],
           "tests": [
+            {
+              "id": "pr8123-staging-recovery-gateway-preflight",
+              "runner": "node",
+              "path": "http-generic-api/test-staging-recovery-gateway-preflight.mjs",
+              "args": []
+            },
             {
               "id": "pr8123-staging-smart-gateway-convergence-contract",
               "runner": "node",
@@ -65,7 +78,12 @@
               "id": "pr8123-environment-impact-closure",
               "runner": "node",
               "path": "http-generic-api/scripts/environment-impact-closure.mjs",
-              "args": ["--base-sha", "BASE_SHA", "--head-sha", "HEAD_SHA"]
+              "args": [
+                "--base-sha",
+                "BASE_SHA",
+                "--head-sha",
+                "HEAD_SHA"
+              ]
             }
           ],
           "evidence_paths": [
@@ -73,7 +91,9 @@
             "http-generic-api/config/deployment-branch-policy.json",
             "http-generic-api/stagingActivationGatewayApplyAdapter.js",
             "http-generic-api/stagingRecoveryGatewayPreflight.js",
-            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
+            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+            "http-generic-api/activationGatewayRolloutTool.js",
+            "http-generic-api/test-staging-recovery-gateway-preflight.mjs"
           ]
         }
       ],
@@ -82,7 +102,12 @@
           "id": "pr8123-environment-impact-closure",
           "runner": "node",
           "path": "http-generic-api/scripts/environment-impact-closure.mjs",
-          "args": ["--base-sha", "BASE_SHA", "--head-sha", "HEAD_SHA"]
+          "args": [
+            "--base-sha",
+            "BASE_SHA",
+            "--head-sha",
+            "HEAD_SHA"
+          ]
         }
       ]
     }

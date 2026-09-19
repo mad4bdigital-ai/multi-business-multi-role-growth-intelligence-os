@@ -55,13 +55,23 @@ function truthy(value) {
 }
 
 function resolveStagingGatewayDataPools(deps = {}) {
-  const explicitRuntimePool = deps.runtimePool || null;
-  const runtimePool = explicitRuntimePool || deps.pool || null;
-  const governancePool = deps.governancePool || deps.authorityStorePool
-    || (!explicitRuntimePool ? deps.pool : null);
-  if (explicitRuntimePool) {
-    assertPlatformResourceAuthorityStoreSource({ pool: governancePool, runtimePool: explicitRuntimePool });
+  const runtimePool = deps.runtimePool || deps.pool || null;
+  const governancePool = deps.governancePool || deps.authorityStorePool || null;
+  if (!runtimePool || typeof runtimePool.query !== "function") {
+    throw adapterError(
+      "staging_activation_gateway_runtime_database_required",
+      "Dedicated Runtime DB access is required for Staging workspace resolution.",
+      503,
+    );
   }
+  if (!governancePool || typeof governancePool.query !== "function") {
+    throw adapterError(
+      "staging_activation_gateway_governance_database_required",
+      "Dedicated Governance DB access is required for Staging authority resolution.",
+      503,
+    );
+  }
+  assertPlatformResourceAuthorityStoreSource({ pool: governancePool, runtimePool });
   return { runtimePool, governancePool };
 }
 
@@ -468,7 +478,6 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
   const mode = compact(input.mode || "dry_run", 16).toLowerCase();
   if (!["dry_run", "apply"].includes(mode)) throw adapterError("staging_activation_gateway_mode_invalid", "mode must be dry_run or apply.");
   const { runtimePool, governancePool } = resolveStagingGatewayDataPools(deps);
-  if (!governancePool) throw adapterError("staging_activation_gateway_governance_database_required", "Dedicated Governance DB writer is required.", 503);
   const env = deps.env || process.env;
   if (mode === "dry_run") {
     const plan = await buildStagingActivationGatewayApplyPlan(input, { ...deps, includeInternal: true });

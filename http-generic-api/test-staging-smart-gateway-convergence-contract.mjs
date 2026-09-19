@@ -303,9 +303,9 @@ assert.match(core, /provider_mutation = \$false/u);
 
 assert.equal(ACTIVATION_GATEWAY_ROLLOUT_CONTRACT.script_name, "mad4b-activation-gateway");
 const dryRunQueries = [];
-const dryRunPool = {
+const previewGovernancePool = {
   async query(sql, params = []) {
-    dryRunQueries.push({ sql: String(sql), params });
+    dryRunQueries.push({ store: "governance", sql: String(sql), params });
     if (String(sql).includes("FROM platform_resource_authority_bindings")) {
       assert.deepEqual(params, [bindingId]);
       return [[{
@@ -324,10 +324,19 @@ const dryRunPool = {
         status: "active",
       }]];
     }
+    throw new Error(`Unexpected Governance SQL in Staging dry-run contract: ${sql}`);
+  },
+};
+const previewRuntimePool = {
+  async query(sql, params = []) {
+    dryRunQueries.push({ store: "runtime", sql: String(sql), params });
+    if (String(sql).includes("platform_resource_authority_bindings")) {
+      throw new Error("Runtime DB must never serve platform_resource_authority_bindings.");
+    }
     if (String(sql).includes("FROM workspace_registry")) {
       return [[{ workspace_id: "11111111-1111-4111-8111-111111111111", tenant_id: "00000000-0000-0000-0000-000000000000", workspace_key: "platform-admin", display_name: "Platform Admin", workspace_type: "platform_admin", bootstrap_status: "ready" }]];
     }
-    throw new Error(`Unexpected SQL in Staging dry-run contract: ${sql}`);
+    throw new Error(`Unexpected Runtime SQL in Staging dry-run contract: ${sql}`);
   },
 };
 const fakeCloudflareClient = { token_present: true, async request() { throw new Error("dry-run must not call Cloudflare"); } };
@@ -338,7 +347,7 @@ const rolloutPlan = await buildActivationGatewayRolloutPlan({
   expected_source_commit: sourceSha,
   expected_policy_hash: staging.expected_policy_hash, environment_convergence_plan_sha256: convergencePlanSha,
 }, {
-  pool: dryRunPool,
+  runtimePool: previewRuntimePool, governancePool: previewGovernancePool,
   auth,
   env: { STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED: "true", DEPLOYMENT_MANIFEST_JSON: JSON.stringify({ repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os", branch: "main", commit_sha: sourceSha }) },
   cloudflareClient: fakeCloudflareClient,
@@ -358,7 +367,7 @@ assert.equal(rolloutPlan.secrets_included, false);
 assert.equal(dryRunQueries.some((entry) => entry.sql.includes("platform_resource_authority_bindings")), true);
 const servicePlan = await buildActivationGatewayRolloutPlan({ account_id: accountId, expected_source_commit: sourceSha,
   expected_policy_hash: staging.expected_policy_hash, environment_convergence_plan_sha256: convergencePlanSha }, {
-  pool: dryRunPool, auth: { mode: "backend_api_key", principal_type: "admin", is_admin: true },
+  runtimePool: previewRuntimePool, governancePool: previewGovernancePool, auth: { mode: "backend_api_key", principal_type: "admin", is_admin: true },
   env: { STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED: "true", DEPLOYMENT_MANIFEST_JSON: JSON.stringify({
     repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os", branch: "main", commit_sha: sourceSha }) },
   cloudflareClient: fakeCloudflareClient, registry, repositoryRoot: root,
@@ -377,7 +386,7 @@ assert.equal(openStagingGatewayArtifact(encrypted, { env: storageEnv, planId: ro
 assert.throws(() => openStagingGatewayArtifact(encrypted, { env: storageEnv, planId: crypto.randomUUID() }), /failed authentication/u);
 assert.notEqual((await buildActivationGatewayRolloutPlan({ account_id: accountId, expected_source_commit: sourceSha,
   expected_policy_hash: staging.expected_policy_hash, environment_convergence_plan_sha256: convergencePlanSha },
-{ pool: dryRunPool, auth, env: { STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED: "true", DEPLOYMENT_MANIFEST_JSON: JSON.stringify({ repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os", branch: "main", commit_sha: sourceSha }) },
+{ runtimePool: previewRuntimePool, governancePool: previewGovernancePool, auth, env: { STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED: "true", DEPLOYMENT_MANIFEST_JSON: JSON.stringify({ repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os", branch: "main", commit_sha: sourceSha }) },
   cloudflareClient: fakeCloudflareClient, registry, repositoryRoot: root })).plan_sha256, rolloutPlan.plan_sha256);
 const savedArtifacts = new Map();
 const savedPlans = new Map();
@@ -421,7 +430,7 @@ const governancePool = {
       return [row && row.status === "ready" && row.plan_sha256 === params[1] && row.environment_convergence_plan_sha256 === params[2]
         ? [{ ...row, encrypted_artifact: savedArtifacts.get(row.bundle_ref) }] : []];
     }
-    return dryRunPool.query(sql, params);
+    return previewGovernancePool.query(sql, params);
   },
   async getConnection() {
     return {
@@ -452,7 +461,7 @@ const runtimePool = {
       throw new Error("runtime pool cannot read governance-owned authority tables");
     if (/\b(?:INSERT|UPDATE|DELETE)\b/iu.test(String(sql)) || String(sql).includes("staging_activation_gateway_execution_plans") || String(sql).includes("staging_activation_gateway_execution_artifacts") || String(sql).includes("staging_activation_gateway_envelope_plan_bindings"))
       throw new Error("runtime pool has no governance mutation authority");
-    return governancePool.query(sql, params);
+    return previewRuntimePool.query(sql, params);
   },
   async getConnection() { throw new Error("runtime pool cannot write execution plans"); },
 };
@@ -623,11 +632,11 @@ assert.equal(savedPlans.get(thirdExecution.plan_id).status, "failed");
 assert.equal(envelopeStates.get("post-audit-failure-envelope").execution_status, "cancelled");
 assert.equal(providerCalls.some((call) => call.apiPath.endsWith("/deployments?force=true")), true);
 await assert.rejects(
-  buildActivationGatewayRolloutPlan({ mode: "dry_run", account_id: "f".repeat(32), expected_source_commit: sourceSha, expected_policy_hash: staging.expected_policy_hash, environment_convergence_plan_sha256: convergencePlanSha }, { pool: dryRunPool, auth, env: { STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED: "true", DEPLOYMENT_MANIFEST_JSON: JSON.stringify({ repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os", branch: "main", commit_sha: sourceSha }) }, cloudflareClient: fakeCloudflareClient, registry, repositoryRoot: root }),
+  buildActivationGatewayRolloutPlan({ mode: "dry_run", account_id: "f".repeat(32), expected_source_commit: sourceSha, expected_policy_hash: staging.expected_policy_hash, environment_convergence_plan_sha256: convergencePlanSha }, { runtimePool: previewRuntimePool, governancePool: previewGovernancePool, auth, env: { STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED: "true", DEPLOYMENT_MANIFEST_JSON: JSON.stringify({ repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os", branch: "main", commit_sha: sourceSha }) }, cloudflareClient: fakeCloudflareClient, registry, repositoryRoot: root }),
   (error) => error?.code === "staging_activation_gateway_account_assertion_mismatch",
 );
 await assert.rejects(
-  buildActivationGatewayRolloutPlan({ mode: "dry_run", account_id: accountId, resource_binding_id: "caller-selected-binding", expected_source_commit: sourceSha, expected_policy_hash: staging.expected_policy_hash, environment_convergence_plan_sha256: convergencePlanSha }, { pool: dryRunPool, auth, env: { STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED: "true", DEPLOYMENT_MANIFEST_JSON: JSON.stringify({ repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os", branch: "main", commit_sha: sourceSha }) }, cloudflareClient: fakeCloudflareClient, registry, repositoryRoot: root }),
+  buildActivationGatewayRolloutPlan({ mode: "dry_run", account_id: accountId, resource_binding_id: "caller-selected-binding", expected_source_commit: sourceSha, expected_policy_hash: staging.expected_policy_hash, environment_convergence_plan_sha256: convergencePlanSha }, { runtimePool: previewRuntimePool, governancePool: previewGovernancePool, auth, env: { STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED: "true", DEPLOYMENT_MANIFEST_JSON: JSON.stringify({ repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os", branch: "main", commit_sha: sourceSha }) }, cloudflareClient: fakeCloudflareClient, registry, repositoryRoot: root }),
   (error) => error?.code === "staging_activation_gateway_caller_target_override_forbidden",
 );
 

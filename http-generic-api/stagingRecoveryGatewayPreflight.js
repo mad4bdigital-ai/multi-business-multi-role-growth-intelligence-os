@@ -1,9 +1,9 @@
 import { getPool } from "./db.js";
 import { getGovernancePool } from "./governanceDb.js";
 import {
-  buildActivationGatewayRolloutPlan,
-  runActivationGatewayDarkDeploy,
-} from "./activationGatewayRolloutTool.js";
+  buildStagingActivationGatewayApplyPlan,
+  runStagingActivationGatewayApply,
+} from "./stagingActivationGatewayApplyAdapter.js";
 
 export const STAGING_RECOVERY_GATEWAY_PREFLIGHT_CONTRACT = "mad4b.staging-recovery-gateway-preflight.v1";
 
@@ -94,7 +94,7 @@ function convergenceBinding(input) {
 
 export async function previewStagingRecoveryGatewayRollout(input = {}, deps = {}) {
   const normalized = normalizeStagingRecoveryGatewayPreflightInput(input);
-  const builder = deps.buildRolloutPlan || buildActivationGatewayRolloutPlan;
+  const builder = deps.buildRolloutPlan || buildStagingActivationGatewayApplyPlan;
   const result = await builder(
     { mode: "dry_run", ...normalized },
     executionDeps(deps, deps.auth || {}),
@@ -134,7 +134,7 @@ export async function previewStagingRecoveryGatewayRollout(input = {}, deps = {}
 
 export async function prepareStagingRecoveryGatewayDarkDeployDryRun(input = {}, deps = {}) {
   const normalized = normalizeStagingRecoveryGatewayPreflightInput(input);
-  const runner = deps.runDarkDeploy || runActivationGatewayDarkDeploy;
+  const runner = deps.runDarkDeploy || runStagingActivationGatewayApply;
   const result = await runner(
     { mode: "dry_run", ...normalized },
     executionDeps(deps, deps.auth || {}),
