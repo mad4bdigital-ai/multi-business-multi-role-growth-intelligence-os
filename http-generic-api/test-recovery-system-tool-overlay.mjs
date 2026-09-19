@@ -48,7 +48,10 @@ test("Staging Recovery tools are absent from Production catalog and present only
   assert.equal(staging.staging_advertised, true);
   assert.equal(staging.staging_tool_count, 12);
   assert.deepEqual(
-    SYSTEM_LAYER_TOOLS.filter((entry) => entry.source_key === "staging_recovery_system_surface_v1").map((entry) => entry.name),
+    SYSTEM_LAYER_TOOLS
+      .filter((entry) => entry.source_key === "staging_recovery_system_surface_v1")
+      .map((entry) => entry.name)
+      .sort(),
     [
       "staging_recovery_certification_canary_plan_create",
       "prepareStagingActivationGatewayDarkDeployDryRun",
@@ -62,7 +65,7 @@ test("Staging Recovery tools are absent from Production catalog and present only
       "staging_recovery_schema_repair_prepare",
       "staging_recovery_schema_repair_approve",
       "staging_recovery_schema_repair_execute",
-    ],
+    ].sort(),
   );
 
   synchronizeRecoverySystemToolDescriptors(PRODUCTION_ENV);
@@ -83,6 +86,8 @@ test("Staging Gateway dry-run dispatch stays on the server-resolved Recovery ove
       env: STAGING_ENV,
       auth: { mode: "backend_api_key", principal_type: "admin", is_admin: true },
       gatewayPreflightDeps: {
+        runtimePool: {},
+        governancePool: {},
         runDarkDeploy: async (args, deps) => {
           observed = { args: { ...args }, auth: { ...(deps.auth || {}) } };
           return {
