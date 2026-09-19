@@ -654,7 +654,8 @@
     ".changes/e2e/staging-recovery-gateway-preflight-20260916.json",
     ".changes/e2e/governance-db-authority-store-isolation.json",
     ".changes/e2e/pr8106-governance-recipe-store-runtime-isolation.json",
-    ".changes/e2e/pr8123-staging-gateway-governance-pool-routing-environment-impact.json"
+    ".changes/e2e/pr8123-staging-gateway-governance-pool-routing-environment-impact.json",
+    ".changes/e2e/pr8127-windows-portability-environment-impact.json"
   ],
   "derived_state": {
     "registry": ".github/derived-state-governance.json",
