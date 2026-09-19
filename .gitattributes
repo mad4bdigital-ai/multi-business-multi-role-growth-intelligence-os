@@ -3,6 +3,7 @@
 *.md text eol=lf
 *.mjs text eol=lf
 *.js text eol=lf
+http-generic-api/migrations/20260721_repository_authority_capability_bindings_v2.sql text eol=lf
 http-generic-api/migrations/20260722_agent_skill_grant_approval_provenance.sql text eol=lf
 http-generic-api/migrations/20260725_repository_authority_capability_readiness_repair.sql text eol=lf
 http-generic-api/migrations/1007_sprint69_agent_capability_coverage_admin_tools.sql text eol=lf
