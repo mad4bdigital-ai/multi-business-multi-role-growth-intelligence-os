@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import {
   PLATFORM_ADMIN_WORKSPACE_MARKER_CONTRACT,
@@ -87,7 +88,6 @@ assert.equal(await resolveCanonicalPlatformAdminWorkspace({
   executor: nonReadyExecutor,
   tenantId,
   requireReady: true,
-  requireActivePlatformOwnerTenant: true,
 }), null);
 
 const topologyCandidates = await readCanonicalPlatformAdminWorkspaceCandidates({
@@ -132,5 +132,18 @@ const globalSentinelResolved = await resolveCanonicalPlatformAdminWorkspace({
 });
 assert.equal(globalSentinelResolved?.tenant_id, tenantId);
 assert.equal(globalSentinelExecutor.calls.some((call) => call.sql.includes("FROM tenants")), false);
+
+const stagingAdapterSource = readFileSync("stagingActivationGatewayApplyAdapter.js", "utf8");
+const topologyRepositorySource = readFileSync(
+  "src/infrastructure/authorityScope/platformTopologyVerificationRepository.js",
+  "utf8",
+);
+assert.match(stagingAdapterSource, /resolveCanonicalPlatformAdminWorkspace/u);
+assert.match(topologyRepositorySource, /readCanonicalPlatformAdminWorkspaceCandidates/u);
+for (const source of [stagingAdapterSource, topologyRepositorySource]) {
+  assert.doesNotMatch(source, /\$\.platform_admin_workspace/u);
+  assert.doesNotMatch(source, /\$\.authority_scope_key/u);
+}
+assert.doesNotMatch(stagingAdapterSource, /workspace_type='platform_admin'/u);
 
 console.log("Platform Admin Workspace canonical resolver tests passed.");
