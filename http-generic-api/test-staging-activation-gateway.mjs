@@ -130,8 +130,10 @@ assert.equal(productionConvergenceProfile.provider_mutation_implementation, null
 assert.equal(stagingConvergenceProfile.activation_gateway.governed_apply_ready, true);
 assert.equal(stagingConvergenceProfile.activation_gateway.apply_capability, "activation_gateway_dark_deploy");
 assert.equal(stagingConvergenceProfile.activation_gateway.policy_path, "edge/activation-gateway/generated/route-policy.staging.json");
+assert.equal(stagingConvergenceProfile.activation_gateway.execution_policy_path, "http-generic-api/activation-gateway-runtime/generated/route-policy.staging.json");
 assert.equal(stagingConvergenceProfile.activation_gateway.execution_target.bundle_binding.entrypoint, "http-generic-api/activation-gateway-runtime/src/worker-staging.mjs");
-assert.equal(stagingConvergenceProfile.activation_gateway.execution_target.bundle_binding.policy_path, "http-generic-api/activation-gateway-runtime/generated/route-policy.staging.json");
+assert.equal(stagingConvergenceProfile.activation_gateway.execution_target.bundle_binding.policy_path, stagingConvergenceProfile.activation_gateway.execution_policy_path);
+assert.equal(productionConvergenceProfile.activation_gateway.execution_target.bundle_binding.policy_path, productionConvergenceProfile.activation_gateway.execution_policy_path);
 assert.equal(productionConvergenceProfile.activation_gateway.governed_apply_ready, true);
 assert.equal(productionConvergenceProfile.activation_gateway.apply_capability, "activation_gateway_dark_deploy");
 assert.equal(
