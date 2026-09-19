@@ -268,6 +268,9 @@ const mixedGatewayClassification = classifyEnvironmentCertification(mixedGateway
   registry: convergenceRegistry,
 });
 assert.equal(mixedGatewayClassification.classified_failures[0].check_key, "gateway_exact_commit");
+assert.equal(mixedGatewayClassification.classified_failures[0].desired_release_commit, desiredCommit);
+assert.equal(mixedGatewayClassification.classified_failures[0].observed_release_commit, null);
+assert.equal(mixedGatewayClassification.classified_failures[0].detail.observed, observedCommit);
 assert.equal(mixedGatewayClassification.next_governed_handoff.stale_gateway_bypass_required, true);
 assert.equal(mixedGatewayClassification.next_governed_handoff.current_authority_adapter, "staging_activation_worker_workflow");
 

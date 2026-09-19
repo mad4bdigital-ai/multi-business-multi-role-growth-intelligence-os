@@ -168,10 +168,20 @@ export function classifyEnvironmentCertification(report = {}, {
   const gatewayProfile = profile.activation_gateway || {};
   const gatewayDependency = registry?.dependencies?.activation_gateway || {};
   const metadataByCheck = gatewayDependency.checks || {};
+  const failures = failedChecks(report);
+  const staleGatewayBypassActive = failures.some((entry) => {
+    if (entry?.key !== "gateway_policy_not_stale") return false;
+    const candidateOverride = metadataByCheck[entry.key]?.handoff_override;
+    if (!candidateOverride || candidateOverride.stale_gateway_bypass_required !== true) return false;
+    const environments = Array.isArray(candidateOverride.environments)
+      ? candidateOverride.environments.map((value) => compact(value).toLowerCase()).filter(Boolean)
+      : [];
+    return environments.length === 0 || environments.includes(environmentKey);
+  });
   const classified = [];
   const unclassified = [];
 
-  for (const entry of failedChecks(report)) {
+  for (const entry of failures) {
     const metadata = metadataByCheck[entry.key];
     if (!metadata) {
       unclassified.push({
@@ -206,7 +216,9 @@ export function classifyEnvironmentCertification(report = {}, {
       drift_class: metadata.drift_class,
       repairability: metadata.repairability,
       desired_release_commit: compact(report?.expected?.commit_sha) || null,
-      observed_release_commit: compact(report?.gateway?.health?.sourceCommit) || compact(entry?.detail?.observed) || null,
+      observed_release_commit: staleGatewayBypassActive && entry.key === "gateway_exact_commit"
+        ? null
+        : (compact(report?.gateway?.health?.sourceCommit) || compact(entry?.detail?.observed) || null),
       profile: {
         environment: environmentKey,
         source_branch: profile.source_branch,
