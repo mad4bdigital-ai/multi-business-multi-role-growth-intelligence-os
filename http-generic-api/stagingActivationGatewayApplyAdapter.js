@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { PLATFORM_TENANT_ID } from "./agentSkillGrantRequestService.js";
 import { createCloudflareApiClient } from "./activationGatewayRolloutTool.js";
 import { readCanonicalDeploymentIdentity } from "./deploymentManifest.js";
 import { buildStagingActivationGatewayBundle, stableJson } from "./stagingActivationGatewayBundle.js";
@@ -16,8 +17,8 @@ import {
   markCapabilityEnvelopeReferenced,
   transitionCapabilityEnvelopeLifecycle,
 } from "./capabilityResolutionEnvelopeGuard.js";
+import { assertPlatformResourceAuthorityStoreSource } from "./platformResourceAuthorityStore.js";
 
-const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
 const SHA_RE = /^[a-f0-9]{40}$/u;
 const SHA256_RE = /^[a-f0-9]{64}$/u;
 const SAFE_NONCE_RE = /^[A-Za-z0-9._:-]{8,128}$/u;
@@ -51,6 +52,17 @@ function adapterError(code, message, status = 400, details = {}) {
 
 function truthy(value) {
   return ["1", "true", "yes", "on", "enabled"].includes(String(value ?? "").trim().toLowerCase());
+}
+
+function resolveStagingGatewayDataPools(deps = {}) {
+  const explicitRuntimePool = deps.runtimePool || null;
+  const runtimePool = explicitRuntimePool || deps.pool || null;
+  const governancePool = deps.governancePool || deps.authorityStorePool
+    || (!explicitRuntimePool ? deps.pool : null);
+  if (explicitRuntimePool) {
+    assertPlatformResourceAuthorityStoreSource({ pool: governancePool, runtimePool: explicitRuntimePool });
+  }
+  return { runtimePool, governancePool };
 }
 
 async function canonicalRuntimeCommit(deps) {
@@ -215,7 +227,7 @@ async function assertEnvelopeForApply({ runtimePool, governancePool, auth, input
     throw adapterError("staging_activation_gateway_principal_unresolved", "A canonical authenticated principal is required.", 403);
   }
   const envelope = await resolveCapabilityExecutionEnvelope({
-    pool: runtimePool,
+    pool: governancePool,
     envelopeId: input.capability_envelope_id,
     source: input,
     acceptedAppKeys: ["cloudflare"],
@@ -269,7 +281,7 @@ async function assertEnvelopeForApply({ runtimePool, governancePool, auth, input
     || binding.principal_type !== principalType || binding.principal_id !== principalId) {
     throw adapterError("staging_activation_gateway_envelope_plan_binding_mismatch", "Capability envelope is not bound to this exact execution and convergence plan.", 403);
   }
-  const [certRows] = await runtimePool.query(
+  const [certRows] = await governancePool.query(
     `SELECT certification_key, certification_status, dispatch_allowed, apply_allowed, requires_readback, expires_at
        FROM runtime_dispatch_certification_registry
       WHERE certification_key=?
@@ -365,7 +377,7 @@ async function rollback({ client, accountId, scriptName, previousDeployment, scr
 export async function buildStagingActivationGatewayApplyPlan(input = {}, deps = {}) {
   const registry = deps.registry || readEnvironmentConvergenceRegistry();
   const { gateway, target, binding_id: bindingId } = requiredProfile(registry);
-  const pool = deps.runtimePool || deps.pool || null;
+  const { runtimePool, governancePool } = resolveStagingGatewayDataPools(deps);
   const auth = deps.auth || {};
   const expectedSourceCommit = compact(input.expected_source_commit, 64).toLowerCase();
   const expectedPolicyHash = compact(input.expected_policy_hash, 64).toLowerCase();
@@ -375,9 +387,9 @@ export async function buildStagingActivationGatewayApplyPlan(input = {}, deps = 
   if (!SHA_RE.test(expectedSourceCommit)) throw adapterError("staging_activation_gateway_expected_commit_invalid", "An exact 40-character expected_source_commit is required.");
   if (!SHA_RE.test(actualSourceCommit) || expectedSourceCommit !== actualSourceCommit) throw adapterError("staging_activation_gateway_runtime_commit_mismatch", "Server release commit cannot be proven equal to the execution plan.", 409);
   if (!SHA256_RE.test(expectedPolicyHash) || expectedPolicyHash !== compact(gateway.expected_policy_hash).toLowerCase()) throw adapterError("staging_activation_gateway_expected_policy_hash_mismatch", "expected_policy_hash must match the Staging profile.", 409);
-  const binding = await resolveServerResourceBinding(pool, bindingId);
+  const binding = await resolveServerResourceBinding(governancePool, bindingId);
   assertCallerCannotSelectTarget(input, binding);
-  const workspace = await resolveWorkspace(pool, auth, input);
+  const workspace = await resolveWorkspace(runtimePool, auth, input);
   const bundle = await buildStagingActivationGatewayBundle({ sourceSha: expectedSourceCommit, repositoryRoot: deps.repositoryRoot, lifetimeHours: deps.lifetimeHours, now: deps.now });
   if (bundle.policy_hash !== expectedPolicyHash) throw adapterError("staging_activation_gateway_built_policy_hash_mismatch", "Built Staging Gateway policy does not match the exact environment profile.", 409);
   const bundleSha = sha256(stableJson({ files: bundle.files, worker_secrets: bundle.worker_secrets, origin_trust: bundle.origin_trust }));
@@ -455,8 +467,7 @@ export async function buildStagingActivationGatewayApplyPlan(input = {}, deps = 
 export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
   const mode = compact(input.mode || "dry_run", 16).toLowerCase();
   if (!["dry_run", "apply"].includes(mode)) throw adapterError("staging_activation_gateway_mode_invalid", "mode must be dry_run or apply.");
-  const runtimePool = deps.runtimePool || deps.pool;
-  const governancePool = deps.governancePool;
+  const { runtimePool, governancePool } = resolveStagingGatewayDataPools(deps);
   if (!governancePool) throw adapterError("staging_activation_gateway_governance_database_required", "Dedicated Governance DB writer is required.", 503);
   const env = deps.env || process.env;
   if (mode === "dry_run") {
@@ -488,7 +499,7 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
   }
   const registry = deps.registry || readEnvironmentConvergenceRegistry();
   const { gateway, binding_id: bindingId } = requiredProfile(registry);
-  const binding = await resolveServerResourceBinding(runtimePool, bindingId);
+  const binding = await resolveServerResourceBinding(governancePool, bindingId);
   assertCallerCannotSelectTarget(input, binding);
   const auth = deps.auth || {};
   const workspace = await resolveWorkspace(runtimePool, auth, input);

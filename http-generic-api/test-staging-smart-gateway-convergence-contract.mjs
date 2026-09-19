@@ -9,7 +9,7 @@ import {
   buildActivationGatewayRolloutPlan,
 } from "./activationGatewayRolloutTool.js";
 import { buildStagingActivationGatewayBundle } from "./stagingActivationGatewayBundle.js";
-import { runStagingActivationGatewayApply, _testingStagingGatewayTransaction } from "./stagingActivationGatewayApplyAdapter.js";
+import { buildStagingActivationGatewayApplyPlan, runStagingActivationGatewayApply, _testingStagingGatewayTransaction } from "./stagingActivationGatewayApplyAdapter.js";
 import { openStagingGatewayArtifact, sealStagingGatewayArtifact } from "./stagingGatewayExecutionPlanStore.js";
 import {
   buildStagingActivationTrustInstallPlan,
@@ -33,6 +33,11 @@ const portableManifest = JSON.parse(fs.readFileSync(path.join(portable, "manifes
 const workerBuilder = fs.readFileSync(path.join(root, "http-generic-api/scripts/build-staging-worker.mjs"), "utf8");
 const serverBundleSource = fs.readFileSync(path.join(root, "http-generic-api/stagingActivationGatewayBundle.js"), "utf8");
 const serverAdapterSource = fs.readFileSync(path.join(root, "http-generic-api/stagingActivationGatewayApplyAdapter.js"), "utf8");
+const convergenceEngineSource = fs.readFileSync(path.join(root, "http-generic-api/environmentConvergenceEngine.js"), "utf8");
+const convergenceRegistrySource = fs.readFileSync(path.join(root, "http-generic-api/environmentConvergenceRegistry.js"), "utf8");
+assert.match(convergenceEngineSource, /execution_ready_scope:\s*"server_governed_handoff"/u);
+assert.match(convergenceEngineSource, /provider_apply_ready:\s*false/u);
+assert.match(convergenceRegistrySource, /live_authority_preflight_required:\s*true/u);
 const trustInstallerSource = fs.readFileSync(path.join(root, "http-generic-api/stagingActivationTrustInstaller.js"), "utf8");
 const rolloutWrapperSource = fs.readFileSync(path.join(root, "http-generic-api/activationGatewayRolloutTool.js"), "utf8");
 const productionRolloutSource = fs.readFileSync(path.join(root, "http-generic-api/activationGatewayRolloutToolProduction.js"), "utf8");
@@ -443,12 +448,29 @@ const governancePool = {
 };
 const runtimePool = {
   async query(sql, params) {
+    if (/\b(?:FROM|JOIN)\s+(?:platform_resource_authority_bindings|capability_resolution_envelope_ledger|runtime_dispatch_certification_registry)\b/iu.test(String(sql)))
+      throw new Error("runtime pool cannot read governance-owned authority tables");
     if (/\b(?:INSERT|UPDATE|DELETE)\b/iu.test(String(sql)) || String(sql).includes("staging_activation_gateway_execution_plans") || String(sql).includes("staging_activation_gateway_execution_artifacts") || String(sql).includes("staging_activation_gateway_envelope_plan_bindings"))
       throw new Error("runtime pool has no governance mutation authority");
     return governancePool.query(sql, params);
   },
   async getConnection() { throw new Error("runtime pool cannot write execution plans"); },
 };
+await assert.rejects(
+  buildStagingActivationGatewayApplyPlan({
+    expected_source_commit: sourceSha,
+    expected_policy_hash: staging.expected_policy_hash,
+    environment_convergence_plan_sha256: convergencePlanSha,
+  }, {
+    runtimePool,
+    governancePool: runtimePool,
+    auth,
+    env: {},
+    registry,
+    repositoryRoot: root,
+  }),
+  (error) => error?.code === "PLATFORM_RESOURCE_AUTHORITY_RUNTIME_POOL_FORBIDDEN",
+);
 const adapterSource = fs.readFileSync(path.join(root, "http-generic-api/stagingActivationGatewayApplyAdapter.js"), "utf8");
 assert.doesNotMatch(adapterSource, /UPDATE\s+capability_resolution_envelope_ledger/iu);
 assert.match(adapterSource, /markCapabilityEnvelopeReferenced\(\{ writerPool: governancePool/iu);
