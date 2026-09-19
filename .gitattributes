@@ -4,6 +4,7 @@
 *.mjs text eol=lf
 *.js text eol=lf
 http-generic-api/migrations/20260722_agent_skill_grant_approval_provenance.sql text eol=lf
+http-generic-api/migrations/20260725_repository_authority_capability_readiness_repair.sql text eol=lf
 http-generic-api/migrations/1007_sprint69_agent_capability_coverage_admin_tools.sql text eol=lf
 http-generic-api/migrations/1006_sprint69_agent_capability_evidence_coverage.sql text eol=lf
 http-generic-api/migrations/1023_sprint69_sql_cache_runtime_policy.sql text eol=lf
