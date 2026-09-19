@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7703,
+  "file_count": 7704,
   "route_count": 1105,
   "write_route_count": 672,
   "classified_write_surface_count": 43,
@@ -17,7 +17,7 @@
   "intentionally_unmapped_write_route_count": 629,
   "sensitive_intentionally_unmapped_write_route_count": 629,
   "migration_count": 448,
-  "registry_evidence_count": 119,
+  "registry_evidence_count": 118,
   "write_scope_count": 6,
   "bound_write_scope_count": 0,
   "write_scopes": [
@@ -59378,12 +59378,6 @@
     }
   ],
   "registry_evidence": [
-    {
-      "path": "http-generic-api/activationGatewayRolloutTool.js",
-      "registries": [
-        "platform_resource_authority_bindings"
-      ]
-    },
     {
       "path": "http-generic-api/activationGatewayRolloutToolProduction.js",
       "registries": [
