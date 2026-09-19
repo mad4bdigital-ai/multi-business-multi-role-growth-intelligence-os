@@ -365,6 +365,7 @@
     "waiver_requires_digest_and_expiry": true
   },
   "control_plane_paths": [
+    ".changes/e2e/staging-gateway-canonical-platform-workspace-20260919.json",
     ".changes/e2e/staging-governance-authority-seed-recovery-20260915.json",
     ".changes/e2e/staging-convergence-bom-json-20260911.json",
     ".changes/e2e/staging-live-certification-runtime-trust-evidence-20260916.json",
