@@ -45,9 +45,32 @@ export function producePromotionArtifactParity({ source, target } = {}) {
   };
 }
 
+function isUnsupportedWindowsDirectorySync(error) {
+  return process.platform === "win32"
+    && ["EPERM", "EINVAL", "ENOTSUP", "EISDIR"].includes(error?.code);
+}
+
 async function syncDirectory(directory) {
-  const directoryHandle = await open(directory, "r");
-  try { await directoryHandle.sync(); } finally { await directoryHandle.close(); }
+  let directoryHandle;
+  try {
+    directoryHandle = await open(directory, "r");
+  } catch (error) {
+    if (isUnsupportedWindowsDirectorySync(error)) return;
+    throw error;
+  }
+  try {
+    try {
+      await directoryHandle.sync();
+    } catch (error) {
+      // Node/Windows can open a directory handle but fsync/FlushFileBuffers on
+      // that handle is not supported and reports EPERM. The evidence file
+      // itself is still fsynced before this call; only the POSIX directory
+      // metadata durability barrier is unavailable on Windows.
+      if (!isUnsupportedWindowsDirectorySync(error)) throw error;
+    }
+  } finally {
+    await directoryHandle.close();
+  }
 }
 
 async function boundedRead(file, { missing = null } = {}) {
