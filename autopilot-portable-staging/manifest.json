@@ -6,7 +6,7 @@
   "files": [
     {
       "path": ".gitattributes",
-      "sha256": "4dcddff86173eda399349223bd2bdc1b9668c98249d15794a94e21dfdfab1a77"
+      "sha256": "ff5fa1a19773698cc6c2b9d2de38232a71c29872992652621f825a4756298d88"
     },
     {
       "path": ".dockerignore",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "5f9755097ddecc06d44d6c792e97c0250b1de64f6322d5f4675a22396800bd0f"
+      "sha256": "1628998cd3fd747f72d56f3601fc8afed3f00db295a365a2b4d965bd87feef25"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
