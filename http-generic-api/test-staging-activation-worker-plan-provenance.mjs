@@ -146,6 +146,7 @@ await assert.rejects(
   verifyStagingActivationWorkerHandoff({
     sourceSha,
     expectedPolicyHash: profile.expected_policy_hash,
+    callerPlanSha256: first.authoritative_plan_sha256,
     fetchImpl: async () => new Response(JSON.stringify({ ...staleHealth, stale: false, ok: true }), { status: 200 }),
     repositoryRoot: root,
   }),
@@ -155,6 +156,7 @@ await assert.rejects(
   verifyStagingActivationWorkerHandoff({
     sourceSha,
     expectedPolicyHash: profile.expected_policy_hash,
+    callerPlanSha256: first.authoritative_plan_sha256,
     healthUrl: "https://activation.mad4b.com/health",
     fetchImpl: staleFetch,
     repositoryRoot: root,
