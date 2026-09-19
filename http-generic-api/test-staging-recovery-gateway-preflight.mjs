@@ -2,6 +2,7 @@
 // frontend-surface-operation: post /admin/recovery/staging/gateway/dark-deploy-dry-run
 
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import test from "node:test";
 import {
   normalizeStagingRecoveryGatewayPreflightInput,
@@ -21,6 +22,13 @@ const input = {
 const runtimePool = { kind: "runtime" };
 const governancePool = { kind: "governance" };
 const auth = { mode: "backend_api_key", principal_type: "admin", is_admin: true };
+
+const recoveryPreflightSource = fs.readFileSync(
+  new URL("./stagingRecoveryGatewayPreflight.js", import.meta.url),
+  "utf8",
+);
+assert.match(recoveryPreflightSource, /from "\.\/stagingActivationGatewayApplyAdapter\.js"/u);
+assert.doesNotMatch(recoveryPreflightSource, /from "\.\/activationGatewayRolloutTool\.js"/u);
 
 test("Gateway preflight rejects caller-selected provider and execution authority", () => {
   for (const forbidden of [
@@ -138,32 +146,38 @@ test("dark-deploy dry-run may persist only the governed execution plan and never
   assert.equal(result.convergence_binding.consequential_apply_authority_issued, false);
 });
 
-test("stale policy assertion remains on the Staging adapter and never selects Production", async () => {
+test("stale policy assertion stays on the Staging adapter and cannot fall through to Production", async () => {
   const staleInput = { ...input, expected_policy_hash: "f".repeat(64) };
-  let stagingBuilderCalls = 0;
-  const result = await previewStagingRecoveryGatewayRollout(staleInput, {
-    runtimePool,
-    governancePool,
+  let authorityQueries = 0;
+  const noQueryRuntimePool = {
+    async query() {
+      authorityQueries += 1;
+      throw new Error("stale policy mismatch must fail before Runtime DB access");
+    },
+  };
+  const noQueryGovernancePool = {
+    async query() {
+      authorityQueries += 1;
+      throw new Error("stale policy mismatch must fail before Governance DB access");
+    },
+  };
+  const deps = {
+    runtimePool: noQueryRuntimePool,
+    governancePool: noQueryGovernancePool,
     auth,
     env: { NODE_ENV: "staging" },
-    async buildRolloutPlan(args) {
-      stagingBuilderCalls += 1;
-      assert.equal(args.expected_policy_hash, staleInput.expected_policy_hash);
-      return {
-        ok: false,
-        adapter: "staging_activation_gateway_profile_apply",
-        classification: "staging_activation_gateway_expected_policy_hash_mismatch",
-        apply_ready: false,
-        checks: [{ key: "expected_policy_hash_matches", ok: false }],
-      };
-    },
-  });
-  assert.equal(stagingBuilderCalls, 1);
-  assert.equal(result.environment, "staging");
-  assert.equal(result.adapter, "staging_activation_gateway_profile_apply");
-  assert.equal(result.preflight_ready, false);
-  assert.equal(result.production_mutation_performed, false);
-  assert.equal(result.provider_accessed, false);
+    async resolveCurrentCommit() { return commit; },
+  };
+
+  await assert.rejects(
+    () => previewStagingRecoveryGatewayRollout(staleInput, deps),
+    (error) => error?.code === "staging_activation_gateway_expected_policy_hash_mismatch",
+  );
+  await assert.rejects(
+    () => prepareStagingRecoveryGatewayDarkDeployDryRun(staleInput, deps),
+    (error) => error?.code === "staging_activation_gateway_expected_policy_hash_mismatch",
+  );
+  assert.equal(authorityQueries, 0);
 });
 
 test("preflight fails closed if an implementation reports provider access", async () => {

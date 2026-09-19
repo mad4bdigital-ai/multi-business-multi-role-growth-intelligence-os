@@ -1,0 +1,125 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr8123-staging-gateway-governance-pool-routing-environment-impact",
+  "title": "PR8123 Staging gateway governance pool routing environment impact",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr8123-staging-gateway-governance-pool-routing-environment-impact.json",
+      "http-generic-api/environmentConvergenceEngine.js",
+      "http-generic-api/environmentConvergenceRegistry.js",
+      "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+      "http-generic-api/stagingRecoveryGatewayPreflight.js",
+      "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+      "http-generic-api/activationGatewayRolloutTool.js",
+      "http-generic-api/test-staging-recovery-gateway-preflight.mjs",
+      "http-generic-api/staging-governance-authority-seed-recovery-contract.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Route gateway authority reads through the Governance DB while preserving Runtime DB workspace resolution and all provider, database, and Production mutation boundaries.",
+      "e2e_journeys": [
+        {
+          "id": "pr8123-staging-gateway-governance-pool-routing-readback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed CI",
+          "entrypoint": "Evaluate the exact PR head against the canonical environment-impact policy and gateway convergence contracts.",
+          "terminal_outcome": "Governance-owned authority reads use the Governance DB, workspace reads remain on Runtime DB, live Staging certification remains required, and Production mutation remains denied.",
+          "steps": [
+            "Classify the exact base-to-head paths against the canonical environment-impact policy.",
+            "Verify resource binding, capability envelope, and dispatch certification reads use the Governance DB pool.",
+            "Verify workspace resolution remains on the Runtime DB pool.",
+            "Verify the Staging Recovery Gateway preflight is server-hard-bound to the Staging adapter and cannot select Production from caller assertions.",
+            "Verify provider apply still requires live authority preflight and no Production mutation is authorized."
+          ],
+          "assertions": [
+            "The environment impact source of truth is the canonical deployment branch policy.",
+            "Staging and production are declared because the changed runtime paths are shared.",
+            "Cross-environment review is explicit and live Staging certification remains required.",
+            "production_mutation_allowed is false.",
+            "Runtime and Governance database pools cannot be explicitly composed as the same pool.",
+            "No database write, provider mutation, credential payload read, or Production activation is introduced.",
+            "secrets_included is false.",
+            "Staging Recovery never selects the Production rollout implementation from expected_policy_hash or other caller assertions.",
+            "Governance authority reads never fall back to the Runtime DB pool.",
+            "The generic Staging rollout surface may server-resolve the Governance Authority Store, but it never aliases deps.pool as Governance or proxies Runtime SQL into Governance."
+          ],
+          "tests": [
+            {
+              "id": "pr8123-staging-recovery-gateway-preflight",
+              "runner": "node",
+              "path": "http-generic-api/test-staging-recovery-gateway-preflight.mjs",
+              "args": []
+            },
+            {
+              "id": "pr8123-staging-smart-gateway-convergence-contract",
+              "runner": "node",
+              "path": "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "pr8123-staging-governance-authority-seed-recovery-contract",
+              "runner": "node",
+              "path": "http-generic-api/staging-governance-authority-seed-recovery-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "pr8123-environment-impact-closure",
+              "runner": "node",
+              "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+              "args": [
+                "--base-sha",
+                "BASE_SHA",
+                "--head-sha",
+                "HEAD_SHA"
+              ]
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/pr8123-staging-gateway-governance-pool-routing-environment-impact.json",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+            "http-generic-api/stagingRecoveryGatewayPreflight.js",
+            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+            "http-generic-api/activationGatewayRolloutTool.js",
+            "http-generic-api/test-staging-recovery-gateway-preflight.mjs",
+            "http-generic-api/staging-governance-authority-seed-recovery-contract.mjs"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "pr8123-environment-impact-closure",
+          "runner": "node",
+          "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+          "args": [
+            "--base-sha",
+            "BASE_SHA",
+            "--head-sha",
+            "HEAD_SHA"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

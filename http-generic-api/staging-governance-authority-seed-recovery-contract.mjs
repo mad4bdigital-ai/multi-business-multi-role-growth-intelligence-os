@@ -113,9 +113,16 @@ assert.ok(roleManifest.roles.runtime.required_tables.includes("platform_resource
 assert.ok(roleManifest.roles.runtime.required_tables.includes("resource_authority_route_family_registry") || !roleManifest.roles.runtime.excluded_tables.includes("resource_authority_route_family_registry"));
 
 assert.match(rolloutWrapper, /assertPlatformResourceAuthorityStoreSource/u);
-assert.match(rolloutWrapper, /const governancePool = deps\.governancePool \|\| deps\.authorityStorePool \|\| null/u);
-assert.match(rolloutWrapper, /platform_resource_authority_bindings/u);
-assert.match(rolloutWrapper, /return governancePool\.query\(sql, params\)/u);
+assert.match(rolloutWrapper, /resolvePlatformResourceAuthorityPool/u);
+assert.match(rolloutWrapper, /const runtimePool = deps\.runtimePool \|\| deps\.pool \|\| null/u);
+assert.match(
+  rolloutWrapper,
+  /const governancePool = deps\.governancePool\s*\|\| deps\.authorityStorePool\s*\|\| resolvePlatformResourceAuthorityPool\(\);/u,
+);
+assert.match(rolloutWrapper, /return \{ \.\.\.deps, runtimePool, governancePool \};/u);
+assert.doesNotMatch(rolloutWrapper, /governancePool\s*=\s*deps\.pool/u);
+assert.doesNotMatch(rolloutWrapper, /platform_resource_authority_bindings/u);
+assert.doesNotMatch(rolloutWrapper, /new Proxy\(/u);
 
 assert.match(helper, /STAGING_GATEWAY_AUTHORITY_SEED_FAIL_CLOSED/u);
 assert.match(helper, /RUNTIME_DB_ROOT_PASSWORD/u);

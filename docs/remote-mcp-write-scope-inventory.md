@@ -5,7 +5,7 @@ This artifact is generated from the Git index, the Remote MCP scope catalog, app
 
 | Metric | Value |
 |---|---:|
-| Tracked files scanned | 7703 |
+| Tracked files scanned | 7704 |
 | Routes discovered | 1105 |
 | Write routes discovered | 672 |
 | Classified write-surface candidates | 43 |
@@ -13,7 +13,7 @@ This artifact is generated from the Git index, the Remote MCP scope catalog, app
 | Intentionally unmapped write routes (blocked) | 629 |
 | Migrations with governance evidence | 448 |
 | DB catalog fingerprint match | true |
-| Registry evidence entries | 119 |
+| Registry evidence entries | 118 |
 | Write scopes | 6 |
 | Bound write scopes | 0 |
 | Inventory ready | false |
