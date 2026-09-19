@@ -14,7 +14,8 @@
       "http-generic-api/stagingRecoveryGatewayPreflight.js",
       "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
       "http-generic-api/activationGatewayRolloutTool.js",
-      "http-generic-api/test-staging-recovery-gateway-preflight.mjs"
+      "http-generic-api/test-staging-recovery-gateway-preflight.mjs",
+      "http-generic-api/staging-governance-authority-seed-recovery-contract.mjs"
     ]
   },
   "merge_contract": {
@@ -59,7 +60,8 @@
             "No database write, provider mutation, credential payload read, or Production activation is introduced.",
             "secrets_included is false.",
             "Staging Recovery never selects the Production rollout implementation from expected_policy_hash or other caller assertions.",
-            "Governance authority reads never fall back to the Runtime DB pool."
+            "Governance authority reads never fall back to the Runtime DB pool.",
+            "The generic Staging rollout surface may server-resolve the Governance Authority Store, but it never aliases deps.pool as Governance or proxies Runtime SQL into Governance."
           ],
           "tests": [
             {
@@ -72,6 +74,12 @@
               "id": "pr8123-staging-smart-gateway-convergence-contract",
               "runner": "node",
               "path": "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "pr8123-staging-governance-authority-seed-recovery-contract",
+              "runner": "node",
+              "path": "http-generic-api/staging-governance-authority-seed-recovery-contract.mjs",
               "args": []
             },
             {
@@ -93,7 +101,8 @@
             "http-generic-api/stagingRecoveryGatewayPreflight.js",
             "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
             "http-generic-api/activationGatewayRolloutTool.js",
-            "http-generic-api/test-staging-recovery-gateway-preflight.mjs"
+            "http-generic-api/test-staging-recovery-gateway-preflight.mjs",
+            "http-generic-api/staging-governance-authority-seed-recovery-contract.mjs"
           ]
         }
       ],
