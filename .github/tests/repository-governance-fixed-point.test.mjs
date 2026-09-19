@@ -47,7 +47,7 @@ test("test authority detects unknown tests and removed last invariant test", () 
 test("PowerShell parser transports the target path through a bounded environment variable", () => {
   const target = "/workspace/repository/autopilot-portable-staging/Start-AutoPilot.ps1";
   const invocation = powershellParserInvocation(target);
-  assert.equal(invocation.command, "pwsh");
+  assert.equal(invocation.command, process.platform === "win32" ? "powershell.exe" : "pwsh");
   assert.equal(invocation.args.at(-1).startsWith("$p=$env:MAD4B_VALIDATE_PATH;"), true);
   assert.equal(invocation.args.includes(target), false);
   assert.equal(invocation.options.env.MAD4B_VALIDATE_PATH, target);

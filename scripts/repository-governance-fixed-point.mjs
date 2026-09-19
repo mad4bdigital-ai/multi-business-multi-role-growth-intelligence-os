@@ -154,7 +154,7 @@ export function evaluateTestAuthority(files, registry, verifierRegistry) {
 export function powershellParserInvocation(absolutePath) {
   const code = "$p=$env:MAD4B_VALIDATE_PATH;$tokens=$null;$errors=$null;[System.Management.Automation.Language.Parser]::ParseFile($p,[ref]$tokens,[ref]$errors)|Out-Null;if($errors.Count){$errors|ForEach-Object{[Console]::Error.WriteLine($_.Message)};exit 1}";
   return {
-    command: "pwsh",
+    command: process.platform === "win32" ? "powershell.exe" : "pwsh",
     args: ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", code],
     options: { cwd: root, env: { MAD4B_VALIDATE_PATH: absolutePath } },
   };
@@ -212,9 +212,11 @@ function validateExecutableUniverse(files, registry) {
       record(validator, validatorFiles, fs.existsSync(tsc) ? run(process.execPath, [tsc, "--noEmit", "--pretty", "false"], { cwd: root }) : { ok: false, status: null, error: "typescript_binary_missing", stderr_tail: tsc });
     } else if (validator === "python_ast_parse") {
       const code = "import ast,pathlib,sys\nfor p in sys.argv[1:]: ast.parse(pathlib.Path(p).read_text(encoding='utf-8'), filename=p)";
+      const pythonCommand = process.platform === "win32" ? "py" : "python3";
+      const pythonPrefixArgs = process.platform === "win32" ? ["-3"] : [];
       for (let i = 0; i < validatorFiles.length; i += 100) {
         const batch = validatorFiles.slice(i, i + 100);
-        record(validator, batch, run("python3", ["-c", code, ...batch], { cwd: root, env: { PYTHONDONTWRITEBYTECODE: "1" } }));
+        record(validator, batch, run(pythonCommand, [...pythonPrefixArgs, "-c", code, ...batch], { cwd: root, env: { PYTHONDONTWRITEBYTECODE: "1" } }));
       }
     } else if (validator === "bash_parse") {
       for (const file of validatorFiles) record(validator, [file], run("bash", ["-n", file], { cwd: root }));

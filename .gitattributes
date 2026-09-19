@@ -16,6 +16,7 @@ http-generic-api/config/staging-gateway-governance-authority-seed.sql text eol=l
 *.yml text eol=lf
 *.yaml text eol=lf
 *.ps1 text eol=lf
+*.sh text eol=lf
 *.env* text eol=lf
 .gitattributes text eol=lf
 .gitignore text eol=lf
