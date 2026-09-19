@@ -10,7 +10,7 @@
     },
     {
       "path": ".dockerignore",
-      "sha256": "dd1d9d460d74973e6993dceffec2bdc968d3f610da2d3d6a76b7579ba8b661b1"
+      "sha256": "7883a97b811dc6ee510b5557bfb5d3ee78a5816980ab11e0e46884c04d2c799f"
     },
     {
       "path": ".gitignore",
@@ -106,7 +106,7 @@
     },
     {
       "path": "http-generic-api/Dockerfile.staging",
-      "sha256": "763e2fbed99d2d2e6e452ec10ce3ecdc618dcee536269beab1625892abaa5c8b"
+      "sha256": "dc3116b6f11e2a963d957ff9e03e3c00333e3564bbaf9f57be1880e1ecc40c8a"
     },
     {
       "path": "http-generic-api/canonical-business-operation-parity.generated.json",
@@ -150,7 +150,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "2b942e9d8803fe6dc1c5d26fc6419d4d145106f893a7d07f5f1cfded6a79a006"
+      "sha256": "22cdbd4d53324cc1d9bcb5f6f7c606f982d295e6493ee6888be530f49e3ce458"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "f2e48168d0d6003ac39eee2a2d6823dd8c1d9ff3be295b53255e06c0c7d2ab8c"
+      "sha256": "e72bb6b9531bbf83e22b1bb3d2084a768c07c57c5542a7e36096be59d0710890"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -242,7 +242,7 @@
     },
     {
       "path": "http-generic-api/test-staging-autopilot-closure.mjs",
-      "sha256": "80a9e90489162b52951f26f62e68bdafe26ced831a2ec2cc6b644a1a7e40efa0"
+      "sha256": "4eef5dbdf54b6e0d229c150a34d78cd9775f0a5f40d608c17d22bb6129d0127c"
     },
     {
       "path": "http-generic-api/test-staging-build-context-provenance.mjs",
@@ -286,7 +286,7 @@
     },
     {
       "path": "http-generic-api/scripts/staging-live-certification.mjs",
-      "sha256": "5611552f143e03595911180dfebf25de08a0149cef4ed24a96f8a680a4ec07c5"
+      "sha256": "131f3f5190d39ad8238caa4cb6cb67e4f2f439059da215393f084df709ee16a6"
     },
     {
       "path": "http-generic-api/tenantGptOAuthPkce.js",
@@ -394,7 +394,7 @@
     },
     {
       "path": "autopilot-portable-staging/activation-gateway-smart-convergence-policy.json",
-      "sha256": "49cc80991eab314d2c7c320405e51771f1feca29a605321a5b20dcef5af01802"
+      "sha256": "ce6fb715949041d363a6d408288396b3e0d4f712e4f9c0f20f696f93c5c666a7"
     },
     {
       "path": "autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1",

@@ -44,6 +44,32 @@ try {
   assert.equal(handoff.plan.plan_sha256, ack);
   assert.equal(handoff.convergence_run.operator_acknowledgement.environment, "staging");
   assert.equal(handoff.convergence_run.operator_acknowledgement.commit_sha, commit);
+  write(runtimePath, {
+    commit,
+    activation_gateway_source_commit: "b".repeat(40),
+    certification_degraded_reasons: ["gateway_policy_not_stale", "gateway_exact_commit"],
+  });
+  const staleInitial = run();
+  assert.equal(staleInitial.status, 0, staleInitial.stderr);
+  const stalePlan = JSON.parse(staleInitial.stdout);
+  assert.equal(stalePlan.status, "approval_required");
+  assert(stalePlan.observed_reasons.includes("gateway_recovery_trusted_ingress"));
+  assert(stalePlan.reasons.includes("gateway_policy_not_stale"));
+  assert(stalePlan.reasons.includes("gateway_exact_commit"));
+  assert.equal(stalePlan.reasons.includes("gateway_recovery_trusted_ingress"), false);
+  assert.deepEqual(stalePlan.deferred_reasons, ["gateway_recovery_trusted_ingress"]);
+  assert.equal(stalePlan.plan.drift.some((entry) => entry.check_key === "gateway_recovery_trusted_ingress"), false);
+  const staleExactCommitDrift = stalePlan.plan.drift.find((entry) => entry.check_key === "gateway_exact_commit");
+  assert.equal(staleExactCommitDrift?.desired_release_commit, commit);
+  assert.equal(staleExactCommitDrift?.observed_release_commit, null);
+  assert.equal(stalePlan.runtime_observed_gateway_source_commit, "b".repeat(40));
+  assert.equal(stalePlan.plan_observed_gateway_source_commit, null);
+  const staleAccepted = run(stalePlan.plan.plan_sha256);
+  assert.equal(staleAccepted.status, 0, staleAccepted.stderr);
+  const staleHandoff = JSON.parse(staleAccepted.stdout);
+  assert.equal(staleHandoff.status, "handoff_ready");
+  assert.deepEqual(staleHandoff.deferred_reasons, ["gateway_recovery_trusted_ingress"]);
+
   write(runtimePath, { commit: "b".repeat(40), certification_degraded_reasons: ["gateway_exact_commit"] });
   write(preflightPath, { status: "passed", expected_commit: "b".repeat(40), observed_commit: "b".repeat(40), safety: { production_access: false, provider_access: false, database_mutation: false, migration_apply: false } });
   assert.notEqual(run(ack).status, 0, "acknowledgement must not transfer to a different commit");

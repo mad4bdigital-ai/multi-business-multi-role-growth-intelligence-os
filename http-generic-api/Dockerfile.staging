@@ -25,6 +25,15 @@ ARG STAGING_BUILD_CONTEXT_FILE_SET_SHA256
 
 COPY --from=staging_provenance /staging-build-context.json /staging-build-context.json
 COPY http-generic-api/ ./
+
+# repo_inspect is a repository-root API, while the Staging service itself is
+# flattened into /app. Package the allowlisted canonical knowledge roots from
+# the same exact Git-archive build context as a read-only source snapshot so
+# list/read/search resolve repository-root references without an operator mount.
+# The build-context proof above requires ignored/local secrets to be absent.
+COPY . /app/repo-inspect/
+RUN rm -f /app/repo-inspect/.staging-build-context.json
+
 COPY edge/activation-gateway/generated/route-policy.staging.json ./staging-route-policy.json
 COPY canonical-manifest.mjs /canonical-manifest.mjs
 
@@ -42,6 +51,7 @@ LABEL org.mad4b.staging.provenance.contract="mad4b.staging-build-provenance.v1" 
 
 ENV NODE_ENV=staging
 ENV PORT=8080
+ENV REPO_INSPECT_ROOT=/app/repo-inspect
 # Deployment-owned Staging Recovery authority. The same module exports read-only
 # readiness authority; Production/unknown runtimes are rejected inside the module.
 ENV RECOVERY_SERVER_MANAGED_BINDING_MODE=injected_non_live

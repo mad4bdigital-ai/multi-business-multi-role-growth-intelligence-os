@@ -26,6 +26,7 @@ const policy = JSON.parse(fs.readFileSync(path.join(portable, "activation-gatewa
 const registry = JSON.parse(fs.readFileSync(path.join(root, "http-generic-api/config/environment-convergence-registry.json"), "utf8"));
 const bridge = fs.readFileSync(path.join(root, "http-generic-api/scripts/staging-environment-convergence-plan.mjs"), "utf8");
 const workflow = fs.readFileSync(path.join(root, ".github/workflows/staging-main-deploy-eligibility.yml"), "utf8");
+const staleWorkerHandoffVerifier = fs.readFileSync(path.join(root, "http-generic-api/scripts/staging-activation-worker-handoff-verifier.mjs"), "utf8");
 const liveCertification = fs.readFileSync(path.join(root, "http-generic-api/scripts/staging-live-certification.mjs"), "utf8");
 const manifestGenerator = fs.readFileSync(path.join(root, "http-generic-api/scripts/generate-portable-staging-manifest.mjs"), "utf8");
 const portableManifest = JSON.parse(fs.readFileSync(path.join(portable, "manifest.json"), "utf8"));
@@ -88,7 +89,10 @@ assert.equal(policy.policy_identity.policy_key, "activation_gateway_staging");
 assert.equal(policy.policy_identity.expected_policy_hash, staging.expected_policy_hash);
 assert.equal(policy.policy_identity.public_host, "activation-dev.mad4b.com");
 assert.equal(policy.policy_identity.bundle_key, "activation_gateway_staging_worker");
-assert.equal(policy.policy_identity.entrypoint, "edge/activation-gateway/src/worker-staging.mjs");
+assert.equal(policy.policy_identity.entrypoint, "http-generic-api/activation-gateway-runtime/src/worker-staging.mjs");
+assert.equal(policy.policy_identity.runtime_policy_path, "http-generic-api/activation-gateway-runtime/generated/route-policy.staging.json");
+assert.equal(policy.policy_identity.runtime_policy_path, staging.execution_policy_path);
+assert.equal(policy.policy_identity.policy_path, "edge/activation-gateway/generated/route-policy.staging.json");
 assert.equal(policy.policy_identity.caller_policy_path_override_allowed, false);
 assert.equal(policy.policy_identity.plan_hash_binds_policy_hash, true);
 assert.equal(policy.postconditions.public_recovery_trust_bundle_required, true);
@@ -117,7 +121,9 @@ assert.equal(staging.apply_block_reason, null);
 assert.equal(staging.execution_target.resource_binding.resource_binding_id, bindingId);
 assert.equal(staging.execution_target.runtime_surface, "activation_gateway_dark_deploy");
 assert.equal(staging.execution_target.bundle_binding.bundle_key, "activation_gateway_staging_worker");
-assert.equal(staging.execution_target.bundle_binding.entrypoint, "edge/activation-gateway/src/worker-staging.mjs");
+assert.equal(staging.execution_target.bundle_binding.entrypoint, "http-generic-api/activation-gateway-runtime/src/worker-staging.mjs");
+assert.equal(staging.execution_target.bundle_binding.policy_path, "http-generic-api/activation-gateway-runtime/generated/route-policy.staging.json");
+assert.equal(staging.execution_target.bundle_binding.policy_path, staging.execution_policy_path);
 assert.equal(registry.dependencies.activation_gateway.checks.gateway_recovery_trusted_ingress.repairability, "governed");
 for (const requiredBoundaryPath of [
   "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
@@ -224,13 +230,33 @@ assert.match(migrationSource, /caller_selected_provider_target/u);
 assert.match(migrationSource, /dns_write_allowed', FALSE/u);
 assert.match(migrationSource, /production_mutation_allowed', FALSE/u);
 
-// The legacy workflow remains deployment infrastructure but is not callable by AutoPilot.
+// The out-of-band stale recovery workflow remains server-side infrastructure and is never dispatched by AutoPilot.
+assert.match(workflow, /activation_worker_refresh_dry_run/u);
+assert.match(workflow, /environment_convergence_plan_sha256/u);
+assert.match(workflow, /expected_policy_hash/u);
+assert.match(workflow, /activation_worker_refresh_preflight/u);
+assert.match(workflow, /authoritative_plan_sha256/u);
+assert.match(workflow, /VERIFIED_CONVERGENCE_PLAN_SHA256/u);
+assert.match(workflow, /PREFLIGHT_BINDING_SHA256/u);
+assert.match(workflow, /needs:[\s\S]*activation_worker_refresh_preflight/u);
 assert.match(workflow, /operation == 'deploy_activation_worker'/u);
 assert.match(workflow, /DEPLOY_STAGING_ACTIVATION_WORKER/u);
+assert.match(staleWorkerHandoffVerifier, /mad4b\.staging\.activation-worker-refresh-dry-run\.v2/u);
+assert.match(staleWorkerHandoffVerifier, /staging_activation_worker_plan_assertion_mismatch/u);
+assert.match(staleWorkerHandoffVerifier, /caller_plan_digest_is_execution_authority: false/u);
+assert.match(staleWorkerHandoffVerifier, /provider_accessed: false/u);
+assert.match(staleWorkerHandoffVerifier, /provider_mutation_performed: false/u);
+assert.match(staleWorkerHandoffVerifier, /same_run_preflight_required_for_apply: true/u);
+assert.match(staleWorkerHandoffVerifier, /operator_acknowledgement_is_execution_authority: false/u);
 assert.match(workflow, /mad4b-activation-gateway-staging/u);
 assert.match(workflow, /test "\$\(git rev-parse origin\/main\)" = "\$SOURCE_SHA"/u);
+assert.match(workflow, /mad4b\.staging\.activation-recovery-origin-trust\.v2/u);
+assert.doesNotMatch(workflow, /mad4b\.staging\.activation-recovery-origin-trust\.v1/u);
+assert.match(workflow, /\.provider_credentials_included == false/u);
 assert.match(workflow, /\.sourceCommit == \$sha/u);
 assert.match(workflow, /\.workerBuildSha == \$sha/u);
+assert.match(workflow, /\.policyKey == "activation_gateway_staging"/u);
+assert.match(workflow, /\.policyHash == \$policy_hash/u);
 assert.match(workflow, /\.stale == false/u);
 assert.match(workflow, /\.secretsIncluded == false/u);
 assert.match(workflow, /origin-trust\.json/u);

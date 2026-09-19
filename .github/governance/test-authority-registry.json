@@ -28,6 +28,7 @@
         "http-generic-api/test-platform-routes.mjs",
         "http-generic-api/test-runtime-environment-resolver.mjs",
         "http-generic-api/test-staging-activation-gateway.mjs",
+        "http-generic-api/test-staging-activation-worker-plan-provenance.mjs",
         "http-generic-api/test-staging-environment-certification-contract.mjs",
         "http-generic-api/test-staging-activation-oauth-profile-enabled.mjs",
         "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",

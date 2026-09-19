@@ -37,6 +37,7 @@ for (const requiredPath of [
 
 const compose = parse(read("http-generic-api/docker-compose.staging.yml"));
 const dockerfile = read("http-generic-api/Dockerfile.staging");
+const dockerignore = read(".dockerignore");
 const env = read("http-generic-api/.env.staging.example");
 const policy = JSON.parse(read("http-generic-api/config/domain-family-policy.json"));
 const deploymentPolicy = JSON.parse(read("http-generic-api/config/deployment-branch-policy.json"));
@@ -100,6 +101,23 @@ assert.match(dockerfile, /ARG STAGING_BUILD_COMMIT/);
 assert.match(dockerfile, /ARG STAGING_BUILD_BRANCH=main/);
 assert.match(dockerfile, /deployment-manifest\.json/);
 assert.match(dockerfile, /staging-route-policy\.json/);
+assert.match(dockerfile, /COPY \. \/app\/repo-inspect\//);
+assert.match(dockerfile, /ENV REPO_INSPECT_ROOT=\/app\/repo-inspect/);
+assert.match(dockerfile, /rm -f \/app\/repo-inspect\/\.staging-build-context\.json/);
+assert.match(dockerfile, /local_ignored_files_included!==false/);
+for (const requiredRepoInspectSource of [
+  "!docs/**",
+  "!canonicals/**",
+  "!AI_Agent_Knowledge_Guide.md",
+  "!GPT_Admin_Assistant_Knowledge_Guide.md",
+  "!system_bootstrap.md",
+  "!memory_schema.json",
+  "!direct_instructions_registry_patch.md",
+  "!module_loader.md",
+  "!prompt_router.md",
+]) {
+  assert.ok(dockerignore.includes(requiredRepoInspectSource), `Staging Docker context missing repo_inspect source allowlist: ${requiredRepoInspectSource}`);
+}
 assert.doesNotMatch(dockerfile, /new Date\(\)\.toISOString\(\)/);
 assert.match(autopilot, /Working tree is not clean/);
 assert.match(autopilot, /DOCKER_HOST/);
@@ -206,9 +224,14 @@ assert.match(liveCertification, /gateway_policy_hash_current/);
 assert.match(liveCertification, /loadActivationGatewayProfilePolicy\("staging"/);
 assert.doesNotMatch(liveCertification, /STAGING_CERT_GATEWAY_POLICY_PATH/);
 assert.match(liveCertification, /integrityChecks\.push\(check\("gateway_environment_profile_current", profileValidation\.ok/);
-assert.match(liveCertification, /const gatewayHealthUsable = health\.ok && health\.body !== null && typeof health\.body === "object"/);
-assert.match(liveCertification, /integrityChecks\.push\(check\("gateway_health_reachable", gatewayHealthUsable/);
-assert.match(liveCertification, /if \(gatewayHealthUsable\) \{[\s\S]*readinessChecks\.push\(check\("gateway_exact_commit"/);
+assert.match(liveCertification, /const staleGatewayResponse = health\.status === 503/);
+assert.match(liveCertification, /health\.body\?\.error\?\.code === "GATEWAY_POLICY_STALE"/);
+assert.match(liveCertification, /health\.body\?\.service === "activation-gateway" && health\.body\?\.stale === true/);
+assert.match(liveCertification, /const gatewayHealthReachable = \(health\.ok && gatewayHealthJson\) \|\| staleGatewayResponse/);
+assert.match(liveCertification, /integrityChecks\.push\(check\("gateway_health_reachable", gatewayHealthReachable/);
+assert.match(liveCertification, /if \(gatewayHealthReachable\) \{[\s\S]*readinessChecks\.push\(check\("gateway_policy_not_stale"/);
+assert.match(liveCertification, /staleGatewayResponse === false && health\.body\.ok === true && health\.body\.stale === false/);
+assert.match(liveCertification, /if \(gatewayHealthReachable\) \{[\s\S]*readinessChecks\.push\(check\("gateway_exact_commit"/);
 assert.doesNotMatch(liveCertification, /integrityChecks\.push\(check\("gateway_exact_commit"/);
 assert.doesNotMatch(liveCertification, /readinessChecks\.push\(check\("gateway_health_reachable"/);
 assert.match(liveCertification, /report\.convergence = classifyEnvironmentCertification\(report/);

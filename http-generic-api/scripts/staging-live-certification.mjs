@@ -360,17 +360,27 @@ if (requireGateway) {
 
       if (probeTarget.ok) {
         const health = await fetchJson(new URL("/health", probeTarget.url));
-        const gatewayHealthUsable = health.ok && health.body !== null && typeof health.body === "object";
+        const gatewayHealthJson = health.body !== null && typeof health.body === "object";
+        const staleGatewayResponse = health.status === 503
+          && gatewayHealthJson
+          && (
+            health.body?.error?.code === "GATEWAY_POLICY_STALE"
+            || health.body?.code === "GATEWAY_POLICY_STALE"
+            || (health.body?.service === "activation-gateway" && health.body?.stale === true)
+          );
+        const gatewayHealthReachable = (health.ok && gatewayHealthJson) || staleGatewayResponse;
         gatewayEvidence.health = health.body || { status: health.status, error: health.error || null };
-        integrityChecks.push(check("gateway_health_reachable", gatewayHealthUsable, {
+        integrityChecks.push(check("gateway_health_reachable", gatewayHealthReachable, {
           status: health.status,
-          error: health.error || null,
-          json_body_available: health.body !== null,
+          error: health.error || health.body?.error?.code || null,
+          json_body_available: gatewayHealthJson,
+          stale_gateway_response: staleGatewayResponse,
         }));
-        if (gatewayHealthUsable) {
-          readinessChecks.push(check("gateway_policy_not_stale", health.body.ok === true && health.body.stale === false, {
-            stale: health.body.stale ?? null,
+        if (gatewayHealthReachable) {
+          readinessChecks.push(check("gateway_policy_not_stale", staleGatewayResponse === false && health.body.ok === true && health.body.stale === false, {
+            stale: staleGatewayResponse || health.body.stale === true,
             source_commit: health.body.sourceCommit || null,
+            gateway_error_code: health.body?.error?.code || health.body?.code || null,
           }, "readiness"));
           readinessChecks.push(check("gateway_exact_commit", String(health.body.sourceCommit || "").trim().toLowerCase() === expectedCommit, {
             expected: expectedCommit,

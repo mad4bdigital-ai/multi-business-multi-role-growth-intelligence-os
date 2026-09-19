@@ -10,6 +10,26 @@
 !canonical-manifest.mjs
 !.staging-build-context.json
 
+# Staging repo_inspect source snapshot. These are repository-owned knowledge
+# roots required by the Admin/Recovery instructions and are copied only from
+# the exact Git-archive staging build context.
+!docs/
+!docs/**
+!canonicals/
+!canonicals/**
+!AI_Agent_Knowledge_Guide.md
+!GPT_Admin_Assistant_Knowledge_Guide.md
+!GPT_Tenant_Connector_Knowledge.md
+!Top Level Instructions.md
+!system_bootstrap.md
+!memory_schema.json
+!direct_instructions_registry_patch.md
+!module_loader.md
+!prompt_router.md
+!deployment_parity_checklist.md
+!runtime_boundary_map.md
+!Updating Registry Patch Index.md
+
 # Local/runtime material remains outside the image even when it lives below an
 # allowed source tree. Keep these rules after the allow-list entries above.
 http-generic-api/.env

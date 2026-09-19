@@ -235,6 +235,7 @@ export function buildStagingRecoveryAdminRoutes({
     deploymentIdentityProvider,
     hostBreakglassMutationExecutor,
     migrationLedger,
+    gatewayPreflightDeps,
   }));
 
   router.use((req, res, next) => {

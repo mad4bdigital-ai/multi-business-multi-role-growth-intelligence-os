@@ -8,6 +8,7 @@ import {
   stagingRecoveryAccessRepairApprove,
   stagingRecoveryAccessRepairExecute,
   stagingRecoveryAccessRepairPrepare,
+  stagingRecoveryActivationGatewayDarkDeployDryRun,
   stagingRecoveryCertificationCanaryPlanCreate,
   stagingRecoveryRebuildEmptyApprove,
   stagingRecoveryRebuildEmptyInspectionRecord,
@@ -35,6 +36,7 @@ const STAGING_REBUILD_ROLE_CAPABILITIES = Object.freeze([
 ]);
 const STAGING_TOOL_NAMES = new Set([
   "staging_recovery_certification_canary_plan_create",
+  "prepareStagingActivationGatewayDarkDeployDryRun",
   "staging_recovery_access_repair_prepare",
   "staging_recovery_access_repair_approve",
   "staging_recovery_access_repair_execute",
@@ -164,6 +166,16 @@ export function projectRecoveryCapabilitiesForSystemSurface(env = process.env, d
         production_authority: false,
       },
       {
+        capability_key: "activation_gateway_dark_deploy_dry_run",
+        risk_class: "C1",
+        state_scope: "short_lived_governance_execution_plan_only",
+        target_database_mutation: false,
+        provider_mutation: false,
+        production_authority: false,
+        caller_selected_target: false,
+        apply_authority_issued: false,
+      },
+      {
         capability_key: "staging_database_access_repair",
         risk_class: "C2",
         state_scope: executionReady ? "plan_approval_execute_readback" : "plan_approval_ticket_only",
@@ -184,6 +196,7 @@ export function projectRecoveryCapabilitiesForSystemSurface(env = process.env, d
     ],
     control_plane_state_write_capabilities: [
       "staging_certification_canary_plan_create",
+      "activation_gateway_dark_deploy_dry_run",
       "staging_database_access_repair",
       "staging_database_schema_repair",
       "database_full_inspection",
@@ -265,6 +278,13 @@ async function executeOverlayTool(name, args, deps = {}) {
       });
     }
     if (name === "staging_recovery_certification_canary_plan_create") return stagingRecoveryCertificationCanaryPlanCreate(args, { env: runtimeEnv });
+    if (name === "prepareStagingActivationGatewayDarkDeployDryRun") {
+      return stagingRecoveryActivationGatewayDarkDeployDryRun(args, {
+        ...(deps.gatewayPreflightDeps || {}),
+        env: runtimeEnv,
+        auth: deps.auth || {},
+      });
+    }
     if (name === "staging_recovery_access_repair_prepare") return stagingRecoveryAccessRepairPrepare(args, { env: runtimeEnv });
     if (name === "staging_recovery_access_repair_approve") return stagingRecoveryAccessRepairApprove(args, { env: runtimeEnv });
     if (name === "staging_recovery_access_repair_execute") {
@@ -319,6 +339,7 @@ export function buildRecoverySystemToolOverlayRoutes({
   deploymentIdentityProvider,
   hostBreakglassMutationExecutor,
   migrationLedger,
+  gatewayPreflightDeps = null,
 } = {}) {
   if (typeof requireBackendApiKey !== "function" || typeof requireAdminPrincipal !== "function") {
     throw Object.assign(new Error("Recovery System Tool overlay requires backend and admin guards."), {
@@ -341,6 +362,7 @@ export function buildRecoverySystemToolOverlayRoutes({
     deploymentIdentityProvider,
     hostBreakglassMutationExecutor,
     migrationLedger,
+    gatewayPreflightDeps,
   };
 
   const handler = async (req, res, next) => {
@@ -350,7 +372,7 @@ export function buildRecoverySystemToolOverlayRoutes({
       || (name === "recovery_kernel_call" && String(args?.capability_key || "").trim() === "recovery_capabilities");
     if (name !== BRIDGE_TOOL_NAME && !STAGING_TOOL_NAMES.has(name) && !capabilityProjection) return next();
     try {
-      const result = await executeOverlayTool(name, args, deps);
+      const result = await executeOverlayTool(name, args, { ...deps, auth: req.auth || {} });
       return res.status(200).json(result);
     } catch (error) {
       return sendError(res, error);

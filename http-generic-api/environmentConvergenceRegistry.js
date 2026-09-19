@@ -168,10 +168,20 @@ export function classifyEnvironmentCertification(report = {}, {
   const gatewayProfile = profile.activation_gateway || {};
   const gatewayDependency = registry?.dependencies?.activation_gateway || {};
   const metadataByCheck = gatewayDependency.checks || {};
+  const failures = failedChecks(report);
+  const staleGatewayBypassActive = failures.some((entry) => {
+    if (entry?.key !== "gateway_policy_not_stale") return false;
+    const candidateOverride = metadataByCheck[entry.key]?.handoff_override;
+    if (!candidateOverride || candidateOverride.stale_gateway_bypass_required !== true) return false;
+    const environments = Array.isArray(candidateOverride.environments)
+      ? candidateOverride.environments.map((value) => compact(value).toLowerCase()).filter(Boolean)
+      : [];
+    return environments.length === 0 || environments.includes(environmentKey);
+  });
   const classified = [];
   const unclassified = [];
 
-  for (const entry of failedChecks(report)) {
+  for (const entry of failures) {
     const metadata = metadataByCheck[entry.key];
     if (!metadata) {
       unclassified.push({
@@ -184,12 +194,19 @@ export function classifyEnvironmentCertification(report = {}, {
       continue;
     }
 
-    const planCapability = hasOwn(gatewayProfile, "plan_capability")
-      ? gatewayProfile.plan_capability
-      : metadata.plan_capability;
-    const applyCapability = hasOwn(gatewayProfile, "apply_capability")
-      ? gatewayProfile.apply_capability
-      : metadata.apply_capability;
+    const candidateOverride = metadata?.handoff_override && typeof metadata.handoff_override === "object"
+      ? metadata.handoff_override
+      : null;
+    const overrideEnvironments = Array.isArray(candidateOverride?.environments)
+      ? candidateOverride.environments.map((value) => compact(value).toLowerCase()).filter(Boolean)
+      : [];
+    const override = candidateOverride && (overrideEnvironments.length === 0 || overrideEnvironments.includes(environmentKey))
+      ? candidateOverride
+      : null;
+    const planCapability = override?.plan_capability
+      || (hasOwn(gatewayProfile, "plan_capability") ? gatewayProfile.plan_capability : metadata.plan_capability);
+    const applyCapability = override?.apply_capability
+      || (hasOwn(gatewayProfile, "apply_capability") ? gatewayProfile.apply_capability : metadata.apply_capability);
     const executionReady = gatewayProfile.governed_apply_ready === true && Boolean(compact(applyCapability));
 
     classified.push({
@@ -199,7 +216,9 @@ export function classifyEnvironmentCertification(report = {}, {
       drift_class: metadata.drift_class,
       repairability: metadata.repairability,
       desired_release_commit: compact(report?.expected?.commit_sha) || null,
-      observed_release_commit: compact(report?.gateway?.health?.sourceCommit) || compact(entry?.detail?.observed) || null,
+      observed_release_commit: staleGatewayBypassActive && entry.key === "gateway_exact_commit"
+        ? null
+        : (compact(report?.gateway?.health?.sourceCommit) || compact(entry?.detail?.observed) || null),
       profile: {
         environment: environmentKey,
         source_branch: profile.source_branch,
@@ -209,15 +228,26 @@ export function classifyEnvironmentCertification(report = {}, {
         public_host: gatewayProfile.public_host || null,
       },
       handoff: metadata.repairability === "governed" ? {
-        authority: gatewayDependency.authority || "server_governed",
-        current_authority_adapter: gatewayProfile.current_authority_adapter || null,
-        target_authority_model: gatewayProfile.target_authority_model || null,
+        authority: override?.authority || gatewayDependency.authority || "server_governed",
+        current_authority_adapter: override?.current_authority_adapter || gatewayProfile.current_authority_adapter || null,
+        target_authority_model: override?.target_authority_model || gatewayProfile.target_authority_model || null,
         plan_capability: planCapability || null,
         apply_capability: applyCapability || null,
+        execution_surface: override?.execution_surface || null,
+        transport: override?.transport || null,
+        workflow: override?.workflow || null,
+        dry_run_operation: override?.dry_run_operation || null,
+        apply_operation: override?.apply_operation || null,
+        requires_exact_main: override?.requires_exact_main === true,
+        requires_same_run_preflight: override?.requires_same_run_preflight === true,
+        caller_selected_provider_target_allowed: override
+          ? override.caller_selected_provider_target_allowed === true
+          : false,
+        stale_gateway_bypass_required: override?.stale_gateway_bypass_required === true,
         profile_binding_required: metadata.profile_binding_required === true,
         execution_ready: executionReady,
         apply_block_reason: executionReady ? null : (gatewayProfile.apply_block_reason || "governed_apply_authority_not_ready"),
-        automatic_apply_allowed: metadata.automatic_apply_allowed === true && executionReady,
+        automatic_apply_allowed: false,
       } : null,
       detail: entry.detail ?? null,
       secrets_included: false,
@@ -250,7 +280,10 @@ export function classifyEnvironmentCertification(report = {}, {
     certification_outcome: report?.outcome || null,
     classified_failures: classified,
     unclassified_failures: unclassified,
-    next_governed_handoff: classified.find((entry) => entry.handoff)?.handoff || null,
+    next_governed_handoff: (
+      classified.find((entry) => entry.handoff?.stale_gateway_bypass_required === true)
+      || classified.find((entry) => entry.handoff)
+    )?.handoff || null,
     safety: {
       mutation_performed: false,
       provider_mutation: false,
@@ -278,6 +311,12 @@ export function validateEnvironmentConvergenceRegistry(registry = readEnvironmen
     if (!compact(gateway.policy_key) || !compact(gateway.policy_path) || !compact(gateway.public_host) || !SHA256_RE.test(compact(gateway.expected_policy_hash).toLowerCase())) {
       errors.push(`${environment}_activation_gateway_identity_incomplete`);
     }
+    if (!compact(gateway.execution_policy_path) || !isSafeRepositoryRelativePath(gateway.execution_policy_path)) {
+      errors.push(`${environment}_activation_gateway_execution_policy_path_invalid`);
+    }
+    if (compact(gateway.execution_target?.bundle_binding?.policy_path) !== compact(gateway.execution_policy_path)) {
+      errors.push(`${environment}_activation_gateway_execution_policy_path_mismatch`);
+    }
     if (!compact(gateway.plan_capability)) errors.push(`${environment}_activation_gateway_plan_capability_missing`);
     if (gateway.governed_apply_ready === true && !compact(gateway.apply_capability)) {
       errors.push(`${environment}_activation_gateway_apply_capability_missing`);
@@ -294,6 +333,29 @@ export function validateEnvironmentConvergenceRegistry(registry = readEnvironmen
   }
   if (registry?.dependencies?.activation_gateway?.checks?.gateway_exact_commit?.failure_kind !== "convergence_drift") {
     errors.push("gateway_exact_commit_must_be_convergence_drift");
+  }
+  const staleOverride = registry?.dependencies?.activation_gateway?.checks?.gateway_policy_not_stale?.handoff_override;
+  if (
+    !staleOverride
+    || !Array.isArray(staleOverride.environments)
+    || staleOverride.environments.length !== 1
+    || staleOverride.environments[0] !== "staging"
+    || !Array.isArray(staleOverride.environments)
+    || staleOverride.environments.length !== 1
+    || staleOverride.environments[0] !== "staging"
+    || staleOverride.current_authority_adapter !== "staging_activation_worker_workflow"
+    || staleOverride.target_authority_model !== "server_governed_out_of_band"
+    || staleOverride.transport !== "github_actions"
+    || staleOverride.workflow !== ".github/workflows/staging-main-deploy-eligibility.yml"
+    || staleOverride.dry_run_operation !== "activation_worker_refresh_dry_run"
+    || staleOverride.apply_operation !== "deploy_activation_worker"
+    || staleOverride.requires_exact_main !== true
+    || staleOverride.requires_same_run_preflight !== true
+    || staleOverride.caller_selected_provider_target_allowed !== false
+    || staleOverride.stale_gateway_bypass_required !== true
+    || staleOverride.automatic_apply_allowed !== false
+  ) {
+    errors.push("gateway_policy_stale_out_of_band_handoff_invalid");
   }
   return {
     ok: errors.length === 0,

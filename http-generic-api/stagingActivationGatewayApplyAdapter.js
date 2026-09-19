@@ -84,8 +84,8 @@ function requiredProfile(registry = readEnvironmentConvergenceRegistry()) {
   if (target?.contract !== "mad4b.environment-convergence-execution-target.v1") errors.push("execution_target_contract");
   if (target?.component !== "activation_gateway" || target?.target_key !== "activation_gateway_staging") errors.push("target_key");
   if (bundle?.bundle_key !== "activation_gateway_staging_worker") errors.push("bundle_key");
-  if (bundle?.entrypoint !== "edge/activation-gateway/src/worker-staging.mjs") errors.push("entrypoint");
-  if (bundle?.policy_path !== gateway?.policy_path) errors.push("policy_path");
+  if (bundle?.entrypoint !== "http-generic-api/activation-gateway-runtime/src/worker-staging.mjs") errors.push("entrypoint");
+  if (bundle?.policy_path !== "http-generic-api/activation-gateway-runtime/generated/route-policy.staging.json") errors.push("policy_path");
   if (resource?.resource_type !== "cloudflare_worker" || !compact(resource?.resource_binding_id, 64)) errors.push("resource_binding");
   if (target?.runtime_surface !== STAGING_RUNTIME_SURFACE) errors.push("runtime_surface");
   if (errors.length) throw adapterError("staging_activation_gateway_profile_invalid", "Staging Activation Gateway apply profile is not execution-ready.", 503, { invalid_fields: errors });

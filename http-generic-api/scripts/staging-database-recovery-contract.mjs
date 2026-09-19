@@ -246,6 +246,7 @@ assert.match(grantPlan, /secrets_included: false/);
 assert.match(grantContracts, /GOVERNANCE_DB_PRIVILEGE_MATRIX/);
 assert.match(grantContracts, /runtime_persistence: buildGrantSpec/);
 assert.match(grantContracts, /STAGING_RUNTIME_OPTIONAL_READ_SURFACES[\s\S]*?"v_platform_evolution_activation_card"/);
+assert.match(grantContracts, /STAGING_RUNTIME_OPTIONAL_READ_SURFACES[\s\S]*?"v_platform_capability_readiness_vector"/);
 
 console.log(JSON.stringify({
   ok: true,
