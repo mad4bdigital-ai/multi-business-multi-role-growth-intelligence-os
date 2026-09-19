@@ -45,7 +45,30 @@ function roots(env = process.env) {
   return { readiness, replay };
 }
 
-async function syncDir(dir) { const h = await open(dir, "r"); try { await h.sync(); } finally { await h.close(); } }
+function isUnsupportedWindowsDirectorySync(error) {
+  return process.platform === "win32"
+    && ["EPERM", "EINVAL", "ENOTSUP", "EISDIR"].includes(error?.code);
+}
+async function syncDir(dir) {
+  let h;
+  try {
+    h = await open(dir, "r");
+  } catch (error) {
+    if (isUnsupportedWindowsDirectorySync(error)) return;
+    throw error;
+  }
+  try {
+    try {
+      await h.sync();
+    } catch (error) {
+      // Evidence/state files are fsynced before this durability barrier. Node
+      // on Windows may reject fsync/FlushFileBuffers on directory handles.
+      if (!isUnsupportedWindowsDirectorySync(error)) throw error;
+    }
+  } finally {
+    await h.close();
+  }
+}
 async function ensure(dir) { await mkdir(dir, { recursive: true, mode: 0o700 }); }
 async function readJson(file) {
   let h; try { h = await open(file, constants.O_RDONLY | constants.O_NOFOLLOW); } catch (e) { if (e.code === "ENOENT") return null; throw e; }
