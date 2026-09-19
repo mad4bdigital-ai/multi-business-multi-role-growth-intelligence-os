@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
 
-const root = new URL('../../', import.meta.url).pathname;
-const dispatchPath = `${root}http-generic-api/frontend-surface-dispatch.generated.json`;
-const outputPath = `${root}specs/020-platform-resource-identity-brand-governance/openapi-all-remaining-preflight-batch.json`;
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+const dispatchPath = path.join(root, "http-generic-api/frontend-surface-dispatch.generated.json");
+const outputPath = path.join(root, "specs/020-platform-resource-identity-brand-governance/openapi-all-remaining-preflight-batch.json");
 const dispatch = JSON.parse(fs.readFileSync(dispatchPath, 'utf8'));
 
 function sha256(value) {

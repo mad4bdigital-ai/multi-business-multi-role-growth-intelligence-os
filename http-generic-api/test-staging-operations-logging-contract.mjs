@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = path.resolve(new URL(".", import.meta.url).pathname, "..");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const packageRoot = path.join(root, "autopilot-portable-staging");
 const logger = fs.readFileSync(path.join(packageRoot, "Staging-Operations-Log.ps1"), "utf8");
 const healthMonitor = fs.readFileSync(path.join(packageRoot, "Staging-HealthMonitor.ps1"), "utf8");

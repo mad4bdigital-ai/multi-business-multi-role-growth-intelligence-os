@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { buildReplayPlanFromBundleTexts } from "./prepare-staging-role-schema-replay.mjs";
 
-const root = path.resolve(new URL("..", import.meta.url).pathname, "..");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const recovery = fs.readFileSync(path.join(root, "autopilot-portable-staging/Recover-StagingDatabases.ps1"), "utf8");
 const clone = fs.readFileSync(path.join(root, "autopilot-portable-staging/Clone-StagingDatabases.ps1"), "utf8");
 const legacyClone = fs.readFileSync(path.join(root, "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1"), "utf8");

@@ -2,14 +2,14 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 export const CONTRACT = "mad4b.hostinger-guard-summary.v1";
 export const WORKFLOW = "Hostinger Storage Tenant Canary Guard";
 export const GUARD_KEY = "hostinger-storage-tenant-canary";
 const SHA_PATTERN = /^[0-9a-f]{40}$/u;
 const MAX_DIAGNOSTIC_CHARS = 2000;
-const ROOT = path.resolve(new URL("../..", import.meta.url).pathname);
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 const SYNTAX_FILES = [
   "http-generic-api/hostingerStorageTenantCanaryPolicyBase.js",

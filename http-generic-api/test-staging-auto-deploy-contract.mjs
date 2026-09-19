@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 
-const root = path.resolve(new URL(".", import.meta.url).pathname, "..");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
 const policy = JSON.parse(read("autopilot-portable-staging/auto-deploy-policy.json"));
 const workflow = read(".github/workflows/staging-main-deploy-eligibility.yml");
