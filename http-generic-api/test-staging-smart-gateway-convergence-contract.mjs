@@ -334,7 +334,7 @@ const previewRuntimePool = {
       throw new Error("Runtime DB must never serve platform_resource_authority_bindings.");
     }
     if (String(sql).includes("FROM workspace_registry")) {
-      return [[{ workspace_id: "11111111-1111-4111-8111-111111111111", tenant_id: "00000000-0000-0000-0000-000000000000", workspace_key: "platform-admin", display_name: "Platform Admin", workspace_type: "platform_admin", bootstrap_status: "ready" }]];
+      return [[{ workspace_id: "11111111-1111-4111-8111-111111111111", tenant_id: "00000000-0000-0000-0000-000000000000", workspace_key: "platform_repo_governance_zero", display_name: "Platform Admin", workspace_type: "brand", bootstrap_status: "ready", config_json: JSON.stringify({ platform_admin_workspace: true }) }]];
     }
     throw new Error(`Unexpected Runtime SQL in Staging dry-run contract: ${sql}`);
   },
@@ -372,7 +372,8 @@ const servicePlan = await buildActivationGatewayRolloutPlan({ account_id: accoun
     repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os", branch: "main", commit_sha: sourceSha }) },
   cloudflareClient: fakeCloudflareClient, registry, repositoryRoot: root,
 });
-assert.equal(servicePlan.workspace.workspace_type, "platform_admin");
+assert.equal(servicePlan.workspace.workspace_key, "platform_repo_governance_zero");
+assert.equal(servicePlan.workspace.workspace_type, "brand");
 assert.equal(rolloutPlan.environment_convergence_plan_sha256, convergencePlanSha);
 assert.match(rolloutPlan.required_confirmation, new RegExp(`^DEPLOY_STAGING_GATEWAY_${sourceSha.slice(0, 12).toUpperCase()}_[0-9A-F]{12}$`, "u"));
 assert.equal(rolloutPlan.required_capability.approval_required_for_apply, false);

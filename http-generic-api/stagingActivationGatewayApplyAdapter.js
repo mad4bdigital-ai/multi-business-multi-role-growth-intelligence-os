@@ -18,6 +18,7 @@ import {
   transitionCapabilityEnvelopeLifecycle,
 } from "./capabilityResolutionEnvelopeGuard.js";
 import { assertPlatformResourceAuthorityStoreSource } from "./platformResourceAuthorityStore.js";
+import { resolveCanonicalPlatformAdminWorkspace } from "./src/infrastructure/authorityScope/platformAdminWorkspaceResolver.js";
 
 const SHA_RE = /^[a-f0-9]{40}$/u;
 const SHA256_RE = /^[a-f0-9]{64}$/u;
@@ -188,12 +189,24 @@ async function resolveWorkspace(pool, auth = {}, input = {}) {
   if (!auth?.user_id) {
     const principal = canonicalPrincipal(auth);
     if (principal.type !== "service" || principal.id !== "platform_admin") return null;
-    const [serviceRows] = await pool.query(
-      `SELECT workspace_id, tenant_id, workspace_key, display_name, workspace_type, bootstrap_status
-         FROM workspace_registry WHERE tenant_id=? AND workspace_type='platform_admin'
-           AND bootstrap_status='ready' LIMIT 1`, [PLATFORM_TENANT_ID],
-    );
-    const resolved = serviceRows?.[0] || null;
+    let resolved = null;
+    try {
+      resolved = await resolveCanonicalPlatformAdminWorkspace({
+        executor: pool,
+        tenantId: PLATFORM_TENANT_ID,
+        requireReady: true,
+      });
+    } catch (error) {
+      if (error?.code === "platform_admin_workspace_ambiguous") {
+        throw adapterError(
+          "staging_activation_gateway_platform_admin_workspace_ambiguous",
+          "More than one canonical Platform Admin Workspace matched the Staging service principal.",
+          503,
+          { candidate_count: Number(error?.details?.candidateCount || 0) },
+        );
+      }
+      throw error;
+    }
     return input.workspace_id && input.workspace_id !== resolved?.workspace_id ? null : resolved;
   }
   const tenantId = compact(auth.tenant_id || PLATFORM_TENANT_ID, 64);
@@ -213,7 +226,7 @@ async function resolveWorkspace(pool, auth = {}, input = {}) {
        FROM workspace_registry w
        JOIN memberships m ON m.tenant_id=w.tenant_id AND m.user_id=? AND m.status='active'
       WHERE w.tenant_id=? AND w.bootstrap_status='ready'
-      ORDER BY (w.workspace_type='platform_admin') DESC, w.updated_at DESC
+      ORDER BY w.updated_at DESC
       LIMIT 1`,
     [auth.user_id, tenantId],
   );
