@@ -18,6 +18,7 @@ import {
   transitionCapabilityEnvelopeLifecycle,
 } from "./capabilityResolutionEnvelopeGuard.js";
 import { assertPlatformResourceAuthorityStoreSource } from "./platformResourceAuthorityStore.js";
+import { PLATFORM_TOPOLOGY_CONTRACT } from "./src/domain/authorityScope/platformTopologyVerification.js";
 
 const SHA_RE = /^[a-f0-9]{40}$/u;
 const SHA256_RE = /^[a-f0-9]{64}$/u;
@@ -190,9 +191,30 @@ async function resolveWorkspace(pool, auth = {}, input = {}) {
     if (principal.type !== "service" || principal.id !== "platform_admin") return null;
     const [serviceRows] = await pool.query(
       `SELECT workspace_id, tenant_id, workspace_key, display_name, workspace_type, bootstrap_status
-         FROM workspace_registry WHERE tenant_id=? AND workspace_type='platform_admin'
-           AND bootstrap_status='ready' LIMIT 1`, [PLATFORM_TENANT_ID],
+         FROM workspace_registry
+        WHERE tenant_id=?
+          AND bootstrap_status='ready'
+          AND (
+            workspace_key=?
+            OR JSON_UNQUOTE(JSON_EXTRACT(config_json,'$.authority_scope_key'))=?
+            OR JSON_UNQUOTE(JSON_EXTRACT(config_json,'$.platform_admin_workspace'))='true'
+          )
+        ORDER BY workspace_id
+        LIMIT 2`,
+      [
+        PLATFORM_TENANT_ID,
+        PLATFORM_TOPOLOGY_CONTRACT.adminWorkspaceKey,
+        PLATFORM_TOPOLOGY_CONTRACT.authorityScopeKey,
+      ],
     );
+    if ((serviceRows?.length || 0) > 1) {
+      throw adapterError(
+        "staging_activation_gateway_platform_admin_workspace_ambiguous",
+        "More than one canonical Platform Admin Workspace matched the Staging service principal.",
+        503,
+        { candidate_count: serviceRows.length },
+      );
+    }
     const resolved = serviceRows?.[0] || null;
     return input.workspace_id && input.workspace_id !== resolved?.workspace_id ? null : resolved;
   }
@@ -213,9 +235,18 @@ async function resolveWorkspace(pool, auth = {}, input = {}) {
        FROM workspace_registry w
        JOIN memberships m ON m.tenant_id=w.tenant_id AND m.user_id=? AND m.status='active'
       WHERE w.tenant_id=? AND w.bootstrap_status='ready'
-      ORDER BY (w.workspace_type='platform_admin') DESC, w.updated_at DESC
+      ORDER BY (
+        w.workspace_key=?
+        OR JSON_UNQUOTE(JSON_EXTRACT(w.config_json,'$.authority_scope_key'))=?
+        OR JSON_UNQUOTE(JSON_EXTRACT(w.config_json,'$.platform_admin_workspace'))='true'
+      ) DESC, w.updated_at DESC
       LIMIT 1`,
-    [auth.user_id, tenantId],
+    [
+      auth.user_id,
+      tenantId,
+      PLATFORM_TOPOLOGY_CONTRACT.adminWorkspaceKey,
+      PLATFORM_TOPOLOGY_CONTRACT.authorityScopeKey,
+    ],
   );
   return rows?.[0] || null;
 }

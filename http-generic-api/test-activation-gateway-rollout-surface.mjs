@@ -62,7 +62,7 @@ let runtimeWorkspaceReads = 0;
 let governanceAuthorityReads = 0;
 
 const runtimePool = {
-  async query(sql) {
+  async query(sql, params = []) {
     const statement = String(sql);
     if (statement.includes("platform_resource_authority_bindings")) {
       runtimeAuthorityReads += 1;
@@ -70,12 +70,20 @@ const runtimePool = {
     }
     if (statement.includes("FROM workspace_registry")) {
       runtimeWorkspaceReads += 1;
+      assert.doesNotMatch(statement, /workspace_type='platform_admin'/u);
+      assert.match(statement, /\$\.authority_scope_key/u);
+      assert.match(statement, /\$\.platform_admin_workspace/u);
+      assert.deepEqual(params, [
+        "00000000-0000-0000-0000-000000000000",
+        "platform_admin_workspace",
+        "platform:root",
+      ]);
       return [[{
         workspace_id: platformWorkspaceId,
         tenant_id: "00000000-0000-0000-0000-000000000000",
-        workspace_key: "platform-admin",
+        workspace_key: "platform_repo_governance_zero",
         display_name: "Platform Admin",
-        workspace_type: "platform_admin",
+        workspace_type: "brand",
         bootstrap_status: "ready",
       }]];
     }
@@ -147,12 +155,70 @@ const plan = await buildActivationGatewayRolloutPlan({
 assert.equal(plan.adapter, "staging_activation_gateway_profile_apply");
 assert.equal(plan.resource_binding.binding_id, bindingId);
 assert.equal(plan.workspace.workspace_id, platformWorkspaceId);
+assert.equal(plan.workspace.workspace_key, "platform_repo_governance_zero");
+assert.equal(plan.workspace.workspace_type, "brand");
 assert.equal(plan.apply_ready, false);
 assert.equal(runtimeAuthorityReads, 0);
 assert.equal(governanceAuthorityReads, 1);
 assert.equal(runtimeWorkspaceReads, 1);
 assert.equal(plan.production_mutation, false);
 assert.equal(plan.secrets_included, false);
+
+const ambiguousRuntimePool = {
+  async query(sql) {
+    const statement = String(sql);
+    if (statement.includes("platform_resource_authority_bindings")) {
+      throw new Error("Runtime DB must never serve platform_resource_authority_bindings.");
+    }
+    if (statement.includes("FROM workspace_registry")) {
+      return [[
+        {
+          workspace_id: platformWorkspaceId,
+          tenant_id: "00000000-0000-0000-0000-000000000000",
+          workspace_key: "platform_repo_governance_zero",
+          display_name: "Platform Admin A",
+          workspace_type: "brand",
+          bootstrap_status: "ready",
+        },
+        {
+          workspace_id: "22222222-2222-4222-8222-222222222222",
+          tenant_id: "00000000-0000-0000-0000-000000000000",
+          workspace_key: "platform_admin_workspace",
+          display_name: "Platform Admin B",
+          workspace_type: "project",
+          bootstrap_status: "ready",
+        },
+      ]];
+    }
+    throw new Error(`Unexpected Runtime DB query: ${statement}`);
+  },
+};
+
+await assert.rejects(
+  buildActivationGatewayRolloutPlan({
+    mode: "dry_run",
+    account_id: accountId,
+    expected_source_commit: sourceSha,
+    expected_policy_hash: staging.expected_policy_hash,
+    environment_convergence_plan_sha256: convergencePlanSha,
+  }, {
+    runtimePool: ambiguousRuntimePool,
+    governancePool,
+    auth: { mode: "backend_api_key", principal_type: "admin", is_admin: true },
+    env: {
+      STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED: "false",
+      DEPLOYMENT_MANIFEST_JSON: JSON.stringify({
+        repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+        branch: "main",
+        commit_sha: sourceSha,
+      }),
+    },
+    cloudflareClient: { token_present: true },
+    registry,
+    repositoryRoot: root,
+  }),
+  (error) => error?.code === "staging_activation_gateway_platform_admin_workspace_ambiguous",
+);
 
 await assert.rejects(
   buildActivationGatewayRolloutPlan({

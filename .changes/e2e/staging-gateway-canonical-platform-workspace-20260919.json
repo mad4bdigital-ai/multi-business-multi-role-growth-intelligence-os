@@ -1,0 +1,113 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-gateway-canonical-platform-workspace-20260919",
+  "title": "Staging gateway canonical Platform Admin workspace resolution",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-gateway-canonical-platform-workspace-20260919.json",
+      "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+      "http-generic-api/test-activation-gateway-rollout-surface.mjs",
+      "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Resolve the Staging platform_admin service principal through the canonical Platform Admin Workspace markers instead of the non-schema workspace_type='platform_admin' sentinel, and fail closed on ambiguous canonical matches without provider access or mutation.",
+      "e2e_journeys": [
+        {
+          "id": "staging-gateway-canonical-platform-workspace-resolution",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Server-governed Staging Activation Gateway dry-run authority",
+          "entrypoint": "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+          "terminal_outcome": "The service principal resolves exactly one ready canonical Platform Admin Workspace from Runtime DB markers, rejects ambiguity, preserves Governance-owned resource binding resolution, and performs no provider or Production mutation.",
+          "steps": [
+            "Resolve the authenticated backend service principal as service/platform_admin.",
+            "Read workspace_registry only from the Runtime DB.",
+            "Match the canonical Platform Admin Workspace using workspace_key or config_json authority markers.",
+            "Reject more than one ready canonical Platform Admin Workspace instead of selecting an arbitrary row.",
+            "Continue resolving the exact Staging Worker resource binding only from the Governance DB.",
+            "Keep feature-gate and server credential checks independent and fail closed before provider execution."
+          ],
+          "assertions": [
+            "workspace_type='platform_admin' is not used as Platform Admin authority evidence.",
+            "A schema-valid workspace_type with canonical platform markers resolves successfully.",
+            "Ambiguous canonical Platform Admin Workspace matches fail closed.",
+            "Runtime DB never serves platform_resource_authority_bindings.",
+            "Governance DB never serves workspace_registry.",
+            "Feature gate false keeps apply_ready=false after successful workspace resolution.",
+            "No Cloudflare provider call, provider mutation, database mutation, or Production mutation is introduced.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "staging-gateway-rollout-surface",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-activation-gateway-rollout-surface.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-smart-gateway-convergence-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-smart-gateway-convergence-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "platform-admin-workspace-marker-migration",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-admin-workspace-marker-migration.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-gateway-canonical-platform-workspace-20260919.json",
+            "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+            "http-generic-api/src/infrastructure/authorityScope/platformTopologyVerificationRepository.js",
+            "http-generic-api/migrations/005_sprint07_connected_systems.sql",
+            "http-generic-api/migrations/20260728_platform_admin_workspace_marker.sql",
+            "http-generic-api/test-activation-gateway-rollout-surface.mjs",
+            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "staging-gateway-rollout-surface",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-activation-gateway-rollout-surface.mjs",
+          "args": []
+        },
+        {
+          "id": "staging-smart-gateway-convergence-contract",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-staging-smart-gateway-convergence-contract.mjs",
+          "args": []
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
