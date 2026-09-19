@@ -63,7 +63,8 @@
             "resource_binding_id": "5a2b04f8-bb99-4f65-a924-0f55d3080376"
           },
           "runtime_surface": "activation_gateway_dark_deploy"
-        }
+        },
+        "execution_policy_path": "http-generic-api/activation-gateway-runtime/generated/route-policy.staging.json"
       }
     },
     "production": {
@@ -101,7 +102,8 @@
             "resource_binding_id": "8be421f5-49d3-4bda-a0f6-3cf8a04ee227"
           },
           "runtime_surface": "activation_gateway_dark_deploy"
-        }
+        },
+        "execution_policy_path": "http-generic-api/activation-gateway-runtime/generated/route-policy.json"
       }
     }
   },

@@ -92,7 +92,10 @@ function resolveEnvironmentExecutionTarget(environmentKey, profile) {
   }
   if (!compact(target.target_key)) errors.push("execution_target_key_missing");
   if (!compact(bundle.bundle_key)) errors.push("execution_target_bundle_key_missing");
-  if (compact(bundle.policy_path) !== compact(profile?.activation_gateway?.policy_path)) {
+  const executionPolicyPath = compact(profile?.activation_gateway?.execution_policy_path);
+  if (!executionPolicyPath) {
+    errors.push("execution_target_policy_path_missing");
+  } else if (compact(bundle.policy_path) !== executionPolicyPath) {
     errors.push("execution_target_policy_path_mismatch");
   }
   if (compact(resource.resource_type) !== "cloudflare_worker") {

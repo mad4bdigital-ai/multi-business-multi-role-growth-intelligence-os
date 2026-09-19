@@ -299,6 +299,12 @@ export function validateEnvironmentConvergenceRegistry(registry = readEnvironmen
     if (!compact(gateway.policy_key) || !compact(gateway.policy_path) || !compact(gateway.public_host) || !SHA256_RE.test(compact(gateway.expected_policy_hash).toLowerCase())) {
       errors.push(`${environment}_activation_gateway_identity_incomplete`);
     }
+    if (!compact(gateway.execution_policy_path) || !isSafeRepositoryRelativePath(gateway.execution_policy_path)) {
+      errors.push(`${environment}_activation_gateway_execution_policy_path_invalid`);
+    }
+    if (compact(gateway.execution_target?.bundle_binding?.policy_path) !== compact(gateway.execution_policy_path)) {
+      errors.push(`${environment}_activation_gateway_execution_policy_path_mismatch`);
+    }
     if (!compact(gateway.plan_capability)) errors.push(`${environment}_activation_gateway_plan_capability_missing`);
     if (gateway.governed_apply_ready === true && !compact(gateway.apply_capability)) {
       errors.push(`${environment}_activation_gateway_apply_capability_missing`);
