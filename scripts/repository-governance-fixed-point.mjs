@@ -156,7 +156,7 @@ export function evaluateTestAuthority(files, registry, verifierRegistry) {
   return { discovered, unregistered, missing_invariant_tests: missingInvariantTests, missing_invariant_verifiers: missingInvariantVerifiers };
 }
 export function powershellParserInvocation(absolutePath) {
-  const code = "$p=$env:MAD4B_VALIDATE_PATH;$tokens=$null;$errors=$null;[System.Management.Automation.Language.Parser]::ParseFile($p,[ref]$tokens,[ref]$errors)|Out-Null;if($errors.Count){$errors|ForEach-Object{[Console]::Error.WriteLine($_.Message)};exit 1}";
+  const code = "$p=$env:MAD4B_VALIDATE_PATH;$source=[System.IO.File]::ReadAllText($p,[System.Text.Encoding]::UTF8);$tokens=$null;$errors=$null;[System.Management.Automation.Language.Parser]::ParseInput($source,$p,[ref]$tokens,[ref]$errors)|Out-Null;if($errors.Count){$errors|ForEach-Object{[Console]::Error.WriteLine($_.Message)};exit 1}";
   return {
     command: process.platform === "win32" ? "powershell.exe" : "pwsh",
     args: ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", code],
