@@ -182,6 +182,8 @@
       "patterns": [
         "http-generic-api/*.js",
         "http-generic-api/*.mjs",
+        "http-generic-api/src/infrastructure/authorityScope/platformAdminWorkspaceResolver.js",
+        "http-generic-api/src/infrastructure/authorityScope/platformTopologyVerificationRepository.js",
         "http-generic-api/services/**/*.js",
         "http-generic-api/scripts/**/*.mjs",
         "http-generic-api/wordpress/**/*.js",

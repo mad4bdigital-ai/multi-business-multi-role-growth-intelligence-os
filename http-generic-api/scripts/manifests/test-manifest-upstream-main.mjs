@@ -344,6 +344,7 @@ export const testCommands = [
   "node test-activation-gateway-runtime-bundle-parity.mjs",
   "node test-activation-gateway-rollout-tool.mjs",
   "node test-activation-gateway-rollout-surface.mjs",
+  "node test-platform-admin-workspace-resolver.mjs",
   "node test-tenant-activation-session-alias.mjs",
   "node test-tenant-tool-manifest-guard.mjs",
   "node test-tenant-blocked-tool-export-registry-cleanup.mjs",

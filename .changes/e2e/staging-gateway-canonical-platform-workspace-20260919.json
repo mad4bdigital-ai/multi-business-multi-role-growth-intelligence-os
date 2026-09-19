@@ -14,7 +14,9 @@
       "http-generic-api/src/infrastructure/authorityScope/platformAdminWorkspaceResolver.js",
       "http-generic-api/src/infrastructure/authorityScope/platformTopologyVerificationRepository.js",
       "http-generic-api/test-platform-admin-workspace-resolver.mjs",
-      ".github/governance/test-authority-registry.json"
+      ".github/governance/test-authority-registry.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/scripts/manifests/test-manifest-upstream-main.mjs"
     ]
   },
   "merge_contract": {
@@ -34,7 +36,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Consolidate canonical Platform Admin Workspace resolution so topology verification and the Staging Activation Gateway share one marker contract, require a ready workspace for execution, preserve non-ready marked workspaces for read-only topology diagnostics, preserve the existing platform-global tenant sentinel boundary, and fail closed on ambiguity without provider access or mutation. Register the new regression in canonical repository test authority so fixed-point closure cannot classify it as an unregistered test.",
+      "objective": "Consolidate canonical Platform Admin Workspace resolution so topology verification and the Staging Activation Gateway share one marker contract, require a ready workspace for execution, preserve non-ready marked workspaces for read-only topology diagnostics, preserve the existing platform-global tenant sentinel boundary, and fail closed on ambiguity without provider access or mutation. Register the new regression in canonical repository test authority so fixed-point closure cannot classify it as an unregistered test. Register the changed authorityScope runtime files with exact semantic executable paths, include the resolver regression in the ordered full test manifest, and prove zero-or-one candidate cardinality before returning the executable workspace.",
       "e2e_journeys": [
         {
           "id": "staging-gateway-canonical-platform-workspace-resolution",
@@ -65,7 +67,10 @@
             "No Cloudflare provider call, provider mutation, database mutation, or Production mutation is introduced.",
             "secrets_included is false.",
             "Executable Staging resolution preserves the existing platform-global tenant sentinel boundary and does not add a tenants-table prerequisite.",
-            "The new canonical resolver regression is registered in repository test authority."
+            "The new canonical resolver regression is registered in repository test authority.",
+            "The shared authorityScope runtime files are registered as exact api_runtime semantic executables.",
+            "The canonical resolver regression participates in the ordered full npm test manifest.",
+            "Executable workspace selection proves zero-or-one cardinality before returning the candidate."
           ],
           "tests": [
             {
@@ -107,7 +112,9 @@
             "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
             "http-generic-api/src/infrastructure/authorityScope/platformAdminWorkspaceResolver.js",
             "http-generic-api/test-platform-admin-workspace-resolver.mjs",
-            ".github/governance/test-authority-registry.json"
+            ".github/governance/test-authority-registry.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "http-generic-api/scripts/manifests/test-manifest-upstream-main.mjs"
           ]
         }
       ],

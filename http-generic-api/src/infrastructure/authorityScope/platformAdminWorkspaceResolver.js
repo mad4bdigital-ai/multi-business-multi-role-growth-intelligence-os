@@ -106,7 +106,9 @@ export async function resolveCanonicalPlatformAdminWorkspace({
     error.details = { candidateCount: candidates.length };
     throw error;
   }
-  return candidates[0] || null;
+  if (candidates.length === 0) return null;
+  const [candidate] = candidates;
+  return candidate;
 }
 
 export const _testingPlatformAdminWorkspaceResolver = Object.freeze({
