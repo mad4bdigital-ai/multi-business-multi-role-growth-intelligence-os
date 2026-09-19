@@ -4,6 +4,7 @@ import {
   globRegex,
   evaluateSemanticCoverage,
   evaluateTestAuthority,
+  normalizeBashParserSource,
   powershellParserInvocation,
   validateRegistryContracts,
 } from "../../scripts/repository-governance-fixed-point.mjs";
@@ -51,6 +52,10 @@ test("PowerShell parser transports the target path through a bounded environment
   assert.equal(invocation.args.at(-1).startsWith("$p=$env:MAD4B_VALIDATE_PATH;"), true);
   assert.equal(invocation.args.includes(target), false);
   assert.equal(invocation.options.env.MAD4B_VALIDATE_PATH, target);
+});
+
+test("Bash parser normalizes Windows line endings without changing content", () => {
+  assert.equal(normalizeBashParserSource("#!/bin/bash\r\nusage() {\r\n  true\r\n}\r\n"), "#!/bin/bash\nusage() {\n  true\n}\n");
 });
 
 test("registry contracts reject malformed authorities", () => {

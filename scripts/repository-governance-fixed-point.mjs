@@ -75,6 +75,7 @@ function run(command, args, options = {}) {
     maxBuffer: 64 * 1024 * 1024,
     shell: false,
     env: { ...process.env, ...(options.env || {}) },
+    input: options.input,
   });
   return {
     ok: !result.error && result.status === 0,
@@ -82,6 +83,9 @@ function run(command, args, options = {}) {
     error: result.error?.code || result.error?.message || null,
     stderr_tail: String(result.stderr || result.error?.message || "").slice(-2000),
   };
+}
+export function normalizeBashParserSource(source) {
+  return String(source).replace(/\r\n?/gu, "\n");
 }
 function validatorMap(registry) {
   const map = new Map();
@@ -219,7 +223,10 @@ function validateExecutableUniverse(files, registry) {
         record(validator, batch, run(pythonCommand, [...pythonPrefixArgs, "-c", code, ...batch], { cwd: root, env: { PYTHONDONTWRITEBYTECODE: "1" } }));
       }
     } else if (validator === "bash_parse") {
-      for (const file of validatorFiles) record(validator, [file], run("bash", ["-n", file], { cwd: root }));
+      for (const file of validatorFiles) {
+        const source = normalizeBashParserSource(fs.readFileSync(path.join(root, file), "utf8"));
+        record(validator, [file], run("bash", ["-n"], { cwd: root, input: source }));
+      }
     } else if (validator === "powershell_parser") {
       for (const file of validatorFiles) {
         const absolute = path.resolve(root, file);
