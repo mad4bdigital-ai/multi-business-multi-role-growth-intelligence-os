@@ -58,6 +58,7 @@ const convergencePlanSha = "e".repeat(64);
 const platformWorkspaceId = "11111111-1111-4111-8111-111111111111";
 
 let runtimeAuthorityReads = 0;
+let runtimeTenantReads = 0;
 let runtimeWorkspaceReads = 0;
 let governanceAuthorityReads = 0;
 
@@ -67,6 +68,11 @@ const runtimePool = {
     if (statement.includes("platform_resource_authority_bindings")) {
       runtimeAuthorityReads += 1;
       throw new Error("Runtime DB must never serve platform_resource_authority_bindings.");
+    }
+    if (statement.includes("FROM tenants")) {
+      runtimeTenantReads += 1;
+      assert.deepEqual(params, ["00000000-0000-0000-0000-000000000000"]);
+      return [[{ tenant_id: "00000000-0000-0000-0000-000000000000" }]];
     }
     if (statement.includes("FROM workspace_registry")) {
       runtimeWorkspaceReads += 1;
@@ -85,6 +91,10 @@ const runtimePool = {
         display_name: "Platform Admin",
         workspace_type: "brand",
         bootstrap_status: "ready",
+        config_json: JSON.stringify({
+          authority_scope_key: "platform:root",
+          platform_admin_workspace: true,
+        }),
       }]];
     }
     throw new Error(`Unexpected Runtime DB query: ${statement}`);
@@ -159,6 +169,7 @@ assert.equal(plan.workspace.workspace_key, "platform_repo_governance_zero");
 assert.equal(plan.workspace.workspace_type, "brand");
 assert.equal(plan.apply_ready, false);
 assert.equal(runtimeAuthorityReads, 0);
+assert.equal(runtimeTenantReads, 1);
 assert.equal(governanceAuthorityReads, 1);
 assert.equal(runtimeWorkspaceReads, 1);
 assert.equal(plan.production_mutation, false);
@@ -170,6 +181,9 @@ const ambiguousRuntimePool = {
     if (statement.includes("platform_resource_authority_bindings")) {
       throw new Error("Runtime DB must never serve platform_resource_authority_bindings.");
     }
+    if (statement.includes("FROM tenants")) {
+      return [[{ tenant_id: "00000000-0000-0000-0000-000000000000" }]];
+    }
     if (statement.includes("FROM workspace_registry")) {
       return [[
         {
@@ -179,6 +193,7 @@ const ambiguousRuntimePool = {
           display_name: "Platform Admin A",
           workspace_type: "brand",
           bootstrap_status: "ready",
+          config_json: JSON.stringify({ authority_scope_key: "platform:root" }),
         },
         {
           workspace_id: "22222222-2222-4222-8222-222222222222",
@@ -187,6 +202,7 @@ const ambiguousRuntimePool = {
           display_name: "Platform Admin B",
           workspace_type: "project",
           bootstrap_status: "ready",
+          config_json: "{}",
         },
       ]];
     }

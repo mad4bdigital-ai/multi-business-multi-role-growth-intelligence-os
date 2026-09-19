@@ -1,4 +1,5 @@
 import { PLATFORM_TOPOLOGY_CONTRACT } from "../../domain/authorityScope/platformTopologyVerification.js";
+import { readCanonicalPlatformAdminWorkspaceCandidates } from "./platformAdminWorkspaceResolver.js";
 
 function requireExecutor(executor) {
   if (!executor || typeof executor.query !== "function") {
@@ -28,18 +29,13 @@ export function createPlatformTopologyVerificationRepository({ executor }) {
         "SELECT tenant_id,tenant_type,status FROM tenants WHERE tenant_type='platform_owner' AND status='active' ORDER BY tenant_id"
       );
       const tenantIds = platformOwnerTenants.map((row) => String(row.tenant_id)).filter(Boolean);
-      const adminWorkspaces = tenantIds.length ? await rows(executor,
-        `SELECT workspace_id,tenant_id,workspace_key,workspace_type,bootstrap_status
-           FROM workspace_registry
-          WHERE tenant_id IN (${placeholders(tenantIds)})
-            AND (
-              workspace_key=?
-              OR JSON_UNQUOTE(JSON_EXTRACT(config_json,'$.authority_scope_key'))=?
-              OR JSON_UNQUOTE(JSON_EXTRACT(config_json,'$.platform_admin_workspace'))='true'
-            )
-          ORDER BY workspace_id`,
-        [...tenantIds, PLATFORM_TOPOLOGY_CONTRACT.adminWorkspaceKey, PLATFORM_TOPOLOGY_CONTRACT.authorityScopeKey]
-      ) : [];
+      const adminWorkspaces = tenantIds.length
+        ? await readCanonicalPlatformAdminWorkspaceCandidates({
+          executor,
+          tenantIds,
+          requireReady: false,
+        })
+        : [];
       const platformBrands = await rows(executor,
         "SELECT id,target_key,status FROM brands WHERE target_key=? LIMIT 2",
         [PLATFORM_TOPOLOGY_CONTRACT.platformBrandTargetKey]

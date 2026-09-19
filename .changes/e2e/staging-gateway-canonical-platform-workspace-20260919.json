@@ -10,7 +10,10 @@
       ".changes/e2e/staging-gateway-canonical-platform-workspace-20260919.json",
       "http-generic-api/stagingActivationGatewayApplyAdapter.js",
       "http-generic-api/test-activation-gateway-rollout-surface.mjs",
-      "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
+      "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+      "http-generic-api/src/infrastructure/authorityScope/platformAdminWorkspaceResolver.js",
+      "http-generic-api/src/infrastructure/authorityScope/platformTopologyVerificationRepository.js",
+      "http-generic-api/test-platform-admin-workspace-resolver.mjs"
     ]
   },
   "merge_contract": {
@@ -30,7 +33,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Resolve the Staging platform_admin service principal through the canonical Platform Admin Workspace markers instead of the non-schema workspace_type='platform_admin' sentinel, and fail closed on ambiguous canonical matches without provider access or mutation.",
+      "objective": "Consolidate canonical Platform Admin Workspace resolution so topology verification and the Staging Activation Gateway share one marker contract, require an active platform-owner tenant and a ready workspace for execution, preserve non-ready marked workspaces for read-only topology diagnostics, and fail closed on ambiguity without provider access or mutation.",
       "e2e_journeys": [
         {
           "id": "staging-gateway-canonical-platform-workspace-resolution",
@@ -42,6 +45,8 @@
           "steps": [
             "Resolve the authenticated backend service principal as service/platform_admin.",
             "Read workspace_registry only from the Runtime DB.",
+            "Use the shared canonical Platform Admin Workspace resolver for both topology evidence and the Staging service principal.",
+            "Verify the active platform-owner tenant before executable Staging workspace resolution.",
             "Match the canonical Platform Admin Workspace using workspace_key or config_json authority markers.",
             "Reject more than one ready canonical Platform Admin Workspace instead of selecting an arbitrary row.",
             "Continue resolving the exact Staging Worker resource binding only from the Governance DB.",
@@ -49,8 +54,11 @@
           ],
           "assertions": [
             "workspace_type='platform_admin' is not used as Platform Admin authority evidence.",
+            "Topology verification and Staging execution consume the same canonical marker contract.",
+            "workspace_key, authority_scope_key, and platform_admin_workspace=true each resolve independently.",
             "A schema-valid workspace_type with canonical platform markers resolves successfully.",
             "Ambiguous canonical Platform Admin Workspace matches fail closed.",
+            "A canonically marked workspace with bootstrap_status other than ready is visible to topology diagnostics but not executable Staging resolution.",
             "Runtime DB never serves platform_resource_authority_bindings.",
             "Governance DB never serves workspace_registry.",
             "Feature gate false keeps apply_ready=false after successful workspace resolution.",
@@ -78,6 +86,13 @@
               "working_directory": "http-generic-api",
               "path": "test-platform-admin-workspace-marker-migration.mjs",
               "args": []
+            },
+            {
+              "id": "platform-admin-workspace-canonical-resolver",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-admin-workspace-resolver.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -87,7 +102,9 @@
             "http-generic-api/migrations/005_sprint07_connected_systems.sql",
             "http-generic-api/migrations/20260728_platform_admin_workspace_marker.sql",
             "http-generic-api/test-activation-gateway-rollout-surface.mjs",
-            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
+            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+            "http-generic-api/src/infrastructure/authorityScope/platformAdminWorkspaceResolver.js",
+            "http-generic-api/test-platform-admin-workspace-resolver.mjs"
           ]
         }
       ],
@@ -104,6 +121,13 @@
           "runner": "node",
           "working_directory": "http-generic-api",
           "path": "test-staging-smart-gateway-convergence-contract.mjs",
+          "args": []
+        },
+        {
+          "id": "platform-admin-workspace-canonical-resolver",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-platform-admin-workspace-resolver.mjs",
           "args": []
         }
       ]
