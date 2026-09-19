@@ -190,6 +190,8 @@ test("Staging Gateway dry-run System Tool forwards only immutable release bindin
   let observed = null;
   const result = await stagingRecoveryActivationGatewayDarkDeployDryRun(input, {
     env: STAGING_ENV,
+    runtimePool: {},
+    governancePool: {},
     runDarkDeploy: async (args) => {
       observed = { ...args };
       return {

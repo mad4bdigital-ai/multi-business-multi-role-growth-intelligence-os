@@ -1223,6 +1223,61 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/workflows/staging-main-deploy-eligibility.yml|EXPECTED_POLICY_HASH|environment_reference|expected.policy.hash",
+      "owner": "staging-activation-gateway-governance",
+      "reason": "Exact non-secret Staging Activation Gateway policy identity propagated between same-run dry-run, binding verification, provider preflight, and deploy steps; it narrows execution to the verified policy and grants no provider, database, DNS, protected-ref, or Production authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/workflows/staging-main-deploy-eligibility.yml|PREFLIGHT_BINDING_SHA256|environment_reference|preflight.binding.sha256",
+      "owner": "staging-activation-gateway-governance",
+      "reason": "Same-run non-secret binding digest joining authoritative convergence plan, exact source identity, policy identity, and Worker bundle before provider access; the digest is verification evidence and is not execution authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/workflows/staging-main-deploy-eligibility.yml|SOURCE_SHA|environment_reference|source.sha",
+      "owner": "staging-activation-gateway-governance",
+      "reason": "Exact non-secret main source SHA carried across the Staging Worker refresh workflow to fail closed on source drift and verify artifact provenance; it does not grant provider, database, DNS, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/workflows/staging-main-deploy-eligibility.yml|VERIFIED_CONVERGENCE_PLAN_SHA256|environment_reference|verified.convergence.plan.sha256",
+      "owner": "staging-activation-gateway-governance",
+      "reason": "Authoritative server-reconstructed convergence-plan digest emitted by the dry-run verifier after exact operator-acknowledgement equality; it is non-secret same-run evidence and the digest itself is explicitly not provider execution authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/workflows/staging-main-deploy-eligibility.yml|VERIFIED_WORKER_BUNDLE_SHA256|environment_reference|verified.worker.bundle.sha256",
+      "owner": "staging-activation-gateway-governance",
+      "reason": "Deterministic non-secret Worker bundle digest bound to the exact source and policy before Cloudflare credentials become visible; it is integrity evidence only and grants no provider, database, DNS, protected-ref, or Production authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {
