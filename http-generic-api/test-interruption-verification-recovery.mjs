@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
-const API_ROOT = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1"));
+const API_ROOT = path.dirname(fileURLToPath(import.meta.url));
 const temporaryDirectory = mkdtempSync(path.join(tmpdir(), "interruption-verification-recovery-"));
 
 function run(args) {

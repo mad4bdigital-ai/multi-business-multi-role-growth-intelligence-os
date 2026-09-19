@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import express from "express";
 import YAML from "yaml";
 import { resolveSurfaceAuthority, SURFACE_KEYS } from "./surfaceAuthorityResolver.js";
@@ -17,7 +18,7 @@ process.env.REMOTE_MCP_RESOURCE_URL = "https://mcp-dev.mad4b.com";
 process.env.REMOTE_MCP_AUTHORIZATION_SERVER_URL = "https://dev.mad4b.com/auth/mcp";
 process.env.REMOTE_MCP_TRUST_PROXY_HOST_HEADERS = "true";
 
-const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
 const readJson = (relative) => JSON.parse(read(relative));
 const parseYaml = (relative) => YAML.parse(read(relative));

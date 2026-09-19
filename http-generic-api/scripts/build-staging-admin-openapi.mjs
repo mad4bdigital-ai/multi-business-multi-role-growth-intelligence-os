@@ -1,8 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import YAML from "yaml";
 
-const here = path.dirname(new URL(import.meta.url).pathname);
+const here = path.dirname(fileURLToPath(import.meta.url));
 const apiRoot = path.resolve(here, "..");
 const sourcePath = path.join(apiRoot, "openapi", "openapi.custom-gpt.auth-dispatcher.yaml");
 const targetPath = path.join(apiRoot, "openapi", "openapi.custom-gpt.staging-admin.yaml");
