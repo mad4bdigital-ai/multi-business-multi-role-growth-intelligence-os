@@ -173,7 +173,9 @@
         "http-generic-api/test-host-local-runtime-inspection.mjs",
         "http-generic-api/test-production-runtime-full-role-inspection-workflow.mjs",
         "http-generic-api/routes/deploymentInfoRoutes.js",
-        "docs/governance/runtime-breakglass-environments.md"
+        "docs/governance/runtime-breakglass-environments.md",
+        "http-generic-api/test-hostinger-ssh-deploy-executor.mjs",
+        "http-generic-api/test-wordpress-staging-plugin-deploy.mjs"
       ]
     },
     {
@@ -720,7 +722,9 @@
         "http-generic-api/test-openapi-split-governance.mjs",
         "http-generic-api/test-staging-independent-schema-contract.mjs",
         "http-generic-api/test-role-selection-proof-contract.mjs",
-        "http-generic-api/test-host-breakglass-local-request.mjs"
+        "http-generic-api/test-host-breakglass-local-request.mjs",
+        "http-generic-api/test-hostinger-ssh-deploy-executor.mjs",
+        "http-generic-api/test-wordpress-staging-plugin-deploy.mjs"
       ],
       "protected_by_verifiers": []
     },
