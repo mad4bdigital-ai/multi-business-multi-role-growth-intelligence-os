@@ -177,6 +177,7 @@
           "http-generic-api/scripts/sync-activation-gateway-runtime-bundle.mjs",
           "http-generic-api/scripts/validate-registration-topology.mjs",
           "specs/020-platform-resource-identity-brand-governance/**",
+          "http-generic-api/openapi-route-contracts.yaml",
           "http-generic-api/openapi-route-contracts.d/**"
         ],
         "exclude_patterns": [
