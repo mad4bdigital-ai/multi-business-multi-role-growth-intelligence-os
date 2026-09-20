@@ -312,6 +312,72 @@
       "rule_id": "fixed_customer_identifier",
       "line": 348,
       "reason": "This UUID is an explicit reviewed_by platform-admin principal in a checksum-bound safety attestation, not a customer or tenant identifier."
+    },
+    {
+      "path": "http-generic-api/config/runtime-data-lifecycle-contract.json",
+      "rule_id": "zero_scope_fallback",
+      "line": 50,
+      "reason": "Canonical platform-scope sentinel is declarative authority data for the registered Platform Admin workspace seed, not a tenant fallback."
+    },
+    {
+      "path": "http-generic-api/config/runtime-data-lifecycle-contract.json",
+      "rule_id": "fixed_customer_identifier",
+      "line": 58,
+      "reason": "Canonical Platform Admin workspace UUID is registered seed identity data and is never selected from customer context."
+    },
+    {
+      "path": "http-generic-api/config/runtime-data-lifecycle-contract.json",
+      "rule_id": "zero_scope_fallback",
+      "line": 59,
+      "reason": "Canonical platform-scope sentinel is the exact seed guard tenant identity, not a runtime customer fallback."
+    },
+    {
+      "path": "http-generic-api/config/runtime-data-lifecycle-contract.json",
+      "rule_id": "fixed_customer_identifier",
+      "line": 66,
+      "reason": "Canonical Platform Admin workspace UUID is the exact reviewed update selector for the registered seed row."
+    },
+    {
+      "path": "http-generic-api/config/runtime-data-lifecycle-contract.json",
+      "rule_id": "zero_scope_fallback",
+      "line": 67,
+      "reason": "Canonical platform-scope sentinel is part of the exact reviewed update selector and cannot broaden runtime scope."
+    },
+    {
+      "path": "http-generic-api/config/runtime-data-lifecycle-contract.json",
+      "rule_id": "zero_scope_fallback",
+      "line": 76,
+      "reason": "Resolver-equivalent cardinality intentionally scopes the Platform Admin authority row to the global sentinel tenant."
+    },
+    {
+      "path": "http-generic-api/migrations/20260920_platform_admin_workspace_canonical_seed.sql",
+      "rule_id": "zero_scope_fallback",
+      "line": 11,
+      "reason": "Canonical platform-scope sentinel is the reviewed Platform Admin seed tenant identity, not a customer fallback."
+    },
+    {
+      "path": "http-generic-api/migrations/20260920_platform_admin_workspace_canonical_seed.sql",
+      "rule_id": "fixed_customer_identifier",
+      "line": 19,
+      "reason": "Canonical Platform Admin workspace UUID is used only by the conflict-detecting seed guard for the registered authority row."
+    },
+    {
+      "path": "http-generic-api/migrations/20260920_platform_admin_workspace_canonical_seed.sql",
+      "rule_id": "zero_scope_fallback",
+      "line": 20,
+      "reason": "Canonical platform-scope sentinel is used only with the registered workspace key in the conflict-detecting seed guard."
+    },
+    {
+      "path": "http-generic-api/migrations/20260920_platform_admin_workspace_canonical_seed.sql",
+      "rule_id": "fixed_customer_identifier",
+      "line": 31,
+      "reason": "Canonical Platform Admin workspace UUID is part of the exact identity selector for idempotent marker repair."
+    },
+    {
+      "path": "http-generic-api/migrations/20260920_platform_admin_workspace_canonical_seed.sql",
+      "rule_id": "zero_scope_fallback",
+      "line": 32,
+      "reason": "Canonical platform-scope sentinel is part of the exact identity selector for idempotent marker repair."
     }
   ]
 }
