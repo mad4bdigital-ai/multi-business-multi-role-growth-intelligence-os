@@ -74,7 +74,9 @@
             "Allow canonical semantic repair on an existing non-empty Runtime schema only when the relevant canonical identity/candidate set is absent, while preserving unrelated runtime rows.",
             "Bind every repair plan to the exact repository commit, lifecycle contract hash, semantic artifact registry hash, migration manifest hash, semantic precondition fingerprint, and target role.",
             "Treat any mutation transport failure or unverified postcondition as reconciliation_required with mutation retry disabled until independent readback.",
-            "Keep managed Git child processes hermetic against hostile host EOL and credential-helper configuration while preserving non-force push and credential zeroization."
+            "Keep managed Git child processes hermetic against hostile host EOL and credential-helper configuration while preserving non-force push and credential zeroization.",
+            "Execute the registered canonical artifact only through the repository-owned transaction path; callers cannot inject SQL, an artifact executor, a target role, or a target environment.",
+            "Re-derive typed confirmation from the immutable plan hash at apply time and reject repository, environment, role, or execution-authority drift before mutation."
           ],
           "assertions": [
             "Numeric and date-prefixed changed migrations are both inspected.",
@@ -94,7 +96,9 @@
             "Artifact/contract/manifest/precondition drift invalidates the repair plan before mutation.",
             "Unknown mutation outcome never auto-retries; reconciliation readback is the only allowed next state.",
             "Canonical UPDATE payloads cannot mutate workspace identity columns even when the WHERE selector is exact.",
-            "Managed Git remains LF-deterministic under hostile global core.autocrlf/core.eol settings and never force-pushes."
+            "Managed Git remains LF-deterministic under hostile global core.autocrlf/core.eol settings and never force-pushes.",
+            "Canonical semantic repair wraps only the registry-verified statements in START TRANSACTION/COMMIT and attempts ROLLBACK before entering reconciliation_required.",
+            "Changing required_confirmation, expected_repository, target_environment, target_role, or execution authority cannot authorize apply."
           ],
           "tests": [
             {
