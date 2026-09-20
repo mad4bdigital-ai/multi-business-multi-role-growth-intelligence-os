@@ -158,6 +158,17 @@ components:
       scheme: bearer
       bearerFormat: One-time installer redemption capability
       description: Five-minute purpose-, audience-, environment-, config-, user-, tenant-, and device-bound capability consumed atomically on first use.
+    managedGoogleSiteHmac:
+      type: apiKey
+      in: header
+      name: X-MAD4B-Site-Signature
+      description: >
+        HMAC-SHA256 signature generated with the exact site-owned broker credential.
+        The canonical signature also binds X-MAD4B-Site-Key-ID, X-MAD4B-Site-Timestamp,
+        X-MAD4B-Site-Nonce, HTTP method/path, and SHA-256 of the canonical JSON request body.
+        The broker rejects stale timestamps, unknown key IDs, binding mismatch, invalid
+        signatures, and replayed nonces.
+
 
   schemas:
 
@@ -5109,7 +5120,21 @@ paths:
       x-openai-isConsequential: false
       summary: Create a managed Google OAuth authorization session
       description: Creates a short-lived broker session only for an exact server-owned WordPress site binding. The response contains a Google authorization URL and no provider token or Google client secret.
-      security: []
+      security:
+        - managedGoogleSiteHmac: []
+      parameters:
+        - name: X-MAD4B-Site-Key-ID
+          in: header
+          required: true
+          schema: { type: string, pattern: '^[A-Za-z0-9._:-]{3,64}$' }
+        - name: X-MAD4B-Site-Timestamp
+          in: header
+          required: true
+          schema: { type: string, pattern: '^\\d{10}$' }
+        - name: X-MAD4B-Site-Nonce
+          in: header
+          required: true
+          schema: { type: string, minLength: 22, maxLength: 128, pattern: '^[A-Za-z0-9_-]+$' }
       requestBody:
         required: true
         content:
@@ -5178,7 +5203,21 @@ paths:
       x-openai-isConsequential: false
       summary: Redeem a one-time managed Google OAuth handoff
       description: Server-to-server redemption bound to exact site UUID, origin, callback, session, handoff hash, and S256 verifier. Successful redemption atomically consumes the handoff and erases the broker token envelope.
-      security: []
+      security:
+        - managedGoogleSiteHmac: []
+      parameters:
+        - name: X-MAD4B-Site-Key-ID
+          in: header
+          required: true
+          schema: { type: string, pattern: '^[A-Za-z0-9._:-]{3,64}$' }
+        - name: X-MAD4B-Site-Timestamp
+          in: header
+          required: true
+          schema: { type: string, pattern: '^\\d{10}$' }
+        - name: X-MAD4B-Site-Nonce
+          in: header
+          required: true
+          schema: { type: string, minLength: 22, maxLength: 128, pattern: '^[A-Za-z0-9_-]+$' }
       requestBody:
         required: true
         content:
@@ -5229,7 +5268,21 @@ paths:
       x-openai-isConsequential: false
       summary: Refresh a managed Google OAuth access token
       description: Server-to-server Google token refresh for an exact server-owned site UUID and origin binding. The broker applies its own Google client credentials and rejects scope escalation.
-      security: []
+      security:
+        - managedGoogleSiteHmac: []
+      parameters:
+        - name: X-MAD4B-Site-Key-ID
+          in: header
+          required: true
+          schema: { type: string, pattern: '^[A-Za-z0-9._:-]{3,64}$' }
+        - name: X-MAD4B-Site-Timestamp
+          in: header
+          required: true
+          schema: { type: string, pattern: '^\\d{10}$' }
+        - name: X-MAD4B-Site-Nonce
+          in: header
+          required: true
+          schema: { type: string, minLength: 22, maxLength: 128, pattern: '^[A-Za-z0-9_-]+$' }
       requestBody:
         required: true
         content:
