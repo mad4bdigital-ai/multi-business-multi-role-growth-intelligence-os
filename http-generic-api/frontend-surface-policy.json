@@ -3012,24 +3012,40 @@
       ]
     },
     {
-      "rule_id": "managed-google-oauth-public-auth",
+      "rule_id": "managed-google-oauth-site-hmac",
       "operations": [
         "POST /v1/google/oauth/session",
-        "GET /v1/google/oauth/callback",
         "POST /v1/google/oauth/redeem",
         "POST /v1/google/oauth/refresh"
       ],
       "source_file": "routes/managedGoogleOAuthRoutes.js",
+      "profile": "managed_google_site_hmac",
+      "owner": "identity-platform",
+      "rationale": "Managed Google OAuth WordPress-to-broker POST operations require an exact site key ID, HMAC-SHA256 signature, bounded timestamp, one-time nonce, exact site binding, and replay denial. They intentionally do not accept MAD4B backend bearer credentials.",
+      "evidence_refs": [
+        "routes/managedGoogleOAuthRoutes.js",
+        "managedGoogleOAuthSiteRequestAuth.js",
+        "managedGoogleOAuthBroker.js",
+        "openapi.yaml",
+        "test-managed-google-oauth-broker.mjs",
+        "docs/managed-google-oauth-broker.md"
+      ]
+    },
+    {
+      "rule_id": "managed-google-oauth-provider-callback-public",
+      "operations": [
+        "GET /v1/google/oauth/callback"
+      ],
+      "source_file": "routes/managedGoogleOAuthRoutes.js",
       "profile": "public",
       "owner": "identity-platform",
-      "rationale": "Managed Google OAuth broker endpoints intentionally mount without MAD4B bearer/API-key middleware. Authorization is protocol-bound: exact server-owned site binding, broker state, S256 verifier, one-time handoff, and Google callback semantics. Canonical OpenAPI therefore declares security: [] for these exact transport endpoints.",
+      "rationale": "Google OAuth browser callback must remain reachable without MAD4B site credentials; it is protected by one-time broker state, exact session lifecycle, exact site binding, and provider callback semantics.",
       "evidence_refs": [
         "routes/managedGoogleOAuthRoutes.js",
         "managedGoogleOAuthBroker.js",
         "managedGoogleOAuthProtocolPolicy.js",
         "openapi.yaml",
-        "test-managed-google-oauth-broker.mjs",
-        "docs/managed-google-oauth-broker.md"
+        "test-managed-google-oauth-broker.mjs"
       ]
     }
   ],
