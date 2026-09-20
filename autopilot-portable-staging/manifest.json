@@ -6,7 +6,7 @@
   "files": [
     {
       "path": ".gitattributes",
-      "sha256": "74c90294117f0252f3a0f194a0d979a04f97ab6c5a47f5c4bb2a8cf9ecef6a8a"
+      "sha256": "9162657000052fa568a0f08d808d7cf9dc8771590251e16ffd34525d64889656"
     },
     {
       "path": ".dockerignore",
@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "c12d6949a74118aacfb755d939b7cfef7000c0f2512a67b0e0e7a134b88815af"
+      "sha256": "edcaf2a28f18a795cc2369978bacbbf6892bbdfdb946c28690b1b814aece9692"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "34e05aab2380b2865f74ef75f1f55b77fb4470cde5c0773adc04e4f89ed9b22e"
+      "sha256": "d1b90a837b8b6ea77fbf7c1f197be5e58b2a9152af375582b9b27cca68e40d13"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
