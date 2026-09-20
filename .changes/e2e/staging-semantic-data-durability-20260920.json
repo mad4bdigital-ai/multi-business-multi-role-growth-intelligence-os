@@ -42,7 +42,19 @@
       "http-generic-api/config/platform-admin-workspace-authority.json",
       "http-generic-api/src/domain/authorityScope/platformAdminWorkspaceAuthority.generated.js",
       "http-generic-api/scripts/build-platform-admin-workspace-authority.mjs",
-      "http-generic-api/test-platform-admin-workspace-authority-parity.mjs"
+      "http-generic-api/test-platform-admin-workspace-authority-parity.mjs",
+      "http-generic-api/src/infrastructure/authorityScope/platformAdminWorkspaceResolver.js",
+      "http-generic-api/test-platform-admin-workspace-readiness.mjs",
+      "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+      "http-generic-api/test-activation-gateway-rollout-surface.mjs",
+      "http-generic-api/routes/deploymentInfoRoutes.js",
+      "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
+      "http-generic-api/scripts/staging-live-certification.mjs",
+      "autopilot-portable-staging/Invoke-StagingCertification.ps1",
+      "autopilot-portable-staging/One-Click-Staging.ps1",
+      "autopilot-portable-staging/autopilot-one-click-policy.json",
+      "http-generic-api/test-staging-one-click-autopilot-core.mjs",
+      "http-generic-api/test-staging-environment-certification-contract.mjs"
     ]
   },
   "environment_impact": {
@@ -100,7 +112,11 @@
             "Require exact row-count readback immediately after semantic snapshot import and at-least the same canonical counts on completed-state restart readback.",
             "Treat any activation registry created by Git migrations but absent from the explicit semantic snapshot table set as a CI failure.",
             "Generate the static Platform Admin Workspace runtime authority and canonical seed SQL from one descriptor, then fail CI if either committed artifact drifts.",
-            "Make resolver, topology verification, and in-place repair consume the same generated authority constants while lifecycle/seed remain static parity-checked artifacts."
+            "Make resolver, topology verification, and in-place repair consume the same generated authority constants while lifecycle/seed remain static parity-checked artifacts.",
+            "Classify the canonical Platform Admin Workspace as ready, canonical_missing, canonical_not_ready, canonical_ambiguous, canonical_identity_conflict, or runtime_database_unavailable using one bounded read-only Runtime DB census.",
+            "Expose the semantic readiness status as an opt-in bounded deployment-info projection without workspace identifiers or raw database values.",
+            "Require semantic workspace readiness before a Staging Activation Gateway dry-run can become apply-ready and re-read the same condition before provider apply/claim begins.",
+            "Require One-Click schema import state to contain completed same-cycle canonical semantic snapshot readback and require live semantic readiness whenever the Activation Gateway is enabled."
           ],
           "assertions": [
             "Numeric and date-prefixed changed migrations are both inspected.",
@@ -133,7 +149,11 @@
             "Every activation_*_registry created by migrations is explicitly declared; the wildcard family is guard-only and fail-closed for unregistered future registries.",
             "Semantic completeness reports zero unresolved replay debt only when every canonical dataset has a registered replay artifact; readiness still requires live readback.",
             "Platform Admin identity, resolver markers, lifecycle selectors, and seed SQL cannot diverge without the authority parity gate failing.",
-            "Runtime consumes committed generated JS and committed SQL; it never generates executable SQL dynamically from JSON."
+            "Runtime consumes committed generated JS and committed SQL; it never generates executable SQL dynamically from JSON.",
+            "Missing, not-ready, ambiguous, identity-conflict, and Runtime DB unavailable states remain distinct and never collapse into workspace_resolved=false.",
+            "A non-ready Platform Admin semantic state cannot enter the provider request path, cannot save an apply-ready Gateway plan, and cannot claim Staging readiness.",
+            "The deployment-info semantic projection is opt-in, read-only, secret-free, and omits workspace identifiers.",
+            "One-Click cannot claim Gateway readiness from canonical seed status alone; semantic snapshot evidence and current live semantic readiness are both required."
           ],
           "tests": [
             {
@@ -226,6 +246,41 @@
               "working_directory": "http-generic-api",
               "path": "test-platform-admin-workspace-authority-parity.mjs",
               "args": []
+            },
+            {
+              "id": "platform-admin-workspace-readiness",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-admin-workspace-readiness.mjs",
+              "args": []
+            },
+            {
+              "id": "activation-gateway-rollout-surface",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-activation-gateway-rollout-surface.mjs",
+              "args": []
+            },
+            {
+              "id": "runtime-gate-deployment-info-parity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-gate-deployment-info-parity.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-one-click-autopilot-core",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-one-click-autopilot-core.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-environment-certification-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-environment-certification-contract.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -241,7 +296,19 @@
             "http-generic-api/scripts/build-staging-schema-bundle.mjs",
             "http-generic-api/test-staging-schema-bundle-builder.mjs",
             "http-generic-api/config/canonical-semantic-artifacts.json",
-            "http-generic-api/semanticDataCompletenessReport.js"
+            "http-generic-api/semanticDataCompletenessReport.js",
+            "http-generic-api/src/infrastructure/authorityScope/platformAdminWorkspaceResolver.js",
+            "http-generic-api/test-platform-admin-workspace-readiness.mjs",
+            "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+            "http-generic-api/test-activation-gateway-rollout-surface.mjs",
+            "http-generic-api/routes/deploymentInfoRoutes.js",
+            "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
+            "http-generic-api/scripts/staging-live-certification.mjs",
+            "autopilot-portable-staging/Invoke-StagingCertification.ps1",
+            "autopilot-portable-staging/One-Click-Staging.ps1",
+            "autopilot-portable-staging/autopilot-one-click-policy.json",
+            "http-generic-api/test-staging-one-click-autopilot-core.mjs",
+            "http-generic-api/test-staging-environment-certification-contract.mjs"
           ]
         }
       ]
