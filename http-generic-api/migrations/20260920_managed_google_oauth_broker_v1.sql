@@ -32,6 +32,18 @@ CREATE TABLE IF NOT EXISTS managed_google_oauth_sessions (
   KEY idx_managed_google_oauth_status_handoff_expiry (status, handoff_expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+
+CREATE TABLE IF NOT EXISTS managed_google_oauth_request_nonces (
+  key_id VARCHAR(64) NOT NULL,
+  nonce_hash CHAR(64) NOT NULL,
+  site_uuid VARCHAR(64) NOT NULL,
+  expires_at DATETIME NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (key_id, nonce_hash),
+  KEY idx_managed_google_oauth_nonce_expiry (expires_at),
+  KEY idx_managed_google_oauth_nonce_site (site_uuid, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS managed_google_oauth_audit (
   audit_id VARCHAR(64) NOT NULL,
   event VARCHAR(64) NOT NULL,
