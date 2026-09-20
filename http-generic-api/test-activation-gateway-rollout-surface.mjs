@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { buildActivationGatewayRolloutPlan } from "./activationGatewayRolloutTool.js";
+import { PLATFORM_ADMIN_WORKSPACE_AUTHORITY } from "./src/domain/authorityScope/platformAdminWorkspaceAuthority.generated.js";
 
 const routes = fs.readFileSync("routes/gptToolsRoutes.js", "utf8");
 const migration = fs.readFileSync("migrations/20260627_activation_gateway_rollout_surface.sql", "utf8");
@@ -55,45 +56,65 @@ const accountId = "dd1024b934e907723484568d97c7c74c";
 const scriptName = "mad4b-activation-gateway-staging";
 const sourceSha = "a".repeat(40);
 const convergencePlanSha = "e".repeat(64);
-const platformWorkspaceId = "11111111-1111-4111-8111-111111111111";
+const authority = PLATFORM_ADMIN_WORKSPACE_AUTHORITY;
+const platformWorkspaceId = authority.identity.workspace_id;
+const platformTenantId = authority.identity.tenant_id;
+const platformSeedKey = authority.identity.seed_workspace_key;
+const platformResolverKey = authority.resolver.candidate_workspace_key;
+const platformAuthorityScope = authority.resolver.authority_scope_key;
 
 let runtimeAuthorityReads = 0;
 let runtimeWorkspaceReads = 0;
 let governanceAuthorityReads = 0;
+let providerCalls = 0;
 
-const runtimePool = {
-  async query(sql, params = []) {
-    const statement = String(sql);
-    if (statement.includes("platform_resource_authority_bindings")) {
-      runtimeAuthorityReads += 1;
-      throw new Error("Runtime DB must never serve platform_resource_authority_bindings.");
-    }
-    if (statement.includes("FROM workspace_registry")) {
-      runtimeWorkspaceReads += 1;
-      assert.doesNotMatch(statement, /workspace_type='platform_admin'/u);
-      assert.match(statement, /\$\.authority_scope_key/u);
-      assert.match(statement, /\$\.platform_admin_workspace/u);
-      assert.deepEqual(params, [
-        "00000000-0000-0000-0000-000000000000",
-        "platform_admin_workspace",
-        "platform:root",
-      ]);
-      return [[{
-        workspace_id: platformWorkspaceId,
-        tenant_id: "00000000-0000-0000-0000-000000000000",
-        workspace_key: "platform_repo_governance_zero",
-        display_name: "Platform Admin",
-        workspace_type: "brand",
-        bootstrap_status: "ready",
-        config_json: JSON.stringify({
-          authority_scope_key: "platform:root",
-          platform_admin_workspace: true,
-        }),
-      }]];
-    }
-    throw new Error(`Unexpected Runtime DB query: ${statement}`);
-  },
-};
+function canonicalWorkspaceRow(overrides = {}) {
+  return {
+    workspace_id: platformWorkspaceId,
+    tenant_id: platformTenantId,
+    workspace_key: platformSeedKey,
+    display_name: authority.identity.display_name,
+    workspace_type: authority.identity.workspace_type,
+    bootstrap_status: authority.identity.bootstrap_status,
+    config_json: JSON.stringify({
+      authority_scope_key: platformAuthorityScope,
+      platform_admin_workspace: true,
+    }),
+    ...overrides,
+  };
+}
+
+function runtimePoolWithRows(rows, options = {}) {
+  return {
+    async query(sql, params = []) {
+      const statement = String(sql);
+      if (statement.includes("platform_resource_authority_bindings")) {
+        runtimeAuthorityReads += 1;
+        throw new Error("Runtime DB must never serve platform_resource_authority_bindings.");
+      }
+      if (statement.includes("FROM workspace_registry")) {
+        runtimeWorkspaceReads += 1;
+        if (options.throwOnWorkspaceRead) throw new Error("runtime database unavailable");
+        assert.doesNotMatch(statement, /workspace_type='platform_admin'/u);
+        assert.match(statement, /workspace_id=\?/u);
+        assert.match(statement, /workspace_key IN \(\?,\?\)/u);
+        assert.match(statement, /\$\.authority_scope_key/u);
+        assert.match(statement, /\$\.platform_admin_workspace/u);
+        assert.deepEqual(params, [
+          platformTenantId,
+          platformWorkspaceId,
+          platformSeedKey,
+          platformResolverKey,
+          platformAuthorityScope,
+        ]);
+        return [rows];
+      }
+      throw new Error(`Unexpected Runtime DB query: ${statement}`);
+    },
+  };
+}
+
+const runtimePool = runtimePoolWithRows([canonicalWorkspaceRow()]);
 
 const governancePool = {
   async query(sql, params = []) {
@@ -103,7 +124,7 @@ const governancePool = {
       assert.deepEqual(params, [bindingId]);
       return [[{
         binding_id: bindingId,
-        tenant_id: "00000000-0000-0000-0000-000000000000",
+        tenant_id: platformTenantId,
         workspace_id: null,
         user_id: null,
         resource_type: "cloudflare_worker",
@@ -130,14 +151,7 @@ const governancePool = {
   },
 };
 
-const plan = await buildActivationGatewayRolloutPlan({
-  mode: "dry_run",
-  account_id: accountId,
-  expected_source_commit: sourceSha,
-  expected_policy_hash: staging.expected_policy_hash,
-  environment_convergence_plan_sha256: convergencePlanSha,
-}, {
-  runtimePool,
+const sharedDeps = {
   governancePool,
   auth: { mode: "backend_api_key", principal_type: "admin", is_admin: true },
   env: {
@@ -150,82 +164,95 @@ const plan = await buildActivationGatewayRolloutPlan({
   },
   cloudflareClient: {
     token_present: true,
-    async request() { throw new Error("dry-run must not call Cloudflare"); },
+    async request() { providerCalls += 1; throw new Error("dry-run must not call Cloudflare"); },
   },
   registry,
   repositoryRoot: root,
-});
-
-assert.equal(plan.adapter, "staging_activation_gateway_profile_apply");
-assert.equal(plan.resource_binding.binding_id, bindingId);
-assert.equal(plan.workspace.workspace_id, platformWorkspaceId);
-assert.equal(plan.workspace.workspace_key, "platform_repo_governance_zero");
-assert.equal(plan.workspace.workspace_type, "brand");
-assert.equal(plan.apply_ready, false);
-assert.equal(runtimeAuthorityReads, 0);
-assert.equal(governanceAuthorityReads, 1);
-assert.equal(runtimeWorkspaceReads, 1);
-assert.equal(plan.production_mutation, false);
-assert.equal(plan.secrets_included, false);
-
-const ambiguousRuntimePool = {
-  async query(sql) {
-    const statement = String(sql);
-    if (statement.includes("platform_resource_authority_bindings")) {
-      throw new Error("Runtime DB must never serve platform_resource_authority_bindings.");
-    }
-    if (statement.includes("FROM workspace_registry")) {
-      return [[
-        {
-          workspace_id: platformWorkspaceId,
-          tenant_id: "00000000-0000-0000-0000-000000000000",
-          workspace_key: "platform_repo_governance_zero",
-          display_name: "Platform Admin A",
-          workspace_type: "brand",
-          bootstrap_status: "ready",
-          config_json: JSON.stringify({ authority_scope_key: "platform:root" }),
-        },
-        {
-          workspace_id: "22222222-2222-4222-8222-222222222222",
-          tenant_id: "00000000-0000-0000-0000-000000000000",
-          workspace_key: "platform_admin_workspace",
-          display_name: "Platform Admin B",
-          workspace_type: "project",
-          bootstrap_status: "ready",
-          config_json: "{}",
-        },
-      ]];
-    }
-    throw new Error(`Unexpected Runtime DB query: ${statement}`);
-  },
 };
 
-await assert.rejects(
-  buildActivationGatewayRolloutPlan({
+async function buildWithRuntime(runtimePoolValue) {
+  return buildActivationGatewayRolloutPlan({
     mode: "dry_run",
     account_id: accountId,
     expected_source_commit: sourceSha,
     expected_policy_hash: staging.expected_policy_hash,
     environment_convergence_plan_sha256: convergencePlanSha,
-  }, {
-    runtimePool: ambiguousRuntimePool,
-    governancePool,
-    auth: { mode: "backend_api_key", principal_type: "admin", is_admin: true },
-    env: {
-      STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED: "false",
-      DEPLOYMENT_MANIFEST_JSON: JSON.stringify({
-        repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
-        branch: "main",
-        commit_sha: sourceSha,
-      }),
-    },
-    cloudflareClient: { token_present: true },
-    registry,
-    repositoryRoot: root,
-  }),
-  (error) => error?.code === "staging_activation_gateway_platform_admin_workspace_ambiguous",
-);
+  }, { ...sharedDeps, runtimePool: runtimePoolValue });
+}
 
+const plan = await buildWithRuntime(runtimePool);
+assert.equal(plan.adapter, "staging_activation_gateway_profile_apply");
+assert.equal(plan.resource_binding.binding_id, bindingId);
+assert.equal(plan.workspace.workspace_id, platformWorkspaceId);
+assert.equal(plan.workspace.workspace_key, platformSeedKey);
+assert.equal(plan.workspace.workspace_type, authority.identity.workspace_type);
+assert.equal(plan.workspace_readiness.status, "ready");
+assert.equal(plan.workspace_readiness.ready, true);
+assert.equal(plan.apply_ready, false);
+assert.equal(runtimeAuthorityReads, 0);
+assert.equal(governanceAuthorityReads, 1);
+assert.equal(runtimeWorkspaceReads, 1);
+assert.equal(providerCalls, 0);
+assert.equal(plan.production_mutation, false);
+assert.equal(plan.secrets_included, false);
+
+const readinessCases = [
+  {
+    name: "missing",
+    pool: runtimePoolWithRows([]),
+    status: "canonical_missing",
+    classification: "staging_activation_gateway_canonical_missing",
+  },
+  {
+    name: "not-ready",
+    pool: runtimePoolWithRows([canonicalWorkspaceRow({ bootstrap_status: "pending" })]),
+    status: "canonical_not_ready",
+    classification: "staging_activation_gateway_canonical_not_ready",
+  },
+  {
+    name: "identity-conflict",
+    pool: runtimePoolWithRows([canonicalWorkspaceRow({ display_name: "Conflicting Admin" })]),
+    status: "canonical_identity_conflict",
+    classification: "staging_activation_gateway_canonical_identity_conflict",
+  },
+  {
+    name: "ambiguous",
+    pool: runtimePoolWithRows([
+      canonicalWorkspaceRow(),
+      {
+        workspace_id: "22222222-2222-4222-8222-222222222222",
+        tenant_id: platformTenantId,
+        workspace_key: platformResolverKey,
+        display_name: "Other",
+        workspace_type: "project",
+        bootstrap_status: "ready",
+        config_json: "{}",
+      },
+    ]),
+    status: "canonical_ambiguous",
+    classification: "staging_activation_gateway_canonical_ambiguous",
+  },
+  {
+    name: "runtime-unavailable",
+    pool: runtimePoolWithRows([], { throwOnWorkspaceRead: true }),
+    status: "runtime_database_unavailable",
+    classification: "staging_activation_gateway_runtime_database_unavailable",
+  },
+];
+
+for (const item of readinessCases) {
+  const beforeProviderCalls = providerCalls;
+  const blocked = await buildWithRuntime(item.pool);
+  assert.equal(blocked.workspace, null, item.name);
+  assert.equal(blocked.workspace_readiness.status, item.status, item.name);
+  assert.equal(blocked.workspace_readiness.ready, false, item.name);
+  assert.equal(blocked.classification, item.classification, item.name);
+  assert.equal(blocked.apply_ready, false, item.name);
+  assert.equal(providerCalls, beforeProviderCalls, `${item.name} must not enter provider request path`);
+  assert.equal(blocked.provider_credentials_returned, false);
+  assert.equal(blocked.production_mutation, false);
+  assert.equal(blocked.database_mutation, false);
+}
 await assert.rejects(
   buildActivationGatewayRolloutPlan({
     mode: "dry_run",
