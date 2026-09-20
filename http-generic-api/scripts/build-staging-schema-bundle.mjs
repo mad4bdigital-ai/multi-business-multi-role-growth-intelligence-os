@@ -993,6 +993,170 @@ function makeDump(role, tables, manifest) {
   return { file: roleConfig.bundle_file, sha256: sha256(gz), compressed_bytes: gz.length, table_count: tables.length, tables: names };
 }
 
+function quoteSqlIdentifier(value) {
+  const name = String(value || "");
+  if (!/^[A-Za-z0-9_]+$/u.test(name)) fail(\`unsafe semantic snapshot identifier: \${name}\`);
+  return "\`" + name + "\`";
+}
+
+function semanticSnapshotColumnPlan(table) {
+  const tableLiteral = "'" + table.replaceAll("'", "''") + "'";
+  const columnsResult = dockerExec([containerName, "mariadb", ...dbArgs([
+    "--batch", "--raw", "--skip-column-names", "-e",
+    \`SELECT COLUMN_NAME, DATA_TYPE, COALESCE(COLUMN_DEFAULT,''), EXTRA
+       FROM information_schema.COLUMNS
+      WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=\${tableLiteral}
+      ORDER BY ORDINAL_POSITION\`,
+  ])]);
+  const columns = columnsResult.stdout.split(/\r?\n/u).filter(Boolean).map((line) => {
+    const [name, dataType = "", defaultValue = "", extra = ""] = line.split("\t");
+    const dynamicDefault = /(?:current_timestamp|current_date|current_time|localtimestamp|now\s*\(|uuid\s*\()/iu.test(defaultValue);
+    const generated = /(?:auto_increment|generated|on update)/iu.test(extra);
+    return { name, data_type: dataType, default_value: defaultValue, extra, excluded: dynamicDefault || generated };
+  });
+  if (!columns.length) fail(\`semantic snapshot table has no columns: \${table}\`);
+  const included = columns.filter((column) => !column.excluded);
+  if (!included.length) fail(\`semantic snapshot table has no stable columns: \${table}\`);
+
+  const indexesResult = dockerExec([containerName, "mariadb", ...dbArgs([
+    "--batch", "--raw", "--skip-column-names", "-e",
+    \`SELECT INDEX_NAME, SEQ_IN_INDEX, COLUMN_NAME
+       FROM information_schema.STATISTICS
+      WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=\${tableLiteral} AND NON_UNIQUE=0
+      ORDER BY CASE WHEN INDEX_NAME='PRIMARY' THEN 0 ELSE 1 END, INDEX_NAME, SEQ_IN_INDEX\`,
+  ])]);
+  const groups = new Map();
+  for (const line of indexesResult.stdout.split(/\r?\n/u).filter(Boolean)) {
+    const [indexName, sequence, columnName] = line.split("\t");
+    if (!groups.has(indexName)) groups.set(indexName, []);
+    groups.get(indexName).push({ sequence: Number(sequence), column: columnName });
+  }
+  const includedSet = new Set(included.map((column) => column.name));
+  const candidates = [...groups.entries()]
+    .map(([name, parts]) => ({ name, columns: parts.sort((a, b) => a.sequence - b.sequence).map((part) => part.column) }))
+    .filter((index) => index.columns.length > 0 && index.columns.every((column) => includedSet.has(column)));
+  if (!candidates.length) fail(\`semantic snapshot table has no stable unique ordering key: \${table}\`);
+  return {
+    table,
+    included_columns: included.map((column) => column.name),
+    excluded_columns: columns.filter((column) => column.excluded).map((column) => column.name),
+    order_index: candidates[0].name,
+    order_columns: candidates[0].columns,
+  };
+}
+
+function parseCompleteInsert(statement) {
+  const source = stripLeadingSqlComments(statement).trim();
+  if (!source) return null;
+  const match = source.match(/^INSERT\s+INTO\s+\`?([A-Za-z0-9_]+)\`?\s*/iu);
+  if (!match) {
+    if (/^(?:REPLACE|UPDATE|DELETE|LOAD\s+DATA|ALTER|DROP|TRUNCATE|CREATE)\b/iu.test(source)) {
+      fail(\`canonical semantic dump contains forbidden statement: \${source.slice(0, 180)}\`);
+    }
+    return null;
+  }
+  const table = match[1];
+  const columns = parenthesizedSql(source, match[0].length);
+  if (!columns) fail(\`canonical semantic dump INSERT is missing complete column list for \${table}\`);
+  const columnNames = splitTopLevelSql(columns.content).map((column) => column.replaceAll("\`", "").trim());
+  const afterColumns = source.slice(columns.end);
+  const valuesKeyword = afterColumns.match(/^\s*VALUES\b/iu);
+  if (!valuesKeyword) fail(\`canonical semantic dump INSERT must use VALUES for \${table}\`);
+  const rowOffset = columns.end + valuesKeyword[0].length;
+  const row = parenthesizedSql(source, rowOffset);
+  if (!row) fail(\`canonical semantic dump INSERT has no complete VALUES row for \${table}\`);
+  const values = splitTopLevelSql(row.content);
+  if (values.length !== columnNames.length) fail(\`canonical semantic dump INSERT arity mismatch for \${table}\`);
+  const trailing = source.slice(row.end).replace(/;\s*$/u, "").trim();
+  if (trailing) fail(\`canonical semantic dump INSERT must contain exactly one row for \${table}\`);
+  return { table, columnNames, values };
+}
+
+function makeCanonicalSemanticDump(manifest, runtimeTables) {
+  const config = manifest.canonical_semantic_snapshot;
+  if (!config || config.contract !== "mad4b.staging.canonical-semantic-snapshot.v1") fail("canonical semantic snapshot contract is missing");
+  if (config.target_role !== "runtime" || config.source_kind !== "disposable_git_migration_projection" || config.replay_mode !== "zero_object_rebuild_only") fail("canonical semantic snapshot target/replay policy is invalid");
+  if (config.live_environment_data_copy_forbidden !== true || config.production_access_forbidden !== true || config.provider_access_forbidden !== true || config.same_cycle_sha256_manifest_required !== true) fail("canonical semantic snapshot safety policy is incomplete");
+  const runtimeSet = new Set(runtimeTables.map((table) => table.name));
+  const names = [...config.tables];
+  if (!names.length || new Set(names).size !== names.length) fail("canonical semantic snapshot table list is empty or duplicated");
+  for (const table of names) {
+    if (!/^[A-Za-z0-9_]+$/u.test(table) || !runtimeSet.has(table)) fail(\`canonical semantic snapshot table is not owned by Runtime role: \${table}\`);
+  }
+
+  const plans = new Map(names.map((table) => [table, semanticSnapshotColumnPlan(table)]));
+  const dumpResult = dockerExec([containerName, "mariadb-dump", ...dbConnectionArgs([
+    "--no-create-info", "--complete-insert", "--skip-extended-insert", "--order-by-primary",
+    "--skip-comments", "--compact", "--skip-add-locks", "--skip-lock-tables", "--skip-disable-keys",
+    "--skip-tz-utc", "--hex-blob",
+  ]), buildDatabase, ...names], { timeoutMs: 120000 });
+
+  const parsedRows = [];
+  for (const statement of splitStatements(dumpResult.stdout)) {
+    const parsed = parseCompleteInsert(statement);
+    if (!parsed) continue;
+    if (!plans.has(parsed.table)) fail(\`canonical semantic dump wrote undeclared table: \${parsed.table}\`);
+    const plan = plans.get(parsed.table);
+    const indexByColumn = new Map(parsed.columnNames.map((column, index) => [column, index]));
+    const missingColumns = plan.included_columns.filter((column) => !indexByColumn.has(column));
+    if (missingColumns.length) fail(\`canonical semantic dump is missing stable columns for \${parsed.table}: \${missingColumns.join(",")}\`);
+    const keptColumns = plan.included_columns;
+    const keptValues = keptColumns.map((column) => parsed.values[indexByColumn.get(column)]);
+    const orderValues = plan.order_columns.map((column) => parsed.values[indexByColumn.get(column)]);
+    parsedRows.push({
+      table: parsed.table,
+      order_key: JSON.stringify(orderValues),
+      sql: \`INSERT INTO \${quoteSqlIdentifier(parsed.table)} (\${keptColumns.map(quoteSqlIdentifier).join(", ")}) VALUES (\${keptValues.join(", ")});\`,
+    });
+  }
+
+  const tableOrder = new Map(names.map((name, index) => [name, index]));
+  parsedRows.sort((a, b) => (tableOrder.get(a.table) - tableOrder.get(b.table)) || a.order_key.localeCompare(b.order_key) || a.sql.localeCompare(b.sql));
+  const rowsByTable = Object.fromEntries(names.map((name) => [name, 0]));
+  for (const row of parsedRows) rowsByTable[row.table] += 1;
+  const actualCounts = {};
+  for (const table of names) {
+    const countResult = dockerExec([containerName, "mariadb", ...dbArgs(["--batch", "--skip-column-names", "-e", \`SELECT COUNT(*) FROM \${quoteSqlIdentifier(table)}\`])]);
+    const count = Number(text(countResult.stdout));
+    if (!Number.isInteger(count) || count < 0) fail(\`canonical semantic snapshot row count is invalid for \${table}\`);
+    if (rowsByTable[table] !== count) fail(\`canonical semantic snapshot row count mismatch for \${table}: dump=\${rowsByTable[table]} database=\${count}\`);
+    if ((config.required_nonempty_tables || []).includes(table) && count < 1) fail(\`canonical semantic snapshot required table is empty: \${table}\`);
+    actualCounts[table] = count;
+  }
+  if (!parsedRows.length) fail("canonical semantic snapshot contains no rows");
+
+  const sql = Buffer.from(parsedRows.map((row) => row.sql).join("\n") + "\n", "utf8");
+  const gz = zlib.gzipSync(sql, { level: 9, mtime: 0 });
+  const output = path.join(outputDir, config.bundle_file);
+  fs.mkdirSync(outputDir, { recursive: true });
+  fs.writeFileSync(output, gz);
+  return {
+    contract: config.contract,
+    file: config.bundle_file,
+    sha256: sha256(gz),
+    uncompressed_sha256: sha256(sql),
+    compressed_bytes: gz.length,
+    statement_count: parsedRows.length,
+    table_count: names.length,
+    tables: names,
+    row_counts: actualCounts,
+    projections: Object.fromEntries([...plans.entries()].map(([table, plan]) => [table, {
+      included_columns: plan.included_columns,
+      excluded_columns: plan.excluded_columns,
+      order_index: plan.order_index,
+      order_columns: plan.order_columns,
+    }])),
+    source_kind: config.source_kind,
+    target_role: config.target_role,
+    replay_mode: config.replay_mode,
+    exact_source_commit: expectedCommit.toLowerCase(),
+    live_environment_data_copied: false,
+    production_accessed: false,
+    provider_accessed: false,
+    secrets_included: false,
+  };
+}
+
 function collationAuditMetadata(audit) {
   return {
     contract: audit.contract,
@@ -1020,7 +1184,7 @@ function collationAuditMetadata(audit) {
   };
 }
 
-function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalSeeds, orderedAudit, collationAudit, enumSeedAudit, textWidthAudit, indexKeyWidthAudit, requiredInsertColumnAudit, generatedColumnAudit, foreignKeyAudit, bootstrap, tableSets, bundles) {
+function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalSeeds, orderedAudit, collationAudit, enumSeedAudit, textWidthAudit, indexKeyWidthAudit, requiredInsertColumnAudit, generatedColumnAudit, foreignKeyAudit, bootstrap, tableSets, bundles, canonicalSemanticSnapshot) {
   const output = {
     contract: "mad4b.staging.schema-bundle-output.v1",
     source_commit: expected.toLowerCase(),
@@ -1028,14 +1192,18 @@ function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalS
     source_kind: "exact_local_git_checkout",
     generated_at: new Date().toISOString(),
     schema_only: true,
+    schema_bundles_schema_only: true,
     production_accessed: false,
     provider_accessed: false,
     data_exported: false,
+    live_environment_data_exported: false,
+    repository_semantic_projection_exported: true,
     secrets_included: false,
     baseline_schema: baselineMetadata(baseline),
     migration_count: migrationPlanRows.length,
     migration_sha256_manifest: migrationPlanRows,
     canonical_seed_lifecycle: canonicalSeeds,
+    canonical_semantic_snapshot: canonicalSemanticSnapshot,
     ordered_preuse_audit: { ...orderedAudit, gaps: undefined },
     ordered_collation_chain: collationAuditMetadata(collationAudit),
     ordered_enum_seed_chain: orderedEnumSeedMetadata(enumSeedAudit),
@@ -1051,6 +1219,9 @@ function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalS
       required_runtime_table_census: manifest.validation.required_runtime_table_census,
       runtime_exclusions_checked: true,
       no_data_statements_checked: true,
+      canonical_semantic_snapshot_checked: true,
+      canonical_semantic_snapshot_same_cycle_sha256: true,
+      canonical_semantic_snapshot_live_data_copy_forbidden: true,
       three_role_partition_checked: true,
       ordered_preuse_audit_checked: true,
       missing_column_gaps_checked: true,
@@ -1123,6 +1294,16 @@ function printPlan(manifest, baseline, files, rows, canonicalSeeds, orderedAudit
     ordered_foreign_key_compatibility_chain: orderedForeignKeyMetadata(foreignKeyAudit),
     canonical_table_bootstrap: bootstrapMetadata(bootstrap),
     required_bundle_files: manifest.validation.required_bundle_files,
+    required_semantic_bundle_files: manifest.validation.required_semantic_bundle_files,
+    canonical_semantic_snapshot: {
+      contract: manifest.canonical_semantic_snapshot?.contract || null,
+      target_role: manifest.canonical_semantic_snapshot?.target_role || null,
+      source_kind: manifest.canonical_semantic_snapshot?.source_kind || null,
+      bundle_file: manifest.canonical_semantic_snapshot?.bundle_file || null,
+      table_count: manifest.canonical_semantic_snapshot?.tables?.length || 0,
+      tables: manifest.canonical_semantic_snapshot?.tables || [],
+      plan_only: true,
+    },
     confirmation_required: manifest.safety.confirmation,
     production_access_forbidden: true,
     provider_access_forbidden: true,
@@ -1201,9 +1382,10 @@ try {
       governance: makeDump("governance", sets.governance, manifest),
       runtime_persistence: makeDump("runtime_persistence", sets.runtime_persistence, manifest),
     };
-    const outputPath = writeOutput(manifest, expectedCommit, baseline, rows, canonicalSeeds, orderedAudit, collationAudit, enumSeedAudit, textWidthAudit, indexKeyWidthAudit, requiredInsertColumnAudit, generatedColumnAudit, foreignKeyAudit, tableBootstrap, sets, bundles);
+    const canonicalSemanticSnapshot = makeCanonicalSemanticDump(manifest, sets.runtime);
+    const outputPath = writeOutput(manifest, expectedCommit, baseline, rows, canonicalSeeds, orderedAudit, collationAudit, enumSeedAudit, textWidthAudit, indexKeyWidthAudit, requiredInsertColumnAudit, generatedColumnAudit, foreignKeyAudit, tableBootstrap, sets, bundles, canonicalSemanticSnapshot);
 
-  console.log(JSON.stringify({ output_path: outputPath, source_commit: expectedCommit.toLowerCase(), roles: bundles, production_accessed: false, data_exported: false, secrets_included: false }, null, 2));
+  console.log(JSON.stringify({ output_path: outputPath, source_commit: expectedCommit.toLowerCase(), roles: bundles, canonical_semantic_snapshot: canonicalSemanticSnapshot, production_accessed: false, live_environment_data_exported: false, repository_semantic_projection_exported: true, secrets_included: false }, null, 2));
 } finally {
   run("docker", ["rm", "--force", containerName], { allowFailure: true });
 }
