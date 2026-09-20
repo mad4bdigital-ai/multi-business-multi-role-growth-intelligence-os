@@ -50,7 +50,53 @@
             "bootstrap_status"
           ]
         }
-      ]
+      ],
+      "source_kind": "repository_file"
+    },
+    {
+      "artifact_key": "runtime_canonical_registry_snapshot",
+      "lifecycle_class": "canonical_registry",
+      "target_role": "runtime",
+      "source_kind": "disposable_git_migration_projection",
+      "bundle_file": "runtime.canonical-semantic.sql.gz",
+      "integrity_contract": "same_cycle_generated_sha256_manifest",
+      "replay_modes": [
+        "zero_object_rebuild"
+      ],
+      "identity_contract": "canonical_registry_snapshot.v1",
+      "readback_contract": "canonical_registry_snapshot_readback.v1",
+      "conflict_policy": "zero_object_rebuild_only",
+      "required_for": [
+        "staging_rebuild",
+        "semantic_completeness"
+      ],
+      "dependencies": [],
+      "tables": [
+        "admin_platform_endpoint_tools",
+        "tenant_platform_endpoint_tools",
+        "platform_endpoint_tool_exports",
+        "remote_runtime_command_allowlists",
+        "execution_policies",
+        "activation_dynamic_tab_registry",
+        "activation_dynamic_tab_section_registry",
+        "activation_dynamic_tab_discovery_rule_registry",
+        "activation_section_action_registry",
+        "activation_attention_rule_registry",
+        "activation_freshness_policy_registry",
+        "activation_signal_subscription_registry",
+        "activation_connector_pack_registry",
+        "activation_connector_pack_component_registry",
+        "activation_authorized_surface_registry",
+        "activation_guidance_invocation_registry",
+        "activation_callback_registry",
+        "activation_operational_tile_registry",
+        "activation_response_profile_registry",
+        "activation_delivery_policy_registry"
+      ],
+      "caller_sql_forbidden": true,
+      "caller_target_forbidden": true,
+      "production_apply_allowed": false,
+      "provider_apply_allowed": false
     },
     {
       "artifact_key": "wordpress_staging_deployment_authority",
@@ -73,7 +119,8 @@
       "caller_sql_forbidden": true,
       "caller_target_forbidden": true,
       "production_apply_allowed": false,
-      "provider_apply_allowed": false
+      "provider_apply_allowed": false,
+      "source_kind": "repository_file"
     }
   ]
 }
