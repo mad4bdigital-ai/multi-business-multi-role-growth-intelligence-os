@@ -184,6 +184,9 @@ Require ($requiredRuntimeCensus.Count -eq 18) "Schema bundle runtime census must
 
 $roleMigrationManifest = Read-Json $RoleMigrationManifestPath
 Require ([string]$roleMigrationManifest.contract -eq "mad4b.staging.database-role-migration-manifest.v1") "Unsupported canonical Staging role migration manifest contract."
+Require ($roleMigrationManifest.source.nonempty_direct_schema_replay_forbidden -eq $true) "Canonical role manifest must forbid direct schema replay over non-empty databases."
+Require ($roleMigrationManifest.source.pre_apply_role_object_census_required -eq $true) "Canonical role manifest must require a pre-apply object census."
+Require ([string]$roleMigrationManifest.source.partial_role_rebuild_authority -eq "autopilot-portable-staging/Rebuild-EmptyStagingRoleDatabases.ps1") "Canonical partial-role rebuild authority mismatch."
 $canonicalRuntimeCensus = @($roleMigrationManifest.validation.required_runtime_table_census)
 Require ($canonicalRuntimeCensus.Count -eq 18) "Canonical Staging role manifest must declare exactly 18 runtime census tables."
 Assert-SetEqual $canonicalRuntimeCensus $requiredRuntimeCensus "schema bundle runtime census projection"
