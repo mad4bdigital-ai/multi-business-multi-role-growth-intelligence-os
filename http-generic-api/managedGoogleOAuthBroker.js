@@ -100,7 +100,8 @@ function normalizeSiteBinding(raw) {
   const origin = normalizeOrigin(raw.origin);
   const callbackUri = normalizeCallbackUrl(raw.callback_uri);
   const status = cleanText(raw.status || "active", 32).toLowerCase();
-  if (!UUID_RE.test(siteUuid) || !origin || !callbackUri || status !== "active") return null;
+  const keyId = cleanText(raw.key_id, 64);
+  if (!UUID_RE.test(siteUuid) || !origin || !callbackUri || !/^[A-Za-z0-9._:-]{3,64}$/.test(keyId) || status !== "active") return null;
   const callback = new URL(callbackUri);
   const originUrl = new URL(origin);
   if (callback.origin !== originUrl.origin) return null;
@@ -108,6 +109,7 @@ function normalizeSiteBinding(raw) {
     site_uuid: siteUuid,
     origin,
     callback_uri: callbackUri,
+    key_id: keyId,
     environment: cleanText(raw.environment || "", 32).toLowerCase(),
     status: "active",
   });
@@ -286,6 +288,25 @@ export class SqlManagedGoogleOAuthStore {
       throw brokerError(500, "managed_google_oauth_store_invalid", "Managed Google OAuth SQL store requires a MariaDB pool.");
     }
     this.pool = pool;
+  }
+
+  async consumeRequestNonce({ key_id, nonce_hash, site_uuid, expires_at, now }) {
+    try {
+      await this.pool.query(
+        `DELETE FROM managed_google_oauth_request_nonces WHERE expires_at<? LIMIT 200`,
+        [now]
+      );
+      await this.pool.query(
+        `INSERT INTO managed_google_oauth_request_nonces
+          (key_id,nonce_hash,site_uuid,expires_at,created_at)
+         VALUES (?,?,?,?,?)`,
+        [key_id, nonce_hash, site_uuid, expires_at, now]
+      );
+      return true;
+    } catch (error) {
+      if (Number(error?.errno) === 1062 || String(error?.code || "") === "ER_DUP_ENTRY") return false;
+      throw error;
+    }
   }
 
   async countRecentEvents(siteUuid, event, windowSeconds, nowDate) {
