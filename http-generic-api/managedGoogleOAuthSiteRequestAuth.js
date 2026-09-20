@@ -98,12 +98,18 @@ export function parseManagedGoogleSiteSecrets(env = process.env) {
     throw authError(503, "managed_google_site_auth_secrets_invalid", "Managed Google OAuth site authentication secrets must be a JSON object keyed by key_id.");
   }
   const out = new Map();
+  const seenSecretDigests = new Set();
   for (const [keyIdRaw, secretRaw] of Object.entries(parsed)) {
     const keyId = clean(keyIdRaw, 64);
     const secret = String(secretRaw || "");
     if (!KEY_ID_RE.test(keyId) || secret.length < 32) {
       throw authError(503, "managed_google_site_auth_secrets_invalid", "Managed Google OAuth site authentication secret registry contains an invalid key or secret.");
     }
+    const secretDigest = createHash("sha256").update(secret, "utf8").digest("hex");
+    if (seenSecretDigests.has(secretDigest)) {
+      throw authError(503, "managed_google_site_auth_secret_reused", "Managed Google OAuth site authentication secrets must be unique per key_id.");
+    }
+    seenSecretDigests.add(secretDigest);
     out.set(keyId, secret);
   }
   if (!out.size) throw authError(503, "managed_google_site_auth_secrets_invalid", "Managed Google OAuth site authentication secret registry is empty.");
