@@ -30,6 +30,34 @@ function enabled(value) {
   return ["true", "1", "yes"].includes(text(value).toLowerCase());
 }
 
+const MANAGED_GOOGLE_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const MANAGED_GOOGLE_KEY_ID_RE = /^[A-Za-z0-9._:-]{3,64}$/;
+
+function normalizeManagedGoogleOrigin(value) {
+  const raw = text(value);
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) return "";
+    const pathname = url.pathname === "/" ? "" : url.pathname.replace(/\/+$/, "");
+    return `${url.origin}${pathname}`;
+  } catch {
+    return "";
+  }
+}
+
+function normalizeManagedGoogleCallback(value) {
+  const raw = text(value);
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "https:" || url.username || url.password || url.hash) return "";
+    return url.toString();
+  } catch {
+    return "";
+  }
+}
+
 function secretEvidence(key, value) {
   const normalized = text(value);
   return {
@@ -122,8 +150,9 @@ export function evaluateProductionConfig(env = process.env) {
         url.protocol === "https:" &&
         !url.username &&
         !url.password &&
+        !url.search &&
         !url.hash &&
-        url.pathname.endsWith("/v1/google/oauth/callback");
+        url.pathname === "/v1/google/oauth/callback";
     } catch {
       managedGoogleRedirectValid = false;
     }
@@ -135,30 +164,59 @@ export function evaluateProductionConfig(env = process.env) {
   let managedGoogleSiteBindingCount = 0;
   let managedGoogleSiteBindingsValid = false;
   let managedGoogleSiteKeyIds = [];
+  let managedGoogleSiteBindingErrors = [];
   const managedGoogleBindingsRaw = text(env.MANAGED_GOOGLE_OAUTH_SITE_BINDINGS_JSON);
   if (managedGoogleBindingsRaw) {
     try {
       const parsed = JSON.parse(managedGoogleBindingsRaw);
-      if (Array.isArray(parsed)) {
-        const active = parsed.filter((row) =>
-          row &&
-          typeof row === "object" &&
-          String(row.status || "active").trim().toLowerCase() === "active" &&
-          String(row.site_uuid || "").trim() &&
-          String(row.origin || "").trim().startsWith("https://") &&
-          String(row.callback_uri || "").trim().startsWith("https://") &&
-          /^[A-Za-z0-9._:-]{3,64}$/.test(String(row.key_id || "").trim())
-        );
-        managedGoogleSiteBindingCount = active.length;
-        managedGoogleSiteKeyIds = active.map((row) => String(row.key_id || "").trim());
-        managedGoogleSiteBindingsValid = active.length > 0 && new Set(managedGoogleSiteKeyIds).size === active.length;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const normalized = parsed.map((row, index) => {
+          if (!row || typeof row !== "object" || Array.isArray(row)) {
+            managedGoogleSiteBindingErrors.push(`binding[${index}] must be an object`);
+            return null;
+          }
+          const siteUuid = text(row.site_uuid);
+          const origin = normalizeManagedGoogleOrigin(row.origin);
+          const callbackUri = normalizeManagedGoogleCallback(row.callback_uri);
+          const keyId = text(row.key_id);
+          const status = text(row.status || "active").toLowerCase();
+          if (!MANAGED_GOOGLE_UUID_RE.test(siteUuid)) managedGoogleSiteBindingErrors.push(`binding[${index}].site_uuid invalid`);
+          if (!origin) managedGoogleSiteBindingErrors.push(`binding[${index}].origin invalid`);
+          if (!callbackUri) managedGoogleSiteBindingErrors.push(`binding[${index}].callback_uri invalid`);
+          if (!MANAGED_GOOGLE_KEY_ID_RE.test(keyId)) managedGoogleSiteBindingErrors.push(`binding[${index}].key_id invalid`);
+          if (status !== "active") managedGoogleSiteBindingErrors.push(`binding[${index}].status must be active`);
+          if (origin && callbackUri) {
+            try {
+              const callback = new URL(callbackUri);
+              const originUrl = new URL(origin);
+              if (callback.origin !== originUrl.origin) managedGoogleSiteBindingErrors.push(`binding[${index}] callback origin mismatch`);
+            } catch {
+              managedGoogleSiteBindingErrors.push(`binding[${index}] URL parsing failed`);
+            }
+          }
+          if (managedGoogleSiteBindingErrors.length) return { site_uuid: siteUuid, origin, callback_uri: callbackUri, key_id: keyId, status };
+          return { site_uuid: siteUuid, origin, callback_uri: callbackUri, key_id: keyId, status };
+        });
+        managedGoogleSiteBindingCount = normalized.length;
+        managedGoogleSiteKeyIds = normalized.map((row) => row?.key_id || "");
+        const exactBindingKeys = normalized.map((row) => row ? `${row.site_uuid}|\0${row.origin}|\0${row.callback_uri}` : "");
+        if (new Set(managedGoogleSiteKeyIds).size !== managedGoogleSiteKeyIds.length) {
+          managedGoogleSiteBindingErrors.push("binding key_id values must be unique");
+        }
+        if (new Set(exactBindingKeys).size !== exactBindingKeys.length) {
+          managedGoogleSiteBindingErrors.push("exact site bindings must be unique");
+        }
+        managedGoogleSiteBindingsValid = managedGoogleSiteBindingErrors.length === 0;
+      } else {
+        managedGoogleSiteBindingErrors.push("registry must contain at least one binding");
       }
     } catch {
+      managedGoogleSiteBindingErrors.push("registry JSON is invalid");
       managedGoogleSiteBindingsValid = false;
     }
   }
   if (managedGoogleEnabled && !managedGoogleSiteBindingsValid) {
-    errors.push("MANAGED_GOOGLE_OAUTH_SITE_BINDINGS_JSON must contain at least one active HTTPS site binding.");
+    errors.push("MANAGED_GOOGLE_OAUTH_SITE_BINDINGS_JSON must contain only valid, unique, active exact HTTPS site bindings.");
   }
 
   let managedGoogleSiteSecretsValid = false;
@@ -214,6 +272,7 @@ export function evaluateProductionConfig(env = process.env) {
     site_binding_count: managedGoogleSiteBindingCount,
     site_bindings_valid: managedGoogleSiteBindingsValid,
     site_key_ids: managedGoogleSiteKeyIds,
+    site_binding_errors: managedGoogleSiteBindingErrors,
     site_secret_key_count: managedGoogleSiteSecretKeyCount,
     site_secrets_valid: managedGoogleSiteSecretsValid,
     site_secret_evidence: managedGoogleSiteSecretEvidence,
