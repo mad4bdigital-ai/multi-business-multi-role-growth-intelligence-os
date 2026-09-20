@@ -2675,6 +2675,22 @@
       ]
     },
     {
+      "rule_id": "wordpress-staging-plugin-deploy-internal-admin-surface",
+      "family_key": "wordpress-staging-plugin-deploy",
+      "source_file": "routes/wordpressStagingPluginDeployRoutes.js",
+      "scope": "admin",
+      "decision": "internal_only",
+      "owner": "runtime-operations",
+      "rationale": "The exact-artifact WordPress Staging deployment endpoint is an admin-only governed runtime API for dry-run and explicitly authorized Staging apply. It is not a browser navigation surface and cannot target Production, accept caller-selected targets or credentials, or bypass exact-artifact, approval, capability-envelope, and provenance controls.",
+      "evidence_refs": [
+        "routes/wordpressStagingPluginDeployRoutes.js",
+        "wordpressStagingPluginDeployExecutor.js",
+        "openapi/wordpress-staging-plugin-deploy.yaml",
+        "test-hostinger-ssh-deploy-executor.mjs",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
       "rule_id": "managed-google-oauth-broker-public-api",
       "source_file": "routes/managedGoogleOAuthRoutes.js",
       "scope": "public",
@@ -12171,6 +12187,45 @@
         "test-runtime-breakglass-broker.mjs",
         "docs/governance/runtime-breakglass-environments.md",
         "openapi.yaml"
+      ]
+    },
+    {
+      "rule_id": "wordpress-staging-plugin-deploy-external-effect",
+      "operation": "POST /platform/remote-runtime/wordpress/staging/deploy-plugin",
+      "source_file": "routes/wordpressStagingPluginDeployRoutes.js",
+      "classification": "external_effect",
+      "owner": "runtime-operations",
+      "rationale": "Dry-run performs bounded exact-artifact and server-owned Staging preflight only; apply can replace the MCP Adapter and Control Plane on the unique server-resolved ETG Staging target, so the operation is externally consequential and must remain bound to the feature gate, human approval reason, exact capability envelope, same-cycle provenance readback, and dual-plugin rollback.",
+      "preflight": {
+        "mode": "exact_reviewed_artifact_server_owned_target_and_live_site_profile"
+      },
+      "approval": {
+        "mode": "feature_gate_human_reason_and_exact_capability_envelope_for_apply"
+      },
+      "readback": {
+        "mode": "inline_post_commit",
+        "same_cycle": true
+      },
+      "rollback": {
+        "mode": "dual_plugin_backup_restore_on_failed_apply_or_exact_readback",
+        "rationale": "Both existing plugin directories are backed up before apply and restored when deployment or exact provenance readback fails."
+      },
+      "parameter_bindings": {
+        "expected_head_sha": "request.body.expected_head_sha",
+        "dry_run": "request.body.dry_run_default_true",
+        "approval_reason": "request.body.approval_reason_apply_only",
+        "capability_envelope": "request.body + server.capability_resolution_envelope_ledger",
+        "target": "server.remote_runtime.unique_validated_etg_staging_target",
+        "artifact": "server.github_actions.exact_head_general_distribution_kit"
+      },
+      "evidence_refs": [
+        "routes/wordpressStagingPluginDeployRoutes.js",
+        "wordpressStagingPluginDeployExecutor.js",
+        "hostingerSshDeployExecutor.js",
+        "openapi/wordpress-staging-plugin-deploy.yaml",
+        "migrations/20260920_wordpress_staging_plugin_deploy_v2_authority.sql",
+        "test-hostinger-ssh-deploy-executor.mjs",
+        "test-frontend-surface-coverage-claims.mjs"
       ]
     }
   ],
