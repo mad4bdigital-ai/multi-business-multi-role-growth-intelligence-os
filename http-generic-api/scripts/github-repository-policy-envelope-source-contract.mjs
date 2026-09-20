@@ -25,8 +25,9 @@ function constantDeclaration(source, name) {
 function extractFunction(source, marker) {
   const start = source.indexOf(marker);
   if (start < 0) throw new Error(`repository_policy_source_contract_function_missing:${marker}`);
-  const bodyStart = source.indexOf("{", start);
-  if (bodyStart < 0) throw new Error(`repository_policy_source_contract_function_body_missing:${marker}`);
+  const signatureEnd = source.indexOf(") {", start);
+  if (signatureEnd < 0) throw new Error(`repository_policy_source_contract_function_signature_missing:${marker}`);
+  const bodyStart = signatureEnd + 2;
 
   let depth = 0;
   let quote = null;
