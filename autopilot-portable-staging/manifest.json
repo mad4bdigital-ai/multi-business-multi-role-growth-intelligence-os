@@ -330,7 +330,7 @@
     },
     {
       "path": "http-generic-api/config/staging-database-role-migration-manifest.json",
-      "sha256": "9344e7a80d8c9665d3115c6ec0f1fc21dfc75433e13ab49ce8828882c62afb9b"
+      "sha256": "981279568444c58dbd32890d82013a5803c8ddd0a8335045d4cf532ed637e997"
     },
     {
       "path": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
