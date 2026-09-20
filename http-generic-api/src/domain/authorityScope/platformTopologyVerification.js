@@ -1,6 +1,8 @@
+import { PLATFORM_ADMIN_WORKSPACE_AUTHORITY } from "./platformAdminWorkspaceAuthority.generated.js";
+
 export const PLATFORM_TOPOLOGY_CONTRACT = Object.freeze({
-  authorityScopeKey: "platform:root",
-  adminWorkspaceKey: "platform_admin_workspace",
+  authorityScopeKey: PLATFORM_ADMIN_WORKSPACE_AUTHORITY.resolver.authority_scope_key,
+  adminWorkspaceKey: PLATFORM_ADMIN_WORKSPACE_AUTHORITY.resolver.candidate_workspace_key,
   platformBrandTargetKey: "growth_intelligence_platform",
 });
 
