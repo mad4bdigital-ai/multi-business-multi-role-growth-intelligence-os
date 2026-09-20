@@ -75,7 +75,19 @@ function resolveStagingGatewayDataPools(deps = {}) {
       503,
     );
   }
-  assertPlatformResourceAuthorityStoreSource({ pool: governancePool, runtimePool });
+  try {
+    assertPlatformResourceAuthorityStoreSource({ pool: governancePool, runtimePool });
+  } catch (error) {
+    if (error?.code === "PLATFORM_RESOURCE_AUTHORITY_RUNTIME_POOL_FORBIDDEN") {
+      throw adapterError(
+        "staging_activation_gateway_runtime_database_authority_mismatch",
+        "Runtime and Governance database authorities must resolve to distinct executors.",
+        503,
+        { cause_code: error.code },
+      );
+    }
+    throw error;
+  }
   return { runtimePool, governancePool };
 }
 
