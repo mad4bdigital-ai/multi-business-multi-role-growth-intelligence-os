@@ -75,7 +75,63 @@ function classify(table) {
   return null;
 }
 
-export function resolveMutationLifecycle(statement, dataset) {
+function stripSqlComments(statement) {
+  const source = String(statement || "");
+  let output = "";
+  let quote = null;
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index];
+    const next = source[index + 1];
+    if (quote) {
+      output += char;
+      if (char === "\\" && next) {
+        output += next;
+        index += 1;
+        continue;
+      }
+      if (char === quote) {
+        if (quote === "'" && next === "'") {
+          output += next;
+          index += 1;
+          continue;
+        }
+        quote = null;
+      }
+      continue;
+    }
+    if (char === "'" || char === '"' || char === "`") {
+      quote = char;
+      output += char;
+      continue;
+    }
+    if (char === "-" && next === "-") {
+      while (index < source.length && source[index] !== "\n") index += 1;
+      output += "\n";
+      continue;
+    }
+    if (char === "#") {
+      while (index < source.length && source[index] !== "\n") index += 1;
+      output += "\n";
+      continue;
+    }
+    if (char === "/" && next === "*") {
+      index += 2;
+      while (index < source.length && !(source[index] === "*" && source[index + 1] === "/")) index += 1;
+      index += 1;
+      output += " ";
+      continue;
+    }
+    output += char;
+  }
+  return output;
+}
+
+function leadingCommentPrefix(statement) {
+  return String(statement || "").match(/^(?:(?:\s*--[^\n]*(?:\n|$))|(?:\s*#[^\n]*(?:\n|$))|(?:\s*\/\*[\s\S]*?\*\/)|\s)*/u)?.[0] || "";
+}
+
+function escapeRegex(value) {
+  return String(value).replace(/[\^$.*+?()[\]{}|\\]/gu, "\\export function resolveMutationLifecycle(statement, dataset) {
   if (!dataset) return { lifecycle_class: null, resolution: "unclassified" };
   if (dataset.class !== "mixed") return { lifecycle_class: dataset.class, resolution: "dataset" };
 
@@ -88,6 +144,70 @@ export function resolveMutationLifecycle(statement, dataset) {
 
   const annotation = String(dataset.environment_annotation || "").trim();
   if (annotation && String(statement).includes(annotation)) {
+    return { lifecycle_class: "environment_state", resolution: "explicit_environment_annotation" };
+  }
+
+  return { lifecycle_class: "mixed_unresolved", resolution: "fail_closed" };
+}");
+}
+
+function sqlLiteral(value) {
+  return "'" + String(value).replaceAll("'", "''") + "'";
+}
+
+function equalityPredicatePresent(clause, column, value) {
+  const columnPattern = "(?:`" + escapeRegex(column) + "`|" + escapeRegex(column) + ")";
+  const literalPattern = escapeRegex(sqlLiteral(value));
+  return new RegExp("(?:^|[^A-Za-z0-9_$])" + columnPattern + "\\s*=\\s*" + literalPattern + "(?=$|[^A-Za-z0-9_$])", "iu").test(clause);
+}
+
+function canonicalRowMutationMatches(statement, row, file, mutation) {
+  const selector = row?.mutation_selector;
+  if (!selector || selector.mode !== "seed_file_and_exact_selector") return false;
+  if (!file || file !== row.seed_file) return false;
+  const normalized = stripSqlComments(statement);
+  const operation = String(mutation?.operation || "");
+
+  if (operation.startsWith("UPDATE")) {
+    const whereMatch = normalized.match(/\bWHERE\b([\s\S]*)$/iu);
+    if (!whereMatch || /\bOR\b/iu.test(whereMatch[1])) return false;
+    const requiredEquals = Object.entries(selector.update_where_equals || {});
+    return requiredEquals.length > 0
+      && requiredEquals.every(([column, value]) => equalityPredicatePresent(whereMatch[1], column, value));
+  }
+
+  if (operation.startsWith("INSERT")) {
+    const guardIndex = normalized.search(/\bWHERE\s+NOT\s+EXISTS\s*\(/iu);
+    if (guardIndex < 0) return false;
+    const insertSegment = normalized.slice(0, guardIndex);
+    const guardSegment = normalized.slice(guardIndex);
+    if (/\bFROM\b/iu.test(insertSegment)) return false;
+    if ((selector.insert_forbidden_tokens || []).some((token) => new RegExp("\\b" + escapeRegex(token) + "\\b", "iu").test(normalized))) return false;
+    const columnsMatch = insertSegment.match(/^\s*INSERT(?:\s+(?:LOW_PRIORITY|DELAYED|HIGH_PRIORITY|IGNORE))*\s+INTO\s+`?workspace_registry`?\s*\(([^)]*)\)\s*SELECT\b/iu);
+    if (!columnsMatch) return false;
+    const columns = columnsMatch[1].split(",").map((value) => value.trim().replaceAll("`", ""));
+    if (JSON.stringify(columns) !== JSON.stringify(selector.insert_columns || [])) return false;
+    if (!(selector.insert_required_literals || []).every((value) => normalized.includes(sqlLiteral(value)))) return false;
+    const guardEquals = Object.entries(selector.insert_guard_equals || {});
+    return guardEquals.length > 0
+      && guardEquals.every(([column, value]) => equalityPredicatePresent(guardSegment, column, value));
+  }
+
+  return false;
+}
+
+export function resolveMutationLifecycle(statement, dataset, { file = null, mutation = mutationTarget(statement) } = {}) {
+  if (!dataset) return { lifecycle_class: null, resolution: "unclassified" };
+  if (dataset.class !== "mixed") return { lifecycle_class: dataset.class, resolution: "dataset" };
+
+  for (const row of dataset.canonical_rows || []) {
+    if (canonicalRowMutationMatches(statement, row, file, mutation)) {
+      return { lifecycle_class: "canonical_registry", resolution: "canonical_seed_exact_selector", canonical_row: row.key };
+    }
+  }
+
+  const annotation = String(dataset.environment_annotation || "").trim();
+  if (annotation && leadingCommentPrefix(statement).includes(annotation)) {
     return { lifecycle_class: "environment_state", resolution: "explicit_environment_annotation" };
   }
 
@@ -118,11 +238,28 @@ if (process.argv.includes("--self-test")) {
   }
 
   const mixed = contract.datasets.workspace_registry;
-  const canonical = resolveMutationLifecycle("UPDATE workspace_registry SET updated_at=NOW() WHERE workspace_key='platform_repo_governance_zero'", mixed);
-  const environment = resolveMutationLifecycle("-- lifecycle:environment_state\nUPDATE workspace_registry SET updated_at=NOW() WHERE workspace_id='tenant-workspace'", mixed);
-  const unresolved = resolveMutationLifecycle("UPDATE workspace_registry SET updated_at=NOW()", mixed);
-  if (canonical.lifecycle_class !== "canonical_registry" || environment.lifecycle_class !== "environment_state" || unresolved.lifecycle_class !== "mixed_unresolved") {
-    throw new Error("mixed-table lifecycle resolution must distinguish canonical, annotated environment, and unresolved mutations");
+  const canonicalFile = mixed.canonical_rows[0].seed_file;
+  const canonical = resolveMutationLifecycle(
+    "UPDATE workspace_registry SET updated_at=NOW() WHERE workspace_id='b50db01b-617e-4b7a-8bda-6bf4876f754f' AND tenant_id='00000000-0000-0000-0000-000000000000' AND workspace_key='platform_repo_governance_zero' AND display_name='Platform Admin' AND workspace_type='brand' AND bootstrap_status='ready'",
+    mixed,
+    { file: canonicalFile },
+  );
+  const commentBypass = resolveMutationLifecycle("-- platform_repo_governance_zero\nUPDATE workspace_registry SET bootstrap_status='ready'", mixed, { file: canonicalFile });
+  const wrongFile = resolveMutationLifecycle(
+    "UPDATE workspace_registry SET updated_at=NOW() WHERE workspace_id='b50db01b-617e-4b7a-8bda-6bf4876f754f' AND tenant_id='00000000-0000-0000-0000-000000000000' AND workspace_key='platform_repo_governance_zero' AND display_name='Platform Admin' AND workspace_type='brand' AND bootstrap_status='ready'",
+    mixed,
+    { file: "20260920_unreviewed_workspace_mutation.sql" },
+  );
+  const broadSelector = resolveMutationLifecycle("UPDATE workspace_registry SET workspace_key='platform_repo_governance_zero'", mixed, { file: canonicalFile });
+  const environment = resolveMutationLifecycle("-- lifecycle:environment_state\nUPDATE workspace_registry SET updated_at=NOW() WHERE workspace_id='tenant-workspace'", mixed, { file: "environment-state-change.sql" });
+  const unresolved = resolveMutationLifecycle("UPDATE workspace_registry SET updated_at=NOW()", mixed, { file: canonicalFile });
+  if (canonical.lifecycle_class !== "canonical_registry"
+      || commentBypass.lifecycle_class !== "mixed_unresolved"
+      || wrongFile.lifecycle_class !== "mixed_unresolved"
+      || broadSelector.lifecycle_class !== "mixed_unresolved"
+      || environment.lifecycle_class !== "environment_state"
+      || unresolved.lifecycle_class !== "mixed_unresolved") {
+    throw new Error("mixed-table lifecycle resolution must require the canonical seed file plus an exact selector and reject token/comment bypasses");
   }
 
   if (usableCommitSha("0".repeat(40))) {
@@ -135,6 +272,9 @@ if (process.argv.includes("--self-test")) {
     cte_mutation_classified: true,
     truncate_mutation_classified: true,
     mixed_table_fail_closed: true,
+    mixed_table_comment_token_bypass_rejected: true,
+    mixed_table_wrong_file_canonical_rejected: true,
+    mixed_table_broad_selector_rejected: true,
     zero_base_sha_rejected: true,
     migration_deletion_is_blocking: true,
     runtime_state_migration_mutation_forbidden: true,
@@ -200,6 +340,15 @@ for (const [table, dataset] of Object.entries(contract.datasets || {})) {
     if (row.cardinality !== "exactly_one" || !row.readback_token || !importer.includes(row.readback_token) || !importer.includes("Assert-CountExactly")) {
       findings.push({ category: "canonical_postcondition_missing", table, file: row.seed_file });
     }
+    if (row.resolver_cardinality) {
+      const resolver = row.resolver_cardinality;
+      if (resolver.cardinality !== "exactly_one"
+          || resolver.require_ready !== true
+          || !resolver.readback_token
+          || !importer.includes(resolver.readback_token)) {
+        findings.push({ category: "canonical_resolver_postcondition_missing", table, file: row.seed_file });
+      }
+    }
   }
 }
 
@@ -220,7 +369,7 @@ for (const file of selectedFiles) {
     }
 
     const dataset = classify(mutation.table);
-    const lifecycle = resolveMutationLifecycle(statement, dataset);
+    const lifecycle = resolveMutationLifecycle(statement, dataset, { file, mutation });
     inventory.push({ file, ...mutation, lifecycle_class: lifecycle.lifecycle_class, lifecycle_resolution: lifecycle.resolution, canonical_row: lifecycle.canonical_row || null });
 
     if (!dataset) {
