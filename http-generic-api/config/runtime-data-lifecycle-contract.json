@@ -7,7 +7,9 @@
     "unclassified_mutation_is_blocking": true,
     "canonical_seed_must_be_replayable": true,
     "canonical_seed_postcondition_required": true,
-    "legacy_exclusions": []
+    "legacy_exclusions": [],
+    "mixed_table_mutation_requires_resolution": true,
+    "semantic_replay_debt_is_reported": true
   },
   "datasets": {
     "workspace_registry": {
@@ -24,9 +26,15 @@
             "platform:root"
           ],
           "cardinality": "exactly_one",
-          "readback_token": "canonical Platform Admin workspace"
+          "readback_token": "canonical Platform Admin workspace",
+          "identity_tokens": [
+            "b50db01b-617e-4b7a-8bda-6bf4876f754f",
+            "platform_repo_governance_zero"
+          ]
         }
-      ]
+      ],
+      "mixed_mutation_policy": "canonical_selector_or_environment_annotation",
+      "environment_annotation": "lifecycle:environment_state"
     },
     "admin_platform_endpoint_tools": {
       "class": "canonical_registry",
@@ -37,7 +45,10 @@
         {
           "key": "wordpress_staging_plugin_deploy",
           "seed_file": "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
-          "selector_tokens": ["wordpress_staging_plugin_deploy", "/platform/remote-runtime/wordpress/staging/deploy-plugin"],
+          "selector_tokens": [
+            "wordpress_staging_plugin_deploy",
+            "/platform/remote-runtime/wordpress/staging/deploy-plugin"
+          ],
           "cardinality": "exactly_one",
           "readback_token": "canonical WordPress Staging deploy admin tool"
         }
@@ -51,7 +62,10 @@
         {
           "key": "wordpress_staging_plugin_deploy",
           "seed_file": "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
-          "selector_tokens": ["remote_ssh_runtime", "wordpress_staging_plugin_deploy"],
+          "selector_tokens": [
+            "remote_ssh_runtime",
+            "wordpress_staging_plugin_deploy"
+          ],
           "cardinality": "exactly_one",
           "readback_token": "canonical WordPress Staging deploy command"
         }
@@ -65,7 +79,10 @@
         {
           "key": "wordpress_staging_plugin_deploy_exact_artifact_guard",
           "seed_file": "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
-          "selector_tokens": ["wordpress_staging_plugin_deploy_governance", "wordpress_staging_plugin_deploy_exact_artifact_guard"],
+          "selector_tokens": [
+            "wordpress_staging_plugin_deploy_governance",
+            "wordpress_staging_plugin_deploy_exact_artifact_guard"
+          ],
           "cardinality": "exactly_one",
           "readback_token": "canonical WordPress Staging deploy execution policy"
         }
@@ -83,14 +100,38 @@
       "zero_rows_allowed": false,
       "known_replay_gap": true
     },
-    "connected_systems": { "class": "environment_state", "recovery": "preserve_or_explicit_reprovision" },
-    "installations": { "class": "environment_state", "recovery": "preserve_or_explicit_reprovision" },
-    "credential_bindings": { "class": "environment_state", "recovery": "preserve_or_explicit_reprovision" },
-    "memberships": { "class": "operational_state", "reseed_forbidden": true },
-    "role_assignments": { "class": "operational_state", "reseed_forbidden": true },
-    "permission_grants": { "class": "operational_state", "reseed_forbidden": true },
-    "customer_sessions": { "class": "operational_state", "reseed_forbidden": true },
-    "gpt_session_turns": { "class": "operational_state", "reseed_forbidden": true }
+    "connected_systems": {
+      "class": "environment_state",
+      "recovery": "preserve_or_explicit_reprovision"
+    },
+    "installations": {
+      "class": "environment_state",
+      "recovery": "preserve_or_explicit_reprovision"
+    },
+    "credential_bindings": {
+      "class": "environment_state",
+      "recovery": "preserve_or_explicit_reprovision"
+    },
+    "memberships": {
+      "class": "operational_state",
+      "reseed_forbidden": true
+    },
+    "role_assignments": {
+      "class": "operational_state",
+      "reseed_forbidden": true
+    },
+    "permission_grants": {
+      "class": "operational_state",
+      "reseed_forbidden": true
+    },
+    "customer_sessions": {
+      "class": "operational_state",
+      "reseed_forbidden": true
+    },
+    "gpt_session_turns": {
+      "class": "operational_state",
+      "reseed_forbidden": true
+    }
   },
   "table_families": [
     {
