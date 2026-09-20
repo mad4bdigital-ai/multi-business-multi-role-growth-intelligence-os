@@ -530,6 +530,7 @@ const protocolPolicy = readFileSync("./managedGoogleOAuthProtocolPolicy.js", "ut
 const openapi = readFileSync("./openapi.yaml", "utf8");
 const openapiDoc = YAML.parse(openapi);
 const frontendPolicy = JSON.parse(readFileSync("./frontend-surface-policy.json", "utf8"));
+const frontendDispatchSource = readFileSync("./scripts/frontend-surface-dispatch.mjs", "utf8");
 const customGptSurfaceRegistry = readFileSync("../canonicals/openapi/custom-gpt-surfaces.yaml", "utf8");
 const pathFormatGuard = readFileSync("./scripts/ci-path-format-guard.mjs", "utf8");
 const configRegistry = JSON.parse(readFileSync("../docs/governance/platform-configuration-entry-registry.json", "utf8"));
@@ -616,6 +617,14 @@ const managedSiteAuthRule = frontendPolicy.auth_rules.find((rule) => rule.rule_i
 assert.ok(managedSiteAuthRule, "managed Google OAuth POST route family must have explicit site-HMAC auth policy");
 assert.equal(managedSiteAuthRule.profile, "managed_google_site_hmac");
 assert.equal(managedSiteAuthRule.source_file, "routes/managedGoogleOAuthRoutes.js");
+assert.ok(
+  frontendDispatchSource.includes('managed_google_site_hmac: { alternatives: [["managedGoogleSiteHmac"]]'),
+  "frontend surface auth registry must resolve managed_google_site_hmac to managedGoogleSiteHmac",
+);
+assert.ok(
+  frontendDispatchSource.includes('"MANAGED_GOOGLE_OAUTH_SITE_BINDINGS_JSON", "MANAGED_GOOGLE_OAUTH_SITE_SECRETS_JSON"'),
+  "managed Google site-HMAC auth profile must retain exact server-owned configuration dependencies",
+);
 assert.deepEqual([...managedSiteAuthRule.operations].sort(), [
   "POST /v1/google/oauth/redeem",
   "POST /v1/google/oauth/refresh",
