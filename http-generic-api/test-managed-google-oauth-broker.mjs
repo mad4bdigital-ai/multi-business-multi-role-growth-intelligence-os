@@ -357,6 +357,7 @@ const routes = readFileSync("./routes/managedGoogleOAuthRoutes.js", "utf8");
 const protocolPolicy = readFileSync("./managedGoogleOAuthProtocolPolicy.js", "utf8");
 const openapi = readFileSync("./openapi.yaml", "utf8");
 const frontendPolicy = JSON.parse(readFileSync("./frontend-surface-policy.json", "utf8"));
+const customGptSurfaceRegistry = readFileSync("../canonicals/openapi/custom-gpt-surfaces.yaml", "utf8");
 const configRegistry = JSON.parse(readFileSync("../docs/governance/platform-configuration-entry-registry.json", "utf8"));
 const driftPolicy = JSON.parse(readFileSync("../docs/governance/configuration-drift-policy.json", "utf8"));
 const routeIndex = readFileSync("./routes/index.js", "utf8");
@@ -406,6 +407,18 @@ assert.deepEqual([...managedAuthRule.operations].sort(), [
   "POST /v1/google/oauth/refresh",
   "POST /v1/google/oauth/session",
 ]);
+
+for (const operationId of [
+  "createManagedGoogleOAuthSession",
+  "completeManagedGoogleOAuthProviderCallback",
+  "redeemManagedGoogleOAuthHandoff",
+  "refreshManagedGoogleOAuthAccessToken",
+]) {
+  assert.ok(
+    customGptSurfaceRegistry.includes(`operation_id: ${operationId}`),
+    `managed OAuth protocol operation must have an explicit Custom GPT/Remote MCP exclusion: ${operationId}`,
+  );
+}
 
 const registeredKeys = new Set(configRegistry.entries.map((entry) => entry.config_key));
 for (const key of [
