@@ -6,6 +6,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import YAML from "yaml";
 import { buildManagedGoogleOAuthRoutes } from "./routes/managedGoogleOAuthRoutes.js";
 import {
   GOOGLE_DRIVE_READ_SCOPE,
@@ -527,6 +528,7 @@ const routes = readFileSync("./routes/managedGoogleOAuthRoutes.js", "utf8");
 const siteAuthSource = readFileSync("./managedGoogleOAuthSiteRequestAuth.js", "utf8");
 const protocolPolicy = readFileSync("./managedGoogleOAuthProtocolPolicy.js", "utf8");
 const openapi = readFileSync("./openapi.yaml", "utf8");
+const openapiDoc = YAML.parse(openapi);
 const frontendPolicy = JSON.parse(readFileSync("./frontend-surface-policy.json", "utf8"));
 const customGptSurfaceRegistry = readFileSync("../canonicals/openapi/custom-gpt-surfaces.yaml", "utf8");
 const pathFormatGuard = readFileSync("./scripts/ci-path-format-guard.mjs", "utf8");
@@ -558,21 +560,52 @@ assert.ok(protocolPolicy.includes("mad4b.provider-protocol-policy-registry.v1"),
 assert.ok(protocolPolicy.includes("provider_protocol_policy_registry"), "provider protocol policy registry marker missing");
 assert.equal(/\bconst\s+GOOGLE_TOKEN_ENDPOINT\s*=/.test(readFileSync("./managedGoogleOAuthBroker.js", "utf8")), false, "broker core must not own provider protocol endpoint constants");
 
+const managedOperations = new Map();
+for (const [pathKey, pathItem] of Object.entries(openapiDoc.paths || {})) {
+  for (const [method, operation] of Object.entries(pathItem || {})) {
+    if (!["get", "post", "put", "patch", "delete"].includes(method)) continue;
+    if (operation?.operationId) managedOperations.set(operation.operationId, { pathKey, method, operation });
+  }
+}
+
 for (const operationId of [
   "createManagedGoogleOAuthSession",
   "completeManagedGoogleOAuthProviderCallback",
   "redeemManagedGoogleOAuthHandoff",
   "refreshManagedGoogleOAuthAccessToken",
 ]) {
-  assert.ok(openapi.includes(`operationId: ${operationId}`), `canonical OpenAPI missing ${operationId}`);
+  assert.ok(managedOperations.has(operationId), `canonical OpenAPI missing ${operationId}`);
 }
-assert.ok(openapi.includes("credential_material_included: { type: boolean, enum: [true] }"), "token-bearing OpenAPI responses must declare credential material accurately");
-assert.ok(openapi.includes("managedGoogleSiteHmac:"), "managed OAuth OpenAPI must declare the site-HMAC security scheme");
-for (const header of ["X-MAD4B-Site-Key-ID", "X-MAD4B-Site-Timestamp", "X-MAD4B-Site-Nonce", "X-MAD4B-Site-Signature"]) {
-  assert.ok(openapi.includes(header), `managed OAuth OpenAPI missing required site-auth header: ${header}`);
+
+const managedSiteScheme = openapiDoc?.components?.securitySchemes?.managedGoogleSiteHmac;
+assert.equal(managedSiteScheme?.type, "apiKey", "managed OAuth site-HMAC scheme must be declared as apiKey");
+assert.equal(managedSiteScheme?.in, "header", "managed OAuth site-HMAC scheme must bind a request header");
+assert.equal(managedSiteScheme?.name, "X-MAD4B-Site-Signature", "managed OAuth site-HMAC scheme must bind the signature header");
+
+for (const operationId of [
+  "createManagedGoogleOAuthSession",
+  "redeemManagedGoogleOAuthHandoff",
+  "refreshManagedGoogleOAuthAccessToken",
+]) {
+  const operation = managedOperations.get(operationId)?.operation;
+  assert.deepEqual(operation?.security, [{ managedGoogleSiteHmac: [] }], `${operationId} must require managedGoogleSiteHmac`);
+  const headerNames = new Set((operation?.parameters || []).filter((entry) => entry?.in === "header").map((entry) => entry.name));
+  for (const header of ["X-MAD4B-Site-Key-ID", "X-MAD4B-Site-Timestamp", "X-MAD4B-Site-Nonce", "X-MAD4B-Site-Signature"]) {
+    assert.ok(headerNames.has(header), `${operationId} missing required site-auth header: ${header}`);
+  }
 }
-assert.ok(openapi.includes("- managedGoogleSiteHmac: []"), "managed OAuth POST operations must require site-HMAC security");
-assert.equal(openapi.includes("pattern: '^[A-Za-z0-9_-]{43}    get:"), false, "managed OAuth OpenAPI verifier pattern must not be truncated");
+
+const callbackOperation = managedOperations.get("completeManagedGoogleOAuthProviderCallback")?.operation;
+assert.deepEqual(callbackOperation?.security, [], "Google provider callback must remain public/state-bound rather than site-HMAC authenticated");
+
+for (const operationId of ["redeemManagedGoogleOAuthHandoff", "refreshManagedGoogleOAuthAccessToken"]) {
+  const responseSchema = managedOperations.get(operationId)?.operation?.responses?.["200"]?.content?.["application/json"]?.schema;
+  assert.deepEqual(
+    responseSchema?.properties?.credential_material_included,
+    { type: "boolean", enum: [true] },
+    `${operationId} token-bearing response must declare credential material accurately`,
+  );
+}
 
 const managedSurfaceRule = frontendPolicy.rules.find((rule) => rule.source_file === "routes/managedGoogleOAuthRoutes.js");
 assert.ok(managedSurfaceRule, "managed Google OAuth route family must have a frontend surface policy decision");
@@ -599,11 +632,9 @@ for (const operationId of [
   "redeemManagedGoogleOAuthHandoff",
   "refreshManagedGoogleOAuthAccessToken",
 ]) {
-  const operationIndex = openapi.indexOf(`operationId: ${operationId}`);
-  assert.ok(operationIndex >= 0, `managed OAuth source OpenAPI operation missing: ${operationId}`);
-  const operationWindow = openapi.slice(operationIndex, operationIndex + 800);
-  assert.ok(operationWindow.includes("x-custom-gpt-exclude: true"), `managed OAuth operation must be globally excluded from Custom GPT projection: ${operationId}`);
-  assert.ok(operationWindow.includes("x-gpt-action-exclude: true"), `managed OAuth operation must be globally excluded from GPT Actions: ${operationId}`);
+  const operation = managedOperations.get(operationId)?.operation;
+  assert.equal(operation?.["x-custom-gpt-exclude"], true, `managed OAuth operation must be globally excluded from Custom GPT projection: ${operationId}`);
+  assert.equal(operation?.["x-gpt-action-exclude"], true, `managed OAuth operation must be globally excluded from GPT Actions: ${operationId}`);
   assert.equal(
     customGptSurfaceRegistry.includes(`operation_id: ${operationId}`),
     false,
