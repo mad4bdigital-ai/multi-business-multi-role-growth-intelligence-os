@@ -293,7 +293,8 @@
           "http-generic-api/scripts/test-protected-branch-validation-triggers.mjs",
           "http-generic-api/scripts/migration-contract-governance.mjs",
           "http-generic-api/scripts/run-test-and-run-adaptive-authorization-verification-manifest.mjs",
-          "docs/openapi-split-governance.md"
+          "docs/openapi-split-governance.md",
+          "http-generic-api/scripts/github-repository-policy-envelope-source-contract.mjs"
         ],
         "environments": [
           "repository"

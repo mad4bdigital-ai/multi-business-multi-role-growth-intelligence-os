@@ -5,6 +5,7 @@ import { splitMigrationSqlStatements } from "../../http-generic-api/migrationSql
 import { buildGithubRepositoryPolicyCapabilityBinding } from "../../http-generic-api/githubRepositoryPolicyController.js";
 import { buildAdminControlDbReadRequest } from "./lib/admin-control-db-request.mjs";
 import { classifyMigrationReadbackFailure } from "./lib/migration-readback-diagnostics.mjs";
+import { repositoryPolicyEnvelopeSourceContract } from "../../http-generic-api/scripts/github-repository-policy-envelope-source-contract.mjs";
 import {
   activationRequester,
   branchConfirmation,
@@ -41,7 +42,6 @@ const MIGRATION = "1051_github_repository_policy_live_apply_authority.sql";
 const MIGRATION_PATH = `http-generic-api/migrations/${MIGRATION}`;
 const MIGRATION_BLOB_SHA = "a705b4425c962b65efae3f92a7e9ef20706e0841";
 const ENVELOPE_CREATOR_PATH = "http-generic-api/scripts/capability-resolution-envelope-create.mjs";
-const ENVELOPE_CREATOR_BLOB_SHA = "ecbadfc10975620a571f297fc8bb73f179b38a58";
 const EXPECTED_MIGRATION_STATEMENTS = 6;
 
 let stage = "start";
@@ -181,11 +181,22 @@ async function verifySourceAndRuntimeParity() {
   targetSha = TARGET_BRANCH === "main" ? mainSha : productionSha;
   otherSha = TARGET_BRANCH === "main" ? productionSha : mainSha;
   const runtimeSha = productionSha;
-  for (const [filePath, expectedBlob] of [[MIGRATION_PATH, MIGRATION_BLOB_SHA], [ENVELOPE_CREATOR_PATH, ENVELOPE_CREATOR_BLOB_SHA]]) {
-    const file = await githubJson(`/repos/${REPO}/contents/${filePath}?ref=${runtimeSha}`);
-    assert.equal(String(file?.sha || "").toLowerCase(), expectedBlob, `Runtime source blob mismatch: ${filePath}`);
-  }
   const migrationFile = await githubJson(`/repos/${REPO}/contents/${MIGRATION_PATH}?ref=${runtimeSha}`);
+  assert.equal(String(migrationFile?.sha || "").toLowerCase(), MIGRATION_BLOB_SHA, `Runtime source blob mismatch: ${MIGRATION_PATH}`);
+
+  const [sourceEnvelopeFile, runtimeEnvelopeFile] = await Promise.all([
+    githubJson(`/repos/${REPO}/contents/${ENVELOPE_CREATOR_PATH}?ref=${mainSha}`),
+    githubJson(`/repos/${REPO}/contents/${ENVELOPE_CREATOR_PATH}?ref=${runtimeSha}`),
+  ]);
+  const decodeSource = (file) => Buffer.from(String(file?.content || "").replace(/\s+/g, ""), "base64").toString("utf8");
+  const sourceEnvelopeContract = repositoryPolicyEnvelopeSourceContract(decodeSource(sourceEnvelopeFile));
+  const runtimeEnvelopeContract = repositoryPolicyEnvelopeSourceContract(decodeSource(runtimeEnvelopeFile));
+  assert.equal(
+    runtimeEnvelopeContract.fingerprint,
+    sourceEnvelopeContract.fingerprint,
+    `Runtime repository-policy envelope contract mismatch: ${ENVELOPE_CREATOR_PATH}`,
+  );
+
   const sql = Buffer.from(String(migrationFile.content || "").replace(/\s+/g, ""), "base64").toString("utf8");
   migrationChecksum = sha256(sql);
   assert.equal(splitMigrationSqlStatements(sql).length, EXPECTED_MIGRATION_STATEMENTS, "Migration 1051 statement count drifted");
@@ -194,7 +205,7 @@ async function verifySourceAndRuntimeParity() {
     if (health.http_ok && health.payload?.ok === true && version.http_ok && collectShas(version.payload).has(runtimeSha) && deployment.http_ok && collectShas(deployment.payload).has(runtimeSha)) {
       assert.equal(await currentRefSha("main"), mainSha, "main moved during runtime parity");
       assert.equal(await currentRefSha("Production"), productionSha, "Production moved during runtime parity");
-      return { target_branch: TARGET_BRANCH, target_sha: targetSha, main_sha: mainSha, production_sha: productionSha, migration_checksum_sha256: migrationChecksum, attempt, health: "pass", version: "pass", deployment: "pass", secrets_included: false };
+      return { target_branch: TARGET_BRANCH, target_sha: targetSha, main_sha: mainSha, production_sha: productionSha, migration_checksum_sha256: migrationChecksum, envelope_creator_contract_fingerprint: sourceEnvelopeContract.fingerprint, attempt, health: "pass", version: "pass", deployment: "pass", secrets_included: false };
     }
     if (attempt < 24) await new Promise((resolve) => setTimeout(resolve, 15000));
   }
