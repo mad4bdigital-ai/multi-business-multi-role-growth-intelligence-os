@@ -45,6 +45,7 @@ const IDENTITY=Object.freeze({
 function sha256(value){return crypto.createHash("sha256").update(value).digest("hex");}
 function stable(value){if(Array.isArray(value))return value.map(stable);if(value&&typeof value==="object")return Object.fromEntries(Object.keys(value).sort().map((key)=>[key,stable(value[key])]));return value;}
 function fingerprint(value){return sha256(JSON.stringify(stable(value)));}
+function requiredConfirmation(planSha){return `REPAIR_STAGING_CANONICAL_DATA_${String(planSha).slice(0,12).toUpperCase()}`;}
 function clean(value){return String(value??"").trim();}
 function parseConfigState(value){
   if(value&&typeof value==="object"&&!Array.isArray(value)) return {valid:true,value};
@@ -123,6 +124,7 @@ function validatePlanBindings(plan,actualCommit){
   const actual=clean(actualCommit).toLowerCase();
   if(!plan||plan.contract!=="mad4b.staging.canonical-semantic-repair-plan.v2"){const error=new Error("Canonical semantic repair plan contract is invalid.");error.code="STAGING_CANONICAL_REPAIR_PLAN_INVALID";throw error;}
   if(!SHA.test(actual)||actual!==plan.expected_commit){const error=new Error("Canonical semantic repair plan is stale for the checked-out commit.");error.code="STAGING_CANONICAL_REPAIR_STALE_PLAN";throw error;}
+  if(plan.expected_repository!==REPOSITORY||plan.target_environment!=="staging"||plan.target_role!=="runtime"||plan.execution_authority!=="repository_bound_runtime_repair_capability"||plan.production_access_forbidden!==true||plan.provider_access_forbidden!==true||plan.caller_sql_forbidden!==true||plan.caller_target_forbidden!==true){const error=new Error("Canonical semantic repair target authority is invalid.");error.code="STAGING_CANONICAL_REPAIR_TARGET_AUTHORITY_MISMATCH";throw error;}
   if(fingerprint(planBody(plan))!==plan.plan_sha256){const error=new Error("Canonical semantic repair plan identity is invalid.");error.code="STAGING_CANONICAL_REPAIR_PLAN_HASH_MISMATCH";throw error;}
   if(plan.lifecycle_contract_sha256!==sha256(contractBytes)||plan.semantic_artifact_registry_sha256!==sha256(registryBytes)||plan.staging_migration_manifest_sha256!==sha256(migrationManifestBytes)
     ||plan.artifact?.sha256!==VERIFIED_ARTIFACT.sha256||Number(plan.artifact?.statement_count)!==VERIFIED_ARTIFACT.statement_count||plan.artifact?.artifact_key!==VERIFIED_ARTIFACT.artifact_key){
@@ -140,12 +142,12 @@ export async function planStagingCanonicalSemanticRepair({executor,expected_comm
     same_cycle_readback_required:true,acknowledgement_is_execution_authority:false,execution_authority:"repository_bound_runtime_repair_capability",
     production_access_forbidden:true,provider_access_forbidden:true,caller_sql_forbidden:true,caller_target_forbidden:true};
   const planSha=fingerprint(body);
-  return {...body,plan_sha256:planSha,required_confirmation:`REPAIR_STAGING_CANONICAL_DATA_${planSha.slice(0,12).toUpperCase()}`,inspection};
+  return {...body,plan_sha256:planSha,required_confirmation:requiredConfirmation(planSha),inspection};
 }
 
 export async function applyStagingCanonicalSemanticRepair({executor,plan,confirmation,actual_commit,apply_artifact}={}){
   validatePlanBindings(plan,actual_commit);
-  if(!plan.repair_allowed||clean(confirmation)!==plan.required_confirmation){const error=new Error("Canonical semantic repair plan is not authorized for apply.");error.code="STAGING_CANONICAL_REPAIR_CONFIRMATION_REQUIRED";throw error;}
+  if(!plan.repair_allowed||plan.required_confirmation!==requiredConfirmation(plan.plan_sha256)||clean(confirmation)!==requiredConfirmation(plan.plan_sha256)){const error=new Error("Canonical semantic repair plan is not authorized for apply.");error.code="STAGING_CANONICAL_REPAIR_CONFIRMATION_REQUIRED";throw error;}
   if(typeof apply_artifact!=="function")throw new TypeError("A repository-owned canonical artifact executor is required.");
   const current=await inspectStagingCanonicalSemanticRepair({executor});
   if(current.precondition_fingerprint!==plan.precondition_fingerprint||current.semantic_fingerprint!==plan.semantic_fingerprint_before||current.status!=="missing"){
