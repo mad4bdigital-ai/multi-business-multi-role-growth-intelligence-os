@@ -37,6 +37,7 @@ const FRONTEND_OPENAPI_ALLOWED_CHANGED_FILES = new Set([
   "http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml",
   "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
   "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
+  "http-generic-api/openapi/openapi-mutation-policy.generated.json",
   "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml",
   "http-generic-api/openapi/openapi.tenant-gpt.auth.production.yaml",
   "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
@@ -429,6 +430,7 @@ function runFrontendOpenApiRefresh() {
   run("generate_openapi_gap_closure_plan", "npm", ["run", "openapi:gap-closure-plan:generate"], { cwd: apiDir });
   run("generate_openapi_detail_closure_batch", "npm", ["run", "openapi:detail-batch:write"], { cwd: repoRoot });
   run("generate_custom_gpt_schemas", "node", ["scripts/generate-custom-gpt-schemas.mjs", "--write"], { cwd: apiDir });
+  run("generate_openapi_mutation_policy", "node", ["scripts/generate-openapi-mutation-policy.mjs"], { cwd: apiDir });
   run("generate_activation_staging_policy", "node", ["scripts/generate-activation-staging-policy.mjs", "--write"], { cwd: apiDir });
   run("sync_activation_gateway_runtime_bundle", "node", ["scripts/sync-activation-gateway-runtime-bundle.mjs", "--write"], { cwd: apiDir });
   refreshPortableStagingManifest();

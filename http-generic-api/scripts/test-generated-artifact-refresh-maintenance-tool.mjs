@@ -130,6 +130,21 @@ runCheck("tool-canonical-auth-repair", () => {
   assert.match(toolSource, /openapi:detail-gaps:check/u);
   assert.match(toolSource, /openapi:gap-closure-plan:check/u);
 });
+runCheck("tool-openapi-mutation-policy-refresh", () => {
+  assert.ok(
+    toolSource.includes('"http-generic-api/openapi/openapi-mutation-policy.generated.json"'),
+    "frontend recipe must bound the generated mutation policy registry",
+  );
+  assert.match(toolSource, /scripts\/generate-openapi-mutation-policy\.mjs/u);
+  const customGptIndex = toolSource.indexOf("generate_custom_gpt_schemas");
+  const mutationPolicyIndex = toolSource.indexOf("generate_openapi_mutation_policy");
+  const stagingPolicyIndex = toolSource.indexOf("generate_activation_staging_policy");
+  assert.ok(
+    customGptIndex >= 0 && mutationPolicyIndex > customGptIndex && stagingPolicyIndex > mutationPolicyIndex,
+    "mutation policy generation must follow Custom GPT generation and precede Staging gateway policy generation",
+  );
+});
+
 runCheck("tool-staging-gateway-policy-refresh", () => {
   for (const output of [
     "edge/activation-gateway/generated/route-policy.staging.json",
@@ -398,6 +413,7 @@ runCheck("maintenance-tool-registration", () => {
     "^http-generic-api/openapi/openapi\\.tenant-gpt\\.activation\\.staging\\.yaml$",
     "^http-generic-api/openapi/openapi\\.tenant-gpt\\.auth\\.production\\.yaml$",
     "^http-generic-api/openapi/openapi\\.tenant-gpt\\.auth\\.staging\\.yaml$",
+    "^http-generic-api/openapi/openapi-mutation-policy\\.generated\\.json$",
     "^edge/activation-gateway/generated/route-policy\\.staging\\.json$",
     "^http-generic-api/activation-gateway-runtime/generated/route-policy\\.staging\\.json$",
     "^docs/work-maps/.*$",
