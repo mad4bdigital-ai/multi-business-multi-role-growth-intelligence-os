@@ -1,0 +1,135 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-admin-remote-runtime-catalog-readonly-current-main-20260921",
+  "title": "Current-main Staging Admin Remote Runtime target catalog read-only projection",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-admin-remote-runtime-catalog-readonly-current-main-20260921.json",
+      "canonicals/openapi/custom-gpt-surfaces.yaml",
+      ".github/governance/test-authority-registry.json",
+      "http-generic-api/config/deployment-branch-policy.json",
+      "http-generic-api/frontend-operation-governance-tests.json",
+      "http-generic-api/openapi-route-contracts.d/remote-runtime-target-catalog-readonly.yaml",
+      "http-generic-api/openapi/remote-runtime-target-catalog-readonly.yaml",
+      "http-generic-api/routes/operationalConsoleRoutes.js",
+      "http-generic-api/scripts/build-staging-admin-openapi.mjs",
+      "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+      "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/test-custom-gpt-environment-aware-contract.mjs",
+      "http-generic-api/test-environment-impact-closure.mjs",
+      "http-generic-api/test-remote-runtime-catalog-probe.mjs",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
+      "http-generic-api/test-openapi-precise-inline-registry-transition.mjs",
+      "http-generic-api/openapi/openapi-mutation-policy.generated.json",
+      "autopilot-portable-staging/activation-gateway-smart-convergence-policy.json",
+      "http-generic-api/scripts/generate-openapi-mutation-policy.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Expose the existing Remote Runtime target catalog through a dedicated Staging Admin GET-only projection while preserving shared Admin Core operation budgets, canonical read-only service behavior, exact environment classification, and fail-closed generated policy convergence.",
+      "e2e_journeys": [
+        {
+          "id": "staging-admin-remote-runtime-catalog-readonly",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging Admin governed read-only client",
+          "entrypoint": "GET /platform/remote-runtime/targets/catalog-readonly through the Staging Admin schema",
+          "terminal_outcome": "The Staging Admin schema exposes only the bounded GET catalog projection, returns no credential values, performs no SSH/filesystem/provider/deployment mutation, remains excluded from shared Admin Core, and all generated Staging policy artifacts converge deterministically.",
+          "steps": [
+            "Resolve the dedicated precise GET contract and Operational Console route under the existing backend API key and admin-principal guards.",
+            "List Remote Runtime targets through the canonical read-only service using query-only filters and bounded limits.",
+            "Prove the operation is excluded from shared Admin Core while the Staging-only schema composes it directly.",
+            "Regenerate dependent OpenAPI, Activation Gateway Staging policy, convergence hashes, Remote MCP inventory, and portable Staging manifest through governed writers.",
+            "Run environment-impact closure requiring explicit Staging and Production review while keeping Production mutation disallowed."
+          ],
+          "assertions": [
+            "No target upsert, validation mutation, SSH execution, shell execution, filesystem access, credential payload read, deployment authority, Breakglass, raw SQL, or Production mutation is introduced.",
+            "The canonical POST catalog remains unchanged and the new projection accepts query input only.",
+            "The operation does not consume a shared Admin Core Custom GPT operation slot.",
+            "Staging live certification remains required because shared runtime/OpenAPI and Staging policy surfaces change.",
+            "production_mutation_allowed remains false and secrets_included remains false.",
+            "The critical declaration is registered in Constitution.control_plane_paths and convergence.automation_control_paths before merge.",
+            "The precise registry writer accepts only the exact predecessor whose sole drift is the reviewed admin-control tag promotion; any other predecessor drift remains fail-closed.",
+            "The governed OpenAPI refresh regenerates the mutation-policy fingerprint after base Custom GPT schema generation and synchronizes the Staging smart-convergence expected policy hash after profile hash convergence."
+          ],
+          "tests": [
+            {
+              "id": "staging-admin-remote-runtime-catalog-readonly",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-remote-runtime-catalog-probe.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-admin-generated-artifact-refresh",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-admin-environment-impact-closure",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-environment-impact-closure.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-admin-openapi-precise-inline-transition",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-openapi-precise-inline-registry-transition.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-admin-remote-runtime-catalog-readonly-current-main-20260921.json",
+            "http-generic-api/openapi/remote-runtime-target-catalog-readonly.yaml",
+            "http-generic-api/openapi-route-contracts.d/remote-runtime-target-catalog-readonly.yaml",
+            "http-generic-api/routes/operationalConsoleRoutes.js",
+            "http-generic-api/test-remote-runtime-catalog-probe.mjs",
+            "canonicals/openapi/custom-gpt-surfaces.yaml",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
+            "http-generic-api/test-openapi-precise-inline-registry-transition.mjs",
+            "http-generic-api/openapi/openapi-mutation-policy.generated.json",
+            "autopilot-portable-staging/activation-gateway-smart-convergence-policy.json",
+            "http-generic-api/scripts/generate-openapi-mutation-policy.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "This PR does not authorize Production deployment, Production provider mutation, target mutation, credential mutation, SSH execution, filesystem execution, or write-surface promotion.",
+      "blockers": [
+        "Production mutation requires a separate governed promotion and explicit authorization.",
+        "This PR is limited to a read-only Staging Admin projection and shared source-contract safety."
+      ]
+    }
+  ],
+  "secrets_included": false
+}
