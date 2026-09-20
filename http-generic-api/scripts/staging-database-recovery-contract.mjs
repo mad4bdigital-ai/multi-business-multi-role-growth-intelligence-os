@@ -133,6 +133,14 @@ assert.match(
   postImportReadbackBlock,
   /mariadb --protocol=socket "--user=\$user" \$db --batch --skip-column-names -e "SHOW FULL TABLES"[\s\S]*Post-import table readback failed/
 );
+for (const resolverReadbackBlock of [completedImportReadbackFunction, postImportReadbackBlock]) {
+  assert.match(resolverReadbackBlock, /resolver-equivalent canonical Platform Admin workspace candidates/);
+  assert.match(resolverReadbackBlock, /tenant_id = '00000000-0000-0000-0000-000000000000'/);
+  assert.match(resolverReadbackBlock, /workspace_key = 'platform_admin_workspace'/);
+  assert.match(resolverReadbackBlock, /JSON_UNQUOTE\(JSON_EXTRACT\(config_json, '\$\.authority_scope_key'\)\) = 'platform:root'/);
+  assert.match(resolverReadbackBlock, /JSON_UNQUOTE\(JSON_EXTRACT\(config_json, '\$\.platform_admin_workspace'\)\) = 'true'/);
+  assert.match(resolverReadbackBlock, /bootstrap_status = 'ready'/);
+}
 assert.doesNotMatch(legacyClone, /(?:^|\s)-u\$(?:user|runtimeUser)\b/m);
 assert.match(legacyClone, /sed -E 's\/DEFINER=\[\^ \]\+\/DEFINER=CURRENT_USER\/g'/);
 assert.match(legacyClone, /mariadb --protocol=socket -u'\$user' '\$db'/);
