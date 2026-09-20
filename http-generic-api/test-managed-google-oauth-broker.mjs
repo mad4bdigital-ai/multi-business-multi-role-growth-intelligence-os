@@ -465,6 +465,7 @@ assert.ok(startupRouter, "Managed OAuth router must construct without DB/provide
 assert.equal(startupPoolResolutionCount, 0, "Managed OAuth router construction must remain DB-lazy.");
 
 const routes = readFileSync("./routes/managedGoogleOAuthRoutes.js", "utf8");
+const siteAuthSource = readFileSync("./managedGoogleOAuthSiteRequestAuth.js", "utf8");
 const protocolPolicy = readFileSync("./managedGoogleOAuthProtocolPolicy.js", "utf8");
 const openapi = readFileSync("./openapi.yaml", "utf8");
 const frontendPolicy = JSON.parse(readFileSync("./frontend-surface-policy.json", "utf8"));
@@ -491,6 +492,9 @@ assert.ok(migration.includes("token_envelope"), "migration must store only encry
 assert.equal(migration.includes("access_token VARCHAR"), false, "migration must not create plaintext access-token column");
 assert.equal(migration.includes("refresh_token VARCHAR"), false, "migration must not create plaintext refresh-token column");
 
+assert.ok(siteAuthSource.includes("mad4b.google-managed-oauth-site-request-auth.v1"), "managed OAuth site request auth contract missing");
+assert.ok(siteAuthSource.includes("timingSafeEqual"), "managed OAuth signatures must use constant-time comparison");
+assert.ok(siteAuthSource.includes("consumeRequestNonce"), "managed OAuth site request auth must consume one-time nonces");
 assert.ok(protocolPolicy.includes("mad4b.provider-protocol-policy-registry.v1"), "Google OAuth protocol invariants must live in the provider protocol policy registry");
 assert.ok(protocolPolicy.includes("provider_protocol_policy_registry"), "provider protocol policy registry marker missing");
 assert.equal(/\bconst\s+GOOGLE_TOKEN_ENDPOINT\s*=/.test(readFileSync("./managedGoogleOAuthBroker.js", "utf8")), false, "broker core must not own provider protocol endpoint constants");
@@ -504,6 +508,11 @@ for (const operationId of [
   assert.ok(openapi.includes(`operationId: ${operationId}`), `canonical OpenAPI missing ${operationId}`);
 }
 assert.ok(openapi.includes("credential_material_included: { type: boolean, enum: [true] }"), "token-bearing OpenAPI responses must declare credential material accurately");
+assert.ok(openapi.includes("managedGoogleSiteHmac:"), "managed OAuth OpenAPI must declare the site-HMAC security scheme");
+for (const header of ["X-MAD4B-Site-Key-ID", "X-MAD4B-Site-Timestamp", "X-MAD4B-Site-Nonce", "X-MAD4B-Site-Signature"]) {
+  assert.ok(openapi.includes(header), `managed OAuth OpenAPI missing required site-auth header: ${header}`);
+}
+assert.ok(openapi.includes("- managedGoogleSiteHmac: []"), "managed OAuth POST operations must require site-HMAC security");
 assert.equal(openapi.includes("pattern: '^[A-Za-z0-9_-]{43}    get:"), false, "managed OAuth OpenAPI verifier pattern must not be truncated");
 
 const managedSurfaceRule = frontendPolicy.rules.find((rule) => rule.source_file === "routes/managedGoogleOAuthRoutes.js");
@@ -511,16 +520,19 @@ assert.ok(managedSurfaceRule, "managed Google OAuth route family must have a fro
 assert.equal(managedSurfaceRule.scope, "public");
 assert.equal(managedSurfaceRule.decision, "api_only");
 assert.equal(managedSurfaceRule.family_key, "managed-google-oauth");
-const managedAuthRule = frontendPolicy.auth_rules.find((rule) => rule.rule_id === "managed-google-oauth-public-auth");
-assert.ok(managedAuthRule, "managed Google OAuth route family must have an explicit public auth policy");
-assert.equal(managedAuthRule.profile, "public");
-assert.equal(managedAuthRule.source_file, "routes/managedGoogleOAuthRoutes.js");
-assert.deepEqual([...managedAuthRule.operations].sort(), [
-  "GET /v1/google/oauth/callback",
+const managedSiteAuthRule = frontendPolicy.auth_rules.find((rule) => rule.rule_id === "managed-google-oauth-site-hmac");
+assert.ok(managedSiteAuthRule, "managed Google OAuth POST route family must have explicit site-HMAC auth policy");
+assert.equal(managedSiteAuthRule.profile, "managed_google_site_hmac");
+assert.equal(managedSiteAuthRule.source_file, "routes/managedGoogleOAuthRoutes.js");
+assert.deepEqual([...managedSiteAuthRule.operations].sort(), [
   "POST /v1/google/oauth/redeem",
   "POST /v1/google/oauth/refresh",
   "POST /v1/google/oauth/session",
-]);
+].sort());
+const managedCallbackRule = frontendPolicy.auth_rules.find((rule) => rule.rule_id === "managed-google-oauth-provider-callback-public");
+assert.ok(managedCallbackRule, "managed Google OAuth provider callback must retain explicit public auth policy");
+assert.equal(managedCallbackRule.profile, "public");
+assert.deepEqual(managedCallbackRule.operations, ["GET /v1/google/oauth/callback"]);
 
 for (const operationId of [
   "createManagedGoogleOAuthSession",
