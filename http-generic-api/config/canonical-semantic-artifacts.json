@@ -1,0 +1,56 @@
+{
+  "contract": "mad4b.canonical-semantic-artifacts.v1",
+  "production_apply_allowed": false,
+  "provider_apply_allowed": false,
+  "artifacts": [
+    {
+      "artifact_key": "platform_admin_workspace",
+      "lifecycle_class": "canonical_registry",
+      "target_role": "runtime",
+      "source_file": "migrations/20260920_platform_admin_workspace_canonical_seed.sql",
+      "sha256": "4fb41955ae3ab5a6748c795c6f3291a49c58cf62bf2f84c411cd559059e66e4e",
+      "statement_count": 2,
+      "replay_modes": [
+        "zero_object_rebuild",
+        "in_place_semantic_repair"
+      ],
+      "identity_contract": "platform_admin_workspace.v1",
+      "readback_contract": "platform_admin_workspace_readback.v1",
+      "conflict_policy": "fail_closed",
+      "required_for": [
+        "staging_rebuild",
+        "platform_admin_workspace_readiness"
+      ],
+      "dependencies": [],
+      "caller_sql_forbidden": true,
+      "caller_target_forbidden": true,
+      "production_apply_allowed": false,
+      "provider_apply_allowed": false,
+      "statement_contracts": [
+        {
+          "purpose": "create_if_absent_no_conflict",
+          "statement_type": "INSERT",
+          "allowed_table": "workspace_registry"
+        },
+        {
+          "purpose": "restore_canonical_markers_only_on_exact_identity",
+          "statement_type": "UPDATE",
+          "allowed_table": "workspace_registry",
+          "allowed_mutations": [
+            "config_json.authority_scope_key",
+            "config_json.platform_admin_workspace",
+            "updated_at"
+          ],
+          "forbidden_mutations": [
+            "workspace_id",
+            "tenant_id",
+            "workspace_key",
+            "display_name",
+            "workspace_type",
+            "bootstrap_status"
+          ]
+        }
+      ]
+    }
+  ]
+}

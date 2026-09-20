@@ -23,7 +23,12 @@
       "http-generic-api/scripts/host-breakglass-local.mjs",
       "http-generic-api/test-host-breakglass-catalog.mjs",
       "http-generic-api/test-staging-empty-role-db-bootstrap.mjs",
-      "http-generic-api/context-kernel-hardcoding-scan.config.json"
+      "http-generic-api/context-kernel-hardcoding-scan.config.json",
+      "http-generic-api/config/canonical-semantic-artifacts.json",
+      "http-generic-api/stagingCanonicalSemanticRepair.js",
+      "http-generic-api/test-staging-canonical-semantic-repair.mjs",
+      "http-generic-api/managedGitRemoteTransport.js",
+      "http-generic-api/test-managed-git-remote-transport.mjs"
     ]
   },
   "environment_impact": {
@@ -64,7 +69,12 @@
             "Read back Platform Admin cardinality with the same ready canonical marker predicate used by the runtime resolver, in addition to exact seed identity.",
             "Keep Staging full inspection on the Windows/Docker local handoff with database.inspect + dry_run and no GitHub broker dependency or database mutation.",
             "Keep database.rebuild_empty restricted to same-cycle zero-object role evidence, verified local request/ticket bindings, exact typed confirmation, and same-cycle required-table readback.",
-            "Approve only exact line-scoped context-kernel scanner findings for the canonical Platform Admin authority identities declared in the lifecycle contract and seed migration."
+            "Approve only exact line-scoped context-kernel scanner findings for the canonical Platform Admin authority identities declared in the lifecycle contract and seed migration.",
+            "Bind in-place canonical semantic repair to a versioned artifact registry with exact source path, SHA256, statement count, target role, replay modes, and fail-closed conflict policy.",
+            "Allow canonical semantic repair on an existing non-empty Runtime schema only when the relevant canonical identity/candidate set is absent, while preserving unrelated runtime rows.",
+            "Bind every repair plan to the exact repository commit, lifecycle contract hash, semantic artifact registry hash, migration manifest hash, semantic precondition fingerprint, and target role.",
+            "Treat any mutation transport failure or unverified postcondition as reconciliation_required with mutation retry disabled until independent readback.",
+            "Keep managed Git child processes hermetic against hostile host EOL and credential-helper configuration while preserving non-force push and credential zeroization."
           ],
           "assertions": [
             "Numeric and date-prefixed changed migrations are both inspected.",
@@ -78,7 +88,13 @@
             "host-breakglass:local --help performs no request parsing, workflow dispatch, or database mutation and reports the Windows/Docker inspection contract.",
             "GitHub broker configuration failure is independent of local Runtime DB diagnosis and preserves github_app_auth_missing_installation_id as its cause code.",
             "Non-empty role databases cannot enter database.rebuild_empty, and mutation paths remain ticket-, confirmation-, and same-cycle-readback-gated.",
-            "Context-kernel hardcoding exceptions remain line-scoped to canonical authority data; runtime tests derive the identity from the registered contract instead of duplicating customer-like literals."
+            "Context-kernel hardcoding exceptions remain line-scoped to canonical authority data; runtime tests derive the identity from the registered contract instead of duplicating customer-like literals.",
+            "A non-empty Runtime database with workspace_registry present but no Platform Admin candidate can produce an in-place repair plan without entering schema rebuild.",
+            "Acknowledgement proves review of one exact immutable repair plan and is never execution authority.",
+            "Artifact/contract/manifest/precondition drift invalidates the repair plan before mutation.",
+            "Unknown mutation outcome never auto-retries; reconciliation readback is the only allowed next state.",
+            "Canonical UPDATE payloads cannot mutate workspace identity columns even when the WHERE selector is exact.",
+            "Managed Git remains LF-deterministic under hostile global core.autocrlf/core.eol settings and never force-pushes."
           ],
           "tests": [
             {
@@ -121,6 +137,20 @@
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-staging-empty-role-db-bootstrap.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-canonical-semantic-repair",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-canonical-semantic-repair.mjs",
+              "args": []
+            },
+            {
+              "id": "managed-git-remote-transport",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-managed-git-remote-transport.mjs",
               "args": []
             }
           ],

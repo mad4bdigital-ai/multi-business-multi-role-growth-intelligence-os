@@ -144,6 +144,45 @@ function equalityPredicatePresent(clause, column, value) {
   return new RegExp("(?:^|[^A-Za-z0-9_$])" + columnPattern + "\\s*=\\s*" + literalPattern + "(?=$|[^A-Za-z0-9_$])", "iu").test(clause);
 }
 
+function splitTopLevelSqlList(value) {
+  const source = String(value || "");
+  const parts = [];
+  let start = 0;
+  let depth = 0;
+  let quote = null;
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index];
+    const next = source[index + 1];
+    if (quote) {
+      if (char === "\\" && next) { index += 1; continue; }
+      if (char === quote) {
+        if (quote === "'" && next === "'") { index += 1; continue; }
+        quote = null;
+      }
+      continue;
+    }
+    if (char === "'" || char === '"' || char === "`") { quote = char; continue; }
+    if (char === "(") depth += 1;
+    else if (char === ")" && depth > 0) depth -= 1;
+    else if (char === "," && depth === 0) {
+      parts.push(source.slice(start, index).trim());
+      start = index + 1;
+    }
+  }
+  parts.push(source.slice(start).trim());
+  return parts.filter(Boolean);
+}
+
+function updateColumns(setClause) {
+  const columns = [];
+  for (const assignment of splitTopLevelSqlList(setClause)) {
+    const match = assignment.match(/^\s*`?([A-Za-z0-9_]+)`?\s*=/u);
+    if (!match) return null;
+    columns.push(match[1]);
+  }
+  return columns;
+}
+
 function canonicalRowMutationMatches(statement, row, file, mutation) {
   const selector = row?.mutation_selector;
   if (!selector || selector.mode !== "seed_file_and_exact_selector") return false;
@@ -152,11 +191,17 @@ function canonicalRowMutationMatches(statement, row, file, mutation) {
   const operation = String(mutation?.operation || "");
 
   if (operation.startsWith("UPDATE")) {
-    const whereMatch = normalized.match(/\bWHERE\b([\s\S]*)$/iu);
-    if (!whereMatch || /\bOR\b/iu.test(whereMatch[1])) return false;
+    const updateMatch = normalized.match(/^\s*UPDATE(?:\s+(?:LOW_PRIORITY|IGNORE))*\s+`?workspace_registry`?\s+SET\s+([\s\S]*?)\bWHERE\b([\s\S]*)$/iu);
+    if (!updateMatch || /\bOR\b/iu.test(updateMatch[2])) return false;
+    const mutatedColumns = updateColumns(updateMatch[1]);
+    if (!mutatedColumns || mutatedColumns.length === 0) return false;
+    const allowedColumns = new Set(selector.allowed_update_columns || []);
+    const forbiddenColumns = new Set(selector.forbidden_update_columns || []);
+    if (allowedColumns.size > 0 && mutatedColumns.some((column) => !allowedColumns.has(column))) return false;
+    if (mutatedColumns.some((column) => forbiddenColumns.has(column))) return false;
     const requiredEquals = Object.entries(selector.update_where_equals || {});
     return requiredEquals.length > 0
-      && requiredEquals.every(([column, value]) => equalityPredicatePresent(whereMatch[1], column, value));
+      && requiredEquals.every(([column, value]) => equalityPredicatePresent(updateMatch[2], column, value));
   }
 
   if (operation.startsWith("INSERT")) {
@@ -236,15 +281,17 @@ if (process.argv.includes("--self-test")) {
     { file: "20260920_unreviewed_workspace_mutation.sql" },
   );
   const broadSelector = resolveMutationLifecycle("UPDATE workspace_registry SET workspace_key='platform_repo_governance_zero'", mixed, { file: canonicalFile });
+  const identityPayloadMutation = resolveMutationLifecycle(`UPDATE workspace_registry SET workspace_key='hijacked' WHERE ${canonicalWhere}`, mixed, { file: canonicalFile });
   const environment = resolveMutationLifecycle("-- lifecycle:environment_state\nUPDATE workspace_registry SET updated_at=NOW() WHERE workspace_id='tenant-workspace'", mixed, { file: "environment-state-change.sql" });
   const unresolved = resolveMutationLifecycle("UPDATE workspace_registry SET updated_at=NOW()", mixed, { file: canonicalFile });
   if (canonical.lifecycle_class !== "canonical_registry"
       || commentBypass.lifecycle_class !== "mixed_unresolved"
       || wrongFile.lifecycle_class !== "mixed_unresolved"
       || broadSelector.lifecycle_class !== "mixed_unresolved"
+      || identityPayloadMutation.lifecycle_class !== "mixed_unresolved"
       || environment.lifecycle_class !== "environment_state"
       || unresolved.lifecycle_class !== "mixed_unresolved") {
-    throw new Error("mixed-table lifecycle resolution must require the canonical seed file plus an exact selector and reject token/comment bypasses");
+    throw new Error("mixed-table lifecycle resolution must require the canonical seed file, exact selector, and allowed mutation payload while rejecting token/comment bypasses");
   }
 
   if (usableCommitSha("0".repeat(40))) {

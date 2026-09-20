@@ -13,7 +13,10 @@
     "operational_state_migration_mutation_forbidden": true,
     "environment_state_migration_mutation_forbidden": true,
     "destructive_mutation_fail_closed": true,
-    "mixed_canonical_seed_file_and_selector_required": true
+    "mixed_canonical_seed_file_and_selector_required": true,
+    "canonical_semantic_artifact_hash_required": true,
+    "canonical_semantic_repair_plan_required": true,
+    "canonical_semantic_repair_nonempty_schema_allowed": true
   },
   "datasets": {
     "workspace_registry": {
@@ -69,7 +72,19 @@
               "display_name": "Platform Admin",
               "workspace_type": "brand",
               "bootstrap_status": "ready"
-            }
+            },
+            "allowed_update_columns": [
+              "config_json",
+              "updated_at"
+            ],
+            "forbidden_update_columns": [
+              "workspace_id",
+              "tenant_id",
+              "workspace_key",
+              "display_name",
+              "workspace_type",
+              "bootstrap_status"
+            ]
           },
           "resolver_cardinality": {
             "cardinality": "exactly_one",
@@ -79,7 +94,8 @@
             "platform_admin_workspace": true,
             "require_ready": true,
             "readback_token": "resolver-equivalent canonical Platform Admin workspace candidates"
-          }
+          },
+          "artifact_key": "platform_admin_workspace"
         }
       ],
       "mixed_mutation_policy": "canonical_seed_file_and_exact_selector_or_environment_annotation",
@@ -199,5 +215,9 @@
     "provider_access_performed": false,
     "production_access_performed": false,
     "secrets_included": false
+  },
+  "canonical_semantic_artifact_registry": {
+    "contract": "mad4b.canonical-semantic-artifacts.v1",
+    "path": "config/canonical-semantic-artifacts.json"
   }
 }
