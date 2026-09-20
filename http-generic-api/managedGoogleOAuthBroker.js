@@ -136,10 +136,13 @@ export function parseManagedGoogleSiteBindings(env = process.env) {
     throw brokerError(503, "managed_google_oauth_site_bindings_invalid", "Managed Google OAuth site bindings contain no valid active binding.");
   }
   const seen = new Set();
+  const seenKeyIds = new Set();
   for (const binding of bindings) {
     const key = `${binding.site_uuid}|\0${binding.origin}|\0${binding.callback_uri}`;
     if (seen.has(key)) throw brokerError(503, "managed_google_oauth_site_binding_duplicate", "Managed Google OAuth site bindings contain duplicate exact bindings.");
+    if (seenKeyIds.has(binding.key_id)) throw brokerError(503, "managed_google_oauth_site_key_id_duplicate", "Managed Google OAuth site binding key_id values must be unique per active site binding.");
     seen.add(key);
+    seenKeyIds.add(binding.key_id);
   }
   return bindings;
 }
