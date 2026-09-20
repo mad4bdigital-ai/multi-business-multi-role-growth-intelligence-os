@@ -9,7 +9,7 @@ function executorFor(state){return{async query(sql){const source=String(sql).tri
   if(source==="SELECT COUNT(*) AS count FROM workspace_registry")return[[{count:state.totalRows??state.candidateRows.length}]];
   if(source.includes("FROM workspace_registry"))return[state.candidateRows];
   if(["START TRANSACTION","COMMIT","ROLLBACK"].includes(source)){state.transactionLog??=[];state.transactionLog.push(source);return[[]];}
-  if(/^(?:INSERT|UPDATE)\\b/iu.test(source)){if(state.mutationError)throw new Error("transport interrupted after dispatch");if(state.candidateRows.length===0){state.totalRows=(state.totalRows??0)+1;state.candidateRows=[canonical];}return[{affectedRows:1}];}
+  if(/^(?:INSERT|UPDATE)\b/iu.test(source)){if(state.mutationError)throw new Error("transport interrupted after dispatch");if(state.candidateRows.length===0){state.totalRows=(state.totalRows??0)+1;state.candidateRows=[canonical];}return[{affectedRows:1}];}
   throw new Error(`Unexpected query: ${sql}`);}};}
 
 assert.equal(STAGING_CANONICAL_SEMANTIC_REPAIR_ARTIFACT.seed_sha256,"4fb41955ae3ab5a6748c795c6f3291a49c58cf62bf2f84c411cd559059e66e4e");
