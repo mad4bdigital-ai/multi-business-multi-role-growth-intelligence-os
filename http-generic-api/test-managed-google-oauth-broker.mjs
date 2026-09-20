@@ -20,6 +20,11 @@ import {
   sealManagedGoogleEnvelope,
 } from "./managedGoogleOAuthBroker.js";
 import { GOOGLE_TOKEN_ENDPOINT } from "./managedGoogleOAuthProtocolPolicy.js";
+import {
+  authenticateManagedGoogleSiteRequest,
+  signManagedGoogleSiteRequest,
+  MANAGED_GOOGLE_SITE_AUTH_CONTRACT,
+} from "./managedGoogleOAuthSiteRequestAuth.js";
 
 function testError(status, code, message) {
   const error = new Error(message);
@@ -40,6 +45,14 @@ class MemoryStore {
   constructor() {
     this.sessions = new Map();
     this.audit = [];
+    this.nonces = new Set();
+  }
+
+  async consumeRequestNonce({ key_id, nonce_hash }) {
+    const key = `${key_id}:${nonce_hash}`;
+    if (this.nonces.has(key)) return false;
+    this.nonces.add(key);
+    return true;
   }
 
   async countRecentEvents(siteUuid, event, windowSeconds, nowDate) {
@@ -150,10 +163,14 @@ const env = {
       site_uuid: SITE_UUID,
       origin: ORIGIN,
       callback_uri: CALLBACK,
+      key_id: "etg-staging-v1",
       environment: "staging",
       status: "active",
     },
   ]),
+  MANAGED_GOOGLE_OAUTH_SITE_SECRETS_JSON: JSON.stringify({
+    "etg-staging-v1": "managed-google-site-signing-secret-fixture-0123456789",
+  }),
 };
 
 let nowValue = new Date("2026-09-20T12:00:00.000Z");
@@ -189,6 +206,83 @@ const fetchImpl = async (url, options = {}) => {
   }
   return new Response(JSON.stringify({ error: "unsupported_grant_type" }), { status: 400 });
 };
+
+const signedSiteSecret = "managed-google-site-signing-secret-fixture-0123456789";
+const authBody = {
+  contract: MANAGED_GOOGLE_SESSION_CONTRACT,
+  site_uuid: SITE_UUID,
+  origin: ORIGIN,
+  callback_uri: CALLBACK,
+  access_mode: "read_only",
+  requested_scope: GOOGLE_DRIVE_READ_SCOPE,
+  state: "site-auth-state-fixture-ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+  verifier_challenge: sha256Base64url("site-auth-verifier-fixture-ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"),
+  verifier_method: "S256",
+};
+const authTimestamp = String(Math.floor(now().getTime() / 1000));
+const authNonce = "site-auth-nonce-fixture-ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const authSignature = signManagedGoogleSiteRequest({
+  secret: signedSiteSecret,
+  method: "POST",
+  path: "/v1/google/oauth/session",
+  timestamp: authTimestamp,
+  nonce: authNonce,
+  body: authBody,
+});
+const authResult = await authenticateManagedGoogleSiteRequest({
+  env,
+  store,
+  method: "POST",
+  path: "/v1/google/oauth/session",
+  headers: {
+    "x-mad4b-site-key-id": "etg-staging-v1",
+    "x-mad4b-site-timestamp": authTimestamp,
+    "x-mad4b-site-nonce": authNonce,
+    "x-mad4b-site-signature": authSignature,
+  },
+  body: authBody,
+  now,
+});
+assert.equal(authResult.contract, MANAGED_GOOGLE_SITE_AUTH_CONTRACT);
+assert.equal(authResult.authenticated, true);
+assert.equal(authResult.site_uuid, SITE_UUID);
+assert.equal(authResult.secrets_included, false);
+
+await assert.rejects(
+  () => authenticateManagedGoogleSiteRequest({
+    env,
+    store,
+    method: "POST",
+    path: "/v1/google/oauth/session",
+    headers: {
+      "x-mad4b-site-key-id": "etg-staging-v1",
+      "x-mad4b-site-timestamp": authTimestamp,
+      "x-mad4b-site-nonce": authNonce,
+      "x-mad4b-site-signature": authSignature,
+    },
+    body: authBody,
+    now,
+  }),
+  (error) => error?.code === "managed_google_site_auth_nonce_replayed"
+);
+
+await assert.rejects(
+  () => authenticateManagedGoogleSiteRequest({
+    env,
+    store: new MemoryStore(),
+    method: "POST",
+    path: "/v1/google/oauth/session",
+    headers: {
+      "x-mad4b-site-key-id": "etg-staging-v1",
+      "x-mad4b-site-timestamp": authTimestamp,
+      "x-mad4b-site-nonce": "different-nonce-fixture-ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+      "x-mad4b-site-signature": "0".repeat(64),
+    },
+    body: authBody,
+    now,
+  }),
+  (error) => error?.code === "managed_google_site_auth_signature_mismatch"
+);
 
 const broker = createManagedGoogleOAuthBroker({ env, store, fetchImpl, now });
 const verifier = "managed-google-site-verifier-fixture-ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -389,8 +483,10 @@ for (const path of [
   assert.ok(routes.includes(path), `broker route missing: ${path}`);
 }
 assert.ok(routeIndex.includes('buildManagedGoogleOAuthRoutes'), "route index must mount managed Google OAuth broker");
+assert.ok(routes.includes("authenticateManagedGoogleSiteRequest"), "managed OAuth POST routes must authenticate site requests");
 assert.ok(migration.includes("managed_google_oauth_sessions"), "migration must create session table");
 assert.ok(migration.includes("managed_google_oauth_audit"), "migration must create audit table");
+assert.ok(migration.includes("managed_google_oauth_request_nonces"), "migration must create replay-protection nonce table");
 assert.ok(migration.includes("token_envelope"), "migration must store only encrypted token envelope");
 assert.equal(migration.includes("access_token VARCHAR"), false, "migration must not create plaintext access-token column");
 assert.equal(migration.includes("refresh_token VARCHAR"), false, "migration must not create plaintext refresh-token column");
