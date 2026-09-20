@@ -353,6 +353,11 @@ assert.equal(sealed.includes("secret-token"), false);
 assert.equal(openManagedGoogleEnvelope(sealed, env.MANAGED_GOOGLE_OAUTH_TOKEN_ENCRYPTION_KEY).access_token, "secret-token");
 
 const routes = readFileSync("./routes/managedGoogleOAuthRoutes.js", "utf8");
+const protocolPolicy = readFileSync("./managedGoogleOAuthProtocolPolicy.js", "utf8");
+const openapi = readFileSync("./openapi.yaml", "utf8");
+const frontendPolicy = JSON.parse(readFileSync("./frontend-surface-policy.json", "utf8"));
+const configRegistry = JSON.parse(readFileSync("../docs/governance/platform-configuration-entry-registry.json", "utf8"));
+const driftPolicy = JSON.parse(readFileSync("../docs/governance/configuration-drift-policy.json", "utf8"));
 const routeIndex = readFileSync("./routes/index.js", "utf8");
 const migration = readFileSync("./migrations/20260920_managed_google_oauth_broker_v1.sql", "utf8");
 for (const path of [
@@ -369,5 +374,50 @@ assert.ok(migration.includes("managed_google_oauth_audit"), "migration must crea
 assert.ok(migration.includes("token_envelope"), "migration must store only encrypted token envelope");
 assert.equal(migration.includes("access_token VARCHAR"), false, "migration must not create plaintext access-token column");
 assert.equal(migration.includes("refresh_token VARCHAR"), false, "migration must not create plaintext refresh-token column");
+
+assert.ok(protocolPolicy.includes("mad4b.provider-protocol-policy-registry.v1"), "Google OAuth protocol invariants must live in the provider protocol policy registry");
+assert.ok(protocolPolicy.includes("provider_protocol_policy_registry"), "provider protocol policy registry marker missing");
+assert.equal(readFileSync("./managedGoogleOAuthBroker.js", "utf8").includes('const GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"'), false, "broker core must not own provider protocol endpoint literals");
+
+for (const operationId of [
+  "createManagedGoogleOAuthSession",
+  "completeManagedGoogleOAuthProviderCallback",
+  "redeemManagedGoogleOAuthHandoff",
+  "refreshManagedGoogleOAuthAccessToken",
+]) {
+  assert.ok(openapi.includes(`operationId: ${operationId}`), `canonical OpenAPI missing ${operationId}`);
+}
+assert.ok(openapi.includes("credential_material_included: { type: boolean, enum: [true] }"), "token-bearing OpenAPI responses must declare credential material accurately");
+assert.equal(openapi.includes("pattern: '^[A-Za-z0-9_-]{43}    get:"), false, "managed OAuth OpenAPI verifier pattern must not be truncated");
+
+const managedSurfaceRule = frontendPolicy.rules.find((rule) => rule.source_file === "routes/managedGoogleOAuthRoutes.js");
+assert.ok(managedSurfaceRule, "managed Google OAuth route family must have a frontend surface policy decision");
+assert.equal(managedSurfaceRule.scope, "public");
+assert.equal(managedSurfaceRule.decision, "api_only");
+
+const registeredKeys = new Set(configRegistry.entries.map((entry) => entry.config_key));
+for (const key of [
+  "session.ttl.seconds",
+  "handoff.ttl.seconds",
+  "max.session.ttl.seconds",
+  "session.rate.limit.per.minute",
+  "redeem.rate.limit.per.minute",
+  "refresh.rate.limit.per.minute",
+]) {
+  assert.ok(registeredKeys.has(key), `managed Google OAuth runtime setting missing Config Catalog registration: ${key}`);
+}
+for (const fingerprint of [
+  "http-generic-api/managedGoogleOAuthBroker.js|DEFAULT_SESSION_TTL_SECONDS|literal_declaration|session.ttl.seconds",
+  "http-generic-api/managedGoogleOAuthBroker.js|DEFAULT_HANDOFF_TTL_SECONDS|literal_declaration|handoff.ttl.seconds",
+  "http-generic-api/managedGoogleOAuthBroker.js|MAX_SESSION_TTL_SECONDS|literal_declaration|max.session.ttl.seconds",
+  "http-generic-api/managedGoogleOAuthBroker.js|SESSION_RATE_LIMIT_PER_MINUTE|literal_declaration|session.rate.limit.per.minute",
+  "http-generic-api/managedGoogleOAuthBroker.js|REDEEM_RATE_LIMIT_PER_MINUTE|literal_declaration|redeem.rate.limit.per.minute",
+  "http-generic-api/managedGoogleOAuthBroker.js|REFRESH_RATE_LIMIT_PER_MINUTE|literal_declaration|refresh.rate.limit.per.minute",
+]) {
+  assert.ok(driftPolicy.baseline_fingerprints.includes(fingerprint), `managed Google OAuth canonical configuration baseline missing: ${fingerprint}`);
+}
+
+assert.ok(routes.includes("credential_material_included: true"), "redeem/refresh routes must identify token-bearing success responses");
+assert.equal(routes.includes("access_token, secrets_included: false"), false, "token-bearing success response cannot claim secrets_included=false");
 
 console.log("managed Google OAuth broker tests passed");
