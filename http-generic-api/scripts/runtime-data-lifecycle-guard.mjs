@@ -106,7 +106,8 @@ if (process.argv.includes("--self-test")) {
 
   const cte = mutationTarget("WITH x AS (SELECT 1) UPDATE workspace_registry SET bootstrap_status='ready' WHERE workspace_key='platform_repo_governance_zero'");
   const truncate = mutationTarget("TRUNCATE TABLE customer_sessions");
-  if (cte?.table !== "workspace_registry" || truncate?.table !== "customer_sessions") {
+  const replace = mutationTarget("REPLACE INTO connected_systems (system_id) VALUES ('x')");
+  if (cte?.table !== "workspace_registry" || truncate?.table !== "customer_sessions" || replace?.table !== "connected_systems") {
     throw new Error("mutation parser must classify CTE and destructive top-level mutations");
   }
 
@@ -137,6 +138,7 @@ if (process.argv.includes("--self-test")) {
     zero_base_sha_rejected: true,
     migration_deletion_is_blocking: true,
     runtime_state_migration_mutation_forbidden: true,
+    destructive_runtime_mutation_forbidden: true,
   }));
   process.exit(0);
 }
@@ -229,11 +231,16 @@ for (const file of selectedFiles) {
       findings.push({ category: "mixed_runtime_data_mutation_unresolved", file, ...mutation });
       continue;
     }
-    if (dataset.class === "operational_state" && contract.enforcement?.operational_state_migration_mutation_forbidden === true) {
+    if (contract.enforcement?.destructive_mutation_fail_closed === true &&
+        /^(?:DELETE|TRUNCATE|REPLACE)/u.test(mutation.operation)) {
+      findings.push({ category: "destructive_runtime_data_mutation_forbidden", file, ...mutation });
+      continue;
+    }
+    if (lifecycle.lifecycle_class === "operational_state" && contract.enforcement?.operational_state_migration_mutation_forbidden === true) {
       findings.push({ category: "operational_state_migration_mutation_forbidden", file, ...mutation });
       continue;
     }
-    if (dataset.class === "environment_state" && contract.enforcement?.environment_state_migration_mutation_forbidden === true) {
+    if (lifecycle.lifecycle_class === "environment_state" && contract.enforcement?.environment_state_migration_mutation_forbidden === true) {
       findings.push({ category: "environment_state_migration_mutation_forbidden", file, ...mutation });
       continue;
     }
