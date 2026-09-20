@@ -91,7 +91,7 @@ const managedGoogleBadBinding = evaluateProductionConfig({
   MANAGED_GOOGLE_OAUTH_SITE_SECRETS_JSON: "{}",
 });
 assert.equal(managedGoogleBadBinding.ok, false);
-assert.match(managedGoogleBadBinding.errors.join("\n"), /must contain at least one active HTTPS site binding/);
+assert.match(managedGoogleBadBinding.errors.join("\n"), /must contain only valid, unique, active exact HTTPS site bindings/);
 
 const managedGoogleMissingSigningSecret = evaluateProductionConfig({
   ...base,
