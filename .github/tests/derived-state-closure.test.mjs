@@ -68,7 +68,8 @@ assert.ok(
   workflow.indexOf('--report-file "$OUT/report.json"') < workflow.indexOf('Resolve and enforce typed policy objections'),
   "Canonical derived-state report must be produced before the terminal objection gate."
 );
-assert.match(workflow, /node - "\\$OUT\\/repository-governance\\.json" "\\$fixed_point_status" <<'NODE'[\\s\\S]*process\\.argv\\.slice\\(2\\)/u);
+assert.ok(workflow.includes('node - "$OUT/repository-governance.json" "$fixed_point_status" <<\'NODE\''));
+assert.ok(workflow.includes('const [file, statusRaw] = process.argv.slice(2);'));
 assert.doesNotMatch(workflow, /readFileSync\(process\.argv\[1\], 'utf8'\)/u);
 assert.equal((finalReadbackWorkflow.match(/process\.argv\[2\]/gu) || []).length, 2);
 assert.doesNotMatch(finalReadbackWorkflow, /process\.argv\[1\]/u);
