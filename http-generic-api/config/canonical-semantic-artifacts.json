@@ -104,7 +104,7 @@
       "lifecycle_class": "canonical_registry",
       "target_role": "runtime",
       "source_file": "migrations/20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
-      "sha256": "f6d9047bfda2c77a150ab0f5fca288f0504c9f6fe9deb268313c8c8d48e7f226",
+      "sha256": "ba7f6747ca12e96f618fa7e57b3d22c69932215b74ea92ba31396e4c9a635962",
       "statement_count": 4,
       "replay_modes": [
         "zero_object_rebuild"
