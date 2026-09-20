@@ -12211,21 +12211,42 @@
       ]
     },
     {
-      "rule_id": "managed-google-oauth-broker-public-api",
+      "rule_id": "managed-google-oauth-broker-public-callback-api",
       "source_file": "routes/managedGoogleOAuthRoutes.js",
       "scope": "public",
       "decision": "api_only",
       "owner": "identity-platform",
-      "rationale": "Managed Google OAuth session, callback, one-time redemption, and refresh are public OAuth transport contracts consumed by enrolled WordPress sites and Google redirects. They are not browser navigation, Custom GPT actions, or a general provider execution surface.",
+      "rationale": "The Google provider callback is a state-bound OAuth protocol endpoint consumed by Google and the enrolled WordPress callback flow. It is not a browser application surface, Custom GPT action, or general provider execution surface.",
       "evidence_refs": [
         "routes/managedGoogleOAuthRoutes.js",
         "managedGoogleOAuthBroker.js",
         "managedGoogleOAuthProtocolPolicy.js",
+        "managedGoogleOAuthSiteRequestAuth.js",
         "test-managed-google-oauth-broker.mjs",
         "docs/managed-google-oauth-broker.md",
-        "openapi.yaml"
+        "openapi/managed-google-oauth.yaml",
+        "openapi-route-contracts.d/managed-google-oauth.yaml"
       ],
-      "family_key": "managed-google-oauth"
+      "family_key": "managed-google-oauth.public"
+    },
+    {
+      "rule_id": "managed-google-oauth-broker-site-hmac-api",
+      "source_file": "routes/managedGoogleOAuthRoutes.js",
+      "scope": "developer",
+      "decision": "api_only",
+      "owner": "identity-platform",
+      "rationale": "Managed Google OAuth session, redemption, and refresh are dedicated site-HMAC server-to-server protocol endpoints for enrolled WordPress sites. They are not interactive developer UI, Custom GPT actions, or general provider execution surfaces.",
+      "evidence_refs": [
+        "routes/managedGoogleOAuthRoutes.js",
+        "managedGoogleOAuthBroker.js",
+        "managedGoogleOAuthProtocolPolicy.js",
+        "managedGoogleOAuthSiteRequestAuth.js",
+        "test-managed-google-oauth-broker.mjs",
+        "docs/managed-google-oauth-broker.md",
+        "openapi/managed-google-oauth.yaml",
+        "openapi-route-contracts.d/managed-google-oauth.yaml"
+      ],
+      "family_key": "managed-google-oauth.developer"
     }
   ],
   "schema_version": "frontend-surface-policy-v1",
