@@ -54,7 +54,7 @@ export function buildManagedGoogleOAuthRoutes(deps = {}) {
   router.post("/v1/google/oauth/redeem", async (req, res) => {
     try {
       const result = await broker.redeem(req.body || {});
-      return res.status(200).json({ ok: true, ...result, secrets_included: false });
+      return res.status(200).json({ ok: true, ...result, credential_material_included: true });
     } catch (error) {
       return sendBrokerError(res, error);
     }
@@ -63,7 +63,7 @@ export function buildManagedGoogleOAuthRoutes(deps = {}) {
   router.post("/v1/google/oauth/refresh", async (req, res) => {
     try {
       const result = await broker.refresh(req.body || {});
-      return res.status(200).json({ ok: true, ...result, secrets_included: false });
+      return res.status(200).json({ ok: true, ...result, credential_material_included: true });
     } catch (error) {
       return sendBrokerError(res, error);
     }
