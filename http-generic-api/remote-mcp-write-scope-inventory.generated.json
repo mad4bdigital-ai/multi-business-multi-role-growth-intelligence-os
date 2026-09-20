@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7715,
+  "file_count": 7716,
   "route_count": 1109,
   "write_route_count": 675,
   "classified_write_surface_count": 43,
@@ -4720,8 +4720,8 @@
     },
     {
       "route_id": "http-generic-api/routes/managedGoogleOAuthRoutes.js#POST:/v1/google/oauth/session:0",
-      "source_line": 35,
-      "source_offset": 1086,
+      "source_line": 56,
+      "source_offset": 1638,
       "method": "POST",
       "path": "/v1/google/oauth/session",
       "file": "http-generic-api/routes/managedGoogleOAuthRoutes.js",
@@ -4729,8 +4729,8 @@
     },
     {
       "route_id": "http-generic-api/routes/managedGoogleOAuthRoutes.js#GET:/v1/google/oauth/callback:1",
-      "source_line": 44,
-      "source_offset": 1399,
+      "source_line": 66,
+      "source_offset": 2021,
       "method": "GET",
       "path": "/v1/google/oauth/callback",
       "file": "http-generic-api/routes/managedGoogleOAuthRoutes.js",
@@ -4738,8 +4738,8 @@
     },
     {
       "route_id": "http-generic-api/routes/managedGoogleOAuthRoutes.js#POST:/v1/google/oauth/redeem:2",
-      "source_line": 61,
-      "source_offset": 2030,
+      "source_line": 83,
+      "source_offset": 2652,
       "method": "POST",
       "path": "/v1/google/oauth/redeem",
       "file": "http-generic-api/routes/managedGoogleOAuthRoutes.js",
@@ -4747,8 +4747,8 @@
     },
     {
       "route_id": "http-generic-api/routes/managedGoogleOAuthRoutes.js#POST:/v1/google/oauth/refresh:3",
-      "source_line": 70,
-      "source_offset": 2346,
+      "source_line": 93,
+      "source_offset": 3037,
       "method": "POST",
       "path": "/v1/google/oauth/refresh",
       "file": "http-generic-api/routes/managedGoogleOAuthRoutes.js",
@@ -30135,10 +30135,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/managedGoogleOAuthRoutes.js",
-        "source_line": 35,
+        "source_line": 56,
         "handler_window_lines": [
-          35,
-          42
+          56,
+          64
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -30200,10 +30200,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/managedGoogleOAuthRoutes.js",
-        "source_line": 61,
+        "source_line": 83,
         "handler_window_lines": [
-          61,
-          68
+          83,
+          91
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -30263,10 +30263,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/managedGoogleOAuthRoutes.js",
-        "source_line": 70,
+        "source_line": 93,
         "handler_window_lines": [
-          70,
-          81
+          93,
+          105
         ],
         "evidence_flags": {
           "handler_window_present": true,
