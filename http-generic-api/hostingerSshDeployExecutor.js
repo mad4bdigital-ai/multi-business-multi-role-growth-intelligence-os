@@ -983,7 +983,7 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
   if (probeOk && activateOnSuccess) {
     await pool.query(
       `UPDATE remote_runtime_targets
-          SET status = 'active', validation_status = 'validated', updated_by = 'hostinger_ssh_target_probe', updated_at = CURRENT_TIMESTAMP
+          SET status = 'active', validation_status = 'valid', updated_by = 'hostinger_ssh_target_probe', updated_at = CURRENT_TIMESTAMP
         WHERE target_id = ? AND plugin_key = 'remote_ssh_runtime'`,
       [targetId]
     );

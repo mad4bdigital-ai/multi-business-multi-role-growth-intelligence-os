@@ -71,7 +71,8 @@
             "secrets_included remains false.",
             "The rollback ERR trap is armed only after remote validation and immediately before the first plugin-directory rename.",
             "Pre-swap validation failure does not enter plugin rollback or toggle WordPress maintenance mode.",
-            "A pre-existing WordPress maintenance mode remains active after both successful deployment and rollback."
+            "A pre-existing WordPress maintenance mode remains active after both successful deployment and rollback.",
+            "A successful authorized Hostinger target probe records remote_runtime_targets.validation_status=valid, matching the canonical target schema."
           ],
           "tests": [
             {

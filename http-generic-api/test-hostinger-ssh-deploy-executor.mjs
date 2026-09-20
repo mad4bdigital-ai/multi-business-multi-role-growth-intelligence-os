@@ -188,6 +188,8 @@ assert(!executor.includes('const authMode = target?.provider_family'), "server-o
 assert(executor.includes("remote_runtime_server_owned_ssh_credential_not_resolved"), "server-owned SSH resolution must fail closed before connection when any required credential is missing");
 assert(executor.includes("const user = common.ssh_user;"), "server-owned SSH resolver must use the canonical ssh_user role key");
 assert(!executor.includes("common.ssh_username"), "non-canonical ssh_username role must not be introduced");
+assert(executor.includes("SET status = 'active', validation_status = 'valid', updated_by = 'hostinger_ssh_target_probe'"), "successful Hostinger target probe must write the canonical remote_runtime_targets validation status");
+assert(!executor.includes("SET status = 'active', validation_status = 'validated', updated_by = 'hostinger_ssh_target_probe'"), "Hostinger target probe must not write the non-canonical validated enum literal");
 assert(executor.includes("credential_intake_created: false"), "WordPress deployment credential resolution must not auto-create credential handoffs");
 assert(wordpressDeploy.includes("completed_reconciliation_required"), "verified deploy with envelope-consume failure must be classified as reconciliation-required");
 assert(wordpressDeploy.includes("retry_deployment: false"), "post-readback envelope-consume failure must explicitly forbid deployment retry");

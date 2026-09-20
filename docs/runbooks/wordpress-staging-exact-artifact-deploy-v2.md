@@ -90,6 +90,17 @@ More than one match fails closed as ambiguous.
 The deployment migration intentionally does not create, widen, or repair a target
 allowlist. Target authority is governed separately.
 
+A real successful Hostinger SSH target probe may activate an explicitly authorized target.
+Its canonical database state is:
+
+```text
+status = active
+validation_status = valid
+```
+
+The runtime must not write the non-canonical `validated` literal into
+`remote_runtime_targets.validation_status`.
+
 ## Shared Hostinger transport authority
 
 The WordPress deployment executor does not maintain a second SSH credential or askpass
