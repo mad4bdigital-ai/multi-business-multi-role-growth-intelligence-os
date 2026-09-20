@@ -47,6 +47,7 @@ const FRONTEND_OPENAPI_ALLOWED_CHANGED_FILES = new Set([
   "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.production.yaml",
   "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml",
   "http-generic-api/openapi/openapi.custom-gpt.activation-admin.production.yaml",
+  "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
   "http-generic-api/openapi.gpt-action.local-connector.yaml",
   "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
   "edge/activation-gateway/generated/route-policy.staging.json",
@@ -425,13 +426,14 @@ function runFrontendOpenApiRefresh() {
   run("sync_precise_registry", "node", ["scripts/openapi-precise-contract-registry-sync.mjs", "--write"], { cwd: apiDir });
   run("autofill_openapi_routes", "node", ["scripts/openapi-autofill-missing-routes.mjs", "--write"], { cwd: apiDir });
   run("sync_openapi_runtime_auth", "node", ["scripts/openapi-runtime-auth-sync.mjs", "--write"], { cwd: apiDir });
+  run("generate_custom_gpt_schemas", "node", ["scripts/generate-custom-gpt-schemas.mjs", "--write"], { cwd: apiDir });
+  run("generate_openapi_mutation_policy", "node", ["scripts/generate-openapi-mutation-policy.mjs"], { cwd: apiDir });
+  run("generate_staging_admin_openapi", "node", ["scripts/build-staging-admin-openapi.mjs"], { cwd: apiDir });
+  run("generate_activation_staging_policy", "node", ["scripts/generate-activation-staging-policy.mjs", "--write"], { cwd: apiDir });
   run("generate_frontend_dispatch", "npm", ["run", "frontend:dispatch:generate", "--", "--baseline-ref=main"], { cwd: apiDir });
   run("generate_openapi_detail_gap_classification", "npm", ["run", "openapi:detail-gaps:generate"], { cwd: apiDir });
   run("generate_openapi_gap_closure_plan", "npm", ["run", "openapi:gap-closure-plan:generate"], { cwd: apiDir });
   run("generate_openapi_detail_closure_batch", "npm", ["run", "openapi:detail-batch:write"], { cwd: repoRoot });
-  run("generate_custom_gpt_schemas", "node", ["scripts/generate-custom-gpt-schemas.mjs", "--write"], { cwd: apiDir });
-  run("generate_openapi_mutation_policy", "node", ["scripts/generate-openapi-mutation-policy.mjs"], { cwd: apiDir });
-  run("generate_activation_staging_policy", "node", ["scripts/generate-activation-staging-policy.mjs", "--write"], { cwd: apiDir });
   run("sync_activation_gateway_runtime_bundle", "node", ["scripts/sync-activation-gateway-runtime-bundle.mjs", "--write"], { cwd: apiDir });
   refreshPortableStagingManifest();
 
