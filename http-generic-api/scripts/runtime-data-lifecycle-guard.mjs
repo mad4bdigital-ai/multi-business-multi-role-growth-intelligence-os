@@ -118,20 +118,35 @@ if (process.argv.includes("--self-test")) {
     throw new Error("mixed-table lifecycle resolution must distinguish canonical, annotated environment, and unresolved mutations");
   }
 
+  if (/^[0-9a-f]{40}$/iu.test("0".repeat(40)) && !/^0{40}$/u.test("0".repeat(40))) {
+    throw new Error("all-zero GitHub before SHA must never be treated as a usable base");
+  }
+
   console.log(JSON.stringify({
     ok: true,
     numeric_and_dated_migrations_selected: true,
     cte_mutation_classified: true,
     truncate_mutation_classified: true,
     mixed_table_fail_closed: true,
+    zero_base_sha_rejected: true,
+    migration_deletion_is_blocking: true,
   }));
   process.exit(0);
 }
 
+function usableCommitSha(value) {
+  return /^[0-9a-f]{40}$/iu.test(String(value || "")) && !/^0{40}$/u.test(String(value || ""));
+}
+
 function resolveBaseSha() {
   const explicit = argument("--base-sha") || process.env.RUNTIME_DATA_LIFECYCLE_BASE_SHA;
-  if (explicit && /^[0-9a-f]{40}$/iu.test(explicit)) return explicit.toLowerCase();
-  try { return git("rev-parse", "HEAD^"); } catch { return null; }
+  if (usableCommitSha(explicit)) return String(explicit).toLowerCase();
+  try {
+    const parent = git("rev-parse", "HEAD^");
+    return usableCommitSha(parent) ? parent.toLowerCase() : null;
+  } catch {
+    return null;
+  }
 }
 
 const baseSha = resolveBaseSha();
@@ -139,7 +154,7 @@ let selectedFiles = [];
 let selectionMode = "unresolved_base";
 if (baseSha) {
   try {
-    selectedFiles = migrationPathsFromDiff(git("diff", "--name-only", "--diff-filter=ACMR", `${baseSha}...HEAD`, "--", "http-generic-api/migrations/*.sql"));
+    selectedFiles = migrationPathsFromDiff(git("diff", "--name-only", "--diff-filter=ACMRD", `${baseSha}...HEAD`, "--", "http-generic-api/migrations/*.sql"));
     selectionMode = "git_diff";
   } catch (error) {
     findings.push({ category: "migration_selection_failed", base_sha: baseSha, detail: String(error?.message || error) });
@@ -170,7 +185,12 @@ for (const [table, dataset] of Object.entries(contract.datasets || {})) {
 }
 
 for (const file of selectedFiles) {
-  const statements = splitStatements(fs.readFileSync(path.join(migrationsDir, file), "utf8"));
+  const migrationPath = path.join(migrationsDir, file);
+  if (!fs.existsSync(migrationPath)) {
+    findings.push({ category: "migration_removed_from_history", file });
+    continue;
+  }
+  const statements = splitStatements(fs.readFileSync(migrationPath, "utf8"));
   for (const statement of statements) {
     const mutation = mutationTarget(statement);
     if (!mutation) {
