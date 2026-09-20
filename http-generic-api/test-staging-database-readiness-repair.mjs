@@ -202,6 +202,15 @@ assert.match(importer, /\(\?im\)\^\\s\*TRUNCATE\\b/);
 assert.match(importer, /\(\?im\)\^\\s\*DELETE\\b/);
 assert.match(importer, /\(\?im\)\^\\s\*REPLACE\\b/);
 assert.match(importer, /ALTER\\s\+TABLE\\b\[\^;\]\*\\bDROP\\b/);
+assert.equal(roleManifest.source.nonempty_direct_schema_replay_forbidden, true);
+assert.equal(roleManifest.source.pre_apply_role_object_census_required, true);
+assert.equal(
+  roleManifest.source.partial_role_rebuild_authority,
+  "autopilot-portable-staging/Rebuild-EmptyStagingRoleDatabases.ps1",
+);
+assert.match(importer, /nonempty_direct_schema_replay_forbidden/);
+assert.match(importer, /pre_apply_role_object_census_required/);
+assert.match(importer, /partial_role_rebuild_authority/);
 assert.equal(roleManifest.authority_seed_lifecycle.contract, "mad4b.staging.authority-seed-manifest.v1");
 assert.equal(roleManifest.authority_seed_lifecycle.target_role, "runtime");
 assert.equal(roleManifest.authority_seed_lifecycle.execution_identity, "local_database_root");
