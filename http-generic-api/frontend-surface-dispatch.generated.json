@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "030477b835b6cacb5f02ade7ce845016e76c556c8f8a8e3912b22fbcd68fbb20",
+    "source_digest": "19c9308ce1eebaf855713b11e719a294dcc1dc49adb829e61a90546601c83a74",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -16,7 +16,7 @@
       },
       {
         "file": "frontend-surface-policy.json",
-        "sha256": "ba1e952806164b30e4f0bebeba13e69904af07746168b038dec0a7735ebc613d",
+        "sha256": "bf0c52b80d7e2214af497563e0530114d9de41a2f6aa913f3133301b961e488b",
         "present": true
       },
       {
@@ -1121,7 +1121,7 @@
       },
       {
         "file": "test-frontend-surface-coverage-claims.mjs",
-        "sha256": "f6a9e865e7334aaba75b50aeabba061c3442ddef334b30fa8d3f03dd56fb71e4",
+        "sha256": "9a22da58eddec15e9aa3640724d621998bc2b077c2d8b179e6ca5ee58bb02dd7",
         "present": true
       },
       {
@@ -1219,18 +1219,18 @@
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
     "non_get_candidate_count": 652,
-    "unresolved_operation_class_count": 3,
-    "classified_mutation_count": 24,
-    "governed_mutation_operation_count": 24,
+    "unresolved_operation_class_count": 0,
+    "classified_mutation_count": 27,
+    "governed_mutation_operation_count": 27,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 0,
     "test_owned_family_count": 176,
     "untested_family_count": 0,
     "test_owned_operation_count": 1073,
     "untested_operation_count": 0,
-    "ready_task_count": 175,
-    "blocked_task_count": 1,
-    "coverage_complete": false
+    "ready_task_count": 176,
+    "blocked_task_count": 0,
+    "coverage_complete": true
   },
   "waves": [
     {
@@ -9305,18 +9305,52 @@
             "test-managed-google-oauth-broker.mjs"
           ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "state_change",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "site_hmac_exact_binding_scope_and_verifier_challenge"
+              },
+              "approval": {
+                "mode": "site_admin_intent_then_google_user_consent"
+              },
+              "readback": {
+                "mode": "transactional_session_persistence_receipt",
+                "same_cycle": true,
+                "before_commit": true
+              },
+              "rollback": {
+                "mode": "ttl_expiry_or_provider_denial",
+                "rationale": "The pre-consent session is bounded by TTL and becomes unusable after expiry or provider denial; no Google token or Drive content mutation exists to compensate."
+              }
+            },
+            "parameter_bindings": {
+              "site_uuid": "request.body.site_uuid",
+              "origin": "request.body.origin",
+              "callback_uri": "request.body.callback_uri",
+              "access_mode": "request.body.access_mode",
+              "requested_scope": "request.body.requested_scope",
+              "verifier_challenge": "request.body.verifier_challenge",
+              "site_key_id": "request.header.x-mad4b-site-key-id",
+              "site_signature": "request.header.x-mad4b-site-signature"
+            },
+            "blockers": [],
+            "rule_id": "managed-google-oauth-session-state-change",
+            "owner": "identity-platform",
+            "rationale": "Creates one short-lived, exact-site-bound Managed Google OAuth broker session after HMAC authentication, scope contract validation, and verifier-challenge binding. It does not grant Google access; Google user consent remains a later provider step.",
+            "evidence_refs": [
+              "docs/managed-google-oauth-broker.md",
+              "managedGoogleOAuthBroker.js",
+              "managedGoogleOAuthSiteRequestAuth.js",
+              "openapi/managed-google-oauth.yaml",
+              "routes/managedGoogleOAuthRoutes.js",
+              "test-managed-google-oauth-broker.mjs"
+            ]
           },
           "mutation_candidate": true,
-          "mutation": false
+          "mutation": true
         },
         {
           "method": "POST",
@@ -9373,18 +9407,53 @@
             "test-managed-google-oauth-broker.mjs"
           ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "state_change",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "site_hmac_exact_binding_handoff_hash_and_verifier"
+              },
+              "approval": {
+                "mode": "google_user_consent_and_server_issued_one_time_handoff"
+              },
+              "readback": {
+                "mode": "transactional_redeemed_status_and_token_envelope_erasure",
+                "same_cycle": true,
+                "before_commit": true
+              },
+              "rollback": {
+                "mode": "not_required",
+                "rationale": "Handoff consumption is intentionally irreversible and replay-denied. A failed or lost delivery requires a newly authorized OAuth session rather than restoring a consumed credential handoff."
+              }
+            },
+            "parameter_bindings": {
+              "session_id": "request.body.session_id",
+              "handoff_code": "request.body.handoff_code",
+              "verifier": "request.body.verifier",
+              "site_uuid": "request.body.site_uuid",
+              "origin": "request.body.origin",
+              "callback_uri": "request.body.callback_uri",
+              "site_key_id": "request.header.x-mad4b-site-key-id",
+              "site_signature": "request.header.x-mad4b-site-signature"
+            },
+            "blockers": [],
+            "rule_id": "managed-google-oauth-redeem-state-change",
+            "owner": "identity-platform",
+            "rationale": "Atomically consumes one exact site-bound, verifier-bound, single-use OAuth handoff and erases the encrypted broker token envelope before returning the credential material once to the enrolled WordPress site.",
+            "evidence_refs": [
+              "docs/managed-google-oauth-broker.md",
+              "managedGoogleOAuthBroker.js",
+              "managedGoogleOAuthSiteRequestAuth.js",
+              "migrations/20260920_managed_google_oauth_broker_v1.sql",
+              "openapi/managed-google-oauth.yaml",
+              "routes/managedGoogleOAuthRoutes.js",
+              "test-managed-google-oauth-broker.mjs"
+            ]
           },
           "mutation_candidate": true,
-          "mutation": false
+          "mutation": true
         },
         {
           "method": "POST",
@@ -9441,18 +9510,51 @@
             "test-managed-google-oauth-broker.mjs"
           ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "external_effect",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "site_hmac_exact_binding_refresh_grant_and_scope_contract"
+              },
+              "approval": {
+                "mode": "existing_google_refresh_grant"
+              },
+              "readback": {
+                "mode": "provider_token_response_scope_validation_and_secret_safe_audit",
+                "same_cycle": true
+              },
+              "rollback": {
+                "mode": "not_required",
+                "rationale": "OAuth access-token refresh does not mutate Drive content or revoke the underlying refresh grant. Failure is fail-closed and the existing refresh grant remains the authority for a later retry."
+              }
+            },
+            "parameter_bindings": {
+              "site_uuid": "request.body.site_uuid",
+              "origin": "request.body.origin",
+              "access_mode": "request.body.access_mode",
+              "requested_scope": "request.body.requested_scope",
+              "refresh_token": "request.body.refresh_token",
+              "site_key_id": "request.header.x-mad4b-site-key-id",
+              "site_signature": "request.header.x-mad4b-site-signature"
+            },
+            "blockers": [],
+            "rule_id": "managed-google-oauth-refresh-external-effect",
+            "owner": "identity-platform",
+            "rationale": "Uses the enrolled site's existing Google refresh grant through the broker-only Google OAuth client to obtain a fresh access token. Scope escalation is rejected and the operation does not mutate Google Drive content.",
+            "evidence_refs": [
+              "docs/managed-google-oauth-broker.md",
+              "managedGoogleOAuthBroker.js",
+              "managedGoogleOAuthProtocolPolicy.js",
+              "managedGoogleOAuthSiteRequestAuth.js",
+              "openapi/managed-google-oauth.yaml",
+              "routes/managedGoogleOAuthRoutes.js",
+              "test-managed-google-oauth-broker.mjs"
+            ]
           },
           "mutation_candidate": true,
-          "mutation": false
+          "mutation": true
         }
       ],
       "openapi_gaps": [],
@@ -9506,29 +9608,10 @@
           "test-managed-google-oauth-broker.mjs"
         ]
       },
-      "operation_blockers": [
-        {
-          "signature": "POST /v1/google/oauth/session",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /v1/google/oauth/redeem",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /v1/google/oauth/refresh",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        }
-      ],
+      "operation_blockers": [],
       "risk": {
-        "score": 2,
-        "class": "low"
+        "score": 4,
+        "class": "medium"
       },
       "wave": "F5-developer-evidence"
     },
@@ -100869,6 +100952,57 @@
       ]
     },
     {
+      "task_key": "frontend.managed-google-oauth.developer",
+      "title": "Resolve and deliver managed google oauth (developer)",
+      "wave": "F5-developer-evidence",
+      "state": "ready",
+      "blockers": [],
+      "dependencies": [
+        "F0-source-baseline",
+        "F1-tenant-workspace-context",
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
+      ],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/managedGoogleOAuthRoutes.js",
+        "scripts/test-manifest.mjs",
+        "test-managed-google-oauth-broker.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered",
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-managed-google-oauth-broker.mjs"
+      ]
+    },
+    {
       "task_key": "frontend.mcp",
       "title": "Resolve and deliver mcp",
       "wave": "F5-developer-evidence",
@@ -101601,56 +101735,6 @@
         "node scripts/frontend-surface-dispatch.mjs --check",
         "node scripts/resource-api-coverage-audit.mjs --changed",
         "node test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
-      "task_key": "frontend.managed-google-oauth.developer",
-      "title": "Resolve and deliver managed google oauth (developer)",
-      "wave": "F5-developer-evidence",
-      "state": "blocked",
-      "blockers": [
-        "operation_classification_gap"
-      ],
-      "dependencies": [
-        "F0-source-baseline",
-        "F1-tenant-workspace-context",
-        "operation-classification"
-      ],
-      "source_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/brand-core-asset-materialization.yaml",
-        "openapi/container-authority-override-governance-smoke.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/hostinger-storage-tenant-runtime.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "openapi/support-ticket-admin-brand.yaml",
-        "openapi/support-ticket-admin-execution.yaml",
-        "openapi/support-ticket-admin-remaining.yaml",
-        "openapi/support-ticket-runtime-completion.yaml",
-        "openapi/support-tickets.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/index.js",
-        "routes/managedGoogleOAuthRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-managed-google-oauth-broker.mjs"
-      ],
-      "acceptance_gates": [
-        "source_baseline_unchanged",
-        "scope_and_auth_explicit",
-        "openapi_or_explicit_exemption",
-        "surface_policy_resolved",
-        "tests_registered",
-        "operation_classification_explicit"
-      ],
-      "verification": [
-        "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-managed-google-oauth-broker.mjs"
       ]
     }
   ],

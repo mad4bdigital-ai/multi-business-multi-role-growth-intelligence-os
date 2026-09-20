@@ -6,8 +6,8 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "030477b835b6cacb5f02ade7ce845016e76c556c8f8a8e3912b22fbcd68fbb20",
-    "dispatch_artifact_sha256": "3cd82b546e3a82b5c741b3862cf95f0329c161c386487e6fbb691a3fbc9667cf"
+    "dispatch_source_digest": "19c9308ce1eebaf855713b11e719a294dcc1dc49adb829e61a90546601c83a74",
+    "dispatch_artifact_sha256": "c4dc6852421cf887ed8ac4dd9da3d3a9861577221edc1be4a567d848c4e983a2"
   },
   "coverage": {
     "operation_count": 1073,
@@ -16,10 +16,10 @@
     "auth_contract_gap_count": 0,
     "openapi_detail_gap_count": 318,
     "unresolved_surface_decision_count": 0,
-    "unresolved_operation_class_count": 3,
+    "unresolved_operation_class_count": 0,
     "untested_family_count": 0,
     "untested_operation_count": 0,
-    "coverage_complete": false
+    "coverage_complete": true
   },
   "closure_summary": {
     "blocking_contract_gaps": 0,
@@ -5048,7 +5048,7 @@
       "detail_gap_count": 0,
       "operation_count": 3,
       "untested_operation_count": 0,
-      "unresolved_operation_count": 3,
+      "unresolved_operation_count": 0,
       "next_action": "continue_deterministic_observation_and_regression_checks",
       "activation_allowed": false,
       "evidence_refs": [
