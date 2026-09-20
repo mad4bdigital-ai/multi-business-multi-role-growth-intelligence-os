@@ -121,9 +121,12 @@ function Test-SafeSeed([string]$Sql, [string]$File) {
   $forbidden = @(
     '(?im)^\s*GRANT\b', '(?im)^\s*REVOKE\b', '(?im)^\s*CREATE\s+USER\b',
     '(?im)^\s*ALTER\s+USER\b', '(?im)^\s*DROP\s+DATABASE\b', '(?im)^\s*CREATE\s+DATABASE\b',
+    '(?im)^\s*DROP\s+(?:TABLE|VIEW|TRIGGER|PROCEDURE|FUNCTION|EVENT)\b',
+    '(?im)^\s*TRUNCATE\b', '(?im)^\s*DELETE\b', '(?im)^\s*REPLACE\b',
+    '(?im)^\s*RENAME\s+TABLE\b', '(?im)^\s*ALTER\s+TABLE\b[^;]*\bDROP\b',
     '(?im)^\s*LOAD\s+DATA\b', '(?im)\bINTO\s+(?:OUTFILE|DUMPFILE)\b'
   )
-  foreach ($pattern in $forbidden) { if ($Sql -match $pattern) { Fail "Seed contains forbidden authority/external-data SQL: $File" } }
+  foreach ($pattern in $forbidden) { if ($Sql -match $pattern) { Fail "Seed contains forbidden destructive/authority/external-data SQL: $File" } }
   Require ($Sql -match '(?im)\b(?:INSERT|UPDATE)\b') "Seed contains no deterministic seed statements: $File"
 }
 function Assert-CountAtLeast([string]$Value, [int]$Minimum, [string]$Label) {
@@ -141,6 +144,82 @@ function Assert-ContainsSet([string[]]$Required, [string[]]$Actual, [string]$Lab
   foreach ($item in $Actual) { [void]$actualSet.Add([string]$item) }
   $missing = @($Required | Where-Object { -not $actualSet.Contains([string]$_) })
   if ($missing.Count -gt 0) { Fail "$Label table census is missing: $($missing -join ',')" }
+}
+
+function Get-RoleObjectCensus([object]$Item, [string[]]$ComposeArgs) {
+  $db = Read-Env $Item.Database
+  Require ($db -match '^[A-Za-z0-9_]+$' -and $db -notmatch '(?i)(production|hostinger)') "Unsafe local role database name: $($Item.Key)"
+  $rootPassword = Read-Env $Item.RootPassword
+  Require (-not [string]::IsNullOrWhiteSpace($rootPassword)) "Missing local root password for role: $($Item.Key)"
+  $literal = "'" + $db + "'"
+  $schemaExists = (& docker compose @ComposeArgs exec -T -e "MYSQL_PWD=$rootPassword" $Item.Service mariadb --protocol=socket -uroot --batch --skip-column-names -e "SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME=$literal" | Out-String).Trim()
+  Require ($LASTEXITCODE -eq 0 -and $schemaExists -ceq "1") "Role database is missing or unreadable: $($Item.Key)"
+  $query = "SELECT (SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=$literal AND TABLE_TYPE='BASE TABLE'),(SELECT COUNT(*) FROM information_schema.VIEWS WHERE TABLE_SCHEMA=$literal),(SELECT COUNT(*) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA=$literal),(SELECT COUNT(*) FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA=$literal),(SELECT COUNT(*) FROM information_schema.EVENTS WHERE EVENT_SCHEMA=$literal)"
+  $raw = (& docker compose @ComposeArgs exec -T -e "MYSQL_PWD=$rootPassword" $Item.Service mariadb --protocol=socket -uroot --batch --skip-column-names -e $query | Out-String).Trim()
+  Require ($LASTEXITCODE -eq 0 -and $raw -match '^\d+\t\d+\t\d+\t\d+\t\d+$') "Pre-apply object-kind census failed for role: $($Item.Key)"
+  $parts = $raw -split "`t"
+  $counts = [ordered]@{
+    tables = [int]$parts[0]
+    views = [int]$parts[1]
+    triggers = [int]$parts[2]
+    routines = [int]$parts[3]
+    events = [int]$parts[4]
+  }
+  $total = [int]($counts.tables + $counts.views + $counts.triggers + $counts.routines + $counts.events)
+  return [pscustomobject]@{
+    role = [string]$Item.Key
+    tables = $counts.tables
+    views = $counts.views
+    triggers = $counts.triggers
+    routines = $counts.routines
+    events = $counts.events
+    total = $total
+  }
+}
+
+function Assert-CompletedImportLiveReadback(
+  [object[]]$Services,
+  [string[]]$ComposeArgs,
+  [string[]]$RequiredRuntimeCensus,
+  [string[]]$RequiredRuntimeSupportTables
+) {
+  $runtimeService = $null
+  $runtimeTableNames = @()
+  foreach ($item in $Services) {
+    $db = Read-Env $item.Database
+    $user = Read-Env $item.User
+    $password = Read-Env $item.Password
+    $tableText = (& docker compose @ComposeArgs exec -T -e "MYSQL_PWD=$password" $item.Service mariadb --protocol=socket "--user=$user" $db --batch --skip-column-names -e "SHOW FULL TABLES" | Out-String)
+    Require ($LASTEXITCODE -eq 0) "Completed-state table readback failed for $($item.Key)"
+    $actualTables = Get-TableNames $tableText
+    Assert-SetEqual $item.ExpectedTables $actualTables "completed-state $($item.Key)"
+    if ($item.Key -eq "runtime") {
+      $runtimeService = $item
+      $runtimeTableNames = @($actualTables)
+    }
+  }
+
+  Require ($null -ne $runtimeService) "Completed-state runtime role is missing."
+  Assert-ContainsSet $RequiredRuntimeCensus @($runtimeTableNames) "completed-state runtime required census"
+  Assert-ContainsSet $RequiredRuntimeSupportTables @($runtimeTableNames) "completed-state runtime support"
+
+  $mcpColumns = @((Invoke-DatabaseQuery $runtimeService $ComposeArgs "SELECT CONCAT(TABLE_NAME, '.', COLUMN_NAME) FROM information_schema.columns WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('admin_platform_endpoint_tools', 'tenant_platform_endpoint_tools') AND COLUMN_NAME = 'mcp_catalog_level' ORDER BY TABLE_NAME") -split "`r?`n" | Where-Object { $_ })
+  Assert-ContainsSet @("admin_platform_endpoint_tools.mcp_catalog_level", "tenant_platform_endpoint_tools.mcp_catalog_level") $mcpColumns "completed-state MCP catalog columns"
+
+  Assert-CountAtLeast (Invoke-DatabaseScalar $runtimeService $ComposeArgs "SELECT COUNT(*) FROM sql_cache_runtime_policies WHERE policy_key = 'sql_cache_policy_v2' AND revision >= 1 AND JSON_UNQUOTE(JSON_EXTRACT(config_json, '$.required')) IN ('false','0') AND FIND_IN_SET('endpoints', REPLACE(JSON_UNQUOTE(JSON_EXTRACT(config_json, '$.table_blocklist')), ' ', '')) > 0") 1 "completed-state sql_cache_policy_v2" | Out-Null
+  Assert-CountExactly (Invoke-DatabaseScalar $runtimeService $ComposeArgs "SELECT COUNT(*) FROM workspace_registry WHERE workspace_id = 'b50db01b-617e-4b7a-8bda-6bf4876f754f' AND tenant_id = '00000000-0000-0000-0000-000000000000' AND workspace_key = 'platform_repo_governance_zero' AND display_name = 'Platform Admin' AND workspace_type = 'brand' AND bootstrap_status = 'ready' AND JSON_UNQUOTE(JSON_EXTRACT(config_json, '$.authority_scope_key')) = 'platform:root' AND JSON_EXTRACT(config_json, '$.platform_admin_workspace') = TRUE") 1 "completed-state canonical Platform Admin workspace" | Out-Null
+  Assert-CountExactly (Invoke-DatabaseScalar $runtimeService $ComposeArgs "SELECT COUNT(*) FROM remote_runtime_command_allowlists WHERE plugin_key = 'remote_ssh_runtime' AND command_key = 'wordpress_staging_plugin_deploy' AND status = 'active'") 1 "completed-state canonical WordPress Staging deploy command" | Out-Null
+  Assert-CountExactly (Invoke-DatabaseScalar $runtimeService $ComposeArgs "SELECT COUNT(*) FROM admin_platform_endpoint_tools WHERE tool_key = 'wordpress_staging_plugin_deploy' AND http_method = 'POST' AND http_path = '/platform/remote-runtime/wordpress/staging/deploy-plugin' AND is_enabled = 1") 1 "completed-state canonical WordPress Staging deploy admin tool" | Out-Null
+  Assert-CountExactly (Invoke-DatabaseScalar $runtimeService $ComposeArgs "SELECT COUNT(*) FROM execution_policies WHERE policy_group = 'wordpress_staging_plugin_deploy_governance' AND policy_key = 'wordpress_staging_plugin_deploy_exact_artifact_guard' AND active = 'true'") 1 "completed-state canonical WordPress Staging deploy execution policy" | Out-Null
+
+  return [pscustomobject]@{
+    verified = $true
+    runtime_table_count = $runtimeTableNames.Count
+    semantic_readback = "passed"
+    database_mutation_performed = $false
+    provider_access_performed = $false
+    production_access_performed = $false
+  }
 }
 
 Require (Test-Path -LiteralPath $EnvFile) "Missing local .env.staging; run Start-AutoPilot.ps1 first."
@@ -179,6 +258,9 @@ Require ($requiredRuntimeCensus.Count -eq 18) "Schema bundle runtime census must
 
 $roleMigrationManifest = Read-Json $RoleMigrationManifestPath
 Require ([string]$roleMigrationManifest.contract -eq "mad4b.staging.database-role-migration-manifest.v1") "Unsupported canonical Staging role migration manifest contract."
+Require ($roleMigrationManifest.source.nonempty_direct_schema_replay_forbidden -eq $true) "Canonical role manifest must forbid direct schema replay over non-empty databases."
+Require ($roleMigrationManifest.source.pre_apply_role_object_census_required -eq $true) "Canonical role manifest must require a pre-apply object census."
+Require ([string]$roleMigrationManifest.source.partial_role_rebuild_authority -eq "autopilot-portable-staging/Rebuild-EmptyStagingRoleDatabases.ps1") "Canonical partial-role rebuild authority mismatch."
 $canonicalRuntimeCensus = @($roleMigrationManifest.validation.required_runtime_table_census)
 Require ($canonicalRuntimeCensus.Count -eq 18) "Canonical Staging role manifest must declare exactly 18 runtime census tables."
 Assert-SetEqual $canonicalRuntimeCensus $requiredRuntimeCensus "schema bundle runtime census projection"
@@ -265,10 +347,17 @@ try {
   $existingState = $null
   if (Test-Path -LiteralPath $BundleStatePath) { $existingState = Read-Json $BundleStatePath }
   if ($null -ne $existingState -and [string]$existingState.status -eq "completed" -and [string]$existingState.source_commit -eq $ExpectedCommit.ToLowerInvariant() -and [string]$existingState.manifest_sha256 -eq $manifestSha -and [string]$existingState.canonical_seed_status -eq "completed" -and [string]$existingState.authority_seed_status -eq "completed" -and [string]$existingState.canonical_seed_readback.status -eq "passed") {
-    Write-Host "SCHEMA_IMPORT_ALREADY_COMPLETE: source_commit=$ExpectedCommit manifest_sha256=$manifestSha"
+    $completedStateLiveReadback = Assert-CompletedImportLiveReadback $services $compose $requiredRuntimeCensus $requiredRuntimeSupportTables
+    Require ($completedStateLiveReadback.verified -eq $true -and $completedStateLiveReadback.semantic_readback -eq "passed") "Completed schema-import state did not survive live semantic readback."
+    Write-Host "SCHEMA_IMPORT_ALREADY_COMPLETE: source_commit=$ExpectedCommit manifest_sha256=$manifestSha live_semantic_readback=passed"
     exit 0
   }
   if ($null -ne $existingState -and [string]$existingState.status -eq "applying") { Fail "Previous schema import is marked applying; refusing blind resume. Stop/reset local Staging containers and rerun after review." }
+
+  $preApplyRoleCensus = @($services | ForEach-Object { Get-RoleObjectCensus $_ $compose })
+  $nonEmptyRoles = @($preApplyRoleCensus | Where-Object { [int]$_.total -ne 0 })
+  $nonEmptyRoleSummary = (@($nonEmptyRoles | ForEach-Object { "$($_.role):$($_.total)" } | Sort-Object) -join ',')
+  Require ($nonEmptyRoles.Count -eq 0) "Direct schema-only importer may apply only when all three local Staging role databases are zero-object. Non-empty roles must be preserved and handled only by the governed Rebuild-EmptyStagingRoleDatabases Recovery flow. observed=$nonEmptyRoleSummary"
 
   $state = [ordered]@{
     contract = "mad4b.staging.schema-import-state.v1"
@@ -288,6 +377,9 @@ try {
     authority_seed_applied_files = @()
     authority_seed_execution_identity = "local_database_root"
     runtime_write_authority_expanded = $false
+    pre_apply_role_object_census = @($preApplyRoleCensus)
+    pre_mutation_role_object_census = @()
+    nonempty_role_apply_forbidden = $true
     canonical_seed_readback = [ordered]@{ status = "pending"; required_runtime_table_census = @(); required_runtime_support_tables = @(); mcp_catalog_columns = @(); canonical_row_counts = @{} }
     production_accessed = $false
     provider_accessed = $false
@@ -300,6 +392,10 @@ try {
     $user = Read-Env $item.User
     $password = Read-Env $item.Password
     Require ($db -notmatch '(?i)(production|hostinger)' -and $user -notmatch '(?i)(production|hostinger)') "Target database identity is not Staging-local: $($item.Key)"
+    $preMutationCensus = Get-RoleObjectCensus $item $compose
+    Require ([int]$preMutationCensus.total -eq 0) "Role database became non-empty after the initial census; refusing schema replay for $($item.Key). observed=$([int]$preMutationCensus.total)"
+    $state.pre_mutation_role_object_census = @($state.pre_mutation_role_object_census + $preMutationCensus)
+    Write-JsonAtomic $BundleStatePath $state
     $containerPath = "/tmp/$($item.File)"
     & docker compose @compose cp $item.Source "$($item.Service):$containerPath"
     Require ($LASTEXITCODE -eq 0) "Failed to copy bundle into $($item.Service)"
@@ -401,4 +497,3 @@ try {
   throw
 } finally {
   Release-ImportLock
-}
