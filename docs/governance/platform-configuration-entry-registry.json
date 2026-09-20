@@ -435,7 +435,7 @@
       "binding_ref": "http-generic-api/managedGoogleOAuthBroker.js",
       "resolver_ref": "http-generic-api/managedGoogleOAuthBroker.js",
       "readback_ref": "http-generic-api/test-managed-google-oauth-broker.mjs",
-      "shadow_evidence_ref": "docs/managed-google-oauth-broker.md",
+      "shadow_evidence_ref": "docs/runbooks/managed-google-oauth-broker.md",
       "classification": "runtime_setting",
       "status": "staged",
       "secrets_included": false
@@ -542,7 +542,7 @@
       "binding_ref": "http-generic-api/managedGoogleOAuthBroker.js",
       "resolver_ref": "http-generic-api/managedGoogleOAuthBroker.js",
       "readback_ref": "http-generic-api/test-managed-google-oauth-broker.mjs",
-      "shadow_evidence_ref": "docs/managed-google-oauth-broker.md",
+      "shadow_evidence_ref": "docs/runbooks/managed-google-oauth-broker.md",
       "classification": "runtime_setting",
       "status": "staged",
       "secrets_included": false
@@ -845,7 +845,7 @@
       "binding_ref": "http-generic-api/managedGoogleOAuthBroker.js",
       "resolver_ref": "http-generic-api/managedGoogleOAuthBroker.js",
       "readback_ref": "http-generic-api/test-managed-google-oauth-broker.mjs",
-      "shadow_evidence_ref": "docs/managed-google-oauth-broker.md",
+      "shadow_evidence_ref": "docs/runbooks/managed-google-oauth-broker.md",
       "classification": "runtime_setting",
       "status": "staged",
       "secrets_included": false
@@ -863,7 +863,7 @@
       "binding_ref": "http-generic-api/managedGoogleOAuthBroker.js",
       "resolver_ref": "http-generic-api/managedGoogleOAuthBroker.js",
       "readback_ref": "http-generic-api/test-managed-google-oauth-broker.mjs",
-      "shadow_evidence_ref": "docs/managed-google-oauth-broker.md",
+      "shadow_evidence_ref": "docs/runbooks/managed-google-oauth-broker.md",
       "classification": "runtime_setting",
       "status": "staged",
       "secrets_included": false
@@ -1163,7 +1163,7 @@
       "binding_ref": "http-generic-api/managedGoogleOAuthBroker.js",
       "resolver_ref": "http-generic-api/managedGoogleOAuthBroker.js",
       "readback_ref": "http-generic-api/test-managed-google-oauth-broker.mjs",
-      "shadow_evidence_ref": "docs/managed-google-oauth-broker.md",
+      "shadow_evidence_ref": "docs/runbooks/managed-google-oauth-broker.md",
       "classification": "runtime_setting",
       "status": "staged",
       "secrets_included": false
@@ -1181,7 +1181,7 @@
       "binding_ref": "http-generic-api/managedGoogleOAuthBroker.js",
       "resolver_ref": "http-generic-api/managedGoogleOAuthBroker.js",
       "readback_ref": "http-generic-api/test-managed-google-oauth-broker.mjs",
-      "shadow_evidence_ref": "docs/managed-google-oauth-broker.md",
+      "shadow_evidence_ref": "docs/runbooks/managed-google-oauth-broker.md",
       "classification": "runtime_setting",
       "status": "staged",
       "secrets_included": false
