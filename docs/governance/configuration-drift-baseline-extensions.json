@@ -1322,8 +1322,7 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
-    }
-    ,
+    },
     {
       "fingerprint": "http-generic-api/test-managed-git-remote-transport.mjs|GIT_CONFIG_GLOBAL|environment_reference|git.config.global",
       "owner": "repository-governance",
@@ -1339,6 +1338,39 @@
       "fingerprint": "http-generic-api/test-managed-git-remote-transport.mjs|previousGlobalConfig|environment_reference|git.config.global",
       "owner": "repository-governance",
       "reason": "Test-only snapshot of the pre-test global Git configuration path, restored after hostile-host regression execution; it contains no credential value and grants no repository, runtime, provider, database, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-canonical-semantic-repair.mjs|STAGING_ENVIRONMENT_KEY|environment_reference|staging.environment.key",
+      "owner": "staging-runtime-governance",
+      "reason": "Local Staging environment identity guard; exact fixed value is required before any semantic repair command and grants no Production authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-canonical-semantic-repair.mjs|STAGING_CANONICAL_REPAIR_EXPECTED_COMMIT|environment_reference|staging.canonical.repair.expected.commit",
+      "owner": "staging-runtime-governance",
+      "reason": "Exact reviewed checkout SHA binding for plan/apply/reconcile; contains no secret and invalidates stale plans.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-canonical-semantic-repair.mjs|STAGING_CANONICAL_REPAIR_LEDGER_DIR|environment_reference|staging.canonical.repair.ledger.dir",
+      "owner": "staging-runtime-governance",
+      "reason": "Operator-owned local evidence directory outside Runtime DB for durable single-use repair state; contains no credential value.",
       "lifecycle": "permanent",
       "configuration_class": "ci_governance_input",
       "sensitivity": "non_secret_reference",
