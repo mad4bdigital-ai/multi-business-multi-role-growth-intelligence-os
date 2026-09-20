@@ -1214,6 +1214,17 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": "http-generic-api/test-platform-admin-workspace-authority-parity.mjs|generated|literal_declaration|generated",
+      "owner": "test-governance",
+      "reason": "Test-local variable stores the child-process result from the generated Platform Admin authority parity check; it is not environment configuration, runtime target selection, credential material, or mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": "http-generic-api/test-platform-routes.mjs|NODE_ENV|environment_reference|node.env",
       "owner": "test-governance",
       "reason": "This is an explicit synthetic test environment fixture for platform route coverage and cannot grant runtime or Production authority.",
