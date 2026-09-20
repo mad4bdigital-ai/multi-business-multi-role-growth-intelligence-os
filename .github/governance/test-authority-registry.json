@@ -16,23 +16,6 @@
   ],
   "invariant_authorities": [
     {
-      "id": "windows_portability_regression_coverage",
-      "test_paths": [
-        "http-generic-api/test-authority-evidence-repository-source-materializer.mjs",
-        "http-generic-api/test-branch-test-diagnostic-shards.mjs",
-        "http-generic-api/test-custom-gpt-environment-aware-contract.mjs",
-        "http-generic-api/test-governed-autopilot-production-deployment.mjs",
-        "http-generic-api/test-interruption-readiness.mjs",
-        "http-generic-api/test-interruption-verification-recovery.mjs",
-        "http-generic-api/test-openapi-all-remaining-preflight-batch.mjs",
-        "http-generic-api/test-platform-runtime-registry-drift-reconciliation.mjs",
-        "http-generic-api/test-sequential-test-progress-report.mjs",
-        "scripts/test-remote-mcp-write-scope-inventory.mjs",
-        "scripts/test-repository-inventory.mjs",
-        "scripts/test-write-scope-shadow-preflight.mjs"
-      ]
-    },
-    {
       "id": "activation_environment_and_gateway_regressions",
       "test_paths": [
         "http-generic-api/test-activation-gateway-host-profile.mjs",
@@ -99,6 +82,13 @@
       ]
     },
     {
+      "id": "governed_execution_x0_evidence_baseline",
+      "test_paths": [
+        "http-generic-api/test-governed-execution-baseline-benchmark.mjs",
+        "http-generic-api/test-governed-execution-baseline-telemetry.mjs"
+      ]
+    },
+    {
       "id": "governed_migration_capability_envelope_authorization",
       "test_paths": [
         "http-generic-api/test-capability-resolution-envelope-ledger.mjs",
@@ -121,13 +111,6 @@
         "http-generic-api/scripts/governed-migration-runner-bootstrap.mjs",
         "http-generic-api/scripts/governed-migration-runner.mjs",
         "http-generic-api/recoveryExecutionBinding.js"
-      ]
-    },
-    {
-      "id": "governed_execution_x0_evidence_baseline",
-      "test_paths": [
-        "http-generic-api/test-governed-execution-baseline-benchmark.mjs",
-        "http-generic-api/test-governed-execution-baseline-telemetry.mjs"
       ]
     },
     {
@@ -194,14 +177,6 @@
       ]
     },
     {
-      "id": "wordpress_staging_exact_artifact_deployment_and_gateway_provenance",
-      "test_paths": [
-        "http-generic-api/test-gateway-policy-provenance-stability.mjs",
-        "http-generic-api/test-hostinger-deploy-capability-envelope-requirement.mjs",
-        "http-generic-api/test-hostinger-ssh-deploy-executor.mjs"
-      ]
-    },
-    {
       "id": "hostinger_storage_durable_authorized_injection_schema_ddl",
       "test_paths": [
         "http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl.mjs",
@@ -239,6 +214,13 @@
       ]
     },
     {
+      "id": "managed_google_oauth_broker_protocol_and_config_preflight",
+      "test_paths": [
+        "http-generic-api/test-managed-google-oauth-broker.mjs",
+        "http-generic-api/test-production-config-preflight.mjs"
+      ]
+    },
+    {
       "id": "platform_admin_email_default_baseline_contract",
       "test_paths": [
         "http-generic-api/test-platform-admin-email-default.mjs",
@@ -252,6 +234,18 @@
       "test_paths": [
         "http-generic-api/scripts/test-platform-configuration-entry-guard.mjs",
         "http-generic-api/scripts/maintenance-tools/platform-configuration-entry-guard.mjs"
+      ]
+    },
+    {
+      "id": "platform_resource_recipe_governance_isolation",
+      "test_paths": [
+        "http-generic-api/test-platform-resource-recipe-capability.mjs",
+        "http-generic-api/test-platform-resource-recipe-store.mjs",
+        "http-generic-api/test-repository-governance-v6.mjs",
+        "http-generic-api/test-repository-reconciliation-automation.mjs",
+        "http-generic-api/test-repository-reconciliation-orchestrator-export.mjs",
+        "http-generic-api/test-repository-tenant-intelligence-recipe-store.mjs",
+        "http-generic-api/test-platform-resource-authority-write-authority.mjs"
       ]
     },
     {
@@ -546,6 +540,31 @@
       ]
     },
     {
+      "id": "windows_portability_regression_coverage",
+      "test_paths": [
+        "http-generic-api/test-authority-evidence-repository-source-materializer.mjs",
+        "http-generic-api/test-branch-test-diagnostic-shards.mjs",
+        "http-generic-api/test-custom-gpt-environment-aware-contract.mjs",
+        "http-generic-api/test-governed-autopilot-production-deployment.mjs",
+        "http-generic-api/test-interruption-readiness.mjs",
+        "http-generic-api/test-interruption-verification-recovery.mjs",
+        "http-generic-api/test-openapi-all-remaining-preflight-batch.mjs",
+        "http-generic-api/test-platform-runtime-registry-drift-reconciliation.mjs",
+        "http-generic-api/test-sequential-test-progress-report.mjs",
+        "scripts/test-remote-mcp-write-scope-inventory.mjs",
+        "scripts/test-repository-inventory.mjs",
+        "scripts/test-write-scope-shadow-preflight.mjs"
+      ]
+    },
+    {
+      "id": "wordpress_staging_exact_artifact_deployment_and_gateway_provenance",
+      "test_paths": [
+        "http-generic-api/test-gateway-policy-provenance-stability.mjs",
+        "http-generic-api/test-hostinger-deploy-capability-envelope-requirement.mjs",
+        "http-generic-api/test-hostinger-ssh-deploy-executor.mjs"
+      ]
+    },
+    {
       "id": "work_map_autofix_diagnostics",
       "test_paths": [
         "http-generic-api/test-work-map-autofix-diagnostics.mjs",
@@ -578,18 +597,6 @@
       "id": "workspace_brand_core_asset_materialization",
       "test_paths": [
         "http-generic-api/test-workspace-brand-core-asset-materialization.mjs"
-      ]
-    },
-    {
-      "id": "platform_resource_recipe_governance_isolation",
-      "test_paths": [
-        "http-generic-api/test-platform-resource-recipe-capability.mjs",
-        "http-generic-api/test-platform-resource-recipe-store.mjs",
-        "http-generic-api/test-repository-governance-v6.mjs",
-        "http-generic-api/test-repository-reconciliation-automation.mjs",
-        "http-generic-api/test-repository-reconciliation-orchestrator-export.mjs",
-        "http-generic-api/test-repository-tenant-intelligence-recipe-store.mjs",
-        "http-generic-api/test-platform-resource-authority-write-authority.mjs"
       ]
     }
   ],
