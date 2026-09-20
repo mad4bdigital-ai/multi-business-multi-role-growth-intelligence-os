@@ -608,11 +608,19 @@ for (const operationId of ["redeemManagedGoogleOAuthHandoff", "refreshManagedGoo
   );
 }
 
-const managedSurfaceRule = frontendPolicy.rules.find((rule) => rule.source_file === "routes/managedGoogleOAuthRoutes.js");
-assert.ok(managedSurfaceRule, "managed Google OAuth route family must have a frontend surface policy decision");
-assert.equal(managedSurfaceRule.scope, "public");
-assert.equal(managedSurfaceRule.decision, "api_only");
-assert.equal(managedSurfaceRule.family_key, "managed-google-oauth");
+const managedPublicSurfaceRule = frontendPolicy.rules.find((rule) => rule.rule_id === "managed-google-oauth-broker-public-callback-api");
+assert.ok(managedPublicSurfaceRule, "managed Google OAuth public callback must have an explicit frontend surface policy decision");
+assert.equal(managedPublicSurfaceRule.source_file, "routes/managedGoogleOAuthRoutes.js");
+assert.equal(managedPublicSurfaceRule.scope, "public");
+assert.equal(managedPublicSurfaceRule.decision, "api_only");
+assert.equal(managedPublicSurfaceRule.family_key, "managed-google-oauth.public");
+
+const managedDeveloperSurfaceRule = frontendPolicy.rules.find((rule) => rule.rule_id === "managed-google-oauth-broker-site-hmac-api");
+assert.ok(managedDeveloperSurfaceRule, "managed Google OAuth site-HMAC protocol must have an explicit frontend surface policy decision");
+assert.equal(managedDeveloperSurfaceRule.source_file, "routes/managedGoogleOAuthRoutes.js");
+assert.equal(managedDeveloperSurfaceRule.scope, "developer");
+assert.equal(managedDeveloperSurfaceRule.decision, "api_only");
+assert.equal(managedDeveloperSurfaceRule.family_key, "managed-google-oauth.developer");
 const managedSiteAuthRule = frontendPolicy.auth_rules.find((rule) => rule.rule_id === "managed-google-oauth-site-hmac");
 assert.ok(managedSiteAuthRule, "managed Google OAuth POST route family must have explicit site-HMAC auth policy");
 assert.equal(managedSiteAuthRule.profile, "managed_google_site_hmac");
