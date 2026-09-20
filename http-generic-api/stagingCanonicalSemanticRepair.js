@@ -160,18 +160,22 @@ async function executeRegisteredArtifactInTransaction(executor){
   }
 }
 
-export async function applyStagingCanonicalSemanticRepair({executor,plan,confirmation,actual_commit}={}){
+export async function applyStagingCanonicalSemanticRepair({executor,plan,confirmation,actual_commit,ledger}={}){
   validatePlanBindings(plan,actual_commit);
   if(!plan.repair_allowed||plan.required_confirmation!==requiredConfirmation(plan.plan_sha256)||clean(confirmation)!==requiredConfirmation(plan.plan_sha256)){const error=new Error("Canonical semantic repair plan is not authorized for apply.");error.code="STAGING_CANONICAL_REPAIR_CONFIRMATION_REQUIRED";throw error;}
+  if(!ledger||!["reserve","markExecuting","markSucceeded","markUnknown"].every((method)=>typeof ledger[method]==="function"))throw Object.assign(new TypeError("A durable canonical repair ledger is required."),{code:"STAGING_CANONICAL_REPAIR_LEDGER_REQUIRED"});
   const current=await inspectStagingCanonicalSemanticRepair({executor});
   if(current.precondition_fingerprint!==plan.precondition_fingerprint||current.semantic_fingerprint!==plan.semantic_fingerprint_before||current.status!=="missing"){
     const error=new Error("Canonical semantic repair preconditions changed after planning.");error.code="STAGING_CANONICAL_REPAIR_PRECONDITION_CHANGED";throw error;}
+  await ledger.reserve({plan_sha256:plan.plan_sha256,expected_commit:plan.expected_commit,artifact_sha256:plan.artifact.sha256,precondition_fingerprint:plan.precondition_fingerprint});
+  await ledger.markExecuting(plan.plan_sha256,{execution_started:true});
   try{await executeRegisteredArtifactInTransaction(executor);}
-  catch(error){error.details={...error.details,plan_sha256:plan.plan_sha256};throw error;}
+  catch(error){try{await ledger.markUnknown(plan.plan_sha256,{reason:"mutation_transport_or_transaction_failure"});}catch{}error.details={...error.details,plan_sha256:plan.plan_sha256};throw error;}
   const readback=await inspectStagingCanonicalSemanticRepair({executor});
   if(readback.status!=="resolved"||readback.evidence.canonical_ready_count!==1||readback.evidence.ready_candidate_count!==1){
     const error=new Error("Canonical semantic repair outcome requires reconciliation.");error.code="STAGING_CANONICAL_REPAIR_RECONCILIATION_REQUIRED";
-    error.details={status:readback.status,plan_sha256:plan.plan_sha256,precondition_fingerprint:plan.precondition_fingerprint,postcondition_fingerprint:readback.precondition_fingerprint,mutation_retry_allowed:false};throw error;}
+    error.details={status:readback.status,plan_sha256:plan.plan_sha256,precondition_fingerprint:plan.precondition_fingerprint,postcondition_fingerprint:readback.precondition_fingerprint,mutation_retry_allowed:false};try{await ledger.markUnknown(plan.plan_sha256,{reason:"semantic_postcondition_unverified",postcondition_fingerprint:readback.precondition_fingerprint});}catch{}throw error;}
+  await ledger.markSucceeded(plan.plan_sha256,{postcondition_fingerprint:readback.precondition_fingerprint,semantic_fingerprint_after:readback.semantic_fingerprint});
   return {contract:"mad4b.staging.canonical-semantic-repair-result.v2",status:"repaired",plan_sha256:plan.plan_sha256,artifact_sha256:plan.artifact.sha256,
     semantic_artifact_registry_sha256:plan.semantic_artifact_registry_sha256,precondition_fingerprint:plan.precondition_fingerprint,postcondition_fingerprint:readback.precondition_fingerprint,
     semantic_fingerprint_before:plan.semantic_fingerprint_before,semantic_fingerprint_after:readback.semantic_fingerprint,exact_row_count:readback.evidence.canonical_ready_count,
