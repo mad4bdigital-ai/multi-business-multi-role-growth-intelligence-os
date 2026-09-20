@@ -221,15 +221,17 @@ if (process.argv.includes("--self-test")) {
   }
 
   const mixed = contract.datasets.workspace_registry;
-  const canonicalFile = mixed.canonical_rows[0].seed_file;
-  const canonical = resolveMutationLifecycle(
-    "UPDATE workspace_registry SET updated_at=NOW() WHERE workspace_id='b50db01b-617e-4b7a-8bda-6bf4876f754f' AND tenant_id='00000000-0000-0000-0000-000000000000' AND workspace_key='platform_repo_governance_zero' AND display_name='Platform Admin' AND workspace_type='brand' AND bootstrap_status='ready'",
-    mixed,
-    { file: canonicalFile },
-  );
+  const canonicalRow = mixed.canonical_rows[0];
+  const canonicalFile = canonicalRow.seed_file;
+  const selector = canonicalRow.mutation_selector;
+  const canonicalWhere = Object.entries(selector.update_where_equals || {})
+    .map(([column, value]) => `${column}=${sqlLiteral(value)}`)
+    .join(" AND ");
+  const canonicalStatement = `UPDATE workspace_registry SET updated_at=NOW() WHERE ${canonicalWhere}`;
+  const canonical = resolveMutationLifecycle(canonicalStatement, mixed, { file: canonicalFile });
   const commentBypass = resolveMutationLifecycle("-- platform_repo_governance_zero\nUPDATE workspace_registry SET bootstrap_status='ready'", mixed, { file: canonicalFile });
   const wrongFile = resolveMutationLifecycle(
-    "UPDATE workspace_registry SET updated_at=NOW() WHERE workspace_id='b50db01b-617e-4b7a-8bda-6bf4876f754f' AND tenant_id='00000000-0000-0000-0000-000000000000' AND workspace_key='platform_repo_governance_zero' AND display_name='Platform Admin' AND workspace_type='brand' AND bootstrap_status='ready'",
+    canonicalStatement,
     mixed,
     { file: "20260920_unreviewed_workspace_mutation.sql" },
   );
