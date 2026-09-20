@@ -6,10 +6,10 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_artifact_sha256": "ac643c63136c75a2fa068d3ea3289084f003dd3e738e183068fb09d49be0f6ad",
+    "dispatch_artifact_sha256": "fcd04483b2c3033ebb48821f6b7fa99a38f4990a9d0516d9cbbc53f41a5c8f0a",
     "family_count": 176,
     "detail_family_count": 75,
-    "dispatch_operation_count": 1073
+    "dispatch_operation_count": 1074
   },
   "scope_boundary": {
     "route_wiring": false,

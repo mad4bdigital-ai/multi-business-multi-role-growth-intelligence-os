@@ -157,6 +157,7 @@
       ".changes/e2e/staging-activation-public-schema-routes-20260905.json",
       ".changes/e2e/staging-activation-recovery-trusted-ingress-provisioning-20260903.json",
       ".changes/e2e/staging-activation-schema-runtime-grants-reconciliation-20260902.json",
+      ".changes/e2e/staging-admin-remote-runtime-catalog-readonly-current-main-20260921.json",
       ".changes/e2e/staging-autopilot-bootstrap-self-update.json",
       ".changes/e2e/staging-autopilot-git-transport-resilience.json",
       ".changes/e2e/staging-autopilot-oauth-certification-maintenance.json",

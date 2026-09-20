@@ -2,16 +2,16 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "b2c9bfc609442acd48efc65c197f49bb4b2a4019204e452aa7abfeead6ece854",
+    "source_digest": "f255912c594b127229e6f5953ce42c795b38b6ab4b5e074a17af7cca1be84a4e",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
-        "sha256": "ed131ccfa26fc1c6fa5e18c81793bfd4521fb593f6a9d0173d75fde5d4c517c2",
+        "sha256": "0de08f1c1c86f043bff6a0c2b9f3610cc2476b61848bf3d2432599d3ded9af02",
         "present": true
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "d510ee1678ab42ed5d0de9a550db9f86cc6abcca0aac793c2e7bc89561e5c0ae",
+        "sha256": "42a4caea8305cff36a552965e908a0033f2a4cb3ec9544997ff2ad15f876d219",
         "present": true
       },
       {
@@ -26,7 +26,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "6ce4be6a3563bc128c0d9f605253e5673448484b7c70a9f2c859fbbc2205f89e",
+        "sha256": "adb6bbf066274ba65efd3938ff0c124739be1a546c3dc36c1f8504134d486542",
         "present": true
       },
       {
@@ -136,7 +136,7 @@
       },
       {
         "file": "openapi/openapi.custom-gpt.staging-admin.yaml",
-        "sha256": "ed621c7b362ee72f9a06699e17d4dcdd6fff2e4990fccd037fad626ca84b8f33",
+        "sha256": "3ba50e2bb2bf7bc32838324cbc0d114663156ddc2459e49b253c4acad45012a6",
         "present": true
       },
       {
@@ -146,7 +146,7 @@
       },
       {
         "file": "openapi/openapi.gpt-action.dev-dispatcher.yaml",
-        "sha256": "13881d937e6fd1db552660e41dc4438145b63016594f96952b44069ca8a91b4f",
+        "sha256": "09e122211f4be46568226ebc2c4e43f9c47a06d9b1452581f9dba3be6e32850e",
         "present": true
       },
       {
@@ -551,7 +551,7 @@
       },
       {
         "file": "routes/deploymentInfoRoutes.js",
-        "sha256": "cf0e28b18bfe4d068deb670d5afc34ef4292ae7c8d2d7759c129c527d63bbc95",
+        "sha256": "03e208f781dd8eb31ad25afc8a33790da4f2a6df180afb87bacee3e6f4f7e272",
         "present": true
       },
       {
@@ -736,7 +736,7 @@
       },
       {
         "file": "routes/operationalConsoleRoutes.js",
-        "sha256": "4b4e5efd3b544e2899acb33aba5d995fd75dde5202d785e5e0c7e8c5a32d1905",
+        "sha256": "fbbc852e6d9e64e4b56b84baf46dac3e486d42ecba9d348043e4561fd362f477",
         "present": true
       },
       {
@@ -1096,7 +1096,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "f4dfb1821656e3673b7a7b0ead9bea659e4e0e4757ecb8ded64d6cb33121daf2",
+        "sha256": "3db279e1d1fe2394bbb7cb00adb2cf9cb587f08e8dccfed7ac7e004d8ef80974",
         "present": true
       },
       {
@@ -1150,13 +1150,18 @@
         "present": true
       },
       {
+        "file": "test-remote-runtime-catalog-probe.mjs",
+        "sha256": "14680a6f207633f4bf4d453867b6cd85aa9dfb9e8d8dae72a2dc5de65aeb9ee5",
+        "present": true
+      },
+      {
         "file": "test-runtime-breakglass-broker.mjs",
         "sha256": "aec8a5592454f75190bacbe64ba09c76465749bb82d226c05662a31d96e988d1",
         "present": true
       },
       {
         "file": "test-runtime-gate-deployment-info-parity.mjs",
-        "sha256": "ed88177b1f707c4df778466697b9cb002240717f3217007e02f5805f71393505",
+        "sha256": "cdc073afd1296ac662b2acb6a0d928504d879a8bbfcfca11d35ff1d9a3c7f2a5",
         "present": true
       },
       {
@@ -1204,16 +1209,16 @@
     "mounted_family_count": 176,
     "mounted_route_file_count": 145,
     "mixed_scope_route_file_count": 26,
-    "operation_count": 1073,
-    "openapi_documented_count": 1057,
-    "openapi_canonical_documented_count": 739,
+    "operation_count": 1074,
+    "openapi_documented_count": 1058,
+    "openapi_canonical_documented_count": 740,
     "openapi_generated_index_count": 318,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
     "openapi_detail_gap_count": 318,
     "openapi_detail_gap_policy": "accepted_generated_index_only",
     "auth_parity_counts": {
-      "equivalent": 1057,
+      "equivalent": 1058,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
@@ -1226,7 +1231,7 @@
     "unresolved_surface_decision_count": 0,
     "test_owned_family_count": 176,
     "untested_family_count": 0,
-    "test_owned_operation_count": 1073,
+    "test_owned_operation_count": 1074,
     "untested_operation_count": 0,
     "ready_task_count": 176,
     "blocked_task_count": 0,
@@ -1897,7 +1902,7 @@
       "family_key": "deployment-info.developer",
       "label": "deployment info (developer)",
       "source_file": "routes/deploymentInfoRoutes.js",
-      "source_digest": "cf0e28b18bfe4d068deb670d5afc34ef4292ae7c8d2d7759c129c527d63bbc95",
+      "source_digest": "03e208f781dd8eb31ad25afc8a33790da4f2a6df180afb87bacee3e6f4f7e272",
       "mount_prefix": "/",
       "mount_order": 13298,
       "split_from_mixed_scope_file": true,
@@ -2186,7 +2191,7 @@
       "family_key": "deployment-info.public",
       "label": "deployment info (public)",
       "source_file": "routes/deploymentInfoRoutes.js",
-      "source_digest": "cf0e28b18bfe4d068deb670d5afc34ef4292ae7c8d2d7759c129c527d63bbc95",
+      "source_digest": "03e208f781dd8eb31ad25afc8a33790da4f2a6df180afb87bacee3e6f4f7e272",
       "mount_prefix": "/",
       "mount_order": 13298,
       "split_from_mixed_scope_file": true,
@@ -22002,7 +22007,7 @@
       "family_key": "operational-console",
       "label": "operational console",
       "source_file": "routes/operationalConsoleRoutes.js",
-      "source_digest": "4b4e5efd3b544e2899acb33aba5d995fd75dde5202d785e5e0c7e8c5a32d1905",
+      "source_digest": "fbbc852e6d9e64e4b56b84baf46dac3e486d42ecba9d348043e4561fd362f477",
       "mount_prefix": "/",
       "mount_order": 16591,
       "split_from_mixed_scope_file": false,
@@ -22150,6 +22155,73 @@
           },
           "mutation_candidate": false,
           "mutation": false
+        },
+        {
+          "method": "GET",
+          "path": "/platform/remote-runtime/targets/catalog-readonly",
+          "signature": "GET /platform/remote-runtime/targets/catalog-readonly",
+          "source_file": "routes/operationalConsoleRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/openapi.custom-gpt.staging-admin.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [
+            "test-remote-runtime-catalog-probe.mjs"
+          ],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
         }
       ],
       "openapi_gaps": [],
@@ -22160,7 +22232,8 @@
         "GET /operational/console/evidence"
       ],
       "tests": [
-        "test-frontend-surface-coverage-claims.mjs"
+        "test-frontend-surface-coverage-claims.mjs",
+        "test-remote-runtime-catalog-probe.mjs"
       ],
       "untested_operations": [],
       "resources": [],
@@ -22177,6 +22250,7 @@
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/openapi.custom-gpt.staging-admin.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
         "openapi/support-ticket-admin-execution.yaml",
@@ -22187,7 +22261,8 @@
         "routes/index.js",
         "routes/operationalConsoleRoutes.js",
         "scripts/test-manifest.mjs",
-        "test-frontend-surface-coverage-claims.mjs"
+        "test-frontend-surface-coverage-claims.mjs",
+        "test-remote-runtime-catalog-probe.mjs"
       ],
       "surface_decision": {
         "decision": "internal_only",
@@ -61807,7 +61882,8 @@
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
           "tests": [
-            "test-frontend-surface-coverage-claims.mjs"
+            "test-frontend-surface-coverage-claims.mjs",
+            "test-remote-runtime-catalog-probe.mjs"
           ],
           "governance": {
             "classification": "read_action",
@@ -62963,7 +63039,8 @@
         "POST /platform/plugins/smoke-certifications/policies/rollback-preview"
       ],
       "tests": [
-        "test-frontend-surface-coverage-claims.mjs"
+        "test-frontend-surface-coverage-claims.mjs",
+        "test-remote-runtime-catalog-probe.mjs"
       ],
       "untested_operations": [],
       "resources": [],
@@ -62991,7 +63068,8 @@
         "routes/index.js",
         "routes/platformPluginRoutes.js",
         "scripts/test-manifest.mjs",
-        "test-frontend-surface-coverage-claims.mjs"
+        "test-frontend-surface-coverage-claims.mjs",
+        "test-remote-runtime-catalog-probe.mjs"
       ],
       "surface_decision": {
         "decision": "internal_only",
@@ -96827,6 +96905,7 @@
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/openapi.custom-gpt.staging-admin.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
         "openapi/support-ticket-admin-execution.yaml",
@@ -96837,7 +96916,8 @@
         "routes/index.js",
         "routes/operationalConsoleRoutes.js",
         "scripts/test-manifest.mjs",
-        "test-frontend-surface-coverage-claims.mjs"
+        "test-frontend-surface-coverage-claims.mjs",
+        "test-remote-runtime-catalog-probe.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -96849,7 +96929,8 @@
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
         "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-frontend-surface-coverage-claims.mjs"
+        "node test-frontend-surface-coverage-claims.mjs",
+        "node test-remote-runtime-catalog-probe.mjs"
       ]
     },
     {
@@ -97030,7 +97111,8 @@
         "routes/index.js",
         "routes/platformPluginRoutes.js",
         "scripts/test-manifest.mjs",
-        "test-frontend-surface-coverage-claims.mjs"
+        "test-frontend-surface-coverage-claims.mjs",
+        "test-remote-runtime-catalog-probe.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -97043,7 +97125,8 @@
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
         "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-frontend-surface-coverage-claims.mjs"
+        "node test-frontend-surface-coverage-claims.mjs",
+        "node test-remote-runtime-catalog-probe.mjs"
       ]
     },
     {

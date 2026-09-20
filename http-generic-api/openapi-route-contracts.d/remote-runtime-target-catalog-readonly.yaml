@@ -1,0 +1,6 @@
+version: 1
+contracts:
+  "GET /platform/remote-runtime/targets/catalog-readonly":
+    path_item_ref: ./openapi/remote-runtime-target-catalog-readonly.yaml#/remoteRuntimeTargetCatalogReadonlyPath
+    route_file: routes/operationalConsoleRoutes.js
+    composition_mode: inline

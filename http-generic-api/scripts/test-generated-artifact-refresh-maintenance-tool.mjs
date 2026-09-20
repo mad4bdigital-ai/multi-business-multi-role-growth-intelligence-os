@@ -113,12 +113,17 @@ runCheck("tool-canonical-auth-repair", () => {
   assert.match(toolSource, /scripts\/openapi-runtime-auth-sync\.mjs", "--write"/u);
   assert.match(toolSource, /scripts\/test-openapi-runtime-auth-sync-operation-insertion\.mjs/u);
   assert.match(toolSource, /http-generic-api\/openapi\/support-tickets\.yaml/u);
+  const preciseSyncIndex = toolSource.indexOf("sync_precise_registry");
   const authSyncIndex = toolSource.indexOf("sync_openapi_runtime_auth");
   const dispatchIndex = toolSource.indexOf("generate_frontend_dispatch");
   const detailGapIndex = toolSource.indexOf("generate_openapi_detail_gap_classification");
+  const customGptIndex = toolSource.indexOf("generate_custom_gpt_schemas");
+  const stagingAdminIndex = toolSource.indexOf("generate_staging_admin_openapi");
   const gapClosureIndex = toolSource.indexOf("generate_openapi_gap_closure_plan");
   const detailBatchIndex = toolSource.indexOf("generate_openapi_detail_closure_batch");
-  assert.ok(authSyncIndex >= 0 && dispatchIndex > authSyncIndex, "auth repair must precede frontend projection generation");
+  assert.ok(preciseSyncIndex >= 0 && authSyncIndex > preciseSyncIndex, "precise contract composition must precede runtime auth synchronization");
+  assert.ok(customGptIndex > authSyncIndex, "auth repair must precede Custom GPT generation");
+  assert.ok(stagingAdminIndex > customGptIndex && dispatchIndex > stagingAdminIndex, "Staging Admin generation must follow shared Custom GPT generation and precede frontend projection generation");
   assert.ok(detailGapIndex > dispatchIndex, "detail-gap classification must follow frontend dispatch generation");
   assert.ok(gapClosureIndex > detailGapIndex, "gap-closure planning must follow detail-gap classification");
   assert.ok(detailBatchIndex > gapClosureIndex, "detail-batch generation must follow gap-closure planning");
@@ -127,6 +132,8 @@ runCheck("tool-canonical-auth-repair", () => {
   assert.match(toolSource, /openapi:detail-batch:check/u);
   assert.match(toolSource, /verify_openapi_detail_closure_batch/u);
   assert.match(toolSource, /OPENAPI_DETAIL_BATCH_OUTPUT/u);
+  assert.match(toolSource, /scripts\/build-staging-admin-openapi\.mjs/u);
+  assert.ok(toolSource.includes('"http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml"'));
   assert.match(toolSource, /openapi:detail-gaps:check/u);
   assert.match(toolSource, /openapi:gap-closure-plan:check/u);
 });
