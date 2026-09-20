@@ -38,6 +38,8 @@ const FRONTEND_OPENAPI_ALLOWED_CHANGED_FILES = new Set([
   "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
   "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
   "http-generic-api/openapi.gpt-action.local-connector.yaml",
+  "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
+  "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
   "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
   "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
   OPENAPI_DETAIL_BATCH_OUTPUT,
@@ -416,6 +418,7 @@ function runFrontendOpenApiRefresh() {
   run("generate_openapi_gap_closure_plan", "npm", ["run", "openapi:gap-closure-plan:generate"], { cwd: apiDir });
   run("generate_openapi_detail_closure_batch", "npm", ["run", "openapi:detail-batch:write"], { cwd: repoRoot });
   run("generate_custom_gpt_schemas", "node", ["scripts/generate-custom-gpt-schemas.mjs", "--write"], { cwd: apiDir });
+  run("sync_activation_gateway_runtime_bundle", "node", ["scripts/sync-activation-gateway-runtime-bundle.mjs", "--write"], { cwd: apiDir });
   refreshPortableStagingManifest();
 
   const verificationCommands = [

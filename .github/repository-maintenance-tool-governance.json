@@ -87,7 +87,7 @@
       "report_contract": "mad4b.platform-configuration-entry-guard.v1"
     },
     "generated-artifact-refresh": {
-      "description": "Regenerate bounded OpenAPI/frontend, dynamically discovered execution-ready Work Map bindings, Remote MCP write-scope inventory, or Repository Inventory plus Repository Evaluation generated state through the existing registered exact-head mutation authority.",
+      "description": "Regenerate bounded OpenAPI/frontend plus its Activation Gateway runtime policy mirror, dynamically discovered execution-ready Work Map bindings, Remote MCP write-scope inventory, or Repository Inventory plus Repository Evaluation generated state through the existing registered exact-head mutation authority.",
       "entrypoint": "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
       "mode": "mutating",
       "allowed_changed_path_patterns": [
@@ -101,6 +101,8 @@
         "^http-generic-api/openapi/openapi\\.tenant-gpt\\.auth\\.yaml$",
         "^http-generic-api/openapi/openapi\\.tenant-gpt\\.activation\\.yaml$",
         "^http-generic-api/openapi\\.gpt-action\\.local-connector\\.yaml$",
+        "^http-generic-api/activation-gateway-runtime/bundle-manifest\\.json$",
+        "^http-generic-api/activation-gateway-runtime/generated/route-policy\\.json$",
         "^docs/work-maps/.*$",
         "^specs/[0-9]{3}-[a-z0-9][a-z0-9-]*/work-map-integration\\.json$",
         "^specs/014-governed-hostinger-storage-orchestration/work-map-integration\\.json$",
