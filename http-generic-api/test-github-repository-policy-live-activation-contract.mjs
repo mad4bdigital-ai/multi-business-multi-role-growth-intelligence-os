@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import { classifyMigrationReadbackFailure } from "../.github/ops/lib/migration-readback-diagnostics.mjs";
+import { repositoryPolicyEnvelopeSourceContract } from "./scripts/github-repository-policy-envelope-source-contract.mjs";
 
 const read = (path) => fs.readFileSync(new URL(path, import.meta.url), "utf8");
 
@@ -37,7 +38,28 @@ const gitBlobSha = (path) => {
   return createHash("sha1").update(Buffer.concat([Buffer.from(`blob ${bytes.length}\0`), bytes])).digest("hex");
 };
 const migrationBlobSha = gitBlobSha("../http-generic-api/migrations/1051_github_repository_policy_live_apply_authority.sql");
-const envelopeCreatorBlobSha = gitBlobSha("../http-generic-api/scripts/capability-resolution-envelope-create.mjs");
+const envelopeCreatorSource = read("./scripts/capability-resolution-envelope-create.mjs");
+const envelopeCreatorContract = repositoryPolicyEnvelopeSourceContract(envelopeCreatorSource);
+const unrelatedEnvelopeExtension = `${envelopeCreatorSource}\n\nfunction unrelatedFutureCapability() { return "unrelated"; }\n`;
+assert.equal(repositoryPolicyEnvelopeSourceContract(unrelatedEnvelopeExtension).fingerprint, envelopeCreatorContract.fingerprint);
+const repositoryPolicyIntentValue = JSON.parse(envelopeCreatorContract.constants.REPOSITORY_POLICY_OPERATION_INTENT);
+const changedRepositoryPolicyIntent = envelopeCreatorSource.replace(
+  JSON.stringify(repositoryPolicyIntentValue),
+  JSON.stringify(`${repositoryPolicyIntentValue}_v2`),
+);
+assert.notEqual(changedRepositoryPolicyIntent, envelopeCreatorSource);
+assert.notEqual(repositoryPolicyEnvelopeSourceContract(changedRepositoryPolicyIntent).fingerprint, envelopeCreatorContract.fingerprint);
+const repositoryPolicyBuilderStart = envelopeCreatorSource.indexOf("export async function buildRepositoryPolicyEnvelopeDryRun");
+assert.ok(repositoryPolicyBuilderStart >= 0);
+const repositoryPolicyBuilderTail = envelopeCreatorSource.slice(repositoryPolicyBuilderStart);
+const changedRepositoryPolicyBuilderTail = repositoryPolicyBuilderTail.replace(
+  'effect_class: "external_write",',
+  'effect_class: "external_write_v2",',
+);
+assert.notEqual(changedRepositoryPolicyBuilderTail, repositoryPolicyBuilderTail);
+const changedRepositoryPolicyBuilder =
+  envelopeCreatorSource.slice(0, repositoryPolicyBuilderStart) + changedRepositoryPolicyBuilderTail;
+assert.notEqual(repositoryPolicyEnvelopeSourceContract(changedRepositoryPolicyBuilder).fingerprint, envelopeCreatorContract.fingerprint);
 
 assert.match(migrationWorkflow, /^name: Governed Migration 1051 GitHub Repository Policy Authority Rollout/m);
 assert.match(migrationWorkflow, /permissions:\n  contents: read/);
@@ -190,7 +212,10 @@ assert.match(liveRunner, /Apply was not retried/);
 assert.match(liveRunner, /force_push_executed: false/);
 assert.match(liveRunner, /repository_content_mutation_executed: false/);
 assert.match(liveRunner, new RegExp(`const MIGRATION_BLOB_SHA = "${migrationBlobSha}";`));
-assert.match(liveRunner, new RegExp(`const ENVELOPE_CREATOR_BLOB_SHA = "${envelopeCreatorBlobSha}";`));
+assert.doesNotMatch(liveRunner, /ENVELOPE_CREATOR_BLOB_SHA/);
+assert.match(liveRunner, /repositoryPolicyEnvelopeSourceContract/);
+assert.match(liveRunner, /Runtime repository-policy envelope contract mismatch/);
+assert.match(liveRunner, /envelope_creator_contract_fingerprint/);
 
 assert.match(publisher, /EXPECTED_WORKFLOW = "Governed GitHub Review Policy Live Activation"/);
 assert.match(publisher, /assert\.equal\(summary\?\.migration_1051_verified, true\)/);
