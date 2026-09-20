@@ -8,6 +8,11 @@
   "scope": {
     "include": [
       ".changes/e2e/platform-runtime-registry-drift-reconciliation.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "autopilot-portable-staging/manifest.json",
+      ".github/governance/test-authority-registry.json",
+      ".gitattributes",
       "http-generic-api/frontend-operation-governance.generated.json",
       "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/workspaceGrantResourceAuthority.js",
@@ -75,21 +80,82 @@
             "WordPress draft semantic binding remains shadow and the reconciliation does not insert a live platform_endpoint_tool_exports mutation surface.",
             "tenantPlatformPluginResolve.workspace_id is present and required in root and generated Tenant request contracts.",
             "workflow_dispatch with only repository.default_branch available resolves a validated merge base and the Context Kernel scanner remains in changed_lines scope.",
+            "LF-sensitive SQL test fixtures used by this journey are explicitly pinned to LF and registered under Windows portability test authority.",
+            "The feature E2E declaration is registered in both Constitution.control_plane_paths and convergence.automation_control_paths; control-plane self-amendment remains manual-merge-only.",
             "No Production migration Apply, provider call, credential payload read, external send, external write, deployment, or live tenant mutation occurs in CI."
           ],
           "tests": [
-            { "id": "context-kernel-hardcoding-scan", "runner": "node", "working_directory": "http-generic-api", "path": "test-context-kernel-hardcoding-scan.mjs", "args": [] },
-            { "id": "workspace-asset-type-contract", "runner": "node", "working_directory": "http-generic-api", "path": "test-workspace-asset-type-contract.mjs", "args": [] },
-            { "id": "local-connector-tenant-identity-contract", "runner": "node", "working_directory": "http-generic-api", "path": "test-local-connector-tenant-identity-contract.mjs", "args": [] },
-            { "id": "surface-metadata-sql-authority", "runner": "node", "working_directory": "http-generic-api", "path": "test-surface-metadata-sql-authority.mjs", "args": [] },
-            { "id": "workspace-brand-read-authority", "runner": "node", "working_directory": "http-generic-api", "path": "test-workspace-brand-read-authority.mjs", "args": [] },
-            { "id": "platform-plugin-credential-scope-provenance", "runner": "node", "working_directory": "http-generic-api", "path": "test-platform-plugin-credential-scope-provenance.mjs", "args": [] },
-            { "id": "brand-collation-boundary", "runner": "node", "working_directory": "http-generic-api", "path": "test-brand-collation-boundary.mjs", "args": [] },
-            { "id": "platform-runtime-registry-drift-reconciliation", "runner": "node", "working_directory": "http-generic-api", "path": "test-platform-runtime-registry-drift-reconciliation.mjs", "args": [] },
-            { "id": "tenant-published-request-contract-parity", "runner": "node", "working_directory": "http-generic-api", "path": "test-tenant-published-request-contract-parity.mjs", "args": [] }
+            {
+              "id": "context-kernel-hardcoding-scan",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-context-kernel-hardcoding-scan.mjs",
+              "args": []
+            },
+            {
+              "id": "workspace-asset-type-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-workspace-asset-type-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "local-connector-tenant-identity-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-local-connector-tenant-identity-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "surface-metadata-sql-authority",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-surface-metadata-sql-authority.mjs",
+              "args": []
+            },
+            {
+              "id": "workspace-brand-read-authority",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-workspace-brand-read-authority.mjs",
+              "args": []
+            },
+            {
+              "id": "platform-plugin-credential-scope-provenance",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-plugin-credential-scope-provenance.mjs",
+              "args": []
+            },
+            {
+              "id": "brand-collation-boundary",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-brand-collation-boundary.mjs",
+              "args": []
+            },
+            {
+              "id": "platform-runtime-registry-drift-reconciliation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-runtime-registry-drift-reconciliation.mjs",
+              "args": []
+            },
+            {
+              "id": "tenant-published-request-contract-parity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-published-request-contract-parity.mjs",
+              "args": []
+            }
           ],
           "evidence_paths": [
             ".changes/e2e/platform-runtime-registry-drift-reconciliation.json",
+            ".github/derived-state-governance.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "autopilot-portable-staging/manifest.json",
+            ".github/governance/test-authority-registry.json",
+            ".gitattributes",
             "http-generic-api/migrations/20260810_platform_runtime_registry_drift_reconciliation.sql",
             "http-generic-api/workspaceAssetTypeContract.js",
             "http-generic-api/workspaceBrandReadAuthority.js",
@@ -102,5 +168,12 @@
         }
       ]
     }
-  ]
+  ],
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [],
+    "cross_environment_reviewed": false,
+    "live_staging_certification_required": false,
+    "production_mutation_allowed": false
+  }
 }
