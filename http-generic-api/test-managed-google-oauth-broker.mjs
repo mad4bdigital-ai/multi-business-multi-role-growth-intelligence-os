@@ -133,6 +133,7 @@ const SITE_UUID = "d745d81f-6fc4-5c6a-99dd-d953c92137bf";
 const ORIGIN = "https://staging.egypttourgates.com";
 const CALLBACK = "https://staging.egypttourgates.com/wp-admin/admin-post.php?action=mad4b_context_google_managed_callback";
 const env = {
+  MANAGED_GOOGLE_OAUTH_ENABLED: "true",
   MANAGED_GOOGLE_OAUTH_CLIENT_ID: "broker-google-client.apps.googleusercontent.com",
   MANAGED_GOOGLE_OAUTH_CLIENT_SECRET: "broker-google-client-secret-fixture",
   MANAGED_GOOGLE_OAUTH_TOKEN_ENCRYPTION_KEY: "managed-google-oauth-envelope-key-fixture-0123456789abcdef",
