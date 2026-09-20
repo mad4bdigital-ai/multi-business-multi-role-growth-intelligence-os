@@ -1323,6 +1323,29 @@
       "grants_runtime_mutation": false,
       "grants_production_activation": false
     }
+    ,
+    {
+      "fingerprint": "http-generic-api/test-managed-git-remote-transport.mjs|GIT_CONFIG_GLOBAL|environment_reference|git.config.global",
+      "owner": "repository-governance",
+      "reason": "Test-only hostile global Git configuration path used to prove that Managed Git injects deterministic EOL and credential policy per child process; it contains no secret and grants no repository, runtime, provider, database, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/test-managed-git-remote-transport.mjs|previousGlobalConfig|environment_reference|git.config.global",
+      "owner": "repository-governance",
+      "reason": "Test-only snapshot of the pre-test global Git configuration path, restored after hostile-host regression execution; it contains no credential value and grants no repository, runtime, provider, database, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    }
   ],
   "safety": {
     "report_only": true,
