@@ -48,13 +48,21 @@ const managedGoogleReady = evaluateProductionConfig({
     site_uuid: "d745d81f-6fc4-5c6a-99dd-d953c92137bf",
     origin: "https://staging.egypttourgates.com",
     callback_uri: "https://staging.egypttourgates.com/wp-admin/admin-post.php?action=mad4b_context_google_managed_callback",
+    key_id: "etg-staging-v1",
     environment: "staging",
     status: "active",
   }]),
+  MANAGED_GOOGLE_OAUTH_SITE_SECRETS_JSON: JSON.stringify({
+    "etg-staging-v1": "managed_google_site_secret_fixture_32_chars_z",
+  }),
 });
 assert.equal(managedGoogleReady.ok, true);
 assert.equal(managedGoogleReady.managed_google_oauth.status, "configured");
 assert.equal(managedGoogleReady.managed_google_oauth.site_binding_count, 1);
+assert.deepEqual(managedGoogleReady.managed_google_oauth.site_key_ids, ["etg-staging-v1"]);
+assert.equal(managedGoogleReady.managed_google_oauth.site_secret_key_count, 1);
+assert.equal(managedGoogleReady.managed_google_oauth.site_secrets_valid, true);
+assert.equal(managedGoogleReady.managed_google_oauth.site_secret_evidence[0].secrets_included, false);
 assert.equal(managedGoogleReady.managed_google_oauth.client_secret.secrets_included, false);
 assert.equal(managedGoogleReady.managed_google_oauth.encryption_key.secrets_included, false);
 
@@ -66,6 +74,7 @@ const managedGoogleMissing = evaluateProductionConfig({
   MANAGED_GOOGLE_OAUTH_TOKEN_ENCRYPTION_KEY: "",
   MANAGED_GOOGLE_OAUTH_REDIRECT_URI: "",
   MANAGED_GOOGLE_OAUTH_SITE_BINDINGS_JSON: "",
+  MANAGED_GOOGLE_OAUTH_SITE_SECRETS_JSON: "",
 });
 assert.equal(managedGoogleMissing.ok, false);
 assert.equal(managedGoogleMissing.managed_google_oauth.status, "invalid");
@@ -79,9 +88,46 @@ const managedGoogleBadBinding = evaluateProductionConfig({
   MANAGED_GOOGLE_OAUTH_TOKEN_ENCRYPTION_KEY: "managed_google_encryption_key_fixture_32_chars_y",
   MANAGED_GOOGLE_OAUTH_REDIRECT_URI: "https://auth.mad4b.com/v1/google/oauth/callback",
   MANAGED_GOOGLE_OAUTH_SITE_BINDINGS_JSON: "[]",
+  MANAGED_GOOGLE_OAUTH_SITE_SECRETS_JSON: "{}",
 });
 assert.equal(managedGoogleBadBinding.ok, false);
 assert.match(managedGoogleBadBinding.errors.join("\n"), /must contain at least one active HTTPS site binding/);
+
+const managedGoogleMissingSigningSecret = evaluateProductionConfig({
+  ...base,
+  MANAGED_GOOGLE_OAUTH_ENABLED: "true",
+  MANAGED_GOOGLE_OAUTH_CLIENT_ID: "managed-client.apps.googleusercontent.com",
+  MANAGED_GOOGLE_OAUTH_CLIENT_SECRET: "managed_google_client_secret_fixture_32_chars_x",
+  MANAGED_GOOGLE_OAUTH_TOKEN_ENCRYPTION_KEY: "managed_google_encryption_key_fixture_32_chars_y",
+  MANAGED_GOOGLE_OAUTH_REDIRECT_URI: "https://auth.mad4b.com/v1/google/oauth/callback",
+  MANAGED_GOOGLE_OAUTH_SITE_BINDINGS_JSON: JSON.stringify([{
+    site_uuid: "d745d81f-6fc4-5c6a-99dd-d953c92137bf",
+    origin: "https://staging.egypttourgates.com",
+    callback_uri: "https://staging.egypttourgates.com/wp-admin/admin-post.php?action=mad4b_context_google_managed_callback",
+    key_id: "etg-staging-v1",
+    environment: "staging",
+    status: "active",
+  }]),
+  MANAGED_GOOGLE_OAUTH_SITE_SECRETS_JSON: "{}",
+});
+assert.equal(managedGoogleMissingSigningSecret.ok, false);
+assert.match(managedGoogleMissingSigningSecret.errors.join("\n"), /SITE_SECRETS_JSON must provide/);
+
+const managedGoogleMissingBindingKey = evaluateProductionConfig({
+  ...managedGoogleMissingSigningSecret,
+  MANAGED_GOOGLE_OAUTH_SITE_BINDINGS_JSON: JSON.stringify([{
+    site_uuid: "d745d81f-6fc4-5c6a-99dd-d953c92137bf",
+    origin: "https://staging.egypttourgates.com",
+    callback_uri: "https://staging.egypttourgates.com/wp-admin/admin-post.php?action=mad4b_context_google_managed_callback",
+    environment: "staging",
+    status: "active",
+  }]),
+  MANAGED_GOOGLE_OAUTH_SITE_SECRETS_JSON: JSON.stringify({
+    "etg-staging-v1": "managed_google_site_secret_fixture_32_chars_z",
+  }),
+});
+assert.equal(managedGoogleMissingBindingKey.ok, false);
+assert.match(managedGoogleMissingBindingKey.errors.join("\n"), /site binding/);
 
 const missingSso = evaluateProductionConfig({ ...base, TENANT_GPT_SSO_SIGNING_SECRET: "" });
 assert.equal(missingSso.ok, false);
