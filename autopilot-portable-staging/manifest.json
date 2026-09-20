@@ -34,7 +34,7 @@
     },
     {
       "path": "autopilot-portable-staging/One-Click-Staging.ps1",
-      "sha256": "0e41e479997feea9e81d605019ea4c5b8d8878c15a1aeb8209889a02945da21c"
+      "sha256": "99670cb6625ae1c35c2406558d7fd437538067d235934ab267b5cfdd08b36232"
     },
     {
       "path": "autopilot-portable-staging/README.md",
@@ -74,11 +74,11 @@
     },
     {
       "path": "autopilot-portable-staging/auto-deploy-policy.json",
-      "sha256": "be14bb02e83f5c8a38e182482440ac7dc234888df30ba12082859525bc2cc1e3"
+      "sha256": "6810d6e7ebb83e5982f45433b9ec7248579c9cd675612dd2dcab0e6619d4e117"
     },
     {
       "path": "autopilot-portable-staging/autopilot-one-click-policy.json",
-      "sha256": "421eaad958faefc47374c20aaa4705adf22a1c8ccfe4b515527ef539f5ddc4f9"
+      "sha256": "5b0a425d158c86ea02a892a28bae2e5237f7332779d20bbfbac1fe20d8ac694d"
     },
     {
       "path": "autopilot-portable-staging/staging-maintenance-policy.json",
@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "d1992176394df9823b0bc3051ba9f73b797bb849ed09df4eea0a169a905b39cc"
+      "sha256": "8d04311a0e6158b466c4d4322109139c7902a875c2b8d4214fd8e416c675d439"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "9ed72dc06ee15985f68c9fe4883cec3bfcdfce3d59f66e65947febb3342b97a4"
+      "sha256": "a63ba68438ac7809bb9e017b823ca1276ca41b0368d49ef990f42c727dfa0604"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -278,7 +278,7 @@
     },
     {
       "path": "autopilot-portable-staging/Invoke-StagingCertification.ps1",
-      "sha256": "b14740ce99cef3c3568cfbf93bb188479a2cf9dbbfeccdbd51ec34f1fa6edf88"
+      "sha256": "dea299ff2b65dce1e8abbf8b3413ce0ca5c32f1648077b98c4c310356020c9b0"
     },
     {
       "path": "http-generic-api/deploymentManifest.js",
@@ -286,7 +286,7 @@
     },
     {
       "path": "http-generic-api/scripts/staging-live-certification.mjs",
-      "sha256": "131f3f5190d39ad8238caa4cb6cb67e4f2f439059da215393f084df709ee16a6"
+      "sha256": "8c02efa989a84b507fa3eec58b3e7dc2da7be8c1e45c14c502e28d7178fcabf5"
     },
     {
       "path": "http-generic-api/tenantGptOAuthPkce.js",
@@ -294,11 +294,11 @@
     },
     {
       "path": "http-generic-api/test-staging-auto-deploy-contract.mjs",
-      "sha256": "8707550e0893664d7223d7733f712bbf4c53b787d58db346539fa5ec49ea8f36"
+      "sha256": "a70ff64453b3dd836d6b7e030e553f254ea4b1ebd9f9e3a7c2f1d6cf8b658565"
     },
     {
       "path": "http-generic-api/test-staging-environment-certification-contract.mjs",
-      "sha256": "07bedae6f629e21fdcfcd9f05be7d013f8e07305a6c05c5856cd16db5fa5eed2"
+      "sha256": "44c1ca0ffd3618a5201fcd71bea481251abadb3dba7d2de60b19ff1451ceeb95"
     },
     {
       "path": "autopilot-portable-staging/Bootstrap-Staging-One-Click.ps1",
@@ -318,7 +318,7 @@
     },
     {
       "path": "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1",
-      "sha256": "20c1bf6765f2dc3abc954bb0de0e4ab72bfd1d0dc57fd1a2ae2941e70a3675b5"
+      "sha256": "ff4a46dcce108b09a3e7233b4787e7b66b2abafc80733774f039041419929ad2"
     },
     {
       "path": "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs",
@@ -330,7 +330,7 @@
     },
     {
       "path": "http-generic-api/config/staging-database-role-migration-manifest.json",
-      "sha256": "29fb44560f137038acbf2c7970a9b33fb7bd26633c78070118269156725c7bc8"
+      "sha256": "bdf6cec78cf89724e61cebcd37594d430314d6d748d61ba356d1d2f072703050"
     },
     {
       "path": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
