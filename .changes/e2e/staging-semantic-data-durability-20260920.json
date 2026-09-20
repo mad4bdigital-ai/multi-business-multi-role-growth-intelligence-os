@@ -66,7 +66,7 @@
           "level": "synthetic_runtime",
           "actor": "Staging database rebuild operator",
           "entrypoint": "Runtime lifecycle CI guard and portable Staging schema bundle",
-          "terminal_outcome": "A schema-only rebuild plan includes the canonical Platform Admin and WordPress deployment authority seeds, requires exact-one readback, and rejects unclassified numeric or dated migration mutations.",
+          "terminal_outcome": "A zero-object Staging rebuild restores schema plus a deterministic Git-derived canonical semantic snapshot, applies dedicated critical seeds, proves exact/same-cycle readback, and keeps non-empty repair/provider/Production paths fail-closed.",
           "steps": [
             "Select every changed SQL migration from the base-to-head Git diff regardless of filename convention.",
             "Classify each runtime data mutation and reject unclassified, operational reseed, or non-replayable canonical writes.",
@@ -90,7 +90,11 @@
             "Reserve each repair plan exactly once in a durable secret-free ledger outside the Runtime target data before mutation; process interruption leaves an executing or unknown_outcome record that requires reconciliation.",
             "Expose explicit plan/apply/reconcile commands that require the exact checkout SHA, original immutable plan file, local Staging target, and durable ledger directory.",
             "Emit one secret-free completeness report across canonical, environment, and operational datasets; unresolved replay debt remains blocking evidence rather than being hidden by workspace readiness.",
-            "Run the hostile Git transport, durable ledger, operational CLI, and completeness report contracts on a focused windows-latest lane."
+            "Run the hostile Git transport, durable ledger, operational CLI, and completeness report contracts on a focused windows-latest lane.",
+            "Generate a deterministic Runtime canonical semantic snapshot from the disposable Git migration projection, excluding auto/generated/dynamic timestamp columns and ordering every table by a stable unique semantic key.",
+            "Apply the same-cycle SHA-bound semantic snapshot only after all three Staging role databases pass zero-object census and schema import succeeds.",
+            "Require exact row-count readback immediately after semantic snapshot import and at-least the same canonical counts on completed-state restart readback.",
+            "Treat any activation registry created by Git migrations but absent from the explicit semantic snapshot table set as a CI failure."
           ],
           "assertions": [
             "Numeric and date-prefixed changed migrations are both inspected.",
@@ -117,7 +121,11 @@
             "The operational CLI refuses Production/Hostinger targets and cannot regenerate a replacement plan during apply or reconciliation.",
             "Canonical completeness cannot be true while any canonical_registry dataset has unresolved replay debt or lacks a ready readback.",
             "Windows portability tests use SHA-pinned GitHub Actions and do not receive write permissions or persisted checkout credentials.",
-            "Every registered canonical artifact matches raw repository bytes, declared statement count, target role, safety flags, existing dependencies, and an acyclic dependency graph."
+            "Every registered canonical artifact matches raw repository bytes, declared statement count, target role, safety flags, existing dependencies, and an acyclic dependency graph.",
+            "The schema bundles remain no-data artifacts; canonical semantic data is a separate Runtime-only bundle derived exclusively from the disposable Git migration projection.",
+            "The semantic snapshot cannot be used for in-place repair and cannot target Governance, Runtime Persistence, Production, Hostinger, or provider resources.",
+            "Every activation_*_registry created by migrations is explicitly declared; the wildcard family is guard-only and fail-closed for unregistered future registries.",
+            "Semantic completeness reports zero unresolved replay debt only when every canonical dataset has a registered replay artifact; readiness still requires live readback."
           ],
           "tests": [
             {
@@ -201,7 +209,7 @@
               "id": "canonical-semantic-artifact-registry",
               "runner": "node",
               "working_directory": "http-generic-api",
-              "path": "http-generic-api/test-canonical-semantic-artifact-registry.mjs",
+              "path": "test-canonical-semantic-artifact-registry.mjs",
               "args": []
             }
           ],
@@ -214,7 +222,11 @@
             "http-generic-api/scripts/host-breakglass-local.mjs",
             "http-generic-api/test-host-breakglass-catalog.mjs",
             "http-generic-api/test-staging-empty-role-db-bootstrap.mjs",
-            "http-generic-api/context-kernel-hardcoding-scan.config.json"
+            "http-generic-api/context-kernel-hardcoding-scan.config.json",
+            "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+            "http-generic-api/test-staging-schema-bundle-builder.mjs",
+            "http-generic-api/config/canonical-semantic-artifacts.json",
+            "http-generic-api/semanticDataCompletenessReport.js"
           ]
         }
       ]
@@ -230,8 +242,8 @@
     },
     {
       "id": "resilient",
-      "status": "planned",
-      "objective": "Expand required-key replay manifests to every historical canonical registry family and keep destructive/non-empty rebuild paths fail-closed."
+      "status": "implemented",
+      "objective": "Replay every explicitly declared canonical registry family from Git-authoritative artifacts, reject unregistered future activation registries fail-closed, and preserve reconciliation-only recovery for unknown repair outcomes."
     },
     {
       "id": "canary",
