@@ -61,6 +61,7 @@ MANAGED_GOOGLE_OAUTH_CLIENT_SECRET
 MANAGED_GOOGLE_OAUTH_TOKEN_ENCRYPTION_KEY
 MANAGED_GOOGLE_OAUTH_REDIRECT_URI
 MANAGED_GOOGLE_OAUTH_SITE_BINDINGS_JSON
+MANAGED_GOOGLE_OAUTH_SITE_SECRETS_JSON
 ```
 
 Production redirect:
@@ -89,6 +90,7 @@ Every WordPress site must be present in the server-owned allowlist:
     "site_uuid": "<exact-site-profile-uuid>",
     "origin": "https://site.example",
     "callback_uri": "https://site.example/wp-admin/admin-post.php?action=mad4b_context_google_managed_callback",
+    "key_id": "site-example-v1",
     "environment": "staging",
     "status": "active"
   }
@@ -102,6 +104,40 @@ site_uuid + origin + callback_uri
 ```
 
 must match exactly.
+
+Every active binding also carries a unique non-secret `key_id`. The matching HMAC secret is stored only in the server-side registry:
+
+```text
+MANAGED_GOOGLE_OAUTH_SITE_SECRETS_JSON
+```
+
+Example:
+
+```json
+{
+  "site-example-v1": "<32+-character-random-site-broker-secret>"
+}
+```
+
+WordPress stores the matching broker credential in `wp-config.php`:
+
+```php
+define( 'MAD4B_GOOGLE_MANAGED_OAUTH_SITE_KEY_ID', 'site-example-v1' );
+define( 'MAD4B_GOOGLE_MANAGED_OAUTH_SITE_SECRET', '<same-32+-character-random-site-broker-secret>' );
+```
+
+This secret authenticates the WordPress site to the MAD4B broker. It is **not** a Google OAuth Client Secret.
+
+For `POST /session`, `POST /redeem`, and `POST /refresh`, WordPress sends:
+
+- `X-MAD4B-Site-Key-ID`
+- `X-MAD4B-Site-Timestamp`
+- `X-MAD4B-Site-Nonce`
+- `X-MAD4B-Site-Signature`
+
+The signature is HMAC-SHA256 over the exact method, broker path, Unix timestamp, nonce, and SHA-256 of canonical JSON. The broker requires a ±300 second clock window and atomically consumes every nonce. Replay fails closed.
+
+The binding registry is all-or-nothing: a malformed, inactive, cross-origin, incomplete, or duplicated active binding blocks Managed Google OAuth configuration rather than being silently ignored.
 
 This environment allowlist is the v1 authority. It can later be replaced by a canonical Site Profile registry without changing the WordPress protocol.
 
@@ -267,17 +303,21 @@ On the WordPress host configure:
 
 ```php
 define( 'MAD4B_GOOGLE_MANAGED_OAUTH_BROKER_URL', 'https://dev.mad4b.com' );
+define( 'MAD4B_GOOGLE_MANAGED_OAUTH_SITE_KEY_ID', 'etg-staging-v1' );
+define( 'MAD4B_GOOGLE_MANAGED_OAUTH_SITE_SECRET', '<staging-site-broker-secret>' );
 ```
 
 for Staging, or:
 
 ```php
 define( 'MAD4B_GOOGLE_MANAGED_OAUTH_BROKER_URL', 'https://auth.mad4b.com' );
+define( 'MAD4B_GOOGLE_MANAGED_OAUTH_SITE_KEY_ID', '<production-site-key-id>' );
+define( 'MAD4B_GOOGLE_MANAGED_OAUTH_SITE_SECRET', '<production-site-broker-secret>' );
 ```
 
 for Production.
 
-No Google Client ID or Client Secret is required on the WordPress site in managed mode.
+No Google Client ID or Google Client Secret is required on the WordPress site in managed mode. The per-site MAD4B broker signing secret is still required and must be unique per Site Profile/environment.
 
 ## Deployment order
 
