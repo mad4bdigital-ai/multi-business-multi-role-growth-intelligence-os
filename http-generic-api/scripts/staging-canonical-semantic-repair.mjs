@@ -1,4 +1,5 @@
 import {execFileSync} from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
 import {getPool} from "../db.js";
@@ -19,7 +20,9 @@ const executor=getPool();
 const ledgerDirectory=String(process.env.STAGING_CANONICAL_REPAIR_LEDGER_DIR||"").trim();
 const ledger=ledgerDirectory?createFileCanonicalSemanticRepairLedger({directory:ledgerDirectory}):null;
 try{
-  const plan=await planStagingCanonicalSemanticRepair({executor,expected_commit:expectedCommit,actual_commit:actualCommit});
+  let plan;
+  if(action==="plan")plan=await planStagingCanonicalSemanticRepair({executor,expected_commit:expectedCommit,actual_commit:actualCommit});
+  else{const planFile=path.resolve(String(args["plan-file"]||""));if(!args["plan-file"]||!fs.existsSync(planFile)||fs.statSync(planFile).size>1024*1024)throw Object.assign(new Error("A bounded immutable repair plan file is required."),{code:"STAGING_CANONICAL_REPAIR_PLAN_FILE_REQUIRED"});const parsed=JSON.parse(fs.readFileSync(planFile,"utf8"));plan=parsed?.plan||parsed;}
   if(action==="plan"){process.stdout.write(JSON.stringify({ok:true,action,plan,database_mutation_performed:false,production_mutation_performed:false,provider_mutation_performed:false,secrets_included:false})+"\n");}
   else if(action==="apply"){
     if(!ledger)throw Object.assign(new Error("STAGING_CANONICAL_REPAIR_LEDGER_DIR is required for apply."),{code:"STAGING_CANONICAL_REPAIR_LEDGER_REQUIRED"});
