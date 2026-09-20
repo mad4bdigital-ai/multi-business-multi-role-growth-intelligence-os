@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { splitStatements } from "./staging-sql-parser.mjs";
 
@@ -16,9 +17,57 @@ const contract = JSON.parse(fs.readFileSync(contractPath, "utf8"));
 const roleManifest = JSON.parse(fs.readFileSync(roleManifestPath, "utf8"));
 const importer = fs.readFileSync(importerPath, "utf8");
 const seedFiles = new Set(roleManifest.canonical_seed_lifecycle?.seed_files || []);
-const exclusions = new Set((contract.enforcement?.legacy_exclusions || []).map((item) => item.file));
 const findings = [];
 const inventory = [];
+
+function git(...args) {
+  return execFileSync("git", args, { cwd: repoRoot, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+}
+
+function argument(name) {
+  const index = process.argv.indexOf(name);
+  return index >= 0 ? process.argv[index + 1] : null;
+}
+
+export function migrationPathsFromDiff(output) {
+  return [...new Set(String(output || "").split(/\r?\n/u)
+    .map((item) => item.trim().replaceAll("\\", "/"))
+    .filter((item) => /^http-generic-api\/migrations\/[^/]+\.sql$/u.test(item))
+    .map((item) => path.posix.basename(item)))].sort();
+}
+
+if (process.argv.includes("--self-test")) {
+  const selected = migrationPathsFromDiff([
+    "http-generic-api/migrations/1053_numeric_runtime_authority.sql",
+    "http-generic-api/migrations/20260920_dated_runtime_authority.sql",
+    "http-generic-api/runtimeVerificationService.js",
+  ].join("\n"));
+  if (JSON.stringify(selected) !== JSON.stringify(["1053_numeric_runtime_authority.sql", "20260920_dated_runtime_authority.sql"])) {
+    throw new Error("changed migration selection must be naming-convention agnostic");
+  }
+  console.log(JSON.stringify({ ok: true, numeric_and_dated_migrations_selected: true }));
+  process.exit(0);
+}
+
+function resolveBaseSha() {
+  const explicit = argument("--base-sha") || process.env.RUNTIME_DATA_LIFECYCLE_BASE_SHA;
+  if (explicit && /^[0-9a-f]{40}$/iu.test(explicit)) return explicit.toLowerCase();
+  try { return git("rev-parse", "HEAD^"); } catch { return null; }
+}
+
+const baseSha = resolveBaseSha();
+let selectedFiles = [];
+let selectionMode = "unresolved_base";
+if (baseSha) {
+  try {
+    selectedFiles = migrationPathsFromDiff(git("diff", "--name-only", "--diff-filter=ACMR", `${baseSha}...HEAD`, "--", "http-generic-api/migrations/*.sql"));
+    selectionMode = "git_diff";
+  } catch (error) {
+    findings.push({ category: "migration_selection_failed", base_sha: baseSha, detail: String(error?.message || error) });
+  }
+} else {
+  findings.push({ category: "migration_base_sha_missing", detail: "A base commit is required for fail-closed changed-migration classification." });
+}
 
 function classify(table) {
   if (contract.datasets?.[table]) return contract.datasets[table];
@@ -52,10 +101,7 @@ for (const [table, dataset] of Object.entries(contract.datasets || {})) {
   }
 }
 
-const floor = String(contract.enforcement?.dated_migration_floor || "");
-for (const file of fs.readdirSync(migrationsDir).filter((name) => /^20\d{6}_.+\.sql$/u.test(name)).sort()) {
-  const date = file.slice(0, 8);
-  if (date < floor || exclusions.has(file)) continue;
+for (const file of selectedFiles) {
   const statements = splitStatements(fs.readFileSync(path.join(migrationsDir, file), "utf8"));
   for (const statement of statements) {
     const mutation = mutationTarget(statement);
@@ -72,7 +118,7 @@ const report = {
   contract: "mad4b.runtime-data-lifecycle-guard.v1",
   ok: findings.length === 0,
   lifecycle_contract: contract.contract,
-  dated_migration_floor: floor,
+  selection: { mode: selectionMode, base_sha: baseSha, files: selectedFiles },
   mutations_checked: inventory.length,
   inventory,
   findings,
