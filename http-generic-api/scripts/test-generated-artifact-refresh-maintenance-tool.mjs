@@ -130,6 +130,24 @@ runCheck("tool-canonical-auth-repair", () => {
   assert.match(toolSource, /openapi:detail-gaps:check/u);
   assert.match(toolSource, /openapi:gap-closure-plan:check/u);
 });
+runCheck("tool-staging-gateway-policy-refresh", () => {
+  for (const output of [
+    "edge/activation-gateway/generated/route-policy.staging.json",
+    "http-generic-api/activation-gateway-runtime/generated/route-policy.staging.json",
+  ]) {
+    assert.ok(toolSource.includes(`"${output}"`), `Staging gateway generated output must be explicitly bounded: ${output}`);
+  }
+  assert.match(toolSource, /scripts\/generate-activation-staging-policy\.mjs", "--write"/u);
+  assert.match(toolSource, /scripts\/generate-activation-staging-policy\.mjs", "--check"/u);
+  const customGptIndex = toolSource.indexOf("generate_custom_gpt_schemas");
+  const stagingPolicyIndex = toolSource.indexOf("generate_activation_staging_policy");
+  const bundleSyncIndex = toolSource.indexOf("sync_activation_gateway_runtime_bundle");
+  assert.ok(
+    customGptIndex >= 0 && stagingPolicyIndex > customGptIndex && bundleSyncIndex > stagingPolicyIndex,
+    "Staging policy generation must follow Custom GPT generation and precede runtime bundle synchronization",
+  );
+});
+
 runCheck("tool-work-map-self-hosting-bootstrap", () => {
   assert.match(toolSource, /work_map_self_hosting_bootstrap/u);
   assert.match(toolSource, /work_map_self_hosting_scope_violation/u);
@@ -380,6 +398,8 @@ runCheck("maintenance-tool-registration", () => {
     "^http-generic-api/openapi/openapi\\.tenant-gpt\\.activation\\.staging\\.yaml$",
     "^http-generic-api/openapi/openapi\\.tenant-gpt\\.auth\\.production\\.yaml$",
     "^http-generic-api/openapi/openapi\\.tenant-gpt\\.auth\\.staging\\.yaml$",
+    "^edge/activation-gateway/generated/route-policy\\.staging\\.json$",
+    "^http-generic-api/activation-gateway-runtime/generated/route-policy\\.staging\\.json$",
     "^docs/work-maps/.*$",
     "^specs/014-governed-hostinger-storage-orchestration/work-map-integration\\.json$",
     "^specs/014-governed-hostinger-storage-orchestration/tasks\\.md$",

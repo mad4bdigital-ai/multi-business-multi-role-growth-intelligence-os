@@ -133,6 +133,10 @@ surfaces:
         - system-layer
       omission: fail
       exclusion_records:
+        - operation_id: wordpressStagingPluginDeploy
+          reason: Staging-only exact-artifact WordPress deployment is an internal governed admin/runtime operation and must not be exposed through public Custom GPT action surfaces.
+          owner: runtime-operations
+          review_after: 2026-09-30
         - operation_id: revokeAuthOAuthSsoSession
           reason: Shared OAuth and SSO lifecycle endpoint remains outside the public Custom GPT operation surfaces; revocation is handled by the auth boundary.
           owner: identity-platform

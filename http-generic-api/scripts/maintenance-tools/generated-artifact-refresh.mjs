@@ -48,6 +48,8 @@ const FRONTEND_OPENAPI_ALLOWED_CHANGED_FILES = new Set([
   "http-generic-api/openapi/openapi.custom-gpt.activation-admin.production.yaml",
   "http-generic-api/openapi.gpt-action.local-connector.yaml",
   "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
+  "edge/activation-gateway/generated/route-policy.staging.json",
+  "http-generic-api/activation-gateway-runtime/generated/route-policy.staging.json",
   "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
   "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
   "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
@@ -427,6 +429,7 @@ function runFrontendOpenApiRefresh() {
   run("generate_openapi_gap_closure_plan", "npm", ["run", "openapi:gap-closure-plan:generate"], { cwd: apiDir });
   run("generate_openapi_detail_closure_batch", "npm", ["run", "openapi:detail-batch:write"], { cwd: repoRoot });
   run("generate_custom_gpt_schemas", "node", ["scripts/generate-custom-gpt-schemas.mjs", "--write"], { cwd: apiDir });
+  run("generate_activation_staging_policy", "node", ["scripts/generate-activation-staging-policy.mjs", "--write"], { cwd: apiDir });
   run("sync_activation_gateway_runtime_bundle", "node", ["scripts/sync-activation-gateway-runtime-bundle.mjs", "--write"], { cwd: apiDir });
   refreshPortableStagingManifest();
 
@@ -441,6 +444,7 @@ function runFrontendOpenApiRefresh() {
     ["verify_auth_parity", "node", ["test-frontend-auth-openapi-parity.mjs"]],
     ["verify_openapi_route_coverage", "node", ["test-openapi-route-coverage.mjs"]],
     ["verify_openapi_auth", "npm", ["run", "openapi:auth:check"]],
+    ["verify_activation_staging_policy", "node", ["scripts/generate-activation-staging-policy.mjs", "--check"]],
     ["verify_schema_guard", "npm", ["run", "schemas:guard"]],
     ["verify_staging_manifest_hash_contract", "node", ["test-staging-autopilot-closure.mjs"]],
   ];
