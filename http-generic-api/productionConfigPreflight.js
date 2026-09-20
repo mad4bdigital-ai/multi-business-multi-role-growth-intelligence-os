@@ -108,9 +108,6 @@ export function evaluateProductionConfig(env = process.env) {
 
   const managedGoogleClientSecret = secretEvidence("MANAGED_GOOGLE_OAUTH_CLIENT_SECRET", env.MANAGED_GOOGLE_OAUTH_CLIENT_SECRET);
   const managedGoogleEncryptionKey = secretEvidence("MANAGED_GOOGLE_OAUTH_TOKEN_ENCRYPTION_KEY", env.MANAGED_GOOGLE_OAUTH_TOKEN_ENCRYPTION_KEY);
-  if (managedGoogleEnabled && managedGoogleClientSecret.present && !managedGoogleClientSecret.length_ok) {
-    errors.push(`MANAGED_GOOGLE_OAUTH_CLIENT_SECRET must be at least ${MIN_SECRET_LENGTH} characters.`);
-  }
   if (managedGoogleEnabled && managedGoogleEncryptionKey.present && !managedGoogleEncryptionKey.length_ok) {
     errors.push(`MANAGED_GOOGLE_OAUTH_TOKEN_ENCRYPTION_KEY must be at least ${MIN_SECRET_LENGTH} characters.`);
   }
@@ -181,7 +178,7 @@ export function evaluateProductionConfig(env = process.env) {
     site_binding_count: managedGoogleSiteBindingCount,
     site_bindings_valid: managedGoogleSiteBindingsValid,
     status: managedGoogleEnabled
-      ? (missingManagedGoogleKeys.length || !managedGoogleRedirectValid || !managedGoogleSiteBindingsValid || !managedGoogleClientSecret.length_ok || !managedGoogleEncryptionKey.length_ok ? "invalid" : "configured")
+      ? (missingManagedGoogleKeys.length || !managedGoogleRedirectValid || !managedGoogleSiteBindingsValid || !managedGoogleClientSecret.present || !managedGoogleEncryptionKey.length_ok ? "invalid" : "configured")
       : "disabled",
     secrets_included: false,
   };
