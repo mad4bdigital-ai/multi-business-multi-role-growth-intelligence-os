@@ -35,7 +35,9 @@
       "http-generic-api/test-staging-canonical-semantic-repair-cli.mjs",
       "http-generic-api/semanticDataCompletenessReport.js",
       "http-generic-api/scripts/semantic-data-completeness-report.mjs",
-      "http-generic-api/test-semantic-data-completeness-report.mjs"
+      "http-generic-api/test-semantic-data-completeness-report.mjs",
+      ".github/workflows/staging-semantic-portability.yml",
+      "http-generic-api/package.json"
     ]
   },
   "environment_impact": {
@@ -86,7 +88,8 @@
             "Re-derive typed confirmation from the immutable plan hash at apply time and reject repository, environment, role, or execution-authority drift before mutation.",
             "Reserve each repair plan exactly once in a durable secret-free ledger outside the Runtime target data before mutation; process interruption leaves an executing or unknown_outcome record that requires reconciliation.",
             "Expose explicit plan/apply/reconcile commands that require the exact checkout SHA, original immutable plan file, local Staging target, and durable ledger directory.",
-            "Emit one secret-free completeness report across canonical, environment, and operational datasets; unresolved replay debt remains blocking evidence rather than being hidden by workspace readiness."
+            "Emit one secret-free completeness report across canonical, environment, and operational datasets; unresolved replay debt remains blocking evidence rather than being hidden by workspace readiness.",
+            "Run the hostile Git transport, durable ledger, operational CLI, and completeness report contracts on a focused windows-latest lane."
           ],
           "assertions": [
             "Numeric and date-prefixed changed migrations are both inspected.",
@@ -111,7 +114,8 @@
             "Changing required_confirmation, expected_repository, target_environment, target_role, or execution authority cannot authorize apply.",
             "A consumed repair plan cannot be applied again, and unknown outcome can transition only through explicit reconciliation to succeeded.",
             "The operational CLI refuses Production/Hostinger targets and cannot regenerate a replacement plan during apply or reconciliation.",
-            "Canonical completeness cannot be true while any canonical_registry dataset has unresolved replay debt or lacks a ready readback."
+            "Canonical completeness cannot be true while any canonical_registry dataset has unresolved replay debt or lacks a ready readback.",
+            "Windows portability tests use SHA-pinned GitHub Actions and do not receive write permissions or persisted checkout credentials."
           ],
           "tests": [
             {
