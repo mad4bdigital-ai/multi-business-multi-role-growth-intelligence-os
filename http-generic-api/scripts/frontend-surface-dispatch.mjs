@@ -47,6 +47,7 @@ const AUTH_PROFILES = {
   signed_query_token: { alternatives: [["signedQueryTokenAuth"]], principal: "signed_link", configuration_dependencies: [] },
   installer_redeem: { alternatives: [["installerRedeemBearerAuth"]], principal: "installer", configuration_dependencies: [] },
   github_webhook_hmac: { alternatives: [["githubWebhookSignature"]], principal: "github_webhook", configuration_dependencies: ["GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_SECRET"] },
+  managed_google_site_hmac: { alternatives: [["managedGoogleSiteHmac"]], principal: "managed_wordpress_site", configuration_dependencies: ["MANAGED_GOOGLE_OAUTH_SITE_BINDINGS_JSON", "MANAGED_GOOGLE_OAUTH_SITE_SECRETS_JSON"] },
 };
 const OPERATION_CLASSIFICATIONS = new Set(["read", "read_action", "preflight", "state_change", "external_effect", "disabled", "unresolved"]);
 
@@ -899,7 +900,7 @@ function scopeFor({ path: routePath, source, declaration = "", sourceIndex = 0, 
     if (runtimeAuth.profile === "user_jwt") return "tenant";
     if (runtimeAuth.profile === "local_manager" || runtimeAuth.profile === "connector_bearer") return "local_device";
     if (runtimeAuth.profile === "backend_api_key_surface") return /^\/admin(?:\/|$)/.test(routePath) ? "admin" : "developer";
-    if (["mcp_query_token", "signed_query_token", "github_webhook_hmac"].includes(runtimeAuth.profile)) return "developer";
+    if (["mcp_query_token", "signed_query_token", "github_webhook_hmac", "managed_google_site_hmac"].includes(runtimeAuth.profile)) return "developer";
     if (runtimeAuth.profile === "backend_or_user") {
       if (/^\/(?:activation(?:\/|$)|gpt\/sessions(?:\/|$)|container-context-resolutions(?:\/|$))/.test(routePath)) return "tenant";
       return "developer";
@@ -1244,6 +1245,7 @@ function runtimeOpenApiDocument(plan) {
         connectorBearerAuth: { type: "http", scheme: "bearer", bearerFormat: "Connector secret or backend API key" },
         mcpQueryTokenAuth: { type: "apiKey", in: "query", name: "token" },
         signedQueryTokenAuth: { type: "apiKey", in: "query", name: "token" },
+        managedGoogleSiteHmac: { type: "apiKey", in: "header", name: "X-MAD4B-Site-Signature", description: "Managed Google OAuth per-site HMAC signature; exact request also binds key ID, timestamp, nonce, method, path, and canonical JSON body hash." },
       },
     },
   };

@@ -3,289 +3,35 @@
   "schema_version": 1,
   "entries": [
     {
-      "config_key": "local.connector.installer.capability.max.ttl.seconds",
+      "config_key": "activation.gateway.ingress.key.id",
       "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
-      "owner": "local-connector",
+      "owner": "gateway-governance",
       "risk_class": "critical",
       "scope_types": [
         "platform",
-        "production",
         "staging"
       ],
-      "binding_ref": "http-generic-api/localConnectorInstallerCapability.js",
-      "resolver_ref": "http-generic-api/localConnectorInstallerCapability.js",
-      "readback_ref": "http-generic-api/test-local-connector-installer-capability.mjs",
-      "shadow_evidence_ref": "local-connector/README.md",
+      "binding_ref": "edge/activation-gateway/src/gateway.mjs",
+      "resolver_ref": "edge/activation-gateway/src/gateway.mjs",
+      "readback_ref": "http-generic-api/test-staging-recovery-admin-surface.mjs",
+      "shadow_evidence_ref": "docs/governance/recovery-server-managed-authority-binding.md",
       "classification": "runtime_setting",
       "status": "shadow",
       "secrets_included": false
     },
     {
-      "config_key": "local.connector.installer.capability.min.ttl.seconds",
+      "config_key": "activation.gateway.ingress.private.key.jwk",
       "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
-      "owner": "local-connector",
+      "owner": "gateway-governance",
       "risk_class": "critical",
       "scope_types": [
         "platform",
-        "production",
         "staging"
       ],
-      "binding_ref": "http-generic-api/localConnectorInstallerCapability.js",
-      "resolver_ref": "http-generic-api/localConnectorInstallerCapability.js",
-      "readback_ref": "http-generic-api/test-local-connector-installer-capability.mjs",
-      "shadow_evidence_ref": "local-connector/README.md",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "production.probe.auth.header",
-      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
-      "owner": "platform-governance",
-      "risk_class": "high",
-      "scope_types": [
-        "platform",
-        "production",
-        "staging"
-      ],
-      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
-      "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
-      "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
-      "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "production.probe.auth.value",
-      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
-      "owner": "platform-governance",
-      "risk_class": "critical",
-      "scope_types": [
-        "platform",
-        "production",
-        "staging"
-      ],
-      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
-      "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
-      "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
-      "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "production.base.url",
-      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
-      "owner": "platform-governance",
-      "risk_class": "high",
-      "scope_types": [
-        "platform",
-        "production",
-        "staging"
-      ],
-      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
-      "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
-      "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
-      "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "evidence.dir",
-      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
-      "owner": "platform-governance",
-      "risk_class": "high",
-      "scope_types": [
-        "platform",
-        "production",
-        "staging"
-      ],
-      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
-      "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
-      "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
-      "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "mysql.bootstrap.password",
-      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
-      "owner": "platform-governance",
-      "risk_class": "critical",
-      "scope_types": [
-        "platform",
-        "production",
-        "staging"
-      ],
-      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
-      "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
-      "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
-      "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "mysql.bootstrap.user",
-      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
-      "owner": "platform-governance",
-      "risk_class": "high",
-      "scope_types": [
-        "platform",
-        "production",
-        "staging"
-      ],
-      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
-      "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
-      "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
-      "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "mysql.bootstrap.port",
-      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
-      "owner": "platform-governance",
-      "risk_class": "high",
-      "scope_types": [
-        "platform",
-        "production",
-        "staging"
-      ],
-      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
-      "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
-      "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
-      "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "mysql.bootstrap.host",
-      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
-      "owner": "platform-governance",
-      "risk_class": "high",
-      "scope_types": [
-        "platform",
-        "production",
-        "staging"
-      ],
-      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
-      "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
-      "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
-      "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "runtime.recovery.targets.json",
-      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
-      "owner": "platform-governance",
-      "risk_class": "high",
-      "scope_types": [
-        "platform",
-        "production",
-        "staging"
-      ],
-      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
-      "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
-      "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
-      "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "recovery.target.key",
-      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
-      "owner": "platform-governance",
-      "risk_class": "high",
-      "scope_types": [
-        "platform",
-        "production",
-        "staging"
-      ],
-      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
-      "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
-      "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
-      "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "recovery.strategy",
-      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
-      "owner": "platform-governance",
-      "risk_class": "high",
-      "scope_types": [
-        "platform",
-        "production",
-        "staging"
-      ],
-      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
-      "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
-      "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
-      "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "repository.snapshot.path",
-      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
-      "owner": "platform-governance",
-      "risk_class": "medium",
-      "scope_types": [
-        "platform",
-        "staging",
-        "production"
-      ],
-      "binding_ref": "http-generic-api/runtimeRecoverySnapshot.js",
-      "resolver_ref": "http-generic-api/test-runtime-recovery-snapshot-routes.mjs",
-      "readback_ref": "http-generic-api/test-runtime-recovery-snapshot-routes.mjs",
-      "shadow_evidence_ref": "docs/governance/runtime-recovery-schema-less-modes.md",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "runtime.recovery.result.path",
-      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
-      "owner": "platform-governance",
-      "risk_class": "low",
-      "scope_types": [
-        "platform",
-        "staging",
-        "production"
-      ],
-      "binding_ref": ".github/ops/production-runtime-recovery-autodeploy.mjs",
-      "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
-      "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
-      "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "runtime.recovery.source.mode",
-      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
-      "owner": "platform-governance",
-      "risk_class": "high",
-      "scope_types": [
-        "platform",
-        "staging",
-        "production"
-      ],
-      "binding_ref": "http-generic-api/runtimeRecoverySnapshot.js",
-      "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
-      "readback_ref": "http-generic-api/test-runtime-recovery-snapshot-routes.mjs",
-      "shadow_evidence_ref": "docs/governance/runtime-recovery-schema-less-modes.md",
+      "binding_ref": "edge/activation-gateway/src/gateway.mjs",
+      "resolver_ref": "edge/activation-gateway/src/gateway.mjs",
+      "readback_ref": "http-generic-api/test-staging-recovery-admin-surface.mjs",
+      "shadow_evidence_ref": "docs/governance/recovery-server-managed-authority-binding.md",
       "classification": "runtime_setting",
       "status": "shadow",
       "secrets_included": false
@@ -362,6 +108,24 @@
       "secrets_included": false
     },
     {
+      "config_key": "attestation.header",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-runtime",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/trustedIngressContract.js",
+      "resolver_ref": "http-generic-api/trustedIngressContract.js",
+      "readback_ref": "http-generic-api/test-trusted-ingress-contract.mjs",
+      "shadow_evidence_ref": "docs/governance/hostinger-runtime-bootstrap.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
       "config_key": "branch.name",
       "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
       "owner": "platform-governance",
@@ -391,6 +155,25 @@
       "resolver_ref": "http-generic-api/test-platform-configuration-resolver.mjs",
       "readback_ref": "http-generic-api/test-platform-configuration-registry-adapter.mjs",
       "shadow_evidence_ref": "docs/staging-production-shadow-profile-2026-08-14.json",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "cache.ttl.ms",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-runtime",
+      "risk_class": "medium",
+      "scope_types": [
+        "platform",
+        "tenant",
+        "production",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/mcpCatalogSchemaGuard.js",
+      "resolver_ref": "http-generic-api/mcpCatalogSchemaGuard.js",
+      "readback_ref": "http-generic-api/test-mcp-catalog-schema-guard.mjs",
+      "shadow_evidence_ref": "docs/governance/tenant-tool-auth-audit-20260817.md",
       "classification": "runtime_setting",
       "status": "shadow",
       "secrets_included": false
@@ -499,7 +282,60 @@
       "secrets_included": false
     },
     {
+      "config_key": "dry.run.runner.timeout.ms",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-runtime",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/governedMigrationExecutionTool.js",
+      "resolver_ref": "http-generic-api/governedMigrationExecutionTool.js",
+      "readback_ref": "http-generic-api/test-governed-migration-execution-tool.mjs",
+      "shadow_evidence_ref": "docs/governance/configuration-drift-policy.json",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "evidence.dir",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
+      "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
+      "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
+      "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
       "config_key": "git.timeout.ms",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "low",
+      "scope_types": [
+        "platform",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/deploymentManifest.js",
+      "resolver_ref": "http-generic-api/test-platform-configuration-resolver.mjs",
+      "readback_ref": "http-generic-api/test-platform-configuration-registry-adapter.mjs",
+      "shadow_evidence_ref": "docs/staging-production-shadow-profile-2026-08-14.json",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "github.ref.name",
       "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
       "owner": "platform-governance",
       "risk_class": "low",
@@ -534,23 +370,6 @@
       "secrets_included": false
     },
     {
-      "config_key": "github.ref.name",
-      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
-      "owner": "platform-governance",
-      "risk_class": "low",
-      "scope_types": [
-        "platform",
-        "staging"
-      ],
-      "binding_ref": "http-generic-api/deploymentManifest.js",
-      "resolver_ref": "http-generic-api/test-platform-configuration-resolver.mjs",
-      "readback_ref": "http-generic-api/test-platform-configuration-registry-adapter.mjs",
-      "shadow_evidence_ref": "docs/staging-production-shadow-profile-2026-08-14.json",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
       "config_key": "github.sha",
       "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
       "owner": "platform-governance",
@@ -568,6 +387,60 @@
       "secrets_included": false
     },
     {
+      "config_key": "governed.migration.preflight.query.timeout.ms",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-runtime",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/scripts/governed-migration-runner.mjs",
+      "resolver_ref": "http-generic-api/scripts/governed-migration-runner.mjs",
+      "readback_ref": "http-generic-api/test-governed-migration-runner-integrity.mjs",
+      "shadow_evidence_ref": "docs/governance/configuration-drift-policy.json",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "governed.migration.runner.timeout.ms",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-runtime",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/governedMigrationExecutionTool.js",
+      "resolver_ref": "http-generic-api/governedMigrationExecutionTool.js",
+      "readback_ref": "http-generic-api/test-governed-migration-execution-tool.mjs",
+      "shadow_evidence_ref": "docs/governance/configuration-drift-policy.json",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "handoff.ttl.seconds",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "identity-platform",
+      "risk_class": "medium",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/managedGoogleOAuthBroker.js",
+      "resolver_ref": "http-generic-api/managedGoogleOAuthBroker.js",
+      "readback_ref": "http-generic-api/test-managed-google-oauth-broker.mjs",
+      "shadow_evidence_ref": "docs/runbooks/managed-google-oauth-broker.md",
+      "classification": "runtime_setting",
+      "status": "staged",
+      "secrets_included": false
+    },
+    {
       "config_key": "internal.base.url",
       "schema_ref": "http-generic-api/config/staging-openapi-mcp-policy.json",
       "owner": "platform-runtime",
@@ -582,6 +455,96 @@
       "shadow_evidence_ref": "docs/staging-oauth-and-admin-tenant-inspection-governance.md",
       "classification": "runtime_setting",
       "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "local.connector.installer.capability.max.ttl.seconds",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "local-connector",
+      "risk_class": "critical",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/localConnectorInstallerCapability.js",
+      "resolver_ref": "http-generic-api/localConnectorInstallerCapability.js",
+      "readback_ref": "http-generic-api/test-local-connector-installer-capability.mjs",
+      "shadow_evidence_ref": "local-connector/README.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "local.connector.installer.capability.min.ttl.seconds",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "local-connector",
+      "risk_class": "critical",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/localConnectorInstallerCapability.js",
+      "resolver_ref": "http-generic-api/localConnectorInstallerCapability.js",
+      "readback_ref": "http-generic-api/test-local-connector-installer-capability.mjs",
+      "shadow_evidence_ref": "local-connector/README.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "max.attestation.ttl.seconds",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-runtime",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/trustedIngressContract.js",
+      "resolver_ref": "http-generic-api/trustedIngressContract.js",
+      "readback_ref": "http-generic-api/test-trusted-ingress-contract.mjs",
+      "shadow_evidence_ref": "docs/governance/hostinger-runtime-bootstrap.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "max.clock.skew.seconds",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-runtime",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/trustedIngressContract.js",
+      "resolver_ref": "http-generic-api/trustedIngressContract.js",
+      "readback_ref": "http-generic-api/test-trusted-ingress-contract.mjs",
+      "shadow_evidence_ref": "docs/governance/hostinger-runtime-bootstrap.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "max.session.ttl.seconds",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "identity-platform",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/managedGoogleOAuthBroker.js",
+      "resolver_ref": "http-generic-api/managedGoogleOAuthBroker.js",
+      "readback_ref": "http-generic-api/test-managed-google-oauth-broker.mjs",
+      "shadow_evidence_ref": "docs/runbooks/managed-google-oauth-broker.md",
+      "classification": "runtime_setting",
+      "status": "staged",
       "secrets_included": false
     },
     {
@@ -631,6 +594,78 @@
       "resolver_ref": "http-generic-api/routes/gptToolsRoutes.js",
       "readback_ref": "http-generic-api/test-act-as-user-dispatch-hook.mjs",
       "shadow_evidence_ref": "docs/staging-oauth-and-admin-tenant-inspection-governance.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "mysql.bootstrap.host",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
+      "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
+      "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
+      "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "mysql.bootstrap.password",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "critical",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
+      "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
+      "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
+      "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "mysql.bootstrap.port",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
+      "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
+      "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
+      "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "mysql.bootstrap.user",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
+      "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
+      "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
+      "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
       "classification": "runtime_setting",
       "status": "shadow",
       "secrets_included": false
@@ -708,6 +743,132 @@
       "binding_ref": "http-generic-api/.env.example"
     },
     {
+      "config_key": "production.base.url",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
+      "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
+      "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
+      "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "production.probe.auth.header",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
+      "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
+      "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
+      "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "production.probe.auth.value",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "critical",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
+      "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
+      "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
+      "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "recovery.strategy",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
+      "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
+      "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
+      "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "recovery.target.key",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
+      "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
+      "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
+      "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "redeem.rate.limit.per.minute",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "identity-platform",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/managedGoogleOAuthBroker.js",
+      "resolver_ref": "http-generic-api/managedGoogleOAuthBroker.js",
+      "readback_ref": "http-generic-api/test-managed-google-oauth-broker.mjs",
+      "shadow_evidence_ref": "docs/runbooks/managed-google-oauth-broker.md",
+      "classification": "runtime_setting",
+      "status": "staged",
+      "secrets_included": false
+    },
+    {
+      "config_key": "refresh.rate.limit.per.minute",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "identity-platform",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/managedGoogleOAuthBroker.js",
+      "resolver_ref": "http-generic-api/managedGoogleOAuthBroker.js",
+      "readback_ref": "http-generic-api/test-managed-google-oauth-broker.mjs",
+      "shadow_evidence_ref": "docs/runbooks/managed-google-oauth-broker.md",
+      "classification": "runtime_setting",
+      "status": "staged",
+      "secrets_included": false
+    },
+    {
       "config_key": "release.created.at",
       "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
       "owner": "platform-governance",
@@ -779,6 +940,23 @@
       "secrets_included": false
     },
     {
+      "config_key": "remote.mcp.trusted.ingress.key.id",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "gateway-governance",
+      "risk_class": "critical",
+      "scope_types": [
+        "platform",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/trustedIngressContract.js",
+      "resolver_ref": "http-generic-api/trustedIngressContract.js",
+      "readback_ref": "http-generic-api/test-staging-recovery-admin-surface.mjs",
+      "shadow_evidence_ref": "docs/governance/recovery-server-managed-authority-binding.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
       "config_key": "repo.inspect.root",
       "schema_ref": "http-generic-api/config/admin-tenant-inspection-policy.json",
       "owner": "platform-governance",
@@ -830,6 +1008,24 @@
       "secrets_included": false
     },
     {
+      "config_key": "repository.snapshot.path",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "medium",
+      "scope_types": [
+        "platform",
+        "staging",
+        "production"
+      ],
+      "binding_ref": "http-generic-api/runtimeRecoverySnapshot.js",
+      "resolver_ref": "http-generic-api/test-runtime-recovery-snapshot-routes.mjs",
+      "readback_ref": "http-generic-api/test-runtime-recovery-snapshot-routes.mjs",
+      "shadow_evidence_ref": "docs/governance/runtime-recovery-schema-less-modes.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
       "config_key": "revision.sha",
       "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
       "owner": "platform-governance",
@@ -842,6 +1038,24 @@
       "resolver_ref": "http-generic-api/test-platform-configuration-resolver.mjs",
       "readback_ref": "http-generic-api/test-platform-configuration-registry-adapter.mjs",
       "shadow_evidence_ref": "docs/staging-production-shadow-profile-2026-08-14.json",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "runner.timeout.ms",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-runtime",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/governedMigrationExecutionTool.js",
+      "resolver_ref": "http-generic-api/governedMigrationExecutionTool.js",
+      "readback_ref": "http-generic-api/test-governed-migration-execution-tool.mjs",
+      "shadow_evidence_ref": "docs/governance/configuration-drift-policy.json",
       "classification": "runtime_setting",
       "status": "shadow",
       "secrets_included": false
@@ -881,6 +1095,96 @@
       "config_key": "runtime.production.config.preflight",
       "risk_class": "high",
       "binding_ref": "http-generic-api/productionConfigPreflight.js"
+    },
+    {
+      "config_key": "runtime.recovery.result.path",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "low",
+      "scope_types": [
+        "platform",
+        "staging",
+        "production"
+      ],
+      "binding_ref": ".github/ops/production-runtime-recovery-autodeploy.mjs",
+      "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
+      "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
+      "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "runtime.recovery.source.mode",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "staging",
+        "production"
+      ],
+      "binding_ref": "http-generic-api/runtimeRecoverySnapshot.js",
+      "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
+      "readback_ref": "http-generic-api/test-runtime-recovery-snapshot-routes.mjs",
+      "shadow_evidence_ref": "docs/governance/runtime-recovery-schema-less-modes.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "runtime.recovery.targets.json",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "platform-governance",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": ".github/workflows/production-runtime-parity-evidence.yml",
+      "resolver_ref": ".github/ops/test-production-runtime-recovery.mjs",
+      "readback_ref": ".github/ops/test-production-runtime-recovery.mjs",
+      "shadow_evidence_ref": ".github/ops/production-runtime-recovery.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "session.rate.limit.per.minute",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "identity-platform",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/managedGoogleOAuthBroker.js",
+      "resolver_ref": "http-generic-api/managedGoogleOAuthBroker.js",
+      "readback_ref": "http-generic-api/test-managed-google-oauth-broker.mjs",
+      "shadow_evidence_ref": "docs/runbooks/managed-google-oauth-broker.md",
+      "classification": "runtime_setting",
+      "status": "staged",
+      "secrets_included": false
+    },
+    {
+      "config_key": "session.ttl.seconds",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "identity-platform",
+      "risk_class": "medium",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/managedGoogleOAuthBroker.js",
+      "resolver_ref": "http-generic-api/managedGoogleOAuthBroker.js",
+      "readback_ref": "http-generic-api/test-managed-google-oauth-broker.mjs",
+      "shadow_evidence_ref": "docs/runbooks/managed-google-oauth-broker.md",
+      "classification": "runtime_setting",
+      "status": "staged",
+      "secrets_included": false
     },
     {
       "config_key": "tenant.gpt.activation.legacy.audience.cutoff",
@@ -1161,202 +1465,6 @@
       "resolver_ref": "http-generic-api/routes/gptToolsRoutes.js",
       "readback_ref": "http-generic-api/test-act-as-user-dispatch-hook.mjs",
       "shadow_evidence_ref": "docs/staging-oauth-and-admin-tenant-inspection-governance.md",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "cache.ttl.ms",
-      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
-      "owner": "platform-runtime",
-      "risk_class": "medium",
-      "scope_types": [
-        "platform",
-        "tenant",
-        "production",
-        "staging"
-      ],
-      "binding_ref": "http-generic-api/mcpCatalogSchemaGuard.js",
-      "resolver_ref": "http-generic-api/mcpCatalogSchemaGuard.js",
-      "readback_ref": "http-generic-api/test-mcp-catalog-schema-guard.mjs",
-      "shadow_evidence_ref": "docs/governance/tenant-tool-auth-audit-20260817.md",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "runner.timeout.ms",
-      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
-      "owner": "platform-runtime",
-      "risk_class": "high",
-      "scope_types": [
-        "platform",
-        "production",
-        "staging"
-      ],
-      "binding_ref": "http-generic-api/governedMigrationExecutionTool.js",
-      "resolver_ref": "http-generic-api/governedMigrationExecutionTool.js",
-      "readback_ref": "http-generic-api/test-governed-migration-execution-tool.mjs",
-      "shadow_evidence_ref": "docs/governance/configuration-drift-policy.json",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "dry.run.runner.timeout.ms",
-      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
-      "owner": "platform-runtime",
-      "risk_class": "high",
-      "scope_types": [
-        "platform",
-        "production",
-        "staging"
-      ],
-      "binding_ref": "http-generic-api/governedMigrationExecutionTool.js",
-      "resolver_ref": "http-generic-api/governedMigrationExecutionTool.js",
-      "readback_ref": "http-generic-api/test-governed-migration-execution-tool.mjs",
-      "shadow_evidence_ref": "docs/governance/configuration-drift-policy.json",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "governed.migration.runner.timeout.ms",
-      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
-      "owner": "platform-runtime",
-      "risk_class": "high",
-      "scope_types": [
-        "platform",
-        "production",
-        "staging"
-      ],
-      "binding_ref": "http-generic-api/governedMigrationExecutionTool.js",
-      "resolver_ref": "http-generic-api/governedMigrationExecutionTool.js",
-      "readback_ref": "http-generic-api/test-governed-migration-execution-tool.mjs",
-      "shadow_evidence_ref": "docs/governance/configuration-drift-policy.json",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "attestation.header",
-      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
-      "owner": "platform-runtime",
-      "risk_class": "high",
-      "scope_types": [
-        "platform",
-        "production",
-        "staging"
-      ],
-      "binding_ref": "http-generic-api/trustedIngressContract.js",
-      "resolver_ref": "http-generic-api/trustedIngressContract.js",
-      "readback_ref": "http-generic-api/test-trusted-ingress-contract.mjs",
-      "shadow_evidence_ref": "docs/governance/hostinger-runtime-bootstrap.md",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "max.clock.skew.seconds",
-      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
-      "owner": "platform-runtime",
-      "risk_class": "high",
-      "scope_types": [
-        "platform",
-        "production",
-        "staging"
-      ],
-      "binding_ref": "http-generic-api/trustedIngressContract.js",
-      "resolver_ref": "http-generic-api/trustedIngressContract.js",
-      "readback_ref": "http-generic-api/test-trusted-ingress-contract.mjs",
-      "shadow_evidence_ref": "docs/governance/hostinger-runtime-bootstrap.md",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "max.attestation.ttl.seconds",
-      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
-      "owner": "platform-runtime",
-      "risk_class": "high",
-      "scope_types": [
-        "platform",
-        "production",
-        "staging"
-      ],
-      "binding_ref": "http-generic-api/trustedIngressContract.js",
-      "resolver_ref": "http-generic-api/trustedIngressContract.js",
-      "readback_ref": "http-generic-api/test-trusted-ingress-contract.mjs",
-      "shadow_evidence_ref": "docs/governance/hostinger-runtime-bootstrap.md",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "governed.migration.preflight.query.timeout.ms",
-      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
-      "owner": "platform-runtime",
-      "risk_class": "high",
-      "scope_types": [
-        "platform",
-        "production",
-        "staging"
-      ],
-      "binding_ref": "http-generic-api/scripts/governed-migration-runner.mjs",
-      "resolver_ref": "http-generic-api/scripts/governed-migration-runner.mjs",
-      "readback_ref": "http-generic-api/test-governed-migration-runner-integrity.mjs",
-      "shadow_evidence_ref": "docs/governance/configuration-drift-policy.json",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "activation.gateway.ingress.private.key.jwk",
-      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
-      "owner": "gateway-governance",
-      "risk_class": "critical",
-      "scope_types": [
-        "platform",
-        "staging"
-      ],
-      "binding_ref": "edge/activation-gateway/src/gateway.mjs",
-      "resolver_ref": "edge/activation-gateway/src/gateway.mjs",
-      "readback_ref": "http-generic-api/test-staging-recovery-admin-surface.mjs",
-      "shadow_evidence_ref": "docs/governance/recovery-server-managed-authority-binding.md",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "activation.gateway.ingress.key.id",
-      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
-      "owner": "gateway-governance",
-      "risk_class": "critical",
-      "scope_types": [
-        "platform",
-        "staging"
-      ],
-      "binding_ref": "edge/activation-gateway/src/gateway.mjs",
-      "resolver_ref": "edge/activation-gateway/src/gateway.mjs",
-      "readback_ref": "http-generic-api/test-staging-recovery-admin-surface.mjs",
-      "shadow_evidence_ref": "docs/governance/recovery-server-managed-authority-binding.md",
-      "classification": "runtime_setting",
-      "status": "shadow",
-      "secrets_included": false
-    },
-    {
-      "config_key": "remote.mcp.trusted.ingress.key.id",
-      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
-      "owner": "gateway-governance",
-      "risk_class": "critical",
-      "scope_types": [
-        "platform",
-        "staging"
-      ],
-      "binding_ref": "http-generic-api/trustedIngressContract.js",
-      "resolver_ref": "http-generic-api/trustedIngressContract.js",
-      "readback_ref": "http-generic-api/test-staging-recovery-admin-surface.mjs",
-      "shadow_evidence_ref": "docs/governance/recovery-server-managed-authority-binding.md",
       "classification": "runtime_setting",
       "status": "shadow",
       "secrets_included": false

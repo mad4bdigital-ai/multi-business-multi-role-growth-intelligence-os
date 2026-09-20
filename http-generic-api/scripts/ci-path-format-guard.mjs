@@ -129,7 +129,10 @@ for (const entry of sourceOperations) {
   for (const marker of markers) {
     if (!knownSurfaceKeys.has(marker)) fail(`${operationId || operationKey(entry)} references unknown surface marker ${marker}`);
   }
-  if (markers.length === 0 && !exclusionRecords.has(operationId)) {
+  const sourceExcluded =
+    entry.operation?.["x-custom-gpt-exclude"] === true ||
+    entry.operation?.["x-gpt-action-exclude"] === true;
+  if (markers.length === 0 && !sourceExcluded && !exclusionRecords.has(operationId)) {
     uncovered.push(`${entry.method} ${entry.path} ${operationId || "<missing-operation-id>"}`);
   }
 }
