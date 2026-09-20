@@ -56,7 +56,20 @@ assert.doesNotMatch(script, /git\s+push/u);
 assert.match(workflow, /name:\s*Derived State Closure Detector/u);
 assert.match(workflow, /Checkout exact GitHub merge candidate|Checkout exact candidate/u);
 assert.match(workflow, /canonical-producer-evidence\.json/u);
-assert.match(workflow, /node - "\$OUT\/repository-governance\.json" <<'NODE'[\s\S]*process\.argv\[2\]/u);
+assert.match(workflow, /id: fixed_point[\s\S]*continue-on-error: true/u);
+assert.match(workflow, /set \+e[\s\S]*repository-governance-fixed-point\.mjs[\s\S]*fixed_point_status=\$\?/u);
+assert.match(workflow, /test -f "\$OUT\/repository-governance\.json"/u);
+assert.match(workflow, /steps\.target\.outputs\.pr_number != '0' && steps\.fixed_point\.outcome == 'success'/u);
+assert.match(workflow, /FIXED_POINT_OUTCOME: \$\{\{ steps\.fixed_point\.outcome \}\}/u);
+assert.match(workflow, /if \[\[ "\$PR_NUMBER" != "0" && "\$FIXED_POINT_OUTCOME" == "success" \]\]/u);
+assert.match(workflow, /set \+e[\s\S]*repository-governance-objection-gate\.mjs[\s\S]*objection_status=\$\?/u);
+assert.match(workflow, /test -f "\$OUT\/policy-objections\.json"/u);
+assert.ok(
+  workflow.indexOf('--report-file "$OUT/report.json"') < workflow.indexOf('Resolve and enforce typed policy objections'),
+  "Canonical derived-state report must be produced before the terminal objection gate."
+);
+assert.ok(workflow.includes('node - "$OUT/repository-governance.json" "$fixed_point_status" <<\'NODE\''));
+assert.ok(workflow.includes('const [file, statusRaw] = process.argv.slice(2);'));
 assert.doesNotMatch(workflow, /readFileSync\(process\.argv\[1\], 'utf8'\)/u);
 assert.equal((finalReadbackWorkflow.match(/process\.argv\[2\]/gu) || []).length, 2);
 assert.doesNotMatch(finalReadbackWorkflow, /process\.argv\[1\]/u);

@@ -1062,12 +1062,22 @@ assert.equal(generatedGapOperations.filter((operation) => ["state_change", "exte
 const governedMutations = operations.filter((operation) => ["state_change", "external_effect"].includes(operation.governance?.classification));
 assert.ok(governedMutations.every((operation) => operation.governance?.governed === true), "every mutation operation must be fully governed");
 assert.ok(governedMutations.every((operation) => ["preflight", "approval", "readback", "rollback"].every((key) => operation.governance?.controls?.[key]?.mode)), "every mutation operation must expose all four control modes");
-assert.equal(governedMutations.length, 24, "the governed mutation set includes bounded Recovery controls, Gateway preflight, one-time installer redemption, and WordPress Staging exact-artifact deployment");
+assert.equal(governedMutations.length, 27, "the governed mutation set includes bounded Recovery controls, Gateway preflight, one-time installer redemption, WordPress Staging exact-artifact deployment, and three Managed Google OAuth protocol effects");
 const wordpressStagingDeploy = governedMutations.find((operation) => operation.signature === "POST /platform/remote-runtime/wordpress/staging/deploy-plugin");
 assert.ok(wordpressStagingDeploy, "WordPress Staging exact-artifact deploy must remain explicitly governed as an external effect");
 assert.equal(wordpressStagingDeploy.governance?.classification, "external_effect", "WordPress Staging deploy must retain its externally consequential classification");
 assert.ok(governedMutations.some((operation) => operation.signature === "POST /admin/recovery/staging/gateway/dark-deploy-dry-run"), "Staging Gateway dry-run plan persistence must remain explicitly governed");
 assert.ok(governedMutations.some((operation) => operation.signature === "POST /connector-agent/installer/redeem"), "one-time installer redemption must remain explicitly governed");
+const managedGoogleSession = governedMutations.find((operation) => operation.signature === "POST /v1/google/oauth/session");
+assert.ok(managedGoogleSession, "Managed Google OAuth session creation must be explicitly governed");
+assert.equal(managedGoogleSession.governance?.classification, "state_change", "Managed Google OAuth session creation must remain a state change");
+const managedGoogleRedeem = governedMutations.find((operation) => operation.signature === "POST /v1/google/oauth/redeem");
+assert.ok(managedGoogleRedeem, "Managed Google OAuth handoff redemption must be explicitly governed");
+assert.equal(managedGoogleRedeem.governance?.classification, "state_change", "Managed Google OAuth redemption must remain a state change");
+const managedGoogleRefresh = governedMutations.find((operation) => operation.signature === "POST /v1/google/oauth/refresh");
+assert.ok(managedGoogleRefresh, "Managed Google OAuth token refresh must be explicitly governed");
+assert.equal(managedGoogleRefresh.governance?.classification, "external_effect", "Managed Google OAuth refresh must remain an external effect");
+
 assert.ok(governedMutations.some((operation) => operation.signature === "POST /admin/recovery/kernel/execute"), "plan-bound Recovery execution must remain explicitly governed");
 assert.ok(governedMutations.some((operation) => operation.signature === "POST /admin/recovery/kernel/execute-approved"), "server-issued Recovery bridge must remain explicitly governed");
 assert.ok(governedMutations.some((operation) => operation.signature === "POST /admin/recovery/kernel/approval-challenge"), "approval challenge issuer must remain explicitly governed");
