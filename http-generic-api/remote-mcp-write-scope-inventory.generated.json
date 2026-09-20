@@ -8,14 +8,14 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7717,
-  "route_count": 1106,
-  "write_route_count": 673,
+  "file_count": 7726,
+  "route_count": 1110,
+  "write_route_count": 676,
   "classified_write_surface_count": 44,
-  "classified_write_route_count": 673,
+  "classified_write_route_count": 676,
   "unclassified_write_route_count": 0,
-  "intentionally_unmapped_write_route_count": 629,
-  "sensitive_intentionally_unmapped_write_route_count": 629,
+  "intentionally_unmapped_write_route_count": 632,
+  "sensitive_intentionally_unmapped_write_route_count": 632,
   "migration_count": 449,
   "registry_evidence_count": 118,
   "write_scope_count": 6,
@@ -4716,6 +4716,42 @@
       "method": "POST",
       "path": "/approval-holds/:id/decide",
       "file": "http-generic-api/routes/managedExecutionRoutes.js",
+      "write": true
+    },
+    {
+      "route_id": "http-generic-api/routes/managedGoogleOAuthRoutes.js#POST:/v1/google/oauth/session:0",
+      "source_line": 56,
+      "source_offset": 1638,
+      "method": "POST",
+      "path": "/v1/google/oauth/session",
+      "file": "http-generic-api/routes/managedGoogleOAuthRoutes.js",
+      "write": true
+    },
+    {
+      "route_id": "http-generic-api/routes/managedGoogleOAuthRoutes.js#GET:/v1/google/oauth/callback:1",
+      "source_line": 66,
+      "source_offset": 2021,
+      "method": "GET",
+      "path": "/v1/google/oauth/callback",
+      "file": "http-generic-api/routes/managedGoogleOAuthRoutes.js",
+      "write": false
+    },
+    {
+      "route_id": "http-generic-api/routes/managedGoogleOAuthRoutes.js#POST:/v1/google/oauth/redeem:2",
+      "source_line": 83,
+      "source_offset": 2652,
+      "method": "POST",
+      "path": "/v1/google/oauth/redeem",
+      "file": "http-generic-api/routes/managedGoogleOAuthRoutes.js",
+      "write": true
+    },
+    {
+      "route_id": "http-generic-api/routes/managedGoogleOAuthRoutes.js#POST:/v1/google/oauth/refresh:3",
+      "source_line": 93,
+      "source_offset": 3037,
+      "method": "POST",
+      "path": "/v1/google/oauth/refresh",
+      "file": "http-generic-api/routes/managedGoogleOAuthRoutes.js",
       "write": true
     },
     {
@@ -30111,6 +30147,197 @@
       "owner": "remote-mcp-governance"
     },
     {
+      "route_id": "http-generic-api/routes/managedGoogleOAuthRoutes.js#POST:/v1/google/oauth/session:0",
+      "classification": "intentionally_unmapped",
+      "mapping_status": "blocked",
+      "domain": "identity",
+      "operation_class": "create_or_request",
+      "evidence": {
+        "file": "http-generic-api/routes/managedGoogleOAuthRoutes.js",
+        "source_line": 56,
+        "handler_window_lines": [
+          56,
+          64
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": true,
+          "db_registry_signal": false,
+          "authority_signal": false,
+          "readback_signal": false,
+          "mutation_signal": true
+        },
+        "signals": {
+          "provider": [
+            "request("
+          ],
+          "db_registry": [],
+          "authority": [],
+          "readback": [],
+          "mutation": [
+            "create"
+          ]
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "low_static",
+        "basis": "handler_window_signals_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract",
+        "provider_adapter_allowlist",
+        "provider_idempotency",
+        "provider_rollback_or_compensation"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [],
+      "resource_candidate": "identity",
+      "resource_key": null,
+      "operation_key": null,
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "identity-governance",
+      "classification_confidence": "heuristic_requires_manual_confirmation",
+      "risk_class": "critical",
+      "reason": "credential_or_identity_mutation_requires_security_contract"
+    },
+    {
+      "route_id": "http-generic-api/routes/managedGoogleOAuthRoutes.js#POST:/v1/google/oauth/redeem:2",
+      "classification": "intentionally_unmapped",
+      "mapping_status": "blocked",
+      "domain": "identity",
+      "operation_class": "create_or_request",
+      "evidence": {
+        "file": "http-generic-api/routes/managedGoogleOAuthRoutes.js",
+        "source_line": 83,
+        "handler_window_lines": [
+          83,
+          91
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": true,
+          "db_registry_signal": false,
+          "authority_signal": false,
+          "readback_signal": false,
+          "mutation_signal": false
+        },
+        "signals": {
+          "provider": [
+            "request("
+          ],
+          "db_registry": [],
+          "authority": [],
+          "readback": [],
+          "mutation": []
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "none",
+        "basis": "domain_and_route_shape_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract",
+        "provider_adapter_allowlist",
+        "provider_idempotency",
+        "provider_rollback_or_compensation"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [],
+      "resource_candidate": "identity",
+      "resource_key": null,
+      "operation_key": null,
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "identity-governance",
+      "classification_confidence": "heuristic_requires_manual_confirmation",
+      "risk_class": "critical",
+      "reason": "credential_or_identity_mutation_requires_security_contract"
+    },
+    {
+      "route_id": "http-generic-api/routes/managedGoogleOAuthRoutes.js#POST:/v1/google/oauth/refresh:3",
+      "classification": "intentionally_unmapped",
+      "mapping_status": "blocked",
+      "domain": "identity",
+      "operation_class": "create_or_request",
+      "evidence": {
+        "file": "http-generic-api/routes/managedGoogleOAuthRoutes.js",
+        "source_line": 93,
+        "handler_window_lines": [
+          93,
+          105
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": true,
+          "db_registry_signal": false,
+          "authority_signal": false,
+          "readback_signal": false,
+          "mutation_signal": false
+        },
+        "signals": {
+          "provider": [
+            "request("
+          ],
+          "db_registry": [],
+          "authority": [],
+          "readback": [],
+          "mutation": []
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "none",
+        "basis": "domain_and_route_shape_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract",
+        "provider_adapter_allowlist",
+        "provider_idempotency",
+        "provider_rollback_or_compensation"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [],
+      "resource_candidate": "identity",
+      "resource_key": null,
+      "operation_key": null,
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "identity-governance",
+      "classification_confidence": "heuristic_requires_manual_confirmation",
+      "risk_class": "critical",
+      "reason": "credential_or_identity_mutation_requires_security_contract"
+    },
+    {
       "route_id": "http-generic-api/routes/mcpRoutes.js#POST:/mcp/initialize:0",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
@@ -53713,18 +53940,18 @@
   ],
   "evidence_graph": {
     "node_counts": {
-      "routes": 673,
+      "routes": 676,
       "domains": 11,
-      "handler_files": 135
+      "handler_files": 136
     },
     "edge_counts": {
-      "route_to_handler_file": 673,
-      "route_to_domain": 673,
-      "route_to_provider_signal": 97,
+      "route_to_handler_file": 676,
+      "route_to_domain": 676,
+      "route_to_provider_signal": 100,
       "route_to_db_registry_signal": 0,
       "route_to_authority_signal": 426,
       "route_to_readback_signal": 380,
-      "route_to_mutation_signal": 387,
+      "route_to_mutation_signal": 388,
       "route_to_explicit_scope_candidate": 44
     },
     "execution_edges_are_non_authorizing": true,
@@ -60247,8 +60474,8 @@
     {
       "severity": "high",
       "code": "INTENTIONALLY_UNMAPPED_WRITE_ROUTES_BLOCKED",
-      "count": 629,
-      "sensitive_count": 629
+      "count": 632,
+      "sensitive_count": 632
     },
     {
       "severity": "medium",
