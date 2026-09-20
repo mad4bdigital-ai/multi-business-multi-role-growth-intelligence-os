@@ -18,7 +18,10 @@ import {
   transitionCapabilityEnvelopeLifecycle,
 } from "./capabilityResolutionEnvelopeGuard.js";
 import { assertPlatformResourceAuthorityStoreSource } from "./platformResourceAuthorityStore.js";
-import { resolveCanonicalPlatformAdminWorkspace } from "./src/infrastructure/authorityScope/platformAdminWorkspaceResolver.js";
+import {
+  inspectCanonicalPlatformAdminWorkspaceReadiness,
+  resolveCanonicalPlatformAdminWorkspace,
+} from "./src/infrastructure/authorityScope/platformAdminWorkspaceResolver.js";
 
 const SHA_RE = /^[a-f0-9]{40}$/u;
 const SHA256_RE = /^[a-f0-9]{64}$/u;
@@ -233,6 +236,54 @@ async function resolveWorkspace(pool, auth = {}, input = {}) {
   return rows?.[0] || null;
 }
 
+function platformAdminReadinessError(status) {
+  const codes = {
+    canonical_missing: "staging_activation_gateway_platform_admin_workspace_missing",
+    canonical_not_ready: "staging_activation_gateway_platform_admin_workspace_not_ready",
+    canonical_ambiguous: "staging_activation_gateway_platform_admin_workspace_ambiguous",
+    canonical_identity_conflict: "staging_activation_gateway_platform_admin_workspace_identity_conflict",
+    runtime_database_unavailable: "staging_activation_gateway_runtime_database_unavailable",
+  };
+  return codes[status] || "staging_activation_gateway_platform_admin_workspace_unready";
+}
+
+async function resolveWorkspaceContext(pool, auth = {}, input = {}) {
+  const principal = canonicalPrincipal(auth);
+  if (!auth?.user_id && principal.type === "service" && principal.id === "platform_admin") {
+    const semanticReadiness = await inspectCanonicalPlatformAdminWorkspaceReadiness({
+      executor: pool,
+      tenantId: PLATFORM_TENANT_ID,
+    });
+    if (semanticReadiness.ready && input.workspace_id
+      && input.workspace_id !== semanticReadiness.workspace?.workspace_id) {
+      throw adapterError(
+        "staging_activation_gateway_workspace_assertion_mismatch",
+        "Caller workspace assertion does not match the canonical Platform Admin Workspace.",
+        409,
+      );
+    }
+    return Object.freeze({
+      workspace: semanticReadiness.ready ? semanticReadiness.workspace : null,
+      semantic_readiness: semanticReadiness,
+    });
+  }
+  const workspace = await resolveWorkspace(pool, auth, input);
+  return Object.freeze({
+    workspace,
+    semantic_readiness: Object.freeze({
+      contract: "mad4b.platform-admin-workspace-readiness.v1",
+      status: "not_applicable_user_workspace",
+      ready: true,
+      workspace: null,
+      database_read_performed: true,
+      database_mutation_performed: false,
+      provider_access_performed: false,
+      production_access_performed: false,
+      secrets_included: false,
+    }),
+  });
+}
+
 function canonicalPrincipal(auth = {}) {
   if (auth.mode === "backend_api_key" && auth.principal_type === "admin" && auth.is_admin === true
     && !auth.user_id) return { type: "service", id: "platform_admin" };
@@ -412,7 +463,9 @@ export async function buildStagingActivationGatewayApplyPlan(input = {}, deps = 
   if (!SHA256_RE.test(expectedPolicyHash) || expectedPolicyHash !== compact(gateway.expected_policy_hash).toLowerCase()) throw adapterError("staging_activation_gateway_expected_policy_hash_mismatch", "expected_policy_hash must match the Staging profile.", 409);
   const binding = await resolveServerResourceBinding(governancePool, bindingId);
   assertCallerCannotSelectTarget(input, binding);
-  const workspace = await resolveWorkspace(runtimePool, auth, input);
+  const workspaceContext = await resolveWorkspaceContext(runtimePool, auth, input);
+  const workspace = workspaceContext.workspace;
+  const semanticReadiness = workspaceContext.semantic_readiness;
   const bundle = await buildStagingActivationGatewayBundle({ sourceSha: expectedSourceCommit, repositoryRoot: deps.repositoryRoot, lifetimeHours: deps.lifetimeHours, now: deps.now });
   if (bundle.policy_hash !== expectedPolicyHash) throw adapterError("staging_activation_gateway_built_policy_hash_mismatch", "Built Staging Gateway policy does not match the exact environment profile.", 409);
   const bundleSha = sha256(stableJson({ files: bundle.files, worker_secrets: bundle.worker_secrets, origin_trust: bundle.origin_trust }));
@@ -426,13 +479,18 @@ export async function buildStagingActivationGatewayApplyPlan(input = {}, deps = 
     trust_key_id: bundle.origin_trust.key_id, trust_public_key_sha256: sha256(bundle.origin_trust.public_key),
     expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString() };
   const planSha = sha256(stableJson(planBody));
-  const client = deps.cloudflareClient || createCloudflareApiClient({ fetchImpl: deps.fetchImpl, token: (deps.env || process.env).CLOUDFLARE_API_TOKEN, timeoutMs: deps.cloudflareTimeoutMs });
+  const providerTokenPresent = Boolean(deps.cloudflareClient?.token_present ?? (deps.env || process.env).CLOUDFLARE_API_TOKEN);
+  const semanticWorkspaceReady = semanticReadiness.ready === true && Boolean(workspace?.workspace_id);
+  const client = semanticWorkspaceReady
+    ? (deps.cloudflareClient || createCloudflareApiClient({ fetchImpl: deps.fetchImpl, token: (deps.env || process.env).CLOUDFLARE_API_TOKEN, timeoutMs: deps.cloudflareTimeoutMs }))
+    : null;
   const featureEnabled = truthy((deps.env || process.env).STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED);
   const checks = [
     { key: "profile_bound", ok: true },
     { key: "server_resource_binding_valid", ok: true },
     { key: "workspace_resolved", ok: Boolean(workspace?.workspace_id) },
-    { key: "cloudflare_token_present_server_side", ok: Boolean(client.token_present ?? (deps.env || process.env).CLOUDFLARE_API_TOKEN) },
+    { key: "platform_admin_semantic_readiness", ok: semanticReadiness.ready === true, detail: { status: semanticReadiness.status } },
+    { key: "cloudflare_token_present_server_side", ok: providerTokenPresent },
     { key: "staging_apply_feature_gate_enabled", ok: featureEnabled },
     { key: "exact_policy_hash", ok: bundle.policy_hash === expectedPolicyHash },
     { key: "exact_source_commit", ok: bundle.source_sha === expectedSourceCommit },
@@ -443,7 +501,9 @@ export async function buildStagingActivationGatewayApplyPlan(input = {}, deps = 
     adapter: "staging_activation_gateway_profile_apply",
     mode: "dry_run",
     environment: "staging",
-    classification: checks.every((check) => check.ok) ? "staging_activation_gateway_apply_ready" : "staging_activation_gateway_apply_blocked",
+    classification: semanticReadiness.ready !== true
+      ? `staging_activation_gateway_${semanticReadiness.status}`
+      : (checks.every((check) => check.ok) ? "staging_activation_gateway_apply_ready" : "staging_activation_gateway_apply_blocked"),
     apply_ready: checks.every((check) => check.ok),
     ...planBody,
     plan_sha256: planSha,
@@ -459,6 +519,7 @@ export async function buildStagingActivationGatewayApplyPlan(input = {}, deps = 
     },
     resource_binding: binding,
     workspace: workspace ? { workspace_id: workspace.workspace_id, workspace_key: workspace.workspace_key, workspace_type: workspace.workspace_type } : null,
+    workspace_readiness: semanticReadiness,
     required_confirmation: `DEPLOY_STAGING_GATEWAY_${expectedSourceCommit.slice(0, 12).toUpperCase()}_${planSha.slice(0, 12).toUpperCase()}`,
     required_capability: {
       app_key: "cloudflare",
@@ -483,7 +544,7 @@ export async function buildStagingActivationGatewayApplyPlan(input = {}, deps = 
     governance_state_mutation: false,
     database_mutation: false,
     secrets_included: false,
-    ...(deps.includeInternal === true ? { _internal: { bundle, client, workspace }, _planBody: planBody } : {}),
+    ...(deps.includeInternal === true ? { _internal: { bundle, client, workspace, semanticReadiness }, _planBody: planBody } : {}),
   };
 }
 
@@ -524,7 +585,17 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
   const binding = await resolveServerResourceBinding(governancePool, bindingId);
   assertCallerCannotSelectTarget(input, binding);
   const auth = deps.auth || {};
-  const workspace = await resolveWorkspace(runtimePool, auth, input);
+  const workspaceContext = await resolveWorkspaceContext(runtimePool, auth, input);
+  const workspace = workspaceContext.workspace;
+  const semanticReadiness = workspaceContext.semantic_readiness;
+  if (semanticReadiness.ready !== true || !workspace?.workspace_id) {
+    throw adapterError(
+      platformAdminReadinessError(semanticReadiness.status),
+      "Canonical Platform Admin semantic readiness is required before Staging Activation Gateway apply.",
+      503,
+      { workspace_readiness: semanticReadiness.status },
+    );
+  }
   const expectedSourceCommit = compact(input.expected_source_commit, 64).toLowerCase();
   const expectedPolicyHash = compact(input.expected_policy_hash, 64).toLowerCase();
   const actualSourceCommit = await canonicalRuntimeCommit(deps);
