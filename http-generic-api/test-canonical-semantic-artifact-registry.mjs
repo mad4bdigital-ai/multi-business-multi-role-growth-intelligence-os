@@ -37,3 +37,12 @@ assert.ok(snapshot);
 for(const required of ["tenant_platform_endpoint_tools","platform_endpoint_tool_exports","activation_connector_pack_registry","activation_delivery_policy_registry"]){
   assert.equal(snapshot.tables.includes(required),true,`snapshot missing ${required}`);
 }
+
+const migrationsDir=path.join(apiRoot,"migrations");
+const activationRegistries=new Set();
+for(const file of fs.readdirSync(migrationsDir).filter((name)=>name.endsWith(".sql"))){
+  const sql=fs.readFileSync(path.join(migrationsDir,file),"utf8");
+  for(const match of sql.matchAll(/CREATE\s+TABLE(?:\s+IF\s+NOT\s+EXISTS)?\s+`?(activation_[A-Za-z0-9_]+_registry)`?/giu)) activationRegistries.add(match[1]);
+}
+const declaredActivation=new Set(snapshot.tables.filter((table)=>/^activation_.*_registry$/u.test(table)));
+assert.deepEqual([...declaredActivation].sort(),[...activationRegistries].sort(),"every Git-created activation registry must be explicitly declared in the canonical semantic snapshot");
