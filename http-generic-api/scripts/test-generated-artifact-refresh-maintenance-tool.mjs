@@ -371,6 +371,15 @@ runCheck("maintenance-tool-registration", () => {
     "canonical support-ticket auth repair must be explicitly governed",
   );
   for (const requiredPattern of [
+    "^http-generic-api/openapi/openapi\\.custom-gpt\\.activation-admin\\.production\\.yaml$",
+    "^http-generic-api/openapi/openapi\\.custom-gpt\\.activation-admin\\.staging\\.yaml$",
+    "^http-generic-api/openapi/openapi\\.custom-gpt\\.auth-dispatcher\\.production\\.yaml$",
+    "^http-generic-api/openapi/openapi\\.custom-gpt\\.auth-dispatcher\\.staging\\.yaml$",
+    "^http-generic-api/openapi/openapi\\.custom-gpt\\.recovery-admin\\.production\\.yaml$",
+    "^http-generic-api/openapi/openapi\\.tenant-gpt\\.activation\\.production\\.yaml$",
+    "^http-generic-api/openapi/openapi\\.tenant-gpt\\.activation\\.staging\\.yaml$",
+    "^http-generic-api/openapi/openapi\\.tenant-gpt\\.auth\\.production\\.yaml$",
+    "^http-generic-api/openapi/openapi\\.tenant-gpt\\.auth\\.staging\\.yaml$",
     "^docs/work-maps/.*$",
     "^specs/014-governed-hostinger-storage-orchestration/work-map-integration\\.json$",
     "^specs/014-governed-hostinger-storage-orchestration/tasks\\.md$",
@@ -386,6 +395,15 @@ runCheck("maintenance-tool-registration", () => {
       `generated-artifact output must be registered: ${requiredPattern}`,
     );
   }
+  assert.ok(toolSource.includes("  \"http-generic-api/openapi/openapi.custom-gpt.activation-admin.production.yaml\","), "frontend recipe exact output missing: http-generic-api/openapi/openapi.custom-gpt.activation-admin.production.yaml");
+  assert.ok(toolSource.includes("  \"http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml\","), "frontend recipe exact output missing: http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml");
+  assert.ok(toolSource.includes("  \"http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.production.yaml\","), "frontend recipe exact output missing: http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.production.yaml");
+  assert.ok(toolSource.includes("  \"http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml\","), "frontend recipe exact output missing: http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml");
+  assert.ok(toolSource.includes("  \"http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml\","), "frontend recipe exact output missing: http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml");
+  assert.ok(toolSource.includes("  \"http-generic-api/openapi/openapi.tenant-gpt.activation.production.yaml\","), "frontend recipe exact output missing: http-generic-api/openapi/openapi.tenant-gpt.activation.production.yaml");
+  assert.ok(toolSource.includes("  \"http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml\","), "frontend recipe exact output missing: http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml");
+  assert.ok(toolSource.includes("  \"http-generic-api/openapi/openapi.tenant-gpt.auth.production.yaml\","), "frontend recipe exact output missing: http-generic-api/openapi/openapi.tenant-gpt.auth.production.yaml");
+  assert.ok(toolSource.includes("  \"http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml\","), "frontend recipe exact output missing: http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml");
   assert.equal(registration?.report_contract, "mad4b.governed-generated-artifact-refresh.v1");
 });
 

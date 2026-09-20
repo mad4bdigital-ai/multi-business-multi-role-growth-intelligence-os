@@ -119,7 +119,16 @@
         "^docs/repository-inventory\\.md$",
         "^docs/repository-evaluation\\.json$",
         "^docs/repository-evaluation-summary\\.json$",
-        "^docs/repository-evaluation\\.md$"
+        "^docs/repository-evaluation\\.md$",
+        "^http-generic-api/openapi/openapi\\.custom-gpt\\.activation-admin\\.production\\.yaml$",
+        "^http-generic-api/openapi/openapi\\.custom-gpt\\.activation-admin\\.staging\\.yaml$",
+        "^http-generic-api/openapi/openapi\\.custom-gpt\\.auth-dispatcher\\.production\\.yaml$",
+        "^http-generic-api/openapi/openapi\\.custom-gpt\\.auth-dispatcher\\.staging\\.yaml$",
+        "^http-generic-api/openapi/openapi\\.custom-gpt\\.recovery-admin\\.production\\.yaml$",
+        "^http-generic-api/openapi/openapi\\.tenant-gpt\\.activation\\.production\\.yaml$",
+        "^http-generic-api/openapi/openapi\\.tenant-gpt\\.activation\\.staging\\.yaml$",
+        "^http-generic-api/openapi/openapi\\.tenant-gpt\\.auth\\.production\\.yaml$",
+        "^http-generic-api/openapi/openapi\\.tenant-gpt\\.auth\\.staging\\.yaml$"
       ],
       "report_contract": "mad4b.governed-generated-artifact-refresh.v1"
     },
