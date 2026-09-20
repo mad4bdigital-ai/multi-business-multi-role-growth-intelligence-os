@@ -32,7 +32,10 @@
       "http-generic-api/stagingCanonicalSemanticRepairLedger.js",
       "http-generic-api/test-staging-canonical-semantic-repair-ledger.mjs",
       "http-generic-api/scripts/staging-canonical-semantic-repair.mjs",
-      "http-generic-api/test-staging-canonical-semantic-repair-cli.mjs"
+      "http-generic-api/test-staging-canonical-semantic-repair-cli.mjs",
+      "http-generic-api/semanticDataCompletenessReport.js",
+      "http-generic-api/scripts/semantic-data-completeness-report.mjs",
+      "http-generic-api/test-semantic-data-completeness-report.mjs"
     ]
   },
   "environment_impact": {
@@ -82,7 +85,8 @@
             "Execute the registered canonical artifact only through the repository-owned transaction path; callers cannot inject SQL, an artifact executor, a target role, or a target environment.",
             "Re-derive typed confirmation from the immutable plan hash at apply time and reject repository, environment, role, or execution-authority drift before mutation.",
             "Reserve each repair plan exactly once in a durable secret-free ledger outside the Runtime target data before mutation; process interruption leaves an executing or unknown_outcome record that requires reconciliation.",
-            "Expose explicit plan/apply/reconcile commands that require the exact checkout SHA, original immutable plan file, local Staging target, and durable ledger directory."
+            "Expose explicit plan/apply/reconcile commands that require the exact checkout SHA, original immutable plan file, local Staging target, and durable ledger directory.",
+            "Emit one secret-free completeness report across canonical, environment, and operational datasets; unresolved replay debt remains blocking evidence rather than being hidden by workspace readiness."
           ],
           "assertions": [
             "Numeric and date-prefixed changed migrations are both inspected.",
@@ -106,7 +110,8 @@
             "Canonical semantic repair wraps only the registry-verified statements in START TRANSACTION/COMMIT and attempts ROLLBACK before entering reconciliation_required.",
             "Changing required_confirmation, expected_repository, target_environment, target_role, or execution authority cannot authorize apply.",
             "A consumed repair plan cannot be applied again, and unknown outcome can transition only through explicit reconciliation to succeeded.",
-            "The operational CLI refuses Production/Hostinger targets and cannot regenerate a replacement plan during apply or reconciliation."
+            "The operational CLI refuses Production/Hostinger targets and cannot regenerate a replacement plan during apply or reconciliation.",
+            "Canonical completeness cannot be true while any canonical_registry dataset has unresolved replay debt or lacks a ready readback."
           ],
           "tests": [
             {
@@ -177,6 +182,13 @@
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-staging-canonical-semantic-repair-cli.mjs",
+              "args": []
+            },
+            {
+              "id": "semantic-data-completeness-report",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-semantic-data-completeness-report.mjs",
               "args": []
             }
           ],
