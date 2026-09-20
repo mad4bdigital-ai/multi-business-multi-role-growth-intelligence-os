@@ -44,7 +44,7 @@ VALUES
  NULL,
  '{"type":"object","required":["expected_head_sha"],"properties":{"expected_head_sha":{"type":"string","pattern":"^[0-9a-f]{40}$"},"dry_run":{"type":"boolean","default":true},"approval_reason":{"type":"string","minLength":20,"maxLength":1000},"capability_envelope_id":{"type":"string","minLength":1,"maxLength":64},"timeout_ms":{"type":"integer","minimum":1000,"maximum":300000}},"additionalProperties":false}',
  NULL,
- 'admin,remote-runtime,wordpress,staging,hostinger,artifact,exact_head,handoff_v2,server_resolved_target,capability_envelope_required,approval_required,state_changing,dry_run_default,no_secrets,no_breakglass,no_raw_sql,no_production',
+ 'admin,remote-runtime,wordpress,staging,hostinger,artifact,exact_head,handoff_v2,server_resolved_target,no_caller_target,no_caller_artifact,capability_envelope_required,approval_required,state_changing,dry_run_default,no_secrets,no_caller_path,no_caller_credentials,no_breakglass,no_raw_sql,no_production',
  1, 154
 )
 ON DUPLICATE KEY UPDATE
