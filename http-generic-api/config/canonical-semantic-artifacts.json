@@ -21,7 +21,9 @@
         "staging_rebuild",
         "platform_admin_workspace_readiness"
       ],
-      "dependencies": [],
+      "dependencies": [
+        "runtime_canonical_registry_snapshot"
+      ],
       "caller_sql_forbidden": true,
       "caller_target_forbidden": true,
       "production_apply_allowed": false,
@@ -117,12 +119,23 @@
         "staging_rebuild",
         "wordpress_staging_deployment_readiness"
       ],
-      "dependencies": [],
+      "dependencies": [
+        "runtime_canonical_registry_snapshot"
+      ],
       "caller_sql_forbidden": true,
       "caller_target_forbidden": true,
       "production_apply_allowed": false,
       "provider_apply_allowed": false,
       "source_kind": "repository_file"
     }
-  ]
+  ],
+  "dependency_graph": {
+    "contract": "mad4b.canonical-semantic-artifact-dag.v1",
+    "root_artifacts": [
+      "runtime_canonical_registry_snapshot"
+    ],
+    "cycle_policy": "fail_closed",
+    "missing_dependency_policy": "fail_closed",
+    "topological_replay_required": true
+  }
 }
