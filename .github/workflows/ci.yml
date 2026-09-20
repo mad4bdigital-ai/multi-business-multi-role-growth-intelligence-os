@@ -33,6 +33,13 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Enforce Runtime data lifecycle classification
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          node scripts/runtime-data-lifecycle-guard.mjs | tee "$RUNNER_TEMP/runtime-data-lifecycle-guard.json"
+          node test-runtime-data-lifecycle-guard.mjs
+
       - name: Enforce full Staging migration contract governance
         working-directory: http-generic-api
         shell: bash
