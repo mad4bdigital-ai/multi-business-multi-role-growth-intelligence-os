@@ -35,6 +35,8 @@ jobs:
 
       - name: Enforce Runtime data lifecycle classification
         working-directory: http-generic-api
+        env:
+          RUNTIME_DATA_LIFECYCLE_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
           set -euo pipefail
           node scripts/runtime-data-lifecycle-guard.mjs | tee "$RUNNER_TEMP/runtime-data-lifecycle-guard.json"
