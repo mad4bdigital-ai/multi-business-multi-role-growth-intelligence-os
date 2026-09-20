@@ -30,6 +30,10 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "22"
+          cache: "npm"
+          cache-dependency-path: http-generic-api/package-lock.json
+      - name: Install test dependencies
+        run: npm ci --ignore-scripts
       - name: Verify managed Git hostile-host isolation
         run: node test-managed-git-remote-transport.mjs
       - name: Verify canonical artifact registry bytes
