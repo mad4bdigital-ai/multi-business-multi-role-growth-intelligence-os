@@ -50,6 +50,15 @@ class MemoryStore {
 
   async createSession(record) {
     this.sessions.set(record.session_id, { ...record, status: "pending" });
+    this.audit.push({
+      event: "session_create",
+      site_uuid: record.site_uuid,
+      session_id: record.session_id,
+      outcome: "success",
+      origin: record.origin,
+      metadata: record.audit_metadata || null,
+      now: record.created_at,
+    });
   }
 
   async findSessionByBrokerStateHash(hash) {
@@ -59,14 +68,15 @@ class MemoryStore {
     return null;
   }
 
-  async markDenied({ session_id, reason, now }) {
+  async markDenied({ session_id, site_uuid, origin, reason, now }) {
     const row = this.sessions.get(session_id);
     if (!row || row.status !== "pending") return false;
     Object.assign(row, { status: "denied", denied_reason: reason, denied_at: now, updated_at: now });
+    this.audit.push({ event: "google_callback", site_uuid, session_id, outcome: "denied", reason, origin, now });
     return true;
   }
 
-  async authorizeSession({ session_id, handoff_hash, token_envelope, token_expires_in, handoff_expires_at, now }) {
+  async authorizeSession({ session_id, site_uuid, origin, handoff_hash, token_envelope, token_expires_in, handoff_expires_at, scope_sha256_prefix, now }) {
     const row = this.sessions.get(session_id);
     if (!row || row.status !== "pending" || new Date(row.expires_at).getTime() <= now.getTime()) return false;
     Object.assign(row, {
@@ -77,6 +87,15 @@ class MemoryStore {
       handoff_expires_at,
       authorized_at: now,
       updated_at: now,
+    });
+    this.audit.push({
+      event: "google_callback",
+      site_uuid,
+      session_id,
+      outcome: "authorized",
+      origin,
+      metadata: { scope_sha256_prefix },
+      now,
     });
     return true;
   }
@@ -105,6 +124,7 @@ class MemoryStore {
     if (row.verifier_challenge !== verifier_challenge) throw testError(403, "managed_google_oauth_verifier_mismatch", "verifier mismatch");
     const snapshot = { ...row };
     Object.assign(row, { status: "redeemed", token_envelope: null, redeemed_at: now, updated_at: now });
+    this.audit.push({ event: "redeem", site_uuid: row.site_uuid, session_id, outcome: "success", origin: row.origin, now });
     return snapshot;
   }
 }
@@ -249,6 +269,9 @@ assert.equal(redemption.refresh_token, "google-refresh-token-fixture");
 assert.equal(redemption.scope, GOOGLE_DRIVE_READ_SCOPE);
 assert.equal(store.sessions.get(session.session_id).status, "redeemed");
 assert.equal(store.sessions.get(session.session_id).token_envelope, null, "Token envelope must be erased on successful handoff consumption.");
+assert.ok(store.audit.some((row) => row.event === "session_create" && row.session_id === session.session_id && row.outcome === "success"));
+assert.ok(store.audit.some((row) => row.event === "google_callback" && row.session_id === session.session_id && row.outcome === "authorized"));
+assert.ok(store.audit.some((row) => row.event === "redeem" && row.session_id === session.session_id && row.outcome === "success"));
 
 await assert.rejects(
   () => broker.redeem({
