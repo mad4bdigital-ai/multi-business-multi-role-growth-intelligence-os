@@ -90,7 +90,8 @@
     "staging:canonical-repair:plan": "node scripts/staging-canonical-semantic-repair.mjs --action=plan",
     "staging:canonical-repair:apply": "node scripts/staging-canonical-semantic-repair.mjs --action=apply",
     "staging:canonical-repair:reconcile": "node scripts/staging-canonical-semantic-repair.mjs --action=reconcile",
-    "staging:semantic-completeness": "node scripts/semantic-data-completeness-report.mjs"
+    "staging:semantic-completeness": "node scripts/semantic-data-completeness-report.mjs",
+    "authority:platform-admin:check": "node scripts/build-platform-admin-workspace-authority.mjs --check"
   },
   "engines": {
     "node": ">=22 <23"
