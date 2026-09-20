@@ -129,6 +129,81 @@ const managedGoogleMissingBindingKey = evaluateProductionConfig({
 assert.equal(managedGoogleMissingBindingKey.ok, false);
 assert.match(managedGoogleMissingBindingKey.errors.join("\n"), /site binding/);
 
+
+const managedGoogleMalformedSiblingBinding = evaluateProductionConfig({
+  ...base,
+  MANAGED_GOOGLE_OAUTH_ENABLED: "true",
+  MANAGED_GOOGLE_OAUTH_CLIENT_ID: "managed-client.apps.googleusercontent.com",
+  MANAGED_GOOGLE_OAUTH_CLIENT_SECRET: "managed_google_client_secret_fixture_32_chars_x",
+  MANAGED_GOOGLE_OAUTH_TOKEN_ENCRYPTION_KEY: "managed_google_encryption_key_fixture_32_chars_y",
+  MANAGED_GOOGLE_OAUTH_REDIRECT_URI: "https://auth.mad4b.com/v1/google/oauth/callback",
+  MANAGED_GOOGLE_OAUTH_SITE_BINDINGS_JSON: JSON.stringify([
+    {
+      site_uuid: "d745d81f-6fc4-5c6a-99dd-d953c92137bf",
+      origin: "https://staging.egypttourgates.com",
+      callback_uri: "https://staging.egypttourgates.com/wp-admin/admin-post.php?action=mad4b_context_google_managed_callback",
+      key_id: "etg-staging-v1",
+      status: "active",
+    },
+    {
+      site_uuid: "not-a-uuid",
+      origin: "http://invalid.example",
+      callback_uri: "https://attacker.example/callback",
+      key_id: "broken-site-v1",
+      status: "active",
+    },
+  ]),
+  MANAGED_GOOGLE_OAUTH_SITE_SECRETS_JSON: JSON.stringify({
+    "etg-staging-v1": "managed_google_site_secret_fixture_32_chars_z",
+    "broken-site-v1": "managed_google_site_secret_fixture_32_chars_q",
+  }),
+});
+assert.equal(managedGoogleMalformedSiblingBinding.ok, false);
+assert.equal(managedGoogleMalformedSiblingBinding.managed_google_oauth.site_bindings_valid, false);
+assert.ok(managedGoogleMalformedSiblingBinding.managed_google_oauth.site_binding_errors.length > 0);
+
+const managedGoogleCrossOriginCallback = evaluateProductionConfig({
+  ...base,
+  MANAGED_GOOGLE_OAUTH_ENABLED: "true",
+  MANAGED_GOOGLE_OAUTH_CLIENT_ID: "managed-client.apps.googleusercontent.com",
+  MANAGED_GOOGLE_OAUTH_CLIENT_SECRET: "managed_google_client_secret_fixture_32_chars_x",
+  MANAGED_GOOGLE_OAUTH_TOKEN_ENCRYPTION_KEY: "managed_google_encryption_key_fixture_32_chars_y",
+  MANAGED_GOOGLE_OAUTH_REDIRECT_URI: "https://auth.mad4b.com/v1/google/oauth/callback",
+  MANAGED_GOOGLE_OAUTH_SITE_BINDINGS_JSON: JSON.stringify([{
+    site_uuid: "d745d81f-6fc4-5c6a-99dd-d953c92137bf",
+    origin: "https://staging.egypttourgates.com",
+    callback_uri: "https://attacker.example/wp-admin/admin-post.php?action=mad4b_context_google_managed_callback",
+    key_id: "etg-staging-v1",
+    status: "active",
+  }]),
+  MANAGED_GOOGLE_OAUTH_SITE_SECRETS_JSON: JSON.stringify({
+    "etg-staging-v1": "managed_google_site_secret_fixture_32_chars_z",
+  }),
+});
+assert.equal(managedGoogleCrossOriginCallback.ok, false);
+assert.match(managedGoogleCrossOriginCallback.managed_google_oauth.site_binding_errors.join("\n"), /callback origin mismatch/);
+
+const managedGoogleRedirectWithQuery = evaluateProductionConfig({
+  ...base,
+  MANAGED_GOOGLE_OAUTH_ENABLED: "true",
+  MANAGED_GOOGLE_OAUTH_CLIENT_ID: "managed-client.apps.googleusercontent.com",
+  MANAGED_GOOGLE_OAUTH_CLIENT_SECRET: "managed_google_client_secret_fixture_32_chars_x",
+  MANAGED_GOOGLE_OAUTH_TOKEN_ENCRYPTION_KEY: "managed_google_encryption_key_fixture_32_chars_y",
+  MANAGED_GOOGLE_OAUTH_REDIRECT_URI: "https://auth.mad4b.com/v1/google/oauth/callback?unexpected=1",
+  MANAGED_GOOGLE_OAUTH_SITE_BINDINGS_JSON: JSON.stringify([{
+    site_uuid: "d745d81f-6fc4-5c6a-99dd-d953c92137bf",
+    origin: "https://staging.egypttourgates.com",
+    callback_uri: "https://staging.egypttourgates.com/wp-admin/admin-post.php?action=mad4b_context_google_managed_callback",
+    key_id: "etg-staging-v1",
+    status: "active",
+  }]),
+  MANAGED_GOOGLE_OAUTH_SITE_SECRETS_JSON: JSON.stringify({
+    "etg-staging-v1": "managed_google_site_secret_fixture_32_chars_z",
+  }),
+});
+assert.equal(managedGoogleRedirectWithQuery.ok, false);
+assert.equal(managedGoogleRedirectWithQuery.managed_google_oauth.redirect_uri_valid, false);
+
 const missingSso = evaluateProductionConfig({ ...base, TENANT_GPT_SSO_SIGNING_SECRET: "" });
 assert.equal(missingSso.ok, false);
 assert.match(missingSso.errors.join("\n"), /TENANT_GPT_SSO_SIGNING_SECRET is missing/);
