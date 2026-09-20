@@ -283,12 +283,16 @@ if (JSON.stringify(process.argv.slice(2)) !== JSON.stringify(expected)) process.
   };
   const resolved = executePhaseTests(evaluation, { root, base: baseSha, head: headSha });
   assert.equal(resolved.ok, true);
-  assert.equal(resolved.results[0].status, "passed");
+  assert.equal(resolved.results.length, 1);
+  const [resolvedResult] = resolved.results;
+  assert.equal(resolvedResult.status, "passed");
 
   const missingBase = executePhaseTests(evaluation, { root, head: headSha });
   assert.equal(missingBase.ok, false);
-  assert.equal(missingBase.results[0].status, "error");
-  assert.match(missingBase.results[0].error, /BASE_SHA.*exact lowercase 40-character Git SHA/u);
+  assert.equal(missingBase.results.length, 1);
+  const [missingBaseResult] = missingBase.results;
+  assert.equal(missingBaseResult.status, "error");
+  assert.match(missingBaseResult.error, /BASE_SHA.*exact lowercase 40-character Git SHA/u);
 }
 
 console.log(JSON.stringify({
