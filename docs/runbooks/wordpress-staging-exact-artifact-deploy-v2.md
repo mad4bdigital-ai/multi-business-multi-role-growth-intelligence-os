@@ -1,0 +1,380 @@
+# WordPress Staging Exact-Artifact Deploy v2
+
+## Purpose
+
+This runbook describes the governed execution plane for deploying an exact reviewed
+`mad4bdigital-ai/WordPress` General Distribution candidate to the enrolled Egypt Tour
+Gates Staging site.
+
+The surface is Staging-only. It is not Production authority, Breakglass, Raw SQL, File
+Manager, or a generic remote shell.
+
+## Runtime contract
+
+The platform route is:
+
+```text
+POST /platform/remote-runtime/wordpress/staging/deploy-plugin
+```
+
+The execution and producer contracts are:
+
+```text
+mad4b.wordpress-staging-plugin-deploy.v2
+mad4b.wordpress-deployment-handoff.v2
+mad4b.site-control-plane.general-distribution-kit.v1
+mad4b.build-provenance.v1
+```
+
+Apply remains behind:
+
+```text
+REMOTE_RUNTIME_WORDPRESS_STAGING_DEPLOY_ENABLED=true
+```
+
+Dry-run is the default and performs no WordPress mutation.
+
+## Caller input boundary
+
+The bounded request may provide only:
+
+```text
+expected_head_sha
+dry_run
+approval_reason
+capability_envelope_id
+timeout_ms
+```
+
+The caller cannot select or supply:
+
+- Hostinger target ID;
+- GitHub artifact ID;
+- host or WordPress filesystem path;
+- SSH authentication mode;
+- SSH credentials;
+- plugin archive bytes;
+- Production target or Production authority.
+
+The exact GitHub artifact is derived from the reviewed WordPress HEAD. The Hostinger
+target is resolved server-side from governed target authority.
+
+## Catalog output policy
+
+The `remote_runtime_command_allowlists.output_policy` for this command is:
+
+```text
+bounded_text
+```
+
+This reuses the existing canonical Hostinger deploy output domain. The HTTP route still
+returns structured JSON, but the remote-runtime command catalog does not introduce a new
+enum literal solely for this deployment surface.
+
+## Target resolution
+
+The executor requires exactly one active and validated `hosting_account` target with:
+
+```text
+plugin_key = remote_ssh_runtime
+provider_family = hostinger
+environment = staging
+origin = https://staging.egypttourgates.com
+command allowlist contains wordpress_staging_plugin_deploy
+```
+
+Zero matches fail closed.
+
+More than one match fails closed as ambiguous.
+
+The deployment migration intentionally does not create, widen, or repair a target
+allowlist. Target authority is governed separately.
+
+A real successful Hostinger SSH target probe may activate an explicitly authorized target.
+Its canonical database state is:
+
+```text
+status = active
+validation_status = valid
+```
+
+The runtime must not write the non-canonical `validated` literal into
+`remote_runtime_targets.validation_status`.
+
+## Shared Hostinger transport authority
+
+The WordPress deployment executor does not maintain a second SSH credential or askpass
+implementation. It reuses the canonical Hostinger SSH transport for:
+
+- server-owned credential resolution without creating a credential-intake side effect;
+- hardened SSH options and timeouts;
+- password/private-key transport;
+- secret-safe output;
+- bounded process timeout/cleanup;
+- optional binary stdin streaming for the already verified plugin archives.
+
+WordPress-specific code owns only target uniqueness, artifact provenance, Site Profile
+preflight, plugin swap, exact readback, and rollback semantics.
+
+## Exact artifact verification
+
+For `expected_head_sha`, the executor reads the successful reviewed
+`mad4b-control-plane-package.yml` run from `mad4bdigital-ai/WordPress`.
+
+The expected artifact name is derived server-side:
+
+```text
+mad4b-site-control-plane-general-distribution-kit-{expected_head_sha}
+```
+
+Before any WordPress write, the executor verifies:
+
+- the outer artifact and both plugin ZIPs contain only relative safe paths;
+- each inner ZIP is confined to its expected plugin root;
+- symlink and special-file entries are rejected;
+- ZIP entry count and total uncompressed size are bounded before extraction;
+
+Then it verifies:
+
+1. successful exact-head package workflow;
+2. GitHub Actions outer artifact SHA-256 when GitHub exposes the digest;
+3. `install-manifest.json` contract, repository, exact commit and release class;
+4. explicit Site Profile tenant-binding requirement;
+5. Control Plane archive SHA-256;
+6. bundled MCP Adapter 0.6.1 archive SHA-256;
+7. bundled adapter digest equals the certified release digest;
+8. install order is MCP Adapter before Control Plane;
+9. `MAD4B-BUILD-PROVENANCE.json` matches source SHA, build fingerprint,
+   package-manifest digest and adapter SHA-256;
+10. embedded `staging-deployment-handoff.json` is
+    `mad4b.wordpress-deployment-handoff.v2`.
+
+Artifact IDs are evidence returned by GitHub after server-side resolution. They are not
+caller authority.
+
+## Live preflight
+
+The executor resolves server-owned SSH credentials and performs a read-only WP-CLI
+preflight before the first write.
+
+For Hostinger password authentication, the server-owned secret is passed only through
+`sshpass -d 3`; it is not placed in argv, `SSHPASS`, `NODE_OPTIONS`, or an
+ASKPASS environment channel. Private-key mode uses a mode-0600 temporary key file that
+is removed after the SSH process completes. SSH execution is wrapped in a fixed
+coreutils `timeout` safety envelope; these timeout values are code safety bounds, not
+tenant/runtime configuration.
+
+The live site must prove:
+
+```text
+wp_get_environment_type() = staging
+
+home =
+https://staging.egypttourgates.com
+
+siteurl =
+https://staging.egypttourgates.com
+
+Site Profile configured = true
+
+Site Profile site_uuid =
+d745d81f-6fc4-5c6a-99dd-d953c92137bf
+
+Site Profile environment =
+staging
+
+Site Profile origin =
+https://staging.egypttourgates.com
+
+active MCP Adapter version =
+0.6.1
+```
+
+Any mismatch blocks before the first write.
+
+## Missing server-owned credentials
+
+Credential resolution is read-only with respect to credential onboarding. The deployment
+surface never creates a credential-intake handoff automatically.
+
+If any required server-owned SSH host, port, username, password, or private-key role is
+unresolved, the executor fails closed with:
+
+```text
+remote_runtime_server_owned_ssh_credential_not_resolved
+credential_intake_created = false
+caller_supplied_credentials_used = false
+```
+
+No SSH connection attempt is made with an empty or placeholder credential.
+
+## Dry-run sequence
+
+Dry-run verifies:
+
+- exact target resolution;
+- exact artifact resolution and artifact/provenance checks;
+- server-owned SSH credential resolution;
+- live Site Profile/environment/origin preflight.
+
+It returns a sanitized plan and does not upload or replace plugin files.
+
+A dry-run failure must be treated as the authoritative blocker. Do not substitute
+filesystem mutation, File Manager, generic plugin update, Raw SQL, Breakglass, or
+caller-supplied credentials.
+
+## Apply authorization
+
+Apply requires all dry-run gates plus:
+
+- dedicated runtime feature gate enabled;
+- human approval reason;
+- exact capability-resolution envelope;
+- envelope bound to the same WordPress expected HEAD and deploy capability;
+- envelope not previously consumed.
+
+The envelope is referenced before execution and consumed only after successful
+same-cycle readback.
+
+Before the first artifact upload, the executor additionally requires:
+
+```text
+envelope.ok = true
+envelope.apply_allowed = true
+markCapabilityEnvelopeReferenced(...).ok = true
+```
+
+A failed envelope-reference persistence returns
+`wordpress_staging_deploy_capability_envelope_reference_failed` with
+`first_remote_write_started=false`; no plugin artifact is uploaded.
+
+## Maintenance-mode preservation and pre-swap validation
+
+The executor completes environment, Site Profile, archive SHA-256, extracted plugin
+version, and same-filesystem validation before arming the plugin rollback trap.
+
+A failure before the first plugin-directory rename performs only transient upload/stage
+cleanup. It does not enter plugin rollback and does not toggle WordPress maintenance
+mode.
+
+Immediately before the first directory rename, the executor records whether WordPress
+maintenance mode was already active. If maintenance mode was pre-existing, both success
+and rollback preserve it as active. If deployment activates maintenance mode itself,
+only that deployment-owned maintenance state is disabled on success or rollback.
+
+## Atomic plugin replacement
+
+The reviewed bundle contains:
+
+```text
+1. mcp-adapter-0.6.1.zip
+2. mad4b-site-control-plane-<version>.zip
+```
+
+The executor:
+
+1. uploads only the verified bundle archives through governed server-owned SSH;
+2. re-verifies archive SHA-256 on the remote host;
+3. extracts both into staging directories under the WordPress plugin filesystem;
+4. verifies plugin versions;
+5. requires stage and target paths to be on the same filesystem device;
+6. records current activation states and versions;
+7. enables WordPress maintenance mode;
+8. renames the existing Control Plane and MCP Adapter to unique backup directories;
+9. renames the verified bundled MCP Adapter into place first;
+10. renames the verified Control Plane into place;
+11. activates both;
+12. performs exact same-cycle readback.
+
+## Exact same-cycle readback
+
+Success requires all of:
+
+```text
+Control Plane version = expected manifest version
+MCP Adapter version = 0.6.1
+environment = staging
+home/site URL = exact ETG Staging origin
+Site Profile UUID = exact enrolled UUID
+Site Profile environment = staging
+Site Profile origin = exact ETG Staging origin
+
+source_commit_sha = expected_head_sha
+build_fingerprint = exact artifact build_fingerprint
+package_manifest_digest = exact artifact package_manifest_digest
+runtime_manifest_match = true
+stale = false
+provenance_mismatch_count = 0
+```
+
+Runtime provenance is read from
+`MAD4B_SCP_Live_Acceptance_Observer::build_provenance_status()`.
+
+## Rollback
+
+Any apply or exact readback failure triggers rollback in the same remote execution
+cycle.
+
+Rollback restores both previous plugin directories and their previous activation
+states, removes staged/uploaded files, restores the pre-deployment maintenance-mode
+state, and reports
+`rollback_result=restored` when restoration completed.
+
+A failed readback is not a successful deployment.
+
+## Post-readback envelope reconciliation
+
+If the plugin deployment succeeds and exact same-cycle runtime readback succeeds, but the
+capability envelope cannot be consumed, the live deployment is not repeated or rolled
+back merely to repair the governance ledger.
+
+The executor records:
+
+```text
+deployment_status = completed_reconciliation_required
+mutation_applied = true
+same_cycle_exact_provenance_readback = true
+retry_deployment = false
+reconciliation_required = true
+capability_envelope_consumed = false
+```
+
+The caller receives a fail-closed reconciliation error and must repair/inspect the
+governance lifecycle state. Re-running the provider mutation is explicitly forbidden.
+
+## Security boundaries
+
+The v2 surface does not authorize:
+
+- Production deployment;
+- Production authority reuse;
+- Breakglass;
+- Raw SQL;
+- File Manager;
+- generic raw-shell API exposure;
+- caller-selected target or artifact;
+- caller-selected host/path/SSH mode;
+- caller-supplied credentials;
+- automatic remote-runtime target mutation;
+- merge authorization for the WordPress PR.
+
+Responses and evidence are secret-safe and declare `secrets_included=false`.
+
+## ETG PR #11 acceptance sequence
+
+For the current WordPress PR #11 rollout:
+
+1. close exact-head CI on the Growth OS deployment-plane PR;
+2. publish/deploy that Growth OS candidate to its governed Staging runtime;
+3. discover/read the ETG remote-runtime target;
+4. run the WordPress v2 deployment route in dry-run mode for the exact WordPress PR #11 HEAD;
+5. if the target command allowlist is the only blocker, govern that target change
+   separately and re-run dry-run;
+6. obtain explicit apply approval and exact capability envelope;
+7. enable the dedicated Staging apply feature gate through normal environment
+   configuration governance;
+8. execute exact WordPress candidate deployment;
+9. verify exact provenance and Site Profile preservation;
+10. continue WordPress PR #11 Context Authority / Google Drive live acceptance.
+
+Production remains untouched throughout this Staging acceptance sequence.

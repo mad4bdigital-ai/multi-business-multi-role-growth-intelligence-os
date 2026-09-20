@@ -3,6 +3,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import YAML from "yaml";
 import { fileURLToPath } from "node:url";
+import { stabilizeGatewayPolicyProvenance } from "./generate-custom-gpt-schemas.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const API_ROOT = path.resolve(__dirname, "..");
@@ -124,6 +125,15 @@ function payload(policy) {
   const { content_hash_sha256: _ignored, signature_algorithm: _algorithm, deployment_signature_required: _required, secrets_included: _secrets, ...rest } = policy;
   return rest;
 }
+function readPreviousDocument() {
+  try {
+    if (!fs.existsSync(outputPath)) return null;
+    return JSON.parse(fs.readFileSync(outputPath, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
 function build() {
   const production = JSON.parse(fs.readFileSync(sourcePath, "utf8"));
   const registry = loadRegistry();
@@ -159,9 +169,10 @@ function build() {
     deployment_signature_required: true,
     secrets_included: false,
   };
-  const canonical = stableJson(payload(staging));
-  staging.content_hash_sha256 = sha256(canonical);
-  return stableJson(staging);
+  const stableStaging = stabilizeGatewayPolicyProvenance(staging, readPreviousDocument());
+  const canonical = stableJson(payload(stableStaging));
+  stableStaging.content_hash_sha256 = sha256(canonical);
+  return stableJson(stableStaging);
 }
 
 const output = build();

@@ -6,12 +6,12 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "ee1cd746535179d5c030b59664d05bdc6d85c4967ac1a2e674820d8dd7e25db1",
-    "dispatch_artifact_sha256": "130bf0a3a6c77c6ac629d42ed6581d9a186e407a4b6fc2d1d5a7b31fb2d1fb80"
+    "dispatch_source_digest": "8f2cf8dfeddaeae443f847634c2d0aab6f62d77ca610fa0ce1b6eef3050797ff",
+    "dispatch_artifact_sha256": "7b364ff3b3a31b95604de21d658652686e296453c7da6ca860d2549365711c3e"
   },
   "coverage": {
-    "operation_count": 1068,
-    "mounted_family_count": 173,
+    "operation_count": 1069,
+    "mounted_family_count": 174,
     "openapi_gap_count": 0,
     "auth_contract_gap_count": 0,
     "openapi_detail_gap_count": 318,
@@ -28,12 +28,12 @@
     "priority_family_counts": {
       "P1_surface_decision": 0,
       "P2_detail_traceability": 75,
-      "P3_observe": 98
+      "P3_observe": 99
     },
     "surface_decision_family_counts": {
       "api_only": 39,
       "embedded_ui": 6,
-      "internal_only": 121,
+      "internal_only": 122,
       "legacy_compatibility": 6,
       "unified_ui": 1
     },
@@ -6555,6 +6555,42 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/tenantPlatformPluginRoutes.js",
+        "scripts/test-manifest.mjs",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "family_key": "wordpress-staging-plugin-deploy",
+      "label": "wordpress staging plugin deploy",
+      "scope": "admin",
+      "surface_decision": "internal_only",
+      "priority": "P3_observe",
+      "detail_gap_count": 0,
+      "operation_count": 1,
+      "untested_operation_count": 0,
+      "unresolved_operation_count": 0,
+      "next_action": "continue_deterministic_observation_and_regression_checks",
+      "activation_allowed": false,
+      "evidence_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/wordpressStagingPluginDeployRoutes.js",
         "scripts/test-manifest.mjs",
         "test-frontend-surface-coverage-claims.mjs"
       ]

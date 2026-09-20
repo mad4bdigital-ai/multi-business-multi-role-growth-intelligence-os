@@ -8,15 +8,15 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7709,
-  "route_count": 1105,
-  "write_route_count": 672,
-  "classified_write_surface_count": 43,
-  "classified_write_route_count": 672,
+  "file_count": 7717,
+  "route_count": 1106,
+  "write_route_count": 673,
+  "classified_write_surface_count": 44,
+  "classified_write_route_count": 673,
   "unclassified_write_route_count": 0,
   "intentionally_unmapped_write_route_count": 629,
   "sensitive_intentionally_unmapped_write_route_count": 629,
-  "migration_count": 448,
+  "migration_count": 449,
   "registry_evidence_count": 118,
   "write_scope_count": 6,
   "bound_write_scope_count": 0,
@@ -9840,6 +9840,15 @@
       "write": true
     },
     {
+      "route_id": "http-generic-api/routes/wordpressStagingPluginDeployRoutes.js#POST:/platform/remote-runtime/wordpress/staging/deploy-plugin:0",
+      "source_line": 28,
+      "source_offset": 850,
+      "method": "POST",
+      "path": "/platform/remote-runtime/wordpress/staging/deploy-plugin",
+      "file": "http-generic-api/routes/wordpressStagingPluginDeployRoutes.js",
+      "write": true
+    },
+    {
       "route_id": "http-generic-api/routes/workflowOrchestrationLegacyRoutes.js#POST:/workflow-runs:0",
       "source_line": 41,
       "source_offset": 1149,
@@ -10436,6 +10445,16 @@
       "method": "POST",
       "path": "/me/infrastructure/ssh/connections/:connection_id/cli/approval-request",
       "file": "http-generic-api/routes/tenantInfrastructureRoutes.js",
+      "status": "shadow",
+      "provider_mutation_allowed": false,
+      "readback_required": true
+    },
+    {
+      "scope_key": "hostinger.deploy",
+      "route_id": "http-generic-api/routes/wordpressStagingPluginDeployRoutes.js#POST:/platform/remote-runtime/wordpress/staging/deploy-plugin:0",
+      "method": "POST",
+      "path": "/platform/remote-runtime/wordpress/staging/deploy-plugin",
+      "file": "http-generic-api/routes/wordpressStagingPluginDeployRoutes.js",
       "status": "shadow",
       "provider_mutation_allowed": false,
       "readback_required": true
@@ -52928,6 +52947,74 @@
       "reason": "registry_mutation_requires_live_schema_and_policy_contract"
     },
     {
+      "route_id": "http-generic-api/routes/wordpressStagingPluginDeployRoutes.js#POST:/platform/remote-runtime/wordpress/staging/deploy-plugin:0",
+      "classification": "shadow_candidate",
+      "mapping_status": "blocked_until_explicit_binding",
+      "domain": "hostinger",
+      "operation_class": "execute",
+      "evidence": {
+        "file": "http-generic-api/routes/wordpressStagingPluginDeployRoutes.js",
+        "source_line": 28,
+        "handler_window_lines": [
+          28,
+          65
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": false,
+          "db_registry_signal": false,
+          "authority_signal": true,
+          "readback_signal": true,
+          "mutation_signal": true
+        },
+        "signals": {
+          "provider": [],
+          "db_registry": [],
+          "authority": [
+            "admin",
+            "authority"
+          ],
+          "readback": [
+            "response"
+          ],
+          "mutation": [
+            "deploy",
+            "deploy",
+            "execute",
+            "deploy"
+          ]
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "medium_static",
+        "basis": "catalog_pattern_plus_handler_signals",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract",
+        "provider_adapter_allowlist",
+        "provider_idempotency",
+        "provider_rollback_or_compensation"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [
+        "hostinger.deploy"
+      ],
+      "classification_confidence": "catalog_pattern",
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "remote-mcp-governance"
+    },
+    {
       "route_id": "http-generic-api/routes/workflowOrchestrationLegacyRoutes.js#POST:/workflow-runs:0",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
@@ -53626,19 +53713,19 @@
   ],
   "evidence_graph": {
     "node_counts": {
-      "routes": 672,
+      "routes": 673,
       "domains": 11,
-      "handler_files": 134
+      "handler_files": 135
     },
     "edge_counts": {
-      "route_to_handler_file": 672,
-      "route_to_domain": 672,
+      "route_to_handler_file": 673,
+      "route_to_domain": 673,
       "route_to_provider_signal": 97,
       "route_to_db_registry_signal": 0,
-      "route_to_authority_signal": 425,
-      "route_to_readback_signal": 379,
-      "route_to_mutation_signal": 386,
-      "route_to_explicit_scope_candidate": 43
+      "route_to_authority_signal": 426,
+      "route_to_readback_signal": 380,
+      "route_to_mutation_signal": 387,
+      "route_to_explicit_scope_candidate": 44
     },
     "execution_edges_are_non_authorizing": true,
     "static_only": true,
@@ -57272,6 +57359,19 @@
         "surface_key",
         "platform_resource_authority_bindings",
         "tenant_id"
+      ],
+      "write_scopes": [],
+      "catalog_fingerprints": []
+    },
+    {
+      "path": "http-generic-api/migrations/20260920_wordpress_staging_plugin_deploy_v2_authority.sql",
+      "tables": [
+        "remote_runtime_command_allowlists",
+        "the",
+        "display_name",
+        "admin_platform_endpoint_tools",
+        "execution_policies",
+        "policy_value"
       ],
       "write_scopes": [],
       "catalog_fingerprints": []
