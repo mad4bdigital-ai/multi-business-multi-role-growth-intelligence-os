@@ -114,7 +114,7 @@ assert.equal(managedGoogleMissingSigningSecret.ok, false);
 assert.match(managedGoogleMissingSigningSecret.errors.join("\n"), /SITE_SECRETS_JSON must provide/);
 
 const managedGoogleMissingBindingKey = evaluateProductionConfig({
-  ...managedGoogleMissingSigningSecret,
+  ...base,
   MANAGED_GOOGLE_OAUTH_SITE_BINDINGS_JSON: JSON.stringify([{
     site_uuid: "d745d81f-6fc4-5c6a-99dd-d953c92137bf",
     origin: "https://staging.egypttourgates.com",
