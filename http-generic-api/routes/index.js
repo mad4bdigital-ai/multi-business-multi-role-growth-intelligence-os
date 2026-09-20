@@ -77,6 +77,7 @@ import { buildDevDbRestoreRoutes } from "./devDbRestoreRoutes.js";
 import { buildAdminOnboardingRoutes } from "./adminOnboardingRoutes.js";
 import { buildPlatformGraphRoutes } from "./platformGraphRoutes.js";
 import { buildPlatformPluginRoutes } from "./platformPluginRoutes.js";
+import { buildWordPressStagingPluginDeployRoutes } from "./wordpressStagingPluginDeployRoutes.js";
 import { buildTenantPlatformPluginRoutes } from "./tenantPlatformPluginRoutes.js";
 import { buildTenantDocsRoutes } from "./tenantDocsRoutes.js";
 import { buildTenantLifecycleRoutes } from "./tenantLifecycleRoutes.js";
@@ -192,9 +193,6 @@ export function registerRoutes(app, deps) {
   // Gmail OAuth callback is public but signed-state protected. Mount before
   // root-level protected routers that can return missing_backend_api_key.
   app.use(buildMemberGoogleOAuthRoutes({ ...deps, requireAdminPrincipal }));
-  // Managed Google OAuth broker exposes public session/callback/redeem/refresh
-  // endpoints. Security is exact site-binding + one-time verifier/handoff based,
-  // so mount before root-level backend-key routers.
   app.use(buildManagedGoogleOAuthRoutes({ ...deps, env: deps?.env || process.env }));
   app.use(buildLegalRoutes(deps));
   app.use(buildRootDiscoveryRoutes(deps));
@@ -286,6 +284,7 @@ export function registerRoutes(app, deps) {
   app.use(buildSessionInsightRemainingScopeCompletionRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildSessionInsightBacklogTargetWriteRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildSessionInsightTargetWriteReadbackRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildWordPressStagingPluginDeployRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildPlatformPluginRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildBrowserRuntimeRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildGithubRoutes(deps));
