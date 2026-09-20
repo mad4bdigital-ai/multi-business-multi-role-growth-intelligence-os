@@ -173,6 +173,14 @@ assert.match(
   platformAdminWorkspaceSeed,
   /AND display_name = 'Platform Admin'[\s\S]*AND workspace_type = 'brand'[\s\S]*AND bootstrap_status = 'ready'/i,
 );
+const wordpressDeployTagWidening = "ALTER TABLE admin_platform_endpoint_tools\n  MODIFY COLUMN tags TEXT NULL";
+assert.ok(
+  wordpressDeployCanonicalSeed.indexOf(wordpressDeployTagWidening) >= 0 &&
+  wordpressDeployCanonicalSeed.indexOf(wordpressDeployTagWidening) <
+    wordpressDeployCanonicalSeed.indexOf("INSERT INTO admin_platform_endpoint_tools"),
+  "canonical WordPress deploy seed must widen admin tool tags before the long governance tag writer",
+);
+
 for (const token of [
   "no_caller_target",
   "no_caller_artifact",
