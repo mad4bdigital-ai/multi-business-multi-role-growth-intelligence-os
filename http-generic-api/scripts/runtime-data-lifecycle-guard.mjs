@@ -36,6 +36,64 @@ export function migrationPathsFromDiff(output) {
     .map((item) => path.posix.basename(item)))].sort();
 }
 
+function stripLeadingComments(statement) {
+  return String(statement || "").replace(/^(?:(?:--[^\n]*(?:\n|$))|(?:\/\*[\s\S]*?\*\/)|\s)*/u, "");
+}
+
+const operationPattern = [
+  "INSERT(?:\\s+(?:LOW_PRIORITY|DELAYED|HIGH_PRIORITY|IGNORE))*\\s+INTO",
+  "REPLACE(?:\\s+(?:LOW_PRIORITY|DELAYED))*\\s+INTO",
+  "UPDATE(?:\\s+(?:LOW_PRIORITY|IGNORE))*",
+  "DELETE(?:\\s+(?:LOW_PRIORITY|QUICK|IGNORE))*\\s+FROM",
+  "TRUNCATE(?:\\s+TABLE)?",
+].join("|");
+const targetPattern = "(?:`([^`]+)`|([A-Za-z0-9_$]+))";
+const directMutationPattern = new RegExp("^\\s*(" + operationPattern + ")\\s+" + targetPattern, "iu");
+const cteMutationPattern = new RegExp("\\)\\s*(" + operationPattern + ")\\s+" + targetPattern, "iu");
+
+export function mutationTarget(statement) {
+  const normalized = stripLeadingComments(statement);
+  let match = normalized.match(directMutationPattern);
+  if (!match && /^WITH\b/iu.test(normalized)) match = normalized.match(cteMutationPattern);
+  return match ? {
+    operation: match[1].toUpperCase().replace(/\s+/gu, " "),
+    table: String(match[2] || match[3]).toLowerCase(),
+  } : null;
+}
+
+function hasUnparsedMutationIntent(statement) {
+  const normalized = stripLeadingComments(statement);
+  if (/^(?:INSERT|REPLACE|UPDATE|DELETE|TRUNCATE)\b/iu.test(normalized)) return true;
+  return /^WITH\b/iu.test(normalized) && /\)\s*(?:INSERT|REPLACE|UPDATE|DELETE|TRUNCATE)\b/iu.test(normalized);
+}
+
+function classify(table) {
+  if (contract.datasets?.[table]) return contract.datasets[table];
+  for (const family of contract.table_families || []) {
+    if (new RegExp(family.pattern, "u").test(table)) return family;
+  }
+  return null;
+}
+
+export function resolveMutationLifecycle(statement, dataset) {
+  if (!dataset) return { lifecycle_class: null, resolution: "unclassified" };
+  if (dataset.class !== "mixed") return { lifecycle_class: dataset.class, resolution: "dataset" };
+
+  for (const row of dataset.canonical_rows || []) {
+    const identityTokens = row.identity_tokens || [];
+    if (identityTokens.length > 0 && identityTokens.some((token) => String(statement).includes(token))) {
+      return { lifecycle_class: "canonical_registry", resolution: "canonical_row", canonical_row: row.key };
+    }
+  }
+
+  const annotation = String(dataset.environment_annotation || "").trim();
+  if (annotation && String(statement).includes(annotation)) {
+    return { lifecycle_class: "environment_state", resolution: "explicit_environment_annotation" };
+  }
+
+  return { lifecycle_class: "mixed_unresolved", resolution: "fail_closed" };
+}
+
 if (process.argv.includes("--self-test")) {
   const selected = migrationPathsFromDiff([
     "http-generic-api/migrations/1053_numeric_runtime_authority.sql",
@@ -45,7 +103,28 @@ if (process.argv.includes("--self-test")) {
   if (JSON.stringify(selected) !== JSON.stringify(["1053_numeric_runtime_authority.sql", "20260920_dated_runtime_authority.sql"])) {
     throw new Error("changed migration selection must be naming-convention agnostic");
   }
-  console.log(JSON.stringify({ ok: true, numeric_and_dated_migrations_selected: true }));
+
+  const cte = mutationTarget("WITH x AS (SELECT 1) UPDATE workspace_registry SET bootstrap_status='ready' WHERE workspace_key='platform_repo_governance_zero'");
+  const truncate = mutationTarget("TRUNCATE TABLE customer_sessions");
+  if (cte?.table !== "workspace_registry" || truncate?.table !== "customer_sessions") {
+    throw new Error("mutation parser must classify CTE and destructive top-level mutations");
+  }
+
+  const mixed = contract.datasets.workspace_registry;
+  const canonical = resolveMutationLifecycle("UPDATE workspace_registry SET updated_at=NOW() WHERE workspace_key='platform_repo_governance_zero'", mixed);
+  const environment = resolveMutationLifecycle("-- lifecycle:environment_state\nUPDATE workspace_registry SET updated_at=NOW() WHERE workspace_id='tenant-workspace'", mixed);
+  const unresolved = resolveMutationLifecycle("UPDATE workspace_registry SET updated_at=NOW()", mixed);
+  if (canonical.lifecycle_class !== "canonical_registry" || environment.lifecycle_class !== "environment_state" || unresolved.lifecycle_class !== "mixed_unresolved") {
+    throw new Error("mixed-table lifecycle resolution must distinguish canonical, annotated environment, and unresolved mutations");
+  }
+
+  console.log(JSON.stringify({
+    ok: true,
+    numeric_and_dated_migrations_selected: true,
+    cte_mutation_classified: true,
+    truncate_mutation_classified: true,
+    mixed_table_fail_closed: true,
+  }));
   process.exit(0);
 }
 
@@ -69,22 +148,9 @@ if (baseSha) {
   findings.push({ category: "migration_base_sha_missing", detail: "A base commit is required for fail-closed changed-migration classification." });
 }
 
-function classify(table) {
-  if (contract.datasets?.[table]) return contract.datasets[table];
-  for (const family of contract.table_families || []) {
-    if (new RegExp(family.pattern, "u").test(table)) return family;
-  }
-  return null;
-}
-
-function mutationTarget(statement) {
-  const normalized = statement.replace(/^(?:(?:--[^\n]*\n)|(?:\/\*[\s\S]*?\*\/)|\s)*/u, "");
-  const match = normalized.match(/^\s*(INSERT(?:\s+IGNORE)?\s+INTO|REPLACE\s+INTO|UPDATE|DELETE\s+FROM)\s+(?:`([^`]+)`|([A-Za-z0-9_$]+))/iu);
-  return match ? { operation: match[1].toUpperCase().replace(/\s+/gu, " "), table: String(match[2] || match[3]).toLowerCase() } : null;
-}
-
 if (contract.contract !== "mad4b.runtime-data-lifecycle.v1") findings.push({ category: "contract", detail: "unsupported lifecycle contract" });
 if (contract.enforcement?.unclassified_mutation_is_blocking !== true) findings.push({ category: "contract", detail: "unclassified mutation gate is not fail-closed" });
+if (contract.enforcement?.mixed_table_mutation_requires_resolution !== true) findings.push({ category: "contract", detail: "mixed-table mutation resolution is not fail-closed" });
 
 for (const [table, dataset] of Object.entries(contract.datasets || {})) {
   for (const row of dataset.canonical_rows || []) {
@@ -93,7 +159,9 @@ for (const [table, dataset] of Object.entries(contract.datasets || {})) {
     if (!fs.existsSync(seedPath)) findings.push({ category: "canonical_seed_missing", table, file: row.seed_file });
     else {
       const sql = fs.readFileSync(seedPath, "utf8");
-      for (const token of row.selector_tokens || []) if (!sql.includes(token)) findings.push({ category: "canonical_selector_missing", table, file: row.seed_file, token });
+      for (const token of row.selector_tokens || []) {
+        if (!sql.includes(token)) findings.push({ category: "canonical_selector_missing", table, file: row.seed_file, token });
+      }
     }
     if (row.cardinality !== "exactly_one" || !row.readback_token || !importer.includes(row.readback_token) || !importer.includes("Assert-CountExactly")) {
       findings.push({ category: "canonical_postcondition_missing", table, file: row.seed_file });
@@ -105,24 +173,64 @@ for (const file of selectedFiles) {
   const statements = splitStatements(fs.readFileSync(path.join(migrationsDir, file), "utf8"));
   for (const statement of statements) {
     const mutation = mutationTarget(statement);
-    if (!mutation) continue;
+    if (!mutation) {
+      if (hasUnparsedMutationIntent(statement)) {
+        findings.push({ category: "unsupported_data_mutation_shape", file, statement_prefix: stripLeadingComments(statement).slice(0, 120) });
+      }
+      continue;
+    }
+
     const dataset = classify(mutation.table);
-    inventory.push({ file, ...mutation, lifecycle_class: dataset?.class || null });
-    if (!dataset) findings.push({ category: "unclassified_runtime_data_mutation", file, ...mutation });
-    if (dataset?.reseed_forbidden === true && seedFiles.has(file)) findings.push({ category: "operational_state_reseed_forbidden", file, ...mutation });
-    if (["canonical_registry", "mixed"].includes(dataset?.class) && !seedFiles.has(file)) findings.push({ category: "canonical_runtime_data_not_replayable", file, ...mutation });
+    const lifecycle = resolveMutationLifecycle(statement, dataset);
+    inventory.push({ file, ...mutation, lifecycle_class: lifecycle.lifecycle_class, lifecycle_resolution: lifecycle.resolution, canonical_row: lifecycle.canonical_row || null });
+
+    if (!dataset) {
+      findings.push({ category: "unclassified_runtime_data_mutation", file, ...mutation });
+      continue;
+    }
+    if (lifecycle.lifecycle_class === "mixed_unresolved") {
+      findings.push({ category: "mixed_runtime_data_mutation_unresolved", file, ...mutation });
+      continue;
+    }
+    if (dataset.reseed_forbidden === true && seedFiles.has(file)) {
+      findings.push({ category: "operational_state_reseed_forbidden", file, ...mutation });
+    }
+    if (lifecycle.lifecycle_class === "canonical_registry" && !seedFiles.has(file)) {
+      findings.push({ category: "canonical_runtime_data_not_replayable", file, ...mutation });
+    }
   }
 }
+
+const knownReplayGapDatasets = Object.entries(contract.datasets || {})
+  .filter(([, value]) => value.known_replay_gap === true)
+  .map(([table]) => table);
+const knownReplayGapFamilies = (contract.table_families || [])
+  .filter((value) => value.known_replay_gap === true)
+  .map((value) => value.pattern);
+const knownReplayGaps = [
+  ...knownReplayGapDatasets,
+  ...knownReplayGapFamilies.map((pattern) => `family:${pattern}`),
+];
+
+const semanticDurabilityStatus = findings.length > 0
+  ? "blocked"
+  : knownReplayGaps.length > 0
+    ? "partial_known_historical_replay_gaps"
+    : "declared_contract_complete";
 
 const report = {
   contract: "mad4b.runtime-data-lifecycle-guard.v1",
   ok: findings.length === 0,
   lifecycle_contract: contract.contract,
+  semantic_durability_status: semanticDurabilityStatus,
+  fresh_rebuild_semantic_complete: findings.length === 0 && knownReplayGaps.length === 0,
   selection: { mode: selectionMode, base_sha: baseSha, files: selectedFiles },
   mutations_checked: inventory.length,
   inventory,
   findings,
-  known_replay_gaps: Object.entries(contract.datasets || {}).filter(([, value]) => value.known_replay_gap === true).map(([table]) => table),
+  known_replay_gaps: knownReplayGaps,
+  known_replay_gap_datasets: knownReplayGapDatasets,
+  known_replay_gap_families: knownReplayGapFamilies,
   safety: contract.safety,
 };
 console.log(JSON.stringify(report, null, 2));
