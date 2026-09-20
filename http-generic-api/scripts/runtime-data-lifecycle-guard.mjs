@@ -131,24 +131,7 @@ function leadingCommentPrefix(statement) {
 }
 
 function escapeRegex(value) {
-  return String(value).replace(/[\^$.*+?()[\]{}|\\]/gu, "\\export function resolveMutationLifecycle(statement, dataset) {
-  if (!dataset) return { lifecycle_class: null, resolution: "unclassified" };
-  if (dataset.class !== "mixed") return { lifecycle_class: dataset.class, resolution: "dataset" };
-
-  for (const row of dataset.canonical_rows || []) {
-    const identityTokens = row.identity_tokens || [];
-    if (identityTokens.length > 0 && identityTokens.some((token) => String(statement).includes(token))) {
-      return { lifecycle_class: "canonical_registry", resolution: "canonical_row", canonical_row: row.key };
-    }
-  }
-
-  const annotation = String(dataset.environment_annotation || "").trim();
-  if (annotation && String(statement).includes(annotation)) {
-    return { lifecycle_class: "environment_state", resolution: "explicit_environment_annotation" };
-  }
-
-  return { lifecycle_class: "mixed_unresolved", resolution: "fail_closed" };
-}");
+  return String(value).replace(/[\^$.*+?()[\]{}|\\]/gu, "\\$&");
 }
 
 function sqlLiteral(value) {
