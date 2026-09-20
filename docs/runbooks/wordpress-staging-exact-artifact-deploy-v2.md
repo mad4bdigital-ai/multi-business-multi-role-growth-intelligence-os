@@ -218,6 +218,20 @@ Apply requires all dry-run gates plus:
 The envelope is referenced before execution and consumed only after successful
 same-cycle readback.
 
+## Maintenance-mode preservation and pre-swap validation
+
+The executor completes environment, Site Profile, archive SHA-256, extracted plugin
+version, and same-filesystem validation before arming the plugin rollback trap.
+
+A failure before the first plugin-directory rename performs only transient upload/stage
+cleanup. It does not enter plugin rollback and does not toggle WordPress maintenance
+mode.
+
+Immediately before the first directory rename, the executor records whether WordPress
+maintenance mode was already active. If maintenance mode was pre-existing, both success
+and rollback preserve it as active. If deployment activates maintenance mode itself,
+only that deployment-owned maintenance state is disabled on success or rollback.
+
 ## Atomic plugin replacement
 
 The reviewed bundle contains:
@@ -272,7 +286,8 @@ Any apply or exact readback failure triggers rollback in the same remote executi
 cycle.
 
 Rollback restores both previous plugin directories and their previous activation
-states, removes staged/uploaded files, disables maintenance mode, and reports
+states, removes staged/uploaded files, restores the pre-deployment maintenance-mode
+state, and reports
 `rollback_result=restored` when restoration completed.
 
 A failed readback is not a successful deployment.

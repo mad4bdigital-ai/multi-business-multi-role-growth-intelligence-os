@@ -17,7 +17,9 @@
       "http-generic-api/migrations/20260920_wordpress_staging_plugin_deploy_v2_authority.sql",
       "canonicals/openapi/custom-gpt-surfaces.yaml",
       ".github/governance/test-authority-registry.json",
-      "docs/runbooks/wordpress-staging-exact-artifact-deploy-v2.md"
+      "docs/runbooks/wordpress-staging-exact-artifact-deploy-v2.md",
+      "http-generic-api/hostingerSshDeployExecutor.js",
+      "http-generic-api/test-hostinger-ssh-deploy-executor.mjs"
     ]
   },
   "merge_contract": {
@@ -52,7 +54,9 @@
             "Verify live Staging certification remains required for the shared runtime deployment surface.",
             "Verify Production mutation, provider mutation, database mutation, credential payload reads, and Production deployment remain denied.",
             "Resolve server-owned SSH credentials without creating credential-intake handoffs; fail closed before any SSH connection when a required role is unresolved.",
-            "After a successful deployment and exact same-cycle readback, classify capability-envelope consumption failure as governance reconciliation and explicitly forbid deployment retry."
+            "After a successful deployment and exact same-cycle readback, classify capability-envelope consumption failure as governance reconciliation and explicitly forbid deployment retry.",
+            "Complete artifact, plugin-version, and same-filesystem validation before arming plugin rollback; pre-swap validation failure performs transient cleanup only.",
+            "Preserve any pre-existing WordPress maintenance-mode state across successful deployment and rollback."
           ],
           "assertions": [
             "Environment impact authority is http-generic-api/config/deployment-branch-policy.json.",
@@ -64,7 +68,10 @@
             "Missing server-owned SSH credentials fail with remote_runtime_server_owned_ssh_credential_not_resolved before any SSH connection attempt.",
             "Credential resolution for this deployment surface never auto-creates a credential-intake handoff and never accepts caller-supplied credentials.",
             "If deployment and exact readback succeed but envelope consumption fails, evidence records mutation_applied=true, retry_deployment=false, reconciliation_required=true, and capability_envelope_consumed=false.",
-            "secrets_included remains false."
+            "secrets_included remains false.",
+            "The rollback ERR trap is armed only after remote validation and immediately before the first plugin-directory rename.",
+            "Pre-swap validation failure does not enter plugin rollback or toggle WordPress maintenance mode.",
+            "A pre-existing WordPress maintenance mode remains active after both successful deployment and rollback."
           ],
           "tests": [
             {

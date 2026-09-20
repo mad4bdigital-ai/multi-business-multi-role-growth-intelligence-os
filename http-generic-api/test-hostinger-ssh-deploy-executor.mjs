@@ -192,4 +192,15 @@ assert(executor.includes("credential_intake_created: false"), "WordPress deploym
 assert(wordpressDeploy.includes("completed_reconciliation_required"), "verified deploy with envelope-consume failure must be classified as reconciliation-required");
 assert(wordpressDeploy.includes("retry_deployment: false"), "post-readback envelope-consume failure must explicitly forbid deployment retry");
 assert(wordpressDeploy.includes("mutation_applied: true"), "post-readback envelope-consume failure evidence must preserve that deployment already occurred");
+assert(wordpressDeploy.includes("maintenance_was_active=0"), "WordPress deploy must snapshot pre-existing maintenance state");
+assert(wordpressDeploy.includes("maintenance_activated_by_deploy=0"), "WordPress deploy must track only maintenance mode it activated");
+assert(wordpressDeploy.includes("trap cleanup_transient EXIT"), "pre-swap validation failures must clean transient files without plugin rollback mutation");
+assert(wordpressDeploy.includes("wp maintenance-mode is-active"), "WordPress deploy must read pre-existing maintenance state before swap");
+const wordpressValidationIndex = wordpressDeploy.indexOf('test "$plugins_device" = "$(stat -c \'%d\' "$adapter_stage")"');
+const wordpressRollbackTrapIndex = wordpressDeploy.indexOf("trap 'rollback $?' ERR");
+const wordpressFirstSwapIndex = wordpressDeploy.indexOf('mv "$control_target" "$control_backup"');
+assert(wordpressValidationIndex >= 0 && wordpressRollbackTrapIndex > wordpressValidationIndex, "rollback trap must not arm before artifact and same-filesystem validation completes");
+assert(wordpressFirstSwapIndex > wordpressRollbackTrapIndex, "rollback trap must arm before the first plugin-directory rename");
+assert(wordpressDeploy.includes('if [ "$maintenance_was_active" != "1" ] && [ "$maintenance_activated_by_deploy" = "1" ]'), "success and rollback must preserve pre-existing maintenance mode");
+assert(!wordpressDeploy.includes("maintenance_on=0"), "legacy unconditional maintenance toggle state must be removed");
 console.log("Hostinger SSH deploy executor safety tests passed");

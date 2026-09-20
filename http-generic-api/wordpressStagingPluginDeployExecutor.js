@@ -435,11 +435,14 @@ control_upload=${controlZip}
 adapter_upload=${adapterZip}
 old_control_active=0
 old_adapter_active=0
-maintenance_on=0
+maintenance_was_active=0
+maintenance_activated_by_deploy=0
+cleanup_transient() {
+  rm -rf "$control_stage" "$adapter_stage" "$control_upload" "$adapter_upload"
+}
 rollback() {
   code="$1"
   set +e
-  if [ "$maintenance_on" != "1" ]; then wp maintenance-mode activate >/dev/null 2>&1; maintenance_on=1; fi
   if [ -d "$control_backup" ]; then
     if [ -d "$control_target" ]; then mv "$control_target" "$control_target.failed-${safeId}"; fi
     mv "$control_backup" "$control_target"
@@ -450,12 +453,15 @@ rollback() {
   fi
   if [ "$old_adapter_active" = "1" ]; then wp plugin activate ${WORDPRESS_STAGING_MCP_ADAPTER_SLUG} >/dev/null 2>&1; else wp plugin deactivate ${WORDPRESS_STAGING_MCP_ADAPTER_SLUG} >/dev/null 2>&1 || true; fi
   if [ "$old_control_active" = "1" ]; then wp plugin activate ${WORDPRESS_STAGING_PLUGIN_SLUG} >/dev/null 2>&1; else wp plugin deactivate ${WORDPRESS_STAGING_PLUGIN_SLUG} >/dev/null 2>&1 || true; fi
-  rm -rf "$control_stage" "$adapter_stage" "$control_upload" "$adapter_upload"
-  if [ "$maintenance_on" = "1" ]; then wp maintenance-mode deactivate >/dev/null 2>&1; fi
+  cleanup_transient
+  if [ "$maintenance_was_active" != "1" ] && [ "$maintenance_activated_by_deploy" = "1" ]; then
+    wp maintenance-mode deactivate >/dev/null 2>&1 || true
+    maintenance_activated_by_deploy=0
+  fi
   echo rollback_result=restored
   exit "$code"
 }
-trap 'rollback $?' ERR
+trap cleanup_transient EXIT
 
 env_type="$(wp eval 'echo wp_get_environment_type();' 2>/dev/null | tail -n 1)"
 home_url="$(wp option get home 2>/dev/null | tail -n 1 | sed 's:/*$::')"
@@ -488,9 +494,12 @@ if wp plugin is-active ${WORDPRESS_STAGING_PLUGIN_SLUG} >/dev/null 2>&1; then ol
 if wp plugin is-active ${WORDPRESS_STAGING_MCP_ADAPTER_SLUG} >/dev/null 2>&1; then old_adapter_active=1; fi
 previous_control_version="$(wp plugin get ${WORDPRESS_STAGING_PLUGIN_SLUG} --field=version 2>/dev/null | tail -n 1)"
 previous_adapter_version="$(wp plugin get ${WORDPRESS_STAGING_MCP_ADAPTER_SLUG} --field=version 2>/dev/null | tail -n 1)"
-
-wp maintenance-mode activate >/dev/null
-maintenance_on=1
+if wp maintenance-mode is-active >/dev/null 2>&1; then maintenance_was_active=1; fi
+if [ "$maintenance_was_active" != "1" ]; then
+  wp maintenance-mode activate >/dev/null
+  maintenance_activated_by_deploy=1
+fi
+trap 'rollback $?' ERR
 mv "$control_target" "$control_backup"
 mv "$adapter_target" "$adapter_backup"
 mv "$adapter_stage/${WORDPRESS_STAGING_MCP_ADAPTER_SLUG}" "$adapter_target"
@@ -530,10 +539,13 @@ test "$prov_match" = 1
 test "$prov_stale" = 0
 test "$prov_mismatch_count" = 0
 
-wp maintenance-mode deactivate >/dev/null
-maintenance_on=0
-rm -rf "$control_stage" "$adapter_stage" "$control_upload" "$adapter_upload"
+if [ "$maintenance_was_active" != "1" ] && [ "$maintenance_activated_by_deploy" = "1" ]; then
+  wp maintenance-mode deactivate >/dev/null
+  maintenance_activated_by_deploy=0
+fi
+cleanup_transient
 trap - ERR
+trap - EXIT
 echo previous_control_plane_version="$previous_control_version"
 echo previous_mcp_adapter_version="$previous_adapter_version"
 echo deployed_control_plane_version="$actual_control_version"
