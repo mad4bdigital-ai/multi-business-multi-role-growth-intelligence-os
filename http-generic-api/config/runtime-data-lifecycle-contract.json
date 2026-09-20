@@ -19,7 +19,8 @@
     "canonical_semantic_repair_nonempty_schema_allowed": true,
     "canonical_semantic_snapshot_exact_commit_required": true,
     "canonical_semantic_snapshot_same_cycle_hash_required": true,
-    "unregistered_activation_registry_mutation_forbidden": true
+    "unregistered_activation_registry_mutation_forbidden": true,
+    "platform_admin_workspace_authority_parity_required": true
   },
   "datasets": {
     "workspace_registry": {
@@ -98,7 +99,8 @@
             "require_ready": true,
             "readback_token": "resolver-equivalent canonical Platform Admin workspace candidates"
           },
-          "artifact_key": "platform_admin_workspace"
+          "artifact_key": "platform_admin_workspace",
+          "authority_descriptor": "config/platform-admin-workspace-authority.json"
         }
       ],
       "mixed_mutation_policy": "canonical_seed_file_and_exact_selector_or_environment_annotation",
