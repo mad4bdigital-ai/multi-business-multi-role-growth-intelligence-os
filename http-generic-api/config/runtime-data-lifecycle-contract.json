@@ -9,7 +9,10 @@
     "canonical_seed_postcondition_required": true,
     "legacy_exclusions": [],
     "mixed_table_mutation_requires_resolution": true,
-    "semantic_replay_debt_is_reported": true
+    "semantic_replay_debt_is_reported": true,
+    "operational_state_migration_mutation_forbidden": true,
+    "environment_state_migration_mutation_forbidden": true,
+    "destructive_mutation_fail_closed": true
   },
   "datasets": {
     "workspace_registry": {
