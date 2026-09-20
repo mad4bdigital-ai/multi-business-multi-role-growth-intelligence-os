@@ -458,10 +458,12 @@ async function resolveReviewedArtifact(expectedHeadSha, { fetchImpl = fetch, tok
   const runs = await githubJson(`https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflow}/runs?head_sha=${expectedHeadSha}&status=success&event=pull_request&per_page=20`, token, fetchImpl);
   const run = (runs.workflow_runs || []).find((item) => String(item.head_sha || "").toLowerCase() === expectedHeadSha && item.conclusion === "success");
   if (!run) throw deployError("wordpress_staging_deploy_reviewed_run_missing", "No successful reviewed Control Plane package run exists for the exact WordPress HEAD.", 409, { expected_head_sha: expectedHeadSha });
+
   const artifacts = await githubJson(`https://api.github.com/repos/${owner}/${repo}/actions/runs/${run.id}/artifacts?per_page=100`, token, fetchImpl);
-  const expectedName = `mad4b-site-control-plane-staging-kit-${expectedHeadSha}`;
+  const expectedName = `mad4b-site-control-plane-general-distribution-kit-${expectedHeadSha}`;
   const artifact = (artifacts.artifacts || []).find((item) => item.name === expectedName && item.expired !== true);
-  if (!artifact) throw deployError("wordpress_staging_deploy_artifact_missing", "The exact-head reviewed Staging installation artifact is missing or expired.", 409, { workflow_run_id: run.id, artifact_name: expectedName });
+  if (!artifact) throw deployError("wordpress_staging_deploy_artifact_missing", "The exact-head reviewed General Distribution artifact is missing or expired.", 409, { workflow_run_id: run.id, artifact_name: expectedName });
+
   const response = await fetchImpl(`https://api.github.com/repos/${owner}/${repo}/actions/artifacts/${artifact.id}/zip`, { headers: githubHeaders(token), redirect: "follow" });
   if (!response.ok) throw deployError("wordpress_staging_deploy_artifact_download_failed", `Artifact download failed with status ${response.status}.`, 502, { upstream_status: response.status });
   const length = Number(response.headers.get("content-length") || 0);
@@ -469,40 +471,67 @@ async function resolveReviewedArtifact(expectedHeadSha, { fetchImpl = fetch, tok
   const bytes = Buffer.from(await response.arrayBuffer());
   if (!bytes.length || bytes.length > MAX_ARTIFACT_BYTES) throw deployError("wordpress_staging_deploy_artifact_size_invalid", "The reviewed artifact size is outside the bounded deployment contract.", 409, { bytes: bytes.length, max_bytes: MAX_ARTIFACT_BYTES });
 
+  const outerSha = sha256(bytes);
+  const declaredArtifactDigest = compact(artifact.digest || "", 128).toLowerCase();
+  if (declaredArtifactDigest && declaredArtifactDigest !== `sha256:${outerSha}`) throw deployError("wordpress_staging_deploy_artifact_digest_mismatch", "GitHub artifact digest does not match the downloaded exact artifact.", 409, { artifact_id: artifact.id });
+
   const tempDir = await mkdtemp(join(tmpdir(), "mad4b-wp-staging-artifact-"));
   try {
     const outerZip = join(tempDir, "artifact.zip");
     await writeFile(outerZip, bytes, { mode: 0o600 });
     unzipTo(outerZip, tempDir);
+
     const manifest = JSON.parse(await readFile(join(tempDir, "install-manifest.json"), "utf8"));
-    if (manifest.contract !== "mad4b.site-control-plane.staging-install-kit.v4" || manifest.repository !== WORDPRESS_STAGING_SOURCE_REPOSITORY || String(manifest.commit || "").toLowerCase() !== expectedHeadSha || manifest.release_class !== "staging-governed-write-release-candidate" || manifest.governed_origin !== WORDPRESS_STAGING_HOST) {
-      throw deployError("wordpress_staging_deploy_manifest_identity_mismatch", "Reviewed artifact manifest does not match the exact WordPress Staging deployment identity.");
+    if (manifest.contract !== WORDPRESS_GENERAL_KIT_CONTRACT || manifest.repository !== WORDPRESS_STAGING_SOURCE_REPOSITORY || String(manifest.commit || "").toLowerCase() !== expectedHeadSha || manifest.release_class !== "general-distribution-release-candidate" || manifest.tenant_binding_required !== true || manifest.tenant_binding_source !== "explicit_site_profile_enrollment") {
+      throw deployError("wordpress_staging_deploy_manifest_identity_mismatch", "General Distribution manifest does not match the exact governed WordPress candidate.");
     }
+    if (!/^[a-f0-9]{64}$/.test(String(manifest.build_fingerprint || "")) || !/^[a-f0-9]{64}$/.test(String(manifest.package_manifest_digest || ""))) throw deployError("wordpress_staging_deploy_manifest_provenance_invalid", "General Distribution manifest is missing exact build/package provenance.");
     if (manifest?.mcp_adapter?.version !== WORDPRESS_STAGING_MCP_ADAPTER_VERSION) throw deployError("wordpress_staging_deploy_manifest_mcp_version_mismatch", "Reviewed artifact requires a different MCP Adapter version.");
-    const archiveName = compact(manifest?.control_plane?.archive, 255);
-    if (!/^mad4b-site-control-plane-[A-Za-z0-9._-]+\.zip$/.test(archiveName)) throw deployError("wordpress_staging_deploy_control_archive_name_invalid", "Control Plane archive name is invalid.");
-    const pluginArchivePath = join(tempDir, archiveName);
-    const pluginArchive = await readFile(pluginArchivePath);
-    const pluginSha = sha256(pluginArchive);
-    if (pluginSha !== String(manifest?.control_plane?.sha256 || "").toLowerCase()) throw deployError("wordpress_staging_deploy_control_archive_hash_mismatch", "Control Plane archive SHA-256 does not match the reviewed manifest.");
-    const handoffBytes = readZipEntry(pluginArchivePath, `${WORDPRESS_STAGING_PLUGIN_SLUG}/config/staging-deployment-handoff.json`);
+    if (manifest?.mcp_adapter?.official_release_sha256 !== manifest?.mcp_adapter?.sha256) throw deployError("wordpress_staging_deploy_manifest_mcp_release_mismatch", "Bundled MCP Adapter is not the exact certified release artifact.");
+
+    const controlArchiveName = compact(manifest?.control_plane?.archive, 255);
+    const adapterArchiveName = compact(manifest?.mcp_adapter?.archive, 255);
+    if (!/^mad4b-site-control-plane-[A-Za-z0-9._-]+\.zip$/.test(controlArchiveName)) throw deployError("wordpress_staging_deploy_control_archive_name_invalid", "Control Plane archive name is invalid.");
+    if (adapterArchiveName !== "mcp-adapter-0.6.1.zip") throw deployError("wordpress_staging_deploy_adapter_archive_name_invalid", "MCP Adapter archive name is invalid.");
+    if (JSON.stringify(manifest.install_order || []) !== JSON.stringify([adapterArchiveName, controlArchiveName])) throw deployError("wordpress_staging_deploy_install_order_invalid", "General Distribution install order does not require MCP Adapter before Control Plane.");
+
+    const controlArchivePath = join(tempDir, controlArchiveName);
+    const adapterArchivePath = join(tempDir, adapterArchiveName);
+    const controlArchive = await readFile(controlArchivePath);
+    const adapterArchive = await readFile(adapterArchivePath);
+    const controlSha = sha256(controlArchive);
+    const adapterSha = sha256(adapterArchive);
+    if (controlSha !== String(manifest?.control_plane?.sha256 || "").toLowerCase()) throw deployError("wordpress_staging_deploy_control_archive_hash_mismatch", "Control Plane archive SHA-256 does not match the reviewed manifest.");
+    if (adapterSha !== String(manifest?.mcp_adapter?.sha256 || "").toLowerCase()) throw deployError("wordpress_staging_deploy_adapter_archive_hash_mismatch", "MCP Adapter archive SHA-256 does not match the reviewed manifest.");
+
+    const provenance = JSON.parse(await readFile(join(tempDir, "MAD4B-BUILD-PROVENANCE.json"), "utf8"));
+    if (provenance?.contract !== "mad4b.build-provenance.v1" || String(provenance?.source_commit_sha || "").toLowerCase() !== expectedHeadSha || provenance?.build_fingerprint !== manifest.build_fingerprint || provenance?.package_manifest_digest !== manifest.package_manifest_digest || provenance?.mcp_adapter_sha256 !== adapterSha) {
+      throw deployError("wordpress_staging_deploy_build_provenance_mismatch", "Build provenance does not match the exact reviewed General Distribution manifest.");
+    }
+
+    const handoffBytes = readZipEntry(controlArchivePath, `${WORDPRESS_STAGING_PLUGIN_SLUG}/config/staging-deployment-handoff.json`);
     const handoff = JSON.parse(handoffBytes.toString("utf8"));
     validateHandoff(handoff);
+
     return {
       workflow_run_id: run.id,
       artifact_id: artifact.id,
       artifact_name: artifact.name,
+      artifact_archive_sha256: outerSha,
       manifest,
       handoff,
-      plugin_archive: pluginArchive,
-      plugin_archive_sha256: pluginSha,
+      control_archive: controlArchive,
+      control_archive_sha256: controlSha,
+      adapter_archive: adapterArchive,
+      adapter_archive_sha256: adapterSha,
       control_plane_version: compact(manifest?.control_plane?.version, 64),
+      build_fingerprint: String(manifest.build_fingerprint),
+      package_manifest_digest: String(manifest.package_manifest_digest),
     };
   } finally {
     await rm(tempDir, { recursive: true, force: true }).catch(() => null);
   }
 }
-
 function buildUploadScript(wordpressPath, remoteZip) {
   return [
     "set -euo pipefail",
