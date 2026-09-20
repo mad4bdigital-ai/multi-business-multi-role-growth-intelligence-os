@@ -69,7 +69,8 @@
           "cardinality": "exactly_one",
           "readback_token": "canonical WordPress Staging deploy command"
         }
-      ]
+      ],
+      "known_replay_gap": true
     },
     "execution_policies": {
       "class": "canonical_registry",
@@ -86,7 +87,8 @@
           "cardinality": "exactly_one",
           "readback_token": "canonical WordPress Staging deploy execution policy"
         }
-      ]
+      ],
+      "known_replay_gap": true
     },
     "tenant_platform_endpoint_tools": {
       "class": "canonical_registry",
