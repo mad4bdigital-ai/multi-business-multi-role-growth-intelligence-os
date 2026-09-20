@@ -148,11 +148,11 @@ assert(!wordpressDeploy.includes("DEFAULT_TIMEOUT_MS"), "fixed deploy timeout mu
 assert(!wordpressDeploy.includes("MAX_TIMEOUT_MS"), "fixed maximum timeout must remain a code safety bound, not runtime configuration");
 assert(!wordpressDeploy.includes("MAD4B_SSH_ASKPASS_FILE"), "WordPress deploy must not create an ASKPASS configuration channel");
 assert(!wordpressDeploy.includes("NODE_OPTIONS"), "WordPress deploy must not inject NODE_OPTIONS for credential transport");
-assert(wordpressDeploy.includes('"sshpass"'), "Hostinger password transport must use sshpass");
-assert(wordpressDeploy.includes('"-d", "3"'), "Hostinger password must be supplied through file descriptor 3");
-assert(!wordpressDeploy.includes("SSHPASS"), "password must not be placed in SSHPASS environment state");
-assert(wordpressDeploy.includes('command: "timeout"'), "SSH transport must be bounded by coreutils timeout");
-assert(wordpressDeploy.includes("shell: false"), "SSH transport must disable local shell interpolation");
+assert(executor.includes('"sshpass"'), "Canonical Hostinger password transport must use sshpass");
+assert(executor.includes('"-d", "3"'), "Canonical Hostinger password must be supplied through file descriptor 3");
+assert(!executor.includes("SSHPASS"), "Canonical Hostinger password must not be placed in SSHPASS environment state");
+assert(executor.includes('command: "timeout"'), "Canonical Hostinger SSH transport must be bounded by coreutils timeout");
+assert(executor.includes("shell: false"), "Canonical Hostinger SSH transport must disable local shell interpolation");
 
 assert(wordpressDeployRoutes.includes('REMOTE_RUNTIME_WORDPRESS_STAGING_DEPLOY_ENABLED'), "apply must remain behind the dedicated WordPress Staging feature gate");
 assert(wordpressDeployRoutes.includes('/platform/remote-runtime/wordpress/staging/deploy-plugin'), "bounded WordPress Staging deploy route must be mounted");
@@ -176,9 +176,9 @@ assert(!Object.hasOwn(wordpressDeployRequestProperties, "ssh_auth_mode"), "OpenA
 assert(Object.hasOwn(wordpressDeployRequestProperties, "expected_head_sha"), "OpenAPI request must require exact WordPress head identity");
 assert(wordpressDeployOpenApi.includes('mad4b.wordpress-deployment-handoff.v2'), "OpenAPI response must expose handoff v2 identity");
 assert(wordpressDeployOpenApi.includes('d745d81f-6fc4-5c6a-99dd-d953c92137bf'), "OpenAPI must bind the ETG Staging Site Profile UUID");
-assert(hostinger.includes("export async function resolveServerOwnedHostingerSshConnection"), "shared Hostinger transport must expose no-handoff server-owned credential resolution");
-assert(hostinger.includes("export function runHostingerSshCommand"), "shared Hostinger transport must expose the hardened SSH runner");
-assert(hostinger.includes("stdinBuffer = null"), "shared SSH runner must support bounded artifact stdin streaming");
+assert(executor.includes("export async function resolveServerOwnedHostingerSshConnection"), "shared Hostinger transport must expose no-handoff server-owned credential resolution");
+assert(executor.includes("export function runHostingerSshCommand"), "shared Hostinger transport must expose the hardened SSH runner");
+assert(executor.includes("stdinBuffer = null"), "shared SSH runner must support bounded artifact stdin streaming");
 assert(wordpressDeploy.includes("resolveServerOwnedHostingerSshConnection"), "WordPress deploy must reuse the canonical server-owned Hostinger credential resolver");
 assert(wordpressDeploy.includes("runHostingerSshCommand"), "WordPress deploy must reuse the canonical hardened Hostinger SSH runner");
 assert(!wordpressDeploy.includes("MAD4B_SSH_ASKPASS_FILE"), "WordPress deploy must not duplicate askpass/secret transport configuration");
