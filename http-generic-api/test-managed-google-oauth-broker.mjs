@@ -17,6 +17,7 @@ import {
   MANAGED_GOOGLE_SESSION_CONTRACT,
   createManagedGoogleOAuthBroker,
   openManagedGoogleEnvelope,
+  parseManagedGoogleSiteBindings,
   sealManagedGoogleEnvelope,
 } from "./managedGoogleOAuthBroker.js";
 import { GOOGLE_TOKEN_ENDPOINT } from "./managedGoogleOAuthProtocolPolicy.js";
@@ -172,6 +173,25 @@ const env = {
     "etg-staging-v1": "managed-google-site-signing-secret-fixture-0123456789",
   }),
 };
+
+
+assert.throws(
+  () => parseManagedGoogleSiteBindings({
+    ...env,
+    MANAGED_GOOGLE_OAUTH_SITE_BINDINGS_JSON: JSON.stringify([
+      JSON.parse(env.MANAGED_GOOGLE_OAUTH_SITE_BINDINGS_JSON)[0],
+      {
+        site_uuid: "not-a-uuid",
+        origin: "https://invalid.example",
+        callback_uri: "https://invalid.example/wp-admin/admin-post.php?action=mad4b_context_google_managed_callback",
+        key_id: "broken-site-v1",
+        status: "active",
+      },
+    ]),
+  }),
+  (error) => error?.code === "managed_google_oauth_site_bindings_invalid",
+  "A malformed sibling binding must fail the entire managed Google OAuth registry closed."
+);
 
 let nowValue = new Date("2026-09-20T12:00:00.000Z");
 const now = () => new Date(nowValue);
