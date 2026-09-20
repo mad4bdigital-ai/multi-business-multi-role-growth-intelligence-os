@@ -11,6 +11,8 @@ http-generic-api/migrations/1006_sprint69_agent_capability_evidence_coverage.sql
 http-generic-api/migrations/1023_sprint69_sql_cache_runtime_policy.sql text eol=lf
 http-generic-api/migrations/20260730_context_kernel_connection_ownership_persistence.sql text eol=lf
 http-generic-api/migrations/20260810_platform_runtime_registry_drift_reconciliation.sql text eol=lf
+http-generic-api/migrations/1043_sprint69_tenant_managed_execution_lifecycle.sql text eol=lf
+http-generic-api/migrations/20260810_remaining_tenant_runtime_lifecycle_gap_closure.sql text eol=lf
 http-generic-api/migrations/20260815_custom_gpt_mcp_catalog_levels.sql text eol=lf
 http-generic-api/migrations/225_sprint67_capability_resolution_envelope_ledger.sql text eol=lf
 http-generic-api/migrations/1048_transport_response_chunk_schema_recovery.sql text eol=lf
