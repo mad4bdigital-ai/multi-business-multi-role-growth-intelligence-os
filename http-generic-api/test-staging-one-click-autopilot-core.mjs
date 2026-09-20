@@ -46,6 +46,16 @@ assert.deepEqual(policy.lifecycle.canonical_seeds.seed_files, [
 ]);
 assert.equal(policy.lifecycle.canonical_seeds.explicit_apply_only, true);
 assert.equal(policy.lifecycle.canonical_seeds.readback_required, true);
+assert.equal(policy.lifecycle.canonical_semantic_snapshot.contract, "mad4b.staging.canonical-semantic-snapshot.v1");
+assert.equal(policy.lifecycle.canonical_semantic_snapshot.target_role, "runtime");
+assert.equal(policy.lifecycle.canonical_semantic_snapshot.source_kind, "disposable_git_migration_projection");
+assert.equal(policy.lifecycle.canonical_semantic_snapshot.bundle_file, "runtime.canonical-semantic.sql.gz");
+assert.equal(policy.lifecycle.canonical_semantic_snapshot.replay_mode, "zero_object_rebuild_only");
+assert.equal(policy.lifecycle.canonical_semantic_snapshot.same_cycle_sha256_required, true);
+assert.equal(policy.lifecycle.canonical_semantic_snapshot.exact_source_commit_required, true);
+assert.equal(policy.lifecycle.canonical_semantic_snapshot.readback_required, true);
+assert.equal(policy.lifecycle.canonical_semantic_snapshot.live_environment_data_copy_forbidden, true);
+assert.equal(policy.lifecycle.activation_readiness.platform_admin_semantic_readiness_required, true);
 assert.equal(policy.lifecycle.activation_readiness.stale_policy_blocks_activation, true);
 assert.equal(policy.lifecycle.activation_readiness.schema_and_catalog_readiness_required, true);
 assert.deepEqual(policy.safety, {
@@ -173,13 +183,16 @@ assert.match(launcher, /schema_only_dry_run/);
 assert.match(launcher, /schema_only_applied/);
 assert.match(launcher, /explicit Staging schema seed completed; re-certifying same exact commit/);
 assert.match(launcher, /staging_schema_seed_applied = \$schemaSeedApplied/);
+assert.match(launcher, /canonical_semantic_snapshot_status/);
+assert.match(launcher, /canonical_semantic_snapshot_readback/);
+assert.match(launcher, /Canonical semantic snapshot\/readback evidence is incomplete/);
 assert.match(launcher, /canonical_seed_status/);
 assert.match(launcher, /canonical_seed_readback/);
 assert.match(launcher, /Canonical seed\/readback evidence is incomplete/);
 assert.match(launcher, /Activation Gateway cannot be enabled until schema\/catalog\/gateway readback is ready/);
 assert.ok(launcher.includes(`$activationBlockers = @(
         @($runtimeState.certification_degraded_reasons | ForEach-Object { [string]$_ }) |
-            Where-Object { $_ -in @("gateway_policy_not_stale", "gateway_policy_hash_current", "gateway_exact_commit", "mcp_catalog_schema_ready", "combined_database_readiness", "governance_db_privilege_ready") }
+            Where-Object { $_ -in @("gateway_policy_not_stale", "gateway_policy_hash_current", "gateway_exact_commit", "mcp_catalog_schema_ready", "combined_database_readiness", "platform_admin_semantic_readiness", "governance_db_privilege_ready") }
     )`));
 assert.doesNotMatch(launcher, /\$activationBlockers = @\([^\n]+\) \| Where-Object/);
 assert.match(launcher, /if \(\$activationBlockers\.Count -gt 0 -or \[string\]\$runtimeState\.certification_status -ne "ready"\)/);
