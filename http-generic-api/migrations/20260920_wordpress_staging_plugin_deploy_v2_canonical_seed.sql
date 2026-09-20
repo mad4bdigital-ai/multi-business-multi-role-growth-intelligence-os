@@ -1,5 +1,10 @@
 -- Replayable canonical WordPress Staging deployment authority.
--- Runtime data only; creates no target, credential, approval, or execution rows.
+-- Creates no target, credential, approval, or execution rows.
+-- The catalog tag column is widened idempotently before replay so the exact
+-- governance tag set cannot be silently truncated during a fresh rebuild.
+
+ALTER TABLE admin_platform_endpoint_tools
+  MODIFY COLUMN tags TEXT NULL;
 
 INSERT INTO remote_runtime_command_allowlists
 (command_id, plugin_key, command_key, display_name, target_kind, command_template, input_schema_json, risk_class, requires_approval, is_consequential, output_policy, status, notes)
