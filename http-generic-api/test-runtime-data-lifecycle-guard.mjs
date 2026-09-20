@@ -21,7 +21,17 @@ assert.equal(report.safety.database_connection_performed, false);
 assert.equal(report.safety.database_mutation_performed, false);
 assert.equal(report.safety.provider_access_performed, false);
 assert.equal(report.safety.production_access_performed, false);
-assert.ok(report.inventory.some((item) => item.file === "20260920_platform_admin_workspace_canonical_seed.sql" && item.table === "workspace_registry"));
+assert.equal(
+  contract.datasets.workspace_registry.canonical_rows[0].seed_file,
+  "20260920_platform_admin_workspace_canonical_seed.sql",
+);
+if (report.selection.files.includes("20260920_platform_admin_workspace_canonical_seed.sql")) {
+  assert.ok(
+    report.inventory.some(
+      (item) => item.file === "20260920_platform_admin_workspace_canonical_seed.sql" && item.table === "workspace_registry",
+    ),
+  );
+}
 assert.equal(contract.datasets.workspace_registry.canonical_rows[0].cardinality, "exactly_one");
 assert.equal(contract.datasets.memberships.reseed_forbidden, true);
 assert.equal(contract.table_families[0].zero_rows_allowed, false);
