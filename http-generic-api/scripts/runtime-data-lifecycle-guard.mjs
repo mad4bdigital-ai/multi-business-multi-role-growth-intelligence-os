@@ -110,6 +110,12 @@ if (process.argv.includes("--self-test")) {
     throw new Error("mutation parser must classify CTE and destructive top-level mutations");
   }
 
+  if (contract.enforcement?.operational_state_migration_mutation_forbidden !== true ||
+      contract.enforcement?.environment_state_migration_mutation_forbidden !== true ||
+      contract.enforcement?.destructive_mutation_fail_closed !== true) {
+    throw new Error("state mutation safety policy must be fail-closed");
+  }
+
   const mixed = contract.datasets.workspace_registry;
   const canonical = resolveMutationLifecycle("UPDATE workspace_registry SET updated_at=NOW() WHERE workspace_key='platform_repo_governance_zero'", mixed);
   const environment = resolveMutationLifecycle("-- lifecycle:environment_state\nUPDATE workspace_registry SET updated_at=NOW() WHERE workspace_id='tenant-workspace'", mixed);
@@ -130,6 +136,7 @@ if (process.argv.includes("--self-test")) {
     mixed_table_fail_closed: true,
     zero_base_sha_rejected: true,
     migration_deletion_is_blocking: true,
+    runtime_state_migration_mutation_forbidden: true,
   }));
   process.exit(0);
 }
@@ -173,6 +180,9 @@ if (baseSha) {
 if (contract.contract !== "mad4b.runtime-data-lifecycle.v1") findings.push({ category: "contract", detail: "unsupported lifecycle contract" });
 if (contract.enforcement?.unclassified_mutation_is_blocking !== true) findings.push({ category: "contract", detail: "unclassified mutation gate is not fail-closed" });
 if (contract.enforcement?.mixed_table_mutation_requires_resolution !== true) findings.push({ category: "contract", detail: "mixed-table mutation resolution is not fail-closed" });
+if (contract.enforcement?.operational_state_migration_mutation_forbidden !== true) findings.push({ category: "contract", detail: "operational-state migration mutation guard is not fail-closed" });
+if (contract.enforcement?.environment_state_migration_mutation_forbidden !== true) findings.push({ category: "contract", detail: "environment-state migration mutation guard is not fail-closed" });
+if (contract.enforcement?.destructive_mutation_fail_closed !== true) findings.push({ category: "contract", detail: "destructive mutation guard is not fail-closed" });
 
 for (const [table, dataset] of Object.entries(contract.datasets || {})) {
   for (const row of dataset.canonical_rows || []) {
@@ -217,6 +227,14 @@ for (const file of selectedFiles) {
     }
     if (lifecycle.lifecycle_class === "mixed_unresolved") {
       findings.push({ category: "mixed_runtime_data_mutation_unresolved", file, ...mutation });
+      continue;
+    }
+    if (dataset.class === "operational_state" && contract.enforcement?.operational_state_migration_mutation_forbidden === true) {
+      findings.push({ category: "operational_state_migration_mutation_forbidden", file, ...mutation });
+      continue;
+    }
+    if (dataset.class === "environment_state" && contract.enforcement?.environment_state_migration_mutation_forbidden === true) {
+      findings.push({ category: "environment_state_migration_mutation_forbidden", file, ...mutation });
       continue;
     }
     if (dataset.reseed_forbidden === true && seedFiles.has(file)) {
