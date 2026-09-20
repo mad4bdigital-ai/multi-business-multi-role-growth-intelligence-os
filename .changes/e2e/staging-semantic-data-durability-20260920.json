@@ -37,7 +37,8 @@
       "http-generic-api/scripts/semantic-data-completeness-report.mjs",
       "http-generic-api/test-semantic-data-completeness-report.mjs",
       ".github/workflows/staging-semantic-portability.yml",
-      "http-generic-api/package.json"
+      "http-generic-api/package.json",
+      "http-generic-api/test-canonical-semantic-artifact-registry.mjs"
     ]
   },
   "environment_impact": {
@@ -115,7 +116,8 @@
             "A consumed repair plan cannot be applied again, and unknown outcome can transition only through explicit reconciliation to succeeded.",
             "The operational CLI refuses Production/Hostinger targets and cannot regenerate a replacement plan during apply or reconciliation.",
             "Canonical completeness cannot be true while any canonical_registry dataset has unresolved replay debt or lacks a ready readback.",
-            "Windows portability tests use SHA-pinned GitHub Actions and do not receive write permissions or persisted checkout credentials."
+            "Windows portability tests use SHA-pinned GitHub Actions and do not receive write permissions or persisted checkout credentials.",
+            "Every registered canonical artifact matches raw repository bytes, declared statement count, target role, safety flags, existing dependencies, and an acyclic dependency graph."
           ],
           "tests": [
             {
@@ -193,6 +195,13 @@
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-semantic-data-completeness-report.mjs",
+              "args": []
+            },
+            {
+              "id": "canonical-semantic-artifact-registry",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "http-generic-api/test-canonical-semantic-artifact-registry.mjs",
               "args": []
             }
           ],
