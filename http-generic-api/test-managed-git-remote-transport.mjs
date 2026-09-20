@@ -22,17 +22,39 @@ const seed = join(root, "seed");
 const bare = join(root, "remote.git");
 const workspace = join(root, "workspace");
 const clone2 = join(root, "clone2");
+const hostileGitConfig = join(root, "hostile.gitconfig");
 const worker = "11111111-1111-4111-8111-111111111111";
 
 async function git(args, cwd, env = {}) {
   return execFile("git", args, {
     cwd,
-    env: { ...process.env, ...env },
+    env: {
+      ...process.env,
+      GIT_CONFIG_COUNT: "3",
+      GIT_CONFIG_KEY_0: "core.autocrlf",
+      GIT_CONFIG_VALUE_0: "false",
+      GIT_CONFIG_KEY_1: "core.safecrlf",
+      GIT_CONFIG_VALUE_1: "false",
+      GIT_CONFIG_KEY_2: "core.eol",
+      GIT_CONFIG_VALUE_2: "lf",
+      ...env,
+    },
     maxBuffer: 1024 * 1024,
   });
 }
 
 try {
+  await writeFile(hostileGitConfig, [
+    "[core]",
+    "\tautocrlf = true",
+    "\tsafecrlf = true",
+    "\teol = crlf",
+    "[credential]",
+    "\thelper = hostile-helper",
+    "[http \"https://github.com/\"]",
+    "\textraheader = Authorization: Basic hostile",
+    "",
+  ].join("\n"));
   await mkdir(seed);
   await git(["init", "--quiet", "--initial-branch=feature/safe"], seed);
   await writeFile(join(seed, "hello.txt"), "v1\n");
@@ -48,6 +70,8 @@ try {
 
   await mkdir(workspace);
   await git(["init", "--quiet"], workspace);
+  const previousGlobalConfig = process.env.GIT_CONFIG_GLOBAL;
+  process.env.GIT_CONFIG_GLOBAL = hostileGitConfig;
   const binding = await createManagedGitRepositoryCredentialBinding({
     worker_id: worker,
     owner: "owner",
@@ -61,14 +85,25 @@ try {
     }),
   });
   const calls = [];
+  const authenticatedEnvironments = [];
   const wrappedExec = async (binary, args, options) => {
     assert.equal(args.some((arg) => String(arg).includes("super-secret-token")), false);
     if (args[0] === "push") {
       assert.equal(args.includes("--force"), false);
       assert.equal(args.some((arg) => String(arg).startsWith("--force-with-lease")), false);
     }
-    if (options?.env?.GIT_CONFIG_VALUE_1) {
-      assert.match(options.env.GIT_CONFIG_VALUE_1, /^Authorization: Basic /);
+    const configEntries = Array.from(
+      { length: Number.parseInt(String(options?.env?.GIT_CONFIG_COUNT || "0"), 10) },
+      (_, index) => [options.env[`GIT_CONFIG_KEY_${index}`], options.env[`GIT_CONFIG_VALUE_${index}`]],
+    );
+    const config = new Map(configEntries);
+    assert.equal(config.get("core.autocrlf"), "false");
+    assert.equal(config.get("core.safecrlf"), "false");
+    assert.equal(config.get("core.eol"), "lf");
+    if (config.has("http.https://github.com/.extraheader")) {
+      assert.equal(config.get("credential.helper"), "");
+      assert.match(config.get("http.https://github.com/.extraheader"), /^Authorization: Basic /);
+      authenticatedEnvironments.push(options.env);
     }
     calls.push({ args: [...args] });
     return execFile(binary, args, options);
@@ -85,6 +120,7 @@ try {
     remote_url_builder: () => bare,
   });
   assert.equal(await readFile(join(workspace, "hello.txt"), "utf8"), "v1\n");
+  assert.equal((await readFile(join(workspace, "hello.txt"))).includes(13), false);
   assert.equal(session.remote_fetch_performed, true);
   assert.equal(session.remote_checkout_performed, true);
   assert.equal(session.credentials_read, true);
@@ -130,8 +166,14 @@ try {
   assert.ok(calls.some((call) => call.args[0] === "fetch"));
   assert.ok(calls.some((call) => call.args[0] === "push"));
   assert.equal(calls.some((call) => JSON.stringify(call.args).includes("super-secret-token")), false);
+  assert.ok(authenticatedEnvironments.length > 0);
+  for (const environment of authenticatedEnvironments) {
+    assert.equal(Object.values(environment).some((value) => String(value).startsWith("Authorization: Basic ")), false);
+  }
   const released = releaseManagedGitRepositoryCredentialBinding(binding);
   assert.equal(released.credential_zeroized, true);
+  if (previousGlobalConfig === undefined) delete process.env.GIT_CONFIG_GLOBAL;
+  else process.env.GIT_CONFIG_GLOBAL = previousGlobalConfig;
 } finally {
   await rm(root, { recursive: true, force: true });
 }
