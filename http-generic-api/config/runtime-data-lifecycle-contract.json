@@ -105,7 +105,7 @@
       "class": "canonical_registry",
       "rebuild_from_git": true,
       "zero_rows_allowed": false,
-      "known_replay_gap": true,
+      "known_replay_gap": false,
       "canonical_rows": [
         {
           "key": "wordpress_staging_plugin_deploy",
@@ -115,7 +115,8 @@
             "/platform/remote-runtime/wordpress/staging/deploy-plugin"
           ],
           "cardinality": "exactly_one",
-          "readback_token": "canonical WordPress Staging deploy admin tool"
+          "readback_token": "canonical WordPress Staging deploy admin tool",
+          "artifact_key": "wordpress_staging_deployment_authority"
         }
       ]
     },
@@ -132,10 +133,11 @@
             "wordpress_staging_plugin_deploy"
           ],
           "cardinality": "exactly_one",
-          "readback_token": "canonical WordPress Staging deploy command"
+          "readback_token": "canonical WordPress Staging deploy command",
+          "artifact_key": "wordpress_staging_deployment_authority"
         }
       ],
-      "known_replay_gap": true
+      "known_replay_gap": false
     },
     "execution_policies": {
       "class": "canonical_registry",
@@ -150,10 +152,11 @@
             "wordpress_staging_plugin_deploy_exact_artifact_guard"
           ],
           "cardinality": "exactly_one",
-          "readback_token": "canonical WordPress Staging deploy execution policy"
+          "readback_token": "canonical WordPress Staging deploy execution policy",
+          "artifact_key": "wordpress_staging_deployment_authority"
         }
       ],
-      "known_replay_gap": true
+      "known_replay_gap": false
     },
     "tenant_platform_endpoint_tools": {
       "class": "canonical_registry",
