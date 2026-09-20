@@ -334,7 +334,56 @@
     {
       "id": "resilient",
       "status": "implemented",
-      "objective": "Replay every explicitly declared canonical registry family from Git-authoritative artifacts, reject unregistered future activation registries fail-closed, and preserve reconciliation-only recovery for unknown repair outcomes."
+      "objective": "Replay every explicitly declared canonical registry family from Git-authoritative artifacts, reject unregistered future activation registries fail-closed, and preserve reconciliation-only recovery for unknown repair outcomes.",
+      "e2e_journeys": [
+        {
+          "id": "reconcile-semantic-replay-debt-and-unknown-repair-outcomes",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging recovery operator",
+          "entrypoint": "Canonical semantic completeness and repair ledger",
+          "terminal_outcome": "All declared canonical registry datasets have replay artifacts and deterministic readback requirements, while unknown repair outcomes remain reconciliation-only and cannot auto-retry.",
+          "steps": [
+            "Build semantic completeness from the authoritative lifecycle contract and canonical artifact registry.",
+            "Fail closed when a declared canonical dataset has replay debt, a missing artifact, or a missing readiness readback.",
+            "Exercise the durable repair ledger through planned, applying, reconciliation_required, reconciled, and terminal states without provider or Production access.",
+            "Reject replay of a consumed plan and reject automatic retry after an unknown mutation outcome.",
+            "Prove registered semantic artifacts remain acyclic, target-bounded, and byte-integrity pinned."
+          ],
+          "tests": [
+            {
+              "id": "semantic-data-completeness-report-resilient",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-semantic-data-completeness-report.mjs",
+              "args": []
+            },
+            {
+              "id": "canonical-semantic-artifact-registry-resilient",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-canonical-semantic-artifact-registry.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-canonical-semantic-repair-ledger-resilient",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-canonical-semantic-repair-ledger.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/config/runtime-data-lifecycle-contract.json",
+            "http-generic-api/config/canonical-semantic-artifacts.json",
+            "http-generic-api/semanticDataCompletenessReport.js",
+            "http-generic-api/stagingCanonicalSemanticRepairLedger.js",
+            "http-generic-api/test-semantic-data-completeness-report.mjs",
+            "http-generic-api/test-canonical-semantic-artifact-registry.mjs",
+            "http-generic-api/test-staging-canonical-semantic-repair-ledger.mjs"
+          ]
+        }
+      ]
     },
     {
       "id": "canary",
