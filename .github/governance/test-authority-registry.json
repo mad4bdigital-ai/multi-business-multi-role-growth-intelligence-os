@@ -505,6 +505,7 @@
       "id": "staging_database_readiness_repair",
       "test_paths": [
         "http-generic-api/test-runtime-data-lifecycle-guard.mjs",
+        "http-generic-api/test-canonical-semantic-artifact-registry.mjs",
         "http-generic-api/test-staging-canonical-semantic-repair.mjs",
         "http-generic-api/test-staging-canonical-semantic-repair-ledger.mjs",
         "http-generic-api/test-staging-canonical-semantic-repair-cli.mjs",
