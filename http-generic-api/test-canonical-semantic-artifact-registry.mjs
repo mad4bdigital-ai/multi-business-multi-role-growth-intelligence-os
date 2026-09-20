@@ -46,3 +46,21 @@ for(const file of fs.readdirSync(migrationsDir).filter((name)=>name.endsWith(".s
 }
 const declaredActivation=new Set(snapshot.tables.filter((table)=>/^activation_.*_registry$/u.test(table)));
 assert.deepEqual([...declaredActivation].sort(),[...activationRegistries].sort(),"every Git-created activation registry must be explicitly declared in the canonical semantic snapshot");
+
+
+const artifactByKey=new Map(registry.artifacts.map((item)=>[item.artifact_key,item]));
+assert.deepEqual(artifactByKey.get("runtime_canonical_registry_snapshot").dependencies,[]);
+assert.deepEqual(artifactByKey.get("platform_admin_workspace").dependencies,["runtime_canonical_registry_snapshot"]);
+assert.deepEqual(artifactByKey.get("wordpress_staging_deployment_authority").dependencies,["runtime_canonical_registry_snapshot"]);
+const visiting=new Set();const visited=new Set();const order=[];
+function visitArtifact(key){
+  assert.equal(visiting.has(key),false,`canonical artifact dependency cycle at ${key}`);
+  if(visited.has(key))return;
+  const artifact=artifactByKey.get(key);assert.ok(artifact,`missing canonical artifact ${key}`);
+  visiting.add(key);
+  for(const dependency of artifact.dependencies||[]){assert.ok(artifactByKey.has(dependency),`missing dependency ${dependency}`);visitArtifact(dependency);}
+  visiting.delete(key);visited.add(key);order.push(key);
+}
+for(const key of artifactByKey.keys())visitArtifact(key);
+assert.ok(order.indexOf("runtime_canonical_registry_snapshot")<order.indexOf("platform_admin_workspace"));
+assert.ok(order.indexOf("runtime_canonical_registry_snapshot")<order.indexOf("wordpress_staging_deployment_authority"));
