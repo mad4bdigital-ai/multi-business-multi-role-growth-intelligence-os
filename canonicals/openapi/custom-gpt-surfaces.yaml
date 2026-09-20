@@ -137,6 +137,22 @@ surfaces:
           reason: Shared OAuth and SSO lifecycle endpoint remains outside the public Custom GPT operation surfaces; revocation is handled by the auth boundary.
           owner: identity-platform
           review_after: 2026-09-30
+        - operation_id: createManagedGoogleOAuthSession
+          reason: Managed Google OAuth broker session creation is a public protocol endpoint for exact server-owned WordPress site bindings, not a Custom GPT or Remote MCP operation surface.
+          owner: identity-platform
+          review_after: 2026-12-19
+        - operation_id: completeManagedGoogleOAuthProviderCallback
+          reason: Managed Google OAuth provider callback is browser/provider protocol traffic and must remain outside Custom GPT and Remote MCP operation surfaces.
+          owner: identity-platform
+          review_after: 2026-12-19
+        - operation_id: redeemManagedGoogleOAuthHandoff
+          reason: Managed Google OAuth one-time handoff redemption is a site-bound server-to-server protocol endpoint and must remain outside Custom GPT and Remote MCP operation surfaces.
+          owner: identity-platform
+          review_after: 2026-12-19
+        - operation_id: refreshManagedGoogleOAuthAccessToken
+          reason: Managed Google OAuth access-token refresh is a site-bound broker protocol endpoint and must remain outside Custom GPT and Remote MCP operation surfaces.
+          owner: identity-platform
+          review_after: 2026-12-19
         - operation_id: getHostRuntimeBreakglassStatus
           reason: Host-internal Breakglass status is an internal service-key route and must not be exposed as an Admin GPT operation.
           owner: platform-governance
