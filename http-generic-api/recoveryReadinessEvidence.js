@@ -45,9 +45,59 @@ export function producePromotionArtifactParity({ source, target } = {}) {
   };
 }
 
-async function syncDirectory(directory) {
-  const directoryHandle = await open(directory, "r");
-  try { await directoryHandle.sync(); } finally { await directoryHandle.close(); }
+export const RECOVERY_FILESYSTEM_DURABILITY_CONTRACT = "mad4b.recovery-filesystem-durability-profile.v1";
+const WINDOWS_DIRECTORY_SYNC_UNSUPPORTED_CODES = Object.freeze(["EPERM", "EINVAL", "ENOTSUP", "EISDIR"]);
+
+export function recoveryFilesystemDurabilityProfile(platform = process.platform) {
+  const directorySync = platform === "win32" ? "unsupported_platform" : "required";
+  return Object.freeze({
+    contract: RECOVERY_FILESYSTEM_DURABILITY_CONTRACT,
+    file_sync: "mandatory",
+    directory_sync: directorySync,
+    crash_durability: directorySync === "required" ? "full" : "file_only",
+  });
+}
+
+export function isUnsupportedWindowsDirectorySync(error, platform = process.platform) {
+  return platform === "win32" && WINDOWS_DIRECTORY_SYNC_UNSUPPORTED_CODES.includes(error?.code);
+}
+
+export async function syncRecoveryDirectory(directory, { platform = process.platform, openDirectory = open } = {}) {
+  let directoryHandle;
+  try {
+    directoryHandle = await openDirectory(directory, "r");
+  } catch (error) {
+    if (isUnsupportedWindowsDirectorySync(error, platform)) return;
+    throw error;
+  }
+  try {
+    try {
+      await directoryHandle.sync();
+    } catch (error) {
+      // File fsync is mandatory and completes before this call. Windows may
+      // reject directory-handle fsync/FlushFileBuffers, so only the metadata
+      // barrier is tolerated for the explicit bounded error set above.
+      if (!isUnsupportedWindowsDirectorySync(error, platform)) throw error;
+    }
+  } finally {
+    await directoryHandle.close();
+  }
+}
+
+export async function writeRecoveryFileDurably(targetRoot, name, bytes, {
+  openFile = open,
+  makeDirectory = mkdir,
+  directorySync = syncRecoveryDirectory,
+} = {}) {
+  await makeDirectory(targetRoot, { recursive: true, mode: 0o700 });
+  const handle = await openFile(path.join(targetRoot, name), "wx", 0o600);
+  try {
+    await handle.writeFile(bytes);
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+  await directorySync(targetRoot);
 }
 
 async function boundedRead(file, { missing = null } = {}) {
@@ -72,11 +122,9 @@ export function createFileRecoveryEvidenceStore({ directory, replayDirectory = d
   if (!path.isAbsolute(directory || "") || !path.isAbsolute(replayDirectory || "")) fail("RECOVERY_EVIDENCE_DIRECTORY_INVALID");
   const root = path.resolve(directory);
   const replayRoot = path.resolve(replayDirectory);
+  const durabilityProfile = recoveryFilesystemDurabilityProfile();
   async function immutableWrite(targetRoot, name, bytes) {
-    await mkdir(targetRoot, { recursive: true, mode: 0o700 });
-    const handle = await open(path.join(targetRoot, name), "wx", 0o600);
-    try { await handle.writeFile(bytes); await handle.sync(); } finally { await handle.close(); }
-    await syncDirectory(targetRoot);
+    await writeRecoveryFileDurably(targetRoot, name, bytes);
   }
   async function atomicPointer(id) {
     if (!SHA256.test(id || "")) fail("RECOVERY_EVIDENCE_ID_INVALID");
@@ -86,11 +134,12 @@ export function createFileRecoveryEvidenceStore({ directory, replayDirectory = d
     try { await handle.writeFile(`${id}\n`); await handle.sync(); } finally { await handle.close(); }
     try { await rename(temp, path.join(root, "current-certification")); }
     catch (error) { await rm(temp, { force: true }); throw error; }
-    await syncDirectory(root);
+    await syncRecoveryDirectory(root);
   }
   const store = {
     contract: RECOVERY_CERTIFICATION_STORE_CONTRACT,
     durability: "persistent_filesystem",
+    durability_profile: durabilityProfile,
     scope: "single_filesystem",
     certification_root: root,
     replay_root: replayRoot,
@@ -122,6 +171,8 @@ export function createFileRecoveryEvidenceStore({ directory, replayDirectory = d
     },
     replayStore: Object.freeze({
       contract: RECOVERY_REPLAY_STORE_CONTRACT,
+      durability: "persistent_filesystem",
+      durability_profile: durabilityProfile,
       scope: "single_filesystem",
       async claim({ issuer, key_id, jti, expires_at }) {
         if (!issuer || !key_id || !jti || !Number.isInteger(expires_at) || expires_at <= Date.now() / 1000) return false;

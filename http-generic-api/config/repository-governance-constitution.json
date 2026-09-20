@@ -224,7 +224,8 @@
         "local-connector/**/*.js",
         "local-connector/**/*.mjs",
         "local-connector/**/*.sh",
-        "local-connector/**/*.ps1"
+        "local-connector/**/*.ps1",
+        "install-local-connector.ps1"
       ]
     },
     {
@@ -302,7 +303,8 @@
       "id": "local_connector",
       "risk": "high",
       "patterns": [
-        "local-connector/**"
+        "local-connector/**",
+        "install-local-connector.ps1"
       ]
     },
     {
@@ -652,7 +654,8 @@
     ".changes/e2e/staging-recovery-gateway-preflight-20260916.json",
     ".changes/e2e/governance-db-authority-store-isolation.json",
     ".changes/e2e/pr8106-governance-recipe-store-runtime-isolation.json",
-    ".changes/e2e/pr8123-staging-gateway-governance-pool-routing-environment-impact.json"
+    ".changes/e2e/pr8123-staging-gateway-governance-pool-routing-environment-impact.json",
+    ".changes/e2e/pr8127-windows-portability-environment-impact.json"
   ],
   "derived_state": {
     "registry": ".github/derived-state-governance.json",

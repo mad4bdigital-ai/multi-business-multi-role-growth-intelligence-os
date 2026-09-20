@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import YAML from "yaml";
 
-const root = path.resolve(new URL("..", import.meta.url).pathname);
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const contractPath = path.join(root, "specs/020-platform-resource-identity-brand-governance/contracts/custom-gpt-environment-aware-contract.json");
 const instructionPath = path.join(root, "docs/custom-gpt-environment-routing-instructions.md");
 const contract = JSON.parse(fs.readFileSync(contractPath, "utf8"));

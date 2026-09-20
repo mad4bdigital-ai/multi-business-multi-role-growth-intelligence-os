@@ -9,6 +9,8 @@ import { buildDiagnosticStream, redactDiagnosticOutput } from "./bounded-diagnos
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const REPO_ROOT = path.resolve(HERE, "..", "..");
 const MAX_CAPTURE_BUFFER_BYTES = 16 * 1024 * 1024;
+const EXACT_GIT_SHA_RE = /^[a-f0-9]{40}$/u;
+const TEST_ARG_SHA_PLACEHOLDERS = Object.freeze({ BASE_SHA: "base", HEAD_SHA: "head" });
 
 function normalize(value) {
   return String(value || "").replaceAll("\\", "/").replace(/^\.\//, "");
@@ -393,6 +395,18 @@ function emitCapturedOutput(result) {
   if (stderr) process.stderr.write(stderr);
 }
 
+function resolveTestArguments(testArgs = [], options = {}) {
+  return testArgs.map((argument) => {
+    const optionKey = TEST_ARG_SHA_PLACEHOLDERS[argument];
+    if (!optionKey) return argument;
+    const value = String(options[optionKey] || "").trim();
+    if (!EXACT_GIT_SHA_RE.test(value)) {
+      throw new Error(`E2E test argument placeholder ${argument} requires an exact lowercase 40-character Git SHA from the governed phase invocation.`);
+    }
+    return value;
+  });
+}
+
 export function executePhaseTests(evaluation, options = {}) {
   const root = options.root || REPO_ROOT;
   const tests = executableTests(evaluation.contracts);
@@ -401,16 +415,38 @@ export function executePhaseTests(evaluation, options = {}) {
   const results = [];
   for (const item of tests) {
     const workingDirectory = path.resolve(root, item.test.working_directory || ".");
+    const startedAt = Date.now();
+    let resolvedTestArgs;
+    try {
+      resolvedTestArgs = resolveTestArguments(item.test.args || [], options);
+    } catch (error) {
+      const message = redactDiagnosticOutput(error?.message || String(error));
+      results.push({
+        feature_key: item.featureKey,
+        phase: item.phase,
+        journey_id: item.journeyId,
+        test_id: item.test.id,
+        runner: item.test.runner,
+        status: "error",
+        exit_code: 1,
+        duration_ms: Date.now() - startedAt,
+        error: message,
+        diagnostic: {
+          stdout: buildDiagnosticStream(""),
+          stderr: buildDiagnosticStream(message)
+        }
+      });
+      break;
+    }
     let executable;
     let args;
     if (item.test.runner === "node") {
       executable = process.execPath;
-      args = [item.test.path, ...(item.test.args || [])];
+      args = [item.test.path, ...resolvedTestArgs];
     } else {
       executable = process.platform === "win32" ? "npm.cmd" : "npm";
-      args = ["run", item.test.script, "--", ...(item.test.args || [])];
+      args = ["run", item.test.script, "--", ...resolvedTestArgs];
     }
-    const startedAt = Date.now();
     const result = spawnSync(executable, args, {
       cwd: workingDirectory,
       env: { ...process.env, E2E_PHASE_GOVERNANCE: "true", E2E_FEATURE_KEY: item.featureKey, E2E_PHASE: item.phase },

@@ -48,7 +48,8 @@ if (-not $isAdmin) {
 Write-Step "Part 1: Cloudflare tunnel service"
 
 # Check binary
-$cfPath = (Get-Command cloudflared -ErrorAction SilentlyContinue)?.Source
+$cfCommand = Get-Command cloudflared -ErrorAction SilentlyContinue
+$cfPath = if ($cfCommand) { $cfCommand.Source } else { $null }
 if (-not $cfPath) {
     Write-Step "cloudflared not found — installing via winget..."
     winget install --id Cloudflare.cloudflared -e --accept-source-agreements --accept-package-agreements
@@ -56,7 +57,8 @@ if (-not $cfPath) {
         Write-Fail "winget install failed. Download manually: https://github.com/cloudflare/cloudflared/releases"
         exit 1
     }
-    $cfPath = (Get-Command cloudflared -ErrorAction SilentlyContinue)?.Source
+    $cfCommand = Get-Command cloudflared -ErrorAction SilentlyContinue
+    $cfPath = if ($cfCommand) { $cfCommand.Source } else { $null }
     if (-not $cfPath) {
         Write-Warn "PATH not updated yet. Restart your terminal and re-run this installer."
         exit 1
@@ -112,12 +114,14 @@ if ($SkipNode) {
     Write-Step "Part 2: Node.js connector service (NSSM)"
 
     # Check NSSM
-    $nssmPath = (Get-Command nssm -ErrorAction SilentlyContinue)?.Source
+    $nssmCommand = Get-Command nssm -ErrorAction SilentlyContinue
+    $nssmPath = if ($nssmCommand) { $nssmCommand.Source } else { $null }
     if (-not $nssmPath) {
         Write-Warn "NSSM not found on PATH. Attempting winget install..."
         try {
             winget install --id NSSM.NSSM -e --accept-source-agreements --accept-package-agreements 2>$null
-            $nssmPath = (Get-Command nssm -ErrorAction SilentlyContinue)?.Source
+            $nssmCommand = Get-Command nssm -ErrorAction SilentlyContinue
+            $nssmPath = if ($nssmCommand) { $nssmCommand.Source } else { $null }
         } catch {}
     }
 
@@ -130,7 +134,8 @@ if ($SkipNode) {
         Write-OK "NSSM at $nssmPath"
 
         # Check node
-        $nodePath = (Get-Command node -ErrorAction SilentlyContinue)?.Source
+        $nodeCommand = Get-Command node -ErrorAction SilentlyContinue
+        $nodePath = if ($nodeCommand) { $nodeCommand.Source } else { $null }
         if (-not $nodePath) {
             Write-Fail "node not found on PATH. Install Node.js first."
             exit 1
@@ -191,8 +196,10 @@ Write-Host ""
 Write-Host "  Status:" -ForegroundColor White
 $cfFinal   = Get-Service $CfServiceName -ErrorAction SilentlyContinue
 $nodeFinal = Get-Service $NodeServiceName -ErrorAction SilentlyContinue
-Write-Host "  cloudflared:     $($cfFinal?.Status ?? 'not installed')"
-Write-Host "  local-connector: $($nodeFinal?.Status ?? 'not installed')"
+$cfFinalStatus = if ($cfFinal) { $cfFinal.Status } else { "not installed" }
+$nodeFinalStatus = if ($nodeFinal) { $nodeFinal.Status } else { "not installed" }
+Write-Host "  cloudflared:     $cfFinalStatus"
+Write-Host "  local-connector: $nodeFinalStatus"
 Write-Host ""
 Write-Host "  connector.mad4b.com → localhost:7070" -ForegroundColor Green
 Write-Host ""

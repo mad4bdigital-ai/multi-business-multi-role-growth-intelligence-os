@@ -1,10 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import crypto from "node:crypto";
 import { extractRegistryToolRegistrations } from "../surface-contract-sql-registry-extractor.mjs";
 import { canonicalOpenApiAuthority, parseOpenApiContracts } from "../frontend-surface-dispatch.mjs";
 
-const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..");
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const DOCS_ROOT = path.resolve(ROOT, "..");
 const QUEUE_PATH = path.join(DOCS_ROOT, "docs", "surface-contract-gap-queue.json");
 const MANIFEST_PATH = path.join(ROOT, "resource-api-surface-callability.manifest.json");

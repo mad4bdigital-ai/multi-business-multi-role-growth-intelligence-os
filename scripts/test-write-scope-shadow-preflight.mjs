@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
+import { fileURLToPath } from "node:url";
 import {
   CONTRACT,
   buildShadowEvidence,
   readJson,
 } from "./write-scope-shadow-preflight.mjs";
 
-const inventory = readJson(new URL("../http-generic-api/remote-mcp-write-scope-inventory.generated.json", import.meta.url).pathname);
-const catalog = readJson(new URL("../http-generic-api/remote-mcp-scope-catalog.generated.json", import.meta.url).pathname);
+const inventory = readJson(fileURLToPath(new URL("../http-generic-api/remote-mcp-write-scope-inventory.generated.json", import.meta.url)));
+const catalog = readJson(fileURLToPath(new URL("../http-generic-api/remote-mcp-scope-catalog.generated.json", import.meta.url)));
 const evidence = buildShadowEvidence({ inventory, catalog });
 
 assert.equal(evidence.contract, CONTRACT);

@@ -16,6 +16,22 @@
   ],
   "invariant_authorities": [
     {
+      "id": "windows_portability_regression_coverage",
+      "test_paths": [
+        "http-generic-api/test-authority-evidence-repository-source-materializer.mjs",
+        "http-generic-api/test-branch-test-diagnostic-shards.mjs",
+        "http-generic-api/test-custom-gpt-environment-aware-contract.mjs",
+        "http-generic-api/test-governed-autopilot-production-deployment.mjs",
+        "http-generic-api/test-interruption-readiness.mjs",
+        "http-generic-api/test-interruption-verification-recovery.mjs",
+        "http-generic-api/test-openapi-all-remaining-preflight-batch.mjs",
+        "http-generic-api/test-sequential-test-progress-report.mjs",
+        "scripts/test-remote-mcp-write-scope-inventory.mjs",
+        "scripts/test-repository-inventory.mjs",
+        "scripts/test-write-scope-shadow-preflight.mjs"
+      ]
+    },
+    {
       "id": "activation_environment_and_gateway_regressions",
       "test_paths": [
         "http-generic-api/test-activation-gateway-host-profile.mjs",
