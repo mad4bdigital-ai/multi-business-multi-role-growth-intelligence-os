@@ -99,5 +99,21 @@
       ]
     }
   ],
-  "secrets_included": false
+  "secrets_included": false,
+  "acceptance": {
+    "server_owned_credential_resolution": {
+      "required": true,
+      "missing_credential_behavior": "fail_closed_before_ssh_connection",
+      "credential_intake_created": false,
+      "caller_supplied_credentials_allowed": false,
+      "secrets_included": false
+    },
+    "post_readback_envelope_reconciliation": {
+      "required": true,
+      "mutation_already_applied": true,
+      "exact_readback_verified": true,
+      "retry_deployment": false,
+      "reconciliation_required": true
+    }
+  }
 }

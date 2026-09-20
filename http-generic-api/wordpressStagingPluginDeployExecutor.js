@@ -717,7 +717,40 @@ export async function executeWordPressStagingPluginDeploy(input = {}, deps = {})
   }
 
   const consumed = await transitionCapabilityEnvelopeLifecycle({ envelopeId: envelope.envelope_id, action: "consume", executionRef: traceId, reason: "wordpress_staging_plugin_deploy_completed" });
-  if (!consumed.ok) throw deployError("wordpress_staging_deploy_envelope_consume_failed", "Deployment completed but capability-envelope consumption could not be recorded; further automatic deployment is denied pending reconciliation.", 500, { envelope_id: envelope.envelope_id });
+  if (!consumed.ok) {
+    const reconciliation = {
+      ...base,
+      dry_run: false,
+      deployment_status: "completed_reconciliation_required",
+      mutation_applied: true,
+      same_cycle_exact_provenance_readback: true,
+      retry_deployment: false,
+      reconciliation_required: true,
+      capability_envelope_id: envelope.envelope_id,
+      capability_envelope_consumed: false,
+      failure_reason: "capability_envelope_consume_failed_after_verified_deploy",
+      observed_source_commit_sha: applied.source_commit_sha,
+      observed_build_fingerprint: applied.build_fingerprint,
+      observed_package_manifest_digest: applied.package_manifest_digest,
+      runtime_manifest_match: true,
+      stale: false,
+      provenance_mismatch_count: 0,
+      secrets_included: false,
+    };
+    await writeEvidence(pool, traceId, "wordpress_staging_plugin_deploy", "failed", reconciliation);
+    throw deployError(
+      "wordpress_staging_deploy_envelope_consume_failed",
+      "Deployment completed and exact same-cycle readback succeeded, but capability-envelope consumption could not be recorded. Do not retry the deployment; governance reconciliation is required.",
+      500,
+      {
+        envelope_id: envelope.envelope_id,
+        mutation_applied: true,
+        same_cycle_exact_provenance_readback: true,
+        retry_deployment: false,
+        reconciliation_required: true,
+      },
+    );
+  }
 
   const result = {
     ...base,

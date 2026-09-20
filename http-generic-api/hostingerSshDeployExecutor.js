@@ -465,15 +465,49 @@ async function resolveSshConnectionCredentials(pool, target, input = {}) {
 }
 
 export async function resolveServerOwnedHostingerSshConnection(pool, target) {
-  const [host, port, user] = await Promise.all(
-    SSH_COMMON_ROLES.map((role) => resolveSshCredential(pool, target, role, {}, { createHandoff: false }))
+  const commonPairs = await Promise.all(
+    SSH_COMMON_ROLES.map(async (role) => [
+      role,
+      await resolveSshCredential(pool, target, role, {}, { createHandoff: false }),
+    ])
   );
-  if (target?.provider_family === "hostinger") {
-    const password = await resolveSshCredential(pool, target, SSH_PASSWORD_ROLE, {}, { createHandoff: false });
-    return { host, port, user, auth_mode: "password", password };
+  const common = Object.fromEntries(commonPairs);
+  const missingCommonRoles = SSH_COMMON_ROLES.filter((role) => !compact(common[role], 20000));
+  if (missingCommonRoles.length > 0) {
+    const err = new Error("Required server-owned SSH connection metadata is not resolved.");
+    err.status = 409;
+    err.code = "remote_runtime_server_owned_ssh_credential_not_resolved";
+    err.details = {
+      missing_roles: missingCommonRoles,
+      credential_intake_created: false,
+      caller_supplied_credentials_used: false,
+      secrets_included: false,
+    };
+    throw err;
   }
-  const privateKey = await resolveSshCredential(pool, target, SSH_KEY_ROLE, {}, { createHandoff: false });
-  return { host, port, user, auth_mode: "private_key", privateKey };
+
+  const host = common.ssh_host;
+  const port = common.ssh_port;
+  const user = common.ssh_username;
+
+  const authRole = target?.provider_family === "hostinger" ? SSH_PASSWORD_ROLE : SSH_KEY_ROLE;
+  const authSecret = await resolveSshCredential(pool, target, authRole, {}, { createHandoff: false });
+  if (!compact(authSecret, 20000)) {
+    const err = new Error(`Required server-owned SSH credential ${authRole} is not resolved.`);
+    err.status = 409;
+    err.code = "remote_runtime_server_owned_ssh_credential_not_resolved";
+    err.details = {
+      missing_roles: [authRole],
+      credential_intake_created: false,
+      caller_supplied_credentials_used: false,
+      secrets_included: false,
+    };
+    throw err;
+  }
+
+  return target?.provider_family === "hostinger"
+    ? { host, port, user, auth_mode: "password", password: authSecret }
+    : { host, port, user, auth_mode: "private_key", privateKey: authSecret };
 }
 
 function hardenedSshOptions({ usePassword = false } = {}) {

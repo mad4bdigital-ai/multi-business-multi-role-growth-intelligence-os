@@ -174,6 +174,22 @@ active MCP Adapter version =
 
 Any mismatch blocks before the first write.
 
+## Missing server-owned credentials
+
+Credential resolution is read-only with respect to credential onboarding. The deployment
+surface never creates a credential-intake handoff automatically.
+
+If any required server-owned SSH host, port, username, password, or private-key role is
+unresolved, the executor fails closed with:
+
+```text
+remote_runtime_server_owned_ssh_credential_not_resolved
+credential_intake_created = false
+caller_supplied_credentials_used = false
+```
+
+No SSH connection attempt is made with an empty or placeholder credential.
+
 ## Dry-run sequence
 
 Dry-run verifies:
@@ -260,6 +276,26 @@ states, removes staged/uploaded files, disables maintenance mode, and reports
 `rollback_result=restored` when restoration completed.
 
 A failed readback is not a successful deployment.
+
+## Post-readback envelope reconciliation
+
+If the plugin deployment succeeds and exact same-cycle runtime readback succeeds, but the
+capability envelope cannot be consumed, the live deployment is not repeated or rolled
+back merely to repair the governance ledger.
+
+The executor records:
+
+```text
+deployment_status = completed_reconciliation_required
+mutation_applied = true
+same_cycle_exact_provenance_readback = true
+retry_deployment = false
+reconciliation_required = true
+capability_envelope_consumed = false
+```
+
+The caller receives a fail-closed reconciliation error and must repair/inspect the
+governance lifecycle state. Re-running the provider mutation is explicitly forbidden.
 
 ## Security boundaries
 
