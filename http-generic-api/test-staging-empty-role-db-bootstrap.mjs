@@ -94,6 +94,7 @@ const recoveryAdminRoutes = fs.readFileSync(path.join(root, "http-generic-api/ro
 const systemTools = fs.readFileSync(path.join(root, "http-generic-api/stagingRecoverySystemTools.js"), "utf8");
 const localVerified = fs.readFileSync(path.join(root, "http-generic-api/scripts/host-breakglass-local-verified.mjs"), "utf8");
 const localRunner = fs.readFileSync(path.join(root, "http-generic-api/scripts/host-breakglass-local.mjs"), "utf8");
+const runtimeBootstrap = fs.readFileSync(path.join(root, "http-generic-api/runtimeBootstrapContract.js"), "utf8");
 
 for (const surface of ["information_schema.TABLES", "information_schema.ROUTINES", "information_schema.TRIGGERS", "information_schema.EVENTS"]) assert.ok(entry.includes(surface), `${surface} must remain covered by the governed local census`);
 assert.match(entry, /information_schema\.VIEWS/u);
@@ -171,4 +172,16 @@ assert.match(localRunner, /preserved_roles_unchanged: true/u);
 assert.match(localRunner, /RECOVERY_PRESERVED_ROLE_CHANGED/u);
 assert.match(localRunner, /BOOTSTRAP_ROLE_OBJECT_COUNT_FINGERPRINTS: plan\.role_selection_proof \? JSON\.stringify\(plan\.role_selection_proof\)/u);
 assert.match(localRunner, /BOOTSTRAP_PLAN_SHA256: authorityPlanHash/u);
+assert.match(localRunner, /RECOVERY_READBACK_UNVERIFIED/u);
+assert.match(runtimeBootstrap, /bootstrap_host_local_inspection_mode_denied/u);
+assert.match(runtimeBootstrap, /bootstrap_execution_ticket_required/u);
+assert.match(runtimeBootstrap, /bootstrap_rebuild_confirmation_mismatch/u);
+assert.match(runtimeBootstrap, /bootstrap_no_zero_object_roles/u);
+assert.match(runtimeBootstrap, /bootstrap_role_rebuild_nonempty_denied/u);
+assert.match(runtimeBootstrap, /bootstrap_role_rebuild_verification_failed/u);
+assert.match(runtimeBootstrap, /automatic_rerun_allowed: false/u);
+assert.ok(
+  runtimeBootstrap.indexOf("validateRoleRebuildConfirmation") < runtimeBootstrap.indexOf("applyRuntimeBundle"),
+  "typed rebuild confirmation must be validated before the first bundle apply",
+);
 console.log("Staging canonical role-specific rebuild Recovery authority, target binding, handoff and preservation contracts passed");
