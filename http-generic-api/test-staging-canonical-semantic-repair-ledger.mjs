@@ -13,8 +13,11 @@ try{
   await assert.rejects(ledger.reserve({plan_sha256:plan}),(error)=>error?.code==="STAGING_CANONICAL_REPAIR_PLAN_ALREADY_CONSUMED");
   await ledger.markExecuting(plan,{execution_started:true});assert.equal((await ledger.read(plan)).state,"executing");
   await ledger.markUnknown(plan,{reason:"fault_injection"});assert.equal((await ledger.read(plan)).state,"unknown_outcome");
-  await assert.rejects(ledger.markExecuting(plan,{}),(error)=>error?.code==="STAGING_CANONICAL_REPAIR_PLAN_ALREADY_CONSUMED");
-  await ledger.markSucceeded(plan,{reconciled:true});const done=await ledger.read(plan);assert.equal(done.state,"succeeded");assert.equal(done.reconciled,true);
+  const restarted=createFileCanonicalSemanticRepairLedger({directory:root,now:()=>new Date("2026-09-20T00:01:00.000Z")});
+  const afterRestart=await restarted.read(plan);assert.equal(afterRestart.state,"unknown_outcome");assert.equal(afterRestart.mutation_retry_allowed,false);
+  await assert.rejects(restarted.reserve({plan_sha256:plan}),(error)=>error?.code==="STAGING_CANONICAL_REPAIR_PLAN_ALREADY_CONSUMED");
+  await assert.rejects(restarted.markExecuting(plan,{}),(error)=>error?.code==="STAGING_CANONICAL_REPAIR_PLAN_ALREADY_CONSUMED");
+  await restarted.markSucceeded(plan,{reconciled:true});const done=await restarted.read(plan);assert.equal(done.state,"succeeded");assert.equal(done.reconciled,true);
   await assert.rejects(ledger.markExecuting(plan,{}),(error)=>error?.code==="STAGING_CANONICAL_REPAIR_PLAN_ALREADY_CONSUMED");
 }finally{await rm(root,{recursive:true,force:true});}
 console.log("Staging canonical semantic repair durable ledger tests passed");
