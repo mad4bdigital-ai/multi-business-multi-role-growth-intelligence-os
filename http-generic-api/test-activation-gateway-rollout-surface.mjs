@@ -276,7 +276,8 @@ await assert.rejects(
     registry,
     repositoryRoot: root,
   }),
-  (error) => error?.code === "PLATFORM_RESOURCE_AUTHORITY_RUNTIME_POOL_FORBIDDEN",
+  (error) => error?.code === "staging_activation_gateway_runtime_database_authority_mismatch"
+    && error?.details?.cause_code === "PLATFORM_RESOURCE_AUTHORITY_RUNTIME_POOL_FORBIDDEN",
 );
 
 console.log("Activation Gateway rollout surface contract tests passed.");
