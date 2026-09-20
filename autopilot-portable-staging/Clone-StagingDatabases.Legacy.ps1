@@ -270,11 +270,6 @@ try {
     Require ($health -eq "healthy") "Database service is not healthy: $($item.Service)"
   }
 
-  $preApplyRoleCensus = @($services | ForEach-Object { Get-RoleObjectCensus $_ $compose })
-  $nonEmptyRoles = @($preApplyRoleCensus | Where-Object { [int]$_.total -ne 0 })
-  $nonEmptyRoleSummary = (@($nonEmptyRoles | ForEach-Object { "$($_.role):$($_.total)" } | Sort-Object) -join ',')
-  Require ($nonEmptyRoles.Count -eq 0) "Direct schema-only importer may apply only when all three local Staging role databases are zero-object. Non-empty roles must be preserved and handled only by the governed Rebuild-EmptyStagingRoleDatabases Recovery flow. observed=$nonEmptyRoleSummary"
-
   $existingState = $null
   if (Test-Path -LiteralPath $BundleStatePath) { $existingState = Read-Json $BundleStatePath }
   if ($null -ne $existingState -and [string]$existingState.status -eq "completed" -and [string]$existingState.source_commit -eq $ExpectedCommit.ToLowerInvariant() -and [string]$existingState.manifest_sha256 -eq $manifestSha -and [string]$existingState.canonical_seed_status -eq "completed" -and [string]$existingState.authority_seed_status -eq "completed" -and [string]$existingState.canonical_seed_readback.status -eq "passed") {
@@ -282,6 +277,11 @@ try {
     exit 0
   }
   if ($null -ne $existingState -and [string]$existingState.status -eq "applying") { Fail "Previous schema import is marked applying; refusing blind resume. Stop/reset local Staging containers and rerun after review." }
+
+  $preApplyRoleCensus = @($services | ForEach-Object { Get-RoleObjectCensus $_ $compose })
+  $nonEmptyRoles = @($preApplyRoleCensus | Where-Object { [int]$_.total -ne 0 })
+  $nonEmptyRoleSummary = (@($nonEmptyRoles | ForEach-Object { "$($_.role):$($_.total)" } | Sort-Object) -join ',')
+  Require ($nonEmptyRoles.Count -eq 0) "Direct schema-only importer may apply only when all three local Staging role databases are zero-object. Non-empty roles must be preserved and handled only by the governed Rebuild-EmptyStagingRoleDatabases Recovery flow. observed=$nonEmptyRoleSummary"
 
   $state = [ordered]@{
     contract = "mad4b.staging.schema-import-state.v1"
