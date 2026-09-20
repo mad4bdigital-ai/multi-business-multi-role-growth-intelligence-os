@@ -264,8 +264,8 @@ $bundleManifest = Read-Json $manifestPath
 Require ([string]$bundleManifest.contract -eq "mad4b.staging.schema-bundle-output.v1") "Unsupported schema bundle manifest contract."
 Require ([string]$bundleManifest.source_commit -eq $ExpectedCommit.ToLowerInvariant()) "Schema bundle source_commit does not match ExpectedCommit."
 Require ($bundleManifest.schema_only -eq $true) "Schema bundle is not schema_only."
-Require ($bundleManifest.production_accessed -eq $false -and $bundleManifest.provider_accessed -eq $false -and $bundleManifest.data_exported -eq $false -and $bundleManifest.secrets_included -eq $false) "Schema bundle safety metadata is not fail-closed."
-Require ($bundleManifest.validation.required_tables_checked -eq $true -and $bundleManifest.validation.runtime_exclusions_checked -eq $true -and $bundleManifest.validation.three_role_partition_checked -eq $true) "Schema bundle validation metadata is incomplete."
+Require ($bundleManifest.production_accessed -eq $false -and $bundleManifest.provider_accessed -eq $false -and $bundleManifest.data_exported -eq $false -and $bundleManifest.live_environment_data_exported -eq $false -and $bundleManifest.repository_semantic_projection_exported -eq $true -and $bundleManifest.secrets_included -eq $false) "Schema bundle safety metadata is not fail-closed."
+Require ($bundleManifest.validation.required_tables_checked -eq $true -and $bundleManifest.validation.runtime_exclusions_checked -eq $true -and $bundleManifest.validation.three_role_partition_checked -eq $true -and $bundleManifest.validation.canonical_semantic_snapshot_checked -eq $true -and $bundleManifest.validation.canonical_semantic_snapshot_same_cycle_sha256 -eq $true -and $bundleManifest.validation.canonical_semantic_snapshot_live_data_copy_forbidden -eq $true) "Schema bundle validation metadata is incomplete."
 $requiredRuntimeCensus = @($bundleManifest.validation.required_runtime_table_census)
 Require ($requiredRuntimeCensus.Count -eq 18) "Schema bundle runtime census must declare exactly 18 registry tables."
 
@@ -296,6 +296,31 @@ foreach ($seed in $canonicalSeedRows) {
   Test-SafeSeed (Get-Content -Raw -LiteralPath $seedPath) ([string]$seed.file)
 }
 Require (@($canonicalSeedManifest.mcp_catalog_required_columns).Count -eq 2) "Canonical MCP catalog column contract is incomplete."
+
+$semanticSnapshotPolicy = $roleMigrationManifest.canonical_semantic_snapshot
+$semanticSnapshotManifest = $bundleManifest.canonical_semantic_snapshot
+Require ([string]$semanticSnapshotPolicy.contract -eq "mad4b.staging.canonical-semantic-snapshot.v1" -and [string]$semanticSnapshotManifest.contract -eq [string]$semanticSnapshotPolicy.contract) "Canonical semantic snapshot contract is missing or mismatched."
+Require ([string]$semanticSnapshotPolicy.target_role -eq "runtime" -and [string]$semanticSnapshotManifest.target_role -eq "runtime") "Canonical semantic snapshot target role must be runtime."
+Require ([string]$semanticSnapshotPolicy.source_kind -eq "disposable_git_migration_projection" -and [string]$semanticSnapshotManifest.source_kind -eq "disposable_git_migration_projection") "Canonical semantic snapshot source kind is invalid."
+Require ([string]$semanticSnapshotPolicy.replay_mode -eq "zero_object_rebuild_only" -and [string]$semanticSnapshotManifest.replay_mode -eq "zero_object_rebuild_only") "Canonical semantic snapshot replay mode is invalid."
+Require ($semanticSnapshotPolicy.in_place_repair_allowed -eq $false -and $semanticSnapshotPolicy.live_environment_data_copy_forbidden -eq $true -and $semanticSnapshotPolicy.production_access_forbidden -eq $true -and $semanticSnapshotPolicy.provider_access_forbidden -eq $true -and $semanticSnapshotPolicy.same_cycle_sha256_manifest_required -eq $true) "Canonical semantic snapshot policy is not fail-closed."
+Require ($semanticSnapshotManifest.live_environment_data_copied -eq $false -and $semanticSnapshotManifest.production_accessed -eq $false -and $semanticSnapshotManifest.provider_accessed -eq $false -and $semanticSnapshotManifest.secrets_included -eq $false) "Canonical semantic snapshot output safety metadata is invalid."
+Require ([string]$semanticSnapshotManifest.exact_source_commit -eq $ExpectedCommit.ToLowerInvariant()) "Canonical semantic snapshot source commit does not match ExpectedCommit."
+$semanticSnapshotTables = @($semanticSnapshotManifest.tables | ForEach-Object { [string]$_ })
+$expectedSemanticSnapshotTables = @($semanticSnapshotPolicy.tables | ForEach-Object { [string]$_ })
+Require (($semanticSnapshotTables -join ",") -eq ($expectedSemanticSnapshotTables -join ",")) "Canonical semantic snapshot table order is not exact."
+Require ($semanticSnapshotTables.Count -eq 20 -and [int]$semanticSnapshotManifest.table_count -eq 20) "Canonical semantic snapshot table count is not canonical."
+Require ([int]$semanticSnapshotManifest.statement_count -gt 0) "Canonical semantic snapshot contains no statements."
+foreach ($table in $semanticSnapshotTables) {
+  Require ($table -match '^[A-Za-z0-9_]+$') "Canonical semantic snapshot table name is unsafe: $table"
+  $property = $semanticSnapshotManifest.row_counts.PSObject.Properties[$table]
+  Require ($null -ne $property -and [int]$property.Value -gt 0) "Canonical semantic snapshot row-count contract is missing or empty: $table"
+}
+$semanticSnapshotSource = Join-Path $DumpDirectory ([string]$semanticSnapshotManifest.file)
+Require ([string]$semanticSnapshotManifest.file -eq [string]$semanticSnapshotPolicy.bundle_file) "Canonical semantic snapshot bundle file mismatch."
+Require (Test-Path -LiteralPath $semanticSnapshotSource -PathType Leaf) "Canonical semantic snapshot bundle is missing: $($semanticSnapshotManifest.file)"
+Require ((Get-Sha256 $semanticSnapshotSource) -eq ([string]$semanticSnapshotManifest.sha256).ToLowerInvariant()) "Canonical semantic snapshot bundle hash mismatch."
+Require (Test-GzipFile $semanticSnapshotSource) "Canonical semantic snapshot gzip validation failed."
 
 $authoritySeedManifest = $roleMigrationManifest.authority_seed_lifecycle
 Require ([string]$authoritySeedManifest.contract -eq "mad4b.staging.authority-seed-manifest.v1") "Authority seed manifest contract is missing."
@@ -359,8 +384,8 @@ try {
 
   $existingState = $null
   if (Test-Path -LiteralPath $BundleStatePath) { $existingState = Read-Json $BundleStatePath }
-  if ($null -ne $existingState -and [string]$existingState.status -eq "completed" -and [string]$existingState.source_commit -eq $ExpectedCommit.ToLowerInvariant() -and [string]$existingState.manifest_sha256 -eq $manifestSha -and [string]$existingState.canonical_seed_status -eq "completed" -and [string]$existingState.authority_seed_status -eq "completed" -and [string]$existingState.canonical_seed_readback.status -eq "passed") {
-    $completedStateLiveReadback = Assert-CompletedImportLiveReadback $services $compose $requiredRuntimeCensus $requiredRuntimeSupportTables
+  if ($null -ne $existingState -and [string]$existingState.status -eq "completed" -and [string]$existingState.source_commit -eq $ExpectedCommit.ToLowerInvariant() -and [string]$existingState.manifest_sha256 -eq $manifestSha -and [string]$existingState.canonical_semantic_snapshot_status -eq "completed" -and [string]$existingState.canonical_semantic_snapshot_readback.status -eq "passed" -and [string]$existingState.canonical_seed_status -eq "completed" -and [string]$existingState.authority_seed_status -eq "completed" -and [string]$existingState.canonical_seed_readback.status -eq "passed") {
+    $completedStateLiveReadback = Assert-CompletedImportLiveReadback $services $compose $requiredRuntimeCensus $requiredRuntimeSupportTables $semanticSnapshotManifest
     Require ($completedStateLiveReadback.verified -eq $true -and $completedStateLiveReadback.semantic_readback -eq "passed") "Completed schema-import state did not survive live semantic readback."
     Write-Host "SCHEMA_IMPORT_ALREADY_COMPLETE: source_commit=$ExpectedCommit manifest_sha256=$manifestSha live_semantic_readback=passed"
     exit 0
@@ -380,6 +405,11 @@ try {
     mode = "schema_only"
     roles = @($services | ForEach-Object { $_.Key })
     applied_roles = @()
+    canonical_semantic_snapshot_contract = [string]$semanticSnapshotManifest.contract
+    canonical_semantic_snapshot_file = [string]$semanticSnapshotManifest.file
+    canonical_semantic_snapshot_sha256 = [string]$semanticSnapshotManifest.sha256
+    canonical_semantic_snapshot_status = "pending"
+    canonical_semantic_snapshot_readback = [ordered]@{ status = "pending"; row_counts = @{} }
     canonical_seed_contract = [string]$canonicalSeedManifest.contract
     canonical_seed_files = @($canonicalSeedRows | ForEach-Object { [string]$_.file })
     canonical_seed_status = "pending"
@@ -428,6 +458,23 @@ try {
   $runtimeRootPassword = Read-Env $runtimeService.RootPassword
   Require ($runtimeDb -notmatch '(?i)(production|hostinger)' -and $runtimeUser -notmatch '(?i)(production|hostinger)') "Seed target identity is not Staging-local."
 
+  $semanticContainerPath = "/tmp/$([string]$semanticSnapshotManifest.file)"
+  & docker compose @compose cp $semanticSnapshotSource "$($runtimeService.Service):$semanticContainerPath"
+  Require ($LASTEXITCODE -eq 0) "Failed to copy canonical semantic snapshot into Runtime service."
+  & docker compose @compose exec -T -e "MYSQL_PWD=$runtimePassword" $runtimeService.Service sh -lc "gzip -dc '$semanticContainerPath' | mariadb --protocol=socket '--user=$runtimeUser' '$runtimeDb' --binary-mode"
+  if ($LASTEXITCODE -ne 0) { Fail "Canonical semantic snapshot apply failed; state remains applying for explicit recovery." }
+  & docker compose @compose exec -T $runtimeService.Service rm -f $semanticContainerPath
+  Require ($LASTEXITCODE -eq 0) "Failed to remove temporary canonical semantic snapshot bundle."
+  $semanticSnapshotExactCounts = [ordered]@{}
+  foreach ($table in $semanticSnapshotTables) {
+    $expectedProperty = $semanticSnapshotManifest.row_counts.PSObject.Properties[$table]
+    $expectedCount = [int]$expectedProperty.Value
+    $semanticSnapshotExactCounts[$table] = Assert-CountExactly (Invoke-DatabaseScalar $runtimeService $compose "SELECT COUNT(*) FROM $table") $expectedCount "canonical semantic snapshot $table"
+  }
+  $state.canonical_semantic_snapshot_status = "completed"
+  $state.canonical_semantic_snapshot_readback = [ordered]@{ status = "passed"; row_counts = $semanticSnapshotExactCounts }
+  Write-JsonAtomic $BundleStatePath $state
+
   foreach ($seed in $canonicalSeedRows) {
     $seedPath = Join-Path $ApiPath (Join-Path "migrations" ([string]$seed.file))
     $seedSql = Get-Content -Raw -LiteralPath $seedPath
@@ -451,6 +498,7 @@ try {
   }
   $state.authority_seed_status = "completed"
   Write-JsonAtomic $BundleStatePath $state
+  Write-Host "STAGING_CANONICAL_SEMANTIC_SNAPSHOT_COMPLETED: file=$($state.canonical_semantic_snapshot_file) tables=$($semanticSnapshotTables.Count) target=runtime-db live_data_copy=false"
   Write-Host "STAGING_CANONICAL_SEEDS_COMPLETED: files=$($state.canonical_seed_applied_files -join ',') target=runtime-db"
   Write-Host "STAGING_AUTHORITY_SEEDS_COMPLETED: files=$($state.authority_seed_applied_files -join ',') identity=local_database_root runtime_write_authority_expanded=false"
 
