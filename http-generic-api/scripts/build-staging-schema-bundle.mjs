@@ -995,18 +995,18 @@ function makeDump(role, tables, manifest) {
 
 function quoteSqlIdentifier(value) {
   const name = String(value || "");
-  if (!/^[A-Za-z0-9_]+$/u.test(name)) fail(\`unsafe semantic snapshot identifier: \${name}\`);
-  return "\`" + name + "\`";
+  if (!/^[A-Za-z0-9_]+$/u.test(name)) fail(`unsafe semantic snapshot identifier: ${name}`);
+  return "`" + name + "`";
 }
 
 function semanticSnapshotColumnPlan(table) {
   const tableLiteral = "'" + table.replaceAll("'", "''") + "'";
   const columnsResult = dockerExec([containerName, "mariadb", ...dbArgs([
     "--batch", "--raw", "--skip-column-names", "-e",
-    \`SELECT COLUMN_NAME, DATA_TYPE, COALESCE(COLUMN_DEFAULT,''), EXTRA
+    `SELECT COLUMN_NAME, DATA_TYPE, COALESCE(COLUMN_DEFAULT,''), EXTRA
        FROM information_schema.COLUMNS
-      WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=\${tableLiteral}
-      ORDER BY ORDINAL_POSITION\`,
+      WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=${tableLiteral}
+      ORDER BY ORDINAL_POSITION`,
   ])]);
   const columns = columnsResult.stdout.split(/\r?\n/u).filter(Boolean).map((line) => {
     const [name, dataType = "", defaultValue = "", extra = ""] = line.split("\t");
@@ -1014,16 +1014,16 @@ function semanticSnapshotColumnPlan(table) {
     const generated = /(?:auto_increment|generated|on update)/iu.test(extra);
     return { name, data_type: dataType, default_value: defaultValue, extra, excluded: dynamicDefault || generated };
   });
-  if (!columns.length) fail(\`semantic snapshot table has no columns: \${table}\`);
+  if (!columns.length) fail(`semantic snapshot table has no columns: ${table}`);
   const included = columns.filter((column) => !column.excluded);
-  if (!included.length) fail(\`semantic snapshot table has no stable columns: \${table}\`);
+  if (!included.length) fail(`semantic snapshot table has no stable columns: ${table}`);
 
   const indexesResult = dockerExec([containerName, "mariadb", ...dbArgs([
     "--batch", "--raw", "--skip-column-names", "-e",
-    \`SELECT INDEX_NAME, SEQ_IN_INDEX, COLUMN_NAME
+    `SELECT INDEX_NAME, SEQ_IN_INDEX, COLUMN_NAME
        FROM information_schema.STATISTICS
-      WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=\${tableLiteral} AND NON_UNIQUE=0
-      ORDER BY CASE WHEN INDEX_NAME='PRIMARY' THEN 0 ELSE 1 END, INDEX_NAME, SEQ_IN_INDEX\`,
+      WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=${tableLiteral} AND NON_UNIQUE=0
+      ORDER BY CASE WHEN INDEX_NAME='PRIMARY' THEN 0 ELSE 1 END, INDEX_NAME, SEQ_IN_INDEX`,
   ])]);
   const groups = new Map();
   for (const line of indexesResult.stdout.split(/\r?\n/u).filter(Boolean)) {
@@ -1035,40 +1035,44 @@ function semanticSnapshotColumnPlan(table) {
   const candidates = [...groups.entries()]
     .map(([name, parts]) => ({ name, columns: parts.sort((a, b) => a.sequence - b.sequence).map((part) => part.column) }))
     .filter((index) => index.columns.length > 0 && index.columns.every((column) => includedSet.has(column)));
-  if (!candidates.length) fail(\`semantic snapshot table has no stable unique ordering key: \${table}\`);
+  if (!candidates.length) fail(`semantic snapshot table has no stable unique ordering key: ${table}`);
+  const primary = candidates.find((index) => index.name === "PRIMARY");
+  if (!primary && candidates.length !== 1) fail(`semantic snapshot table has ambiguous stable unique ordering keys: ${table}`);
+  const order = primary || candidates.find((index) => index.columns.length > 0);
+  if (!order) fail(`semantic snapshot table stable unique ordering key could not be resolved: ${table}`);
   return {
     table,
     included_columns: included.map((column) => column.name),
     excluded_columns: columns.filter((column) => column.excluded).map((column) => column.name),
-    order_index: candidates[0].name,
-    order_columns: candidates[0].columns,
+    order_index: order.name,
+    order_columns: order.columns,
   };
 }
 
 function parseCompleteInsert(statement) {
   const source = stripLeadingSqlComments(statement).trim();
   if (!source) return null;
-  const match = source.match(/^INSERT\s+INTO\s+\`?([A-Za-z0-9_]+)\`?\s*/iu);
+  const match = source.match(/^INSERT\s+INTO\s+`?([A-Za-z0-9_]+)`?\s*/iu);
   if (!match) {
     if (/^(?:REPLACE|UPDATE|DELETE|LOAD\s+DATA|ALTER|DROP|TRUNCATE|CREATE)\b/iu.test(source)) {
-      fail(\`canonical semantic dump contains forbidden statement: \${source.slice(0, 180)}\`);
+      fail(`canonical semantic dump contains forbidden statement: ${source.slice(0, 180)}`);
     }
     return null;
   }
   const table = match[1];
   const columns = parenthesizedSql(source, match[0].length);
-  if (!columns) fail(\`canonical semantic dump INSERT is missing complete column list for \${table}\`);
-  const columnNames = splitTopLevelSql(columns.content).map((column) => column.replaceAll("\`", "").trim());
+  if (!columns) fail(`canonical semantic dump INSERT is missing complete column list for ${table}`);
+  const columnNames = splitTopLevelSql(columns.content).map((column) => column.replaceAll("`", "").trim());
   const afterColumns = source.slice(columns.end);
   const valuesKeyword = afterColumns.match(/^\s*VALUES\b/iu);
-  if (!valuesKeyword) fail(\`canonical semantic dump INSERT must use VALUES for \${table}\`);
+  if (!valuesKeyword) fail(`canonical semantic dump INSERT must use VALUES for ${table}`);
   const rowOffset = columns.end + valuesKeyword[0].length;
   const row = parenthesizedSql(source, rowOffset);
-  if (!row) fail(\`canonical semantic dump INSERT has no complete VALUES row for \${table}\`);
+  if (!row) fail(`canonical semantic dump INSERT has no complete VALUES row for ${table}`);
   const values = splitTopLevelSql(row.content);
-  if (values.length !== columnNames.length) fail(\`canonical semantic dump INSERT arity mismatch for \${table}\`);
+  if (values.length !== columnNames.length) fail(`canonical semantic dump INSERT arity mismatch for ${table}`);
   const trailing = source.slice(row.end).replace(/;\s*$/u, "").trim();
-  if (trailing) fail(\`canonical semantic dump INSERT must contain exactly one row for \${table}\`);
+  if (trailing) fail(`canonical semantic dump INSERT must contain exactly one row for ${table}`);
   return { table, columnNames, values };
 }
 
@@ -1081,7 +1085,7 @@ function makeCanonicalSemanticDump(manifest, runtimeTables) {
   const names = [...config.tables];
   if (!names.length || new Set(names).size !== names.length) fail("canonical semantic snapshot table list is empty or duplicated");
   for (const table of names) {
-    if (!/^[A-Za-z0-9_]+$/u.test(table) || !runtimeSet.has(table)) fail(\`canonical semantic snapshot table is not owned by Runtime role: \${table}\`);
+    if (!/^[A-Za-z0-9_]+$/u.test(table) || !runtimeSet.has(table)) fail(`canonical semantic snapshot table is not owned by Runtime role: ${table}`);
   }
 
   const plans = new Map(names.map((table) => [table, semanticSnapshotColumnPlan(table)]));
@@ -1095,18 +1099,18 @@ function makeCanonicalSemanticDump(manifest, runtimeTables) {
   for (const statement of splitStatements(dumpResult.stdout)) {
     const parsed = parseCompleteInsert(statement);
     if (!parsed) continue;
-    if (!plans.has(parsed.table)) fail(\`canonical semantic dump wrote undeclared table: \${parsed.table}\`);
+    if (!plans.has(parsed.table)) fail(`canonical semantic dump wrote undeclared table: ${parsed.table}`);
     const plan = plans.get(parsed.table);
     const indexByColumn = new Map(parsed.columnNames.map((column, index) => [column, index]));
     const missingColumns = plan.included_columns.filter((column) => !indexByColumn.has(column));
-    if (missingColumns.length) fail(\`canonical semantic dump is missing stable columns for \${parsed.table}: \${missingColumns.join(",")}\`);
+    if (missingColumns.length) fail(`canonical semantic dump is missing stable columns for ${parsed.table}: ${missingColumns.join(",")}`);
     const keptColumns = plan.included_columns;
     const keptValues = keptColumns.map((column) => parsed.values[indexByColumn.get(column)]);
     const orderValues = plan.order_columns.map((column) => parsed.values[indexByColumn.get(column)]);
     parsedRows.push({
       table: parsed.table,
       order_key: JSON.stringify(orderValues),
-      sql: \`INSERT INTO \${quoteSqlIdentifier(parsed.table)} (\${keptColumns.map(quoteSqlIdentifier).join(", ")}) VALUES (\${keptValues.join(", ")});\`,
+      sql: `INSERT INTO ${quoteSqlIdentifier(parsed.table)} (${keptColumns.map(quoteSqlIdentifier).join(", ")}) VALUES (${keptValues.join(", ")});`,
     });
   }
 
@@ -1116,11 +1120,11 @@ function makeCanonicalSemanticDump(manifest, runtimeTables) {
   for (const row of parsedRows) rowsByTable[row.table] += 1;
   const actualCounts = {};
   for (const table of names) {
-    const countResult = dockerExec([containerName, "mariadb", ...dbArgs(["--batch", "--skip-column-names", "-e", \`SELECT COUNT(*) FROM \${quoteSqlIdentifier(table)}\`])]);
+    const countResult = dockerExec([containerName, "mariadb", ...dbArgs(["--batch", "--skip-column-names", "-e", `SELECT COUNT(*) FROM ${quoteSqlIdentifier(table)}`])]);
     const count = Number(text(countResult.stdout));
-    if (!Number.isInteger(count) || count < 0) fail(\`canonical semantic snapshot row count is invalid for \${table}\`);
-    if (rowsByTable[table] !== count) fail(\`canonical semantic snapshot row count mismatch for \${table}: dump=\${rowsByTable[table]} database=\${count}\`);
-    if ((config.required_nonempty_tables || []).includes(table) && count < 1) fail(\`canonical semantic snapshot required table is empty: \${table}\`);
+    if (!Number.isInteger(count) || count < 0) fail(`canonical semantic snapshot row count is invalid for ${table}`);
+    if (rowsByTable[table] !== count) fail(`canonical semantic snapshot row count mismatch for ${table}: dump=${rowsByTable[table]} database=${count}`);
+    if ((config.required_nonempty_tables || []).includes(table) && count < 1) fail(`canonical semantic snapshot required table is empty: ${table}`);
     actualCounts[table] = count;
   }
   if (!parsedRows.length) fail("canonical semantic snapshot contains no rows");
