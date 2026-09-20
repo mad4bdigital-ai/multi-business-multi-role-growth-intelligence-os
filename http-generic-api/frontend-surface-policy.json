@@ -360,363 +360,6 @@
   "description": "Explicit exceptions and product decisions for repository-discovered frontend surface families. Discovery remains fail-closed; absence of a matching rule blocks dispatch.",
   "operation_rules": [
     {
-      "rule_id": "staging-recovery-gateway-rollout-preview",
-      "operation": "POST /admin/recovery/staging/gateway/rollout-plan",
-      "source_file": "routes/stagingRecoveryAdminRoutes.js",
-      "classification": "preflight",
-      "owner": "runtime-operations",
-      "rationale": "Resolves the profile-owned Staging Gateway target and validates exact source, policy, convergence-plan, workspace, bundle, and provider-readiness evidence without persisting a plan or contacting the provider.",
-      "parameter_bindings": {
-        "expected_source_commit": "request.body.expected_source_commit",
-        "expected_policy_hash": "request.body.expected_policy_hash",
-        "environment_convergence_plan_sha256": "request.body.environment_convergence_plan_sha256",
-        "resource_binding": "server.profile.activation_gateway_staging"
-      },
-      "evidence_refs": [
-        "routes/stagingRecoveryAdminRoutes.js",
-        "stagingRecoveryGatewayPreflight.js",
-        "stagingActivationGatewayApplyAdapter.js",
-        "test-staging-recovery-gateway-preflight.mjs",
-        "test-staging-recovery-route-policy.mjs"
-      ]
-    },
-    {
-      "rule_id": "staging-recovery-gateway-dark-deploy-dry-run",
-      "operation": "POST /admin/recovery/staging/gateway/dark-deploy-dry-run",
-      "source_file": "routes/stagingRecoveryAdminRoutes.js",
-      "classification": "state_change",
-      "owner": "runtime-operations",
-      "rationale": "May persist only a short-lived encrypted Governance execution plan after exact-bound Staging preflight; it cannot contact Cloudflare, mutate DNS, mutate a target database, target Production, or issue apply authority.",
-      "preflight": {
-        "mode": "exact_release_policy_convergence_and_server_resource_binding"
-      },
-      "approval": {
-        "mode": "not_required_for_non_executing_plan_prepare"
-      },
-      "readback": {
-        "mode": "inline_post_commit",
-        "same_cycle": true
-      },
-      "rollback": {
-        "mode": "expiry_without_execution",
-        "rationale": "The encrypted plan is short-lived and non-executable without a separately issued capability envelope, execution nonce, and certified apply authority."
-      },
-      "parameter_bindings": {
-        "expected_source_commit": "request.body.expected_source_commit",
-        "expected_policy_hash": "request.body.expected_policy_hash",
-        "environment_convergence_plan_sha256": "request.body.environment_convergence_plan_sha256",
-        "resource_binding": "server.profile.activation_gateway_staging"
-      },
-      "evidence_refs": [
-        "routes/stagingRecoveryAdminRoutes.js",
-        "stagingRecoveryGatewayPreflight.js",
-        "stagingActivationGatewayApplyAdapter.js",
-        "test-staging-recovery-gateway-preflight.mjs",
-        "test-staging-recovery-route-policy.mjs"
-      ]
-    },
-    {
-      "rule_id": "local-connector-installer-redeem-external-effect",
-      "operation": "POST /connector-agent/installer/redeem",
-      "source_file": "routes/connectorAgentRoutes.js",
-      "classification": "external_effect",
-      "owner": "local-connector",
-      "rationale": "The route atomically consumes a one-time purpose-bound capability and returns the exact bound device credentials once for protected local materialization.",
-      "preflight": {
-        "mode": "signed_exact_capability_binding"
-      },
-      "approval": {
-        "mode": "server_issued_one_time_capability"
-      },
-      "readback": {
-        "mode": "inline_post_commit",
-        "same_cycle": true
-      },
-      "rollback": {
-        "mode": "not_required",
-        "rationale": "Consumption is intentionally irreversible; failure requires a newly issued capability and replay is denied."
-      },
-      "parameter_bindings": {
-        "authorization": "request.header.authorization.bearer",
-        "purpose": "server.local_connector_installer_secret_redeem",
-        "audience": "server.connector_agent",
-        "environment": "server.runtime_environment",
-        "config_id": "signed_capability.config_id",
-        "device_id": "signed_capability.device_id"
-      },
-      "evidence_refs": [
-        "routes/connectorAgentRoutes.js",
-        "localConnectorInstallerCapability.js",
-        "test-local-connector-installer-capability.mjs",
-        "openapi.yaml"
-      ]
-    },
-    {
-      "rule_id": "staging-recovery-bootstrap-ticket-reservation",
-      "operation": "POST /admin/recovery/staging/bootstrap-ticket/verify",
-      "source_file": "routes/stagingRecoveryAdminRoutes.js",
-      "classification": "state_change",
-      "owner": "runtime-operations",
-      "rationale": "Verifies and atomically reserves a server-issued, exact-SHA, single-use Staging grant-repair ticket before the local executor may mutate the bounded Staging databases.",
-      "preflight": {
-        "mode": "signed_ticket_exact_binding_and_staging_authority_preflight"
-      },
-      "approval": {
-        "mode": "server_issued_single_use_execution_ticket"
-      },
-      "readback": {
-        "mode": "inline_post_commit"
-      },
-      "rollback": {
-        "mode": "not_required",
-        "rationale": "Reservation performs no database mutation; an abandoned or unknown reservation remains fail-closed and requires governed reconciliation."
-      },
-      "parameter_bindings": {
-        "ticket_id": "request.body.execution_ticket_id",
-        "ticket_hash": "request.body.execution_ticket_hash",
-        "expected_binding": "request.body.expected"
-      },
-      "evidence_refs": [
-        "routes/stagingRecoveryAdminRoutes.js",
-        "stagingBootstrapExecutionAuthority.js",
-        "recoveryExecutionTicket.js",
-        "test-recovery-execution-ticket.mjs"
-      ]
-    },
-    {
-      "rule_id": "staging-recovery-bootstrap-ticket-finalization",
-      "operation": "POST /admin/recovery/staging/bootstrap-ticket/finalize",
-      "source_file": "routes/stagingRecoveryAdminRoutes.js",
-      "classification": "state_change",
-      "owner": "runtime-operations",
-      "rationale": "Finalizes a previously reserved Staging execution ticket only after the repository-owned local executor supplies canonical same-cycle database grant readback.",
-      "preflight": {
-        "mode": "existing_ticket_reservation_and_exact_binding_preflight"
-      },
-      "approval": {
-        "mode": "reserved_server_issued_single_use_execution_ticket"
-      },
-      "readback": {
-        "mode": "inline_post_commit"
-      },
-      "rollback": {
-        "mode": "not_required",
-        "rationale": "Finalization records an immutable verified outcome after readback; failed or unknown outcomes remain blocked for reconciliation."
-      },
-      "parameter_bindings": {
-        "ticket_id": "request.body.execution_ticket_id",
-        "ticket_hash": "request.body.execution_ticket_hash",
-        "expected_binding": "request.body.expected",
-        "readback": "request.body.readback"
-      },
-      "evidence_refs": [
-        "routes/stagingRecoveryAdminRoutes.js",
-        "stagingBootstrapExecutionAuthority.js",
-        "test-recovery-execution-ticket.mjs"
-      ]
-    },
-    {
-      "rule_id": "staging-recovery-bootstrap-partial-receipt",
-      "operation": "POST /admin/recovery/staging/bootstrap-partial-receipt",
-      "source_file": "routes/stagingRecoveryAdminRoutes.js",
-      "classification": "state_change",
-      "owner": "runtime-operations",
-      "rationale": "Persists an immutable, secret-free Staging reconciliation receipt when a reserved local grant-repair execution has a partial or unknown outcome.",
-      "preflight": {
-        "mode": "staging_only_secret_free_receipt_validation"
-      },
-      "approval": {
-        "mode": "reserved_server_issued_single_use_execution_ticket"
-      },
-      "readback": {
-        "mode": "inline_post_commit"
-      },
-      "rollback": {
-        "mode": "not_required",
-        "rationale": "The immutable receipt is compensating evidence and cannot authorize replay or any Production, provider, or DNS mutation."
-      },
-      "parameter_bindings": {
-        "receipt": "request.body.receipt"
-      },
-      "evidence_refs": [
-        "routes/stagingRecoveryAdminRoutes.js",
-        "stagingBootstrapExecutionAuthority.js",
-        "test-recovery-execution-ticket.mjs"
-      ]
-    },
-    {
-      "rule_id": "recovery-kernel-call-preflight",
-      "operation": "POST /admin/recovery/kernel/call",
-      "source_file": "routes/recoveryKernelRoutes.js",
-      "classification": "preflight",
-      "owner": "runtime-operations",
-      "rationale": "The Recovery Kernel call endpoint is a bounded discovery, inspection, finding, planning, preview, and approval-challenge preflight. It does not execute a mutation and rejects raw SQL, shell, credentials, arbitrary targets, and migration or grant selection.",
-      "parameter_bindings": {
-        "capability_key": "request.body.capability_key",
-        "input": "request.body.input"
-      },
-      "evidence_refs": [
-        "routes/recoveryKernelRoutes.js",
-        "recoveryKernel.js",
-        "test-recovery-kernel.mjs",
-        "test-fixed-host-local-system-tool.mjs"
-      ]
-    },
-    {
-      "rule_id": "recovery-kernel-plan-bound-execute",
-      "operation": "POST /admin/recovery/kernel/execute",
-      "source_file": "routes/recoveryKernelRoutes.js",
-      "classification": "state_change",
-      "owner": "runtime-operations",
-      "rationale": "Consequential Recovery Kernel execution is accepted only as an exact plan-hash, target-fingerprint, step, approval, lock, idempotency, executor, and same-cycle readback contract. The repository default has no durable authorities and therefore fails closed before mutation.",
-      "preflight": {
-        "mode": "exact_plan_hash_target_fingerprint_and_step_preflight"
-      },
-      "approval": {
-        "mode": "durable_single_use_plan_step_approval"
-      },
-      "readback": {
-        "mode": "inline_post_commit",
-        "operation": "GET /admin/recovery/kernel/evidence/{run_id}"
-      },
-      "rollback": {
-        "mode": "not_required",
-        "rationale": "No execution authority is present by default; any future injected executor must supply its own bounded compensation contract before activation."
-      },
-      "parameter_bindings": {
-        "plan_hash": "request.body.plan_hash",
-        "step_id": "request.body.step_id",
-        "approval_id": "request.body.approval_id",
-        "idempotency_key": "request.body.idempotency_key",
-        "target_fingerprint": "request.body.target_fingerprint"
-      },
-      "evidence_refs": [
-        "routes/recoveryKernelRoutes.js",
-        "recoveryKernel.js",
-        "test-recovery-kernel.mjs"
-      ]
-    },
-    {
-      "rule_id": "recovery-kernel-approval-challenge-issuer",
-      "operation": "POST /admin/recovery/kernel/approval-challenge",
-      "source_file": "routes/recoveryKernelRoutes.js",
-      "classification": "state_change",
-      "owner": "runtime-operations",
-      "rationale": "Approval challenge issuance persists a short-lived, step-bound control-plane challenge through injected approval authorities without executing a provider or database mutation. It remains private Recovery-only, requires explicit authority preflight, never returns the approval token, and cannot accept ticket or provider controls.",
-      "preflight": {
-        "mode": "durable_plan_and_approval_authority_preflight"
-      },
-      "approval": {
-        "mode": "separately_governed_out_of_band_approval_delivery"
-      },
-      "readback": {
-        "mode": "challenge_persistence_receipt"
-      },
-      "rollback": {
-        "mode": "expiry_and_revoke_by_approval_authority",
-        "rationale": "The challenge is short-lived and non-transferable; revocation remains owned by the injected approval authority and no provider mutation is initiated by this operation."
-      },
-      "parameter_bindings": {
-        "plan_id": "request.body.plan_id",
-        "plan_hash": "request.body.plan_hash",
-        "step_id": "request.body.step_id",
-        "approval_token": "never accepted or returned",
-        "execution_ticket": "never accepted or returned"
-      },
-      "evidence_refs": [
-        "routes/recoveryKernelRoutes.js",
-        "recoveryKernel.js",
-        "test-recovery-kernel-routes.mjs",
-        "test-recovery-action-bridge-system-layer.mjs"
-      ]
-    },
-    {
-      "rule_id": "recovery-kernel-server-issued-ticket-bridge",
-      "operation": "POST /admin/recovery/kernel/execute-approved",
-      "source_file": "routes/recoveryKernelRoutes.js",
-      "classification": "state_change",
-      "owner": "runtime-operations",
-      "rationale": "The private Recovery Action bridge accepts only plan, step, approval, and idempotency references. It issues the execution ticket server-side, reuses Recovery Kernel approval/fence/readback semantics, and forwards ticket references only to the explicitly injected Host Breakglass mutation boundary; the default composition remains fail-closed before provider or database mutation.",
-      "preflight": {
-        "mode": "server_issued_ticket_and_exact_plan_step_preflight"
-      },
-      "approval": {
-        "mode": "durable_single_use_plan_step_approval"
-      },
-      "readback": {
-        "mode": "inline_post_commit",
-        "operation": "GET /admin/recovery/kernel/evidence/{run_id}"
-      },
-      "rollback": {
-        "mode": "not_required",
-        "rationale": "The bridge has no live executor in the default composition; any injected Host Breakglass executor remains subject to its own bounded compensation and readback contract."
-      },
-      "parameter_bindings": {
-        "plan_id": "request.body.plan_id",
-        "plan_hash": "request.body.plan_hash",
-        "step_id": "request.body.step_id",
-        "approval_token": "request.body.approval_token",
-        "idempotency_key": "request.body.idempotency_key",
-        "execution_ticket": "server-issued and internal-only"
-      },
-      "evidence_refs": [
-        "routes/recoveryKernelRoutes.js",
-        "recoveryActionBridge.js",
-        "recoveryKernel.js",
-        "test-recovery-action-bridge.mjs",
-        "test-recovery-action-bridge-system-layer.mjs",
-        "docs/recovery-action-ticket-bridge.md"
-      ]
-    },
-    {
-      "rule_id": "host-breakglass-plan-read-action",
-      "operation": "POST /admin/runtime-bootstrap/plan",
-      "source_file": "routes/adminHostBreakglassRoutes.js",
-      "classification": "read_action",
-      "owner": "runtime-operations",
-      "rationale": "Builds and hashes an immutable repository-owned recovery plan without database or provider mutation.",
-      "evidence_refs": [
-        "hostBreakglassCatalog.js",
-        "test-host-breakglass-catalog.mjs",
-        "test-admin-host-breakglass-routes.mjs"
-      ]
-    },
-    {
-      "rule_id": "host-breakglass-dispatch-external-effect",
-      "operation": "POST /admin/runtime-bootstrap/runs",
-      "source_file": "routes/adminHostBreakglassRoutes.js",
-      "classification": "external_effect",
-      "owner": "runtime-operations",
-      "rationale": "Dispatches only the fixed repository workflow after exact-SHA, catalog, target-source, confirmation, and idempotency validation; execution remains gated by the Production environment and same-cycle readback.",
-      "preflight": {
-        "mode": "inline_contract_validation"
-      },
-      "approval": {
-        "mode": "runtime_authorization_and_environment_approval"
-      },
-      "readback": {
-        "mode": "separate_operation",
-        "operation": "GET /admin/runtime-bootstrap/runs/{correlation_id}"
-      },
-      "rollback": {
-        "mode": "not_required",
-        "rationale": "The API mutation is only a workflow dispatch. Database mutation remains behind environment approval and the bootstrap engine reports partial_possible with same-cycle readback; destructive nonempty rebuild is prohibited."
-      },
-      "parameter_bindings": {
-        "environment_key": "request.body.environment_key",
-        "operation_key": "request.body.operation_key",
-        "expected_sha": "request.body.expected_sha",
-        "correlation_id": "request.body.correlation_id",
-        "run_status": "GET /admin/runtime-bootstrap/runs/{correlation_id}"
-      },
-      "evidence_refs": [
-        "hostBreakglassCatalog.js",
-        "config/host-breakglass-catalog.json",
-        "production-runtime-parity-evidence.yml",
-        "test-host-breakglass-catalog.mjs"
-      ]
-    },
-    {
       "rule_id": "root-discovery-delete-read-action",
       "operation": "DELETE /",
       "source_file": "routes/rootDiscoveryRoutes.js",
@@ -1065,20 +708,6 @@
       ]
     },
     {
-      "rule_id": "generated-gap-delete-users-id-connections-cid-routes-appintegrationroutes-js",
-      "operation": "DELETE /users/{id}/connections/{cid}",
-      "source_file": "routes/appIntegrationRoutes.js",
-      "classification": "disabled",
-      "owner": "integration-platform",
-      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
-      "evidence_refs": [
-        "routes/appIntegrationRoutes.js",
-        "openapi.yaml",
-        "frontend-surface-dispatch.generated.json",
-        "test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
       "rule_id": "generated-gap-delete-users-id-routes-identityroutes-js",
       "operation": "DELETE /users/{id}",
       "source_file": "routes/identityRoutes.js",
@@ -1087,6 +716,20 @@
       "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
       "evidence_refs": [
         "routes/identityRoutes.js",
+        "openapi.yaml",
+        "frontend-surface-dispatch.generated.json",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "rule_id": "generated-gap-delete-users-id-connections-cid-routes-appintegrationroutes-js",
+      "operation": "DELETE /users/{id}/connections/{cid}",
+      "source_file": "routes/appIntegrationRoutes.js",
+      "classification": "disabled",
+      "owner": "integration-platform",
+      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+      "evidence_refs": [
+        "routes/appIntegrationRoutes.js",
         "openapi.yaml",
         "frontend-surface-dispatch.generated.json",
         "test-frontend-surface-coverage-claims.mjs"
@@ -1453,20 +1096,6 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-activation-hard-run-legacy-full-routes-activationroutes-js",
-      "operation": "POST /activation/hard-run/legacy-full",
-      "source_file": "routes/activationRoutes.js",
-      "classification": "disabled",
-      "owner": "activation-platform",
-      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
-      "evidence_refs": [
-        "routes/activationRoutes.js",
-        "openapi.yaml",
-        "frontend-surface-dispatch.generated.json",
-        "test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
       "rule_id": "generated-gap-post-activation-hard-run-routes-activationhardrunroutes-js",
       "operation": "POST /activation/hard-run",
       "source_file": "routes/activationHardRunRoutes.js",
@@ -1475,6 +1104,20 @@
       "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
       "evidence_refs": [
         "routes/activationHardRunRoutes.js",
+        "openapi.yaml",
+        "frontend-surface-dispatch.generated.json",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "rule_id": "generated-gap-post-activation-hard-run-legacy-full-routes-activationroutes-js",
+      "operation": "POST /activation/hard-run/legacy-full",
+      "source_file": "routes/activationRoutes.js",
+      "classification": "disabled",
+      "owner": "activation-platform",
+      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+      "evidence_refs": [
+        "routes/activationRoutes.js",
         "openapi.yaml",
         "frontend-surface-dispatch.generated.json",
         "test-frontend-surface-coverage-claims.mjs"
@@ -1551,21 +1194,6 @@
       ]
     },
     {
-      "rule_id": "act-as-user-session-revoke-disabled-until-runtime-binding",
-      "operation": "POST /admin/act-as-user/sessions/{sessionId}/revoke",
-      "source_file": "routes/gptToolsRoutes.js",
-      "classification": "disabled",
-      "owner": "platform-governance",
-      "rationale": "Act-as-User revocation remains fail-closed and disabled until durable CAS revocation, actor/target binding, audit evidence, and independent promotion evidence are bound.",
-      "evidence_refs": [
-        "actAsUserExecutionPolicy.js",
-        "actAsUserDurableRepositories.js",
-        "routes/gptToolsRoutes.js",
-        "test-act-as-user-durable-repositories.mjs",
-        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml"
-      ]
-    },
-    {
       "rule_id": "act-as-user-session-create-disabled-until-runtime-binding",
       "operation": "POST /admin/act-as-user/sessions",
       "source_file": "routes/gptToolsRoutes.js",
@@ -1577,6 +1205,21 @@
         "actAsUserDurableRepositories.js",
         "routes/gptToolsRoutes.js",
         "test-act-as-user-dispatch-hook.mjs",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml"
+      ]
+    },
+    {
+      "rule_id": "act-as-user-session-revoke-disabled-until-runtime-binding",
+      "operation": "POST /admin/act-as-user/sessions/{sessionId}/revoke",
+      "source_file": "routes/gptToolsRoutes.js",
+      "classification": "disabled",
+      "owner": "platform-governance",
+      "rationale": "Act-as-User revocation remains fail-closed and disabled until durable CAS revocation, actor/target binding, audit evidence, and independent promotion evidence are bound.",
+      "evidence_refs": [
+        "actAsUserExecutionPolicy.js",
+        "actAsUserDurableRepositories.js",
+        "routes/gptToolsRoutes.js",
+        "test-act-as-user-durable-repositories.mjs",
         "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml"
       ]
     },
@@ -1721,6 +1364,34 @@
       ]
     },
     {
+      "rule_id": "generated-gap-post-admin-control-routes-index-js",
+      "operation": "POST /admin/control",
+      "source_file": "routes/index.js",
+      "classification": "disabled",
+      "owner": "frontend-platform",
+      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+      "evidence_refs": [
+        "routes/index.js",
+        "openapi.yaml",
+        "frontend-surface-dispatch.generated.json",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "rule_id": "generated-gap-post-admin-control-plane-activity-packs-routes-dynamicgrowthcontrolplaneroutes-js",
+      "operation": "POST /admin/control-plane/activity-packs",
+      "source_file": "routes/dynamicGrowthControlPlaneRoutes.js",
+      "classification": "disabled",
+      "owner": "growth-platform",
+      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+      "evidence_refs": [
+        "routes/dynamicGrowthControlPlaneRoutes.js",
+        "openapi.yaml",
+        "frontend-surface-dispatch.generated.json",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
       "rule_id": "generated-gap-post-admin-control-plane-activity-packs-activitypackkey-versions-routes-dynamicgrowthcontrolplaneroutes-js",
       "operation": "POST /admin/control-plane/activity-packs/{activityPackKey}/versions",
       "source_file": "routes/dynamicGrowthControlPlaneRoutes.js",
@@ -1735,8 +1406,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-admin-control-plane-activity-packs-routes-dynamicgrowthcontrolplaneroutes-js",
-      "operation": "POST /admin/control-plane/activity-packs",
+      "rule_id": "generated-gap-post-admin-control-plane-brand-activity-bindings-routes-dynamicgrowthcontrolplaneroutes-js",
+      "operation": "POST /admin/control-plane/brand-activity-bindings",
       "source_file": "routes/dynamicGrowthControlPlaneRoutes.js",
       "classification": "disabled",
       "owner": "growth-platform",
@@ -1777,8 +1448,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-admin-control-plane-brand-activity-bindings-routes-dynamicgrowthcontrolplaneroutes-js",
-      "operation": "POST /admin/control-plane/brand-activity-bindings",
+      "rule_id": "generated-gap-post-admin-control-plane-configurations-routes-dynamicgrowthcontrolplaneroutes-js",
+      "operation": "POST /admin/control-plane/configurations",
       "source_file": "routes/dynamicGrowthControlPlaneRoutes.js",
       "classification": "disabled",
       "owner": "growth-platform",
@@ -1797,6 +1468,20 @@
       "classification": "read_action",
       "owner": "growth-platform",
       "rationale": "Explicitly classified as a bounded read action from the route path contract; the handler is not granted state-change or external-effect authority by this rule.",
+      "evidence_refs": [
+        "routes/dynamicGrowthControlPlaneRoutes.js",
+        "openapi.yaml",
+        "frontend-surface-dispatch.generated.json",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "rule_id": "generated-gap-post-admin-control-plane-configurations-configkey-versions-routes-dynamicgrowthcontrolplaneroutes-js",
+      "operation": "POST /admin/control-plane/configurations/{configKey}/versions",
+      "source_file": "routes/dynamicGrowthControlPlaneRoutes.js",
+      "classification": "disabled",
+      "owner": "growth-platform",
+      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
       "evidence_refs": [
         "routes/dynamicGrowthControlPlaneRoutes.js",
         "openapi.yaml",
@@ -1855,48 +1540,6 @@
       "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
       "evidence_refs": [
         "routes/dynamicGrowthControlPlaneRoutes.js",
-        "openapi.yaml",
-        "frontend-surface-dispatch.generated.json",
-        "test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
-      "rule_id": "generated-gap-post-admin-control-plane-configurations-configkey-versions-routes-dynamicgrowthcontrolplaneroutes-js",
-      "operation": "POST /admin/control-plane/configurations/{configKey}/versions",
-      "source_file": "routes/dynamicGrowthControlPlaneRoutes.js",
-      "classification": "disabled",
-      "owner": "growth-platform",
-      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
-      "evidence_refs": [
-        "routes/dynamicGrowthControlPlaneRoutes.js",
-        "openapi.yaml",
-        "frontend-surface-dispatch.generated.json",
-        "test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
-      "rule_id": "generated-gap-post-admin-control-plane-configurations-routes-dynamicgrowthcontrolplaneroutes-js",
-      "operation": "POST /admin/control-plane/configurations",
-      "source_file": "routes/dynamicGrowthControlPlaneRoutes.js",
-      "classification": "disabled",
-      "owner": "growth-platform",
-      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
-      "evidence_refs": [
-        "routes/dynamicGrowthControlPlaneRoutes.js",
-        "openapi.yaml",
-        "frontend-surface-dispatch.generated.json",
-        "test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
-      "rule_id": "generated-gap-post-admin-control-routes-index-js",
-      "operation": "POST /admin/control",
-      "source_file": "routes/index.js",
-      "classification": "disabled",
-      "owner": "frontend-platform",
-      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
-      "evidence_refs": [
-        "routes/index.js",
         "openapi.yaml",
         "frontend-surface-dispatch.generated.json",
         "test-frontend-surface-coverage-claims.mjs"
@@ -2085,6 +1728,279 @@
       ]
     },
     {
+      "rule_id": "recovery-kernel-approval-challenge-issuer",
+      "operation": "POST /admin/recovery/kernel/approval-challenge",
+      "source_file": "routes/recoveryKernelRoutes.js",
+      "classification": "state_change",
+      "owner": "runtime-operations",
+      "rationale": "Approval challenge issuance persists a short-lived, step-bound control-plane challenge through injected approval authorities without executing a provider or database mutation. It remains private Recovery-only, requires explicit authority preflight, never returns the approval token, and cannot accept ticket or provider controls.",
+      "preflight": {
+        "mode": "durable_plan_and_approval_authority_preflight"
+      },
+      "approval": {
+        "mode": "separately_governed_out_of_band_approval_delivery"
+      },
+      "readback": {
+        "mode": "challenge_persistence_receipt"
+      },
+      "rollback": {
+        "mode": "expiry_and_revoke_by_approval_authority",
+        "rationale": "The challenge is short-lived and non-transferable; revocation remains owned by the injected approval authority and no provider mutation is initiated by this operation."
+      },
+      "parameter_bindings": {
+        "plan_id": "request.body.plan_id",
+        "plan_hash": "request.body.plan_hash",
+        "step_id": "request.body.step_id",
+        "approval_token": "never accepted or returned",
+        "execution_ticket": "never accepted or returned"
+      },
+      "evidence_refs": [
+        "routes/recoveryKernelRoutes.js",
+        "recoveryKernel.js",
+        "test-recovery-kernel-routes.mjs",
+        "test-recovery-action-bridge-system-layer.mjs"
+      ]
+    },
+    {
+      "rule_id": "recovery-kernel-call-preflight",
+      "operation": "POST /admin/recovery/kernel/call",
+      "source_file": "routes/recoveryKernelRoutes.js",
+      "classification": "preflight",
+      "owner": "runtime-operations",
+      "rationale": "The Recovery Kernel call endpoint is a bounded discovery, inspection, finding, planning, preview, and approval-challenge preflight. It does not execute a mutation and rejects raw SQL, shell, credentials, arbitrary targets, and migration or grant selection.",
+      "parameter_bindings": {
+        "capability_key": "request.body.capability_key",
+        "input": "request.body.input"
+      },
+      "evidence_refs": [
+        "routes/recoveryKernelRoutes.js",
+        "recoveryKernel.js",
+        "test-recovery-kernel.mjs",
+        "test-fixed-host-local-system-tool.mjs"
+      ]
+    },
+    {
+      "rule_id": "recovery-kernel-plan-bound-execute",
+      "operation": "POST /admin/recovery/kernel/execute",
+      "source_file": "routes/recoveryKernelRoutes.js",
+      "classification": "state_change",
+      "owner": "runtime-operations",
+      "rationale": "Consequential Recovery Kernel execution is accepted only as an exact plan-hash, target-fingerprint, step, approval, lock, idempotency, executor, and same-cycle readback contract. The repository default has no durable authorities and therefore fails closed before mutation.",
+      "preflight": {
+        "mode": "exact_plan_hash_target_fingerprint_and_step_preflight"
+      },
+      "approval": {
+        "mode": "durable_single_use_plan_step_approval"
+      },
+      "readback": {
+        "mode": "inline_post_commit",
+        "operation": "GET /admin/recovery/kernel/evidence/{run_id}"
+      },
+      "rollback": {
+        "mode": "not_required",
+        "rationale": "No execution authority is present by default; any future injected executor must supply its own bounded compensation contract before activation."
+      },
+      "parameter_bindings": {
+        "plan_hash": "request.body.plan_hash",
+        "step_id": "request.body.step_id",
+        "approval_id": "request.body.approval_id",
+        "idempotency_key": "request.body.idempotency_key",
+        "target_fingerprint": "request.body.target_fingerprint"
+      },
+      "evidence_refs": [
+        "routes/recoveryKernelRoutes.js",
+        "recoveryKernel.js",
+        "test-recovery-kernel.mjs"
+      ]
+    },
+    {
+      "rule_id": "recovery-kernel-server-issued-ticket-bridge",
+      "operation": "POST /admin/recovery/kernel/execute-approved",
+      "source_file": "routes/recoveryKernelRoutes.js",
+      "classification": "state_change",
+      "owner": "runtime-operations",
+      "rationale": "The private Recovery Action bridge accepts only plan, step, approval, and idempotency references. It issues the execution ticket server-side, reuses Recovery Kernel approval/fence/readback semantics, and forwards ticket references only to the explicitly injected Host Breakglass mutation boundary; the default composition remains fail-closed before provider or database mutation.",
+      "preflight": {
+        "mode": "server_issued_ticket_and_exact_plan_step_preflight"
+      },
+      "approval": {
+        "mode": "durable_single_use_plan_step_approval"
+      },
+      "readback": {
+        "mode": "inline_post_commit",
+        "operation": "GET /admin/recovery/kernel/evidence/{run_id}"
+      },
+      "rollback": {
+        "mode": "not_required",
+        "rationale": "The bridge has no live executor in the default composition; any injected Host Breakglass executor remains subject to its own bounded compensation and readback contract."
+      },
+      "parameter_bindings": {
+        "plan_id": "request.body.plan_id",
+        "plan_hash": "request.body.plan_hash",
+        "step_id": "request.body.step_id",
+        "approval_token": "request.body.approval_token",
+        "idempotency_key": "request.body.idempotency_key",
+        "execution_ticket": "server-issued and internal-only"
+      },
+      "evidence_refs": [
+        "routes/recoveryKernelRoutes.js",
+        "recoveryActionBridge.js",
+        "recoveryKernel.js",
+        "test-recovery-action-bridge.mjs",
+        "test-recovery-action-bridge-system-layer.mjs",
+        "docs/recovery-action-ticket-bridge.md"
+      ]
+    },
+    {
+      "rule_id": "staging-recovery-bootstrap-partial-receipt",
+      "operation": "POST /admin/recovery/staging/bootstrap-partial-receipt",
+      "source_file": "routes/stagingRecoveryAdminRoutes.js",
+      "classification": "state_change",
+      "owner": "runtime-operations",
+      "rationale": "Persists an immutable, secret-free Staging reconciliation receipt when a reserved local grant-repair execution has a partial or unknown outcome.",
+      "preflight": {
+        "mode": "staging_only_secret_free_receipt_validation"
+      },
+      "approval": {
+        "mode": "reserved_server_issued_single_use_execution_ticket"
+      },
+      "readback": {
+        "mode": "inline_post_commit"
+      },
+      "rollback": {
+        "mode": "not_required",
+        "rationale": "The immutable receipt is compensating evidence and cannot authorize replay or any Production, provider, or DNS mutation."
+      },
+      "parameter_bindings": {
+        "receipt": "request.body.receipt"
+      },
+      "evidence_refs": [
+        "routes/stagingRecoveryAdminRoutes.js",
+        "stagingBootstrapExecutionAuthority.js",
+        "test-recovery-execution-ticket.mjs"
+      ]
+    },
+    {
+      "rule_id": "staging-recovery-bootstrap-ticket-finalization",
+      "operation": "POST /admin/recovery/staging/bootstrap-ticket/finalize",
+      "source_file": "routes/stagingRecoveryAdminRoutes.js",
+      "classification": "state_change",
+      "owner": "runtime-operations",
+      "rationale": "Finalizes a previously reserved Staging execution ticket only after the repository-owned local executor supplies canonical same-cycle database grant readback.",
+      "preflight": {
+        "mode": "existing_ticket_reservation_and_exact_binding_preflight"
+      },
+      "approval": {
+        "mode": "reserved_server_issued_single_use_execution_ticket"
+      },
+      "readback": {
+        "mode": "inline_post_commit"
+      },
+      "rollback": {
+        "mode": "not_required",
+        "rationale": "Finalization records an immutable verified outcome after readback; failed or unknown outcomes remain blocked for reconciliation."
+      },
+      "parameter_bindings": {
+        "ticket_id": "request.body.execution_ticket_id",
+        "ticket_hash": "request.body.execution_ticket_hash",
+        "expected_binding": "request.body.expected",
+        "readback": "request.body.readback"
+      },
+      "evidence_refs": [
+        "routes/stagingRecoveryAdminRoutes.js",
+        "stagingBootstrapExecutionAuthority.js",
+        "test-recovery-execution-ticket.mjs"
+      ]
+    },
+    {
+      "rule_id": "staging-recovery-bootstrap-ticket-reservation",
+      "operation": "POST /admin/recovery/staging/bootstrap-ticket/verify",
+      "source_file": "routes/stagingRecoveryAdminRoutes.js",
+      "classification": "state_change",
+      "owner": "runtime-operations",
+      "rationale": "Verifies and atomically reserves a server-issued, exact-SHA, single-use Staging grant-repair ticket before the local executor may mutate the bounded Staging databases.",
+      "preflight": {
+        "mode": "signed_ticket_exact_binding_and_staging_authority_preflight"
+      },
+      "approval": {
+        "mode": "server_issued_single_use_execution_ticket"
+      },
+      "readback": {
+        "mode": "inline_post_commit"
+      },
+      "rollback": {
+        "mode": "not_required",
+        "rationale": "Reservation performs no database mutation; an abandoned or unknown reservation remains fail-closed and requires governed reconciliation."
+      },
+      "parameter_bindings": {
+        "ticket_id": "request.body.execution_ticket_id",
+        "ticket_hash": "request.body.execution_ticket_hash",
+        "expected_binding": "request.body.expected"
+      },
+      "evidence_refs": [
+        "routes/stagingRecoveryAdminRoutes.js",
+        "stagingBootstrapExecutionAuthority.js",
+        "recoveryExecutionTicket.js",
+        "test-recovery-execution-ticket.mjs"
+      ]
+    },
+    {
+      "rule_id": "staging-recovery-gateway-dark-deploy-dry-run",
+      "operation": "POST /admin/recovery/staging/gateway/dark-deploy-dry-run",
+      "source_file": "routes/stagingRecoveryAdminRoutes.js",
+      "classification": "state_change",
+      "owner": "runtime-operations",
+      "rationale": "May persist only a short-lived encrypted Governance execution plan after exact-bound Staging preflight; it cannot contact Cloudflare, mutate DNS, mutate a target database, target Production, or issue apply authority.",
+      "preflight": {
+        "mode": "exact_release_policy_convergence_and_server_resource_binding"
+      },
+      "approval": {
+        "mode": "not_required_for_non_executing_plan_prepare"
+      },
+      "readback": {
+        "mode": "inline_post_commit",
+        "same_cycle": true
+      },
+      "rollback": {
+        "mode": "expiry_without_execution",
+        "rationale": "The encrypted plan is short-lived and non-executable without a separately issued capability envelope, execution nonce, and certified apply authority."
+      },
+      "parameter_bindings": {
+        "expected_source_commit": "request.body.expected_source_commit",
+        "expected_policy_hash": "request.body.expected_policy_hash",
+        "environment_convergence_plan_sha256": "request.body.environment_convergence_plan_sha256",
+        "resource_binding": "server.profile.activation_gateway_staging"
+      },
+      "evidence_refs": [
+        "routes/stagingRecoveryAdminRoutes.js",
+        "stagingRecoveryGatewayPreflight.js",
+        "stagingActivationGatewayApplyAdapter.js",
+        "test-staging-recovery-gateway-preflight.mjs",
+        "test-staging-recovery-route-policy.mjs"
+      ]
+    },
+    {
+      "rule_id": "staging-recovery-gateway-rollout-preview",
+      "operation": "POST /admin/recovery/staging/gateway/rollout-plan",
+      "source_file": "routes/stagingRecoveryAdminRoutes.js",
+      "classification": "preflight",
+      "owner": "runtime-operations",
+      "rationale": "Resolves the profile-owned Staging Gateway target and validates exact source, policy, convergence-plan, workspace, bundle, and provider-readiness evidence without persisting a plan or contacting the provider.",
+      "parameter_bindings": {
+        "expected_source_commit": "request.body.expected_source_commit",
+        "expected_policy_hash": "request.body.expected_policy_hash",
+        "environment_convergence_plan_sha256": "request.body.environment_convergence_plan_sha256",
+        "resource_binding": "server.profile.activation_gateway_staging"
+      },
+      "evidence_refs": [
+        "routes/stagingRecoveryAdminRoutes.js",
+        "stagingRecoveryGatewayPreflight.js",
+        "stagingActivationGatewayApplyAdapter.js",
+        "test-staging-recovery-gateway-preflight.mjs",
+        "test-staging-recovery-route-policy.mjs"
+      ]
+    },
+    {
       "rule_id": "generated-gap-post-admin-release-advisor-runs-routes-selfhealingreleaseadvisorroutes-js",
       "operation": "POST /admin/release-advisor-runs",
       "source_file": "routes/selfHealingReleaseAdvisorRoutes.js",
@@ -2169,8 +2085,22 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-admin-release-operations-operationid-async-deploy-readback-routes-asyncreleasedeployroutes-js",
-      "operation": "POST /admin/release-operations/{operationId}/async-deploy/readback",
+      "rule_id": "generated-gap-post-admin-release-operations-routes-releaseoperationroutes-js",
+      "operation": "POST /admin/release-operations",
+      "source_file": "routes/releaseOperationRoutes.js",
+      "classification": "disabled",
+      "owner": "release-platform",
+      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+      "evidence_refs": [
+        "routes/releaseOperationRoutes.js",
+        "openapi.yaml",
+        "frontend-surface-dispatch.generated.json",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "rule_id": "generated-gap-post-admin-release-operations-operationid-async-deploy-routes-asyncreleasedeployroutes-js",
+      "operation": "POST /admin/release-operations/{operationId}/async-deploy",
       "source_file": "routes/asyncReleaseDeployRoutes.js",
       "classification": "disabled",
       "owner": "release-platform",
@@ -2183,8 +2113,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-admin-release-operations-operationid-async-deploy-routes-asyncreleasedeployroutes-js",
-      "operation": "POST /admin/release-operations/{operationId}/async-deploy",
+      "rule_id": "generated-gap-post-admin-release-operations-operationid-async-deploy-readback-routes-asyncreleasedeployroutes-js",
+      "operation": "POST /admin/release-operations/{operationId}/async-deploy/readback",
       "source_file": "routes/asyncReleaseDeployRoutes.js",
       "classification": "disabled",
       "owner": "release-platform",
@@ -2241,20 +2171,6 @@
     {
       "rule_id": "generated-gap-post-admin-release-operations-operationid-steps-routes-releaseoperationroutes-js",
       "operation": "POST /admin/release-operations/{operationId}/steps",
-      "source_file": "routes/releaseOperationRoutes.js",
-      "classification": "disabled",
-      "owner": "release-platform",
-      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
-      "evidence_refs": [
-        "routes/releaseOperationRoutes.js",
-        "openapi.yaml",
-        "frontend-surface-dispatch.generated.json",
-        "test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
-      "rule_id": "generated-gap-post-admin-release-operations-routes-releaseoperationroutes-js",
-      "operation": "POST /admin/release-operations",
       "source_file": "routes/releaseOperationRoutes.js",
       "classification": "disabled",
       "owner": "release-platform",
@@ -2476,6 +2392,20 @@
       ]
     },
     {
+      "rule_id": "generated-gap-post-admin-resources-resourcekey-routes-resourceapiroutes-js",
+      "operation": "POST /admin/resources/{resourceKey}",
+      "source_file": "routes/resourceApiRoutes.js",
+      "classification": "disabled",
+      "owner": "resource-platform",
+      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+      "evidence_refs": [
+        "routes/resourceApiRoutes.js",
+        "openapi.yaml",
+        "frontend-surface-dispatch.generated.json",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
       "rule_id": "generated-gap-post-admin-resources-resourcekey-resourceid-purge-routes-resourceapiroutes-js",
       "operation": "POST /admin/resources/{resourceKey}/{resourceId}/purge",
       "source_file": "routes/resourceApiRoutes.js",
@@ -2504,17 +2434,91 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-admin-resources-resourcekey-routes-resourceapiroutes-js",
-      "operation": "POST /admin/resources/{resourceKey}",
-      "source_file": "routes/resourceApiRoutes.js",
-      "classification": "disabled",
-      "owner": "resource-platform",
-      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+      "rule_id": "host-breakglass-plan-read-action",
+      "operation": "POST /admin/runtime-bootstrap/plan",
+      "source_file": "routes/adminHostBreakglassRoutes.js",
+      "classification": "read_action",
+      "owner": "runtime-operations",
+      "rationale": "Builds and hashes an immutable repository-owned recovery plan without database or provider mutation.",
       "evidence_refs": [
-        "routes/resourceApiRoutes.js",
-        "openapi.yaml",
-        "frontend-surface-dispatch.generated.json",
-        "test-frontend-surface-coverage-claims.mjs"
+        "hostBreakglassCatalog.js",
+        "test-host-breakglass-catalog.mjs",
+        "test-admin-host-breakglass-routes.mjs"
+      ]
+    },
+    {
+      "rule_id": "host-breakglass-dispatch-external-effect",
+      "operation": "POST /admin/runtime-bootstrap/runs",
+      "source_file": "routes/adminHostBreakglassRoutes.js",
+      "classification": "external_effect",
+      "owner": "runtime-operations",
+      "rationale": "Dispatches only the fixed repository workflow after exact-SHA, catalog, target-source, confirmation, and idempotency validation; execution remains gated by the Production environment and same-cycle readback.",
+      "preflight": {
+        "mode": "inline_contract_validation"
+      },
+      "approval": {
+        "mode": "runtime_authorization_and_environment_approval"
+      },
+      "readback": {
+        "mode": "separate_operation",
+        "operation": "GET /admin/runtime-bootstrap/runs/{correlation_id}"
+      },
+      "rollback": {
+        "mode": "not_required",
+        "rationale": "The API mutation is only a workflow dispatch. Database mutation remains behind environment approval and the bootstrap engine reports partial_possible with same-cycle readback; destructive nonempty rebuild is prohibited."
+      },
+      "parameter_bindings": {
+        "environment_key": "request.body.environment_key",
+        "operation_key": "request.body.operation_key",
+        "expected_sha": "request.body.expected_sha",
+        "correlation_id": "request.body.correlation_id",
+        "run_status": "GET /admin/runtime-bootstrap/runs/{correlation_id}"
+      },
+      "evidence_refs": [
+        "hostBreakglassCatalog.js",
+        "config/host-breakglass-catalog.json",
+        "production-runtime-parity-evidence.yml",
+        "test-host-breakglass-catalog.mjs"
+      ]
+    },
+    {
+      "rule_id": "runtime-breakglass-workflow-dispatch-external-effect",
+      "operation": "POST /admin/runtime-breakglass/runs",
+      "source_file": "routes/runtimeBreakglassRoutes.js",
+      "classification": "external_effect",
+      "owner": "runtime-operations",
+      "rationale": "This protected service-key route may dispatch only the fixed repository-owned Production workflow after environment, contract, exact-SHA, idempotency, and server-controlled target checks. The broker never accepts database names, credentials, arbitrary refs, or workflow paths; runtime_env remains dry-run-only and all mutation modes remain separately gated by the workflow contract.",
+      "preflight": {
+        "mode": "inline_capability_check"
+      },
+      "approval": {
+        "mode": "runtime_authorization"
+      },
+      "readback": {
+        "mode": "inline_post_commit",
+        "same_cycle": true
+      },
+      "rollback": {
+        "mode": "not_required",
+        "rationale": "The catalog dispatches a bounded workflow execution record rather than applying a database or provider mutation in this route; failed or mismatched runs are retained as evidence and cannot be silently replayed because idempotency and exact-run binding are required."
+      },
+      "parameter_bindings": {
+        "environment": "request.body.environment",
+        "contract_key": "request.body.contract_key",
+        "mode": "request.body.mode",
+        "expected_sha": "request.body.expected_sha",
+        "idempotency_key": "request.body.idempotency_key",
+        "correlation_id": "response.correlation_id",
+        "workflow_run_id": "response.workflow_run_id"
+      },
+      "evidence_refs": [
+        "routes/runtimeBreakglassRoutes.js",
+        "runtimeBreakglassBroker.js",
+        "http-generic-api/config/runtime-breakglass-catalog.json",
+        ".github/workflows/production-runtime-parity-evidence.yml",
+        "test-runtime-breakglass-broker.mjs",
+        "docs/governance/runtime-breakglass-environments.md",
+        "openapi.yaml"
       ]
     },
     {
@@ -2630,8 +2634,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-admin-support-tickets-ticket-id-approval-hold-decision-routes-supportticketroutes-js",
-      "operation": "POST /admin/support/tickets/{ticket_id}/approval-hold/decision",
+      "rule_id": "generated-gap-post-admin-support-tickets-ticket-id-approval-hold-routes-supportticketroutes-js",
+      "operation": "POST /admin/support/tickets/{ticket_id}/approval-hold",
       "source_file": "routes/supportTicketRoutes.js",
       "classification": "disabled",
       "owner": "support-platform",
@@ -2644,8 +2648,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-admin-support-tickets-ticket-id-approval-hold-routes-supportticketroutes-js",
-      "operation": "POST /admin/support/tickets/{ticket_id}/approval-hold",
+      "rule_id": "generated-gap-post-admin-support-tickets-ticket-id-approval-hold-decision-routes-supportticketroutes-js",
+      "operation": "POST /admin/support/tickets/{ticket_id}/approval-hold/decision",
       "source_file": "routes/supportTicketRoutes.js",
       "classification": "disabled",
       "owner": "support-platform",
@@ -2678,6 +2682,20 @@
       "classification": "read_action",
       "owner": "support-platform",
       "rationale": "Explicitly classified as a bounded read action from the route path contract; the handler is not granted state-change or external-effect authority by this rule.",
+      "evidence_refs": [
+        "routes/supportTicketRoutes.js",
+        "openapi.yaml",
+        "frontend-surface-dispatch.generated.json",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "rule_id": "generated-gap-post-admin-support-tickets-ticket-id-brand-mapping-remediation-routes-supportticketroutes-js",
+      "operation": "POST /admin/support/tickets/{ticket_id}/brand-mapping-remediation",
+      "source_file": "routes/supportTicketRoutes.js",
+      "classification": "disabled",
+      "owner": "support-platform",
+      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
       "evidence_refs": [
         "routes/supportTicketRoutes.js",
         "openapi.yaml",
@@ -2728,20 +2746,6 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-admin-support-tickets-ticket-id-brand-mapping-remediation-routes-supportticketroutes-js",
-      "operation": "POST /admin/support/tickets/{ticket_id}/brand-mapping-remediation",
-      "source_file": "routes/supportTicketRoutes.js",
-      "classification": "disabled",
-      "owner": "support-platform",
-      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
-      "evidence_refs": [
-        "routes/supportTicketRoutes.js",
-        "openapi.yaml",
-        "frontend-surface-dispatch.generated.json",
-        "test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
       "rule_id": "generated-gap-post-admin-support-tickets-ticket-id-brand-ref-resolution-routes-supportticketroutes-js",
       "operation": "POST /admin/support/tickets/{ticket_id}/brand-ref-resolution",
       "source_file": "routes/supportTicketRoutes.js",
@@ -2756,8 +2760,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-admin-support-tickets-ticket-id-brand-ref-selection-approve-and-complete-routes-supportticketroutes-js",
-      "operation": "POST /admin/support/tickets/{ticket_id}/brand-ref-selection/approve-and-complete",
+      "rule_id": "generated-gap-post-admin-support-tickets-ticket-id-brand-ref-selection-approve-routes-supportticketroutes-js",
+      "operation": "POST /admin/support/tickets/{ticket_id}/brand-ref-selection/approve",
       "source_file": "routes/supportTicketRoutes.js",
       "classification": "disabled",
       "owner": "support-platform",
@@ -2770,8 +2774,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-admin-support-tickets-ticket-id-brand-ref-selection-approve-routes-supportticketroutes-js",
-      "operation": "POST /admin/support/tickets/{ticket_id}/brand-ref-selection/approve",
+      "rule_id": "generated-gap-post-admin-support-tickets-ticket-id-brand-ref-selection-approve-and-complete-routes-supportticketroutes-js",
+      "operation": "POST /admin/support/tickets/{ticket_id}/brand-ref-selection/approve-and-complete",
       "source_file": "routes/supportTicketRoutes.js",
       "classification": "disabled",
       "owner": "support-platform",
@@ -3190,8 +3194,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-admin-support-tickets-ticket-id-step-run-execute-routes-supportticketroutes-js",
-      "operation": "POST /admin/support/tickets/{ticket_id}/step-run/execute",
+      "rule_id": "generated-gap-post-admin-support-tickets-ticket-id-step-run-routes-supportticketroutes-js",
+      "operation": "POST /admin/support/tickets/{ticket_id}/step-run",
       "source_file": "routes/supportTicketRoutes.js",
       "classification": "disabled",
       "owner": "support-platform",
@@ -3204,8 +3208,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-admin-support-tickets-ticket-id-step-run-routes-supportticketroutes-js",
-      "operation": "POST /admin/support/tickets/{ticket_id}/step-run",
+      "rule_id": "generated-gap-post-admin-support-tickets-ticket-id-step-run-execute-routes-supportticketroutes-js",
+      "operation": "POST /admin/support/tickets/{ticket_id}/step-run/execute",
       "source_file": "routes/supportTicketRoutes.js",
       "classification": "disabled",
       "owner": "support-platform",
@@ -3580,6 +3584,20 @@
       ]
     },
     {
+      "rule_id": "generated-gap-post-agent-chain-events-routes-outputsinkroutes-js",
+      "operation": "POST /agent-chain-events",
+      "source_file": "routes/outputSinkRoutes.js",
+      "classification": "disabled",
+      "owner": "frontend-platform",
+      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+      "evidence_refs": [
+        "routes/outputSinkRoutes.js",
+        "openapi.yaml",
+        "frontend-surface-dispatch.generated.json",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
       "rule_id": "generated-gap-post-agent-chain-events-id-dispatch-routes-outputsinkroutes-js",
       "operation": "POST /agent-chain-events/{id}/dispatch",
       "source_file": "routes/outputSinkRoutes.js",
@@ -3596,20 +3614,6 @@
     {
       "rule_id": "generated-gap-post-agent-chain-events-dispatch-pending-routes-outputsinkroutes-js",
       "operation": "POST /agent-chain-events/dispatch-pending",
-      "source_file": "routes/outputSinkRoutes.js",
-      "classification": "disabled",
-      "owner": "frontend-platform",
-      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
-      "evidence_refs": [
-        "routes/outputSinkRoutes.js",
-        "openapi.yaml",
-        "frontend-surface-dispatch.generated.json",
-        "test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
-      "rule_id": "generated-gap-post-agent-chain-events-routes-outputsinkroutes-js",
-      "operation": "POST /agent-chain-events",
       "source_file": "routes/outputSinkRoutes.js",
       "classification": "disabled",
       "owner": "frontend-platform",
@@ -3650,6 +3654,20 @@
       ]
     },
     {
+      "rule_id": "generated-gap-post-agents-routes-agentregistryroutes-js",
+      "operation": "POST /agents",
+      "source_file": "routes/agentRegistryRoutes.js",
+      "classification": "disabled",
+      "owner": "agent-platform",
+      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+      "evidence_refs": [
+        "routes/agentRegistryRoutes.js",
+        "openapi.yaml",
+        "frontend-surface-dispatch.generated.json",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
       "rule_id": "generated-gap-post-agents-id-delegate-routes-agentregistryroutes-js",
       "operation": "POST /agents/{id}/delegate",
       "source_file": "routes/agentRegistryRoutes.js",
@@ -3672,20 +3690,6 @@
       "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
       "evidence_refs": [
         "routes/agentSkillRoutes.js",
-        "openapi.yaml",
-        "frontend-surface-dispatch.generated.json",
-        "test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
-      "rule_id": "generated-gap-post-agents-routes-agentregistryroutes-js",
-      "operation": "POST /agents",
-      "source_file": "routes/agentRegistryRoutes.js",
-      "classification": "disabled",
-      "owner": "agent-platform",
-      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
-      "evidence_refs": [
-        "routes/agentRegistryRoutes.js",
         "openapi.yaml",
         "frontend-surface-dispatch.generated.json",
         "test-frontend-surface-coverage-claims.mjs"
@@ -3746,6 +3750,20 @@
       ]
     },
     {
+      "rule_id": "generated-gap-post-app-connections-routes-appintegrationroutes-js",
+      "operation": "POST /app-connections",
+      "source_file": "routes/appIntegrationRoutes.js",
+      "classification": "disabled",
+      "owner": "integration-platform",
+      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+      "evidence_refs": [
+        "routes/appIntegrationRoutes.js",
+        "openapi.yaml",
+        "frontend-surface-dispatch.generated.json",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
       "rule_id": "generated-gap-post-app-connections-id-execute-routes-appintegrationroutes-js",
       "operation": "POST /app-connections/{id}/execute",
       "source_file": "routes/appIntegrationRoutes.js",
@@ -3776,20 +3794,6 @@
     {
       "rule_id": "generated-gap-post-app-connections-id-grants-routes-appintegrationroutes-js",
       "operation": "POST /app-connections/{id}/grants",
-      "source_file": "routes/appIntegrationRoutes.js",
-      "classification": "disabled",
-      "owner": "integration-platform",
-      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
-      "evidence_refs": [
-        "routes/appIntegrationRoutes.js",
-        "openapi.yaml",
-        "frontend-surface-dispatch.generated.json",
-        "test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
-      "rule_id": "generated-gap-post-app-connections-routes-appintegrationroutes-js",
-      "operation": "POST /app-connections",
       "source_file": "routes/appIntegrationRoutes.js",
       "classification": "disabled",
       "owner": "integration-platform",
@@ -4040,8 +4044,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-browser-runtime-inspect-site-run-routes-browserruntimeroutes-js",
-      "operation": "POST /browser-runtime/inspect-site/run",
+      "rule_id": "generated-gap-post-browser-runtime-inspect-site-routes-browserruntimeroutes-js",
+      "operation": "POST /browser-runtime/inspect-site",
       "source_file": "routes/browserRuntimeRoutes.js",
       "classification": "disabled",
       "owner": "frontend-platform",
@@ -4054,8 +4058,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-browser-runtime-inspect-site-routes-browserruntimeroutes-js",
-      "operation": "POST /browser-runtime/inspect-site",
+      "rule_id": "generated-gap-post-browser-runtime-inspect-site-run-routes-browserruntimeroutes-js",
+      "operation": "POST /browser-runtime/inspect-site/run",
       "source_file": "routes/browserRuntimeRoutes.js",
       "classification": "disabled",
       "owner": "frontend-platform",
@@ -4138,6 +4142,20 @@
       ]
     },
     {
+      "rule_id": "generated-gap-post-connect-api-cms-claims-routes-connectapiroutes-js",
+      "operation": "POST /connect/api/cms/claims",
+      "source_file": "routes/connectApiRoutes.js",
+      "classification": "disabled",
+      "owner": "identity-platform",
+      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+      "evidence_refs": [
+        "routes/connectApiRoutes.js",
+        "openapi.yaml",
+        "frontend-surface-dispatch.generated.json",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
       "rule_id": "generated-gap-post-connect-api-cms-claims-claim-id-approve-routes-connectapiroutes-js",
       "operation": "POST /connect/api/cms/claims/{claim_id}/approve",
       "source_file": "routes/connectApiRoutes.js",
@@ -4154,20 +4172,6 @@
     {
       "rule_id": "generated-gap-post-connect-api-cms-claims-claim-id-reject-routes-connectapiroutes-js",
       "operation": "POST /connect/api/cms/claims/{claim_id}/reject",
-      "source_file": "routes/connectApiRoutes.js",
-      "classification": "disabled",
-      "owner": "identity-platform",
-      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
-      "evidence_refs": [
-        "routes/connectApiRoutes.js",
-        "openapi.yaml",
-        "frontend-surface-dispatch.generated.json",
-        "test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
-      "rule_id": "generated-gap-post-connect-api-cms-claims-routes-connectapiroutes-js",
-      "operation": "POST /connect/api/cms/claims",
       "source_file": "routes/connectApiRoutes.js",
       "classification": "disabled",
       "owner": "identity-platform",
@@ -4278,12 +4282,12 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-connected-execution-sessions-connected-session-id-evidence-reports-routes-connectedexecutionroutes-js",
-      "operation": "POST /connected-execution/sessions/{connected_session_id}/evidence-reports",
+      "rule_id": "generated-gap-post-connected-execution-sessions-routes-connectedexecutionroutes-js",
+      "operation": "POST /connected-execution/sessions",
       "source_file": "routes/connectedExecutionRoutes.js",
-      "classification": "read_action",
+      "classification": "disabled",
       "owner": "identity-platform",
-      "rationale": "Explicitly classified as a bounded read action from the route path contract; the handler is not granted state-change or external-effect authority by this rule.",
+      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
       "evidence_refs": [
         "routes/connectedExecutionRoutes.js",
         "openapi.yaml",
@@ -4292,12 +4296,12 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-connected-execution-sessions-connected-session-id-resume-actions-resume-action-i-routes-connectedexecutionroutes-js",
-      "operation": "POST /connected-execution/sessions/{connected_session_id}/resume-actions/{resume_action_id}/enqueue",
+      "rule_id": "generated-gap-post-connected-execution-sessions-connected-session-id-evidence-reports-routes-connectedexecutionroutes-js",
+      "operation": "POST /connected-execution/sessions/{connected_session_id}/evidence-reports",
       "source_file": "routes/connectedExecutionRoutes.js",
-      "classification": "disabled",
+      "classification": "read_action",
       "owner": "identity-platform",
-      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+      "rationale": "Explicitly classified as a bounded read action from the route path contract; the handler is not granted state-change or external-effect authority by this rule.",
       "evidence_refs": [
         "routes/connectedExecutionRoutes.js",
         "openapi.yaml",
@@ -4320,8 +4324,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-connected-execution-sessions-routes-connectedexecutionroutes-js",
-      "operation": "POST /connected-execution/sessions",
+      "rule_id": "generated-gap-post-connected-execution-sessions-connected-session-id-resume-actions-resume-action-i-routes-connectedexecutionroutes-js",
+      "operation": "POST /connected-execution/sessions/{connected_session_id}/resume-actions/{resume_action_id}/enqueue",
       "source_file": "routes/connectedExecutionRoutes.js",
       "classification": "disabled",
       "owner": "identity-platform",
@@ -4359,6 +4363,42 @@
         "openapi.yaml",
         "frontend-surface-dispatch.generated.json",
         "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "rule_id": "local-connector-installer-redeem-external-effect",
+      "operation": "POST /connector-agent/installer/redeem",
+      "source_file": "routes/connectorAgentRoutes.js",
+      "classification": "external_effect",
+      "owner": "local-connector",
+      "rationale": "The route atomically consumes a one-time purpose-bound capability and returns the exact bound device credentials once for protected local materialization.",
+      "preflight": {
+        "mode": "signed_exact_capability_binding"
+      },
+      "approval": {
+        "mode": "server_issued_one_time_capability"
+      },
+      "readback": {
+        "mode": "inline_post_commit",
+        "same_cycle": true
+      },
+      "rollback": {
+        "mode": "not_required",
+        "rationale": "Consumption is intentionally irreversible; failure requires a newly issued capability and replay is denied."
+      },
+      "parameter_bindings": {
+        "authorization": "request.header.authorization.bearer",
+        "purpose": "server.local_connector_installer_secret_redeem",
+        "audience": "server.connector_agent",
+        "environment": "server.runtime_environment",
+        "config_id": "signed_capability.config_id",
+        "device_id": "signed_capability.device_id"
+      },
+      "evidence_refs": [
+        "routes/connectorAgentRoutes.js",
+        "localConnectorInstallerCapability.js",
+        "test-local-connector-installer-capability.mjs",
+        "openapi.yaml"
       ]
     },
     {
@@ -4544,8 +4584,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-connector-device-id-shell-fetch-upload-routes-connectorproxyroutes-js",
-      "operation": "POST /connector/{device_id}/shell-fetch-upload",
+      "rule_id": "generated-gap-post-connector-device-id-shell-routes-connectorproxyroutes-js",
+      "operation": "POST /connector/{device_id}/shell",
       "source_file": "routes/connectorProxyRoutes.js",
       "classification": "disabled",
       "owner": "identity-platform",
@@ -4558,8 +4598,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-connector-device-id-shell-routes-connectorproxyroutes-js",
-      "operation": "POST /connector/{device_id}/shell",
+      "rule_id": "generated-gap-post-connector-device-id-shell-fetch-upload-routes-connectorproxyroutes-js",
+      "operation": "POST /connector/{device_id}/shell-fetch-upload",
       "source_file": "routes/connectorProxyRoutes.js",
       "classification": "disabled",
       "owner": "identity-platform",
@@ -4642,8 +4682,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-container-overrides-overrideid-approvals-routes-dynamiccontainerauthorityroutes-js",
-      "operation": "POST /container-overrides/{overrideId}/approvals",
+      "rule_id": "generated-gap-post-container-overrides-routes-dynamiccontainerauthorityroutes-js",
+      "operation": "POST /container-overrides",
       "source_file": "routes/dynamicContainerAuthorityRoutes.js",
       "classification": "disabled",
       "owner": "identity-platform",
@@ -4656,8 +4696,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-container-overrides-routes-dynamiccontainerauthorityroutes-js",
-      "operation": "POST /container-overrides",
+      "rule_id": "generated-gap-post-container-overrides-overrideid-approvals-routes-dynamiccontainerauthorityroutes-js",
+      "operation": "POST /container-overrides/{overrideId}/approvals",
       "source_file": "routes/dynamicContainerAuthorityRoutes.js",
       "classification": "disabled",
       "owner": "identity-platform",
@@ -4835,6 +4875,73 @@
         "openapi.yaml",
         "frontend-surface-dispatch.generated.json",
         "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "rule_id": "hostinger-runtime-bootstrap-dry-run-read-action",
+      "operation": "POST /deployment-info/runtime-bootstrap-dry-run",
+      "source_file": "routes/deploymentInfoRoutes.js",
+      "classification": "read_action",
+      "owner": "runtime-operations",
+      "rationale": "The Hostinger runtime bootstrap endpoint is a protected, bounded dry-run read path: it derives hash-only binding evidence and verifies migration readiness without authorizing database mutation.",
+      "evidence_refs": [
+        "routes/deploymentInfoRoutes.js",
+        "runtimeBootstrapContract.js",
+        "test-runtime-gate-deployment-info-parity.mjs",
+        "openapi.yaml"
+      ]
+    },
+    {
+      "rule_id": "hostinger-runtime-bootstrap-role-inspection-read-action",
+      "operation": "POST /deployment-info/runtime-bootstrap-role-dry-run",
+      "source_file": "routes/deploymentInfoRoutes.js",
+      "classification": "read_action",
+      "owner": "runtime-operations",
+      "rationale": "The Hostinger role-local bridge performs only exact-SHA Production full inspection in dry_run mode. It derives existing per-role identities on the host, omits migration selection, and fails closed before connection on identity or credential preflight failure.",
+      "preflight": {
+        "mode": "exact_deployment_identity_and_host_local_role_binding"
+      },
+      "approval": {
+        "mode": "backend_api_key_and_admin_principal"
+      },
+      "readback": {
+        "mode": "inline_sanitized_inspection_receipt",
+        "same_cycle": true
+      },
+      "rollback": {
+        "mode": "not_applicable",
+        "rationale": "The operation is read-only and the adapter rejects migration, grant, SQL, shell, workflow, and other mutation controls."
+      },
+      "parameter_bindings": {
+        "expected_sha": "request.body.expected_sha",
+        "target_key": "request.body.target_key",
+        "target_source": "server.host_local_role_env",
+        "migration": "server.null"
+      },
+      "evidence_refs": [
+        "routes/deploymentInfoRoutes.js",
+        "hostLocalRuntimeInspection.js",
+        "runtimeBootstrapContract.js",
+        "test-runtime-gate-deployment-info-parity.mjs",
+        "test-host-local-runtime-inspection.mjs",
+        "openapi.yaml",
+        "docs/governance/hostinger-runtime-bootstrap.md"
+      ]
+    },
+    {
+      "rule_id": "runtime-breakglass-plan-read-action",
+      "operation": "POST /deployment-info/runtime-breakglass-plan",
+      "source_file": "routes/runtimeBreakglassRoutes.js",
+      "classification": "read_action",
+      "owner": "runtime-operations",
+      "rationale": "The environment-scoped Breakglass plan endpoint only resolves the repository-owned contract matrix and safe deployment metadata. It does not dispatch GitHub, connect to a database, mutate state, or expose target identifiers.",
+      "evidence_refs": [
+        "routes/runtimeBreakglassRoutes.js",
+        "runtimeBreakglassBroker.js",
+        "http-generic-api/config/runtime-breakglass-catalog.json",
+        "test-runtime-breakglass-broker.mjs",
+        "docs/governance/runtime-breakglass-environments.md",
+        "openapi.yaml"
       ]
     },
     {
@@ -5076,8 +5183,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-developer-apps-id-credentials-routes-developerapiroutes-js",
-      "operation": "POST /developer-apps/{id}/credentials",
+      "rule_id": "generated-gap-post-developer-apps-routes-developerapiroutes-js",
+      "operation": "POST /developer-apps",
       "source_file": "routes/developerApiRoutes.js",
       "classification": "disabled",
       "owner": "developer-platform",
@@ -5090,8 +5197,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-developer-apps-routes-developerapiroutes-js",
-      "operation": "POST /developer-apps",
+      "rule_id": "generated-gap-post-developer-apps-id-credentials-routes-developerapiroutes-js",
+      "operation": "POST /developer-apps/{id}/credentials",
       "source_file": "routes/developerApiRoutes.js",
       "classification": "disabled",
       "owner": "developer-platform",
@@ -5258,6 +5365,20 @@
       ]
     },
     {
+      "rule_id": "generated-gap-post-gpt-sessions-id-conversation-ref-routes-gptsessionroutes-js",
+      "operation": "POST /gpt/sessions/{id}/conversation-ref",
+      "source_file": "routes/gptSessionRoutes.js",
+      "classification": "disabled",
+      "owner": "agent-platform",
+      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+      "evidence_refs": [
+        "routes/gptSessionRoutes.js",
+        "openapi.yaml",
+        "frontend-surface-dispatch.generated.json",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
       "rule_id": "generated-gap-post-gpt-sessions-id-conversation-ref-capture-current-routes-gptsessionroutes-js",
       "operation": "POST /gpt/sessions/{id}/conversation-ref/capture-current",
       "source_file": "routes/gptSessionRoutes.js",
@@ -5274,20 +5395,6 @@
     {
       "rule_id": "generated-gap-post-gpt-sessions-id-conversation-ref-mark-primary-routes-gptsessionroutes-js",
       "operation": "POST /gpt/sessions/{id}/conversation-ref/mark-primary",
-      "source_file": "routes/gptSessionRoutes.js",
-      "classification": "disabled",
-      "owner": "agent-platform",
-      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
-      "evidence_refs": [
-        "routes/gptSessionRoutes.js",
-        "openapi.yaml",
-        "frontend-surface-dispatch.generated.json",
-        "test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
-      "rule_id": "generated-gap-post-gpt-sessions-id-conversation-ref-routes-gptsessionroutes-js",
-      "operation": "POST /gpt/sessions/{id}/conversation-ref",
       "source_file": "routes/gptSessionRoutes.js",
       "classification": "disabled",
       "owner": "agent-platform",
@@ -5487,8 +5594,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-jobs-jobid-tick-routes-jobroutes-js",
-      "operation": "POST /jobs/{jobId}/tick",
+      "rule_id": "generated-gap-post-jobs-routes-jobroutes-js",
+      "operation": "POST /jobs",
       "source_file": "routes/jobRoutes.js",
       "classification": "disabled",
       "owner": "developer-platform",
@@ -5501,8 +5608,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-jobs-routes-jobroutes-js",
-      "operation": "POST /jobs",
+      "rule_id": "generated-gap-post-jobs-jobid-tick-routes-jobroutes-js",
+      "operation": "POST /jobs/{jobId}/tick",
       "source_file": "routes/jobRoutes.js",
       "classification": "disabled",
       "owner": "developer-platform",
@@ -5557,6 +5664,20 @@
       ]
     },
     {
+      "rule_id": "generated-gap-post-local-connector-install-routes-localconnectorinstallroutes-js",
+      "operation": "POST /local-connector/install",
+      "source_file": "routes/localConnectorInstallRoutes.js",
+      "classification": "disabled",
+      "owner": "identity-platform",
+      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+      "evidence_refs": [
+        "routes/localConnectorInstallRoutes.js",
+        "openapi.yaml",
+        "frontend-surface-dispatch.generated.json",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
       "rule_id": "generated-gap-post-local-connector-install-device-download-link-routes-localconnectorinstallroutes-js",
       "operation": "POST /local-connector/install/device-download-link",
       "source_file": "routes/localConnectorInstallRoutes.js",
@@ -5573,20 +5694,6 @@
     {
       "rule_id": "generated-gap-post-local-connector-install-download-link-routes-localconnectorinstallroutes-js",
       "operation": "POST /local-connector/install/download-link",
-      "source_file": "routes/localConnectorInstallRoutes.js",
-      "classification": "disabled",
-      "owner": "identity-platform",
-      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
-      "evidence_refs": [
-        "routes/localConnectorInstallRoutes.js",
-        "openapi.yaml",
-        "frontend-surface-dispatch.generated.json",
-        "test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
-      "rule_id": "generated-gap-post-local-connector-install-routes-localconnectorinstallroutes-js",
-      "operation": "POST /local-connector/install",
       "source_file": "routes/localConnectorInstallRoutes.js",
       "classification": "disabled",
       "owner": "identity-platform",
@@ -5669,8 +5776,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-local-manager-device-desktop-commands-commandid-complete-routes-localmanagerdesktopcommandroutes-js",
-      "operation": "POST /local-manager/device/desktop-commands/{commandId}/complete",
+      "rule_id": "generated-gap-post-local-manager-device-desktop-commands-routes-localmanagerdesktopcommandroutes-js",
+      "operation": "POST /local-manager/device/desktop-commands",
       "source_file": "routes/localManagerDesktopCommandRoutes.js",
       "classification": "disabled",
       "owner": "local-manager",
@@ -5683,8 +5790,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-local-manager-device-desktop-commands-routes-localmanagerdesktopcommandroutes-js",
-      "operation": "POST /local-manager/device/desktop-commands",
+      "rule_id": "generated-gap-post-local-manager-device-desktop-commands-commandid-complete-routes-localmanagerdesktopcommandroutes-js",
+      "operation": "POST /local-manager/device/desktop-commands/{commandId}/complete",
       "source_file": "routes/localManagerDesktopCommandRoutes.js",
       "classification": "disabled",
       "owner": "local-manager",
@@ -5725,8 +5832,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-logic-packs-id-attach-routes-logicroutes-js",
-      "operation": "POST /logic-packs/{id}/attach",
+      "rule_id": "generated-gap-post-logic-packs-routes-logicroutes-js",
+      "operation": "POST /logic-packs",
       "source_file": "routes/logicRoutes.js",
       "classification": "disabled",
       "owner": "frontend-platform",
@@ -5739,8 +5846,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-logic-packs-routes-logicroutes-js",
-      "operation": "POST /logic-packs",
+      "rule_id": "generated-gap-post-logic-packs-id-attach-routes-logicroutes-js",
+      "operation": "POST /logic-packs/{id}/attach",
       "source_file": "routes/logicRoutes.js",
       "classification": "disabled",
       "owner": "frontend-platform",
@@ -5977,20 +6084,6 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-me-support-tickets-ticket-id-events-routes-supportticketroutes-js",
-      "operation": "POST /me/support/tickets/{ticket_id}/events",
-      "source_file": "routes/supportTicketRoutes.js",
-      "classification": "disabled",
-      "owner": "support-platform",
-      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
-      "evidence_refs": [
-        "routes/supportTicketRoutes.js",
-        "openapi.yaml",
-        "frontend-surface-dispatch.generated.json",
-        "test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
       "rule_id": "support-ticket-lifecycle-source-post-me-support-tickets-disabled",
       "operation": "POST /me/support/tickets",
       "source_file": "routes/supportTicketLifecycleIntegrityRoutes.js",
@@ -6014,6 +6107,48 @@
         "routes/supportTicketLifecycleIntegrityRoutes.js",
         "test-frontend-surface-coverage-claims.mjs",
         "frontend-surface-dispatch.generated.json"
+      ]
+    },
+    {
+      "rule_id": "generated-gap-post-me-support-tickets-ticket-id-events-routes-supportticketroutes-js",
+      "operation": "POST /me/support/tickets/{ticket_id}/events",
+      "source_file": "routes/supportTicketRoutes.js",
+      "classification": "disabled",
+      "owner": "support-platform",
+      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+      "evidence_refs": [
+        "routes/supportTicketRoutes.js",
+        "openapi.yaml",
+        "frontend-surface-dispatch.generated.json",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "rule_id": "generated-gap-post-me-workspaces-routes-connectroutes-js",
+      "operation": "POST /me/workspaces",
+      "source_file": "routes/connectRoutes.js",
+      "classification": "disabled",
+      "owner": "identity-platform",
+      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+      "evidence_refs": [
+        "routes/connectRoutes.js",
+        "openapi.yaml",
+        "frontend-surface-dispatch.generated.json",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "rule_id": "generated-gap-post-me-workspaces-tenant-id-access-requests-routes-tenantlifecycleroutes-js",
+      "operation": "POST /me/workspaces/{tenant_id}/access-requests",
+      "source_file": "routes/tenantLifecycleRoutes.js",
+      "classification": "disabled",
+      "owner": "identity-platform",
+      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+      "evidence_refs": [
+        "routes/tenantLifecycleRoutes.js",
+        "openapi.yaml",
+        "frontend-surface-dispatch.generated.json",
+        "test-frontend-surface-coverage-claims.mjs"
       ]
     },
     {
@@ -6047,20 +6182,6 @@
     {
       "rule_id": "generated-gap-post-me-workspaces-tenant-id-access-requests-request-id-reject-routes-tenantlifecycleroutes-js",
       "operation": "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/reject",
-      "source_file": "routes/tenantLifecycleRoutes.js",
-      "classification": "disabled",
-      "owner": "identity-platform",
-      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
-      "evidence_refs": [
-        "routes/tenantLifecycleRoutes.js",
-        "openapi.yaml",
-        "frontend-surface-dispatch.generated.json",
-        "test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
-      "rule_id": "generated-gap-post-me-workspaces-tenant-id-access-requests-routes-tenantlifecycleroutes-js",
-      "operation": "POST /me/workspaces/{tenant_id}/access-requests",
       "source_file": "routes/tenantLifecycleRoutes.js",
       "classification": "disabled",
       "owner": "identity-platform",
@@ -6115,6 +6236,20 @@
       ]
     },
     {
+      "rule_id": "generated-gap-post-me-workspaces-tenant-id-invitations-routes-tenantlifecycleroutes-js",
+      "operation": "POST /me/workspaces/{tenant_id}/invitations",
+      "source_file": "routes/tenantLifecycleRoutes.js",
+      "classification": "disabled",
+      "owner": "identity-platform",
+      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+      "evidence_refs": [
+        "routes/tenantLifecycleRoutes.js",
+        "openapi.yaml",
+        "frontend-surface-dispatch.generated.json",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
       "rule_id": "generated-gap-post-me-workspaces-tenant-id-invitations-invitation-id-resend-routes-tenantlifecycleroutes-js",
       "operation": "POST /me/workspaces/{tenant_id}/invitations/{invitation_id}/resend",
       "source_file": "routes/tenantLifecycleRoutes.js",
@@ -6157,20 +6292,6 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-me-workspaces-tenant-id-invitations-routes-tenantlifecycleroutes-js",
-      "operation": "POST /me/workspaces/{tenant_id}/invitations",
-      "source_file": "routes/tenantLifecycleRoutes.js",
-      "classification": "disabled",
-      "owner": "identity-platform",
-      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
-      "evidence_refs": [
-        "routes/tenantLifecycleRoutes.js",
-        "openapi.yaml",
-        "frontend-surface-dispatch.generated.json",
-        "test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
       "rule_id": "generated-gap-post-me-workspaces-tenant-id-members-user-id-remove-routes-tenantlifecycleroutes-js",
       "operation": "POST /me/workspaces/{tenant_id}/members/{user_id}/remove",
       "source_file": "routes/tenantLifecycleRoutes.js",
@@ -6199,8 +6320,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-me-workspaces-tenant-id-resource-grants-grant-id-revoke-routes-workspaceresourceroutes-js",
-      "operation": "POST /me/workspaces/{tenant_id}/resource-grants/{grant_id}/revoke",
+      "rule_id": "generated-gap-post-me-workspaces-tenant-id-resource-grants-routes-workspaceresourceroutes-js",
+      "operation": "POST /me/workspaces/{tenant_id}/resource-grants",
       "source_file": "routes/workspaceResourceRoutes.js",
       "classification": "disabled",
       "owner": "resource-platform",
@@ -6213,8 +6334,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-me-workspaces-tenant-id-resource-grants-routes-workspaceresourceroutes-js",
-      "operation": "POST /me/workspaces/{tenant_id}/resource-grants",
+      "rule_id": "generated-gap-post-me-workspaces-tenant-id-resource-grants-grant-id-revoke-routes-workspaceresourceroutes-js",
+      "operation": "POST /me/workspaces/{tenant_id}/resource-grants/{grant_id}/revoke",
       "source_file": "routes/workspaceResourceRoutes.js",
       "classification": "disabled",
       "owner": "resource-platform",
@@ -6235,20 +6356,6 @@
       "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
       "evidence_refs": [
         "routes/dynamicContainerTeamRoutes.js",
-        "openapi.yaml",
-        "frontend-surface-dispatch.generated.json",
-        "test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
-      "rule_id": "generated-gap-post-me-workspaces-routes-connectroutes-js",
-      "operation": "POST /me/workspaces",
-      "source_file": "routes/connectRoutes.js",
-      "classification": "disabled",
-      "owner": "identity-platform",
-      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
-      "evidence_refs": [
-        "routes/connectRoutes.js",
         "openapi.yaml",
         "frontend-surface-dispatch.generated.json",
         "test-frontend-surface-coverage-claims.mjs"
@@ -6436,6 +6543,20 @@
       ]
     },
     {
+      "rule_id": "generated-gap-post-platform-agent-governance-handoffs-routes-agentgovernanceroutes-js",
+      "operation": "POST /platform/agent-governance/handoffs",
+      "source_file": "routes/agentGovernanceRoutes.js",
+      "classification": "disabled",
+      "owner": "agent-platform",
+      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+      "evidence_refs": [
+        "routes/agentGovernanceRoutes.js",
+        "openapi.yaml",
+        "frontend-surface-dispatch.generated.json",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
       "rule_id": "generated-gap-post-platform-agent-governance-handoffs-state-id-consume-routes-agentgovernanceroutes-js",
       "operation": "POST /platform/agent-governance/handoffs/{state_id}/consume",
       "source_file": "routes/agentGovernanceRoutes.js",
@@ -6452,20 +6573,6 @@
     {
       "rule_id": "generated-gap-post-platform-agent-governance-handoffs-state-id-revoke-routes-agentgovernanceroutes-js",
       "operation": "POST /platform/agent-governance/handoffs/{state_id}/revoke",
-      "source_file": "routes/agentGovernanceRoutes.js",
-      "classification": "disabled",
-      "owner": "agent-platform",
-      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
-      "evidence_refs": [
-        "routes/agentGovernanceRoutes.js",
-        "openapi.yaml",
-        "frontend-surface-dispatch.generated.json",
-        "test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
-      "rule_id": "generated-gap-post-platform-agent-governance-handoffs-routes-agentgovernanceroutes-js",
-      "operation": "POST /platform/agent-governance/handoffs",
       "source_file": "routes/agentGovernanceRoutes.js",
       "classification": "disabled",
       "owner": "agent-platform",
@@ -6506,8 +6613,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-platform-agent-governance-research-plans-plan-id-run-routes-agentgovernanceroutes-js",
-      "operation": "POST /platform/agent-governance/research-plans/{plan_id}/run",
+      "rule_id": "generated-gap-post-platform-agent-governance-research-plans-routes-agentgovernanceroutes-js",
+      "operation": "POST /platform/agent-governance/research-plans",
       "source_file": "routes/agentGovernanceRoutes.js",
       "classification": "disabled",
       "owner": "agent-platform",
@@ -6520,8 +6627,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-platform-agent-governance-research-plans-routes-agentgovernanceroutes-js",
-      "operation": "POST /platform/agent-governance/research-plans",
+      "rule_id": "generated-gap-post-platform-agent-governance-research-plans-plan-id-run-routes-agentgovernanceroutes-js",
+      "operation": "POST /platform/agent-governance/research-plans/{plan_id}/run",
       "source_file": "routes/agentGovernanceRoutes.js",
       "classification": "disabled",
       "owner": "agent-platform",
@@ -6996,6 +7103,19 @@
       ]
     },
     {
+      "rule_id": "platform-health-scorecard-read-action",
+      "operation": "POST /platform/health/scorecard",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-runtime",
+      "rationale": "The endpoint reads the aggregate platform health scorecard view and optional component rows with SELECT statements only. Snapshot recording is exposed as a separate operation.",
+      "evidence_refs": [
+        "platformHealthScorecard.js",
+        "test-platform-plugin-public-rest-dispatch.mjs",
+        "openapi.yaml"
+      ]
+    },
+    {
       "rule_id": "platform-health-scorecard-ledger-hygiene-read-action",
       "operation": "POST /platform/health/scorecard/ledger-hygiene",
       "source_file": "routes/platformPluginRoutes.js",
@@ -7042,19 +7162,6 @@
       "classification": "read_action",
       "owner": "platform-runtime",
       "rationale": "The endpoint reads tenant rollout-readiness rows and summarizes eligibility in memory. It cannot enable a tenant rollout, change policy, or perform an external write.",
-      "evidence_refs": [
-        "platformHealthScorecard.js",
-        "test-platform-plugin-public-rest-dispatch.mjs",
-        "openapi.yaml"
-      ]
-    },
-    {
-      "rule_id": "platform-health-scorecard-read-action",
-      "operation": "POST /platform/health/scorecard",
-      "source_file": "routes/platformPluginRoutes.js",
-      "classification": "read_action",
-      "owner": "platform-runtime",
-      "rationale": "The endpoint reads the aggregate platform health scorecard view and optional component rows with SELECT statements only. Snapshot recording is exposed as a separate operation.",
       "evidence_refs": [
         "platformHealthScorecard.js",
         "test-platform-plugin-public-rest-dispatch.mjs",
@@ -7157,6 +7264,20 @@
       ]
     },
     {
+      "rule_id": "generated-gap-post-platform-plugins-contributions-routes-platformpluginroutes-js",
+      "operation": "POST /platform/plugins/contributions",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "disabled",
+      "owner": "plugin-platform",
+      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+      "evidence_refs": [
+        "routes/platformPluginRoutes.js",
+        "openapi.yaml",
+        "frontend-surface-dispatch.generated.json",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
       "rule_id": "generated-gap-post-platform-plugins-contributions-activate-private-routes-platformpluginroutes-js",
       "operation": "POST /platform/plugins/contributions/activate-private",
       "source_file": "routes/platformPluginRoutes.js",
@@ -7226,20 +7347,6 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-platform-plugins-contributions-routes-platformpluginroutes-js",
-      "operation": "POST /platform/plugins/contributions",
-      "source_file": "routes/platformPluginRoutes.js",
-      "classification": "disabled",
-      "owner": "plugin-platform",
-      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
-      "evidence_refs": [
-        "routes/platformPluginRoutes.js",
-        "openapi.yaml",
-        "frontend-surface-dispatch.generated.json",
-        "test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
       "rule_id": "generated-gap-post-platform-plugins-dispatch-rest-routes-platformpluginroutes-js",
       "operation": "POST /platform/plugins/dispatch-rest",
       "source_file": "routes/platformPluginRoutes.js",
@@ -7254,8 +7361,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-platform-plugins-install-policy-routes-platformpluginroutes-js",
-      "operation": "POST /platform/plugins/install-policy",
+      "rule_id": "generated-gap-post-platform-plugins-install-routes-platformpluginroutes-js",
+      "operation": "POST /platform/plugins/install",
       "source_file": "routes/platformPluginRoutes.js",
       "classification": "disabled",
       "owner": "plugin-platform",
@@ -7268,8 +7375,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-platform-plugins-install-routes-platformpluginroutes-js",
-      "operation": "POST /platform/plugins/install",
+      "rule_id": "generated-gap-post-platform-plugins-install-policy-routes-platformpluginroutes-js",
+      "operation": "POST /platform/plugins/install-policy",
       "source_file": "routes/platformPluginRoutes.js",
       "classification": "disabled",
       "owner": "plugin-platform",
@@ -7537,6 +7644,45 @@
         "routes/platformPluginRoutes.js",
         "openapi.yaml",
         "frontend-surface-dispatch.generated.json",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "rule_id": "wordpress-staging-plugin-deploy-external-effect",
+      "operation": "POST /platform/remote-runtime/wordpress/staging/deploy-plugin",
+      "source_file": "routes/wordpressStagingPluginDeployRoutes.js",
+      "classification": "external_effect",
+      "owner": "runtime-operations",
+      "rationale": "Dry-run performs bounded exact-artifact and server-owned Staging preflight only; apply can replace the MCP Adapter and Control Plane on the unique server-resolved ETG Staging target, so the operation is externally consequential and must remain bound to the feature gate, human approval reason, exact capability envelope, same-cycle provenance readback, and dual-plugin rollback.",
+      "preflight": {
+        "mode": "exact_reviewed_artifact_server_owned_target_and_live_site_profile"
+      },
+      "approval": {
+        "mode": "feature_gate_human_reason_and_exact_capability_envelope_for_apply"
+      },
+      "readback": {
+        "mode": "inline_post_commit",
+        "same_cycle": true
+      },
+      "rollback": {
+        "mode": "dual_plugin_backup_restore_on_failed_apply_or_exact_readback",
+        "rationale": "Both existing plugin directories are backed up before apply and restored when deployment or exact provenance readback fails."
+      },
+      "parameter_bindings": {
+        "expected_head_sha": "request.body.expected_head_sha",
+        "dry_run": "request.body.dry_run_default_true",
+        "approval_reason": "request.body.approval_reason_apply_only",
+        "capability_envelope": "request.body + server.capability_resolution_envelope_ledger",
+        "target": "server.remote_runtime.unique_validated_etg_staging_target",
+        "artifact": "server.github_actions.exact_head_general_distribution_kit"
+      },
+      "evidence_refs": [
+        "routes/wordpressStagingPluginDeployRoutes.js",
+        "wordpressStagingPluginDeployExecutor.js",
+        "hostingerSshDeployExecutor.js",
+        "openapi/wordpress-staging-plugin-deploy.yaml",
+        "migrations/20260920_wordpress_staging_plugin_deploy_v2_authority.sql",
+        "test-hostinger-ssh-deploy-executor.mjs",
         "test-frontend-surface-coverage-claims.mjs"
       ]
     },
@@ -8468,6 +8614,20 @@
       ]
     },
     {
+      "rule_id": "generated-gap-post-tenant-resolution-cases-routes-activationawarenessroutes-js",
+      "operation": "POST /tenant/resolution/cases",
+      "source_file": "routes/activationAwarenessRoutes.js",
+      "classification": "disabled",
+      "owner": "activation-platform",
+      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+      "evidence_refs": [
+        "routes/activationAwarenessRoutes.js",
+        "openapi.yaml",
+        "frontend-surface-dispatch.generated.json",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
       "rule_id": "generated-gap-post-tenant-resolution-cases-caseid-diagnostics-routes-activationawarenessroutes-js",
       "operation": "POST /tenant/resolution/cases/{caseId}/diagnostics",
       "source_file": "routes/activationAwarenessRoutes.js",
@@ -8538,20 +8698,6 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-tenant-resolution-cases-routes-activationawarenessroutes-js",
-      "operation": "POST /tenant/resolution/cases",
-      "source_file": "routes/activationAwarenessRoutes.js",
-      "classification": "disabled",
-      "owner": "activation-platform",
-      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
-      "evidence_refs": [
-        "routes/activationAwarenessRoutes.js",
-        "openapi.yaml",
-        "frontend-surface-dispatch.generated.json",
-        "test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
       "rule_id": "generated-gap-post-tenant-resolution-skill-approvals-approvalkey-decision-routes-activationawarenessroutes-js",
       "operation": "POST /tenant/resolution/skill-approvals/{approvalKey}/decision",
       "source_file": "routes/activationAwarenessRoutes.js",
@@ -8574,6 +8720,20 @@
       "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
       "evidence_refs": [
         "routes/hostingerStorageTenantRoutes.js",
+        "openapi.yaml",
+        "frontend-surface-dispatch.generated.json",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "rule_id": "generated-gap-post-tenants-routes-tenantsroutes-js",
+      "operation": "POST /tenants",
+      "source_file": "routes/tenantsRoutes.js",
+      "classification": "disabled",
+      "owner": "frontend-platform",
+      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+      "evidence_refs": [
+        "routes/tenantsRoutes.js",
         "openapi.yaml",
         "frontend-surface-dispatch.generated.json",
         "test-frontend-surface-coverage-claims.mjs"
@@ -8706,20 +8866,6 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-tenants-routes-tenantsroutes-js",
-      "operation": "POST /tenants",
-      "source_file": "routes/tenantsRoutes.js",
-      "classification": "disabled",
-      "owner": "frontend-platform",
-      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
-      "evidence_refs": [
-        "routes/tenantsRoutes.js",
-        "openapi.yaml",
-        "frontend-surface-dispatch.generated.json",
-        "test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
       "rule_id": "generated-gap-post-threads-routes-customerroutes-js",
       "operation": "POST /threads",
       "source_file": "routes/customerRoutes.js",
@@ -8790,6 +8936,20 @@
       ]
     },
     {
+      "rule_id": "generated-gap-post-uploads-routes-uploadroutes-js",
+      "operation": "POST /uploads",
+      "source_file": "routes/uploadRoutes.js",
+      "classification": "disabled",
+      "owner": "frontend-platform",
+      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+      "evidence_refs": [
+        "routes/uploadRoutes.js",
+        "openapi.yaml",
+        "frontend-surface-dispatch.generated.json",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
       "rule_id": "generated-gap-post-uploads-upload-id-content-routes-uploadroutes-js",
       "operation": "POST /uploads/{upload_id}/content",
       "source_file": "routes/uploadRoutes.js",
@@ -8832,20 +8992,6 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-uploads-routes-uploadroutes-js",
-      "operation": "POST /uploads",
-      "source_file": "routes/uploadRoutes.js",
-      "classification": "disabled",
-      "owner": "frontend-platform",
-      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
-      "evidence_refs": [
-        "routes/uploadRoutes.js",
-        "openapi.yaml",
-        "frontend-surface-dispatch.generated.json",
-        "test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
       "rule_id": "generated-gap-post-usage-record-routes-observabilityroutes-js",
       "operation": "POST /usage/record",
       "source_file": "routes/observabilityRoutes.js",
@@ -8854,6 +9000,20 @@
       "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
       "evidence_refs": [
         "routes/observabilityRoutes.js",
+        "openapi.yaml",
+        "frontend-surface-dispatch.generated.json",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "rule_id": "generated-gap-post-users-routes-identityroutes-js",
+      "operation": "POST /users",
+      "source_file": "routes/identityRoutes.js",
+      "classification": "disabled",
+      "owner": "frontend-platform",
+      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+      "evidence_refs": [
+        "routes/identityRoutes.js",
         "openapi.yaml",
         "frontend-surface-dispatch.generated.json",
         "test-frontend-surface-coverage-claims.mjs"
@@ -8888,14 +9048,137 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-users-routes-identityroutes-js",
-      "operation": "POST /users",
-      "source_file": "routes/identityRoutes.js",
+      "rule_id": "managed-google-oauth-redeem-state-change",
+      "operation": "POST /v1/google/oauth/redeem",
+      "source_file": "routes/managedGoogleOAuthRoutes.js",
+      "classification": "state_change",
+      "owner": "identity-platform",
+      "rationale": "Atomically consumes one exact site-bound, verifier-bound, single-use OAuth handoff and erases the encrypted broker token envelope before returning the credential material once to the enrolled WordPress site.",
+      "preflight": {
+        "mode": "site_hmac_exact_binding_handoff_hash_and_verifier"
+      },
+      "approval": {
+        "mode": "google_user_consent_and_server_issued_one_time_handoff"
+      },
+      "readback": {
+        "mode": "transactional_redeemed_status_and_token_envelope_erasure",
+        "same_cycle": true,
+        "before_commit": true
+      },
+      "rollback": {
+        "mode": "not_required",
+        "rationale": "Handoff consumption is intentionally irreversible and replay-denied. A failed or lost delivery requires a newly authorized OAuth session rather than restoring a consumed credential handoff."
+      },
+      "parameter_bindings": {
+        "session_id": "request.body.session_id",
+        "handoff_code": "request.body.handoff_code",
+        "verifier": "request.body.verifier",
+        "site_uuid": "request.body.site_uuid",
+        "origin": "request.body.origin",
+        "callback_uri": "request.body.callback_uri",
+        "site_key_id": "request.header.x-mad4b-site-key-id",
+        "site_signature": "request.header.x-mad4b-site-signature"
+      },
+      "evidence_refs": [
+        "routes/managedGoogleOAuthRoutes.js",
+        "managedGoogleOAuthBroker.js",
+        "managedGoogleOAuthSiteRequestAuth.js",
+        "migrations/20260920_managed_google_oauth_broker_v1.sql",
+        "test-managed-google-oauth-broker.mjs",
+        "docs/managed-google-oauth-broker.md",
+        "openapi/managed-google-oauth.yaml"
+      ]
+    },
+    {
+      "rule_id": "managed-google-oauth-refresh-external-effect",
+      "operation": "POST /v1/google/oauth/refresh",
+      "source_file": "routes/managedGoogleOAuthRoutes.js",
+      "classification": "external_effect",
+      "owner": "identity-platform",
+      "rationale": "Uses the enrolled site's existing Google refresh grant through the broker-only Google OAuth client to obtain a fresh access token. Scope escalation is rejected and the operation does not mutate Google Drive content.",
+      "preflight": {
+        "mode": "site_hmac_exact_binding_refresh_grant_and_scope_contract"
+      },
+      "approval": {
+        "mode": "existing_google_refresh_grant"
+      },
+      "readback": {
+        "mode": "provider_token_response_scope_validation_and_secret_safe_audit",
+        "same_cycle": true
+      },
+      "rollback": {
+        "mode": "not_required",
+        "rationale": "OAuth access-token refresh does not mutate Drive content or revoke the underlying refresh grant. Failure is fail-closed and the existing refresh grant remains the authority for a later retry."
+      },
+      "parameter_bindings": {
+        "site_uuid": "request.body.site_uuid",
+        "origin": "request.body.origin",
+        "access_mode": "request.body.access_mode",
+        "requested_scope": "request.body.requested_scope",
+        "refresh_token": "request.body.refresh_token",
+        "site_key_id": "request.header.x-mad4b-site-key-id",
+        "site_signature": "request.header.x-mad4b-site-signature"
+      },
+      "evidence_refs": [
+        "routes/managedGoogleOAuthRoutes.js",
+        "managedGoogleOAuthBroker.js",
+        "managedGoogleOAuthProtocolPolicy.js",
+        "managedGoogleOAuthSiteRequestAuth.js",
+        "test-managed-google-oauth-broker.mjs",
+        "docs/managed-google-oauth-broker.md",
+        "openapi/managed-google-oauth.yaml"
+      ]
+    },
+    {
+      "rule_id": "managed-google-oauth-session-state-change",
+      "operation": "POST /v1/google/oauth/session",
+      "source_file": "routes/managedGoogleOAuthRoutes.js",
+      "classification": "state_change",
+      "owner": "identity-platform",
+      "rationale": "Creates one short-lived, exact-site-bound Managed Google OAuth broker session after HMAC authentication, scope contract validation, and verifier-challenge binding. It does not grant Google access; Google user consent remains a later provider step.",
+      "preflight": {
+        "mode": "site_hmac_exact_binding_scope_and_verifier_challenge"
+      },
+      "approval": {
+        "mode": "site_admin_intent_then_google_user_consent"
+      },
+      "readback": {
+        "mode": "transactional_session_persistence_receipt",
+        "same_cycle": true,
+        "before_commit": true
+      },
+      "rollback": {
+        "mode": "ttl_expiry_or_provider_denial",
+        "rationale": "The pre-consent session is bounded by TTL and becomes unusable after expiry or provider denial; no Google token or Drive content mutation exists to compensate."
+      },
+      "parameter_bindings": {
+        "site_uuid": "request.body.site_uuid",
+        "origin": "request.body.origin",
+        "callback_uri": "request.body.callback_uri",
+        "access_mode": "request.body.access_mode",
+        "requested_scope": "request.body.requested_scope",
+        "verifier_challenge": "request.body.verifier_challenge",
+        "site_key_id": "request.header.x-mad4b-site-key-id",
+        "site_signature": "request.header.x-mad4b-site-signature"
+      },
+      "evidence_refs": [
+        "routes/managedGoogleOAuthRoutes.js",
+        "managedGoogleOAuthBroker.js",
+        "managedGoogleOAuthSiteRequestAuth.js",
+        "test-managed-google-oauth-broker.mjs",
+        "docs/managed-google-oauth-broker.md",
+        "openapi/managed-google-oauth.yaml"
+      ]
+    },
+    {
+      "rule_id": "generated-gap-post-webhooks-routes-developerapiroutes-js",
+      "operation": "POST /webhooks",
+      "source_file": "routes/developerApiRoutes.js",
       "classification": "disabled",
-      "owner": "frontend-platform",
+      "owner": "developer-platform",
       "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
       "evidence_refs": [
-        "routes/identityRoutes.js",
+        "routes/developerApiRoutes.js",
         "openapi.yaml",
         "frontend-surface-dispatch.generated.json",
         "test-frontend-surface-coverage-claims.mjs"
@@ -8910,20 +9193,6 @@
       "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
       "evidence_refs": [
         "routes/repositoryMainMovedTriggerRoutes.js",
-        "openapi.yaml",
-        "frontend-surface-dispatch.generated.json",
-        "test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
-      "rule_id": "generated-gap-post-webhooks-routes-developerapiroutes-js",
-      "operation": "POST /webhooks",
-      "source_file": "routes/developerApiRoutes.js",
-      "classification": "disabled",
-      "owner": "developer-platform",
-      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
-      "evidence_refs": [
-        "routes/developerApiRoutes.js",
         "openapi.yaml",
         "frontend-surface-dispatch.generated.json",
         "test-frontend-surface-coverage-claims.mjs"
@@ -8958,8 +9227,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-workflow-runs-id-steps-routes-workfloworchestrationroutes-js",
-      "operation": "POST /workflow-runs/{id}/steps",
+      "rule_id": "generated-gap-post-workflow-runs-routes-workfloworchestrationroutes-js",
+      "operation": "POST /workflow-runs",
       "source_file": "routes/workflowOrchestrationRoutes.js",
       "classification": "disabled",
       "owner": "developer-platform",
@@ -8972,8 +9241,8 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-workflow-runs-routes-workfloworchestrationroutes-js",
-      "operation": "POST /workflow-runs",
+      "rule_id": "generated-gap-post-workflow-runs-id-steps-routes-workfloworchestrationroutes-js",
+      "operation": "POST /workflow-runs/{id}/steps",
       "source_file": "routes/workflowOrchestrationRoutes.js",
       "classification": "disabled",
       "owner": "developer-platform",
@@ -9014,20 +9283,6 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-workspaces-id-app-links-routes-appintegrationroutes-js",
-      "operation": "POST /workspaces/{id}/app-links",
-      "source_file": "routes/appIntegrationRoutes.js",
-      "classification": "disabled",
-      "owner": "resource-platform",
-      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
-      "evidence_refs": [
-        "routes/appIntegrationRoutes.js",
-        "openapi.yaml",
-        "frontend-surface-dispatch.generated.json",
-        "test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
       "rule_id": "generated-gap-post-workspaces-routes-connectedsystemsroutes-js",
       "operation": "POST /workspaces",
       "source_file": "routes/connectedSystemsRoutes.js",
@@ -9036,6 +9291,20 @@
       "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
       "evidence_refs": [
         "routes/connectedSystemsRoutes.js",
+        "openapi.yaml",
+        "frontend-surface-dispatch.generated.json",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "rule_id": "generated-gap-post-workspaces-id-app-links-routes-appintegrationroutes-js",
+      "operation": "POST /workspaces/{id}/app-links",
+      "source_file": "routes/appIntegrationRoutes.js",
+      "classification": "disabled",
+      "owner": "resource-platform",
+      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+      "evidence_refs": [
+        "routes/appIntegrationRoutes.js",
         "openapi.yaml",
         "frontend-surface-dispatch.generated.json",
         "test-frontend-surface-coverage-claims.mjs"
@@ -9264,6 +9533,20 @@
       ]
     },
     {
+      "rule_id": "generated-gap-put-tenants-id-routes-tenantsroutes-js",
+      "operation": "PUT /tenants/{id}",
+      "source_file": "routes/tenantsRoutes.js",
+      "classification": "disabled",
+      "owner": "frontend-platform",
+      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+      "evidence_refs": [
+        "routes/tenantsRoutes.js",
+        "openapi.yaml",
+        "frontend-surface-dispatch.generated.json",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
       "rule_id": "generated-gap-put-tenants-id-commercial-profile-routes-tenantcommercialroutes-js",
       "operation": "PUT /tenants/{id}/commercial-profile",
       "source_file": "routes/tenantCommercialRoutes.js",
@@ -9286,20 +9569,6 @@
       "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
       "evidence_refs": [
         "routes/tenantCommercialRoutes.js",
-        "openapi.yaml",
-        "frontend-surface-dispatch.generated.json",
-        "test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
-      "rule_id": "generated-gap-put-tenants-id-routes-tenantsroutes-js",
-      "operation": "PUT /tenants/{id}",
-      "source_file": "routes/tenantsRoutes.js",
-      "classification": "disabled",
-      "owner": "frontend-platform",
-      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
-      "evidence_refs": [
-        "routes/tenantsRoutes.js",
         "openapi.yaml",
         "frontend-surface-dispatch.generated.json",
         "test-frontend-surface-coverage-claims.mjs"
@@ -9372,152 +9641,6 @@
         "routes/developerApiRoutes.js",
         "openapi.yaml",
         "frontend-surface-dispatch.generated.json",
-        "test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
-      "rule_id": "hostinger-runtime-bootstrap-dry-run-read-action",
-      "operation": "POST /deployment-info/runtime-bootstrap-dry-run",
-      "source_file": "routes/deploymentInfoRoutes.js",
-      "classification": "read_action",
-      "owner": "runtime-operations",
-      "rationale": "The Hostinger runtime bootstrap endpoint is a protected, bounded dry-run read path: it derives hash-only binding evidence and verifies migration readiness without authorizing database mutation.",
-      "evidence_refs": [
-        "routes/deploymentInfoRoutes.js",
-        "runtimeBootstrapContract.js",
-        "test-runtime-gate-deployment-info-parity.mjs",
-        "openapi.yaml"
-      ]
-    },
-    {
-      "rule_id": "hostinger-runtime-bootstrap-role-inspection-read-action",
-      "operation": "POST /deployment-info/runtime-bootstrap-role-dry-run",
-      "source_file": "routes/deploymentInfoRoutes.js",
-      "classification": "read_action",
-      "owner": "runtime-operations",
-      "rationale": "The Hostinger role-local bridge performs only exact-SHA Production full inspection in dry_run mode. It derives existing per-role identities on the host, omits migration selection, and fails closed before connection on identity or credential preflight failure.",
-      "preflight": {
-        "mode": "exact_deployment_identity_and_host_local_role_binding"
-      },
-      "approval": {
-        "mode": "backend_api_key_and_admin_principal"
-      },
-      "readback": {
-        "mode": "inline_sanitized_inspection_receipt",
-        "same_cycle": true
-      },
-      "rollback": {
-        "mode": "not_applicable",
-        "rationale": "The operation is read-only and the adapter rejects migration, grant, SQL, shell, workflow, and other mutation controls."
-      },
-      "parameter_bindings": {
-        "expected_sha": "request.body.expected_sha",
-        "target_key": "request.body.target_key",
-        "target_source": "server.host_local_role_env",
-        "migration": "server.null"
-      },
-      "evidence_refs": [
-        "routes/deploymentInfoRoutes.js",
-        "hostLocalRuntimeInspection.js",
-        "runtimeBootstrapContract.js",
-        "test-runtime-gate-deployment-info-parity.mjs",
-        "test-host-local-runtime-inspection.mjs",
-        "openapi.yaml",
-        "docs/governance/hostinger-runtime-bootstrap.md"
-      ]
-    },
-    {
-      "rule_id": "runtime-breakglass-plan-read-action",
-      "operation": "POST /deployment-info/runtime-breakglass-plan",
-      "source_file": "routes/runtimeBreakglassRoutes.js",
-      "classification": "read_action",
-      "owner": "runtime-operations",
-      "rationale": "The environment-scoped Breakglass plan endpoint only resolves the repository-owned contract matrix and safe deployment metadata. It does not dispatch GitHub, connect to a database, mutate state, or expose target identifiers.",
-      "evidence_refs": [
-        "routes/runtimeBreakglassRoutes.js",
-        "runtimeBreakglassBroker.js",
-        "http-generic-api/config/runtime-breakglass-catalog.json",
-        "test-runtime-breakglass-broker.mjs",
-        "docs/governance/runtime-breakglass-environments.md",
-        "openapi.yaml"
-      ]
-    },
-    {
-      "rule_id": "runtime-breakglass-workflow-dispatch-external-effect",
-      "operation": "POST /admin/runtime-breakglass/runs",
-      "source_file": "routes/runtimeBreakglassRoutes.js",
-      "classification": "external_effect",
-      "owner": "runtime-operations",
-      "rationale": "This protected service-key route may dispatch only the fixed repository-owned Production workflow after environment, contract, exact-SHA, idempotency, and server-controlled target checks. The broker never accepts database names, credentials, arbitrary refs, or workflow paths; runtime_env remains dry-run-only and all mutation modes remain separately gated by the workflow contract.",
-      "preflight": {
-        "mode": "inline_capability_check"
-      },
-      "approval": {
-        "mode": "runtime_authorization"
-      },
-      "readback": {
-        "mode": "inline_post_commit",
-        "same_cycle": true
-      },
-      "rollback": {
-        "mode": "not_required",
-        "rationale": "The catalog dispatches a bounded workflow execution record rather than applying a database or provider mutation in this route; failed or mismatched runs are retained as evidence and cannot be silently replayed because idempotency and exact-run binding are required."
-      },
-      "parameter_bindings": {
-        "environment": "request.body.environment",
-        "contract_key": "request.body.contract_key",
-        "mode": "request.body.mode",
-        "expected_sha": "request.body.expected_sha",
-        "idempotency_key": "request.body.idempotency_key",
-        "correlation_id": "response.correlation_id",
-        "workflow_run_id": "response.workflow_run_id"
-      },
-      "evidence_refs": [
-        "routes/runtimeBreakglassRoutes.js",
-        "runtimeBreakglassBroker.js",
-        "http-generic-api/config/runtime-breakglass-catalog.json",
-        ".github/workflows/production-runtime-parity-evidence.yml",
-        "test-runtime-breakglass-broker.mjs",
-        "docs/governance/runtime-breakglass-environments.md",
-        "openapi.yaml"
-      ]
-    },
-    {
-      "rule_id": "wordpress-staging-plugin-deploy-external-effect",
-      "operation": "POST /platform/remote-runtime/wordpress/staging/deploy-plugin",
-      "source_file": "routes/wordpressStagingPluginDeployRoutes.js",
-      "classification": "external_effect",
-      "owner": "runtime-operations",
-      "rationale": "Dry-run performs bounded exact-artifact and server-owned Staging preflight only; apply can replace the MCP Adapter and Control Plane on the unique server-resolved ETG Staging target, so the operation is externally consequential and must remain bound to the feature gate, human approval reason, exact capability envelope, same-cycle provenance readback, and dual-plugin rollback.",
-      "preflight": {
-        "mode": "exact_reviewed_artifact_server_owned_target_and_live_site_profile"
-      },
-      "approval": {
-        "mode": "feature_gate_human_reason_and_exact_capability_envelope_for_apply"
-      },
-      "readback": {
-        "mode": "inline_post_commit",
-        "same_cycle": true
-      },
-      "rollback": {
-        "mode": "dual_plugin_backup_restore_on_failed_apply_or_exact_readback",
-        "rationale": "Both existing plugin directories are backed up before apply and restored when deployment or exact provenance readback fails."
-      },
-      "parameter_bindings": {
-        "expected_head_sha": "request.body.expected_head_sha",
-        "dry_run": "request.body.dry_run_default_true",
-        "approval_reason": "request.body.approval_reason_apply_only",
-        "capability_envelope": "request.body + server.capability_resolution_envelope_ledger",
-        "target": "server.remote_runtime.unique_validated_etg_staging_target",
-        "artifact": "server.github_actions.exact_head_general_distribution_kit"
-      },
-      "evidence_refs": [
-        "routes/wordpressStagingPluginDeployRoutes.js",
-        "wordpressStagingPluginDeployExecutor.js",
-        "hostingerSshDeployExecutor.js",
-        "openapi/wordpress-staging-plugin-deploy.yaml",
-        "migrations/20260920_wordpress_staging_plugin_deploy_v2_authority.sql",
-        "test-hostinger-ssh-deploy-executor.mjs",
         "test-frontend-surface-coverage-claims.mjs"
       ]
     }
