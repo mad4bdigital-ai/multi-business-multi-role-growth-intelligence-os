@@ -72,7 +72,8 @@
             "production_mutation_allowed remains false and secrets_included remains false.",
             "The critical declaration is registered in Constitution.control_plane_paths and convergence.automation_control_paths before merge.",
             "The precise registry writer accepts only the exact predecessor whose sole drift is the reviewed admin-control tag promotion; any other predecessor drift remains fail-closed.",
-            "The governed OpenAPI refresh regenerates the mutation-policy fingerprint after base Custom GPT schema generation and synchronizes the Staging smart-convergence expected policy hash after profile hash convergence."
+            "The governed OpenAPI refresh regenerates the mutation-policy fingerprint after base Custom GPT schema generation and synchronizes the Staging smart-convergence expected policy hash after profile hash convergence.",
+            "Generated-artifact repair must run only through the labeled governed writer after the pull request is Ready for Review; stale generated artifacts from historical PR #8108 must never be copied directly."
           ],
           "tests": [
             {
