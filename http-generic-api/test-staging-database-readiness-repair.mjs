@@ -194,6 +194,11 @@ for (const token of [
 }
 assert.match(importer, /Assert-CountExactly[\s\S]*canonical Platform Admin workspace/);
 assert.match(importer, /function Get-RoleObjectCensus/);
+assert.equal((importer.match(/function Get-RoleObjectCensus/g) || []).length, 1);
+assert.doesNotMatch(importer, /\^\[A-Za-z0-9_\]\+Require/);
+assert.match(importer, /function Assert-CompletedImportLiveReadback/);
+assert.match(importer, /Assert-CompletedImportLiveReadback \$services \$compose \$requiredRuntimeCensus \$requiredRuntimeSupportTables/);
+assert.match(importer, /SCHEMA_IMPORT_ALREADY_COMPLETE:[^\r\n]*live_semantic_readback=passed/);
 assert.match(importer, /Direct schema-only importer may apply only when all three local Staging role databases are zero-object/);
 assert.match(importer, /Rebuild-EmptyStagingRoleDatabases Recovery flow/);
 assert.match(importer, /pre_apply_role_object_census/);
