@@ -38,7 +38,11 @@
       "http-generic-api/test-semantic-data-completeness-report.mjs",
       ".github/workflows/staging-semantic-portability.yml",
       "http-generic-api/package.json",
-      "http-generic-api/test-canonical-semantic-artifact-registry.mjs"
+      "http-generic-api/test-canonical-semantic-artifact-registry.mjs",
+      "http-generic-api/config/platform-admin-workspace-authority.json",
+      "http-generic-api/src/domain/authorityScope/platformAdminWorkspaceAuthority.generated.js",
+      "http-generic-api/scripts/build-platform-admin-workspace-authority.mjs",
+      "http-generic-api/test-platform-admin-workspace-authority-parity.mjs"
     ]
   },
   "environment_impact": {
@@ -94,7 +98,9 @@
             "Generate a deterministic Runtime canonical semantic snapshot from the disposable Git migration projection, excluding auto/generated/dynamic timestamp columns and ordering every table by a stable unique semantic key.",
             "Apply the same-cycle SHA-bound semantic snapshot only after all three Staging role databases pass zero-object census and schema import succeeds.",
             "Require exact row-count readback immediately after semantic snapshot import and at-least the same canonical counts on completed-state restart readback.",
-            "Treat any activation registry created by Git migrations but absent from the explicit semantic snapshot table set as a CI failure."
+            "Treat any activation registry created by Git migrations but absent from the explicit semantic snapshot table set as a CI failure.",
+            "Generate the static Platform Admin Workspace runtime authority and canonical seed SQL from one descriptor, then fail CI if either committed artifact drifts.",
+            "Make resolver, topology verification, and in-place repair consume the same generated authority constants while lifecycle/seed remain static parity-checked artifacts."
           ],
           "assertions": [
             "Numeric and date-prefixed changed migrations are both inspected.",
@@ -125,7 +131,9 @@
             "The schema bundles remain no-data artifacts; canonical semantic data is a separate Runtime-only bundle derived exclusively from the disposable Git migration projection.",
             "The semantic snapshot cannot be used for in-place repair and cannot target Governance, Runtime Persistence, Production, Hostinger, or provider resources.",
             "Every activation_*_registry created by migrations is explicitly declared; the wildcard family is guard-only and fail-closed for unregistered future registries.",
-            "Semantic completeness reports zero unresolved replay debt only when every canonical dataset has a registered replay artifact; readiness still requires live readback."
+            "Semantic completeness reports zero unresolved replay debt only when every canonical dataset has a registered replay artifact; readiness still requires live readback.",
+            "Platform Admin identity, resolver markers, lifecycle selectors, and seed SQL cannot diverge without the authority parity gate failing.",
+            "Runtime consumes committed generated JS and committed SQL; it never generates executable SQL dynamically from JSON."
           ],
           "tests": [
             {
@@ -210,6 +218,13 @@
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-canonical-semantic-artifact-registry.mjs",
+              "args": []
+            },
+            {
+              "id": "platform-admin-workspace-authority-parity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-admin-workspace-authority-parity.mjs",
               "args": []
             }
           ],
