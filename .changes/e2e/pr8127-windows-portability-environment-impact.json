@@ -79,7 +79,7 @@
                 "--candidate-sha",
                 "HEAD_SHA",
                 "--report-file",
-                ".artifacts/pr8127-e2e-fixed-point.json"
+                "../pr8127-e2e-fixed-point.json"
               ]
             }
           ],
