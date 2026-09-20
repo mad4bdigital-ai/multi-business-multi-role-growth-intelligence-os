@@ -13,6 +13,13 @@ const REQUIRED_CONTROL_PLANE_WRITE_DB_KEYS = [
   "CONTROL_PLANE_WRITE_DB_USER",
   "CONTROL_PLANE_WRITE_DB_PASSWORD",
 ];
+const REQUIRED_MANAGED_GOOGLE_OAUTH_KEYS = [
+  "MANAGED_GOOGLE_OAUTH_CLIENT_ID",
+  "MANAGED_GOOGLE_OAUTH_CLIENT_SECRET",
+  "MANAGED_GOOGLE_OAUTH_TOKEN_ENCRYPTION_KEY",
+  "MANAGED_GOOGLE_OAUTH_REDIRECT_URI",
+  "MANAGED_GOOGLE_OAUTH_SITE_BINDINGS_JSON",
+];
 
 function text(value) {
   return String(value ?? "").trim();
@@ -91,6 +98,94 @@ export function evaluateProductionConfig(env = process.env) {
     status: controlPlaneWriteEnabled ? (missingControlPlaneKeys.length ? "invalid" : "configured") : "disabled",
   };
 
+  const managedGoogleEnabled = enabled(env.MANAGED_GOOGLE_OAUTH_ENABLED);
+  const missingManagedGoogleKeys = managedGoogleEnabled
+    ? REQUIRED_MANAGED_GOOGLE_OAUTH_KEYS.filter((key) => !text(env[key]))
+    : [];
+  if (missingManagedGoogleKeys.length) {
+    errors.push(`Managed Google OAuth is enabled but missing: ${missingManagedGoogleKeys.join(", ")}.`);
+  }
+
+  const managedGoogleClientSecret = secretEvidence("MANAGED_GOOGLE_OAUTH_CLIENT_SECRET", env.MANAGED_GOOGLE_OAUTH_CLIENT_SECRET);
+  const managedGoogleEncryptionKey = secretEvidence("MANAGED_GOOGLE_OAUTH_TOKEN_ENCRYPTION_KEY", env.MANAGED_GOOGLE_OAUTH_TOKEN_ENCRYPTION_KEY);
+  if (managedGoogleEnabled && managedGoogleClientSecret.present && !managedGoogleClientSecret.length_ok) {
+    errors.push(`MANAGED_GOOGLE_OAUTH_CLIENT_SECRET must be at least ${MIN_SECRET_LENGTH} characters.`);
+  }
+  if (managedGoogleEnabled && managedGoogleEncryptionKey.present && !managedGoogleEncryptionKey.length_ok) {
+    errors.push(`MANAGED_GOOGLE_OAUTH_TOKEN_ENCRYPTION_KEY must be at least ${MIN_SECRET_LENGTH} characters.`);
+  }
+
+  let managedGoogleRedirectValid = false;
+  const managedGoogleRedirect = text(env.MANAGED_GOOGLE_OAUTH_REDIRECT_URI);
+  if (managedGoogleRedirect) {
+    try {
+      const url = new URL(managedGoogleRedirect);
+      managedGoogleRedirectValid =
+        url.protocol === "https:" &&
+        !url.username &&
+        !url.password &&
+        !url.hash &&
+        url.pathname.endsWith("/v1/google/oauth/callback");
+    } catch {
+      managedGoogleRedirectValid = false;
+    }
+  }
+  if (managedGoogleEnabled && !managedGoogleRedirectValid) {
+    errors.push("MANAGED_GOOGLE_OAUTH_REDIRECT_URI must be an exact HTTPS broker callback ending in /v1/google/oauth/callback.");
+  }
+
+  let managedGoogleSiteBindingCount = 0;
+  let managedGoogleSiteBindingsValid = false;
+  const managedGoogleBindingsRaw = text(env.MANAGED_GOOGLE_OAUTH_SITE_BINDINGS_JSON);
+  if (managedGoogleBindingsRaw) {
+    try {
+      const parsed = JSON.parse(managedGoogleBindingsRaw);
+      if (Array.isArray(parsed)) {
+        const active = parsed.filter((row) =>
+          row &&
+          typeof row === "object" &&
+          String(row.status || "active").trim().toLowerCase() === "active" &&
+          String(row.site_uuid || "").trim() &&
+          String(row.origin || "").trim().startsWith("https://") &&
+          String(row.callback_uri || "").trim().startsWith("https://")
+        );
+        managedGoogleSiteBindingCount = active.length;
+        managedGoogleSiteBindingsValid = active.length > 0;
+      }
+    } catch {
+      managedGoogleSiteBindingsValid = false;
+    }
+  }
+  if (managedGoogleEnabled && !managedGoogleSiteBindingsValid) {
+    errors.push("MANAGED_GOOGLE_OAUTH_SITE_BINDINGS_JSON must contain at least one active HTTPS site binding.");
+  }
+
+  const managedGoogleSecretPrefixes = [
+    managedGoogleClientSecret,
+    managedGoogleEncryptionKey,
+    ...secrets,
+  ].filter((item) => item.present).map((item) => item.sha256_prefix);
+  if (managedGoogleEnabled && new Set(managedGoogleSecretPrefixes).size !== managedGoogleSecretPrefixes.length) {
+    errors.push("Managed Google OAuth client/encryption secrets must be distinct from each other and from platform signing secrets.");
+  }
+
+  const managedGoogleOauth = {
+    enabled: managedGoogleEnabled,
+    required_keys: REQUIRED_MANAGED_GOOGLE_OAUTH_KEYS,
+    missing_keys: missingManagedGoogleKeys,
+    client_id_present: Boolean(text(env.MANAGED_GOOGLE_OAUTH_CLIENT_ID)),
+    client_secret: managedGoogleClientSecret,
+    encryption_key: managedGoogleEncryptionKey,
+    redirect_uri_present: Boolean(managedGoogleRedirect),
+    redirect_uri_valid: managedGoogleRedirectValid,
+    site_binding_count: managedGoogleSiteBindingCount,
+    site_bindings_valid: managedGoogleSiteBindingsValid,
+    status: managedGoogleEnabled
+      ? (missingManagedGoogleKeys.length || !managedGoogleRedirectValid || !managedGoogleSiteBindingsValid || !managedGoogleClientSecret.length_ok || !managedGoogleEncryptionKey.length_ok ? "invalid" : "configured")
+      : "disabled",
+    secrets_included: false,
+  };
+
   const oauthClientSecret = secretEvidence("TENANT_GPT_OAUTH_CLIENT_SECRET", env.TENANT_GPT_OAUTH_CLIENT_SECRET);
   const oauthClientCompatConfigured = text(env.TENANT_GPT_ACTIONS_CONFIDENTIAL_CLIENT_COMPAT_ENABLED);
   const oauthClient = {
@@ -114,6 +209,7 @@ export function evaluateProductionConfig(env = process.env) {
     trusted_ingress: trustedIngress,
     queue,
     control_plane_write: controlPlaneWrite,
+    managed_google_oauth: managedGoogleOauth,
     oauth_client: oauthClient,
     errors,
     warnings,
