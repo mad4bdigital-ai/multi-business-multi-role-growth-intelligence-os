@@ -1,0 +1,125 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-semantic-data-durability-20260920",
+  "title": "Preserve canonical semantic runtime data across Staging rebuilds",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-semantic-data-durability-20260920.json",
+      "http-generic-api/config/runtime-data-lifecycle-contract.json",
+      "http-generic-api/config/staging-database-role-migration-manifest.json",
+      "http-generic-api/migrations/20260920_platform_admin_workspace_canonical_seed.sql",
+      "http-generic-api/migrations/20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
+      "http-generic-api/scripts/runtime-data-lifecycle-guard.mjs",
+      "http-generic-api/runtimeVerificationService.js",
+      "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1",
+      "http-generic-api/test-runtime-data-lifecycle-guard.mjs",
+      "http-generic-api/test-runtime-verification-contract.mjs",
+      "http-generic-api/test-staging-database-readiness-repair.mjs",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make canonical runtime seeds replayable, classify every changed migration by Git diff, and fail closed on missing exact readback without accessing a live environment.",
+      "e2e_journeys": [
+        {
+          "id": "rebuild-canonical-runtime-data-with-fail-closed-readback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging database rebuild operator",
+          "entrypoint": "Runtime lifecycle CI guard and portable Staging schema bundle",
+          "terminal_outcome": "A schema-only rebuild plan includes the canonical Platform Admin and WordPress deployment authority seeds, requires exact-one readback, and rejects unclassified numeric or dated migration mutations.",
+          "steps": [
+            "Select every changed SQL migration from the base-to-head Git diff regardless of filename convention.",
+            "Classify each runtime data mutation and reject unclassified, operational reseed, or non-replayable canonical writes.",
+            "Build the isolated Staging schema bundle with both canonical seed files.",
+            "Require exact-one readback for the Platform Admin workspace, WordPress command, admin tool, and execution policy.",
+            "Keep live Staging certification required and Production mutation forbidden."
+          ],
+          "assertions": [
+            "Numeric and date-prefixed changed migrations are both inspected.",
+            "Canonical seeds are present in the role manifest and portable bundle.",
+            "All four canonical identities require exactly one matching row.",
+            "No database, provider, Staging, or Production mutation occurs in this journey."
+          ],
+          "tests": [
+            {
+              "id": "runtime-data-lifecycle-guard",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-data-lifecycle-guard.mjs",
+              "args": []
+            },
+            {
+              "id": "runtime-verification-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-verification-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-database-readiness-repair",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-database-readiness-repair.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-schema-bundle-builder",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-schema-bundle-builder.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/config/runtime-data-lifecycle-contract.json",
+            "http-generic-api/config/staging-database-role-migration-manifest.json",
+            "http-generic-api/scripts/runtime-data-lifecycle-guard.mjs",
+            "http-generic-api/test-runtime-data-lifecycle-guard.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Run separately authorized live Staging rebuild certification and exact semantic readback.",
+      "blockers": [
+        "LIVE_STAGING_REBUILD_CERTIFICATION_REQUIRED",
+        "SAME_CYCLE_CANONICAL_ROW_READBACK_REQUIRED"
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Expand required-key replay manifests to every historical canonical registry family."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "No live canary is authorized by this repository-only change."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "Production mutation remains forbidden."
+    }
+  ],
+  "secrets_included": false
+}
