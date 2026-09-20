@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { matchesCanonicalPlatformAdminWorkspace } from "./src/infrastructure/authorityScope/platformAdminWorkspaceResolver.js";
+import { PLATFORM_ADMIN_WORKSPACE_AUTHORITY } from "./src/domain/authorityScope/platformAdminWorkspaceAuthority.generated.js";
 import { splitStatements } from "./scripts/staging-sql-parser.mjs";
 
 const apiRoot=path.dirname(fileURLToPath(import.meta.url));
@@ -32,14 +33,14 @@ const PLAN_KEYS=Object.freeze([
   "execution_authority","production_access_forbidden","provider_access_forbidden","caller_sql_forbidden","caller_target_forbidden"
 ]);
 const IDENTITY=Object.freeze({
-  workspace_id:canonicalRow.selector_tokens[0],
-  tenant_id:canonicalRow.resolver_cardinality.tenant_id,
-  workspace_key:canonicalRow.mutation_selector.update_where_equals.workspace_key,
-  display_name:canonicalRow.mutation_selector.update_where_equals.display_name,
-  workspace_type:canonicalRow.mutation_selector.update_where_equals.workspace_type,
-  bootstrap_status:canonicalRow.mutation_selector.update_where_equals.bootstrap_status,
-  authority_scope_key:canonicalRow.resolver_cardinality.authority_scope_key,
-  platform_admin_workspace:canonicalRow.resolver_cardinality.platform_admin_workspace
+  workspace_id:PLATFORM_ADMIN_WORKSPACE_AUTHORITY.identity.workspace_id,
+  tenant_id:PLATFORM_ADMIN_WORKSPACE_AUTHORITY.identity.tenant_id,
+  workspace_key:PLATFORM_ADMIN_WORKSPACE_AUTHORITY.identity.seed_workspace_key,
+  display_name:PLATFORM_ADMIN_WORKSPACE_AUTHORITY.identity.display_name,
+  workspace_type:PLATFORM_ADMIN_WORKSPACE_AUTHORITY.identity.workspace_type,
+  bootstrap_status:PLATFORM_ADMIN_WORKSPACE_AUTHORITY.identity.bootstrap_status,
+  authority_scope_key:PLATFORM_ADMIN_WORKSPACE_AUTHORITY.resolver.authority_scope_key,
+  platform_admin_workspace:PLATFORM_ADMIN_WORKSPACE_AUTHORITY.resolver.platform_admin_workspace
 });
 
 function sha256(value){return crypto.createHash("sha256").update(value).digest("hex");}
