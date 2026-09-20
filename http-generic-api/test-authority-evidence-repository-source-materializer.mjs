@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
 import { AUTHORITY_EVIDENCE_SOURCE_FAMILIES } from "./authorityEvidenceSourceAdapters.js";
@@ -97,7 +98,7 @@ function git(root, args) {
 function expectObject(expected) {
   return {
     ...expected,
-    repositoryRoot: path.resolve(path.dirname(new URL(import.meta.url).pathname), ".."),
+    repositoryRoot: path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."),
   };
 }
 

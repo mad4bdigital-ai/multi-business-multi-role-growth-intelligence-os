@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { category, extension } from "./repository-inventory-rules.mjs";
 
-const root = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const inventory = JSON.parse(readFileSync(`${root}/docs/repository-inventory.json`, "utf8"));
 const summary = JSON.parse(readFileSync(`${root}/docs/repository-inventory-summary.json`, "utf8"));
 const fixtures = JSON.parse(readFileSync(`${root}/scripts/repository-inventory-fixtures.json`, "utf8"));

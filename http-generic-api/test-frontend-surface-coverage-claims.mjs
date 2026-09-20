@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 // This file is generated from the clean route inventory. The comments are parsed by
 // frontend-surface-dispatch.mjs as ownership evidence; the assertions keep the
@@ -1047,7 +1048,7 @@ import path from "node:path";
 // frontend-surface-operation: put /users/{id}
 // frontend-surface-operation: put /webhooks/{id}
 
-const apiRoot = path.resolve(new URL(".", import.meta.url).pathname);
+const apiRoot = path.dirname(fileURLToPath(import.meta.url));
 const plan = JSON.parse(fs.readFileSync(path.join(apiRoot, "frontend-surface-dispatch.generated.json"), "utf8"));
 const families = Array.isArray(plan.families) ? plan.families : [];
 const operations = families.flatMap((family) => Array.isArray(family.operations) ? family.operations : []);

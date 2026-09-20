@@ -8,7 +8,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import {
   _testingStagingRecoveryAuthorityBinding,
 } from "./stagingRecoveryAuthorityBinding.js";
-import { createFileRecoveryEvidenceStore } from "./recoveryReadinessEvidence.js";
+import { createFileRecoveryEvidenceStore, recoveryFilesystemDurabilityProfile } from "./recoveryReadinessEvidence.js";
 import { getRecoveryCompositionRouteDependencies } from "./recoveryComposition.js";
 import { createProductionRecoveryComposition } from "./productionRecoveryCompositionFactory.js";
 import { buildStagingRecoveryAdminReadiness } from "./routes/stagingRecoveryAdminRoutes.js";
@@ -66,6 +66,9 @@ test("Phase A binds a complete durable Staging Recovery graph and remains certif
       "mutationExecutor", "partialReceiptStore", "proofResolver", "readbackVerifier", "recoveryLock", "recoveryStore",
     ].sort());
     assert.equal(envelope.adapters.recoveryStore.executionTicketVerifier, envelope.adapters.executionTicketVerifier);
+    assert.deepEqual(envelope.adapters.recoveryStore.durability_profile, recoveryFilesystemDurabilityProfile());
+    const recoveryStoreReadiness = await envelope.adapters.recoveryStore.getReadiness();
+    assert.deepEqual(recoveryStoreReadiness.durability_profile, recoveryFilesystemDurabilityProfile());
     assert.equal(envelope.adapters.readbackVerifier.independent_authority, true);
     assert.equal(envelope.adapters.readbackVerifier.role_aware, true);
     assert.equal(envelope.adapters.readbackVerifier.mutation_authority, false);

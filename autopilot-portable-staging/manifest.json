@@ -6,7 +6,7 @@
   "files": [
     {
       "path": ".gitattributes",
-      "sha256": "4dcddff86173eda399349223bd2bdc1b9668c98249d15794a94e21dfdfab1a77"
+      "sha256": "a5d22cb8d0ba30356a0e5a08e1c4fbfded68d5f1755f3cc26e0a314356e4431b"
     },
     {
       "path": ".dockerignore",
@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "fa8d1aa1ec92410b7284621e4600e700ac0e941c59cb69770cdb8362b2c0a93a"
+      "sha256": "1526afeb826fb29cfd5f8bf920f737bf2d57c9746fd24e6ac2f608853b6d8f44"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
@@ -150,7 +150,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "b96f775f350f55c1fe36648b1ae9645514ccfb8e6f582dea7dc1f8d60edc81e2"
+      "sha256": "130bf0a3a6c77c6ac629d42ed6581d9a186e407a4b6fc2d1d5a7b31fb2d1fb80"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "564cb1d2a6e1b431b4ada7424253a55aba9686400d12393b0f1bbc4ce7f3ba88"
+      "sha256": "1628998cd3fd747f72d56f3601fc8afed3f00db295a365a2b4d965bd87feef25"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -202,7 +202,7 @@
     },
     {
       "path": "http-generic-api/scripts/build-staging-admin-openapi.mjs",
-      "sha256": "89f437bb4fd49c6cae73e5954de7bd8d53ab002a1a643003108ce57337e3af7c"
+      "sha256": "eb16acebd94753797cdf7a761339f265847fa797fb63dc04a4b2d11bbd40b53c"
     },
     {
       "path": "http-generic-api/scripts/build-staging-openapi.mjs",
@@ -210,7 +210,7 @@
     },
     {
       "path": "http-generic-api/scripts/build-staging-remote-mcp-openapi.mjs",
-      "sha256": "a37dbf31a4759d1e1b5cf861f78a752f162ba4922fbe4189271dc92be5e9e1cb"
+      "sha256": "910c6c0ea0ce6ea3ae846db64057aa5e98d032781cf9d1ccf8b22f902c193ac9"
     },
     {
       "path": "http-generic-api/scripts/split-openapi.mjs",
@@ -250,7 +250,7 @@
     },
     {
       "path": "http-generic-api/test-staging-independent-schema-contract.mjs",
-      "sha256": "e6ef6d8b6402968278c453bd6e927f302d6c7c2a69b3849c62dcfb673e09a84a"
+      "sha256": "0380bf425d7d71d55954fd392aa50dabeb6cb6b0f58f62ea9caeca00429458bc"
     },
     {
       "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
@@ -258,11 +258,11 @@
     },
     {
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
-      "sha256": "4a1416fb870a4c15cd83de6e5c046d55e69267072d6b4315b42bf591aa4fe9c9"
+      "sha256": "c949a131673b9c63f4711ace57ec4ac2f279a38b9377b61f692d7dab03ca5256"
     },
     {
       "path": "http-generic-api/test-staging-operations-logging-contract.mjs",
-      "sha256": "bc98a71ec5e1bb396002ca74bf27ce0c93d83167d608d82569aec9f39b35f49f"
+      "sha256": "9ff4788d0ca3daec821caa7031b33808c3cbde0f92a7ff05e38e86122bfa9d01"
     },
     {
       "path": "http-generic-api/test-staging-runtime-oauth-profile.mjs",
@@ -294,7 +294,7 @@
     },
     {
       "path": "http-generic-api/test-staging-auto-deploy-contract.mjs",
-      "sha256": "ca9d7a4b1c1e9f361d76f52b5588c2138b1a3259b555c268052dd0cbf0cfb270"
+      "sha256": "8707550e0893664d7223d7733f712bbf4c53b787d58db346539fa5ec49ea8f36"
     },
     {
       "path": "http-generic-api/test-staging-environment-certification-contract.mjs",

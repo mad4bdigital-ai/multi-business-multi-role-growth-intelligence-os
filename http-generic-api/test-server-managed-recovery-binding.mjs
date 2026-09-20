@@ -4,7 +4,17 @@ import { generateKeyPairSync, sign } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { createFileRecoveryEvidenceStore, createRecoveryReadinessAuthorities, readinessEvidencePayload, producePromotionArtifactParity, RECOVERY_READINESS_EVIDENCE_CONTRACT } from "./recoveryReadinessEvidence.js";
+import {
+  createFileRecoveryEvidenceStore,
+  createRecoveryReadinessAuthorities,
+  readinessEvidencePayload,
+  producePromotionArtifactParity,
+  RECOVERY_FILESYSTEM_DURABILITY_CONTRACT,
+  RECOVERY_READINESS_EVIDENCE_CONTRACT,
+  recoveryFilesystemDurabilityProfile,
+  syncRecoveryDirectory,
+  writeRecoveryFileDurably,
+} from "./recoveryReadinessEvidence.js";
 import { getRecoveryCompositionRouteDependencies, createRecoveryComposition } from "./recoveryComposition.js";
 import {
   createProductionRecoveryComposition,
@@ -105,10 +115,122 @@ test("deployment normalization preserves role bindings and strips arbitrary sour
     expectedManifestHash: "b".repeat(64), expectedTargetRole: "runtime", expectedTargetFingerprint: "d".repeat(64) }).ok, true);
 });
 
+test("Recovery filesystem durability profile is explicit and conservative", () => {
+  assert.deepEqual(recoveryFilesystemDurabilityProfile("win32"), {
+    contract: RECOVERY_FILESYSTEM_DURABILITY_CONTRACT,
+    file_sync: "mandatory",
+    directory_sync: "unsupported_platform",
+    crash_durability: "file_only",
+  });
+  assert.deepEqual(recoveryFilesystemDurabilityProfile("linux"), {
+    contract: RECOVERY_FILESYSTEM_DURABILITY_CONTRACT,
+    file_sync: "mandatory",
+    directory_sync: "required",
+    crash_durability: "full",
+  });
+});
+
+test("Recovery directory sync tolerance is bounded by Windows platform and error code", async () => {
+  const unsupported = ["EPERM", "EINVAL", "ENOTSUP", "EISDIR"];
+  for (const code of unsupported) {
+    let closed = false;
+    await syncRecoveryDirectory("C:\\recovery", {
+      platform: "win32",
+      openDirectory: async () => ({
+        async sync() { throw Object.assign(new Error(code), { code }); },
+        async close() { closed = true; },
+      }),
+    });
+    assert.equal(closed, true, code);
+  }
+
+  for (const code of ["EACCES", "ENOENT"]) {
+    await assert.rejects(
+      syncRecoveryDirectory("C:\\recovery", {
+        platform: "win32",
+        openDirectory: async () => ({
+          async sync() { throw Object.assign(new Error(code), { code }); },
+          async close() {},
+        }),
+      }),
+      (error) => error.code === code,
+      code,
+    );
+  }
+
+  await assert.rejects(
+    syncRecoveryDirectory("/recovery", {
+      platform: "linux",
+      openDirectory: async () => ({
+        async sync() { throw Object.assign(new Error("EPERM"), { code: "EPERM" }); },
+        async close() {},
+      }),
+    }),
+    (error) => error.code === "EPERM",
+  );
+
+  await syncRecoveryDirectory("C:\\recovery", {
+    platform: "win32",
+    openDirectory: async () => { throw Object.assign(new Error("EPERM"), { code: "EPERM" }); },
+  });
+  await assert.rejects(
+    syncRecoveryDirectory("/recovery", {
+      platform: "linux",
+      openDirectory: async () => { throw Object.assign(new Error("EPERM"), { code: "EPERM" }); },
+    }),
+    (error) => error.code === "EPERM",
+  );
+});
+
+test("Recovery file fsync completes before a tolerated Windows directory-sync failure", async () => {
+  const events = [];
+  await writeRecoveryFileDurably("C:\\recovery", "claim.json", "{}", {
+    makeDirectory: async () => { events.push("mkdir"); },
+    openFile: async () => {
+      events.push("open-file");
+      return {
+        async writeFile() { events.push("write-file"); },
+        async sync() { events.push("file-sync"); },
+        async close() { events.push("file-close"); },
+      };
+    },
+    directorySync: async (directory) => {
+      events.push("directory-sync");
+      await syncRecoveryDirectory(directory, {
+        platform: "win32",
+        openDirectory: async () => {
+          events.push("directory-open");
+          return {
+            async sync() {
+              events.push("directory-handle-sync");
+              throw Object.assign(new Error("EPERM"), { code: "EPERM" });
+            },
+            async close() { events.push("directory-close"); },
+          };
+        },
+      });
+    },
+  });
+  assert.deepEqual(events, [
+    "mkdir",
+    "open-file",
+    "write-file",
+    "file-sync",
+    "file-close",
+    "directory-sync",
+    "directory-open",
+    "directory-handle-sync",
+    "directory-close",
+  ]);
+});
+
 test("signed durable evidence reaches real composition dependencies without enabling mutation", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "recovery-evidence-"));
   try {
     const store = createFileRecoveryEvidenceStore({ directory });
+    assert.deepEqual(store.durability_profile, recoveryFilesystemDurabilityProfile());
+    assert.equal(store.replayStore.durability, "persistent_filesystem");
+    assert.deepEqual(store.replayStore.durability_profile, recoveryFilesystemDurabilityProfile());
     const keys = generateKeyPairSync("ed25519");
     const target = { environment: "staging", runtime_class: "local_windows_docker", target_fingerprint: "target:server-owned" };
     const deploymentIdentityProvider = createServerManagedDeploymentIdentityProvider({ environment: "staging",
