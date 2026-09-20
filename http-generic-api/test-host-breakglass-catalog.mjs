@@ -341,7 +341,7 @@ test("Staging full inspection hands off to Windows/Docker locally and stays read
     runbook_key: "database.full_inspection",
     action: "dry_run",
     expected_sha: SHA,
-    target_source: "staging_local_role_env",
+    target_source: "repository_allowlist",
     target_key: "staging-runtime",
   });
   const receipt = await dispatchHostBreakglassPlan(plan, {
