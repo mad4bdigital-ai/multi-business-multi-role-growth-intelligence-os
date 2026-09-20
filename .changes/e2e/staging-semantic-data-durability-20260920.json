@@ -117,7 +117,9 @@
             "Classify the canonical Platform Admin Workspace as ready, canonical_missing, canonical_not_ready, canonical_ambiguous, canonical_identity_conflict, or runtime_database_unavailable using one bounded read-only Runtime DB census.",
             "Expose the semantic readiness status as an opt-in bounded deployment-info projection without workspace identifiers or raw database values.",
             "Require semantic workspace readiness before a Staging Activation Gateway dry-run can become apply-ready and re-read the same condition before provider apply/claim begins.",
-            "Require One-Click schema import state to contain completed same-cycle canonical semantic snapshot readback and require live semantic readiness whenever the Activation Gateway is enabled."
+            "Require One-Click schema import state to contain completed same-cycle canonical semantic snapshot readback and require live semantic readiness whenever the Activation Gateway is enabled.",
+            "When One-Click observes canonical_missing, persist a local exact-commit repair handoff for plan generation only; never auto-apply the repair.",
+            "When semantic readiness is not-ready, ambiguous, conflicted, or database authority is unavailable/mismatched, emit inspection_required instead of a repair plan."
           ],
           "assertions": [
             "Numeric and date-prefixed changed migrations are both inspected.",
@@ -155,7 +157,9 @@
             "A non-ready Platform Admin semantic state cannot enter the provider request path, cannot save an apply-ready Gateway plan, and cannot claim Staging readiness.",
             "The deployment-info semantic projection is opt-in, read-only, secret-free, and omits workspace identifiers.",
             "One-Click cannot claim Gateway readiness from canonical seed status alone; semantic snapshot evidence and current live semantic readiness are both required.",
-            "Windows semantic portability executes as a job inside the existing CI workflow, so repository workflow surface count does not grow."
+            "Windows semantic portability executes as a job inside the existing CI workflow, so repository workflow surface count does not grow.",
+            "One-Click semantic repair handoff is read-only: automatic apply and automatic retry are false, immutable plan and durable ledger are required for later apply, and reconciliation is required before retry.",
+            "Only canonical_missing is eligible for plan_required; all other unsafe semantic readiness states fail closed to inspection_required."
           ],
           "tests": [
             {
