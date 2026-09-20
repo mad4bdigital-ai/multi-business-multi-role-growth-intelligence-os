@@ -381,6 +381,13 @@
             "http-generic-api/test-semantic-data-completeness-report.mjs",
             "http-generic-api/test-canonical-semantic-artifact-registry.mjs",
             "http-generic-api/test-staging-canonical-semantic-repair-ledger.mjs"
+          ],
+          "assertions": [
+            "Semantic completeness reports no unresolved replay debt only when every declared canonical registry dataset has a registered replay artifact.",
+            "Missing replay artifacts or readiness readback keep semantic readiness fail-closed.",
+            "An unknown repair mutation outcome transitions to reconciliation_required and cannot auto-retry.",
+            "A consumed repair plan cannot execute twice.",
+            "Canonical semantic artifacts remain Runtime-bounded, byte-integrity pinned, dependency-valid, and provider/Production mutation free."
           ]
         }
       ]
