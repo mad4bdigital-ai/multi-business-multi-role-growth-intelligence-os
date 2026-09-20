@@ -1369,7 +1369,7 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_index_key_width_chain.statements_checked, expectedStatementsChecked);
   assert.equal(plan.ordered_index_key_width_chain.tables_projected, 588);
   assert.equal(plan.ordered_index_key_width_chain.indexes_checked, 2866);
-  assert.equal(plan.ordered_index_key_width_chain.index_columns_checked, 4863);
+  assert.equal(plan.ordered_index_key_width_chain.index_columns_checked, 4864);
   assert.equal(plan.ordered_index_key_width_chain.max_key_bytes, 3072);
   assert.equal(plan.ordered_index_key_width_chain.database_connection_performed, false);
   assert.equal(plan.ordered_index_key_width_chain.sql_mutation_performed, false);
