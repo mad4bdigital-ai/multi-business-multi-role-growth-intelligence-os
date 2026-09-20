@@ -245,6 +245,7 @@ Apply migration:
 Tables:
 
 - `managed_google_oauth_sessions`
+- `managed_google_oauth_request_nonces`
 - `managed_google_oauth_audit`
 
 No plaintext access-token or refresh-token DB columns exist.
