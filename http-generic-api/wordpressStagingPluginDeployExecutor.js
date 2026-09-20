@@ -2,11 +2,11 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { spawn, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { getPool } from "./db.js";
-import { resolveEffectiveCredential } from "./credentialResolver.js";
 import { getGitHubAppInstallationToken } from "./githubAppAuth.js";
 import { writeExecutionEvidence } from "./executionEvidenceLogger.js";
+import { runGovernedHostingerSshCommand } from "./hostingerSshDeployExecutor.js";
 import {
   capabilityEnvelopeError,
   extractCapabilityEnvelopeId,
@@ -21,22 +21,11 @@ export const WORDPRESS_STAGING_DEPLOY_OPERATION = "wordpress_plugin_deploy";
 export const WORDPRESS_STAGING_SOURCE_REPOSITORY = "mad4bdigital-ai/WordPress";
 export const WORDPRESS_STAGING_SOURCE_WORKFLOW = "mad4b-control-plane-package.yml";
 export const WORDPRESS_STAGING_ORIGIN = "https://staging.egypttourgates.com";
-export const WORDPRESS_STAGING_HOST = "staging.egypttourgates.com";
 export const WORDPRESS_STAGING_SITE_UUID = "d745d81f-6fc4-5c6a-99dd-d953c92137bf";
 export const WORDPRESS_STAGING_PLUGIN_SLUG = "mad4b-site-control-plane";
 export const WORDPRESS_STAGING_MCP_ADAPTER_VERSION = "0.6.1";
 
 const MAX_ARTIFACT_BYTES = 64 * 1024 * 1024;
-const DEFAULT_TIMEOUT_MS = 120000;
-const MAX_TIMEOUT_MS = 300000;
-const SSH_CONNECT_TIMEOUT_SECONDS = 10;
-const SSH_SERVER_ALIVE_INTERVAL_SECONDS = 5;
-const SSH_SERVER_ALIVE_COUNT_MAX = 1;
-const SSH_PROCESS_KILL_GRACE_MS = 5000;
-const SSH_COMMON_ROLES = ["ssh_host", "ssh_port", "ssh_user"];
-const SSH_PASSWORD_ROLE = "ssh_password";
-const SSH_PRIVATE_KEY_ROLE = "ssh_private_key";
-const SSH_AUTH_MODES = new Set(["password", "private_key"]);
 const REQUIRED_HANDOFF_FORBIDDEN = [
   "unenrolled_target",
   "implicit_production_write",
@@ -52,12 +41,6 @@ function compact(value = "", max = 255) {
 
 function bool(value) {
   return value === true || ["true", "1", "yes"].includes(String(value ?? "").trim().toLowerCase());
-}
-
-function boundedInt(value, fallback, min, max) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return fallback;
-  return Math.max(min, Math.min(max, Math.floor(n)));
 }
 
 function sha256(buffer) {
@@ -223,134 +206,6 @@ function assertStagingTarget(target) {
     throw deployError("wordpress_staging_deploy_path_not_allowlisted", "The server-owned WordPress root is outside the target path allowlist.");
   }
   return { wordpressPath, environment, origin, site_uuid: siteUuid };
-}
-
-async function resolveSshCredential(pool, target, role) {
-  const result = await resolveEffectiveCredential({
-    tenantId: target.tenant_id,
-    userId: target.user_id || undefined,
-    systemId: target.system_id || undefined,
-    credentialRole: role,
-    includeSecret: true,
-    allowPlatformFallback: true,
-  }, { pool });
-  if (result?.status !== "resolved" || !compact(result.secret, 20000)) {
-    throw deployError("wordpress_staging_deploy_ssh_credential_unresolved", `Required server-side SSH credential ${role} is not resolved.`, 409, { role });
-  }
-  return String(result.secret);
-}
-
-async function resolveSshConnection(pool, target, requestedMode = "") {
-  const [host, port, user] = await Promise.all(SSH_COMMON_ROLES.map((role) => resolveSshCredential(pool, target, role)));
-  const mode = compact(requestedMode, 32).toLowerCase() || (target.provider_family === "hostinger" ? "password" : "private_key");
-  if (!SSH_AUTH_MODES.has(mode)) throw deployError("wordpress_staging_deploy_ssh_auth_mode_invalid", "ssh_auth_mode must be password or private_key.", 400);
-  if (mode === "password") {
-    return { host, port, user, auth_mode: mode, password: await resolveSshCredential(pool, target, SSH_PASSWORD_ROLE) };
-  }
-  return { host, port, user, auth_mode: mode, privateKey: await resolveSshCredential(pool, target, SSH_PRIVATE_KEY_ROLE) };
-}
-
-function hardenedSshOptions({ password = false } = {}) {
-  const options = [
-    "-T",
-    "-o", `ConnectTimeout=${SSH_CONNECT_TIMEOUT_SECONDS}`,
-    "-o", "ConnectionAttempts=1",
-    "-o", `ServerAliveInterval=${SSH_SERVER_ALIVE_INTERVAL_SECONDS}`,
-    "-o", `ServerAliveCountMax=${SSH_SERVER_ALIVE_COUNT_MAX}`,
-    "-o", "StrictHostKeyChecking=accept-new",
-    "-o", "LogLevel=ERROR",
-  ];
-  if (password) options.push("-o", "PreferredAuthentications=password", "-o", "PubkeyAuthentication=no", "-o", "NumberOfPasswordPrompts=1");
-  else options.push("-o", "BatchMode=yes", "-o", "IdentitiesOnly=yes");
-  return options;
-}
-
-function sanitizeOutput(value = "") {
-  return String(value || "")
-    .replace(/-----BEGIN [A-Z ]+PRIVATE KEY-----[\s\S]*?-----END [A-Z ]+PRIVATE KEY-----/g, "[redacted-private-key]")
-    .replace(/(password|passphrase|token|secret|private_key)=\S+/gi, "$1=[redacted]")
-    .slice(0, 12000);
-}
-
-function killProcessTree(child, signal = "SIGTERM") {
-  if (!child?.pid) return;
-  try { process.kill(-child.pid, signal); return; } catch { /* fallback */ }
-  try { child.kill(signal); } catch { /* noop */ }
-}
-
-async function runSshCommand(connection, remoteScript, { timeoutMs = DEFAULT_TIMEOUT_MS, stdinBuffer = null } = {}) {
-  const tempDir = await mkdtemp(join(tmpdir(), "mad4b-wp-staging-ssh-"));
-  const keyFile = join(tempDir, "id_key");
-  const passwordFile = join(tempDir, "password");
-  const askpassFile = join(tempDir, "askpass.cjs");
-  try {
-    const passwordMode = connection.auth_mode === "password";
-    let env = process.env;
-    let args;
-    if (passwordMode) {
-      await writeFile(passwordFile, connection.password, { mode: 0o600 });
-      await writeFile(askpassFile, [
-        "const { readFileSync, rmSync } = require('node:fs');",
-        "const file = process.env.MAD4B_SSH_ASKPASS_FILE;",
-        "if (!file) process.exit(1);",
-        "try { const value = readFileSync(file, 'utf8'); rmSync(file, { force: true }); process.stdout.write(value); } catch { process.exit(1); }",
-      ].join("\n"), { mode: 0o600 });
-      env = {
-        ...process.env,
-        SSH_ASKPASS: process.execPath,
-        SSH_ASKPASS_REQUIRE: "force",
-        DISPLAY: "mad4b-wp-staging:0",
-        MAD4B_SSH_ASKPASS_FILE: passwordFile,
-        NODE_OPTIONS: [process.env.NODE_OPTIONS, `--require=${askpassFile}`].filter(Boolean).join(" "),
-      };
-      args = [
-        ...hardenedSshOptions({ password: true }),
-        "-p", String(connection.port || 22),
-        `${connection.user}@${connection.host}`,
-        "bash", "-lc", remoteScript,
-      ];
-    } else {
-      await writeFile(keyFile, connection.privateKey, { mode: 0o600 });
-      args = [
-        "-i", keyFile,
-        ...hardenedSshOptions({ password: false }),
-        "-p", String(connection.port || 22),
-        `${connection.user}@${connection.host}`,
-        "bash", "-lc", remoteScript,
-      ];
-    }
-
-    return await new Promise((resolve) => {
-      let settled = false;
-      let stdout = "";
-      let stderr = "";
-      const child = spawn("ssh", args, { stdio: ["pipe", "pipe", "pipe"], shell: false, detached: true, env });
-      child.stdout.on("data", (chunk) => { stdout += chunk.toString("utf8"); });
-      child.stderr.on("data", (chunk) => { stderr += chunk.toString("utf8"); });
-      if (stdinBuffer) child.stdin.end(stdinBuffer); else child.stdin.end();
-      const timer = setTimeout(() => {
-        if (settled) return;
-        settled = true;
-        killProcessTree(child, "SIGTERM");
-        setTimeout(() => killProcessTree(child, "SIGKILL"), SSH_PROCESS_KILL_GRACE_MS).unref?.();
-        resolve({ ok: false, exit_code: 124, timed_out: true, stdout: sanitizeOutput(stdout), stderr: sanitizeOutput(stderr) });
-      }, timeoutMs + SSH_PROCESS_KILL_GRACE_MS + 1000);
-      child.on("close", (code) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        resolve({ ok: Number(code) === 0, exit_code: Number(code), timed_out: Number(code) === 124, stdout: sanitizeOutput(stdout), stderr: sanitizeOutput(stderr) });
-      });
-      child.on("error", (err) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        resolve({ ok: false, exit_code: 127, timed_out: false, stdout: "", stderr: sanitizeOutput(err.message) });
-      });
-    });
-  } finally {
-    await rm(tempDir, { recursive: true, force: true }).catch(() => null);
-  }
 }
 
 function parseKeyValueOutput(stdout = "") {
@@ -723,7 +578,7 @@ export async function executeWordPressStagingPluginDeploy(input = {}, deps = {})
   const expectedHeadSha = compact(input.expected_head_sha || input.expectedHeadSha || input.expected_commit_sha || input.expectedCommitSha, 64).toLowerCase();
   const dryRun = input.dry_run === undefined ? true : bool(input.dry_run);
   const approvalReason = compact(input.approval_reason || input.approvalReason, 1000);
-  const timeoutMs = boundedInt(input.timeout_ms || input.timeoutMs, DEFAULT_TIMEOUT_MS, 1000, MAX_TIMEOUT_MS);
+  const timeoutMs = input.timeout_ms ?? input.timeoutMs ?? undefined;
   const traceId = `wordpress_staging_deploy_${randomUUID()}`;
 
   if (!/^[0-9a-f]{40}$/.test(expectedHeadSha)) throw deployError("wordpress_staging_deploy_exact_head_required", "expected_head_sha must be the exact 40-character WordPress PR HEAD SHA.", 400);
@@ -733,8 +588,13 @@ export async function executeWordPressStagingPluginDeploy(input = {}, deps = {})
   const targetId = target.target_id;
   const targetIdentity = assertStagingTarget(target);
   const artifact = await resolveReviewedArtifact(expectedHeadSha, deps);
-  const connection = await resolveSshConnection(pool, target, compact(target?.metadata?.ssh_auth_mode || "", 32));
-  const preflightResult = await runSshCommand(connection, buildPreflightScript(targetIdentity.wordpressPath), { timeoutMs });
+  const preflightResult = await runGovernedHostingerSshCommand({
+    pool,
+    target,
+    remoteScript: buildPreflightScript(targetIdentity.wordpressPath),
+    timeoutMs,
+    sshAuthMode: compact(target?.metadata?.ssh_auth_mode || "", 32),
+  });
   const preflight = assertLivePreflight(preflightResult);
 
   const base = {
@@ -797,25 +657,38 @@ export async function executeWordPressStagingPluginDeploy(input = {}, deps = {})
 
   const deploymentId = randomUUID();
   const remoteZip = `${targetIdentity.wordpressPath}/wp-content/plugins/.mad4b-staging-${deploymentId}.zip`;
-  const upload = await runSshCommand(connection, buildUploadScript(targetIdentity.wordpressPath, remoteZip), { timeoutMs, stdinBuffer: artifact.plugin_archive });
+  const upload = await runGovernedHostingerSshCommand({
+    pool,
+    target,
+    remoteScript: buildUploadScript(targetIdentity.wordpressPath, remoteZip),
+    timeoutMs,
+    stdinBuffer: artifact.plugin_archive,
+    sshAuthMode: compact(target?.metadata?.ssh_auth_mode || "", 32),
+  });
   if (!upload.ok || parseKeyValueOutput(upload.stdout).upload_result !== "ok") {
     const failure = { ...base, dry_run: false, failure_reason: "artifact_upload_failed", upload_exit_code: upload.exit_code };
     await writeEvidence(pool, traceId, "wordpress_staging_plugin_deploy", "failed", failure);
     throw deployError("wordpress_staging_deploy_upload_failed", "The verified Control Plane archive could not be uploaded through the governed SSH transport.", 502, { exit_code: upload.exit_code, stderr: upload.stderr });
   }
 
-  const apply = await runSshCommand(connection, buildApplyScript({
-    wordpressPath: targetIdentity.wordpressPath,
-    remoteZip,
-    expectedSha256: artifact.plugin_archive_sha256,
-    expectedVersion: artifact.control_plane_version,
-    expectedHeadSha,
-    expectedBuildFingerprint: artifact.build_fingerprint,
-    expectedPackageManifestDigest: artifact.package_manifest_digest,
-    expectedProfileRevision: preflight.profile_revision,
-    expectedProfileDigest: preflight.profile_digest,
-    deploymentId,
-  }), { timeoutMs });
+  const apply = await runGovernedHostingerSshCommand({
+    pool,
+    target,
+    remoteScript: buildApplyScript({
+      wordpressPath: targetIdentity.wordpressPath,
+      remoteZip,
+      expectedSha256: artifact.plugin_archive_sha256,
+      expectedVersion: artifact.control_plane_version,
+      expectedHeadSha,
+      expectedBuildFingerprint: artifact.build_fingerprint,
+      expectedPackageManifestDigest: artifact.package_manifest_digest,
+      expectedProfileRevision: preflight.profile_revision,
+      expectedProfileDigest: preflight.profile_digest,
+      deploymentId,
+    }),
+    timeoutMs,
+    sshAuthMode: compact(target?.metadata?.ssh_auth_mode || "", 32),
+  });
   const applied = parseKeyValueOutput(apply.stdout);
   const deployOk = apply.ok
     && applied.deploy_result === "ok"
