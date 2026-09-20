@@ -24,6 +24,7 @@ import { GOOGLE_TOKEN_ENDPOINT } from "./managedGoogleOAuthProtocolPolicy.js";
 import {
   authenticateManagedGoogleSiteRequest,
   signManagedGoogleSiteRequest,
+  managedGoogleRequestBodySha256,
   MANAGED_GOOGLE_SITE_AUTH_CONTRACT,
 } from "./managedGoogleOAuthSiteRequestAuth.js";
 
@@ -41,6 +42,44 @@ function sha256Hex(value) {
 function sha256Base64url(value) {
   return createHash("sha256").update(String(value), "utf8").digest("base64url");
 }
+
+const CROSS_LANGUAGE_VECTOR = Object.freeze({
+  secret: "site-broker-secret-fixture-0123456789abcdef",
+  timestamp: "1760000000",
+  nonce: "abcdefghijklmnopqrstuvwxYZ012345",
+  path: "/v1/google/oauth/session",
+  body: Object.freeze({
+    requested_scope: "https://www.googleapis.com/auth/drive.readonly",
+    origin: "https://staging.egypttourgates.com",
+    contract: "mad4b.google-managed-oauth-session.v1",
+    site_uuid: "d745d81f-6fc4-5c6a-99dd-d953c92137bf",
+    callback_uri: "https://staging.egypttourgates.com/wp-admin/admin-post.php?action=mad4b_context_google_managed_callback",
+    verifier_method: "S256",
+    access_mode: "read_only",
+    state: "state-fixture-abcdefghijklmnopqrstuvwxyz0123456789",
+    verifier_challenge: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi_jklmnopqrstu-1234567890",
+  }),
+  body_sha256: "337c650bf992ce6108a3f8ee69c8ba04bec319f70de266027c4c372b9d6483f1",
+  signature: "0cb44b37a06baa3d48050474bee31a1a519eef22651d8be7295c840066966e48",
+});
+
+assert.equal(
+  managedGoogleRequestBodySha256(CROSS_LANGUAGE_VECTOR.body),
+  CROSS_LANGUAGE_VECTOR.body_sha256,
+  "Node canonical Managed Google request body hash drifted from the cross-language contract."
+);
+assert.equal(
+  signManagedGoogleSiteRequest({
+    secret: CROSS_LANGUAGE_VECTOR.secret,
+    method: "POST",
+    path: CROSS_LANGUAGE_VECTOR.path,
+    timestamp: CROSS_LANGUAGE_VECTOR.timestamp,
+    nonce: CROSS_LANGUAGE_VECTOR.nonce,
+    body: CROSS_LANGUAGE_VECTOR.body,
+  }),
+  CROSS_LANGUAGE_VECTOR.signature,
+  "Node Managed Google site HMAC drifted from the WordPress cross-language contract."
+);
 
 class MemoryStore {
   constructor() {
