@@ -127,7 +127,11 @@ export function parseManagedGoogleSiteBindings(env = process.env) {
   if (!Array.isArray(parsed) || !parsed.length) {
     throw brokerError(503, "managed_google_oauth_site_bindings_invalid", "Managed Google OAuth site bindings must contain at least one active binding.");
   }
-  const bindings = parsed.map(normalizeSiteBinding).filter(Boolean);
+  const normalized = parsed.map(normalizeSiteBinding);
+  if (normalized.some((binding) => !binding)) {
+    throw brokerError(503, "managed_google_oauth_site_bindings_invalid", "Managed Google OAuth site bindings contain a malformed, inactive, or incomplete entry.");
+  }
+  const bindings = normalized;
   if (!bindings.length) {
     throw brokerError(503, "managed_google_oauth_site_bindings_invalid", "Managed Google OAuth site bindings contain no valid active binding.");
   }
