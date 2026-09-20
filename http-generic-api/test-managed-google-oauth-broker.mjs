@@ -358,6 +358,7 @@ const protocolPolicy = readFileSync("./managedGoogleOAuthProtocolPolicy.js", "ut
 const openapi = readFileSync("./openapi.yaml", "utf8");
 const frontendPolicy = JSON.parse(readFileSync("./frontend-surface-policy.json", "utf8"));
 const customGptSurfaceRegistry = readFileSync("../canonicals/openapi/custom-gpt-surfaces.yaml", "utf8");
+const pathFormatGuard = readFileSync("./scripts/ci-path-format-guard.mjs", "utf8");
 const configRegistry = JSON.parse(readFileSync("../docs/governance/platform-configuration-entry-registry.json", "utf8"));
 const driftPolicy = JSON.parse(readFileSync("../docs/governance/configuration-drift-policy.json", "utf8"));
 const routeIndex = readFileSync("./routes/index.js", "utf8");
@@ -414,11 +415,19 @@ for (const operationId of [
   "redeemManagedGoogleOAuthHandoff",
   "refreshManagedGoogleOAuthAccessToken",
 ]) {
-  assert.ok(
+  const operationIndex = openapi.indexOf(`operationId: ${operationId}`);
+  assert.ok(operationIndex >= 0, `managed OAuth source OpenAPI operation missing: ${operationId}`);
+  const operationWindow = openapi.slice(operationIndex, operationIndex + 800);
+  assert.ok(operationWindow.includes("x-custom-gpt-exclude: true"), `managed OAuth operation must be globally excluded from Custom GPT projection: ${operationId}`);
+  assert.ok(operationWindow.includes("x-gpt-action-exclude: true"), `managed OAuth operation must be globally excluded from GPT Actions: ${operationId}`);
+  assert.equal(
     customGptSurfaceRegistry.includes(`operation_id: ${operationId}`),
-    `managed OAuth protocol operation must have an explicit Custom GPT/Remote MCP exclusion: ${operationId}`,
+    false,
+    `managed OAuth protocol operation must not masquerade as a per-surface candidate exclusion: ${operationId}`,
   );
 }
+assert.ok(pathFormatGuard.includes('entry.operation?.["x-custom-gpt-exclude"] === true'), "path guard must honor source-owned Custom GPT exclusions");
+assert.ok(pathFormatGuard.includes('entry.operation?.["x-gpt-action-exclude"] === true'), "path guard must honor source-owned GPT Action exclusions");
 
 const registeredKeys = new Set(configRegistry.entries.map((entry) => entry.config_key));
 for (const key of [
