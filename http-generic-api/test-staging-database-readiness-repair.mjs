@@ -21,6 +21,7 @@ const repair = read("autopilot-portable-staging/Repair-StagingDatabaseReadiness.
 const runtimePersistenceReadiness = read("http-generic-api/scripts/runtime-persistence-operational-readiness.mjs");
 const importer = read("autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1");
 const sqlCacheMigration = read("http-generic-api/migrations/1023_sprint69_sql_cache_runtime_policy.sql");
+const platformAdminWorkspaceSeed = read("http-generic-api/migrations/20260920_platform_admin_workspace_canonical_seed.sql");
 const roleManifest = readJson("http-generic-api/config/staging-database-role-migration-manifest.json");
 for (const table of STAGING_ROLE_GRANT_POLICIES.governance.required_tables) {
   assert.equal(
@@ -161,7 +162,11 @@ assert.deepEqual(roleManifest.canonical_seed_lifecycle.seed_files, [
   "039_sprint43_data_integrity_and_missing_tables.sql",
   "1043_sprint69_dynamic_container_hvac_activity_seed.sql",
   "20260815_custom_gpt_mcp_catalog_levels.sql",
+  "20260920_platform_admin_workspace_canonical_seed.sql",
 ]);
+assert.match(platformAdminWorkspaceSeed, /WHERE NOT EXISTS[\s\S]*workspace_id[\s\S]*workspace_key/i);
+assert.doesNotMatch(platformAdminWorkspaceSeed, /ON DUPLICATE KEY UPDATE/i);
+assert.match(importer, /Assert-CountExactly[\s\S]*canonical Platform Admin workspace/);
 assert.equal(roleManifest.authority_seed_lifecycle.contract, "mad4b.staging.authority-seed-manifest.v1");
 assert.equal(roleManifest.authority_seed_lifecycle.target_role, "runtime");
 assert.equal(roleManifest.authority_seed_lifecycle.execution_identity, "local_database_root");
