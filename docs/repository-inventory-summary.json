@@ -3,20 +3,20 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 7717,
-    "bytes": 77057220,
-    "lines": 1773817,
+    "files": 7688,
+    "bytes": 76673489,
+    "lines": 1766197,
     "directories": 266,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2269,
-      "documentation": 1928,
-      "api-runtime": 1599,
-      "database-migrations": 839,
-      "root-and-other": 422,
-      "api-contracts": 197,
+      "tests-and-specs": 2263,
+      "documentation": 1927,
+      "api-runtime": 1590,
+      "database-migrations": 836,
+      "root-and-other": 414,
+      "api-contracts": 195,
       "ci-workflows": 170,
       "ci-config": 141,
       "schemas-and-data": 87,
@@ -26,13 +26,13 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2534,
-      ".mjs": 1867,
-      ".js": 1071,
-      ".json": 971,
-      ".sql": 857,
+      ".md": 2533,
+      ".mjs": 1857,
+      ".js": 1067,
+      ".json": 962,
+      ".sql": 854,
       ".yml": 175,
-      ".yaml": 124,
+      ".yaml": 122,
       ".ps1": 39,
       ".ts": 16,
       ".cs": 14,
@@ -61,10 +61,10 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 4021,
-      "docs": 1832,
+      "http-generic-api": 4001,
+      "docs": 1831,
       "specs": 893,
-      ".changes": 375,
+      ".changes": 367,
       ".github": 311,
       "canonicals": 71,
       "autopilot-portable-staging": 41,
@@ -193,7 +193,6 @@
         "supervisor:readiness",
         "runtime-persistence:readiness",
         "database:collation:check",
-        "database:lifecycle:check",
         "supervisor:readiness:live",
         "supervisor:certify",
         "supervisor:certify:live",
@@ -260,9 +259,9 @@
   ],
   "surfaces": {
     "workflows": 170,
-    "migrations": 839,
-    "apiContracts": 197,
-    "testSpecFiles": 2359
+    "migrations": 836,
+    "apiContracts": 195,
+    "testSpecFiles": 2353
   },
   "largestFiles": [
     {
@@ -274,14 +273,14 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3591109,
-      "lines": 101139
+      "bytes": 3581470,
+      "lines": 100908
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
-      "bytes": 1993492,
-      "lines": 60281
+      "bytes": 1989900,
+      "lines": 60174
     },
     {
       "path": "docs/staging-write-route-partition-2026-08-14.json",
@@ -292,14 +291,14 @@
     {
       "path": "http-generic-api/openapi.yaml",
       "category": "api-contracts",
-      "bytes": 1041352,
-      "lines": 23823
+      "bytes": 1035665,
+      "lines": 23701
     },
     {
       "path": "http-generic-api/frontend-surface-policy.json",
       "category": "api-runtime",
-      "bytes": 641052,
-      "lines": 12180
+      "bytes": 637813,
+      "lines": 12115
     },
     {
       "path": "edge/activation-gateway/worker-configuration.d.ts",
@@ -334,8 +333,8 @@
     {
       "path": "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
       "category": "api-contracts",
-      "bytes": 278594,
-      "lines": 6614
+      "bytes": 277007,
+      "lines": 6577
     },
     {
       "path": "docs/governance/configuration-drift-policy.json",
