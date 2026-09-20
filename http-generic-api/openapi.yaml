@@ -129,6 +129,15 @@ components:
       scheme: bearer
       bearerFormat: User JWT
       description: Signed user JWT from /auth/login or /auth/google. Backend API keys do not satisfy this scheme.
+    managedGoogleSiteHmac:
+      type: apiKey
+      in: header
+      name: X-MAD4B-Site-Signature
+      description: >-
+        HMAC-SHA256 signature for Managed Google OAuth site-to-broker POST requests.
+        The signed payload also binds X-MAD4B-Site-Key-ID, X-MAD4B-Site-Timestamp,
+        X-MAD4B-Site-Nonce, the exact HTTP method/path, and canonical JSON body hash.
+        The nonce is single-use and the timestamp is limited to the broker clock-skew window.
     localManagerBearerAuth:
       type: http
       scheme: bearer
