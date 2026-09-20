@@ -56,7 +56,8 @@
             "Resolve server-owned SSH credentials without creating credential-intake handoffs; fail closed before any SSH connection when a required role is unresolved.",
             "After a successful deployment and exact same-cycle readback, classify capability-envelope consumption failure as governance reconciliation and explicitly forbid deployment retry.",
             "Complete artifact, plugin-version, and same-filesystem validation before arming plugin rollback; pre-swap validation failure performs transient cleanup only.",
-            "Preserve any pre-existing WordPress maintenance-mode state across successful deployment and rollback."
+            "Preserve any pre-existing WordPress maintenance-mode state across successful deployment and rollback.",
+            "Require apply_allowed=true and persist the exact capability-envelope reference before the first artifact upload."
           ],
           "assertions": [
             "Environment impact authority is http-generic-api/config/deployment-branch-policy.json.",
@@ -72,7 +73,9 @@
             "The rollback ERR trap is armed only after remote validation and immediately before the first plugin-directory rename.",
             "Pre-swap validation failure does not enter plugin rollback or toggle WordPress maintenance mode.",
             "A pre-existing WordPress maintenance mode remains active after both successful deployment and rollback.",
-            "A successful authorized Hostinger target probe records remote_runtime_targets.validation_status=valid, matching the canonical target schema."
+            "A successful authorized Hostinger target probe records remote_runtime_targets.validation_status=valid, matching the canonical target schema.",
+            "A valid but non-apply capability envelope cannot start WordPress deployment writes.",
+            "Envelope-reference persistence failure occurs before the first artifact upload and records first_remote_write_started=false."
           ],
           "tests": [
             {

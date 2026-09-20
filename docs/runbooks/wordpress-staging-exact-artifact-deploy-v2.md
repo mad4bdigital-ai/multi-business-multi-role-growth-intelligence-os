@@ -229,6 +229,18 @@ Apply requires all dry-run gates plus:
 The envelope is referenced before execution and consumed only after successful
 same-cycle readback.
 
+Before the first artifact upload, the executor additionally requires:
+
+```text
+envelope.ok = true
+envelope.apply_allowed = true
+markCapabilityEnvelopeReferenced(...).ok = true
+```
+
+A failed envelope-reference persistence returns
+`wordpress_staging_deploy_capability_envelope_reference_failed` with
+`first_remote_write_started=false`; no plugin artifact is uploaded.
+
 ## Maintenance-mode preservation and pre-swap validation
 
 The executor completes environment, Site Profile, archive SHA-256, extracted plugin

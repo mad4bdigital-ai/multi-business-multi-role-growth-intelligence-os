@@ -672,7 +672,25 @@ export async function executeWordPressStagingPluginDeploy(input = {}, deps = {})
     allowReferenced: false,
   });
   if (!envelope.ok) throw capabilityEnvelopeError(envelope, "Exact approved capability envelope does not authorize this WordPress Staging deployment.");
-  await markCapabilityEnvelopeReferenced({ envelopeId: envelope.envelope_id, executionRef: traceId });
+  if (envelope.apply_allowed !== true) {
+    throw capabilityEnvelopeError(
+      { ...envelope, ok: false, status: "capability_resolution_envelope_apply_not_allowed", secrets_included: false },
+      "WordPress Staging deployment requires an apply-authorized capability envelope.",
+    );
+  }
+  const referenced = await markCapabilityEnvelopeReferenced({ envelopeId: envelope.envelope_id, executionRef: traceId });
+  if (!referenced?.ok) {
+    throw deployError(
+      "wordpress_staging_deploy_capability_envelope_reference_failed",
+      "Capability envelope reference could not be persisted before the first WordPress deployment write.",
+      409,
+      {
+        envelope_id: envelope.envelope_id,
+        first_remote_write_started: false,
+        envelope_reference_status: referenced?.status || null,
+      },
+    );
+  }
 
   const deploymentId = randomUUID();
   const remoteControlZip = `${targetIdentity.wordpressPath}/wp-content/plugins/.mad4b-control-${deploymentId}.zip`;

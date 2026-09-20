@@ -194,6 +194,12 @@ assert(executor.includes("credential_intake_created: false"), "WordPress deploym
 assert(wordpressDeploy.includes("completed_reconciliation_required"), "verified deploy with envelope-consume failure must be classified as reconciliation-required");
 assert(wordpressDeploy.includes("retry_deployment: false"), "post-readback envelope-consume failure must explicitly forbid deployment retry");
 assert(wordpressDeploy.includes("mutation_applied: true"), "post-readback envelope-consume failure evidence must preserve that deployment already occurred");
+assert(wordpressDeploy.includes("envelope.apply_allowed !== true"), "WordPress deploy must require explicit apply_allowed before the first remote write");
+assert(wordpressDeploy.includes("wordpress_staging_deploy_capability_envelope_reference_failed"), "WordPress deploy must fail closed when envelope reference persistence fails");
+assert(wordpressDeploy.includes("first_remote_write_started: false"), "envelope-reference failure evidence must prove no deployment write started");
+const wordpressEnvelopeReferenceIndex = wordpressDeploy.indexOf("const referenced = await markCapabilityEnvelopeReferenced");
+const wordpressAdapterUploadIndex = wordpressDeploy.indexOf("const adapterUpload = await runHostingerSshCommand");
+assert(wordpressEnvelopeReferenceIndex >= 0 && wordpressAdapterUploadIndex > wordpressEnvelopeReferenceIndex, "capability envelope must be referenced before the first artifact upload");
 assert(wordpressDeploy.includes("maintenance_was_active=0"), "WordPress deploy must snapshot pre-existing maintenance state");
 assert(wordpressDeploy.includes("maintenance_activated_by_deploy=0"), "WordPress deploy must track only maintenance mode it activated");
 assert(wordpressDeploy.includes("trap cleanup_transient EXIT"), "pre-swap validation failures must clean transient files without plugin rollback mutation");
