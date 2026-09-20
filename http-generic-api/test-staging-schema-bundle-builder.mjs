@@ -1352,7 +1352,7 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_text_width_chain.migration_files_checked, canonicalMigrationFiles.length);
   assert.equal(plan.ordered_text_width_chain.statements_checked, expectedStatementsChecked);
   assert.equal(plan.ordered_text_width_chain.bounded_text_columns, 5221);
-  assert.equal(plan.ordered_text_width_chain.definitions_applied, 6066);
+  assert.equal(plan.ordered_text_width_chain.definitions_applied, 6067);
   assert.equal(plan.ordered_text_width_chain.insert_select_source_domain_checks, 937);
   assert.equal(plan.ordered_text_width_chain.insert_select_source_domain_overflows, 0);
   assert.equal(plan.ordered_text_width_chain.database_connection_performed, false);
