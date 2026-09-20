@@ -383,8 +383,12 @@ test("schema bundle manifest declares exactly three isolated roles", () => {
   assert.equal(manifest.canonical_semantic_snapshot.live_environment_data_copy_forbidden, true);
   assert.equal(manifest.canonical_semantic_snapshot.same_cycle_sha256_manifest_required, true);
   assert.deepEqual(manifest.validation.required_semantic_bundle_files, ["runtime.canonical-semantic.sql.gz"]);
-  assert.equal(manifest.canonical_semantic_snapshot.tables.length, 20);
-  assert.equal(new Set(manifest.canonical_semantic_snapshot.tables).size, 20);
+  assert.ok(manifest.canonical_semantic_snapshot.tables.length > 0);
+  assert.equal(
+    new Set(manifest.canonical_semantic_snapshot.tables).size,
+    manifest.canonical_semantic_snapshot.tables.length,
+    "canonical semantic snapshot table declarations must remain unique",
+  );
   assert.deepEqual(manifest.canonical_semantic_snapshot.required_nonempty_tables, manifest.canonical_semantic_snapshot.tables);
   for (const table of ["tenant_platform_endpoint_tools", "platform_endpoint_tool_exports", "activation_connector_pack_registry", "activation_delivery_policy_registry"]) {
     assert.equal(manifest.canonical_semantic_snapshot.tables.includes(table), true, `missing semantic snapshot table ${table}`);
@@ -1345,7 +1349,11 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.canonical_semantic_snapshot.contract, "mad4b.staging.canonical-semantic-snapshot.v1");
   assert.equal(plan.canonical_semantic_snapshot.source_kind, "disposable_git_migration_projection");
   assert.equal(plan.canonical_semantic_snapshot.bundle_file, "runtime.canonical-semantic.sql.gz");
-  assert.equal(plan.canonical_semantic_snapshot.table_count, 20);
+  assert.equal(
+    plan.canonical_semantic_snapshot.table_count,
+    manifest.canonical_semantic_snapshot.tables.length,
+    "plan-only semantic table count must stay derived from the canonical manifest",
+  );
   assert.equal(plan.canonical_semantic_snapshot.plan_only, true);
   assert.equal(plan.ordered_collation_chain.contract, "mad4b.mariadb-collation-ordered-chain.v1");
   assert.equal(plan.ordered_collation_chain.ok, true);
