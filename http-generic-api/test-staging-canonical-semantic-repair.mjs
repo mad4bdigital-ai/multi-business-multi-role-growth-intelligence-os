@@ -64,4 +64,11 @@ await assert.rejects(applyStagingCanonicalSemanticRepair({executor:unknownExecut
 await assert.rejects(applyStagingCanonicalSemanticRepair({executor:unknownExecutor,plan:{...unknownPlan,target_environment:"production"},confirmation:unknownPlan.required_confirmation,actual_commit:commit}),
   (error)=>error?.code==="STAGING_CANONICAL_REPAIR_TARGET_AUTHORITY_MISMATCH");
 
+const receiptState={tableExists:true,totalRows:4,candidateRows:[]};const receiptExecutor=executorFor(receiptState);
+const receiptPlan=await planStagingCanonicalSemanticRepair({executor:receiptExecutor,expected_commit:commit,actual_commit:commit});const receiptLedger=ledgerFor();let receiptUnknown=false;
+receiptLedger.markSucceeded=async()=>{throw new Error("durable store unavailable");};receiptLedger.markUnknown=async(planSha,details)=>{receiptUnknown=true;receiptLedger.records.set(planSha,{...receiptLedger.records.get(planSha),...details,state:"unknown_outcome"});};
+await assert.rejects(applyStagingCanonicalSemanticRepair({executor:receiptExecutor,plan:receiptPlan,confirmation:receiptPlan.required_confirmation,actual_commit:commit,ledger:receiptLedger}),
+  (error)=>error?.code==="STAGING_CANONICAL_REPAIR_RECONCILIATION_REQUIRED"&&error?.details?.status==="unknown_outcome"&&error?.details?.mutation_retry_allowed===false);
+assert.equal(receiptUnknown,true);assert.equal(receiptState.candidateRows.length,1);
+
 console.log("Staging canonical semantic repair artifact/plan/reconciliation tests passed");
