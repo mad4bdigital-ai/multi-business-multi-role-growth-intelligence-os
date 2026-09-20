@@ -477,6 +477,17 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": "http-generic-api/scripts/generate-activation-staging-policy.mjs|existingPolicy|literal_declaration|existingpolicy",
+      "owner": "openapi-governance",
+      "reason": "existingPolicy is a read-only snapshot of the previously generated Staging Activation Gateway policy used only to preserve provenance hashes when Gateway semantic content is unchanged. It contains no credential, selects no live target or provider, grants no runtime mutation authority, and cannot activate Production.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": "http-generic-api/scripts/github-main-review-policy-readiness-issue-publisher.mjs|FAILURE_PATH|environment_reference|readiness.failure.path",
       "owner": "repository-governance",
       "reason": "Readiness failure path points only to the downloaded exact-run artifact in the ephemeral Actions workspace and is used for bounded read-only diagnostic publication.",

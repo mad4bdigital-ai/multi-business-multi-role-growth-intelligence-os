@@ -2,6 +2,8 @@ wordpressStagingPluginDeployPath:
   post:
     operationId: wordpressStagingPluginDeploy
     summary: Plan or execute the exact reviewed WordPress Staging General Distribution artifact
+    tags:
+      - admin-operations
     description: >-
       Staging-only governed deployment of the exact successful MAD4B WordPress General
       Distribution artifact. The runtime resolves the artifact from the exact PR HEAD
