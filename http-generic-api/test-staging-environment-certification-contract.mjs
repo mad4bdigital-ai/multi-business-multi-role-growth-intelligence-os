@@ -111,7 +111,7 @@ function listen(handler) {
   });
 }
 
-function deploymentBody({ commit = expectedCommit, databaseReady = true } = {}) {
+function deploymentBody({ commit = expectedCommit, databaseReady = true, semanticStatus = "ready" } = {}) {
   return {
     ok: true,
     service: "growth-intelligence-platform",
@@ -147,6 +147,20 @@ function deploymentBody({ commit = expectedCommit, databaseReady = true } = {}) 
       ready: databaseReady,
       status: databaseReady ? "ready" : "blocked",
       reason: databaseReady ? null : "governance_db_privilege_not_ready",
+      secrets_included: false,
+    },
+    platform_admin_semantic_readiness: {
+      contract: "mad4b.platform-admin-workspace-readiness.v1",
+      status: semanticStatus,
+      ready: semanticStatus === "ready",
+      relevant_row_count: semanticStatus === "canonical_missing" ? 0 : 1,
+      exact_selector_count: semanticStatus === "canonical_missing" ? 0 : 1,
+      marker_candidate_count: semanticStatus === "ready" ? 1 : 0,
+      ready_authority_count: semanticStatus === "ready" ? 1 : 0,
+      database_read_performed: true,
+      database_mutation_performed: false,
+      provider_access_performed: false,
+      production_access_performed: false,
       secrets_included: false,
     },
     production_activation_readiness: {
@@ -262,6 +276,8 @@ try {
   assert.equal(ready.report.ready, true);
   assert.deepEqual(ready.report.blocking_failures, []);
   assert.deepEqual(ready.report.degraded_reasons, []);
+  assert.equal(ready.report.observed.platform_admin_semantic_status, "ready");
+  assert.equal(ready.report.readiness_checks.find((entry) => entry.key === "platform_admin_semantic_readiness")?.ok, true);
   assert.equal(ready.report.gateway.expected_source_commit, expectedCommit);
   assert.equal(ready.report.gateway.profile_validation.ok, true);
   assert.equal(ready.report.gateway.policy_source, "repository_profile");
@@ -342,6 +358,15 @@ try {
 
   const healthRequestsAfterCanonicalChecks = gatewayHealthRequests;
   assert.equal(healthRequestsAfterCanonicalChecks > 0, true);
+
+  currentDeployment = deploymentBody({ semanticStatus: "canonical_missing" });
+  const semanticDegraded = await runLive({ STAGING_CERT_REQUIRE_READY: "false" });
+  assert.equal(semanticDegraded.run.status, 0, semanticDegraded.run.stderr || semanticDegraded.run.stdout);
+  assert.equal(semanticDegraded.report.outcome, "degraded");
+  assert.ok(semanticDegraded.report.degraded_reasons.includes("platform_admin_semantic_readiness"));
+  assert.equal(semanticDegraded.report.observed.platform_admin_semantic_status, "canonical_missing");
+  assert.equal(semanticDegraded.report.safety.provider_mutation, false);
+  assert.equal(semanticDegraded.report.safety.database_mutation, false);
 
   currentDeployment = deploymentBody({ databaseReady: false });
   const degraded = await runLive({ STAGING_CERT_REQUIRE_READY: "false" });
