@@ -1,0 +1,133 @@
+wordpressStagingPluginDeployPath:
+  post:
+    operationId: wordpressStagingPluginDeploy
+    summary: Plan or execute the reviewed ETG WordPress Staging artifact
+    description: >-
+      Staging-only governed deployment of an exact successful General Distribution
+      artifact produced by mad4bdigital-ai/WordPress. The server resolves exactly one
+      active and validated Hostinger target bound to the ETG Staging Site Profile,
+      verifies the successful exact-head workflow run, GitHub artifact digest when
+      provided, install manifest, Control Plane SHA-256, bundled MCP Adapter SHA-256,
+      deployment handoff v2 and build provenance, then performs a live Site Profile
+      preflight before any write. Apply additionally requires an exact capability
+      envelope bound to the same WordPress HEAD. Production authority, Breakglass,
+      caller-selected targets, filesystem paths, hosts and SSH credentials are rejected.
+    x-runtime-contract-source: routes/wordpressStagingPluginDeployRoutes.js
+    x-runtime-auth-profile: admin_backend
+    x-contract-completeness: precise-runtime-contract
+    x-custom-gpt-exclude: true
+    x-gpt-action-exclude: true
+    x-openai-isConsequential: true
+    security:
+      - adminBearerAuth: []
+      - backendApiKeyAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - expected_head_sha
+            properties:
+              expected_head_sha:
+                type: string
+                pattern: '^[0-9a-f]{40}$'
+                description: Exact WordPress PR HEAD whose successful reviewed General Distribution artifact is allowed to deploy.
+              dry_run:
+                type: boolean
+                default: true
+              approval_reason:
+                type: string
+                minLength: 20
+                maxLength: 1000
+                description: Required only for apply.
+              capability_envelope_id:
+                type: string
+                minLength: 1
+                maxLength: 64
+                description: Required for apply and bound to the exact expected_head_sha and wordpress_plugin_deploy capability.
+              timeout_ms:
+                type: integer
+                minimum: 1000
+                maximum: 300000
+    responses:
+      '200':
+        description: Dry-run preflight completed or approved deployment completed with exact same-cycle readback.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              required:
+                - ok
+                - contract
+                - environment
+                - origin
+                - expected_head_sha
+                - dry_run
+                - production_authority_used
+                - breakglass_used
+                - caller_supplied_credentials_used
+                - secrets_included
+              properties:
+                ok:
+                  type: boolean
+                contract:
+                  type: string
+                  enum: [mad4b.wordpress-staging-plugin-deploy.v2]
+                environment:
+                  type: string
+                  enum: [staging]
+                origin:
+                  type: string
+                  enum: [https://staging.egypttourgates.com]
+                expected_head_sha:
+                  type: string
+                  pattern: '^[0-9a-f]{40}$'
+                target_id:
+                  type: string
+                  description: Server-resolved target identifier; never caller-selected.
+                build_fingerprint:
+                  type: string
+                  pattern: '^[0-9a-f]{64}$'
+                package_manifest_digest:
+                  type: string
+                  pattern: '^[0-9a-f]{64}$'
+                control_plane_version:
+                  type: string
+                mcp_adapter_version:
+                  type: string
+                  enum: ['0.6.1']
+                runtime_manifest_match:
+                  type: boolean
+                stale:
+                  type: boolean
+                site_profile:
+                  type: object
+                  additionalProperties: true
+                dry_run:
+                  type: boolean
+                production_authority_used:
+                  type: boolean
+                  const: false
+                breakglass_used:
+                  type: boolean
+                  const: false
+                caller_supplied_credentials_used:
+                  type: boolean
+                  const: false
+                secrets_included:
+                  type: boolean
+                  const: false
+      '400':
+        description: Invalid exact HEAD or request contract.
+      '403':
+        description: Apply attempted without the required approval reason or exact capability envelope.
+      '409':
+        description: >-
+          Fail-closed target absence/ambiguity, target allowlist, Site Profile,
+          artifact provenance, package digest, handoff, feature-gate, or capability-envelope mismatch.
+      '502':
+        description: GitHub artifact retrieval, SSH preflight, upload, deploy, exact readback or rollback failure.
