@@ -464,6 +464,19 @@ async function resolveSshConnectionCredentials(pool, target, input = {}) {
   return { host, port, user, auth_mode: "private_key", privateKey };
 }
 
+export async function resolveServerOwnedHostingerSshConnection(pool, target) {
+  const [host, port, user] = await Promise.all(
+    SSH_COMMON_ROLES.map((role) => resolveSshCredential(pool, target, role, {}, { createHandoff: false }))
+  );
+  const authMode = target?.provider_family === "hostinger" ? "password" : "private_key";
+  if (authMode === "password") {
+    const password = await resolveSshCredential(pool, target, SSH_PASSWORD_ROLE, {}, { createHandoff: false });
+    return { host, port, user, auth_mode: "password", password };
+  }
+  const privateKey = await resolveSshCredential(pool, target, SSH_KEY_ROLE, {}, { createHandoff: false });
+  return { host, port, user, auth_mode: "private_key", privateKey };
+}
+
 function hardenedSshOptions({ usePassword = false } = {}) {
   const options = [
     "-T",
@@ -524,7 +537,7 @@ export function buildRemoteDeployScript({ appPath, branch, expectedCommitSha, fo
   ].join(" && ");
 }
 
-function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", privateKey, password, password_transport: passwordTransport = "auto", remoteScript, timeoutMs }) {
+export function runHostingerSshCommand({ host, port, user, auth_mode: authMode = "private_key", privateKey, password, password_transport: passwordTransport = "auto", remoteScript, timeoutMs, stdinBuffer = null }) {
   return new Promise(async (resolve) => {
     const usePassword = authMode === "password";
     const selectedPasswordTransport = usePassword ? resolveSshPasswordTransport(passwordTransport) : null;
@@ -541,7 +554,7 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
       let command = "ssh";
       let args;
       let spawnEnv = process.env;
-      let stdio = ["ignore", "pipe", "pipe"];
+      let stdio = [stdinBuffer ? "pipe" : "ignore", "pipe", "pipe"];
       if (usePassword && selectedPasswordTransport === "sshpass") {
         command = "sshpass";
         args = [
@@ -554,7 +567,7 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
           "-lc",
           remoteScript,
         ];
-        stdio = ["ignore", "pipe", "pipe", "pipe"];
+        stdio = [stdinBuffer ? "pipe" : "ignore", "pipe", "pipe", "pipe"];
       } else if (usePassword) {
         await writeFile(passwordFile, String(password || ""), { mode: 0o600 });
         await writeFile(
@@ -612,6 +625,8 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
       if (usePassword && selectedPasswordTransport === "sshpass" && child.stdio?.[3]) {
         child.stdio[3].end(`${password}\n`);
       }
+      if (stdinBuffer && child.stdin) child.stdin.end(stdinBuffer);
+      else if (child.stdin) child.stdin.end();
       let stdout = "";
       let stderr = "";
       const resultBase = {
@@ -926,7 +941,7 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
   );
   const remoteScript = buildRemoteProbeScript({ appPath, expectedCommitSha });
   const sshResult = await withPhaseTimeout(
-    runSshCommand({ ...sshConnection, password_transport: sshPasswordTransport, remoteScript, timeoutMs }),
+    runHostingerSshCommand({ ...sshConnection, password_transport: sshPasswordTransport, remoteScript, timeoutMs }),
     { phase: "ssh_command_execution", timeoutMs: timeoutMs + SSH_PROCESS_KILL_GRACE_MS + 2000, details: { target_id: targetId, ssh_auth_mode: sshAuthMode } }
   );
   const parsed = parseProbeOutput(sshResult.stdout);
@@ -1251,7 +1266,7 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
 
   const sshConnection = await resolveSshConnectionCredentials(pool, target, input);
   const remoteScript = buildRemoteDeployScript({ appPath, branch, expectedCommitSha, forceClean, restart });
-  const sshResult = await runSshCommand({ ...sshConnection, password_transport: sshPasswordTransport, remoteScript, timeoutMs });
+  const sshResult = await runHostingerSshCommand({ ...sshConnection, password_transport: sshPasswordTransport, remoteScript, timeoutMs });
   const parsedDeploy = parseProbeOutput(sshResult.stdout);
   const reloadVerification = buildHostingerDeployReloadVerification({ restart, parsed: parsedDeploy, sshOk: sshResult.ok });
   const continuation = buildHostingerDeployContinuationEvidence({

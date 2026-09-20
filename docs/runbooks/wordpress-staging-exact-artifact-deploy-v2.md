@@ -90,6 +90,21 @@ More than one match fails closed as ambiguous.
 The deployment migration intentionally does not create, widen, or repair a target
 allowlist. Target authority is governed separately.
 
+## Shared Hostinger transport authority
+
+The WordPress deployment executor does not maintain a second SSH credential or askpass
+implementation. It reuses the canonical Hostinger SSH transport for:
+
+- server-owned credential resolution without creating a credential-intake side effect;
+- hardened SSH options and timeouts;
+- password/private-key transport;
+- secret-safe output;
+- bounded process timeout/cleanup;
+- optional binary stdin streaming for the already verified plugin archives.
+
+WordPress-specific code owns only target uniqueness, artifact provenance, Site Profile
+preflight, plugin swap, exact readback, and rollback semantics.
+
 ## Exact artifact verification
 
 For `expected_head_sha`, the executor reads the successful reviewed

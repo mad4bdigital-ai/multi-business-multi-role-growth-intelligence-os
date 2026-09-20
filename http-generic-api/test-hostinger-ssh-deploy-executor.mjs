@@ -176,4 +176,12 @@ assert(!Object.hasOwn(wordpressDeployRequestProperties, "ssh_auth_mode"), "OpenA
 assert(Object.hasOwn(wordpressDeployRequestProperties, "expected_head_sha"), "OpenAPI request must require exact WordPress head identity");
 assert(wordpressDeployOpenApi.includes('mad4b.wordpress-deployment-handoff.v2'), "OpenAPI response must expose handoff v2 identity");
 assert(wordpressDeployOpenApi.includes('d745d81f-6fc4-5c6a-99dd-d953c92137bf'), "OpenAPI must bind the ETG Staging Site Profile UUID");
+assert(hostinger.includes("export async function resolveServerOwnedHostingerSshConnection"), "shared Hostinger transport must expose no-handoff server-owned credential resolution");
+assert(hostinger.includes("export function runHostingerSshCommand"), "shared Hostinger transport must expose the hardened SSH runner");
+assert(hostinger.includes("stdinBuffer = null"), "shared SSH runner must support bounded artifact stdin streaming");
+assert(wordpressDeploy.includes("resolveServerOwnedHostingerSshConnection"), "WordPress deploy must reuse the canonical server-owned Hostinger credential resolver");
+assert(wordpressDeploy.includes("runHostingerSshCommand"), "WordPress deploy must reuse the canonical hardened Hostinger SSH runner");
+assert(!wordpressDeploy.includes("MAD4B_SSH_ASKPASS_FILE"), "WordPress deploy must not duplicate askpass/secret transport configuration");
+assert(!wordpressDeploy.includes("NODE_OPTIONS"), "WordPress deploy must not duplicate Node askpass runtime configuration");
+assert(!wordpressDeploy.includes("SSH_CONNECT_TIMEOUT_SECONDS"), "WordPress deploy must not duplicate SSH transport timeout configuration");
 console.log("Hostinger SSH deploy executor safety tests passed");
