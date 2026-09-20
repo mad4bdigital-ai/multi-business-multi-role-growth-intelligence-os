@@ -270,14 +270,39 @@ async function githubJson(url, token, fetchImpl = fetch) {
   return body;
 }
 
-function assertSafeZipEntries(zipPath) {
+function assertSafeZipEntries(zipPath, { expectedRoot = "" } = {}) {
   const listed = spawnSync("unzip", ["-Z1", zipPath], { encoding: "utf8", maxBuffer: 4 * 1024 * 1024 });
   if (listed.error || listed.status !== 0) throw deployError("wordpress_staging_deploy_unzip_unavailable", "The Host Connector must have a working unzip binary before artifact deployment.", 500);
-  for (const raw of String(listed.stdout || "").split(/\r?\n/).filter(Boolean)) {
+  const entries = String(listed.stdout || "").split(/\r?\n/).filter(Boolean);
+  if (!entries.length || entries.length > 20000) {
+    throw deployError("wordpress_staging_deploy_artifact_entry_count_invalid", "The reviewed ZIP entry count is outside the bounded deployment contract.", 409, { entry_count: entries.length });
+  }
+  for (const raw of entries) {
     const entry = raw.replace(/\\/g, "/");
-    if (entry.startsWith("/") || entry.split("/").includes("..")) {
-      throw deployError("wordpress_staging_deploy_artifact_path_unsafe", "The GitHub artifact contains an unsafe ZIP path.", 409, { entry: raw.slice(0, 240) });
+    if (entry.startsWith("/") || entry.split("/").includes("..") || (expectedRoot && !entry.startsWith(expectedRoot))) {
+      throw deployError("wordpress_staging_deploy_artifact_path_unsafe", "The reviewed ZIP contains an unsafe or out-of-root path.", 409, { entry: raw.slice(0, 240), expected_root: expectedRoot || null });
     }
+  }
+
+  const detailed = spawnSync("unzip", ["-Z", "-l", zipPath], { encoding: "utf8", maxBuffer: 8 * 1024 * 1024 });
+  if (detailed.error || detailed.status !== 0) throw deployError("wordpress_staging_deploy_zip_metadata_unavailable", "ZIP metadata could not be inspected before deployment.", 500);
+  let totalUncompressedBytes = 0;
+  let typedEntryCount = 0;
+  for (const line of String(detailed.stdout || "").split(/\r?\n/)) {
+    const match = line.match(/^([bcdlps-][rwxStTs-]{9})\s+\S+\s+\S+\s+(\d+)\s+/);
+    if (!match) continue;
+    typedEntryCount += 1;
+    const type = match[1][0];
+    if (type !== "-" && type !== "d") {
+      throw deployError("wordpress_staging_deploy_artifact_special_entry_forbidden", "Symlink and special-file ZIP entries are forbidden for WordPress deployment.", 409, { entry_type: type });
+    }
+    totalUncompressedBytes += Number(match[2] || 0);
+    if (!Number.isSafeInteger(totalUncompressedBytes) || totalUncompressedBytes > MAX_ARTIFACT_BYTES * 4) {
+      throw deployError("wordpress_staging_deploy_artifact_uncompressed_size_invalid", "The reviewed ZIP exceeds the bounded uncompressed deployment size.", 409, { max_uncompressed_bytes: MAX_ARTIFACT_BYTES * 4 });
+    }
+  }
+  if (typedEntryCount !== entries.length) {
+    throw deployError("wordpress_staging_deploy_artifact_entry_metadata_mismatch", "ZIP entry metadata did not cover every reviewed entry.", 409, { listed_entries: entries.length, typed_entries: typedEntryCount });
   }
 }
 
@@ -352,6 +377,8 @@ async function resolveReviewedArtifact(expectedHeadSha, { fetchImpl = fetch, tok
 
     const controlArchivePath = join(tempDir, controlArchiveName);
     const adapterArchivePath = join(tempDir, adapterArchiveName);
+    assertSafeZipEntries(controlArchivePath, { expectedRoot: `${WORDPRESS_STAGING_PLUGIN_SLUG}/` });
+    assertSafeZipEntries(adapterArchivePath, { expectedRoot: `${WORDPRESS_STAGING_MCP_ADAPTER_SLUG}/` });
     const controlArchive = await readFile(controlArchivePath);
     const adapterArchive = await readFile(adapterArchivePath);
     const controlSha = sha256(controlArchive);

@@ -129,6 +129,13 @@ mad4b-site-control-plane-general-distribution-kit-{expected_head_sha}
 
 Before any WordPress write, the executor verifies:
 
+- the outer artifact and both plugin ZIPs contain only relative safe paths;
+- each inner ZIP is confined to its expected plugin root;
+- symlink and special-file entries are rejected;
+- ZIP entry count and total uncompressed size are bounded before extraction;
+
+Then it verifies:
+
 1. successful exact-head package workflow;
 2. GitHub Actions outer artifact SHA-256 when GitHub exposes the digest;
 3. `install-manifest.json` contract, repository, exact commit and release class;

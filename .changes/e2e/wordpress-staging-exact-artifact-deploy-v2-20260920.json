@@ -57,7 +57,8 @@
             "After a successful deployment and exact same-cycle readback, classify capability-envelope consumption failure as governance reconciliation and explicitly forbid deployment retry.",
             "Complete artifact, plugin-version, and same-filesystem validation before arming plugin rollback; pre-swap validation failure performs transient cleanup only.",
             "Preserve any pre-existing WordPress maintenance-mode state across successful deployment and rollback.",
-            "Require apply_allowed=true and persist the exact capability-envelope reference before the first artifact upload."
+            "Require apply_allowed=true and persist the exact capability-envelope reference before the first artifact upload.",
+            "Reject unsafe, out-of-root, symlink, special-file, excessive-entry-count, or excessive-uncompressed-size ZIP payloads before plugin upload."
           ],
           "assertions": [
             "Environment impact authority is http-generic-api/config/deployment-branch-policy.json.",
@@ -75,7 +76,8 @@
             "A pre-existing WordPress maintenance mode remains active after both successful deployment and rollback.",
             "A successful authorized Hostinger target probe records remote_runtime_targets.validation_status=valid, matching the canonical target schema.",
             "A valid but non-apply capability envelope cannot start WordPress deployment writes.",
-            "Envelope-reference persistence failure occurs before the first artifact upload and records first_remote_write_started=false."
+            "Envelope-reference persistence failure occurs before the first artifact upload and records first_remote_write_started=false.",
+            "Both Control Plane and MCP Adapter archives are confined to their expected plugin roots and reject symlink/special-file entries before upload."
           ],
           "tests": [
             {

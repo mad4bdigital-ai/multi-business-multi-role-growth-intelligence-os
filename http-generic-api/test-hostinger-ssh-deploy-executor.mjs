@@ -130,6 +130,11 @@ assert(wordpressDeploy.includes('caller_target_selection_allowed: false'), "call
 assert(wordpressDeploy.includes('wordpress_staging_deploy_caller_target_or_credential_forbidden'), "caller target/artifact/path/credential selectors must be rejected");
 assert(wordpressDeploy.includes('mad4b-site-control-plane-general-distribution-kit-${expectedHeadSha}'), "artifact identity must derive only from the exact WordPress head");
 assert(wordpressDeploy.includes('artifact.digest'), "executor must verify the GitHub Actions artifact digest");
+assert(wordpressDeploy.includes("wordpress_staging_deploy_artifact_special_entry_forbidden"), "deployment archives must reject symlink and special-file entries");
+assert(wordpressDeploy.includes("wordpress_staging_deploy_artifact_uncompressed_size_invalid"), "deployment archives must enforce a bounded uncompressed size");
+assert(wordpressDeploy.includes("wordpress_staging_deploy_artifact_entry_metadata_mismatch"), "ZIP metadata inspection must cover every listed entry");
+assert(wordpressDeploy.includes("expectedRoot: \`${WORDPRESS_STAGING_PLUGIN_SLUG}/\`"), "Control Plane ZIP must be confined to its plugin root");
+assert(wordpressDeploy.includes("expectedRoot: \`${WORDPRESS_STAGING_MCP_ADAPTER_SLUG}/\`"), "MCP Adapter ZIP must be confined to its plugin root");
 assert(wordpressDeploy.includes('official_release_sha256'), "bundled MCP Adapter must match the certified release digest");
 assert(wordpressDeploy.includes('MAD4B-BUILD-PROVENANCE.json'), "executor must verify exact build provenance before deployment");
 assert(wordpressDeploy.includes('adapter_archive_sha256'), "executor must verify and carry the exact MCP Adapter archive digest");
