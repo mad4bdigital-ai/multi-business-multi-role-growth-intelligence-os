@@ -487,6 +487,7 @@
     {
       "id": "staging_autopilot_git_transport_resilience",
       "test_paths": [
+        "http-generic-api/test-managed-git-remote-transport.mjs",
         "http-generic-api/test-staging-post-build-image-discovery.mjs",
         "http-generic-api/test-staging-autopilot-closure.mjs",
         "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
@@ -504,6 +505,7 @@
       "id": "staging_database_readiness_repair",
       "test_paths": [
         "http-generic-api/test-runtime-data-lifecycle-guard.mjs",
+        "http-generic-api/test-staging-canonical-semantic-repair.mjs",
         "http-generic-api/test-runtime-verification-contract.mjs",
         "http-generic-api/test-staging-database-readiness-repair.mjs",
         "http-generic-api/test-staging-execution-policies-grant.mjs",
