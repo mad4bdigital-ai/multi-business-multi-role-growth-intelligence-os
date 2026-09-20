@@ -86,6 +86,7 @@
         "activation_freshness_policy_registry",
         "activation_signal_subscription_registry",
         "activation_connector_pack_registry",
+        "activation_container_relationship_type_registry",
         "activation_connector_pack_component_registry",
         "activation_authorized_surface_registry",
         "activation_guidance_invocation_registry",
