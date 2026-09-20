@@ -22,6 +22,8 @@ const runtimePersistenceReadiness = read("http-generic-api/scripts/runtime-persi
 const importer = read("autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1");
 const sqlCacheMigration = read("http-generic-api/migrations/1023_sprint69_sql_cache_runtime_policy.sql");
 const platformAdminWorkspaceSeed = read("http-generic-api/migrations/20260920_platform_admin_workspace_canonical_seed.sql");
+const wordpressDeployAuthorityMigration = read("http-generic-api/migrations/20260920_wordpress_staging_plugin_deploy_v2_authority.sql");
+const wordpressDeployCanonicalSeed = read("http-generic-api/migrations/20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql");
 const roleManifest = readJson("http-generic-api/config/staging-database-role-migration-manifest.json");
 for (const table of STAGING_ROLE_GRANT_POLICIES.governance.required_tables) {
   assert.equal(
@@ -167,6 +169,21 @@ assert.deepEqual(roleManifest.canonical_seed_lifecycle.seed_files, [
 ]);
 assert.match(platformAdminWorkspaceSeed, /WHERE NOT EXISTS[\s\S]*workspace_id[\s\S]*workspace_key/i);
 assert.doesNotMatch(platformAdminWorkspaceSeed, /ON DUPLICATE KEY UPDATE/i);
+assert.match(
+  platformAdminWorkspaceSeed,
+  /AND display_name = 'Platform Admin'[\s\S]*AND workspace_type = 'brand'[\s\S]*AND bootstrap_status = 'ready'/i,
+);
+for (const token of [
+  "no_caller_target",
+  "no_caller_artifact",
+  "no_caller_path",
+  "no_caller_credentials",
+  "wordpress_staging_plugin_deploy_exact_artifact_guard",
+  "remote_runtime:ssh:wordpress_staging_plugin_deploy",
+]) {
+  assert.equal(wordpressDeployAuthorityMigration.includes(token), true, "source authority migration missing " + token);
+  assert.equal(wordpressDeployCanonicalSeed.includes(token), true, "canonical replay seed drifted from source authority token " + token);
+}
 assert.match(importer, /Assert-CountExactly[\s\S]*canonical Platform Admin workspace/);
 assert.equal(roleManifest.authority_seed_lifecycle.contract, "mad4b.staging.authority-seed-manifest.v1");
 assert.equal(roleManifest.authority_seed_lifecycle.target_role, "runtime");
