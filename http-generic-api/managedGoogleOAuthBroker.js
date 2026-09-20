@@ -291,8 +291,8 @@ export class SqlManagedGoogleOAuthStore {
     return Number(rows?.[0]?.count || 0);
   }
 
-  async appendAudit({ event, site_uuid, session_id = null, outcome, reason = null, origin = null, metadata = null, now }) {
-    await this.pool.query(
+  async appendAuditOn(executor, { event, site_uuid, session_id = null, outcome, reason = null, origin = null, metadata = null, now }) {
+    await executor.query(
       `INSERT INTO managed_google_oauth_audit
         (audit_id,event,site_uuid,session_id,outcome,reason,origin_sha256,metadata_json,created_at)
        VALUES (?,?,?,?,?,?,?,?,?)`,
@@ -310,26 +310,49 @@ export class SqlManagedGoogleOAuthStore {
     );
   }
 
+  async appendAudit(row) {
+    await this.appendAuditOn(this.pool, row);
+  }
+
   async createSession(record) {
-    await this.pool.query(
-      `INSERT INTO managed_google_oauth_sessions
-        (session_id,site_uuid,origin,callback_uri,access_mode,requested_scope,client_state_envelope,broker_state_hash,verifier_challenge,status,expires_at,created_at,updated_at)
-       VALUES (?,?,?,?,?,?,?,?,?,'pending',?,?,?)`,
-      [
-        record.session_id,
-        record.site_uuid,
-        record.origin,
-        record.callback_uri,
-        record.access_mode,
-        record.requested_scope,
-        record.client_state_envelope,
-        record.broker_state_hash,
-        record.verifier_challenge,
-        record.expires_at,
-        record.created_at,
-        record.created_at,
-      ]
-    );
+    const connection = await this.pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      await connection.query(
+        `INSERT INTO managed_google_oauth_sessions
+          (session_id,site_uuid,origin,callback_uri,access_mode,requested_scope,client_state_envelope,broker_state_hash,verifier_challenge,status,expires_at,created_at,updated_at)
+         VALUES (?,?,?,?,?,?,?,?,?,'pending',?,?,?)`,
+        [
+          record.session_id,
+          record.site_uuid,
+          record.origin,
+          record.callback_uri,
+          record.access_mode,
+          record.requested_scope,
+          record.client_state_envelope,
+          record.broker_state_hash,
+          record.verifier_challenge,
+          record.expires_at,
+          record.created_at,
+          record.created_at,
+        ]
+      );
+      await this.appendAuditOn(connection, {
+        event: "session_create",
+        site_uuid: record.site_uuid,
+        session_id: record.session_id,
+        outcome: "success",
+        origin: record.origin,
+        metadata: record.audit_metadata || null,
+        now: record.created_at,
+      });
+      await connection.commit();
+    } catch (error) {
+      try { await connection.rollback(); } catch {}
+      throw error;
+    } finally {
+      connection.release();
+    }
   }
 
   async findSessionByBrokerStateHash(hash) {
@@ -340,24 +363,62 @@ export class SqlManagedGoogleOAuthStore {
     return rows?.[0] || null;
   }
 
-  async markDenied({ session_id, reason, now }) {
-    const [result] = await this.pool.query(
-      `UPDATE managed_google_oauth_sessions
-          SET status='denied', denied_reason=?, denied_at=?, updated_at=?
-        WHERE session_id=? AND status='pending'`,
-      [cleanText(reason, 96), now, now, session_id]
-    );
-    return Number(result?.affectedRows || 0) === 1;
+  async markDenied({ session_id, site_uuid, origin, reason, now }) {
+    const connection = await this.pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [result] = await connection.query(
+        `UPDATE managed_google_oauth_sessions
+            SET status='denied', denied_reason=?, denied_at=?, updated_at=?
+          WHERE session_id=? AND status='pending'`,
+        [cleanText(reason, 96), now, now, session_id]
+      );
+      if (Number(result?.affectedRows || 0) !== 1) {
+        await connection.rollback();
+        return false;
+      }
+      await this.appendAuditOn(connection, { event: "google_callback", site_uuid, session_id, outcome: "denied", reason, origin, now });
+      await connection.commit();
+      return true;
+    } catch (error) {
+      try { await connection.rollback(); } catch {}
+      throw error;
+    } finally {
+      connection.release();
+    }
   }
 
-  async authorizeSession({ session_id, handoff_hash, token_envelope, token_expires_in, handoff_expires_at, now }) {
-    const [result] = await this.pool.query(
-      `UPDATE managed_google_oauth_sessions
-          SET status='authorized', handoff_hash=?, token_envelope=?, token_expires_in=?, handoff_expires_at=?, authorized_at=?, updated_at=?
-        WHERE session_id=? AND status='pending' AND expires_at>?`,
-      [handoff_hash, token_envelope, token_expires_in, handoff_expires_at, now, now, session_id, now]
-    );
-    return Number(result?.affectedRows || 0) === 1;
+  async authorizeSession({ session_id, site_uuid, origin, handoff_hash, token_envelope, token_expires_in, handoff_expires_at, scope_sha256_prefix, now }) {
+    const connection = await this.pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [result] = await connection.query(
+        `UPDATE managed_google_oauth_sessions
+            SET status='authorized', handoff_hash=?, token_envelope=?, token_expires_in=?, handoff_expires_at=?, authorized_at=?, updated_at=?
+          WHERE session_id=? AND status='pending' AND expires_at>?`,
+        [handoff_hash, token_envelope, token_expires_in, handoff_expires_at, now, now, session_id, now]
+      );
+      if (Number(result?.affectedRows || 0) !== 1) {
+        await connection.rollback();
+        return false;
+      }
+      await this.appendAuditOn(connection, {
+        event: "google_callback",
+        site_uuid,
+        session_id,
+        outcome: "authorized",
+        origin,
+        metadata: { scope_sha256_prefix },
+        now,
+      });
+      await connection.commit();
+      return true;
+    } catch (error) {
+      try { await connection.rollback(); } catch {}
+      throw error;
+    } finally {
+      connection.release();
+    }
   }
 
   async consumeAuthorizedSession({
@@ -393,6 +454,14 @@ export class SqlManagedGoogleOAuthStore {
         [now, now, session_id]
       );
       if (Number(result?.affectedRows || 0) !== 1) throw brokerError(409, "managed_google_oauth_handoff_replayed", "Managed Google OAuth handoff was already consumed.");
+      await this.appendAuditOn(connection, {
+        event: "redeem",
+        site_uuid: row.site_uuid,
+        session_id,
+        outcome: "success",
+        origin: row.origin,
+        now,
+      });
       await connection.commit();
       return snapshot;
     } catch (error) {
@@ -450,17 +519,9 @@ export function createManagedGoogleOAuthBroker({
       verifier_challenge: verifierChallenge,
       expires_at: new Date(nowDate.getTime() + config.session_ttl_seconds * 1000),
       created_at: nowDate,
+      audit_metadata: { access_mode: access.access_mode, scope_sha256_prefix: sha256Hex(access.requested_scope).slice(0, 12) },
     };
     await store.createSession(record);
-    await store.appendAudit?.({
-      event: "session_create",
-      site_uuid: binding.site_uuid,
-      session_id: sessionId,
-      outcome: "success",
-      origin: binding.origin,
-      metadata: { access_mode: access.access_mode, scope_sha256_prefix: sha256Hex(access.requested_scope).slice(0, 12) },
-      now: nowDate,
-    });
     return {
       contract: MANAGED_GOOGLE_SESSION_CONTRACT,
       session_id: sessionId,
@@ -485,8 +546,8 @@ export function createManagedGoogleOAuthBroker({
     const clientState = openManagedGoogleEnvelope(session.client_state_envelope, config.encryption_key).state;
     if (providerError) {
       const reason = safeProviderError(providerError);
-      await store.markDenied({ session_id: session.session_id, reason, now: nowDate });
-      await store.appendAudit?.({ event: "google_callback", site_uuid: session.site_uuid, session_id: session.session_id, outcome: "denied", reason, origin: session.origin, now: nowDate });
+      const denied = await store.markDenied({ session_id: session.session_id, site_uuid: session.site_uuid, origin: session.origin, reason, now: nowDate });
+      if (!denied) throw brokerError(409, "managed_google_oauth_callback_race", "Managed Google OAuth session changed before denial could be finalized.");
       return { redirect_url: addRedirectParams(session.callback_uri, { error: reason, state: clientState }) };
     }
     const authorizationCode = cleanText(code, 4096);
@@ -521,22 +582,16 @@ export function createManagedGoogleOAuthBroker({
     }, config.encryption_key, randomBytesImpl);
     const authorized = await store.authorizeSession({
       session_id: session.session_id,
+      site_uuid: session.site_uuid,
+      origin: session.origin,
       handoff_hash: sha256Hex(handoffCode),
       token_envelope: tokenEnvelope,
       token_expires_in: expiresIn,
       handoff_expires_at: new Date(nowDate.getTime() + config.handoff_ttl_seconds * 1000),
+      scope_sha256_prefix: sha256Hex(grantedScope).slice(0, 12),
       now: nowDate,
     });
     if (!authorized) throw brokerError(409, "managed_google_oauth_callback_race", "Managed Google OAuth session changed before authorization could be finalized.");
-    await store.appendAudit?.({
-      event: "google_callback",
-      site_uuid: session.site_uuid,
-      session_id: session.session_id,
-      outcome: "authorized",
-      origin: session.origin,
-      metadata: { scope_sha256_prefix: sha256Hex(grantedScope).slice(0, 12) },
-      now: nowDate,
-    });
     return { redirect_url: addRedirectParams(session.callback_uri, { handoff_code: handoffCode, state: clientState }) };
   }
 
@@ -565,7 +620,6 @@ export function createManagedGoogleOAuthBroker({
     });
     const tokens = openManagedGoogleEnvelope(row.token_envelope, config.encryption_key);
     exactAccessContract(row.access_mode, tokens.scope);
-    await store.appendAudit?.({ event: "redeem", site_uuid: binding.site_uuid, session_id: sessionId, outcome: "success", origin: binding.origin, now: nowDate });
     return {
       contract: MANAGED_GOOGLE_REDEMPTION_CONTRACT,
       access_token: String(tokens.access_token || ""),
