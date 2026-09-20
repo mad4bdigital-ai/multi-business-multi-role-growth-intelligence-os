@@ -111,10 +111,10 @@ assert.match(legacyClone, /if \(\$LASTEXITCODE -ne 0\) \{ Fail "Schema import fa
 
 assert.equal(roleManifest.contract, "mad4b.staging.database-role-migration-manifest.v1");
 assert.equal(roleManifest.validation.required_runtime_table_census.length, 18);
-assert.equal(roleManifest.validation.required_runtime_support_tables.length, 19);
+assert.equal(roleManifest.validation.required_runtime_support_tables.length, 20);
 assert.match(
   legacyClone,
-  /\$requiredRuntimeSupportTables\.Count -eq 19/,
+  /\$requiredRuntimeSupportTables\.Count -eq 20/,
 );
 assert.doesNotMatch(
   legacyClone,
