@@ -1,4 +1,4 @@
-import { PLATFORM_TOPOLOGY_CONTRACT } from "../../domain/authorityScope/platformTopologyVerification.js";
+import { PLATFORM_ADMIN_WORKSPACE_AUTHORITY } from "../../domain/authorityScope/platformAdminWorkspaceAuthority.generated.js";
 
 function requireExecutor(executor) {
   if (!executor || typeof executor.query !== "function") {
@@ -36,10 +36,10 @@ function placeholders(values) {
 }
 
 export const PLATFORM_ADMIN_WORKSPACE_MARKER_CONTRACT = Object.freeze({
-  workspaceKey: PLATFORM_TOPOLOGY_CONTRACT.adminWorkspaceKey,
-  authorityScopeKey: PLATFORM_TOPOLOGY_CONTRACT.authorityScopeKey,
-  authorityScopeJsonPath: "$.authority_scope_key",
-  platformAdminJsonPath: "$.platform_admin_workspace",
+  workspaceKey: PLATFORM_ADMIN_WORKSPACE_AUTHORITY.resolver.candidate_workspace_key,
+  authorityScopeKey: PLATFORM_ADMIN_WORKSPACE_AUTHORITY.resolver.authority_scope_key,
+  authorityScopeJsonPath: PLATFORM_ADMIN_WORKSPACE_AUTHORITY.json_paths.authority_scope_key,
+  platformAdminJsonPath: PLATFORM_ADMIN_WORKSPACE_AUTHORITY.json_paths.platform_admin_workspace,
 });
 
 export function matchesCanonicalPlatformAdminWorkspace(row = {}) {
