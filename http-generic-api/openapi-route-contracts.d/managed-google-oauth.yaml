@@ -1,0 +1,18 @@
+version: 1
+contracts:
+  "POST /v1/google/oauth/session":
+    path_item_ref: ./openapi/managed-google-oauth.yaml#/managedGoogleOAuthSessionPath
+    route_file: routes/managedGoogleOAuthRoutes.js
+    composition_mode: inline
+  "GET /v1/google/oauth/callback":
+    path_item_ref: ./openapi/managed-google-oauth.yaml#/managedGoogleOAuthCallbackPath
+    route_file: routes/managedGoogleOAuthRoutes.js
+    composition_mode: inline
+  "POST /v1/google/oauth/redeem":
+    path_item_ref: ./openapi/managed-google-oauth.yaml#/managedGoogleOAuthRedeemPath
+    route_file: routes/managedGoogleOAuthRoutes.js
+    composition_mode: inline
+  "POST /v1/google/oauth/refresh":
+    path_item_ref: ./openapi/managed-google-oauth.yaml#/managedGoogleOAuthRefreshPath
+    route_file: routes/managedGoogleOAuthRoutes.js
+    composition_mode: inline

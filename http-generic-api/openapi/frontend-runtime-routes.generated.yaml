@@ -8550,3 +8550,8 @@ components:
       type: apiKey
       in: query
       name: token
+    managedGoogleSiteHmac:
+      type: apiKey
+      in: header
+      name: X-MAD4B-Site-Signature
+      description: Managed Google OAuth per-site HMAC signature; exact request also binds key ID, timestamp, nonce, method, path, and canonical JSON body hash.
