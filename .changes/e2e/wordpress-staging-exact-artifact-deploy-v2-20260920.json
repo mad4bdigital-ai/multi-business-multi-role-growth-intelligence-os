@@ -1,0 +1,103 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "wordpress-staging-exact-artifact-deploy-v2-20260920",
+  "title": "Governed WordPress Staging exact-artifact deployment v2",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/wordpress-staging-exact-artifact-deploy-v2-20260920.json",
+      "http-generic-api/wordpressStagingPluginDeployExecutor.js",
+      "http-generic-api/routes/wordpressStagingPluginDeployRoutes.js",
+      "http-generic-api/routes/index.js",
+      "http-generic-api/openapi.yaml",
+      "http-generic-api/openapi/wordpress-staging-plugin-deploy.yaml",
+      "http-generic-api/openapi-route-contracts.d/wordpress-staging-plugin-deploy.yaml",
+      "http-generic-api/migrations/20260920_wordpress_staging_plugin_deploy_v2_authority.sql",
+      "canonicals/openapi/custom-gpt-surfaces.yaml",
+      ".github/governance/test-authority-registry.json",
+      "docs/runbooks/wordpress-staging-exact-artifact-deploy-v2.md"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Bind the exact-artifact WordPress Staging deployment plane to canonical environment-impact governance without granting or executing Production mutation authority.",
+      "e2e_journeys": [
+        {
+          "id": "wordpress-staging-exact-artifact-deploy-v2-environment-impact",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed CI",
+          "entrypoint": "Evaluate the exact PR candidate against the canonical environment-impact policy before any live Staging deployment.",
+          "terminal_outcome": "Shared runtime impact is explicitly reviewed for Staging and Production, live Staging certification remains required, and Production mutation remains denied.",
+          "steps": [
+            "Classify exact base-to-head source changes against canonical environment path classes.",
+            "Verify the declaration includes every required environment target and preserves cross-environment review.",
+            "Verify live Staging certification remains required for the shared runtime deployment surface.",
+            "Verify Production mutation, provider mutation, database mutation, credential payload reads, and Production deployment remain denied."
+          ],
+          "assertions": [
+            "Environment impact authority is http-generic-api/config/deployment-branch-policy.json.",
+            "Staging and Production are both declared as impacted targets because shared runtime source files changed.",
+            "Cross-environment review is explicit and live Staging certification remains required.",
+            "production_mutation_allowed is false.",
+            "No Production deployment, database mutation, provider mutation, or credential payload read is authorized by this declaration.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "wordpress-staging-exact-artifact-deploy-v2-environment-impact-test",
+              "runner": "node",
+              "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+              "args": [
+                "--base-sha",
+                "BASE_SHA",
+                "--head-sha",
+                "HEAD_SHA"
+              ]
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/wordpress-staging-exact-artifact-deploy-v2-20260920.json",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/config/domain-family-policy.json",
+            "specs/020-platform-resource-identity-brand-governance/contracts/runtime-environment-invariant-contract.json",
+            "specs/020-platform-resource-identity-brand-governance/contracts/runtime-db-write-authority-profiles.json",
+            "specs/020-platform-resource-identity-brand-governance/contracts/runtime-database-readiness-contract.json",
+            "edge/activation-gateway/generated/route-policy.staging.json"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "wordpress-staging-exact-artifact-deploy-v2-environment-impact",
+          "runner": "node",
+          "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+          "args": [
+            "--base-sha",
+            "BASE_SHA",
+            "--head-sha",
+            "HEAD_SHA"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
