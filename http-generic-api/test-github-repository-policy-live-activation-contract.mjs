@@ -42,13 +42,14 @@ const envelopeCreatorSource = read("./scripts/capability-resolution-envelope-cre
 const envelopeCreatorContract = repositoryPolicyEnvelopeSourceContract(envelopeCreatorSource);
 const unrelatedEnvelopeExtension = `${envelopeCreatorSource}\n\nfunction unrelatedFutureCapability() { return "unrelated"; }\n`;
 assert.equal(repositoryPolicyEnvelopeSourceContract(unrelatedEnvelopeExtension).fingerprint, envelopeCreatorContract.fingerprint);
+const repositoryPolicyIntentValue = JSON.parse(envelopeCreatorContract.constants.REPOSITORY_POLICY_OPERATION_INTENT);
 const changedRepositoryPolicyIntent = envelopeCreatorSource.replace(
-  'const REPOSITORY_POLICY_OPERATION_INTENT = "github_repository_policy_apply";',
-  'const REPOSITORY_POLICY_OPERATION_INTENT = "github_repository_policy_apply_v2";',
+  JSON.stringify(repositoryPolicyIntentValue),
+  JSON.stringify(`${repositoryPolicyIntentValue}_v2`),
 );
+assert.notEqual(changedRepositoryPolicyIntent, envelopeCreatorSource);
 assert.notEqual(repositoryPolicyEnvelopeSourceContract(changedRepositoryPolicyIntent).fingerprint, envelopeCreatorContract.fingerprint);
-const repositoryPolicyBuilderMarker = "export async function buildRepositoryPolicyEnvelopeDryRun";
-const repositoryPolicyBuilderStart = envelopeCreatorSource.indexOf(repositoryPolicyBuilderMarker);
+const repositoryPolicyBuilderStart = envelopeCreatorSource.indexOf("export async function buildRepositoryPolicyEnvelopeDryRun");
 assert.ok(repositoryPolicyBuilderStart >= 0);
 const repositoryPolicyBuilderTail = envelopeCreatorSource.slice(repositoryPolicyBuilderStart);
 const changedRepositoryPolicyBuilderTail = repositoryPolicyBuilderTail.replace(
