@@ -11,7 +11,10 @@
     "disposable_database_required": true,
     "production_access_forbidden": true,
     "provider_access_forbidden": true,
-    "data_copy_forbidden": true
+    "data_copy_forbidden": true,
+    "nonempty_direct_schema_replay_forbidden": true,
+    "partial_role_rebuild_authority": "autopilot-portable-staging/Rebuild-EmptyStagingRoleDatabases.ps1",
+    "pre_apply_role_object_census_required": true
   },
   "safety": {
     "confirmation": "BUILD_STAGING_SCHEMA_BUNDLE",
@@ -145,8 +148,8 @@
       "039_sprint43_data_integrity_and_missing_tables.sql",
       "1043_sprint69_dynamic_container_hvac_activity_seed.sql",
       "20260815_custom_gpt_mcp_catalog_levels.sql",
-    "20260920_platform_admin_workspace_canonical_seed.sql",
-    "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql"
+      "20260920_platform_admin_workspace_canonical_seed.sql",
+      "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql"
     ],
     "readback_required": true,
     "mcp_catalog_required_columns": [
@@ -176,7 +179,9 @@
       "exact_row_count": 1,
       "minimum_revision": 1,
       "required": false,
-      "required_blocked_tables": ["endpoints"]
+      "required_blocked_tables": [
+        "endpoints"
+      ]
     }
   },
   "validation": {
