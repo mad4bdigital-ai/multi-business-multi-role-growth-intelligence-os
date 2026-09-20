@@ -141,12 +141,19 @@ function usableCommitSha(value) {
 function resolveBaseSha() {
   const explicit = argument("--base-sha") || process.env.RUNTIME_DATA_LIFECYCLE_BASE_SHA;
   if (usableCommitSha(explicit)) return String(explicit).toLowerCase();
-  try {
-    const parent = git("rev-parse", "HEAD^");
-    return usableCommitSha(parent) ? parent.toLowerCase() : null;
-  } catch {
-    return null;
+
+  for (const candidate of [
+    ["merge-base", "HEAD", "origin/main"],
+    ["rev-parse", "HEAD^"],
+  ]) {
+    try {
+      const resolved = git(...candidate);
+      if (usableCommitSha(resolved)) return resolved.toLowerCase();
+    } catch {
+      // Keep resolving through the bounded local Git fallbacks.
+    }
   }
+  return null;
 }
 
 const baseSha = resolveBaseSha();
