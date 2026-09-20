@@ -5,18 +5,24 @@ import {
   randomBytes,
   randomUUID,
 } from "node:crypto";
+import {
+  GOOGLE_AUTHORIZATION_ENDPOINT,
+  GOOGLE_TOKEN_ENDPOINT,
+  GOOGLE_DRIVE_READ_SCOPE,
+  GOOGLE_DRIVE_WRITE_SCOPE,
+} from "./managedGoogleOAuthProtocolPolicy.js";
 
 export const MANAGED_GOOGLE_SESSION_CONTRACT = "mad4b.google-managed-oauth-session.v1";
 export const MANAGED_GOOGLE_REDEEM_REQUEST_CONTRACT = "mad4b.google-managed-oauth-redeem-request.v1";
 export const MANAGED_GOOGLE_REDEMPTION_CONTRACT = "mad4b.google-managed-oauth-redemption.v1";
 export const MANAGED_GOOGLE_REFRESH_REQUEST_CONTRACT = "mad4b.google-managed-oauth-refresh-request.v1";
 export const MANAGED_GOOGLE_REFRESH_CONTRACT = "mad4b.google-managed-oauth-refresh.v1";
+export {
+  GOOGLE_DRIVE_READ_SCOPE,
+  GOOGLE_DRIVE_WRITE_SCOPE,
+} from "./managedGoogleOAuthProtocolPolicy.js";
 
-export const GOOGLE_DRIVE_READ_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
-export const GOOGLE_DRIVE_WRITE_SCOPE = "https://www.googleapis.com/auth/drive";
 
-const GOOGLE_AUTHORIZATION_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth";
-const GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
 const DEFAULT_SESSION_TTL_SECONDS = 10 * 60;
 const DEFAULT_HANDOFF_TTL_SECONDS = 5 * 60;
 const MAX_SESSION_TTL_SECONDS = 10 * 60;
