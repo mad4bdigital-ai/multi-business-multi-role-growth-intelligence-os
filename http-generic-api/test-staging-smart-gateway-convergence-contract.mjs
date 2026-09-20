@@ -9,6 +9,7 @@ import {
   buildActivationGatewayRolloutPlan,
 } from "./activationGatewayRolloutTool.js";
 import { buildStagingActivationGatewayBundle } from "./stagingActivationGatewayBundle.js";
+import { PLATFORM_ADMIN_WORKSPACE_AUTHORITY } from "./src/domain/authorityScope/platformAdminWorkspaceAuthority.generated.js";
 import { buildStagingActivationGatewayApplyPlan, runStagingActivationGatewayApply, _testingStagingGatewayTransaction } from "./stagingActivationGatewayApplyAdapter.js";
 import { openStagingGatewayArtifact, sealStagingGatewayArtifact } from "./stagingGatewayExecutionPlanStore.js";
 import {
@@ -65,6 +66,10 @@ const accountId = "dd1024b934e907723484568d97c7c74c";
 const scriptName = "mad4b-activation-gateway-staging";
 const sourceSha = "a".repeat(40);
 const convergencePlanSha = "e".repeat(64);
+const platformWorkspaceId = PLATFORM_ADMIN_WORKSPACE_AUTHORITY.identity.workspace_id;
+const platformTenantId = PLATFORM_ADMIN_WORKSPACE_AUTHORITY.identity.tenant_id;
+const platformSeedKey = PLATFORM_ADMIN_WORKSPACE_AUTHORITY.identity.seed_workspace_key;
+const platformAuthorityScope = PLATFORM_ADMIN_WORKSPACE_AUTHORITY.resolver.authority_scope_key;
 
 assert.equal(policy.contract, "mad4b.staging.activation-gateway-smart-convergence-policy.v3");
 assert.equal(policy.environment, "staging");
@@ -310,7 +315,7 @@ const previewGovernancePool = {
       assert.deepEqual(params, [bindingId]);
       return [[{
         binding_id: bindingId,
-        tenant_id: "00000000-0000-0000-0000-000000000000",
+        tenant_id: platformTenantId,
         workspace_id: null,
         user_id: null,
         resource_type: "cloudflare_worker",
@@ -334,13 +339,13 @@ const previewRuntimePool = {
       throw new Error("Runtime DB must never serve platform_resource_authority_bindings.");
     }
     if (String(sql).includes("FROM workspace_registry")) {
-      return [[{ workspace_id: "11111111-1111-4111-8111-111111111111", tenant_id: "00000000-0000-0000-0000-000000000000", workspace_key: "platform_repo_governance_zero", display_name: "Platform Admin", workspace_type: "brand", bootstrap_status: "ready", config_json: JSON.stringify({ platform_admin_workspace: true }) }]];
+      return [[{ workspace_id: platformWorkspaceId, tenant_id: platformTenantId, workspace_key: platformSeedKey, display_name: PLATFORM_ADMIN_WORKSPACE_AUTHORITY.identity.display_name, workspace_type: PLATFORM_ADMIN_WORKSPACE_AUTHORITY.identity.workspace_type, bootstrap_status: PLATFORM_ADMIN_WORKSPACE_AUTHORITY.identity.bootstrap_status, config_json: JSON.stringify({ authority_scope_key: platformAuthorityScope, platform_admin_workspace: true }) }]];
     }
     throw new Error(`Unexpected Runtime SQL in Staging dry-run contract: ${sql}`);
   },
 };
 const fakeCloudflareClient = { token_present: true, async request() { throw new Error("dry-run must not call Cloudflare"); } };
-const auth = { tenant_id: "00000000-0000-0000-0000-000000000000", principal_type: "user", user_id: "22222222-2222-4222-8222-222222222222" };
+const auth = { tenant_id: platformTenantId, principal_type: "user", user_id: "22222222-2222-4222-8222-222222222222" };
 const rolloutPlan = await buildActivationGatewayRolloutPlan({
   mode: "dry_run",
   account_id: accountId,
@@ -400,7 +405,7 @@ const governancePool = {
       const state = envelopeStates.get(params[0]); return [state ? [state] : []];
     }
     if (statement.includes("FROM capability_resolution_envelope_ledger") && statement.includes("capability_key"))
-      return [[{ capability_key: "admin_cloudflare_v1", workspace_id: "11111111-1111-4111-8111-111111111111" }]];
+      return [[{ capability_key: "admin_cloudflare_v1", workspace_id: platformWorkspaceId }]];
     if (statement.includes("INSERT IGNORE INTO staging_activation_gateway_envelope_plan_bindings")) {
       if (!envelopeBindings.has(params[0])) envelopeBindings.set(params[0], { plan_id: params[1], plan_sha256: params[2],
         environment_convergence_plan_sha256: params[3], principal_type: params[4], principal_id: params[5] });
@@ -544,7 +549,7 @@ assert.equal(savedPlans.size, 2);
 function registerEnvelope(plan, id) {
   envelopeStates.set(id, {
     envelope_id: id, tenant_id: auth.tenant_id, user_id: auth.user_id,
-    workspace_id: "11111111-1111-4111-8111-111111111111", app_key: "cloudflare",
+    workspace_id: platformWorkspaceId, app_key: "cloudflare",
     capability_key: "admin_cloudflare_v1", operation_intent: "activation_gateway.staging_apply",
     selected_runtime_surface: "activation_gateway_dark_deploy", envelope_status: "ready_for_dispatch",
     execution_status: "not_executed", decision: "ready_for_dispatch", dispatch_allowed: 1,
