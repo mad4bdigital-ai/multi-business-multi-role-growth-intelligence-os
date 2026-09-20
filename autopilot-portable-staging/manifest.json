@@ -74,11 +74,11 @@
     },
     {
       "path": "autopilot-portable-staging/auto-deploy-policy.json",
-      "sha256": "3aae639661eb4ea3bc0e403e48ea04f1d8bf4027de03cf4c0f1497385ecd62f3"
+      "sha256": "6810d6e7ebb83e5982f45433b9ec7248579c9cd675612dd2dcab0e6619d4e117"
     },
     {
       "path": "autopilot-portable-staging/autopilot-one-click-policy.json",
-      "sha256": "c416759d0bd9fe42c73f02f77153cf9739861ad67140e8c1f26bfc14bbbbe23c"
+      "sha256": "35bad999b52346a88dc39226ebc62dc86a0d847b8ddd52d44d5483802330e629"
     },
     {
       "path": "autopilot-portable-staging/staging-maintenance-policy.json",
@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "edcaf2a28f18a795cc2369978bacbbf6892bbdfdb946c28690b1b814aece9692"
+      "sha256": "3d9ba4fb270273a071a9f55d3bd700fc12ecdc664ca637e7bc9b8c69a43f74fa"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "13f8932a51dc928694b059e4e7d98970434a0ea2bd59c83500dcf0673fa56fc6"
+      "sha256": "dfb122ba60ed5ed3a79aba31a4f50d6a5542a157656a704dcd2e614e2a282f8b"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -294,7 +294,7 @@
     },
     {
       "path": "http-generic-api/test-staging-auto-deploy-contract.mjs",
-      "sha256": "898364cb588e8a13af78e0d6bcd5da7249fee0276a43252c65be4c80ba69f9d2"
+      "sha256": "a70ff64453b3dd836d6b7e030e553f254ea4b1ebd9f9e3a7c2f1d6cf8b658565"
     },
     {
       "path": "http-generic-api/test-staging-environment-certification-contract.mjs",
@@ -318,7 +318,7 @@
     },
     {
       "path": "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1",
-      "sha256": "d3909bdcd565a9347a972bf736ca916570c133b504aa5e5667c3420720abfa19"
+      "sha256": "f0ecd72ed67e6e74a948090984cafa1c143554e8ce303f22685cd7c1c9b8baed"
     },
     {
       "path": "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs",
@@ -330,7 +330,7 @@
     },
     {
       "path": "http-generic-api/config/staging-database-role-migration-manifest.json",
-      "sha256": "f4ce93b03734785459d3c9862c93c872dd36c425e71154e1ac1e458404a9349c"
+      "sha256": "9344e7a80d8c9665d3115c6ec0f1fc21dfc75433e13ab49ce8828882c62afb9b"
     },
     {
       "path": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
