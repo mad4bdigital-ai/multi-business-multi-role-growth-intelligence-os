@@ -464,6 +464,52 @@ async function resolveSshConnectionCredentials(pool, target, input = {}) {
   return { host, port, user, auth_mode: "private_key", privateKey };
 }
 
+export async function resolveServerOwnedHostingerSshConnection(pool, target) {
+  const commonPairs = await Promise.all(
+    SSH_COMMON_ROLES.map(async (role) => [
+      role,
+      await resolveSshCredential(pool, target, role, {}, { createHandoff: false }),
+    ])
+  );
+  const common = Object.fromEntries(commonPairs);
+  const missingCommonRoles = SSH_COMMON_ROLES.filter((role) => !compact(common[role], 20000));
+  if (missingCommonRoles.length > 0) {
+    const err = new Error("Required server-owned SSH connection metadata is not resolved.");
+    err.status = 409;
+    err.code = "remote_runtime_server_owned_ssh_credential_not_resolved";
+    err.details = {
+      missing_roles: missingCommonRoles,
+      credential_intake_created: false,
+      caller_supplied_credentials_used: false,
+      secrets_included: false,
+    };
+    throw err;
+  }
+
+  const host = common.ssh_host;
+  const port = common.ssh_port;
+  const user = common.ssh_user;
+
+  const authRole = target?.provider_family === "hostinger" ? SSH_PASSWORD_ROLE : SSH_KEY_ROLE;
+  const authSecret = await resolveSshCredential(pool, target, authRole, {}, { createHandoff: false });
+  if (!compact(authSecret, 20000)) {
+    const err = new Error(`Required server-owned SSH credential ${authRole} is not resolved.`);
+    err.status = 409;
+    err.code = "remote_runtime_server_owned_ssh_credential_not_resolved";
+    err.details = {
+      missing_roles: [authRole],
+      credential_intake_created: false,
+      caller_supplied_credentials_used: false,
+      secrets_included: false,
+    };
+    throw err;
+  }
+
+  return target?.provider_family === "hostinger"
+    ? { host, port, user, auth_mode: "password", password: authSecret }
+    : { host, port, user, auth_mode: "private_key", privateKey: authSecret };
+}
+
 function hardenedSshOptions({ usePassword = false } = {}) {
   const options = [
     "-T",
@@ -524,7 +570,7 @@ export function buildRemoteDeployScript({ appPath, branch, expectedCommitSha, fo
   ].join(" && ");
 }
 
-function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", privateKey, password, password_transport: passwordTransport = "auto", remoteScript, timeoutMs }) {
+export function runHostingerSshCommand({ host, port, user, auth_mode: authMode = "private_key", privateKey, password, password_transport: passwordTransport = "auto", remoteScript, timeoutMs, stdinBuffer = null }) {
   return new Promise(async (resolve) => {
     const usePassword = authMode === "password";
     const selectedPasswordTransport = usePassword ? resolveSshPasswordTransport(passwordTransport) : null;
@@ -541,7 +587,7 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
       let command = "ssh";
       let args;
       let spawnEnv = process.env;
-      let stdio = ["ignore", "pipe", "pipe"];
+      let stdio = [stdinBuffer ? "pipe" : "ignore", "pipe", "pipe"];
       if (usePassword && selectedPasswordTransport === "sshpass") {
         command = "sshpass";
         args = [
@@ -554,7 +600,7 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
           "-lc",
           remoteScript,
         ];
-        stdio = ["ignore", "pipe", "pipe", "pipe"];
+        stdio = [stdinBuffer ? "pipe" : "ignore", "pipe", "pipe", "pipe"];
       } else if (usePassword) {
         await writeFile(passwordFile, String(password || ""), { mode: 0o600 });
         await writeFile(
@@ -612,6 +658,8 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
       if (usePassword && selectedPasswordTransport === "sshpass" && child.stdio?.[3]) {
         child.stdio[3].end(`${password}\n`);
       }
+      if (stdinBuffer && child.stdin) child.stdin.end(stdinBuffer);
+      else if (child.stdin) child.stdin.end();
       let stdout = "";
       let stderr = "";
       const resultBase = {
@@ -926,7 +974,7 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
   );
   const remoteScript = buildRemoteProbeScript({ appPath, expectedCommitSha });
   const sshResult = await withPhaseTimeout(
-    runSshCommand({ ...sshConnection, password_transport: sshPasswordTransport, remoteScript, timeoutMs }),
+    runHostingerSshCommand({ ...sshConnection, password_transport: sshPasswordTransport, remoteScript, timeoutMs }),
     { phase: "ssh_command_execution", timeoutMs: timeoutMs + SSH_PROCESS_KILL_GRACE_MS + 2000, details: { target_id: targetId, ssh_auth_mode: sshAuthMode } }
   );
   const parsed = parseProbeOutput(sshResult.stdout);
@@ -935,7 +983,7 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
   if (probeOk && activateOnSuccess) {
     await pool.query(
       `UPDATE remote_runtime_targets
-          SET status = 'active', validation_status = 'validated', updated_by = 'hostinger_ssh_target_probe', updated_at = CURRENT_TIMESTAMP
+          SET status = 'active', validation_status = 'valid', updated_by = 'hostinger_ssh_target_probe', updated_at = CURRENT_TIMESTAMP
         WHERE target_id = ? AND plugin_key = 'remote_ssh_runtime'`,
       [targetId]
     );
@@ -1251,7 +1299,7 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
 
   const sshConnection = await resolveSshConnectionCredentials(pool, target, input);
   const remoteScript = buildRemoteDeployScript({ appPath, branch, expectedCommitSha, forceClean, restart });
-  const sshResult = await runSshCommand({ ...sshConnection, password_transport: sshPasswordTransport, remoteScript, timeoutMs });
+  const sshResult = await runHostingerSshCommand({ ...sshConnection, password_transport: sshPasswordTransport, remoteScript, timeoutMs });
   const parsedDeploy = parseProbeOutput(sshResult.stdout);
   const reloadVerification = buildHostingerDeployReloadVerification({ restart, parsed: parsedDeploy, sshOk: sshResult.ok });
   const continuation = buildHostingerDeployContinuationEvidence({

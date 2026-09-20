@@ -296,6 +296,36 @@ function validateRegistrationSets(registry, schemaOutputDir) {
   }
 }
 
+const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
+
+export function gatewayPolicySemanticPayload(policy = {}) {
+  const {
+    source_openapi_sha256: _sourceOpenapiSha256,
+    surface_registry_sha256: _surfaceRegistrySha256,
+    content_hash_sha256: _contentHashSha256,
+    signature_algorithm: _signatureAlgorithm,
+    deployment_signature_required: _deploymentSignatureRequired,
+    secrets_included: _secretsIncluded,
+    ...semantic
+  } = policy || {};
+  return semantic;
+}
+
+export function stabilizeGatewayPolicyProvenance(payload, existingPolicy = null) {
+  const next = { ...(payload || {}) };
+  if (!existingPolicy || typeof existingPolicy !== "object") return next;
+
+  const semanticMatches = stableJson(gatewayPolicySemanticPayload(existingPolicy))
+    === stableJson(gatewayPolicySemanticPayload(next));
+  if (!semanticMatches) return next;
+
+  for (const key of ["source_openapi_sha256", "surface_registry_sha256"]) {
+    const previous = String(existingPolicy[key] || "").trim().toLowerCase();
+    if (SHA256_PATTERN.test(previous)) next[key] = previous;
+  }
+  return next;
+}
+
 function generateGatewayPolicies(registry, schemaOutputDir, artifactOutputDir) {
   const artifacts = [];
   for (const [policyKey, policy] of Object.entries(registry.gateway_policies || {})) {
@@ -417,9 +447,17 @@ function generateGatewayPolicies(registry, schemaOutputDir, artifactOutputDir) {
       oauth_handoff_routes: oauthHandoffRoutes,
       routes,
     };
-    const canonicalPayload = stableJson(payload);
+    const targetPath = path.join(REPO_ROOT, policy.output_file);
+    let existingPolicy = null;
+    try {
+      if (fs.existsSync(targetPath)) existingPolicy = JSON.parse(fs.readFileSync(targetPath, "utf8"));
+    } catch {
+      existingPolicy = null;
+    }
+    const stablePayload = stabilizeGatewayPolicyProvenance(payload, existingPolicy);
+    const canonicalPayload = stableJson(stablePayload);
     const bundle = {
-      ...payload,
+      ...stablePayload,
       content_hash_sha256: sha256(canonicalPayload),
       signature_algorithm: "Ed25519",
       deployment_signature_required: true,
@@ -433,7 +471,7 @@ function generateGatewayPolicies(registry, schemaOutputDir, artifactOutputDir) {
       kind: "gateway_policy",
       policyKey,
       tempRelative,
-      target: path.join(REPO_ROOT, policy.output_file),
+      target: targetPath,
     });
   }
   return artifacts;
@@ -514,10 +552,15 @@ function main() {
   }
 }
 
-try {
-  main();
-} catch (error) {
-  if (error.stdout) process.stderr.write(error.stdout);
-  if (error.stderr) process.stderr.write(error.stderr);
-  fail(error.message || String(error));
+const invokedAsCli = Boolean(process.argv[1])
+  && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (invokedAsCli) {
+  try {
+    main();
+  } catch (error) {
+    if (error.stdout) process.stderr.write(error.stdout);
+    if (error.stderr) process.stderr.write(error.stderr);
+    fail(error.message || String(error));
+  }
 }

@@ -1,0 +1,110 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "wordpress-staging-exact-artifact-deploy-v2-20260920",
+  "title": "Governed WordPress Staging exact-artifact deployment v2",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/wordpress-staging-exact-artifact-deploy-v2-20260920.json",
+      "http-generic-api/wordpressStagingPluginDeployExecutor.js",
+      "http-generic-api/routes/wordpressStagingPluginDeployRoutes.js",
+      "http-generic-api/routes/index.js",
+      "http-generic-api/openapi.yaml",
+      "http-generic-api/openapi/wordpress-staging-plugin-deploy.yaml",
+      "http-generic-api/openapi-route-contracts.d/wordpress-staging-plugin-deploy.yaml",
+      "http-generic-api/migrations/20260920_wordpress_staging_plugin_deploy_v2_authority.sql",
+      "canonicals/openapi/custom-gpt-surfaces.yaml",
+      ".github/governance/test-authority-registry.json",
+      "docs/runbooks/wordpress-staging-exact-artifact-deploy-v2.md",
+      "http-generic-api/hostingerSshDeployExecutor.js",
+      "http-generic-api/test-hostinger-ssh-deploy-executor.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Bind the exact-artifact WordPress Staging deployment plane to canonical environment-impact governance without granting or executing Production mutation authority.",
+      "e2e_journeys": [
+        {
+          "id": "wordpress-staging-exact-artifact-deploy-v2-environment-impact",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed CI",
+          "entrypoint": "Evaluate the exact PR candidate against the canonical environment-impact policy before any live Staging deployment.",
+          "terminal_outcome": "Shared runtime impact is explicitly reviewed for Staging and Production, live Staging certification remains required, and Production mutation remains denied.",
+          "steps": [
+            "Classify exact base-to-head source changes against canonical environment path classes.",
+            "Verify the declaration includes every required environment target and preserves cross-environment review.",
+            "Verify live Staging certification remains required for the shared runtime deployment surface.",
+            "Verify Production mutation, provider mutation, database mutation, credential payload reads, and Production deployment remain denied.",
+            "Resolve server-owned SSH credentials without creating credential-intake handoffs; fail closed before any SSH connection when a required role is unresolved.",
+            "After a successful deployment and exact same-cycle readback, classify capability-envelope consumption failure as governance reconciliation and explicitly forbid deployment retry.",
+            "Complete artifact, plugin-version, and same-filesystem validation before arming plugin rollback; pre-swap validation failure performs transient cleanup only.",
+            "Preserve any pre-existing WordPress maintenance-mode state across successful deployment and rollback.",
+            "Require apply_allowed=true and persist the exact capability-envelope reference before the first artifact upload.",
+            "Reject unsafe, out-of-root, symlink, special-file, excessive-entry-count, or excessive-uncompressed-size ZIP payloads before plugin upload."
+          ],
+          "assertions": [
+            "Environment impact authority is http-generic-api/config/deployment-branch-policy.json.",
+            "Staging and Production are both declared as impacted targets because shared runtime source files changed.",
+            "Cross-environment review is explicit and live Staging certification remains required.",
+            "production_mutation_allowed is false.",
+            "No Production deployment, database mutation, provider mutation, or credential payload read is authorized by this declaration.",
+            "secrets_included is false.",
+            "Missing server-owned SSH credentials fail with remote_runtime_server_owned_ssh_credential_not_resolved before any SSH connection attempt.",
+            "Credential resolution for this deployment surface never auto-creates a credential-intake handoff and never accepts caller-supplied credentials.",
+            "If deployment and exact readback succeed but envelope consumption fails, evidence records mutation_applied=true, retry_deployment=false, reconciliation_required=true, and capability_envelope_consumed=false.",
+            "secrets_included remains false.",
+            "The rollback ERR trap is armed only after remote validation and immediately before the first plugin-directory rename.",
+            "Pre-swap validation failure does not enter plugin rollback or toggle WordPress maintenance mode.",
+            "A pre-existing WordPress maintenance mode remains active after both successful deployment and rollback.",
+            "A successful authorized Hostinger target probe records remote_runtime_targets.validation_status=valid, matching the canonical target schema.",
+            "A valid but non-apply capability envelope cannot start WordPress deployment writes.",
+            "Envelope-reference persistence failure occurs before the first artifact upload and records first_remote_write_started=false.",
+            "Both Control Plane and MCP Adapter archives are confined to their expected plugin roots and reject symlink/special-file entries before upload."
+          ],
+          "tests": [
+            {
+              "id": "wordpress-staging-exact-artifact-deploy-v2-environment-impact-test",
+              "runner": "node",
+              "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+              "args": [
+                "--base-sha",
+                "BASE_SHA",
+                "--head-sha",
+                "HEAD_SHA"
+              ],
+              "working_directory": "."
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/wordpress-staging-exact-artifact-deploy-v2-20260920.json",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/config/domain-family-policy.json",
+            "specs/020-platform-resource-identity-brand-governance/contracts/runtime-environment-invariant-contract.json",
+            "specs/020-platform-resource-identity-brand-governance/contracts/runtime-db-write-authority-profiles.json",
+            "specs/020-platform-resource-identity-brand-governance/contracts/runtime-database-readiness-contract.json",
+            "edge/activation-gateway/generated/route-policy.staging.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

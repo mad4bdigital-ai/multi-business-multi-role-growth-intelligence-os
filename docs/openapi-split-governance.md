@@ -67,3 +67,28 @@ npm run schemas:guard
 Generation occurs in a temporary directory. All request, response, component, array, and local-reference schemas are recursively validated before committed artifacts are written. CI fails on artifact drift, unresolved references, empty schemas, operation-budget violations, host/surface mismatch, duplicate aliases, or Gateway-policy drift.
 
 Schema changes are review-required and are never auto-merged by the OpenAPI synchronization workflow.
+
+## Activation Gateway policy provenance stability
+
+Activation Gateway policy identity is semantic, while the source hashes embedded in the
+policy are provenance for the source revision that last changed Gateway semantics.
+
+The Custom GPT schema generator preserves the previously committed
+`source_openapi_sha256` and `surface_registry_sha256` only when the generated Gateway
+semantic payload is otherwise byte-for-byte identical after excluding provenance,
+content-hash, signature, deployment-signature, and secret-status metadata.
+
+This prevents an unrelated global OpenAPI change, including an
+`x-custom-gpt-exclude: true` administrative route, from rotating Staging or Production
+Gateway policy identity when Gateway routes and authorization semantics did not change.
+
+The preservation rule remains fail-closed:
+
+- any route, auth profile, OAuth handoff, warning budget, registry version, public host,
+  upstream origin, stale-policy, or other Gateway semantic change uses the current
+  source hashes and therefore rotates `content_hash_sha256`;
+- malformed or missing previous source hashes are not preserved;
+- deployment attestation, source-commit proof, and runtime policy-hash verification are
+  unchanged;
+- the generator performs no provider or Production mutation.
+

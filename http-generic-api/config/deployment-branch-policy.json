@@ -176,7 +176,8 @@
           "http-generic-api/scripts/generate-custom-gpt-schemas.mjs",
           "http-generic-api/scripts/sync-activation-gateway-runtime-bundle.mjs",
           "http-generic-api/scripts/validate-registration-topology.mjs",
-          "specs/020-platform-resource-identity-brand-governance/**"
+          "specs/020-platform-resource-identity-brand-governance/**",
+          "http-generic-api/openapi-route-contracts.d/**"
         ],
         "exclude_patterns": [
           "http-generic-api/test-*.js",
@@ -230,7 +231,6 @@
           "http-generic-api/scripts/governed-execution-baseline-benchmark.mjs",
           "http-generic-api/scripts/test-protected-branch-validation-triggers.mjs",
           "http-generic-api/scripts/github-main-review-policy-readiness-issue-publisher.mjs",
-          "http-generic-api/scripts/github-repository-policy-envelope-source-contract.mjs",
           "http-generic-api/scripts/github-review-policy-target.mjs",
           "http-generic-api/scripts/test-github-review-policy-target.mjs",
           "http-generic-api/scripts/single-owner-review-gate.mjs",
@@ -292,7 +292,9 @@
           "http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs",
           "http-generic-api/scripts/test-protected-branch-validation-triggers.mjs",
           "http-generic-api/scripts/migration-contract-governance.mjs",
-          "http-generic-api/scripts/run-test-and-run-adaptive-authorization-verification-manifest.mjs"
+          "http-generic-api/scripts/run-test-and-run-adaptive-authorization-verification-manifest.mjs",
+          "docs/openapi-split-governance.md",
+          "http-generic-api/scripts/github-repository-policy-envelope-source-contract.mjs"
         ],
         "environments": [
           "repository"
