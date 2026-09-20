@@ -6,7 +6,7 @@
   "files": [
     {
       "path": ".gitattributes",
-      "sha256": "a5d22cb8d0ba30356a0e5a08e1c4fbfded68d5f1755f3cc26e0a314356e4431b"
+      "sha256": "a473911381c647d647e5d5fdfd3bac690ee88f68ad8024832f6a92a5eb0f553a"
     },
     {
       "path": ".dockerignore",
@@ -146,11 +146,11 @@
     },
     {
       "path": "http-generic-api/frontend-operation-governance.generated.json",
-      "sha256": "51e5d31ebc4a540d365486b8fde9c36206d3b3c782517581c0041168cec59a72"
+      "sha256": "36dda41a575fa06008c27f982e226aafa3cc5669e12e813b1734b324ca0a6b6c"
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "130bf0a3a6c77c6ac629d42ed6581d9a186e407a4b6fc2d1d5a7b31fb2d1fb80"
+      "sha256": "5ab65e13172cad2470807e706e20c167e928b9ddc762e5ec7c860bf3af35c503"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -370,19 +370,19 @@
     },
     {
       "path": "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml",
-      "sha256": "5f13e7c6c094d44c3e61b3588b541504f7e0acc93ff8feb021a4b36468712fc3"
+      "sha256": "475fd3a11acdcea65b617a0638d8e06ba608d92a7c6dc9b9c462f164e3d5a9b5"
     },
     {
       "path": "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml",
-      "sha256": "270eb30c82b269cc597e27d0cc055f212103bbc97a5a210bcf2e59fd2ddd1847"
+      "sha256": "362e31da1d9f1d5210ce4854efd7492d84bef1118eb9236ca419f10f77e5a8cd"
     },
     {
       "path": "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
-      "sha256": "0795cd05d0d1a36260646f5d88efe75ee4bd353ca7e60c13a17ef2dde41a9762"
+      "sha256": "094f05e704e67e1e0ddec52c461630e7bd7052ef4d500eae609c3949d85c32de"
     },
     {
       "path": "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml",
-      "sha256": "eb3beaf43e335a8df993eb2c77d02e96497b6c0f7ad871bb4d8f42f899a120b3"
+      "sha256": "a64b03f33fd543474a869677f091ab03205c340c93b5ad81db7801d5e2e8ee67"
     },
     {
       "path": "autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1",
