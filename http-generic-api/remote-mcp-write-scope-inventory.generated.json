@@ -4720,8 +4720,8 @@
     },
     {
       "route_id": "http-generic-api/routes/managedGoogleOAuthRoutes.js#POST:/v1/google/oauth/session:0",
-      "source_line": 28,
-      "source_offset": 935,
+      "source_line": 35,
+      "source_offset": 1086,
       "method": "POST",
       "path": "/v1/google/oauth/session",
       "file": "http-generic-api/routes/managedGoogleOAuthRoutes.js",
@@ -4729,8 +4729,8 @@
     },
     {
       "route_id": "http-generic-api/routes/managedGoogleOAuthRoutes.js#GET:/v1/google/oauth/callback:1",
-      "source_line": 37,
-      "source_offset": 1236,
+      "source_line": 44,
+      "source_offset": 1399,
       "method": "GET",
       "path": "/v1/google/oauth/callback",
       "file": "http-generic-api/routes/managedGoogleOAuthRoutes.js",
@@ -4738,8 +4738,8 @@
     },
     {
       "route_id": "http-generic-api/routes/managedGoogleOAuthRoutes.js#POST:/v1/google/oauth/redeem:2",
-      "source_line": 54,
-      "source_offset": 1855,
+      "source_line": 61,
+      "source_offset": 2030,
       "method": "POST",
       "path": "/v1/google/oauth/redeem",
       "file": "http-generic-api/routes/managedGoogleOAuthRoutes.js",
@@ -4747,8 +4747,8 @@
     },
     {
       "route_id": "http-generic-api/routes/managedGoogleOAuthRoutes.js#POST:/v1/google/oauth/refresh:3",
-      "source_line": 63,
-      "source_offset": 2159,
+      "source_line": 70,
+      "source_offset": 2346,
       "method": "POST",
       "path": "/v1/google/oauth/refresh",
       "file": "http-generic-api/routes/managedGoogleOAuthRoutes.js",
@@ -30135,21 +30135,23 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/managedGoogleOAuthRoutes.js",
-        "source_line": 28,
+        "source_line": 35,
         "handler_window_lines": [
-          28,
-          35
+          35,
+          42
         ],
         "evidence_flags": {
           "handler_window_present": true,
-          "provider_signal": false,
+          "provider_signal": true,
           "db_registry_signal": false,
           "authority_signal": false,
           "readback_signal": false,
           "mutation_signal": true
         },
         "signals": {
-          "provider": [],
+          "provider": [
+            "request("
+          ],
           "db_registry": [],
           "authority": [],
           "readback": [],
@@ -30172,7 +30174,10 @@
         "capability_envelope_evidence",
         "lease_evidence",
         "staging_environment",
-        "same_cycle_readback_contract"
+        "same_cycle_readback_contract",
+        "provider_adapter_allowlist",
+        "provider_idempotency",
+        "provider_rollback_or_compensation"
       ],
       "promotion_status": "blocked",
       "scope_keys": [],
@@ -30195,21 +30200,23 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/managedGoogleOAuthRoutes.js",
-        "source_line": 54,
+        "source_line": 61,
         "handler_window_lines": [
-          54,
-          61
+          61,
+          68
         ],
         "evidence_flags": {
           "handler_window_present": true,
-          "provider_signal": false,
+          "provider_signal": true,
           "db_registry_signal": false,
           "authority_signal": false,
           "readback_signal": false,
           "mutation_signal": false
         },
         "signals": {
-          "provider": [],
+          "provider": [
+            "request("
+          ],
           "db_registry": [],
           "authority": [],
           "readback": [],
@@ -30230,7 +30237,10 @@
         "capability_envelope_evidence",
         "lease_evidence",
         "staging_environment",
-        "same_cycle_readback_contract"
+        "same_cycle_readback_contract",
+        "provider_adapter_allowlist",
+        "provider_idempotency",
+        "provider_rollback_or_compensation"
       ],
       "promotion_status": "blocked",
       "scope_keys": [],
@@ -30253,21 +30263,23 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/managedGoogleOAuthRoutes.js",
-        "source_line": 63,
+        "source_line": 70,
         "handler_window_lines": [
-          63,
-          74
+          70,
+          81
         ],
         "evidence_flags": {
           "handler_window_present": true,
-          "provider_signal": false,
+          "provider_signal": true,
           "db_registry_signal": false,
           "authority_signal": false,
           "readback_signal": false,
           "mutation_signal": false
         },
         "signals": {
-          "provider": [],
+          "provider": [
+            "request("
+          ],
           "db_registry": [],
           "authority": [],
           "readback": [],
@@ -30288,7 +30300,10 @@
         "capability_envelope_evidence",
         "lease_evidence",
         "staging_environment",
-        "same_cycle_readback_contract"
+        "same_cycle_readback_contract",
+        "provider_adapter_allowlist",
+        "provider_idempotency",
+        "provider_rollback_or_compensation"
       ],
       "promotion_status": "blocked",
       "scope_keys": [],
@@ -53845,7 +53860,7 @@
     "edge_counts": {
       "route_to_handler_file": 675,
       "route_to_domain": 675,
-      "route_to_provider_signal": 97,
+      "route_to_provider_signal": 100,
       "route_to_db_registry_signal": 0,
       "route_to_authority_signal": 425,
       "route_to_readback_signal": 379,
