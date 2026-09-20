@@ -19,6 +19,7 @@ const REQUIRED_MANAGED_GOOGLE_OAUTH_KEYS = [
   "MANAGED_GOOGLE_OAUTH_TOKEN_ENCRYPTION_KEY",
   "MANAGED_GOOGLE_OAUTH_REDIRECT_URI",
   "MANAGED_GOOGLE_OAUTH_SITE_BINDINGS_JSON",
+  "MANAGED_GOOGLE_OAUTH_SITE_SECRETS_JSON",
 ];
 
 function text(value) {
@@ -133,6 +134,7 @@ export function evaluateProductionConfig(env = process.env) {
 
   let managedGoogleSiteBindingCount = 0;
   let managedGoogleSiteBindingsValid = false;
+  let managedGoogleSiteKeyIds = [];
   const managedGoogleBindingsRaw = text(env.MANAGED_GOOGLE_OAUTH_SITE_BINDINGS_JSON);
   if (managedGoogleBindingsRaw) {
     try {
@@ -144,10 +146,12 @@ export function evaluateProductionConfig(env = process.env) {
           String(row.status || "active").trim().toLowerCase() === "active" &&
           String(row.site_uuid || "").trim() &&
           String(row.origin || "").trim().startsWith("https://") &&
-          String(row.callback_uri || "").trim().startsWith("https://")
+          String(row.callback_uri || "").trim().startsWith("https://") &&
+          /^[A-Za-z0-9._:-]{3,64}$/.test(String(row.key_id || "").trim())
         );
         managedGoogleSiteBindingCount = active.length;
-        managedGoogleSiteBindingsValid = active.length > 0;
+        managedGoogleSiteKeyIds = active.map((row) => String(row.key_id || "").trim());
+        managedGoogleSiteBindingsValid = active.length > 0 && new Set(managedGoogleSiteKeyIds).size === active.length;
       }
     } catch {
       managedGoogleSiteBindingsValid = false;
@@ -157,9 +161,41 @@ export function evaluateProductionConfig(env = process.env) {
     errors.push("MANAGED_GOOGLE_OAUTH_SITE_BINDINGS_JSON must contain at least one active HTTPS site binding.");
   }
 
+  let managedGoogleSiteSecretsValid = false;
+  let managedGoogleSiteSecretKeyCount = 0;
+  let managedGoogleSiteSecretEvidence = [];
+  const managedGoogleSiteSecretsRaw = text(env.MANAGED_GOOGLE_OAUTH_SITE_SECRETS_JSON);
+  if (managedGoogleSiteSecretsRaw) {
+    try {
+      const parsed = JSON.parse(managedGoogleSiteSecretsRaw);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        const entries = Object.entries(parsed);
+        managedGoogleSiteSecretKeyCount = entries.length;
+        managedGoogleSiteSecretEvidence = entries.map(([keyId, secret]) => ({
+          key_id: text(keyId),
+          ...secretEvidence(`MANAGED_GOOGLE_OAUTH_SITE_SECRET:${text(keyId)}`, secret),
+        }));
+        const registryKeysValid = entries.length > 0 && entries.every(([keyId, secret]) =>
+          /^[A-Za-z0-9._:-]{3,64}$/.test(text(keyId)) &&
+          text(secret).length >= MIN_SECRET_LENGTH
+        );
+        const exactBindingCoverage =
+          managedGoogleSiteKeyIds.length > 0 &&
+          managedGoogleSiteKeyIds.every((keyId) => Object.prototype.hasOwnProperty.call(parsed, keyId));
+        managedGoogleSiteSecretsValid = registryKeysValid && exactBindingCoverage;
+      }
+    } catch {
+      managedGoogleSiteSecretsValid = false;
+    }
+  }
+  if (managedGoogleEnabled && !managedGoogleSiteSecretsValid) {
+    errors.push("MANAGED_GOOGLE_OAUTH_SITE_SECRETS_JSON must provide a distinct >=32 character secret for every active site binding key_id.");
+  }
+
   const managedGoogleSecretPrefixes = [
     managedGoogleClientSecret,
     managedGoogleEncryptionKey,
+    ...managedGoogleSiteSecretEvidence,
     ...secrets,
   ].filter((item) => item.present).map((item) => item.sha256_prefix);
   if (managedGoogleEnabled && new Set(managedGoogleSecretPrefixes).size !== managedGoogleSecretPrefixes.length) {
@@ -177,8 +213,12 @@ export function evaluateProductionConfig(env = process.env) {
     redirect_uri_valid: managedGoogleRedirectValid,
     site_binding_count: managedGoogleSiteBindingCount,
     site_bindings_valid: managedGoogleSiteBindingsValid,
+    site_key_ids: managedGoogleSiteKeyIds,
+    site_secret_key_count: managedGoogleSiteSecretKeyCount,
+    site_secrets_valid: managedGoogleSiteSecretsValid,
+    site_secret_evidence: managedGoogleSiteSecretEvidence,
     status: managedGoogleEnabled
-      ? (missingManagedGoogleKeys.length || !managedGoogleRedirectValid || !managedGoogleSiteBindingsValid || !managedGoogleClientSecret.present || !managedGoogleEncryptionKey.length_ok ? "invalid" : "configured")
+      ? (missingManagedGoogleKeys.length || !managedGoogleRedirectValid || !managedGoogleSiteBindingsValid || !managedGoogleSiteSecretsValid || !managedGoogleClientSecret.present || !managedGoogleEncryptionKey.length_ok ? "invalid" : "configured")
       : "disabled",
     secrets_included: false,
   };
