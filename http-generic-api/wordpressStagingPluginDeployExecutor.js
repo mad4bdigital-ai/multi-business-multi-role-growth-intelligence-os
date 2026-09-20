@@ -726,42 +726,55 @@ async function writeEvidence(pool, traceId, kind, status, output) {
 export async function executeWordPressStagingPluginDeploy(input = {}, deps = {}) {
   const pool = deps.pool || getPool();
   const expectedHeadSha = compact(input.expected_head_sha || input.expectedHeadSha || input.expected_commit_sha || input.expectedCommitSha, 64).toLowerCase();
-  const targetId = compact(input.target_id || input.targetId, 64);
   const dryRun = input.dry_run === undefined ? true : bool(input.dry_run);
   const approvalReason = compact(input.approval_reason || input.approvalReason, 1000);
   const timeoutMs = boundedInt(input.timeout_ms || input.timeoutMs, DEFAULT_TIMEOUT_MS, 1000, MAX_TIMEOUT_MS);
   const traceId = `wordpress_staging_deploy_${randomUUID()}`;
 
   if (!/^[0-9a-f]{40}$/.test(expectedHeadSha)) throw deployError("wordpress_staging_deploy_exact_head_required", "expected_head_sha must be the exact 40-character WordPress PR HEAD SHA.", 400);
-  if (!targetId) throw deployError("wordpress_staging_deploy_target_required", "target_id is required.", 400);
+  if (input.target_id || input.targetId || input.host || input.hostname || input.app_path || input.appPath || input.ssh_auth_mode || input.sshAuthMode || input.credential || input.credentials || input.artifact_id || input.artifactId) {
+    throw deployError("wordpress_staging_deploy_caller_target_or_credential_forbidden", "Caller-selected target, artifact, path, host, SSH mode, or credentials are forbidden for WordPress Staging deployment.", 400);
+  }
   if (!dryRun && approvalReason.length < 20) throw deployError("wordpress_staging_deploy_approval_reason_required", "approval_reason with at least 20 characters is required for apply.", 403);
 
-  const target = await loadTarget(pool, targetId);
+  const target = await resolveStagingTarget(pool);
   const targetIdentity = assertStagingTarget(target);
   const artifact = await resolveReviewedArtifact(expectedHeadSha, deps);
-  const connection = await resolveSshConnection(pool, target, input.ssh_auth_mode || input.sshAuthMode || "");
+  const connection = await resolveSshConnection(pool, target, target?.metadata?.ssh_auth_mode || "");
   const preflightResult = await runSshCommand(connection, buildPreflightScript(targetIdentity.wordpressPath), { timeoutMs });
   const preflight = assertLivePreflight(preflightResult);
 
   const base = {
     ok: true,
     contract: WORDPRESS_STAGING_DEPLOY_CONTRACT,
+    deployment_handoff_contract: WORDPRESS_STAGING_HANDOFF_CONTRACT,
     deployment_run_id: traceId,
-    target_id: targetId,
+    resolved_target_id: target.target_id,
+    target_resolution: "server_owned_unique_exact_staging_target",
+    caller_target_selection_allowed: false,
     environment: "staging",
     origin: WORDPRESS_STAGING_ORIGIN,
+    site_uuid: WORDPRESS_STAGING_SITE_UUID,
     expected_head_sha: expectedHeadSha,
     workflow_run_id: artifact.workflow_run_id,
     artifact_id: artifact.artifact_id,
     artifact_name: artifact.artifact_name,
+    artifact_archive_sha256: artifact.artifact_archive_sha256,
     control_plane_version: artifact.control_plane_version,
-    control_plane_sha256: artifact.plugin_archive_sha256,
+    control_plane_sha256: artifact.control_archive_sha256,
     mcp_adapter_version: WORDPRESS_STAGING_MCP_ADAPTER_VERSION,
+    mcp_adapter_sha256: artifact.adapter_archive_sha256,
+    expected_build_fingerprint: artifact.build_fingerprint,
+    expected_package_manifest_digest: artifact.package_manifest_digest,
     preflight: {
       ready: true,
       environment: preflight.environment,
       home_url: normalizeOrigin(preflight.home_url),
       site_url: normalizeOrigin(preflight.site_url),
+      site_uuid: preflight.site_uuid,
+      profile_environment: preflight.profile_environment,
+      profile_origin: normalizeOrigin(preflight.profile_origin),
+      profile_configured: preflight.profile_configured === "1",
       current_control_plane_version: preflight.control_plane_version || null,
       mcp_adapter_version: preflight.mcp_adapter_version,
       mutation_performed: false,
@@ -769,6 +782,7 @@ export async function executeWordPressStagingPluginDeploy(input = {}, deps = {})
     dry_run: dryRun,
     production_authority_used: false,
     breakglass_used: false,
+    raw_sql_used: false,
     caller_supplied_credentials_used: false,
     secrets_included: false,
   };
@@ -782,7 +796,7 @@ export async function executeWordPressStagingPluginDeploy(input = {}, deps = {})
     pool,
     source: input,
     acceptedAppKeys: ["remote_ssh_runtime", "hostinger", "wordpress"],
-    acceptedIntents: [WORDPRESS_STAGING_DEPLOY_OPERATION, "deploy", "write"],
+    acceptedIntents: [WORDPRESS_STAGING_DEPLOY_OPERATION, "wordpress_plugin_deploy", "deploy", "write"],
     acceptedCapabilityKeys: [WORDPRESS_STAGING_DEPLOY_OPERATION],
     expectedTenantId: target.tenant_id,
     expectedUserId: target.user_id || input.user_id || input.userId || "",
@@ -794,35 +808,57 @@ export async function executeWordPressStagingPluginDeploy(input = {}, deps = {})
   await markCapabilityEnvelopeReferenced({ envelopeId: envelope.envelope_id, executionRef: traceId });
 
   const deploymentId = randomUUID();
-  const remoteZip = `${targetIdentity.wordpressPath}/wp-content/plugins/.mad4b-staging-${deploymentId}.zip`;
-  const upload = await runSshCommand(connection, buildUploadScript(targetIdentity.wordpressPath, remoteZip), { timeoutMs, stdinBuffer: artifact.plugin_archive });
-  if (!upload.ok || parseKeyValueOutput(upload.stdout).upload_result !== "ok") {
-    const failure = { ...base, dry_run: false, failure_reason: "artifact_upload_failed", upload_exit_code: upload.exit_code };
+  const remoteControlZip = `${targetIdentity.wordpressPath}/wp-content/plugins/.mad4b-control-${deploymentId}.zip`;
+  const remoteAdapterZip = `${targetIdentity.wordpressPath}/wp-content/plugins/.mad4b-adapter-${deploymentId}.zip`;
+
+  const adapterUpload = await runSshCommand(connection, buildUploadScript(targetIdentity.wordpressPath, remoteAdapterZip), { timeoutMs, stdinBuffer: artifact.adapter_archive });
+  if (!adapterUpload.ok || parseKeyValueOutput(adapterUpload.stdout).upload_result !== "ok") {
+    const failure = { ...base, dry_run: false, failure_reason: "adapter_artifact_upload_failed", upload_exit_code: adapterUpload.exit_code };
     await writeEvidence(pool, traceId, "wordpress_staging_plugin_deploy", "failed", failure);
-    throw deployError("wordpress_staging_deploy_upload_failed", "The verified Control Plane archive could not be uploaded through the governed SSH transport.", 502, { exit_code: upload.exit_code, stderr: upload.stderr });
+    throw deployError("wordpress_staging_deploy_adapter_upload_failed", "The verified MCP Adapter archive could not be uploaded through the governed SSH transport.", 502, { exit_code: adapterUpload.exit_code, stderr: adapterUpload.stderr });
+  }
+
+  const controlUpload = await runSshCommand(connection, buildUploadScript(targetIdentity.wordpressPath, remoteControlZip), { timeoutMs, stdinBuffer: artifact.control_archive });
+  if (!controlUpload.ok || parseKeyValueOutput(controlUpload.stdout).upload_result !== "ok") {
+    const failure = { ...base, dry_run: false, failure_reason: "control_artifact_upload_failed", upload_exit_code: controlUpload.exit_code };
+    await writeEvidence(pool, traceId, "wordpress_staging_plugin_deploy", "failed", failure);
+    throw deployError("wordpress_staging_deploy_control_upload_failed", "The verified Control Plane archive could not be uploaded through the governed SSH transport.", 502, { exit_code: controlUpload.exit_code, stderr: controlUpload.stderr });
   }
 
   const apply = await runSshCommand(connection, buildApplyScript({
     wordpressPath: targetIdentity.wordpressPath,
-    remoteZip,
-    expectedSha256: artifact.plugin_archive_sha256,
+    remoteControlZip,
+    remoteAdapterZip,
+    expectedControlSha256: artifact.control_archive_sha256,
+    expectedAdapterSha256: artifact.adapter_archive_sha256,
     expectedVersion: artifact.control_plane_version,
+    expectedHeadSha,
+    expectedBuildFingerprint: artifact.build_fingerprint,
+    expectedPackageManifestDigest: artifact.package_manifest_digest,
     deploymentId,
   }), { timeoutMs });
   const applied = parseKeyValueOutput(apply.stdout);
+
   const deployOk = apply.ok
     && applied.deploy_result === "ok"
-    && applied.deployed_version === artifact.control_plane_version
-    && applied.runtime_version === artifact.control_plane_version
+    && applied.deployed_control_plane_version === artifact.control_plane_version
+    && applied.runtime_control_plane_version === artifact.control_plane_version
+    && applied.mcp_adapter_version === WORDPRESS_STAGING_MCP_ADAPTER_VERSION
     && String(applied.environment || "").toLowerCase() === "staging"
     && normalizeOrigin(applied.home_url) === WORDPRESS_STAGING_ORIGIN
     && normalizeOrigin(applied.site_url) === WORDPRESS_STAGING_ORIGIN
-    && applied.mcp_adapter_version === WORDPRESS_STAGING_MCP_ADAPTER_VERSION;
+    && String(applied.site_uuid || "").toLowerCase() === WORDPRESS_STAGING_SITE_UUID
+    && String(applied.source_commit_sha || "").toLowerCase() === expectedHeadSha
+    && applied.build_fingerprint === artifact.build_fingerprint
+    && applied.package_manifest_digest === artifact.package_manifest_digest
+    && applied.runtime_manifest_match === "1"
+    && applied.stale === "0"
+    && applied.provenance_mismatch_count === "0";
 
   if (!deployOk) {
-    const failure = { ...base, dry_run: false, failure_reason: "same_cycle_readback_failed", apply_exit_code: apply.exit_code, rollback_result: applied.rollback_result || null };
+    const failure = { ...base, dry_run: false, failure_reason: "same_cycle_exact_provenance_readback_failed", apply_exit_code: apply.exit_code, rollback_result: applied.rollback_result || null };
     await writeEvidence(pool, traceId, "wordpress_staging_plugin_deploy", "failed", failure);
-    throw deployError("wordpress_staging_deploy_readback_failed", "WordPress Staging deployment or same-cycle readback failed; the remote script attempted rollback before returning.", 502, { exit_code: apply.exit_code, rollback_result: applied.rollback_result || null, stderr: apply.stderr });
+    throw deployError("wordpress_staging_deploy_readback_failed", "WordPress Staging deployment or exact same-cycle provenance readback failed; rollback is required before returning.", 502, { exit_code: apply.exit_code, rollback_result: applied.rollback_result || null, stderr: apply.stderr });
   }
 
   const consumed = await transitionCapabilityEnvelopeLifecycle({ envelopeId: envelope.envelope_id, action: "consume", executionRef: traceId, reason: "wordpress_staging_plugin_deploy_completed" });
@@ -832,10 +868,18 @@ export async function executeWordPressStagingPluginDeploy(input = {}, deps = {})
     ...base,
     dry_run: false,
     deployment_status: "completed",
-    previous_control_plane_version: applied.previous_version || null,
-    deployed_control_plane_version: applied.deployed_version,
-    runtime_control_plane_version: applied.runtime_version,
-    rollback_backup_path: applied.backup_path || null,
+    previous_control_plane_version: applied.previous_control_plane_version || null,
+    previous_mcp_adapter_version: applied.previous_mcp_adapter_version || null,
+    deployed_control_plane_version: applied.deployed_control_plane_version,
+    runtime_control_plane_version: applied.runtime_control_plane_version,
+    observed_source_commit_sha: applied.source_commit_sha,
+    observed_build_fingerprint: applied.build_fingerprint,
+    observed_package_manifest_digest: applied.package_manifest_digest,
+    runtime_manifest_match: true,
+    stale: false,
+    provenance_mismatch_count: 0,
+    control_rollback_backup_path: applied.control_backup_path || null,
+    adapter_rollback_backup_path: applied.adapter_backup_path || null,
     capability_envelope_id: envelope.envelope_id,
     capability_envelope_consumed: true,
     execution: {
@@ -843,11 +887,14 @@ export async function executeWordPressStagingPluginDeploy(input = {}, deps = {})
       executed: true,
       ssh_used: true,
       raw_shell_exposed: false,
+      caller_selected_target: false,
       caller_selected_path: false,
       caller_supplied_credentials_used: false,
+      adapter_replaced_from_verified_bundle: true,
+      control_plane_replaced_from_verified_bundle: true,
       same_filesystem_rename_replace: true,
       maintenance_mode_during_swap: true,
-      same_cycle_readback: true,
+      same_cycle_exact_provenance_readback: true,
       rollback_on_failed_readback: true,
     },
     remaining_live_acceptance: artifact.handoff?.post_deploy?.required_live_acceptance || [],
