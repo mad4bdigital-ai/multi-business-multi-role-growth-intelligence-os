@@ -26,6 +26,7 @@ import {
   authenticateManagedGoogleSiteRequest,
   signManagedGoogleSiteRequest,
   managedGoogleRequestBodySha256,
+  parseManagedGoogleSiteSecrets,
   MANAGED_GOOGLE_SITE_AUTH_CONTRACT,
 } from "./managedGoogleOAuthSiteRequestAuth.js";
 
@@ -232,6 +233,40 @@ assert.throws(
   (error) => error?.code === "managed_google_oauth_site_bindings_invalid",
   "A malformed sibling binding must fail the entire managed Google OAuth registry closed."
 );
+
+assert.throws(
+  () => parseManagedGoogleSiteBindings({
+    ...env,
+    MANAGED_GOOGLE_OAUTH_SITE_BINDINGS_JSON: JSON.stringify([
+      JSON.parse(env.MANAGED_GOOGLE_OAUTH_SITE_BINDINGS_JSON)[0],
+      {
+        site_uuid: "11111111-1111-4111-8111-111111111111",
+        origin: "https://second-site.example",
+        callback_uri: "https://second-site.example/wp-admin/admin-post.php?action=mad4b_context_google_managed_callback",
+        key_id: "etg-staging-v1",
+        environment: "staging",
+        status: "active",
+      },
+    ]),
+  }),
+  (error) => error?.code === "managed_google_oauth_site_key_id_duplicate",
+  "A key_id reused by two active site bindings must fail the runtime registry closed."
+);
+
+assert.throws(
+  () => parseManagedGoogleSiteSecrets({
+    MANAGED_GOOGLE_OAUTH_SITE_SECRETS_JSON: JSON.stringify({
+      "etg-staging-v1": "shared-managed-google-site-secret-0123456789abcdef",
+      "second-site-v1": "shared-managed-google-site-secret-0123456789abcdef",
+    }),
+  }),
+  (error) => error?.code === "managed_google_site_auth_secret_reused",
+  "A site-HMAC secret reused across key IDs must fail the runtime secret registry closed."
+);
+
+const runtimeSiteSecrets = parseManagedGoogleSiteSecrets(env);
+assert.equal(runtimeSiteSecrets.size, 1);
+assert.equal(runtimeSiteSecrets.get("etg-staging-v1"), "managed-google-site-signing-secret-fixture-0123456789");
 
 let nowValue = new Date("2026-09-20T12:00:00.000Z");
 const now = () => new Date(nowValue);
