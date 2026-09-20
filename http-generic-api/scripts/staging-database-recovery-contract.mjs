@@ -137,7 +137,23 @@ assert.doesNotMatch(legacyClone, /(?:^|\s)-u\$(?:user|runtimeUser)\b/m);
 assert.match(legacyClone, /sed -E 's\/DEFINER=\[\^ \]\+\/DEFINER=CURRENT_USER\/g'/);
 assert.match(legacyClone, /mariadb --protocol=socket -u'\$user' '\$db'/);
 assert.doesNotMatch(legacyClone.replace(/^\s*#.*$/gm, ""), /GRANT\s+SET\s+USER/i);
-assert.equal((legacyClone.match(/mariadb[^\r\n]*-uroot/gi) || []).length, 1);
+const roleObjectCensusFunction = extractPowerShellFunction(legacyClone, "Get-RoleObjectCensus");
+assert.match(
+  roleObjectCensusFunction,
+  /MYSQL_PWD=\$rootPassword"[\s\S]*mariadb --protocol=socket -uroot --batch --skip-column-names -e "SELECT COUNT\(\*\) FROM information_schema\.SCHEMATA WHERE SCHEMA_NAME=\$literal"[\s\S]*Role database is missing or unreadable/
+);
+assert.match(
+  roleObjectCensusFunction,
+  /MYSQL_PWD=\$rootPassword"[\s\S]*mariadb --protocol=socket -uroot --batch --skip-column-names -e \$query[\s\S]*Pre-apply object-kind census failed/
+);
+const authoritySeedStart = legacyClone.indexOf("foreach ($seed in $authoritySeedRows)");
+const authoritySeedEnd = legacyClone.indexOf('$state.authority_seed_status = "completed"', authoritySeedStart);
+assert.ok(authoritySeedStart >= 0 && authoritySeedEnd > authoritySeedStart, "authority seed replay block is missing");
+const authoritySeedBlock = legacyClone.slice(authoritySeedStart, authoritySeedEnd);
+assert.match(
+  authoritySeedBlock,
+  /MYSQL_PWD=\$runtimeRootPassword"[\s\S]*mariadb --protocol=socket -uroot \$runtimeDb --binary-mode[\s\S]*Authority seed apply failed/
+);
 assert.match(legacyClone, /\$seedSql \| docker compose @compose exec -T -e "MYSQL_PWD=\$runtimeRootPassword" \$runtimeService\.Service mariadb --protocol=socket -uroot \$runtimeDb --binary-mode/);
 assert.doesNotMatch(legacyClone, /gzip -dc[^\r\n]*mariadb[^\r\n]*-uroot/i);
 assert.doesNotMatch(legacyClone, /\$canonicalSeedRows[\s\S]*?mariadb[^\r\n]*-uroot[\s\S]*?canonical_seed_status = "completed"/i);
