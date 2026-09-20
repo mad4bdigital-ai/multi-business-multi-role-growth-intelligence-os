@@ -18,7 +18,7 @@ VALUES
    ),
    'additionalProperties',false
  ),
- 'high', 1, 1, 'bounded_json', 'active',
+ 'high', 1, 1, 'bounded_text', 'active',
  'Staging-only WordPress plugin deployment. Source is the successful exact-head General Distribution artifact. Target/path/SSH credentials are resolved server-side. Apply requires exact capability envelope, atomic replacement, exact provenance readback, and rollback on failure.'
 )
 ON DUPLICATE KEY UPDATE
