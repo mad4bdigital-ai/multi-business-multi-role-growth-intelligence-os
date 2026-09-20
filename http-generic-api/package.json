@@ -89,7 +89,8 @@
     "dev:outbox:dry-run": "node scripts/dev-governed-migration-client.mjs --action=shell-alias --alias=platform_outbox_worker --extra-args-base64=WyItLWFjdGlvbj1kcnktcnVuIl0=",
     "staging:canonical-repair:plan": "node scripts/staging-canonical-semantic-repair.mjs --action=plan",
     "staging:canonical-repair:apply": "node scripts/staging-canonical-semantic-repair.mjs --action=apply",
-    "staging:canonical-repair:reconcile": "node scripts/staging-canonical-semantic-repair.mjs --action=reconcile"
+    "staging:canonical-repair:reconcile": "node scripts/staging-canonical-semantic-repair.mjs --action=reconcile",
+    "staging:semantic-completeness": "node scripts/semantic-data-completeness-report.mjs"
   },
   "engines": {
     "node": ">=22 <23"
