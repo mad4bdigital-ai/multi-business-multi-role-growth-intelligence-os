@@ -37,14 +37,18 @@ if (report.selection.files.includes("20260920_platform_admin_workspace_canonical
 }
 assert.equal(contract.datasets.workspace_registry.canonical_rows[0].cardinality, "exactly_one");
 assert.equal(contract.datasets.memberships.reseed_forbidden, true);
-assert.equal(contract.table_families[0].zero_rows_allowed, false);
+assert.equal(contract.table_families[0].zero_rows_allowed, true);
+assert.equal(contract.table_families[0].completeness_policy, "explicit_dataset_declarations_only");
+assert.equal(contract.table_families[0].unregistered_family_member_policy, "fail_closed");
 assert.equal(contract.enforcement.legacy_exclusions.length, 0);
 assert.equal(contract.datasets.remote_runtime_command_allowlists.canonical_rows[0].cardinality, "exactly_one");
 assert.equal(contract.datasets.execution_policies.canonical_rows[0].cardinality, "exactly_one");
-assert.equal(contract.datasets.remote_runtime_command_allowlists.known_replay_gap, true);
-assert.equal(contract.datasets.execution_policies.known_replay_gap, true);
-assert.ok(report.known_replay_gaps.includes("remote_runtime_command_allowlists"));
-assert.ok(report.known_replay_gaps.includes("execution_policies"));
+assert.equal(contract.datasets.remote_runtime_command_allowlists.known_replay_gap, false);
+assert.equal(contract.datasets.execution_policies.known_replay_gap, false);
+assert.equal(contract.datasets.remote_runtime_command_allowlists.replay_strategy, "disposable_git_semantic_snapshot");
+assert.equal(contract.datasets.execution_policies.replay_strategy, "disposable_git_semantic_snapshot");
+assert.equal(report.known_replay_gaps.includes("remote_runtime_command_allowlists"), false);
+assert.equal(report.known_replay_gaps.includes("execution_policies"), false);
 assert.equal(contract.enforcement.mixed_table_mutation_requires_resolution, true);
 assert.equal(contract.enforcement.operational_state_migration_mutation_forbidden, true);
 assert.equal(contract.enforcement.environment_state_migration_mutation_forbidden, true);
