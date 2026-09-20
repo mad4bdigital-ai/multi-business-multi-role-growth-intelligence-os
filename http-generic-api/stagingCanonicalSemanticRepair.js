@@ -187,7 +187,7 @@ export async function reconcileStagingCanonicalSemanticRepair({executor,plan,act
   const existing=await ledger.read(plan.plan_sha256);if(!existing)throw Object.assign(new Error("No durable execution record exists for this repair plan."),{code:"STAGING_CANONICAL_REPAIR_LEDGER_RESERVATION_MISSING"});
   const readback=await inspectStagingCanonicalSemanticRepair({executor});
   const satisfied=readback.status==="resolved"&&readback.evidence.canonical_ready_count===1&&readback.evidence.ready_candidate_count===1;
-  if(satisfied)await ledger.markSucceeded(plan.plan_sha256,{reconciled:true,postcondition_fingerprint:readback.precondition_fingerprint,semantic_fingerprint_after:readback.semantic_fingerprint});
+  if(satisfied&&existing.state!=="succeeded")await ledger.markSucceeded(plan.plan_sha256,{reconciled:true,postcondition_fingerprint:readback.precondition_fingerprint,semantic_fingerprint_after:readback.semantic_fingerprint});
   return {contract:"mad4b.staging.canonical-semantic-repair-reconciliation.v1",status:satisfied?"already_satisfied":"reconciliation_required",plan_sha256:plan.plan_sha256,
     mutation_performed:false,mutation_retry_allowed:false,readback_verified:satisfied,semantic_fingerprint:readback.semantic_fingerprint,postcondition_fingerprint:readback.precondition_fingerprint,
     exact_row_count:readback.evidence.canonical_ready_count,resolver_candidate_count:readback.evidence.ready_candidate_count,provider_mutation_performed:false,production_mutation_performed:false,secrets_included:false};
