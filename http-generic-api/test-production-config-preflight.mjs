@@ -28,12 +28,60 @@ assert.equal(ready.queue.status, "ready");
 assert.equal(ready.control_plane_write.status, "configured");
 assert.equal(ready.oauth_client.confidential_compat_enabled, false);
 assert.equal(ready.oauth_client.confidential_compat_source, "secure_default_disabled");
+assert.equal(ready.managed_google_oauth.enabled, false);
+assert.equal(ready.managed_google_oauth.status, "disabled");
 const explicitOauthCompat = evaluateProductionConfig({ ...base, TENANT_GPT_ACTIONS_CONFIDENTIAL_CLIENT_COMPAT_ENABLED: "true" });
 assert.equal(explicitOauthCompat.oauth_client.confidential_compat_enabled, true);
 assert.equal(explicitOauthCompat.oauth_client.confidential_compat_source, "environment");
 const strictOauthRollback = evaluateProductionConfig({ ...base, TENANT_GPT_ACTIONS_CONFIDENTIAL_CLIENT_COMPAT_ENABLED: "false" });
 assert.equal(strictOauthRollback.oauth_client.confidential_compat_enabled, false);
 assert.equal(strictOauthRollback.oauth_client.confidential_compat_source, "environment");
+
+const managedGoogleReady = evaluateProductionConfig({
+  ...base,
+  MANAGED_GOOGLE_OAUTH_ENABLED: "true",
+  MANAGED_GOOGLE_OAUTH_CLIENT_ID: "managed-client.apps.googleusercontent.com",
+  MANAGED_GOOGLE_OAUTH_CLIENT_SECRET: "managed_google_client_secret_fixture_32_chars_x",
+  MANAGED_GOOGLE_OAUTH_TOKEN_ENCRYPTION_KEY: "managed_google_encryption_key_fixture_32_chars_y",
+  MANAGED_GOOGLE_OAUTH_REDIRECT_URI: "https://auth.mad4b.com/v1/google/oauth/callback",
+  MANAGED_GOOGLE_OAUTH_SITE_BINDINGS_JSON: JSON.stringify([{
+    site_uuid: "d745d81f-6fc4-5c6a-99dd-d953c92137bf",
+    origin: "https://staging.egypttourgates.com",
+    callback_uri: "https://staging.egypttourgates.com/wp-admin/admin-post.php?action=mad4b_context_google_managed_callback",
+    environment: "staging",
+    status: "active",
+  }]),
+});
+assert.equal(managedGoogleReady.ok, true);
+assert.equal(managedGoogleReady.managed_google_oauth.status, "configured");
+assert.equal(managedGoogleReady.managed_google_oauth.site_binding_count, 1);
+assert.equal(managedGoogleReady.managed_google_oauth.client_secret.secrets_included, false);
+assert.equal(managedGoogleReady.managed_google_oauth.encryption_key.secrets_included, false);
+
+const managedGoogleMissing = evaluateProductionConfig({
+  ...base,
+  MANAGED_GOOGLE_OAUTH_ENABLED: "true",
+  MANAGED_GOOGLE_OAUTH_CLIENT_ID: "",
+  MANAGED_GOOGLE_OAUTH_CLIENT_SECRET: "",
+  MANAGED_GOOGLE_OAUTH_TOKEN_ENCRYPTION_KEY: "",
+  MANAGED_GOOGLE_OAUTH_REDIRECT_URI: "",
+  MANAGED_GOOGLE_OAUTH_SITE_BINDINGS_JSON: "",
+});
+assert.equal(managedGoogleMissing.ok, false);
+assert.equal(managedGoogleMissing.managed_google_oauth.status, "invalid");
+assert.match(managedGoogleMissing.errors.join("\n"), /Managed Google OAuth is enabled but missing/);
+
+const managedGoogleBadBinding = evaluateProductionConfig({
+  ...base,
+  MANAGED_GOOGLE_OAUTH_ENABLED: "true",
+  MANAGED_GOOGLE_OAUTH_CLIENT_ID: "managed-client.apps.googleusercontent.com",
+  MANAGED_GOOGLE_OAUTH_CLIENT_SECRET: "managed_google_client_secret_fixture_32_chars_x",
+  MANAGED_GOOGLE_OAUTH_TOKEN_ENCRYPTION_KEY: "managed_google_encryption_key_fixture_32_chars_y",
+  MANAGED_GOOGLE_OAUTH_REDIRECT_URI: "https://auth.mad4b.com/v1/google/oauth/callback",
+  MANAGED_GOOGLE_OAUTH_SITE_BINDINGS_JSON: "[]",
+});
+assert.equal(managedGoogleBadBinding.ok, false);
+assert.match(managedGoogleBadBinding.errors.join("\n"), /must contain at least one active HTTPS site binding/);
 
 const missingSso = evaluateProductionConfig({ ...base, TENANT_GPT_SSO_SIGNING_SECRET: "" });
 assert.equal(missingSso.ok, false);
