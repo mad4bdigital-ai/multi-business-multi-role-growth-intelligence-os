@@ -28,7 +28,6 @@
           "cardinality": "exactly_one",
           "readback_token": "canonical Platform Admin workspace",
           "identity_tokens": [
-            "b50db01b-617e-4b7a-8bda-6bf4876f754f",
             "platform_repo_governance_zero"
           ]
         }
