@@ -496,6 +496,75 @@
         "table": "tenant_resolution_cases",
         "source_file": "http-generic-api/migrations/20260709_tenant_resolution_registry_schema.sql"
       }
-    }
+    },
+    "required_semantic_bundle_files": [
+      "runtime.canonical-semantic.sql.gz"
+    ]
+  },
+  "canonical_semantic_snapshot": {
+    "contract": "mad4b.staging.canonical-semantic-snapshot.v1",
+    "target_role": "runtime",
+    "source_kind": "disposable_git_migration_projection",
+    "bundle_file": "runtime.canonical-semantic.sql.gz",
+    "replay_mode": "zero_object_rebuild_only",
+    "in_place_repair_allowed": false,
+    "exact_source_commit_required": true,
+    "same_cycle_sha256_manifest_required": true,
+    "live_environment_data_copy_forbidden": true,
+    "production_access_forbidden": true,
+    "provider_access_forbidden": true,
+    "secrets_included": false,
+    "deterministic_projection": {
+      "exclude_auto_increment": true,
+      "exclude_generated_columns": true,
+      "exclude_dynamic_timestamp_columns": true,
+      "require_unique_semantic_order": true,
+      "complete_insert": true,
+      "one_row_per_statement": true
+    },
+    "tables": [
+      "admin_platform_endpoint_tools",
+      "tenant_platform_endpoint_tools",
+      "platform_endpoint_tool_exports",
+      "remote_runtime_command_allowlists",
+      "execution_policies",
+      "activation_dynamic_tab_registry",
+      "activation_dynamic_tab_section_registry",
+      "activation_dynamic_tab_discovery_rule_registry",
+      "activation_section_action_registry",
+      "activation_attention_rule_registry",
+      "activation_freshness_policy_registry",
+      "activation_signal_subscription_registry",
+      "activation_connector_pack_registry",
+      "activation_connector_pack_component_registry",
+      "activation_authorized_surface_registry",
+      "activation_guidance_invocation_registry",
+      "activation_callback_registry",
+      "activation_operational_tile_registry",
+      "activation_response_profile_registry",
+      "activation_delivery_policy_registry"
+    ],
+    "required_nonempty_tables": [
+      "admin_platform_endpoint_tools",
+      "tenant_platform_endpoint_tools",
+      "platform_endpoint_tool_exports",
+      "remote_runtime_command_allowlists",
+      "execution_policies",
+      "activation_dynamic_tab_registry",
+      "activation_dynamic_tab_section_registry",
+      "activation_dynamic_tab_discovery_rule_registry",
+      "activation_section_action_registry",
+      "activation_attention_rule_registry",
+      "activation_freshness_policy_registry",
+      "activation_signal_subscription_registry",
+      "activation_connector_pack_registry",
+      "activation_connector_pack_component_registry",
+      "activation_authorized_surface_registry",
+      "activation_guidance_invocation_registry",
+      "activation_callback_registry",
+      "activation_operational_tile_registry",
+      "activation_response_profile_registry",
+      "activation_delivery_policy_registry"
+    ]
   }
 }
