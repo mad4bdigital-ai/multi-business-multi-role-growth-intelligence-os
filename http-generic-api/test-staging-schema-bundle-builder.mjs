@@ -1367,9 +1367,9 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_index_key_width_chain.files_checked, expectedFilesChecked);
   assert.equal(plan.ordered_index_key_width_chain.migration_files_checked, canonicalMigrationFiles.length);
   assert.equal(plan.ordered_index_key_width_chain.statements_checked, expectedStatementsChecked);
-  assert.equal(plan.ordered_index_key_width_chain.tables_projected, 585);
-  assert.equal(plan.ordered_index_key_width_chain.indexes_checked, 2855);
-  assert.equal(plan.ordered_index_key_width_chain.index_columns_checked, 4845);
+  assert.equal(plan.ordered_index_key_width_chain.tables_projected, 588);
+  assert.equal(plan.ordered_index_key_width_chain.indexes_checked, 2866);
+  assert.equal(plan.ordered_index_key_width_chain.index_columns_checked, 4863);
   assert.equal(plan.ordered_index_key_width_chain.max_key_bytes, 3072);
   assert.equal(plan.ordered_index_key_width_chain.database_connection_performed, false);
   assert.equal(plan.ordered_index_key_width_chain.sql_mutation_performed, false);
@@ -1426,7 +1426,7 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_foreign_key_compatibility_chain.files_checked, expectedFilesChecked);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.migration_files_checked, canonicalMigrationFiles.length);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.statements_checked, expectedStatementsChecked);
-  assert.equal(plan.ordered_foreign_key_compatibility_chain.tables_projected, 586);
+  assert.equal(plan.ordered_foreign_key_compatibility_chain.tables_projected, 589);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.foreign_keys_checked, 138);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.type_comparisons, 140);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.type_mismatches, 0);
