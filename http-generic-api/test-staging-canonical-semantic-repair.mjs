@@ -63,9 +63,9 @@ for (const rows of [
   [{ ...canonical, bootstrap_status: "pending" }],
   [canonical, { ...canonical, workspace_id: "22222222-2222-4222-8222-222222222222", workspace_key: "platform_admin_workspace" }],
 ]) {
-  const hostile = await inspectStagingCanonicalSemanticRepair({ executor: executorFor({ tableExists: true, rows }) });
-  assert.equal(hostile.repair_allowed, false);
-  assert.ok(["identity_conflict", "ambiguous", "not_ready"].includes(hostile.status));
+  const caseInspection = await inspectStagingCanonicalSemanticRepair({ executor: executorFor({ tableExists: true, rows }) });
+  assert.equal(caseInspection.repair_allowed, false);
+  assert.ok(["identity_conflict", "ambiguous", "not_ready"].includes(caseInspection.status));
 }
 
 const missingTable = await inspectStagingCanonicalSemanticRepair({ executor: executorFor({ tableExists: false, rows: [] }) });
