@@ -54,7 +54,8 @@
       "autopilot-portable-staging/One-Click-Staging.ps1",
       "autopilot-portable-staging/autopilot-one-click-policy.json",
       "http-generic-api/test-staging-one-click-autopilot-core.mjs",
-      "http-generic-api/test-staging-environment-certification-contract.mjs"
+      "http-generic-api/test-staging-environment-certification-contract.mjs",
+      "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
     ]
   },
   "environment_impact": {
@@ -281,6 +282,13 @@
               "working_directory": "http-generic-api",
               "path": "test-staging-environment-certification-contract.mjs",
               "args": []
+            },
+            {
+              "id": "staging-smart-gateway-convergence-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-smart-gateway-convergence-contract.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -308,7 +316,8 @@
             "autopilot-portable-staging/One-Click-Staging.ps1",
             "autopilot-portable-staging/autopilot-one-click-policy.json",
             "http-generic-api/test-staging-one-click-autopilot-core.mjs",
-            "http-generic-api/test-staging-environment-certification-contract.mjs"
+            "http-generic-api/test-staging-environment-certification-contract.mjs",
+            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
           ]
         }
       ]
