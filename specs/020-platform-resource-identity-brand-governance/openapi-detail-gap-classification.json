@@ -6,19 +6,19 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "8f2cf8dfeddaeae443f847634c2d0aab6f62d77ca610fa0ce1b6eef3050797ff",
-    "dispatch_artifact_sha256": "7b364ff3b3a31b95604de21d658652686e296453c7da6ca860d2549365711c3e"
+    "dispatch_source_digest": "496fd9b22f6a5ec1b5541b5f5493fb7d4b72eb62e5fab33bf00dd044ff3cf83d",
+    "dispatch_artifact_sha256": "fa17b7e4458f56e37c82a17bf1f55c9984d0c3a5a42eb7050dcec00b32d8123a"
   },
   "coverage": {
-    "operation_count": 1069,
-    "openapi_documented_count": 1053,
-    "openapi_canonical_documented_count": 735,
+    "operation_count": 1073,
+    "openapi_documented_count": 1057,
+    "openapi_canonical_documented_count": 739,
     "openapi_generated_index_count": 318,
     "openapi_gap_count": 0,
     "auth_contract_gap_count": 0,
     "openapi_detail_gap_count": 318,
     "unresolved_surface_decision_count": 0,
-    "coverage_complete": true
+    "coverage_complete": false
   },
   "distributions": {
     "surface_decisions_by_family": [
@@ -28,7 +28,7 @@
       },
       {
         "decision": "api_only",
-        "count": 39
+        "count": 41
       },
       {
         "decision": "embedded_ui",

@@ -23829,3 +23829,479 @@ paths:
           description: Fail-closed target absence/ambiguity, Site Profile identity, target allowlist, artifact digest/provenance, package hash, deployment handoff v2, Staging preflight, exact runtime provenance readback or capability-envelope mismatch.
         "502":
           description: GitHub artifact retrieval, SSH preflight, upload, deploy or same-cycle readback failed.
+  /v1/google/oauth/callback:
+    get:
+      operationId: completeManagedGoogleOAuthProviderCallback
+      summary: Complete the Google provider callback for a Managed OAuth session
+      description: Browser callback used only by Google. Broker state resolves the exact pending session; the authorization code is exchanged server-side and the browser is redirected back to the pre-bound WordPress callback with only a one-time handoff code and the original site state. Google access and refresh tokens never appear in the browser redirect.
+      tags:
+        - managed-google-oauth
+      x-runtime-contract-source: routes/managedGoogleOAuthRoutes.js
+      x-runtime-auth-profile: public_state_bound
+      x-contract-completeness: precise-runtime-contract
+      x-custom-gpt-exclude: true
+      x-gpt-action-exclude: true
+      x-openai-isConsequential: false
+      security: []
+      parameters:
+        - in: query
+          name: code
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 4096
+        - in: query
+          name: state
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 512
+        - in: query
+          name: error
+          required: false
+          schema:
+            type: string
+            maxLength: 64
+      responses:
+        "302":
+          description: Redirect to the exact pre-bound WordPress callback with handoff_code+state or error+state.
+          headers:
+            Location:
+              required: true
+              schema:
+                type: string
+                format: uri
+                pattern: ^https://
+        "400":
+          description: Missing or invalid broker state / Google authorization code.
+        "409":
+          description: Session already closed or changed during callback finalization.
+        "410":
+          description: Authorization session expired.
+        "502":
+          description: Google token exchange failed.
+        "503":
+          description: Broker configuration or persistence is unavailable.
+  /v1/google/oauth/redeem:
+    post:
+      operationId: redeemManagedGoogleOAuthHandoff
+      summary: Redeem the one-time Managed Google OAuth handoff
+      description: Atomically redeems the one-time broker handoff after proving the exact Site Profile binding and S256 verifier. Successful redemption consumes the handoff under row lock, erases the broker token envelope, and returns Google token material only to the authenticated site-to-broker request. This protocol endpoint is excluded from all GPT action projection.
+      tags:
+        - managed-google-oauth
+      x-runtime-contract-source: routes/managedGoogleOAuthRoutes.js
+      x-runtime-auth-profile: managed_google_site_hmac
+      x-contract-completeness: precise-runtime-contract
+      x-custom-gpt-exclude: true
+      x-gpt-action-exclude: true
+      x-openai-isConsequential: false
+      security:
+        - managedGoogleSiteHmac: []
+      parameters:
+        - in: header
+          name: X-MAD4B-Site-Key-ID
+          required: true
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9._:-]{3,64}$
+        - in: header
+          name: X-MAD4B-Site-Timestamp
+          required: true
+          schema:
+            type: string
+            pattern: ^\d{10}$
+        - in: header
+          name: X-MAD4B-Site-Nonce
+          required: true
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9_-]{22,128}$
+        - in: header
+          name: X-MAD4B-Site-Signature
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-f0-9]{64}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - contract
+                - handoff_code
+                - session_id
+                - verifier
+                - site_uuid
+                - origin
+                - callback_uri
+              properties:
+                contract:
+                  type: string
+                  enum:
+                    - mad4b.google-managed-oauth-redeem-request.v1
+                handoff_code:
+                  type: string
+                  minLength: 1
+                  maxLength: 4096
+                session_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                verifier:
+                  type: string
+                  pattern: ^[A-Za-z0-9._~-]{43,128}$
+                site_uuid:
+                  type: string
+                  format: uuid
+                origin:
+                  type: string
+                  format: uri
+                  pattern: ^https://
+                callback_uri:
+                  type: string
+                  format: uri
+                  pattern: ^https://
+      responses:
+        "200":
+          description: One-time handoff consumed and Google token envelope returned to the authenticated WordPress site.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - ok
+                  - contract
+                  - access_token
+                  - refresh_token
+                  - expires_in
+                  - scope
+                  - credential_material_included
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - true
+                  contract:
+                    type: string
+                    enum:
+                      - mad4b.google-managed-oauth-redemption.v1
+                  access_token:
+                    type: string
+                    minLength: 1
+                    writeOnly: true
+                  refresh_token:
+                    type: string
+                    minLength: 1
+                    writeOnly: true
+                  expires_in:
+                    type: integer
+                    minimum: 1
+                    maximum: 86400
+                  scope:
+                    type: string
+                    enum:
+                      - https://www.googleapis.com/auth/drive.readonly
+                      - https://www.googleapis.com/auth/drive
+                  credential_material_included:
+                    type: boolean
+                    enum:
+                      - true
+        "400":
+          description: Invalid redemption contract, handoff or verifier shape.
+        "401":
+          description: Missing, expired or invalid site-HMAC authentication.
+        "403":
+          description: Site binding, handoff or verifier mismatch.
+        "404":
+          description: Broker session not found.
+        "409":
+          description: Handoff already consumed, session not redeemable, or site-HMAC nonce replay.
+        "410":
+          description: One-time handoff expired.
+        "429":
+          description: Per-site redemption rate limit exceeded.
+        "503":
+          description: Broker configuration or persistence is unavailable.
+  /v1/google/oauth/refresh:
+    post:
+      operationId: refreshManagedGoogleOAuthAccessToken
+      summary: Refresh a Managed Google OAuth access token without scope escalation
+      description: Uses the broker-owned Google OAuth client secret to refresh an access token for an exact authenticated Site Profile. The requested access mode and scope must match the governed Drive scope contract exactly; scope escalation is rejected. The Google refresh token is credential material supplied only over the site-HMAC authenticated server-to-server channel and is never persisted in plaintext by this operation.
+      tags:
+        - managed-google-oauth
+      x-runtime-contract-source: routes/managedGoogleOAuthRoutes.js
+      x-runtime-auth-profile: managed_google_site_hmac
+      x-contract-completeness: precise-runtime-contract
+      x-custom-gpt-exclude: true
+      x-gpt-action-exclude: true
+      x-openai-isConsequential: false
+      security:
+        - managedGoogleSiteHmac: []
+      parameters:
+        - in: header
+          name: X-MAD4B-Site-Key-ID
+          required: true
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9._:-]{3,64}$
+        - in: header
+          name: X-MAD4B-Site-Timestamp
+          required: true
+          schema:
+            type: string
+            pattern: ^\d{10}$
+        - in: header
+          name: X-MAD4B-Site-Nonce
+          required: true
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9_-]{22,128}$
+        - in: header
+          name: X-MAD4B-Site-Signature
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-f0-9]{64}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - contract
+                - site_uuid
+                - origin
+                - refresh_token
+                - requested_scope
+                - access_mode
+              properties:
+                contract:
+                  type: string
+                  enum:
+                    - mad4b.google-managed-oauth-refresh-request.v1
+                site_uuid:
+                  type: string
+                  format: uuid
+                origin:
+                  type: string
+                  format: uri
+                  pattern: ^https://
+                refresh_token:
+                  type: string
+                  minLength: 1
+                  maxLength: 8192
+                  writeOnly: true
+                requested_scope:
+                  type: string
+                  enum:
+                    - https://www.googleapis.com/auth/drive.readonly
+                    - https://www.googleapis.com/auth/drive
+                access_mode:
+                  type: string
+                  enum:
+                    - read_only
+                    - read_write
+      responses:
+        "200":
+          description: Refreshed Google access token returned to the authenticated WordPress site.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - ok
+                  - contract
+                  - access_token
+                  - expires_in
+                  - scope
+                  - credential_material_included
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - true
+                  contract:
+                    type: string
+                    enum:
+                      - mad4b.google-managed-oauth-refresh.v1
+                  access_token:
+                    type: string
+                    minLength: 1
+                    writeOnly: true
+                  expires_in:
+                    type: integer
+                    minimum: 1
+                    maximum: 86400
+                  scope:
+                    type: string
+                    enum:
+                      - https://www.googleapis.com/auth/drive.readonly
+                      - https://www.googleapis.com/auth/drive
+                  credential_material_included:
+                    type: boolean
+                    enum:
+                      - true
+        "400":
+          description: Invalid refresh contract, access mode or exact Drive scope.
+        "401":
+          description: Missing, expired or invalid site-HMAC authentication.
+        "403":
+          description: Site credential or exact Site Profile binding is not authorized.
+        "409":
+          description: Site-HMAC nonce replay detected.
+        "429":
+          description: Per-site refresh rate limit exceeded.
+        "502":
+          description: Google token refresh failed.
+        "503":
+          description: Broker configuration or persistence is unavailable.
+  /v1/google/oauth/session:
+    post:
+      operationId: createManagedGoogleOAuthSession
+      summary: Create a site-bound Managed Google OAuth authorization session
+      description: Creates a short-lived Google OAuth authorization session for an exact server-owned WordPress Site Profile binding. The request is authenticated with the dedicated MAD4B site-HMAC scheme, binds the WordPress callback, Drive access mode, OAuth scope, state and S256 verifier challenge, and returns only the Google authorization URL and broker session identifier. Google OAuth client secrets and provider tokens are never returned by this operation.
+      tags:
+        - managed-google-oauth
+      x-runtime-contract-source: routes/managedGoogleOAuthRoutes.js
+      x-runtime-auth-profile: managed_google_site_hmac
+      x-contract-completeness: precise-runtime-contract
+      x-custom-gpt-exclude: true
+      x-gpt-action-exclude: true
+      x-openai-isConsequential: false
+      security:
+        - managedGoogleSiteHmac: []
+      parameters:
+        - in: header
+          name: X-MAD4B-Site-Key-ID
+          required: true
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9._:-]{3,64}$
+        - in: header
+          name: X-MAD4B-Site-Timestamp
+          required: true
+          schema:
+            type: string
+            pattern: ^\d{10}$
+        - in: header
+          name: X-MAD4B-Site-Nonce
+          required: true
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9_-]{22,128}$
+        - in: header
+          name: X-MAD4B-Site-Signature
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-f0-9]{64}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - contract
+                - site_uuid
+                - origin
+                - callback_uri
+                - access_mode
+                - requested_scope
+                - state
+                - verifier_challenge
+                - verifier_method
+              properties:
+                contract:
+                  type: string
+                  enum:
+                    - mad4b.google-managed-oauth-session.v1
+                site_uuid:
+                  type: string
+                  format: uuid
+                origin:
+                  type: string
+                  format: uri
+                  pattern: ^https://
+                callback_uri:
+                  type: string
+                  format: uri
+                  pattern: ^https://
+                access_mode:
+                  type: string
+                  enum:
+                    - read_only
+                    - read_write
+                requested_scope:
+                  type: string
+                  enum:
+                    - https://www.googleapis.com/auth/drive.readonly
+                    - https://www.googleapis.com/auth/drive
+                state:
+                  type: string
+                  minLength: 32
+                  maxLength: 256
+                verifier_challenge:
+                  type: string
+                  pattern: ^[A-Za-z0-9_-]{43}$
+                verifier_method:
+                  type: string
+                  enum:
+                    - S256
+      responses:
+        "200":
+          description: Managed Google OAuth authorization session created.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - ok
+                  - contract
+                  - session_id
+                  - authorization_url
+                  - secrets_included
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - true
+                  contract:
+                    type: string
+                    enum:
+                      - mad4b.google-managed-oauth-session.v1
+                  session_id:
+                    type: string
+                    minLength: 1
+                    maxLength: 64
+                  authorization_url:
+                    type: string
+                    format: uri
+                    pattern: ^https://accounts\.google\.com/
+                  secrets_included:
+                    type: boolean
+                    enum:
+                      - false
+        "400":
+          description: Invalid session contract, scope, state, verifier or binding shape.
+        "401":
+          description: Missing, expired or invalid site-HMAC authentication.
+        "403":
+          description: Site credential or exact Site Profile binding is not authorized.
+        "409":
+          description: Site-HMAC nonce replay detected.
+        "429":
+          description: Per-site session creation rate limit exceeded.
+        "503":
+          description: Managed Google OAuth broker configuration or persistence is unavailable.

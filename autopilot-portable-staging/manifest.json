@@ -146,11 +146,11 @@
     },
     {
       "path": "http-generic-api/frontend-operation-governance.generated.json",
-      "sha256": "36dda41a575fa06008c27f982e226aafa3cc5669e12e813b1734b324ca0a6b6c"
+      "sha256": "d510ee1678ab42ed5d0de9a550db9f86cc6abcca0aac793c2e7bc89561e5c0ae"
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "7b364ff3b3a31b95604de21d658652686e296453c7da6ca860d2549365711c3e"
+      "sha256": "fa17b7e4458f56e37c82a17bf1f55c9984d0c3a5a42eb7050dcec00b32d8123a"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -370,19 +370,19 @@
     },
     {
       "path": "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml",
-      "sha256": "ae144686c52e30860f83bc319e7b4104aeff774409c4fa0d159650becabdbc83"
+      "sha256": "fcebb27949221b81713adfb08198d6ada1e1243b23a014933a12dbe748aa3de5"
     },
     {
       "path": "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml",
-      "sha256": "dc4c7568515c5ee2d4857273ddd969fd9a9bfbfcf2a36a9a8660a3d53b17b31f"
+      "sha256": "3ae2cb0ebb3560201cfe70f39f33fd0507831bcf493c69e38082c1d8b9208690"
     },
     {
       "path": "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
-      "sha256": "0ed37c837a7857696b793a591f879582800ed20803c279886e7cc93053989daa"
+      "sha256": "dd2707008fb989294b3eeea75606818d55d9f4aa108d401ae48fac50e9c98ce6"
     },
     {
       "path": "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml",
-      "sha256": "e46b5c9c74a9f72e21b64e65b190e85867cf727c0b9e187f3c4c0270411fa26c"
+      "sha256": "9e3bad67f0a7a3a048fcdec49c4df5dd2dd44d6aa6b319201f86973fcef8aa1c"
     },
     {
       "path": "autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1",
