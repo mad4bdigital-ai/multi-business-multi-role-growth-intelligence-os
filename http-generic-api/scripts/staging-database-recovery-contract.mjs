@@ -166,6 +166,26 @@ assert.match(
 );
 assert.match(legacyClone, /\$seedSql \| docker compose @compose exec -T -e "MYSQL_PWD=\$runtimeRootPassword" \$runtimeService\.Service mariadb --protocol=socket -uroot \$runtimeDb --binary-mode/);
 assert.doesNotMatch(legacyClone, /gzip -dc[^\r\n]*mariadb[^\r\n]*-uroot/i);
+const semanticSnapshotStart = legacyClone.indexOf('$semanticContainerPath = "/tmp/$([string]$semanticSnapshotManifest.file)"');
+const semanticSnapshotEnd = legacyClone.indexOf("foreach ($seed in $canonicalSeedRows)", semanticSnapshotStart);
+assert.ok(semanticSnapshotStart >= 0 && semanticSnapshotEnd > semanticSnapshotStart, "canonical semantic snapshot apply block is missing");
+const semanticSnapshotBlock = legacyClone.slice(semanticSnapshotStart, semanticSnapshotEnd);
+assert.match(legacyClone, /canonical_semantic_snapshot\.contract/);
+assert.match(legacyClone, /disposable_git_migration_projection/);
+assert.match(legacyClone, /zero_object_rebuild_only/);
+assert.match(legacyClone, /live_environment_data_copy_forbidden/);
+assert.match(legacyClone, /exact_source_commit[^\r\n]*ExpectedCommit/);
+assert.match(legacyClone, /Get-Sha256 \$semanticSnapshotSource/);
+assert.match(semanticSnapshotBlock, /MYSQL_PWD=\$runtimePassword/);
+assert.match(semanticSnapshotBlock, /--user=\$runtimeUser/);
+assert.doesNotMatch(semanticSnapshotBlock, /-uroot\b/);
+assert.match(semanticSnapshotBlock, /Assert-CountExactly[\s\S]*canonical semantic snapshot \$table/);
+assert.match(completedImportReadbackFunction, /SemanticSnapshotManifest/);
+assert.match(completedImportReadbackFunction, /canonical_semantic_snapshot_readback/);
+assert.match(completedImportReadbackFunction, /Assert-CountAtLeast[\s\S]*completed-state semantic snapshot/);
+assert.match(legacyClone, /canonical_semantic_snapshot_status -eq "completed"/);
+assert.match(legacyClone, /canonical_semantic_snapshot_readback\.status -eq "passed"/);
+
 assert.doesNotMatch(legacyClone, /\$canonicalSeedRows[\s\S]*?mariadb[^\r\n]*-uroot[\s\S]*?canonical_seed_status = "completed"/i);
 assert.match(legacyClone, /if \(\$LASTEXITCODE -ne 0\) \{ Fail "Schema import failed for role \$\(\$item\.Key\); state remains applying for explicit recovery\." \}/);
 
