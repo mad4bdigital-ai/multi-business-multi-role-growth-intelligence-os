@@ -10,6 +10,8 @@ const clone = fs.readFileSync(path.join(root, "autopilot-portable-staging/Clone-
 const legacyClone = fs.readFileSync(path.join(root, "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1"), "utf8");
 const replayPlanner = fs.readFileSync(path.join(root, "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs"), "utf8");
 const roleManifest = JSON.parse(fs.readFileSync(path.join(root, "http-generic-api/config/staging-database-role-migration-manifest.json"), "utf8"));
+const lifecycleContract = JSON.parse(fs.readFileSync(path.join(root, "http-generic-api/config/runtime-data-lifecycle-contract.json"), "utf8"));
+const resolverCardinality = lifecycleContract.datasets.workspace_registry.canonical_rows[0].resolver_cardinality;
 const grantPlan = fs.readFileSync(path.join(root, "http-generic-api/scripts/staging-role-grant-plan.mjs"), "utf8");
 const grantContracts = fs.readFileSync(path.join(root, "http-generic-api/databasePrivilegeContracts.js"), "utf8");
 
@@ -135,11 +137,11 @@ assert.match(
 );
 for (const resolverReadbackBlock of [completedImportReadbackFunction, postImportReadbackBlock]) {
   assert.match(resolverReadbackBlock, /resolver-equivalent canonical Platform Admin workspace candidates/);
-  assert.match(resolverReadbackBlock, /tenant_id = '00000000-0000-0000-0000-000000000000'/);
-  assert.match(resolverReadbackBlock, /workspace_key = 'platform_admin_workspace'/);
-  assert.match(resolverReadbackBlock, /JSON_UNQUOTE\(JSON_EXTRACT\(config_json, '\$\.authority_scope_key'\)\) = 'platform:root'/);
-  assert.match(resolverReadbackBlock, /JSON_UNQUOTE\(JSON_EXTRACT\(config_json, '\$\.platform_admin_workspace'\)\) = 'true'/);
-  assert.match(resolverReadbackBlock, /bootstrap_status = 'ready'/);
+  assert.ok(resolverReadbackBlock.includes(`tenant_id = '${resolverCardinality.tenant_id}'`));
+  assert.ok(resolverReadbackBlock.includes(`workspace_key = '${resolverCardinality.workspace_key}'`));
+  assert.ok(resolverReadbackBlock.includes(`JSON_UNQUOTE(JSON_EXTRACT(config_json, '$.authority_scope_key')) = '${resolverCardinality.authority_scope_key}'`));
+  assert.ok(resolverReadbackBlock.includes(`JSON_UNQUOTE(JSON_EXTRACT(config_json, '$.platform_admin_workspace')) = 'true'`));
+  assert.ok(resolverReadbackBlock.includes("bootstrap_status = 'ready'"));
 }
 assert.doesNotMatch(legacyClone, /(?:^|\s)-u\$(?:user|runtimeUser)\b/m);
 assert.match(legacyClone, /sed -E 's\/DEFINER=\[\^ \]\+\/DEFINER=CURRENT_USER\/g'/);
