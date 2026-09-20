@@ -162,6 +162,8 @@ function resolveSiteOriginBinding(env, { site_uuid, origin }) {
 }
 
 function managedConfig(env = process.env) {
+  const enabled = ["true", "1", "yes"].includes(cleanText(env.MANAGED_GOOGLE_OAUTH_ENABLED, 16).toLowerCase());
+  if (!enabled) throw brokerError(404, "managed_google_oauth_disabled", "Managed Google OAuth broker is disabled.");
   const clientId = cleanText(env.MANAGED_GOOGLE_OAUTH_CLIENT_ID, 1024);
   const clientSecret = String(env.MANAGED_GOOGLE_OAUTH_CLIENT_SECRET || "").trim();
   const encryptionKey = String(env.MANAGED_GOOGLE_OAUTH_TOKEN_ENCRYPTION_KEY || "").trim();
