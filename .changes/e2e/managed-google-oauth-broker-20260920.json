@@ -1,0 +1,118 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "managed-google-oauth-broker-20260920",
+  "title": "Managed Google OAuth broker for governed WordPress Context Authority",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/managed-google-oauth-broker-20260920.json",
+      ".github/governance/test-authority-registry.json",
+      "docs/runbooks/managed-google-oauth-broker.md",
+      "http-generic-api/.env.example",
+      "http-generic-api/.env.staging.example",
+      "http-generic-api/managedGoogleOAuthBroker.js",
+      "http-generic-api/managedGoogleOAuthProtocolPolicy.js",
+      "http-generic-api/managedGoogleOAuthSiteRequestAuth.js",
+      "http-generic-api/routes/managedGoogleOAuthRoutes.js",
+      "http-generic-api/routes/index.js",
+      "http-generic-api/migrations/20260920_managed_google_oauth_broker_v1.sql",
+      "http-generic-api/openapi/managed-google-oauth.yaml",
+      "http-generic-api/openapi-route-contracts.d/managed-google-oauth.yaml",
+      "http-generic-api/productionConfigPreflight.js",
+      "http-generic-api/test-managed-google-oauth-broker.mjs",
+      "http-generic-api/test-production-config-preflight.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide a server-managed Google OAuth broker for WordPress managed_google mode while preserving exact environment isolation, secret custody, one-time handoff semantics, and fail-closed Production authority.",
+      "e2e_journeys": [
+        {
+          "id": "managed-google-oauth-broker-environment-and-protocol-closure",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed WordPress Site Control Plane plus MAD4B OAuth broker",
+          "entrypoint": "POST /v1/google/oauth/session",
+          "terminal_outcome": "An allowlisted non-production WordPress Site Profile can obtain a verifier-bound one-time Google OAuth handoff without receiving the broker Google Client Secret, while Production mutation remains unauthorized and live Staging certification remains required.",
+          "steps": [
+            "Classify the exact base-to-head broker source changes against canonical environment-impact policy.",
+            "Require exact server-owned site_uuid + canonical origin + callback binding before creating an OAuth session.",
+            "Exchange the Google authorization code only at the broker-owned HTTPS callback using broker-only Google credentials.",
+            "Return only a one-time handoff code to WordPress and redeem it server-to-server with the original verifier.",
+            "Erase the encrypted transient token envelope atomically on successful redemption and reject replay.",
+            "Route refresh through the broker without exposing its Google Client Secret to WordPress.",
+            "Verify shared-runtime changes declare both Staging and Production impact while Production mutation remains disabled."
+          ],
+          "assertions": [
+            "Environment impact authority is http-generic-api/config/deployment-branch-policy.json.",
+            "Staging and Production are both declared because broker runtime and migration source are shared.",
+            "Cross-environment review is explicit and live Staging certification remains required.",
+            "production_mutation_allowed is false.",
+            "Google OAuth Client Secret remains broker-owned and is never returned to WordPress.",
+            "Site binding is server-owned and exact; caller-only site_uuid/origin claims are insufficient.",
+            "Handoff redemption is verifier-bound, one-time, transactional, and replay fails closed.",
+            "Only the exact read_only->drive.readonly and read_write->drive scope mappings are accepted.",
+            "No Breakglass, Production deployment, Production database apply, provider mutation, or WordPress write authority is granted by this declaration.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "managed-google-oauth-broker-lifecycle",
+              "runner": "node",
+              "path": "test-managed-google-oauth-broker.mjs",
+              "args": [],
+              "working_directory": "http-generic-api"
+            },
+            {
+              "id": "managed-google-oauth-production-config-preflight",
+              "runner": "node",
+              "path": "test-production-config-preflight.mjs",
+              "args": [],
+              "working_directory": "http-generic-api"
+            },
+            {
+              "id": "managed-google-oauth-environment-impact",
+              "runner": "node",
+              "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+              "args": [
+                "--base-sha",
+                "BASE_SHA",
+                "--head-sha",
+                "HEAD_SHA"
+              ],
+              "working_directory": "."
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/managed-google-oauth-broker-20260920.json",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "docs/runbooks/managed-google-oauth-broker.md",
+            "http-generic-api/managedGoogleOAuthBroker.js",
+            "http-generic-api/managedGoogleOAuthSiteRequestAuth.js",
+            "http-generic-api/migrations/20260920_managed_google_oauth_broker_v1.sql",
+            "http-generic-api/openapi/managed-google-oauth.yaml",
+            ".github/governance/test-authority-registry.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
