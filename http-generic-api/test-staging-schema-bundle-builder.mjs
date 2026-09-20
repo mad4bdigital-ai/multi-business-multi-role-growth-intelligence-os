@@ -392,13 +392,14 @@ test("schema bundle manifest declares exactly three isolated roles", () => {
     "secret_references", "credential_bindings", "admin_platform_endpoint_tools", "tenant_platform_endpoint_tools", "customer_sessions",
     "gpt_session_turns", "activation_dynamic_tab_registry", "activation_dynamic_tab_section_registry",
     "activation_dynamic_tab_discovery_rule_registry", "activation_section_action_registry", "activation_attention_rule_registry",
-    "activation_freshness_policy_registry", "activation_signal_subscription_registry", "activation_connector_pack_registry",
+    "activation_freshness_policy_registry", "activation_signal_subscription_registry", "activation_connector_pack_registry", "workspace_registry",
   ]);
   assert.equal(manifest.canonical_seed_lifecycle.contract, "mad4b.staging.canonical-seed-manifest.v1");
   assert.deepEqual(manifest.canonical_seed_lifecycle.seed_files, [
     "039_sprint43_data_integrity_and_missing_tables.sql",
     "1043_sprint69_dynamic_container_hvac_activity_seed.sql",
     "20260815_custom_gpt_mcp_catalog_levels.sql",
+    "20260920_platform_admin_workspace_canonical_seed.sql",
   ]);
   assert.deepEqual(manifest.canonical_seed_lifecycle.mcp_catalog_required_columns, [
     "admin_platform_endpoint_tools.mcp_catalog_level",
@@ -1351,7 +1352,7 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_text_width_chain.statements_checked, expectedStatementsChecked);
   assert.equal(plan.ordered_text_width_chain.bounded_text_columns, 5221);
   assert.equal(plan.ordered_text_width_chain.definitions_applied, 6066);
-  assert.equal(plan.ordered_text_width_chain.insert_select_source_domain_checks, 933);
+  assert.equal(plan.ordered_text_width_chain.insert_select_source_domain_checks, 937);
   assert.equal(plan.ordered_text_width_chain.insert_select_source_domain_overflows, 0);
   assert.equal(plan.ordered_text_width_chain.database_connection_performed, false);
   assert.equal(plan.ordered_text_width_chain.sql_mutation_performed, false);
@@ -1447,6 +1448,7 @@ test("generator plan-only mode inventories the exact migration chain", () => {
     "039_sprint43_data_integrity_and_missing_tables.sql",
     "1043_sprint69_dynamic_container_hvac_activity_seed.sql",
     "20260815_custom_gpt_mcp_catalog_levels.sql",
+    "20260920_platform_admin_workspace_canonical_seed.sql",
   ]);
   assert.equal(plan.canonical_seed_lifecycle.readback_required, true);
   assert.equal(plan.ordered_preuse_audit.missing_table_gaps, 0);
