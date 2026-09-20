@@ -52,4 +52,11 @@ await assert.rejects(applyStagingCanonicalSemanticRepair({executor:unknownExecut
 await assert.rejects(applyStagingCanonicalSemanticRepair({executor:unknownExecutor,plan:{...unknownPlan,expected_commit:"b".repeat(40)},confirmation:unknownPlan.required_confirmation,actual_commit:commit,async apply_artifact(){}}),
   (error)=>["STAGING_CANONICAL_REPAIR_STALE_PLAN","STAGING_CANONICAL_REPAIR_PLAN_HASH_MISMATCH"].includes(error?.code));
 
+await assert.rejects(applyStagingCanonicalSemanticRepair({executor:unknownExecutor,plan:{...unknownPlan,required_confirmation:"REPAIR_STAGING_CANONICAL_DATA_ATTACKER"},confirmation:"REPAIR_STAGING_CANONICAL_DATA_ATTACKER",actual_commit:commit,async apply_artifact(){throw new Error("must not execute");}}),
+  (error)=>error?.code==="STAGING_CANONICAL_REPAIR_CONFIRMATION_REQUIRED");
+await assert.rejects(applyStagingCanonicalSemanticRepair({executor:unknownExecutor,plan:{...unknownPlan,expected_repository:"attacker/repository"},confirmation:unknownPlan.required_confirmation,actual_commit:commit,async apply_artifact(){throw new Error("must not execute");}}),
+  (error)=>error?.code==="STAGING_CANONICAL_REPAIR_TARGET_AUTHORITY_MISMATCH");
+await assert.rejects(applyStagingCanonicalSemanticRepair({executor:unknownExecutor,plan:{...unknownPlan,target_environment:"production"},confirmation:unknownPlan.required_confirmation,actual_commit:commit,async apply_artifact(){throw new Error("must not execute");}}),
+  (error)=>error?.code==="STAGING_CANONICAL_REPAIR_TARGET_AUTHORITY_MISMATCH");
+
 console.log("Staging canonical semantic repair artifact/plan/reconciliation tests passed");
