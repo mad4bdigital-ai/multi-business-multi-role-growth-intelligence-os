@@ -131,6 +131,11 @@ function Assert-CountAtLeast([string]$Value, [int]$Minimum, [string]$Label) {
   if (-not [int]::TryParse($Value.Trim(), [ref]$parsed) -or $parsed -lt $Minimum) { Fail "$Label canonical readback is below minimum: observed=$Value minimum=$Minimum" }
   return $parsed
 }
+function Assert-CountExactly([string]$Value, [int]$Expected, [string]$Label) {
+  $parsed = 0
+  if (-not [int]::TryParse($Value.Trim(), [ref]$parsed) -or $parsed -ne $Expected) { Fail "$Label canonical readback cardinality mismatch: observed=$Value expected=$Expected" }
+  return $parsed
+}
 function Assert-ContainsSet([string[]]$Required, [string[]]$Actual, [string]$Label) {
   $actualSet = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
   foreach ($item in $Actual) { [void]$actualSet.Add([string]$item) }
@@ -178,7 +183,7 @@ $canonicalRuntimeCensus = @($roleMigrationManifest.validation.required_runtime_t
 Require ($canonicalRuntimeCensus.Count -eq 18) "Canonical Staging role manifest must declare exactly 18 runtime census tables."
 Assert-SetEqual $canonicalRuntimeCensus $requiredRuntimeCensus "schema bundle runtime census projection"
 $requiredRuntimeSupportTables = @($roleMigrationManifest.validation.required_runtime_support_tables)
-Require ($requiredRuntimeSupportTables.Count -eq 19) "Canonical Staging role manifest must declare exactly 19 runtime support tables."
+Require ($requiredRuntimeSupportTables.Count -eq 20) "Canonical Staging role manifest must declare exactly 20 runtime support tables."
 Assert-ContainsSet $requiredRuntimeSupportTables @($roleMigrationManifest.roles.runtime.required_tables) "canonical runtime support declaration"
 
 $canonicalSeedManifest = $bundleManifest.canonical_seed_lifecycle
@@ -186,7 +191,8 @@ Require ([string]$canonicalSeedManifest.contract -eq "mad4b.staging.canonical-se
 Require ([string]$canonicalSeedManifest.target_role -eq "runtime" -and [string]$canonicalSeedManifest.replay_mode -eq "explicit_local_staging_only") "Canonical seed replay policy is invalid."
 Require ($canonicalSeedManifest.production_access_forbidden -eq $true -and $canonicalSeedManifest.provider_access_forbidden -eq $true -and $canonicalSeedManifest.readback_required -eq $true) "Canonical seed safety/readback policy is not fail-closed."
 $canonicalSeedRows = @($canonicalSeedManifest.seed_files)
-$expectedCanonicalSeedFiles = @("039_sprint43_data_integrity_and_missing_tables.sql", "1043_sprint69_dynamic_container_hvac_activity_seed.sql", "20260815_custom_gpt_mcp_catalog_levels.sql")
+$expectedCanonicalSeedFiles = @($roleMigrationManifest.canonical_seed_lifecycle.seed_files | ForEach-Object { [string]$_ })
+Require ($expectedCanonicalSeedFiles.Count -gt 0) "Canonical role manifest declares no seed files."
 Require (($canonicalSeedRows | ForEach-Object { [string]$_.file }) -join "," -eq ($expectedCanonicalSeedFiles -join ",") ) "Canonical seed file order is not exact."
 foreach ($seed in $canonicalSeedRows) {
   $seedPath = Join-Path $ApiPath (Join-Path "migrations" ([string]$seed.file))
@@ -360,6 +366,7 @@ try {
     brand_paths = Assert-CountAtLeast (Invoke-DatabaseScalar $runtimeService $compose "SELECT COUNT(*) FROM brand_paths WHERE active IS NULL OR active IN ('1','true','yes','active')") 1 "brand_paths"
     hvac_activity = Assert-CountAtLeast (Invoke-DatabaseScalar $runtimeService $compose "SELECT COUNT(*) FROM business_activity_types WHERE business_activity_type_key = 'hvac_air_conditioning_services' AND status = 'active'") 1 "hvac business activity"
     sql_cache_runtime_policy = Assert-CountAtLeast (Invoke-DatabaseScalar $runtimeService $compose "SELECT COUNT(*) FROM sql_cache_runtime_policies WHERE policy_key = 'sql_cache_policy_v2' AND revision >= 1 AND JSON_UNQUOTE(JSON_EXTRACT(config_json, '$.required')) IN ('false','0') AND FIND_IN_SET('endpoints', REPLACE(JSON_UNQUOTE(JSON_EXTRACT(config_json, '$.table_blocklist')), ' ', '')) > 0") 1 "sql_cache_policy_v2"
+    platform_admin_workspace = Assert-CountExactly (Invoke-DatabaseScalar $runtimeService $compose "SELECT COUNT(*) FROM workspace_registry WHERE workspace_id = 'b50db01b-617e-4b7a-8bda-6bf4876f754f' AND tenant_id = '00000000-0000-0000-0000-000000000000' AND workspace_key = 'platform_repo_governance_zero' AND display_name = 'Platform Admin' AND workspace_type = 'brand' AND bootstrap_status = 'ready' AND JSON_UNQUOTE(JSON_EXTRACT(config_json, '$.authority_scope_key')) = 'platform:root' AND JSON_EXTRACT(config_json, '$.platform_admin_workspace') = TRUE") 1 "canonical Platform Admin workspace"
   }
   $supportRowCounts = [ordered]@{
     connected_systems_query = Assert-CountAtLeast (Invoke-DatabaseScalar $runtimeService $compose "SELECT COUNT(*) FROM connected_systems") 0 "connected_systems"
