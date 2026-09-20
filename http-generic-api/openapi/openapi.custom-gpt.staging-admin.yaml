@@ -1157,14 +1157,88 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /platform/remote-runtime/targets/catalog-readonly:
+    get:
+      operationId: getRemoteRuntimeTargetCatalogReadonly
+      summary: Read the Remote Runtime target catalog through the Staging Admin read-only projection
+      description: Read-only administrative projection of Remote Runtime targets and command allowlists. It reuses the canonical listRemoteRuntimeTargets service and never opens SSH, executes local shell commands, accesses the filesystem, returns credential values, mutates targets, validates targets, or grants deployment authority.
+      tags:
+        - staging-admin
+        - admin-control
+      x-runtime-contract-source: routes/operationalConsoleRoutes.js
+      x-runtime-auth-profile: admin_backend
+      x-contract-completeness: precise-runtime-contract
+      x-openai-isConsequential: false
+      security:
+        - backendApiKeyAuth: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: user_id
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: target_kind
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - hosting_account
+              - local_path
+        - name: provider_family
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - planned
+              - active
+              - disabled
+              - archived
+        - name: include_commands
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 250
+            default: 100
+      responses:
+        "200":
+          description: Read-only Remote Runtime target catalog.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          description: Backend API key authentication is required.
+        "403":
+          description: Admin principal authorization is required.
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: 904fdb9a349711c24393d00026f918afe5ccc2e6521836e5fae7b5b1af747007
+  source_openapi_sha256: adb6bbf066274ba65efd3938ff0c124739be1a546c3dc36c1f8504134d486542
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
-  registry_sha256: 09b6615301843c23ab8dc8356f6cabf1d3cdfb5f99d86fc5d3f6a09baee9a72d
+  registry_sha256: 0de08f1c1c86f043bff6a0c2b9f3610cc2476b61848bf3d2432599d3ded9af02
   domain_family_policy: http-generic-api/config/domain-family-policy.json
-  domain_family_policy_sha256: efa7d57a43178f3828a98bb9026809995691ddf6276f1f976349eb93a0e09532
+  domain_family_policy_sha256: 5cdcb4b16a07d999dcff35d8a1fef14d441f4bac4ee26b8326cba1b2d92b3d3d
   environment: unspecified
   registry_version: 2
   selector_model: marker_required
@@ -1177,6 +1251,10 @@ x-custom-gpt-generation:
       - system-layer
     omission: fail
     exclusion_records:
+      - operation_id: wordpressStagingPluginDeploy
+        reason: Staging-only exact-artifact WordPress deployment is an internal governed admin/runtime operation and must not be exposed through public Custom GPT action surfaces.
+        owner: runtime-operations
+        review_after: 2026-09-30
       - operation_id: revokeAuthOAuthSsoSession
         reason: Shared OAuth and SSO lifecycle endpoint remains outside the public Custom GPT operation surfaces; revocation is handled by the auth boundary.
         owner: identity-platform
@@ -1265,6 +1343,10 @@ x-custom-gpt-generation:
         reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
         owner: platform-governance
         review_after: 2026-09-30
+      - operation_id: getRemoteRuntimeTargetCatalogReadonly
+        reason: Staging-only Remote Runtime target catalog is projected only through the dedicated GET-only Staging Admin schema and must not consume or leak into the shared Admin Core surface.
+        owner: platform-governance
+        review_after: 2026-10-15
   catalog_policy: null
   static_operation_ids: null
   dynamic_operation_ids: null
@@ -1288,7 +1370,9 @@ x-mad4b-staging-boundary:
 x-staging-generation:
   source_artifact: http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml
   source_surface: admin_core
-  path_policy: GET_only_allowlist
+  supplemental_source_artifacts:
+    - http-generic-api/openapi/remote-runtime-target-catalog-readonly.yaml
+  path_policy: GET_only_allowlist_plus_staging_supplemental_contracts
   allowed_paths:
     - /system/connectors
     - /system/connectors/{system_id}
@@ -1305,4 +1389,5 @@ x-staging-generation:
     - /device/tools
     - /admin/schema-import/jobs
     - /admin/cli/data-source/census
+    - /platform/remote-runtime/targets/catalog-readonly
   secrets_included: false

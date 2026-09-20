@@ -658,7 +658,8 @@
     "scripts/test-remote-mcp-write-scope-inventory.mjs",
     "specs/020-platform-resource-identity-brand-governance/contracts/runtime-database-readiness-contract.json",
     "specs/020-platform-resource-identity-brand-governance/contracts/runtime-db-write-authority-profiles.json",
-    "specs/020-platform-resource-identity-brand-governance/contracts/runtime-environment-invariant-contract.json"
+    "specs/020-platform-resource-identity-brand-governance/contracts/runtime-environment-invariant-contract.json",
+    ".changes/e2e/staging-admin-remote-runtime-catalog-readonly-current-main-20260921.json"
   ],
   "derived_state": {
     "registry": ".github/derived-state-governance.json",
