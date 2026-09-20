@@ -10,6 +10,9 @@ const contract = JSON.parse(fs.readFileSync(new URL("config/runtime-data-lifecyc
 assert.equal(report.ok, true);
 assert.equal(report.selection.mode, "git_diff");
 assert.equal(selfTest.numeric_and_dated_migrations_selected, true);
+assert.equal(selfTest.cte_mutation_classified, true);
+assert.equal(selfTest.truncate_mutation_classified, true);
+assert.equal(selfTest.mixed_table_fail_closed, true);
 assert.equal(report.safety.database_connection_performed, false);
 assert.equal(report.safety.database_mutation_performed, false);
 assert.equal(report.safety.provider_access_performed, false);
@@ -21,5 +24,10 @@ assert.equal(contract.table_families[0].zero_rows_allowed, false);
 assert.equal(contract.enforcement.legacy_exclusions.length, 0);
 assert.equal(contract.datasets.remote_runtime_command_allowlists.canonical_rows[0].cardinality, "exactly_one");
 assert.equal(contract.datasets.execution_policies.canonical_rows[0].cardinality, "exactly_one");
+assert.equal(contract.enforcement.mixed_table_mutation_requires_resolution, true);
+assert.equal(contract.datasets.workspace_registry.mixed_mutation_policy, "canonical_selector_or_environment_annotation");
+assert.equal(report.semantic_durability_status, "partial_known_historical_replay_gaps");
+assert.equal(report.fresh_rebuild_semantic_complete, false);
+assert.ok(report.known_replay_gap_families.includes("^activation_.*_registry$"));
 
 console.log("runtime data lifecycle guard tests passed");
