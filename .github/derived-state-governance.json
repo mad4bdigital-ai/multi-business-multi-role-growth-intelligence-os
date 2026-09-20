@@ -303,7 +303,6 @@
       ".github/workflows/staging-live-certification.yml",
       ".github/workflows/staging-main-deploy-eligibility.yml",
       ".github/workflows/staging-post-deploy-verification.yml",
-      ".github/workflows/staging-semantic-portability.yml",
       ".github/workflows/surface-contract-auto-remediation.yml",
       ".specify/e2e-phase-governance.json",
       ".specify/schemas/e2e-phases.schema.json",
