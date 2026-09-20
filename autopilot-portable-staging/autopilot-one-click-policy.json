@@ -163,7 +163,33 @@
       "gateway_policy_hash_current_required": true,
       "gateway_exact_source_commit_required": true,
       "stale_policy_blocks_activation": true,
-      "platform_admin_semantic_readiness_required": true
+      "platform_admin_semantic_readiness_required": true,
+      "semantic_repair_handoff": {
+        "contract": "mad4b.staging.canonical-semantic-repair-handoff.v1",
+        "handoff_file": "canonical-semantic-repair-handoff.json",
+        "canonical_missing_action": "plan_required",
+        "nonmissing_unready_action": "inspection_required",
+        "eligible_plan_statuses": [
+          "canonical_missing"
+        ],
+        "unsafe_auto_repair_statuses": [
+          "canonical_not_ready",
+          "canonical_ambiguous",
+          "canonical_identity_conflict",
+          "runtime_database_unavailable",
+          "runtime_database_authority_mismatch"
+        ],
+        "plan_action": "staging:canonical-repair:plan",
+        "exact_commit_required": true,
+        "immutable_plan_file_required_for_apply": true,
+        "durable_ledger_required_for_apply": true,
+        "apply_confirmation_derived_from_plan": true,
+        "automatic_apply": false,
+        "automatic_retry": false,
+        "reconcile_before_retry": true,
+        "production_mutation": false,
+        "provider_mutation": false
+      }
     },
     "public_readiness": {
       "selected_tunnel_runtime_required": true,
