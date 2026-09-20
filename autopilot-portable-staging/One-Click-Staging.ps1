@@ -474,6 +474,7 @@ function Read-SchemaImportState([string]$ScriptRoot, [string]$Sha) {
     if ([string]$state.status -ne "completed") { Fail "Schema import did not complete: $($state.status)" }
     if ([string]$state.source_commit -ne $Sha.ToLowerInvariant()) { Fail "Schema import source commit mismatch" }
     if ([string]$state.mode -ne "schema_only" -or $state.post_import_role_table_verification -ne $true) { Fail "Schema import verification evidence is incomplete" }
+    if ([string]$state.canonical_semantic_snapshot_status -ne "completed" -or [string]$state.canonical_semantic_snapshot_readback.status -ne "passed") { Fail "Canonical semantic snapshot/readback evidence is incomplete" }
     if ([string]$state.canonical_seed_status -ne "completed" -or [string]$state.canonical_seed_readback.status -ne "passed") { Fail "Canonical seed/readback evidence is incomplete" }
     if ($state.production_accessed -ne $false -or $state.provider_accessed -ne $false) { Fail "Schema import safety evidence is not fail-closed" }
     return $state
@@ -560,7 +561,7 @@ $runtimeState = Read-RuntimeCertificationState $repo $sha
 if ($EnableActivationGateway) {
     $activationBlockers = @(
         @($runtimeState.certification_degraded_reasons | ForEach-Object { [string]$_ }) |
-            Where-Object { $_ -in @("gateway_policy_not_stale", "gateway_policy_hash_current", "gateway_exact_commit", "mcp_catalog_schema_ready", "combined_database_readiness", "governance_db_privilege_ready") }
+            Where-Object { $_ -in @("gateway_policy_not_stale", "gateway_policy_hash_current", "gateway_exact_commit", "mcp_catalog_schema_ready", "combined_database_readiness", "platform_admin_semantic_readiness", "governance_db_privilege_ready") }
     )
     if ($activationBlockers.Count -gt 0 -or [string]$runtimeState.certification_status -ne "ready") {
         Fail "Activation Gateway cannot be enabled until schema/catalog/gateway readback is ready: $($activationBlockers -join ',')"
@@ -588,6 +589,11 @@ $schemaSeedApplied = $databaseState -eq "schema_only_applied"
     schema_import_status = if ($null -ne $schemaImportState) { [string]$schemaImportState.status } else { "not_applied" }
     schema_import_source_commit = if ($null -ne $schemaImportState) { [string]$schemaImportState.source_commit } else { "not_applied" }
     schema_import_role_table_verification = if ($null -ne $schemaImportState) { ($schemaImportState.post_import_role_table_verification -eq $true) } else { $false }
+    canonical_semantic_snapshot_contract = if ($null -ne $schemaImportState) { [string]$schemaImportState.canonical_semantic_snapshot_contract } else { "not_applied" }
+    canonical_semantic_snapshot_file = if ($null -ne $schemaImportState) { [string]$schemaImportState.canonical_semantic_snapshot_file } else { "not_applied" }
+    canonical_semantic_snapshot_sha256 = if ($null -ne $schemaImportState) { [string]$schemaImportState.canonical_semantic_snapshot_sha256 } else { "not_applied" }
+    canonical_semantic_snapshot_status = if ($null -ne $schemaImportState) { [string]$schemaImportState.canonical_semantic_snapshot_status } else { "not_applied" }
+    canonical_semantic_snapshot_readback = if ($null -ne $schemaImportState) { $schemaImportState.canonical_semantic_snapshot_readback } else { @{ status = "not_applied" } }
     canonical_seed_status = if ($null -ne $schemaImportState) { [string]$schemaImportState.canonical_seed_status } else { "not_applied" }
     canonical_seed_files = if ($null -ne $schemaImportState) { @($schemaImportState.canonical_seed_files) } else { @() }
     canonical_seed_readback = if ($null -ne $schemaImportState) { $schemaImportState.canonical_seed_readback } else { @{ status = "not_applied" } }
