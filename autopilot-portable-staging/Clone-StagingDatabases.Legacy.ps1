@@ -269,7 +269,8 @@ try {
 
   $preApplyRoleCensus = @($services | ForEach-Object { Get-RoleObjectCensus $_ $compose })
   $nonEmptyRoles = @($preApplyRoleCensus | Where-Object { [int]$_.total -ne 0 })
-  Require ($nonEmptyRoles.Count -eq 0) "Direct schema-only importer may apply only when all three local Staging role databases are zero-object. Non-empty roles must be preserved and handled only by the governed Rebuild-EmptyStagingRoleDatabases Recovery flow. observed=$($nonEmptyRoles | ForEach-Object { "$($_.role):$($_.total)" } | Sort-Object | Join-String -Separator ',')"
+  $nonEmptyRoleSummary = (@($nonEmptyRoles | ForEach-Object { "$($_.role):$($_.total)" } | Sort-Object) -join ',')
+  Require ($nonEmptyRoles.Count -eq 0) "Direct schema-only importer may apply only when all three local Staging role databases are zero-object. Non-empty roles must be preserved and handled only by the governed Rebuild-EmptyStagingRoleDatabases Recovery flow. observed=$nonEmptyRoleSummary"
 
   $existingState = $null
   if (Test-Path -LiteralPath $BundleStatePath) { $existingState = Read-Json $BundleStatePath }
