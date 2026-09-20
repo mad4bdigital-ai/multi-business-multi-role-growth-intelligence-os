@@ -145,16 +145,29 @@ export async function planStagingCanonicalSemanticRepair({executor,expected_comm
   return {...body,plan_sha256:planSha,required_confirmation:requiredConfirmation(planSha),inspection};
 }
 
-export async function applyStagingCanonicalSemanticRepair({executor,plan,confirmation,actual_commit,apply_artifact}={}){
+async function executeRegisteredArtifactInTransaction(executor){
+  let transactionStarted=false;
+  try{
+    await executor.query("START TRANSACTION");transactionStarted=true;
+    for(const statement of seedStatements) await executor.query(statement);
+    await executor.query("COMMIT");transactionStarted=false;
+  }catch(cause){
+    if(transactionStarted){try{await executor.query("ROLLBACK");}catch{}}
+    const error=new Error("Canonical semantic repair mutation outcome is unknown; reconciliation readback is required before any retry.");
+    error.code="STAGING_CANONICAL_REPAIR_RECONCILIATION_REQUIRED";
+    error.details={status:"unknown_outcome",artifact_sha256:VERIFIED_ARTIFACT.sha256,mutation_retry_allowed:false};
+    error.cause=cause;throw error;
+  }
+}
+
+export async function applyStagingCanonicalSemanticRepair({executor,plan,confirmation,actual_commit}={}){
   validatePlanBindings(plan,actual_commit);
   if(!plan.repair_allowed||plan.required_confirmation!==requiredConfirmation(plan.plan_sha256)||clean(confirmation)!==requiredConfirmation(plan.plan_sha256)){const error=new Error("Canonical semantic repair plan is not authorized for apply.");error.code="STAGING_CANONICAL_REPAIR_CONFIRMATION_REQUIRED";throw error;}
-  if(typeof apply_artifact!=="function")throw new TypeError("A repository-owned canonical artifact executor is required.");
   const current=await inspectStagingCanonicalSemanticRepair({executor});
   if(current.precondition_fingerprint!==plan.precondition_fingerprint||current.semantic_fingerprint!==plan.semantic_fingerprint_before||current.status!=="missing"){
     const error=new Error("Canonical semantic repair preconditions changed after planning.");error.code="STAGING_CANONICAL_REPAIR_PRECONDITION_CHANGED";throw error;}
-  try{await apply_artifact(Object.freeze({...plan.artifact,plan_sha256:plan.plan_sha256}));}
-  catch{const error=new Error("Canonical semantic repair mutation outcome is unknown; reconciliation readback is required before any retry.");error.code="STAGING_CANONICAL_REPAIR_RECONCILIATION_REQUIRED";
-    error.details={status:"unknown_outcome",plan_sha256:plan.plan_sha256,mutation_retry_allowed:false};throw error;}
+  try{await executeRegisteredArtifactInTransaction(executor);}
+  catch(error){error.details={...error.details,plan_sha256:plan.plan_sha256};throw error;}
   const readback=await inspectStagingCanonicalSemanticRepair({executor});
   if(readback.status!=="resolved"||readback.evidence.canonical_ready_count!==1||readback.evidence.ready_candidate_count!==1){
     const error=new Error("Canonical semantic repair outcome requires reconciliation.");error.code="STAGING_CANONICAL_REPAIR_RECONCILIATION_REQUIRED";
