@@ -16,6 +16,7 @@ assert.equal(selfTest.mixed_table_fail_closed, true);
 assert.equal(selfTest.zero_base_sha_rejected, true);
 assert.equal(selfTest.migration_deletion_is_blocking, true);
 assert.equal(selfTest.runtime_state_migration_mutation_forbidden, true);
+assert.equal(selfTest.destructive_runtime_mutation_forbidden, true);
 assert.equal(report.safety.database_connection_performed, false);
 assert.equal(report.safety.database_mutation_performed, false);
 assert.equal(report.safety.provider_access_performed, false);
