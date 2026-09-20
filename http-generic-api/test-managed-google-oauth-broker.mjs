@@ -1,3 +1,8 @@
+// frontend-surface-operation: post /v1/google/oauth/session
+// frontend-surface-operation: get /v1/google/oauth/callback
+// frontend-surface-operation: post /v1/google/oauth/redeem
+// frontend-surface-operation: post /v1/google/oauth/refresh
+
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
