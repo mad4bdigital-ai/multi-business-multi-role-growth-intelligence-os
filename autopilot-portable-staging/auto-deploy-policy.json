@@ -116,7 +116,8 @@
     "seed_files": [
       "039_sprint43_data_integrity_and_missing_tables.sql",
       "1043_sprint69_dynamic_container_hvac_activity_seed.sql",
-      "20260815_custom_gpt_mcp_catalog_levels.sql"
+      "20260815_custom_gpt_mcp_catalog_levels.sql",
+      "20260920_platform_admin_workspace_canonical_seed.sql"
     ],
     "explicit_apply_only": true,
     "production_access_forbidden": true,
@@ -130,7 +131,8 @@
       "registry_surfaces_catalog",
       "business_type_profiles",
       "brand_paths",
-      "business_activity_types.hvac_air_conditioning_services"
+      "business_activity_types.hvac_air_conditioning_services",
+      "workspace_registry.platform_repo_governance_zero"
     ]
   },
   "authority_seed_lifecycle": {
