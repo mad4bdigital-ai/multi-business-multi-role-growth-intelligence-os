@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "mad4b.runtime-data-lifecycle.v1",
+  "enforcement": {
+    "dated_migration_floor": "20260920",
+    "static_only": true,
+    "unclassified_mutation_is_blocking": true,
+    "canonical_seed_must_be_replayable": true,
+    "canonical_seed_postcondition_required": true,
+    "legacy_exclusions": [
+      {
+        "file": "20260920_wordpress_staging_plugin_deploy_v2_authority.sql",
+        "reason": "Reviewed before lifecycle enforcement; its authority registries require a separate semantic replay migration."
+      }
+    ]
+  },
+  "datasets": {
+    "workspace_registry": {
+      "class": "mixed",
+      "environment_rows": "preserve",
+      "canonical_rows": [
+        {
+          "key": "platform_admin_workspace",
+          "seed_file": "20260920_platform_admin_workspace_canonical_seed.sql",
+          "selector_tokens": [
+            "b50db01b-617e-4b7a-8bda-6bf4876f754f",
+            "00000000-0000-0000-0000-000000000000",
+            "platform_repo_governance_zero",
+            "platform:root"
+          ],
+          "cardinality": "exactly_one",
+          "readback_token": "canonical Platform Admin workspace"
+        }
+      ]
+    },
+    "admin_platform_endpoint_tools": {
+      "class": "canonical_registry",
+      "rebuild_from_git": true,
+      "zero_rows_allowed": false,
+      "known_replay_gap": true
+    },
+    "tenant_platform_endpoint_tools": {
+      "class": "canonical_registry",
+      "rebuild_from_git": true,
+      "zero_rows_allowed": false,
+      "known_replay_gap": true
+    },
+    "platform_endpoint_tool_exports": {
+      "class": "canonical_registry",
+      "rebuild_from_git": true,
+      "zero_rows_allowed": false,
+      "known_replay_gap": true
+    },
+    "connected_systems": { "class": "environment_state", "recovery": "preserve_or_explicit_reprovision" },
+    "installations": { "class": "environment_state", "recovery": "preserve_or_explicit_reprovision" },
+    "credential_bindings": { "class": "environment_state", "recovery": "preserve_or_explicit_reprovision" },
+    "memberships": { "class": "operational_state", "reseed_forbidden": true },
+    "role_assignments": { "class": "operational_state", "reseed_forbidden": true },
+    "permission_grants": { "class": "operational_state", "reseed_forbidden": true },
+    "customer_sessions": { "class": "operational_state", "reseed_forbidden": true },
+    "gpt_session_turns": { "class": "operational_state", "reseed_forbidden": true }
+  },
+  "table_families": [
+    {
+      "pattern": "^activation_.*_registry$",
+      "class": "canonical_registry",
+      "rebuild_from_git": true,
+      "zero_rows_allowed": false,
+      "known_replay_gap": true
+    }
+  ],
+  "safety": {
+    "database_connection_performed": false,
+    "database_mutation_performed": false,
+    "provider_access_performed": false,
+    "production_access_performed": false,
+    "secrets_included": false
+  }
+}
