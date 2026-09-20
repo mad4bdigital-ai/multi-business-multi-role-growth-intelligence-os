@@ -15,14 +15,18 @@ import {
   transitionCapabilityEnvelopeLifecycle,
 } from "./capabilityResolutionEnvelopeGuard.js";
 
-export const WORDPRESS_STAGING_DEPLOY_CONTRACT = "mad4b.wordpress-staging-plugin-deploy.v1";
+export const WORDPRESS_STAGING_DEPLOY_CONTRACT = "mad4b.wordpress-staging-plugin-deploy.v2";
 export const WORDPRESS_STAGING_DEPLOY_OPERATION = "wordpress_staging_plugin_deploy";
+export const WORDPRESS_STAGING_HANDOFF_CONTRACT = "mad4b.wordpress-deployment-handoff.v2";
 export const WORDPRESS_STAGING_SOURCE_REPOSITORY = "mad4bdigital-ai/WordPress";
 export const WORDPRESS_STAGING_SOURCE_WORKFLOW = "mad4b-control-plane-package.yml";
 export const WORDPRESS_STAGING_ORIGIN = "https://staging.egypttourgates.com";
 export const WORDPRESS_STAGING_HOST = "staging.egypttourgates.com";
+export const WORDPRESS_STAGING_SITE_UUID = "d745d81f-6fc4-5c6a-99dd-d953c92137bf";
 export const WORDPRESS_STAGING_PLUGIN_SLUG = "mad4b-site-control-plane";
+export const WORDPRESS_STAGING_MCP_ADAPTER_SLUG = "mcp-adapter";
 export const WORDPRESS_STAGING_MCP_ADAPTER_VERSION = "0.6.1";
+export const WORDPRESS_GENERAL_KIT_CONTRACT = "mad4b.site-control-plane.general-distribution-kit.v1";
 
 const MAX_ARTIFACT_BYTES = 64 * 1024 * 1024;
 const DEFAULT_TIMEOUT_MS = 120000;
@@ -36,14 +40,12 @@ const SSH_PASSWORD_ROLE = "ssh_password";
 const SSH_PRIVATE_KEY_ROLE = "ssh_private_key";
 const SSH_AUTH_MODES = new Set(["password", "private_key"]);
 const REQUIRED_HANDOFF_FORBIDDEN = [
-  "production_target",
-  "production_deployment_authority",
+  "unenrolled_target",
+  "implicit_production_write",
   "breakglass",
-  "wordpress_mcp_source_edit",
-  "file_manager_side_channel",
-  "raw_shell_side_channel",
-  "caller_supplied_ssh_credentials",
-  "merge_or_ready_before_live_acceptance",
+  "raw_sql_side_channel",
+  "caller_supplied_credentials",
+  "merge_or_ready_before_required_acceptance",
 ];
 
 function compact(value = "", max = 255) {
@@ -123,13 +125,7 @@ async function safeQuery(pool, sql, params = []) {
   }
 }
 
-async function loadTarget(pool, targetId) {
-  const rows = await safeQuery(
-    pool,
-    "SELECT * FROM remote_runtime_targets WHERE target_id = ? AND plugin_key = 'remote_ssh_runtime' LIMIT 1",
-    [targetId],
-  );
-  const row = rows[0];
+function publicTarget(row) {
   if (!row) return null;
   return {
     target_id: row.target_id,
@@ -149,6 +145,28 @@ async function loadTarget(pool, targetId) {
   };
 }
 
+async function resolveStagingTarget(pool) {
+  const rows = await safeQuery(
+    pool,
+    "SELECT * FROM remote_runtime_targets WHERE plugin_key = 'remote_ssh_runtime' AND target_kind = 'hosting_account' AND provider_family = 'hostinger' AND status = 'active' AND validation_status IN ('valid','validated') ORDER BY updated_at DESC LIMIT 32",
+  );
+  const matches = rows.map(publicTarget).filter(Boolean).filter((target) => {
+    const metadata = target.metadata && typeof target.metadata === "object" ? target.metadata : {};
+    const environment = compact(metadata.environment || metadata.environment_type || metadata.environment_key, 64).toLowerCase();
+    const origin = normalizeOrigin(metadata.origin || metadata.site_url || metadata.home_url || metadata.wordpress_origin);
+    return environment === "staging"
+      && origin === WORDPRESS_STAGING_ORIGIN
+      && Array.isArray(target.command_allowlist)
+      && target.command_allowlist.includes(WORDPRESS_STAGING_DEPLOY_OPERATION);
+  });
+  if (matches.length === 0) {
+    throw deployError("wordpress_staging_deploy_target_not_found", "No active+validated Hostinger target is registered for the exact ETG Staging origin and WordPress deploy command.", 409, { expected_environment: "staging", expected_origin: WORDPRESS_STAGING_ORIGIN, caller_target_selection_allowed: false });
+  }
+  if (matches.length !== 1) {
+    throw deployError("wordpress_staging_deploy_target_ambiguous", "More than one Hostinger target matches the exact ETG Staging deployment authority; target selection remains fail-closed.", 409, { match_count: matches.length, caller_target_selection_allowed: false });
+  }
+  return matches[0];
+}
 function assertStagingTarget(target) {
   if (!target) throw deployError("wordpress_staging_deploy_target_not_found", "The Hostinger target was not found.", 404);
   if (target.target_kind !== "hosting_account" || target.provider_family !== "hostinger") {
