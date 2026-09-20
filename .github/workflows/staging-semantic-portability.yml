@@ -32,6 +32,8 @@ jobs:
           node-version: "22"
       - name: Verify managed Git hostile-host isolation
         run: node test-managed-git-remote-transport.mjs
+      - name: Verify canonical artifact registry bytes
+        run: node test-canonical-semantic-artifact-registry.mjs
       - name: Verify durable repair ledger
         run: node test-staging-canonical-semantic-repair-ledger.mjs
       - name: Verify repair CLI contract
