@@ -160,13 +160,13 @@ function build() {
     deployment_signature_required: true,
     secrets_included: false,
   };
-  let existingPolicy = null;
+  let previousGeneratedDocument = null;
   try {
-    if (fs.existsSync(outputPath)) existingPolicy = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    if (fs.existsSync(outputPath)) previousGeneratedDocument = JSON.parse(fs.readFileSync(outputPath, "utf8"));
   } catch {
-    existingPolicy = null;
+    previousGeneratedDocument = null;
   }
-  const stableStaging = stabilizeGatewayPolicyProvenance(staging, existingPolicy);
+  const stableStaging = stabilizeGatewayPolicyProvenance(staging, previousGeneratedDocument);
   const canonical = stableJson(payload(stableStaging));
   stableStaging.content_hash_sha256 = sha256(canonical);
   return stableJson(stableStaging);
