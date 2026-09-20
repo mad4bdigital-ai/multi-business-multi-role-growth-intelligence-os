@@ -72,12 +72,12 @@ managedGoogleOAuthSessionPath:
                 session_id: { type: string, minLength: 1, maxLength: 64 }
                 authorization_url: { type: string, format: uri, pattern: '^https://accounts\.google\.com/' }
                 secrets_included: { type: boolean, enum: [false] }
-      '400': { description: Invalid session contract, scope, state, verifier or binding shape. }
-      '401': { description: Missing, expired or invalid site-HMAC authentication. }
-      '403': { description: Site credential or exact Site Profile binding is not authorized. }
-      '409': { description: Site-HMAC nonce replay detected. }
-      '429': { description: Per-site session creation rate limit exceeded. }
-      '503': { description: Managed Google OAuth broker configuration or persistence is unavailable. }
+      '400': { description: "Invalid session contract, scope, state, verifier or binding shape." }
+      '401': { description: "Missing, expired or invalid site-HMAC authentication." }
+      '403': { description: "Site credential or exact Site Profile binding is not authorized." }
+      '409': { description: "Site-HMAC nonce replay detected." }
+      '429': { description: "Per-site session creation rate limit exceeded." }
+      '503': { description: "Managed Google OAuth broker configuration or persistence is unavailable." }
 
 managedGoogleOAuthCallbackPath:
   get:
@@ -116,11 +116,11 @@ managedGoogleOAuthCallbackPath:
           Location:
             required: true
             schema: { type: string, format: uri, pattern: '^https://' }
-      '400': { description: Missing or invalid broker state / Google authorization code. }
-      '409': { description: Session already closed or changed during callback finalization. }
-      '410': { description: Authorization session expired. }
-      '502': { description: Google token exchange failed. }
-      '503': { description: Broker configuration or persistence is unavailable. }
+      '400': { description: "Missing or invalid broker state / Google authorization code." }
+      '409': { description: "Session already closed or changed during callback finalization." }
+      '410': { description: "Authorization session expired." }
+      '502': { description: "Google token exchange failed." }
+      '503': { description: "Broker configuration or persistence is unavailable." }
 
 managedGoogleOAuthRedeemPath:
   post:
@@ -179,14 +179,14 @@ managedGoogleOAuthRedeemPath:
                     - https://www.googleapis.com/auth/drive.readonly
                     - https://www.googleapis.com/auth/drive
                 credential_material_included: { type: boolean, enum: [true] }
-      '400': { description: Invalid redemption contract, handoff or verifier shape. }
-      '401': { description: Missing, expired or invalid site-HMAC authentication. }
-      '403': { description: Site binding, handoff or verifier mismatch. }
-      '404': { description: Broker session not found. }
-      '409': { description: Handoff already consumed, session not redeemable, or site-HMAC nonce replay. }
-      '410': { description: One-time handoff expired. }
-      '429': { description: Per-site redemption rate limit exceeded. }
-      '503': { description: Broker configuration or persistence is unavailable. }
+      '400': { description: "Invalid redemption contract, handoff or verifier shape." }
+      '401': { description: "Missing, expired or invalid site-HMAC authentication." }
+      '403': { description: "Site binding, handoff or verifier mismatch." }
+      '404': { description: "Broker session not found." }
+      '409': { description: "Handoff already consumed, session not redeemable, or site-HMAC nonce replay." }
+      '410': { description: "One-time handoff expired." }
+      '429': { description: "Per-site redemption rate limit exceeded." }
+      '503': { description: "Broker configuration or persistence is unavailable." }
 
 managedGoogleOAuthRefreshPath:
   post:
@@ -247,10 +247,10 @@ managedGoogleOAuthRefreshPath:
                     - https://www.googleapis.com/auth/drive.readonly
                     - https://www.googleapis.com/auth/drive
                 credential_material_included: { type: boolean, enum: [true] }
-      '400': { description: Invalid refresh contract, access mode or exact Drive scope. }
-      '401': { description: Missing, expired or invalid site-HMAC authentication. }
-      '403': { description: Site credential or exact Site Profile binding is not authorized. }
-      '409': { description: Site-HMAC nonce replay detected. }
-      '429': { description: Per-site refresh rate limit exceeded. }
-      '502': { description: Google token refresh failed. }
-      '503': { description: Broker configuration or persistence is unavailable. }
+      '400': { description: "Invalid refresh contract, access mode or exact Drive scope." }
+      '401': { description: "Missing, expired or invalid site-HMAC authentication." }
+      '403': { description: "Site credential or exact Site Profile binding is not authorized." }
+      '409': { description: "Site-HMAC nonce replay detected." }
+      '429': { description: "Per-site refresh rate limit exceeded." }
+      '502': { description: "Google token refresh failed." }
+      '503': { description: "Broker configuration or persistence is unavailable." }
