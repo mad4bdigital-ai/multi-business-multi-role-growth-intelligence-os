@@ -45,6 +45,7 @@ assert.deepEqual(policy.canonical_seed_lifecycle.seed_files, [
   "039_sprint43_data_integrity_and_missing_tables.sql",
   "1043_sprint69_dynamic_container_hvac_activity_seed.sql",
   "20260815_custom_gpt_mcp_catalog_levels.sql",
+  "20260920_platform_admin_workspace_canonical_seed.sql",
 ]);
 assert.equal(policy.canonical_seed_lifecycle.explicit_apply_only, true);
 assert.equal(policy.canonical_seed_lifecycle.readback_required, true);
