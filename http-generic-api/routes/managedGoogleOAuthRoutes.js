@@ -5,6 +5,7 @@ import {
   managedGoogleOAuthErrorResponse,
 } from "../managedGoogleOAuthBroker.js";
 import { getPool } from "../db.js";
+import { authenticateManagedGoogleSiteRequest } from "../managedGoogleOAuthSiteRequestAuth.js";
 
 function sendBrokerError(res, error) {
   const normalized = managedGoogleOAuthErrorResponse(error);
@@ -16,11 +17,31 @@ export function buildManagedGoogleOAuthRoutes(deps = {}) {
   const env = deps.env || process.env;
   let resolvedBroker = deps.managedGoogleOAuthBroker || null;
 
-  function brokerForRequest() {
-    if (resolvedBroker) return resolvedBroker;
-    const store = deps.managedGoogleOAuthStore || new SqlManagedGoogleOAuthStore(
+  let resolvedStore = deps.managedGoogleOAuthStore || null;
+
+  function storeForRequest() {
+    if (resolvedStore) return resolvedStore;
+    resolvedStore = new SqlManagedGoogleOAuthStore(
       typeof deps.getPool === "function" ? deps.getPool() : getPool()
     );
+    return resolvedStore;
+  }
+
+  async function authenticateSiteRequest(req, path) {
+    return authenticateManagedGoogleSiteRequest({
+      env,
+      store: storeForRequest(),
+      method: req.method,
+      path,
+      headers: req.headers || {},
+      body: req.body || {},
+      now: deps.now,
+    });
+  }
+
+  function brokerForRequest() {
+    if (resolvedBroker) return resolvedBroker;
+    const store = storeForRequest();
     resolvedBroker = createManagedGoogleOAuthBroker({
       env,
       store,
@@ -34,6 +55,7 @@ export function buildManagedGoogleOAuthRoutes(deps = {}) {
 
   router.post("/v1/google/oauth/session", async (req, res) => {
     try {
+      await authenticateSiteRequest(req, "/v1/google/oauth/session");
       const result = await brokerForRequest().createSession(req.body || {});
       return res.status(200).json({ ok: true, ...result, secrets_included: false });
     } catch (error) {
@@ -60,6 +82,7 @@ export function buildManagedGoogleOAuthRoutes(deps = {}) {
 
   router.post("/v1/google/oauth/redeem", async (req, res) => {
     try {
+      await authenticateSiteRequest(req, "/v1/google/oauth/redeem");
       const result = await brokerForRequest().redeem(req.body || {});
       return res.status(200).json({ ok: true, ...result, credential_material_included: true });
     } catch (error) {
@@ -69,6 +92,7 @@ export function buildManagedGoogleOAuthRoutes(deps = {}) {
 
   router.post("/v1/google/oauth/refresh", async (req, res) => {
     try {
+      await authenticateSiteRequest(req, "/v1/google/oauth/refresh");
       const result = await brokerForRequest().refresh(req.body || {});
       return res.status(200).json({ ok: true, ...result, credential_material_included: true });
     } catch (error) {
