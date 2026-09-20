@@ -59,8 +59,10 @@ assert.equal(contract.datasets.workspace_registry.canonical_rows[0].mutation_sel
 assert.equal(contract.datasets.workspace_registry.canonical_rows[0].resolver_cardinality.cardinality, "exactly_one");
 assert.equal(contract.datasets.workspace_registry.canonical_rows[0].resolver_cardinality.require_ready, true);
 assert.equal(contract.datasets.workspace_registry.canonical_rows[0].resolver_cardinality.readback_token, "resolver-equivalent canonical Platform Admin workspace candidates");
-assert.equal(report.semantic_durability_status, "partial_known_historical_replay_gaps");
-assert.equal(report.fresh_rebuild_semantic_complete, false);
-assert.ok(report.known_replay_gap_families.includes("^activation_.*_registry$"));
+assert.equal(report.semantic_durability_status, "declared_contract_complete");
+assert.equal(report.fresh_rebuild_semantic_complete, true);
+assert.deepEqual(report.known_replay_gaps, []);
+assert.deepEqual(report.known_replay_gap_datasets, []);
+assert.deepEqual(report.known_replay_gap_families, []);
 
 console.log("runtime data lifecycle guard tests passed");
