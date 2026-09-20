@@ -500,6 +500,58 @@ function Read-RuntimeCertificationState([string]$RepoPath, [string]$Sha) {
     return $state
 }
 
+
+function Write-CanonicalSemanticRepairHandoff([string]$RepoPath, [string]$ScriptRoot, [string]$Sha, [string]$SemanticStatus) {
+    $status = if ([string]::IsNullOrWhiteSpace($SemanticStatus)) { "runtime_database_unavailable" } else { $SemanticStatus }
+    $planEligible = $status -eq "canonical_missing"
+    $handoffState = if ($status -eq "ready") { "not_required" } elseif ($planEligible) { "plan_required" } else { "inspection_required" }
+    $handoff = [ordered]@{
+        contract = "mad4b.staging.canonical-semantic-repair-handoff.v1"
+        status = $handoffState
+        semantic_status = $status
+        repository = $ExpectedRepository
+        exact_commit = $Sha
+        target_environment = "staging"
+        target_role = "runtime"
+        plan = if ($planEligible) {
+            [ordered]@{
+                working_directory = (Join-Path $RepoPath "http-generic-api")
+                npm_script = "staging:canonical-repair:plan"
+                expected_commit = $Sha
+                database_mutation_performed = $false
+            }
+        } else { $null }
+        apply = [ordered]@{
+            automatic = $false
+            immutable_plan_file_required = $true
+            durable_ledger_required = $true
+            confirmation_derived_from_plan = $true
+        }
+        retry = [ordered]@{
+            automatic = $false
+            reconcile_before_retry = $true
+        }
+        production_mutation_performed = $false
+        provider_mutation_performed = $false
+        secrets_included = $false
+        generated_at = (Get-Date).ToUniversalTime().ToString("o")
+    }
+    $handoffPath = Join-Path $ScriptRoot "canonical-semantic-repair-handoff.json"
+    if ($handoffState -eq "not_required") {
+        if (Test-Path -LiteralPath $handoffPath -PathType Leaf) { Remove-Item -LiteralPath $handoffPath -Force }
+        return [pscustomobject]$handoff
+    }
+    $temporaryPath = "$handoffPath.tmp"
+    $handoff | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 -LiteralPath $temporaryPath
+    Move-Item -LiteralPath $temporaryPath -Destination $handoffPath -Force
+    if ($planEligible) {
+        Write-Host "STAGING_CANONICAL_SEMANTIC_REPAIR_HANDOFF: status=plan_required semantic_status=$status exact_commit=$Sha file=$handoffPath automatic_apply=false"
+    } else {
+        Write-Host "STAGING_CANONICAL_SEMANTIC_REPAIR_HANDOFF: status=inspection_required semantic_status=$status exact_commit=$Sha file=$handoffPath automatic_apply=false"
+    }
+    return [pscustomobject]$handoff
+}
+
 function Install-AutoDeploy([string]$RepoPath) {
     $installer = Join-Path $RepoPath "autopilot-portable-staging\Install-AutoDeployTask.ps1"
     if (-not (Test-Path $installer)) { Fail "Install-AutoDeployTask.ps1 is missing" }
@@ -558,6 +610,7 @@ if ($databaseState -eq "schema_only_applied") {
     Invoke-StagingRecertification $repo $sha
 }
 $runtimeState = Read-RuntimeCertificationState $repo $sha
+$semanticRepairHandoff = Write-CanonicalSemanticRepairHandoff $repo $scriptRoot $sha ([string]$runtimeState.platform_admin_semantic_readiness)
 if ($EnableActivationGateway) {
     $activationBlockers = @(
         @($runtimeState.certification_degraded_reasons | ForEach-Object { [string]$_ }) |
@@ -585,6 +638,8 @@ $schemaSeedApplied = $databaseState -eq "schema_only_applied"
     certified_branch = [string]$runtimeState.certified_branch
     certification_degraded_reasons = @($runtimeState.certification_degraded_reasons)
     database_readiness = [string]$runtimeState.database_readiness
+    platform_admin_semantic_readiness = [string]$runtimeState.platform_admin_semantic_readiness
+    canonical_semantic_repair_handoff = $semanticRepairHandoff
     schema_import_contract = if ($null -ne $schemaImportState) { [string]$schemaImportState.contract } else { "not_applied" }
     schema_import_status = if ($null -ne $schemaImportState) { [string]$schemaImportState.status } else { "not_applied" }
     schema_import_source_commit = if ($null -ne $schemaImportState) { [string]$schemaImportState.source_commit } else { "not_applied" }
