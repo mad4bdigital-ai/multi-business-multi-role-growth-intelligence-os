@@ -972,6 +972,94 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": "http-generic-api/scripts/staging-canonical-semantic-repair.mjs|dbName|environment_reference|db.name",
+      "owner": "staging-runtime-governance",
+      "reason": "Database-name observation is a local target safety guard used only to reject Production/Hostinger-like repair targets; it does not select or authorize a database.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-canonical-semantic-repair.mjs|environment|environment_reference|staging.environment.key",
+      "owner": "staging-runtime-governance",
+      "reason": "Resolved Staging environment identity is a non-secret fail-closed target binding for plan/apply/reconcile and grants no execution authority by itself.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-canonical-semantic-repair.mjs|expectedCommit|environment_reference|staging.canonical.repair.expected.commit",
+      "owner": "staging-runtime-governance",
+      "reason": "Resolved expected commit is the exact immutable checkout freshness binding for canonical repair plans; mismatches invalidate the plan before mutation.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-canonical-semantic-repair.mjs|ledgerDirectory|environment_reference|staging.canonical.repair.ledger.dir",
+      "owner": "staging-runtime-governance",
+      "reason": "Resolved ledger directory points to the operator-owned secret-free durable repair ledger outside Runtime target data and grants no database authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-canonical-semantic-repair.mjs|NODE_ENV|environment_reference|node.env",
+      "owner": "staging-runtime-governance",
+      "reason": "Process-mode guard is read only and exists only to fail closed when the canonical repair CLI is invoked under Production process mode.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-canonical-semantic-repair.mjs|STAGING_CANONICAL_REPAIR_EXPECTED_COMMIT|environment_reference|staging.canonical.repair.expected.commit",
+      "owner": "staging-runtime-governance",
+      "reason": "Exact reviewed checkout SHA binding for plan/apply/reconcile; contains no secret and invalidates stale plans.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-canonical-semantic-repair.mjs|STAGING_CANONICAL_REPAIR_LEDGER_DIR|environment_reference|staging.canonical.repair.ledger.dir",
+      "owner": "staging-runtime-governance",
+      "reason": "Operator-owned local evidence directory outside Runtime DB for durable single-use repair state; contains no credential value.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-canonical-semantic-repair.mjs|STAGING_ENVIRONMENT_KEY|environment_reference|staging.environment.key",
+      "owner": "staging-runtime-governance",
+      "reason": "Local Staging environment identity guard; exact fixed value is required before any semantic repair command and grants no Production authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": "http-generic-api/scripts/staging-public-schema-readiness.mjs|timeoutMs|literal_declaration|timeoutms",
       "owner": "openapi-governance",
       "reason": "Bounded public schema probe timeout constant used only by Staging readiness.",
@@ -1093,6 +1181,28 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": "http-generic-api/test-managed-git-remote-transport.mjs|GIT_CONFIG_GLOBAL|environment_reference|git.config.global",
+      "owner": "repository-governance",
+      "reason": "Test-only hostile global Git configuration path used to prove that Managed Git injects deterministic EOL and credential policy per child process; it contains no secret and grants no repository, runtime, provider, database, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/test-managed-git-remote-transport.mjs|previousGlobalConfig|environment_reference|git.config.global",
+      "owner": "repository-governance",
+      "reason": "Test-only snapshot of the pre-test global Git configuration path, restored after hostile-host regression execution; it contains no credential value and grants no repository, runtime, provider, database, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": "http-generic-api/test-mariadb-collation-ci-guard.mjs|sha2Default|literal_declaration|sha2default",
       "owner": "repository-governance",
       "reason": "The SHA2 default fixture is a non-secret static regression input proving omitted required ordinary columns are rejected without the exact sentinel default; it grants no runtime, database, provider, protected-ref, or Production mutation authority.",
@@ -1129,6 +1239,17 @@
       "fingerprint": "http-generic-api/test-recovery-action-bridge-system-layer.mjs|APPROVAL_TOOL_NAME|literal_declaration|approval.tool.name",
       "owner": "recovery-governance",
       "reason": "The private Recovery system-tool integration test binds a non-secret approval-challenge tool name so the server-issued authority boundary remains regression-tested; this test fixture grants no runtime, database, provider, protected-ref, credential, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/test-semantic-data-completeness-report.mjs|report|literal_declaration|report",
+      "owner": "test-governance",
+      "reason": "Test-only semantic completeness report fixture variable; it contains no environment value, credential, runtime target, or mutation authority.",
       "lifecycle": "permanent",
       "configuration_class": "ci_governance_input",
       "sensitivity": "non_secret_reference",
@@ -1316,61 +1437,6 @@
       "fingerprint": "local-connector/connector-runtime-bootstrap.mjs|policyEnabled|literal_declaration|policyenabled",
       "owner": "local-connector",
       "reason": "The boolean derives whether the environment-bound connector policy pull is active; it is fixed fail-closed bootstrap logic, contains no configured value, and grants no runtime or Production mutation authority.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": "http-generic-api/test-managed-git-remote-transport.mjs|GIT_CONFIG_GLOBAL|environment_reference|git.config.global",
-      "owner": "repository-governance",
-      "reason": "Test-only hostile global Git configuration path used to prove that Managed Git injects deterministic EOL and credential policy per child process; it contains no secret and grants no repository, runtime, provider, database, protected-ref, or Production mutation authority.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": "http-generic-api/test-managed-git-remote-transport.mjs|previousGlobalConfig|environment_reference|git.config.global",
-      "owner": "repository-governance",
-      "reason": "Test-only snapshot of the pre-test global Git configuration path, restored after hostile-host regression execution; it contains no credential value and grants no repository, runtime, provider, database, protected-ref, or Production mutation authority.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": "http-generic-api/scripts/staging-canonical-semantic-repair.mjs|STAGING_ENVIRONMENT_KEY|environment_reference|staging.environment.key",
-      "owner": "staging-runtime-governance",
-      "reason": "Local Staging environment identity guard; exact fixed value is required before any semantic repair command and grants no Production authority.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": "http-generic-api/scripts/staging-canonical-semantic-repair.mjs|STAGING_CANONICAL_REPAIR_EXPECTED_COMMIT|environment_reference|staging.canonical.repair.expected.commit",
-      "owner": "staging-runtime-governance",
-      "reason": "Exact reviewed checkout SHA binding for plan/apply/reconcile; contains no secret and invalidates stale plans.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": "http-generic-api/scripts/staging-canonical-semantic-repair.mjs|STAGING_CANONICAL_REPAIR_LEDGER_DIR|environment_reference|staging.canonical.repair.ledger.dir",
-      "owner": "staging-runtime-governance",
-      "reason": "Operator-owned local evidence directory outside Runtime DB for durable single-use repair state; contains no credential value.",
       "lifecycle": "permanent",
       "configuration_class": "ci_governance_input",
       "sensitivity": "non_secret_reference",
