@@ -524,7 +524,7 @@ export function buildRemoteDeployScript({ appPath, branch, expectedCommitSha, fo
   ].join(" && ");
 }
 
-function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", privateKey, password, password_transport: passwordTransport = "auto", remoteScript, timeoutMs }) {
+function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", privateKey, password, password_transport: passwordTransport = "auto", remoteScript, timeoutMs, stdinBuffer = null }) {
   return new Promise(async (resolve) => {
     const usePassword = authMode === "password";
     const selectedPasswordTransport = usePassword ? resolveSshPasswordTransport(passwordTransport) : null;
@@ -541,7 +541,7 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
       let command = "ssh";
       let args;
       let spawnEnv = process.env;
-      let stdio = ["ignore", "pipe", "pipe"];
+      let stdio = [stdinBuffer ? "pipe" : "ignore", "pipe", "pipe"];
       if (usePassword && selectedPasswordTransport === "sshpass") {
         command = "sshpass";
         args = [
@@ -554,7 +554,7 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
           "-lc",
           remoteScript,
         ];
-        stdio = ["ignore", "pipe", "pipe", "pipe"];
+        stdio = [stdinBuffer ? "pipe" : "ignore", "pipe", "pipe", "pipe"];
       } else if (usePassword) {
         await writeFile(passwordFile, String(password || ""), { mode: 0o600 });
         await writeFile(
@@ -612,6 +612,7 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
       if (usePassword && selectedPasswordTransport === "sshpass" && child.stdio?.[3]) {
         child.stdio[3].end(`${password}\n`);
       }
+      if (stdinBuffer && child.stdin) child.stdin.end(stdinBuffer);
       let stdout = "";
       let stderr = "";
       const resultBase = {
@@ -664,6 +665,51 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
         });
       }
     }
+  });
+}
+
+/**
+ * Shared governed Hostinger SSH transport for bounded server-owned operations.
+ * Credentials are resolved only through the existing credential resolver.
+ * Callers provide a registered target object and a pre-built bounded remote script;
+ * this helper does not select targets, paths, commands, Production authority, or Breakglass.
+ */
+export async function runGovernedHostingerSshCommand({
+  pool = getPool(),
+  target,
+  remoteScript,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+  stdinBuffer = null,
+  sshAuthMode = "",
+} = {}) {
+  if (!target || typeof target !== "object") {
+    const err = new Error("A registered Hostinger target is required.");
+    err.status = 400;
+    err.code = "governed_hostinger_ssh_target_required";
+    throw err;
+  }
+  const script = String(remoteScript || "");
+  if (!script || script.length > 65536) {
+    const err = new Error("Governed Hostinger SSH remote script is missing or exceeds the bounded size.");
+    err.status = 400;
+    err.code = "governed_hostinger_ssh_script_invalid";
+    throw err;
+  }
+  const payload = stdinBuffer === null || stdinBuffer === undefined ? null : Buffer.from(stdinBuffer);
+  if (payload && payload.length > 64 * 1024 * 1024) {
+    const err = new Error("Governed Hostinger SSH stdin payload exceeds the bounded size.");
+    err.status = 413;
+    err.code = "governed_hostinger_ssh_stdin_too_large";
+    throw err;
+  }
+  const connection = await resolveSshConnectionCredentials(pool, target, {
+    ssh_auth_mode: compact(sshAuthMode || target?.metadata?.ssh_auth_mode || "", 32),
+  });
+  return await runSshCommand({
+    ...connection,
+    remoteScript: script,
+    timeoutMs: boundedInt(timeoutMs, DEFAULT_TIMEOUT_MS, 1000, MAX_TIMEOUT_MS),
+    stdinBuffer: payload,
   });
 }
 
