@@ -508,6 +508,7 @@
         "http-generic-api/test-staging-canonical-semantic-repair.mjs",
         "http-generic-api/test-staging-canonical-semantic-repair-ledger.mjs",
         "http-generic-api/test-staging-canonical-semantic-repair-cli.mjs",
+        "http-generic-api/test-semantic-data-completeness-report.mjs",
         "http-generic-api/test-runtime-verification-contract.mjs",
         "http-generic-api/test-staging-database-readiness-repair.mjs",
         "http-generic-api/test-staging-execution-policies-grant.mjs",
