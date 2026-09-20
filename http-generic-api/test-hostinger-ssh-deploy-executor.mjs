@@ -186,6 +186,8 @@ assert(!wordpressDeploy.includes("NODE_OPTIONS"), "WordPress deploy must not dup
 assert(!wordpressDeploy.includes("SSH_CONNECT_TIMEOUT_SECONDS"), "WordPress deploy must not duplicate SSH transport timeout configuration");
 assert(!executor.includes('const authMode = target?.provider_family'), "server-owned connection wrapper must not create a local authMode configuration candidate");
 assert(executor.includes("remote_runtime_server_owned_ssh_credential_not_resolved"), "server-owned SSH resolution must fail closed before connection when any required credential is missing");
+assert(executor.includes("const user = common.ssh_user;"), "server-owned SSH resolver must use the canonical ssh_user role key");
+assert(!executor.includes("common.ssh_username"), "non-canonical ssh_username role must not be introduced");
 assert(executor.includes("credential_intake_created: false"), "WordPress deployment credential resolution must not auto-create credential handoffs");
 assert(wordpressDeploy.includes("completed_reconciliation_required"), "verified deploy with envelope-consume failure must be classified as reconciliation-required");
 assert(wordpressDeploy.includes("retry_deployment: false"), "post-readback envelope-consume failure must explicitly forbid deployment retry");

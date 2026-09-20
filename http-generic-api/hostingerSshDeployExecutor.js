@@ -488,7 +488,7 @@ export async function resolveServerOwnedHostingerSshConnection(pool, target) {
 
   const host = common.ssh_host;
   const port = common.ssh_port;
-  const user = common.ssh_username;
+  const user = common.ssh_user;
 
   const authRole = target?.provider_family === "hostinger" ? SSH_PASSWORD_ROLE : SSH_KEY_ROLE;
   const authSecret = await resolveSshCredential(pool, target, authRole, {}, { createHandoff: false });
