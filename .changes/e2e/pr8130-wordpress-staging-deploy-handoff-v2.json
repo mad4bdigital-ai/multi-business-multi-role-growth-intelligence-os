@@ -1,0 +1,140 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr8130-wordpress-staging-deploy-handoff-v2",
+  "title": "Governed WordPress Staging deployment handoff v2",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr8130-wordpress-staging-deploy-handoff-v2.json",
+      ".github/governance/test-authority-registry.json",
+      "http-generic-api/config/deployment-branch-policy.json",
+      "http-generic-api/hostingerSshDeployExecutor.js",
+      "http-generic-api/migrations/20260920_wordpress_staging_plugin_deploy_authority_v2.sql",
+      "http-generic-api/openapi-route-contracts.d/wordpress-staging-plugin-deploy.yaml",
+      "http-generic-api/openapi/wordpress-staging-plugin-deploy.yaml",
+      "http-generic-api/routes/index.js",
+      "http-generic-api/routes/wordpressStagingPluginDeployRoutes.js",
+      "http-generic-api/test-hostinger-ssh-deploy-executor.mjs",
+      "http-generic-api/test-wordpress-staging-plugin-deploy.mjs",
+      "http-generic-api/wordpressStagingPluginDeployExecutor.js"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Expose a fail-closed, Site Profile-bound WordPress Staging exact-artifact deployment executor in the shared runtime while keeping Production execution authority absent and requiring live Staging certification before release acceptance.",
+      "e2e_journeys": [
+        {
+          "id": "wordpress-staging-deploy-handoff-v2-contract",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed Staging platform administrator",
+          "entrypoint": "Submit the exact reviewed WordPress HEAD to the Staging deployment endpoint with dry_run=true and no caller-selected target, path, host, credential, or artifact identifier.",
+          "terminal_outcome": "The server resolves the unique governed ETG Staging Hostinger target, validates handoff v2 and exact artifact provenance, requires Site Profile identity before the first write, and keeps Production mutation unavailable.",
+          "steps": [
+            "Resolve exactly one active and validated Hostinger target from server-owned remote runtime registration using ETG Staging environment, origin, Site UUID, and command allowlist.",
+            "Verify the successful exact-head WordPress General Distribution artifact, install manifest, MCP Adapter digest, build provenance, and deployment handoff v2.",
+            "Verify live WordPress environment, home/site URL, Site Profile UUID/origin/environment/revision/digest, and same-filesystem atomic replacement preconditions before any apply.",
+            "Require the explicit Staging apply feature gate, approval reason, and exact capability envelope before consequential execution.",
+            "On apply, back up the current Control Plane, atomically replace it, activate it, verify exact provenance and preserved Site Profile in the same cycle, and roll back on any mismatch.",
+            "Keep caller-selected targets, caller credentials, Raw SQL, Breakglass, File Manager side channels, implicit Production authority, and Production mutation unavailable."
+          ],
+          "assertions": [
+            "The runtime deployment contract is mad4b.wordpress-staging-plugin-deploy.v2 and consumes mad4b.wordpress-deployment-handoff.v2.",
+            "The request schema does not expose target_id, app_path, host, SSH credentials/auth mode, artifact_id, Production, or Breakglass.",
+            "The server resolves a unique ETG Staging target and fails closed on zero or multiple matches.",
+            "The exact WordPress artifact and all embedded provenance digests are verified before first write.",
+            "Apply requires an exact capability envelope and same-cycle readback with automatic rollback on mismatch.",
+            "Production mutation remains false even though shared runtime files are deployed through both environment branches.",
+            "Live Staging certification remains required before this feature can be considered release-ready.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "wordpress-staging-deploy-handoff-v2-contract-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-wordpress-staging-plugin-deploy.mjs",
+              "args": []
+            },
+            {
+              "id": "environment-impact-closure",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+              "args": [
+                "--base-sha",
+                "BASE_SHA",
+                "--head-sha",
+                "HEAD_SHA"
+              ]
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/pr8130-wordpress-staging-deploy-handoff-v2.json",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/wordpressStagingPluginDeployExecutor.js",
+            "http-generic-api/routes/wordpressStagingPluginDeployRoutes.js",
+            "http-generic-api/migrations/20260920_wordpress_staging_plugin_deploy_authority_v2.sql",
+            "http-generic-api/openapi/wordpress-staging-plugin-deploy.yaml",
+            "http-generic-api/openapi-route-contracts.d/wordpress-staging-plugin-deploy.yaml",
+            "http-generic-api/test-wordpress-staging-plugin-deploy.mjs"
+          ]
+        },
+        {
+          "id": "wordpress-staging-deploy-live-certification",
+          "end_to_end": true,
+          "level": "live_non_production",
+          "actor": "Governed ETG Staging operator",
+          "entrypoint": "After the Growth OS Staging execution plane contains this contract, run an exact-head dry-run against the enrolled ETG Staging Site Profile.",
+          "terminal_outcome": "The dry-run proves the exact server-resolved Hostinger target, WordPress artifact and Site Profile binding; a separately approved apply then deploys and proves exact same-cycle provenance without Production access.",
+          "steps": [
+            "Run dry_run=true for the reviewed WordPress exact head without caller target or credential fields.",
+            "Require exact target, artifact, handoff, Site Profile and same-filesystem preflight evidence.",
+            "Create separate exact apply authority only after dry-run passes.",
+            "Execute the Staging-only atomic replacement and verify source commit, build fingerprint, package manifest digest, runtime manifest match, stale=false, zero provenance mismatches, and preserved Site Profile.",
+            "Verify Production was not accessed or mutated."
+          ],
+          "assertions": [
+            "Live certification occurs only on Staging.",
+            "No Production deployment authority is reused or inferred.",
+            "The applied WordPress runtime matches the exact reviewed artifact.",
+            "Rollback occurs if exact readback does not match.",
+            "Production touched is false."
+          ],
+          "tests": [
+            {
+              "id": "wordpress-staging-deploy-contract-before-live",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-wordpress-staging-plugin-deploy.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/pr8130-wordpress-staging-deploy-handoff-v2.json",
+            "http-generic-api/wordpressStagingPluginDeployExecutor.js",
+            "http-generic-api/openapi/wordpress-staging-plugin-deploy.yaml"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
