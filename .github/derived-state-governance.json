@@ -369,7 +369,8 @@
       ".changes/e2e/pr8123-staging-gateway-governance-pool-routing-environment-impact.json",
       ".changes/e2e/pr8127-windows-portability-environment-impact.json",
       ".changes/e2e/wordpress-staging-exact-artifact-deploy-v2-20260920.json",
-      ".github/repository-maintenance-tool-governance.json"
+      ".github/repository-maintenance-tool-governance.json",
+      ".github/workflows/staging-semantic-portability.yml"
     ],
     "automerge_opt_out_labels": [
       "do-not-auto-merge",
