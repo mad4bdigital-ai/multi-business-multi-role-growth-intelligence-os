@@ -25,6 +25,7 @@
         "http-generic-api/test-interruption-readiness.mjs",
         "http-generic-api/test-interruption-verification-recovery.mjs",
         "http-generic-api/test-openapi-all-remaining-preflight-batch.mjs",
+        "http-generic-api/test-platform-runtime-registry-drift-reconciliation.mjs",
         "http-generic-api/test-sequential-test-progress-report.mjs",
         "scripts/test-remote-mcp-write-scope-inventory.mjs",
         "scripts/test-repository-inventory.mjs",
