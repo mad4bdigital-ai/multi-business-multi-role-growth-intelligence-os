@@ -13,6 +13,7 @@ import {
   openManagedGoogleEnvelope,
   sealManagedGoogleEnvelope,
 } from "./managedGoogleOAuthBroker.js";
+import { GOOGLE_TOKEN_ENDPOINT } from "./managedGoogleOAuthProtocolPolicy.js";
 
 function testError(status, code, message) {
   const error = new Error(message);
@@ -154,7 +155,7 @@ const now = () => new Date(nowValue);
 const store = new MemoryStore();
 const googleRequests = [];
 const fetchImpl = async (url, options = {}) => {
-  assert.equal(url, "https://oauth2.googleapis.com/token");
+  assert.equal(url, GOOGLE_TOKEN_ENDPOINT);
   const body = new URLSearchParams(String(options.body || ""));
   googleRequests.push(Object.fromEntries(body.entries()));
   if (body.get("grant_type") === "authorization_code") {
@@ -377,7 +378,7 @@ assert.equal(migration.includes("refresh_token VARCHAR"), false, "migration must
 
 assert.ok(protocolPolicy.includes("mad4b.provider-protocol-policy-registry.v1"), "Google OAuth protocol invariants must live in the provider protocol policy registry");
 assert.ok(protocolPolicy.includes("provider_protocol_policy_registry"), "provider protocol policy registry marker missing");
-assert.equal(readFileSync("./managedGoogleOAuthBroker.js", "utf8").includes('const GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"'), false, "broker core must not own provider protocol endpoint literals");
+assert.equal(/\bconst\s+GOOGLE_TOKEN_ENDPOINT\s*=/.test(readFileSync("./managedGoogleOAuthBroker.js", "utf8")), false, "broker core must not own provider protocol endpoint constants");
 
 for (const operationId of [
   "createManagedGoogleOAuthSession",
