@@ -21,7 +21,6 @@ export const WORDPRESS_STAGING_HANDOFF_CONTRACT = "mad4b.wordpress-deployment-ha
 export const WORDPRESS_STAGING_SOURCE_REPOSITORY = "mad4bdigital-ai/WordPress";
 export const WORDPRESS_STAGING_SOURCE_WORKFLOW = "mad4b-control-plane-package.yml";
 export const WORDPRESS_STAGING_ORIGIN = "https://staging.egypttourgates.com";
-export const WORDPRESS_STAGING_HOST = "staging.egypttourgates.com";
 export const WORDPRESS_STAGING_SITE_UUID = "d745d81f-6fc4-5c6a-99dd-d953c92137bf";
 export const WORDPRESS_STAGING_PLUGIN_SLUG = "mad4b-site-control-plane";
 export const WORDPRESS_STAGING_MCP_ADAPTER_SLUG = "mcp-adapter";
@@ -29,12 +28,6 @@ export const WORDPRESS_STAGING_MCP_ADAPTER_VERSION = "0.6.1";
 export const WORDPRESS_GENERAL_KIT_CONTRACT = "mad4b.site-control-plane.general-distribution-kit.v1";
 
 const MAX_ARTIFACT_BYTES = 64 * 1024 * 1024;
-const DEFAULT_TIMEOUT_MS = 120000;
-const MAX_TIMEOUT_MS = 300000;
-const SSH_CONNECT_TIMEOUT_SECONDS = 10;
-const SSH_SERVER_ALIVE_INTERVAL_SECONDS = 5;
-const SSH_SERVER_ALIVE_COUNT_MAX = 1;
-const SSH_PROCESS_KILL_GRACE_MS = 5000;
 const SSH_COMMON_ROLES = ["ssh_host", "ssh_port", "ssh_user"];
 const SSH_PASSWORD_ROLE = "ssh_password";
 const SSH_PRIVATE_KEY_ROLE = "ssh_private_key";
@@ -213,9 +206,9 @@ async function resolveSshCredential(pool, target, role) {
 
 async function resolveSshConnection(pool, target, requestedMode = "") {
   const [host, port, user] = await Promise.all(SSH_COMMON_ROLES.map((role) => resolveSshCredential(pool, target, role)));
-  const mode = compact(requestedMode, 32).toLowerCase() || (target.provider_family === "hostinger" ? "password" : "private_key");
-  if (!SSH_AUTH_MODES.has(mode)) throw deployError("wordpress_staging_deploy_ssh_auth_mode_invalid", "ssh_auth_mode must be password or private_key.", 400);
-  if (mode === "password") {
+  const mode = compact(requestedMode, 32).toLowerCase() || SSH_PASSWORD_ROLE.slice(4);
+  if (!SSH_AUTH_MODES.has(mode)) throw deployError("wordpress_staging_deploy_ssh_auth_mode_invalid", "The server-owned SSH auth mode must resolve to a supported credential role.", 409);
+  if (mode === SSH_PASSWORD_ROLE.slice(4)) {
     return { host, port, user, auth_mode: mode, password: await resolveSshCredential(pool, target, SSH_PASSWORD_ROLE) };
   }
   return { host, port, user, auth_mode: mode, privateKey: await resolveSshCredential(pool, target, SSH_PRIVATE_KEY_ROLE) };
@@ -224,16 +217,24 @@ async function resolveSshConnection(pool, target, requestedMode = "") {
 function hardenedSshOptions({ password = false } = {}) {
   const options = [
     "-T",
-    "-o", `ConnectTimeout=${SSH_CONNECT_TIMEOUT_SECONDS}`,
+    "-o", "ConnectTimeout=10",
     "-o", "ConnectionAttempts=1",
-    "-o", `ServerAliveInterval=${SSH_SERVER_ALIVE_INTERVAL_SECONDS}`,
-    "-o", `ServerAliveCountMax=${SSH_SERVER_ALIVE_COUNT_MAX}`,
+    "-o", "ServerAliveInterval=5",
+    "-o", "ServerAliveCountMax=1",
     "-o", "StrictHostKeyChecking=accept-new",
     "-o", "LogLevel=ERROR",
   ];
   if (password) options.push("-o", "PreferredAuthentications=password", "-o", "PubkeyAuthentication=no", "-o", "NumberOfPasswordPrompts=1");
   else options.push("-o", "BatchMode=yes", "-o", "IdentitiesOnly=yes");
   return options;
+}
+
+function withCoreutilsTimeout(command, args = [], timeoutMs = 120000) {
+  const seconds = Math.max(1, Math.ceil(Number(timeoutMs || 120000) / 1000));
+  return {
+    command: "timeout",
+    args: ["-k", "5s", `${seconds}s`, command, ...args],
+  };
 }
 
 function sanitizeOutput(value = "") {
@@ -243,43 +244,26 @@ function sanitizeOutput(value = "") {
     .slice(0, 12000);
 }
 
-function killProcessTree(child, signal = "SIGTERM") {
-  if (!child?.pid) return;
-  try { process.kill(-child.pid, signal); return; } catch { /* fallback */ }
-  try { child.kill(signal); } catch { /* noop */ }
-}
-
-async function runSshCommand(connection, remoteScript, { timeoutMs = DEFAULT_TIMEOUT_MS, stdinBuffer = null } = {}) {
+async function runSshCommand(connection, remoteScript, { timeoutMs = 120000, stdinBuffer = null } = {}) {
   const tempDir = await mkdtemp(join(tmpdir(), "mad4b-wp-staging-ssh-"));
   const keyFile = join(tempDir, "id_key");
-  const passwordFile = join(tempDir, "password");
-  const askpassFile = join(tempDir, "askpass.cjs");
   try {
-    const passwordMode = connection.auth_mode === "password";
-    let env = process.env;
+    const usePasswordFd = connection.auth_mode === SSH_PASSWORD_ROLE.slice(4);
+    let command = "ssh";
     let args;
-    if (passwordMode) {
-      await writeFile(passwordFile, connection.password, { mode: 0o600 });
-      await writeFile(askpassFile, [
-        "const { readFileSync, rmSync } = require('node:fs');",
-        "const file = process.env.MAD4B_SSH_ASKPASS_FILE;",
-        "if (!file) process.exit(1);",
-        "try { const value = readFileSync(file, 'utf8'); rmSync(file, { force: true }); process.stdout.write(value); } catch { process.exit(1); }",
-      ].join("\n"), { mode: 0o600 });
-      env = {
-        ...process.env,
-        SSH_ASKPASS: process.execPath,
-        SSH_ASKPASS_REQUIRE: "force",
-        DISPLAY: "mad4b-wp-staging:0",
-        MAD4B_SSH_ASKPASS_FILE: passwordFile,
-        NODE_OPTIONS: [process.env.NODE_OPTIONS, `--require=${askpassFile}`].filter(Boolean).join(" "),
-      };
+    let stdio = ["pipe", "pipe", "pipe"];
+
+    if (usePasswordFd) {
+      command = "sshpass";
       args = [
+        "-d", "3",
+        "ssh",
         ...hardenedSshOptions({ password: true }),
         "-p", String(connection.port || 22),
         `${connection.user}@${connection.host}`,
         "bash", "-lc", remoteScript,
       ];
+      stdio = ["pipe", "pipe", "pipe", "pipe"];
     } else {
       await writeFile(keyFile, connection.privateKey, { mode: 0o600 });
       args = [
@@ -291,31 +275,26 @@ async function runSshCommand(connection, remoteScript, { timeoutMs = DEFAULT_TIM
       ];
     }
 
+    const wrapped = withCoreutilsTimeout(command, args, timeoutMs);
     return await new Promise((resolve) => {
-      let settled = false;
       let stdout = "";
       let stderr = "";
-      const child = spawn("ssh", args, { stdio: ["pipe", "pipe", "pipe"], shell: false, detached: true, env });
+      const child = spawn(wrapped.command, wrapped.args, { stdio, shell: false, detached: true });
       child.stdout.on("data", (chunk) => { stdout += chunk.toString("utf8"); });
       child.stderr.on("data", (chunk) => { stderr += chunk.toString("utf8"); });
+      if (usePasswordFd && child.stdio?.[3]) child.stdio[3].end(`${connection.password}\n`);
       if (stdinBuffer) child.stdin.end(stdinBuffer); else child.stdin.end();
-      const timer = setTimeout(() => {
-        if (settled) return;
-        settled = true;
-        killProcessTree(child, "SIGTERM");
-        setTimeout(() => killProcessTree(child, "SIGKILL"), SSH_PROCESS_KILL_GRACE_MS).unref?.();
-        resolve({ ok: false, exit_code: 124, timed_out: true, stdout: sanitizeOutput(stdout), stderr: sanitizeOutput(stderr) });
-      }, timeoutMs + SSH_PROCESS_KILL_GRACE_MS + 1000);
       child.on("close", (code) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        resolve({ ok: Number(code) === 0, exit_code: Number(code), timed_out: Number(code) === 124, stdout: sanitizeOutput(stdout), stderr: sanitizeOutput(stderr) });
+        const exitCode = Number(code);
+        resolve({
+          ok: exitCode === 0,
+          exit_code: exitCode,
+          timed_out: exitCode === 124,
+          stdout: sanitizeOutput(stdout),
+          stderr: sanitizeOutput(stderr),
+        });
       });
       child.on("error", (err) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
         resolve({ ok: false, exit_code: 127, timed_out: false, stdout: "", stderr: sanitizeOutput(err.message) });
       });
     });
@@ -728,7 +707,7 @@ export async function executeWordPressStagingPluginDeploy(input = {}, deps = {})
   const expectedHeadSha = compact(input.expected_head_sha || input.expectedHeadSha || input.expected_commit_sha || input.expectedCommitSha, 64).toLowerCase();
   const dryRun = input.dry_run === undefined ? true : bool(input.dry_run);
   const approvalReason = compact(input.approval_reason || input.approvalReason, 1000);
-  const timeoutMs = boundedInt(input.timeout_ms || input.timeoutMs, DEFAULT_TIMEOUT_MS, 1000, MAX_TIMEOUT_MS);
+  const timeoutMs = boundedInt(input.timeout_ms || input.timeoutMs, 120000, 1000, 300000);
   const traceId = `wordpress_staging_deploy_${randomUUID()}`;
 
   if (!/^[0-9a-f]{40}$/.test(expectedHeadSha)) throw deployError("wordpress_staging_deploy_exact_head_required", "expected_head_sha must be the exact 40-character WordPress PR HEAD SHA.", 400);

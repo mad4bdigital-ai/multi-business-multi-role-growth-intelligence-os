@@ -143,6 +143,16 @@ assert(wordpressDeploy.includes('rollback_result=restored'), "failed exact readb
 assert(wordpressDeploy.includes('transitionCapabilityEnvelopeLifecycle'), "successful apply must consume the exact capability envelope");
 assert(!wordpressDeploy.includes('const targetId = compact(input.target_id'), "executor must not accept caller-selected target_id");
 assert(!wordpressDeploy.includes('input.ssh_auth_mode || input.sshAuthMode || ""'), "caller-selected SSH auth mode must not control execution");
+assert(!wordpressDeploy.includes("WORDPRESS_STAGING_HOST"), "unused Host constant must not create a configuration candidate");
+assert(!wordpressDeploy.includes("DEFAULT_TIMEOUT_MS"), "fixed deploy timeout must remain a code safety bound, not runtime configuration");
+assert(!wordpressDeploy.includes("MAX_TIMEOUT_MS"), "fixed maximum timeout must remain a code safety bound, not runtime configuration");
+assert(!wordpressDeploy.includes("MAD4B_SSH_ASKPASS_FILE"), "WordPress deploy must not create an ASKPASS configuration channel");
+assert(!wordpressDeploy.includes("NODE_OPTIONS"), "WordPress deploy must not inject NODE_OPTIONS for credential transport");
+assert(wordpressDeploy.includes('"sshpass"'), "Hostinger password transport must use sshpass");
+assert(wordpressDeploy.includes('"-d", "3"'), "Hostinger password must be supplied through file descriptor 3");
+assert(!wordpressDeploy.includes("SSHPASS"), "password must not be placed in SSHPASS environment state");
+assert(wordpressDeploy.includes('command: "timeout"'), "SSH transport must be bounded by coreutils timeout");
+assert(wordpressDeploy.includes("shell: false"), "SSH transport must disable local shell interpolation");
 
 assert(wordpressDeployRoutes.includes('REMOTE_RUNTIME_WORDPRESS_STAGING_DEPLOY_ENABLED'), "apply must remain behind the dedicated WordPress Staging feature gate");
 assert(wordpressDeployRoutes.includes('/platform/remote-runtime/wordpress/staging/deploy-plugin'), "bounded WordPress Staging deploy route must be mounted");

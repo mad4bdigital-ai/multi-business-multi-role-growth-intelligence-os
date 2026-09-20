@@ -124,6 +124,13 @@ caller authority.
 The executor resolves server-owned SSH credentials and performs a read-only WP-CLI
 preflight before the first write.
 
+For Hostinger password authentication, the server-owned secret is passed only through
+`sshpass -d 3`; it is not placed in argv, `SSHPASS`, `NODE_OPTIONS`, or an
+ASKPASS environment channel. Private-key mode uses a mode-0600 temporary key file that
+is removed after the SSH process completes. SSH execution is wrapped in a fixed
+coreutils `timeout` safety envelope; these timeout values are code safety bounds, not
+tenant/runtime configuration.
+
 The live site must prove:
 
 ```text
