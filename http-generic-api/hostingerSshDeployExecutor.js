@@ -468,8 +468,7 @@ export async function resolveServerOwnedHostingerSshConnection(pool, target) {
   const [host, port, user] = await Promise.all(
     SSH_COMMON_ROLES.map((role) => resolveSshCredential(pool, target, role, {}, { createHandoff: false }))
   );
-  const authMode = target?.provider_family === "hostinger" ? "password" : "private_key";
-  if (authMode === "password") {
+  if (target?.provider_family === "hostinger") {
     const password = await resolveSshCredential(pool, target, SSH_PASSWORD_ROLE, {}, { createHandoff: false });
     return { host, port, user, auth_mode: "password", password };
   }

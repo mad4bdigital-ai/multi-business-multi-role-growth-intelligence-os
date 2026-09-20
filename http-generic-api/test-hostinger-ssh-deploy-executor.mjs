@@ -184,4 +184,5 @@ assert(wordpressDeploy.includes("runHostingerSshCommand"), "WordPress deploy mus
 assert(!wordpressDeploy.includes("MAD4B_SSH_ASKPASS_FILE"), "WordPress deploy must not duplicate askpass/secret transport configuration");
 assert(!wordpressDeploy.includes("NODE_OPTIONS"), "WordPress deploy must not duplicate Node askpass runtime configuration");
 assert(!wordpressDeploy.includes("SSH_CONNECT_TIMEOUT_SECONDS"), "WordPress deploy must not duplicate SSH transport timeout configuration");
+assert(!executor.includes('const authMode = target?.provider_family'), "server-owned connection wrapper must not create a local authMode configuration candidate");
 console.log("Hostinger SSH deploy executor safety tests passed");
