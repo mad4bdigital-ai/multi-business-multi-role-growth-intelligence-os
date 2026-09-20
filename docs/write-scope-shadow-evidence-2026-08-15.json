@@ -8,7 +8,7 @@
     "inventory_catalog_fingerprint": "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2",
     "catalog_fingerprint": "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2",
     "write_scope_count": 6,
-    "route_count": 675
+    "route_count": 676
   },
   "scope_selection": [
     "approvals.request",
@@ -372,7 +372,7 @@
       "default_request": false,
       "tool_bound": false,
       "route_evidence": {
-        "route_count": 11,
+        "route_count": 12,
         "route_ids": [
           "http-generic-api/routes/adminCliRoutes.js#POST:/hostinger:6",
           "http-generic-api/routes/agentSurfaceRoutes.js#PUT:/me/agent-surfaces/:surface_key/deployment:4",
@@ -384,10 +384,11 @@
           "http-generic-api/routes/hostingerStorageTenantRoutes.js#POST:/tenant/storage-operations/apply-plan:0",
           "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/hosting/deploy-release:28",
           "http-generic-api/routes/runtimeBreakglassRoutes.js#POST:/deployment-info/runtime-breakglass-plan:4",
-          "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/gateway/dark-deploy-dry-run:4"
+          "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/gateway/dark-deploy-dry-run:4",
+          "http-generic-api/routes/wordpressStagingPluginDeployRoutes.js#POST:/platform/remote-runtime/wordpress/staging/deploy-plugin:0"
         ],
         "classification_counts": {
-          "shadow_candidate": 11
+          "shadow_candidate": 12
         },
         "prerequisites": [
           "approval_policy_evidence",
@@ -444,7 +445,7 @@
   ],
   "summary": {
     "scope_count": 6,
-    "route_count": 43,
+    "route_count": 44,
     "all_preflight_decisions_denied": true,
     "all_execution_attempts_false": true,
     "all_rollback_plans_validated": true
@@ -461,5 +462,5 @@
     "credential_payload_reads": false,
     "secrets_included": false
   },
-  "evidence_fingerprint": "b014ae5b156f471ab50d98bdaf56f61d6c9864a5cb0ae8af1d1430a8634a0eed"
+  "evidence_fingerprint": "3cf2eba4242a7b6512fae8d7fd051ce63c77c863022925c4d7aa5d5288781832"
 }
