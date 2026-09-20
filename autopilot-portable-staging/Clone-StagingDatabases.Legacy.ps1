@@ -497,3 +497,4 @@ try {
   throw
 } finally {
   Release-ImportLock
+}
