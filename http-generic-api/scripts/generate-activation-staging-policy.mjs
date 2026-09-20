@@ -125,6 +125,15 @@ function payload(policy) {
   const { content_hash_sha256: _ignored, signature_algorithm: _algorithm, deployment_signature_required: _required, secrets_included: _secrets, ...rest } = policy;
   return rest;
 }
+function readPreviousDocument() {
+  try {
+    if (!fs.existsSync(outputPath)) return null;
+    return JSON.parse(fs.readFileSync(outputPath, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
 function build() {
   const production = JSON.parse(fs.readFileSync(sourcePath, "utf8"));
   const registry = loadRegistry();
@@ -160,13 +169,7 @@ function build() {
     deployment_signature_required: true,
     secrets_included: false,
   };
-  let previousGeneratedDocument = null;
-  try {
-    if (fs.existsSync(outputPath)) previousGeneratedDocument = JSON.parse(fs.readFileSync(outputPath, "utf8"));
-  } catch {
-    previousGeneratedDocument = null;
-  }
-  const stableStaging = stabilizeGatewayPolicyProvenance(staging, previousGeneratedDocument);
+  const stableStaging = stabilizeGatewayPolicyProvenance(staging, readPreviousDocument());
   const canonical = stableJson(payload(stableStaging));
   stableStaging.content_hash_sha256 = sha256(canonical);
   return stableJson(stableStaging);

@@ -655,7 +655,9 @@
     ".changes/e2e/governance-db-authority-store-isolation.json",
     ".changes/e2e/pr8106-governance-recipe-store-runtime-isolation.json",
     ".changes/e2e/pr8123-staging-gateway-governance-pool-routing-environment-impact.json",
-    ".changes/e2e/pr8127-windows-portability-environment-impact.json"
+    ".changes/e2e/pr8127-windows-portability-environment-impact.json",
+    ".changes/e2e/wordpress-staging-exact-artifact-deploy-v2-20260920.json",
+    ".github/repository-maintenance-tool-governance.json"
   ],
   "derived_state": {
     "registry": ".github/derived-state-governance.json",
