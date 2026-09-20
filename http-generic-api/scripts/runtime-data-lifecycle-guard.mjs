@@ -118,7 +118,7 @@ if (process.argv.includes("--self-test")) {
     throw new Error("mixed-table lifecycle resolution must distinguish canonical, annotated environment, and unresolved mutations");
   }
 
-  if (/^[0-9a-f]{40}$/iu.test("0".repeat(40)) && !/^0{40}$/u.test("0".repeat(40))) {
+  if (usableCommitSha("0".repeat(40))) {
     throw new Error("all-zero GitHub before SHA must never be treated as a usable base");
   }
 
