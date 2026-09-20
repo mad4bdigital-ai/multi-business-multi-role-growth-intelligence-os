@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7727,
+  "file_count": 7750,
   "route_count": 1110,
   "write_route_count": 676,
   "classified_write_surface_count": 44,
@@ -16,7 +16,7 @@
   "unclassified_write_route_count": 0,
   "intentionally_unmapped_write_route_count": 632,
   "sensitive_intentionally_unmapped_write_route_count": 632,
-  "migration_count": 449,
+  "migration_count": 450,
   "registry_evidence_count": 118,
   "write_scope_count": 6,
   "bound_write_scope_count": 0,
@@ -2596,8 +2596,8 @@
     },
     {
       "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#POST:/deployment-info/runtime-bootstrap-dry-run:0",
-      "source_line": 288,
-      "source_offset": 9331,
+      "source_line": 299,
+      "source_offset": 10003,
       "method": "POST",
       "path": "/deployment-info/runtime-bootstrap-dry-run",
       "file": "http-generic-api/routes/deploymentInfoRoutes.js",
@@ -2605,8 +2605,8 @@
     },
     {
       "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#POST:/deployment-info/runtime-bootstrap-role-dry-run:1",
-      "source_line": 352,
-      "source_offset": 13879,
+      "source_line": 363,
+      "source_offset": 14551,
       "method": "POST",
       "path": "/deployment-info/runtime-bootstrap-role-dry-run",
       "file": "http-generic-api/routes/deploymentInfoRoutes.js",
@@ -2614,8 +2614,8 @@
     },
     {
       "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#GET:/deployment-info/runtime-binding:2",
-      "source_line": 430,
-      "source_offset": 17474,
+      "source_line": 441,
+      "source_offset": 18146,
       "method": "GET",
       "path": "/deployment-info/runtime-binding",
       "file": "http-generic-api/routes/deploymentInfoRoutes.js",
@@ -2623,8 +2623,8 @@
     },
     {
       "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#GET:/deployment-info:3",
-      "source_line": 437,
-      "source_offset": 17786,
+      "source_line": 448,
+      "source_offset": 18458,
       "method": "GET",
       "path": "/deployment-info",
       "file": "http-generic-api/routes/deploymentInfoRoutes.js",
@@ -21184,10 +21184,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/deploymentInfoRoutes.js",
-        "source_line": 288,
+        "source_line": 299,
         "handler_window_lines": [
-          288,
-          350
+          299,
+          361
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -21248,10 +21248,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/deploymentInfoRoutes.js",
-        "source_line": 352,
+        "source_line": 363,
         "handler_window_lines": [
-          352,
-          428
+          363,
+          439
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -57592,6 +57592,19 @@
     },
     {
       "path": "http-generic-api/migrations/20260920_wordpress_staging_plugin_deploy_v2_authority.sql",
+      "tables": [
+        "remote_runtime_command_allowlists",
+        "the",
+        "display_name",
+        "admin_platform_endpoint_tools",
+        "execution_policies",
+        "policy_value"
+      ],
+      "write_scopes": [],
+      "catalog_fingerprints": []
+    },
+    {
+      "path": "http-generic-api/migrations/20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
       "tables": [
         "remote_runtime_command_allowlists",
         "the",
