@@ -318,7 +318,7 @@
     },
     {
       "path": "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1",
-      "sha256": "ec504c0b98cc31464823e4a52f6f85dd4d236d41f08fc0f81dfd2a6f16f2d687"
+      "sha256": "b41c0b7c000fc93db0e9b5c4c8bf78097e83e8e0e37058cacb5d83af212025e4"
     },
     {
       "path": "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs",
