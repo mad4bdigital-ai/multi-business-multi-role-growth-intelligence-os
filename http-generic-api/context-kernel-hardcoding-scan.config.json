@@ -394,13 +394,13 @@
     {
       "path": "http-generic-api/test-staging-canonical-semantic-repair.mjs",
       "rule_id": "fixed_customer_identifier",
-      "line": 34,
+      "line": 37,
       "reason": "Negative test uses a synthetic conflicting UUID to prove exact identity conflicts cannot be repaired automatically."
     },
     {
       "path": "http-generic-api/test-staging-canonical-semantic-repair.mjs",
       "rule_id": "fixed_customer_identifier",
-      "line": 35,
+      "line": 38,
       "reason": "Negative ambiguity fixture uses a synthetic UUID to prove multiple resolver candidates fail closed."
     }
   ]
