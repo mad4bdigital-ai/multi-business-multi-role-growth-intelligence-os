@@ -23,7 +23,10 @@
   },
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
-    "declared_targets": ["staging", "production"],
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
     "cross_environment_reviewed": true,
     "live_staging_certification_required": true,
     "production_mutation_allowed": false
@@ -49,13 +52,17 @@
             "Classify each runtime data mutation and reject unclassified, operational reseed, or non-replayable canonical writes.",
             "Build the isolated Staging schema bundle with both canonical seed files.",
             "Require exact-one readback for the Platform Admin workspace, WordPress command, admin tool, and execution policy.",
-            "Keep live Staging certification required and Production mutation forbidden."
+            "Keep live Staging certification required and Production mutation forbidden.",
+            "Before any direct schema-only import mutation, census all three local Staging role databases and refuse the direct importer if any role is non-empty; partial-role recovery remains exclusively governed by Rebuild-EmptyStagingRoleDatabases.",
+            "Reject destructive SQL in canonical seed replay, including DELETE, TRUNCATE, REPLACE, DROP object statements, table rename, and ALTER TABLE DROP."
           ],
           "assertions": [
             "Numeric and date-prefixed changed migrations are both inspected.",
             "Canonical seeds are present in the role manifest and portable bundle.",
             "All four canonical identities require exactly one matching row.",
-            "No database, provider, Staging, or Production mutation occurs in this journey."
+            "No database, provider, Staging, or Production mutation occurs in this journey.",
+            "Direct schema replay cannot write over a non-empty local Staging role database.",
+            "Canonical seed replay is fail-closed against destructive data or schema operations."
           ],
           "tests": [
             {
@@ -108,7 +115,7 @@
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Expand required-key replay manifests to every historical canonical registry family."
+      "objective": "Expand required-key replay manifests to every historical canonical registry family and keep destructive/non-empty rebuild paths fail-closed."
     },
     {
       "id": "canary",
