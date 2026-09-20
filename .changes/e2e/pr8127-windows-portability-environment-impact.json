@@ -14,7 +14,9 @@
       "http-generic-api/recoveryReadinessEvidence.js",
       "http-generic-api/stagingRecoveryAuthorityBinding.js",
       "install-local-connector.ps1",
-      "scripts/repository-governance-fixed-point.mjs"
+      "scripts/repository-governance-fixed-point.mjs",
+      "http-generic-api/test-server-managed-recovery-binding.mjs",
+      "http-generic-api/test-staging-recovery-authority-binding.mjs"
     ]
   },
   "merge_contract": {
@@ -48,14 +50,16 @@
             "Verify LF-sensitive artifacts and portable staging manifest hashes.",
             "Verify Windows filesystem paths use canonical URL conversion.",
             "Verify PowerShell and Bash validators handle Windows encoding and line endings.",
-            "Verify Recovery file durability preserves mandatory file fsync and bounded Windows directory-fsync compatibility."
+            "Verify Recovery file durability preserves mandatory file fsync and bounded Windows directory-fsync compatibility.",
+            "Verify the explicit filesystem durability profile reports mandatory file fsync and conservative Windows file-only crash durability."
           ],
           "assertions": [
             "Staging and production are declared because shared-runtime paths changed.",
             "Cross-environment review is explicit and live Staging certification remains required.",
             "production_mutation_allowed is false.",
             "No migration, database write, provider mutation, credential payload read, or Production activation is introduced.",
-            "secrets_included is false."
+            "secrets_included is false.",
+            "Windows directory-sync tolerance is restricted to EPERM, EINVAL, ENOTSUP, and EISDIR; EACCES/ENOENT and non-Windows EPERM fail closed."
           ],
           "tests": [
             {
@@ -89,7 +93,9 @@
             "autopilot-portable-staging/manifest.json",
             "scripts/repository-governance-fixed-point.mjs",
             "http-generic-api/recoveryReadinessEvidence.js",
-            "http-generic-api/stagingRecoveryAuthorityBinding.js"
+            "http-generic-api/stagingRecoveryAuthorityBinding.js",
+            "http-generic-api/test-server-managed-recovery-binding.mjs",
+            "http-generic-api/test-staging-recovery-authority-binding.mjs"
           ]
         }
       ],

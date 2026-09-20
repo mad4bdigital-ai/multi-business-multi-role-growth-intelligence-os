@@ -5,7 +5,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createServerManagedRecoveryAuthorityBinding, createServerManagedRecoveryBindingEnvelope } from "./serverManagedRecoveryAuthorityBinding.js";
 import { createServerManagedDeploymentIdentityProvider } from "./serverManagedDeploymentIdentityProvider.js";
-import { createFileRecoveryEvidenceStore, createRecoveryReadinessAuthorities as createCanonicalReadinessAuthority } from "./recoveryReadinessEvidence.js";
+import {
+  createFileRecoveryEvidenceStore,
+  createRecoveryReadinessAuthorities as createCanonicalReadinessAuthority,
+  recoveryFilesystemDurabilityProfile,
+  syncRecoveryDirectory,
+} from "./recoveryReadinessEvidence.js";
 import { RECOVERY_COMPOSITION_COMPONENT_KEYS } from "./recoveryComposition.js";
 import { readDeploymentManifest } from "./deploymentManifest.js";
 import { resolveRuntimeEnvironmentStrict } from "./runtimeEnvironmentResolver.js";
@@ -45,30 +50,6 @@ function roots(env = process.env) {
   return { readiness, replay };
 }
 
-function isUnsupportedWindowsDirectorySync(error) {
-  return process.platform === "win32"
-    && ["EPERM", "EINVAL", "ENOTSUP", "EISDIR"].includes(error?.code);
-}
-async function syncDir(dir) {
-  let h;
-  try {
-    h = await open(dir, "r");
-  } catch (error) {
-    if (isUnsupportedWindowsDirectorySync(error)) return;
-    throw error;
-  }
-  try {
-    try {
-      await h.sync();
-    } catch (error) {
-      // Evidence/state files are fsynced before this durability barrier. Node
-      // on Windows may reject fsync/FlushFileBuffers on directory handles.
-      if (!isUnsupportedWindowsDirectorySync(error)) throw error;
-    }
-  } finally {
-    await h.close();
-  }
-}
 async function ensure(dir) { await mkdir(dir, { recursive: true, mode: 0o700 }); }
 async function readJson(file) {
   let h; try { h = await open(file, constants.O_RDONLY | constants.O_NOFOLLOW); } catch (e) { if (e.code === "ENOENT") return null; throw e; }
@@ -76,10 +57,10 @@ async function readJson(file) {
 }
 async function writeJson(file, value, immutable = false) {
   const dir = path.dirname(file); await ensure(dir); const bytes = `${canonical(value)}\n`; if (Buffer.byteLength(bytes) > MAX) denied("RECOVERY_STAGING_STATE_TOO_LARGE", "Durable Recovery state exceeds its bound.");
-  if (immutable) { const h = await open(file, "wx", 0o600); try { await h.writeFile(bytes); await h.sync(); } finally { await h.close(); } await syncDir(dir); return; }
-  const temp = path.join(dir, `.${path.basename(file)}.${process.pid}.${randomUUID()}.tmp`); const h = await open(temp, "wx", 0o600); try { await h.writeFile(bytes); await h.sync(); } finally { await h.close(); } await rename(temp, file); await syncDir(dir);
+  if (immutable) { const h = await open(file, "wx", 0o600); try { await h.writeFile(bytes); await h.sync(); } finally { await h.close(); } await syncRecoveryDirectory(dir); return; }
+  const temp = path.join(dir, `.${path.basename(file)}.${process.pid}.${randomUUID()}.tmp`); const h = await open(temp, "wx", 0o600); try { await h.writeFile(bytes); await h.sync(); } finally { await h.close(); } await rename(temp, file); await syncRecoveryDirectory(dir);
 }
-async function remove(file) { await rm(file, { force: true }); await ensure(path.dirname(file)); await syncDir(path.dirname(file)); }
+async function remove(file) { await rm(file, { force: true }); await ensure(path.dirname(file)); await syncRecoveryDirectory(path.dirname(file)); }
 async function immutableClaim(file, value) { try { await writeJson(file, value, true); return true; } catch (e) { if (e.code === "EEXIST") return false; throw e; } }
 
 function integrityEnvelope(value) {
@@ -134,7 +115,7 @@ async function keys(root, name) {
   try { privatePem = await readFile(prv, "utf8"); } catch (e) {
     if (e.code !== "ENOENT") throw e;
     const pair = generateKeyPairSync("ed25519"); const candidate = pair.privateKey.export({ type: "pkcs8", format: "pem" });
-    try { const h = await open(prv, "wx", 0o600); try { await h.writeFile(candidate); await h.sync(); } finally { await h.close(); } await syncDir(dir); } catch (x) { if (x.code !== "EEXIST") throw x; }
+    try { const h = await open(prv, "wx", 0o600); try { await h.writeFile(candidate); await h.sync(); } finally { await h.close(); } await syncRecoveryDirectory(dir); } catch (x) { if (x.code !== "EEXIST") throw x; }
     privatePem = await readFile(prv, "utf8");
   }
   let privateKey; let publicKey;
@@ -171,6 +152,7 @@ function recoveryStore(root, executionTicketVerifier) {
     independent_of_target_databases: true,
     target_database_binding: "forbidden",
     durability: "persistent_filesystem",
+    durability_profile: recoveryFilesystemDurabilityProfile(),
     shared_replica_safe: true,
     schema_auto_apply: false,
     payload_integrity_verified_on_read: true,
@@ -189,6 +171,7 @@ function recoveryStore(root, executionTicketVerifier) {
         ready,
         scope: "durable_inspection",
         storage_class: "persistent_filesystem",
+        durability_profile: recoveryFilesystemDurabilityProfile(),
         database_connection_performed: false,
         database_mutation_performed: false,
         schema_auto_apply: false,
