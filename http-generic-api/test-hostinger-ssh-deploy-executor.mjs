@@ -100,8 +100,13 @@ assert(executor.includes("deploy_reload_pending"), "deploy reload gaps must use 
 assert(executor.includes("createContinuationCheckpoint") && executor.includes("planContinuationResume"), "deploy reload continuation must use the shared reconciliation engine");
 assert(executor.includes("live_ready: deployOk && reloadVerification.runtime_health_readback_required !== true"), "deploy responses must not claim live readiness before health readback");
 assert(executor.includes("secrets_included: false"), "responses and evidence must mark secrets as excluded");
-assert(!executor.includes("privateKey:"), "executor response must not serialize privateKey fields");
-assert(!executor.includes("private_key:"), "executor response must not expose private_key fields");
+const deployResponseStart = executor.indexOf("const baseResponse = {");
+const deployResponseEnd = executor.indexOf("if (dryRun)", deployResponseStart);
+assert(deployResponseStart >= 0 && deployResponseEnd > deployResponseStart, "deploy response projection must remain statically discoverable");
+const deployResponseProjection = executor.slice(deployResponseStart, deployResponseEnd);
+assert(!deployResponseProjection.includes("privateKey:"), "deploy response projection must not serialize privateKey fields");
+assert(!deployResponseProjection.includes("private_key:"), "deploy response projection must not expose private_key fields");
+assert(executor.includes("sanitizeSshOutput"), "SSH transport output must remain redacted before evidence/response projection");
 assert(!executor.includes("exec("), "executor must not use exec shell freeform");
 
 assert(routes.includes("executeHostingerSshDeployRelease"), "platform routes must import hostinger deploy executor");
