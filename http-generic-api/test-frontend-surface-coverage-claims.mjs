@@ -910,6 +910,7 @@ import { fileURLToPath } from "node:url";
 // frontend-surface-operation: post /platform/plugins/smoke-certifications/status
 // frontend-surface-operation: post /platform/remote-runtime/dispatch-dry-run
 // frontend-surface-operation: post /platform/remote-runtime/hosting/deploy-release
+// frontend-surface-operation: post /platform/remote-runtime/wordpress/staging/deploy-plugin
 // frontend-surface-operation: post /platform/remote-runtime/hosting/ssh-probe
 // frontend-surface-operation: post /platform/remote-runtime/local-path/execute-readonly
 // frontend-surface-operation: post /platform/remote-runtime/probe
@@ -1061,7 +1062,10 @@ assert.equal(generatedGapOperations.filter((operation) => ["state_change", "exte
 const governedMutations = operations.filter((operation) => ["state_change", "external_effect"].includes(operation.governance?.classification));
 assert.ok(governedMutations.every((operation) => operation.governance?.governed === true), "every mutation operation must be fully governed");
 assert.ok(governedMutations.every((operation) => ["preflight", "approval", "readback", "rollback"].every((key) => operation.governance?.controls?.[key]?.mode)), "every mutation operation must expose all four control modes");
-assert.equal(governedMutations.length, 23, "the governed mutation set includes bounded Recovery controls, Gateway preflight, and one-time installer redemption");
+assert.equal(governedMutations.length, 24, "the governed mutation set includes bounded Recovery controls, Gateway preflight, one-time installer redemption, and WordPress Staging exact-artifact deployment");
+const wordpressStagingDeploy = governedMutations.find((operation) => operation.signature === "POST /platform/remote-runtime/wordpress/staging/deploy-plugin");
+assert.ok(wordpressStagingDeploy, "WordPress Staging exact-artifact deploy must remain explicitly governed as an external effect");
+assert.equal(wordpressStagingDeploy.governance?.classification, "external_effect", "WordPress Staging deploy must retain its externally consequential classification");
 assert.ok(governedMutations.some((operation) => operation.signature === "POST /admin/recovery/staging/gateway/dark-deploy-dry-run"), "Staging Gateway dry-run plan persistence must remain explicitly governed");
 assert.ok(governedMutations.some((operation) => operation.signature === "POST /connector-agent/installer/redeem"), "one-time installer redemption must remain explicitly governed");
 assert.ok(governedMutations.some((operation) => operation.signature === "POST /admin/recovery/kernel/execute"), "plan-bound Recovery execution must remain explicitly governed");
