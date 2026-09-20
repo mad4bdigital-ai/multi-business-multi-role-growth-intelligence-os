@@ -598,6 +598,13 @@
       "test_paths": [
         "http-generic-api/test-workspace-brand-core-asset-materialization.mjs"
       ]
+    },
+    {
+      "id": "platform_admin_workspace_semantic_authority",
+      "test_paths": [
+        "http-generic-api/test-platform-admin-workspace-authority-parity.mjs",
+        "http-generic-api/test-platform-admin-workspace-readiness.mjs"
+      ]
     }
   ],
   "discovery": {

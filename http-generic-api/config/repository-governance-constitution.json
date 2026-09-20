@@ -188,7 +188,9 @@
         "http-generic-api/scripts/**/*.mjs",
         "http-generic-api/wordpress/**/*.js",
         "edge/activation-gateway/src/*.mjs",
-        "http-generic-api/activation-gateway-runtime/src/*.mjs"
+        "http-generic-api/activation-gateway-runtime/src/*.mjs",
+        "http-generic-api/src/domain/authorityScope/platformAdminWorkspaceAuthority.generated.js",
+        "http-generic-api/src/domain/authorityScope/platformTopologyVerification.js"
       ]
     },
     {
