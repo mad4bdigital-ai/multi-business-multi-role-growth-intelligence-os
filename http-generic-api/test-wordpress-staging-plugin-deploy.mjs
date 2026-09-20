@@ -121,6 +121,7 @@ requires(routesIndex, [
 
 requires(migration, [
   "'wordpress_plugin_deploy'",
+  "'high', 1, 1, 'bounded_text', 'active'",
   "'wordpress_staging_plugin_deploy'",
   "'/platform/remote-runtime/wordpress/staging/deploy-plugin'",
   "'mad4bdigital-ai/WordPress'",
@@ -143,6 +144,8 @@ requires(migration, [
   "'caller supplied ssh credentials'",
   "'raw sql side channel'",
 ], "migration");
+
+assert(!migration.includes("'bounded_json'"), "WordPress deployment command must use a supported remote_runtime output_policy enum.");
 
 for (const forbidden of [
   /INSERT\s+INTO\s+remote_runtime_targets/iu,
