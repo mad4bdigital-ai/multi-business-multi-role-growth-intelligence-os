@@ -53,6 +53,7 @@ import { buildConnectRoutes } from "./connectRoutes.js";
 import { buildSystemLayerRoutes } from "./systemLayerRoutes.js";
 import { buildConnectorAgentRoutes } from "./connectorAgentRoutes.js";
 import { buildMemberGoogleOAuthRoutes } from "./memberGoogleOAuthRoutes.js";
+import { buildManagedGoogleOAuthRoutes } from "./managedGoogleOAuthRoutes.js";
 import { buildConnectorProxyRoutes } from "./connectorProxyRoutes.js";
 import { buildConnectApiRoutes } from "./connectApiRoutes.js";
 import { buildCredentialRoutes } from "./credentialRoutes.js";
@@ -191,6 +192,10 @@ export function registerRoutes(app, deps) {
   // Gmail OAuth callback is public but signed-state protected. Mount before
   // root-level protected routers that can return missing_backend_api_key.
   app.use(buildMemberGoogleOAuthRoutes({ ...deps, requireAdminPrincipal }));
+  // Managed Google OAuth broker exposes public session/callback/redeem/refresh
+  // endpoints. Security is exact site-binding + one-time verifier/handoff based,
+  // so mount before root-level backend-key routers.
+  app.use(buildManagedGoogleOAuthRoutes({ ...deps, env: deps?.env || process.env }));
   app.use(buildLegalRoutes(deps));
   app.use(buildRootDiscoveryRoutes(deps));
   app.use(buildConnectRoutes(deps));
