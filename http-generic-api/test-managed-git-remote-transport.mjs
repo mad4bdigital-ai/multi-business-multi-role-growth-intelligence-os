@@ -24,6 +24,7 @@ const workspace = join(root, "workspace");
 const clone2 = join(root, "clone2");
 const hostileGitConfig = join(root, "hostile.gitconfig");
 const worker = "11111111-1111-4111-8111-111111111111";
+const previousGlobalConfig = process.env.GIT_CONFIG_GLOBAL;
 
 async function git(args, cwd, env = {}) {
   return execFile("git", args, {
@@ -70,7 +71,6 @@ try {
 
   await mkdir(workspace);
   await git(["init", "--quiet"], workspace);
-  const previousGlobalConfig = process.env.GIT_CONFIG_GLOBAL;
   process.env.GIT_CONFIG_GLOBAL = hostileGitConfig;
   const binding = await createManagedGitRepositoryCredentialBinding({
     worker_id: worker,
@@ -139,6 +139,12 @@ try {
   assert.equal(readManagedGitRemoteTransport(session).remote_push_performed, true);
   const bareHead = String((await git(["rev-parse", "refs/heads/feature/safe"], bare)).stdout).trim();
   assert.equal(bareHead, committed.commit_head_sha);
+  const localBlob = String((await git(["show", `${committed.commit_head_sha}:hello.txt`], workspace)).stdout);
+  const remoteBlob = String((await git(["show", "refs/heads/feature/safe:hello.txt"], bare)).stdout);
+  assert.equal(localBlob, "v2\n");
+  assert.equal(remoteBlob, "v2\n");
+  assert.equal(Buffer.from(localBlob).includes(13), false);
+  assert.equal(Buffer.from(remoteBlob).includes(13), false);
 
   await git(["clone", "--quiet", bare, clone2], root);
   await git(["checkout", "--quiet", "feature/safe"], clone2);
@@ -172,9 +178,9 @@ try {
   }
   const released = releaseManagedGitRepositoryCredentialBinding(binding);
   assert.equal(released.credential_zeroized, true);
+} finally {
   if (previousGlobalConfig === undefined) delete process.env.GIT_CONFIG_GLOBAL;
   else process.env.GIT_CONFIG_GLOBAL = previousGlobalConfig;
-} finally {
   await rm(root, { recursive: true, force: true });
 }
 
