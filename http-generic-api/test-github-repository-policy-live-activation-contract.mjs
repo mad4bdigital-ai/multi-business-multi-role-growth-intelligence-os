@@ -47,10 +47,17 @@ const changedRepositoryPolicyIntent = envelopeCreatorSource.replace(
   'const REPOSITORY_POLICY_OPERATION_INTENT = "github_repository_policy_apply_v2";',
 );
 assert.notEqual(repositoryPolicyEnvelopeSourceContract(changedRepositoryPolicyIntent).fingerprint, envelopeCreatorContract.fingerprint);
-const changedRepositoryPolicyBuilder = envelopeCreatorSource.replace(
+const repositoryPolicyBuilderMarker = "export async function buildRepositoryPolicyEnvelopeDryRun";
+const repositoryPolicyBuilderStart = envelopeCreatorSource.indexOf(repositoryPolicyBuilderMarker);
+assert.ok(repositoryPolicyBuilderStart >= 0);
+const repositoryPolicyBuilderTail = envelopeCreatorSource.slice(repositoryPolicyBuilderStart);
+const changedRepositoryPolicyBuilderTail = repositoryPolicyBuilderTail.replace(
   'effect_class: "external_write",',
   'effect_class: "external_write_v2",',
 );
+assert.notEqual(changedRepositoryPolicyBuilderTail, repositoryPolicyBuilderTail);
+const changedRepositoryPolicyBuilder =
+  envelopeCreatorSource.slice(0, repositoryPolicyBuilderStart) + changedRepositoryPolicyBuilderTail;
 assert.notEqual(repositoryPolicyEnvelopeSourceContract(changedRepositoryPolicyBuilder).fingerprint, envelopeCreatorContract.fingerprint);
 
 assert.match(migrationWorkflow, /^name: Governed Migration 1051 GitHub Repository Policy Authority Rollout/m);
