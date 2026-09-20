@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "f204d7bc5df4891918628173f86d4cb676eada2dc4797c9d146d1dbf6693e4c4",
+    "source_digest": "b2c9bfc609442acd48efc65c197f49bb4b2a4019204e452aa7abfeead6ece854",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -146,7 +146,7 @@
       },
       {
         "file": "openapi/openapi.gpt-action.dev-dispatcher.yaml",
-        "sha256": "09e122211f4be46568226ebc2c4e43f9c47a06d9b1452581f9dba3be6e32850e",
+        "sha256": "13881d937e6fd1db552660e41dc4438145b63016594f96952b44069ca8a91b4f",
         "present": true
       },
       {
@@ -551,7 +551,7 @@
       },
       {
         "file": "routes/deploymentInfoRoutes.js",
-        "sha256": "03e208f781dd8eb31ad25afc8a33790da4f2a6df180afb87bacee3e6f4f7e272",
+        "sha256": "cf0e28b18bfe4d068deb670d5afc34ef4292ae7c8d2d7759c129c527d63bbc95",
         "present": true
       },
       {
@@ -1156,7 +1156,7 @@
       },
       {
         "file": "test-runtime-gate-deployment-info-parity.mjs",
-        "sha256": "cdc073afd1296ac662b2acb6a0d928504d879a8bbfcfca11d35ff1d9a3c7f2a5",
+        "sha256": "ed88177b1f707c4df778466697b9cb002240717f3217007e02f5805f71393505",
         "present": true
       },
       {
@@ -1897,7 +1897,7 @@
       "family_key": "deployment-info.developer",
       "label": "deployment info (developer)",
       "source_file": "routes/deploymentInfoRoutes.js",
-      "source_digest": "03e208f781dd8eb31ad25afc8a33790da4f2a6df180afb87bacee3e6f4f7e272",
+      "source_digest": "cf0e28b18bfe4d068deb670d5afc34ef4292ae7c8d2d7759c129c527d63bbc95",
       "mount_prefix": "/",
       "mount_order": 13298,
       "split_from_mixed_scope_file": true,
@@ -2186,7 +2186,7 @@
       "family_key": "deployment-info.public",
       "label": "deployment info (public)",
       "source_file": "routes/deploymentInfoRoutes.js",
-      "source_digest": "03e208f781dd8eb31ad25afc8a33790da4f2a6df180afb87bacee3e6f4f7e272",
+      "source_digest": "cf0e28b18bfe4d068deb670d5afc34ef4292ae7c8d2d7759c129c527d63bbc95",
       "mount_prefix": "/",
       "mount_order": 13298,
       "split_from_mixed_scope_file": true,
