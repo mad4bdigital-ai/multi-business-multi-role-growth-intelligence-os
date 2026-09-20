@@ -2688,7 +2688,8 @@
         "test-managed-google-oauth-broker.mjs",
         "docs/managed-google-oauth-broker.md",
         "openapi.yaml"
-      ]
+      ],
+      "family_key": "managed-google-oauth"
     }
   ],
   "auth_rules": [
@@ -3008,6 +3009,27 @@
         "openapi.yaml",
         "test-runtime-gate-deployment-info-parity.mjs",
         "test-host-local-runtime-inspection.mjs"
+      ]
+    },
+    {
+      "rule_id": "managed-google-oauth-public-auth",
+      "operations": [
+        "POST /v1/google/oauth/session",
+        "GET /v1/google/oauth/callback",
+        "POST /v1/google/oauth/redeem",
+        "POST /v1/google/oauth/refresh"
+      ],
+      "source_file": "routes/managedGoogleOAuthRoutes.js",
+      "profile": "public",
+      "owner": "identity-platform",
+      "rationale": "Managed Google OAuth broker endpoints intentionally mount without MAD4B bearer/API-key middleware. Authorization is protocol-bound: exact server-owned site binding, broker state, S256 verifier, one-time handoff, and Google callback semantics. Canonical OpenAPI therefore declares security: [] for these exact transport endpoints.",
+      "evidence_refs": [
+        "routes/managedGoogleOAuthRoutes.js",
+        "managedGoogleOAuthBroker.js",
+        "managedGoogleOAuthProtocolPolicy.js",
+        "openapi.yaml",
+        "test-managed-google-oauth-broker.mjs",
+        "docs/managed-google-oauth-broker.md"
       ]
     }
   ],
