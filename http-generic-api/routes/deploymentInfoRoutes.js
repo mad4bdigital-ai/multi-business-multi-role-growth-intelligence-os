@@ -11,6 +11,8 @@ import {
 import { inspectRuntimeIntegrity } from "../runtimeIntegrity.js";
 import { runProductionActivationReadiness } from "../productionActivationReadiness.js";
 import { getRuntimeBootstrapStatus } from "../runtimeBootstrapStatus.js";
+import { inspectCanonicalPlatformAdminWorkspaceReadiness } from "../src/infrastructure/authorityScope/platformAdminWorkspaceResolver.js";
+import { PLATFORM_ADMIN_WORKSPACE_AUTHORITY } from "../src/domain/authorityScope/platformAdminWorkspaceAuthority.generated.js";
 import {
   readRuntimeBootstrapContract,
   runBootstrap,
@@ -247,9 +249,18 @@ export function buildDeploymentInfoRoutes({
   runtimeBootstrapStatusReader = getRuntimeBootstrapStatus,
   runtimeBootstrapReader = runBootstrap,
   hostLocalInspectionReader = executeHostLocalRoleInspection,
+  platformAdminWorkspaceReadinessReader,
+  runtimePool,
+  pool,
   requireBackendApiKey,
 } = {}) {
   const router = Router();
+  const readPlatformAdminWorkspaceReadiness = typeof platformAdminWorkspaceReadinessReader === "function"
+    ? platformAdminWorkspaceReadinessReader
+    : async () => inspectCanonicalPlatformAdminWorkspaceReadiness({
+      executor: runtimePool || pool || null,
+      tenantId: PLATFORM_ADMIN_WORKSPACE_AUTHORITY.identity.tenant_id,
+    });
 
   async function requireBackendServiceApiKey(req, res) {
     if (typeof requireBackendApiKey !== "function") {
@@ -503,6 +514,24 @@ export function buildDeploymentInfoRoutes({
     const productionActivationReadiness = includeProductionActivationReadiness
       ? await productionActivationReadinessReader()
       : undefined;
+    const includePlatformAdminSemanticReadiness = String(req.query?.include_platform_admin_semantic_readiness || "").trim() === "1";
+    const rawPlatformAdminSemanticReadiness = includePlatformAdminSemanticReadiness
+      ? await readPlatformAdminWorkspaceReadiness()
+      : undefined;
+    const platformAdminSemanticReadiness = rawPlatformAdminSemanticReadiness ? {
+      contract: rawPlatformAdminSemanticReadiness.contract || "mad4b.platform-admin-workspace-readiness.v1",
+      status: rawPlatformAdminSemanticReadiness.status || "runtime_database_unavailable",
+      ready: rawPlatformAdminSemanticReadiness.ready === true,
+      relevant_row_count: Number(rawPlatformAdminSemanticReadiness.relevant_row_count || 0),
+      exact_selector_count: Number(rawPlatformAdminSemanticReadiness.exact_selector_count || 0),
+      marker_candidate_count: Number(rawPlatformAdminSemanticReadiness.marker_candidate_count || 0),
+      ready_authority_count: Number(rawPlatformAdminSemanticReadiness.ready_authority_count || 0),
+      database_read_performed: rawPlatformAdminSemanticReadiness.database_read_performed === true,
+      database_mutation_performed: false,
+      provider_access_performed: false,
+      production_access_performed: false,
+      secrets_included: false,
+    } : undefined;
     const mcpCatalogSchemaStartupPreflight = getMcpCatalogSchemaStartupPreflight();
     let runtimeBootstrapStatus;
     try {
@@ -579,6 +608,9 @@ export function buildDeploymentInfoRoutes({
       } : {}),
       ...(includeProductionActivationReadiness ? {
         production_activation_readiness: productionActivationReadiness,
+      } : {}),
+      ...(includePlatformAdminSemanticReadiness ? {
+        platform_admin_semantic_readiness: platformAdminSemanticReadiness,
       } : {}),
       evidence: {
         commit_sha_available: Boolean(commitSha),
