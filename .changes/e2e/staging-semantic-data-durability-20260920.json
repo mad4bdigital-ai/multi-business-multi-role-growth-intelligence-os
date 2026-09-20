@@ -28,7 +28,9 @@
       "http-generic-api/stagingCanonicalSemanticRepair.js",
       "http-generic-api/test-staging-canonical-semantic-repair.mjs",
       "http-generic-api/managedGitRemoteTransport.js",
-      "http-generic-api/test-managed-git-remote-transport.mjs"
+      "http-generic-api/test-managed-git-remote-transport.mjs",
+      "http-generic-api/stagingCanonicalSemanticRepairLedger.js",
+      "http-generic-api/test-staging-canonical-semantic-repair-ledger.mjs"
     ]
   },
   "environment_impact": {
@@ -76,7 +78,8 @@
             "Treat any mutation transport failure or unverified postcondition as reconciliation_required with mutation retry disabled until independent readback.",
             "Keep managed Git child processes hermetic against hostile host EOL and credential-helper configuration while preserving non-force push and credential zeroization.",
             "Execute the registered canonical artifact only through the repository-owned transaction path; callers cannot inject SQL, an artifact executor, a target role, or a target environment.",
-            "Re-derive typed confirmation from the immutable plan hash at apply time and reject repository, environment, role, or execution-authority drift before mutation."
+            "Re-derive typed confirmation from the immutable plan hash at apply time and reject repository, environment, role, or execution-authority drift before mutation.",
+            "Reserve each repair plan exactly once in a durable secret-free ledger outside the Runtime target data before mutation; process interruption leaves an executing or unknown_outcome record that requires reconciliation."
           ],
           "assertions": [
             "Numeric and date-prefixed changed migrations are both inspected.",
@@ -98,7 +101,8 @@
             "Canonical UPDATE payloads cannot mutate workspace identity columns even when the WHERE selector is exact.",
             "Managed Git remains LF-deterministic under hostile global core.autocrlf/core.eol settings and never force-pushes.",
             "Canonical semantic repair wraps only the registry-verified statements in START TRANSACTION/COMMIT and attempts ROLLBACK before entering reconciliation_required.",
-            "Changing required_confirmation, expected_repository, target_environment, target_role, or execution authority cannot authorize apply."
+            "Changing required_confirmation, expected_repository, target_environment, target_role, or execution authority cannot authorize apply.",
+            "A consumed repair plan cannot be applied again, and unknown outcome can transition only through explicit reconciliation to succeeded."
           ],
           "tests": [
             {
@@ -148,6 +152,13 @@
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-staging-canonical-semantic-repair.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-canonical-semantic-repair-ledger",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-canonical-semantic-repair-ledger.mjs",
               "args": []
             },
             {
