@@ -12,7 +12,8 @@
     "semantic_replay_debt_is_reported": true,
     "operational_state_migration_mutation_forbidden": true,
     "environment_state_migration_mutation_forbidden": true,
-    "destructive_mutation_fail_closed": true
+    "destructive_mutation_fail_closed": true,
+    "mixed_canonical_seed_file_and_selector_required": true
   },
   "datasets": {
     "workspace_registry": {
@@ -32,10 +33,56 @@
           "readback_token": "canonical Platform Admin workspace",
           "identity_tokens": [
             "platform_repo_governance_zero"
-          ]
+          ],
+          "mutation_selector": {
+            "mode": "seed_file_and_exact_selector",
+            "insert_columns": [
+              "workspace_id",
+              "tenant_id",
+              "workspace_key",
+              "display_name",
+              "workspace_type",
+              "bootstrap_status",
+              "config_json"
+            ],
+            "insert_required_literals": [
+              "b50db01b-617e-4b7a-8bda-6bf4876f754f",
+              "00000000-0000-0000-0000-000000000000",
+              "platform_repo_governance_zero",
+              "Platform Admin",
+              "brand",
+              "ready",
+              "platform:root"
+            ],
+            "insert_guard_equals": {
+              "workspace_id": "b50db01b-617e-4b7a-8bda-6bf4876f754f",
+              "tenant_id": "00000000-0000-0000-0000-000000000000",
+              "workspace_key": "platform_repo_governance_zero"
+            },
+            "insert_forbidden_tokens": [
+              "UNION"
+            ],
+            "update_where_equals": {
+              "workspace_id": "b50db01b-617e-4b7a-8bda-6bf4876f754f",
+              "tenant_id": "00000000-0000-0000-0000-000000000000",
+              "workspace_key": "platform_repo_governance_zero",
+              "display_name": "Platform Admin",
+              "workspace_type": "brand",
+              "bootstrap_status": "ready"
+            }
+          },
+          "resolver_cardinality": {
+            "cardinality": "exactly_one",
+            "tenant_id": "00000000-0000-0000-0000-000000000000",
+            "workspace_key": "platform_admin_workspace",
+            "authority_scope_key": "platform:root",
+            "platform_admin_workspace": true,
+            "require_ready": true,
+            "readback_token": "resolver-equivalent canonical Platform Admin workspace candidates"
+          }
         }
       ],
-      "mixed_mutation_policy": "canonical_selector_or_environment_annotation",
+      "mixed_mutation_policy": "canonical_seed_file_and_exact_selector_or_environment_annotation",
       "environment_annotation": "lifecycle:environment_state"
     },
     "admin_platform_endpoint_tools": {
