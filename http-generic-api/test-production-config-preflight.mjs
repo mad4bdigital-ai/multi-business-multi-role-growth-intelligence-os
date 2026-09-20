@@ -115,6 +115,11 @@ assert.match(managedGoogleMissingSigningSecret.errors.join("\n"), /SITE_SECRETS_
 
 const managedGoogleMissingBindingKey = evaluateProductionConfig({
   ...base,
+  MANAGED_GOOGLE_OAUTH_ENABLED: "true",
+  MANAGED_GOOGLE_OAUTH_CLIENT_ID: "managed-client.apps.googleusercontent.com",
+  MANAGED_GOOGLE_OAUTH_CLIENT_SECRET: "managed_google_client_secret_fixture_32_chars_x",
+  MANAGED_GOOGLE_OAUTH_TOKEN_ENCRYPTION_KEY: "managed_google_encryption_key_fixture_32_chars_y",
+  MANAGED_GOOGLE_OAUTH_REDIRECT_URI: "https://auth.mad4b.com/v1/google/oauth/callback",
   MANAGED_GOOGLE_OAUTH_SITE_BINDINGS_JSON: JSON.stringify([{
     site_uuid: "d745d81f-6fc4-5c6a-99dd-d953c92137bf",
     origin: "https://staging.egypttourgates.com",
