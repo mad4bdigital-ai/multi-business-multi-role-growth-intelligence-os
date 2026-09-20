@@ -10,6 +10,9 @@ http-generic-api/migrations/1007_sprint69_agent_capability_coverage_admin_tools.
 http-generic-api/migrations/1006_sprint69_agent_capability_evidence_coverage.sql text eol=lf
 http-generic-api/migrations/1023_sprint69_sql_cache_runtime_policy.sql text eol=lf
 http-generic-api/migrations/20260730_context_kernel_connection_ownership_persistence.sql text eol=lf
+http-generic-api/migrations/20260815_custom_gpt_mcp_catalog_levels.sql text eol=lf
+http-generic-api/migrations/225_sprint67_capability_resolution_envelope_ledger.sql text eol=lf
+http-generic-api/migrations/1048_transport_response_chunk_schema_recovery.sql text eol=lf
 http-generic-api/config/staging-gateway-runtime-authority-seed.sql text eol=lf
 http-generic-api/config/staging-gateway-governance-authority-seed.sql text eol=lf
 *.json text eol=lf

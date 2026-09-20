@@ -10,9 +10,18 @@ const root = fs.existsSync(path.join(workingDirectory, "http-generic-api"))
 const apiRoot = path.join(root, "http-generic-api");
 const planPath = path.join(apiRoot, "config", "runtime-remediation-batch-plan.json");
 const packagePath = path.join(apiRoot, "package.json");
+const attributesPath = path.join(root, ".gitattributes");
 const plan = JSON.parse(fs.readFileSync(planPath, "utf8"));
 const packageJson = JSON.parse(fs.readFileSync(packagePath, "utf8"));
+const attributes = new Set(fs.readFileSync(attributesPath, "utf8").split(/\r?\n/u).filter(Boolean));
 const sha256 = (value) => crypto.createHash("sha256").update(value, "utf8").digest("hex");
+const assertRawChecksumPortable = (migration) => {
+  const repositoryPath = path.posix.join("http-generic-api", "migrations", migration);
+  assert.ok(
+    attributes.has(`${repositoryPath} text eol=lf`),
+    `${migration} must be pinned to LF in .gitattributes for raw checksum portability`,
+  );
+};
 
 assert.equal(plan.contract, "mad4b.runtime-remediation-batch.v1");
 assert.equal(plan.status, "prepared-only");
@@ -27,6 +36,7 @@ assert.equal(plan.operator_approval_required, true);
 assert.equal(packageJson.scripts["runtime:remediation:plan-check"], undefined);
 
 for (const migration of plan.source_schema_migrations) {
+  assertRawChecksumPortable(migration.migration);
   const migrationPath = path.join(apiRoot, "migrations", migration.migration);
   const sql = fs.readFileSync(migrationPath, "utf8");
   assert.equal(sha256(sql), migration.checksum_sha256, `${migration.migration} checksum drift`);
@@ -48,6 +58,7 @@ for (const migration of [
 ]) {
   const entry = verificationOnly.get(migration);
   assert.ok(entry, `${migration} must remain verification-only`);
+  assertRawChecksumPortable(migration);
   assert.equal(entry.apply_allowed, false);
   assert.equal(entry.required_result, "already_applied");
   const sql = fs.readFileSync(path.join(apiRoot, "migrations", migration), "utf8");
