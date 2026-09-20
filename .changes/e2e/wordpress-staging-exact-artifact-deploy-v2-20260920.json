@@ -50,7 +50,9 @@
             "Classify exact base-to-head source changes against canonical environment path classes.",
             "Verify the declaration includes every required environment target and preserves cross-environment review.",
             "Verify live Staging certification remains required for the shared runtime deployment surface.",
-            "Verify Production mutation, provider mutation, database mutation, credential payload reads, and Production deployment remain denied."
+            "Verify Production mutation, provider mutation, database mutation, credential payload reads, and Production deployment remain denied.",
+            "Resolve server-owned SSH credentials without creating credential-intake handoffs; fail closed before any SSH connection when a required role is unresolved.",
+            "After a successful deployment and exact same-cycle readback, classify capability-envelope consumption failure as governance reconciliation and explicitly forbid deployment retry."
           ],
           "assertions": [
             "Environment impact authority is http-generic-api/config/deployment-branch-policy.json.",
@@ -58,7 +60,11 @@
             "Cross-environment review is explicit and live Staging certification remains required.",
             "production_mutation_allowed is false.",
             "No Production deployment, database mutation, provider mutation, or credential payload read is authorized by this declaration.",
-            "secrets_included is false."
+            "secrets_included is false.",
+            "Missing server-owned SSH credentials fail with remote_runtime_server_owned_ssh_credential_not_resolved before any SSH connection attempt.",
+            "Credential resolution for this deployment surface never auto-creates a credential-intake handoff and never accepts caller-supplied credentials.",
+            "If deployment and exact readback succeed but envelope consumption fails, evidence records mutation_applied=true, retry_deployment=false, reconciliation_required=true, and capability_envelope_consumed=false.",
+            "secrets_included remains false."
           ],
           "tests": [
             {
@@ -70,7 +76,8 @@
                 "BASE_SHA",
                 "--head-sha",
                 "HEAD_SHA"
-              ]
+              ],
+              "working_directory": "."
             }
           ],
           "evidence_paths": [
@@ -83,37 +90,8 @@
             "edge/activation-gateway/generated/route-policy.staging.json"
           ]
         }
-      ],
-      "tests": [
-        {
-          "id": "wordpress-staging-exact-artifact-deploy-v2-environment-impact",
-          "runner": "node",
-          "path": "http-generic-api/scripts/environment-impact-closure.mjs",
-          "args": [
-            "--base-sha",
-            "BASE_SHA",
-            "--head-sha",
-            "HEAD_SHA"
-          ]
-        }
       ]
     }
   ],
-  "secrets_included": false,
-  "acceptance": {
-    "server_owned_credential_resolution": {
-      "required": true,
-      "missing_credential_behavior": "fail_closed_before_ssh_connection",
-      "credential_intake_created": false,
-      "caller_supplied_credentials_allowed": false,
-      "secrets_included": false
-    },
-    "post_readback_envelope_reconciliation": {
-      "required": true,
-      "mutation_already_applied": true,
-      "exact_readback_verified": true,
-      "retry_deployment": false,
-      "reconciliation_required": true
-    }
-  }
+  "secrets_included": false
 }
