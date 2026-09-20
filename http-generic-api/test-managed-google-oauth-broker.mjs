@@ -6,6 +6,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { buildManagedGoogleOAuthRoutes } from "./routes/managedGoogleOAuthRoutes.js";
 import {
   GOOGLE_DRIVE_READ_SCOPE,
   GOOGLE_DRIVE_WRITE_SCOPE,
@@ -357,6 +358,17 @@ assert.equal(store.sessions.get(deniedSession.session_id).status, "denied");
 const sealed = sealManagedGoogleEnvelope({ access_token: "secret-token" }, env.MANAGED_GOOGLE_OAUTH_TOKEN_ENCRYPTION_KEY);
 assert.equal(sealed.includes("secret-token"), false);
 assert.equal(openManagedGoogleEnvelope(sealed, env.MANAGED_GOOGLE_OAUTH_TOKEN_ENCRYPTION_KEY).access_token, "secret-token");
+
+let startupPoolResolutionCount = 0;
+const startupRouter = buildManagedGoogleOAuthRoutes({
+  env: {},
+  getPool() {
+    startupPoolResolutionCount += 1;
+    throw new Error("managed OAuth route construction must not resolve DB pool");
+  },
+});
+assert.ok(startupRouter, "Managed OAuth router must construct without DB/provider configuration.");
+assert.equal(startupPoolResolutionCount, 0, "Managed OAuth router construction must remain DB-lazy.");
 
 const routes = readFileSync("./routes/managedGoogleOAuthRoutes.js", "utf8");
 const protocolPolicy = readFileSync("./managedGoogleOAuthProtocolPolicy.js", "utf8");
