@@ -13,6 +13,8 @@ assert.equal(selfTest.numeric_and_dated_migrations_selected, true);
 assert.equal(selfTest.cte_mutation_classified, true);
 assert.equal(selfTest.truncate_mutation_classified, true);
 assert.equal(selfTest.mixed_table_fail_closed, true);
+assert.equal(selfTest.zero_base_sha_rejected, true);
+assert.equal(selfTest.migration_deletion_is_blocking, true);
 assert.equal(report.safety.database_connection_performed, false);
 assert.equal(report.safety.database_mutation_performed, false);
 assert.equal(report.safety.provider_access_performed, false);
