@@ -12,6 +12,14 @@ const preciseOpenApiDoc = YAML.parse(preciseOpenApi);
 const preciseRequestProperties = preciseOpenApiDoc?.productionDeploymentAuthorityPath?.post?.requestBody?.content?.["application/json"]?.schema?.properties || {};
 const preciseRegistry = readFileSync("openapi-route-contracts.d/spec018-production-deployment-authority.yaml", "utf8");
 const allowlist = readFileSync("openapi-route-coverage.allowlist.json", "utf8");
+const wordpressDeploy = readFileSync("wordpressStagingPluginDeployExecutor.js", "utf8");
+const wordpressDeployRoutes = readFileSync("routes/wordpressStagingPluginDeployRoutes.js", "utf8");
+const wordpressDeployMigration = readFileSync("migrations/20260920_wordpress_staging_plugin_deploy_v2_authority.sql", "utf8");
+const wordpressDeployOpenApi = readFileSync("openapi/wordpress-staging-plugin-deploy.yaml", "utf8");
+const wordpressDeployOpenApiDoc = YAML.parse(wordpressDeployOpenApi);
+const wordpressDeployRequestProperties = wordpressDeployOpenApiDoc?.wordpressStagingPluginDeployPath?.post?.requestBody?.content?.["application/json"]?.schema?.properties || {};
+const wordpressDeployRegistry = readFileSync("openapi-route-contracts.d/wordpress-staging-plugin-deploy.yaml", "utf8");
+const routesIndex = readFileSync("routes/index.js", "utf8");
 
 assert(executor.includes("REMOTE_RUNTIME_HOSTINGER_SSH_EXECUTOR_ENABLED"), "actual SSH execution must be behind an explicit feature flag");
 assert(executor.includes("dryRun"), "executor must support dry-run mode");
@@ -113,4 +121,49 @@ assert(migration.includes("/home/*/domains/auth.mad4b.com/nodejs"), "migration m
 
 assert(!allowlist.includes("POST /platform/remote-runtime/hosting/deploy-release"), "documented deploy endpoint must not remain allowlisted");
 
+assert(wordpressDeploy.includes('mad4b.wordpress-staging-plugin-deploy.v2'), "WordPress Staging deploy executor must publish the v2 execution contract");
+assert(wordpressDeploy.includes('mad4b.wordpress-deployment-handoff.v2'), "WordPress Staging deploy executor must require deployment handoff v2");
+assert(wordpressDeploy.includes('mad4b.site-control-plane.general-distribution-kit.v1'), "executor must require the General Distribution install manifest");
+assert(wordpressDeploy.includes('resolveStagingTarget(pool)'), "executor must resolve the ETG Staging target server-side");
+assert(wordpressDeploy.includes('wordpress_staging_deploy_target_ambiguous'), "multiple matching Staging targets must fail closed");
+assert(wordpressDeploy.includes('caller_target_selection_allowed: false'), "caller-selected target authority must remain disabled");
+assert(wordpressDeploy.includes('wordpress_staging_deploy_caller_target_or_credential_forbidden'), "caller target/artifact/path/credential selectors must be rejected");
+assert(wordpressDeploy.includes('mad4b-site-control-plane-general-distribution-kit-${expectedHeadSha}'), "artifact identity must derive only from the exact WordPress head");
+assert(wordpressDeploy.includes('artifact.digest'), "executor must verify the GitHub Actions artifact digest");
+assert(wordpressDeploy.includes('official_release_sha256'), "bundled MCP Adapter must match the certified release digest");
+assert(wordpressDeploy.includes('MAD4B-BUILD-PROVENANCE.json'), "executor must verify exact build provenance before deployment");
+assert(wordpressDeploy.includes('adapter_archive_sha256'), "executor must verify and carry the exact MCP Adapter archive digest");
+assert(wordpressDeploy.includes('control_archive_sha256'), "executor must verify and carry the exact Control Plane archive digest");
+assert(wordpressDeploy.includes('MAD4B_SCP_Site_Profile::site_uuid()'), "live preflight/readback must bind the exact Site Profile UUID");
+assert(wordpressDeploy.includes('MAD4B_SCP_Live_Acceptance_Observer::build_provenance_status()'), "same-cycle readback must use the runtime provenance authority");
+assert(wordpressDeploy.includes('runtime_manifest_match'), "same-cycle readback must require runtime manifest match");
+assert(wordpressDeploy.includes('provenance_mismatch_count'), "same-cycle readback must require zero provenance mismatches");
+assert(wordpressDeploy.includes('control_backup') && wordpressDeploy.includes('adapter_backup'), "both Control Plane and MCP Adapter must have rollback backups");
+assert(wordpressDeploy.includes('rollback_result=restored'), "failed exact readback must execute rollback");
+assert(wordpressDeploy.includes('transitionCapabilityEnvelopeLifecycle'), "successful apply must consume the exact capability envelope");
+assert(!wordpressDeploy.includes('const targetId = compact(input.target_id'), "executor must not accept caller-selected target_id");
+assert(!wordpressDeploy.includes('input.ssh_auth_mode || input.sshAuthMode || ""'), "caller-selected SSH auth mode must not control execution");
+
+assert(wordpressDeployRoutes.includes('REMOTE_RUNTIME_WORDPRESS_STAGING_DEPLOY_ENABLED'), "apply must remain behind the dedicated WordPress Staging feature gate");
+assert(wordpressDeployRoutes.includes('/platform/remote-runtime/wordpress/staging/deploy-plugin'), "bounded WordPress Staging deploy route must be mounted");
+assert(routesIndex.includes('buildWordPressStagingPluginDeployRoutes'), "main route index must mount the governed WordPress Staging deploy route");
+
+assert(wordpressDeployMigration.includes("'contract','mad4b.wordpress-staging-plugin-deploy.v2'"), "migration must register the v2 deployment contract");
+assert(wordpressDeployMigration.includes("'handoff_contract','mad4b.wordpress-deployment-handoff.v2'"), "migration must bind deployment handoff v2");
+assert(wordpressDeployMigration.includes("'target_resolution','server_owned_unique_exact_staging_target'"), "migration must record server-owned unique target resolution");
+assert(wordpressDeployMigration.includes("'caller_target_selection_allowed',false"), "migration must deny caller target selection");
+assert(wordpressDeployMigration.includes("'caller_artifact_selection_allowed',false"), "migration must deny caller artifact selection");
+assert(wordpressDeployMigration.includes("same_cycle_exact_provenance_readback"), "migration policy must require exact provenance readback");
+assert(!wordpressDeployMigration.includes("'target_id',JSON_OBJECT"), "v2 caller schema must not expose target_id");
+assert(!wordpressDeployMigration.includes("'ssh_auth_mode',JSON_OBJECT"), "v2 caller schema must not expose SSH auth mode");
+
+assert(wordpressDeployRegistry.includes('"POST /platform/remote-runtime/wordpress/staging/deploy-plugin"'), "precise OpenAPI registry must own the WordPress Staging deploy route");
+assert(wordpressDeployRegistry.includes('./openapi/wordpress-staging-plugin-deploy.yaml#/wordpressStagingPluginDeployPath'), "precise registry must point to the bounded deploy contract");
+assert(wordpressDeployOpenApi.includes('x-custom-gpt-exclude: true'), "deployment route must remain excluded from general Custom GPT export");
+assert(wordpressDeployOpenApi.includes('x-openai-isConsequential: true'), "deployment apply must be marked consequential");
+assert(!Object.hasOwn(wordpressDeployRequestProperties, "target_id"), "OpenAPI request must not expose caller-selected target_id");
+assert(!Object.hasOwn(wordpressDeployRequestProperties, "ssh_auth_mode"), "OpenAPI request must not expose caller-selected SSH auth mode");
+assert(Object.hasOwn(wordpressDeployRequestProperties, "expected_head_sha"), "OpenAPI request must require exact WordPress head identity");
+assert(wordpressDeployOpenApi.includes('mad4b.wordpress-deployment-handoff.v2'), "OpenAPI response must expose handoff v2 identity");
+assert(wordpressDeployOpenApi.includes('d745d81f-6fc4-5c6a-99dd-d953c92137bf'), "OpenAPI must bind the ETG Staging Site Profile UUID");
 console.log("Hostinger SSH deploy executor safety tests passed");
