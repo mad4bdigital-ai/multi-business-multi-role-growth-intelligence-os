@@ -346,10 +346,18 @@ function buildPreflightScript(wordpressPath) {
     "mcp_version=$(wp plugin get mcp-adapter --field=version 2>/dev/null | tail -n 1)",
     "wp plugin is-active mcp-adapter >/dev/null 2>&1",
     "control_version=$(wp plugin get mad4b-site-control-plane --field=version 2>/dev/null | tail -n 1 || true)",
+    "site_uuid=$(wp eval 'echo class_exists(\"MAD4B_SCP_Site_Profile\") ? MAD4B_SCP_Site_Profile::site_uuid() : \"\";' 2>/dev/null | tail -n 1)",
+    "profile_environment=$(wp eval 'echo class_exists(\"MAD4B_SCP_Site_Profile\") ? MAD4B_SCP_Site_Profile::current_environment() : \"\";' 2>/dev/null | tail -n 1)",
+    "profile_origin=$(wp eval 'echo class_exists(\"MAD4B_SCP_Site_Profile\") ? MAD4B_SCP_Site_Profile::current_origin() : \"\";' 2>/dev/null | tail -n 1 | sed 's:/*$::')",
+    "profile_configured=$(wp eval 'echo class_exists(\"MAD4B_SCP_Site_Profile\") && MAD4B_SCP_Site_Profile::configured() ? \"1\" : \"0\";' 2>/dev/null | tail -n 1)",
     "plugins_device=$(stat -c '%d' wp-content/plugins)",
     "echo \"environment=$env_type\"",
     "echo \"home_url=$home_url\"",
     "echo \"site_url=$site_url\"",
+    "echo \"site_uuid=$site_uuid\"",
+    "echo \"profile_environment=$profile_environment\"",
+    "echo \"profile_origin=$profile_origin\"",
+    "echo \"profile_configured=$profile_configured\"",
     "echo \"mcp_adapter_version=$mcp_version\"",
     "echo \"control_plane_version=$control_version\"",
     "echo \"plugins_device=$plugins_device\"",
@@ -362,24 +370,35 @@ function assertLivePreflight(result) {
   const parsed = parseKeyValueOutput(result.stdout);
   const home = normalizeOrigin(parsed.home_url);
   const site = normalizeOrigin(parsed.site_url);
+  const profileOrigin = normalizeOrigin(parsed.profile_origin);
   if (
     parsed.preflight_result !== "ok"
     || String(parsed.environment || "").toLowerCase() !== "staging"
     || home !== WORDPRESS_STAGING_ORIGIN
     || site !== WORDPRESS_STAGING_ORIGIN
+    || parsed.profile_configured !== "1"
+    || String(parsed.profile_environment || "").toLowerCase() !== "staging"
+    || profileOrigin !== WORDPRESS_STAGING_ORIGIN
+    || String(parsed.site_uuid || "").toLowerCase() !== WORDPRESS_STAGING_SITE_UUID
     || parsed.mcp_adapter_version !== WORDPRESS_STAGING_MCP_ADAPTER_VERSION
   ) {
-    throw deployError("wordpress_staging_deploy_live_identity_mismatch", "Live WordPress preflight does not prove the exact governed Staging target.", 409, {
+    throw deployError("wordpress_staging_deploy_live_identity_mismatch", "Live WordPress preflight does not prove the exact enrolled ETG Staging Site Profile.", 409, {
       environment: parsed.environment || null,
       home_url: home || null,
       site_url: site || null,
+      site_uuid: parsed.site_uuid || null,
+      profile_environment: parsed.profile_environment || null,
+      profile_origin: profileOrigin || null,
+      profile_configured: parsed.profile_configured === "1",
       mcp_adapter_version: parsed.mcp_adapter_version || null,
+      expected_environment: "staging",
       expected_origin: WORDPRESS_STAGING_ORIGIN,
+      expected_site_uuid: WORDPRESS_STAGING_SITE_UUID,
+      caller_target_selection_allowed: false,
     });
   }
   return parsed;
 }
-
 function githubHeaders(token) {
   return {
     Accept: "application/vnd.github+json",
