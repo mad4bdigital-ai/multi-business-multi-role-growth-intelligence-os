@@ -544,31 +544,58 @@ function buildUploadScript(wordpressPath, remoteZip) {
   ].join(" && ");
 }
 
-function buildApplyScript({ wordpressPath, remoteZip, expectedSha256, expectedVersion, deploymentId }) {
+function buildApplyScript({
+  wordpressPath,
+  remoteControlZip,
+  remoteAdapterZip,
+  expectedControlSha256,
+  expectedAdapterSha256,
+  expectedVersion,
+  expectedHeadSha,
+  expectedBuildFingerprint,
+  expectedPackageManifestDigest,
+  deploymentId,
+}) {
   const wp = shellQuote(wordpressPath);
-  const zip = shellQuote(remoteZip);
+  const controlZip = shellQuote(remoteControlZip);
+  const adapterZip = shellQuote(remoteAdapterZip);
   const version = shellQuote(expectedVersion);
-  const sha = shellQuote(expectedSha256);
+  const controlSha = shellQuote(expectedControlSha256);
+  const adapterSha = shellQuote(expectedAdapterSha256);
+  const candidate = shellQuote(expectedHeadSha);
+  const buildFingerprint = shellQuote(expectedBuildFingerprint);
+  const packageDigest = shellQuote(expectedPackageManifestDigest);
+  const siteUuid = shellQuote(WORDPRESS_STAGING_SITE_UUID);
   const safeId = deploymentId.replace(/[^A-Za-z0-9-]/g, "");
   return `set -euo pipefail
 cd ${wp}
 plugin_parent="$(pwd)/wp-content/plugins"
-target="$plugin_parent/${WORDPRESS_STAGING_PLUGIN_SLUG}"
-stage="$plugin_parent/.mad4b-stage-${safeId}"
-backup="$plugin_parent/.mad4b-backup-${safeId}"
-upload=${zip}
-old_active=0
+control_target="$plugin_parent/${WORDPRESS_STAGING_PLUGIN_SLUG}"
+adapter_target="$plugin_parent/${WORDPRESS_STAGING_MCP_ADAPTER_SLUG}"
+control_stage="$plugin_parent/.mad4b-control-stage-${safeId}"
+adapter_stage="$plugin_parent/.mad4b-adapter-stage-${safeId}"
+control_backup="$plugin_parent/.mad4b-control-backup-${safeId}"
+adapter_backup="$plugin_parent/.mad4b-adapter-backup-${safeId}"
+control_upload=${controlZip}
+adapter_upload=${adapterZip}
+old_control_active=0
+old_adapter_active=0
 maintenance_on=0
 rollback() {
   code="$1"
   set +e
-  if [ "$maintenance_on" = "1" ]; then :; else wp maintenance-mode activate >/dev/null 2>&1; maintenance_on=1; fi
-  if [ -d "$backup" ]; then
-    if [ -d "$target" ]; then mv "$target" "$target.failed-${safeId}"; fi
-    mv "$backup" "$target"
-    if [ "$old_active" = "1" ]; then wp plugin activate ${WORDPRESS_STAGING_PLUGIN_SLUG} >/dev/null 2>&1; else wp plugin deactivate ${WORDPRESS_STAGING_PLUGIN_SLUG} >/dev/null 2>&1; fi
+  if [ "$maintenance_on" != "1" ]; then wp maintenance-mode activate >/dev/null 2>&1; maintenance_on=1; fi
+  if [ -d "$control_backup" ]; then
+    if [ -d "$control_target" ]; then mv "$control_target" "$control_target.failed-${safeId}"; fi
+    mv "$control_backup" "$control_target"
   fi
-  rm -rf "$stage" "$upload"
+  if [ -d "$adapter_backup" ]; then
+    if [ -d "$adapter_target" ]; then mv "$adapter_target" "$adapter_target.failed-${safeId}"; fi
+    mv "$adapter_backup" "$adapter_target"
+  fi
+  if [ "$old_adapter_active" = "1" ]; then wp plugin activate ${WORDPRESS_STAGING_MCP_ADAPTER_SLUG} >/dev/null 2>&1; else wp plugin deactivate ${WORDPRESS_STAGING_MCP_ADAPTER_SLUG} >/dev/null 2>&1 || true; fi
+  if [ "$old_control_active" = "1" ]; then wp plugin activate ${WORDPRESS_STAGING_PLUGIN_SLUG} >/dev/null 2>&1; else wp plugin deactivate ${WORDPRESS_STAGING_PLUGIN_SLUG} >/dev/null 2>&1 || true; fi
+  rm -rf "$control_stage" "$adapter_stage" "$control_upload" "$adapter_upload"
   if [ "$maintenance_on" = "1" ]; then wp maintenance-mode deactivate >/dev/null 2>&1; fi
   echo rollback_result=restored
   exit "$code"
@@ -578,59 +605,101 @@ trap 'rollback $?' ERR
 env_type="$(wp eval 'echo wp_get_environment_type();' 2>/dev/null | tail -n 1)"
 home_url="$(wp option get home 2>/dev/null | tail -n 1 | sed 's:/*$::')"
 site_url="$(wp option get siteurl 2>/dev/null | tail -n 1 | sed 's:/*$::')"
-mcp_version="$(wp plugin get mcp-adapter --field=version 2>/dev/null | tail -n 1)"
+site_uuid_before="$(wp eval 'echo class_exists("MAD4B_SCP_Site_Profile") ? MAD4B_SCP_Site_Profile::site_uuid() : "";' 2>/dev/null | tail -n 1)"
 test "$env_type" = staging
 test "$home_url" = ${shellQuote(WORDPRESS_STAGING_ORIGIN)}
 test "$site_url" = ${shellQuote(WORDPRESS_STAGING_ORIGIN)}
-test "$mcp_version" = ${shellQuote(WORDPRESS_STAGING_MCP_ADAPTER_VERSION)}
-wp plugin is-active mcp-adapter >/dev/null 2>&1
-test -d "$target"
-test "$(sha256sum "$upload" | awk '{print $1}')" = ${sha}
-rm -rf "$stage" "$backup"
-mkdir "$stage"
-unzip -q "$upload" -d "$stage"
-test -d "$stage/${WORDPRESS_STAGING_PLUGIN_SLUG}"
-new_version="$(sed -nE 's/^ \\* Version: ([^ ]+).*/\\1/p' "$stage/${WORDPRESS_STAGING_PLUGIN_SLUG}/${WORDPRESS_STAGING_PLUGIN_SLUG}.php" | head -n 1)"
-test "$new_version" = ${version}
-new_build="$(sed -n 's/^release=//p' "$stage/${WORDPRESS_STAGING_PLUGIN_SLUG}/MAD4B-RUNTIME-BUILD.txt" | head -n 1)"
-test "$new_build" = ${version}
+test "$site_uuid_before" = ${siteUuid}
+test -d "$control_target"
+test -d "$adapter_target"
+test "$(sha256sum "$control_upload" | awk '{print $1}')" = ${controlSha}
+test "$(sha256sum "$adapter_upload" | awk '{print $1}')" = ${adapterSha}
+
+rm -rf "$control_stage" "$adapter_stage" "$control_backup" "$adapter_backup"
+mkdir "$control_stage" "$adapter_stage"
+unzip -q "$control_upload" -d "$control_stage"
+unzip -q "$adapter_upload" -d "$adapter_stage"
+test -d "$control_stage/${WORDPRESS_STAGING_PLUGIN_SLUG}"
+test -d "$adapter_stage/${WORDPRESS_STAGING_MCP_ADAPTER_SLUG}"
+new_control_version="$(sed -nE 's/^ \\* Version: ([^ ]+).*/\\1/p' "$control_stage/${WORDPRESS_STAGING_PLUGIN_SLUG}/${WORDPRESS_STAGING_PLUGIN_SLUG}.php" | head -n 1)"
+new_adapter_version="$(sed -nE 's/^ \\* Version: ([^ ]+).*/\\1/p' "$adapter_stage/${WORDPRESS_STAGING_MCP_ADAPTER_SLUG}/mcp-adapter.php" | head -n 1)"
+test "$new_control_version" = ${version}
+test "$new_adapter_version" = ${shellQuote(WORDPRESS_STAGING_MCP_ADAPTER_VERSION)}
+
 plugins_device="$(stat -c '%d' "$plugin_parent")"
-stage_device="$(stat -c '%d' "$stage")"
-test "$plugins_device" = "$stage_device"
-if wp plugin is-active ${WORDPRESS_STAGING_PLUGIN_SLUG} >/dev/null 2>&1; then old_active=1; fi
-previous_version="$(wp plugin get ${WORDPRESS_STAGING_PLUGIN_SLUG} --field=version 2>/dev/null | tail -n 1)"
+test "$plugins_device" = "$(stat -c '%d' "$control_stage")"
+test "$plugins_device" = "$(stat -c '%d' "$adapter_stage")"
+if wp plugin is-active ${WORDPRESS_STAGING_PLUGIN_SLUG} >/dev/null 2>&1; then old_control_active=1; fi
+if wp plugin is-active ${WORDPRESS_STAGING_MCP_ADAPTER_SLUG} >/dev/null 2>&1; then old_adapter_active=1; fi
+previous_control_version="$(wp plugin get ${WORDPRESS_STAGING_PLUGIN_SLUG} --field=version 2>/dev/null | tail -n 1)"
+previous_adapter_version="$(wp plugin get ${WORDPRESS_STAGING_MCP_ADAPTER_SLUG} --field=version 2>/dev/null | tail -n 1)"
+
 wp maintenance-mode activate >/dev/null
 maintenance_on=1
-mv "$target" "$backup"
-mv "$stage/${WORDPRESS_STAGING_PLUGIN_SLUG}" "$target"
+mv "$control_target" "$control_backup"
+mv "$adapter_target" "$adapter_backup"
+mv "$adapter_stage/${WORDPRESS_STAGING_MCP_ADAPTER_SLUG}" "$adapter_target"
+mv "$control_stage/${WORDPRESS_STAGING_PLUGIN_SLUG}" "$control_target"
+wp plugin activate ${WORDPRESS_STAGING_MCP_ADAPTER_SLUG} >/dev/null
 wp plugin activate ${WORDPRESS_STAGING_PLUGIN_SLUG} >/dev/null
-actual_version="$(wp plugin get ${WORDPRESS_STAGING_PLUGIN_SLUG} --field=version 2>/dev/null | tail -n 1)"
+
+actual_control_version="$(wp plugin get ${WORDPRESS_STAGING_PLUGIN_SLUG} --field=version 2>/dev/null | tail -n 1)"
+actual_adapter_version="$(wp plugin get ${WORDPRESS_STAGING_MCP_ADAPTER_SLUG} --field=version 2>/dev/null | tail -n 1)"
 runtime_version="$(wp eval 'echo defined("MAD4B_SCP_VERSION") ? MAD4B_SCP_VERSION : "";' 2>/dev/null | tail -n 1)"
 env_after="$(wp eval 'echo wp_get_environment_type();' 2>/dev/null | tail -n 1)"
 home_after="$(wp option get home 2>/dev/null | tail -n 1 | sed 's:/*$::')"
 site_after="$(wp option get siteurl 2>/dev/null | tail -n 1 | sed 's:/*$::')"
-mcp_after="$(wp plugin get mcp-adapter --field=version 2>/dev/null | tail -n 1)"
-test "$actual_version" = ${version}
+site_uuid_after="$(wp eval 'echo class_exists("MAD4B_SCP_Site_Profile") ? MAD4B_SCP_Site_Profile::site_uuid() : "";' 2>/dev/null | tail -n 1)"
+profile_environment_after="$(wp eval 'echo class_exists("MAD4B_SCP_Site_Profile") ? MAD4B_SCP_Site_Profile::current_environment() : "";' 2>/dev/null | tail -n 1)"
+profile_origin_after="$(wp eval 'echo class_exists("MAD4B_SCP_Site_Profile") ? MAD4B_SCP_Site_Profile::current_origin() : "";' 2>/dev/null | tail -n 1 | sed 's:/*$::')"
+prov_source="$(wp eval '$p=class_exists("MAD4B_SCP_Live_Acceptance_Observer") ? MAD4B_SCP_Live_Acceptance_Observer::build_provenance_status() : array(); echo isset($p["source_commit_sha"]) ? $p["source_commit_sha"] : "";' 2>/dev/null | tail -n 1)"
+prov_build="$(wp eval '$p=class_exists("MAD4B_SCP_Live_Acceptance_Observer") ? MAD4B_SCP_Live_Acceptance_Observer::build_provenance_status() : array(); echo isset($p["build_fingerprint"]) ? $p["build_fingerprint"] : "";' 2>/dev/null | tail -n 1)"
+prov_package="$(wp eval '$p=class_exists("MAD4B_SCP_Live_Acceptance_Observer") ? MAD4B_SCP_Live_Acceptance_Observer::build_provenance_status() : array(); echo isset($p["package_manifest_digest"]) ? $p["package_manifest_digest"] : "";' 2>/dev/null | tail -n 1)"
+prov_match="$(wp eval '$p=class_exists("MAD4B_SCP_Live_Acceptance_Observer") ? MAD4B_SCP_Live_Acceptance_Observer::build_provenance_status() : array(); echo !empty($p["runtime_manifest_match"]) ? "1" : "0";' 2>/dev/null | tail -n 1)"
+prov_stale="$(wp eval '$p=class_exists("MAD4B_SCP_Live_Acceptance_Observer") ? MAD4B_SCP_Live_Acceptance_Observer::build_provenance_status() : array(); echo !empty($p["stale"]) ? "1" : "0";' 2>/dev/null | tail -n 1)"
+prov_mismatch_count="$(wp eval '$p=class_exists("MAD4B_SCP_Live_Acceptance_Observer") ? MAD4B_SCP_Live_Acceptance_Observer::build_provenance_status() : array(); echo isset($p["provenance_mismatch"]) && is_array($p["provenance_mismatch"]) ? count($p["provenance_mismatch"]) : 999;' 2>/dev/null | tail -n 1)"
+
+test "$actual_control_version" = ${version}
 test "$runtime_version" = ${version}
+test "$actual_adapter_version" = ${shellQuote(WORDPRESS_STAGING_MCP_ADAPTER_VERSION)}
 test "$env_after" = staging
 test "$home_after" = ${shellQuote(WORDPRESS_STAGING_ORIGIN)}
 test "$site_after" = ${shellQuote(WORDPRESS_STAGING_ORIGIN)}
-test "$mcp_after" = ${shellQuote(WORDPRESS_STAGING_MCP_ADAPTER_VERSION)}
+test "$site_uuid_after" = ${siteUuid}
+test "$profile_environment_after" = staging
+test "$profile_origin_after" = ${shellQuote(WORDPRESS_STAGING_ORIGIN)}
+test "$prov_source" = ${candidate}
+test "$prov_build" = ${buildFingerprint}
+test "$prov_package" = ${packageDigest}
+test "$prov_match" = 1
+test "$prov_stale" = 0
+test "$prov_mismatch_count" = 0
+
 wp maintenance-mode deactivate >/dev/null
 maintenance_on=0
-rm -rf "$stage" "$upload"
+rm -rf "$control_stage" "$adapter_stage" "$control_upload" "$adapter_upload"
 trap - ERR
-echo previous_version="$previous_version"
-echo deployed_version="$actual_version"
-echo runtime_version="$runtime_version"
+echo previous_control_plane_version="$previous_control_version"
+echo previous_mcp_adapter_version="$previous_adapter_version"
+echo deployed_control_plane_version="$actual_control_version"
+echo runtime_control_plane_version="$runtime_version"
+echo mcp_adapter_version="$actual_adapter_version"
 echo environment="$env_after"
 echo home_url="$home_after"
 echo site_url="$site_after"
-echo mcp_adapter_version="$mcp_after"
-echo backup_path="$backup"
+echo site_uuid="$site_uuid_after"
+echo profile_environment="$profile_environment_after"
+echo profile_origin="$profile_origin_after"
+echo source_commit_sha="$prov_source"
+echo build_fingerprint="$prov_build"
+echo package_manifest_digest="$prov_package"
+echo runtime_manifest_match="$prov_match"
+echo stale="$prov_stale"
+echo provenance_mismatch_count="$prov_mismatch_count"
+echo control_backup_path="$control_backup"
+echo adapter_backup_path="$adapter_backup"
 echo deploy_result=ok`;
 }
-
 async function writeEvidence(pool, traceId, kind, status, output) {
   await writeExecutionEvidence({
     pool,
