@@ -396,6 +396,17 @@
         "runtime_canonical_registry_snapshot"
       ],
       "snapshot_target_role": "runtime"
+    },
+    "activation_container_relationship_type_registry": {
+      "class": "canonical_registry",
+      "rebuild_from_git": true,
+      "zero_rows_allowed": false,
+      "known_replay_gap": false,
+      "replay_strategy": "disposable_git_semantic_snapshot",
+      "artifact_keys": [
+        "runtime_canonical_registry_snapshot"
+      ],
+      "snapshot_target_role": "runtime"
     }
   },
   "table_families": [
