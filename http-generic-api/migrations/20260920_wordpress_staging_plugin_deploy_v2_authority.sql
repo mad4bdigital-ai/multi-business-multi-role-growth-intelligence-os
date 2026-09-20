@@ -26,7 +26,7 @@ VALUES
  'high',
  1,
  1,
- 'bounded_json',
+ 'bounded_text',
  'active',
  'Staging-only WordPress plugin deploy v2. Source artifact is resolved from the successful exact-head WordPress Control Plane package run; target, path, and SSH credentials are server-owned and uniquely resolved. Apply requires an exact capability envelope plus same-cycle exact build provenance readback.'
 )

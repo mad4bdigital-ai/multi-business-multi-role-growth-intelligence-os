@@ -59,6 +59,18 @@ The caller cannot select or supply:
 The exact GitHub artifact is derived from the reviewed WordPress HEAD. The Hostinger
 target is resolved server-side from governed target authority.
 
+## Catalog output policy
+
+The `remote_runtime_command_allowlists.output_policy` for this command is:
+
+```text
+bounded_text
+```
+
+This reuses the existing canonical Hostinger deploy output domain. The HTTP route still
+returns structured JSON, but the remote-runtime command catalog does not introduce a new
+enum literal solely for this deployment surface.
+
 ## Target resolution
 
 The executor requires exactly one active and validated `hosting_account` target with:
