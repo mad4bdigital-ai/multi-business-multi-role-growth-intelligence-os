@@ -15,7 +15,7 @@ export function createFileCanonicalSemanticRepairLedger({directory,now=()=>new D
   async function writeAtomic(plan,record){await fs.mkdir(root,{recursive:true,mode:0o700});const target=fileFor(plan);const temp=`${target}.${process.pid}.${Date.now()}.tmp`;await fs.writeFile(temp,JSON.stringify(record,null,2)+"\n",{mode:0o600,flag:"wx"});await fs.rename(temp,target);return publicRecord(record);}
   async function transition(plan,next,details={}){
     const current=await read(plan);if(!current)throw Object.assign(new Error("Canonical repair ledger reservation is missing."),{code:"STAGING_CANONICAL_REPAIR_LEDGER_RESERVATION_MISSING"});
-    if(current.state==="succeeded"||current.state==="unknown_outcome")throw Object.assign(new Error("Canonical repair plan is terminal and cannot be reused."),{code:"STAGING_CANONICAL_REPAIR_PLAN_ALREADY_CONSUMED",details:{state:current.state}});
+    if(current.state==="succeeded"||(current.state==="unknown_outcome"&&next!=="succeeded"))throw Object.assign(new Error("Canonical repair plan is terminal and cannot be reused outside reconciliation."),{code:"STAGING_CANONICAL_REPAIR_PLAN_ALREADY_CONSUMED",details:{state:current.state}});
     if(next==="executing"&&current.state!=="reserved")throw Object.assign(new Error("Canonical repair plan is not reserved."),{code:"STAGING_CANONICAL_REPAIR_LEDGER_STATE_INVALID"});
     if(!STATES.has(next))throw new TypeError("Invalid canonical repair ledger state.");
     return writeAtomic(plan,{...current,...details,state:next,updated_at:now().toISOString(),secrets_included:false});
