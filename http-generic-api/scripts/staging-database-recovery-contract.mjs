@@ -97,8 +97,42 @@ assert.match(clone, /Remove-Item -LiteralPath \$tempRoot -Recurse -Force/);
 assert.doesNotMatch(clone, /mariadb[^\r\n]*-uroot/i);
 assert.doesNotMatch(clone.replace(/^\s*#.*$/gm, ""), /GRANT\s+SET\s+USER/i);
 
-assert.equal((legacyClone.match(/"--user=\$user"/g) || []).length, 2);
-assert.equal((legacyClone.match(/"--user=\$runtimeUser"/g) || []).length, 1);
+const extractPowerShellFunction = (source, name) => {
+  const start = source.indexOf("function " + name);
+  assert.ok(start >= 0, name + " function is missing");
+  const next = source.indexOf("\nfunction ", start + 1);
+  return source.slice(start, next >= 0 ? next : source.length);
+};
+
+const invokeDatabaseQueryFunction = extractPowerShellFunction(legacyClone, "Invoke-DatabaseQuery");
+assert.match(
+  invokeDatabaseQueryFunction,
+  /mariadb --protocol=socket "--user=\$user" \$db --batch --skip-column-names --raw --binary-mode -e \$Sql/
+);
+
+const completedImportReadbackFunction = extractPowerShellFunction(legacyClone, "Assert-CompletedImportLiveReadback");
+assert.match(
+  completedImportReadbackFunction,
+  /mariadb --protocol=socket "--user=\$user" \$db --batch --skip-column-names -e "SHOW FULL TABLES"[\s\S]*Completed-state table readback failed/
+);
+
+const canonicalSeedStart = legacyClone.indexOf("foreach ($seed in $canonicalSeedRows)");
+const canonicalSeedEnd = legacyClone.indexOf('$state.canonical_seed_status = "completed"', canonicalSeedStart);
+assert.ok(canonicalSeedStart >= 0 && canonicalSeedEnd > canonicalSeedStart, "canonical seed replay block is missing");
+const canonicalSeedBlock = legacyClone.slice(canonicalSeedStart, canonicalSeedEnd);
+assert.match(
+  canonicalSeedBlock,
+  /MYSQL_PWD=\$runtimePassword"[\s\S]*mariadb --protocol=socket "--user=\$runtimeUser" \$runtimeDb --binary-mode[\s\S]*Canonical seed apply failed/
+);
+
+const postImportReadbackStart = legacyClone.indexOf('Write-Host "STAGING_AUTHORITY_SEEDS_COMPLETED');
+const postImportReadbackEnd = legacyClone.indexOf("Assert-ContainsSet $requiredRuntimeCensus", postImportReadbackStart);
+assert.ok(postImportReadbackStart >= 0 && postImportReadbackEnd > postImportReadbackStart, "post-import readback block is missing");
+const postImportReadbackBlock = legacyClone.slice(postImportReadbackStart, postImportReadbackEnd);
+assert.match(
+  postImportReadbackBlock,
+  /mariadb --protocol=socket "--user=\$user" \$db --batch --skip-column-names -e "SHOW FULL TABLES"[\s\S]*Post-import table readback failed/
+);
 assert.doesNotMatch(legacyClone, /(?:^|\s)-u\$(?:user|runtimeUser)\b/m);
 assert.match(legacyClone, /sed -E 's\/DEFINER=\[\^ \]\+\/DEFINER=CURRENT_USER\/g'/);
 assert.match(legacyClone, /mariadb --protocol=socket -u'\$user' '\$db'/);
