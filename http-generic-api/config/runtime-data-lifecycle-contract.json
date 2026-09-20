@@ -2,17 +2,12 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "contract": "mad4b.runtime-data-lifecycle.v1",
   "enforcement": {
-    "dated_migration_floor": "20260920",
+    "migration_selection": "git_diff_from_base_sha",
     "static_only": true,
     "unclassified_mutation_is_blocking": true,
     "canonical_seed_must_be_replayable": true,
     "canonical_seed_postcondition_required": true,
-    "legacy_exclusions": [
-      {
-        "file": "20260920_wordpress_staging_plugin_deploy_v2_authority.sql",
-        "reason": "Reviewed before lifecycle enforcement; its authority registries require a separate semantic replay migration."
-      }
-    ]
+    "legacy_exclusions": []
   },
   "datasets": {
     "workspace_registry": {
@@ -37,7 +32,44 @@
       "class": "canonical_registry",
       "rebuild_from_git": true,
       "zero_rows_allowed": false,
-      "known_replay_gap": true
+      "known_replay_gap": true,
+      "canonical_rows": [
+        {
+          "key": "wordpress_staging_plugin_deploy",
+          "seed_file": "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
+          "selector_tokens": ["wordpress_staging_plugin_deploy", "/platform/remote-runtime/wordpress/staging/deploy-plugin"],
+          "cardinality": "exactly_one",
+          "readback_token": "canonical WordPress Staging deploy admin tool"
+        }
+      ]
+    },
+    "remote_runtime_command_allowlists": {
+      "class": "canonical_registry",
+      "rebuild_from_git": true,
+      "zero_rows_allowed": false,
+      "canonical_rows": [
+        {
+          "key": "wordpress_staging_plugin_deploy",
+          "seed_file": "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
+          "selector_tokens": ["remote_ssh_runtime", "wordpress_staging_plugin_deploy"],
+          "cardinality": "exactly_one",
+          "readback_token": "canonical WordPress Staging deploy command"
+        }
+      ]
+    },
+    "execution_policies": {
+      "class": "canonical_registry",
+      "rebuild_from_git": true,
+      "zero_rows_allowed": false,
+      "canonical_rows": [
+        {
+          "key": "wordpress_staging_plugin_deploy_exact_artifact_guard",
+          "seed_file": "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
+          "selector_tokens": ["wordpress_staging_plugin_deploy_governance", "wordpress_staging_plugin_deploy_exact_artifact_guard"],
+          "cardinality": "exactly_one",
+          "readback_token": "canonical WordPress Staging deploy execution policy"
+        }
+      ]
     },
     "tenant_platform_endpoint_tools": {
       "class": "canonical_registry",
