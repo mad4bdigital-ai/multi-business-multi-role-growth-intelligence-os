@@ -128,8 +128,8 @@ assert.match(
 );
 
 const postImportReadbackStart = legacyClone.indexOf('Write-Host "STAGING_AUTHORITY_SEEDS_COMPLETED');
-const postImportReadbackEnd = legacyClone.indexOf("Assert-ContainsSet $requiredRuntimeCensus", postImportReadbackStart);
-assert.ok(postImportReadbackStart >= 0 && postImportReadbackEnd > postImportReadbackStart, "post-import readback block is missing");
+const postImportReadbackEnd = legacyClone.indexOf("$supportRowCounts = [ordered]@{", postImportReadbackStart);
+assert.ok(postImportReadbackStart >= 0 && postImportReadbackEnd > postImportReadbackStart, "post-import canonical semantic readback block is missing");
 const postImportReadbackBlock = legacyClone.slice(postImportReadbackStart, postImportReadbackEnd);
 assert.match(
   postImportReadbackBlock,
