@@ -394,6 +394,17 @@ const managedSurfaceRule = frontendPolicy.rules.find((rule) => rule.source_file 
 assert.ok(managedSurfaceRule, "managed Google OAuth route family must have a frontend surface policy decision");
 assert.equal(managedSurfaceRule.scope, "public");
 assert.equal(managedSurfaceRule.decision, "api_only");
+assert.equal(managedSurfaceRule.family_key, "managed-google-oauth");
+const managedAuthRule = frontendPolicy.auth_rules.find((rule) => rule.rule_id === "managed-google-oauth-public-auth");
+assert.ok(managedAuthRule, "managed Google OAuth route family must have an explicit public auth policy");
+assert.equal(managedAuthRule.profile, "public");
+assert.equal(managedAuthRule.source_file, "routes/managedGoogleOAuthRoutes.js");
+assert.deepEqual([...managedAuthRule.operations].sort(), [
+  "GET /v1/google/oauth/callback",
+  "POST /v1/google/oauth/redeem",
+  "POST /v1/google/oauth/refresh",
+  "POST /v1/google/oauth/session",
+]);
 
 const registeredKeys = new Set(configRegistry.entries.map((entry) => entry.config_key));
 for (const key of [
