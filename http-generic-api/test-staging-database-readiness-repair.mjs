@@ -193,6 +193,15 @@ for (const token of [
   assert.equal(wordpressDeployCanonicalSeed.includes(token), true, "canonical replay seed drifted from source authority token " + token);
 }
 assert.match(importer, /Assert-CountExactly[\s\S]*canonical Platform Admin workspace/);
+assert.match(importer, /function Get-RoleObjectCensus/);
+assert.match(importer, /Direct schema-only importer may apply only when all three local Staging role databases are zero-object/);
+assert.match(importer, /Rebuild-EmptyStagingRoleDatabases Recovery flow/);
+assert.match(importer, /pre_apply_role_object_census/);
+assert.match(importer, /nonempty_role_apply_forbidden = \$true/);
+assert.match(importer, /\(\?im\)\^\\s\*TRUNCATE\\b/);
+assert.match(importer, /\(\?im\)\^\\s\*DELETE\\b/);
+assert.match(importer, /\(\?im\)\^\\s\*REPLACE\\b/);
+assert.match(importer, /ALTER\\s\+TABLE\\b\[\^;\]\*\\bDROP\\b/);
 assert.equal(roleManifest.authority_seed_lifecycle.contract, "mad4b.staging.authority-seed-manifest.v1");
 assert.equal(roleManifest.authority_seed_lifecycle.target_role, "runtime");
 assert.equal(roleManifest.authority_seed_lifecycle.execution_identity, "local_database_root");
