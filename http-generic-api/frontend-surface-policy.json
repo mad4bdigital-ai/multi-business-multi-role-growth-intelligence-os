@@ -2673,6 +2673,22 @@
         "frontend-surface-dispatch.generated.json",
         "test-frontend-surface-coverage-claims.mjs"
       ]
+    },
+    {
+      "rule_id": "managed-google-oauth-broker-public-api",
+      "source_file": "routes/managedGoogleOAuthRoutes.js",
+      "scope": "public",
+      "decision": "api_only",
+      "owner": "identity-platform",
+      "rationale": "Managed Google OAuth session, callback, one-time redemption, and refresh are public OAuth transport contracts consumed by enrolled WordPress sites and Google redirects. They are not browser navigation, Custom GPT actions, or a general provider execution surface.",
+      "evidence_refs": [
+        "routes/managedGoogleOAuthRoutes.js",
+        "managedGoogleOAuthBroker.js",
+        "managedGoogleOAuthProtocolPolicy.js",
+        "test-managed-google-oauth-broker.mjs",
+        "docs/managed-google-oauth-broker.md",
+        "openapi.yaml"
+      ]
     }
   ],
   "auth_rules": [
@@ -3059,10 +3075,20 @@
       "classification": "external_effect",
       "owner": "local-connector",
       "rationale": "The route atomically consumes a one-time purpose-bound capability and returns the exact bound device credentials once for protected local materialization.",
-      "preflight": { "mode": "signed_exact_capability_binding" },
-      "approval": { "mode": "server_issued_one_time_capability" },
-      "readback": { "mode": "inline_post_commit", "same_cycle": true },
-      "rollback": { "mode": "not_required", "rationale": "Consumption is intentionally irreversible; failure requires a newly issued capability and replay is denied." },
+      "preflight": {
+        "mode": "signed_exact_capability_binding"
+      },
+      "approval": {
+        "mode": "server_issued_one_time_capability"
+      },
+      "readback": {
+        "mode": "inline_post_commit",
+        "same_cycle": true
+      },
+      "rollback": {
+        "mode": "not_required",
+        "rationale": "Consumption is intentionally irreversible; failure requires a newly issued capability and replay is denied."
+      },
       "parameter_bindings": {
         "authorization": "request.header.authorization.bearer",
         "purpose": "server.local_connector_installer_secret_redeem",
