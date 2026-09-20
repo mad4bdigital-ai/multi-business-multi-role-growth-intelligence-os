@@ -117,7 +117,8 @@
       "039_sprint43_data_integrity_and_missing_tables.sql",
       "1043_sprint69_dynamic_container_hvac_activity_seed.sql",
       "20260815_custom_gpt_mcp_catalog_levels.sql",
-      "20260920_platform_admin_workspace_canonical_seed.sql"
+      "20260920_platform_admin_workspace_canonical_seed.sql",
+      "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql"
     ],
     "explicit_apply_only": true,
     "production_access_forbidden": true,
@@ -132,7 +133,10 @@
       "business_type_profiles",
       "brand_paths",
       "business_activity_types.hvac_air_conditioning_services",
-      "workspace_registry.platform_repo_governance_zero"
+      "workspace_registry.platform_repo_governance_zero",
+      "remote_runtime_command_allowlists.wordpress_staging_plugin_deploy",
+      "admin_platform_endpoint_tools.wordpress_staging_plugin_deploy",
+      "execution_policies.wordpress_staging_plugin_deploy_exact_artifact_guard"
     ]
   },
   "authority_seed_lifecycle": {
