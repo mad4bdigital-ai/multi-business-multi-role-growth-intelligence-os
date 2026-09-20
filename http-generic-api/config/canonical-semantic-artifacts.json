@@ -51,7 +51,8 @@
           ]
         }
       ],
-      "source_kind": "repository_file"
+      "source_kind": "repository_file",
+      "authority_descriptor": "config/platform-admin-workspace-authority.json"
     },
     {
       "artifact_key": "runtime_canonical_registry_snapshot",
