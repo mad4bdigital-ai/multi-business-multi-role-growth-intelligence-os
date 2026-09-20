@@ -148,7 +148,36 @@ function Assert-ContainsSet([string[]]$Required, [string[]]$Actual, [string]$Lab
 
 function Get-RoleObjectCensus([object]$Item, [string[]]$ComposeArgs) {
   $db = Read-Env $Item.Database
-  Require ($db -match '^[A-Za-z0-9_]+Require (Test-Path -LiteralPath $EnvFile) "Missing local .env.staging; run Start-AutoPilot.ps1 first."
+  Require ($db -match '^[A-Za-z0-9_]+$' -and $db -notmatch '(?i)(production|hostinger)') "Unsafe local role database name: $($Item.Key)"
+  $rootPassword = Read-Env $Item.RootPassword
+  Require (-not [string]::IsNullOrWhiteSpace($rootPassword)) "Missing local root password for role: $($Item.Key)"
+  $literal = "'" + $db + "'"
+  $schemaExists = (& docker compose @ComposeArgs exec -T -e "MYSQL_PWD=$rootPassword" $Item.Service mariadb --protocol=socket -uroot --batch --skip-column-names -e "SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME=$literal" | Out-String).Trim()
+  Require ($LASTEXITCODE -eq 0 -and $schemaExists -ceq "1") "Role database is missing or unreadable: $($Item.Key)"
+  $query = "SELECT (SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=$literal AND TABLE_TYPE='BASE TABLE'),(SELECT COUNT(*) FROM information_schema.VIEWS WHERE TABLE_SCHEMA=$literal),(SELECT COUNT(*) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA=$literal),(SELECT COUNT(*) FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA=$literal),(SELECT COUNT(*) FROM information_schema.EVENTS WHERE EVENT_SCHEMA=$literal)"
+  $raw = (& docker compose @ComposeArgs exec -T -e "MYSQL_PWD=$rootPassword" $Item.Service mariadb --protocol=socket -uroot --batch --skip-column-names -e $query | Out-String).Trim()
+  Require ($LASTEXITCODE -eq 0 -and $raw -match '^\d+\t\d+\t\d+\t\d+\t\d+$') "Pre-apply object-kind census failed for role: $($Item.Key)"
+  $parts = $raw -split "`t"
+  $counts = [ordered]@{
+    tables = [int]$parts[0]
+    views = [int]$parts[1]
+    triggers = [int]$parts[2]
+    routines = [int]$parts[3]
+    events = [int]$parts[4]
+  }
+  $total = [int]($counts.tables + $counts.views + $counts.triggers + $counts.routines + $counts.events)
+  return [pscustomobject]@{
+    role = [string]$Item.Key
+    tables = $counts.tables
+    views = $counts.views
+    triggers = $counts.triggers
+    routines = $counts.routines
+    events = $counts.events
+    total = $total
+  }
+}
+
+Require (Test-Path -LiteralPath $EnvFile) "Missing local .env.staging; run Start-AutoPilot.ps1 first."
 Require (Test-Path -LiteralPath $ComposeBase) "Missing base Compose file."
 Require (Test-Path -LiteralPath $ComposeStaging) "Missing staging Compose file."
 Require (Test-Path -LiteralPath $RoleMigrationManifestPath -PathType Leaf) "Missing canonical Staging role migration manifest."
