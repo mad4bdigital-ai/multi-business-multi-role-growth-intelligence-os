@@ -375,6 +375,20 @@ test("schema bundle manifest declares exactly three isolated roles", () => {
   assert.equal(manifest.safety.schema_only, true);
   assert.equal(manifest.safety.data_copy_forbidden, true);
   assert.equal(manifest.source.baseline_schema, "http-generic-api/schema.sql");
+  assert.equal(manifest.canonical_semantic_snapshot.contract, "mad4b.staging.canonical-semantic-snapshot.v1");
+  assert.equal(manifest.canonical_semantic_snapshot.target_role, "runtime");
+  assert.equal(manifest.canonical_semantic_snapshot.source_kind, "disposable_git_migration_projection");
+  assert.equal(manifest.canonical_semantic_snapshot.bundle_file, "runtime.canonical-semantic.sql.gz");
+  assert.equal(manifest.canonical_semantic_snapshot.replay_mode, "zero_object_rebuild_only");
+  assert.equal(manifest.canonical_semantic_snapshot.live_environment_data_copy_forbidden, true);
+  assert.equal(manifest.canonical_semantic_snapshot.same_cycle_sha256_manifest_required, true);
+  assert.deepEqual(manifest.validation.required_semantic_bundle_files, ["runtime.canonical-semantic.sql.gz"]);
+  assert.equal(manifest.canonical_semantic_snapshot.tables.length, 20);
+  assert.equal(new Set(manifest.canonical_semantic_snapshot.tables).size, 20);
+  assert.deepEqual(manifest.canonical_semantic_snapshot.required_nonempty_tables, manifest.canonical_semantic_snapshot.tables);
+  for (const table of ["tenant_platform_endpoint_tools", "platform_endpoint_tool_exports", "activation_connector_pack_registry", "activation_delivery_policy_registry"]) {
+    assert.equal(manifest.canonical_semantic_snapshot.tables.includes(table), true, `missing semantic snapshot table ${table}`);
+  }
   assert.equal(manifest.source.ordering, "baseline_schema_then_numeric_migration_prefix_then_lexicographic_tiebreaker");
   assert.equal(manifest.source.baseline_foreign_key_policy, "defer_baseline_fk_create_statements_until_after_migrations");
   assert.equal(manifest.validation.baseline_foreign_key_ordering_required, true);
@@ -1095,6 +1109,16 @@ test("generator requires exact confirmation and emits schema-only no-provider co
   assert.match(generator, /production_accessed: false/);
   assert.match(generator, /provider_accessed: false/);
   assert.match(generator, /data_exported: false/);
+  assert.match(generator, /live_environment_data_exported: false/);
+  assert.match(generator, /repository_semantic_projection_exported: true/);
+  assert.match(generator, /makeCanonicalSemanticDump/);
+  assert.match(generator, /--no-create-info/);
+  assert.match(generator, /--complete-insert/);
+  assert.match(generator, /--skip-extended-insert/);
+  assert.match(generator, /--order-by-primary/);
+  assert.match(generator, /semantic snapshot table has no stable unique ordering key/);
+  assert.match(generator, /canonical semantic snapshot row count mismatch/);
+  assert.match(generator, /canonical semantic dump contains forbidden statement/);
   assert.match(generator, /const stdinFlag = options\.input === undefined \? \[\] : \["-i"\]/);
   assert.ok(generator.includes(String.raw`const baselineSchemaPath = path.join(apiRoot, "schema.sql")`));
   assert.ok(generator.includes(String.raw`applyMigrations(baseline, rows, tableBootstrap)`));
@@ -1317,6 +1341,12 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.migration_count, canonicalMigrationFiles.length);
   assert.equal(plan.statement_count, canonicalMigrationStatementCount);
   assert.equal(plan.confirmation_required, "BUILD_STAGING_SCHEMA_BUNDLE");
+  assert.deepEqual(plan.required_semantic_bundle_files, ["runtime.canonical-semantic.sql.gz"]);
+  assert.equal(plan.canonical_semantic_snapshot.contract, "mad4b.staging.canonical-semantic-snapshot.v1");
+  assert.equal(plan.canonical_semantic_snapshot.source_kind, "disposable_git_migration_projection");
+  assert.equal(plan.canonical_semantic_snapshot.bundle_file, "runtime.canonical-semantic.sql.gz");
+  assert.equal(plan.canonical_semantic_snapshot.table_count, 20);
+  assert.equal(plan.canonical_semantic_snapshot.plan_only, true);
   assert.equal(plan.ordered_collation_chain.contract, "mad4b.mariadb-collation-ordered-chain.v1");
   assert.equal(plan.ordered_collation_chain.ok, true);
   assert.equal(plan.ordered_collation_chain.ready, true);
