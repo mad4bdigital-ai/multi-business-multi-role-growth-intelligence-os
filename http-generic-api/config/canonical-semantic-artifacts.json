@@ -51,6 +51,29 @@
           ]
         }
       ]
+    },
+    {
+      "artifact_key": "wordpress_staging_deployment_authority",
+      "lifecycle_class": "canonical_registry",
+      "target_role": "runtime",
+      "source_file": "migrations/20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
+      "sha256": "f6d9047bfda2c77a150ab0f5fca288f0504c9f6fe9deb268313c8c8d48e7f226",
+      "statement_count": 4,
+      "replay_modes": [
+        "zero_object_rebuild"
+      ],
+      "identity_contract": "wordpress_staging_deployment_authority.v2",
+      "readback_contract": "wordpress_staging_deployment_authority_readback.v1",
+      "conflict_policy": "exact_key_upsert_fail_closed",
+      "required_for": [
+        "staging_rebuild",
+        "wordpress_staging_deployment_readiness"
+      ],
+      "dependencies": [],
+      "caller_sql_forbidden": true,
+      "caller_target_forbidden": true,
+      "production_apply_allowed": false,
+      "provider_apply_allowed": false
     }
   ]
 }
