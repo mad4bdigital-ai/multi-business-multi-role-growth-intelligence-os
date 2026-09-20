@@ -6,22 +6,43 @@ const root=path.dirname(fileURLToPath(import.meta.url));
 const lifecycle=JSON.parse(fs.readFileSync(path.join(root,"config","runtime-data-lifecycle-contract.json"),"utf8"));
 const registry=JSON.parse(fs.readFileSync(path.join(root,"config","canonical-semantic-artifacts.json"),"utf8"));
 
-function artifactKeys(dataset){return [...new Set((dataset?.canonical_rows||[]).map((row)=>row.artifact_key).filter(Boolean))];}
+function artifactKeys(dataset){
+  return [...new Set([...(dataset?.artifact_keys||[]),...(dataset?.canonical_rows||[]).map((row)=>row.artifact_key).filter(Boolean)])];
+}
+function canonicalLifecycleClass(value){return value==="canonical_registry"||value==="mixed";}
+function replayabilityFor(dataset,artifacts){
+  if(!canonicalLifecycleClass(dataset?.class))return "not_applicable";
+  if(dataset?.completeness_policy==="explicit_dataset_declarations_only")return "guard_only";
+  const keys=artifactKeys(dataset);const missing=keys.filter((key)=>!artifacts.has(key));
+  if(dataset?.known_replay_gap===true||missing.length||keys.length===0)return "unresolved_debt";
+  return "replayable";
+}
 export function buildSemanticDataCompletenessReport({observations={}}={}){
   const artifacts=new Map((registry.artifacts||[]).map((item)=>[item.artifact_key,item]));
   const datasets=Object.entries(lifecycle.datasets||{}).map(([dataset_key,dataset])=>{
     const keys=artifactKeys(dataset);const missing=keys.filter((key)=>!artifacts.has(key));const observation=observations[dataset_key]||null;
-    const canonicalClass=dataset.class==="canonical_registry"||dataset.class==="mixed";
-    const replayability=!canonicalClass?"not_applicable":dataset.known_replay_gap===true||missing.length?"unresolved_debt":"replayable";
+    const replayability=replayabilityFor(dataset,artifacts);
     const present=observation?.present===true;const cardinality=Number.isInteger(observation?.cardinality)?observation.cardinality:null;
     const readback_status=observation?.readback_status||"not_observed";
-    return {dataset_key,lifecycle_class:dataset.class||"unclassified",canonical_artifact_keys:keys,missing_artifact_keys:missing,replayability,known_replay_gap:dataset.known_replay_gap===true,
-      present:observation?present:null,cardinality,readback_status,repair_required:canonicalClass&&(replayability==="unresolved_debt"||readback_status==="missing"||readback_status==="ambiguous"),
+    const canonicalClass=canonicalLifecycleClass(dataset.class);
+    return {dataset_key,lifecycle_class:dataset.class||"unclassified",canonical_artifact_keys:keys,missing_artifact_keys:missing,replayability,
+      replay_strategy:dataset.replay_strategy||null,known_replay_gap:dataset.known_replay_gap===true,present:observation?present:null,cardinality,readback_status,
+      repair_required:canonicalClass&&(replayability==="unresolved_debt"||readback_status==="missing"||readback_status==="ambiguous"||readback_status==="identity_conflict"),
       external_reprovision_required:dataset.class==="environment_state",operational_reseed_forbidden:dataset.class==="operational_state"||dataset.reseed_forbidden===true};
   }).sort((a,b)=>a.dataset_key.localeCompare(b.dataset_key));
-  const unresolved=datasets.filter((item)=>item.replayability==="unresolved_debt");
-  return {contract:"mad4b.semantic-data-completeness-report.v1",lifecycle_contract:lifecycle.contract,artifact_registry_contract:registry.contract,
-    complete:unresolved.length===0&&datasets.filter((item)=>item.lifecycle_class==="canonical_registry"||item.lifecycle_class==="mixed").every((item)=>item.readback_status==="ready"),
-    unresolved_replay_debt_count:unresolved.length,unresolved_replay_debt:unresolved.map((item)=>item.dataset_key),datasets,
-    production_mutation_performed:false,provider_mutation_performed:false,database_mutation_performed:false,secrets_included:false};
+  const families=(lifecycle.table_families||[]).map((family,index)=>({
+    family_key:`family:${family.pattern||index}`,pattern:family.pattern||null,lifecycle_class:family.class||"unclassified",
+    completeness_policy:family.completeness_policy||null,unregistered_family_member_policy:family.unregistered_family_member_policy||null,
+    replayability:family.completeness_policy==="explicit_dataset_declarations_only"?"guard_only":family.known_replay_gap===true?"unresolved_debt":"not_applicable",
+    known_replay_gap:family.known_replay_gap===true
+  }));
+  const unresolvedDatasets=datasets.filter((item)=>item.replayability==="unresolved_debt");
+  const unresolvedFamilies=families.filter((item)=>item.replayability==="unresolved_debt");
+  const canonicalDatasets=datasets.filter((item)=>canonicalLifecycleClass(item.lifecycle_class));
+  const notReady=canonicalDatasets.filter((item)=>item.readback_status!=="ready");
+  const unresolved=[...unresolvedDatasets.map((item)=>item.dataset_key),...unresolvedFamilies.map((item)=>item.family_key)];
+  return {contract:"mad4b.semantic-data-completeness-report.v2",lifecycle_contract:lifecycle.contract,artifact_registry_contract:registry.contract,
+    complete:unresolved.length===0&&notReady.length===0,unresolved_replay_debt_count:unresolved.length,unresolved_replay_debt:unresolved,
+    canonical_dataset_count:canonicalDatasets.length,not_ready_canonical_dataset_count:notReady.length,not_ready_canonical_datasets:notReady.map((item)=>item.dataset_key),
+    datasets,families,production_mutation_performed:false,provider_mutation_performed:false,database_mutation_performed:false,secrets_included:false};
 }
