@@ -58,6 +58,16 @@
       ]
     },
     {
+      "id": "custom_gpt_live_registration_readback",
+      "test_paths": [
+        "canonicals/openapi/custom-gpt-surfaces.yaml",
+        "http-generic-api/customGptLiveRegistrationReadback.js",
+        "http-generic-api/scripts/custom-gpt-live-registration-readback.mjs",
+        "http-generic-api/test-custom-gpt-live-registration-readback.mjs",
+        "http-generic-api/openapi/generated/custom-gpt-registration-manifest.json"
+      ]
+    },
+    {
       "id": "domain_family_environment_separation",
       "test_paths": [
         "http-generic-api/test-domain-family-policy.mjs"
