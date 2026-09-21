@@ -2282,7 +2282,12 @@ x-mad4b-registration-contract:
   generation_mode: generated_from_openapi
   source_openapi_sha256: 814d9f116cbf5551e13f4797a1fd8927af72eafa77746478de438e7dd5339834
   source_manifest_sha256: 155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9
+  surface_operation_manifest_sha256: bca2edebb19407fdda1ad0650291931d03ec6232f5da43a1e8320fbc631453ba
+  surface_operation_manifest_hash_scope: split_surface_operation_manifest.v1
+  registration_operation_manifest_sha256: 59c6b63bc9bfae72b405666d410d6636d9b5268fe6bc133f7ef28b6c01ffbfb8
+  registration_operation_manifest_hash_scope: custom_admin_operation_manifest.v1
   operation_manifest_sha256: 59c6b63bc9bfae72b405666d410d6636d9b5268fe6bc133f7ef28b6c01ffbfb8
+  operation_manifest_sha256_compatibility_alias_of: registration_operation_manifest_sha256
   operation_count: 14
   server_uri: https://activation-dev.mad4b.com
   auth_profile: admin_service
