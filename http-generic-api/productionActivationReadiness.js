@@ -211,7 +211,7 @@ export async function runProductionActivationReadiness({
 
   let recoveryAuthorityPreflight;
   try {
-    recoveryAuthorityPreflight = recoveryAuthorityPreflightReader({ env });
+    recoveryAuthorityPreflight = recoveryAuthorityPreflightReader({ env, recoveryComposition });
   } catch (error) {
     recoveryAuthorityPreflight = {
       contract: "mad4b.production-recovery-authority-preflight.v1",
