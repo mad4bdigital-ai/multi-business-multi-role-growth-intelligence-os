@@ -490,7 +490,8 @@ await assert.rejects(
     registry,
     repositoryRoot: root,
   }),
-  (error) => error?.code === "PLATFORM_RESOURCE_AUTHORITY_RUNTIME_POOL_FORBIDDEN",
+  (error) => error?.code === "staging_activation_gateway_runtime_database_authority_mismatch"
+    && error?.details?.cause_code === "PLATFORM_RESOURCE_AUTHORITY_RUNTIME_POOL_FORBIDDEN",
 );
 const adapterSource = fs.readFileSync(path.join(root, "http-generic-api/stagingActivationGatewayApplyAdapter.js"), "utf8");
 assert.doesNotMatch(adapterSource, /UPDATE\s+capability_resolution_envelope_ledger/iu);
