@@ -202,6 +202,14 @@ assert.equal(
   false,
 );
 
+// Restore source-owned maintenance context before exercising ambiguity and base-ref failure cases.
+// The previous scenario intentionally registers work-map-integration.json as derived output,
+// which must suppress parallel-maintenance attribution only for that scenario.
+fs.rmSync(path.join(root, ".github", "derived-state-governance.json"));
+fs.rmSync(path.join(root, derivedOutputPath));
+run("git", ["add", "-A"], root);
+run("git", ["commit", "-m", "restore source-owned maintenance context"], root);
+
 const duplicateContract = { ...maintenanceContract, feature_key: "001-example-maintenance-duplicate" };
 const duplicatePath = path.join(root, ".changes", "e2e", "001-example-maintenance-duplicate.json");
 fs.writeFileSync(duplicatePath, `${JSON.stringify(duplicateContract, null, 2)}\n`);
