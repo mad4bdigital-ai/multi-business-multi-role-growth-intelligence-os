@@ -40,16 +40,16 @@ export function classifyProductionRecoveryAuthorityPreflight({
   if (binding?.requested_mode !== "production_live") blockers.push(PRODUCTION_RECOVERY_AUTHORITY_PREFLIGHT_BLOCKERS.bindingMode);
   if (controlStoreConfigured !== true) blockers.push(PRODUCTION_RECOVERY_AUTHORITY_PREFLIGHT_BLOCKERS.controlStore);
 
-  const configurationReady = blockers.length === 0;
+  const prerequisitesSatisfied = blockers.length === 0;
   if (authorityGraphResolved !== true) blockers.push(PRODUCTION_RECOVERY_AUTHORITY_PREFLIGHT_BLOCKERS.authorityGraph);
-  const ready = configurationReady && authorityGraphResolved === true;
+  const ready = prerequisitesSatisfied && authorityGraphResolved === true;
 
   return Object.freeze({
     contract: PRODUCTION_RECOVERY_AUTHORITY_PREFLIGHT_CONTRACT,
     status: ready ? "ready" : "blocked",
     ok: ready,
     ready,
-    configuration_ready_for_candidate_resolution: configurationReady,
+    configuration_ready_for_candidate_resolution: prerequisitesSatisfied,
     authority_graph_resolved: authorityGraphResolved === true,
     activation_eligible: activationEligible === true,
     production_live_enabled: productionLiveEnabled === true,
@@ -121,11 +121,11 @@ export function inspectProductionRecoveryAuthorityPreflight({
     };
   }
 
-  let controlStoreConfigured = false;
+  let storePrerequisiteSatisfied = false;
   let controlStoreReason = null;
   try {
     const config = controlDbConfigReader(env);
-    controlStoreConfigured = Boolean(config && typeof config === "object");
+    storePrerequisiteSatisfied = Boolean(config && typeof config === "object");
   } catch (error) {
     controlStoreReason = boundedCode(error, "recovery_control_store_config_unavailable");
   }
@@ -142,7 +142,7 @@ export function inspectProductionRecoveryAuthorityPreflight({
   const result = classifyProductionRecoveryAuthorityPreflight({
     runtime,
     binding,
-    controlStoreConfigured,
+    controlStoreConfigured: storePrerequisiteSatisfied,
     authorityGraphResolved,
     activationEligible,
     productionLiveEnabled,
