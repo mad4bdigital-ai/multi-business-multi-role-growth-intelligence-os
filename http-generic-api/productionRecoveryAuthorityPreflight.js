@@ -25,6 +25,9 @@ export function classifyProductionRecoveryAuthorityPreflight({
   runtime = null,
   binding = null,
   controlStoreConfigured = false,
+  authorityGraphResolved = false,
+  activationEligible = false,
+  productionLiveEnabled = false,
 } = {}) {
   const blockers = [];
   const explicitProductionRuntime = runtime?.ok === true
@@ -38,16 +41,18 @@ export function classifyProductionRecoveryAuthorityPreflight({
   if (controlStoreConfigured !== true) blockers.push(PRODUCTION_RECOVERY_AUTHORITY_PREFLIGHT_BLOCKERS.controlStore);
 
   const configurationReady = blockers.length === 0;
-  blockers.push(PRODUCTION_RECOVERY_AUTHORITY_PREFLIGHT_BLOCKERS.authorityGraph);
+  if (authorityGraphResolved !== true) blockers.push(PRODUCTION_RECOVERY_AUTHORITY_PREFLIGHT_BLOCKERS.authorityGraph);
+  const ready = configurationReady && authorityGraphResolved === true;
 
   return Object.freeze({
     contract: PRODUCTION_RECOVERY_AUTHORITY_PREFLIGHT_CONTRACT,
-    status: "blocked",
-    ok: false,
-    ready: false,
+    status: ready ? "ready" : "blocked",
+    ok: ready,
+    ready,
     configuration_ready_for_candidate_resolution: configurationReady,
-    activation_eligible: false,
-    production_live_enabled: false,
+    authority_graph_resolved: authorityGraphResolved === true,
+    activation_eligible: activationEligible === true,
+    production_live_enabled: productionLiveEnabled === true,
     required_components: [...RECOVERY_COMPOSITION_COMPONENT_KEYS],
     live_authority_components: [...RECOVERY_LIVE_AUTHORITY_COMPONENT_KEYS],
     blockers: [...new Set(blockers)],
@@ -72,7 +77,7 @@ export function classifyProductionRecoveryAuthorityPreflight({
     },
     evaluation: {
       deployment_module_loaded: false,
-      adapter_graph_evaluated: false,
+      adapter_graph_evaluated: authorityGraphResolved === true,
       execution_ticket_issued: false,
       approval_issued: false,
       provider_accessed: false,
@@ -89,6 +94,7 @@ export function inspectProductionRecoveryAuthorityPreflight({
   runtimeResolver = resolveRuntimeEnvironmentStrict,
   bindingStatusReader = getServerManagedRecoveryBindingStatus,
   controlDbConfigReader = resolveRecoveryControlDbConfig,
+  recoveryComposition = null,
 } = {}) {
   let runtime;
   try {
@@ -124,10 +130,22 @@ export function inspectProductionRecoveryAuthorityPreflight({
     controlStoreReason = boundedCode(error, "recovery_control_store_config_unavailable");
   }
 
+  const factory = recoveryComposition?.productionRecoveryCompositionFactory || null;
+  const activationCandidate = factory?.activation_candidate || null;
+  const authorityGraphResolved = recoveryComposition?.configured === true
+    || activationCandidate?.configured === true;
+  const activationEligible = recoveryComposition?.mode === "production_live"
+    && recoveryComposition?.live_activation === true
+    && recoveryComposition?.mutation_authority_available === true;
+  const productionLiveEnabled = activationEligible;
+
   const result = classifyProductionRecoveryAuthorityPreflight({
     runtime,
     binding,
     controlStoreConfigured,
+    authorityGraphResolved,
+    activationEligible,
+    productionLiveEnabled,
   });
 
   return Object.freeze({
