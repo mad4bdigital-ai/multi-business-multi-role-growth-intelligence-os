@@ -118,6 +118,10 @@ function cloneWithRenamedComponentRefs(value, prefix) {
   return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, cloneWithRenamedComponentRefs(child, prefix)]));
 }
 
+function registrationMembers(set = {}) {
+  return [...new Set([...(set.members || []), ...(set.embedded_members || [])])];
+}
+
 function mergeEmbeddedCanonicalSurfaces(registry, schemaOutputDir) {
   const embedded = Object.entries(registry.surfaces)
     .filter(([, surface]) => surface.registration_status === "embedded" && surface.embed_into);
@@ -125,8 +129,9 @@ function mergeEmbeddedCanonicalSurfaces(registry, schemaOutputDir) {
   for (const [surfaceKey, surface] of embedded) {
     const targetSurface = registry.surfaces[surface.embed_into];
     if (!targetSurface) throw new Error(`${surfaceKey}: embed_into surface is missing: ${surface.embed_into}`);
-    if (surface.registration_set !== targetSurface.registration_set) {
-      throw new Error(`${surfaceKey}: embedded registration_set must match ${surface.embed_into}`);
+    const embedRegistrationSet = surface.embed_registration_set || surface.registration_set;
+    if (embedRegistrationSet !== targetSurface.registration_set) {
+      throw new Error(`${surfaceKey}: embedded registration parent must match ${surface.embed_into}`);
     }
     const targetPath = path.join(schemaOutputDir, targetSurface.output_file);
     const sourcePath = path.join(schemaOutputDir, surface.output_file);
@@ -147,7 +152,8 @@ function mergeEmbeddedCanonicalSurfaces(registry, schemaOutputDir) {
         return [method, {
           ...operation,
           "x-mad4b-embedded-surface": surfaceKey,
-          "x-mad4b-registration-set": surface.registration_set,
+          "x-mad4b-registration-set": embedRegistrationSet,
+          "x-mad4b-registration-identity": surface.registration_set,
         }];
       }));
       targetDoc.paths = targetDoc.paths || {};
@@ -175,17 +181,17 @@ function mergeEmbeddedCanonicalSurfaces(registry, schemaOutputDir) {
         targetDoc.components[type][renamedKey] = value;
       }
     }
-    const set = registry.registration_sets?.[surface.registration_set];
+    const set = registry.registration_sets?.[embedRegistrationSet];
     const generation = targetDoc["x-custom-gpt-generation"] || {};
-    generation.registration_set = surface.registration_set;
+    generation.registration_set = embedRegistrationSet;
     generation.embedded_surfaces = [...new Set([...(generation.embedded_surfaces || []), surfaceKey])].sort();
-    generation.registration_members = [...(set?.members || [])];
+    generation.registration_members = registrationMembers(set);
     generation.operation_count = collectDocOperations(targetDoc).length;
     generation.warning_budget_exceeded = generation.operation_count > Number(set?.warning_operation_limit || targetSurface.warning_operation_limit || targetSurface.hard_operation_limit || 30);
     targetDoc["x-custom-gpt-generation"] = generation;
     targetDoc["x-mad4b-registration"] = {
-      registration_set: surface.registration_set,
-      action_slot: surface.action_slot,
+      registration_set: embedRegistrationSet,
+      action_slot: targetSurface.action_slot || surface.action_slot,
       audience: set?.audience || "admin",
       environment: set?.environment || targetSurface.environment,
       server_uri: set?.server_uri || targetSurface.server_url,
@@ -207,6 +213,7 @@ function mergeEmbeddedCanonicalSurfaces(registry, schemaOutputDir) {
 
 function materializeRegistrationMetadata(registry, schemaOutputDir) {
   for (const [setKey, set] of Object.entries(registry.registration_sets || {})) {
+    if (set.registration_mode === "embedded_member") continue;
     const outputSurface = registry.surfaces?.[set.output_surface];
     if (!outputSurface?.output_file) continue;
     const outputPath = path.join(schemaOutputDir, outputSurface.output_file);
@@ -222,7 +229,7 @@ function materializeRegistrationMetadata(registry, schemaOutputDir) {
       environment: set.environment,
       server_uri: set.server_uri,
       gateway_host: set.gateway_host,
-      members: [...set.members],
+      members: registrationMembers(set),
       operation_count: operationCount,
       hard_operation_limit: Number(set.hard_operation_limit),
       warning_operation_limit: Number(set.warning_operation_limit),
@@ -233,7 +240,7 @@ function materializeRegistrationMetadata(registry, schemaOutputDir) {
     document["x-custom-gpt-generation"] = {
       ...generation,
       registration_set: setKey,
-      registration_members: [...set.members],
+      registration_members: registrationMembers(set),
       operation_count: operationCount,
       hard_operation_limit: Number(set.hard_operation_limit),
       warning_operation_limit: Number(set.warning_operation_limit),
@@ -248,20 +255,34 @@ function validateRegistrationSets(registry, schemaOutputDir) {
   const seenEmbedded = new Set();
   for (const [setKey, set] of Object.entries(registry.registration_sets || {})) {
     if (!Array.isArray(set.members) || !set.members.length) throw new Error(`${setKey}: registration set must have members`);
-    const memberSet = new Set(set.members);
-    if (memberSet.size !== set.members.length) throw new Error(`${setKey}: duplicate registration member`);
+    if (set.registration_mode === "embedded_member") {
+      const parent = registry.registration_sets?.[set.parent_registration_set];
+      if (!parent || parent.registration_mode === "embedded_member") throw new Error(`${setKey}: embedded registration parent is missing or invalid`);
+      if (set.output_surface !== parent.output_surface) throw new Error(`${setKey}: embedded registration output must match parent output`);
+      for (const surfaceKey of set.members) {
+        const surface = registry.surfaces?.[surfaceKey];
+        if (!surface || surface.registration_status !== "embedded") throw new Error(`${setKey}: member is not an embedded surface: ${surfaceKey}`);
+        if (surface.registration_set !== setKey) throw new Error(`${surfaceKey}: embedded registration identity mismatch`);
+        if ((surface.embed_registration_set || "") !== set.parent_registration_set) throw new Error(`${surfaceKey}: embedded parent registration mismatch`);
+      }
+      continue;
+    }
+    const memberSet = new Set(registrationMembers(set));
+    if (memberSet.size !== registrationMembers(set).length) throw new Error(`${setKey}: duplicate registration member`);
     const outputSurface = registry.surfaces[set.output_surface];
     if (!outputSurface) throw new Error(`${setKey}: output_surface is missing`);
     const outputPath = path.join(schemaOutputDir, outputSurface.output_file);
     const outputDoc = YAML.parse(fs.readFileSync(outputPath, "utf8"));
     const outputOperations = collectDocOperations(outputDoc);
     let embeddedOperationCount = 0;
-    for (const surfaceKey of set.members) {
+    for (const surfaceKey of registrationMembers(set)) {
       const rawSurface = registry.surfaces[surfaceKey];
       if (!rawSurface) throw new Error(`${setKey}: member surface is missing: ${surfaceKey}`);
       const baseSurface = rawSurface.base_surface ? registry.surfaces[rawSurface.base_surface] || {} : {};
       const surface = { ...baseSurface, ...rawSurface };
-      if (surface.registration_set !== setKey) throw new Error(`${surfaceKey}: registration_set mismatch`);
+      const isEmbeddedMember = (set.embedded_members || []).includes(surfaceKey);
+      if (!isEmbeddedMember && surface.registration_set !== setKey) throw new Error(`${surfaceKey}: registration_set mismatch`);
+      if (isEmbeddedMember && (surface.embed_registration_set || "") !== setKey) throw new Error(`${surfaceKey}: embedded registration parent mismatch`);
       if (surface.registration_status !== "embedded" && surface.server_url !== set.server_uri) {
         throw new Error(`${surfaceKey}: server URI differs from registration set`);
       }
