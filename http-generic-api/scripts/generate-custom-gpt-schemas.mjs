@@ -17,7 +17,18 @@ const API_ROOT = path.resolve(__dirname, "..");
 const REPO_ROOT = path.resolve(API_ROOT, "..");
 const SURFACE_REGISTRY_PATH = path.join(REPO_ROOT, "canonicals", "openapi", "custom-gpt-surfaces.yaml");
 const SOURCE_OPENAPI_PATH = path.join(API_ROOT, "openapi.yaml");
+const GENERATED_CONTRACT_DIR = path.join(API_ROOT, "openapi", "generated");
+const SOURCE_OPENAPI_SHA256 = sha256(fs.readFileSync(SOURCE_OPENAPI_PATH));
+const SURFACE_REGISTRY_SHA256 = sha256(fs.readFileSync(SURFACE_REGISTRY_PATH));
 const METHOD_NAMES = new Set(["get", "post", "put", "delete", "patch", "options", "head", "trace"]);
+const CUSTOM_ADMIN_SURFACES = Object.freeze([
+  "admin_core_production",
+  "admin_core_staging",
+  "activation_admin_production",
+  "activation_admin_staging",
+  "admin_recovery_production",
+  "admin_recovery_staging",
+]);
 
 function fail(message, details = []) {
   console.error(message);
@@ -65,7 +76,6 @@ function runSplitGenerator(outputDir) {
 function generatedSchemaArtifacts(registry) {
   return Object.entries(registry.surfaces)
     .filter(([, surface]) => ["generated_from_openapi", "canonical_copy"].includes(surface.mode))
-    .filter(([, surface]) => surface.registration_status !== "embedded")
     .map(([surfaceKey, surface]) => ({
       kind: "openapi",
       surfaceKey,
@@ -201,7 +211,7 @@ function mergeEmbeddedCanonicalSurfaces(registry, schemaOutputDir) {
           sourceDoc?.servers?.[0]?.url,
         ].filter(Boolean)),
       ],
-      members: [...(set?.members || [])],
+      members: registrationMembers(set),
       tenant_surfaces_forbidden: [...(set?.tenant_surfaces_forbidden || [])],
       secrets_included: false,
     };
@@ -498,6 +508,158 @@ function generateGatewayPolicies(registry, schemaOutputDir, artifactOutputDir) {
   return artifacts;
 }
 
+
+function operationManifestForDocument(surfaceKey, surface, document) {
+  const operationIds = collectDocOperations(document)
+    .map((entry) => String(entry.operation?.operationId || "").trim())
+    .filter(Boolean)
+    .sort();
+  if (operationIds.length !== new Set(operationIds).size) {
+    throw new Error(`${surfaceKey}: duplicate operationId in generated registration contract`);
+  }
+  const manifest = {
+    contract: "mad4b.custom-admin-operation-manifest.v1",
+    surface: surfaceKey,
+    environment: surface.environment || null,
+    operation_count: operationIds.length,
+    operation_ids: operationIds,
+  };
+  return { manifest, bytes: stableJson(manifest), sha256: sha256(stableJson(manifest)) };
+}
+
+function materializeRegistrationContractMetadata(registry, schemaOutputDir) {
+  for (const [surfaceKey, surface] of Object.entries(registry.surfaces || {})) {
+    if (!surface.output_file || !surface.registration_set) continue;
+    const schemaPath = path.join(schemaOutputDir, surface.output_file);
+    if (!fs.existsSync(schemaPath)) continue;
+    const document = YAML.parse(fs.readFileSync(schemaPath, "utf8"));
+    const identitySet = registry.registration_sets?.[surface.registration_set];
+    if (!identitySet) throw new Error(`${surfaceKey}: registration identity set is missing: ${surface.registration_set}`);
+    const liveRegistrationSet = surface.registration_status === "embedded"
+      ? (surface.embed_registration_set || identitySet.parent_registration_set)
+      : surface.registration_set;
+    const liveSet = registry.registration_sets?.[liveRegistrationSet];
+    if (!liveSet) throw new Error(`${surfaceKey}: live registration set is missing: ${liveRegistrationSet}`);
+    const operationManifest = operationManifestForDocument(surfaceKey, surface, document);
+    document["x-mad4b-registration-contract"] = {
+      contract: "mad4b.custom-gpt-registration-contract.v1",
+      registration_set: surface.registration_set,
+      live_registration_set: liveRegistrationSet,
+      action_slot: identitySet.action_slot,
+      environment: identitySet.environment,
+      source_surface: surface.source_surface_key || surface.base_surface || surfaceKey,
+      generation_mode: surface.mode,
+      source_openapi_sha256: SOURCE_OPENAPI_SHA256,
+      source_manifest_sha256: SURFACE_REGISTRY_SHA256,
+      operation_manifest_sha256: operationManifest.sha256,
+      operation_count: operationManifest.manifest.operation_count,
+      server_uri: document.servers?.[0]?.url || surface.server_url || null,
+      auth_profile: identitySet.auth_profile || surface.auth_profile || null,
+      secrets_included: false,
+    };
+    fs.writeFileSync(schemaPath, YAML.stringify(document, { lineWidth: -1, aliasDuplicateObjects: false }), "utf8");
+  }
+}
+
+function generateCustomAdminContractArtifacts(registry, schemaOutputDir, artifactOutputDir) {
+  const operationArtifacts = [];
+  const indexRows = [];
+  const registrationRows = [];
+  for (const surfaceKey of CUSTOM_ADMIN_SURFACES) {
+    const surface = registry.surfaces?.[surfaceKey];
+    if (!surface?.output_file) throw new Error(`${surfaceKey}: Custom Admin surface output is missing`);
+    const schemaPath = path.join(schemaOutputDir, surface.output_file);
+    if (!fs.existsSync(schemaPath)) throw new Error(`${surfaceKey}: generated Custom Admin schema is missing`);
+    const schemaBytes = fs.readFileSync(schemaPath);
+    const document = YAML.parse(schemaBytes.toString("utf8"));
+    const operationManifest = operationManifestForDocument(surfaceKey, surface, document);
+    const operationRelative = path.join("openapi", "generated", "operation-manifests", `${surfaceKey}.json`).replaceAll("\\", "/");
+    const operationPath = path.join(artifactOutputDir, operationRelative);
+    fs.mkdirSync(path.dirname(operationPath), { recursive: true });
+    fs.writeFileSync(operationPath, operationManifest.bytes, "utf8");
+    operationArtifacts.push({
+      kind: "contract",
+      tempRelative: operationRelative,
+      target: path.join(API_ROOT, operationRelative),
+    });
+
+    const registrationContract = document["x-mad4b-registration-contract"];
+    if (!registrationContract) throw new Error(`${surfaceKey}: x-mad4b-registration-contract is missing`);
+    const schemaSha256 = sha256(schemaBytes);
+    const row = {
+      surface: surfaceKey,
+      environment: registrationContract.environment,
+      registration_set: registrationContract.registration_set,
+      live_registration_set: registrationContract.live_registration_set,
+      action_slot: registrationContract.action_slot,
+      server_uri: registrationContract.server_uri,
+      auth_profile: registrationContract.auth_profile,
+      generation_mode: registrationContract.generation_mode,
+      source_surface: registrationContract.source_surface,
+      source_openapi_sha256: SOURCE_OPENAPI_SHA256,
+      source_manifest_sha256: SURFACE_REGISTRY_SHA256,
+      schema_file: surface.output_file,
+      schema_sha256: schemaSha256,
+      operation_manifest_file: operationRelative,
+      operation_manifest_sha256: operationManifest.sha256,
+      operation_count: operationManifest.manifest.operation_count,
+      operation_ids: operationManifest.manifest.operation_ids,
+      secrets_included: false,
+    };
+    indexRows.push(row);
+    registrationRows.push({
+      surface: row.surface,
+      registration_set: row.registration_set,
+      live_registration_set: row.live_registration_set,
+      action_slot: row.action_slot,
+      environment: row.environment,
+      schema_sha256: row.schema_sha256,
+      server_uri: row.server_uri,
+      auth_profile: row.auth_profile,
+      operation_manifest_sha256: row.operation_manifest_sha256,
+      source_openapi_sha256: row.source_openapi_sha256,
+      source_manifest_sha256: row.source_manifest_sha256,
+      expected_source_identity: {
+        source_openapi_sha256: row.source_openapi_sha256,
+        source_manifest_sha256: row.source_manifest_sha256,
+      },
+      secrets_included: false,
+    });
+  }
+
+  indexRows.sort((a, b) => a.surface.localeCompare(b.surface));
+  registrationRows.sort((a, b) => a.surface.localeCompare(b.surface));
+  const index = {
+    contract: "mad4b.custom-admin-schema-index.v1",
+    source_openapi_sha256: SOURCE_OPENAPI_SHA256,
+    source_manifest_sha256: SURFACE_REGISTRY_SHA256,
+    surface_count: indexRows.length,
+    surfaces: indexRows,
+    secrets_included: false,
+  };
+  const registrations = {
+    contract: "mad4b.custom-gpt-registration-manifest.v1",
+    source_openapi_sha256: SOURCE_OPENAPI_SHA256,
+    source_manifest_sha256: SURFACE_REGISTRY_SHA256,
+    registration_count: registrationRows.length,
+    registrations: registrationRows,
+    secrets_included: false,
+  };
+
+  const indexRelative = "openapi/generated/custom-admin-schema-index.json";
+  const registrationRelative = "openapi/generated/custom-gpt-registration-manifest.json";
+  for (const [relative, value] of [[indexRelative, index], [registrationRelative, registrations]]) {
+    const output = path.join(artifactOutputDir, relative);
+    fs.mkdirSync(path.dirname(output), { recursive: true });
+    fs.writeFileSync(output, stableJson(value), "utf8");
+  }
+  return [
+    ...operationArtifacts,
+    { kind: "contract", tempRelative: indexRelative, target: path.join(API_ROOT, indexRelative) },
+    { kind: "contract", tempRelative: registrationRelative, target: path.join(API_ROOT, registrationRelative) },
+  ];
+}
+
 function compareFile(expectedPath, actualPath) {
   if (!fs.existsSync(actualPath)) return { equal: false, reason: "missing_generated_artifact" };
   const expected = fs.readFileSync(expectedPath);
@@ -527,9 +689,11 @@ function main() {
     mergeEmbeddedCanonicalSurfaces(registry, schemaOutputDir);
     materializeRegistrationMetadata(registry, schemaOutputDir);
     validateRegistrationSets(registry, schemaOutputDir);
+    materializeRegistrationContractMetadata(registry, schemaOutputDir);
     const schemaArtifacts = generatedSchemaArtifacts(registry);
     const policyArtifacts = generateGatewayPolicies(registry, schemaOutputDir, artifactOutputDir);
-    const artifacts = [...schemaArtifacts, ...policyArtifacts];
+    const contractArtifacts = generateCustomAdminContractArtifacts(registry, schemaOutputDir, artifactOutputDir);
+    const artifacts = [...schemaArtifacts, ...policyArtifacts, ...contractArtifacts];
 
     const schemaPaths = schemaArtifacts.map((artifact) => path.join(schemaOutputDir, artifact.tempRelative));
     const responseObjectIssues = validateOpenApiResponseFiles(schemaPaths);
