@@ -1,0 +1,86 @@
+name: Staging Semantic Portability
+
+on:
+  pull_request:
+    paths:
+      - "http-generic-api/managedGitRemoteTransport.js"
+      - "http-generic-api/test-managed-git-remote-transport.mjs"
+      - "http-generic-api/stagingCanonicalSemanticRepair.js"
+      - "http-generic-api/stagingCanonicalSemanticRepairLedger.js"
+      - "http-generic-api/semanticDataCompletenessReport.js"
+      - "http-generic-api/config/canonical-semantic-artifacts.json"
+      - "http-generic-api/config/platform-admin-workspace-authority.json"
+      - "http-generic-api/src/domain/authorityScope/platformAdminWorkspaceAuthority.generated.js"
+      - "http-generic-api/src/infrastructure/authorityScope/platformAdminWorkspaceResolver.js"
+      - "http-generic-api/scripts/build-staging-schema-bundle.mjs"
+      - "http-generic-api/scripts/staging-database-recovery-contract.mjs"
+      - "http-generic-api/test-staging-canonical-semantic-repair*.mjs"
+      - "http-generic-api/test-semantic-data-completeness-report.mjs"
+      - "http-generic-api/test-canonical-semantic-artifact-registry.mjs"
+      - "http-generic-api/test-platform-admin-workspace-*.mjs"
+      - "http-generic-api/test-staging-schema-bundle-builder.mjs"
+      - "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1"
+      - "autopilot-portable-staging/One-Click-Staging.ps1"
+      - "autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1"
+      - ".github/workflows/staging-semantic-portability.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-portability:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: http-generic-api
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: http-generic-api/package-lock.json
+      - name: Install test dependencies
+        run: npm ci --ignore-scripts
+      - name: Verify managed Git hostile-host isolation
+        run: node test-managed-git-remote-transport.mjs
+      - name: Verify canonical artifact registry bytes
+        run: node test-canonical-semantic-artifact-registry.mjs
+      - name: Verify canonical repair plan
+        run: node test-staging-canonical-semantic-repair.mjs
+      - name: Verify durable repair ledger
+        run: node test-staging-canonical-semantic-repair-ledger.mjs
+      - name: Verify repair CLI contract
+        run: node test-staging-canonical-semantic-repair-cli.mjs
+      - name: Verify semantic completeness report
+        run: node test-semantic-data-completeness-report.mjs
+      - name: Verify Platform Admin authority parity
+        run: node test-platform-admin-workspace-authority-parity.mjs
+      - name: Verify Platform Admin readiness taxonomy
+        run: node test-platform-admin-workspace-readiness.mjs
+      - name: Verify schema bundle contract
+        run: node test-staging-schema-bundle-builder.mjs
+      - name: Verify recovery contract
+        run: node scripts/staging-database-recovery-contract.mjs
+      - name: Parse governed PowerShell entrypoints
+        shell: pwsh
+        working-directory: .
+        run: |
+          $paths = @(
+            "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1",
+            "autopilot-portable-staging/One-Click-Staging.ps1",
+            "autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1"
+          )
+          foreach ($path in $paths) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $path), [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error "$path: $($_.Message)" }
+              exit 1
+            }
+          }
