@@ -323,10 +323,11 @@ if (JSON.stringify(process.argv.slice(2)) !== JSON.stringify(expected)) process.
   const timed = executePhaseTests(evaluation, { root });
   assert.equal(timed.ok, false);
   assert.equal(timed.results.length, 1);
-  assert.equal(timed.results[0].status, "error");
-  assert.equal(timed.results[0].timed_out, true);
-  assert.equal(timed.results[0].timeout_ms, 1000);
-  assert.match(timed.results[0].error, /ETIMEDOUT|timed out/iu);
+  const [timedResult] = timed.results;
+  assert.equal(timedResult.status, "error");
+  assert.equal(timedResult.timed_out, true);
+  assert.equal(timedResult.timeout_ms, 1000);
+  assert.match(timedResult.error, /ETIMEDOUT|timed out/iu);
   assert.ok(Date.now() - startedAt < 10_000);
 }
 
