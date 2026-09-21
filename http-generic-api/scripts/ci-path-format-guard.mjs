@@ -69,7 +69,9 @@ const generatedSurfaces = Object.entries(registry.surfaces || {})
   .filter(([, surface]) => surface?.mode === "generated_from_openapi")
   .map(([surfaceKey, surface]) => ({ surfaceKey, ...surface }));
 const baseSurfaceKeys = ["admin_core", "activation_admin", "tenant_core", "tenant_activation"];
-const embeddedGeneratedSurfaces = generatedSurfaces.filter((surface) => surface.registration_status === "embedded");
+function resolveEmbeddedGeneratedSurfaces() {
+  return generatedSurfaces.filter((surface) => surface.registration_status === "embedded");
+}
 const baseGeneratedSurfaces = generatedSurfaces.filter(
   (surface) => !surface.base_surface && surface.registration_status !== "embedded",
 );
@@ -80,17 +82,17 @@ assert.deepEqual(
   "base generated Custom GPT surfaces must remain the four reviewed canonical surfaces",
 );
 assert.deepEqual(
-  embeddedGeneratedSurfaces.map((surface) => surface.surfaceKey).sort(),
+  resolveEmbeddedGeneratedSurfaces().map((surface) => surface.surfaceKey).sort(),
   ["admin_recovery_staging"],
   "only the reviewed embedded Staging Recovery surface may be generated outside the base/projection topology",
 );
 assert.equal(
   generatedSurfaces.length,
-  baseGeneratedSurfaces.length + environmentGeneratedSurfaces.length + embeddedGeneratedSurfaces.length,
+  baseGeneratedSurfaces.length + environmentGeneratedSurfaces.length + resolveEmbeddedGeneratedSurfaces().length,
   "every generated surface must classify as base, environment projection, or reviewed embedded surface",
 );
 assert.equal(environmentGeneratedSurfaces.length, 9, "environment-aware registry must contain eight standard projections plus one private Production projection");
-for (const surface of embeddedGeneratedSurfaces) {
+for (const surface of resolveEmbeddedGeneratedSurfaces()) {
   assert.equal(surface.environment, "staging", `${surface.surfaceKey} embedded surface must remain Staging-only`);
   assert.equal(surface.private_only, true, `${surface.surfaceKey} embedded surface must remain private`);
   assert.equal(surface.registration_set, "admin_recovery_staging", `${surface.surfaceKey} registration set drifted`);
