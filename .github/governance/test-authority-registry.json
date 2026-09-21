@@ -863,4 +863,4 @@
     "test_deletion_requires_remaining_authority": true,
     "secrets_included": false
   }
-}\n
+}
