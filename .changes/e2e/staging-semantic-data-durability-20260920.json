@@ -105,7 +105,8 @@
       "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
       "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
       "specs/020-platform-resource-identity-brand-governance/work-map-integration.json",
-      "specs/021-portable-staging-autopilot/work-map-integration.json"
+      "specs/021-portable-staging-autopilot/work-map-integration.json",
+      ".github/workflows/staging-semantic-portability.yml"
     ]
   },
   "environment_impact": {
@@ -169,7 +170,8 @@
             "Require semantic workspace readiness before a Staging Activation Gateway dry-run can become apply-ready and re-read the same condition before provider apply/claim begins.",
             "Require One-Click schema import state to contain completed same-cycle canonical semantic snapshot readback and require live semantic readiness whenever the Activation Gateway is enabled.",
             "When One-Click observes canonical_missing, persist a local exact-commit repair handoff for plan generation only; never auto-apply the repair.",
-            "When semantic readiness is not-ready, ambiguous, conflicted, or database authority is unavailable/mismatched, emit inspection_required instead of a repair plan."
+            "When semantic readiness is not-ready, ambiguous, conflicted, or database authority is unavailable/mismatched, emit inspection_required instead of a repair plan.",
+            "Run the semantic durability regression suite on windows-latest with repository dependencies installed and parse the governed PowerShell rebuild/One-Click/repair entrypoints using the native PowerShell parser."
           ],
           "assertions": [
             "Numeric and date-prefixed changed migrations are both inspected.",
@@ -209,7 +211,8 @@
             "One-Click cannot claim Gateway readiness from canonical seed status alone; semantic snapshot evidence and current live semantic readiness are both required.",
             "Windows semantic portability executes as a job inside the existing CI workflow, so repository workflow surface count does not grow.",
             "One-Click semantic repair handoff is read-only: automatic apply and automatic retry are false, immutable plan and durable ledger are required for later apply, and reconciliation is required before retry.",
-            "Only canonical_missing is eligible for plan_required; all other unsafe semantic readiness states fail closed to inspection_required."
+            "Only canonical_missing is eligible for plan_required; all other unsafe semantic readiness states fail closed to inspection_required.",
+            "Windows-specific CI must cover managed Git hostile-EOL behavior, canonical artifact/checksum parity, repair plan/ledger/CLI semantics, semantic completeness, schema bundle/recovery contracts, and PowerShell syntax without granting repository write authority."
           ],
           "tests": [
             {
