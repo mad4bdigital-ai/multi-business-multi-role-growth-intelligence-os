@@ -319,6 +319,9 @@ assert(splitScript.includes("source_openapi_sha256"), "split generator must stam
 assert(splitScript.includes("DOMAIN_FAMILY_POLICY_FILE"), "split generator must read the canonical domain-family policy");
 assert(splitScript.includes("resolveEnvironmentVariant"), "split generator must resolve environment-specific server URLs dynamically");
 assert(splitScript.includes("domain_family_policy_sha256"), "split generator must stamp domain-family provenance");
+assert(orchestrator.includes("surface_operation_manifest_sha256"), "orchestrator must expose the split-surface operation manifest hash explicitly");
+assert(orchestrator.includes("registration_operation_manifest_sha256"), "orchestrator must expose the registration operation manifest hash explicitly");
+assert(orchestrator.includes("operation_manifest_sha256_compatibility_alias_of"), "legacy operation_manifest_sha256 must be declared as a compatibility alias");
 assert(splitScript.includes("validateGeneratedDoc"), "split generator must validate generated operations against the source OpenAPI");
 assert(splitScript.includes("validateUniqueTenantAliases"), "split generator must reject duplicate tenant aliases");
 assert(splitScript.includes("selector.operation_ids") && splitScript.includes("selector.tenant_operation_ids") && splitScript.includes("selector.include_tags"));
