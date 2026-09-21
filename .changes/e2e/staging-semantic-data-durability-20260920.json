@@ -105,7 +105,10 @@
       "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
       "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
       "specs/020-platform-resource-identity-brand-governance/work-map-integration.json",
-      "specs/021-portable-staging-autopilot/work-map-integration.json"
+      "specs/021-portable-staging-autopilot/work-map-integration.json",
+      "http-generic-api/customGptLiveRegistrationReadback.js",
+      "http-generic-api/scripts/custom-gpt-live-registration-readback.mjs",
+      "http-generic-api/test-custom-gpt-live-registration-readback.mjs"
     ]
   },
   "environment_impact": {
@@ -170,7 +173,9 @@
             "Require One-Click schema import state to contain completed same-cycle canonical semantic snapshot readback and require live semantic readiness whenever the Activation Gateway is enabled.",
             "When One-Click observes canonical_missing, persist a local exact-commit repair handoff for plan generation only; never auto-apply the repair.",
             "When semantic readiness is not-ready, ambiguous, conflicted, or database authority is unavailable/mismatched, emit inspection_required instead of a repair plan.",
-            "Run the semantic durability regression suite on windows-latest with repository dependencies installed and parse the governed PowerShell rebuild/One-Click/repair entrypoints using the native PowerShell parser."
+            "Run the semantic durability regression suite on windows-latest with repository dependencies installed and parse the governed PowerShell rebuild/One-Click/repair entrypoints using the native PowerShell parser.",
+            "Compare an exact-head observed Custom GPT registration readback against the generated repository registration manifest and schemas using registration set, action slot, server, auth profile, operation IDs, and explicit surface/registration manifest hashes.",
+            "Reject stale-head, mutating, unexpected-registration, or operation-drift evidence without changing the live Custom GPT registration."
           ],
           "assertions": [
             "Numeric and date-prefixed changed migrations are both inspected.",
@@ -212,7 +217,9 @@
             "One-Click semantic repair handoff is read-only: automatic apply and automatic retry are false, immutable plan and durable ledger are required for later apply, and reconciliation is required before retry.",
             "Only canonical_missing is eligible for plan_required; all other unsafe semantic readiness states fail closed to inspection_required.",
             "Windows-specific CI must cover managed Git hostile-EOL behavior, canonical artifact/checksum parity, repair plan/ledger/CLI semantics, semantic completeness, schema bundle/recovery contracts, and PowerShell syntax without granting repository write authority.",
-            "Windows semantic portability remains a job inside the existing CI workflow, so semantic durability coverage cannot grow the repository workflow surface."
+            "Windows semantic portability remains a job inside the existing CI workflow, so semantic durability coverage cannot grow the repository workflow surface.",
+            "Live Custom GPT registration parity evidence is read-only, exact-head-bound, secret-free, and fails closed on any registration or operation drift.",
+            "The legacy operation_manifest_sha256 field remains a compatibility alias of registration_operation_manifest_sha256; surface_operation_manifest_sha256 is a separate explicitly named scope."
           ],
           "tests": [
             {
@@ -347,6 +354,13 @@
               "working_directory": "http-generic-api",
               "path": "test-staging-smart-gateway-convergence-contract.mjs",
               "args": []
+            },
+            {
+              "id": "custom-gpt-live-registration-readback",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-custom-gpt-live-registration-readback.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -375,7 +389,10 @@
             "autopilot-portable-staging/autopilot-one-click-policy.json",
             "http-generic-api/test-staging-one-click-autopilot-core.mjs",
             "http-generic-api/test-staging-environment-certification-contract.mjs",
-            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
+            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+            "http-generic-api/openapi/generated/custom-gpt-registration-manifest.json",
+            "http-generic-api/customGptLiveRegistrationReadback.js",
+            "http-generic-api/test-custom-gpt-live-registration-readback.mjs"
           ]
         }
       ]
