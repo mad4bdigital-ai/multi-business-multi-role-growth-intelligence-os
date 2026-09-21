@@ -69,15 +69,34 @@ const generatedSurfaces = Object.entries(registry.surfaces || {})
   .filter(([, surface]) => surface?.mode === "generated_from_openapi")
   .map(([surfaceKey, surface]) => ({ surfaceKey, ...surface }));
 const baseSurfaceKeys = ["admin_core", "activation_admin", "tenant_core", "tenant_activation"];
-const baseGeneratedSurfaces = generatedSurfaces.filter((surface) => !surface.base_surface);
+const embeddedGeneratedSurfaces = generatedSurfaces.filter((surface) => surface.registration_status === "embedded");
+const baseGeneratedSurfaces = generatedSurfaces.filter(
+  (surface) => !surface.base_surface && surface.registration_status !== "embedded",
+);
 const environmentGeneratedSurfaces = generatedSurfaces.filter((surface) => Boolean(surface.base_surface));
 assert.deepEqual(
   baseGeneratedSurfaces.map((surface) => surface.surfaceKey).sort(),
   baseSurfaceKeys.slice().sort(),
   "base generated Custom GPT surfaces must remain the four reviewed canonical surfaces",
 );
-assert.equal(generatedSurfaces.length, 13, "environment-aware registry must contain four base surfaces, eight standard projections, and one private Production projection");
+assert.deepEqual(
+  embeddedGeneratedSurfaces.map((surface) => surface.surfaceKey).sort(),
+  ["admin_recovery_staging"],
+  "only the reviewed embedded Staging Recovery surface may be generated outside the base/projection topology",
+);
+assert.equal(
+  generatedSurfaces.length,
+  baseGeneratedSurfaces.length + environmentGeneratedSurfaces.length + embeddedGeneratedSurfaces.length,
+  "every generated surface must classify as base, environment projection, or reviewed embedded surface",
+);
 assert.equal(environmentGeneratedSurfaces.length, 9, "environment-aware registry must contain eight standard projections plus one private Production projection");
+for (const surface of embeddedGeneratedSurfaces) {
+  assert.equal(surface.environment, "staging", `${surface.surfaceKey} embedded surface must remain Staging-only`);
+  assert.equal(surface.private_only, true, `${surface.surfaceKey} embedded surface must remain private`);
+  assert.equal(surface.registration_set, "admin_recovery_staging", `${surface.surfaceKey} registration set drifted`);
+  assert.equal(surface.embed_registration_set, "admin_activation_staging", `${surface.surfaceKey} parent registration set drifted`);
+  assert.match(String(surface.output_file), /\.staging\.yaml$/u, `${surface.surfaceKey} output must remain Staging-specific`);
+}
 const privateProductionSurfaces = environmentGeneratedSurfaces.filter((surface) => surface.private_only === true);
 assert.deepEqual(privateProductionSurfaces.map((surface) => surface.surfaceKey), ["admin_recovery_production"], "only the reviewed private Recovery projection may be private");
 const projectionKeys = new Set();
