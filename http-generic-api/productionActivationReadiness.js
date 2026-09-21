@@ -3,6 +3,7 @@ import { readMcpCatalogSchemaReadinessSafe } from "./mcpCatalogSchemaGuard.js";
 import { runRuntimePersistenceOperationalReadiness } from "./scripts/runtime-persistence-operational-readiness.mjs";
 import { buildProductionAuthorityActivationReadiness } from "./recoveryActivationReadiness.js";
 import { resolveRuntimeEnvironmentStrict } from "./runtimeEnvironmentResolver.js";
+import { inspectProductionRecoveryAuthorityPreflight } from "./productionRecoveryAuthorityPreflight.js";
 
 export const PRODUCTION_ACTIVATION_READINESS_CONTRACT =
   "mad4b.production-activation-readiness.v1";
@@ -179,6 +180,7 @@ export async function runProductionActivationReadiness({
   adapterProvenance = null,
   productionLiveRequested = false,
   productionLiveEnabled = false,
+  recoveryAuthorityPreflightReader = inspectProductionRecoveryAuthorityPreflight,
   env = process.env,
 } = {}) {
   const [mcpCatalogSchema, governanceDbPrivilege, runtimePersistence] = await Promise.all([
@@ -206,6 +208,30 @@ export async function runProductionActivationReadiness({
     mutation_attestation_complete: mutationAttestationComplete,
   };
   const dimensionReady = Object.values(checks).every(Boolean);
+
+  let recoveryAuthorityPreflight;
+  try {
+    recoveryAuthorityPreflight = recoveryAuthorityPreflightReader({ env });
+  } catch (error) {
+    recoveryAuthorityPreflight = {
+      contract: "mad4b.production-recovery-authority-preflight.v1",
+      status: "blocked",
+      ok: false,
+      ready: false,
+      configuration_ready_for_candidate_resolution: false,
+      activation_eligible: false,
+      production_live_enabled: false,
+      blockers: ["production_recovery_authority_preflight_failed"],
+      error_code: boundedCode(error, "production_recovery_authority_preflight_failed"),
+      evaluation: {
+        provider_accessed: false,
+        database_connection_performed: false,
+        database_mutation_performed: false,
+        production_mutation_performed: false,
+      },
+      secrets_included: false,
+    };
+  }
 
   const actualLiveState = observedProductionLiveState(recoveryComposition);
   const candidateEvaluation = productionCandidateEvaluationComposition(recoveryComposition, env);
@@ -258,6 +284,7 @@ export async function runProductionActivationReadiness({
     },
     hard_activation_blocked_until_ready: !ready,
     production_authority_readiness: productionAuthorityReadiness,
+    production_recovery_authority_preflight: recoveryAuthorityPreflight,
     production_live: productionAuthorityReadiness.production_live,
     activation_eligible: productionAuthorityReadiness.activation_eligible,
     activation_candidate: {
