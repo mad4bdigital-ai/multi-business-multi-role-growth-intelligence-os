@@ -504,7 +504,8 @@
         "http-generic-api/openapi/generated/operation-manifests/activation_admin_production.json",
         "http-generic-api/openapi/generated/operation-manifests/activation_admin_staging.json",
         "http-generic-api/openapi/generated/operation-manifests/admin_recovery_production.json",
-        "http-generic-api/openapi/generated/operation-manifests/admin_recovery_staging.json"
+        "http-generic-api/openapi/generated/operation-manifests/admin_recovery_staging.json",
+        "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.staging.yaml"
       ]
     },
     {
