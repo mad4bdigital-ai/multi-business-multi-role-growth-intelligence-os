@@ -8,7 +8,7 @@
       "lifecycle_class": "canonical_registry",
       "target_role": "runtime",
       "source_file": "migrations/20260920_platform_admin_workspace_canonical_seed.sql",
-      "sha256": "45da4384834c08758e40d93f4e82d7c30ed264a0b6455e659f0fea3ba6126fbb",
+      "sha256": "4fb41955ae3ab5a6748c795c6f3291a49c58cf62bf2f84c411cd559059e66e4e",
       "statement_count": 2,
       "replay_modes": [
         "zero_object_rebuild",

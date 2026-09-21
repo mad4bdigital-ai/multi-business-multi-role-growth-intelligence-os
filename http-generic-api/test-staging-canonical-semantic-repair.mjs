@@ -1,4 +1,8 @@
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+import {fileURLToPath} from "node:url";
 import {applyStagingCanonicalSemanticRepair,inspectStagingCanonicalSemanticRepair,planStagingCanonicalSemanticRepair,reconcileStagingCanonicalSemanticRepair,STAGING_CANONICAL_SEMANTIC_REPAIR_ARTIFACT} from "./stagingCanonicalSemanticRepair.js";
 
 const commit="a".repeat(40);
@@ -14,7 +18,10 @@ function executorFor(state){return{async query(sql){const source=String(sql).tri
 
 function ledgerFor(){const records=new Map();return{records,async reserve(input){if(records.has(input.plan_sha256))throw Object.assign(new Error("consumed"),{code:"STAGING_CANONICAL_REPAIR_PLAN_ALREADY_CONSUMED"});records.set(input.plan_sha256,{...input,state:"reserved"});},async markExecuting(plan,details){records.set(plan,{...records.get(plan),...details,state:"executing"});},async markSucceeded(plan,details){records.set(plan,{...records.get(plan),...details,state:"succeeded"});},async markUnknown(plan,details){records.set(plan,{...records.get(plan),...details,state:"unknown_outcome"});},async read(plan){return records.get(plan)||null;}};}
 
-assert.equal(STAGING_CANONICAL_SEMANTIC_REPAIR_ARTIFACT.seed_sha256,"4fb41955ae3ab5a6748c795c6f3291a49c58cf62bf2f84c411cd559059e66e4e");
+const apiRoot=path.dirname(fileURLToPath(import.meta.url));
+const seedRelativePath=STAGING_CANONICAL_SEMANTIC_REPAIR_ARTIFACT.artifact.file.replace(/^http-generic-api\//u,"");
+const expectedSeedSha256=crypto.createHash("sha256").update(fs.readFileSync(path.join(apiRoot,seedRelativePath))).digest("hex");
+assert.equal(STAGING_CANONICAL_SEMANTIC_REPAIR_ARTIFACT.seed_sha256,expectedSeedSha256);
 assert.equal(STAGING_CANONICAL_SEMANTIC_REPAIR_ARTIFACT.statement_count,2);
 assert.equal(STAGING_CANONICAL_SEMANTIC_REPAIR_ARTIFACT.artifact.artifact_key,"platform_admin_workspace");
 assert.ok(STAGING_CANONICAL_SEMANTIC_REPAIR_ARTIFACT.semantic_artifact_registry_sha256);
