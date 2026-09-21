@@ -43,6 +43,7 @@ const FRONTEND_OPENAPI_ALLOWED_CHANGED_FILES = new Set([
   "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
   "http-generic-api/openapi/openapi.tenant-gpt.activation.production.yaml",
   "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml",
+  "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
   "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml",
   "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.production.yaml",
   "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml",
