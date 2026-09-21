@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7782,
+  "file_count": 7789,
   "route_count": 1111,
   "write_route_count": 676,
   "classified_write_surface_count": 44,
@@ -2596,8 +2596,8 @@
     },
     {
       "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#POST:/deployment-info/runtime-bootstrap-dry-run:0",
-      "source_line": 299,
-      "source_offset": 10003,
+      "source_line": 307,
+      "source_offset": 10186,
       "method": "POST",
       "path": "/deployment-info/runtime-bootstrap-dry-run",
       "file": "http-generic-api/routes/deploymentInfoRoutes.js",
@@ -2605,8 +2605,8 @@
     },
     {
       "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#POST:/deployment-info/runtime-bootstrap-role-dry-run:1",
-      "source_line": 363,
-      "source_offset": 14551,
+      "source_line": 371,
+      "source_offset": 14734,
       "method": "POST",
       "path": "/deployment-info/runtime-bootstrap-role-dry-run",
       "file": "http-generic-api/routes/deploymentInfoRoutes.js",
@@ -2614,8 +2614,8 @@
     },
     {
       "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#GET:/deployment-info/runtime-binding:2",
-      "source_line": 441,
-      "source_offset": 18146,
+      "source_line": 449,
+      "source_offset": 18329,
       "method": "GET",
       "path": "/deployment-info/runtime-binding",
       "file": "http-generic-api/routes/deploymentInfoRoutes.js",
@@ -2623,8 +2623,8 @@
     },
     {
       "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#GET:/deployment-info:3",
-      "source_line": 448,
-      "source_offset": 18458,
+      "source_line": 456,
+      "source_offset": 18641,
       "method": "GET",
       "path": "/deployment-info",
       "file": "http-generic-api/routes/deploymentInfoRoutes.js",
@@ -21193,10 +21193,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/deploymentInfoRoutes.js",
-        "source_line": 299,
+        "source_line": 307,
         "handler_window_lines": [
-          299,
-          361
+          307,
+          369
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -21257,10 +21257,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/deploymentInfoRoutes.js",
-        "source_line": 363,
+        "source_line": 371,
         "handler_window_lines": [
-          363,
-          439
+          371,
+          447
         ],
         "evidence_flags": {
           "handler_window_present": true,

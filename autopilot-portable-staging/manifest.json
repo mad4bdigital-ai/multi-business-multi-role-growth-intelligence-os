@@ -46,7 +46,7 @@
     },
     {
       "path": "autopilot-portable-staging/Staging-Doctor.ps1",
-      "sha256": "3492dfd997068c783f83b3bee3f2a5f83859435b284e09d8ac94636774e45bdc"
+      "sha256": "ca4c960b2f94cdbba8bde5e61350e8b707f9f500f0661d480b06db8fa6e9cea4"
     },
     {
       "path": "autopilot-portable-staging/Staging-HealthMonitor.ps1",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "0b2f40ec1a0fa8fcabc07d60318b4a9266ea1b313caba091a02f8dcfa33bac07"
+      "sha256": "0c502ecebc576e12f99b6c3fd08bb29ad666ded3c85d82c2fffd0286c7ac1555"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -254,7 +254,7 @@
     },
     {
       "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
-      "sha256": "32657f10120bc3da62881077ddbe4aba4ff01c11f8184808cf48db7c6ae47ef0"
+      "sha256": "b19398e4b6bc773ddee2e3699a74b305852fc5179ce449afb02f03c9bad57b70"
     },
     {
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
@@ -262,7 +262,7 @@
     },
     {
       "path": "http-generic-api/test-staging-operations-logging-contract.mjs",
-      "sha256": "9ff4788d0ca3daec821caa7031b33808c3cbde0f92a7ff05e38e86122bfa9d01"
+      "sha256": "e1b69a5ba248bd1c5d405e1180c59c94ad20697835cec94189b26e756c286068"
     },
     {
       "path": "http-generic-api/test-staging-runtime-oauth-profile.mjs",
@@ -334,7 +334,7 @@
     },
     {
       "path": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
-      "sha256": "27f469f797f322aeaff5467707782935ab1bfac2ec595c87299b1fe2b836de28"
+      "sha256": "e80374143cdcc82ce8664c1c407757c093fbf41462cfcca8cabc3b0e4ffebd4b"
     },
     {
       "path": "autopilot-portable-staging/Staging-Environment.ps1",
