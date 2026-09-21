@@ -13189,53 +13189,13 @@ paths:
                 name:
                   type: string
                   description: Governed DB-backed or virtual tool key returned by listAdminTools; runtime validates registration and inputSchema before dispatch.
+                expected_input_schema_sha256:
+                  type: string
+                  pattern: '^[a-f0-9]{64}$'
+                  description: Optional exact hash returned by listAdminTools. When supplied, execution fails with descriptor_stale if the current tool input schema no longer matches discovery.
                 tool_args:
                   type: object
                   additionalProperties: true
-                expected_input_schema_sha256:
-                  type: string
-                  pattern: '^[a-f0-9]{64}
-                  description: Arguments matching the tool inputSchema. For connect_activate, pass mode and integration_modes here; for connect_device_install, pass device_id here; for admin_control pass tool, sql, args etc. here. For github_rest_endpoint_dispatch, pass a nested tool_args object containing the registry-authorized parent_action_key, endpoint_key, path_params, and bounded query/body plus any required approval or readback evidence; raw methods, URLs, and authorization headers are not accepted.
-                  properties:
-                    mode:
-                      type: string
-                      enum: [managed, dedicated]
-                      description: Activation mode for connect_activate.
-                    device_id:
-                      type: string
-                      pattern: "^[a-z0-9-]{2,32}$"
-                      description: Stable lowercase device id for connect_device_install.
-                    workspace_name:
-                      type: string
-                    integration_modes:
-                      type: object
-                      additionalProperties: true
-                      description: Optional per-app managed/dedicated source policy.
-                    n8n_activation_mode:
-                      type: string
-                      enum: [managed_main_server, self_hosted_local]
-                    provisioning_credential_mode:
-                      type: string
-                      enum: [managed, dedicated]
-                    app_key:
-                      type: string
-                    auth_type:
-                      type: string
-                    display_label:
-                      type: string
-      responses:
-        "200":
-          description: Upstream tool response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ToolDispatchResponse'
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "404": { description: Tool not found, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
-        "500": { description: Tool call failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
-
-                  description: Optional exact hash returned by listAdminTools. When supplied, execution fails with descriptor_stale if the current tool input schema no longer matches discovery.
                   description: Arguments matching the tool inputSchema. For connect_activate, pass mode and integration_modes here; for connect_device_install, pass device_id here; for admin_control pass tool, sql, args etc. here. For github_rest_endpoint_dispatch, pass a nested tool_args object containing the registry-authorized parent_action_key, endpoint_key, path_params, and bounded query/body plus any required approval or readback evidence; raw methods, URLs, and authorization headers are not accepted.
                   properties:
                     mode:

@@ -39,6 +39,14 @@
       ]
     },
     {
+      "id": "admin_tool_descriptor_binding_contract",
+      "test_paths": [
+        "http-generic-api/test-admin-tool-descriptor-binding.mjs",
+        "http-generic-api/routes/gptToolsRoutes.js",
+        "http-generic-api/openapi.yaml"
+      ]
+    },
+    {
       "id": "branch_generic_policy_target",
       "test_paths": [
         "http-generic-api/scripts/test-github-review-policy-target.mjs",
