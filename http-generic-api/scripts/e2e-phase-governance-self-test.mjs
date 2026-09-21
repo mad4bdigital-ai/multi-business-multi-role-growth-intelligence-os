@@ -262,7 +262,7 @@ const expected = [${JSON.stringify(baseSha)}, ${JSON.stringify(headSha)}];
 if (JSON.stringify(process.argv.slice(2)) !== JSON.stringify(expected)) process.exit(9);
 `);
   const evaluation = {
-    policy: { max_test_count_per_contract: 5 },
+    policy: { max_test_count_per_contract: 5, test_timeout_ms: policy.test_timeout_ms },
     contracts: [{
       featureKey: "sha-placeholder-resolution",
       currentPhase: {
@@ -295,9 +295,44 @@ if (JSON.stringify(process.argv.slice(2)) !== JSON.stringify(expected)) process.
   assert.match(missingBaseResult.error, /BASE_SHA.*exact lowercase 40-character Git SHA/u);
 }
 
+
+{
+  const root = tempRepo();
+  write(root, "hung-e2e-test.mjs", "setInterval(() => {}, 1000);\n");
+  const evaluation = {
+    policy: { max_test_count_per_contract: 5, test_timeout_ms: 1000 },
+    contracts: [{
+      featureKey: "bounded-timeout",
+      currentPhase: {
+        id: "mvp",
+        status: "implemented",
+        e2e_journeys: [{
+          id: "hung-child-must-time-out",
+          tests: [{
+            id: "hung-e2e-test",
+            runner: "node",
+            working_directory: ".",
+            path: "hung-e2e-test.mjs",
+            args: []
+          }]
+        }]
+      }
+    }]
+  };
+  const startedAt = Date.now();
+  const timed = executePhaseTests(evaluation, { root });
+  assert.equal(timed.ok, false);
+  assert.equal(timed.results.length, 1);
+  assert.equal(timed.results[0].status, "error");
+  assert.equal(timed.results[0].timed_out, true);
+  assert.equal(timed.results[0].timeout_ms, 1000);
+  assert.match(timed.results[0].error, /ETIMEDOUT|timed out/iu);
+  assert.ok(Date.now() - startedAt < 10_000);
+}
+
 console.log(JSON.stringify({
   ok: true,
-  tests: 14,
+  tests: 15,
   gate: "e2e_phase_governance",
   reverse_scope_dependency_closure: true,
   governance_only_reverse_execution: true,
@@ -305,5 +340,6 @@ console.log(JSON.stringify({
   repository_governance_classification: "constitution_control_plane_paths",
   governed_sha_placeholder_resolution: true,
   missing_governed_sha_fails_closed: true,
+  bounded_child_test_timeout: true,
   secrets_included: false
 }));
