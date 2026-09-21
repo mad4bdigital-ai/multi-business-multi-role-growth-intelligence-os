@@ -170,7 +170,12 @@ const semanticSnapshotStart = legacyClone.indexOf('$semanticContainerPath = "/tm
 const semanticSnapshotEnd = legacyClone.indexOf("foreach ($seed in $canonicalSeedRows)", semanticSnapshotStart);
 assert.ok(semanticSnapshotStart >= 0 && semanticSnapshotEnd > semanticSnapshotStart, "canonical semantic snapshot apply block is missing");
 const semanticSnapshotBlock = legacyClone.slice(semanticSnapshotStart, semanticSnapshotEnd);
-assert.match(legacyClone, /canonical_semantic_snapshot\.contract/);
+assert.match(legacyClone, /\$semanticSnapshotPolicy = \$roleMigrationManifest\.canonical_semantic_snapshot/);
+assert.match(legacyClone, /\$semanticSnapshotManifest = \$bundleManifest\.canonical_semantic_snapshot/);
+assert.match(
+  legacyClone,
+  /Require \(\[string\]\$semanticSnapshotPolicy\.contract -eq "mad4b\.staging\.canonical-semantic-snapshot\.v1" -and \[string\]\$semanticSnapshotManifest\.contract -eq \[string\]\$semanticSnapshotPolicy\.contract\)/,
+);
 assert.match(legacyClone, /disposable_git_migration_projection/);
 assert.match(legacyClone, /zero_object_rebuild_only/);
 assert.match(legacyClone, /live_environment_data_copy_forbidden/);
