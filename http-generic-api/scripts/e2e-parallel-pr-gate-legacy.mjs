@@ -86,6 +86,22 @@ function isParallelSharedGovernanceFile(file) {
   return PARALLEL_SHARED_GOVERNANCE_FILES.has(normalize(file));
 }
 
+function resolveRegisteredDerivedOutputs(root) {
+  const registryPath = path.join(root, ".github", "derived-state-governance.json");
+  if (!fs.existsSync(registryPath)) return new Set();
+  try {
+    const registry = readJson(registryPath);
+    return new Set(
+      (Array.isArray(registry.artifacts) ? registry.artifacts : [])
+        .flatMap((artifact) => Array.isArray(artifact.outputs) ? artifact.outputs : [])
+        .map(normalize)
+        .filter(Boolean)
+    );
+  } catch {
+    return new Set();
+  }
+}
+
 export function resolveParallelMaintenanceScope(contract) {
   const contractScope = Array.isArray(contract.scope?.include) ? contract.scope.include : [];
   const workstreamScopes = Array.isArray(contract.parallel_work?.workstreams)
@@ -494,9 +510,11 @@ function main() {
     contractPath = integrations[0].summary.contract_path;
   } else if (options.baseRef && options.headRef && !options.headRef.startsWith("gh-readonly-queue/") && !productionPromotion) {
     const policy = readJson(path.join(options.root, ".specify", "e2e-phase-governance.json"));
+    const registeredDerivedOutputs = resolveRegisteredDerivedOutputs(options.root);
     const runtimeFiles = report.changed_files.filter((file) =>
       policy.runtime_patterns.some((pattern) => matchesPattern(file, pattern))
       && !isParallelSharedGovernanceFile(file)
+      && !registeredDerivedOutputs.has(normalize(file))
     );
     const maintenanceParallelSummaries = resolveParallelMaintenanceSummaries({
       root: options.root,

@@ -171,6 +171,32 @@ assert.equal(coveredReport.pr_mode, "standard");
 assert.equal(coveredReport.single_pr_maintenance_contract?.feature_key, "001-example-maintenance");
 assert.deepEqual(coveredReport.single_pr_maintenance_contract?.runtime_files, ["http-generic-api/example/runtime/service.mjs"]);
 
+fs.mkdirSync(path.join(root, ".github"), { recursive: true });
+const derivedOutputPath = "http-generic-api/example/runtime/generated-derived.mjs";
+fs.writeFileSync(path.join(root, derivedOutputPath), "export const generated = true;\n");
+fs.writeFileSync(
+  path.join(root, ".github", "derived-state-governance.json"),
+  `${JSON.stringify({
+    contract: "mad4b.repository-derived-state-governance.v1",
+    artifacts: [{
+      artifact_id: "example-derived-runtime",
+      outputs: [derivedOutputPath]
+    }]
+  }, null, 2)}\n`,
+);
+run("git", ["add", "."], root);
+run("git", ["commit", "-m", "add registered derived runtime output"], root);
+const derivedOutputSha = run("git", ["rev-parse", "HEAD"], root).trim();
+const derivedOutput = invokeGate(root, baseSha, derivedOutputSha);
+assert.equal(derivedOutput.status, 0, derivedOutput.stderr || derivedOutput.stdout);
+const derivedOutputReport = JSON.parse(derivedOutput.stdout);
+assert.equal(derivedOutputReport.ok, true, JSON.stringify(derivedOutputReport.findings));
+assert.deepEqual(
+  derivedOutputReport.single_pr_maintenance_contract?.runtime_files,
+  ["http-generic-api/example/runtime/service.mjs"],
+  "registered derived outputs must not expand source runtime ownership coverage",
+);
+
 const duplicateContract = { ...maintenanceContract, feature_key: "001-example-maintenance-duplicate" };
 const duplicatePath = path.join(root, ".changes", "e2e", "001-example-maintenance-duplicate.json");
 fs.writeFileSync(duplicatePath, `${JSON.stringify(duplicateContract, null, 2)}\n`);
@@ -206,7 +232,7 @@ assert.equal(reopenedReport.single_pr_maintenance_contract, null);
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 16,
+  tests: 17,
   contract: "fully_scoped_single_pr_post_integration_maintenance",
   fail_closed_for_under_scope_ambiguity_non_main_and_reopened_parallel_delivery: true,
   secrets_included: false

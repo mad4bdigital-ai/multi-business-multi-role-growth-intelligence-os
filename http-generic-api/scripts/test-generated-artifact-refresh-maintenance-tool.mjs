@@ -409,7 +409,7 @@ runCheck("custom-gpt-generated-contract-write-set-parity", () => {
   assert.ok(frontendArtifact, "frontend_openapi_projection must remain registered");
   for (const output of expectedOutputs) {
     assert.ok(toolSource.includes('"' + output + '"'), "frontend writer exact allowlist missing: " + output);
-    const pattern = "^" + output.replace(/\./g, "\\\\.") + "$";
+    const pattern = "^" + output.replace(/\./g, "\\.") + "$";
     assert.ok(registration?.allowed_changed_path_patterns?.includes(pattern), "maintenance governance missing exact generated output: " + output);
     assert.ok(frontendArtifact.outputs?.includes(output), "derived-state frontend projection missing generated output: " + output);
   }
