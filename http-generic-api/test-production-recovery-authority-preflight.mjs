@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { runProductionActivationReadiness } from "./productionActivationReadiness.js";
 import {
   classifyProductionRecoveryAuthorityPreflight,
   inspectProductionRecoveryAuthorityPreflight,
@@ -70,6 +71,39 @@ const explicitRuntime = {
   assert(!serialized.includes("db.internal"));
   assert(!serialized.includes("recovery_control"));
   assert.equal(result.secrets_included, false);
+}
+
+{
+  const preflight = {
+    contract: "mad4b.production-recovery-authority-preflight.v1",
+    status: "blocked",
+    ok: false,
+    ready: false,
+    activation_eligible: false,
+    blockers: ["production_authority_graph_resolution_required"],
+    secrets_included: false,
+  };
+  const readOnly = {
+    ok: true,
+    ready: true,
+    read_only_probe: true,
+    sql_mutation_performed: false,
+    migration_apply_performed: false,
+    provider_mutation_performed: false,
+    deployment_performed: false,
+    secrets_included: false,
+  };
+  const readiness = await runProductionActivationReadiness({
+    mcpCatalogReader: async () => ({ ...readOnly, ok: true }),
+    governanceDbReader: async () => ({ ...readOnly, ready: true }),
+    runtimePersistenceReader: async () => ({ ...readOnly, ok: true }),
+    recoveryAuthorityPreflightReader: () => preflight,
+    recoveryComposition: null,
+    env: { DEPLOYMENT_ENVIRONMENT: "production_hostinger_autodeploy" },
+  });
+  assert.deepEqual(readiness.production_recovery_authority_preflight, preflight);
+  assert.equal(readiness.production_recovery_authority_preflight.activation_eligible, false);
+  assert.equal(readiness.production_mutation_performed, false);
 }
 
 console.log("Production Recovery authority preflight tests passed");
