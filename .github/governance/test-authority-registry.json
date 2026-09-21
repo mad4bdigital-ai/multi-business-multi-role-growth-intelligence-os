@@ -310,8 +310,7 @@
         "http-generic-api/test-recovery-composition.mjs",
         "http-generic-api/test-production-recovery-authority-preflight.mjs",
         "http-generic-api/test-production-recovery-authority-foundation.mjs",
-        "http-generic-api/test-production-recovery-durable-evidence-adapters.mjs",
-        "http-generic-api/test-production-recovery-durable-evidence-adapters.mjs",
+        "http-generic-api/test-production-recovery-operational-adapters.mjs",
         "http-generic-api/test-production-recovery-composition-factory.mjs",
         "http-generic-api/test-production-activation-readiness.mjs",
         "http-generic-api/test-production-recovery-durable-evidence.mjs",
@@ -355,7 +354,8 @@
         "docs/recovery-action-ticket-bridge.md",
         "http-generic-api/routes/index.js",
         "http-generic-api/routes/recoveryKernelRoutes.js",
-        "http-generic-api/routes/systemLayerRoutes.js"
+        "http-generic-api/routes/systemLayerRoutes.js",
+        "http-generic-api/test-production-recovery-durable-evidence-adapters.mjs"
       ]
     },
     {
@@ -786,6 +786,7 @@
         "http-generic-api/test-recovery-composition.mjs",
         "http-generic-api/test-production-recovery-composition-factory.mjs",
         "http-generic-api/test-production-recovery-authority-foundation.mjs",
+        "http-generic-api/test-production-recovery-operational-adapters.mjs",
         "http-generic-api/test-recovery-system-tool-store-authority-separation.mjs",
         "http-generic-api/test-server-managed-recovery-binding.mjs",
         "http-generic-api/test-recovery-activation-readiness.mjs",
