@@ -3861,6 +3861,68 @@ components:
           type: boolean
           enum: [false]
 
+    StagingRecoveryGatewayPreflightRequest:
+      type: object
+      additionalProperties: false
+      required: [expected_source_commit, expected_policy_hash, environment_convergence_plan_sha256]
+      properties:
+        expected_source_commit: { type: string, pattern: '^[0-9a-f]{40}$' }
+        expected_policy_hash: { type: string, pattern: '^[0-9a-f]{64}$' }
+        environment_convergence_plan_sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+    StagingRecoveryContractResponse:
+      type: object
+      additionalProperties: true
+      required: [contract, surface, environment, secrets_included]
+      properties:
+        contract: { type: string }
+        surface: { type: string }
+        environment: { type: string, const: staging }
+        secrets_included: { type: boolean, const: false }
+    StagingRecoveryReadinessResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, status, ready, environment, secrets_included]
+      properties:
+        ok: { type: boolean }
+        status: { type: string, enum: [ready, blocked] }
+        ready: { type: boolean }
+        environment: { type: string, const: staging }
+        secrets_included: { type: boolean, const: false }
+    StagingRecoveryCertificationStatusResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, environment, certification, live_certification, secrets_included]
+      properties:
+        ok: { type: boolean }
+        environment: { type: string, const: staging }
+        certification: { type: object, additionalProperties: true }
+        live_certification: { type: object, additionalProperties: true }
+        secrets_included: { type: boolean, const: false }
+    StagingRecoveryGatewayPreviewResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, environment, preflight_ready, apply_ready, provider_mutation_performed, production_mutation_performed, secrets_included]
+      properties:
+        ok: { type: boolean }
+        environment: { type: string, const: staging }
+        preflight_ready: { type: boolean }
+        apply_ready: { type: boolean, const: false }
+        provider_mutation_performed: { type: boolean, const: false }
+        production_mutation_performed: { type: boolean, const: false }
+        secrets_included: { type: boolean, const: false }
+    StagingRecoveryGatewayDryRunResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, environment, execution_plan_issued, apply_authority_issued, provider_mutation_performed, production_mutation_performed, secrets_included]
+      properties:
+        ok: { type: boolean }
+        environment: { type: string, const: staging }
+        execution_plan_issued: { type: boolean }
+        apply_authority_issued: { type: boolean, const: false }
+        provider_mutation_performed: { type: boolean, const: false }
+        production_mutation_performed: { type: boolean, const: false }
+        secrets_included: { type: boolean, const: false }
+
   responses:
     BadRequest:
       description: Invalid request body or missing required field
@@ -12761,7 +12823,8 @@ paths:
               properties:
                 name:
                   type: string
-                  enum: [connector_registry_list, connector_registry_get, activation_drive_probe, activation_sheets_bootstrap_read, activation_github_validate, activation_provider_bootstrap_validate, activation_bootstrap_config_upsert, recovery_kernel_capabilities, system_tool_get, system_tools_search, recovery_kernel_call]
+                  x-mad4b-enum-source: system_layer_tools
+                  description: Exact fixed system-tool name projected from the runtime SYSTEM_LAYER_TOOLS registry.
                 arguments:
                   type: object
                   additionalProperties: true
@@ -24380,3 +24443,78 @@ paths:
           description: Backend API key authentication is required.
         "403":
           description: Admin principal authorization is required.
+
+  /admin/recovery/staging/contract:
+    get:
+      operationId: getStagingRecoveryAdminContract
+      tags: [staging-recovery]
+      x-custom-gpt-surfaces: [admin_recovery_staging]
+      x-mad4b-operation-ownership: { authority_domain: staging_recovery, owning_surface: admin_recovery_staging, environment: staging, execution_class: read_only, admin_only: true, tenant_visible: false }
+      x-openai-isConsequential: false
+      summary: Read the Staging Recovery surface contract
+      security: [{ backendBearerAuth: [] }]
+      responses:
+        '200': { description: Staging Recovery contract, content: { application/json: { schema: { $ref: '#/components/schemas/StagingRecoveryContractResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /admin/recovery/staging/readiness:
+    get:
+      operationId: getStagingRecoveryAdminReadiness
+      tags: [staging-recovery]
+      x-custom-gpt-surfaces: [admin_recovery_staging]
+      x-mad4b-operation-ownership: { authority_domain: staging_recovery, owning_surface: admin_recovery_staging, environment: staging, execution_class: read_only, admin_only: true, tenant_visible: false }
+      x-openai-isConsequential: false
+      summary: Read Staging Recovery authority readiness
+      security: [{ backendBearerAuth: [] }]
+      responses:
+        '200': { description: Bounded Staging Recovery readiness, content: { application/json: { schema: { $ref: '#/components/schemas/StagingRecoveryReadinessResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /admin/recovery/staging/certification:
+    get:
+      operationId: getStagingRecoveryCertificationStatus
+      tags: [staging-recovery]
+      x-custom-gpt-surfaces: [admin_recovery_staging]
+      x-mad4b-operation-ownership: { authority_domain: staging_recovery, owning_surface: admin_recovery_staging, environment: staging, execution_class: read_only, admin_only: true, tenant_visible: false }
+      x-openai-isConsequential: false
+      summary: Read Staging Recovery certification status
+      security: [{ backendBearerAuth: [] }]
+      responses:
+        '200': { description: Bounded Staging Recovery certification status, content: { application/json: { schema: { $ref: '#/components/schemas/StagingRecoveryCertificationStatusResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /admin/recovery/staging/gateway/rollout-plan:
+    post:
+      operationId: previewStagingActivationGatewayRolloutPlan
+      tags: [staging-recovery]
+      x-custom-gpt-surfaces: [admin_recovery_staging]
+      x-mad4b-operation-ownership: { authority_domain: staging_recovery, owning_surface: admin_recovery_staging, environment: staging, execution_class: preview, admin_only: true, tenant_visible: false }
+      x-openai-isConsequential: false
+      summary: Preview the server-bound Staging Activation Gateway rollout plan
+      security: [{ backendBearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/StagingRecoveryGatewayPreflightRequest' } } } }
+      responses:
+        '200': { description: Non-persistent Gateway rollout preview, content: { application/json: { schema: { $ref: '#/components/schemas/StagingRecoveryGatewayPreviewResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /admin/recovery/staging/gateway/dark-deploy-dry-run:
+    post:
+      operationId: prepareStagingActivationGatewayDarkDeployDryRun
+      tags: [staging-recovery]
+      x-custom-gpt-surfaces: [admin_recovery_staging]
+      x-mad4b-operation-ownership: { authority_domain: staging_recovery, owning_surface: admin_recovery_staging, environment: staging, execution_class: governed_dry_run_prepare, admin_only: true, tenant_visible: false }
+      x-openai-isConsequential: true
+      summary: Prepare a server-bound Staging Activation Gateway dark-deploy dry-run
+      security: [{ backendBearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/StagingRecoveryGatewayPreflightRequest' } } } }
+      responses:
+        '200': { description: Bounded dry-run plan preparation, content: { application/json: { schema: { $ref: '#/components/schemas/StagingRecoveryGatewayDryRunResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }

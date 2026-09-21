@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
 import { assertOpenApiResponseObjects } from "./openapi-response-object-guard.mjs";
+import { SYSTEM_LAYER_TOOLS } from "../routes/systemLayerRoutes.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const API_ROOT = path.resolve(__dirname, "..");
@@ -16,6 +17,8 @@ const DESCRIPTION_LIMIT = 300;
 const SOURCE_OPENAPI_SHA256 = createHash("sha256").update(fs.readFileSync(SOURCE_OPENAPI_FILE, "utf8")).digest("hex");
 const SURFACE_REGISTRY_SHA256 = createHash("sha256").update(fs.readFileSync(SURFACE_REGISTRY_FILE, "utf8")).digest("hex");
 const DOMAIN_FAMILY_POLICY_SHA256 = createHash("sha256").update(fs.readFileSync(DOMAIN_FAMILY_POLICY_FILE, "utf8")).digest("hex");
+const FIXED_ADMIN_SYSTEM_TOOL_NAMES = Object.freeze([...new Set(SYSTEM_LAYER_TOOLS.map((tool) => String(tool?.name || "").trim()).filter(Boolean))].sort());
+const FIXED_ADMIN_SYSTEM_TOOL_ENUM_SHA256 = createHash("sha256").update(JSON.stringify(FIXED_ADMIN_SYSTEM_TOOL_NAMES)).digest("hex");
 
 function cliValue(name) {
   const inline = process.argv.find((arg) => String(arg).startsWith(`${name}=`));
@@ -527,6 +530,34 @@ function rewriteEnvironmentDomainReferences(value, environment, domainPolicy) {
   return value;
 }
 
+
+function expectedOperationManifest(surfaceKey, surface, selectedOperations) {
+  const actualIds = selectedOperations.map((entry) => entry.operation?.operationId).filter(Boolean).sort();
+  const expected = surface.expected_operation_manifest || null;
+  if (expected) {
+    const expectedIds = [...(expected.operation_ids || [])].map(String).sort();
+    if (Number(expected.operation_count) !== expectedIds.length) throw new Error(`${surfaceKey}: expected operation manifest count does not match operation_ids`);
+    if (JSON.stringify(actualIds) !== JSON.stringify(expectedIds)) throw new Error(`${surfaceKey}: operation manifest drift expected=[${expectedIds.join(",")}] actual=[${actualIds.join(",")}]`);
+  }
+  const manifest = { surface: surfaceKey, environment: surface.environment || "unspecified", operation_count: actualIds.length, operation_ids: actualIds };
+  return { ...manifest, sha256: createHash("sha256").update(JSON.stringify(manifest)).digest("hex") };
+}
+
+function materializeFixedAdminSystemToolEnum(doc, surfaceKey) {
+  for (const entry of collectOperations(doc)) {
+    if (entry.operation?.operationId !== "callAdminSystemTool") continue;
+    const media = entry.operation?.requestBody?.content?.["application/json"];
+    const nameSchema = media?.schema?.properties?.name;
+    if (!nameSchema || nameSchema["x-mad4b-enum-source"] !== "system_layer_tools") throw new Error(`${surfaceKey}: callAdminSystemTool.name must use system_layer_tools enum authority`);
+    nameSchema.enum = [...FIXED_ADMIN_SYSTEM_TOOL_NAMES];
+    nameSchema["x-mad4b-enum-sha256"] = FIXED_ADMIN_SYSTEM_TOOL_ENUM_SHA256;
+    for (const example of Object.values(media?.examples || {})) {
+      const name = example?.value?.name;
+      if (name && !FIXED_ADMIN_SYSTEM_TOOL_NAMES.includes(String(name))) throw new Error(`${surfaceKey}: callAdminSystemTool example is outside fixed registry: ${name}`);
+    }
+  }
+}
+
 function buildSurfaceDoc(sourceDoc, selectedOperations, surfaceKey, surface, registry, domainPolicy) {
   const paths = {};
   for (const entry of selectedOperations) {
@@ -546,6 +577,7 @@ function buildSurfaceDoc(sourceDoc, selectedOperations, surfaceKey, surface, reg
   };
   doc.servers = [{ url: surface.server_url, description: `${surfaceKey} surface` }];
   const operationCount = selectedOperations.length;
+  const operationManifest = expectedOperationManifest(surfaceKey, surface, selectedOperations);
   const warningLimit = Number(surface.warning_operation_limit || surface.hard_operation_limit || 30);
   doc["x-custom-gpt-generation"] = {
     generator: "http-generic-api/scripts/split-openapi.mjs",
@@ -563,6 +595,7 @@ function buildSurfaceDoc(sourceDoc, selectedOperations, surfaceKey, surface, reg
     static_operation_ids: Array.isArray(surface.selector?.static_operation_ids) ? [...surface.selector.static_operation_ids] : null,
     dynamic_operation_ids: Array.isArray(surface.selector?.dynamic_operation_ids) ? [...surface.selector.dynamic_operation_ids] : null,
     operation_count: operationCount,
+    operation_manifest: operationManifest,
     warning_operation_limit: warningLimit,
     warning_budget_exceeded: operationCount > warningLimit,
     hard_operation_limit: Number(surface.hard_operation_limit || 30),
@@ -578,6 +611,7 @@ function buildSurfaceDoc(sourceDoc, selectedOperations, surfaceKey, surface, reg
     }
   }
   applySecurityProfile(doc, sourceDoc, surface);
+  materializeFixedAdminSystemToolEnum(doc, surfaceKey);
   stripProductionOnlyRequestCapabilities(doc, surface.environment);
   for (const item of Object.values(doc.paths || {})) {
     for (const [method, operation] of Object.entries(item || {})) {
