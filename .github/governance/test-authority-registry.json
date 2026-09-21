@@ -354,7 +354,8 @@
         "docs/recovery-action-ticket-bridge.md",
         "http-generic-api/routes/index.js",
         "http-generic-api/routes/recoveryKernelRoutes.js",
-        "http-generic-api/routes/systemLayerRoutes.js"
+        "http-generic-api/routes/systemLayerRoutes.js",
+        "http-generic-api/test-production-recovery-durable-evidence-adapters.mjs"
       ]
     },
     {
