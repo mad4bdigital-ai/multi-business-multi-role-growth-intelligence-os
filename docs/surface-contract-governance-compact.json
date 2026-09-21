@@ -1,11 +1,11 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 97.92,
+  "docs_completion_percent": 97.71,
   "docs_complete_count": 470,
-  "docs_gap_count": 10,
-  "queue_items": 10,
-  "blocking_new_item_count": 7,
+  "docs_gap_count": 11,
+  "queue_items": 12,
+  "blocking_new_item_count": 9,
   "gate_ok": false,
   "top_actionable": [
     {
@@ -33,6 +33,12 @@
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
+      "migration_file": "20260920_wordpress_staging_plugin_deploy_v2_authority.sql",
+      "queue_class": "critical_review",
+      "score": 738,
+      "next_step": "add targeted patch-index, parity, and governance documentation"
+    },
+    {
       "migration_file": "1038_sprint69_github_actions_workflow_control_dispatch.sql",
       "queue_class": "high_review",
       "score": 655,
@@ -46,15 +52,15 @@
     }
   ],
   "openapi_missing_sql_route_count": 2,
-  "openapi_exempt_sql_route_count": 676,
-  "total_sql_route_like_count": 710,
+  "openapi_exempt_sql_route_count": 677,
+  "total_sql_route_like_count": 711,
   "safety_marker_gap_migrations": 3,
   "trend_quality_gate": {
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 7,
-    "warning_new_item_count": 7
+    "blocking_new_item_count": 9,
+    "warning_new_item_count": 9
   },
   "safety": {
     "executes_provider_calls": false,
