@@ -43,6 +43,22 @@ const explicitRuntime = {
 }
 
 {
+  const result = classifyProductionRecoveryAuthorityPreflight({
+    runtime: explicitRuntime,
+    binding: { module_configured: true, requested_mode: "production_live", mode: "injected_non_live" },
+    controlStoreConfigured: true,
+    authorityGraphResolved: true,
+    activationEligible: false,
+    productionLiveEnabled: false,
+  });
+  assert.equal(result.ready, true);
+  assert.equal(result.status, "ready");
+  assert.deepEqual(result.blockers, []);
+  assert.equal(result.authority_graph_resolved, true);
+  assert.equal(result.activation_eligible, false);
+}
+
+{
   const env = {
     DEPLOYMENT_ENVIRONMENT: "production_hostinger_autodeploy",
     RECOVERY_SERVER_MANAGED_BINDING_MODULE: "/server/production-recovery-authority.js",
