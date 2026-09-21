@@ -1,0 +1,105 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-recovery-authority-foundation-7999-20260921",
+  "title": "Production Recovery authority foundation canary",
+  "delivery_mode": "multi_pr",
+  "current_phase": "canary",
+  "scope": {
+    "include": [
+      ".changes/e2e/production-recovery-authority-foundation-7999-20260921.json",
+      "docs/runbooks/production-recovery-authority-foundation-7999.md",
+      "http-generic-api/productionRecoveryAuthorityFoundation.js",
+      "http-generic-api/test-production-recovery-authority-foundation.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "canary"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false,
+    "live_migration_executed": false,
+    "live_grant_executed": false,
+    "deployment_or_restart_executed": false
+  },
+  "phases": [
+    {
+      "id": "canary",
+      "status": "implemented",
+      "objective": "Provide deployment-owned Production Recovery approval and execution-ticket authority primitives over the existing independent Recovery Control Store without creating a complete live graph or touching Production.",
+      "e2e_journeys": [
+        {
+          "id": "production-recovery-authority-foundation-fail-closed",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Production Recovery deployment composition",
+          "entrypoint": "createProductionRecoveryAuthorityFoundation",
+          "terminal_outcome": "A server-owned canary foundation exposes durable approval/ticket/deployment-identity authorities while declaring all consequential executor/readback/ledger components deferred and production_live disabled.",
+          "steps": [
+            "Create a dedicated Ed25519 execution-ticket signer and verifier without returning private material.",
+            "Construct the Recovery Control Store through an injected factory and require exact verifier object identity.",
+            "Derive approval material server-side from the immutable challenge binding without persisting or returning the token.",
+            "Persist bounded challenge references only through the independent Recovery Control Store.",
+            "Wrap the server-derived Production deployment attestation source.",
+            "Return the six deferred consequential components explicitly and keep activation ineligible."
+          ],
+          "assertions": [
+            "No database connection, provider access, workflow dispatch, migration, grant, deployment or Production mutation occurs during foundation construction.",
+            "Approval material is not persisted and is never returned by challenge issuance.",
+            "Recovery Store execution-ticket verifier object identity exactly matches the signer authority's verifier.",
+            "Wrong ticket hashes and approval material fail verification.",
+            "The foundation reports complete_authority_graph=false, production_live_enabled=false and activation_eligible=false.",
+            "Mutation executor, Hostinger executor, independent readback, partial receipts, proof resolver and migration ledger remain explicit blockers.",
+            "secrets_included=false"
+          ],
+          "tests": [
+            {
+              "id": "production-recovery-authority-foundation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-recovery-authority-foundation.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/production-recovery-authority-foundation-7999-20260921.json",
+            "docs/runbooks/production-recovery-authority-foundation-7999.md",
+            "http-generic-api/productionRecoveryAuthorityFoundation.js",
+            "http-generic-api/test-production-recovery-authority-foundation.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Keep Production live Recovery blocked until all deferred authorities, fresh signed certification, exact deployment attestation and separate activation authorization exist.",
+      "blockers": [
+        "host_local_mutation_executor_not_certified",
+        "independent_role_aware_readback_not_certified",
+        "partial_receipt_store_not_certified",
+        "durable_role_selection_proof_resolver_not_certified",
+        "governance_migration_ledger_adapter_not_certified",
+        "complete_deployment_owned_binding_module_not_certified",
+        "fresh_signed_recovery_readiness_evidence_required",
+        "exact_production_activation_readiness_required",
+        "explicit_production_activation_authorization_required"
+      ]
+    }
+  ],
+  "safety": {
+    "repository_only": true,
+    "production_mutation_allowed": false,
+    "database_mutation": false,
+    "migration_apply": false,
+    "grant_execution": false,
+    "provider_call": false,
+    "workflow_dispatch": false,
+    "production_deploy": false,
+    "secrets_included": false
+  }
+}
