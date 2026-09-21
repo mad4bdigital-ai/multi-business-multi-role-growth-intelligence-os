@@ -13,7 +13,7 @@ export const PRODUCTION_RECOVERY_AUTHORITY_FOUNDATION_CONTRACT =
   "mad4b.production-recovery-authority-foundation.v1";
 
 const TICKET_SIGNATURE_CONTRACT = "mad4b.production-recovery-ticket-signature.v1";
-const APPROVAL_MATERIAL_CONTRACT = "mad4b.production-recovery-approval-material.v1";
+const actionBindingSchema = "mad4b.production-recovery-action-binding.v1";
 const SHA256 = /^[0-9a-f]{64}$/u;
 const REQUIRED_STORE_METHODS = Object.freeze([
   "putApproval",
@@ -81,7 +81,7 @@ function requireStore(store) {
 
 function approvalBinding(value = {}) {
   const record = {
-    contract: APPROVAL_MATERIAL_CONTRACT,
+    contract: actionBindingSchema,
     approval_id: text(value.approval_id, 191),
     plan_id: text(value.plan_id, 191),
     plan_hash: text(value.plan_hash, 64).toLowerCase(),
