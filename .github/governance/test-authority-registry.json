@@ -309,6 +309,7 @@
         "http-generic-api/recoveryReadinessEvidence.js",
         "http-generic-api/test-recovery-composition.mjs",
         "http-generic-api/test-production-recovery-authority-preflight.mjs",
+        "http-generic-api/test-production-recovery-authority-foundation.mjs",
         "http-generic-api/test-production-recovery-composition-factory.mjs",
         "http-generic-api/test-production-activation-readiness.mjs",
         "http-generic-api/test-production-recovery-durable-evidence.mjs",
@@ -782,6 +783,7 @@
       "protected_by_tests": [
         "http-generic-api/test-recovery-composition.mjs",
         "http-generic-api/test-production-recovery-composition-factory.mjs",
+        "http-generic-api/test-production-recovery-authority-foundation.mjs",
         "http-generic-api/test-recovery-system-tool-store-authority-separation.mjs",
         "http-generic-api/test-server-managed-recovery-binding.mjs",
         "http-generic-api/test-recovery-activation-readiness.mjs",

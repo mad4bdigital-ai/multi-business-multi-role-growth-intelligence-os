@@ -11,7 +11,7 @@ const HASH = "b".repeat(64);
 const TARGET = "c".repeat(64);
 const PLAN = "plan:1234567890abcdef";
 const STEP = "step:1234567890abcdef";
-const approvalId = "approval:1234567890abcdef";
+const actionRef = "approval:1234567890abcdef";
 
 function keys() {
   const { privateKey, publicKey } = generateKeyPairSync("ed25519");
@@ -60,7 +60,7 @@ function fakeRecoveryStoreFactory(state = {}) {
 function challenge() {
   return {
     contract: "mad4b.recovery-approval-challenge.v1",
-    approval_id: approvalId,
+    approval_id: actionRef,
     plan_id: PLAN,
     plan_hash: HASH,
     step_id: STEP,
@@ -100,9 +100,9 @@ function challenge() {
   await authority.approvalStore.putChallenge(record);
   await store.putApproval(record);
   const loaded = await authority.approvalStore.getChallenge(record.plan_hash, record.step_id);
-  assert.equal(loaded.approval_id, approvalId);
+  assert.equal(loaded.approval_id, actionRef);
   const resolved = await authority.approvalStore.resolveApprovedExecutionApproval({
-    approval_id: approvalId,
+    approval_id: actionRef,
     plan_id: PLAN,
     plan_hash: HASH,
     step_id: STEP,

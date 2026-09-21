@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "production-recovery-authority-foundation-7999-20260921",
-  "title": "Production Recovery authority foundation canary",
+  "title": "Production Recovery authority foundation MVP",
   "delivery_mode": "multi_pr",
   "current_phase": "mvp",
   "scope": {
@@ -10,7 +10,8 @@
       ".changes/e2e/production-recovery-authority-foundation-7999-20260921.json",
       "docs/runbooks/production-recovery-authority-foundation-7999.md",
       "http-generic-api/productionRecoveryAuthorityFoundation.js",
-      "http-generic-api/test-production-recovery-authority-foundation.mjs"
+      "http-generic-api/test-production-recovery-authority-foundation.mjs",
+      ".github/governance/test-authority-registry.json"
     ]
   },
   "merge_contract": {
@@ -19,7 +20,8 @@
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
     "declared_targets": [
-      "production"
+      "production",
+      "staging"
     ],
     "cross_environment_reviewed": true,
     "live_staging_certification_required": true,
