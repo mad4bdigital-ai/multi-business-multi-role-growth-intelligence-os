@@ -496,7 +496,15 @@
         "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
         "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
         "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
-        "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json"
+        "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
+        "http-generic-api/openapi/generated/custom-admin-schema-index.json",
+        "http-generic-api/openapi/generated/custom-gpt-registration-manifest.json",
+        "http-generic-api/openapi/generated/operation-manifests/admin_core_production.json",
+        "http-generic-api/openapi/generated/operation-manifests/admin_core_staging.json",
+        "http-generic-api/openapi/generated/operation-manifests/activation_admin_production.json",
+        "http-generic-api/openapi/generated/operation-manifests/activation_admin_staging.json",
+        "http-generic-api/openapi/generated/operation-manifests/admin_recovery_production.json",
+        "http-generic-api/openapi/generated/operation-manifests/admin_recovery_staging.json"
       ]
     },
     {

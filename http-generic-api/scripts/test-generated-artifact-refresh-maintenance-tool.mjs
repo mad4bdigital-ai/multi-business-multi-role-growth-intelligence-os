@@ -401,6 +401,19 @@ runCheck("trusted-publisher-dispatch-route", () => {
 });
 
 const policy = JSON.parse(fs.readFileSync("../.github/repository-maintenance-tool-governance.json", "utf8"));
+const derivedStateGovernance = JSON.parse(fs.readFileSync("../.github/derived-state-governance.json", "utf8"));
+runCheck("custom-gpt-generated-contract-write-set-parity", () => {
+  const expectedOutputs = ["http-generic-api/openapi/generated/custom-admin-schema-index.json","http-generic-api/openapi/generated/custom-gpt-registration-manifest.json","http-generic-api/openapi/generated/operation-manifests/admin_core_production.json","http-generic-api/openapi/generated/operation-manifests/admin_core_staging.json","http-generic-api/openapi/generated/operation-manifests/activation_admin_production.json","http-generic-api/openapi/generated/operation-manifests/activation_admin_staging.json","http-generic-api/openapi/generated/operation-manifests/admin_recovery_production.json","http-generic-api/openapi/generated/operation-manifests/admin_recovery_staging.json"];
+  const registration = policy.tools?.["generated-artifact-refresh"];
+  const frontendArtifact = derivedStateGovernance.artifacts?.find((artifact) => artifact.artifact_id === "frontend_openapi_projection");
+  assert.ok(frontendArtifact, "frontend_openapi_projection must remain registered");
+  for (const output of expectedOutputs) {
+    assert.ok(toolSource.includes('"' + output + '"'), "frontend writer exact allowlist missing: " + output);
+    const pattern = "^" + output.replace(/\./g, "\\\\.") + "$";
+    assert.ok(registration?.allowed_changed_path_patterns?.includes(pattern), "maintenance governance missing exact generated output: " + output);
+    assert.ok(frontendArtifact.outputs?.includes(output), "derived-state frontend projection missing generated output: " + output);
+  }
+});
 runCheck("maintenance-tool-registration", () => {
   const registration = policy.tools?.["generated-artifact-refresh"];
   assert.equal(registration?.mode, "mutating");
