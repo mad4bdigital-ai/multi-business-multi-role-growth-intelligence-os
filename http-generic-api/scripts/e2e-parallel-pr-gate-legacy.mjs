@@ -112,7 +112,7 @@ export function resolveParallelMaintenanceScope(contract) {
   return [...new Set([...contractScope, ...workstreamScopes].map(normalize).filter(Boolean))];
 }
 
-function resolveParallelMaintenanceSummaries({ root, changedFiles, runtimeFiles, policy, parallelSummaries }) {
+function resolveParallelMaintenanceSummaries({ root, changedFiles, runtimeFiles, policy, parallelSummaries, registeredDerivedOutputs = new Set() }) {
   const summariesByPath = new Map(
     parallelSummaries.map((summary) => [normalize(summary.contract_path), summary])
   );
@@ -121,6 +121,7 @@ function resolveParallelMaintenanceSummaries({ root, changedFiles, runtimeFiles,
 
   for (const rawFile of changedFiles) {
     const file = normalize(rawFile);
+    if (registeredDerivedOutputs.has(file)) continue;
     if (!file.startsWith(specPrefix)) continue;
     const [feature, ...relativeParts] = file.slice(specPrefix.length).split("/");
     const relativePath = relativeParts.join("/");
@@ -521,7 +522,8 @@ function main() {
       changedFiles: report.changed_files,
       runtimeFiles,
       policy,
-      parallelSummaries: report.contracts
+      parallelSummaries: report.contracts,
+      registeredDerivedOutputs
     });
     if (maintenanceParallelSummaries.length) {
       singlePrMaintenanceContract = resolveSinglePrMaintenanceContract({

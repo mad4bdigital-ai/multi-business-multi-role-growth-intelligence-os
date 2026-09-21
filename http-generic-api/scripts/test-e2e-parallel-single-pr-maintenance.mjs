@@ -173,6 +173,7 @@ assert.deepEqual(coveredReport.single_pr_maintenance_contract?.runtime_files, ["
 
 fs.mkdirSync(path.join(root, ".github"), { recursive: true });
 const derivedOutputPath = "http-generic-api/example/runtime/generated-derived.mjs";
+const derivedWorkMapPath = "specs/001-example/work-map-integration.json";
 fs.writeFileSync(path.join(root, derivedOutputPath), "export const generated = true;\n");
 fs.writeFileSync(
   path.join(root, ".github", "derived-state-governance.json"),
@@ -180,7 +181,7 @@ fs.writeFileSync(
     contract: "mad4b.repository-derived-state-governance.v1",
     artifacts: [{
       artifact_id: "example-derived-runtime",
-      outputs: [derivedOutputPath]
+      outputs: [derivedOutputPath, derivedWorkMapPath]
     }]
   }, null, 2)}\n`,
 );
@@ -191,10 +192,14 @@ const derivedOutput = invokeGate(root, baseSha, derivedOutputSha);
 assert.equal(derivedOutput.status, 0, derivedOutput.stderr || derivedOutput.stdout);
 const derivedOutputReport = JSON.parse(derivedOutput.stdout);
 assert.equal(derivedOutputReport.ok, true, JSON.stringify(derivedOutputReport.findings));
-assert.deepEqual(
-  derivedOutputReport.single_pr_maintenance_contract?.runtime_files,
-  ["http-generic-api/example/runtime/service.mjs"],
-  "registered derived outputs must not expand source runtime ownership coverage",
+assert.equal(
+  derivedOutputReport.single_pr_maintenance_contract,
+  null,
+  "a derived Work Map context artifact must not assign this PR to another feature's parallel contract",
+);
+assert.equal(
+  derivedOutputReport.findings.some((finding) => finding.code === "parallel_work_pr_branch_not_declared"),
+  false,
 );
 
 const duplicateContract = { ...maintenanceContract, feature_key: "001-example-maintenance-duplicate" };
