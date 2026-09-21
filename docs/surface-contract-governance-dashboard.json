@@ -6,29 +6,29 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 480,
-    "docs_complete_count": 470,
+    "migrations_with_surfaces": 481,
+    "docs_complete_count": 471,
     "docs_gap_count": 10,
     "docs_completion_percent": 97.92,
     "gap_severity_counts": {
       "high": 5,
       "medium": 1,
       "low": 4,
-      "none": 470
+      "none": 471
     },
     "surface_totals": {
       "plugins": 16,
-      "tools": 752,
+      "tools": 753,
       "views": 535,
       "policies": 199,
-      "routes": 710
+      "routes": 711
     },
     "migrations_by_surface_type": {
       "plugins": 13,
-      "tools": 273,
+      "tools": 274,
       "views": 218,
       "policies": 138,
-      "routes": 295
+      "routes": 296
     },
     "missing_doc_target_counts": {
       "Updating Registry Patch Index.md": 9,
@@ -38,24 +38,24 @@
       "docs/change-documentation-governance.md": 9
     },
     "safety_marker_counts": {
-      "no_provider_call": 473,
-      "no_credential_payload_read": 471,
-      "no_raw_secrets": 472,
-      "no_external_send": 471,
-      "no_external_write": 473,
-      "secrets_included_false": 477
+      "no_provider_call": 474,
+      "no_credential_payload_read": 472,
+      "no_raw_secrets": 473,
+      "no_external_send": 472,
+      "no_external_write": 474,
+      "secrets_included_false": 478
     },
     "safety_marker_gap_migrations": 3,
     "route_coverage": {
       "sql_route_count": 34,
-      "total_sql_route_like_count": 710,
-      "openapi_exempt_sql_route_count": 676,
+      "total_sql_route_like_count": 711,
+      "openapi_exempt_sql_route_count": 677,
       "openapi_documented_sql_route_count": 32,
       "openapi_missing_sql_route_count": 2,
       "openapi_sql_route_coverage_percent": 94.12,
       "route_class_counts": {
         "http_route": 34,
-        "admin_tool_registry_route": 217,
+        "admin_tool_registry_route": 218,
         "tenant_tool_registry_route": 42,
         "system_tool_dispatch_route": 15,
         "registry_only_surface": 8,
