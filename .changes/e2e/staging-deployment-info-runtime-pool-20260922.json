@@ -1,0 +1,83 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-deployment-info-runtime-pool-20260922",
+  "title": "Wire deployment-info semantic readiness to the Runtime DB",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-deployment-info-runtime-pool-20260922.json",
+      ".github/derived-state-governance.json",
+      ".github/governance/test-authority-registry.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/routes/deploymentInfoRoutes.js",
+      "http-generic-api/server.js",
+      "http-generic-api/test-runtime-persistence-wiring.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Restore canonical Platform Admin semantic readiness in /deployment-info by wiring a lazy query-capable Runtime DB executor while preserving Runtime Persistence DB isolation.",
+      "e2e_journeys": [
+        {
+          "id": "deployment-info-runtime-db-semantic-readiness",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging operator",
+          "entrypoint": "GET /deployment-info with include_platform_admin_semantic_readiness=1 on the exact deployed Staging SHA.",
+          "terminal_outcome": "The route reads workspace_registry through the Runtime DB and reports ready semantic authority without initializing or substituting the Runtime Persistence DB.",
+          "steps": [
+            "Start from the exact reviewed source SHA with the Runtime DB and Runtime Persistence DB remaining separate.",
+            "Resolve /deployment-info through the normal registerRoutes composition root.",
+            "Inject the lazy runtimeDatabaseReadExecutor as runtimePool.",
+            "Query canonical Platform Admin workspace readiness from workspace_registry through the Runtime DB.",
+            "Verify the Runtime Persistence DB factory remains isolated and unused for the workspace_registry read.",
+            "Require live Staging certification before any promotion decision."
+          ],
+          "assertions": [
+            "The server imports getPool separately from getRuntimePersistencePool.",
+            "runtimePool is query-capable and lazy: query delegates to getPool().query(...args) without eager getPool() startup initialization.",
+            "runtimePersistencePoolFactory remains getRuntimePersistencePool and is never substituted as runtimePool.",
+            "deploymentInfoRoutes consumes runtimePool || pool || null for canonical semantic readiness.",
+            "The Staging smoke must report ready=true, status=ready, relevant_row_count=1, exact_selector_count=1, marker_candidate_count=1, ready_authority_count=1, and database_read_performed=true.",
+            "No database mutation, semantic repair, Production mutation, Gateway mutation, provider mutation, DNS mutation, credential mutation, or grant widening is authorized.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "deployment-info-runtime-db-composition",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-persistence-wiring.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-deployment-info-runtime-pool-20260922.json",
+            "http-generic-api/server.js",
+            "http-generic-api/routes/deploymentInfoRoutes.js",
+            "http-generic-api/test-runtime-persistence-wiring.mjs",
+            ".github/governance/test-authority-registry.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
