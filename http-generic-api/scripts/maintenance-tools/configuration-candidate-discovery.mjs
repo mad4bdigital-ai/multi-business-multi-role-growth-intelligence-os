@@ -18,7 +18,7 @@ const GENERATED_PATH = /(?:generated|work[-_]?maps?|repository-inventory|reposit
 const EXCLUDED_PATH = /(?:^|\/)(?:node_modules|\.git|\.artifacts|dist|build|coverage|vendor|fixtures?|snapshots?|__snapshots__|tests?|specs?)(?:\/|$)|(?:\.generated\.(?:js|mjs|json|yaml|yml)|\.lock$)/iu;
 const LITERAL = /(?:=|:)\s*(?:(["'`])((?:\\.|(?!\1)[^\\])*?)\1|([0-9]+(?:\.[0-9]+)?)|\b(true|false|null)\b)/iu;
 const REVIEWED_IMMUTABLE_SOURCE_MIRRORS = new Map([
-  ["http-generic-api/scripts/e2e-parallel-pr-gate-legacy.mjs", "760ac5213aaa0f974bd54b506d07044162b6ed1dc85fe2dd67bdf227dd128ba7"],
+  ["http-generic-api/scripts/e2e-parallel-pr-gate-legacy.mjs", "a81ca7f36fa8ec4965c8f1d47580d708c819c435db42642de103b414087ae762"],
 ]);
 
 function parseArgs(argv) {
