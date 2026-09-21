@@ -71,6 +71,9 @@ assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes("sql_c
 assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.admin_platform_endpoint_tools, ["SELECT"]);
 assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.tenant_platform_endpoint_tools, ["SELECT"]);
 assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.sql_cache_runtime_policies, ["SELECT"]);
+assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.workspace_registry, ["SELECT"]);
+assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.workspace_registry.includes("INSERT"), false);
+assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.workspace_registry.includes("UPDATE"), false);
 assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes("platform_runtime_config"), true);
 assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.platform_runtime_config, ["SELECT"]);
 assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.platform_tool_dispatch_bindings, ["SELECT"]);
