@@ -78,7 +78,7 @@ const previousRuntimeGovernanceDbName = process.env.GOVERNANCE_DB_NAME;
   const previousGithubRefName = process.env.GITHUB_REF_NAME;
   const previousGithubRepository = process.env.GITHUB_REPOSITORY;
   let server;
-  let runtimePersistencePoolFactoryCalls = 0;
+  let runtimePoolFactoryCalls = 0;
 
 try {
   writeFileSync(manifestPath, JSON.stringify({
@@ -173,8 +173,8 @@ try {
       reasons: ["explicit_release_hook_not_configured"],
       secrets_included: false,
     }),
-    runtimePersistencePoolFactory: () => {
-      runtimePersistencePoolFactoryCalls += 1;
+    runtimePoolFactory: () => {
+      runtimePoolFactoryCalls += 1;
       const identity = PLATFORM_ADMIN_WORKSPACE_AUTHORITY.identity;
       return {
         async query(sql) {
@@ -372,7 +372,7 @@ try {
   assert.equal(semanticInfo.platform_admin_semantic_readiness.ready, true);
   assert.equal(semanticInfo.platform_admin_semantic_readiness.relevant_row_count, 1);
   assert.equal(semanticInfo.platform_admin_semantic_readiness.database_read_performed, true);
-  assert.equal(runtimePersistencePoolFactoryCalls, 1, "semantic readiness must resolve the deployment-owned Runtime Persistence pool lazily");
+  assert.equal(runtimePoolFactoryCalls, 1, "semantic readiness must resolve the deployment-owned Runtime DB pool lazily");
   assert.equal(semanticInfo.platform_admin_semantic_readiness.database_mutation_performed, false);
   assert.equal(semanticInfo.platform_admin_semantic_readiness.provider_access_performed, false);
   assert.equal(semanticInfo.platform_admin_semantic_readiness.production_access_performed, false);
