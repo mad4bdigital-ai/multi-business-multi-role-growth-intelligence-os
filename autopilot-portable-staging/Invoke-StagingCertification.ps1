@@ -335,6 +335,7 @@ $state["app_image_digest"] = [string]$certification.artifact_set.app.image_diges
 $state["app_tree_sha"] = [string]$certification.artifact_set.app.tree_sha
 $state["app_context_file_set_sha256"] = [string]$certification.artifact_set.app.context_file_set_sha256
 $state["database_readiness"] = [string]$certification.observed.combined_database_status
+$state["platform_admin_semantic_readiness"] = [string]$certification.observed.platform_admin_semantic_status
 $state["certification_checked_at"] = [string]$certification.generated_at
 $state["secrets_included"] = $false
 Write-State $StatePath $state

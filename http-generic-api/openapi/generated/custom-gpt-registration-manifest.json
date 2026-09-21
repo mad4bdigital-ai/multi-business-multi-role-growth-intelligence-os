@@ -1,0 +1,135 @@
+{
+  "contract": "mad4b.custom-gpt-registration-manifest.v1",
+  "registration_count": 6,
+  "registrations": [
+    {
+      "action_slot": "admin_activation",
+      "auth_profile": "admin_service",
+      "environment": "production",
+      "expected_source_identity": {
+        "source_manifest_sha256": "155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9",
+        "source_openapi_sha256": "814d9f116cbf5551e13f4797a1fd8927af72eafa77746478de438e7dd5339834"
+      },
+      "live_registration_set": "admin_activation_production",
+      "operation_manifest_sha256": "8688f335cf33542de664b92cabb48ed9644bc9d4cce07a9026f828377d00301c",
+      "operation_manifest_sha256_compatibility_alias_of": "registration_operation_manifest_sha256",
+      "registration_operation_manifest_sha256": "8688f335cf33542de664b92cabb48ed9644bc9d4cce07a9026f828377d00301c",
+      "registration_set": "admin_activation_production",
+      "schema_sha256": "87186fd89d32b5833bc6efb91de3fa1676a52809bee94c5fbe32c51f4ae51a75",
+      "secrets_included": false,
+      "server_uri": "https://activation.mad4b.com",
+      "source_manifest_sha256": "155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9",
+      "source_openapi_sha256": "814d9f116cbf5551e13f4797a1fd8927af72eafa77746478de438e7dd5339834",
+      "surface": "activation_admin_production",
+      "surface_operation_manifest_sha256": "e71fc52bb51cacb3b9fa59afc9b47268b91b25066081d5484b6d495b18f1b538"
+    },
+    {
+      "action_slot": "admin_activation",
+      "auth_profile": "admin_service",
+      "environment": "staging",
+      "expected_source_identity": {
+        "source_manifest_sha256": "155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9",
+        "source_openapi_sha256": "814d9f116cbf5551e13f4797a1fd8927af72eafa77746478de438e7dd5339834"
+      },
+      "live_registration_set": "admin_activation_staging",
+      "operation_manifest_sha256": "59c6b63bc9bfae72b405666d410d6636d9b5268fe6bc133f7ef28b6c01ffbfb8",
+      "operation_manifest_sha256_compatibility_alias_of": "registration_operation_manifest_sha256",
+      "registration_operation_manifest_sha256": "59c6b63bc9bfae72b405666d410d6636d9b5268fe6bc133f7ef28b6c01ffbfb8",
+      "registration_set": "admin_activation_staging",
+      "schema_sha256": "1c4783ce9d05cec8cdd48bf05b07be9384a43c51f45552ffe9b21f2347dff105",
+      "secrets_included": false,
+      "server_uri": "https://activation-dev.mad4b.com",
+      "source_manifest_sha256": "155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9",
+      "source_openapi_sha256": "814d9f116cbf5551e13f4797a1fd8927af72eafa77746478de438e7dd5339834",
+      "surface": "activation_admin_staging",
+      "surface_operation_manifest_sha256": "bca2edebb19407fdda1ad0650291931d03ec6232f5da43a1e8320fbc631453ba"
+    },
+    {
+      "action_slot": "admin_core",
+      "auth_profile": "admin_service",
+      "environment": "production",
+      "expected_source_identity": {
+        "source_manifest_sha256": "155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9",
+        "source_openapi_sha256": "814d9f116cbf5551e13f4797a1fd8927af72eafa77746478de438e7dd5339834"
+      },
+      "live_registration_set": "admin_core_production",
+      "operation_manifest_sha256": "f72392346e93b53f8ac8511dcf2acc996c896b5fd0dc77ea32d4a674b6d43b9e",
+      "operation_manifest_sha256_compatibility_alias_of": "registration_operation_manifest_sha256",
+      "registration_operation_manifest_sha256": "f72392346e93b53f8ac8511dcf2acc996c896b5fd0dc77ea32d4a674b6d43b9e",
+      "registration_set": "admin_core_production",
+      "schema_sha256": "6a381cfcd9193d2ba3f63c343d07a3886f154a2e6dc100d3385e4f18ac985e66",
+      "secrets_included": false,
+      "server_uri": "https://auth.mad4b.com",
+      "source_manifest_sha256": "155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9",
+      "source_openapi_sha256": "814d9f116cbf5551e13f4797a1fd8927af72eafa77746478de438e7dd5339834",
+      "surface": "admin_core_production",
+      "surface_operation_manifest_sha256": "41ea3c3cbdf1ec9b75a423b3b84ec6f77b888893edff08a04c7c9f699b5e3139"
+    },
+    {
+      "action_slot": "admin_core",
+      "auth_profile": "admin_service",
+      "environment": "staging",
+      "expected_source_identity": {
+        "source_manifest_sha256": "155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9",
+        "source_openapi_sha256": "814d9f116cbf5551e13f4797a1fd8927af72eafa77746478de438e7dd5339834"
+      },
+      "live_registration_set": "admin_core_staging",
+      "operation_manifest_sha256": "a9f3e9d72ff24ecbbf6245e7e3d1f7ec2ede5b6b102605351b654fdf711c7089",
+      "operation_manifest_sha256_compatibility_alias_of": "registration_operation_manifest_sha256",
+      "registration_operation_manifest_sha256": "a9f3e9d72ff24ecbbf6245e7e3d1f7ec2ede5b6b102605351b654fdf711c7089",
+      "registration_set": "admin_core_staging",
+      "schema_sha256": "f50d724ae278b470767a14265eed08bf117405cd0f37ef65dd932f6a20ed85bd",
+      "secrets_included": false,
+      "server_uri": "https://dev.mad4b.com",
+      "source_manifest_sha256": "155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9",
+      "source_openapi_sha256": "814d9f116cbf5551e13f4797a1fd8927af72eafa77746478de438e7dd5339834",
+      "surface": "admin_core_staging",
+      "surface_operation_manifest_sha256": "2dc7848f69e19d0d3cc17ea085300f46658bf182ac4f4573ed7193c76f7ef26a"
+    },
+    {
+      "action_slot": "recovery_kernel",
+      "auth_profile": "admin_service",
+      "environment": "production",
+      "expected_source_identity": {
+        "source_manifest_sha256": "155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9",
+        "source_openapi_sha256": "814d9f116cbf5551e13f4797a1fd8927af72eafa77746478de438e7dd5339834"
+      },
+      "live_registration_set": "admin_recovery_production",
+      "operation_manifest_sha256": "90e3b46d44d727401ba0636646c406c4f2964d08a7155dfd2737cd2762290797",
+      "operation_manifest_sha256_compatibility_alias_of": "registration_operation_manifest_sha256",
+      "registration_operation_manifest_sha256": "90e3b46d44d727401ba0636646c406c4f2964d08a7155dfd2737cd2762290797",
+      "registration_set": "admin_recovery_production",
+      "schema_sha256": "0ebc5bc8079cfc6afe50b3c1884935198cd7a96a4258d98ed2aea20c0e2b2c88",
+      "secrets_included": false,
+      "server_uri": "https://auth.mad4b.com",
+      "source_manifest_sha256": "155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9",
+      "source_openapi_sha256": "814d9f116cbf5551e13f4797a1fd8927af72eafa77746478de438e7dd5339834",
+      "surface": "admin_recovery_production",
+      "surface_operation_manifest_sha256": "f3fa723deabf8d6a8c2eb7453a23e8b2fd9d596919713880ab327b1bc946bd91"
+    },
+    {
+      "action_slot": "admin_activation",
+      "auth_profile": "admin_service",
+      "environment": "staging",
+      "expected_source_identity": {
+        "source_manifest_sha256": "155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9",
+        "source_openapi_sha256": "814d9f116cbf5551e13f4797a1fd8927af72eafa77746478de438e7dd5339834"
+      },
+      "live_registration_set": "admin_activation_staging",
+      "operation_manifest_sha256": "5a371a671cf46e81a9dc46df381aa8c3741d683c9870a18e57e53cf0f923d5e2",
+      "operation_manifest_sha256_compatibility_alias_of": "registration_operation_manifest_sha256",
+      "registration_operation_manifest_sha256": "5a371a671cf46e81a9dc46df381aa8c3741d683c9870a18e57e53cf0f923d5e2",
+      "registration_set": "admin_recovery_staging",
+      "schema_sha256": "3b53710222d771b1c6a3abfd8e0c5def1640e4ecf894ee712996b08bd33786df",
+      "secrets_included": false,
+      "server_uri": "https://activation-dev.mad4b.com",
+      "source_manifest_sha256": "155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9",
+      "source_openapi_sha256": "814d9f116cbf5551e13f4797a1fd8927af72eafa77746478de438e7dd5339834",
+      "surface": "admin_recovery_staging",
+      "surface_operation_manifest_sha256": "268dd788fa837183461b8329820abbd3ec8b15be42fa5b0162bc4a9a23cfc36e"
+    }
+  ],
+  "secrets_included": false,
+  "source_manifest_sha256": "155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9",
+  "source_openapi_sha256": "814d9f116cbf5551e13f4797a1fd8927af72eafa77746478de438e7dd5339834"
+}

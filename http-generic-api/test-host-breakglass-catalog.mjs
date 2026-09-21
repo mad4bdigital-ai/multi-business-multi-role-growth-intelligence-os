@@ -3,6 +3,7 @@ import test from "node:test";
 import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { buildHostBreakglassPlan, dispatchHostBreakglassPlan, publicHostBreakglassCatalog, readHostBreakglassRun, readHostBreakglassToolContract, __hostBreakglassTest } from "./hostBreakglassCatalog.js";
 const SHA = "a".repeat(40);
 const TICKET_HASH = "f".repeat(64);
@@ -331,6 +332,64 @@ test("GPT Admin can plan and dry-run Staging access repair without selecting a m
   assert.equal(dryRun.capability_grants.includes("grant_contract.inspect"), true);
   assert.equal(dryRun.capability_grants.includes("grant_contract.apply"), false);
   assert.equal(dryRun.execution_transport, "local_cli");
+});
+
+test("Staging full inspection hands off to Windows/Docker locally and stays read-only", async () => {
+  const plan = buildHostBreakglassPlan({
+    environment_key: "staging_local_windows_docker",
+    operation_key: "database.inspect",
+    runbook_key: "database.full_inspection",
+    action: "dry_run",
+    expected_sha: SHA,
+    target_source: "repository_allowlist",
+    target_key: "staging-runtime",
+  });
+  const receipt = await dispatchHostBreakglassPlan(plan, {
+    fetchImpl: async () => { throw new Error("Staging local inspection must never call GitHub"); },
+    tokenResolver: async () => { throw new Error("Staging local inspection must never request GitHub credentials"); },
+  });
+  assert.equal(receipt.status, "local_execution_required");
+  assert.equal(receipt.required_platform, "win32");
+  assert.equal(receipt.required_runtime, "docker_compose");
+  assert.equal(receipt.workflow_dispatch_performed, false);
+  assert.equal(receipt.database_mutation_performed, false);
+});
+
+test("host-breakglass local help is available without request parsing or mutation", () => {
+  const result = spawnSync(process.execPath, ["scripts/host-breakglass-local.mjs", "--help"], {
+    cwd: process.cwd(),
+    encoding: "utf8",
+    env: { ...process.env },
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const help = JSON.parse(result.stdout.trim());
+  assert.equal(help.contract, "mad4b.host-breakglass-local-cli-help.v1");
+  assert.equal(help.status, "help");
+  assert.equal(help.required_platform, "win32");
+  assert.equal(help.required_runtime, "docker_compose");
+  assert.equal(help.inspection.operation_key, "database.inspect");
+  assert.equal(help.inspection.action, "dry_run");
+  assert.equal(help.inspection.database_mutation_performed, false);
+  assert.equal(help.verified_request_required_for_mutation, true);
+  assert.equal(help.workflow_dispatch_performed, false);
+  assert.equal(help.database_mutation_performed, false);
+});
+
+test("GitHub broker preserves missing installation id as an independent readback blocker", async () => {
+  __hostBreakglassTest.RUNS.clear();
+  await assert.rejects(
+    readHostBreakglassRun("broker-missing-installation-id", {
+      env: {},
+      fetchImpl: async () => { throw new Error("GitHub must not be called without broker auth"); },
+      tokenResolver: async () => {
+        const error = new Error("Missing GitHub App installation id.");
+        error.code = "github_app_auth_missing_installation_id";
+        throw error;
+      },
+    }),
+    (error) => error?.code === "host_breakglass_github_broker_unconfigured"
+      && error?.details?.cause_code === "github_app_auth_missing_installation_id",
+  );
 });
 
 test("Staging and Production reject each other's role-bound source and typed approval", () => {

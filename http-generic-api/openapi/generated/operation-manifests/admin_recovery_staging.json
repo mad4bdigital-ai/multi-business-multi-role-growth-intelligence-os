@@ -1,0 +1,13 @@
+{
+  "contract": "mad4b.custom-admin-operation-manifest.v1",
+  "environment": "staging",
+  "operation_count": 5,
+  "operation_ids": [
+    "getStagingRecoveryAdminContract",
+    "getStagingRecoveryAdminReadiness",
+    "getStagingRecoveryCertificationStatus",
+    "prepareStagingActivationGatewayDarkDeployDryRun",
+    "previewStagingActivationGatewayRolloutPlan"
+  ],
+  "surface": "admin_recovery_staging"
+}

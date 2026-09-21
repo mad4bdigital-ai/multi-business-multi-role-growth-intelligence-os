@@ -125,13 +125,22 @@
         "^http-generic-api/openapi/openapi\\.custom-gpt\\.auth-dispatcher\\.production\\.yaml$",
         "^http-generic-api/openapi/openapi\\.custom-gpt\\.auth-dispatcher\\.staging\\.yaml$",
         "^http-generic-api/openapi/openapi\\.custom-gpt\\.recovery-admin\\.production\\.yaml$",
+        "^http-generic-api/openapi/openapi\\.custom-gpt\\.recovery-admin\\.staging\\.yaml$",
         "^http-generic-api/openapi/openapi\\.tenant-gpt\\.activation\\.production\\.yaml$",
         "^http-generic-api/openapi/openapi\\.tenant-gpt\\.activation\\.staging\\.yaml$",
         "^http-generic-api/openapi/openapi\\.tenant-gpt\\.auth\\.production\\.yaml$",
         "^http-generic-api/openapi/openapi\\.tenant-gpt\\.auth\\.staging\\.yaml$",
         "^edge/activation-gateway/generated/route-policy\\.staging\\.json$",
         "^http-generic-api/activation-gateway-runtime/generated/route-policy\\.staging\\.json$",
-        "^http-generic-api/openapi/openapi-mutation-policy\\.generated\\.json$"
+        "^http-generic-api/openapi/openapi-mutation-policy\\.generated\\.json$",
+        "^http-generic-api/openapi/generated/custom-admin-schema-index\\.json$",
+        "^http-generic-api/openapi/generated/custom-gpt-registration-manifest\\.json$",
+        "^http-generic-api/openapi/generated/operation-manifests/admin_core_production\\.json$",
+        "^http-generic-api/openapi/generated/operation-manifests/admin_core_staging\\.json$",
+        "^http-generic-api/openapi/generated/operation-manifests/activation_admin_production\\.json$",
+        "^http-generic-api/openapi/generated/operation-manifests/activation_admin_staging\\.json$",
+        "^http-generic-api/openapi/generated/operation-manifests/admin_recovery_production\\.json$",
+        "^http-generic-api/openapi/generated/operation-manifests/admin_recovery_staging\\.json$"
       ],
       "report_contract": "mad4b.governed-generated-artifact-refresh.v1"
     },

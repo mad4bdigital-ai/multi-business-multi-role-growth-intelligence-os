@@ -1,0 +1,434 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "mad4b.runtime-data-lifecycle.v1",
+  "enforcement": {
+    "migration_selection": "git_diff_from_base_sha",
+    "static_only": true,
+    "unclassified_mutation_is_blocking": true,
+    "canonical_seed_must_be_replayable": true,
+    "canonical_seed_postcondition_required": true,
+    "legacy_exclusions": [],
+    "mixed_table_mutation_requires_resolution": true,
+    "semantic_replay_debt_is_reported": true,
+    "operational_state_migration_mutation_forbidden": true,
+    "environment_state_migration_mutation_forbidden": true,
+    "destructive_mutation_fail_closed": true,
+    "mixed_canonical_seed_file_and_selector_required": true,
+    "canonical_semantic_artifact_hash_required": true,
+    "canonical_semantic_repair_plan_required": true,
+    "canonical_semantic_repair_nonempty_schema_allowed": true,
+    "canonical_semantic_snapshot_exact_commit_required": true,
+    "canonical_semantic_snapshot_same_cycle_hash_required": true,
+    "unregistered_activation_registry_mutation_forbidden": true,
+    "platform_admin_workspace_authority_parity_required": true
+  },
+  "datasets": {
+    "workspace_registry": {
+      "class": "mixed",
+      "environment_rows": "preserve",
+      "canonical_rows": [
+        {
+          "key": "platform_admin_workspace",
+          "seed_file": "20260920_platform_admin_workspace_canonical_seed.sql",
+          "selector_tokens": [
+            "b50db01b-617e-4b7a-8bda-6bf4876f754f",
+            "00000000-0000-0000-0000-000000000000",
+            "platform_repo_governance_zero",
+            "platform:root"
+          ],
+          "cardinality": "exactly_one",
+          "readback_token": "canonical Platform Admin workspace",
+          "identity_tokens": [
+            "platform_repo_governance_zero"
+          ],
+          "mutation_selector": {
+            "mode": "seed_file_and_exact_selector",
+            "insert_columns": [
+              "workspace_id",
+              "tenant_id",
+              "workspace_key",
+              "display_name",
+              "workspace_type",
+              "bootstrap_status",
+              "config_json"
+            ],
+            "insert_required_literals": [
+              "b50db01b-617e-4b7a-8bda-6bf4876f754f",
+              "00000000-0000-0000-0000-000000000000",
+              "platform_repo_governance_zero",
+              "Platform Admin",
+              "brand",
+              "ready",
+              "platform:root"
+            ],
+            "insert_guard_equals": {
+              "workspace_id": "b50db01b-617e-4b7a-8bda-6bf4876f754f",
+              "tenant_id": "00000000-0000-0000-0000-000000000000",
+              "workspace_key": "platform_repo_governance_zero"
+            },
+            "insert_forbidden_tokens": [
+              "UNION"
+            ],
+            "update_where_equals": {
+              "workspace_id": "b50db01b-617e-4b7a-8bda-6bf4876f754f",
+              "tenant_id": "00000000-0000-0000-0000-000000000000",
+              "workspace_key": "platform_repo_governance_zero",
+              "display_name": "Platform Admin",
+              "workspace_type": "brand",
+              "bootstrap_status": "ready"
+            },
+            "allowed_update_columns": [
+              "config_json",
+              "updated_at"
+            ],
+            "forbidden_update_columns": [
+              "workspace_id",
+              "tenant_id",
+              "workspace_key",
+              "display_name",
+              "workspace_type",
+              "bootstrap_status"
+            ]
+          },
+          "resolver_cardinality": {
+            "cardinality": "exactly_one",
+            "tenant_id": "00000000-0000-0000-0000-000000000000",
+            "workspace_key": "platform_admin_workspace",
+            "authority_scope_key": "platform:root",
+            "platform_admin_workspace": true,
+            "require_ready": true,
+            "readback_token": "resolver-equivalent canonical Platform Admin workspace candidates"
+          },
+          "artifact_key": "platform_admin_workspace",
+          "authority_descriptor": "config/platform-admin-workspace-authority.json"
+        }
+      ],
+      "mixed_mutation_policy": "canonical_seed_file_and_exact_selector_or_environment_annotation",
+      "environment_annotation": "lifecycle:environment_state"
+    },
+    "admin_platform_endpoint_tools": {
+      "class": "canonical_registry",
+      "rebuild_from_git": true,
+      "zero_rows_allowed": false,
+      "known_replay_gap": false,
+      "canonical_rows": [
+        {
+          "key": "wordpress_staging_plugin_deploy",
+          "seed_file": "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
+          "selector_tokens": [
+            "wordpress_staging_plugin_deploy",
+            "/platform/remote-runtime/wordpress/staging/deploy-plugin"
+          ],
+          "cardinality": "exactly_one",
+          "readback_token": "canonical WordPress Staging deploy admin tool",
+          "artifact_key": "wordpress_staging_deployment_authority"
+        }
+      ],
+      "replay_strategy": "disposable_git_semantic_snapshot",
+      "artifact_keys": [
+        "runtime_canonical_registry_snapshot"
+      ],
+      "snapshot_target_role": "runtime"
+    },
+    "remote_runtime_command_allowlists": {
+      "class": "canonical_registry",
+      "rebuild_from_git": true,
+      "zero_rows_allowed": false,
+      "canonical_rows": [
+        {
+          "key": "wordpress_staging_plugin_deploy",
+          "seed_file": "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
+          "selector_tokens": [
+            "remote_ssh_runtime",
+            "wordpress_staging_plugin_deploy"
+          ],
+          "cardinality": "exactly_one",
+          "readback_token": "canonical WordPress Staging deploy command",
+          "artifact_key": "wordpress_staging_deployment_authority"
+        }
+      ],
+      "known_replay_gap": false,
+      "replay_strategy": "disposable_git_semantic_snapshot",
+      "artifact_keys": [
+        "runtime_canonical_registry_snapshot"
+      ],
+      "snapshot_target_role": "runtime"
+    },
+    "execution_policies": {
+      "class": "canonical_registry",
+      "rebuild_from_git": true,
+      "zero_rows_allowed": false,
+      "canonical_rows": [
+        {
+          "key": "wordpress_staging_plugin_deploy_exact_artifact_guard",
+          "seed_file": "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
+          "selector_tokens": [
+            "wordpress_staging_plugin_deploy_governance",
+            "wordpress_staging_plugin_deploy_exact_artifact_guard"
+          ],
+          "cardinality": "exactly_one",
+          "readback_token": "canonical WordPress Staging deploy execution policy",
+          "artifact_key": "wordpress_staging_deployment_authority"
+        }
+      ],
+      "known_replay_gap": false,
+      "replay_strategy": "disposable_git_semantic_snapshot",
+      "artifact_keys": [
+        "runtime_canonical_registry_snapshot"
+      ],
+      "snapshot_target_role": "runtime"
+    },
+    "tenant_platform_endpoint_tools": {
+      "class": "canonical_registry",
+      "rebuild_from_git": true,
+      "zero_rows_allowed": false,
+      "known_replay_gap": false,
+      "replay_strategy": "disposable_git_semantic_snapshot",
+      "artifact_keys": [
+        "runtime_canonical_registry_snapshot"
+      ],
+      "snapshot_target_role": "runtime"
+    },
+    "platform_endpoint_tool_exports": {
+      "class": "canonical_registry",
+      "rebuild_from_git": true,
+      "zero_rows_allowed": false,
+      "known_replay_gap": false,
+      "replay_strategy": "disposable_git_semantic_snapshot",
+      "artifact_keys": [
+        "runtime_canonical_registry_snapshot"
+      ],
+      "snapshot_target_role": "runtime"
+    },
+    "connected_systems": {
+      "class": "environment_state",
+      "recovery": "preserve_or_explicit_reprovision"
+    },
+    "installations": {
+      "class": "environment_state",
+      "recovery": "preserve_or_explicit_reprovision"
+    },
+    "credential_bindings": {
+      "class": "environment_state",
+      "recovery": "preserve_or_explicit_reprovision"
+    },
+    "memberships": {
+      "class": "operational_state",
+      "reseed_forbidden": true
+    },
+    "role_assignments": {
+      "class": "operational_state",
+      "reseed_forbidden": true
+    },
+    "permission_grants": {
+      "class": "operational_state",
+      "reseed_forbidden": true
+    },
+    "customer_sessions": {
+      "class": "operational_state",
+      "reseed_forbidden": true
+    },
+    "gpt_session_turns": {
+      "class": "operational_state",
+      "reseed_forbidden": true
+    },
+    "activation_dynamic_tab_registry": {
+      "class": "canonical_registry",
+      "rebuild_from_git": true,
+      "zero_rows_allowed": false,
+      "known_replay_gap": false,
+      "replay_strategy": "disposable_git_semantic_snapshot",
+      "artifact_keys": [
+        "runtime_canonical_registry_snapshot"
+      ],
+      "snapshot_target_role": "runtime"
+    },
+    "activation_dynamic_tab_section_registry": {
+      "class": "canonical_registry",
+      "rebuild_from_git": true,
+      "zero_rows_allowed": false,
+      "known_replay_gap": false,
+      "replay_strategy": "disposable_git_semantic_snapshot",
+      "artifact_keys": [
+        "runtime_canonical_registry_snapshot"
+      ],
+      "snapshot_target_role": "runtime"
+    },
+    "activation_dynamic_tab_discovery_rule_registry": {
+      "class": "canonical_registry",
+      "rebuild_from_git": true,
+      "zero_rows_allowed": false,
+      "known_replay_gap": false,
+      "replay_strategy": "disposable_git_semantic_snapshot",
+      "artifact_keys": [
+        "runtime_canonical_registry_snapshot"
+      ],
+      "snapshot_target_role": "runtime"
+    },
+    "activation_section_action_registry": {
+      "class": "canonical_registry",
+      "rebuild_from_git": true,
+      "zero_rows_allowed": false,
+      "known_replay_gap": false,
+      "replay_strategy": "disposable_git_semantic_snapshot",
+      "artifact_keys": [
+        "runtime_canonical_registry_snapshot"
+      ],
+      "snapshot_target_role": "runtime"
+    },
+    "activation_attention_rule_registry": {
+      "class": "canonical_registry",
+      "rebuild_from_git": true,
+      "zero_rows_allowed": false,
+      "known_replay_gap": false,
+      "replay_strategy": "disposable_git_semantic_snapshot",
+      "artifact_keys": [
+        "runtime_canonical_registry_snapshot"
+      ],
+      "snapshot_target_role": "runtime"
+    },
+    "activation_freshness_policy_registry": {
+      "class": "canonical_registry",
+      "rebuild_from_git": true,
+      "zero_rows_allowed": false,
+      "known_replay_gap": false,
+      "replay_strategy": "disposable_git_semantic_snapshot",
+      "artifact_keys": [
+        "runtime_canonical_registry_snapshot"
+      ],
+      "snapshot_target_role": "runtime"
+    },
+    "activation_signal_subscription_registry": {
+      "class": "canonical_registry",
+      "rebuild_from_git": true,
+      "zero_rows_allowed": false,
+      "known_replay_gap": false,
+      "replay_strategy": "disposable_git_semantic_snapshot",
+      "artifact_keys": [
+        "runtime_canonical_registry_snapshot"
+      ],
+      "snapshot_target_role": "runtime"
+    },
+    "activation_connector_pack_registry": {
+      "class": "canonical_registry",
+      "rebuild_from_git": true,
+      "zero_rows_allowed": false,
+      "known_replay_gap": false,
+      "replay_strategy": "disposable_git_semantic_snapshot",
+      "artifact_keys": [
+        "runtime_canonical_registry_snapshot"
+      ],
+      "snapshot_target_role": "runtime"
+    },
+    "activation_connector_pack_component_registry": {
+      "class": "canonical_registry",
+      "rebuild_from_git": true,
+      "zero_rows_allowed": false,
+      "known_replay_gap": false,
+      "replay_strategy": "disposable_git_semantic_snapshot",
+      "artifact_keys": [
+        "runtime_canonical_registry_snapshot"
+      ],
+      "snapshot_target_role": "runtime"
+    },
+    "activation_authorized_surface_registry": {
+      "class": "canonical_registry",
+      "rebuild_from_git": true,
+      "zero_rows_allowed": false,
+      "known_replay_gap": false,
+      "replay_strategy": "disposable_git_semantic_snapshot",
+      "artifact_keys": [
+        "runtime_canonical_registry_snapshot"
+      ],
+      "snapshot_target_role": "runtime"
+    },
+    "activation_guidance_invocation_registry": {
+      "class": "canonical_registry",
+      "rebuild_from_git": true,
+      "zero_rows_allowed": false,
+      "known_replay_gap": false,
+      "replay_strategy": "disposable_git_semantic_snapshot",
+      "artifact_keys": [
+        "runtime_canonical_registry_snapshot"
+      ],
+      "snapshot_target_role": "runtime"
+    },
+    "activation_callback_registry": {
+      "class": "canonical_registry",
+      "rebuild_from_git": true,
+      "zero_rows_allowed": false,
+      "known_replay_gap": false,
+      "replay_strategy": "disposable_git_semantic_snapshot",
+      "artifact_keys": [
+        "runtime_canonical_registry_snapshot"
+      ],
+      "snapshot_target_role": "runtime"
+    },
+    "activation_operational_tile_registry": {
+      "class": "canonical_registry",
+      "rebuild_from_git": true,
+      "zero_rows_allowed": false,
+      "known_replay_gap": false,
+      "replay_strategy": "disposable_git_semantic_snapshot",
+      "artifact_keys": [
+        "runtime_canonical_registry_snapshot"
+      ],
+      "snapshot_target_role": "runtime"
+    },
+    "activation_response_profile_registry": {
+      "class": "canonical_registry",
+      "rebuild_from_git": true,
+      "zero_rows_allowed": false,
+      "known_replay_gap": false,
+      "replay_strategy": "disposable_git_semantic_snapshot",
+      "artifact_keys": [
+        "runtime_canonical_registry_snapshot"
+      ],
+      "snapshot_target_role": "runtime"
+    },
+    "activation_delivery_policy_registry": {
+      "class": "canonical_registry",
+      "rebuild_from_git": true,
+      "zero_rows_allowed": false,
+      "known_replay_gap": false,
+      "replay_strategy": "disposable_git_semantic_snapshot",
+      "artifact_keys": [
+        "runtime_canonical_registry_snapshot"
+      ],
+      "snapshot_target_role": "runtime"
+    },
+    "activation_container_relationship_type_registry": {
+      "class": "canonical_registry",
+      "rebuild_from_git": true,
+      "zero_rows_allowed": false,
+      "known_replay_gap": false,
+      "replay_strategy": "disposable_git_semantic_snapshot",
+      "artifact_keys": [
+        "runtime_canonical_registry_snapshot"
+      ],
+      "snapshot_target_role": "runtime"
+    }
+  },
+  "table_families": [
+    {
+      "pattern": "^activation_.*_registry$",
+      "class": "mixed",
+      "rebuild_from_git": false,
+      "zero_rows_allowed": true,
+      "known_replay_gap": false,
+      "completeness_policy": "explicit_dataset_declarations_only",
+      "unregistered_family_member_policy": "fail_closed"
+    }
+  ],
+  "safety": {
+    "database_connection_performed": false,
+    "database_mutation_performed": false,
+    "provider_access_performed": false,
+    "production_access_performed": false,
+    "secrets_included": false
+  },
+  "canonical_semantic_artifact_registry": {
+    "contract": "mad4b.canonical-semantic-artifacts.v1",
+    "path": "config/canonical-semantic-artifacts.json"
+  }
+}

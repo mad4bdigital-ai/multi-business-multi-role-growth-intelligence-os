@@ -1368,18 +1368,74 @@ paths:
               properties:
                 name:
                   type: string
+                  x-mad4b-enum-source: system_layer_tools
+                  description: Exact fixed system-tool name projected from the runtime SYSTEM_LAYER_TOOLS registry.
                   enum:
-                    - connector_registry_list
-                    - connector_registry_get
+                    - activation_bootstrap_config_read
+                    - activation_bootstrap_config_upsert
                     - activation_drive_probe
-                    - activation_sheets_bootstrap_read
                     - activation_github_validate
                     - activation_provider_bootstrap_validate
-                    - activation_bootstrap_config_upsert
+                    - activation_sheets_bootstrap_read
+                    - brand_workspace_context_readiness_smoke
+                    - brand_workspace_context_resolve
+                    - capability_enablement_decision_report
+                    - capability_enablement_proposal_preview
+                    - capability_enablement_readiness_smoke
+                    - capability_enablement_resolve
+                    - capability_enablement_tenant_projection
+                    - connector_registry_get
+                    - connector_registry_list
+                    - credential_client_config_list
+                    - credential_client_config_upsert
+                    - github_app_key_diagnostics
+                    - github_repository_main_moved_webhook_provision
+                    - github_repository_main_moved_webhook_provisioning_readiness_smoke
+                    - github_repository_main_moved_webhook_status
+                    - google_auth_platform_config_get
+                    - google_auth_platform_config_upsert
+                    - google_drive_endpoint_catalog
+                    - google_drive_folder_inspect
+                    - governed_resource_catalog
+                    - governed_resource_plan
+                    - governed_resource_resolve
+                    - governed_resource_run
+                    - growth_audit_evidence_prepare
+                    - growth_audit_evidence_readiness_smoke
+                    - platform_resource_authority_binding_create
+                    - platform_resource_authority_binding_list
+                    - platform_resource_authority_binding_revoke
+                    - platform_resource_context_catalog
+                    - platform_resource_context_diagnostic_handoff
+                    - platform_resource_context_readiness_smoke
+                    - platform_resource_context_related
+                    - platform_resource_context_resolve
+                    - recovery_kernel_call
                     - recovery_kernel_capabilities
+                    - recovery_kernel_create_approval_challenge
+                    - recovery_kernel_execute_approved_step
+                    - response_chunk_read
+                    - runtime_endpoint_call
+                    - runtime_endpoint_preview
+                    - system_layer_descriptor_callability_audit
+                    - system_layer_descriptor_readiness
                     - system_tool_get
                     - system_tools_search
-                    - recovery_kernel_call
+                    - tenant_capability_shadow_compare
+                    - tenant_effective_capability_preview
+                    - tenant_effective_capability_readiness_smoke
+                    - tenant_gpt_oauth_client_status
+                    - tenant_gpt_oauth_client_upsert
+                    - tenant_repo_pr_reconciliation_sweep
+                    - tenant_repository_action_planner_dry_run
+                    - tenant_repository_advisory_comment_apply
+                    - tenant_repository_advisory_comment_preview
+                    - tenant_repository_advisory_comment_readback
+                    - tenant_repository_advisory_comment_v5_readiness_smoke
+                    - tenant_repository_intelligence_report
+                    - tenant_repository_intelligence_v2_readiness_smoke
+                    - tenant_repository_intelligence_v3_v4_readiness_smoke
+                  x-mad4b-enum-sha256: 552dabdc913bee7d2d86a8946e214eb157246591d0f3fedc5b430783764162b9
                 arguments:
                   type: object
                   additionalProperties: true
@@ -1740,6 +1796,10 @@ paths:
                 name:
                   type: string
                   description: Governed DB-backed or virtual tool key returned by listAdminTools; runtime validates registration and inputSchema before dispatch.
+                expected_input_schema_sha256:
+                  type: string
+                  pattern: ^[a-f0-9]{64}$
+                  description: Optional exact hash returned by listAdminTools. When supplied, execution fails with descriptor_stale if the current tool input schema no longer matches discovery.
                 tool_args:
                   type: object
                   additionalProperties: true
@@ -2386,9 +2446,9 @@ paths:
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: adb6bbf066274ba65efd3938ff0c124739be1a546c3dc36c1f8504134d486542
+  source_openapi_sha256: 814d9f116cbf5551e13f4797a1fd8927af72eafa77746478de438e7dd5339834
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
-  registry_sha256: 0de08f1c1c86f043bff6a0c2b9f3610cc2476b61848bf3d2432599d3ded9af02
+  registry_sha256: 155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9
   domain_family_policy: http-generic-api/config/domain-family-policy.json
   domain_family_policy_sha256: 5cdcb4b16a07d999dcff35d8a1fef14d441f4bac4ee26b8326cba1b2d92b3d3d
   environment: production
@@ -2503,7 +2563,81 @@ x-custom-gpt-generation:
   static_operation_ids: null
   dynamic_operation_ids: null
   operation_count: 30
+  operation_manifest:
+    surface: admin_core_production
+    environment: production
+    operation_count: 30
+    operation_ids:
+      - callAdminSystemTool
+      - callAdminTool
+      - callDeviceTool
+      - callSystemTool
+      - createAdminRuntimeBootstrapRun
+      - executeAdminOperation
+      - getAdminApisServicesCredentials
+      - getAdminGoogleAuthPlatformTab
+      - getAdminGoogleAuthPlatformTabs
+      - getAdminOperationStatus
+      - getAdminRuntimeBootstrapCatalog
+      - getAdminRuntimeBootstrapRun
+      - getAdminSystemConnector
+      - getLocalConnectorInstallBundle
+      - getPlatformDataSourceCensus
+      - getSystemConnector
+      - getSystemToolCatalogObservability
+      - getSystemToolDescriptor
+      - listAdminSystemConnectors
+      - listAdminSystemTools
+      - listAdminTools
+      - listDeviceTools
+      - listDnsRecords
+      - listSchemaImportJobs
+      - listSystemConnectors
+      - listSystemTools
+      - planAdminRuntimeBootstrap
+      - previewAdminOperation
+      - repairLocalConnector
+      - resolveSystemToolCapability
+    sha256: 41ea3c3cbdf1ec9b75a423b3b84ec6f77b888893edff08a04c7c9f699b5e3139
   warning_operation_limit: 30
   warning_budget_exceeded: false
   hard_operation_limit: 30
+  secrets_included: false
+  registration_set: admin_core_production
+  registration_members:
+    - admin_core_production
+x-mad4b-registration:
+  registration_set: admin_core_production
+  action_slot: admin_core
+  audience: admin_service
+  auth_profile: admin_service
+  environment: production
+  server_uri: https://auth.mad4b.com
+  gateway_host: auth.mad4b.com
+  members:
+    - admin_core_production
+  operation_count: 30
+  hard_operation_limit: 30
+  warning_operation_limit: 30
+  tenant_surfaces_forbidden: []
+  secrets_included: false
+x-mad4b-registration-contract:
+  contract: mad4b.custom-gpt-registration-contract.v1
+  registration_set: admin_core_production
+  live_registration_set: admin_core_production
+  action_slot: admin_core
+  environment: production
+  source_surface: admin_core
+  generation_mode: generated_from_openapi
+  source_openapi_sha256: 814d9f116cbf5551e13f4797a1fd8927af72eafa77746478de438e7dd5339834
+  source_manifest_sha256: 155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9
+  surface_operation_manifest_sha256: 41ea3c3cbdf1ec9b75a423b3b84ec6f77b888893edff08a04c7c9f699b5e3139
+  surface_operation_manifest_hash_scope: split_surface_operation_manifest.v1
+  registration_operation_manifest_sha256: f72392346e93b53f8ac8511dcf2acc996c896b5fd0dc77ea32d4a674b6d43b9e
+  registration_operation_manifest_hash_scope: custom_admin_operation_manifest.v1
+  operation_manifest_sha256: f72392346e93b53f8ac8511dcf2acc996c896b5fd0dc77ea32d4a674b6d43b9e
+  operation_manifest_sha256_compatibility_alias_of: registration_operation_manifest_sha256
+  operation_count: 30
+  server_uri: https://auth.mad4b.com
+  auth_profile: admin_service
   secrets_included: false

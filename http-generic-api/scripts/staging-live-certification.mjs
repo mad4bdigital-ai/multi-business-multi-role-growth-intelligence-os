@@ -234,6 +234,7 @@ const deploymentUrl = new URL("/deployment-info", appBase);
 deploymentUrl.searchParams.set("include_governance_db_readiness", "1");
 deploymentUrl.searchParams.set("include_mcp_catalog_schema_readiness", "1");
 deploymentUrl.searchParams.set("include_production_activation_readiness", "1");
+if (requireGateway) deploymentUrl.searchParams.set("include_platform_admin_semantic_readiness", "1");
 
 const deployment = await fetchJson(deploymentUrl);
 const body = deployment.body || {};
@@ -241,6 +242,7 @@ const combined = body.production_activation_readiness || null;
 const runtimeIntegrity = body.runtime_integrity || null;
 const mcpReadiness = body.mcp_catalog_schema_readiness || null;
 const governanceReadiness = body.governance_db_privilege_readiness || null;
+const platformAdminSemanticReadiness = body.platform_admin_semantic_readiness || null;
 const appManifest = body.deployment || {};
 const observedImageDigest = String(appManifest.image_digest || "").trim().toLowerCase();
 const artifactSetChecks = [
@@ -290,6 +292,17 @@ const readinessChecks = [
     provider_mutation_performed: combined?.provider_mutation_performed ?? null,
   }, "readiness"),
   check("combined_readiness_secret_free", combined?.secrets_included === false, combined?.secrets_included ?? null, "readiness"),
+  ...(requireGateway ? [check("platform_admin_semantic_readiness",
+    platformAdminSemanticReadiness?.ready === true && platformAdminSemanticReadiness?.status === "ready",
+    {
+      status: platformAdminSemanticReadiness?.status || "runtime_database_unavailable",
+      relevant_row_count: Number(platformAdminSemanticReadiness?.relevant_row_count || 0),
+      exact_selector_count: Number(platformAdminSemanticReadiness?.exact_selector_count || 0),
+      marker_candidate_count: Number(platformAdminSemanticReadiness?.marker_candidate_count || 0),
+      ready_authority_count: Number(platformAdminSemanticReadiness?.ready_authority_count || 0),
+      database_read_performed: platformAdminSemanticReadiness?.database_read_performed === true,
+      secrets_included: false,
+    }, "readiness")] : []),
 ];
 
 let gatewayEvidence = {
@@ -438,6 +451,7 @@ const report = {
     app_env: body.app_env || null,
     runtime_integrity_state: runtimeIntegrity?.state || null,
     combined_database_status: combined?.status || null,
+    platform_admin_semantic_status: platformAdminSemanticReadiness?.status || (requireGateway ? "runtime_database_unavailable" : "not_required"),
     app_tree_sha: appManifest.tree_sha || null,
     app_context_file_set_sha256: appManifest.context_file_set_sha256 || null,
     app_image_digest: observedImageDigest || null,

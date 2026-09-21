@@ -58,6 +58,7 @@
     "supervisor:readiness": "node scripts/supervisor-runtime-readiness.mjs",
     "runtime-persistence:readiness": "node scripts/runtime-persistence-operational-readiness.mjs",
     "database:collation:check": "node scripts/mariadb-collation-ci-guard.mjs",
+    "database:lifecycle:check": "node scripts/runtime-data-lifecycle-guard.mjs && node test-runtime-data-lifecycle-guard.mjs",
     "supervisor:readiness:live": "node --env-file=.env scripts/supervisor-runtime-readiness.mjs --live",
     "supervisor:certify": "node scripts/supervisor-behavioral-certification.mjs",
     "supervisor:certify:live": "node --env-file=.env scripts/supervisor-behavioral-certification.mjs --apply --confirm=APPLY_SUPERVISOR_BEHAVIORAL_CERTIFICATION",
@@ -85,7 +86,12 @@
     "dev:migration:probe": "node scripts/dev-governed-migration-client.mjs --action=probe",
     "dev:migration:client": "node scripts/dev-governed-migration-client.mjs",
     "dev:outbox:status": "node scripts/dev-governed-migration-client.mjs --action=shell-alias --alias=platform_outbox_worker --extra-args-base64=WyItLWFjdGlvbj1zdGF0dXMiXQ==",
-    "dev:outbox:dry-run": "node scripts/dev-governed-migration-client.mjs --action=shell-alias --alias=platform_outbox_worker --extra-args-base64=WyItLWFjdGlvbj1kcnktcnVuIl0="
+    "dev:outbox:dry-run": "node scripts/dev-governed-migration-client.mjs --action=shell-alias --alias=platform_outbox_worker --extra-args-base64=WyItLWFjdGlvbj1kcnktcnVuIl0=",
+    "staging:canonical-repair:plan": "node scripts/staging-canonical-semantic-repair.mjs --action=plan",
+    "staging:canonical-repair:apply": "node scripts/staging-canonical-semantic-repair.mjs --action=apply",
+    "staging:canonical-repair:reconcile": "node scripts/staging-canonical-semantic-repair.mjs --action=reconcile",
+    "staging:semantic-completeness": "node scripts/semantic-data-completeness-report.mjs",
+    "authority:platform-admin:check": "node scripts/build-platform-admin-workspace-authority.mjs --check"
   },
   "engines": {
     "node": ">=22 <23"

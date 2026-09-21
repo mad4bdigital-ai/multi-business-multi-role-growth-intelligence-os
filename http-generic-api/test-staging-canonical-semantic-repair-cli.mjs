@@ -1,0 +1,18 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+const source=fs.readFileSync(new URL("./scripts/staging-canonical-semantic-repair.mjs",import.meta.url),"utf8");
+const pkg=JSON.parse(fs.readFileSync(new URL("./package.json",import.meta.url),"utf8"));
+assert.match(source,/\["plan","apply","reconcile"\]/u);
+assert.match(source,/staging_local_windows_docker/u);
+assert.match(source,/NODE_ENV==="production"/u);
+assert.match(source,/production\|hostinger/iu);
+assert.match(source,/git",\["rev-parse","HEAD"\]/u);
+assert.match(source,/STAGING_CANONICAL_REPAIR_EXPECTED_COMMIT/u);
+assert.match(source,/STAGING_CANONICAL_REPAIR_LEDGER_DIR/u);
+assert.match(source,/STAGING_CANONICAL_REPAIR_PLAN_FILE_REQUIRED/u);
+assert.match(source,/size>1024\*1024/u);
+assert.doesNotMatch(source,/process\.env\.(?:PRODUCTION|HOSTINGER)/u);
+assert.equal(pkg.scripts["staging:canonical-repair:plan"],"node scripts/staging-canonical-semantic-repair.mjs --action=plan");
+assert.equal(pkg.scripts["staging:canonical-repair:apply"],"node scripts/staging-canonical-semantic-repair.mjs --action=apply");
+assert.equal(pkg.scripts["staging:canonical-repair:reconcile"],"node scripts/staging-canonical-semantic-repair.mjs --action=reconcile");
+console.log("Staging canonical semantic repair CLI contract tests passed");

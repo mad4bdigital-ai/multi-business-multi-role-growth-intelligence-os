@@ -38,7 +38,18 @@ function bindStagingGovernanceAuthorityStore(deps = {}) {
     throw error;
   }
 
-  assertPlatformResourceAuthorityStoreSource({ pool: governancePool, runtimePool });
+  try {
+    assertPlatformResourceAuthorityStoreSource({ pool: governancePool, runtimePool });
+  } catch (error) {
+    if (error?.code === "PLATFORM_RESOURCE_AUTHORITY_RUNTIME_POOL_FORBIDDEN") {
+      const mismatch = new Error("Runtime and Governance database authorities must resolve to distinct executors.");
+      mismatch.code = "staging_activation_gateway_runtime_database_authority_mismatch";
+      mismatch.status = 503;
+      mismatch.details = { cause_code: error.code, secrets_included: false };
+      throw mismatch;
+    }
+    throw error;
+  }
   return { ...deps, runtimePool, governancePool };
 }
 

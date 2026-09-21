@@ -21,6 +21,9 @@ const repair = read("autopilot-portable-staging/Repair-StagingDatabaseReadiness.
 const runtimePersistenceReadiness = read("http-generic-api/scripts/runtime-persistence-operational-readiness.mjs");
 const importer = read("autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1");
 const sqlCacheMigration = read("http-generic-api/migrations/1023_sprint69_sql_cache_runtime_policy.sql");
+const platformAdminWorkspaceSeed = read("http-generic-api/migrations/20260920_platform_admin_workspace_canonical_seed.sql");
+const wordpressDeployAuthorityMigration = read("http-generic-api/migrations/20260920_wordpress_staging_plugin_deploy_v2_authority.sql");
+const wordpressDeployCanonicalSeed = read("http-generic-api/migrations/20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql");
 const roleManifest = readJson("http-generic-api/config/staging-database-role-migration-manifest.json");
 for (const table of STAGING_ROLE_GRANT_POLICIES.governance.required_tables) {
   assert.equal(
@@ -161,7 +164,58 @@ assert.deepEqual(roleManifest.canonical_seed_lifecycle.seed_files, [
   "039_sprint43_data_integrity_and_missing_tables.sql",
   "1043_sprint69_dynamic_container_hvac_activity_seed.sql",
   "20260815_custom_gpt_mcp_catalog_levels.sql",
+  "20260920_platform_admin_workspace_canonical_seed.sql",
+  "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
 ]);
+assert.match(platformAdminWorkspaceSeed, /WHERE NOT EXISTS[\s\S]*workspace_id[\s\S]*workspace_key/i);
+assert.doesNotMatch(platformAdminWorkspaceSeed, /ON DUPLICATE KEY UPDATE/i);
+assert.match(
+  platformAdminWorkspaceSeed,
+  /AND display_name = 'Platform Admin'[\s\S]*AND workspace_type = 'brand'[\s\S]*AND bootstrap_status = 'ready'/i,
+);
+const wordpressDeployTagWidening = "ALTER TABLE admin_platform_endpoint_tools\n  MODIFY COLUMN tags TEXT NULL";
+assert.ok(
+  wordpressDeployCanonicalSeed.indexOf(wordpressDeployTagWidening) >= 0 &&
+  wordpressDeployCanonicalSeed.indexOf(wordpressDeployTagWidening) <
+    wordpressDeployCanonicalSeed.indexOf("INSERT INTO admin_platform_endpoint_tools"),
+  "canonical WordPress deploy seed must widen admin tool tags before the long governance tag writer",
+);
+
+for (const token of [
+  "no_caller_target",
+  "no_caller_artifact",
+  "no_caller_path",
+  "no_caller_credentials",
+  "wordpress_staging_plugin_deploy_exact_artifact_guard",
+  "remote_runtime:ssh:wordpress_staging_plugin_deploy",
+]) {
+  assert.equal(wordpressDeployAuthorityMigration.includes(token), true, "source authority migration missing " + token);
+  assert.equal(wordpressDeployCanonicalSeed.includes(token), true, "canonical replay seed drifted from source authority token " + token);
+}
+assert.match(importer, /Assert-CountExactly[\s\S]*canonical Platform Admin workspace/);
+assert.match(importer, /function Get-RoleObjectCensus/);
+assert.equal((importer.match(/function Get-RoleObjectCensus/g) || []).length, 1);
+assert.doesNotMatch(importer, /\^\[A-Za-z0-9_\]\+Require/);
+assert.match(importer, /function Assert-CompletedImportLiveReadback/);
+assert.match(importer, /Assert-CompletedImportLiveReadback \$services \$compose \$requiredRuntimeCensus \$requiredRuntimeSupportTables/);
+assert.match(importer, /SCHEMA_IMPORT_ALREADY_COMPLETE:[^\r\n]*live_semantic_readback=passed/);
+assert.match(importer, /Direct schema-only importer may apply only when all three local Staging role databases are zero-object/);
+assert.match(importer, /Rebuild-EmptyStagingRoleDatabases Recovery flow/);
+assert.match(importer, /pre_apply_role_object_census/);
+assert.match(importer, /nonempty_role_apply_forbidden = \$true/);
+assert.match(importer, /\(\?im\)\^\\s\*TRUNCATE\\b/);
+assert.match(importer, /\(\?im\)\^\\s\*DELETE\\b/);
+assert.match(importer, /\(\?im\)\^\\s\*REPLACE\\b/);
+assert.match(importer, /ALTER\\s\+TABLE\\b\[\^;\]\*\\bDROP\\b/);
+assert.equal(roleManifest.source.nonempty_direct_schema_replay_forbidden, true);
+assert.equal(roleManifest.source.pre_apply_role_object_census_required, true);
+assert.equal(
+  roleManifest.source.partial_role_rebuild_authority,
+  "autopilot-portable-staging/Rebuild-EmptyStagingRoleDatabases.ps1",
+);
+assert.match(importer, /nonempty_direct_schema_replay_forbidden/);
+assert.match(importer, /pre_apply_role_object_census_required/);
+assert.match(importer, /partial_role_rebuild_authority/);
 assert.equal(roleManifest.authority_seed_lifecycle.contract, "mad4b.staging.authority-seed-manifest.v1");
 assert.equal(roleManifest.authority_seed_lifecycle.target_role, "runtime");
 assert.equal(roleManifest.authority_seed_lifecycle.execution_identity, "local_database_root");

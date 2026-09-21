@@ -6,8 +6,8 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "c0b6c0cfa047b4aed671b7479c3fdac4174ba5b412233ba73b9bf9a2e10369c7",
-    "dispatch_artifact_sha256": "00e3cc5ebc77a6a8ed45f77408c9c8626e7c36a3c1b4aca45236a27ce98851d1"
+    "dispatch_source_digest": "9b99f257f17d9c792316626c4678ee4709a33092349c1c7dba552f81c3ba0e50",
+    "dispatch_artifact_sha256": "b00c5e0645d0d0aba2005cabb84d37c768d24be13197018400e1a5a9b7c0f988"
   },
   "coverage": {
     "operation_count": 1074,
@@ -1435,7 +1435,6 @@
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
-        "openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
         "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
