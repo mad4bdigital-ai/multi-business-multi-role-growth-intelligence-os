@@ -14,6 +14,30 @@ import { runSqlCapsule } from "./host-breakglass-capsule-executor.mjs";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const API_ROOT = path.resolve(HERE, "..");
 const overlay = JSON.parse(fs.readFileSync(path.join(API_ROOT, "config", "host-breakglass-staging-contract.json"), "utf8"));
+const helpRequested = process.argv.includes("--help") || process.argv.includes("-h");
+if (helpRequested) {
+  process.stdout.write(`${JSON.stringify({
+    ok: true,
+    contract: "mad4b.host-breakglass-local-cli-help.v1",
+    status: "help",
+    environment_key: "staging_local_windows_docker",
+    required_platform: "win32",
+    required_runtime: "docker_compose",
+    usage: "npm run host-breakglass:local -- --request-file <verified-request.json>",
+    inspection: {
+      operation_key: "database.inspect",
+      runbook_key: "database.full_inspection",
+      action: "dry_run",
+      database_mutation_performed: false,
+    },
+    mutation_modes: ["database.repair", "database.rebuild_empty"],
+    verified_request_required_for_mutation: true,
+    workflow_dispatch_performed: false,
+    database_mutation_performed: false,
+    secrets_included: false,
+  })}\n`);
+  process.exit(0);
+}
 const requestIndex = process.argv.indexOf("--request-file");
 if (requestIndex < 0 || !process.argv[requestIndex + 1]) throw new Error("--request-file <path> is required");
 const requestPath = path.resolve(process.cwd(), process.argv[requestIndex + 1]);

@@ -2569,11 +2569,33 @@ export async function dispatchToolForCaller(callerType, toolKey, args, req, runt
   });
 }
 
+
+function stableDescriptorValue(value) {
+  if (Array.isArray(value)) return value.map(stableDescriptorValue);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(Object.keys(value).sort().map((key) => [key, stableDescriptorValue(value[key])]));
+}
+
+export function computeToolInputSchemaSha256(inputSchema = null) {
+  const canonical = JSON.stringify(stableDescriptorValue(inputSchema && typeof inputSchema === "object" ? inputSchema : {}));
+  return crypto.createHash("sha256").update(canonical).digest("hex");
+}
+
+function withToolDescriptorIdentity(tool = {}) {
+  const inputSchema = tool.inputSchema || tool.input_schema || {};
+  return {
+    ...tool,
+    inputSchema,
+    descriptor_version: "input-schema-sha256.v1",
+    input_schema_sha256: computeToolInputSchemaSha256(inputSchema),
+  };
+}
+
 async function fetchTools(callerType, executionCapsule = null) {
   if (isRuntimeRecoverySnapshotEnabled()) {
     // Snapshot mode deliberately excludes VIRTUAL_ADMIN_TOOLS: the snapshot is a
     // read-only catalog and must never advertise a mutation-capable virtual tool.
-    return loadRuntimeRecoverySnapshot().catalog.tools;
+    return loadRuntimeRecoverySnapshot().catalog.tools.map(withToolDescriptorIdentity);
   }
   const table = TOOLS_TABLE[callerType] || TOOLS_TABLE.tenant;
   await assertMcpCatalogLevelColumn({ pool: getPool(), table });
@@ -2603,7 +2625,7 @@ async function fetchTools(callerType, executionCapsule = null) {
         blockedTenantSchemas
       )
     : rows;
-  const dbTools = visibleRows.map((r) => ({
+  const dbTools = visibleRows.map((r) => withToolDescriptorIdentity({
     name: r.tool_key,
     displayName: r.display_name,
     description: r.description,
@@ -2614,7 +2636,9 @@ async function fetchTools(callerType, executionCapsule = null) {
     catalog_level: String(r.mcp_catalog_level || "core"),
     inputSchema: parseJson(r.input_schema),
   }));
-  return callerType === "admin" ? [...VIRTUAL_ADMIN_TOOLS, ...dbTools] : dbTools;
+  return callerType === "admin"
+    ? [...VIRTUAL_ADMIN_TOOLS.map(withToolDescriptorIdentity), ...dbTools]
+    : dbTools;
 }
 
 export async function readGptToolsCatalogSchemaReadiness() {
@@ -4705,12 +4729,43 @@ export function buildGptToolsRoutes(deps) {
       }
 
       const callerType = resolveCallerType(req);
+      const expectedInputSchemaSha256 = body.expected_input_schema_sha256 == null
+        ? null
+        : String(body.expected_input_schema_sha256).trim().toLowerCase();
+      if (expectedInputSchemaSha256 && !/^[a-f0-9]{64}$/u.test(expectedInputSchemaSha256)) {
+        return res.status(400).json({
+          ok: false,
+          error: { code: "invalid_expected_input_schema_sha256", message: "expected_input_schema_sha256 must be a lowercase SHA-256 digest." },
+          secrets_included: false,
+        });
+      }
       const requestRuntimeDeps = {
         ...runtimeDeps,
         actAsUserSessionId: body.act_as_user_session_id || body.actAsUserSessionId || req?.auth?.act_as_user_session_id || null,
         actAsUserOperation: "call_tool",
         executionCapsule: createGptExecutionCapsule({ operation_key: name }),
       };
+
+      if (expectedInputSchemaSha256) {
+        const descriptor = await resolveToolPreflightDescriptor(callerType, name, requestRuntimeDeps.executionCapsule);
+        if (descriptor) {
+          const actualInputSchemaSha256 = computeToolInputSchemaSha256(descriptor.inputSchema || {});
+          if (actualInputSchemaSha256 !== expectedInputSchemaSha256) {
+            return res.status(409).json({
+              ok: false,
+              error: {
+                code: "descriptor_stale",
+                message: "The discovered input schema changed before execution. Refresh listAdminTools and retry with the new descriptor hash.",
+              },
+              expected_input_schema_sha256: expectedInputSchemaSha256,
+              actual_input_schema_sha256: actualInputSchemaSha256,
+              descriptor_version: "input-schema-sha256.v1",
+              execution_performed: false,
+              secrets_included: false,
+            });
+          }
+        }
+      }
 
       // Up-front required-args check so the GPT gets a clear retry signal
       // instead of a downstream HTTP error when its schema cache forgot to

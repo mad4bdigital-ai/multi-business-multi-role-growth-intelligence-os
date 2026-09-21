@@ -1,0 +1,141 @@
+{
+  "contract": "mad4b.canonical-semantic-artifacts.v1",
+  "production_apply_allowed": false,
+  "provider_apply_allowed": false,
+  "artifacts": [
+    {
+      "artifact_key": "platform_admin_workspace",
+      "lifecycle_class": "canonical_registry",
+      "target_role": "runtime",
+      "source_file": "migrations/20260920_platform_admin_workspace_canonical_seed.sql",
+      "sha256": "4fb41955ae3ab5a6748c795c6f3291a49c58cf62bf2f84c411cd559059e66e4e",
+      "statement_count": 2,
+      "replay_modes": [
+        "zero_object_rebuild",
+        "in_place_semantic_repair"
+      ],
+      "identity_contract": "platform_admin_workspace.v1",
+      "readback_contract": "platform_admin_workspace_readback.v1",
+      "conflict_policy": "fail_closed",
+      "required_for": [
+        "staging_rebuild",
+        "platform_admin_workspace_readiness"
+      ],
+      "dependencies": [
+        "runtime_canonical_registry_snapshot"
+      ],
+      "caller_sql_forbidden": true,
+      "caller_target_forbidden": true,
+      "production_apply_allowed": false,
+      "provider_apply_allowed": false,
+      "statement_contracts": [
+        {
+          "purpose": "create_if_absent_no_conflict",
+          "statement_type": "INSERT",
+          "allowed_table": "workspace_registry"
+        },
+        {
+          "purpose": "restore_canonical_markers_only_on_exact_identity",
+          "statement_type": "UPDATE",
+          "allowed_table": "workspace_registry",
+          "allowed_mutations": [
+            "config_json.authority_scope_key",
+            "config_json.platform_admin_workspace",
+            "updated_at"
+          ],
+          "forbidden_mutations": [
+            "workspace_id",
+            "tenant_id",
+            "workspace_key",
+            "display_name",
+            "workspace_type",
+            "bootstrap_status"
+          ]
+        }
+      ],
+      "source_kind": "repository_file",
+      "authority_descriptor": "config/platform-admin-workspace-authority.json"
+    },
+    {
+      "artifact_key": "runtime_canonical_registry_snapshot",
+      "lifecycle_class": "canonical_registry",
+      "target_role": "runtime",
+      "source_kind": "disposable_git_migration_projection",
+      "bundle_file": "runtime.canonical-semantic.sql.gz",
+      "integrity_contract": "same_cycle_generated_sha256_manifest",
+      "replay_modes": [
+        "zero_object_rebuild"
+      ],
+      "identity_contract": "canonical_registry_snapshot.v1",
+      "readback_contract": "canonical_registry_snapshot_readback.v1",
+      "conflict_policy": "zero_object_rebuild_only",
+      "required_for": [
+        "staging_rebuild",
+        "semantic_completeness"
+      ],
+      "dependencies": [],
+      "tables": [
+        "admin_platform_endpoint_tools",
+        "tenant_platform_endpoint_tools",
+        "platform_endpoint_tool_exports",
+        "remote_runtime_command_allowlists",
+        "execution_policies",
+        "activation_dynamic_tab_registry",
+        "activation_dynamic_tab_section_registry",
+        "activation_dynamic_tab_discovery_rule_registry",
+        "activation_section_action_registry",
+        "activation_attention_rule_registry",
+        "activation_freshness_policy_registry",
+        "activation_signal_subscription_registry",
+        "activation_connector_pack_registry",
+        "activation_container_relationship_type_registry",
+        "activation_connector_pack_component_registry",
+        "activation_authorized_surface_registry",
+        "activation_guidance_invocation_registry",
+        "activation_callback_registry",
+        "activation_operational_tile_registry",
+        "activation_response_profile_registry",
+        "activation_delivery_policy_registry"
+      ],
+      "caller_sql_forbidden": true,
+      "caller_target_forbidden": true,
+      "production_apply_allowed": false,
+      "provider_apply_allowed": false
+    },
+    {
+      "artifact_key": "wordpress_staging_deployment_authority",
+      "lifecycle_class": "canonical_registry",
+      "target_role": "runtime",
+      "source_file": "migrations/20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
+      "sha256": "f6d9047bfda2c77a150ab0f5fca288f0504c9f6fe9deb268313c8c8d48e7f226",
+      "statement_count": 4,
+      "replay_modes": [
+        "zero_object_rebuild"
+      ],
+      "identity_contract": "wordpress_staging_deployment_authority.v2",
+      "readback_contract": "wordpress_staging_deployment_authority_readback.v1",
+      "conflict_policy": "exact_key_upsert_fail_closed",
+      "required_for": [
+        "staging_rebuild",
+        "wordpress_staging_deployment_readiness"
+      ],
+      "dependencies": [
+        "runtime_canonical_registry_snapshot"
+      ],
+      "caller_sql_forbidden": true,
+      "caller_target_forbidden": true,
+      "production_apply_allowed": false,
+      "provider_apply_allowed": false,
+      "source_kind": "repository_file"
+    }
+  ],
+  "dependency_graph": {
+    "contract": "mad4b.canonical-semantic-artifact-dag.v1",
+    "root_artifacts": [
+      "runtime_canonical_registry_snapshot"
+    ],
+    "cycle_policy": "fail_closed",
+    "missing_dependency_policy": "fail_closed",
+    "topological_replay_required": true
+  }
+}

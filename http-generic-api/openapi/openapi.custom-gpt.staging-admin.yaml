@@ -1234,9 +1234,9 @@ paths:
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: adb6bbf066274ba65efd3938ff0c124739be1a546c3dc36c1f8504134d486542
+  source_openapi_sha256: 814d9f116cbf5551e13f4797a1fd8927af72eafa77746478de438e7dd5339834
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
-  registry_sha256: 0de08f1c1c86f043bff6a0c2b9f3610cc2476b61848bf3d2432599d3ded9af02
+  registry_sha256: 155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9
   domain_family_policy: http-generic-api/config/domain-family-policy.json
   domain_family_policy_sha256: 5cdcb4b16a07d999dcff35d8a1fef14d441f4bac4ee26b8326cba1b2d92b3d3d
   environment: unspecified
@@ -1351,6 +1351,42 @@ x-custom-gpt-generation:
   static_operation_ids: null
   dynamic_operation_ids: null
   operation_count: 30
+  operation_manifest:
+    surface: admin_core
+    environment: unspecified
+    operation_count: 30
+    operation_ids:
+      - callAdminSystemTool
+      - callAdminTool
+      - callDeviceTool
+      - callSystemTool
+      - createAdminRuntimeBootstrapRun
+      - executeAdminOperation
+      - getAdminApisServicesCredentials
+      - getAdminGoogleAuthPlatformTab
+      - getAdminGoogleAuthPlatformTabs
+      - getAdminOperationStatus
+      - getAdminRuntimeBootstrapCatalog
+      - getAdminRuntimeBootstrapRun
+      - getAdminSystemConnector
+      - getLocalConnectorInstallBundle
+      - getPlatformDataSourceCensus
+      - getSystemConnector
+      - getSystemToolCatalogObservability
+      - getSystemToolDescriptor
+      - listAdminSystemConnectors
+      - listAdminSystemTools
+      - listAdminTools
+      - listDeviceTools
+      - listDnsRecords
+      - listSchemaImportJobs
+      - listSystemConnectors
+      - listSystemTools
+      - planAdminRuntimeBootstrap
+      - previewAdminOperation
+      - repairLocalConnector
+      - resolveSystemToolCapability
+    sha256: 71e8cfe52cc1b47be9ab28152453be5ffddd67af72e8ceac07656fe8f1892397
   warning_operation_limit: 30
   warning_budget_exceeded: false
   hard_operation_limit: 30

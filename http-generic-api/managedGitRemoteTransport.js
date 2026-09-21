@@ -97,6 +97,23 @@ function sanitizeGitEnvironment(base = process.env) {
   env.GIT_TERMINAL_PROMPT = "0";
   env.GIT_ASKPASS = "";
   env.SSH_ASKPASS = "";
+  applyInlineGitConfig(env, [
+    ["core.autocrlf", "false"],
+    ["core.safecrlf", "false"],
+    ["core.eol", "lf"],
+  ]);
+  return env;
+}
+
+function applyInlineGitConfig(env, entries) {
+  for (const key of Object.keys(env)) {
+    if (/^GIT_CONFIG_(?:COUNT|KEY_\d+|VALUE_\d+)$/.test(key)) delete env[key];
+  }
+  env.GIT_CONFIG_COUNT = String(entries.length);
+  entries.forEach(([key, value], index) => {
+    env[`GIT_CONFIG_KEY_${index}`] = String(key);
+    env[`GIT_CONFIG_VALUE_${index}`] = String(value);
+  });
   return env;
 }
 
@@ -105,12 +122,24 @@ function authenticatedGitEnvironment(secret, base = process.env) {
   const token = Buffer.isBuffer(secret) ? secret.toString("utf8") : String(secret ?? "");
   if (!token) fail("MANAGED_GIT_REMOTE_CREDENTIAL_INVALID", "The repository credential is invalid.", 503);
   const basic = Buffer.from(`x-access-token:${token}`, "utf8").toString("base64");
-  env.GIT_CONFIG_COUNT = "2";
-  env.GIT_CONFIG_KEY_0 = "credential.helper";
-  env.GIT_CONFIG_VALUE_0 = "";
-  env.GIT_CONFIG_KEY_1 = "http.https://github.com/.extraheader";
-  env.GIT_CONFIG_VALUE_1 = `Authorization: Basic ${basic}`;
+  applyInlineGitConfig(env, [
+    ["credential.helper", ""],
+    ["http.https://github.com/.extraheader", `Authorization: Basic ${basic}`],
+    ["core.autocrlf", "false"],
+    ["core.safecrlf", "false"],
+    ["core.eol", "lf"],
+  ]);
   return env;
+}
+
+function zeroizeGitExtraheader(env) {
+  const count = Number.parseInt(String(env?.GIT_CONFIG_COUNT || "0"), 10);
+  for (let index = 0; index < count; index += 1) {
+    if (env[`GIT_CONFIG_KEY_${index}`] === "http.https://github.com/.extraheader") {
+      env[`GIT_CONFIG_VALUE_${index}`] = "";
+      delete env[`GIT_CONFIG_VALUE_${index}`];
+    }
+  }
 }
 
 async function executeGit(state, args, { authenticated = false, secret = null, env = null, timeout_ms = DEFAULT_TIMEOUT_MS } = {}) {
@@ -145,8 +174,7 @@ async function executeGit(state, args, { authenticated = false, secret = null, e
     );
   } finally {
     if (authenticated) {
-      childEnv.GIT_CONFIG_VALUE_1 = "";
-      delete childEnv.GIT_CONFIG_VALUE_1;
+      zeroizeGitExtraheader(childEnv);
     }
   }
 }
@@ -447,5 +475,7 @@ export const _testingManagedGitRemoteTransport = Object.freeze({
   SAFE_SHA,
   canonicalRemoteUrl,
   authenticatedGitEnvironment,
+  sanitizeGitEnvironment,
+  zeroizeGitExtraheader,
   parseLsRemote,
 });

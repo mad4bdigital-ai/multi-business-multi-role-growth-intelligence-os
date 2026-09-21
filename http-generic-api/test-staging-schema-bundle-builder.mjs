@@ -375,6 +375,24 @@ test("schema bundle manifest declares exactly three isolated roles", () => {
   assert.equal(manifest.safety.schema_only, true);
   assert.equal(manifest.safety.data_copy_forbidden, true);
   assert.equal(manifest.source.baseline_schema, "http-generic-api/schema.sql");
+  assert.equal(manifest.canonical_semantic_snapshot.contract, "mad4b.staging.canonical-semantic-snapshot.v1");
+  assert.equal(manifest.canonical_semantic_snapshot.target_role, "runtime");
+  assert.equal(manifest.canonical_semantic_snapshot.source_kind, "disposable_git_migration_projection");
+  assert.equal(manifest.canonical_semantic_snapshot.bundle_file, "runtime.canonical-semantic.sql.gz");
+  assert.equal(manifest.canonical_semantic_snapshot.replay_mode, "zero_object_rebuild_only");
+  assert.equal(manifest.canonical_semantic_snapshot.live_environment_data_copy_forbidden, true);
+  assert.equal(manifest.canonical_semantic_snapshot.same_cycle_sha256_manifest_required, true);
+  assert.deepEqual(manifest.validation.required_semantic_bundle_files, ["runtime.canonical-semantic.sql.gz"]);
+  assert.ok(manifest.canonical_semantic_snapshot.tables.length > 0);
+  assert.equal(
+    new Set(manifest.canonical_semantic_snapshot.tables).size,
+    manifest.canonical_semantic_snapshot.tables.length,
+    "canonical semantic snapshot table declarations must remain unique",
+  );
+  assert.deepEqual(manifest.canonical_semantic_snapshot.required_nonempty_tables, manifest.canonical_semantic_snapshot.tables);
+  for (const table of ["tenant_platform_endpoint_tools", "platform_endpoint_tool_exports", "activation_connector_pack_registry", "activation_delivery_policy_registry"]) {
+    assert.equal(manifest.canonical_semantic_snapshot.tables.includes(table), true, `missing semantic snapshot table ${table}`);
+  }
   assert.equal(manifest.source.ordering, "baseline_schema_then_numeric_migration_prefix_then_lexicographic_tiebreaker");
   assert.equal(manifest.source.baseline_foreign_key_policy, "defer_baseline_fk_create_statements_until_after_migrations");
   assert.equal(manifest.validation.baseline_foreign_key_ordering_required, true);
@@ -392,13 +410,15 @@ test("schema bundle manifest declares exactly three isolated roles", () => {
     "secret_references", "credential_bindings", "admin_platform_endpoint_tools", "tenant_platform_endpoint_tools", "customer_sessions",
     "gpt_session_turns", "activation_dynamic_tab_registry", "activation_dynamic_tab_section_registry",
     "activation_dynamic_tab_discovery_rule_registry", "activation_section_action_registry", "activation_attention_rule_registry",
-    "activation_freshness_policy_registry", "activation_signal_subscription_registry", "activation_connector_pack_registry",
+    "activation_freshness_policy_registry", "activation_signal_subscription_registry", "activation_connector_pack_registry", "workspace_registry",
   ]);
   assert.equal(manifest.canonical_seed_lifecycle.contract, "mad4b.staging.canonical-seed-manifest.v1");
   assert.deepEqual(manifest.canonical_seed_lifecycle.seed_files, [
     "039_sprint43_data_integrity_and_missing_tables.sql",
     "1043_sprint69_dynamic_container_hvac_activity_seed.sql",
     "20260815_custom_gpt_mcp_catalog_levels.sql",
+    "20260920_platform_admin_workspace_canonical_seed.sql",
+    "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
   ]);
   assert.deepEqual(manifest.canonical_seed_lifecycle.mcp_catalog_required_columns, [
     "admin_platform_endpoint_tools.mcp_catalog_level",
@@ -1093,6 +1113,16 @@ test("generator requires exact confirmation and emits schema-only no-provider co
   assert.match(generator, /production_accessed: false/);
   assert.match(generator, /provider_accessed: false/);
   assert.match(generator, /data_exported: false/);
+  assert.match(generator, /live_environment_data_exported: false/);
+  assert.match(generator, /repository_semantic_projection_exported: true/);
+  assert.match(generator, /makeCanonicalSemanticDump/);
+  assert.match(generator, /--no-create-info/);
+  assert.match(generator, /--complete-insert/);
+  assert.match(generator, /--skip-extended-insert/);
+  assert.match(generator, /--order-by-primary/);
+  assert.match(generator, /semantic snapshot table has no stable unique ordering key/);
+  assert.match(generator, /canonical semantic snapshot row count mismatch/);
+  assert.match(generator, /canonical semantic dump contains forbidden statement/);
   assert.match(generator, /const stdinFlag = options\.input === undefined \? \[\] : \["-i"\]/);
   assert.ok(generator.includes(String.raw`const baselineSchemaPath = path.join(apiRoot, "schema.sql")`));
   assert.ok(generator.includes(String.raw`applyMigrations(baseline, rows, tableBootstrap)`));
@@ -1315,6 +1345,16 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.migration_count, canonicalMigrationFiles.length);
   assert.equal(plan.statement_count, canonicalMigrationStatementCount);
   assert.equal(plan.confirmation_required, "BUILD_STAGING_SCHEMA_BUNDLE");
+  assert.deepEqual(plan.required_semantic_bundle_files, ["runtime.canonical-semantic.sql.gz"]);
+  assert.equal(plan.canonical_semantic_snapshot.contract, "mad4b.staging.canonical-semantic-snapshot.v1");
+  assert.equal(plan.canonical_semantic_snapshot.source_kind, "disposable_git_migration_projection");
+  assert.equal(plan.canonical_semantic_snapshot.bundle_file, "runtime.canonical-semantic.sql.gz");
+  assert.equal(
+    plan.canonical_semantic_snapshot.table_count,
+    manifest.canonical_semantic_snapshot.tables.length,
+    "plan-only semantic table count must stay derived from the canonical manifest",
+  );
+  assert.equal(plan.canonical_semantic_snapshot.plan_only, true);
   assert.equal(plan.ordered_collation_chain.contract, "mad4b.mariadb-collation-ordered-chain.v1");
   assert.equal(plan.ordered_collation_chain.ok, true);
   assert.equal(plan.ordered_collation_chain.ready, true);
@@ -1350,8 +1390,8 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_text_width_chain.migration_files_checked, canonicalMigrationFiles.length);
   assert.equal(plan.ordered_text_width_chain.statements_checked, expectedStatementsChecked);
   assert.equal(plan.ordered_text_width_chain.bounded_text_columns, 5242);
-  assert.equal(plan.ordered_text_width_chain.definitions_applied, 6089);
-  assert.equal(plan.ordered_text_width_chain.insert_select_source_domain_checks, 933);
+  assert.equal(plan.ordered_text_width_chain.definitions_applied, 6090);
+  assert.equal(plan.ordered_text_width_chain.insert_select_source_domain_checks, 937);
   assert.equal(plan.ordered_text_width_chain.insert_select_source_domain_overflows, 0);
   assert.equal(plan.ordered_text_width_chain.database_connection_performed, false);
   assert.equal(plan.ordered_text_width_chain.sql_mutation_performed, false);
@@ -1368,8 +1408,8 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_index_key_width_chain.migration_files_checked, canonicalMigrationFiles.length);
   assert.equal(plan.ordered_index_key_width_chain.statements_checked, expectedStatementsChecked);
   assert.equal(plan.ordered_index_key_width_chain.tables_projected, 588);
-  assert.equal(plan.ordered_index_key_width_chain.indexes_checked, 2866);
-  assert.equal(plan.ordered_index_key_width_chain.index_columns_checked, 4864);
+  assert.equal(plan.ordered_index_key_width_chain.indexes_checked, 2869);
+  assert.equal(plan.ordered_index_key_width_chain.index_columns_checked, 4868);
   assert.equal(plan.ordered_index_key_width_chain.max_key_bytes, 3072);
   assert.equal(plan.ordered_index_key_width_chain.database_connection_performed, false);
   assert.equal(plan.ordered_index_key_width_chain.sql_mutation_performed, false);
@@ -1447,6 +1487,8 @@ test("generator plan-only mode inventories the exact migration chain", () => {
     "039_sprint43_data_integrity_and_missing_tables.sql",
     "1043_sprint69_dynamic_container_hvac_activity_seed.sql",
     "20260815_custom_gpt_mcp_catalog_levels.sql",
+    "20260920_platform_admin_workspace_canonical_seed.sql",
+    "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
   ]);
   assert.equal(plan.canonical_seed_lifecycle.readback_required, true);
   assert.equal(plan.ordered_preuse_audit.missing_table_gaps, 0);

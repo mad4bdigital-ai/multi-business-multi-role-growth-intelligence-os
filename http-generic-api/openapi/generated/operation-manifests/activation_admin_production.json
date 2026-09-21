@@ -1,0 +1,17 @@
+{
+  "contract": "mad4b.custom-admin-operation-manifest.v1",
+  "environment": "production",
+  "operation_count": 9,
+  "operation_ids": [
+    "acknowledgeActivationRun",
+    "getActivationHardRunSummary",
+    "getActivationPlatformAccess",
+    "getActivationSessionContext",
+    "readActivationAwareness",
+    "readActivationDynamicTabDetail",
+    "readActivationOperationalAttention",
+    "runHardActivation",
+    "runLegacyFullHardActivation"
+  ],
+  "surface": "activation_admin_production"
+}

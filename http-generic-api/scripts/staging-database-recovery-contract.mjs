@@ -10,6 +10,8 @@ const clone = fs.readFileSync(path.join(root, "autopilot-portable-staging/Clone-
 const legacyClone = fs.readFileSync(path.join(root, "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1"), "utf8");
 const replayPlanner = fs.readFileSync(path.join(root, "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs"), "utf8");
 const roleManifest = JSON.parse(fs.readFileSync(path.join(root, "http-generic-api/config/staging-database-role-migration-manifest.json"), "utf8"));
+const lifecycleContract = JSON.parse(fs.readFileSync(path.join(root, "http-generic-api/config/runtime-data-lifecycle-contract.json"), "utf8"));
+const resolverCardinality = lifecycleContract.datasets.workspace_registry.canonical_rows[0].resolver_cardinality;
 const grantPlan = fs.readFileSync(path.join(root, "http-generic-api/scripts/staging-role-grant-plan.mjs"), "utf8");
 const grantContracts = fs.readFileSync(path.join(root, "http-generic-api/databasePrivilegeContracts.js"), "utf8");
 
@@ -97,24 +99,107 @@ assert.match(clone, /Remove-Item -LiteralPath \$tempRoot -Recurse -Force/);
 assert.doesNotMatch(clone, /mariadb[^\r\n]*-uroot/i);
 assert.doesNotMatch(clone.replace(/^\s*#.*$/gm, ""), /GRANT\s+SET\s+USER/i);
 
-assert.equal((legacyClone.match(/"--user=\$user"/g) || []).length, 2);
-assert.equal((legacyClone.match(/"--user=\$runtimeUser"/g) || []).length, 1);
+const extractPowerShellFunction = (source, name) => {
+  const start = source.indexOf("function " + name);
+  assert.ok(start >= 0, name + " function is missing");
+  const next = source.indexOf("\nfunction ", start + 1);
+  return source.slice(start, next >= 0 ? next : source.length);
+};
+
+const invokeDatabaseQueryFunction = extractPowerShellFunction(legacyClone, "Invoke-DatabaseQuery");
+assert.match(
+  invokeDatabaseQueryFunction,
+  /mariadb --protocol=socket "--user=\$user" \$db --batch --skip-column-names --raw --binary-mode -e \$Sql/
+);
+
+const completedImportReadbackFunction = extractPowerShellFunction(legacyClone, "Assert-CompletedImportLiveReadback");
+assert.match(
+  completedImportReadbackFunction,
+  /mariadb --protocol=socket "--user=\$user" \$db --batch --skip-column-names -e "SHOW FULL TABLES"[\s\S]*Completed-state table readback failed/
+);
+
+const canonicalSeedStart = legacyClone.indexOf("foreach ($seed in $canonicalSeedRows)");
+const canonicalSeedEnd = legacyClone.indexOf('$state.canonical_seed_status = "completed"', canonicalSeedStart);
+assert.ok(canonicalSeedStart >= 0 && canonicalSeedEnd > canonicalSeedStart, "canonical seed replay block is missing");
+const canonicalSeedBlock = legacyClone.slice(canonicalSeedStart, canonicalSeedEnd);
+assert.match(
+  canonicalSeedBlock,
+  /MYSQL_PWD=\$runtimePassword"[\s\S]*mariadb --protocol=socket "--user=\$runtimeUser" \$runtimeDb --binary-mode[\s\S]*Canonical seed apply failed/
+);
+
+const postImportReadbackStart = legacyClone.indexOf('Write-Host "STAGING_AUTHORITY_SEEDS_COMPLETED');
+const postImportReadbackEnd = legacyClone.indexOf("$supportRowCounts = [ordered]@{", postImportReadbackStart);
+assert.ok(postImportReadbackStart >= 0 && postImportReadbackEnd > postImportReadbackStart, "post-import canonical semantic readback block is missing");
+const postImportReadbackBlock = legacyClone.slice(postImportReadbackStart, postImportReadbackEnd);
+assert.match(
+  postImportReadbackBlock,
+  /mariadb --protocol=socket "--user=\$user" \$db --batch --skip-column-names -e "SHOW FULL TABLES"[\s\S]*Post-import table readback failed/
+);
+for (const resolverReadbackBlock of [completedImportReadbackFunction, postImportReadbackBlock]) {
+  assert.match(resolverReadbackBlock, /resolver-equivalent canonical Platform Admin workspace candidates/);
+  assert.ok(resolverReadbackBlock.includes(`tenant_id = '${resolverCardinality.tenant_id}'`));
+  assert.ok(resolverReadbackBlock.includes(`workspace_key = '${resolverCardinality.workspace_key}'`));
+  assert.ok(resolverReadbackBlock.includes(`JSON_UNQUOTE(JSON_EXTRACT(config_json, '$.authority_scope_key')) = '${resolverCardinality.authority_scope_key}'`));
+  assert.ok(resolverReadbackBlock.includes(`JSON_UNQUOTE(JSON_EXTRACT(config_json, '$.platform_admin_workspace')) = 'true'`));
+  assert.ok(resolverReadbackBlock.includes("bootstrap_status = 'ready'"));
+}
 assert.doesNotMatch(legacyClone, /(?:^|\s)-u\$(?:user|runtimeUser)\b/m);
 assert.match(legacyClone, /sed -E 's\/DEFINER=\[\^ \]\+\/DEFINER=CURRENT_USER\/g'/);
 assert.match(legacyClone, /mariadb --protocol=socket -u'\$user' '\$db'/);
 assert.doesNotMatch(legacyClone.replace(/^\s*#.*$/gm, ""), /GRANT\s+SET\s+USER/i);
-assert.equal((legacyClone.match(/mariadb[^\r\n]*-uroot/gi) || []).length, 1);
+const roleObjectCensusFunction = extractPowerShellFunction(legacyClone, "Get-RoleObjectCensus");
+assert.match(
+  roleObjectCensusFunction,
+  /MYSQL_PWD=\$rootPassword"[\s\S]*mariadb --protocol=socket -uroot --batch --skip-column-names -e "SELECT COUNT\(\*\) FROM information_schema\.SCHEMATA WHERE SCHEMA_NAME=\$literal"[\s\S]*Role database is missing or unreadable/
+);
+assert.match(
+  roleObjectCensusFunction,
+  /MYSQL_PWD=\$rootPassword"[\s\S]*mariadb --protocol=socket -uroot --batch --skip-column-names -e \$query[\s\S]*Pre-apply object-kind census failed/
+);
+const authoritySeedStart = legacyClone.indexOf("foreach ($seed in $authoritySeedRows)");
+const authoritySeedEnd = legacyClone.indexOf('$state.authority_seed_status = "completed"', authoritySeedStart);
+assert.ok(authoritySeedStart >= 0 && authoritySeedEnd > authoritySeedStart, "authority seed replay block is missing");
+const authoritySeedBlock = legacyClone.slice(authoritySeedStart, authoritySeedEnd);
+assert.match(
+  authoritySeedBlock,
+  /MYSQL_PWD=\$runtimeRootPassword"[\s\S]*mariadb --protocol=socket -uroot \$runtimeDb --binary-mode[\s\S]*Authority seed apply failed/
+);
 assert.match(legacyClone, /\$seedSql \| docker compose @compose exec -T -e "MYSQL_PWD=\$runtimeRootPassword" \$runtimeService\.Service mariadb --protocol=socket -uroot \$runtimeDb --binary-mode/);
 assert.doesNotMatch(legacyClone, /gzip -dc[^\r\n]*mariadb[^\r\n]*-uroot/i);
+const semanticSnapshotStart = legacyClone.indexOf('$semanticContainerPath = "/tmp/$([string]$semanticSnapshotManifest.file)"');
+const semanticSnapshotEnd = legacyClone.indexOf("foreach ($seed in $canonicalSeedRows)", semanticSnapshotStart);
+assert.ok(semanticSnapshotStart >= 0 && semanticSnapshotEnd > semanticSnapshotStart, "canonical semantic snapshot apply block is missing");
+const semanticSnapshotBlock = legacyClone.slice(semanticSnapshotStart, semanticSnapshotEnd);
+assert.match(legacyClone, /\$semanticSnapshotPolicy = \$roleMigrationManifest\.canonical_semantic_snapshot/);
+assert.match(legacyClone, /\$semanticSnapshotManifest = \$bundleManifest\.canonical_semantic_snapshot/);
+assert.match(
+  legacyClone,
+  /Require \(\[string\]\$semanticSnapshotPolicy\.contract -eq "mad4b\.staging\.canonical-semantic-snapshot\.v1" -and \[string\]\$semanticSnapshotManifest\.contract -eq \[string\]\$semanticSnapshotPolicy\.contract\)/,
+);
+assert.match(legacyClone, /disposable_git_migration_projection/);
+assert.match(legacyClone, /zero_object_rebuild_only/);
+assert.match(legacyClone, /live_environment_data_copy_forbidden/);
+assert.match(legacyClone, /exact_source_commit[^\r\n]*ExpectedCommit/);
+assert.match(legacyClone, /Get-Sha256 \$semanticSnapshotSource/);
+assert.match(semanticSnapshotBlock, /MYSQL_PWD=\$runtimePassword/);
+assert.match(semanticSnapshotBlock, /--user=\$runtimeUser/);
+assert.doesNotMatch(semanticSnapshotBlock, /-uroot\b/);
+assert.match(semanticSnapshotBlock, /Assert-CountExactly[\s\S]*canonical semantic snapshot \$table/);
+assert.match(completedImportReadbackFunction, /SemanticSnapshotManifest/);
+assert.match(completedImportReadbackFunction, /canonical_semantic_snapshot_readback/);
+assert.match(completedImportReadbackFunction, /Assert-CountAtLeast[\s\S]*completed-state semantic snapshot/);
+assert.match(legacyClone, /canonical_semantic_snapshot_status -eq "completed"/);
+assert.match(legacyClone, /canonical_semantic_snapshot_readback\.status -eq "passed"/);
+
 assert.doesNotMatch(legacyClone, /\$canonicalSeedRows[\s\S]*?mariadb[^\r\n]*-uroot[\s\S]*?canonical_seed_status = "completed"/i);
 assert.match(legacyClone, /if \(\$LASTEXITCODE -ne 0\) \{ Fail "Schema import failed for role \$\(\$item\.Key\); state remains applying for explicit recovery\." \}/);
 
 assert.equal(roleManifest.contract, "mad4b.staging.database-role-migration-manifest.v1");
 assert.equal(roleManifest.validation.required_runtime_table_census.length, 18);
-assert.equal(roleManifest.validation.required_runtime_support_tables.length, 19);
+assert.equal(roleManifest.validation.required_runtime_support_tables.length, 20);
 assert.match(
   legacyClone,
-  /\$requiredRuntimeSupportTables\.Count -eq 19/,
+  /\$requiredRuntimeSupportTables\.Count -eq 20/,
 );
 assert.doesNotMatch(
   legacyClone,

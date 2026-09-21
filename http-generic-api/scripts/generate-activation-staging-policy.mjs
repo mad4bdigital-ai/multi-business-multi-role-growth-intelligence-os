@@ -43,7 +43,11 @@ function loadRegistry() {
 function registrationMembers(registry, surfaceKey) {
   const surface = registry.surfaces[surfaceKey];
   const set = surface?.registration_set ? registry.registration_sets[surface.registration_set] : null;
-  return set?.output_surface === surfaceKey ? [...set.members] : [surfaceKey];
+  if (set?.output_surface !== surfaceKey) return [surfaceKey];
+  return [...new Set([
+    ...(Array.isArray(set.members) ? set.members : []),
+    ...(Array.isArray(set.embedded_members) ? set.embedded_members : []),
+  ])];
 }
 function effectiveSourceSurfaces(registry, surfaceKeys) {
   return [...new Set(surfaceKeys.flatMap((surfaceKey) => registrationMembers(registry, surfaceKey)))].sort();

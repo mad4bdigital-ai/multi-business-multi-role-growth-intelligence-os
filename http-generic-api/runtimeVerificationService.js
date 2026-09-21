@@ -164,15 +164,32 @@ export function classifyCiCheckRun(checkRun = {}, newerEquivalentSuccess = false
   return { classification: status || "unknown", gate_status: "warn", blocks_production_parity: true };
 }
 
-export async function buildActivationHardRunSummary() {
+export function classifyActivationRegistryState(results = {}) {
   const counts = {};
-  const missing = [];
+  const missingTables = [];
+  const emptyTables = [];
   for (const table of ACTIVATION_REGISTRY_TABLES) {
-    const result = await countRows(table);
-    counts[table] = result.count;
-    if (!result.exists) missing.push(table);
+    const result = results[table] || { exists: false, count: 0 };
+    counts[table] = Number(result.count || 0);
+    if (!result.exists) missingTables.push(table);
+    else if (counts[table] === 0) emptyTables.push(table);
   }
-  return { status: missing.length ? "degraded" : "active", counts, missing_tables: missing, evidence_manifest_available: true, secrets_included: false };
+  return {
+    status: missingTables.length || emptyTables.length ? "degraded" : "active",
+    counts,
+    missing_tables: missingTables,
+    empty_tables: emptyTables,
+    evidence_manifest_available: true,
+    secrets_included: false,
+  };
+}
+
+export async function buildActivationHardRunSummary() {
+  const results = {};
+  for (const table of ACTIVATION_REGISTRY_TABLES) {
+    results[table] = await countRows(table);
+  }
+  return classifyActivationRegistryState(results);
 }
 
 export async function createRuntimeVerificationRun(input = {}, actor = {}) {

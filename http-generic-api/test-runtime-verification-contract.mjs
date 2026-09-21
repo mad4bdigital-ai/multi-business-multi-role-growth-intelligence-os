@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   classifyCiCheckRun,
+  classifyActivationRegistryState,
   classifyCommitParity,
   readCheckoutCommitSha,
   resolveDeployedCommitEvidence,
@@ -72,6 +73,25 @@ assert.deepEqual(classifyCommitParity("abc123", "unknown"), {
   matches: false,
   classification: "deployment_commit_unknown",
 });
+
+const activationTables = [
+  "activation_dynamic_tab_registry",
+  "activation_dynamic_tab_section_registry",
+  "activation_dynamic_tab_discovery_rule_registry",
+  "activation_section_action_registry",
+  "activation_attention_rule_registry",
+  "activation_freshness_policy_registry",
+  "activation_signal_subscription_registry",
+  "activation_connector_pack_registry",
+];
+const populatedActivationState = Object.fromEntries(activationTables.map((table) => [table, { exists: true, count: 1 }]));
+assert.equal(classifyActivationRegistryState(populatedActivationState).status, "active");
+const emptyActivationState = { ...populatedActivationState, activation_connector_pack_registry: { exists: true, count: 0 } };
+assert.deepEqual(classifyActivationRegistryState(emptyActivationState).empty_tables, ["activation_connector_pack_registry"]);
+assert.equal(classifyActivationRegistryState(emptyActivationState).status, "degraded");
+const missingActivationState = { ...populatedActivationState, activation_attention_rule_registry: { exists: false, count: 0 } };
+assert.deepEqual(classifyActivationRegistryState(missingActivationState).missing_tables, ["activation_attention_rule_registry"]);
+assert.equal(classifyActivationRegistryState(missingActivationState).status, "degraded");
 
 const checkoutSha = "a".repeat(40);
 const environmentSha = "b".repeat(40);

@@ -171,6 +171,45 @@ assert.equal(coveredReport.pr_mode, "standard");
 assert.equal(coveredReport.single_pr_maintenance_contract?.feature_key, "001-example-maintenance");
 assert.deepEqual(coveredReport.single_pr_maintenance_contract?.runtime_files, ["http-generic-api/example/runtime/service.mjs"]);
 
+fs.mkdirSync(path.join(root, ".github"), { recursive: true });
+const derivedOutputPath = "http-generic-api/example/runtime/generated-derived.mjs";
+const contextArtifactPath = "specs/001-example/work-map-integration.json";
+fs.writeFileSync(path.join(root, derivedOutputPath), "export const derivedValue = true;\n");
+fs.writeFileSync(
+  path.join(root, ".github", "derived-state-governance.json"),
+  `${JSON.stringify({
+    contract: "mad4b.repository-derived-state-governance.v1",
+    artifacts: [{
+      artifact_id: "example-derived-runtime",
+      outputs: [derivedOutputPath, contextArtifactPath]
+    }]
+  }, null, 2)}\n`,
+);
+run("git", ["add", "."], root);
+run("git", ["commit", "-m", "add registered derived runtime output"], root);
+const derivedOutputSha = run("git", ["rev-parse", "HEAD"], root).trim();
+const derivedOutput = invokeGate(root, baseSha, derivedOutputSha);
+assert.equal(derivedOutput.status, 0, derivedOutput.stderr || derivedOutput.stdout);
+const derivedOutputReport = JSON.parse(derivedOutput.stdout);
+assert.equal(derivedOutputReport.ok, true, JSON.stringify(derivedOutputReport.findings));
+assert.equal(
+  derivedOutputReport.single_pr_maintenance_contract,
+  null,
+  "a derived Work Map context artifact must not assign this PR to another feature's parallel contract",
+);
+assert.equal(
+  derivedOutputReport.findings.some((finding) => finding.code === "parallel_work_pr_branch_not_declared"),
+  false,
+);
+
+// Restore source-owned maintenance context before exercising ambiguity and base-ref failure cases.
+// The previous scenario intentionally registers work-map-integration.json as derived output,
+// which must suppress parallel-maintenance attribution only for that scenario.
+fs.rmSync(path.join(root, ".github", "derived-state-governance.json"));
+fs.rmSync(path.join(root, derivedOutputPath));
+run("git", ["add", "-A"], root);
+run("git", ["commit", "-m", "restore source-owned maintenance context"], root);
+
 const duplicateContract = { ...maintenanceContract, feature_key: "001-example-maintenance-duplicate" };
 const duplicatePath = path.join(root, ".changes", "e2e", "001-example-maintenance-duplicate.json");
 fs.writeFileSync(duplicatePath, `${JSON.stringify(duplicateContract, null, 2)}\n`);
@@ -206,7 +245,7 @@ assert.equal(reopenedReport.single_pr_maintenance_contract, null);
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 16,
+  tests: 17,
   contract: "fully_scoped_single_pr_post_integration_maintenance",
   fail_closed_for_under_scope_ambiguity_non_main_and_reopened_parallel_delivery: true,
   secrets_included: false

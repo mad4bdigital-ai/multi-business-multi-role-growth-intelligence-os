@@ -171,6 +171,21 @@ try {
       reasons: ["explicit_release_hook_not_configured"],
       secrets_included: false,
     }),
+    platformAdminWorkspaceReadinessReader: async () => ({
+      contract: "mad4b.platform-admin-workspace-readiness.v1",
+      status: "ready",
+      ready: true,
+      workspace: { workspace_id: "must-not-be-exposed" },
+      relevant_row_count: 1,
+      exact_selector_count: 1,
+      marker_candidate_count: 1,
+      ready_authority_count: 1,
+      database_read_performed: true,
+      database_mutation_performed: false,
+      provider_access_performed: false,
+      production_access_performed: false,
+      secrets_included: false,
+    }),
     productionActivationReadinessReader: async () => ({
       contract: "mad4b.production-activation-readiness.v1",
       status: "blocked",
@@ -231,6 +246,7 @@ try {
     "/deployment-info and /version must report the same deployed commit"
   );
   assert.equal(Object.hasOwn(deploymentInfo, "production_activation_readiness"), false, "combined readiness must remain opt-in");
+  assert.equal(Object.hasOwn(deploymentInfo, "platform_admin_semantic_readiness"), false, "semantic readiness must remain opt-in");
 
   const bindingUnauthorizedResponse = await fetch(`http://127.0.0.1:${address.port}/deployment-info/runtime-binding`);
   assert.equal(bindingUnauthorizedResponse.status, 401);
@@ -339,6 +355,21 @@ try {
   assert.equal(readinessInfo.production_activation_readiness.sql_mutation_performed, false);
   assert.equal(readinessInfo.production_activation_readiness.migration_apply_performed, false);
   assert.equal(readinessInfo.production_activation_readiness.secrets_included, false);
+
+  const semanticResponse = await fetch(`http://127.0.0.1:${address.port}/deployment-info?include_platform_admin_semantic_readiness=1`);
+  assert.equal(semanticResponse.status, 200);
+  const semanticInfo = await semanticResponse.json();
+  assert.equal(semanticInfo.platform_admin_semantic_readiness.contract, "mad4b.platform-admin-workspace-readiness.v1");
+  assert.equal(semanticInfo.platform_admin_semantic_readiness.status, "ready");
+  assert.equal(semanticInfo.platform_admin_semantic_readiness.ready, true);
+  assert.equal(semanticInfo.platform_admin_semantic_readiness.relevant_row_count, 1);
+  assert.equal(semanticInfo.platform_admin_semantic_readiness.database_read_performed, true);
+  assert.equal(semanticInfo.platform_admin_semantic_readiness.database_mutation_performed, false);
+  assert.equal(semanticInfo.platform_admin_semantic_readiness.provider_access_performed, false);
+  assert.equal(semanticInfo.platform_admin_semantic_readiness.production_access_performed, false);
+  assert.equal(semanticInfo.platform_admin_semantic_readiness.secrets_included, false);
+  assert.equal(Object.hasOwn(semanticInfo.platform_admin_semantic_readiness, "workspace"), false);
+  assert.equal(JSON.stringify(semanticInfo).includes("must-not-be-exposed"), false);
 } finally {
   if (server) await new Promise((resolve) => server.close(resolve));
   if (previousManifestPath === undefined) delete process.env.DEPLOYMENT_MANIFEST_PATH;

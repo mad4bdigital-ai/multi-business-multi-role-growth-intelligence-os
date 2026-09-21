@@ -77,6 +77,26 @@ components:
           type: object
           additionalProperties: true
           description: Optional read-only readiness projection for MCP schema, Governance DB, and Runtime Persistence activation prerequisites.
+        platform_admin_semantic_readiness:
+          type: object
+          additionalProperties: false
+          description: Optional bounded read-only canonical Platform Admin Workspace semantic readiness projection; workspace identifiers and raw database values are omitted.
+          required: [contract, status, ready, database_mutation_performed, provider_access_performed, production_access_performed, secrets_included]
+          properties:
+            contract: { type: string, enum: [mad4b.platform-admin-workspace-readiness.v1] }
+            status:
+              type: string
+              enum: [ready, canonical_missing, canonical_not_ready, canonical_ambiguous, canonical_identity_conflict, runtime_database_unavailable]
+            ready: { type: boolean }
+            relevant_row_count: { type: integer, minimum: 0, maximum: 4 }
+            exact_selector_count: { type: integer, minimum: 0, maximum: 4 }
+            marker_candidate_count: { type: integer, minimum: 0, maximum: 4 }
+            ready_authority_count: { type: integer, minimum: 0, maximum: 4 }
+            database_read_performed: { type: boolean }
+            database_mutation_performed: { type: boolean, enum: [false] }
+            provider_access_performed: { type: boolean, enum: [false] }
+            production_access_performed: { type: boolean, enum: [false] }
+            secrets_included: { type: boolean, enum: [false] }
         evidence:
           type: object
           additionalProperties: true
@@ -128,6 +148,13 @@ paths:
           in: query
           required: false
           description: Return the read-only combined Production activation readiness projection.
+          schema:
+            type: string
+            enum: ["1"]
+        - name: include_platform_admin_semantic_readiness
+          in: query
+          required: false
+          description: Return the bounded read-only Platform Admin semantic readiness taxonomy without workspace identifiers or raw database values.
           schema:
             type: string
             enum: ["1"]

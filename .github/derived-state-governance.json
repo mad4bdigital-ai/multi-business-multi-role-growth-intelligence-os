@@ -129,11 +129,11 @@
       ".changes/e2e/production-promotion-release-cut-controller.json",
       ".changes/e2e/production-promotion-semantic-continuity-guard.json",
       ".changes/e2e/production-recovery-authority-foundation-7999-20260921.json",
-      ".changes/e2e/production-recovery-durable-evidence-adapters-7999-20260921.json",
       ".changes/e2e/production-recovery-authority-preflight-20260921.json",
       ".changes/e2e/production-recovery-certified-live-authority-20260902.json",
       ".changes/e2e/production-recovery-control-store-7999.json",
       ".changes/e2e/production-recovery-durable-evidence-20260910.json",
+      ".changes/e2e/production-recovery-durable-evidence-adapters-7999-20260921.json",
       ".changes/e2e/production-recovery-live-composition-activation-20260914.json",
       ".changes/e2e/production-recovery-live-composition-prerequisites-20260907.json",
       ".changes/e2e/production-runtime-parity-evidence.json",
@@ -160,6 +160,7 @@
       ".changes/e2e/staging-activation-public-schema-routes-20260905.json",
       ".changes/e2e/staging-activation-recovery-trusted-ingress-provisioning-20260903.json",
       ".changes/e2e/staging-activation-schema-runtime-grants-reconciliation-20260902.json",
+      ".changes/e2e/staging-admin-remote-runtime-catalog-readonly-current-main-20260921.json",
       ".changes/e2e/staging-autopilot-bootstrap-self-update.json",
       ".changes/e2e/staging-autopilot-git-transport-resilience.json",
       ".changes/e2e/staging-autopilot-oauth-certification-maintenance.json",
@@ -208,6 +209,7 @@
       ".changes/e2e/staging-recovery-system-surface-closure-20260907.json",
       ".changes/e2e/staging-schema-bootstrap-role-aware.json",
       ".changes/e2e/staging-schema-bootstrap-stdin-transport.json",
+      ".changes/e2e/staging-semantic-data-durability-20260920.json",
       ".changes/e2e/staging-tenant-secrets-baseline-contract.json",
       ".changes/e2e/staging-unqualified-view-dependency-replay-20260829.json",
       ".changes/e2e/staging-validation-repair-baseline-contract.json",
@@ -371,8 +373,7 @@
       "scripts/test-remote-mcp-write-scope-inventory.mjs",
       "specs/020-platform-resource-identity-brand-governance/contracts/runtime-database-readiness-contract.json",
       "specs/020-platform-resource-identity-brand-governance/contracts/runtime-db-write-authority-profiles.json",
-      "specs/020-platform-resource-identity-brand-governance/contracts/runtime-environment-invariant-contract.json",
-      ".changes/e2e/staging-admin-remote-runtime-catalog-readonly-current-main-20260921.json"
+      "specs/020-platform-resource-identity-brand-governance/contracts/runtime-environment-invariant-contract.json"
     ],
     "automerge_opt_out_labels": [
       "do-not-auto-merge",
@@ -498,7 +499,16 @@
         "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
         "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
         "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
-        "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json"
+        "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
+        "http-generic-api/openapi/generated/custom-admin-schema-index.json",
+        "http-generic-api/openapi/generated/custom-gpt-registration-manifest.json",
+        "http-generic-api/openapi/generated/operation-manifests/admin_core_production.json",
+        "http-generic-api/openapi/generated/operation-manifests/admin_core_staging.json",
+        "http-generic-api/openapi/generated/operation-manifests/activation_admin_production.json",
+        "http-generic-api/openapi/generated/operation-manifests/activation_admin_staging.json",
+        "http-generic-api/openapi/generated/operation-manifests/admin_recovery_production.json",
+        "http-generic-api/openapi/generated/operation-manifests/admin_recovery_staging.json",
+        "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.staging.yaml"
       ]
     },
     {
