@@ -352,6 +352,7 @@
         "http-generic-api/test-production-recovery-authority-foundation.mjs",
         "http-generic-api/test-production-recovery-authority-preflight.mjs",
         "http-generic-api/test-production-recovery-composition-factory.mjs",
+        "http-generic-api/test-production-recovery-durable-evidence-adapters.mjs",
         "http-generic-api/test-production-recovery-durable-evidence.mjs",
         "http-generic-api/test-production-recovery-operational-adapters.mjs",
         "http-generic-api/test-recovery-action-bridge-system-layer.mjs",

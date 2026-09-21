@@ -1,0 +1,110 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-recovery-durable-evidence-adapters-7999-20260921",
+  "title": "Production Recovery durable evidence authority adapters",
+  "delivery_mode": "multi_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/production-recovery-durable-evidence-adapters-7999-20260921.json",
+      "docs/runbooks/production-recovery-durable-evidence-adapters-7999.md",
+      "http-generic-api/productionRecoveryDurableEvidenceAdapters.js",
+      "http-generic-api/test-production-recovery-durable-evidence-adapters.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false,
+    "live_migration_executed": false,
+    "live_grant_executed": false,
+    "deployment_or_restart_executed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide immutable partial-mutation receipt persistence and canonical durable Production role-selection proof resolution without enabling Production live execution.",
+      "e2e_journeys": [
+        {
+          "id": "production-recovery-durable-evidence-adapters-fail-closed",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Production Recovery deployment-owned composition",
+          "entrypoint": "createProductionRecoveryDurableEvidenceAdapters",
+          "terminal_outcome": "Partial mutation receipts are content-bound and immutable through the existing Recovery Control Store idempotency invariant, role selection is resolved only from canonical durable full-inspection evidence, and the remaining execution/readback/ledger authorities stay explicit blockers.",
+          "steps": [
+            "Construct adapters over an isolated Recovery Control Store without opening a database connection.",
+            "Normalize and validate the canonical Hostinger partial-rebuild receipt.",
+            "Persist it as a Recovery run whose idempotency key is receipt_id and whose run identity is derived from the canonical receipt hash.",
+            "Read back the exact content binding before returning persisted=true.",
+            "Resolve Production selected-role proof using only exact SHA, target key, operation, action, and durable inspection-run reference.",
+            "Discard caller-selected roles, fingerprints, finding IDs, and other authority-bearing proof claims.",
+            "Return the four still-deferred execution/readback/ledger components explicitly and keep production_live disabled."
+          ],
+          "assertions": [
+            "Exact receipt replay is idempotent.",
+            "The same receipt_id cannot be rebound to different receipt content.",
+            "Credential-bearing receipt fields fail closed.",
+            "Caller-provided selected roles or proof hashes never become proof authority.",
+            "The canonical resolved proof remains source=durable_full_inspection and is exact-SHA/target bound.",
+            "Construction performs no database connection, provider access, workflow dispatch, deployment, migration, grant, or Production mutation.",
+            "Governance Migration Ledger is not emulated by Recovery Control Store.",
+            "production_live remains disabled and secrets_included=false."
+          ],
+          "tests": [
+            {
+              "id": "production-recovery-durable-evidence-adapters",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-recovery-durable-evidence-adapters.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/production-recovery-durable-evidence-adapters-7999-20260921.json",
+            "docs/runbooks/production-recovery-durable-evidence-adapters-7999.md",
+            "http-generic-api/productionRecoveryDurableEvidenceAdapters.js",
+            "http-generic-api/test-production-recovery-durable-evidence-adapters.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Add and certify the host-local mutation executor, independent role-aware readback verifier, and separate Governance Migration Ledger adapter while keeping Production mutation disabled."
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Keep Production live Recovery blocked until the complete deployment-owned graph, fresh signed certification, exact Production deployment attestation, and separate activation authorization exist.",
+      "blockers": [
+        "host_local_mutation_executor_not_certified",
+        "independent_role_aware_readback_not_certified",
+        "governance_migration_ledger_adapter_not_certified",
+        "complete_deployment_owned_binding_module_not_certified",
+        "fresh_signed_recovery_readiness_evidence_required",
+        "exact_production_activation_readiness_required",
+        "explicit_production_activation_authorization_required"
+      ]
+    }
+  ],
+  "safety": {
+    "repository_only": true,
+    "production_mutation_allowed": false,
+    "database_mutation": false,
+    "migration_apply": false,
+    "grant_execution": false,
+    "provider_call": false,
+    "workflow_dispatch": false,
+    "production_deploy": false,
+    "secrets_included": false
+  }
+}
