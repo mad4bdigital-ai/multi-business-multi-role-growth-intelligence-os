@@ -2,10 +2,10 @@
 
 - Gate: fail
 - Blocking new items: 7
-- Docs completion: 470/480 (97.92%)
+- Docs completion: 472/482 (97.93%)
 - Queue items: 10
 - OpenAPI missing SQL routes: 2
-- OpenAPI-exempt SQL route-like literals: 676/710
+- OpenAPI-exempt SQL route-like literals: 678/712
 - Safety marker gap migrations: 3
 - Trend quality gate: fail
 
