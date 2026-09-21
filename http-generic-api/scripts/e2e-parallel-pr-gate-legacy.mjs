@@ -86,20 +86,25 @@ function isParallelSharedGovernanceFile(file) {
   return PARALLEL_SHARED_GOVERNANCE_FILES.has(normalize(file));
 }
 
-function resolveRegisteredDerivedOutputs(root) {
+function resolveRegisteredDerivedOutputPatterns(root) {
   const registryPath = path.join(root, ".github", "derived-state-governance.json");
-  if (!fs.existsSync(registryPath)) return new Set();
+  if (!fs.existsSync(registryPath)) return [];
   try {
     const registry = readJson(registryPath);
-    return new Set(
+    return [...new Set(
       (Array.isArray(registry.artifacts) ? registry.artifacts : [])
         .flatMap((artifact) => Array.isArray(artifact.outputs) ? artifact.outputs : [])
         .map(normalize)
         .filter(Boolean)
-    );
+    )];
   } catch {
-    return new Set();
+    return [];
   }
+}
+
+function isRegisteredDerivedOutput(file, patterns) {
+  const normalized = normalize(file);
+  return patterns.some((pattern) => matchesPattern(normalized, pattern));
 }
 
 export function resolveParallelMaintenanceScope(contract) {
@@ -112,7 +117,7 @@ export function resolveParallelMaintenanceScope(contract) {
   return [...new Set([...contractScope, ...workstreamScopes].map(normalize).filter(Boolean))];
 }
 
-function resolveParallelMaintenanceSummaries({ root, changedFiles, runtimeFiles, policy, parallelSummaries, registeredDerivedOutputs = new Set() }) {
+function resolveParallelMaintenanceSummaries({ root, changedFiles, runtimeFiles, policy, parallelSummaries, registeredDerivedOutputPatterns = [] }) {
   const summariesByPath = new Map(
     parallelSummaries.map((summary) => [normalize(summary.contract_path), summary])
   );
@@ -121,7 +126,7 @@ function resolveParallelMaintenanceSummaries({ root, changedFiles, runtimeFiles,
 
   for (const rawFile of changedFiles) {
     const file = normalize(rawFile);
-    if (registeredDerivedOutputs.has(file)) continue;
+    if (isRegisteredDerivedOutput(file, registeredDerivedOutputPatterns)) continue;
     if (!file.startsWith(specPrefix)) continue;
     const [feature, ...relativeParts] = file.slice(specPrefix.length).split("/");
     const relativePath = relativeParts.join("/");
@@ -511,11 +516,11 @@ function main() {
     contractPath = integrations[0].summary.contract_path;
   } else if (options.baseRef && options.headRef && !options.headRef.startsWith("gh-readonly-queue/") && !productionPromotion) {
     const policy = readJson(path.join(options.root, ".specify", "e2e-phase-governance.json"));
-    const registeredDerivedOutputs = resolveRegisteredDerivedOutputs(options.root);
+    const registeredDerivedOutputPatterns = resolveRegisteredDerivedOutputPatterns(options.root);
     const runtimeFiles = report.changed_files.filter((file) =>
       policy.runtime_patterns.some((pattern) => matchesPattern(file, pattern))
       && !isParallelSharedGovernanceFile(file)
-      && !registeredDerivedOutputs.has(normalize(file))
+      && !isRegisteredDerivedOutput(file, registeredDerivedOutputPatterns)
     );
     const maintenanceParallelSummaries = resolveParallelMaintenanceSummaries({
       root: options.root,
@@ -523,7 +528,7 @@ function main() {
       runtimeFiles,
       policy,
       parallelSummaries: report.contracts,
-      registeredDerivedOutputs
+      registeredDerivedOutputPatterns
     });
     if (maintenanceParallelSummaries.length) {
       singlePrMaintenanceContract = resolveSinglePrMaintenanceContract({

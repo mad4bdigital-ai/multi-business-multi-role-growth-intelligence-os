@@ -173,15 +173,15 @@ assert.deepEqual(coveredReport.single_pr_maintenance_contract?.runtime_files, ["
 
 fs.mkdirSync(path.join(root, ".github"), { recursive: true });
 const derivedOutputPath = "http-generic-api/example/runtime/generated-derived.mjs";
-const derivedWorkMapPath = "specs/001-example/work-map-integration.json";
-fs.writeFileSync(path.join(root, derivedOutputPath), "export const generated = true;\n");
+const contextArtifactPath = "specs/001-example/work-map-integration.json";
+fs.writeFileSync(path.join(root, derivedOutputPath), "export const derivedValue = true;\n");
 fs.writeFileSync(
   path.join(root, ".github", "derived-state-governance.json"),
   `${JSON.stringify({
     contract: "mad4b.repository-derived-state-governance.v1",
     artifacts: [{
       artifact_id: "example-derived-runtime",
-      outputs: [derivedOutputPath, derivedWorkMapPath]
+      outputs: [derivedOutputPath, contextArtifactPath]
     }]
   }, null, 2)}\n`,
 );
