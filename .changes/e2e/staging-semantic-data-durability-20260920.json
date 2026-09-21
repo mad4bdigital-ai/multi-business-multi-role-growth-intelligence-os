@@ -105,8 +105,7 @@
       "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
       "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
       "specs/020-platform-resource-identity-brand-governance/work-map-integration.json",
-      "specs/021-portable-staging-autopilot/work-map-integration.json",
-      ".github/workflows/staging-semantic-portability.yml"
+      "specs/021-portable-staging-autopilot/work-map-integration.json"
     ]
   },
   "environment_impact": {
@@ -212,7 +211,8 @@
             "Windows semantic portability executes as a job inside the existing CI workflow, so repository workflow surface count does not grow.",
             "One-Click semantic repair handoff is read-only: automatic apply and automatic retry are false, immutable plan and durable ledger are required for later apply, and reconciliation is required before retry.",
             "Only canonical_missing is eligible for plan_required; all other unsafe semantic readiness states fail closed to inspection_required.",
-            "Windows-specific CI must cover managed Git hostile-EOL behavior, canonical artifact/checksum parity, repair plan/ledger/CLI semantics, semantic completeness, schema bundle/recovery contracts, and PowerShell syntax without granting repository write authority."
+            "Windows-specific CI must cover managed Git hostile-EOL behavior, canonical artifact/checksum parity, repair plan/ledger/CLI semantics, semantic completeness, schema bundle/recovery contracts, and PowerShell syntax without granting repository write authority.",
+            "Windows semantic portability remains a job inside the existing CI workflow, so semantic durability coverage cannot grow the repository workflow surface."
           ],
           "tests": [
             {
