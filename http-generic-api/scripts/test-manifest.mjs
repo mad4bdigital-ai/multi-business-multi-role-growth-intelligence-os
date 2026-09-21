@@ -32,7 +32,7 @@ const upstreamCommands = [
   "node test-staging-recovery-certification-public-trust.mjs",
   "node test-staging-recovery-certification-signing-authority.mjs",
   "node test-staging-recovery-certification-protocol.mjs",
-  "node test-recovery-activation-readiness.mjs",
+  "node test-recovery-activation-readiness.mjs",\n  "node test-production-recovery-canary-readiness.mjs",
   "node test-recovery-kernel.mjs",
   "node test-recovery-kernel-routes.mjs",
   "node test-recovery-composition.mjs",

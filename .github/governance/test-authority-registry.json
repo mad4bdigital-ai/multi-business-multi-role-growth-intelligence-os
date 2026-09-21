@@ -355,7 +355,8 @@
         "http-generic-api/routes/index.js",
         "http-generic-api/routes/recoveryKernelRoutes.js",
         "http-generic-api/routes/systemLayerRoutes.js",
-        "http-generic-api/test-production-recovery-durable-evidence-adapters.mjs"
+        "http-generic-api/test-production-recovery-durable-evidence-adapters.mjs",
+        "http-generic-api/test-production-recovery-canary-readiness.mjs"
       ]
     },
     {
@@ -795,7 +796,8 @@
         "http-generic-api/test-staging-recovery-certification-protocol.mjs",
         "http-generic-api/test-staging-recovery-certification-public-trust.mjs",
         "http-generic-api/test-staging-recovery-certification-signing-authority.mjs",
-        "http-generic-api/test-staging-recovery-phase-b-concurrency.mjs"
+        "http-generic-api/test-staging-recovery-phase-b-concurrency.mjs",
+        "http-generic-api/test-production-recovery-canary-readiness.mjs"
       ],
       "protected_by_verifiers": [
         "production_live_fail_closed",
@@ -861,4 +863,4 @@
     "test_deletion_requires_remaining_authority": true,
     "secrets_included": false
   }
-}
+}\n
