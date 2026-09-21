@@ -70,7 +70,8 @@ function Invoke-Status {
     Test-CommandCheck $checks "wsl"
     Add-Check $checks "repository:path" (Test-Path (Join-Path $RepositoryPath ".git")) $RepositoryPath $false
     $branch = "unknown"
-    if (Get-Command git -ErrorAction SilentlyContinue -and (Test-Path (Join-Path $RepositoryPath ".git"))) {
+    $gitCommand = Get-Command git -ErrorAction SilentlyContinue
+    if ($null -ne $gitCommand -and (Test-Path (Join-Path $RepositoryPath ".git"))) {
         $branch = ((& git -C $RepositoryPath branch --show-current 2>$null | Out-String).Trim())
     }
     Add-Check $checks "repository:branch" ($branch -eq "main") $branch $false
