@@ -541,6 +541,10 @@ function materializeRegistrationContractMetadata(registry, schemaOutputDir) {
     const liveSet = registry.registration_sets?.[liveRegistrationSet];
     if (!liveSet) throw new Error(`${surfaceKey}: live registration set is missing: ${liveRegistrationSet}`);
     const operationManifest = operationManifestForDocument(surfaceKey, surface, document);
+    const surfaceOperationManifestSha256 = document["x-custom-gpt-generation"]?.operation_manifest?.sha256 || null;
+    if (surfaceOperationManifestSha256 !== null && !/^[a-f0-9]{64}$/u.test(surfaceOperationManifestSha256)) {
+      throw new Error(`${surfaceKey}: split-surface operation manifest hash is invalid`);
+    }
     document["x-mad4b-registration-contract"] = {
       contract: "mad4b.custom-gpt-registration-contract.v1",
       registration_set: surface.registration_set,
@@ -551,7 +555,12 @@ function materializeRegistrationContractMetadata(registry, schemaOutputDir) {
       generation_mode: surface.mode,
       source_openapi_sha256: SOURCE_OPENAPI_SHA256,
       source_manifest_sha256: SURFACE_REGISTRY_SHA256,
+      surface_operation_manifest_sha256: surfaceOperationManifestSha256,
+      surface_operation_manifest_hash_scope: "split_surface_operation_manifest.v1",
+      registration_operation_manifest_sha256: operationManifest.sha256,
+      registration_operation_manifest_hash_scope: "custom_admin_operation_manifest.v1",
       operation_manifest_sha256: operationManifest.sha256,
+      operation_manifest_sha256_compatibility_alias_of: "registration_operation_manifest_sha256",
       operation_count: operationManifest.manifest.operation_count,
       server_uri: document.servers?.[0]?.url || surface.server_url || null,
       auth_profile: identitySet.auth_profile || surface.auth_profile || null,
@@ -601,7 +610,10 @@ function generateCustomAdminContractArtifacts(registry, schemaOutputDir, artifac
       schema_file: surface.output_file,
       schema_sha256: schemaSha256,
       operation_manifest_file: operationRelative,
+      surface_operation_manifest_sha256: registrationContract.surface_operation_manifest_sha256 || null,
+      registration_operation_manifest_sha256: operationManifest.sha256,
       operation_manifest_sha256: operationManifest.sha256,
+      operation_manifest_sha256_compatibility_alias_of: "registration_operation_manifest_sha256",
       operation_count: operationManifest.manifest.operation_count,
       operation_ids: operationManifest.manifest.operation_ids,
       secrets_included: false,
@@ -616,7 +628,10 @@ function generateCustomAdminContractArtifacts(registry, schemaOutputDir, artifac
       schema_sha256: row.schema_sha256,
       server_uri: row.server_uri,
       auth_profile: row.auth_profile,
+      surface_operation_manifest_sha256: row.surface_operation_manifest_sha256,
+      registration_operation_manifest_sha256: row.registration_operation_manifest_sha256,
       operation_manifest_sha256: row.operation_manifest_sha256,
+      operation_manifest_sha256_compatibility_alias_of: row.operation_manifest_sha256_compatibility_alias_of,
       source_openapi_sha256: row.source_openapi_sha256,
       source_manifest_sha256: row.source_manifest_sha256,
       expected_source_identity: {
