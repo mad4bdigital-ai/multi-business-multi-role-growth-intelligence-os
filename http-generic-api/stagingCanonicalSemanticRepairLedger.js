@@ -17,13 +17,13 @@ export function createFileCanonicalSemanticRepairLedger({directory,now=()=>new D
   const root=path.resolve(String(directory||"").trim());
   if(!directory||root===path.parse(root).root)throw Object.assign(new Error("A bounded canonical repair ledger directory is required."),{code:"STAGING_CANONICAL_REPAIR_LEDGER_DIRECTORY_INVALID"});
   const fileFor=(plan)=>path.join(root,`${cleanPlan(plan)}.json`);
-  async function read(plan){try{const value=JSON.parse(await fs.readFile(fileFor(plan),"utf8"));return publicRecord(value);}catch(error){if(error?.code==="ENOENT")return null;throw error;}}
+  async function read(plan){try{const text=await fs.readFile(fileFor(plan),"utf8");const value=JSON.parse(text.replace(/^\uFEFF/u,""));return publicRecord(value);}catch(error){if(error?.code==="ENOENT")return null;throw error;}}
   async function writeAtomic(plan,record){await fs.mkdir(root,{recursive:true,mode:0o700});const target=fileFor(plan);const temp=`${target}.${process.pid}.${Date.now()}.tmp`;await fs.writeFile(temp,JSON.stringify(record,null,2)+"\n",{mode:0o600,flag:"wx"});await fs.rename(temp,target);return publicRecord(record);}
   async function transition(plan,next,details={}){
     const current=await read(plan);if(!current)throw Object.assign(new Error("Canonical repair ledger reservation is missing."),{code:"STAGING_CANONICAL_REPAIR_LEDGER_RESERVATION_MISSING"});
     if(!STATES.has(next))throw new TypeError("Invalid canonical repair ledger state.");
     if(!TRANSITIONS[current.state]?.has(next))throw Object.assign(new Error("Canonical repair plan is terminal or the requested transition is invalid."),{code:"STAGING_CANONICAL_REPAIR_PLAN_ALREADY_CONSUMED",details:{state:current.state,next}});
-    return writeAtomic(plan,{...current,...details,state:next,updated_at:now().toISOString(),secrets_included:false});
+    return writeAtomic(plan,{...current,...details,contract:"mad4b.staging.canonical-semantic-repair-ledger.v2",state:next,updated_at:now().toISOString(),secrets_included:false});
   }
   return Object.freeze({
     async reserve({plan_sha256,expected_commit,artifact_sha256,precondition_fingerprint}={}){

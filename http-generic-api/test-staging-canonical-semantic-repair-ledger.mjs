@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import {mkdtemp,rm} from "node:fs/promises";
+import {mkdtemp,rm,writeFile} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {createFileCanonicalSemanticRepairLedger} from "./stagingCanonicalSemanticRepairLedger.js";
@@ -22,5 +22,7 @@ try{
 
   const second="e".repeat(64);await ledger.reserve({plan_sha256:second});await ledger.markExecuting(second,{});await ledger.markKnownNotApplied(second,{reason:"permission_denied"});
   assert.equal((await ledger.read(second)).state,"known_not_applied");await assert.rejects(ledger.markExecuting(second,{}),(error)=>error?.code==="STAGING_CANONICAL_REPAIR_PLAN_ALREADY_CONSUMED");
+  const bomPlan="f".repeat(64);await writeFile(join(root,`${bomPlan}.json`),`\uFEFF${JSON.stringify({contract:"mad4b.staging.canonical-semantic-repair-ledger.v2",plan_sha256:bomPlan,state:"unknown_outcome",mutation_retry_allowed:false})}\n`,"utf8");
+  assert.equal((await restarted.read(bomPlan)).state,"unknown_outcome");await restarted.markReconciledNoMutation(bomPlan,{reconciled:true});assert.equal((await restarted.read(bomPlan)).contract,"mad4b.staging.canonical-semantic-repair-ledger.v2");
 }finally{await rm(root,{recursive:true,force:true});}
 console.log("Staging canonical semantic repair durable ledger tests passed");

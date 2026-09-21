@@ -53,9 +53,10 @@ const missingTable=await inspectStagingCanonicalSemanticRepair({executor:executo
 await assert.rejects(planStagingCanonicalSemanticRepair({executor,expected_commit:commit,actual_commit:"b".repeat(40)}),(error)=>error?.code==="STAGING_CANONICAL_REPAIR_COMMIT_MISMATCH");
 
 const staleState={tableExists:true,totalRows:3,candidateRows:[]};const staleExecutor=executorFor(staleState);
-const stalePlan=await planStagingCanonicalSemanticRepair({executor:staleExecutor,expected_commit:commit,actual_commit:commit});staleState.candidateRows=[{...canonical,workspace_key:"wrong-key"}];staleState.totalRows=4;
-await assert.rejects(applyStagingCanonicalSemanticRepair({executor:staleExecutor,plan:stalePlan,confirmation:stalePlan.required_confirmation,actual_commit:commit,ledger:ledgerFor()}),
+const stalePlan=await planStagingCanonicalSemanticRepair({executor:staleExecutor,expected_commit:commit,actual_commit:commit});staleState.candidateRows=[{...canonical,workspace_key:"wrong-key"}];staleState.totalRows=4;const staleLedger=ledgerFor();
+await assert.rejects(applyStagingCanonicalSemanticRepair({executor:staleExecutor,plan:stalePlan,confirmation:stalePlan.required_confirmation,actual_commit:commit,ledger:staleLedger}),
   (error)=>error?.code==="STAGING_CANONICAL_REPAIR_PRECONDITION_CHANGED");
+assert.equal(staleLedger.records.size,0);
 
 const deniedState={tableExists:true,totalRows:7,candidateRows:[],mutationError:true};const deniedExecutor=executorFor(deniedState);
 const unknownPlan=await planStagingCanonicalSemanticRepair({executor:deniedExecutor,expected_commit:commit,actual_commit:commit});const deniedLedger=ledgerFor();

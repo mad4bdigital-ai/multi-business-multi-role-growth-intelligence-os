@@ -157,6 +157,17 @@ export async function planStagingCanonicalSemanticRepair({executor,expected_comm
   return {...body,plan_sha256:planSha,required_confirmation:requiredConfirmation(planSha),inspection};
 }
 
+export async function assertStagingCanonicalSemanticRepairPrecondition({executor,plan,actual_commit}={}){
+  validatePlanBindings(plan,actual_commit);
+  const current=await inspectStagingCanonicalSemanticRepair({executor});
+  const unchanged=current.status==="missing"&&current.repair_allowed===true
+    &&current.evidence.exact_identity_count===Number(plan.exact_identity_count)
+    &&current.evidence.ready_candidate_count===Number(plan.resolver_candidate_count)&&current.evidence.conflict_count===Number(plan.conflict_count)
+    &&current.precondition_fingerprint===plan.precondition_fingerprint&&current.semantic_fingerprint===plan.semantic_fingerprint_before;
+  if(!unchanged){const error=new Error("Canonical semantic repair preconditions changed after planning.");error.code="STAGING_CANONICAL_REPAIR_PRECONDITION_CHANGED";error.details={status:current.status,precondition_fingerprint:current.precondition_fingerprint,semantic_fingerprint:current.semantic_fingerprint,exact_identity_count:current.evidence.exact_identity_count,resolver_candidate_count:current.evidence.ready_candidate_count,conflict_count:current.evidence.conflict_count,mutation_performed:false};throw error;}
+  return {contract:"mad4b.staging.canonical-semantic-repair-precondition.v1",status:"verified_missing",plan_sha256:plan.plan_sha256,precondition_fingerprint:current.precondition_fingerprint,semantic_fingerprint:current.semantic_fingerprint,exact_identity_count:0,resolver_candidate_count:0,conflict_count:0,mutation_performed:false,secrets_included:false};
+}
+
 async function executeRegisteredArtifactInTransaction(executor){
   const progress={transaction_started:false,statement_dispatch_count:0,statement_success_count:0,commit_started:false,commit_confirmed:false,rollback_attempted:false,rollback_confirmed:false};
   try{
@@ -177,9 +188,7 @@ export async function applyStagingCanonicalSemanticRepair({executor,plan,confirm
   validatePlanBindings(plan,actual_commit);
   if(!plan.repair_allowed||plan.required_confirmation!==requiredConfirmation(plan.plan_sha256)||clean(confirmation)!==requiredConfirmation(plan.plan_sha256)){const error=new Error("Canonical semantic repair plan is not authorized for apply.");error.code="STAGING_CANONICAL_REPAIR_CONFIRMATION_REQUIRED";throw error;}
   if(!ledger||!["reserve","markExecuting","markSucceeded","markUnknown","markKnownNotApplied"].every((method)=>typeof ledger[method]==="function"))throw Object.assign(new TypeError("A durable canonical repair ledger is required."),{code:"STAGING_CANONICAL_REPAIR_LEDGER_REQUIRED"});
-  const current=await inspectStagingCanonicalSemanticRepair({executor});
-  if(current.precondition_fingerprint!==plan.precondition_fingerprint||current.semantic_fingerprint!==plan.semantic_fingerprint_before||current.status!=="missing"){
-    const error=new Error("Canonical semantic repair preconditions changed after planning.");error.code="STAGING_CANONICAL_REPAIR_PRECONDITION_CHANGED";throw error;}
+  await assertStagingCanonicalSemanticRepairPrecondition({executor,plan,actual_commit});
   await ledger.reserve({plan_sha256:plan.plan_sha256,expected_commit:plan.expected_commit,artifact_sha256:plan.artifact.sha256,precondition_fingerprint:plan.precondition_fingerprint});
   await ledger.markExecuting(plan.plan_sha256,{execution_started:true});
   try{await executeRegisteredArtifactInTransaction(executor);}

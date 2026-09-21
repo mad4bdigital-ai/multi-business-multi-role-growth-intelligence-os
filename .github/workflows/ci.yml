@@ -662,6 +662,16 @@ jobs:
         if: steps.portability-scope.outputs.active == 'true'
         run: node test-staging-canonical-semantic-repair-ledger.mjs
 
+      - name: Verify Windows PowerShell repair ledger encoding
+        if: steps.portability-scope.outputs.active == 'true'
+        shell: powershell
+        working-directory: .
+        run: ./autopilot-portable-staging/test/Test-StagingCanonicalRepairLedgerEncoding.ps1
+
+      - name: Verify bounded repair runner contract
+        if: steps.portability-scope.outputs.active == 'true'
+        run: node test-staging-canonical-semantic-repair-runner.mjs
+
       - name: Verify repair CLI contract
         if: steps.portability-scope.outputs.active == 'true'
         run: node test-staging-canonical-semantic-repair-cli.mjs

@@ -113,6 +113,7 @@
           "http-generic-api/Dockerfile.staging",
           "http-generic-api/.env.staging.example",
           "http-generic-api/scripts/staging-*.mjs",
+          "http-generic-api/scripts/validate-staging-canonical-semantic-repair-plan.mjs",
           "http-generic-api/scripts/build-staging-worker.mjs",
           "http-generic-api/scripts/install-staging-activation-trust.mjs",
           "http-generic-api/scripts/generate-activation-staging-policy.mjs",
