@@ -55,6 +55,7 @@ assert.match(routeSource, /runtimeDeps\.actAsUserAdapter = actAsUserAdapter \|\|
 assert.match(routeSource, /runtimeDeps\.actAsUserAuthorityResolver = actAsUserAuthorityResolver \|\| null/u);
 assert.match(routeSource, /act-as-user\/sessions/u);
 assert.doesNotMatch(routeSource, /chunkPersistenceDeps/u, "module-scope dispatch must not depend on a build-local lexical variable");
+assert.match(serverSource, /runtimePoolFactory: getPool/u);
 assert.match(serverSource, /runtimePersistencePoolFactory: getRuntimePersistencePool/u);
 
 await pool.end();
