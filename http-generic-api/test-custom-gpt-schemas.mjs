@@ -369,6 +369,7 @@ section("GPT Builder server host separation");
 section("dispatcher contracts");
 {
   const adminDoc = loadSchema("openapi.custom-gpt.auth-dispatcher.yaml");
+  const adminRecoveryStaging = loadSchema("openapi.custom-gpt.recovery-admin.staging.yaml");
   const tenantDoc = loadSchema("openapi.tenant-gpt.auth.yaml");
   const devDoc = loadSchema("openapi.gpt-action.dev-dispatcher.yaml");
   const parentSchema = readFileSync(resolve(__dirname, "openapi.yaml"), "utf8");
