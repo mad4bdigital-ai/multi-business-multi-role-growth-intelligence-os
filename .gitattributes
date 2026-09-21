@@ -18,6 +18,7 @@ http-generic-api/migrations/225_sprint67_capability_resolution_envelope_ledger.s
 http-generic-api/migrations/1048_transport_response_chunk_schema_recovery.sql text eol=lf
 http-generic-api/config/staging-gateway-runtime-authority-seed.sql text eol=lf
 http-generic-api/config/staging-gateway-governance-authority-seed.sql text eol=lf
+http-generic-api/migrations/*_canonical_seed.sql text eol=lf
 *.json text eol=lf
 *.yml text eol=lf
 *.yaml text eol=lf
