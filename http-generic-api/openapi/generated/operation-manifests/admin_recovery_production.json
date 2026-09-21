@@ -1,0 +1,14 @@
+{
+  "contract": "mad4b.custom-admin-operation-manifest.v1",
+  "environment": "production",
+  "operation_count": 6,
+  "operation_ids": [
+    "callAdminRecoveryKernel",
+    "createAdminRecoveryApprovalChallenge",
+    "executeAdminRecoveryKernelStep",
+    "executeApprovedAdminRecoveryKernelStep",
+    "getAdminRecoveryKernelEvidence",
+    "getAdminRecoveryKernelRun"
+  ],
+  "surface": "admin_recovery_production"
+}

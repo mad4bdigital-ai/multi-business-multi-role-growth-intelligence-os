@@ -2,11 +2,11 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "efbaabc8cbfdbe4be57416ebe8cad9f4f17c5725edc71065e5b8da7436256e4d",
+    "source_digest": "0724ccf5f901ee88c60f0fdc813cb6a91ff3c817f815036150287860d99e0206",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
-        "sha256": "0de08f1c1c86f043bff6a0c2b9f3610cc2476b61848bf3d2432599d3ded9af02",
+        "sha256": "155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9",
         "present": true
       },
       {
@@ -26,7 +26,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "adb6bbf066274ba65efd3938ff0c124739be1a546c3dc36c1f8504134d486542",
+        "sha256": "814d9f116cbf5551e13f4797a1fd8927af72eafa77746478de438e7dd5339834",
         "present": true
       },
       {
@@ -125,18 +125,13 @@
         "present": true
       },
       {
-        "file": "openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
-        "sha256": "a173ec2d3d8b0c4a0580eb1e2a31fe11959a27d3012f758639d82dcad7c74007",
-        "present": true
-      },
-      {
         "file": "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
         "sha256": "962f59dc68c414bedef05162ee30bf740c9c2ac8de1bc0030faa3bd7d8c6dad0",
         "present": true
       },
       {
         "file": "openapi/openapi.custom-gpt.staging-admin.yaml",
-        "sha256": "3ba50e2bb2bf7bc32838324cbc0d114663156ddc2459e49b253c4acad45012a6",
+        "sha256": "585d49fd4fe29b423fe5435e3652d7c630a62be53eceed682aa2e990d7149b0a",
         "present": true
       },
       {
@@ -621,7 +616,7 @@
       },
       {
         "file": "routes/gptToolsRoutes.js",
-        "sha256": "1d66ca42c776d2774da860cae6a161f63ccd31425bec0b1acbe42dc81c700ad4",
+        "sha256": "24759a1cba41be77df6321939cff710e38105ac74cce27317934013606069838",
         "present": true
       },
       {
@@ -3805,11 +3800,14 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
+            "source_file": "openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendBearerAuth"
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
               ]
             ],
             "unknown_security_schemes": []
@@ -3874,11 +3872,14 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
+            "source_file": "openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendBearerAuth"
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
               ]
             ],
             "unknown_security_schemes": []
@@ -3943,11 +3944,14 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
+            "source_file": "openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendBearerAuth"
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
               ]
             ],
             "unknown_security_schemes": []
@@ -4012,11 +4016,14 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
+            "source_file": "openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendBearerAuth"
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
               ]
             ],
             "unknown_security_schemes": []
@@ -4096,11 +4103,14 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
+            "source_file": "openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendBearerAuth"
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
               ]
             ],
             "unknown_security_schemes": []
@@ -4486,7 +4496,6 @@
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
-        "openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
         "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
@@ -48403,7 +48412,7 @@
       "family_key": "gpt-tools.admin",
       "label": "gpt tools (admin)",
       "source_file": "routes/gptToolsRoutes.js",
-      "source_digest": "1d66ca42c776d2774da860cae6a161f63ccd31425bec0b1acbe42dc81c700ad4",
+      "source_digest": "24759a1cba41be77df6321939cff710e38105ac74cce27317934013606069838",
       "mount_prefix": "/",
       "mount_order": 19042,
       "split_from_mixed_scope_file": true,
@@ -48634,7 +48643,7 @@
       "family_key": "gpt-tools.developer",
       "label": "gpt tools (developer)",
       "source_file": "routes/gptToolsRoutes.js",
-      "source_digest": "1d66ca42c776d2774da860cae6a161f63ccd31425bec0b1acbe42dc81c700ad4",
+      "source_digest": "24759a1cba41be77df6321939cff710e38105ac74cce27317934013606069838",
       "mount_prefix": "/",
       "mount_order": 19042,
       "split_from_mixed_scope_file": true,
@@ -98931,7 +98940,6 @@
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
-        "openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
         "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",

@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "1eba3118b64a4a64c5002d7336935424b11529e49d0cbc443d27e6dc6d60b5ff"
+      "sha256": "e2af35249c34a732807706a4d6d7f3dcaa51349f59e5897845d1bc7b2d9369b9"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
@@ -150,7 +150,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "54a4473c96126b5381d164a1f119c981cce4c6ad48881b3993fc7a920d98502e"
+      "sha256": "41f9e1d97187146c8b4f1aa8d208f3b4aab1998a8be0ac885b9fc177ab38bff6"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -158,7 +158,7 @@
     },
     {
       "path": "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
-      "sha256": "3ba50e2bb2bf7bc32838324cbc0d114663156ddc2459e49b253c4acad45012a6"
+      "sha256": "585d49fd4fe29b423fe5435e3652d7c630a62be53eceed682aa2e990d7149b0a"
     },
     {
       "path": "http-generic-api/openapi/openapi.remote-mcp.staging.yaml",
@@ -370,19 +370,19 @@
     },
     {
       "path": "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml",
-      "sha256": "67edb43c9faf262cc847c270cb80d988a4ec452156340dbd00f21726db95d992"
+      "sha256": "10f64b6f3bd8d777ceea264a51e5c261ad6e9bfaf3cc7fefe6ef633d6641bdab"
     },
     {
       "path": "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml",
-      "sha256": "9043fd7e87562da13a2b1274f3c93304963311615d861ec94ab838ec53f33631"
+      "sha256": "11c9500269d1e447c8fe2bc2dd36cab637d0172d77cdb8a58207d7708274f380"
     },
     {
       "path": "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
-      "sha256": "94b11647591ec795737ca0f0e8bcc63b8905917b3e28cb6eb20058669e1f75b8"
+      "sha256": "31d41db8f3f5b9bc80c66d6b7a65d6d164df94e759734188ff02c4eb3abd7983"
     },
     {
       "path": "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml",
-      "sha256": "14d3a52fdf877cdbeb80247050c464374415c8e0082ab516b2a8406c6c99ea3c"
+      "sha256": "dc86e566b5565c310d0ee41612af8bcfbbc882ffad90872da365f32b64381143"
     },
     {
       "path": "autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1",

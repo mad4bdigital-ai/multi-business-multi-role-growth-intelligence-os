@@ -24456,7 +24456,7 @@ paths:
       x-mad4b-operation-ownership: { authority_domain: staging_recovery, owning_surface: admin_recovery_staging, environment: staging, execution_class: read_only, admin_only: true, tenant_visible: false }
       x-openai-isConsequential: false
       summary: Read the Staging Recovery surface contract
-      security: [{ backendBearerAuth: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       responses:
         '200': { description: Staging Recovery contract, content: { application/json: { schema: { $ref: '#/components/schemas/StagingRecoveryContractResponse' } } } }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -24470,7 +24470,7 @@ paths:
       x-mad4b-operation-ownership: { authority_domain: staging_recovery, owning_surface: admin_recovery_staging, environment: staging, execution_class: read_only, admin_only: true, tenant_visible: false }
       x-openai-isConsequential: false
       summary: Read Staging Recovery authority readiness
-      security: [{ backendBearerAuth: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       responses:
         '200': { description: Bounded Staging Recovery readiness, content: { application/json: { schema: { $ref: '#/components/schemas/StagingRecoveryReadinessResponse' } } } }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -24484,7 +24484,7 @@ paths:
       x-mad4b-operation-ownership: { authority_domain: staging_recovery, owning_surface: admin_recovery_staging, environment: staging, execution_class: read_only, admin_only: true, tenant_visible: false }
       x-openai-isConsequential: false
       summary: Read Staging Recovery certification status
-      security: [{ backendBearerAuth: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       responses:
         '200': { description: Bounded Staging Recovery certification status, content: { application/json: { schema: { $ref: '#/components/schemas/StagingRecoveryCertificationStatusResponse' } } } }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -24498,7 +24498,7 @@ paths:
       x-mad4b-operation-ownership: { authority_domain: staging_recovery, owning_surface: admin_recovery_staging, environment: staging, execution_class: preview, admin_only: true, tenant_visible: false }
       x-openai-isConsequential: false
       summary: Preview the server-bound Staging Activation Gateway rollout plan
-      security: [{ backendBearerAuth: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/StagingRecoveryGatewayPreflightRequest' } } } }
       responses:
         '200': { description: Non-persistent Gateway rollout preview, content: { application/json: { schema: { $ref: '#/components/schemas/StagingRecoveryGatewayPreviewResponse' } } } }
@@ -24514,7 +24514,7 @@ paths:
       x-mad4b-operation-ownership: { authority_domain: staging_recovery, owning_surface: admin_recovery_staging, environment: staging, execution_class: governed_dry_run_prepare, admin_only: true, tenant_visible: false }
       x-openai-isConsequential: true
       summary: Prepare a server-bound Staging Activation Gateway dark-deploy dry-run
-      security: [{ backendBearerAuth: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/StagingRecoveryGatewayPreflightRequest' } } } }
       responses:
         '200': { description: Bounded dry-run plan preparation, content: { application/json: { schema: { $ref: '#/components/schemas/StagingRecoveryGatewayDryRunResponse' } } } }
