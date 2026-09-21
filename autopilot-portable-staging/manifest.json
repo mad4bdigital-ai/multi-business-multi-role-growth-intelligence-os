@@ -6,7 +6,7 @@
   "files": [
     {
       "path": ".gitattributes",
-      "sha256": "9162657000052fa568a0f08d808d7cf9dc8771590251e16ffd34525d64889656"
+      "sha256": "07c8a1989a0e434decfe8f75694c94a846933db7721833502eed7529b3f763f7"
     },
     {
       "path": ".dockerignore",
