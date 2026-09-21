@@ -71,7 +71,7 @@ Each implemented phase contains one or more `e2e_journeys`. Every journey declar
 - executable `node` or `npm` tests;
 - evidence paths.
 
-Test descriptors are structured and run with `shell: false`. Free-form shell commands are not accepted.
+Test descriptors are structured and run with `shell: false`. Free-form shell commands are not accepted. Each child test is also bounded by the repository-owned `test_timeout_ms` policy; timeout kills use `SIGTERM`, are reported as `timed_out=true`, and fail the phase closed rather than leaving the workflow indefinitely in progress.
 
 ## Parallel work model
 
