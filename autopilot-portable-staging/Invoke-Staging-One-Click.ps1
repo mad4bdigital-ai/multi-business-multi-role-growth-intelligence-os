@@ -365,136 +365,7 @@ function Invoke-LocalRecoveryTrustRefresh {
 
 function Ensure-ExactConvergencePreflight([string]$Commit) {
     $normalizedCommit = ([string]$Commit).Trim().ToLowerInvariant()
-    if ($normalizedCommit -notmatch '^[0-9a-f]{40}    if (-not $EnableActivationGateway) { return $null }
-    if ($RequireSchemaBundle -or $ApplySchemaBundle) { return $null }
-    if (-not (Test-Path -LiteralPath $runtimeStatePath -PathType Leaf)) { return $null }
-    if (-not (Test-Path -LiteralPath $convergenceBridge -PathType Leaf)) { Fail "Shared convergence bridge is missing: $convergenceBridge" }
-
-    $runtime = Get-Content -Raw -LiteralPath $runtimeStatePath | ConvertFrom-Json -ErrorAction Stop
-    $commit = ([string]$runtime.commit).Trim().ToLowerInvariant()
-    if ($commit -notmatch '^[0-9a-f]{40}$') { return $null }
-    $trustExact = Test-LocalRecoveryTrustExact $commit
-    if ($ChildExitCode -eq 0 -and $trustExact -and -not $AcknowledgedConvergencePlanSha256) { return $null }
-
-    Ensure-ExactConvergencePreflight $commit
-
-    $bridgeArgs = @(
-        $convergenceBridge,
-        '--runtime-state',$runtimeStatePath,
-        '--preflight',$preflightReportPath,
-        '--repository',$expectedRepository,
-        '--recovery-trust-exact',([string]([bool]$trustExact)).ToLowerInvariant()
-    )
-    if ($AcknowledgedConvergencePlanSha256) {
-        $bridgeArgs += @('--acknowledged-plan-sha256', $AcknowledgedConvergencePlanSha256)
-    }
-    $bridgeRun = Invoke-NodeJson $bridgeArgs
-    if ($null -eq $bridgeRun.final) {
-        Write-Lines $bridgeRun.lines
-        Fail 'Shared convergence bridge did not emit canonical JSON.'
-    }
-    Write-Lines $bridgeRun.final.prefix
-    if ($bridgeRun.exit_code -ne 0) {
-        $bridgeRun.final.json | ConvertTo-Json -Depth 12
-        Fail "Shared convergence bridge exited with code $($bridgeRun.exit_code)"
-    }
-    $bridge = $bridgeRun.final.json
-    if ([string]$bridge.contract -ne 'mad4b.staging-environment-convergence-bridge.v1') { Fail 'Unexpected shared convergence bridge contract.' }
-    if ($bridge.safety.provider_mutation -ne $false -or $bridge.safety.workflow_dispatch -ne $false -or $bridge.safety.production_mutation -ne $false -or $bridge.safety.database_mutation -ne $false) {
-        Fail 'Shared convergence bridge violated the observation-only boundary.'
-    }
-    return $bridge
-}
-
-function Write-CorrectedResult([object[]]$Lines, [object]$Bridge, [object]$TrustRefresh) {
-    $final = Get-FinalJson $Lines
-    if ($null -eq $final) {
-        Write-Lines $Lines
-        Fail 'Successful dual-mode core did not emit its canonical final JSON contract.'
-    }
-    Write-Lines $final.prefix
-    $result = $final.json
-    $classification = if ($null -ne $Bridge) { $Bridge.report.convergence } else { $null }
-    $handoff = if ($null -ne $classification) { $classification.next_governed_handoff } else { $null }
-    $result | Add-Member -NotePropertyName environment_convergence_status -NotePropertyValue $(if ($null -ne $classification) { [string]$classification.status } else { 'converged_or_not_required' }) -Force
-    $result | Add-Member -NotePropertyName environment_convergence_plan_sha256 -NotePropertyValue $(if ($null -ne $Bridge -and $null -ne $Bridge.plan) { [string]$Bridge.plan.plan_sha256 } else { $null }) -Force
-    $result | Add-Member -NotePropertyName environment_convergence_next_governed_handoff -NotePropertyValue $handoff -Force
-    $result | Add-Member -NotePropertyName activation_recovery_trusted_ingress_ready -NotePropertyValue ([bool]($EnableActivationGateway -and (Test-LocalRecoveryTrustExact ([string]$result.commit)))) -Force
-    $result | Add-Member -NotePropertyName activation_recovery_trust_refresh_status -NotePropertyValue $(if ($null -ne $TrustRefresh) { [string]$TrustRefresh.status } else { 'not_attempted' }) -Force
-    $result | Add-Member -NotePropertyName local_origin_trust_mutation -NotePropertyValue ([bool]($null -ne $TrustRefresh -and $TrustRefresh.mutated -eq $true)) -Force
-    $result | Add-Member -NotePropertyName local_origin_trust_mutation_scope -NotePropertyValue $(if ($null -ne $TrustRefresh -and $TrustRefresh.mutated -eq $true) { 'eight_key_allowlist_after_exact_public_evidence_only' } else { 'none' }) -Force
-    $result | Add-Member -NotePropertyName staging_worker_deploy_performed -NotePropertyValue $false -Force
-    $result | Add-Member -NotePropertyName staging_worker_deploy_initiated -NotePropertyValue $false -Force
-    $result | Add-Member -NotePropertyName provider_mutation -NotePropertyValue $false -Force
-    $result | Add-Member -NotePropertyName provider_mutation_scope -NotePropertyValue 'none' -Force
-    $result | Add-Member -NotePropertyName cloudflare_worker_mutation -NotePropertyValue $false -Force
-    $result | Add-Member -NotePropertyName cloudflare_dns_mutation -NotePropertyValue $false -Force
-    $result | Add-Member -NotePropertyName cloudflare_mutation -NotePropertyValue $false -Force
-    $result | Add-Member -NotePropertyName production_mutation -NotePropertyValue $false -Force
-    $result | Add-Member -NotePropertyName production_database_mutation -NotePropertyValue $false -Force
-    $result | Add-Member -NotePropertyName secrets_included -NotePropertyValue $false -Force
-    $result | ConvertTo-Json -Depth 12
-}
-
-if ([string]::IsNullOrWhiteSpace($RepositoryPath)) { $RepositoryPath = [IO.Path]::GetFullPath((Join-Path $root '..')) }
-$RepositoryPath = [IO.Path]::GetFullPath($RepositoryPath)
-$convergenceBridge = Join-Path $RepositoryPath 'http-generic-api\scripts\staging-environment-convergence-plan.mjs'
-$trustInstaller = Join-Path $RepositoryPath 'http-generic-api\scripts\install-staging-activation-trust.mjs'
-if (-not (Test-Path -LiteralPath $core -PathType Leaf)) { Fail "Dual-mode core launcher is missing: $core" }
-if (-not (Test-Path -LiteralPath (Join-Path $RepositoryPath '.git'))) { Fail "RepositoryPath is not a Git checkout: $RepositoryPath" }
-if ($TunnelMode -ne 'disabled' -and -not $EnableActivationGateway) {
-    Fail 'Public Staging tunnel modes require -EnableActivationGateway before any topology mutation.'
-}
-
-Invoke-EnvAuthorityGuard
-$active = Invoke-CoreWithTopologyLease
-$trustRefresh = Invoke-LocalRecoveryTrustRefresh
-if ($trustRefresh.installed -eq $true) {
-    $active = Invoke-CoreWithTopologyLease
-}
-$bridge = Invoke-SharedConvergence $active.exit_code
-if ($null -eq $bridge) {
-    if ($active.exit_code -eq 0) {
-        Write-CorrectedResult $active.lines $null $trustRefresh
-        exit 0
-    }
-    Write-Lines $active.lines
-    exit $active.exit_code
-}
-
-$classification = $bridge.report.convergence
-$handoff = $classification.next_governed_handoff
-Write-Lines $active.lines
-$bridge | ConvertTo-Json -Depth 12
-if ($null -eq $handoff) { Fail "Shared convergence did not produce a governed handoff; status=$($classification.status)" }
-if ($bridge.convergence_run.status -eq 'approval_required') {
-    Fail "Environment convergence approval required; plan_sha256=$($bridge.plan.plan_sha256)"
-}
-if ($bridge.convergence_run.status -eq 'governed_authority_required' -or $handoff.execution_ready -ne $true) {
-    Fail "Server-governed Staging Activation Gateway apply authority is required; reason=$($handoff.apply_block_reason)"
-}
-if ($bridge.convergence_run.status -ne 'handoff_ready' -or $bridge.convergence_run.operator_acknowledgement.status -ne 'acknowledged_for_handoff') {
-    Fail 'Convergence did not produce an acknowledged governed handoff.'
-}
-# Exit 0 certifies only completion of the local handoff stage. The final JSON is the
-# One-Click terminal contract; server authority must perform apply and certification.
-[pscustomobject]@{
-    contract = 'mad4b.staging-one-click-governed-handoff.v1'
-    status = 'handoff_ready'
-    local_phase_completed = $true
-    environment = 'staging'
-    commit_sha = [string]$bridge.plan.release_spec.commit_sha
-    plan_sha256 = [string]$bridge.plan.plan_sha256
-    governed_handoff = $bridge.convergence_run.governed_handoff
-    provider_execution_performed = $false
-    provider_mutation = $false
-    database_mutation = $false
-    production_mutation = $false
-    staging_certification_ready = $false
-    secrets_included = $false
-} | ConvertTo-Json -Depth 12
-exit 0
-) {
+    if ($normalizedCommit -notmatch '^[0-9a-f]{40}$') {
         Fail 'Shared convergence preflight requires an exact commit.'
     }
 
@@ -546,7 +417,6 @@ function Invoke-SharedConvergence([int]$ChildExitCode) {
     if (-not $EnableActivationGateway) { return $null }
     if ($RequireSchemaBundle -or $ApplySchemaBundle) { return $null }
     if (-not (Test-Path -LiteralPath $runtimeStatePath -PathType Leaf)) { return $null }
-    if (-not (Test-Path -LiteralPath $preflightReportPath -PathType Leaf)) { return $null }
     if (-not (Test-Path -LiteralPath $convergenceBridge -PathType Leaf)) { Fail "Shared convergence bridge is missing: $convergenceBridge" }
 
     $runtime = Get-Content -Raw -LiteralPath $runtimeStatePath | ConvertFrom-Json -ErrorAction Stop
@@ -554,6 +424,8 @@ function Invoke-SharedConvergence([int]$ChildExitCode) {
     if ($commit -notmatch '^[0-9a-f]{40}$') { return $null }
     $trustExact = Test-LocalRecoveryTrustExact $commit
     if ($ChildExitCode -eq 0 -and $trustExact -and -not $AcknowledgedConvergencePlanSha256) { return $null }
+
+    Ensure-ExactConvergencePreflight $commit
 
     $bridgeArgs = @(
         $convergenceBridge,
