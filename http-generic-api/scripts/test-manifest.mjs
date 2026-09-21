@@ -77,6 +77,7 @@ const staticDiscoveryCommands = [
   "node test-openapi-detail-closure-batch.mjs",
   "node test-openapi-all-remaining-preflight-batch.mjs",
   "node test-custom-gpt-environment-aware-contract.mjs",
+  "node test-custom-gpt-live-registration-readback.mjs",
   "node test-openapi-security-scheme-cardinality.mjs",
   "node test-spec020-runtime-database-readiness-contract.mjs",
   "node test-runtime-remediation-batch-plan.mjs",
