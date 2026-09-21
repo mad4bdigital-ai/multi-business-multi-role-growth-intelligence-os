@@ -296,7 +296,9 @@
           "http-generic-api/scripts/migration-contract-governance.mjs",
           "http-generic-api/scripts/run-test-and-run-adaptive-authorization-verification-manifest.mjs",
           "docs/openapi-split-governance.md",
-          "http-generic-api/scripts/github-repository-policy-envelope-source-contract.mjs"
+          "http-generic-api/scripts/github-repository-policy-envelope-source-contract.mjs",
+          ".specify/e2e-phase-governance.json",
+          "docs/e2e-phase-governance.md"
         ],
         "environments": [
           "repository"
