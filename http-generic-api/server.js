@@ -315,7 +315,7 @@ import {
   executeSiteMigrationJob,
   firstPopulated
 } from "./domainAdapters/wordpressAdapter.js";
-import { getRuntimePersistencePool, testConnection } from "./db.js";
+import { getPool, getRuntimePersistencePool, testConnection } from "./db.js";
 import { runMcpCatalogSchemaStartupPreflight } from "./mcpCatalogSchemaGuard.js";
 import { getRuntimeBootstrapStatus } from "./runtimeBootstrapStatus.js";
 import { runBootstrap } from "./runtimeBootstrapContract.js";
@@ -3206,6 +3206,7 @@ registerRoutes(app, {
   getRedisRuntimeStatus,
   getSqlCacheRuntimeStatus,
   testDbConnection: testConnection,
+  runtimePoolFactory: getPool,
   runtimePersistencePoolFactory: getRuntimePersistencePool,
   runtimeBootstrapReader,
   productionActivationReadinessReader,
