@@ -102,7 +102,7 @@
 ### 7. `20260810_platform_runtime_registry_drift_reconciliation.sql`
 
 - Queue class: medium_review
-- Score: 389
+- Score: 388
 - Gap severity: low
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: none
