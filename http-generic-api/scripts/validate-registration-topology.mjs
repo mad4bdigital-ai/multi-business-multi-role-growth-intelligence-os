@@ -111,12 +111,21 @@ function validateRegistrationSets(registry, errors, evidence) {
   const allSetKeys = new Set(Object.keys(sets));
   const seenEmbedded = new Set();
   for (const [setKey, set] of Object.entries(sets)) {
-    const members = Array.isArray(set.members) ? set.members : [];
+    const declaredMembers = Array.isArray(set.members) ? set.members : [];
+    const embeddedMembers = Array.isArray(set.embedded_members) ? set.embedded_members : [];
+    const members = set.registration_mode === "embedded_member"
+      ? declaredMembers
+      : [...new Set([...declaredMembers, ...embeddedMembers])];
     if (members.length === 0) {
       fail(errors, `${setKey}: members must be non-empty`);
       continue;
     }
-    if (new Set(members).size !== members.length) fail(errors, `${setKey}: duplicate member surface`);
+    if (new Set(declaredMembers).size !== declaredMembers.length) fail(errors, `${setKey}: duplicate member surface`);
+    if (set.registration_mode === "embedded_member") {
+      if (!set.parent_registration_set || !sets[set.parent_registration_set]) fail(errors, `${setKey}: embedded registration requires a valid parent_registration_set`);
+      if (declaredMembers.length !== 1) fail(errors, `${setKey}: embedded registration must declare exactly one member`);
+      if (embeddedMembers.length !== 0) fail(errors, `${setKey}: embedded registration may not declare nested embedded_members`);
+    }
     if (!set.server_uri || !hostOf(set.server_uri)) fail(errors, `${setKey}: server_uri is invalid`);
     if (!new Set(["admin_service", "tenant"]).has(set.audience)) fail(errors, `${setKey}: audience must be semantic admin_service or tenant`);
     if (!new Set(["admin_gpt", "tenant_gpt"]).has(set.consumer_principal_class)) fail(errors, `${setKey}: consumer_principal_class is invalid`);
@@ -127,9 +136,26 @@ function validateRegistrationSets(registry, errors, evidence) {
     if (set.scope_authority !== set.audience) fail(errors, `${setKey}: scope_authority must match audience`);
     if (set.audience === "tenant" && (!set.oauth_issuer || !hostOf(set.oauth_issuer))) fail(errors, `${setKey}: tenant registration requires oauth_issuer`);
     if (set.audience === "admin_service" && set.oauth_issuer) fail(errors, `${setKey}: admin registration must not declare oauth_issuer`);
-    const outputSurface = registry.surfaces?.[set.output_surface];
-    if (!outputSurface) {
+    const registeredOutputSurface = registry.surfaces?.[set.output_surface];
+    if (!registeredOutputSurface) {
       fail(errors, `${setKey}: output_surface is missing: ${set.output_surface}`);
+      continue;
+    }
+    let validationOutputSurfaceKey = set.output_surface;
+    if (set.registration_mode === "embedded_member") {
+      const embeddedSurfaceKey = declaredMembers[0];
+      const parentSet = sets[set.parent_registration_set];
+      if (parentSet?.output_surface !== set.output_surface) {
+        fail(errors, `${setKey}: embedded output_surface must match parent registration output_surface`);
+      }
+      if (!Array.isArray(parentSet?.embedded_members) || !parentSet.embedded_members.includes(embeddedSurfaceKey)) {
+        fail(errors, `${setKey}: parent registration must declare embedded member ${embeddedSurfaceKey}`);
+      }
+      validationOutputSurfaceKey = embeddedSurfaceKey;
+    }
+    const outputSurface = registry.surfaces?.[validationOutputSurfaceKey];
+    if (!outputSurface) {
+      fail(errors, `${setKey}: validation output surface is missing: ${validationOutputSurfaceKey}`);
       continue;
     }
     const outputPath = path.join(API_ROOT, outputSurface.output_file);
@@ -154,7 +180,16 @@ function validateRegistrationSets(registry, errors, evidence) {
         continue;
       }
       memberProfiles.push({ memberKey, surface });
-      if (surface.registration_set !== setKey) fail(errors, `${memberKey}: registration_set mismatch (${surface.registration_set || "missing"} != ${setKey})`);
+      if (raw.registration_status === "embedded") {
+        if (set.registration_mode === "embedded_member") {
+          if (surface.registration_set !== setKey) fail(errors, `${memberKey}: embedded registration_set mismatch (${surface.registration_set || "missing"} != ${setKey})`);
+          if (raw.embed_registration_set !== set.parent_registration_set) fail(errors, `${memberKey}: embed_registration_set must match ${set.parent_registration_set}`);
+        } else if (raw.embed_registration_set !== setKey) {
+          fail(errors, `${memberKey}: embed_registration_set mismatch (${raw.embed_registration_set || "missing"} != ${setKey})`);
+        }
+      } else if (surface.registration_set !== setKey) {
+        fail(errors, `${memberKey}: registration_set mismatch (${surface.registration_set || "missing"} != ${setKey})`);
+      }
       if (surface.environment !== set.environment) fail(errors, `${memberKey}: environment mismatch with ${setKey}`);
       if (surface.auth_profile !== (set.auth_profile || surface.auth_profile)) fail(errors, `${memberKey}: auth_profile mismatch with ${setKey}`);
       if (surface.server_url !== set.server_uri && raw.registration_status !== "embedded" && memberKey !== set.output_surface) {
@@ -233,6 +268,7 @@ function validateRegistrationSets(registry, errors, evidence) {
 
   const byHost = new Map();
   for (const [setKey, set] of Object.entries(sets)) {
+    if (set.registration_mode === "embedded_member") continue;
     const host = hostOf(set.server_uri);
     if (!host) continue;
     const key = `${set.environment}:${host}`;
