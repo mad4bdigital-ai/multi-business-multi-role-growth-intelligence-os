@@ -1,0 +1,108 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-recovery-authority-preflight-20260921",
+  "title": "Production Recovery authority preflight observability",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/production-recovery-authority-preflight-20260921.json",
+      "docs/runbooks/production-recovery-authority-preflight.md",
+      "http-generic-api/productionRecoveryAuthorityPreflight.js",
+      "http-generic-api/productionActivationReadiness.js",
+      "http-generic-api/test-production-recovery-authority-preflight.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false,
+    "live_migration_executed": false,
+    "live_grant_executed": false,
+    "deployment_or_restart_executed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Expose a bounded read-only Production Recovery authority preflight through the existing Production activation-readiness evidence without loading the deployment-owned authority module or touching the Recovery control database.",
+      "e2e_journeys": [
+        {
+          "id": "production-recovery-authority-preflight-fail-closed",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Production Recovery release operator",
+          "entrypoint": "runProductionActivationReadiness",
+          "terminal_outcome": "Readiness evidence identifies explicit runtime, binding-module, production-live-mode, control-store configuration, and unresolved authority-graph blockers while activation remains ineligible and zero mutation is performed.",
+          "steps": [
+            "Resolve strict Production runtime identity without provider access.",
+            "Read server-managed binding status without loading the configured deployment module.",
+            "Validate only the presence of independent Recovery control-store configuration without opening a database connection.",
+            "Return the complete Recovery component inventory and activation-critical live-authority subset.",
+            "Keep production_authority_graph_resolution_required blocking until the deployment-owned graph is separately resolved and certified.",
+            "Embed the bounded preflight in the existing Production activation-readiness response."
+          ],
+          "assertions": [
+            "Ambiguous Production runtime remains blocked.",
+            "Missing deployment-owned binding module remains blocked.",
+            "Any binding mode other than production_live remains blocked.",
+            "Missing independent Recovery control-store configuration remains blocked.",
+            "Configuration completeness never implies activation_eligible=true.",
+            "The deployment module is not loaded by this preflight.",
+            "No database connection, approval issuance, execution-ticket issuance, provider access, workflow dispatch, deployment, or Production mutation is performed.",
+            "Database host, user, password, name and module path are never returned.",
+            "secrets_included=false"
+          ],
+          "tests": [
+            {
+              "id": "production-recovery-authority-preflight",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-recovery-authority-preflight.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/production-recovery-authority-preflight-20260921.json",
+            "docs/runbooks/production-recovery-authority-preflight.md",
+            "http-generic-api/productionRecoveryAuthorityPreflight.js",
+            "http-generic-api/productionActivationReadiness.js",
+            "http-generic-api/test-production-recovery-authority-preflight.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Keep Production Recovery live activation blocked until a provisioned independent Recovery control store and complete certified deployment-owned authority graph exist.",
+      "blockers": [
+        "recovery_control_store_not_provisioned",
+        "production_recovery_adapter_graph_incomplete",
+        "fresh_signed_recovery_readiness_evidence_required",
+        "exact_production_activation_readiness_required",
+        "explicit_production_activation_authorization_required"
+      ]
+    }
+  ],
+  "safety": {
+    "repository_only": true,
+    "production_mutation_allowed": false,
+    "database_mutation": false,
+    "migration_apply": false,
+    "grant_execution": false,
+    "provider_call": false,
+    "workflow_dispatch": false,
+    "production_deploy": false,
+    "secrets_included": false
+  }
+}
