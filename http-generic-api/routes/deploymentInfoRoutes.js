@@ -250,7 +250,7 @@ export function buildDeploymentInfoRoutes({
   runtimeBootstrapReader = runBootstrap,
   hostLocalInspectionReader = executeHostLocalRoleInspection,
   platformAdminWorkspaceReadinessReader,
-  runtimePersistencePoolFactory,
+  runtimePoolFactory,
   runtimePool,
   pool,
   requireBackendApiKey,
@@ -261,8 +261,8 @@ export function buildDeploymentInfoRoutes({
     : async () => {
       const executor = runtimePool
         || pool
-        || (typeof runtimePersistencePoolFactory === "function"
-          ? await runtimePersistencePoolFactory()
+        || (typeof runtimePoolFactory === "function"
+          ? await runtimePoolFactory()
           : null);
       return inspectCanonicalPlatformAdminWorkspaceReadiness({
         executor,
