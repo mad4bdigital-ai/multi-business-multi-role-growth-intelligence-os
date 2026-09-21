@@ -2,15 +2,18 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "production-recovery-authority-foundation-7999-20260921",
-  "title": "Production Recovery authority foundation MVP",
+  "title": "Production Recovery authority foundation and operational adapters",
   "delivery_mode": "multi_pr",
-  "current_phase": "mvp",
+  "current_phase": "operational",
   "scope": {
     "include": [
       ".changes/e2e/production-recovery-authority-foundation-7999-20260921.json",
       "docs/runbooks/production-recovery-authority-foundation-7999.md",
+      "docs/runbooks/production-recovery-operational-adapters-7999.md",
       "http-generic-api/productionRecoveryAuthorityFoundation.js",
+      "http-generic-api/productionRecoveryOperationalAdapters.js",
       "http-generic-api/test-production-recovery-authority-foundation.mjs",
+      "http-generic-api/test-production-recovery-operational-adapters.mjs",
       ".github/governance/test-authority-registry.json"
     ]
   },
@@ -42,22 +45,17 @@
           "level": "synthetic_runtime",
           "actor": "Production Recovery deployment composition",
           "entrypoint": "createProductionRecoveryAuthorityFoundation",
-          "terminal_outcome": "A server-owned canary foundation exposes durable approval/ticket/deployment-identity authorities while declaring all consequential executor/readback/ledger components deferred and production_live disabled.",
+          "terminal_outcome": "Server-owned foundation authorities resolve without exposing a live Production graph.",
           "steps": [
-            "Create a dedicated Ed25519 execution-ticket signer and verifier without returning private material.",
-            "Construct the Recovery Control Store through an injected factory and require exact verifier object identity.",
-            "Derive approval material server-side from the immutable challenge binding without persisting or returning the token.",
-            "Persist bounded challenge references only through the independent Recovery Control Store.",
-            "Wrap the server-derived Production deployment attestation source.",
-            "Return the six deferred consequential components explicitly and keep activation ineligible."
+            "Create ticket and confirmation authorities.",
+            "Bind the durable Recovery Control Store and exact verifier identity.",
+            "Wrap server-derived Production deployment attestation.",
+            "Keep consequential adapters deferred."
           ],
           "assertions": [
-            "No database connection, provider access, workflow dispatch, migration, grant, deployment or Production mutation occurs during foundation construction.",
-            "Approval material is not persisted and is never returned by challenge issuance.",
-            "Recovery Store execution-ticket verifier object identity exactly matches the signer authority's verifier.",
-            "Wrong ticket hashes and approval material fail verification.",
-            "The foundation reports complete_authority_graph=false, production_live_enabled=false and activation_eligible=false.",
-            "Mutation executor, Hostinger executor, independent readback, partial receipts, proof resolver and migration ledger remain explicit blockers.",
+            "No provider/database/deployment mutation occurs.",
+            "production_live_enabled=false.",
+            "activation_eligible=false.",
             "secrets_included=false"
           ],
           "tests": [
@@ -70,8 +68,6 @@
             }
           ],
           "evidence_paths": [
-            ".changes/e2e/production-recovery-authority-foundation-7999-20260921.json",
-            "docs/runbooks/production-recovery-authority-foundation-7999.md",
             "http-generic-api/productionRecoveryAuthorityFoundation.js",
             "http-generic-api/test-production-recovery-authority-foundation.mjs"
           ]
@@ -79,21 +75,66 @@
       ]
     },
     {
+      "id": "operational",
+      "status": "implemented",
+      "objective": "Compose every canonical Recovery adapter through deployment-owned authority wrappers while remaining injected_non_live and executing no Production mutation.",
+      "e2e_journeys": [
+        {
+          "id": "production-recovery-operational-adapter-graph",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Production Recovery deployment-owned composition",
+          "entrypoint": "createProductionRecoveryOperationalComposition",
+          "terminal_outcome": "A complete server-managed Recovery adapter graph resolves in injected_non_live mode with caller routing overrides denied and no consequential authority invoked during construction.",
+          "steps": [
+            "Reuse the merged Production authority foundation.",
+            "Wrap deployment-owned mutation execution with an allowlisted Recovery execution payload.",
+            "Wrap independent role-aware readback with mutation_authority=false.",
+            "Wrap immutable partial receipts, durable inspection proof, and the Governance Migration Ledger.",
+            "Validate the complete graph through the canonical server-managed authority binding.",
+            "Construct Production Recovery composition in injected_non_live mode only."
+          ],
+          "assertions": [
+            "All canonical Recovery composition components are configured.",
+            "Caller-selected repository/workflow/ref/host/path/SSH/credential/token routing is rejected.",
+            "Recovery Store verifier identity remains exact.",
+            "Readback authority is independent, role-aware, and non-mutating.",
+            "Partial receipts require persisted=true and durable=true and forbid automatic rerun.",
+            "Durable proof must be server-derived with explicit selected roles.",
+            "Governance Migration Ledger finalization requires durable=true.",
+            "No adapter invocation occurs during composition construction.",
+            "live_activation=false, production_live_enabled=false, activation_eligible=false.",
+            "secrets_included=false."
+          ],
+          "tests": [
+            {
+              "id": "production-recovery-operational-adapters",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-recovery-operational-adapters.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/production-recovery-authority-foundation-7999-20260921.json",
+            "docs/runbooks/production-recovery-operational-adapters-7999.md",
+            "http-generic-api/productionRecoveryOperationalAdapters.js",
+            "http-generic-api/test-production-recovery-operational-adapters.mjs"
+          ]
+        }
+      ]
+    },
+    {
       "id": "canary",
       "status": "planned",
-      "objective": "Wire and certify the deferred deployment-owned mutation, readback, receipt, proof and ledger authorities against fresh signed non-Production evidence while keeping Production mutation disabled."
+      "objective": "Certify the complete deployment-owned adapter graph against fresh signed non-Production evidence while keeping Production mutation disabled."
     },
     {
       "id": "production",
       "status": "blocked",
-      "objective": "Keep Production live Recovery blocked until all deferred authorities, fresh signed certification, exact deployment attestation and separate activation authorization exist.",
+      "objective": "Keep Production live Recovery blocked until fresh certification, exact deployment attestation, complete activation readiness, and separate explicit activation authorization exist.",
       "blockers": [
-        "host_local_mutation_executor_not_certified",
-        "independent_role_aware_readback_not_certified",
-        "partial_receipt_store_not_certified",
-        "durable_role_selection_proof_resolver_not_certified",
-        "governance_migration_ledger_adapter_not_certified",
-        "complete_deployment_owned_binding_module_not_certified",
+        "deployment_owned_binding_module_not_configured",
         "fresh_signed_recovery_readiness_evidence_required",
         "exact_production_activation_readiness_required",
         "explicit_production_activation_authorization_required"
