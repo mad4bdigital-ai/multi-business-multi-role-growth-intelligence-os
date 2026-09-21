@@ -10,6 +10,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { SYSTEM_LAYER_TOOLS } from "./routes/systemLayerRoutes.js";
 import YAML from "yaml";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -417,6 +418,16 @@ section("dispatcher contracts");
   assert("admin dispatcher remains within the Custom GPT hard operation limit", adminOps.length === 30);
   const adminSystemBridge = adminOps.find((op) => op.operation.operationId === "callAdminSystemTool")?.operation;
   assert("admin dispatcher exposes the fixed Recovery bridge without a new operation", adminSystemBridge?.requestBody?.content?.["application/json"]?.schema?.properties?.name?.enum?.includes("recovery_kernel_call") === true);
+  const adminSystemMedia = adminSystemBridge?.requestBody?.content?.["application/json"];
+  const adminSystemNameSchema = adminSystemMedia?.schema?.properties?.name || {};
+  const expectedFixedAdminSystemTools = [...new Set(SYSTEM_LAYER_TOOLS.map((tool) => tool.name).filter(Boolean))].sort();
+  assert("callAdminSystemTool enum is generated from the fixed runtime registry",
+    JSON.stringify([...(adminSystemNameSchema.enum || [])].sort()) === JSON.stringify(expectedFixedAdminSystemTools));
+  assert("callAdminSystemTool enum carries a runtime-registry hash", /^[a-f0-9]{64}$/u.test(adminSystemNameSchema["x-mad4b-enum-sha256"] || ""));
+  for (const [exampleKey, example] of Object.entries(adminSystemMedia?.examples || {})) {
+    assert(`callAdminSystemTool example ${exampleKey} belongs to the fixed runtime registry`,
+      !example?.value?.name || expectedFixedAdminSystemTools.includes(example.value.name));
+  }
   assert("admin Recovery bridge documents bounded non-consequential semantics", /bounded Recovery bridge/u.test(parentSchema) && /plan-step mutation.*rejected/u.test(parentSchema));
   assert("private Recovery operation remains outside Auth Action surface", !adminOps.some((op) => ["callAdminRecoveryKernel", "executeAdminRecoveryKernelStep", "getAdminRecoveryKernelRun", "getAdminRecoveryKernelEvidence"].includes(op.operation.operationId)));
   const adminMutatingOps = adminOps.filter((op) => ["post", "put", "patch", "delete"].includes(op.method));
