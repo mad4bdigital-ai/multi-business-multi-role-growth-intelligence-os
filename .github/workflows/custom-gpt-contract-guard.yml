@@ -34,9 +34,6 @@ on:
       - "specs/006-adaptive-authorization-execution-governance/contracts/authorization-execution.openapi.yaml"
       - "specs/006-adaptive-authorization-execution-governance/contracts/authorization-execution.openapi.baseline.json"
       - "http-generic-api/test-custom-gpt-schemas.mjs"
-      - "http-generic-api/customGptLiveRegistrationReadback.js"
-      - "http-generic-api/scripts/custom-gpt-live-registration-readback.mjs"
-      - "http-generic-api/test-custom-gpt-live-registration-readback.mjs"
       - "http-generic-api/test-openapi-builder-schema-guard.mjs"
       - "http-generic-api/test-tenant-activation-session-alias.mjs"
       - "http-generic-api/test-activation-gateway.mjs"
@@ -148,7 +145,6 @@ jobs:
         run: |
           node test-openapi-split-governance.mjs
           node test-openapi-split-regeneration-parity.mjs
-          node test-custom-gpt-live-registration-readback.mjs
       - name: Execute controlled failure drill
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.drill_mode == 'fail' }}
         run: |
