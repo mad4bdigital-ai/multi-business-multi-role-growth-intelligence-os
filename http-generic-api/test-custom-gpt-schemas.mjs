@@ -424,6 +424,16 @@ section("dispatcher contracts");
   assert("callAdminSystemTool enum is generated from the fixed runtime registry",
     JSON.stringify([...(adminSystemNameSchema.enum || [])].sort()) === JSON.stringify(expectedFixedAdminSystemTools));
   assert("callAdminSystemTool enum carries a runtime-registry hash", /^[a-f0-9]{64}$/u.test(adminSystemNameSchema["x-mad4b-enum-sha256"] || ""));
+
+  const recoveryRegistration = adminRecoveryStaging["x-mad4b-registration-contract"];
+  assert("Staging Recovery registration contract exists", recoveryRegistration && typeof recoveryRegistration === "object");
+  assert("surface operation manifest hash is explicit", /^[a-f0-9]{64}$/u.test(recoveryRegistration.surface_operation_manifest_sha256 || ""));
+  assert("registration operation manifest hash is explicit", /^[a-f0-9]{64}$/u.test(recoveryRegistration.registration_operation_manifest_sha256 || ""));
+  assert("legacy operation manifest hash aliases registration scope", recoveryRegistration.operation_manifest_sha256 === recoveryRegistration.registration_operation_manifest_sha256);
+  assert("legacy operation manifest alias declares its scope", recoveryRegistration.operation_manifest_sha256_compatibility_alias_of === "registration_operation_manifest_sha256");
+  assert("surface and registration manifest scopes are named", recoveryRegistration.surface_operation_manifest_hash_scope === "split_surface_operation_manifest.v1" && recoveryRegistration.registration_operation_manifest_hash_scope === "custom_admin_operation_manifest.v1");
+  assert("split-surface hash matches generated surface provenance", recoveryRegistration.surface_operation_manifest_sha256 === adminRecoveryStaging["x-custom-gpt-generation"]?.operation_manifest?.sha256);
+  assert("surface and registration hashes are intentionally distinct representations", recoveryRegistration.surface_operation_manifest_sha256 !== recoveryRegistration.registration_operation_manifest_sha256);
   for (const [exampleKey, example] of Object.entries(adminSystemMedia?.examples || {})) {
     assert(`callAdminSystemTool example ${exampleKey} belongs to the fixed runtime registry`,
       !example?.value?.name || expectedFixedAdminSystemTools.includes(example.value.name));
