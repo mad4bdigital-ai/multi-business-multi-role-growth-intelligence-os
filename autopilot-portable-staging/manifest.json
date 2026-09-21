@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "e2af35249c34a732807706a4d6d7f3dcaa51349f59e5897845d1bc7b2d9369b9"
+      "sha256": "eee42e557cffbc016480430d8d2858b0bff0444fda5b8729d3d98164ead4de46"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "11ab408911e920657f4d19f48ca546b1be4803c1d651612210ccf225d074a1b9"
+      "sha256": "4cfbfd876e9f4dc2346f525033183c37df0c151dbf94b30eb81ce81930bc2aaa"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
