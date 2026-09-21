@@ -251,7 +251,8 @@
       "id": "platform_admin_workspace_semantic_authority",
       "test_paths": [
         "http-generic-api/test-platform-admin-workspace-authority-parity.mjs",
-        "http-generic-api/test-platform-admin-workspace-readiness.mjs"
+        "http-generic-api/test-platform-admin-workspace-readiness.mjs",
+        "http-generic-api/test-runtime-persistence-wiring.mjs"
       ]
     },
     {

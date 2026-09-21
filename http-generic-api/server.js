@@ -3195,8 +3195,13 @@ const productionActivationReadinessReader = async () => runProductionActivationR
   productionLiveEnabled: recoveryComposition.mode === "production_live"
     && recoveryComposition.live_activation === true,
 });
+const runtimeDatabaseReadExecutor = Object.freeze({
+  query: (...args) => getPool().query(...args),
+});
+
 registerRoutes(app, {
   ...recoveryCompositionDependencies,
+  runtimePool: runtimeDatabaseReadExecutor,
   // --- health ---
   jobRepository,
   executeSingleQueuedJob,
