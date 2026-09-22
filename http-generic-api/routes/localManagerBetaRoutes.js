@@ -8,6 +8,7 @@ import {
   pollDeviceLinkSession,
   previewDeviceLinkSession,
   revokeDeviceLinkSession,
+  requireLocalManagerUserRouteGuard,
   startDeviceLinkSession,
 } from "../services/localManagerDeviceLinkService.js";
 
@@ -1091,7 +1092,7 @@ export function buildLocalManagerBetaRoutes(deps) {
   router.post("/local-manager/device-link/poll", pollDeviceLinkSession);
   router.post("/local-manager/device-link/approve", approveDeviceLinkSession);
   router.get("/local-manager/device-link/devices", listLinkedDevices);
-  router.post("/local-manager/device-link/devices/:sessionId/revoke", revokeDeviceLinkSession);
+  router.post("/local-manager/device-link/devices/:sessionId/revoke", requireLocalManagerUserRouteGuard, revokeDeviceLinkSession);
   router.get("/local-manager/device/session", getDeviceSession);
   router.get("/local-manager/device/controls", getDeviceControls);
 
