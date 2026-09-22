@@ -1458,6 +1458,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Public pairing rate limit exceeded; honor Retry-After
+          headers:
+            Retry-After:
+              schema: { type: integer }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Pairing resilience circuit is temporarily open
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /local-manager/device-link/preview:
     get:
@@ -1494,6 +1509,21 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: Pairing code not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Public pairing rate limit exceeded; honor Retry-After
+          headers:
+            Retry-After:
+              schema: { type: integer }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Pairing resilience circuit is temporarily open
           content:
             application/json:
               schema:
@@ -1539,6 +1569,21 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "410":
           description: Pairing code expired
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Public pairing rate limit exceeded; honor Retry-After
+          headers:
+            Retry-After:
+              schema: { type: integer }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Pairing resilience circuit is temporarily open
           content:
             application/json:
               schema:
