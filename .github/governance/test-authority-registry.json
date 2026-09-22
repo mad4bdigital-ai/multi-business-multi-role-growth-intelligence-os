@@ -219,6 +219,7 @@
         "http-generic-api/test-control-plane-convergence-regressions.mjs",
         "http-generic-api/test-db-driven-connector-capability-policy.mjs",
         "http-generic-api/test-local-connector-capability-installer-grants.mjs",
+        "http-generic-api/test-local-connector-composite-health.mjs",
         "http-generic-api/test-local-connector-convergence-inspector.mjs",
         "http-generic-api/test-local-connector-durable-self-healing.mjs",
         "http-generic-api/test-local-connector-installer-capability.mjs",
