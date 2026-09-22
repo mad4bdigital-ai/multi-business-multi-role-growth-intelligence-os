@@ -510,6 +510,17 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": "http-generic-api/routes/authRoutes.js|LOCAL_MANAGER_USER_JWT_SCOPE|literal_declaration|local.manager.user.jwt.scope",
+      "owner": "identity-platform",
+      "reason": "Local Manager user JWT scope is a fixed non-secret authorization policy constant shared by login issuance and route verification; changing it requires reviewed auth-contract changes and does not itself grant runtime mutation.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": "http-generic-api/routes/stagingRecoveryAdminRoutes.js|environment|literal_declaration|environment",
       "owner": "recovery-governance",
       "reason": "The route environment claim is a derived, server-side attestation field used only to reject missing or mismatched Staging identity; it does not accept caller authority or grant mutation.",
@@ -1195,6 +1206,28 @@
       "fingerprint": "http-generic-api/serverManagedRecoveryBindingProvider.js|SERVER_MANAGED_BINDING_MODE_ENV|literal_declaration|server.managed.binding.mode.env",
       "owner": "recovery-governance",
       "reason": "The server-managed binding mode environment variable name is a non-secret, read-only configuration locator. The provider remains fail-closed for Production and does not grant runtime, database, provider, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/services/localManagerDeviceLinkService.js|DEFAULT_LOCAL_MANAGER_JWT_ISSUER|literal_declaration|local.manager.jwt.issuer",
+      "owner": "identity-platform",
+      "reason": "The canonical Local Manager JWT issuer fallback is a non-secret platform identity locator. Runtime override remains PLATFORM_JWT_ISSUER and is separately registered in the metadata-only Config Catalog.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/services/localManagerDeviceLinkService.js|LOCAL_MANAGER_USER_JWT_SCOPE|literal_declaration|local.manager.user.jwt.scope",
+      "owner": "identity-platform",
+      "reason": "Local Manager device-link verification uses the same fixed non-secret user JWT scope as issuance; this baseline records policy identity only and grants no database, provider, or Production authority.",
       "lifecycle": "permanent",
       "configuration_class": "ci_governance_input",
       "sensitivity": "non_secret_reference",
