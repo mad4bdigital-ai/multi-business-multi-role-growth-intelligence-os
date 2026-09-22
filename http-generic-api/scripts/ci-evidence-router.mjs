@@ -43,8 +43,8 @@ function parseArgs(argv) {
     baseRef: process.env.GITHUB_BASE_REF || null,
     evaluateResult: process.env.EVALUATE_JOB_RESULT || null,
     executeResult: process.env.EXECUTE_JOB_RESULT || null,
-    mariadbCertificationResult: process.env.MARIADB_CERTIFICATION_JOB_RESULT || null,
-    mariadbCertificationEvidencePath: process.env.MARIADB_CERTIFICATION_EVIDENCE_PATH || null
+    mariadbCertificationResult: null,
+    mariadbCertificationEvidencePath: null
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -83,6 +83,10 @@ function parseArgs(argv) {
     else if (arg.startsWith("--evaluate-result=")) options.evaluateResult = arg.slice(18);
     else if (arg === "--execute-result") options.executeResult = read();
     else if (arg.startsWith("--execute-result=")) options.executeResult = arg.slice(17);
+    else if (arg === "--mariadb-certification-result") options.mariadbCertificationResult = read();
+    else if (arg.startsWith("--mariadb-certification-result=")) options.mariadbCertificationResult = arg.slice(31);
+    else if (arg === "--mariadb-certification-evidence") options.mariadbCertificationEvidencePath = read();
+    else if (arg.startsWith("--mariadb-certification-evidence=")) options.mariadbCertificationEvidencePath = arg.slice(33);
     else throw new Error(`Unknown argument: ${arg}`);
   }
   if (!options.inputDir) throw new Error("--input-dir is required.");
