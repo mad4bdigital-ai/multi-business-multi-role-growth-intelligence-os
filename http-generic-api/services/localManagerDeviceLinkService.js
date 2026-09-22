@@ -1,12 +1,15 @@
 import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
 import { getPool } from "../db.js";
+import { verifyUserJwtAuthorization } from "../userJwtAuth.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
+const DEVICE_JWT_ISSUER = "https://auth.mad4b.com";
+const DEVICE_JWT_AUDIENCE = "mad4b-local-manager-device";
+const DEVICE_JWT_SECRET_MAX_LENGTH = 4096;
 const DEVICE_LINK_TTL_SECONDS = 10 * 60;
 const POLL_INTERVAL_SECONDS = 3;
 const DEVICE_TOKEN_TTL_SECONDS = 365 * 24 * 60 * 60;
-const PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = DEVICE_TOKEN_TTL_SECONDS;
+const PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = 15 * 60;
 const PLATFORM_MANAGED_N8N_URL = "https://n8n.mad4b.com/";
 
 function nowMs() {
@@ -26,6 +29,44 @@ function randomDisplayCode() {
   let out = "";
   for (let i = 0; i < 8; i += 1) out += alphabet[crypto.randomInt(0, alphabet.length)];
   return `${out.slice(0, 4)}-${out.slice(4)}`;
+}
+
+function deviceJwtSecret(env = process.env) {
+  const secret = String(env?.LOCAL_MANAGER_DEVICE_JWT_SECRET || "").trim();
+  if (!secret || secret.length < 32 || secret.length > DEVICE_JWT_SECRET_MAX_LENGTH) {
+    const err = new Error("Local Manager device authentication is temporarily unavailable.");
+    err.status = 503;
+    err.code = "local_manager_device_jwt_unavailable";
+    throw err;
+  }
+  return secret;
+}
+
+function signDeviceAccessToken(row, env = process.env) {
+  const issuedAt = Number(row.device_token_issued_at_seconds || 0)
+    || Math.floor(new Date(row.device_token_issued_at || Date.now()).getTime() / 1000);
+  const jti = cleanText(row.device_token_jti, 64);
+  if (!jti || !issuedAt) {
+    const err = new Error("Device token issuance state is incomplete.");
+    err.status = 503;
+    err.code = "device_token_issuance_state_incomplete";
+    throw err;
+  }
+  return jwt.sign(
+    {
+      iss: DEVICE_JWT_ISSUER,
+      aud: DEVICE_JWT_AUDIENCE,
+      purpose: "local_manager_device_access",
+      user_id: row.user_id,
+      tenant_id: row.tenant_id,
+      device_id: row.device_id,
+      session_id: row.session_id,
+      scope: "local_manager.device",
+      iat: issuedAt,
+    },
+    deviceJwtSecret(env),
+    { expiresIn: DEVICE_TOKEN_TTL_SECONDS, jwtid: jti, noTimestamp: true }
+  );
 }
 
 function cleanId(value, { fallback = "", max = 128 } = {}) {
