@@ -26,6 +26,25 @@ function compactError(err, fallback = "activation_session_lifecycle_failed") {
   return { code: err?.code || fallback, message: err?.message || String(err || fallback) };
 }
 
+export function normalizeActivationSessionAuthorityError(error) {
+  const code = String(error?.code || "");
+  if (!["ER_TABLEACCESS_DENIED_ERROR", "ER_DBACCESS_DENIED_ERROR", "ER_ACCESS_DENIED_ERROR"].includes(code)) return error;
+  const normalized = new Error("Activation session persistence authority is not ready for customer_sessions.");
+  normalized.code = "activation_session_write_authority_not_ready";
+  normalized.status = 503;
+  normalized.details = {
+    database_role: "runtime",
+    table: "customer_sessions",
+    required_operations: ["SELECT", "INSERT", "UPDATE"],
+    grant_policy: "databasePrivilegeContracts.BOOTSTRAP_ROLE_GRANT_POLICIES.runtime",
+    original_error_code: code,
+    grant_apply_required: true,
+    database_mutation_performed: false,
+    secrets_included: false,
+  };
+  return normalized;
+}
+
 function normalizeText(value, max = 220) {
   const text = String(value || "").trim();
   if (!text) return null;
