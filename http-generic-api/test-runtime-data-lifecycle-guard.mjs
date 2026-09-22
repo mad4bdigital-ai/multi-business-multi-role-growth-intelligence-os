@@ -37,6 +37,10 @@ if (report.selection.files.includes("20260920_platform_admin_workspace_canonical
 }
 assert.equal(contract.datasets.workspace_registry.canonical_rows[0].cardinality, "exactly_one");
 assert.equal(contract.datasets.memberships.reseed_forbidden, true);
+assert.equal(contract.datasets.local_manager_control_templates.class, "canonical_registry");
+assert.equal(contract.datasets.local_manager_control_templates.rebuild_from_git, true);
+assert.equal(contract.datasets.local_manager_device_link_sessions.class, "operational_state");
+assert.equal(contract.datasets.local_manager_device_link_sessions.reseed_forbidden, true);
 assert.equal(contract.table_families[0].zero_rows_allowed, true);
 assert.equal(contract.table_families[0].completeness_policy, "explicit_dataset_declarations_only");
 assert.equal(contract.table_families[0].unregistered_family_member_policy, "fail_closed");
