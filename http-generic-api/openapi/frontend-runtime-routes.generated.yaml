@@ -2943,26 +2943,6 @@ paths:
           - requireBackendApiKey
         configuration_dependencies:
           - BACKEND_API_KEY
-  /local-manager/device/desktop-commands/pending:
-    get:
-      operationId: getLocalManagerDeviceDesktopCommandsPending24270999
-      summary: GET /local-manager/device/desktop-commands/pending (runtime operation index)
-      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
-      tags:
-        - runtime-route-index
-      security:
-        - localManagerBearerAuth: []
-      responses:
-        default:
-          description: Runtime response shape is not yet captured by a reviewed canonical schema.
-      x-contract-completeness: operation-index-only
-      x-source-file: routes/localManagerDesktopCommandRoutes.js
-      x-mad4b-runtime-auth:
-        profile: local_manager
-        principal: local_manager
-        guard_chain:
-          - requireLocalManagerDevice
-        configuration_dependencies: []
   /logic-definitions/{id}/children:
     get:
       operationId: getLogicDefinitionsByIdChildren419dc15b
@@ -6874,6 +6854,26 @@ paths:
           schema:
             type: string
             minLength: 1
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/localManagerDesktopCommandRoutes.js
+      x-mad4b-runtime-auth:
+        profile: local_manager
+        principal: local_manager
+        guard_chain:
+          - requireLocalManagerDevice
+        configuration_dependencies: []
+  /local-manager/device/desktop-commands/claim:
+    post:
+      operationId: postLocalManagerDeviceDesktopCommandsClaime9fe6656
+      summary: POST /local-manager/device/desktop-commands/claim (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - localManagerBearerAuth: []
       responses:
         default:
           description: Runtime response shape is not yet captured by a reviewed canonical schema.

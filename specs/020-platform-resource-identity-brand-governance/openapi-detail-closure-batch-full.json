@@ -6,7 +6,7 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_artifact_sha256": "61aa77adab0da51cddedd899bb17dcb1222073df01c11aae8ab5a8cb9f604a18",
+    "dispatch_artifact_sha256": "7f947f7445aa218d78d7e19c0dfd5428444def4c115353079f4299f67e10478c",
     "family_count": 176,
     "detail_family_count": 76,
     "dispatch_operation_count": 1077
@@ -452,14 +452,13 @@
       "delivery_kind": "api",
       "openapi_contract_level": "operation-index-only",
       "auth_parity": "equivalent",
-      "governance_classification": "disabled",
-      "governance_rule_id": "generated-gap-post-local-manager-device-desktop-commands-routes-localmanagerdesktopcommandroutes-js",
+      "governance_classification": "external_effect",
+      "governance_rule_id": "local-manager-desktop-command-enqueue-governed-external-effect",
       "evidence_refs": [
-        "frontend-surface-dispatch.generated.json",
         "http-generic-api/frontend-surface-dispatch.generated.json",
         "openapi.yaml",
         "routes/localManagerDesktopCommandRoutes.js",
-        "test-frontend-surface-coverage-claims.mjs"
+        "test-control-plane-convergence-regressions.mjs"
       ],
       "closure_status": "detail_evidence_required",
       "canonical_openapi_added": false,
@@ -490,18 +489,22 @@
     },
     {
       "family_key": "local-manager-desktop-command.local_device",
-      "method": "GET",
-      "path": "/local-manager/device/desktop-commands/pending",
-      "signature": "GET /local-manager/device/desktop-commands/pending",
+      "method": "POST",
+      "path": "/local-manager/device/desktop-commands/claim",
+      "signature": "POST /local-manager/device/desktop-commands/claim",
       "source_file": "routes/localManagerDesktopCommandRoutes.js",
       "scope": "local_device",
       "delivery_kind": "api",
       "openapi_contract_level": "operation-index-only",
       "auth_parity": "equivalent",
-      "governance_classification": "read",
-      "governance_rule_id": null,
+      "governance_classification": "state_change",
+      "governance_rule_id": "local-manager-desktop-command-claim-governed-state-change",
       "evidence_refs": [
-        "http-generic-api/frontend-surface-dispatch.generated.json"
+        "apps/local-manager-windows/Program.cs",
+        "http-generic-api/frontend-surface-dispatch.generated.json",
+        "openapi.yaml",
+        "routes/localManagerDesktopCommandRoutes.js",
+        "test-control-plane-convergence-regressions.mjs"
       ],
       "closure_status": "detail_evidence_required",
       "canonical_openapi_added": false,
@@ -519,15 +522,13 @@
       "delivery_kind": "api",
       "openapi_contract_level": "operation-index-only",
       "auth_parity": "equivalent",
-      "governance_classification": "disabled",
-      "governance_rule_id": "generated-gap-post-local-manager-device-desktop-commands-commandid-heartbeat-routes-localmanagerdesktopcommandroutes-js",
+      "governance_classification": "state_change",
+      "governance_rule_id": "local-manager-desktop-command-heartbeat-governed-state-change",
       "evidence_refs": [
-        "frontend-surface-dispatch.generated.json",
         "http-generic-api/frontend-surface-dispatch.generated.json",
         "openapi.yaml",
         "routes/localManagerDesktopCommandRoutes.js",
-        "test-control-plane-convergence-regressions.mjs",
-        "test-frontend-surface-coverage-claims.mjs"
+        "test-control-plane-convergence-regressions.mjs"
       ],
       "closure_status": "detail_evidence_required",
       "canonical_openapi_added": false,
@@ -545,14 +546,13 @@
       "delivery_kind": "api",
       "openapi_contract_level": "operation-index-only",
       "auth_parity": "equivalent",
-      "governance_classification": "disabled",
-      "governance_rule_id": "generated-gap-post-local-manager-device-desktop-commands-commandid-complete-routes-localmanagerdesktopcommandroutes-js",
+      "governance_classification": "state_change",
+      "governance_rule_id": "local-manager-desktop-command-complete-governed-state-change",
       "evidence_refs": [
-        "frontend-surface-dispatch.generated.json",
         "http-generic-api/frontend-surface-dispatch.generated.json",
         "openapi.yaml",
         "routes/localManagerDesktopCommandRoutes.js",
-        "test-frontend-surface-coverage-claims.mjs"
+        "test-control-plane-convergence-regressions.mjs"
       ],
       "closure_status": "detail_evidence_required",
       "canonical_openapi_added": false,

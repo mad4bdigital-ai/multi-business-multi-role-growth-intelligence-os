@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "8b8b582d8898cd01fe2d8567ccbb2170ce0f6b72396846c9eb80037e8ff9e157",
+    "source_digest": "06733eab1051bf25342231725f6fba21dc66f97a219dfd502bd6b69b336668f3",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -16,7 +16,7 @@
       },
       {
         "file": "frontend-surface-policy.json",
-        "sha256": "dc2dfa3e7069a99244d839757870e8d11e78d9a1a80aa449270b6c6a3d71b91b",
+        "sha256": "c269f154b9475df9e1aa74de3668b37e11eb37cfe5ac93b4384f0393f09e79e7",
         "present": true
       },
       {
@@ -76,7 +76,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "95df78fb433b3b7c34c75fea75338886df25952825fb3363d6cc2764657ec4a5",
+        "sha256": "d5a8cc0c057375ddbe4859882cf4576e31f4aef6598c0ae7966b991b32ce0d9f",
         "present": true
       },
       {
@@ -681,7 +681,7 @@
       },
       {
         "file": "routes/localManagerDesktopCommandRoutes.js",
-        "sha256": "5fc4c31f63ca48d92276110aa09e39fd4c1b6ad1786de221ea879b75450a5c72",
+        "sha256": "cd82d4ab24a51dcb15b4b0fab64359fec0a1a89a3b68ff54f1deaebd90734dd2",
         "present": true
       },
       {
@@ -1116,7 +1116,7 @@
       },
       {
         "file": "test-frontend-surface-coverage-claims.mjs",
-        "sha256": "d7e70a7c1724854b82deccfa23ed1aab7e99af698bb9a2ab7215a22aa35b4476",
+        "sha256": "5ee52158d84c3ccdcb29278cd83aa2f893fc348b869ec835ac403fd646a2be98",
         "present": true
       },
       {
@@ -1218,18 +1218,18 @@
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 655,
+    "non_get_candidate_count": 656,
     "unresolved_operation_class_count": 0,
-    "classified_mutation_count": 32,
-    "governed_mutation_operation_count": 32,
+    "classified_mutation_count": 36,
+    "governed_mutation_operation_count": 36,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 0,
-    "test_owned_family_count": 175,
-    "untested_family_count": 1,
-    "test_owned_operation_count": 1075,
-    "untested_operation_count": 2,
-    "ready_task_count": 175,
-    "blocked_task_count": 1,
+    "test_owned_family_count": 174,
+    "untested_family_count": 2,
+    "test_owned_operation_count": 1074,
+    "untested_operation_count": 3,
+    "ready_task_count": 174,
+    "blocked_task_count": 2,
     "coverage_complete": false
   },
   "waves": [
@@ -7751,7 +7751,7 @@
       "family_key": "local-manager-desktop-command.admin",
       "label": "local manager desktop command (admin)",
       "source_file": "routes/localManagerDesktopCommandRoutes.js",
-      "source_digest": "5fc4c31f63ca48d92276110aa09e39fd4c1b6ad1786de221ea879b75450a5c72",
+      "source_digest": "cd82d4ab24a51dcb15b4b0fab64359fec0a1a89a3b68ff54f1deaebd90734dd2",
       "mount_prefix": "/",
       "mount_order": 14244,
       "split_from_mixed_scope_file": true,
@@ -7819,25 +7819,44 @@
             "test-frontend-surface-coverage-claims.mjs"
           ],
           "governance": {
-            "classification": "disabled",
+            "classification": "external_effect",
             "classification_source": "operation_rule",
             "mutation_candidate": true,
             "governed": true,
-            "controls": null,
-            "parameter_bindings": null,
+            "controls": {
+              "preflight": {
+                "mode": "backend_api_key_admin_principal_schema_action_mode_target_identity_and_confirmation_policy"
+              },
+              "approval": {
+                "mode": "explicit_admin_enqueue_request_with_server_enforced_user_confirmation_for_sensitive_actions"
+              },
+              "readback": {
+                "mode": "inline_queued_row_readback"
+              },
+              "rollback": {
+                "mode": "bounded_ttl_before_claim",
+                "rationale": "Unclaimed commands expire by bounded TTL. Once claimed or externally executed, compensation is action-specific and must not be represented as a generic rollback."
+              }
+            },
+            "parameter_bindings": {
+              "user_id": "validated request.body.user_id",
+              "tenant_id": "exact resolved tenant scope",
+              "device_id": "resolved canonical/alias device identity",
+              "action": "server allowlist",
+              "ttl_seconds": "server bounded 30..3600"
+            },
             "blockers": [],
-            "rule_id": "generated-gap-post-local-manager-device-desktop-commands-routes-localmanagerdesktopcommandroutes-js",
+            "rule_id": "local-manager-desktop-command-enqueue-governed-external-effect",
             "owner": "local-manager",
-            "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+            "rationale": "An authenticated backend admin queues one allowlisted desktop action for an explicitly resolved user/device/tenant target. The queued row can cause a Windows-side user-visible or privileged action, so the request is treated as an external effect even though dispatch is asynchronous. The handler validates action/mode, enforces sensitive-target identity and server-side confirmation policy, persists the queue row, and requires same-cycle durable readback.",
             "evidence_refs": [
-              "frontend-surface-dispatch.generated.json",
               "openapi.yaml",
               "routes/localManagerDesktopCommandRoutes.js",
-              "test-frontend-surface-coverage-claims.mjs"
+              "test-control-plane-convergence-regressions.mjs"
             ]
           },
           "mutation_candidate": true,
-          "mutation": false
+          "mutation": true
         },
         {
           "method": "GET",
@@ -7962,8 +7981,8 @@
       },
       "operation_blockers": [],
       "risk": {
-        "score": 8,
-        "class": "high"
+        "score": 10,
+        "class": "critical"
       },
       "wave": "F3-admin-workspaces"
     },
@@ -7971,7 +7990,7 @@
       "family_key": "local-manager-desktop-command.local_device",
       "label": "local manager desktop command (local_device)",
       "source_file": "routes/localManagerDesktopCommandRoutes.js",
-      "source_digest": "5fc4c31f63ca48d92276110aa09e39fd4c1b6ad1786de221ea879b75450a5c72",
+      "source_digest": "cd82d4ab24a51dcb15b4b0fab64359fec0a1a89a3b68ff54f1deaebd90734dd2",
       "mount_prefix": "/",
       "mount_order": 14244,
       "split_from_mixed_scope_file": true,
@@ -7981,9 +8000,9 @@
       "scope": "local_device",
       "operations": [
         {
-          "method": "GET",
-          "path": "/local-manager/device/desktop-commands/pending",
-          "signature": "GET /local-manager/device/desktop-commands/pending",
+          "method": "POST",
+          "path": "/local-manager/device/desktop-commands/claim",
+          "signature": "POST /local-manager/device/desktop-commands/claim",
           "source_file": "routes/localManagerDesktopCommandRoutes.js",
           "scope": "local_device",
           "runtime_auth": {
@@ -8025,20 +8044,46 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-frontend-surface-coverage-claims.mjs"
-          ],
+          "tests": [],
           "governance": {
-            "classification": "read",
-            "classification_source": "http_method",
-            "mutation_candidate": false,
+            "classification": "state_change",
+            "classification_source": "operation_rule",
+            "mutation_candidate": true,
             "governed": true,
-            "controls": null,
+            "controls": {
+              "preflight": {
+                "mode": "device_bearer_schema_exact_tenant_device_identity_and_unexpired_command_ttl"
+              },
+              "approval": {
+                "mode": "prior_admin_enqueue_plus_authenticated_device_claim"
+              },
+              "readback": {
+                "mode": "inline_claim_token_owned_rows_readback"
+              },
+              "rollback": {
+                "mode": "bounded_claim_lease_reconciliation",
+                "rationale": "An abandoned claim becomes reclaimable only after the bounded lease expires and only inside a later authenticated claim request for the same exact device scope."
+              }
+            },
+            "parameter_bindings": {
+              "limit": "bounded query limit 1..20",
+              "actor_device": "verified Local Manager device bearer",
+              "tenant_id": "exact device tenant scope",
+              "claim_token": "server-generated UUID"
+            },
             "blockers": [],
-            "rule_id": null
+            "rule_id": "local-manager-desktop-command-claim-governed-state-change",
+            "owner": "local-manager",
+            "rationale": "A linked Local Manager device explicitly claims queued desktop commands for its exact user/tenant/device identity. The route reconciles only expired/abandoned claims within that same device scope, atomically issues a private claim token and bounded lease, then reads back only rows owned by that claim.",
+            "evidence_refs": [
+              "apps/local-manager-windows/Program.cs",
+              "openapi.yaml",
+              "routes/localManagerDesktopCommandRoutes.js",
+              "test-control-plane-convergence-regressions.mjs"
+            ]
           },
-          "mutation_candidate": false,
-          "mutation": false
+          "mutation_candidate": true,
+          "mutation": true
         },
         {
           "method": "POST",
@@ -8089,26 +8134,43 @@
             "test-frontend-surface-coverage-claims.mjs"
           ],
           "governance": {
-            "classification": "disabled",
+            "classification": "state_change",
             "classification_source": "operation_rule",
             "mutation_candidate": true,
             "governed": true,
-            "controls": null,
-            "parameter_bindings": null,
+            "controls": {
+              "preflight": {
+                "mode": "device_bearer_exact_tenant_device_command_claim_token_and_unexpired_lease"
+              },
+              "approval": {
+                "mode": "prior_admin_enqueue_and_device_claim_authority"
+              },
+              "readback": {
+                "mode": "inline_claim_lease_readback"
+              },
+              "rollback": {
+                "mode": "natural_lease_expiry",
+                "rationale": "If heartbeats stop, the bounded lease expires and a later claim request may reconcile the command state for the same device scope."
+              }
+            },
+            "parameter_bindings": {
+              "command_id": "request.params.commandId",
+              "claim_token": "request.body.claim_token",
+              "actor_device": "verified Local Manager device bearer",
+              "tenant_id": "exact device tenant scope"
+            },
             "blockers": [],
-            "rule_id": "generated-gap-post-local-manager-device-desktop-commands-commandid-heartbeat-routes-localmanagerdesktopcommandroutes-js",
+            "rule_id": "local-manager-desktop-command-heartbeat-governed-state-change",
             "owner": "local-manager",
-            "rationale": "Explicit fail-closed classification for the Local Manager claim-lease heartbeat. The route is local-device lifecycle plumbing and is not frontend-dispatch authority; it remains disabled from frontend mutation surfaces while runtime ownership is enforced by localManagerBearerAuth, claim_token, and an unexpired claim lease.",
+            "rationale": "A linked device may extend only its own active claim lease using device bearer authority, exact user/tenant/device scope, command_id, claim_token, and an unexpired lease. The updated lease is immediately read back from durable state.",
             "evidence_refs": [
-              "frontend-surface-dispatch.generated.json",
               "openapi.yaml",
               "routes/localManagerDesktopCommandRoutes.js",
-              "test-control-plane-convergence-regressions.mjs",
-              "test-frontend-surface-coverage-claims.mjs"
+              "test-control-plane-convergence-regressions.mjs"
             ]
           },
           "mutation_candidate": true,
-          "mutation": false
+          "mutation": true
         },
         {
           "method": "POST",
@@ -8159,31 +8221,49 @@
             "test-frontend-surface-coverage-claims.mjs"
           ],
           "governance": {
-            "classification": "disabled",
+            "classification": "state_change",
             "classification_source": "operation_rule",
             "mutation_candidate": true,
             "governed": true,
-            "controls": null,
-            "parameter_bindings": null,
+            "controls": {
+              "preflight": {
+                "mode": "device_bearer_exact_tenant_device_active_claim_and_claim_token"
+              },
+              "approval": {
+                "mode": "prior_admin_enqueue_device_claim_and_local_execution_result"
+              },
+              "readback": {
+                "mode": "inline_terminal_row_readback"
+              },
+              "rollback": {
+                "mode": "not_general",
+                "rationale": "A terminal desktop execution result is immutable lifecycle evidence. Any compensating action must be a new separately governed desktop command."
+              }
+            },
+            "parameter_bindings": {
+              "command_id": "request.params.commandId",
+              "claim_token": "request.body.claim_token",
+              "status": "server normalized completed|failed",
+              "result": "bounded secret-free device result"
+            },
             "blockers": [],
-            "rule_id": "generated-gap-post-local-manager-device-desktop-commands-commandid-complete-routes-localmanagerdesktopcommandroutes-js",
+            "rule_id": "local-manager-desktop-command-complete-governed-state-change",
             "owner": "local-manager",
-            "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+            "rationale": "A linked device may finalize only its own actively claimed command using exact user/tenant/device scope and the private claim token. Completion is restricted to completed/failed terminal states, clears claim material, and requires same-cycle terminal-row readback.",
             "evidence_refs": [
-              "frontend-surface-dispatch.generated.json",
               "openapi.yaml",
               "routes/localManagerDesktopCommandRoutes.js",
-              "test-frontend-surface-coverage-claims.mjs"
+              "test-control-plane-convergence-regressions.mjs"
             ]
           },
           "mutation_candidate": true,
-          "mutation": false
+          "mutation": true
         }
       ],
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [
-        "GET /local-manager/device/desktop-commands/pending",
+        "POST /local-manager/device/desktop-commands/claim",
         "POST /local-manager/device/desktop-commands/{commandId}/heartbeat",
         "POST /local-manager/device/desktop-commands/{commandId}/complete"
       ],
@@ -8192,7 +8272,9 @@
       "tests": [
         "test-frontend-surface-coverage-claims.mjs"
       ],
-      "untested_operations": [],
+      "untested_operations": [
+        "POST /local-manager/device/desktop-commands/claim"
+      ],
       "resources": [],
       "embedded_ui": false,
       "embedded_ui_operations": [],
@@ -8233,8 +8315,8 @@
       },
       "operation_blockers": [],
       "risk": {
-        "score": 7,
-        "class": "high"
+        "score": 11,
+        "class": "critical"
       },
       "wave": "F4-local-manager"
     },
@@ -96976,7 +97058,9 @@
       "dependencies": [
         "F0-source-baseline",
         "F2-admin-bff-session",
-        "operation-classification"
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
       ],
       "source_refs": [
         "frontend-operation-governance.generated.json",
@@ -97008,7 +97092,8 @@
         "openapi_or_explicit_exemption",
         "surface_policy_resolved",
         "tests_registered",
-        "operation_classification_explicit"
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
@@ -99644,56 +99729,6 @@
       ]
     },
     {
-      "task_key": "frontend.local-manager-desktop-command.local_device",
-      "title": "Resolve and deliver local manager desktop command (local_device)",
-      "wave": "F4-local-manager",
-      "state": "ready",
-      "blockers": [],
-      "dependencies": [
-        "F0-source-baseline",
-        "F1-tenant-workspace-context",
-        "F4-device-trust",
-        "operation-classification"
-      ],
-      "source_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/brand-core-asset-materialization.yaml",
-        "openapi/container-authority-override-governance-smoke.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/frontend-runtime-routes.generated.yaml",
-        "openapi/hostinger-storage-tenant-runtime.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "openapi/support-ticket-admin-brand.yaml",
-        "openapi/support-ticket-admin-execution.yaml",
-        "openapi/support-ticket-admin-remaining.yaml",
-        "openapi/support-ticket-runtime-completion.yaml",
-        "openapi/support-tickets.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/index.js",
-        "routes/localManagerDesktopCommandRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-frontend-surface-coverage-claims.mjs"
-      ],
-      "acceptance_gates": [
-        "source_baseline_unchanged",
-        "scope_and_auth_explicit",
-        "openapi_or_explicit_exemption",
-        "surface_policy_resolved",
-        "tests_registered",
-        "operation_classification_explicit"
-      ],
-      "verification": [
-        "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
       "task_key": "frontend.local-manager-beta.local_device",
       "title": "Resolve and deliver local manager beta (local_device)",
       "wave": "F4-local-manager",
@@ -99745,6 +99780,61 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/localManagerBetaRoutes.js",
+        "scripts/test-manifest.mjs",
+        "test-frontend-surface-coverage-claims.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered",
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "task_key": "frontend.local-manager-desktop-command.local_device",
+      "title": "Resolve and deliver local manager desktop command (local_device)",
+      "wave": "F4-local-manager",
+      "state": "blocked",
+      "blockers": [
+        "test_ownership_gap"
+      ],
+      "dependencies": [
+        "F0-source-baseline",
+        "F1-tenant-workspace-context",
+        "F4-device-trust",
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
+      ],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/localManagerDesktopCommandRoutes.js",
         "scripts/test-manifest.mjs",
         "test-frontend-surface-coverage-claims.mjs"
       ],
