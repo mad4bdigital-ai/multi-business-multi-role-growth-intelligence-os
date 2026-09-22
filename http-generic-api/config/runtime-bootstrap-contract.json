@@ -572,8 +572,8 @@
       "requires_tables": []
     },
     "20260922_local_manager_device_link_authority.sql": {
-      "sha256": "7a260d5f85fe95299a8774efc4d824dd3c9f267ca3ec722ddf069f047107e7e0",
-      "statement_count": 2,
+      "sha256": "edd26413d17ba1dffd00408f15ef9380524afcfc2a312088d3f22ca8ca486290",
+      "statement_count": 3,
       "allowed_modes": [
         "dry_run",
         "apply_migration",
@@ -582,9 +582,7 @@
       "role": "reviewed_runtime_apply_candidate",
       "direct_fallback_authorized": true,
       "direct_fallback_idempotent": true,
-      "requires_tables": [
-        "local_manager_device_link_sessions"
-      ]
+      "requires_tables": []
     }
   },
   "grant_policy": {
@@ -595,7 +593,8 @@
       "dynamic_audit_scheduler_runs",
       "execution_log",
       "json_assets",
-      "local_manager_desktop_commands"
+      "local_manager_desktop_commands",
+      "local_manager_device_link_sessions"
     ],
     "required_operations": [
       "SELECT",
@@ -624,7 +623,8 @@
           "dynamic_audit_scheduler_runs",
           "execution_log",
           "json_assets",
-          "local_manager_desktop_commands"
+          "local_manager_desktop_commands",
+          "local_manager_device_link_sessions"
         ],
         "required_operations": [
           "SELECT",
@@ -1066,6 +1066,31 @@
         "type": "index",
         "table": "local_manager_device_link_sessions",
         "index": "idx_local_manager_device_link_revocation"
+      },
+      {
+        "type": "column",
+        "table": "local_manager_device_link_sessions",
+        "column": "display_code_hash"
+      },
+      {
+        "type": "column",
+        "table": "local_manager_device_link_sessions",
+        "column": "poll_token_hash"
+      },
+      {
+        "type": "column",
+        "table": "local_manager_device_link_sessions",
+        "column": "status"
+      },
+      {
+        "type": "index",
+        "table": "local_manager_device_link_sessions",
+        "index": "idx_local_manager_device_link_status_expiry"
+      },
+      {
+        "type": "index",
+        "table": "local_manager_device_link_sessions",
+        "index": "idx_local_manager_device_link_user_device"
       }
     ]
   },
