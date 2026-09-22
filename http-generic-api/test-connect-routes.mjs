@@ -1129,15 +1129,30 @@ assert("local connector requires fresh Local Manager authorization for privilege
       deviceLinkSource.includes("reauthorized_existing_device") &&
       !deviceLinkSource.includes("connector_secret") &&
       !deviceLinkSource.includes("cf_token"));
-    assert("local manager approval auto-writes non-secret connector aliases for app device identity",
-      deviceLinkSource.includes("ensureLocalConnectorAliasForDeviceLink") &&
+    assert("local manager approval inspects connector aliases and fails closed to a separate reconciliation writer",
+      deviceLinkSource.includes("inspectLocalConnectorAliasForDeviceLink") &&
       deviceLinkSource.includes("resolveCanonicalConnectorConfig") &&
       deviceLinkSource.includes("local_connector_device_aliases") &&
       deviceLinkSource.includes("canonical_connector_config_not_found") &&
+      deviceLinkSource.includes('required_authority: "local_connector_alias_reconciliation_writer"') &&
+      deviceLinkSource.includes("mutation_performed: false") &&
       deviceLinkSource.includes("connector_alias: connectorAlias") &&
       deviceLinkSource.includes("secrets_included: false") &&
       !deviceLinkSource.includes("SELECT connector_secret") &&
       !deviceLinkSource.includes("SELECT cf_token"));
+    assert("local manager pairing preview is physically read-only and exposes effective expiry without durable mutation",
+      deviceLinkSource.includes("durable_status: durableStatus") &&
+      deviceLinkSource.includes("effective_status: effectiveStatus") &&
+      deviceLinkSource.includes("mutation_performed: false") &&
+      !deviceLinkSource.includes("previewDeviceLinkSession(req, res) {\n  try {\n    await assertDeviceLinkTableSchema();\n") === false);
+    assert("local manager linked-device tenant ownership is exact-or-both-null rather than missing-tenant wildcard",
+      deviceLinkSource.includes("function sameTenantScope") &&
+      (deviceLinkSource.match(/\(\(\? IS NULL AND tenant_id IS NULL\) OR tenant_id = \?\)/g) || []).length >= 5 &&
+      deviceLinkSource.includes("sameTenantScope(row.tenant_id, principal.tenant_id)") &&
+      deviceLinkSource.includes("sameTenantScope(current.tenant_id, principal.tenant_id)"));
+    assert("local manager poll response distinguishes compatibility authorization state from durable completed device state",
+      deviceLinkSource.includes('authorization_status: "approved"') &&
+      deviceLinkSource.includes("device_status: issuedRow.status"));
     assert("local manager beta is read-only and redacts secrets",
       betaSource.includes("read_only: true") &&
       betaSource.includes("secrets_included: false") &&
