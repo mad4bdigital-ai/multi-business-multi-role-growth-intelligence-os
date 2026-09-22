@@ -35,6 +35,7 @@ const DEFAULT_GRANT_TABLES = Object.freeze([
   'dynamic_audit_scheduler_runs',
   'execution_log',
   'json_assets',
+  'local_manager_desktop_commands',
 ]);
 
 export function typedError(code, message, details = {}) {
