@@ -44,6 +44,60 @@ function callMiddleware(middleware, { authorization = "", auth = null } = {}) {
 }
 
 {
+  const env = { JWT_SECRET: "local-manager-user-jwt-secret-32-chars-minimum" };
+  const profile = {
+    issuer: "https://auth.mad4b.com",
+    audience: "mad4b-local-manager-user",
+    requiredPurpose: "local_manager_user_access",
+    requiredScope: "local_manager.user",
+  };
+  const valid = jwt.sign({
+    iss: "https://auth.mad4b.com",
+    aud: "mad4b-local-manager-user",
+    purpose: "local_manager_user_access",
+    scope: "local_manager.user",
+    user_id: "user-1",
+    tenant_id: "tenant-1",
+  }, env.JWT_SECRET, { algorithm: "HS256", expiresIn: "5m" });
+  assert.equal(verifyUserJwtAuthorization(`Bearer ${valid}`, { env, ...profile }).ok, true);
+
+  const sameKeyDeviceToken = jwt.sign({
+    iss: "https://auth.mad4b.com",
+    aud: "mad4b-local-manager-device",
+    purpose: "local_manager_device_access",
+    scope: "local_manager.device",
+    user_id: "user-1",
+    tenant_id: "tenant-1",
+    device_id: "device-1",
+  }, env.JWT_SECRET, { algorithm: "HS256", expiresIn: "5m" });
+  const deviceRejected = verifyUserJwtAuthorization(`Bearer ${sameKeyDeviceToken}`, { env, ...profile });
+  assert.equal(deviceRejected.ok, false);
+  assert.equal(deviceRejected.status, 401);
+
+  const wrongPurpose = jwt.sign({
+    iss: "https://auth.mad4b.com",
+    aud: "mad4b-local-manager-user",
+    purpose: "tenant_gpt_access",
+    scope: "local_manager.user",
+    user_id: "user-1",
+  }, env.JWT_SECRET, { algorithm: "HS256", expiresIn: "5m" });
+  const wrongPurposeRejected = verifyUserJwtAuthorization(`Bearer ${wrongPurpose}`, { env, ...profile });
+  assert.equal(wrongPurposeRejected.ok, false);
+  assert.equal(wrongPurposeRejected.code, "wrong_user_token_class");
+
+  const wrongScope = jwt.sign({
+    iss: "https://auth.mad4b.com",
+    aud: "mad4b-local-manager-user",
+    purpose: "local_manager_user_access",
+    scope: "tenant.status",
+    user_id: "user-1",
+  }, env.JWT_SECRET, { algorithm: "HS256", expiresIn: "5m" });
+  const wrongScopeRejected = verifyUserJwtAuthorization(`Bearer ${wrongScope}`, { env, ...profile });
+  assert.equal(wrongScopeRejected.ok, false);
+  assert.equal(wrongScopeRejected.code, "wrong_user_token_scope");
+}
+
+{
   const trusted = callMiddleware(createUserJwtMiddleware({ env: {} }), {
     auth: { mode: "user_jwt", user_id: "upstream-user", tenant_id: null },
   });
