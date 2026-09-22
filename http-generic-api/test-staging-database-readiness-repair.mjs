@@ -64,7 +64,7 @@ assert.deepEqual(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_tables, [
 ]);
 assert.deepEqual(
   STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.local_manager_desktop_commands,
-  undefined,
+  ["SELECT", "INSERT", "UPDATE"],
 );
 assert.deepEqual(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_operations, ["SELECT", "INSERT", "UPDATE"]);
 assert.equal(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_operations.includes("CREATE"), false);
@@ -86,6 +86,10 @@ assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes("platf
 assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.platform_runtime_config, ["SELECT"]);
 assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.platform_tool_dispatch_bindings, ["SELECT"]);
 assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.workspace_assets, ["SELECT"]);
+for (const desktopIdentityDependency of ["local_connector_device_aliases", "local_connector_user_configs"]) {
+  assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes(desktopIdentityDependency), true);
+  assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table[desktopIdentityDependency], ["SELECT"]);
+}
 assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes("platform_resource_recipes"), false);
 assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes("platform_resource_recipe_steps"), false);
 assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.platform_resource_recipes, undefined);
@@ -245,6 +249,10 @@ assert.equal(roleManifest.validation.required_role_count, 3);
 assert.equal(roleManifest.validation.missing_required_table_is_blocking, true);
 assert.equal(roleManifest.validation.unexpected_governance_or_persistence_table_is_blocking, true);
 assert.equal(roleManifest.validation.runtime_exclusion_violation_is_blocking, true);
+for (const requiredDesktopSurface of ["local_manager_desktop_commands", "local_connector_device_aliases", "local_connector_user_configs"]) {
+  assert.equal(roleManifest.roles.runtime.required_tables.includes(requiredDesktopSurface), true);
+  assert.equal(roleManifest.validation.required_runtime_support_tables.includes(requiredDesktopSurface), true);
+}
 assert.deepEqual(
   [
     ...roleManifest.validation.required_runtime_table_census,
