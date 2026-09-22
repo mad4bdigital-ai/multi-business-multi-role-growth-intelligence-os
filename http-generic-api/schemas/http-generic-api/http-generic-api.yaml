@@ -1432,7 +1432,7 @@ paths:
       security: []
       operationId: startLocalManagerDeviceLink
       summary: Start a Local Manager device-code pairing session
-      x-openai-isConsequential: false
+      x-openai-isConsequential: true
       requestBody:
         required: true
         content:
@@ -1535,7 +1535,7 @@ paths:
       security: []
       operationId: pollLocalManagerDeviceLink
       summary: Poll device-link status from the Windows app
-      x-openai-isConsequential: false
+      x-openai-isConsequential: true
       requestBody:
         required: true
         content:
@@ -1596,6 +1596,7 @@ paths:
         - localManagerBearerAuth: []
       operationId: approveLocalManagerDeviceLink
       summary: Approve a pending pairing code for the signed-in user
+      x-openai-isConsequential: true
       requestBody:
         required: true
         content:
