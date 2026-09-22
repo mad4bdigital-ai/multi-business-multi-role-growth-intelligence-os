@@ -1061,6 +1061,7 @@ assert("local connector requires fresh Local Manager authorization for privilege
       betaSource.includes('router.get("/local-manager/device-link/devices"') &&
       betaSource.includes('router.get("/local-manager/device/session"') &&
       betaSource.includes('router.get("/local-manager/device/controls"') &&
+      betaSource.includes('router.post("/local-manager/device/n8n/provision"') &&
       betaSource.includes('router.get("/app/local-manager/admin"') &&
       betaSource.includes('router.get("/local-manager/beta"') &&
       betaSource.includes('router.get("/local-manager/beta/status", requireBackendApiKey, requireAdminPrincipal'));
@@ -1150,6 +1151,13 @@ assert("local connector requires fresh Local Manager authorization for privilege
       previewSource.includes("effective_status: effectiveStatus") &&
       previewSource.includes("mutation_performed: false") &&
       !previewSource.includes("SET status = " + String.fromCharCode(39) + "expired" + String.fromCharCode(39)));
+    assert("Local Manager separated writer handoffs are dedicated, fail closed, and explicit",
+      deviceLinkSource.includes("localManagerWriteAuthorityEnabled") &&
+      deviceLinkSource.includes("reconcileLocalConnectorAliases") &&
+      deviceLinkSource.includes("provisionLocalManagerN8n") &&
+      deviceLinkSource.includes("writer_authority: \"local_connector_alias_reconciliation_writer\"") &&
+      deviceLinkSource.includes("writer_authority: \"local_manager_n8n_provisioning_writer\"") &&
+      betaSource.includes('router.post("/local-manager/device/n8n/provision", requireLocalManagerUserRouteGuard, provisionDeviceN8n)'));
     assert("local manager linked-device tenant ownership is exact-or-both-null rather than missing-tenant wildcard",
       deviceLinkSource.includes("function sameTenantScope") &&
       (deviceLinkSource.match(/\(\(\? IS NULL AND tenant_id IS NULL\) OR tenant_id = \?\)/g) || []).length >= 5 &&
