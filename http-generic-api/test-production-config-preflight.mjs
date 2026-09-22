@@ -6,6 +6,7 @@ const base = {
   RELEASE_TRIGGER_DEPLOYMENT_BRANCH: "Production",
   JWT_SECRET: "jwt_secret_fixture_32_characters_long_x",
   TENANT_GPT_SSO_SIGNING_SECRET: "sso_secret_fixture_32_characters_long_y",
+  LOCAL_MANAGER_DEVICE_JWT_SECRET: "device_secret_fixture_32_characters_long_q",
   TENANT_GPT_OAUTH_CLIENT_SECRET: "oauth_client_fixture_32_characters_long_z",
   REMOTE_MCP_TRUST_PROXY_HOST_HEADERS: "true",
   REMOTE_MCP_TRUSTED_INGRESS_ATTESTED: "true",
@@ -24,6 +25,13 @@ const ready = evaluateProductionConfig(base);
 assert.equal(ready.ok, true);
 assert.equal(ready.status, "ready");
 assert.equal(ready.secrets.every((item) => item.secrets_included === false), true);
+assert.equal(ready.secrets.some((item) => item.key === "LOCAL_MANAGER_DEVICE_JWT_SECRET" && item.length_ok), true);
+const missingDeviceSigningKey = evaluateProductionConfig({ ...base, LOCAL_MANAGER_DEVICE_JWT_SECRET: "" });
+assert.equal(missingDeviceSigningKey.ok, false);
+assert.match(missingDeviceSigningKey.errors.join("\n"), /LOCAL_MANAGER_DEVICE_JWT_SECRET is missing/);
+const reusedDeviceSigningKey = evaluateProductionConfig({ ...base, LOCAL_MANAGER_DEVICE_JWT_SECRET: base.JWT_SECRET });
+assert.equal(reusedDeviceSigningKey.ok, false);
+assert.match(reusedDeviceSigningKey.errors.join("\n"), /JWT_SECRET and LOCAL_MANAGER_DEVICE_JWT_SECRET must be distinct/);
 assert.equal(ready.queue.status, "ready");
 assert.equal(ready.control_plane_write.status, "configured");
 assert.equal(ready.oauth_client.confidential_compat_enabled, false);
