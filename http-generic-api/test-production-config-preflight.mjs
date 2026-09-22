@@ -18,6 +18,11 @@ const base = {
   CONTROL_PLANE_WRITE_DB_NAME: "growth_control_plane",
   CONTROL_PLANE_WRITE_DB_USER: "control_plane_writer",
   CONTROL_PLANE_WRITE_DB_PASSWORD: "writer_fixture_password",
+  LOCAL_MANAGER_WRITE_AUTHORITY_ENABLED: "true",
+  LOCAL_MANAGER_WRITE_DB_HOST: "db",
+  LOCAL_MANAGER_WRITE_DB_NAME: "growth_runtime",
+  LOCAL_MANAGER_WRITE_DB_USER: "local_manager_writer",
+  LOCAL_MANAGER_WRITE_DB_PASSWORD: "local_manager_writer_fixture_password",
   DB_USER: "runtime_reader",
 };
 
@@ -34,6 +39,20 @@ assert.equal(reusedDeviceSigningKey.ok, false);
 assert.match(reusedDeviceSigningKey.errors.join("\n"), /JWT_SECRET and LOCAL_MANAGER_DEVICE_JWT_SECRET must be distinct/);
 assert.equal(ready.queue.status, "ready");
 assert.equal(ready.control_plane_write.status, "configured");
+assert.equal(ready.local_manager_write.status, "configured");
+assert.equal(ready.local_manager_write.dedicated_identity, true);
+assert.equal(ready.local_manager_write.generic_runtime_fallback, false);
+assert.deepEqual(ready.local_manager_write.authorities, ["local_connector_alias_reconciliation_writer", "local_manager_n8n_provisioning_writer"]);
+const localManagerWriteMissing = evaluateProductionConfig({ ...base, LOCAL_MANAGER_WRITE_DB_PASSWORD: "" });
+assert.equal(localManagerWriteMissing.ok, false);
+assert.equal(localManagerWriteMissing.local_manager_write.status, "invalid");
+assert.match(localManagerWriteMissing.errors.join("\n"), /Local Manager write authority is enabled but missing/);
+const localManagerWriteReused = evaluateProductionConfig({ ...base, LOCAL_MANAGER_WRITE_DB_USER: base.DB_USER });
+assert.equal(localManagerWriteReused.ok, false);
+assert.match(localManagerWriteReused.errors.join("\n"), /LOCAL_MANAGER_WRITE_DB_USER must be distinct from DB_USER/);
+const localManagerWriteRoot = evaluateProductionConfig({ ...base, LOCAL_MANAGER_WRITE_DB_USER: "root" });
+assert.equal(localManagerWriteRoot.ok, false);
+assert.match(localManagerWriteRoot.errors.join("\n"), /LOCAL_MANAGER_WRITE_DB_USER must not be root/);
 assert.equal(ready.oauth_client.confidential_compat_enabled, false);
 assert.equal(ready.oauth_client.confidential_compat_source, "secure_default_disabled");
 assert.equal(ready.managed_google_oauth.enabled, false);
