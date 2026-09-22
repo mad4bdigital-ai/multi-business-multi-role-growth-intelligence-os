@@ -1186,5 +1186,46 @@
       "migration_approval_required",
       "grants_approval_required"
     ]
+  },
+  "separated_writer_handoffs": {
+    "contract": "mad4b.local-manager-separated-writer-handoffs.v1",
+    "automatic_grant_apply_allowed": false,
+    "generic_runtime_principal_fallback": false,
+    "operator_approval_required": true,
+    "identity_env_prefix": "LOCAL_MANAGER_WRITE_DB_",
+    "enablement_env": "LOCAL_MANAGER_WRITE_AUTHORITY_ENABLED",
+    "authorities": {
+      "local_connector_alias_reconciliation_writer": {
+        "table_operations": {
+          "local_connector_device_aliases": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ]
+        },
+        "invocation_surface": "POST /local-manager/device-link/approve",
+        "explicit_user_approval_required": true,
+        "same_cycle_readback_required": true
+      },
+      "local_manager_n8n_provisioning_writer": {
+        "table_operations": {
+          "connected_systems": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
+          "installations": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ]
+        },
+        "invocation_surface": "POST /local-manager/device/n8n/provision",
+        "explicit_user_approval_required": true,
+        "same_cycle_readback_required": true
+      }
+    },
+    "source_module": "http-generic-api/localManagerWriteAuthority.js",
+    "secrets_included": false
   }
 }
