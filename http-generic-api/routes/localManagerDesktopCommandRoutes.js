@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { Router } from "express";
 import { getPool } from "../db.js";
 import { requireLocalManagerDevice } from "../services/localManagerDeviceLinkService.js";
+import { assertLocalManagerDesktopCommandSchema } from "../localManagerDesktopCommandSchema.js";
 
 const ALLOWED_ACTIONS = new Set(["open_url", "open_n8n", "notify", "focus_local_manager", "repair_connector", "codex_exec_readonly", "capture_chatgpt_current_url"]);
 const ALLOWED_MODES = new Set(["desktop", "background"]);
@@ -142,33 +143,7 @@ function requiresVerifiedDesktopIdentity(action, payload = {}, requestContext = 
 }
 
 async function ensureDesktopCommandTable() {
-  await getPool().query(`
-    CREATE TABLE IF NOT EXISTS \`local_manager_desktop_commands\` (
-      \`command_id\` VARCHAR(64) NOT NULL,
-      \`tenant_id\` VARCHAR(64) NULL,
-      \`user_id\` VARCHAR(64) NOT NULL,
-      \`device_id\` VARCHAR(128) NOT NULL,
-      \`execution_mode\` ENUM('desktop','background') NOT NULL DEFAULT 'desktop',
-      \`action\` VARCHAR(64) NOT NULL,
-      \`status\` ENUM('queued','claimed','completed','failed','expired','cancelled') NOT NULL DEFAULT 'queued',
-      \`priority\` INT NOT NULL DEFAULT 100,
-      \`requires_user_confirmation\` TINYINT(1) NOT NULL DEFAULT 0,
-      \`payload_json\` JSON NULL,
-      \`result_json\` JSON NULL,
-      \`requested_by\` VARCHAR(128) NULL,
-      \`request_context_json\` JSON NULL,
-      \`error_code\` VARCHAR(96) NULL,
-      \`error_message\` TEXT NULL,
-      \`created_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      \`claimed_at\` DATETIME NULL,
-      \`completed_at\` DATETIME NULL,
-      \`expires_at\` DATETIME NULL,
-      \`updated_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      PRIMARY KEY (\`command_id\`),
-      KEY \`idx_lm_desktop_command_device\` (\`tenant_id\`, \`user_id\`, \`device_id\`, \`status\`, \`priority\`, \`created_at\`),
-      KEY \`idx_lm_desktop_command_status\` (\`status\`, \`expires_at\`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-  `);
+  return assertLocalManagerDesktopCommandSchema(getPool());
 }
 
 async function expireOldCommands() {
@@ -482,7 +457,7 @@ export function buildLocalManagerDesktopCommandRoutes({ requireBackendApiKey, re
       }
       return res.status(200).json({ ok: true, commands: rows.map((row) => sanitizeCommand({ ...row, status: "claimed", claimed_at: row.claimed_at || new Date() })), secrets_included: false });
     } catch (err) {
-      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "desktop_command_poll_failed", message: err.message }, secrets_included: false });
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "desktop_command_poll_failed", message: err.message, details: err.details || undefined }, secrets_included: false });
     }
   });
 
