@@ -189,7 +189,7 @@ test('fallback separates canonical baseline bootstrap from incident recovery', (
   }), /RECOVERY_INCIDENT_MIGRATION_DENIED|RECOVERY_INCIDENT_MIGRATION_ROLE_DENIED/);
 });
 
-test('fallback grants are exactly seven tables with SELECT INSERT UPDATE only', () => {
+test('fallback grants are exactly eight tables with SELECT INSERT UPDATE only', () => {
   const tables = [
     'customer_sessions',
     'gpt_session_turns',
@@ -198,6 +198,7 @@ test('fallback grants are exactly seven tables with SELECT INSERT UPDATE only', 
     'execution_log',
     'json_assets',
     'local_manager_desktop_commands',
+    'local_manager_device_link_sessions',
   ];
   const env = {
     RECOVERY_STRATEGY: 'fallback',
@@ -213,7 +214,7 @@ test('fallback grants are exactly seven tables with SELECT INSERT UPDATE only', 
   };
   const result = validateRecoveryPlan(env);
   assert.equal(result.ok, true);
-  assert.equal(result.grant_table_count, 7);
+  assert.equal(result.grant_table_count, 8);
 
   const widened = JSON.parse(env.RUNTIME_RECOVERY_TARGETS_JSON);
   widened[0].grants[0].privileges.push('DELETE');
