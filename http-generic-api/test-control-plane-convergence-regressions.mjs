@@ -80,15 +80,15 @@ await assert.rejects(
 assert.equal(missingCredentialCalls, 0);
 
 const cachedAttempts = [];
-const cachedConfig = { config_id: "cfg-cache", connector_secret: "stale", connector_local_api_key: "live" };
+const credentialFixture = { config_id: "cfg-cache", connector_secret: "stale", connector_local_api_key: "live" };
 const cachedFetch = async (_url, init) => {
   cachedAttempts.push(init.headers.Authorization);
   return init.headers.Authorization === "Bearer live"
     ? response(200, { ok: true })
     : response(401, { ok: false, error: { message: "invalid credential" } });
 };
-await fetchLocalConnectorWithCredentialFallback({ config: cachedConfig, url: "https://connector.invalid/shell", fetchImpl: cachedFetch });
-await fetchLocalConnectorWithCredentialFallback({ config: cachedConfig, url: "https://connector.invalid/shell", fetchImpl: cachedFetch });
+await fetchLocalConnectorWithCredentialFallback({ config: credentialFixture, url: "https://connector.invalid/shell", fetchImpl: cachedFetch });
+await fetchLocalConnectorWithCredentialFallback({ config: credentialFixture, url: "https://connector.invalid/shell", fetchImpl: cachedFetch });
 assert.deepEqual(cachedAttempts, ["Bearer stale", "Bearer live", "Bearer live"]);
 
 const columns = ["command_id", "tenant_id", "user_id", "device_id", "execution_mode", "action", "status", "priority", "requires_user_confirmation", "payload_json", "result_json", "requested_by", "request_context_json", "error_code", "error_message", "created_at", "claimed_at", "completed_at", "expires_at", "updated_at"];
