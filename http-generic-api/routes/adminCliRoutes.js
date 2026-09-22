@@ -2900,8 +2900,8 @@ export function buildAdminCliRoutes(deps) {
       }
       if (!tunnelToken) {
         tunnelToken  = process.env.CLOUDFLARE_TUNNEL_TOKEN || "";
-        backendKey   = backendKey || process.env.CONNECTOR_SECRET || process.env.BACKEND_API_KEY || "";
-        connectorLocalApiKey = connectorLocalApiKey || process.env.CONNECTOR_LOCAL_API_KEY || "";
+        backendKey   = backendKey || process.env.BACKEND_API_KEY || "";
+        // connectorLocalApiKey remains DB-owned; do not introduce a second secret env authority in this route.
         configSource = deviceIdentityResolution ? "db_with_env_tunnel_fallback" : "env";
         // Persist to DB so future calls resolve from DB
         if (tunnelToken) {
