@@ -1140,11 +1140,16 @@ assert("local connector requires fresh Local Manager authorization for privilege
       deviceLinkSource.includes("secrets_included: false") &&
       !deviceLinkSource.includes("SELECT connector_secret") &&
       !deviceLinkSource.includes("SELECT cf_token"));
+    const previewStart = deviceLinkSource.indexOf("export async function previewDeviceLinkSession");
+    const previewEnd = deviceLinkSource.indexOf("export async function pollDeviceLinkSession", previewStart);
+    const previewSource = previewStart >= 0 && previewEnd > previewStart
+      ? deviceLinkSource.slice(previewStart, previewEnd)
+      : "";
     assert("local manager pairing preview is physically read-only and exposes effective expiry without durable mutation",
-      deviceLinkSource.includes("durable_status: durableStatus") &&
-      deviceLinkSource.includes("effective_status: effectiveStatus") &&
-      deviceLinkSource.includes("mutation_performed: false") &&
-      !deviceLinkSource.includes("previewDeviceLinkSession(req, res) {\n  try {\n    await assertDeviceLinkTableSchema();\n") === false);
+      previewSource.includes("durable_status: durableStatus") &&
+      previewSource.includes("effective_status: effectiveStatus") &&
+      previewSource.includes("mutation_performed: false") &&
+      !previewSource.includes("SET status = " + String.fromCharCode(39) + "expired" + String.fromCharCode(39)));
     assert("local manager linked-device tenant ownership is exact-or-both-null rather than missing-tenant wildcard",
       deviceLinkSource.includes("function sameTenantScope") &&
       (deviceLinkSource.match(/\(\(\? IS NULL AND tenant_id IS NULL\) OR tenant_id = \?\)/g) || []).length >= 5 &&
