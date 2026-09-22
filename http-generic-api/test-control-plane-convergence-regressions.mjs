@@ -171,6 +171,9 @@ assert.match(e2eGovernanceWorkflowSource, /20260922_local_manager_desktop_comman
 assert.match(e2eGovernanceWorkflowSource, /scripts\/local-manager-desktop-command-mariadb-certification\.mjs/u);
 assert.match(e2eGovernanceWorkflowSource, /mariadb:11\.4/u);
 assert.match(e2eGovernanceWorkflowSource, /privilege_denials\.every\(\(item\) => item\.denied === true\)/u);
+assert.match(e2eGovernanceWorkflowSource, /needs: \[evaluate, execute, local_manager_mariadb_certification\]/u);
+assert.match(e2eGovernanceWorkflowSource, /MARIADB_CERTIFICATION_JOB_RESULT/u);
+assert.match(e2eGovernanceWorkflowSource, /MARIADB_CERTIFICATION_EVIDENCE_PATH/u);
 
 const activationRoutesSource = readFileSync("./routes/activationRoutes.js", "utf8");
 assert.match(
