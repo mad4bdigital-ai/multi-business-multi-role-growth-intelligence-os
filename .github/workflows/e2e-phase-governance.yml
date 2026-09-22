@@ -331,6 +331,13 @@ jobs:
             && report.mode === "disposable"
             && report.lifecycle?.queued === true
             && report.lifecycle?.claimed === true
+            && report.lifecycle?.atomic_claim === true
+            && report.lifecycle?.duplicate_claim_rejected === true
+            && report.lifecycle?.multi_row_batch_claim === true
+            && report.lifecycle?.heartbeat_extended === true
+            && report.lifecycle?.wrong_completion_rejected === true
+            && report.lifecycle?.terminal_rewrite_rejected === true
+            && report.lifecycle?.lease_requeued === true
             && report.lifecycle?.completed === true
             && report.lifecycle?.expired === true
             && report.lifecycle?.route_cycle_complete === true
