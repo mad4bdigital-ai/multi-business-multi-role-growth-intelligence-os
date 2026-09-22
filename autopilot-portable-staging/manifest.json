@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "08ac7b4278a94a7ba56ea4e8f1c42972ebcc03f6722e2f3d03b305179b1302f4"
+      "sha256": "eb7babcb7dc71d612b0c375c1b6b6be1aa0d45cfee0d408159853a66bdbb18e4"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -330,7 +330,7 @@
     },
     {
       "path": "http-generic-api/config/staging-database-role-migration-manifest.json",
-      "sha256": "5238dd2c77b91c1e4cefd3e8de89649d90bcb17141fb603156f6aef755474e63"
+      "sha256": "380572a1ef839ec5cd0d53a6c1639ca32a0eb12ff410f93e33b09c59fe3cc204"
     },
     {
       "path": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
