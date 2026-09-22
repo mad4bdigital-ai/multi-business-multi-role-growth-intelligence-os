@@ -454,7 +454,7 @@
     },
     {
       "migration_file": "20260810_platform_runtime_registry_drift_reconciliation.sql",
-      "score": 389,
+      "score": 388,
       "queue_class": "medium_review",
       "gap_severity": "low",
       "documentation_complete": false,
