@@ -201,13 +201,15 @@ try {
   evidence.lifecycle.atomic_claim = true;
   evidence.lifecycle.duplicate_claim_rejected = true;
 
-  const batchCommandId = "cmd-cert-batch-second";
-  await runtime.query(
-    `INSERT INTO local_manager_desktop_commands
-      (command_id, tenant_id, user_id, device_id, execution_mode, action, status, priority, expires_at)
-     VALUES (?, ?, ?, ?, 'desktop', 'notify', 'queued', 11, DATE_ADD(NOW(), INTERVAL 5 MINUTE))`,
-    [batchCommandId, "tenant-cert", "user-cert", "device-canonical"],
-  );
+  const batchCommandIds = ["cmd-cert-batch-first", "cmd-cert-batch-second"];
+  for (const [index, batchCommandId] of batchCommandIds.entries()) {
+    await runtime.query(
+      `INSERT INTO local_manager_desktop_commands
+        (command_id, tenant_id, user_id, device_id, execution_mode, action, status, priority, expires_at)
+       VALUES (?, ?, ?, ?, 'desktop', 'notify', 'queued', ?, DATE_ADD(NOW(), INTERVAL 5 MINUTE))`,
+      [batchCommandId, "tenant-cert", "user-cert", "device-canonical", 11 + index],
+    );
+  }
   const batchClaimToken = "claim-cert-batch";
   const [batchClaimResult] = await runtime.query(
     `UPDATE local_manager_desktop_commands
@@ -217,12 +219,13 @@ try {
       LIMIT 2`,
     [batchClaimToken, "user-cert", "device-canonical"],
   );
-  if (Number(batchClaimResult.affectedRows) < 1) throw new Error("Multi-row desktop claim did not claim any queued rows");
+  if (Number(batchClaimResult.affectedRows) !== 2) throw new Error("Multi-row desktop claim did not atomically claim exactly two queued rows");
   const [batchRows] = await runtime.query(
     "SELECT command_id FROM local_manager_desktop_commands WHERE claim_token=? AND status='claimed' ORDER BY command_id",
     [batchClaimToken],
   );
-  if (batchRows.length !== Number(batchClaimResult.affectedRows)) throw new Error("Batch claim token did not identify exactly the rows owned by that poller");
+  if (batchRows.length !== 2 || batchRows.length !== Number(batchClaimResult.affectedRows)) throw new Error("Batch claim token did not identify exactly the two rows owned by that poller");
+  if (JSON.stringify(batchRows.map((row) => row.command_id).sort()) !== JSON.stringify([...batchCommandIds].sort())) throw new Error("Batch claim returned a row outside the poller-owned set");
   evidence.lifecycle.multi_row_batch_claim = true;
 
 
