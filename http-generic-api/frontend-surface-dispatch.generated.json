@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "b46082f0941e20d6f15265b8b791e01d8883d6f430a3cd6c770c7990e52562f1",
+    "source_digest": "77e399a30aa43cecb5a0c747c7fa363fdd9af820aa11500dc798488e085c2334",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -16,7 +16,7 @@
       },
       {
         "file": "frontend-surface-policy.json",
-        "sha256": "49459338670a1c19147f133bcf776bcb8850e70123494a54e496b424d0710ce9",
+        "sha256": "aa2172a7cb2750ec0ef11d75ba72c91f06bf10824ecf50bf2b9de1a5d524419d",
         "present": true
       },
       {
@@ -76,7 +76,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "59c6f5811e1e7fdb9e985eb51bbd826fbc7da9a3714778dc5ebb893bc0e60125",
+        "sha256": "886c40e6779ffa90b21d8a5463098c037c177afa6bba8a9752d8ab55844f5ec3",
         "present": true
       },
       {
@@ -676,7 +676,7 @@
       },
       {
         "file": "routes/localManagerBetaRoutes.js",
-        "sha256": "a5ba19eafa704553869ea1c18f85b8e0be619323a106fa3c5cb24ceb027c48a6",
+        "sha256": "d30507de59e90296234d111b46c0660b5fc5237a70fc2359e6bf4b794987ad1c",
         "present": true
       },
       {
@@ -1205,23 +1205,23 @@
     "mounted_route_file_count": 145,
     "mixed_scope_route_file_count": 26,
     "operation_count": 1076,
-    "openapi_documented_count": 1059,
+    "openapi_documented_count": 1060,
     "openapi_canonical_documented_count": 740,
-    "openapi_generated_index_count": 319,
-    "openapi_exemption_count": 17,
+    "openapi_generated_index_count": 320,
+    "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 319,
+    "openapi_detail_gap_count": 320,
     "openapi_detail_gap_policy": "accepted_generated_index_only",
     "auth_parity_counts": {
-      "equivalent": 1059,
-      "exempt": 17
+      "equivalent": 1060,
+      "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
     "non_get_candidate_count": 654,
-    "unresolved_operation_class_count": 1,
-    "classified_mutation_count": 27,
-    "governed_mutation_operation_count": 27,
+    "unresolved_operation_class_count": 0,
+    "classified_mutation_count": 28,
+    "governed_mutation_operation_count": 28,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 0,
     "test_owned_family_count": 175,
@@ -6061,7 +6061,7 @@
       "family_key": "local-manager-beta.admin",
       "label": "local manager beta (admin)",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "a5ba19eafa704553869ea1c18f85b8e0be619323a106fa3c5cb24ceb027c48a6",
+      "source_digest": "d30507de59e90296234d111b46c0660b5fc5237a70fc2359e6bf4b794987ad1c",
       "mount_prefix": "/",
       "mount_order": 14168,
       "split_from_mixed_scope_file": true,
@@ -6200,7 +6200,7 @@
       "family_key": "local-manager-beta.local_device",
       "label": "local manager beta (local_device)",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "a5ba19eafa704553869ea1c18f85b8e0be619323a106fa3c5cb24ceb027c48a6",
+      "source_digest": "d30507de59e90296234d111b46c0660b5fc5237a70fc2359e6bf4b794987ad1c",
       "mount_prefix": "/",
       "mount_order": 14168,
       "split_from_mixed_scope_file": true,
@@ -6349,43 +6349,85 @@
           "source_file": "routes/localManagerBetaRoutes.js",
           "scope": "local_device",
           "runtime_auth": {
-            "state": "unresolved",
-            "profile": "no_explicit_auth_evidence",
-            "alternatives": null,
-            "principal": null,
+            "state": "resolved",
+            "profile": "local_manager",
+            "alternatives": [
+              [
+                "localManagerBearerAuth"
+              ]
+            ],
+            "principal": "local_manager",
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ],
             "guard_chain": [],
-            "evidence": [],
-            "configuration_dependencies": []
-          },
-          "openapi_auth": null,
-          "auth_parity": {
-            "state": "exempt",
-            "reasons": [
-              "repository_openapi_allowlist"
+            "evidence": [
+              "routes/connectorProxyRoutes.js",
+              "routes/localConnectorInstallRoutes.js",
+              "services/localManagerDeviceLinkService.js"
             ]
           },
-          "openapi_documented": false,
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "localManagerBearerAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
           "openapi_canonical_documented": false,
-          "openapi_exempt": true,
-          "openapi_contract_level": "explicit_exemption",
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
           "tests": [],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "state_change",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "explicit_local_manager_user_guard_and_owned_session_filter"
+              },
+              "approval": {
+                "mode": "explicit_signed_in_user_forget_device_action"
+              },
+              "readback": {
+                "mode": "inline_post_commit"
+              },
+              "rollback": {
+                "mode": "not_required",
+                "rationale": "Revocation is a security-invalidating terminal transition. Re-linking is a new pairing flow rather than rollback of the revoked credential."
+              }
+            },
+            "parameter_bindings": {
+              "session_id": "request.params.sessionId",
+              "actor_user_id": "verified Local Manager user principal",
+              "actor_tenant_id": "verified Local Manager user tenant scope"
+            },
+            "blockers": [],
+            "rule_id": "local-manager-device-revoke-governed-state-change",
+            "owner": "local-manager",
+            "rationale": "A signed-in Local Manager user may revoke only a linked session owned by the same user/tenant. The route exposes an explicit user guard, performs a conditional status transition only from approved/completed, and immediately reads the authoritative row back so previously issued device JWTs fail subsequent DB-bound verification.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "routes/localManagerBetaRoutes.js",
+              "services/localManagerDeviceLinkService.js",
+              "test-connect-routes.mjs"
+            ]
           },
           "mutation_candidate": true,
-          "mutation": false
+          "mutation": true
         },
         {
           "method": "GET",
@@ -6561,10 +6603,11 @@
       ],
       "openapi_gaps": [],
       "openapi_exemptions": [
-        "POST /local-manager/device-link/devices/{sessionId}/revoke",
         "GET /local-manager/beta"
       ],
-      "openapi_detail_gaps": [],
+      "openapi_detail_gaps": [
+        "POST /local-manager/device-link/devices/{sessionId}/revoke"
+      ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
       "tests": [
@@ -6586,6 +6629,7 @@
         "openapi/brand-core-asset-materialization.yaml",
         "openapi/container-authority-override-governance-smoke.yaml",
         "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
@@ -6627,17 +6671,10 @@
           "specs/010-unified-platform-frontend/plan.md"
         ]
       },
-      "operation_blockers": [
-        {
-          "signature": "POST /local-manager/device-link/devices/{sessionId}/revoke",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        }
-      ],
+      "operation_blockers": [],
       "risk": {
-        "score": 8,
-        "class": "high"
+        "score": 11,
+        "class": "critical"
       },
       "wave": "F4-local-manager"
     },
@@ -6645,7 +6682,7 @@
       "family_key": "local-manager-beta.public.default",
       "label": "local manager beta (public) [default]",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "a5ba19eafa704553869ea1c18f85b8e0be619323a106fa3c5cb24ceb027c48a6",
+      "source_digest": "d30507de59e90296234d111b46c0660b5fc5237a70fc2359e6bf4b794987ad1c",
       "mount_prefix": "/",
       "mount_order": 14168,
       "split_from_mixed_scope_file": true,
@@ -7319,7 +7356,7 @@
       "family_key": "local-manager-beta.public.local-manager",
       "label": "local manager beta (public) [local-manager]",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "a5ba19eafa704553869ea1c18f85b8e0be619323a106fa3c5cb24ceb027c48a6",
+      "source_digest": "d30507de59e90296234d111b46c0660b5fc5237a70fc2359e6bf4b794987ad1c",
       "mount_prefix": "/",
       "mount_order": 14168,
       "split_from_mixed_scope_file": true,
@@ -99504,14 +99541,15 @@
       "wave": "F4-local-manager",
       "state": "blocked",
       "blockers": [
-        "test_ownership_gap",
-        "operation_classification_gap"
+        "test_ownership_gap"
       ],
       "dependencies": [
         "F0-source-baseline",
         "F1-tenant-workspace-context",
         "F4-device-trust",
-        "operation-classification"
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
       ],
       "source_refs": [
         "frontend-operation-governance.generated.json",
@@ -99521,6 +99559,7 @@
         "openapi/brand-core-asset-materialization.yaml",
         "openapi/container-authority-override-governance-smoke.yaml",
         "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
@@ -99557,7 +99596,8 @@
         "openapi_or_explicit_exemption",
         "surface_policy_resolved",
         "tests_registered",
-        "operation_classification_explicit"
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
