@@ -26,5 +26,5 @@ CREATE TABLE IF NOT EXISTS `local_manager_desktop_commands` (
   PRIMARY KEY (`command_id`),
   KEY `idx_lm_desktop_command_device` (`tenant_id`, `user_id`, `device_id`, `status`, `priority`, `created_at`),
   KEY `idx_lm_desktop_command_status` (`status`, `expires_at`),
-  UNIQUE KEY `uq_lm_desktop_command_claim_token` (`claim_token`)
+  KEY `idx_lm_desktop_command_claim_token` (`claim_token`, `status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
