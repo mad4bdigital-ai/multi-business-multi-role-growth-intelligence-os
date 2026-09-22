@@ -2023,10 +2023,15 @@ export function buildActivationRoutes(deps) {
 
   router.get("/activation/session-context", requireBackendApiKey, async (req, res) => {
     try {
-      const context = await buildActivationSessionContext(req);
+      const diagnosticQuery = {
+        ...req.query,
+        read_only: Object.prototype.hasOwnProperty.call(req.query || {}, "read_only") ? req.query.read_only : "true",
+      };
+      const context = await buildActivationSessionContext({ ...req, query: diagnosticQuery });
       const responseBody = {
         ok: true,
         activation_layer: "session_context",
+        read_only: !shouldOpenActivationSession(diagnosticQuery),
         ...context
       };
       const transportBody = await maybeChunkToolResponseBody(responseBody, {
