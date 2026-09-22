@@ -1646,7 +1646,10 @@ internal static class Program
             try
             {
                 using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-                using var req = new HttpRequestMessage(HttpMethod.Get, DesktopCommandsUrl + "/pending?limit=5");
+                using var req = new HttpRequestMessage(HttpMethod.Post, DesktopCommandsUrl + "/claim?limit=5")
+                {
+                    Content = JsonContent(new { })
+                };
                 req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
                 req.Headers.Accept.ParseAdd("application/json");
                 using var response = await client.SendAsync(req);
