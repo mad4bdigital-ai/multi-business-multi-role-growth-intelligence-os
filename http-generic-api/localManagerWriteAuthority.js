@@ -228,9 +228,10 @@ export async function reconcileLocalConnectorAliases({
               status = 'active',
               updated_at = NOW()
         WHERE alias_device_id = ?
-          AND (user_id = ? OR user_id IS NULL)
+          AND user_id = ?
+          AND ((? IS NULL AND tenant_id IS NULL) OR tenant_id = ?)
         LIMIT 1`,
-      [canonicalDevice, canonicalConfig, user, tenant, reason, alias, user],
+      [canonicalDevice, canonicalConfig, user, tenant, reason, alias, user, tenant, tenant],
     );
     if (!Number(updateResult?.affectedRows || 0)) {
       try {
