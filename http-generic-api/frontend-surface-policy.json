@@ -5721,45 +5721,100 @@
       ]
     },
     {
-      "rule_id": "generated-gap-post-local-manager-device-link-approve-routes-localmanagerbetaroutes-js",
+      "rule_id": "local-manager-device-link-approve-governed-state-change",
       "operation": "POST /local-manager/device-link/approve",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "classification": "disabled",
+      "classification": "state_change",
       "owner": "local-manager",
-      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+      "rationale": "A signed-in Local Manager user explicitly approves one unexpired pending pairing session. The handler binds ownership to the verified user and exact tenant scope, performs a conditional pending-to-approved transition, and reads the durable approved row back before returning success.",
+      "preflight": {
+        "mode": "verified_local_manager_user_pending_session_expiry_and_exact_tenant_scope"
+      },
+      "approval": {
+        "mode": "explicit_signed_in_user_pairing_approval"
+      },
+      "readback": {
+        "mode": "inline_post_commit"
+      },
+      "rollback": {
+        "mode": "revoke_linked_device",
+        "rationale": "Approval can be invalidated through the governed linked-device revoke transition; connector alias reconciliation remains a separate fail-closed handoff."
+      },
+      "parameter_bindings": {
+        "device_code": "request body pairing code hash lookup",
+        "actor_user_id": "verified Local Manager user principal",
+        "actor_tenant_id": "verified Local Manager exact tenant scope"
+      },
       "evidence_refs": [
+        "services/localManagerDeviceLinkService.js",
         "routes/localManagerBetaRoutes.js",
-        "openapi.yaml",
-        "frontend-surface-dispatch.generated.json",
-        "test-frontend-surface-coverage-claims.mjs"
+        "test-connect-routes.mjs",
+        "openapi.yaml"
       ]
     },
     {
-      "rule_id": "generated-gap-post-local-manager-device-link-poll-routes-localmanagerbetaroutes-js",
+      "rule_id": "local-manager-device-link-poll-governed-token-issuance",
       "operation": "POST /local-manager/device-link/poll",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "classification": "disabled",
+      "classification": "state_change",
       "owner": "local-manager",
-      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+      "rationale": "Device polling is authenticated by the short-lived pairing code plus private poll token. Pending expiry may be made durable, and an already user-approved session may transition atomically to completed with durable JTI/token issuance only after canonical connector alias reconciliation is proven.",
+      "preflight": {
+        "mode": "pairing_code_poll_secret_session_state_and_connector_alias_readiness"
+      },
+      "approval": {
+        "mode": "prior_signed_in_user_approval_required"
+      },
+      "readback": {
+        "mode": "inline_post_commit_completed_session_readback"
+      },
+      "rollback": {
+        "mode": "governed_device_revocation",
+        "rationale": "A completed device credential is invalidated by the governed revoke transition and DB-bound verifier; failed alias reconciliation performs no token issuance."
+      },
+      "parameter_bindings": {
+        "device_code": "request body pairing code hash lookup",
+        "poll_token": "request body private poll token hash comparison",
+        "token_jti": "server-generated UUID only after approved durable state"
+      },
       "evidence_refs": [
+        "services/localManagerDeviceLinkService.js",
         "routes/localManagerBetaRoutes.js",
-        "openapi.yaml",
-        "frontend-surface-dispatch.generated.json",
-        "test-frontend-surface-coverage-claims.mjs"
+        "test-connect-routes.mjs",
+        "openapi.yaml"
       ]
     },
     {
-      "rule_id": "generated-gap-post-local-manager-device-link-start-routes-localmanagerbetaroutes-js",
+      "rule_id": "local-manager-device-link-start-governed-session-create",
       "operation": "POST /local-manager/device-link/start",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "classification": "disabled",
+      "classification": "state_change",
       "owner": "local-manager",
-      "rationale": "Explicit fail-closed classification for an unresolved non-GET route. The operation remains disabled until a separately reviewed contract establishes effect class, preflight, approval, readback, rollback, and test evidence.",
+      "rationale": "Public device pairing initiation creates one short-lived pending session. The runtime validates the device-link schema, normalizes bounded device metadata, writes only the pairing session, and performs same-cycle durable readback before returning the device code and private poll token.",
+      "preflight": {
+        "mode": "device_link_schema_canonical_origin_and_bounded_input_validation"
+      },
+      "approval": {
+        "mode": "explicit_device_pairing_initiation"
+      },
+      "readback": {
+        "mode": "inline_post_insert_session_readback"
+      },
+      "rollback": {
+        "mode": "natural_ttl_expiry",
+        "rationale": "An unapproved pairing session is short-lived and becomes ineffective after its bounded TTL; no broader identity or connector authority is granted by session creation."
+      },
+      "parameter_bindings": {
+        "device_id": "normalized request.body.device_id or bounded generated fallback",
+        "hostname": "bounded request.body.hostname",
+        "platform": "bounded request.body.platform",
+        "expires_at": "server-derived DEVICE_LINK_TTL_SECONDS"
+      },
       "evidence_refs": [
+        "services/localManagerDeviceLinkService.js",
         "routes/localManagerBetaRoutes.js",
-        "openapi.yaml",
-        "frontend-surface-dispatch.generated.json",
-        "test-frontend-surface-coverage-claims.mjs"
+        "test-connect-routes.mjs",
+        "openapi.yaml"
       ]
     },
     {
