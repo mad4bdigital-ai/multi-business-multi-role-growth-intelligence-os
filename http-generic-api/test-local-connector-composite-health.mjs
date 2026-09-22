@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   classifyLocalConnectorCompositeHealth,
+  probeLocalConnectorAuthenticatedHealth,
   probeLocalConnectorPublicHealth,
   probeLocalConnectorPublicHealthWithRetry,
 } from "./localConnectorCompositeHealth.js";
@@ -106,8 +107,68 @@ function response(status, payload = {}) {
   assert.equal(composite.repair_required, true);
 }
 
+
+
+{
+  const attempts = [];
+  const authenticated = await probeLocalConnectorAuthenticatedHealth({
+    tunnelUrl: "https://connector.example",
+    credentialCandidates: [
+      { source: "connector_secret", token: "stale" },
+      { source: "connector_local_api_key", token: "live" },
+    ],
+    fetchImpl: async (url, init) => {
+      assert.equal(url, "https://connector.example/policy");
+      attempts.push(init.headers.Authorization);
+      return init.headers.Authorization === "Bearer live"
+        ? response(200, { ok: true, service: "local-connector", principal_scope: "platform_admin_break_glass_only" })
+        : response(401, { ok: false });
+    },
+  });
+  assert.deepEqual(attempts, ["Bearer stale", "Bearer live"], "authenticated connector health falls back only after 401");
+  assert.equal(authenticated.status, "pass");
+  assert.equal(authenticated.credential_source, "connector_local_api_key");
+  assert.equal(authenticated.credential_fallback_used, true);
+  assert.equal(authenticated.credential_attempt_count, 2);
+  assert.doesNotMatch(JSON.stringify(authenticated), /stale|live/);
+}
+
+{
+  const publicProbe = { status: "pass", observed_at: "2026-09-22T00:00:00.000Z" };
+  const authenticatedProbe = { status: "credential_rejected", observed_at: "2026-09-22T00:00:01.000Z" };
+  const composite = classifyLocalConnectorCompositeHealth({
+    tunnelStatus: "healthy",
+    publicProbe,
+    authenticatedProbe,
+    tunnelStatusObservedAt: "2026-09-22T00:00:00.500Z",
+  });
+  assert.equal(composite.status, "authorization_degraded");
+  assert.equal(composite.transport_health, "reachable");
+  assert.equal(composite.authenticated_command_health, "credential_rejected");
+  assert.equal(composite.repair_required, true);
+  assert.equal(composite.repair_class, "credential_binding");
+}
+
+{
+  const composite = classifyLocalConnectorCompositeHealth({
+    tunnelStatus: "down",
+    publicProbe: { status: "pass", observed_at: "2026-09-22T00:00:00.000Z" },
+    authenticatedProbe: { status: "pass", observed_at: "2026-09-22T00:00:01.000Z" },
+    tunnelStatusObservedAt: "2026-09-22T00:00:00.500Z",
+  });
+  assert.equal(composite.status, "active");
+  assert.equal(composite.repair_required, false);
+  assert.equal(composite.tunnel_evidence.conflict, true);
+  assert.equal(composite.tunnel_evidence.control_plane.assessment, "degraded_or_stale_metadata");
+  assert.equal(composite.tunnel_evidence.data_plane.authoritative_for_reachability, true);
+}
+
 const routeSource = readFileSync("routes/adminCliRoutes.js", "utf8");
 assert.match(routeSource, /probeLocalConnectorPublicHealthWithRetry/);
+assert.match(routeSource, /probeLocalConnectorAuthenticatedHealth/);
+assert.match(routeSource, /authenticated_command_health/);
+assert.match(routeSource, /connectorLocalApiKeySelectFragment/);
+assert.match(routeSource, /Do not reinstall a reachable connector solely because an authenticated probe was rejected/);
 assert.match(routeSource, /admin_cli\.local_connector_self_repair\.not_required/);
 assert.match(routeSource, /installer_generated: false/);
 assert.match(routeSource, /retry_evidence: publicHealthProbe\.retry_evidence/);
