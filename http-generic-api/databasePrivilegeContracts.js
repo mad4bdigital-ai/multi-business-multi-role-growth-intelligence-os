@@ -35,7 +35,7 @@ export const GOVERNANCE_DB_PRIVILEGE_MATRIX = Object.freeze({
 
 export const BOOTSTRAP_ROLE_GRANT_POLICIES = Object.freeze({
   runtime: buildGrantSpec(
-    ["customer_sessions", "gpt_session_turns", "actions", "dynamic_audit_scheduler_runs", "execution_log", "json_assets", "local_manager_desktop_commands"],
+    ["customer_sessions", "gpt_session_turns", "actions", "dynamic_audit_scheduler_runs", "execution_log", "json_assets", "local_manager_desktop_commands", "local_manager_device_link_sessions"],
     ["SELECT", "INSERT", "UPDATE"],
   ),
   governance: buildGrantSpec(Object.keys(GOVERNANCE_DB_PRIVILEGE_MATRIX), ["SELECT"], "always", GOVERNANCE_DB_PRIVILEGE_MATRIX),
@@ -111,6 +111,7 @@ const STAGING_RUNTIME_READ_ONLY_MATRIX = Object.freeze(Object.fromEntries(
 const STAGING_RUNTIME_OPERATION_MATRIX = Object.freeze({
   ...STAGING_RUNTIME_READ_ONLY_MATRIX,
   local_manager_desktop_commands: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
+  local_manager_device_link_sessions: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
 });
 
 const STAGING_GATEWAY_PLAN_GRANTS = Object.freeze({
@@ -135,6 +136,7 @@ export const STAGING_ROLE_GRANT_POLICIES = Object.freeze({
       "execution_log",
       "json_assets",
       "local_manager_desktop_commands",
+      "local_manager_device_link_sessions",
       ...STAGING_RUNTIME_READ_ONLY_TABLES,
     ],
     ["SELECT", "INSERT", "UPDATE"],
