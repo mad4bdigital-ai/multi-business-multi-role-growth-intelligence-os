@@ -201,6 +201,32 @@ try {
   evidence.lifecycle.atomic_claim = true;
   evidence.lifecycle.duplicate_claim_rejected = true;
 
+  const batchCommandId = "cmd-cert-batch-second";
+  await runtime.query(
+    `INSERT INTO local_manager_desktop_commands
+      (command_id, tenant_id, user_id, device_id, execution_mode, action, status, priority, expires_at)
+     VALUES (?, ?, ?, ?, 'desktop', 'notify', 'queued', 11, DATE_ADD(NOW(), INTERVAL 5 MINUTE))`,
+    [batchCommandId, "tenant-cert", "user-cert", "device-canonical"],
+  );
+  const batchClaimToken = "claim-cert-batch";
+  const [batchClaimResult] = await runtime.query(
+    `UPDATE local_manager_desktop_commands
+        SET status='claimed', claimed_at=NOW(), claim_token=?, claim_lease_expires_at=DATE_ADD(NOW(), INTERVAL 120 SECOND)
+      WHERE user_id=? AND device_id=? AND status='queued'
+      ORDER BY priority ASC, created_at ASC
+      LIMIT 2`,
+    [batchClaimToken, "user-cert", "device-canonical"],
+  );
+  if (Number(batchClaimResult.affectedRows) < 1) throw new Error("Multi-row desktop claim did not claim any queued rows");
+  const [batchRows] = await runtime.query(
+    "SELECT command_id FROM local_manager_desktop_commands WHERE claim_token=? AND status='claimed' ORDER BY command_id",
+    [batchClaimToken],
+  );
+  if (batchRows.length !== Number(batchClaimResult.affectedRows)) throw new Error("Batch claim token did not identify exactly the rows owned by that poller");
+  evidence.lifecycle.multi_row_batch_claim = true;
+
+
+
   const [heartbeatResult] = await runtime.query(
     `UPDATE local_manager_desktop_commands
         SET claim_lease_expires_at=DATE_ADD(NOW(), INTERVAL 120 SECOND)
