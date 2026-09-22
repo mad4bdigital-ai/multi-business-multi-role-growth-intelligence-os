@@ -1185,7 +1185,7 @@ assert("local connector requires fresh Local Manager authorization for privilege
       (deviceLinkSource.match(/\(\(\? IS NULL AND tenant_id IS NULL\) OR tenant_id = \?\)/g) || []).length >= 5 &&
       deviceLinkSource.includes("sameTenantScope(row.tenant_id, principal.tenant_id)") &&
       deviceLinkSource.includes("sameTenantScope(current.tenant_id, principal.tenant_id)") &&
-      deviceLinkSource.includes("((? IS NULL AND tenant_id IS NULL) OR tenant_id = ? OR tenant_id = '00000000-0000-0000-0000-000000000000')"));
+      !deviceLinkSource.includes("tenant_id = ? OR tenant_id ="));
     assert("local manager poll response distinguishes compatibility authorization state from durable completed device state",
       deviceLinkSource.includes('authorization_status: "approved"') &&
       deviceLinkSource.includes("device_status: issuedRow.status"));
