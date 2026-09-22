@@ -10,12 +10,12 @@
   "db_catalog_fingerprint_match": true,
   "file_count": 7803,
   "route_count": 1114,
-  "write_route_count": 679,
+  "write_route_count": 680,
   "classified_write_surface_count": 44,
-  "classified_write_route_count": 679,
+  "classified_write_route_count": 680,
   "unclassified_write_route_count": 0,
-  "intentionally_unmapped_write_route_count": 635,
-  "sensitive_intentionally_unmapped_write_route_count": 635,
+  "intentionally_unmapped_write_route_count": 636,
+  "sensitive_intentionally_unmapped_write_route_count": 636,
   "migration_count": 450,
   "registry_evidence_count": 118,
   "write_scope_count": 6,
@@ -4450,26 +4450,26 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerDesktopCommandRoutes.js#POST:/local-manager/device/desktop-commands:0",
-      "source_line": 450,
-      "source_offset": 18789,
+      "source_line": 464,
+      "source_offset": 19378,
       "method": "POST",
       "path": "/local-manager/device/desktop-commands",
       "file": "http-generic-api/routes/localManagerDesktopCommandRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/localManagerDesktopCommandRoutes.js#GET:/local-manager/device/desktop-commands/pending:1",
-      "source_line": 523,
-      "source_offset": 23238,
-      "method": "GET",
-      "path": "/local-manager/device/desktop-commands/pending",
+      "route_id": "http-generic-api/routes/localManagerDesktopCommandRoutes.js#POST:/local-manager/device/desktop-commands/claim:1",
+      "source_line": 550,
+      "source_offset": 24502,
+      "method": "POST",
+      "path": "/local-manager/device/desktop-commands/claim",
       "file": "http-generic-api/routes/localManagerDesktopCommandRoutes.js",
-      "write": false
+      "write": true
     },
     {
       "route_id": "http-generic-api/routes/localManagerDesktopCommandRoutes.js#POST:/local-manager/device/desktop-commands/:commandId/heartbeat:2",
-      "source_line": 569,
-      "source_offset": 25372,
+      "source_line": 599,
+      "source_offset": 26909,
       "method": "POST",
       "path": "/local-manager/device/desktop-commands/:commandId/heartbeat",
       "file": "http-generic-api/routes/localManagerDesktopCommandRoutes.js",
@@ -4477,8 +4477,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerDesktopCommandRoutes.js#POST:/local-manager/device/desktop-commands/:commandId/complete:3",
-      "source_line": 600,
-      "source_offset": 27333,
+      "source_line": 654,
+      "source_offset": 29943,
       "method": "POST",
       "path": "/local-manager/device/desktop-commands/:commandId/complete",
       "file": "http-generic-api/routes/localManagerDesktopCommandRoutes.js",
@@ -4486,8 +4486,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerDesktopCommandRoutes.js#GET:/local-manager/device/desktop-commands/:commandId:4",
-      "source_line": 638,
-      "source_offset": 29727,
+      "source_line": 706,
+      "source_offset": 33104,
       "method": "GET",
       "path": "/local-manager/device/desktop-commands/:commandId",
       "file": "http-generic-api/routes/localManagerDesktopCommandRoutes.js",
@@ -28751,17 +28751,17 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/localManagerDesktopCommandRoutes.js",
-        "source_line": 450,
+        "source_line": 464,
         "handler_window_lines": [
-          450,
-          521
+          464,
+          548
         ],
         "evidence_flags": {
           "handler_window_present": true,
           "provider_signal": false,
           "db_registry_signal": false,
           "authority_signal": true,
-          "readback_signal": false,
+          "readback_signal": true,
           "mutation_signal": true
         },
         "signals": {
@@ -28771,9 +28771,79 @@
             "admin",
             "scope"
           ],
-          "readback": [],
+          "readback": [
+            "select",
+            "readback"
+          ],
           "mutation": [
-            "insert"
+            "insert",
+            "create"
+          ]
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "low_static",
+        "basis": "handler_window_signals_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [],
+      "resource_candidate": "application_domain",
+      "resource_key": null,
+      "operation_key": null,
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "application-domain-governance",
+      "classification_confidence": "heuristic_requires_manual_confirmation",
+      "risk_class": "high",
+      "reason": "registry_mutation_requires_live_schema_and_policy_contract"
+    },
+    {
+      "route_id": "http-generic-api/routes/localManagerDesktopCommandRoutes.js#POST:/local-manager/device/desktop-commands/claim:1",
+      "classification": "intentionally_unmapped",
+      "mapping_status": "blocked",
+      "domain": "application_domain",
+      "operation_class": "create_or_request",
+      "evidence": {
+        "file": "http-generic-api/routes/localManagerDesktopCommandRoutes.js",
+        "source_line": 550,
+        "handler_window_lines": [
+          550,
+          597
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": false,
+          "db_registry_signal": false,
+          "authority_signal": true,
+          "readback_signal": true,
+          "mutation_signal": true
+        },
+        "signals": {
+          "provider": [],
+          "db_registry": [],
+          "authority": [
+            "lease",
+            "lease"
+          ],
+          "readback": [
+            "select"
+          ],
+          "mutation": [
+            "update",
+            "create"
           ]
         },
         "static_only": true,
@@ -28814,17 +28884,17 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/localManagerDesktopCommandRoutes.js",
-        "source_line": 569,
+        "source_line": 599,
         "handler_window_lines": [
-          569,
-          598
+          599,
+          652
         ],
         "evidence_flags": {
           "handler_window_present": true,
           "provider_signal": false,
           "db_registry_signal": false,
           "authority_signal": true,
-          "readback_signal": false,
+          "readback_signal": true,
           "mutation_signal": true
         },
         "signals": {
@@ -28834,7 +28904,10 @@
             "lease",
             "lease"
           ],
-          "readback": [],
+          "readback": [
+            "select",
+            "readback"
+          ],
           "mutation": [
             "update"
           ]
@@ -28877,17 +28950,17 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/localManagerDesktopCommandRoutes.js",
-        "source_line": 600,
+        "source_line": 654,
         "handler_window_lines": [
-          600,
-          636
+          654,
+          704
         ],
         "evidence_flags": {
           "handler_window_present": true,
           "provider_signal": false,
           "db_registry_signal": false,
           "authority_signal": true,
-          "readback_signal": false,
+          "readback_signal": true,
           "mutation_signal": true
         },
         "signals": {
@@ -28896,7 +28969,10 @@
           "authority": [
             "lease"
           ],
-          "readback": [],
+          "readback": [
+            "select",
+            "readback"
+          ],
           "mutation": [
             "update"
           ]
@@ -54164,18 +54240,18 @@
   ],
   "evidence_graph": {
     "node_counts": {
-      "routes": 679,
+      "routes": 680,
       "domains": 11,
       "handler_files": 136
     },
     "edge_counts": {
-      "route_to_handler_file": 679,
-      "route_to_domain": 679,
+      "route_to_handler_file": 680,
+      "route_to_domain": 680,
       "route_to_provider_signal": 100,
       "route_to_db_registry_signal": 0,
-      "route_to_authority_signal": 428,
-      "route_to_readback_signal": 380,
-      "route_to_mutation_signal": 389,
+      "route_to_authority_signal": 429,
+      "route_to_readback_signal": 384,
+      "route_to_mutation_signal": 390,
       "route_to_explicit_scope_candidate": 44
     },
     "execution_edges_are_non_authorizing": true,
@@ -60711,8 +60787,8 @@
     {
       "severity": "high",
       "code": "INTENTIONALLY_UNMAPPED_WRITE_ROUTES_BLOCKED",
-      "count": 635,
-      "sensitive_count": 635
+      "count": 636,
+      "sensitive_count": 636
     },
     {
       "severity": "medium",
