@@ -100,10 +100,19 @@ function parseJson(value) {
   try { return JSON.parse(value); } catch { return null; }
 }
 
-function getBaseUrl(req) {
+function getBaseUrl(req, env = process.env) {
+  const configured = String(env.PUBLIC_BASE_URL || "").trim();
+  if (configured) return configured.replace(/\/$/, "");
+  const nodeEnv = String(env.NODE_ENV || "").trim().toLowerCase();
+  if (nodeEnv === "production" || nodeEnv === "staging") {
+    const err = new Error("PUBLIC_BASE_URL is required for Local Manager pairing in deployed environments.");
+    err.status = 503;
+    err.code = "local_manager_canonical_origin_required";
+    throw err;
+  }
   const proto = String(req.get("x-forwarded-proto") || req.protocol || "https").split(",")[0].trim() || "https";
-  const host = req.get("host") || "auth.mad4b.com";
-  return (process.env.PUBLIC_BASE_URL || `${proto}://${host}`).replace(/\/$/, "");
+  const host = req.get("host") || "localhost";
+  return `${proto}://${host}`.replace(/\/$/, "");
 }
 
 function defaultN8nProfile({ device }) {
@@ -180,7 +189,7 @@ function sanitizeN8nProfileConfig(value, { device }) {
   };
 }
 
-async function resolveOrCreateTenantN8nProfile(device) {
+async function resolveTenantN8nProfile(device) {
   const pool = getPool();
   const systemKey = `local_n8n:${cleanId(device.device_id, { fallback: "device", max: 64 })}`;
   const [rows] = await pool.query(
@@ -206,26 +215,27 @@ async function resolveOrCreateTenantN8nProfile(device) {
       display_name: rows[0].display_name,
       status: rows[0].status,
       profile: sanitizeN8nProfileConfig(rows[0].config_json, { device }),
-      created: false,
+      provisioned: true,
+      provisioning_required: false,
+      mutation_performed: false,
+      secrets_included: false,
     };
   }
 
-  const systemId = crypto.randomUUID();
-  const installationId = crypto.randomUUID();
-  const profile = defaultN8nProfile({ device });
-  await pool.query(
-    `INSERT INTO \`connected_systems\`
-      (system_id, tenant_id, system_key, display_name, provider_family, provider_domain, connector_family, auth_type, service_mode, self_serve_capable, assisted_capable, managed_capable, status, config_json, created_at, updated_at)
-     VALUES (?, ?, ?, ?, 'n8n', 'n8n.io', 'local_desktop', 'local_manual', 'self_serve', 1, 0, 0, 'active', ?, NOW(), NOW())`,
-    [systemId, device.tenant_id || "", systemKey, "Local n8n", jsonString(profile)]
-  );
-  await pool.query(
-    `INSERT INTO \`installations\`
-      (installation_id, system_id, tenant_id, scope, credential_ref, status, installed_at, expires_at, meta_json)
-     VALUES (?, ?, ?, 'local_device', NULL, 'active', NOW(), NULL, ?)`,
-    [installationId, systemId, device.tenant_id || "", jsonString({ user_id: device.user_id, device_id: device.device_id, autopilot_enabled: true, local_only: true, writes_local_files: true, secrets_included: false })]
-  );
-  return { system_id: systemId, installation_id: installationId, display_name: "Local n8n", status: "active", profile, created: true };
+  return {
+    system_id: null,
+    installation_id: null,
+    display_name: "Local n8n",
+    status: "not_provisioned",
+    profile: defaultN8nProfile({ device }),
+    provisioned: false,
+    provisioning_required: true,
+    mutation_performed: false,
+    apply_authorized: false,
+    required_authority: "local_manager_n8n_provisioning_writer",
+    reason: "No governed runtime-database writer is bound for n8n provisioning; the device control read remains SELECT-only.",
+    secrets_included: false,
+  };
 }
 
 async function assertDeviceLinkTableSchema() {
@@ -350,40 +360,7 @@ async function resolveCanonicalConnectorConfig({ userId, tenantId, deviceId, hos
   return fallbackRows.length === 1 ? fallbackRows[0] : null;
 }
 
-async function upsertConnectorAlias({ aliasDeviceId, canonical, principal }) {
-  const pool = getPool();
-  const alias = cleanId(aliasDeviceId, { max: 128 });
-  const canonicalDeviceId = cleanId(canonical?.device_id, { max: 128 });
-  if (!alias || !canonicalDeviceId || alias.toLowerCase() === canonicalDeviceId.toLowerCase()) return null;
-
-  const reason = "Auto-created from Local Manager device-link approval so app hostname/device id resolves to the executable local connector device.";
-  const [updateResult] = await pool.query(
-    `UPDATE \`local_connector_device_aliases\`
-        SET canonical_device_id = ?, canonical_config_id = ?, user_id = ?, tenant_id = ?, reason = ?, status = 'active', updated_at = NOW()
-      WHERE alias_device_id = ?
-        AND (user_id = ? OR user_id IS NULL)
-      LIMIT 1`,
-    [canonicalDeviceId, canonical.config_id, principal.user_id, principal.tenant_id || null, reason, alias, principal.user_id]
-  );
-
-  if (!Number(updateResult?.affectedRows || 0)) {
-    await pool.query(
-      `INSERT INTO \`local_connector_device_aliases\`
-        (alias_device_id, canonical_device_id, canonical_config_id, user_id, tenant_id, reason, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())`,
-      [alias, canonicalDeviceId, canonical.config_id, principal.user_id, principal.tenant_id || null, reason]
-    );
-  }
-
-  return {
-    alias_device_id: alias,
-    canonical_device_id: canonicalDeviceId,
-    canonical_config_id: canonical.config_id,
-    status: "active",
-  };
-}
-
-async function ensureLocalConnectorAliasForDeviceLink({ session, principal }) {
+async function inspectLocalConnectorAliasForDeviceLink({ session, principal }) {
   try {
     const canonical = await resolveCanonicalConnectorConfig({
       userId: principal.user_id,
@@ -392,30 +369,82 @@ async function ensureLocalConnectorAliasForDeviceLink({ session, principal }) {
       hostname: session.hostname,
     });
     if (!canonical) {
-      return { attempted: true, resolved: false, reason: "canonical_connector_config_not_found", secrets_included: false };
+      return {
+        attempted: true,
+        resolved: false,
+        reconciliation_required: true,
+        mutation_performed: false,
+        apply_authorized: false,
+        required_authority: "local_connector_alias_reconciliation_writer",
+        reason: "canonical_connector_config_not_found",
+        secrets_included: false,
+      };
     }
 
-    const aliasInputs = [...new Set([session.device_id, session.hostname].filter(Boolean))];
-    const aliases = [];
-    for (const aliasDeviceId of aliasInputs) {
-      const alias = await upsertConnectorAlias({ aliasDeviceId, canonical, principal });
-      if (alias) aliases.push(alias);
+    const canonicalDeviceId = cleanId(canonical.device_id, { max: 128 });
+    const aliasInputs = [...new Set([session.device_id, session.hostname]
+      .map((value) => cleanId(value, { max: 128 }))
+      .filter(Boolean)
+      .filter((value) => value.toLowerCase() !== canonicalDeviceId.toLowerCase()))];
+
+    if (!aliasInputs.length) {
+      return {
+        attempted: true,
+        resolved: true,
+        reconciliation_required: false,
+        mutation_performed: false,
+        canonical_device_id: canonicalDeviceId,
+        canonical_config_id: canonical.config_id,
+        aliases: [],
+        secrets_included: false,
+      };
     }
+
+    const placeholders = aliasInputs.map(() => "?").join(", ");
+    const [rows] = await getPool().query(
+      `SELECT alias_device_id, canonical_device_id, canonical_config_id, user_id, tenant_id, status, updated_at
+         FROM \`local_connector_device_aliases\`
+        WHERE status = 'active'
+          AND user_id = ?
+          AND alias_device_id IN (${placeholders})`,
+      [principal.user_id, ...aliasInputs]
+    );
+    const matching = rows.filter((row) =>
+      cleanId(row.canonical_device_id, { max: 128 }).toLowerCase() === canonicalDeviceId.toLowerCase()
+      && (!principal.tenant_id || !row.tenant_id || String(row.tenant_id) === String(principal.tenant_id))
+    );
+    const resolvedAliases = new Set(matching.map((row) => cleanId(row.alias_device_id, { max: 128 }).toLowerCase()));
+    const missingAliases = aliasInputs.filter((alias) => !resolvedAliases.has(alias.toLowerCase()));
 
     return {
       attempted: true,
-      resolved: true,
-      canonical_device_id: canonical.device_id,
+      resolved: missingAliases.length === 0,
+      reconciliation_required: missingAliases.length > 0,
+      mutation_performed: false,
+      apply_authorized: false,
+      required_authority: missingAliases.length ? "local_connector_alias_reconciliation_writer" : null,
+      canonical_device_id: canonicalDeviceId,
       canonical_config_id: canonical.config_id,
-      aliases,
+      aliases: matching.map((row) => ({
+        alias_device_id: row.alias_device_id,
+        canonical_device_id: row.canonical_device_id,
+        canonical_config_id: row.canonical_config_id || null,
+        status: row.status,
+      })),
+      missing_aliases: missingAliases,
+      reason: missingAliases.length ? "connector_alias_reconciliation_required" : null,
       secrets_included: false,
     };
   } catch (err) {
     return {
       attempted: true,
       resolved: false,
-      reason: "connector_alias_upsert_failed",
-      error: { code: err?.code || "connector_alias_upsert_failed", message: err?.message || String(err) },
+      reconciliation_required: true,
+      mutation_performed: false,
+      apply_authorized: false,
+      required_authority: "local_connector_alias_reconciliation_writer",
+      reason: "connector_alias_read_failed",
+      error: { code: err?.code || "connector_alias_read_failed", message: err?.message || String(err) },
       secrets_included: false,
     };
   }
@@ -458,6 +487,19 @@ export async function requireLocalManagerUser(req) {
     role: resolved.membership?.role || null,
     tenant_display_name: resolved.membership?.tenant_display_name || null,
   };
+}
+
+export async function requireLocalManagerUserRouteGuard(req, res, next) {
+  try {
+    req.local_manager_user_principal = await requireLocalManagerUser(req);
+    return next();
+  } catch (err) {
+    return res.status(err.status || 401).json({
+      ok: false,
+      error: { code: err.code || "local_manager_user_authorization_required", message: err.message },
+      secrets_included: false,
+    });
+  }
 }
 
 export async function startDeviceLinkSession(req, res) {
@@ -562,6 +604,28 @@ export async function pollDeviceLinkSession(req, res) {
       return res.status(200).json({ ok: true, status: row.status, device: sanitizeSession(row), secrets_included: false });
     }
 
+    const connectorAlias = await inspectLocalConnectorAliasForDeviceLink({
+      session: row,
+      principal: { user_id: row.user_id, tenant_id: row.tenant_id || null },
+    });
+    if (!connectorAlias.resolved) {
+      return res.status(409).json({
+        ok: false,
+        status: "approved",
+        error: {
+          code: "connector_alias_reconciliation_required",
+          message: "Device approval is durable, but canonical connector identity must be reconciled before a device token can be issued.",
+          details: {
+            reconciliation_required: true,
+            required_authority: connectorAlias.required_authority,
+            missing_aliases: connectorAlias.missing_aliases || [],
+          },
+        },
+        connector_alias: connectorAlias,
+        secrets_included: false,
+      });
+    }
+
     let issuedRow = row;
     if (row.status === "approved" && !row.completed_at) {
       const issuanceJti = crypto.randomUUID();
@@ -640,7 +704,7 @@ export async function approveDeviceLinkSession(req, res) {
     if (row.status !== "pending") {
       const sameOwner = row.user_id === principal.user_id && (!row.tenant_id || !principal.tenant_id || row.tenant_id === principal.tenant_id);
       if (sameOwner && ["approved", "completed"].includes(row.status)) {
-        const connectorAlias = await ensureLocalConnectorAliasForDeviceLink({ session: row, principal });
+        const connectorAlias = await inspectLocalConnectorAliasForDeviceLink({ session: row, principal });
         return res.status(200).json({
           ok: true,
           status: row.status,
@@ -712,7 +776,7 @@ export async function approveDeviceLinkSession(req, res) {
     if (!approved) {
       return res.status(409).json({ ok: false, error: { code: "device_link_approval_readback_failed", message: "Pairing approval could not be proven from durable state." }, secrets_included: false });
     }
-    const connectorAlias = await ensureLocalConnectorAliasForDeviceLink({ session: approved, principal });
+    const connectorAlias = await inspectLocalConnectorAliasForDeviceLink({ session: approved, principal });
     return res.status(200).json({
       ok: true,
       status: "approved",
@@ -844,7 +908,9 @@ export async function requireFreshLocalManagerDeviceForPrivilegedInstaller(req) 
   const claims = result.ok ? result.claims : null;
   const issuedAtSeconds = Number(claims?.iat || 0) || null;
   const authAgeSeconds = issuedAtSeconds ? Math.max(0, Math.floor(Date.now() / 1000) - issuedAtSeconds) : null;
-  const tenantMatches = !device.tenant_id || !claims?.tenant_id || cleanText(claims.tenant_id, 64) === device.tenant_id;
+  const deviceTenantId = cleanText(device.tenant_id, 64) || null;
+  const claimTenantId = cleanText(claims?.tenant_id, 64) || null;
+  const tenantMatches = deviceTenantId ? claimTenantId === deviceTenantId : claimTenantId === null;
   if (!result.ok
       || cleanText(claims?.user_id, 64) !== device.user_id
       || !tenantMatches
@@ -879,7 +945,7 @@ export async function requireFreshLocalManagerDeviceForPrivilegedInstaller(req) 
 export async function revokeDeviceLinkSession(req, res) {
   try {
     await assertDeviceLinkTableSchema();
-    const principal = await requireLocalManagerUser(req);
+    const principal = req.local_manager_user_principal || await requireLocalManagerUser(req);
     const sessionId = cleanText(req.params?.sessionId || req.body?.session_id, 64);
     if (!sessionId) {
       return res.status(400).json({ ok: false, error: { code: "device_link_session_id_required", message: "session_id is required." }, secrets_included: false });
@@ -1252,15 +1318,6 @@ export async function getDeviceControls(req, res) {
         elevation_required: true,
         note: "Local Manager should call the endpoint with its device token, download the signed installer, elevate locally, run it, then verify /policy and alias refresh.",
       },
-      repairs: {
-        label: "Connector repairs",
-        actions: ["request_connector_upgrade_installer", "download_signed_installer", "run_installer_as_administrator", "verify_connector_policy"],
-        write_actions_enabled: true,
-        endpoint: "/local-connector/install/device-download-link",
-        default_format: "bat",
-        elevation_required: true,
-        note: "Local Manager should call the endpoint with its device token, download the signed installer, elevate locally, run it, then verify /policy and alias refresh.",
-      },
       n8n: {
         label: "Local n8n",
         actions: ["resolve_connected_system_profile", "install_node_if_missing", "install_n8n_if_missing", "write_tenant_start_script", "start_local_n8n", "open_local_or_public_url", "validate_local_reachability"],
@@ -1358,7 +1415,7 @@ export async function getDeviceControls(req, res) {
       }
     }
 
-    const n8nConnector = section === "n8n" ? await resolveOrCreateTenantN8nProfile(device) : null;
+    const n8nConnector = section === "n8n" ? await resolveTenantN8nProfile(device) : null;
     const runtimeReadback = section === "repairs" ? await resolveConnectorRuntimeReadback(device) : null;
     return res.status(200).json({
       ok: true,
