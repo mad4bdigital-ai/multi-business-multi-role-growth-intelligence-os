@@ -204,9 +204,6 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Install repository governance dependencies
-        run: npm ci --ignore-scripts --include=dev
-
       - name: Execute active workstream tests
         if: needs.evaluate.outputs.mode == 'workstream'
         run: >-
@@ -363,7 +360,7 @@ jobs:
   summarize:
     name: Publish canonical evidence report
     if: ${{ always() }}
-    needs: [evaluate, execute]
+    needs: [evaluate, execute, local_manager_mariadb_certification]
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout exact candidate tree
@@ -385,10 +382,19 @@ jobs:
           path: ${{ runner.temp }}/e2e-phase-reports
           merge-multiple: true
 
+      - name: Download Local Manager MariaDB certification evidence
+        if: ${{ needs.local_manager_mariadb_certification.result == 'success' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: local-manager-desktop-command-mariadb-certification
+          path: ${{ runner.temp }}/local-manager-mariadb-certification
+
       - name: Build canonical evidence summary
         env:
           EVALUATE_JOB_RESULT: ${{ needs.evaluate.result }}
           EXECUTE_JOB_RESULT: ${{ needs.execute.result }}
+          MARIADB_CERTIFICATION_JOB_RESULT: ${{ needs.local_manager_mariadb_certification.result }}
+          MARIADB_CERTIFICATION_EVIDENCE_PATH: ${{ runner.temp }}/local-manager-mariadb-certification/local-manager-desktop-command-mariadb-certification.json
           CANDIDATE_HEAD_REF: ${{ github.head_ref || github.ref_name }}
           CANDIDATE_BASE_REF: ${{ github.base_ref || github.event.merge_group.base_ref || inputs.base_ref || 'main' }}
         run: >-
