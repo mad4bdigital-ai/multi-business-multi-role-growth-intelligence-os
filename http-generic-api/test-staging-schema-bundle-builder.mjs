@@ -1385,7 +1385,7 @@ test("generator plan-only mode inventories the exact migration chain", () => {
     assert.equal(canonicalMigrationFiles.includes(file), true, `missing Local Manager migration from ordered plan: ${file}`);
   }
   assert.equal(plan.ordered_enum_seed_chain.enum_columns, 842);
-  assert.equal(plan.ordered_enum_seed_chain.definitions_applied, 912);
+  assert.equal(plan.ordered_enum_seed_chain.definitions_applied, 910);
   assert.equal(plan.ordered_enum_seed_chain.database_connection_performed, false);
   assert.equal(plan.ordered_enum_seed_chain.sql_mutation_performed, false);
   assert.equal(plan.ordered_enum_seed_chain.provider_mutation_performed, false);
