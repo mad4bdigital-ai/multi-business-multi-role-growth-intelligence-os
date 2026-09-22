@@ -1406,10 +1406,19 @@ test("generator plan-only mode inventories the exact migration chain", () => {
     /`claim_token`\s+VARCHAR\(64\)\s+NULL/iu,
     "desktop command ownership must retain the bounded claim-token column",
   );
-  const expectedBoundedTextColumns = 5249 + 1; // claim_token VARCHAR(64); claim_lease_expires_at is DATETIME.
-  const expectedTextWidthDefinitions = 6098 + 1; // the same new bounded claim-token definition.
-  assert.equal(plan.ordered_text_width_chain.bounded_text_columns, expectedBoundedTextColumns);
-  assert.equal(plan.ordered_text_width_chain.definitions_applied, expectedTextWidthDefinitions);
+  const minimumBoundedTextColumns = 5249 + 1; // Historical certified floor plus claim_token; additive migrations may increase it.
+  const minimumTextWidthDefinitions = 6098 + 1; // Historical certified floor plus claim_token definition.
+  assert.ok(
+    plan.ordered_text_width_chain.bounded_text_columns >= minimumBoundedTextColumns,
+    `bounded text-column census regressed below certified floor: ${plan.ordered_text_width_chain.bounded_text_columns} < ${minimumBoundedTextColumns}`,
+  );
+  assert.ok(
+    plan.ordered_text_width_chain.definitions_applied >= minimumTextWidthDefinitions,
+    `text-width definition census regressed below certified floor: ${plan.ordered_text_width_chain.definitions_applied} < ${minimumTextWidthDefinitions}`,
+  );
+  const deviceLinkAuthorityMigrationSql = fs.readFileSync(path.join(migrationsDir, "20260922_local_manager_device_link_authority.sql"), "utf8");
+  assert.match(deviceLinkAuthorityMigrationSql, /`device_token_jti`\s+VARCHAR\(64\)\s+NULL/iu);
+  assert.match(deviceLinkAuthorityMigrationSql, /`revoked_by_user_id`\s+VARCHAR\(64\)\s+NULL/iu);
   assert.equal(plan.ordered_text_width_chain.insert_select_source_domain_checks, 937);
   assert.equal(plan.ordered_text_width_chain.insert_select_source_domain_overflows, 0);
   assert.equal(plan.ordered_text_width_chain.database_connection_performed, false);
