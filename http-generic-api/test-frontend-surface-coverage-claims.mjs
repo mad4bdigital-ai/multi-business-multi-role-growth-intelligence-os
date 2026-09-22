@@ -1063,7 +1063,20 @@ assert.equal(generatedGapOperations.filter((operation) => ["state_change", "exte
 const governedMutations = operations.filter((operation) => ["state_change", "external_effect"].includes(operation.governance?.classification));
 assert.ok(governedMutations.every((operation) => operation.governance?.governed === true), "every mutation operation must be fully governed");
 assert.ok(governedMutations.every((operation) => ["preflight", "approval", "readback", "rollback"].every((key) => operation.governance?.controls?.[key]?.mode)), "every mutation operation must expose all four control modes");
-assert.equal(governedMutations.length, 31, "the governed mutation set includes bounded Recovery controls, Gateway preflight, one-time installer redemption, WordPress Staging exact-artifact deployment, three Managed Google OAuth protocol effects, three device-link lifecycle mutations, and explicit Local Manager n8n provisioning");
+assert.equal(governedMutations.length, 35, "the governed mutation set includes bounded Recovery controls, Gateway preflight, one-time installer redemption, WordPress Staging exact-artifact deployment, three Managed Google OAuth protocol effects, three device-link lifecycle mutations, explicit Local Manager n8n provisioning, and four desktop-command lifecycle effects");
+for (const signature of [
+  "POST /local-manager/device/desktop-commands/claim",
+  "POST /local-manager/device/desktop-commands/{commandId}/heartbeat",
+  "POST /local-manager/device/desktop-commands/{commandId}/complete",
+]) {
+  const operation = governedMutations.find((candidate) => candidate.signature === signature);
+  assert.ok(operation, `${signature} must be explicitly governed`);
+  assert.equal(operation.governance?.classification, "state_change", `${signature} must remain a state change`);
+}
+const desktopEnqueue = governedMutations.find((operation) => operation.signature === "POST /local-manager/device/desktop-commands");
+assert.ok(desktopEnqueue, "desktop command enqueue must be explicitly governed");
+assert.equal(desktopEnqueue.governance?.classification, "external_effect", "desktop command enqueue must retain external-effect classification");
+
 for (const signature of [
   "POST /local-manager/device-link/start",
   "POST /local-manager/device-link/approve",
