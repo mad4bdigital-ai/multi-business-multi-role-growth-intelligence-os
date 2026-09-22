@@ -636,7 +636,13 @@ export async function previewDeviceLinkSession(req, res) {
       `SELECT * FROM \`local_manager_device_link_sessions\` WHERE display_code_hash = ? LIMIT 1`,
       [sha256(displayCode)]
     );
-    const row = rows[0] || null;
+    if (rows.length > 1) {
+      const error = new Error("Device-link session cardinality is ambiguous.");
+      error.status = 409;
+      error.code = "local_manager_device_link_cardinality_conflict";
+      throw error;
+    }
+    const [row = null] = rows;
     if (!row) {
       return res.status(404).json({ ok: false, error: { code: "device_link_not_found", message: "Pairing code was not found." }, secrets_included: false });
     }
@@ -1143,17 +1149,35 @@ export async function revokeDeviceLinkSession(req, res) {
           LIMIT 1`,
         [sessionId, principal.user_id, principal.tenant_id, principal.tenant_id]
       );
-      const current = rows[0] || null;
+      if (rows.length > 1) {
+        const error = new Error("Device-link session cardinality is ambiguous.");
+        error.status = 409;
+        error.code = "local_manager_device_link_cardinality_conflict";
+        throw error;
+      }
+      const [current = null] = rows;
       if (current?.status === "revoked" || current?.revoked_at) {
         return res.status(200).json({ ok: true, status: "revoked", already_revoked: true, device: sanitizeSession(current), secrets_included: false });
       }
       return res.status(404).json({ ok: false, error: { code: "device_link_not_found", message: "Linked device session was not found for this user." }, secrets_included: false });
     }
     const [rows] = await getPool().query(
-      `SELECT * FROM \`local_manager_device_link_sessions\` WHERE session_id = ? LIMIT 1`,
-      [sessionId]
+      `SELECT * FROM \`local_manager_device_link_sessions\`
+        WHERE session_id = ?
+          AND user_id = ?
+          AND ((? IS NULL AND tenant_id IS NULL) OR tenant_id = ?)
+        LIMIT 1`,
+      [sessionId, principal.user_id, principal.tenant_id, principal.tenant_id]
     );
-    return res.status(200).json({ ok: true, status: "revoked", device: sanitizeSession(rows[0] || { session_id: sessionId, status: "revoked" }), secrets_included: false });
+    if (rows.length > 1) {
+      const error = new Error("Device-link session cardinality is ambiguous.");
+      error.status = 409;
+      error.code = "local_manager_device_link_cardinality_conflict";
+      throw error;
+    }
+    const [revokedRow = null] = rows;
+    const device = revokedRow || { session_id: sessionId, status: "revoked" };
+    return res.status(200).json({ ok: true, status: "revoked", device: sanitizeSession(device), secrets_included: false });
   } catch (err) {
     return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "device_link_revoke_failed", message: err.message, ...(err.details ? { details: err.details } : {}) }, secrets_included: false });
   }
