@@ -913,7 +913,13 @@ export async function provisionDeviceN8n(req, res) {
         LIMIT 1`,
       [sessionId, principal.user_id, principal.tenant_id, principal.tenant_id]
     );
-    const row = rows[0] || null;
+    if (rows.length > 1) {
+      const error = new Error("Device-link session cardinality is ambiguous.");
+      error.status = 409;
+      error.code = "local_manager_device_link_cardinality_conflict";
+      throw error;
+    }
+    const [row = null] = rows;
     if (!row) {
       return res.status(404).json({
         ok: false,
