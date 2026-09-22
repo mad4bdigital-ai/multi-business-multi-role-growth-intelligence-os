@@ -46,6 +46,7 @@ jobs:
       contract_path: ${{ steps.parallel.outputs.contract_path }}
       workstream_id: ${{ steps.parallel.outputs.workstream_id }}
       phase_evaluation_base: ${{ steps.parallel.outputs.phase_evaluation_base }}
+      local_manager_mariadb_required: ${{ steps.local_manager_mariadb.outputs.required }}
     steps:
       - name: Checkout exact candidate tree
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -57,6 +58,33 @@ jobs:
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "22"
+
+      - name: Detect Local Manager MariaDB certification scope
+        id: local_manager_mariadb
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || '' }}
+          BASE_REF: ${{ github.base_ref || github.event.merge_group.base_ref || inputs.base_ref || 'main' }}
+        run: |
+          set -euo pipefail
+          comparison_base="${BASE_SHA}"
+          if [[ -z "${comparison_base}" ]]; then
+            git fetch --no-tags origin "${BASE_REF}"
+            comparison_base="$(git merge-base HEAD "origin/${BASE_REF}")"
+          fi
+          mapfile -t changed < <(git diff --name-only "${comparison_base}"...HEAD -- \
+            http-generic-api/migrations/20260922_local_manager_desktop_commands.sql \
+            http-generic-api/activation-surfaces/local_manager_desktop_commands.json \
+            http-generic-api/databasePrivilegeContracts.js \
+            http-generic-api/config/staging-database-role-migration-manifest.json \
+            http-generic-api/routes/localManagerDesktopCommandRoutes.js \
+            http-generic-api/scripts/local-manager-desktop-command-mariadb-certification.mjs \
+            http-generic-api/test-control-plane-convergence-regressions.mjs \
+            http-generic-api/test-staging-database-readiness-repair.mjs)
+          required=false
+          if (( ${#changed[@]} > 0 )); then required=true; fi
+          echo "required=${required}" >> "${GITHUB_OUTPUT}"
+          printf 'Local Manager MariaDB certification required: %s\n' "${required}"
 
       - name: Run governance and evidence self-tests
         run: |
@@ -245,7 +273,7 @@ jobs:
   local_manager_mariadb_certification:
     name: Local Manager Desktop Command MariaDB Certification
     needs: evaluate
-    if: ${{ needs.evaluate.outputs.feature_key == 'auth-connector-control-plane-convergence-20260922' }}
+    if: ${{ needs.evaluate.outputs.local_manager_mariadb_required == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
