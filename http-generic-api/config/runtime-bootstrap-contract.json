@@ -313,6 +313,14 @@
       "credential_binding_prefix": "DB_",
       "migration_ledger": "separate_governance_migration_ledger",
       "secrets_included": false
+    },
+    "20260922_local_manager_device_link_authority.sql": {
+      "ownership_domain": "runtime",
+      "database_target_role": "runtime",
+      "target_role": "runtime",
+      "credential_binding_prefix": "DB_",
+      "migration_ledger": "separate_governance_migration_ledger",
+      "secrets_included": false
     }
   },
   "bootstrap_credentials": {
@@ -360,7 +368,8 @@
       "dynamic_audit_scheduler_runs",
       "execution_log",
       "json_assets",
-      "local_manager_desktop_commands"
+      "local_manager_desktop_commands",
+      "local_manager_device_link_sessions"
     ],
     "required_governance_tables": [
       "capability_resolution_envelope_ledger",
@@ -561,6 +570,21 @@
       "direct_fallback_authorized": true,
       "direct_fallback_idempotent": true,
       "requires_tables": []
+    },
+    "20260922_local_manager_device_link_authority.sql": {
+      "sha256": "7a260d5f85fe95299a8774efc4d824dd3c9f267ca3ec722ddf069f047107e7e0",
+      "statement_count": 2,
+      "allowed_modes": [
+        "dry_run",
+        "apply_migration",
+        "apply_grants"
+      ],
+      "role": "reviewed_runtime_apply_candidate",
+      "direct_fallback_authorized": true,
+      "direct_fallback_idempotent": true,
+      "requires_tables": [
+        "local_manager_device_link_sessions"
+      ]
     }
   },
   "grant_policy": {
@@ -1006,6 +1030,42 @@
         "type": "index",
         "table": "local_manager_desktop_commands",
         "index": "idx_lm_desktop_command_claim_token"
+      }
+    ],
+    "20260922_local_manager_device_link_authority.sql": [
+      {
+        "type": "table",
+        "table": "local_manager_device_link_sessions"
+      },
+      {
+        "type": "column",
+        "table": "local_manager_device_link_sessions",
+        "column": "device_token_jti"
+      },
+      {
+        "type": "column",
+        "table": "local_manager_device_link_sessions",
+        "column": "device_token_issued_at"
+      },
+      {
+        "type": "column",
+        "table": "local_manager_device_link_sessions",
+        "column": "revoked_at"
+      },
+      {
+        "type": "column",
+        "table": "local_manager_device_link_sessions",
+        "column": "revoked_by_user_id"
+      },
+      {
+        "type": "index",
+        "table": "local_manager_device_link_sessions",
+        "index": "idx_local_manager_device_link_token_jti"
+      },
+      {
+        "type": "index",
+        "table": "local_manager_device_link_sessions",
+        "index": "idx_local_manager_device_link_revocation"
       }
     ]
   },
