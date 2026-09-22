@@ -157,12 +157,13 @@
     {
       "rule_id": "local-manager-bearer-auth",
       "operations": [
-        "POST /local-manager/device-link/approve",
         "GET /local-manager/device-link/devices",
-        "GET /local-manager/device/session",
         "GET /local-manager/device/controls",
-        "POST /local-manager/device/agent-runtime",
-        "POST /local-connector/install/device-download-link"
+        "GET /local-manager/device/session",
+        "POST /local-connector/install/device-download-link",
+        "POST /local-manager/device-link/approve",
+        "POST /local-manager/device-link/devices/{sessionId}/revoke",
+        "POST /local-manager/device/agent-runtime"
       ],
       "profile": "local_manager",
       "owner": "local-manager",
@@ -9657,6 +9658,38 @@
         "openapi.yaml",
         "frontend-surface-dispatch.generated.json",
         "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "rule_id": "local-manager-device-revoke-governed-state-change",
+      "operation": "POST /local-manager/device-link/devices/{sessionId}/revoke",
+      "source_file": "routes/localManagerBetaRoutes.js",
+      "classification": "state_change",
+      "owner": "local-manager",
+      "rationale": "A signed-in Local Manager user may revoke only a linked session owned by the same user/tenant. The route exposes an explicit user guard, performs a conditional status transition only from approved/completed, and immediately reads the authoritative row back so previously issued device JWTs fail subsequent DB-bound verification.",
+      "preflight": {
+        "mode": "explicit_local_manager_user_guard_and_owned_session_filter"
+      },
+      "approval": {
+        "mode": "explicit_signed_in_user_forget_device_action"
+      },
+      "readback": {
+        "mode": "inline_post_commit"
+      },
+      "rollback": {
+        "mode": "not_required",
+        "rationale": "Revocation is a security-invalidating terminal transition. Re-linking is a new pairing flow rather than rollback of the revoked credential."
+      },
+      "parameter_bindings": {
+        "session_id": "request.params.sessionId",
+        "actor_user_id": "verified Local Manager user principal",
+        "actor_tenant_id": "verified Local Manager user tenant scope"
+      },
+      "evidence_refs": [
+        "routes/localManagerBetaRoutes.js",
+        "services/localManagerDeviceLinkService.js",
+        "test-connect-routes.mjs",
+        "openapi.yaml"
       ]
     }
   ],
