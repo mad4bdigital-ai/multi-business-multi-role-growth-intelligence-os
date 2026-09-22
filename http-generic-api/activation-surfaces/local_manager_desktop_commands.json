@@ -1,0 +1,44 @@
+{
+  "surface_key": "local_manager_desktop_commands",
+  "display_name": "Local Manager Desktop Commands",
+  "description": "Tenant- and user-scoped Local Manager desktop command lifecycle metadata for activation readiness and bounded operational readback.",
+  "source_table": "local_manager_desktop_commands",
+  "covered_source_tables": [
+    "local_manager_desktop_commands"
+  ],
+  "result_key_column": "command_id",
+  "result_label_column": "action",
+  "tenant_column": "tenant_id",
+  "user_column": "user_id",
+  "status_column": "status",
+  "active_status_values": [
+    "pending",
+    "claimed",
+    "completed",
+    "failed",
+    "expired",
+    "cancelled"
+  ],
+  "result_columns": [
+    "command_id",
+    "tenant_id",
+    "user_id",
+    "device_id",
+    "action",
+    "status",
+    "priority",
+    "requires_user_confirmation",
+    "requested_by",
+    "created_at",
+    "claimed_at",
+    "completed_at",
+    "expires_at",
+    "updated_at"
+  ],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 50,
+  "sort_order": 284,
+  "status": "active",
+  "notes": "Read-only activation projection. Tenant and user boundaries are explicit. Command payloads, request context, result payloads, execution details, and error text are intentionally excluded; this surface grants no dispatch, claim, completion, schema, or credential authority."
+}
