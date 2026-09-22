@@ -118,6 +118,10 @@ await assert.rejects(
   (error) => error.code === "local_manager_desktop_command_schema_not_ready" && error.status === 503 && error.details.database_mutation_performed === false,
 );
 
+const desktopCommandMigrationSource = readFileSync("./migrations/20260922_local_manager_desktop_commands.sql", "utf8");
+assert.match(desktopCommandMigrationSource, /KEY `idx_lm_desktop_command_claim_token` \(`claim_token`, `status`\)/u);
+assert.doesNotMatch(desktopCommandMigrationSource, /UNIQUE KEY[^\n]+claim_token/u);
+
 const routeSource = readFileSync("./routes/localManagerDesktopCommandRoutes.js", "utf8");
 assert.doesNotMatch(routeSource, /CREATE TABLE IF NOT EXISTS/);
 assert.match(routeSource, /assertLocalManagerDesktopCommandSchema/);
