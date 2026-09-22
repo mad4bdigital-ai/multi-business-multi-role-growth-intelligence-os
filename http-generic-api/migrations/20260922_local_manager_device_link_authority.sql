@@ -42,7 +42,7 @@ ALTER TABLE `local_manager_device_link_sessions`
   ADD KEY IF NOT EXISTS `idx_local_manager_device_link_token_jti` (`device_token_jti`),
   ADD KEY IF NOT EXISTS `idx_local_manager_device_link_revocation` (`status`, `revoked_at`);
 
-UPDATE `local_manager_device_link_sessions`
-   SET `display_code` = NULL
- WHERE `display_code` IS NOT NULL
-   AND `display_code_hash` IS NOT NULL;
+-- Existing device-link rows are operational state and are intentionally not rewritten
+-- by a schema migration. Approved/completed runtime transitions clear display_code
+-- under their bounded row authority; any historical cleanup requires a separately
+-- governed operational-state reconciliation with explicit readback.
