@@ -895,6 +895,23 @@ components:
           $ref: "#/components/schemas/LocalManagerDeviceLinkSession"
         secrets_included: { type: boolean, enum: [false] }
 
+    LocalManagerN8nProvisionResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, provisioned, provisioning_required, mutation_performed, apply_authorized, writer_authority, writer_readback_proven, n8n_connector, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        provisioned: { type: boolean, enum: [true] }
+        provisioning_required: { type: boolean, enum: [false] }
+        mutation_performed: { type: boolean }
+        apply_authorized: { type: boolean, enum: [true] }
+        writer_authority: { type: string, enum: [local_manager_n8n_provisioning_writer] }
+        writer_readback_proven: { type: boolean, enum: [true] }
+        n8n_connector:
+          type: object
+          additionalProperties: true
+        secrets_included: { type: boolean, enum: [false] }
+
     LocalManagerDeviceSessionResponse:
       type: object
       additionalProperties: true
@@ -1647,6 +1664,68 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "409":
           description: Session exists but is not in a revocable state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /local-manager/device/n8n/provision:
+    post:
+      tags: [local-manager]
+      security:
+        - localManagerBearerAuth: []
+      operationId: provisionLocalManagerDeviceN8n
+      summary: Explicitly provision the tenant-local n8n profile for one linked device
+      x-openai-isConsequential: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [session_id]
+              properties:
+                session_id: { type: string }
+      responses:
+        "200":
+          description: Existing n8n profile read back through runtime authority
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocalManagerN8nProvisionResponse"
+        "201":
+          description: n8n profile provisioned and read back
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocalManagerN8nProvisionResponse"
+        "400":
+          description: session_id or bounded provisioning scope is invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Signed-in Local Manager user authorization is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Active linked device was not found for the signed-in user and tenant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Dedicated-writer or runtime readback could not prove provisioning
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Dedicated Local Manager write authority is not enabled or not ready
           content:
             application/json:
               schema:
