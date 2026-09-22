@@ -10,6 +10,8 @@
 // frontend-surface-operation: POST /connect/bootstrap
 
 import express from "express";
+import jwt from "jsonwebtoken";
+import { verifyUserJwtAuthorization } from "./userJwtAuth.js";
 import { readFileSync } from "node:fs";
 import YAML from "yaml";
 import { buildConnectRoutes, _testingSanitizeMetadataPayload, _testingAllowlists } from "./routes/connectRoutes.js";
@@ -957,20 +959,74 @@ assert("local connector requires fresh Local Manager authorization for privilege
       source.includes("canonical_device_id") &&
       source.includes("run_as_admin_required: true") &&
       source.includes("auth_context: device.auth_context") &&
-      source.includes("reauth_required_for_stale_device_tokens: false") &&
+      source.includes("reauth_required_for_stale_device_tokens: true") &&
       source.includes("secrets_included: false"));
     assert("local connector admin installer tenant selection is explicit and mismatch safe", source.includes("requestedTenantId") && source.includes("selectedTenantId") && source.includes("connector_config_tenant_mismatch"));
-assert("Local Manager privileged installer authorization uses a long-lived revocable device token without repeated sign-in",
+    assert("Local Manager privileged installer authorization requires bounded fresh user step-up for stale device tokens",
       deviceLinkSource.includes("requireFreshLocalManagerDeviceForPrivilegedInstaller") &&
       deviceLinkSource.includes("DEVICE_TOKEN_TTL_SECONDS = 365 * 24 * 60 * 60") &&
-      deviceLinkSource.includes("PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = DEVICE_TOKEN_TTL_SECONDS") &&
-      deviceLinkSource.includes("requires_reauth_for_privileged_installers: false") &&
-      deviceLinkSource.includes("return requireLocalManagerDevice(req);") && !deviceLinkSource.includes("fresh_local_manager_authorization_required") && !deviceLinkSource.includes("forget_device_and_link_again"));
+      deviceLinkSource.includes("PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = 15 * 60") &&
+      deviceLinkSource.includes("requires_reauth_for_privileged_installers: true") &&
+      deviceLinkSource.includes("x-local-manager-user-authorization") &&
+      deviceLinkSource.includes("fresh_local_manager_user_authorization_required"));
     assert("Local Manager device controls advertise connector repair installer action",
       deviceLinkSource.includes('connector_repair_installer: "/local-connector/install/device-download-link"') &&
       deviceLinkSource.includes('allowedSections = new Set(["overview", "routes", "backups", "repairs", "n8n", "settings"])') &&
       deviceLinkSource.includes("request_connector_upgrade_installer") &&
       deviceLinkSource.includes("verify_connector_policy"));
+  }
+
+  section("local manager token class boundary");
+
+  {
+    const issuer = "https://auth.mad4b.com";
+    const userSecret = "u".repeat(64);
+    const deviceSecret = "d".repeat(64);
+    const verifyOptions = {
+      env: { JWT_SECRET: userSecret },
+      issuer,
+      audience: "mad4b-local-manager-user",
+      requiredPurpose: "local_manager_user_access",
+      requiredScope: "local_manager.user",
+    };
+
+    const deviceToken = jwt.sign({
+      iss: issuer,
+      aud: "mad4b-local-manager-device",
+      purpose: "local_manager_device_access",
+      scope: "local_manager.device",
+      user_id: "user-1",
+      tenant_id: "tenant-1",
+      device_id: "device-1",
+      session_id: "session-1",
+    }, deviceSecret, { algorithm: "HS256", expiresIn: 300 });
+
+    const separateKeyResult = verifyUserJwtAuthorization(`Bearer ${deviceToken}`, verifyOptions);
+    assert("device signing key cannot authenticate as Local Manager user", separateKeyResult.ok === false && separateKeyResult.status === 401);
+
+    const wrongClassToken = jwt.sign({
+      iss: issuer,
+      aud: "mad4b-local-manager-user",
+      purpose: "local_manager_device_access",
+      scope: "local_manager.device",
+      user_id: "user-1",
+      tenant_id: "tenant-1",
+    }, userSecret, { algorithm: "HS256", expiresIn: 300 });
+
+    const wrongClassResult = verifyUserJwtAuthorization(`Bearer ${wrongClassToken}`, verifyOptions);
+    assert("device-purpose token is rejected even under the user signing key", wrongClassResult.ok === false && wrongClassResult.code === "wrong_user_token_class");
+
+    const userToken = jwt.sign({
+      iss: issuer,
+      aud: "mad4b-local-manager-user",
+      purpose: "local_manager_user_access",
+      scope: "local_manager.user",
+      user_id: "user-1",
+      tenant_id: "tenant-1",
+    }, userSecret, { algorithm: "HS256", expiresIn: 300 });
+
+    const validUserResult = verifyUserJwtAuthorization(`Bearer ${userToken}`, verifyOptions);
+    assert("dedicated Local Manager user token profile verifies", validUserResult.ok === true && validUserResult.claims.user_id === "user-1");
   }
 
   section("local manager beta read-only surface");
