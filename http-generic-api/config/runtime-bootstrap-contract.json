@@ -321,6 +321,14 @@
       "credential_binding_prefix": "DB_",
       "migration_ledger": "separate_governance_migration_ledger",
       "secrets_included": false
+    },
+    "20260922_local_manager_control_templates_registry.sql": {
+      "ownership_domain": "runtime",
+      "database_target_role": "runtime",
+      "target_role": "runtime",
+      "credential_binding_prefix": "DB_",
+      "migration_ledger": "separate_governance_migration_ledger",
+      "secrets_included": false
     }
   },
   "bootstrap_credentials": {
@@ -360,16 +368,17 @@
     "governance_role_file": "governance.schema.sql.gz",
     "runtime_persistence_role_file": "persistence.schema.sql.gz",
     "required_runtime_tables": [
-      "admin_platform_endpoint_tools",
-      "tenant_platform_endpoint_tools",
-      "customer_sessions",
-      "gpt_session_turns",
       "actions",
+      "admin_platform_endpoint_tools",
+      "customer_sessions",
       "dynamic_audit_scheduler_runs",
       "execution_log",
+      "gpt_session_turns",
       "json_assets",
+      "local_manager_control_templates",
       "local_manager_desktop_commands",
-      "local_manager_device_link_sessions"
+      "local_manager_device_link_sessions",
+      "tenant_platform_endpoint_tools"
     ],
     "required_governance_tables": [
       "capability_resolution_envelope_ledger",
@@ -574,6 +583,19 @@
     "20260922_local_manager_device_link_authority.sql": {
       "sha256": "edd26413d17ba1dffd00408f15ef9380524afcfc2a312088d3f22ca8ca486290",
       "statement_count": 3,
+      "allowed_modes": [
+        "dry_run",
+        "apply_migration",
+        "apply_grants"
+      ],
+      "role": "reviewed_runtime_apply_candidate",
+      "direct_fallback_authorized": true,
+      "direct_fallback_idempotent": true,
+      "requires_tables": []
+    },
+    "20260922_local_manager_control_templates_registry.sql": {
+      "sha256": "e2e7cb35e32928d4c0ba5565e515bbc86408f7615d0cafee7b791a655f6de4b3",
+      "statement_count": 2,
       "allowed_modes": [
         "dry_run",
         "apply_migration",
@@ -1091,6 +1113,53 @@
         "type": "index",
         "table": "local_manager_device_link_sessions",
         "index": "idx_local_manager_device_link_user_device"
+      }
+    ],
+    "20260922_local_manager_control_templates_registry.sql": [
+      {
+        "type": "table",
+        "table": "local_manager_control_templates"
+      },
+      {
+        "type": "column",
+        "table": "local_manager_control_templates",
+        "column": "template_id"
+      },
+      {
+        "type": "column",
+        "table": "local_manager_control_templates",
+        "column": "template_type"
+      },
+      {
+        "type": "column",
+        "table": "local_manager_control_templates",
+        "column": "metadata_json"
+      },
+      {
+        "type": "index",
+        "table": "local_manager_control_templates",
+        "index": "uq_local_manager_control_template"
+      },
+      {
+        "type": "index",
+        "table": "local_manager_control_templates",
+        "index": "idx_local_manager_control_status"
+      },
+      {
+        "type": "row",
+        "table": "local_manager_control_templates",
+        "key_column": "template_key",
+        "key_value": "powershell_admin",
+        "value_column": "status",
+        "expected_value": "active"
+      },
+      {
+        "type": "row",
+        "table": "local_manager_control_templates",
+        "key_column": "template_key",
+        "key_value": "managed_n8n_client",
+        "value_column": "status",
+        "expected_value": "active"
       }
     ]
   },
