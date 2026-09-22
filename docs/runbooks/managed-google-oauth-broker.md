@@ -378,3 +378,76 @@ The managed OAuth test covers:
 - Google denial redirect;
 - broker-mediated refresh;
 - route and migration presence.
+
+
+## Governed site-enrollment helper
+
+Do not hand-edit or paste a newly generated per-site HMAC secret into chat, tickets, logs, or repository files.
+
+The repository provides a local helper that is **dry-run by default**:
+
+```bash
+cd http-generic-api
+
+node scripts/prepare-managed-google-site-enrollment.mjs \
+  --site-uuid d745d81f-6fc4-5c6a-99dd-d953c92137bf \
+  --origin https://staging.egypttourgates.com \
+  --key-id etg-staging-v1 \
+  --environment staging
+```
+
+If this is intentionally the first broker registry, add:
+
+```text
+--allow-new-registry
+```
+
+If registries already exist, load their current exact values into:
+
+```text
+MANAGED_GOOGLE_OAUTH_SITE_BINDINGS_JSON
+MANAGED_GOOGLE_OAUTH_SITE_SECRETS_JSON
+```
+
+before running the helper. Existing entries are retained; conflicting site/key bindings fail closed.
+
+After reviewing the dry-run binding, materialize private fragments **outside the repository tree**:
+
+```bash
+node scripts/prepare-managed-google-site-enrollment.mjs \
+  --site-uuid d745d81f-6fc4-5c6a-99dd-d953c92137bf \
+  --origin https://staging.egypttourgates.com \
+  --key-id etg-staging-v1 \
+  --environment staging \
+  --apply \
+  --output-dir /absolute/private/path
+```
+
+The helper:
+
+- generates a fresh 48-byte random per-site HMAC secret only when one is not already present;
+- never prints the secret value to stdout;
+- writes the output directory as `0700`;
+- writes broker and WordPress secret fragments as `0600`;
+- retains existing broker bindings/secrets rather than replacing the registry blindly;
+- refuses conflicting key/site tuples;
+- refuses an output directory inside the repository working tree;
+- performs no network request and does not mutate server environment variables.
+
+Generated files:
+
+```text
+managed-google-broker.env.fragment
+managed-google-wordpress.env.fragment
+managed-google-enrollment-summary.json
+```
+
+The summary contains only the secret SHA-256 fingerprint, never the secret itself.
+
+Apply each fragment through the appropriate governed secret/config deployment path, verify server-side readback, then securely remove the local fragment files.
+
+Repository regression:
+
+```bash
+node test-managed-google-site-enrollment.mjs
+```

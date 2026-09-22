@@ -235,6 +235,7 @@
       "id": "managed_google_oauth_broker_protocol_and_config_preflight",
       "test_paths": [
         "http-generic-api/test-managed-google-oauth-broker.mjs",
+        "http-generic-api/test-managed-google-site-enrollment.mjs",
         "http-generic-api/test-production-config-preflight.mjs"
       ]
     },
