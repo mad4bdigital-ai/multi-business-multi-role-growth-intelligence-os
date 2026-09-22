@@ -148,10 +148,12 @@
       ],
       "profile": "public",
       "owner": "local-manager",
-      "rationale": "Pairing initiation is public by design; preview and polling require the short-lived device code and polling secret defined in their request contracts.",
+      "rationale": "Pairing initiation is public by design; preview and polling require the short-lived pairing code and polling secret defined in their request contracts. All three public pairing surfaces are protected by the shared operation-resilience limiter keyed by anonymous network principal and route, with bounded per-minute rate and Retry-After on 429.",
       "evidence_refs": [
         "services/localManagerDeviceLinkService.js",
-        "openapi.yaml"
+        "openapi.yaml",
+        "operationResilienceController.js",
+        "test-connect-routes.mjs"
       ]
     },
     {
@@ -5783,7 +5785,8 @@
         "services/localManagerDeviceLinkService.js",
         "routes/localManagerBetaRoutes.js",
         "test-connect-routes.mjs",
-        "openapi.yaml"
+        "openapi.yaml",
+        "operationResilienceController.js"
       ]
     },
     {
@@ -5816,7 +5819,8 @@
         "services/localManagerDeviceLinkService.js",
         "routes/localManagerBetaRoutes.js",
         "test-connect-routes.mjs",
-        "openapi.yaml"
+        "openapi.yaml",
+        "operationResilienceController.js"
       ]
     },
     {
