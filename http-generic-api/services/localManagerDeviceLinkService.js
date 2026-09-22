@@ -5,6 +5,9 @@ import { verifyUserJwtAuthorization } from "../userJwtAuth.js";
 
 const DEVICE_JWT_ISSUER = "https://auth.mad4b.com";
 const DEVICE_JWT_AUDIENCE = "mad4b-local-manager-device";
+const LOCAL_MANAGER_USER_JWT_AUDIENCE = "mad4b-local-manager-user";
+const LOCAL_MANAGER_USER_JWT_PURPOSE = "local_manager_user_access";
+const LOCAL_MANAGER_USER_JWT_SCOPE = "local_manager.user";
 const DEVICE_JWT_SECRET_MAX_LENGTH = 4096;
 const DEVICE_LINK_TTL_SECONDS = 10 * 60;
 const POLL_INTERVAL_SECONDS = 3;
@@ -267,6 +270,7 @@ function sanitizeSession(row) {
     tenant_id: row.tenant_id || null,
     approved_at: row.approved_at ? new Date(row.approved_at).toISOString() : null,
     completed_at: row.completed_at ? new Date(row.completed_at).toISOString() : null,
+    revoked_at: row.revoked_at ? new Date(row.revoked_at).toISOString() : null,
     expires_at: row.expires_at ? new Date(row.expires_at).toISOString() : null,
     created_at: row.created_at ? new Date(row.created_at).toISOString() : null,
     metadata: parseJson(row.metadata_json),
@@ -414,7 +418,12 @@ async function ensureLocalConnectorAliasForDeviceLink({ session, principal }) {
 }
 
 export async function requireLocalManagerUser(req) {
-  const result = verifyUserJwtAuthorization(req.headers?.authorization);
+  const result = verifyUserJwtAuthorization(req.headers?.authorization, {
+    issuer: DEVICE_JWT_ISSUER,
+    audience: LOCAL_MANAGER_USER_JWT_AUDIENCE,
+    requiredPurpose: LOCAL_MANAGER_USER_JWT_PURPOSE,
+    requiredScope: LOCAL_MANAGER_USER_JWT_SCOPE,
+  });
   if (!result.ok) {
     const err = new Error(result.message);
     err.status = result.status;
@@ -542,36 +551,60 @@ export async function pollDeviceLinkSession(req, res) {
     if (row.status === "pending") {
       return res.status(202).json({ ok: true, status: "pending", interval: POLL_INTERVAL_SECONDS, expires_at: new Date(row.expires_at).toISOString(), secrets_included: false });
     }
-    if (row.status !== "approved") {
+    if (row.status === "revoked" || row.revoked_at) {
+      return res.status(403).json({ ok: false, status: "revoked", error: { code: "device_link_revoked", message: "This linked device has been revoked." }, secrets_included: false });
+    }
+    if (!["approved", "completed"].includes(row.status)) {
       return res.status(200).json({ ok: true, status: row.status, device: sanitizeSession(row), secrets_included: false });
     }
-    if (row.completed_at) {
-      return res.status(200).json({ ok: true, status: "completed", device: sanitizeSession(row), secrets_included: false });
+
+    let issuedRow = row;
+    if (row.status === "approved" && !row.completed_at) {
+      const issuanceJti = crypto.randomUUID();
+      const [issuanceResult] = await getPool().query(
+        `UPDATE \`local_manager_device_link_sessions\`
+            SET status = 'completed',
+                completed_at = NOW(),
+                device_token_jti = ?,
+                device_token_issued_at = NOW(),
+                display_code = NULL
+          WHERE session_id = ?
+            AND status = 'approved'
+            AND completed_at IS NULL
+            AND revoked_at IS NULL
+          LIMIT 1`,
+        [issuanceJti, row.session_id]
+      );
+      const [issuedRows] = await getPool().query(
+        `SELECT * FROM \`local_manager_device_link_sessions\`
+          WHERE session_id = ?
+            AND status = 'completed'
+            AND revoked_at IS NULL
+          LIMIT 1`,
+        [row.session_id]
+      );
+      issuedRow = issuedRows[0] || null;
+      if (!issuedRow?.device_token_jti || !issuedRow?.device_token_issued_at) {
+        const code = Number(issuanceResult?.affectedRows || 0) === 1
+          ? "device_token_issuance_readback_failed"
+          : "device_token_issuance_not_owned";
+        return res.status(409).json({ ok: false, error: { code, message: "Device token issuance could not be proven from durable state." }, secrets_included: false });
+      }
     }
 
-    const deviceAccessToken = jwt.sign(
-      {
-        purpose: "local_manager_device_access",
-        user_id: row.user_id,
-        tenant_id: row.tenant_id,
-        device_id: row.device_id,
-        session_id: row.session_id,
-        scope: "local_manager.device",
-      },
-      JWT_SECRET,
-      { expiresIn: DEVICE_TOKEN_TTL_SECONDS, jwtid: crypto.randomUUID() }
-    );
-    await getPool().query(
-      `UPDATE \`local_manager_device_link_sessions\` SET status = 'completed', completed_at = NOW() WHERE session_id = ?`,
-      [row.session_id]
-    );
+    if (!issuedRow?.device_token_jti || !issuedRow?.device_token_issued_at) {
+      return res.status(409).json({ ok: false, error: { code: "device_token_issuance_state_missing", message: "This device link predates durable token issuance. Re-link the device." }, secrets_included: false });
+    }
+
+    const deviceAccessToken = signDeviceAccessToken(issuedRow);
     return res.status(200).json({
       ok: true,
       status: "approved",
       device_access_token: deviceAccessToken,
       token_type: "Bearer",
       expires_in: DEVICE_TOKEN_TTL_SECONDS,
-      device: sanitizeSession({ ...row, status: "completed", completed_at: new Date() }),
+      device: sanitizeSession(issuedRow),
+      token_replay_idempotent: true,
       secrets_included: false,
     });
   } catch (err) {
@@ -630,13 +663,51 @@ export async function approveDeviceLinkSession(req, res) {
     );
     const existingLinked = existingRows[0] || null;
 
-    await getPool().query(
+    const [approvalResult] = await getPool().query(
       `UPDATE \`local_manager_device_link_sessions\`
-          SET status = 'approved', user_id = ?, tenant_id = ?, approved_at = NOW()
-        WHERE session_id = ? AND status = 'pending'`,
+          SET status = 'approved',
+              user_id = ?,
+              tenant_id = ?,
+              approved_at = NOW(),
+              display_code = NULL
+        WHERE session_id = ?
+          AND status = 'pending'
+          AND expires_at > NOW()
+          AND revoked_at IS NULL
+        LIMIT 1`,
       [principal.user_id, principal.tenant_id, row.session_id]
     );
-    const approved = { ...row, status: "approved", user_id: principal.user_id, tenant_id: principal.tenant_id, approved_at: new Date() };
+    if (Number(approvalResult?.affectedRows || 0) !== 1) {
+      const [currentRows] = await getPool().query(
+        `SELECT * FROM \`local_manager_device_link_sessions\` WHERE session_id = ? LIMIT 1`,
+        [row.session_id]
+      );
+      const current = currentRows[0] || null;
+      const sameOwner = current
+        && current.user_id === principal.user_id
+        && (!current.tenant_id || !principal.tenant_id || current.tenant_id === principal.tenant_id);
+      if (sameOwner && ["approved", "completed"].includes(current.status) && !current.revoked_at) {
+        return res.status(200).json({
+          ok: true,
+          status: current.status,
+          already_linked: true,
+          reauthorized_existing_device: true,
+          user: principal,
+          device: sanitizeSession(current),
+          connector_alias: { attempted: false, resolved: false, reason: "approval_transition_already_owned", secrets_included: false },
+          secrets_included: false,
+        });
+      }
+      return res.status(409).json({ ok: false, status: current?.status || "unknown", error: { code: "device_link_approval_not_owned", message: "Pairing approval was completed or changed by another request." }, secrets_included: false });
+    }
+    const [approvedRows] = await getPool().query(
+      `SELECT * FROM \`local_manager_device_link_sessions\` WHERE session_id = ? AND status = 'approved' LIMIT 1`,
+      [row.session_id]
+    );
+    const approved = approvedRows[0] || null;
+    if (!approved) {
+      return res.status(409).json({ ok: false, error: { code: "device_link_approval_readback_failed", message: "Pairing approval could not be proven from durable state." }, secrets_included: false });
+    }
     const connectorAlias = await ensureLocalConnectorAliasForDeviceLink({ session: approved, principal });
     return res.status(200).json({
       ok: true,
@@ -685,7 +756,11 @@ export async function requireLocalManagerDevice(req) {
 
   let payload;
   try {
-    payload = jwt.verify(token, JWT_SECRET);
+    payload = jwt.verify(token, deviceJwtSecret(), {
+      algorithms: ["HS256"],
+      issuer: DEVICE_JWT_ISSUER,
+      audience: DEVICE_JWT_AUDIENCE,
+    });
   } catch {
     const err = new Error("Device token is invalid or expired.");
     err.status = 401;
@@ -716,9 +791,15 @@ export async function requireLocalManagerDevice(req) {
   await assertDeviceLinkTableSchema();
   const [rows] = await getPool().query(
     `SELECT * FROM \`local_manager_device_link_sessions\`
-      WHERE session_id = ? AND device_id = ? AND user_id = ? AND status IN ('approved','completed')
+      WHERE session_id = ?
+        AND device_id = ?
+        AND user_id = ?
+        AND (? IS NULL OR tenant_id = ?)
+        AND status = 'completed'
+        AND revoked_at IS NULL
+        AND device_token_jti = ?
       LIMIT 1`,
-    [device.session_id, device.device_id, device.user_id]
+    [device.session_id, device.device_id, device.user_id, device.tenant_id, device.tenant_id, cleanText(payload.jti, 64)]
   );
   const row = rows[0] || null;
   if (!row) {
@@ -735,7 +816,7 @@ export async function requireLocalManagerDevice(req) {
     token_scope: "local_manager.device",
     saved_device_token: true,
     interactive_user_session_present: false,
-    requires_reauth_for_privileged_installers: false,
+    requires_reauth_for_privileged_installers: true,
     privileged_authorization_max_age_seconds: PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS,
     privileged_authorization_fresh: authAgeSeconds !== null && authAgeSeconds <= PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS,
     auth_age_seconds: authAgeSeconds,
@@ -746,7 +827,93 @@ export async function requireLocalManagerDevice(req) {
 }
 
 export async function requireFreshLocalManagerDeviceForPrivilegedInstaller(req) {
-  return requireLocalManagerDevice(req);
+  const device = await requireLocalManagerDevice(req);
+  if (device.auth_context?.privileged_authorization_fresh === true) return device;
+
+  const stepUpAuthorization = cleanText(req.headers?.["x-local-manager-user-authorization"], 8192);
+  const result = verifyUserJwtAuthorization(stepUpAuthorization, {
+    issuer: DEVICE_JWT_ISSUER,
+    audience: LOCAL_MANAGER_USER_JWT_AUDIENCE,
+    requiredPurpose: LOCAL_MANAGER_USER_JWT_PURPOSE,
+    requiredScope: LOCAL_MANAGER_USER_JWT_SCOPE,
+  });
+  const claims = result.ok ? result.claims : null;
+  const issuedAtSeconds = Number(claims?.iat || 0) || null;
+  const authAgeSeconds = issuedAtSeconds ? Math.max(0, Math.floor(Date.now() / 1000) - issuedAtSeconds) : null;
+  const tenantMatches = !device.tenant_id || !claims?.tenant_id || cleanText(claims.tenant_id, 64) === device.tenant_id;
+  if (!result.ok
+      || cleanText(claims?.user_id, 64) !== device.user_id
+      || !tenantMatches
+      || authAgeSeconds === null
+      || authAgeSeconds > PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS) {
+    const err = new Error("Fresh Local Manager user authorization is required for privileged installer actions.");
+    err.status = 401;
+    err.code = "fresh_local_manager_user_authorization_required";
+    err.details = {
+      header: "x-local-manager-user-authorization",
+      max_age_seconds: PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS,
+      same_user_required: true,
+      same_tenant_required: true,
+      secrets_included: false,
+    };
+    throw err;
+  }
+  return {
+    ...device,
+    auth_context: {
+      ...device.auth_context,
+      source: "saved_device_token_plus_fresh_user_step_up",
+      interactive_user_session_present: true,
+      requires_reauth_for_privileged_installers: true,
+      privileged_authorization_fresh: true,
+      step_up_auth_age_seconds: authAgeSeconds,
+      step_up_purpose: LOCAL_MANAGER_USER_JWT_PURPOSE,
+    },
+  };
+}
+
+export async function revokeDeviceLinkSession(req, res) {
+  try {
+    await assertDeviceLinkTableSchema();
+    const principal = await requireLocalManagerUser(req);
+    const sessionId = cleanText(req.params?.sessionId || req.body?.session_id, 64);
+    if (!sessionId) {
+      return res.status(400).json({ ok: false, error: { code: "device_link_session_id_required", message: "session_id is required." }, secrets_included: false });
+    }
+    const [result] = await getPool().query(
+      `UPDATE \`local_manager_device_link_sessions\`
+          SET status = 'revoked',
+              revoked_at = NOW(),
+              revoked_by_user_id = ?
+        WHERE session_id = ?
+          AND user_id = ?
+          AND (? IS NULL OR tenant_id = ?)
+          AND status IN ('approved','completed')
+          AND revoked_at IS NULL
+        LIMIT 1`,
+      [principal.user_id, sessionId, principal.user_id, principal.tenant_id, principal.tenant_id]
+    );
+    if (Number(result?.affectedRows || 0) !== 1) {
+      const [rows] = await getPool().query(
+        `SELECT * FROM \`local_manager_device_link_sessions\`
+          WHERE session_id = ? AND user_id = ? AND (? IS NULL OR tenant_id = ?)
+          LIMIT 1`,
+        [sessionId, principal.user_id, principal.tenant_id, principal.tenant_id]
+      );
+      const current = rows[0] || null;
+      if (current?.status === "revoked" || current?.revoked_at) {
+        return res.status(200).json({ ok: true, status: "revoked", already_revoked: true, device: sanitizeSession(current), secrets_included: false });
+      }
+      return res.status(404).json({ ok: false, error: { code: "device_link_not_found", message: "Linked device session was not found for this user." }, secrets_included: false });
+    }
+    const [rows] = await getPool().query(
+      `SELECT * FROM \`local_manager_device_link_sessions\` WHERE session_id = ? LIMIT 1`,
+      [sessionId]
+    );
+    return res.status(200).json({ ok: true, status: "revoked", device: sanitizeSession(rows[0] || { session_id: sessionId, status: "revoked" }), secrets_included: false });
+  } catch (err) {
+    return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "device_link_revoke_failed", message: err.message, ...(err.details ? { details: err.details } : {}) }, secrets_included: false });
+  }
 }
 
 export async function getDeviceSession(req, res) {
