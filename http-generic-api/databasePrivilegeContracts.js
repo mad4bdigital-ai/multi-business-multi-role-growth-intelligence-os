@@ -82,6 +82,8 @@ const STAGING_RUNTIME_READ_ONLY_TABLES = Object.freeze([
   // surface grants mutation, schema authority, or GRANT OPTION.
   "platform_tool_dispatch_bindings",
   "workspace_assets",
+  "local_connector_device_aliases",
+  "local_connector_user_configs",
 ]);
 
 const STAGING_RUNTIME_OPTIONAL_READ_SURFACES = Object.freeze([
@@ -105,6 +107,11 @@ const STAGING_RUNTIME_READ_ONLY_MATRIX = Object.freeze(Object.fromEntries(
   [...STAGING_RUNTIME_READ_ONLY_TABLES, ...STAGING_RUNTIME_OPTIONAL_READ_SURFACES]
     .map((table) => [table, Object.freeze(["SELECT"])]),
 ));
+
+const STAGING_RUNTIME_OPERATION_MATRIX = Object.freeze({
+  ...STAGING_RUNTIME_READ_ONLY_MATRIX,
+  local_manager_desktop_commands: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
+});
 
 const STAGING_GATEWAY_PLAN_GRANTS = Object.freeze({
   staging_activation_gateway_execution_artifacts: Object.freeze(["SELECT", "INSERT"]),
@@ -132,7 +139,7 @@ export const STAGING_ROLE_GRANT_POLICIES = Object.freeze({
     ],
     ["SELECT", "INSERT", "UPDATE"],
     "always",
-    STAGING_RUNTIME_READ_ONLY_MATRIX,
+    STAGING_RUNTIME_OPERATION_MATRIX,
     STAGING_RUNTIME_OPTIONAL_READ_SURFACES,
   ),
   governance: buildGrantSpec(
