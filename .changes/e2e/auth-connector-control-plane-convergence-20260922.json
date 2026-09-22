@@ -28,11 +28,14 @@
       "http-generic-api/routes/activationRoutes.js",
       "http-generic-api/routes/adminCliRoutes.js",
       "http-generic-api/routes/localManagerDesktopCommandRoutes.js",
+      "http-generic-api/scripts/ci-evidence-router.mjs",
       "http-generic-api/scripts/local-manager-desktop-command-mariadb-certification.mjs",
+      "http-generic-api/scripts/test-ci-evidence-router.mjs",
       "http-generic-api/services/localConnectorOrchestrator.js",
       "http-generic-api/test-control-plane-convergence-regressions.mjs",
       "http-generic-api/test-host-breakglass-catalog.mjs",
       "http-generic-api/test-local-connector-composite-health.mjs",
+      "http-generic-api/test-local-manager-chatgpt-url-capture.mjs",
       "http-generic-api/test-local-manager-tool-release-owner.mjs",
       "http-generic-api/test-staging-database-readiness-repair.mjs",
       "http-generic-api/test-staging-schema-bundle-builder.mjs"
@@ -77,7 +80,12 @@
             "Probe the connector public data plane and authenticated /policy path separately; public reachability must not be treated as authenticated command health.",
             "When Cloudflare control-plane tunnel status conflicts with a successful connector data-plane probe, retain both timestamped sources and make data-plane reachability authoritative.",
             "Expose only bounded Local Manager polling error metadata: code, requestId, retryable, retry_after, and surface; never copy the raw response body or secret material.",
-            "Run an isolated MariaDB 11.4 certification with a dedicated runtime principal to prove migration, least-privilege grants, enqueue, poll, claim, complete, expiry, activation projection, and denial of DELETE/CREATE/ALTER."
+            "Run an isolated MariaDB 11.4 certification with a dedicated runtime principal to prove migration, least-privilege grants, enqueue, poll, claim, complete, expiry, activation projection, and denial of DELETE/CREATE/ALTER.",
+            "Claim queued desktop commands atomically with a unique claim token and bounded lease, then return only rows owned by that token.",
+            "Renew active claim leases through an authenticated heartbeat and require the same claim token for terminal completion.",
+            "Require explicit user approval in the Windows client when requires_user_confirmation is true.",
+            "Accept captured ChatGPT URLs only over HTTPS and only for chatgpt.com or its true subdomains.",
+            "Bind the MariaDB certification job result and evidence SHA-256 into canonical E2E evidence."
           ],
           "assertions": [
             "HTTP request handlers perform read-only schema inspection and never create or alter local_manager_desktop_commands.",
@@ -94,7 +102,13 @@
             "A reachable connector with rejected command credentials is classified as credential-binding degradation and must not trigger a blind reinstall.",
             "Tunnel metadata/data-plane conflicts are explicit evidence conflicts rather than an unconditional down verdict.",
             "Local Manager renders bounded structured backend diagnostics without raw response bodies, command payloads, credentials, or tokens.",
-            "The disposable MariaDB certification mutates only its isolated CI database, proves the exact runtime privilege envelope, and explicitly forbids Production or live Staging apply."
+            "The disposable MariaDB certification mutates only its isolated CI database, proves the exact runtime privilege envelope, and explicitly forbids Production or live Staging apply.",
+            "Concurrent pollers cannot both receive the same queued command; only the poller whose atomic update persisted claim_token may receive it.",
+            "Completion requires status=claimed, the exact live claim_token, and an unexpired claim lease; terminal states are immutable.",
+            "Enqueue TTL applies before claim, while long-running execution is protected by an independently renewed claim lease.",
+            "requires_user_confirmation is enforced by a fail-safe Yes/No desktop prompt before command execution.",
+            "ChatGPT URL capture rejects HTTP and suffix-confusion hosts such as evilchatgpt.com.",
+            "Canonical E2E evidence cannot report MariaDB certification success without the certification evidence file and SHA-256."
           ],
           "tests": [
             {
@@ -151,7 +165,10 @@
             "http-generic-api/test-local-connector-composite-health.mjs",
             "http-generic-api/test-local-manager-tool-release-owner.mjs",
             ".github/workflows/e2e-phase-governance.yml",
-            "http-generic-api/scripts/local-manager-desktop-command-mariadb-certification.mjs"
+            "http-generic-api/scripts/local-manager-desktop-command-mariadb-certification.mjs",
+            "http-generic-api/scripts/ci-evidence-router.mjs",
+            "http-generic-api/scripts/test-ci-evidence-router.mjs",
+            "http-generic-api/test-local-manager-chatgpt-url-capture.mjs"
           ]
         }
       ]
