@@ -13,6 +13,12 @@ const REQUIRED_CONTROL_PLANE_WRITE_DB_KEYS = [
   "CONTROL_PLANE_WRITE_DB_USER",
   "CONTROL_PLANE_WRITE_DB_PASSWORD",
 ];
+const REQUIRED_LOCAL_MANAGER_WRITE_DB_KEYS = [
+  "LOCAL_MANAGER_WRITE_DB_HOST",
+  "LOCAL_MANAGER_WRITE_DB_NAME",
+  "LOCAL_MANAGER_WRITE_DB_USER",
+  "LOCAL_MANAGER_WRITE_DB_PASSWORD",
+];
 const REQUIRED_MANAGED_GOOGLE_OAUTH_KEYS = [
   "MANAGED_GOOGLE_OAUTH_CLIENT_ID",
   "MANAGED_GOOGLE_OAUTH_CLIENT_SECRET",
@@ -132,6 +138,39 @@ export function evaluateProductionConfig(env = process.env) {
     missing_keys: missingControlPlaneKeys,
     dedicated_identity: controlPlaneWriteEnabled && text(env.CONTROL_PLANE_WRITE_DB_USER) !== text(env.DB_USER),
     status: controlPlaneWriteEnabled ? (missingControlPlaneKeys.length ? "invalid" : "configured") : "disabled",
+  };
+
+  const localManagerWriteEnabled = enabled(env.LOCAL_MANAGER_WRITE_AUTHORITY_ENABLED);
+  const missingLocalManagerWriteKeys = localManagerWriteEnabled
+    ? REQUIRED_LOCAL_MANAGER_WRITE_DB_KEYS.filter((key) => !text(env[key]))
+    : [];
+  if (missingLocalManagerWriteKeys.length) {
+    errors.push(`Local Manager write authority is enabled but missing: ${missingLocalManagerWriteKeys.join(", ")}.`);
+  }
+  const localManagerWriteUser = text(env.LOCAL_MANAGER_WRITE_DB_USER);
+  const localManagerDedicated = localManagerWriteEnabled
+    && Boolean(localManagerWriteUser)
+    && localManagerWriteUser.toLowerCase() !== "root"
+    && localManagerWriteUser !== text(env.DB_USER);
+  if (localManagerWriteEnabled && localManagerWriteUser.toLowerCase() === "root") {
+    errors.push("LOCAL_MANAGER_WRITE_DB_USER must not be root.");
+  }
+  if (localManagerWriteEnabled && localManagerWriteUser === text(env.DB_USER)) {
+    errors.push("LOCAL_MANAGER_WRITE_DB_USER must be distinct from DB_USER.");
+  }
+  if (!localManagerWriteEnabled) {
+    warnings.push("Local Manager dedicated write authority is disabled; connector-alias reconciliation and explicit n8n provisioning remain fail-closed.");
+  }
+  const localManagerWrite = {
+    enabled: localManagerWriteEnabled,
+    missing_keys: missingLocalManagerWriteKeys,
+    dedicated_identity: localManagerDedicated,
+    authorities: ["local_connector_alias_reconciliation_writer", "local_manager_n8n_provisioning_writer"],
+    generic_runtime_fallback: false,
+    status: localManagerWriteEnabled
+      ? (missingLocalManagerWriteKeys.length || !localManagerDedicated ? "invalid" : "configured")
+      : "disabled",
+    secrets_included: false,
   };
 
   const managedGoogleEnabled = enabled(env.MANAGED_GOOGLE_OAUTH_ENABLED);
@@ -312,6 +351,7 @@ export function evaluateProductionConfig(env = process.env) {
     trusted_ingress: trustedIngress,
     queue,
     control_plane_write: controlPlaneWrite,
+    local_manager_write: localManagerWrite,
     managed_google_oauth: managedGoogleOauth,
     oauth_client: oauthClient,
     errors,
