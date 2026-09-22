@@ -174,7 +174,8 @@
       "actions",
       "dynamic_audit_scheduler_runs",
       "execution_log",
-      "json_assets"
+      "json_assets",
+      "local_manager_desktop_commands"
     ],
     "required_operations": ["SELECT", "INSERT", "UPDATE"],
     "allow_additional_tables": false,
@@ -190,7 +191,7 @@
       "runtime": {
         "database_binding": "runtime",
         "principal_binding": "runtime",
-        "required_tables": ["customer_sessions", "gpt_session_turns", "actions", "dynamic_audit_scheduler_runs", "execution_log", "json_assets"],
+        "required_tables": ["customer_sessions", "gpt_session_turns", "actions", "dynamic_audit_scheduler_runs", "execution_log", "json_assets", "local_manager_desktop_commands"],
         "required_operations": ["SELECT", "INSERT", "UPDATE"],
         "apply_when": "always"
       },
