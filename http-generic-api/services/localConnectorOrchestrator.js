@@ -42,8 +42,15 @@ function localConnectorError(code, message, httpStatus = 500, details = {}) {
   return error;
 }
 
+export function connectorAuthTokens(config) {
+  return [...new Set([
+    config?.connector_secret,
+    config?.connector_local_api_key,
+  ].map((value) => String(value || "").trim()).filter(Boolean))];
+}
+
 function connectorAuthToken(config) {
-  const token = String(config?.connector_secret || "").trim();
+  const token = connectorAuthTokens(config)[0] || "";
   if (!token) {
     throw localConnectorError(
       "connector_credential_missing",
@@ -53,6 +60,35 @@ function connectorAuthToken(config) {
     );
   }
   return token;
+}
+
+export async function fetchLocalConnectorWithCredentialFallback({
+  config,
+  url,
+  method = "POST",
+  body = null,
+  operation = "local_connector_call",
+  fetchImpl = fetch,
+} = {}) {
+  const tokens = connectorAuthTokens(config);
+  if (!tokens.length) connectorAuthToken(config);
+  let lastError = null;
+  for (let index = 0; index < tokens.length; index += 1) {
+    try {
+      const response = await fetchImpl(url, {
+        method,
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokens[index]}` },
+        ...(body === null ? {} : { body }),
+        signal: AbortSignal.timeout(CONNECTOR_TIMEOUT_MS),
+      });
+      return await readLocalConnectorResponse(response, { operation });
+    } catch (error) {
+      lastError = error;
+      const credentialRejected = error?.code === "connector_credential_invalid" || Number(error?.http_status || error?.status) === 401;
+      if (!credentialRejected || index === tokens.length - 1) throw error;
+    }
+  }
+  throw lastError;
 }
 
 function responseHeader(response, name) {
@@ -321,14 +357,12 @@ async function executeGovernedShellCommand(args) {
 
     const runtimeUrl = connectorRuntimeUrl(userConfig.config);
     if (!runtimeUrl) throw new Error("Local connector runtime URL is not configured for this user/device.");
-    const token = connectorAuthToken(userConfig.config);
-    const response = await fetch(`${runtimeUrl}/shell`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    output = await fetchLocalConnectorWithCredentialFallback({
+      config: userConfig.config,
+      url: `${runtimeUrl}/shell`,
       body: JSON.stringify({ action: "run", alias, extra_args: extraArgs }),
-      signal: AbortSignal.timeout(CONNECTOR_TIMEOUT_MS),
+      operation: `shell:${alias}`,
     });
-    output = await readLocalConnectorResponse(response, { operation: `shell:${alias}` });
     status = "completed";
   } catch (caught) {
     error = normalizeLocalConnectorError(caught, "local_command_execution_failed");
@@ -386,14 +420,12 @@ async function readGovernedLocalFile(args) {
 
     const runtimeUrl = connectorRuntimeUrl(userConfig.config);
     if (!runtimeUrl) throw new Error("Local connector runtime URL is not configured for this user/device.");
-    const token = connectorAuthToken(userConfig.config);
-    const response = await fetch(`${runtimeUrl}/files`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    const raw = await fetchLocalConnectorWithCredentialFallback({
+      config: userConfig.config,
+      url: `${runtimeUrl}/files`,
       body: JSON.stringify({ action: "read", path }),
-      signal: AbortSignal.timeout(CONNECTOR_TIMEOUT_MS),
+      operation: "file:read",
     });
-    const raw = await readLocalConnectorResponse(response, { operation: "file:read" });
     content = raw.content;
     status = "completed";
   } catch (caught) {
@@ -452,14 +484,12 @@ async function writeGovernedLocalFile(args) {
 
     const runtimeUrl = connectorRuntimeUrl(userConfig.config);
     if (!runtimeUrl) throw new Error("Local connector runtime URL is not configured for this user/device.");
-    const token = connectorAuthToken(userConfig.config);
-    const response = await fetch(`${runtimeUrl}/files`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    result = await fetchLocalConnectorWithCredentialFallback({
+      config: userConfig.config,
+      url: `${runtimeUrl}/files`,
       body: JSON.stringify({ action: "write", path, content }),
-      signal: AbortSignal.timeout(CONNECTOR_TIMEOUT_MS),
+      operation: "file:write",
     });
-    result = await readLocalConnectorResponse(response, { operation: "file:write" });
     status = "completed";
   } catch (caught) {
     error = normalizeLocalConnectorError(caught, "local_file_write_failed");
