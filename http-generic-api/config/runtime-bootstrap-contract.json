@@ -223,6 +223,14 @@
       "credential_binding_prefix": "DB_",
       "migration_ledger": "separate_governance_migration_ledger",
       "secrets_included": false
+    },
+    "20260922_local_manager_desktop_commands.sql": {
+      "ownership_domain": "runtime",
+      "database_target_role": "runtime",
+      "target_role": "runtime",
+      "credential_binding_prefix": "DB_",
+      "migration_ledger": "separate_governance_migration_ledger",
+      "secrets_included": false
     }
   },
   "bootstrap_credentials": {
@@ -349,6 +357,15 @@
       "direct_fallback_authorized": true,
       "direct_fallback_idempotent": true,
       "requires_tables": ["admin_platform_endpoint_tools", "tenant_platform_endpoint_tools"]
+    },
+    "20260922_local_manager_desktop_commands.sql": {
+      "sha256": "4f8647642651dd13dd4f0640ea692e072d5b8985ded6d3200015b3e6d5c93de4",
+      "statement_count": 1,
+      "allowed_modes": ["dry_run", "apply_migration", "apply_grants"],
+      "role": "reviewed_runtime_apply_candidate",
+      "direct_fallback_authorized": true,
+      "direct_fallback_idempotent": true,
+      "requires_tables": []
     }
   },
   "grant_policy": {
@@ -466,6 +483,13 @@
       {"type": "index", "table": "admin_platform_endpoint_tools", "index": "idx_enabled_mcp_level_sort"},
       {"type": "index", "table": "tenant_platform_endpoint_tools", "index": "idx_enabled_mcp_level_sort"},
       {"type": "row", "table": "tenant_platform_endpoint_tools", "key_column": "tool_key", "key_value": "tenant_growth_recommendation_feedback", "value_column": "mcp_catalog_level", "expected_value": "growth_feedback"}
+    ],
+    "20260922_local_manager_desktop_commands.sql": [
+      {"type": "table", "table": "local_manager_desktop_commands"},
+      {"type": "column", "table": "local_manager_desktop_commands", "column": "command_id"},
+      {"type": "column", "table": "local_manager_desktop_commands", "column": "status"},
+      {"type": "index", "table": "local_manager_desktop_commands", "index": "idx_lm_desktop_command_device"},
+      {"type": "index", "table": "local_manager_desktop_commands", "index": "idx_lm_desktop_command_status"}
     ]
   },
   "evidence": {
