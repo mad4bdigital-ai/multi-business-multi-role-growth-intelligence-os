@@ -106,7 +106,7 @@ await fetchLocalConnectorWithCredentialFallback({ config: credentialFixture, url
 await fetchLocalConnectorWithCredentialFallback({ config: credentialFixture, url: "https://connector.invalid/shell", fetchImpl: cachedFetch });
 assert.deepEqual(cachedAttempts, ["Bearer stale", "Bearer live", "Bearer live"]);
 
-const columns = ["command_id", "tenant_id", "user_id", "device_id", "execution_mode", "action", "status", "priority", "requires_user_confirmation", "payload_json", "result_json", "requested_by", "request_context_json", "error_code", "error_message", "created_at", "claimed_at", "completed_at", "expires_at", "updated_at"];
+const columns = ["command_id", "tenant_id", "user_id", "device_id", "execution_mode", "action", "status", "priority", "requires_user_confirmation", "payload_json", "result_json", "requested_by", "request_context_json", "error_code", "error_message", "created_at", "claimed_at", "claim_token", "claim_lease_expires_at", "completed_at", "expires_at", "updated_at"];
 const readyPool = { query: async (sql) => {
   assert.match(sql, /information_schema\.columns/);
   assert.doesNotMatch(sql, /CREATE|ALTER/);
@@ -121,6 +121,13 @@ await assert.rejects(
 const routeSource = readFileSync("./routes/localManagerDesktopCommandRoutes.js", "utf8");
 assert.doesNotMatch(routeSource, /CREATE TABLE IF NOT EXISTS/);
 assert.match(routeSource, /assertLocalManagerDesktopCommandSchema/);
+assert.match(routeSource, /claim_token = \?/u);
+assert.match(routeSource, /claim_lease_expires_at = DATE_ADD\(NOW\(\), INTERVAL \? SECOND\)/u);
+assert.match(routeSource, /ORDER BY priority ASC, created_at ASC\s+LIMIT \?/u);
+assert.match(routeSource, /\/heartbeat/u);
+assert.match(routeSource, /AND status = 'claimed'\s+AND claim_token = \?\s+AND claim_lease_expires_at > NOW\(\)/u);
+assert.match(routeSource, /desktop_command_claim_not_owned/u);
+assert.doesNotMatch(routeSource, /rows\.map\(\(row\) => sanitizeCommand\(\{ \.\.\.row, status: "claimed"/u);
 
 const denied = normalizeActivationSessionAuthorityError({ code: "ER_TABLEACCESS_DENIED_ERROR", message: "INSERT command denied to user secret-user" });
 assert.equal(denied.code, "activation_session_write_authority_not_ready");
@@ -136,6 +143,8 @@ assert.deepEqual(
   ["queued", "claimed", "completed", "failed", "expired", "cancelled"],
   "desktop command activation status taxonomy must match the DB enum",
 );
+assert.equal(activationSurface.result_columns.includes("claim_token"), false);
+assert.equal(activationSurface.result_columns.includes("claim_lease_expires_at"), false);
 
 const desktopCommandRoutesSource = readFileSync("./routes/localManagerDesktopCommandRoutes.js", "utf8");
 assert.match(desktopCommandRoutesSource, /desktop_target_identity_authority_not_ready/u);
