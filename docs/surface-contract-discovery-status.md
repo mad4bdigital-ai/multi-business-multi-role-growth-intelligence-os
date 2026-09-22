@@ -19,10 +19,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 480
+- Migrations with detected surfaces: 482
 - Migrations reported here: 80
-- OpenAPI operations detected: 1072
-- OpenAPI paths detected: 1057
+- OpenAPI operations detected: 1080
+- OpenAPI paths detected: 1065
 - Documentation targets checked:
 - `Updating Registry Patch Index.md`
 - `deployment_parity_checklist.md`
@@ -32,11 +32,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 470/480 (97.92%)
+- Documentation complete migrations: 472/482 (97.93%)
 - Documentation gap migrations: 10
 - Gap severity: high=5, medium=1, low=4
 - SQL route coverage in OpenAPI: 32/34 (94.12%)
-- SQL route-like literals exempted from OpenAPI scoring: 676/710
+- SQL route-like literals exempted from OpenAPI scoring: 678/712
 - SQL routes missing OpenAPI path coverage: 2
 - Migrations without explicit `secrets_included=false` marker: 3
 
@@ -45,10 +45,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | Surface type | Discovered items | Migrations with type |
 |---|---:|---:|
 | plugins | 16 | 13 |
-| tools | 752 | 273 |
+| tools | 754 | 275 |
 | views | 535 | 218 |
 | policies | 199 | 138 |
-| routes | 710 | 295 |
+| routes | 712 | 297 |
 
 ### Documentation Target Gaps
 
@@ -64,19 +64,19 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 473 |
-| no_credential_payload_read | 471 |
-| no_raw_secrets | 472 |
-| no_external_send | 471 |
-| no_external_write | 473 |
-| secrets_included_false | 477 |
+| no_provider_call | 475 |
+| no_credential_payload_read | 473 |
+| no_raw_secrets | 474 |
+| no_external_send | 473 |
+| no_external_write | 475 |
+| secrets_included_false | 479 |
 
 ### Route Classification Coverage
 
 | Route class | SQL route-like literals |
 |---|---:|
 | http_route | 34 |
-| admin_tool_registry_route | 217 |
+| admin_tool_registry_route | 219 |
 | tenant_tool_registry_route | 42 |
 | system_tool_dispatch_route | 15 |
 | registry_only_surface | 8 |
@@ -102,10 +102,10 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `20260815_custom_gpt_mcp_catalog_levels.sql` | critical_review | 850 | high | 5 | 0 | 6 | document_surface_contract, verify_tool_registry_binding, add_explicit_safety_markers |
 | `1038_sprint69_github_actions_workflow_control_dispatch.sql` | high_review | 655 | high | 2 | 0 | 5 | document_surface_contract, verify_policy_seed_readiness, add_explicit_safety_markers |
 | `1030_sprint69_default_blocker_recovery_governance_seed.sql` | high_review | 477 | medium | 5 | 0 | 2 | document_surface_contract, verify_policy_seed_readiness, add_explicit_safety_markers |
-| `20260810_platform_runtime_registry_drift_reconciliation.sql` | medium_review | 389 | low | 5 | 0 | 5 | document_surface_contract, verify_readback_view, add_explicit_safety_markers |
+| `20260810_platform_runtime_registry_drift_reconciliation.sql` | medium_review | 388 | low | 5 | 0 | 5 | document_surface_contract, verify_readback_view, add_explicit_safety_markers |
 | `1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql` | medium_review | 357 | low | 5 | 0 | 6 | document_surface_contract, verify_readback_view, add_explicit_safety_markers |
 | `1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql` | medium_review | 334 | low | 5 | 0 | 4 | document_surface_contract, verify_readback_view, add_explicit_safety_markers |
-| `20260728_governed_response_chunk_ownership.sql` | medium_review | 317 | low | 5 | 0 | 0 | document_surface_contract, verify_readback_view |
+| `20260728_governed_response_chunk_ownership.sql` | medium_review | 316 | low | 5 | 0 | 0 | document_surface_contract, verify_readback_view |
 
 
 ## Latest Surface Coverage
