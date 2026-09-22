@@ -8,29 +8,40 @@
   "scope": {
     "include": [
       ".changes/e2e/auth-connector-control-plane-convergence-20260922.json",
+      ".github/governance/test-authority-registry.json",
       ".github/ops/production-runtime-recovery-autodeploy.mjs",
       ".github/ops/production-runtime-recovery-routes.json",
       ".github/ops/test-production-runtime-recovery-policy.mjs",
       ".github/ops/test-production-runtime-recovery.mjs",
+      "apps/local-manager-windows/LocalManagerAutopilot.cs",
+      "apps/local-manager-windows/Program.cs",
       "http-generic-api/activation-surfaces/local_manager_desktop_commands.json",
       "http-generic-api/activationSessionLifecycleService.js",
       "http-generic-api/config/runtime-bootstrap-contract.json",
+      "http-generic-api/config/staging-database-role-migration-manifest.json",
       "http-generic-api/databasePrivilegeContracts.js",
+      "http-generic-api/localConnectorCompositeHealth.js",
       "http-generic-api/localManagerDesktopCommandSchema.js",
       "http-generic-api/migrations/20260922_local_manager_desktop_commands.sql",
       "http-generic-api/recoveryExecutionBinding.js",
       "http-generic-api/routes/activationRoutes.js",
+      "http-generic-api/routes/adminCliRoutes.js",
       "http-generic-api/routes/localManagerDesktopCommandRoutes.js",
       "http-generic-api/services/localConnectorOrchestrator.js",
       "http-generic-api/test-control-plane-convergence-regressions.mjs",
       "http-generic-api/test-host-breakglass-catalog.mjs",
+      "http-generic-api/test-local-connector-composite-health.mjs",
+      "http-generic-api/test-local-manager-tool-release-owner.mjs",
       "http-generic-api/test-staging-database-readiness-repair.mjs",
       "http-generic-api/test-staging-schema-bundle-builder.mjs"
     ]
   },
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
-    "declared_targets": ["staging", "production"],
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
     "cross_environment_reviewed": true,
     "live_staging_certification_required": true,
     "production_mutation_allowed": false
@@ -58,7 +69,12 @@
             "Validate the read-only activation surface manifest exposes lifecycle metadata while excluding payload, result, request context, execution detail, and error text.",
             "Exercise connector authentication with primary success, credential-invalid fallback success, both credentials rejected, forbidden, timeout, provider failure, and missing-token cases.",
             "Require sanitized fallback telemetry and successful-credential preference without returning or logging credential material.",
-            "Run recovery policy and staging readiness regressions without applying a migration, changing a live grant, calling a provider, deploying, or mutating Production."
+            "Run recovery policy and staging readiness regressions without applying a migration, changing a live grant, calling a provider, deploying, or mutating Production.",
+            "Require activation session-context diagnostics to remain read-only by default and prove the diagnostic path performs no session INSERT when no explicit write opt-in is supplied.",
+            "Require Staging runtime census to include local_manager_desktop_commands and its connector identity dependencies, with SELECT-only authority on alias/config identity tables.",
+            "Probe the connector public data plane and authenticated /policy path separately; public reachability must not be treated as authenticated command health.",
+            "When Cloudflare control-plane tunnel status conflicts with a successful connector data-plane probe, retain both timestamped sources and make data-plane reachability authoritative.",
+            "Expose only bounded Local Manager polling error metadata: code, requestId, retryable, retry_after, and surface; never copy the raw response body or secret material."
           ],
           "assertions": [
             "HTTP request handlers perform read-only schema inspection and never create or alter local_manager_desktop_commands.",
@@ -68,7 +84,13 @@
             "Credential fallback is attempted only for an explicit credential-invalid response and never for 403, timeout, abort, transport, or 5xx failures.",
             "The successful credential choice is preferred for later operations and fallback usage is observable only through sanitized metadata.",
             "The activation surface is read-only and excludes command payloads, results, execution details, request context, and free-form error messages.",
-            "CI performs no live database mutation, migration apply, grant apply, provider mutation, external send, deployment, restart, or Production mutation."
+            "CI performs no live database mutation, migration apply, grant apply, provider mutation, external send, deployment, restart, or Production mutation.",
+            "The activation projection status taxonomy exactly matches the desktop command database enum and uses queued rather than pending.",
+            "Staging runtime readiness fails closed when local_manager_desktop_commands, local_connector_device_aliases, or local_connector_user_configs are absent or unreadable.",
+            "The connector repair surface cannot report healthy from public /health alone; authenticated command health must pass independently.",
+            "A reachable connector with rejected command credentials is classified as credential-binding degradation and must not trigger a blind reinstall.",
+            "Tunnel metadata/data-plane conflicts are explicit evidence conflicts rather than an unconditional down verdict.",
+            "Local Manager renders bounded structured backend diagnostics without raw response bodies, command payloads, credentials, or tokens."
           ],
           "tests": [
             {
@@ -91,6 +113,20 @@
               "working_directory": ".",
               "path": ".github/ops/test-production-runtime-recovery-policy.mjs",
               "args": []
+            },
+            {
+              "id": "local-connector-authenticated-health",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-local-connector-composite-health.mjs",
+              "args": []
+            },
+            {
+              "id": "local-manager-structured-polling-errors",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-local-manager-tool-release-owner.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -101,7 +137,15 @@
             "http-generic-api/migrations/20260922_local_manager_desktop_commands.sql",
             "http-generic-api/recoveryExecutionBinding.js",
             "http-generic-api/test-control-plane-convergence-regressions.mjs",
-            "http-generic-api/test-staging-database-readiness-repair.mjs"
+            "http-generic-api/test-staging-database-readiness-repair.mjs",
+            ".github/governance/test-authority-registry.json",
+            "apps/local-manager-windows/LocalManagerAutopilot.cs",
+            "apps/local-manager-windows/Program.cs",
+            "http-generic-api/config/staging-database-role-migration-manifest.json",
+            "http-generic-api/localConnectorCompositeHealth.js",
+            "http-generic-api/routes/adminCliRoutes.js",
+            "http-generic-api/test-local-connector-composite-health.mjs",
+            "http-generic-api/test-local-manager-tool-release-owner.mjs"
           ]
         }
       ]
@@ -109,17 +153,22 @@
     {
       "id": "operational",
       "status": "blocked",
-      "objective": "Apply and read back the governed migration and least-privilege grants in live Staging through the separately approved recovery workflow.",
+      "objective": "Apply and read back the governed desktop-command migration and least-privilege grants in live Staging, certify the direct Custom-GPT connector credential path, and close the existing Admin MCP catalog schema gap through independently governed apply/readback.",
       "blockers": [
         "live_staging_migration_apply_approval",
         "live_staging_grant_apply_approval",
-        "same_cycle_staging_readback"
+        "same_cycle_staging_readback",
+        "direct_custom_gpt_connector_authenticated_action_proof",
+        "custom_gpt_mcp_catalog_levels_live_apply_readback"
       ]
     },
     {
       "id": "resilient",
-      "status": "planned",
-      "objective": "Add a disposable MariaDB route-cycle proof for enqueue, poll, claim, complete, expiry, and privilege denial under the exact runtime principal."
+      "status": "blocked",
+      "objective": "Add a disposable MariaDB proof using the real runtime principal for migration -> grants -> enqueue -> poll/claim -> complete -> activation projection, plus expiry and privilege-denial cases.",
+      "blockers": [
+        "disposable_mariadb_runtime_principal_route_cycle_missing"
+      ]
     },
     {
       "id": "canary",
