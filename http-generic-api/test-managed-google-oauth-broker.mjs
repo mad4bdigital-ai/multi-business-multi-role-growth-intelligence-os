@@ -722,3 +722,6 @@ assert.ok(routes.includes("credential_material_included: true"), "redeem/refresh
 assert.equal(routes.includes("access_token, secrets_included: false"), false, "token-bearing success response cannot claim secrets_included=false");
 
 console.log("managed Google OAuth broker tests passed");
+
+// Managed site-enrollment is part of the canonical broker regression without changing the global test-manifest authority.
+await import("./test-managed-google-site-enrollment.mjs");
