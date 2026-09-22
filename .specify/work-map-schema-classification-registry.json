@@ -17,6 +17,23 @@
   ],
   "rules": [
     {
+      "rule_key": "local_manager_desktop_command_queue",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "local_manager_desktop_commands"
+        ]
+      },
+      "domain": "Workflow & tasks",
+      "existing_map_refs": [
+        "workflow-task-orchestration-map",
+        "connector-provider-map",
+        "execution-log-evidence-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "The Local Manager desktop command queue coordinates governed device work, bounded claim and completion transitions, and connector execution evidence without granting schema authority to request paths."
+    },
+    {
       "rule_key": "platform_configuration_control_plane_objects",
       "scope": "bounded_exact",
       "match": {
