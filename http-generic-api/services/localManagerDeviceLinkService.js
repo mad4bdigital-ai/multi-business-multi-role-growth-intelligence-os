@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { getPool } from "../db.js";
 import { verifyUserJwtAuthorization } from "../userJwtAuth.js";
 import {
+  localManagerN8nSystemKey,
   localManagerWriteAuthorityEnabled,
   provisionLocalManagerN8n,
   reconcileLocalConnectorAliases,
@@ -202,7 +203,21 @@ function sanitizeN8nProfileConfig(value, { device }) {
 
 async function resolveTenantN8nProfile(device) {
   const pool = getPool();
-  const systemKey = `local_n8n:${cleanId(device.device_id, { fallback: "device", max: 64 })}`;
+  const systemKey = localManagerN8nSystemKey(device.device_id);
+  if (!systemKey) {
+    return {
+      system_id: null,
+      installation_id: null,
+      display_name: "Local n8n",
+      status: "not_provisioned",
+      profile: defaultN8nProfile({ device }),
+      provisioned: false,
+      provisioning_required: true,
+      provisioning_reason: "invalid_device_identity",
+      mutation_performed: false,
+      secrets_included: false,
+    };
+  }
   const [rows] = await pool.query(
     `SELECT cs.*, i.installation_id, i.meta_json AS installation_meta_json
        FROM \`connected_systems\` cs
@@ -216,16 +231,31 @@ async function resolveTenantN8nProfile(device) {
         AND cs.provider_family = 'n8n'
         AND cs.status IN ('active','pending')
       ORDER BY FIELD(cs.status, 'active', 'pending'), cs.updated_at DESC
-      LIMIT 1`,
-    [device.user_id, device.device_id, device.tenant_id || "", systemKey]
+      LIMIT 2`,
+    [device.user_id, device.device_id, device.tenant_id, systemKey]
   );
-  if (rows[0]) {
+  if (rows.length > 1) {
     return {
-      system_id: rows[0].system_id,
-      installation_id: rows[0].installation_id || null,
-      display_name: rows[0].display_name,
-      status: rows[0].status,
-      profile: sanitizeN8nProfileConfig(rows[0].config_json, { device }),
+      system_id: null,
+      installation_id: null,
+      display_name: "Local n8n",
+      status: "ambiguous",
+      profile: defaultN8nProfile({ device }),
+      provisioned: false,
+      provisioning_required: true,
+      provisioning_reason: "ambiguous_provisioning_state",
+      mutation_performed: false,
+      secrets_included: false,
+    };
+  }
+  const [row = null] = rows;
+  if (row) {
+    return {
+      system_id: row.system_id,
+      installation_id: row.installation_id || null,
+      display_name: row.display_name,
+      status: row.status,
+      profile: sanitizeN8nProfileConfig(row.config_json, { device }),
       provisioned: true,
       provisioning_required: false,
       mutation_performed: false,
