@@ -1180,6 +1180,14 @@ assert("local connector requires fresh Local Manager authorization for privilege
       deviceLinkSource.includes("writer_authority: \"local_connector_alias_reconciliation_writer\"") &&
       deviceLinkSource.includes("writer_authority: \"local_manager_n8n_provisioning_writer\"") &&
       betaSource.includes('router.post("/local-manager/device/n8n/provision", requireLocalManagerUserRouteGuard, provisionDeviceN8n)'));
+    assert("Local Manager separated writer handoffs are atomic and lock exact provisioning scope before commit",
+      localManagerWriteSource.includes("withDedicatedWriteTransaction") &&
+      localManagerWriteSource.includes("beginTransaction") &&
+      localManagerWriteSource.includes("rollback") &&
+      localManagerWriteSource.includes("FOR UPDATE") &&
+      localManagerWriteSource.includes("transactional: true") &&
+      localManagerWriteSource.includes("LOCAL_MANAGER_N8N_SYSTEM_CARDINALITY_CONFLICT") &&
+      localManagerWriteSource.includes("LOCAL_MANAGER_ALIAS_SCOPE_CARDINALITY_CONFLICT"));
     assert("local manager linked-device tenant ownership is exact-or-both-null rather than missing-tenant wildcard",
       deviceLinkSource.includes("function sameTenantScope") &&
       (deviceLinkSource.match(/\(\(\? IS NULL AND tenant_id IS NULL\) OR tenant_id = \?\)/g) || []).length >= 5 &&
