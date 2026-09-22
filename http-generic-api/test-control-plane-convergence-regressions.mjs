@@ -26,6 +26,70 @@ const result = await fetchLocalConnectorWithCredentialFallback({
 });
 assert.equal(result.ok, true);
 assert.deepEqual(attempted, ["Bearer old", "Bearer current"]);
+assert.equal(result.credential_fallback_used, true);
+assert.equal(result.credential_attempt_count, 2);
+assert.equal(result.credential_source, "connector_local_api_key");
+assert.doesNotMatch(JSON.stringify(result), /old|current/);
+
+const response = (status, payload) => ({
+  ok: status >= 200 && status < 300,
+  status,
+  headers: { get: () => "application/json" },
+  text: async () => JSON.stringify(payload),
+});
+
+for (const nonFallbackStatus of [403, 500]) {
+  let calls = 0;
+  await assert.rejects(
+    () => fetchLocalConnectorWithCredentialFallback({
+      config: { connector_secret: "primary", connector_local_api_key: "fallback" },
+      url: "https://connector.invalid/shell",
+      fetchImpl: async () => {
+        calls += 1;
+        return response(nonFallbackStatus, { ok: false, error: { message: "rejected" } });
+      },
+    }),
+    (error) => Number(error.status) === nonFallbackStatus && error.details.credential_attempt_count === 1,
+  );
+  assert.equal(calls, 1, `${nonFallbackStatus} must not trigger credential fallback`);
+}
+
+let bothRejectedCalls = 0;
+await assert.rejects(
+  () => fetchLocalConnectorWithCredentialFallback({
+    config: { connector_secret: "primary", connector_local_api_key: "fallback" },
+    url: "https://connector.invalid/shell",
+    fetchImpl: async () => {
+      bothRejectedCalls += 1;
+      return response(401, { ok: false, error: { message: "invalid credential" } });
+    },
+  }),
+  (error) => error.code === "connector_credential_invalid" && error.details.credential_fallback_used === true && error.details.credential_attempt_count === 2,
+);
+assert.equal(bothRejectedCalls, 2);
+
+let missingCredentialCalls = 0;
+await assert.rejects(
+  () => fetchLocalConnectorWithCredentialFallback({
+    config: {},
+    url: "https://connector.invalid/shell",
+    fetchImpl: async () => { missingCredentialCalls += 1; },
+  }),
+  (error) => error.code === "connector_credential_missing",
+);
+assert.equal(missingCredentialCalls, 0);
+
+const cachedAttempts = [];
+const cachedConfig = { config_id: "cfg-cache", connector_secret: "stale", connector_local_api_key: "live" };
+const cachedFetch = async (_url, init) => {
+  cachedAttempts.push(init.headers.Authorization);
+  return init.headers.Authorization === "Bearer live"
+    ? response(200, { ok: true })
+    : response(401, { ok: false, error: { message: "invalid credential" } });
+};
+await fetchLocalConnectorWithCredentialFallback({ config: cachedConfig, url: "https://connector.invalid/shell", fetchImpl: cachedFetch });
+await fetchLocalConnectorWithCredentialFallback({ config: cachedConfig, url: "https://connector.invalid/shell", fetchImpl: cachedFetch });
+assert.deepEqual(cachedAttempts, ["Bearer stale", "Bearer live", "Bearer live"]);
 
 const columns = ["command_id", "tenant_id", "user_id", "device_id", "execution_mode", "action", "status", "priority", "requires_user_confirmation", "payload_json", "result_json", "requested_by", "request_context_json", "error_code", "error_message", "created_at", "claimed_at", "completed_at", "expires_at", "updated_at"];
 const readyPool = { query: async (sql) => {
