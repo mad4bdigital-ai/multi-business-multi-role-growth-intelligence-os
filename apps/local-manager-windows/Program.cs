@@ -1764,19 +1764,18 @@ internal static class Program
                 _status.Text = "Desktop command skipped because claim ownership proof is missing.";
                 return;
             }
-            if (JsonBool(command, "requires_user_confirmation", false) && !ConfirmDesktopCommandExecution(action))
-            {
-                await CompleteDesktopCommandAsync(client, token, commandId, claimToken, false,
-                    new { action, handled_by = "local_manager_windows", visible_desktop = true, user_confirmation = "declined", secrets_included = false },
-                    "user_confirmation_declined",
-                    "The user declined this desktop command.");
-                return;
-            }
-
             using var claimLeaseCancellation = new CancellationTokenSource();
             var claimLeaseHeartbeat = HeartbeatDesktopCommandLeaseAsync(client, token, commandId, claimToken, claimLeaseCancellation.Token);
             try
             {
+                if (JsonBool(command, "requires_user_confirmation", false) && !ConfirmDesktopCommandExecution(action))
+                {
+                    await CompleteDesktopCommandAsync(client, token, commandId, claimToken, false,
+                        new { action, handled_by = "local_manager_windows", visible_desktop = true, user_confirmation = "declined", secrets_included = false },
+                        "user_confirmation_declined",
+                        "The user declined this desktop command.");
+                    return;
+                }
                 if (string.Equals(action, "open_url", StringComparison.OrdinalIgnoreCase))
                 {
                     var url = JsonValue(payload, "url");
