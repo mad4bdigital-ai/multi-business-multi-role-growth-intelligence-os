@@ -6806,7 +6806,7 @@ paths:
         profile: local_manager
         principal: local_manager
         guard_chain: []
-        configuration_dependencies:
+        configuration_dependencies: &a2
           - JWT_SECRET
   /local-manager/device/desktop-commands:
     post:
@@ -6885,6 +6885,25 @@ paths:
         guard_chain:
           - requireLocalManagerDevice
         configuration_dependencies: []
+  /local-manager/device/n8n/provision:
+    post:
+      operationId: postLocalManagerDeviceN8nProvision8246b9af
+      summary: POST /local-manager/device/n8n/provision (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - localManagerBearerAuth: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/localManagerBetaRoutes.js
+      x-mad4b-runtime-auth:
+        profile: local_manager
+        principal: local_manager
+        guard_chain: []
+        configuration_dependencies: *a2
   /local/tools/call:
     post:
       operationId: postLocalToolsCall6941a865
