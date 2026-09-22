@@ -30,7 +30,10 @@ function summaryFor(files, context = CONTEXT) {
   try {
     for (const [name, data] of Object.entries(files)) write(root, name, data);
     return buildCiEvidenceSummary({ inputDir: root, context });
-  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(certRoot, { recursive: true, force: true });
+  }
 }
 
 {
@@ -97,11 +100,12 @@ function summaryFor(files, context = CONTEXT) {
 
 {
   const root = tempDir();
+  const certRoot = tempDir();
   try {
     write(root, "e2e-phase-evaluation.json", source("mad4b.e2e-phase-evaluation.v1", { findings: [] }));
     write(root, "e2e-phase-execution.json", source("mad4b.e2e-phase-execution.v1", { results: [] }));
-    const certPath = path.join(root, "mariadb-certification.json");
-    write(root, "mariadb-certification.json", {
+    const certPath = path.join(certRoot, "mariadb-certification.json");
+    write(certRoot, "mariadb-certification.json", {
       report_type: "local_manager_desktop_command_mariadb_certification",
       ok: true,
       mode: "disposable",
