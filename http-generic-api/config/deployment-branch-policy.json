@@ -253,6 +253,7 @@
           "http-generic-api/scripts/governed-execution-baseline-benchmark.mjs",
           "http-generic-api/scripts/hostinger-runtime-bootstrap.mjs",
           "http-generic-api/scripts/hostinger-tenant-canary-ci.mjs",
+          "http-generic-api/scripts/local-manager-desktop-command-mariadb-certification.mjs",
           "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
           "http-generic-api/scripts/maintenance-tools/configuration-drift-guard.mjs",
           "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
