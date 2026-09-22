@@ -581,8 +581,8 @@
       "requires_tables": []
     },
     "20260922_local_manager_device_link_authority.sql": {
-      "sha256": "edd26413d17ba1dffd00408f15ef9380524afcfc2a312088d3f22ca8ca486290",
-      "statement_count": 3,
+      "sha256": "e4039c5d8256d298b9606e2a6fe0c1d0f2903eecf830f26f2c00ceb93798a3e2",
+      "statement_count": 2,
       "allowed_modes": [
         "dry_run",
         "apply_migration",
