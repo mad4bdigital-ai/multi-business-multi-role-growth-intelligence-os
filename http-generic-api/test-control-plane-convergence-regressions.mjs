@@ -147,6 +147,13 @@ assert.doesNotMatch(
   "desktop identity authority failures must not collapse silently into an empty mapping",
 );
 
+const e2eGovernanceWorkflowSource = readFileSync("../.github/workflows/e2e-phase-governance.yml", "utf8");
+assert.match(e2eGovernanceWorkflowSource, /local_manager_mariadb_certification:/u);
+assert.match(e2eGovernanceWorkflowSource, /needs\.evaluate\.outputs\.feature_key == 'auth-connector-control-plane-convergence-20260922'/u);
+assert.match(e2eGovernanceWorkflowSource, /scripts\/local-manager-desktop-command-mariadb-certification\.mjs/u);
+assert.match(e2eGovernanceWorkflowSource, /mariadb:11\.4/u);
+assert.match(e2eGovernanceWorkflowSource, /privilege_denials\.every\(\(item\) => item\.denied === true\)/u);
+
 const activationRoutesSource = readFileSync("./routes/activationRoutes.js", "utf8");
 assert.match(
   activationRoutesSource,
