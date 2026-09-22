@@ -6,6 +6,7 @@ import { assertLocalManagerDesktopCommandSchema } from "../localManagerDesktopCo
 
 const ALLOWED_ACTIONS = new Set(["open_url", "open_n8n", "notify", "focus_local_manager", "repair_connector", "codex_exec_readonly", "capture_chatgpt_current_url"]);
 const ALLOWED_MODES = new Set(["desktop", "background"]);
+const SERVER_CONFIRMATION_REQUIRED_ACTIONS = new Set(["repair_connector", "codex_exec_readonly"]);
 const SENSITIVE_DESKTOP_PURPOSES = new Set(["secure_credential_intake", "secret_provisioning", "credential_rotation", "privileged_installer"]);
 const ALL_ZERO_TENANT_ID = "00000000-0000-0000-0000-000000000000";
 const DESKTOP_COMMAND_CLAIM_LEASE_SECONDS = 120;
@@ -64,6 +65,25 @@ function sanitizeCommand(row, { includeClaimProof = false } = {}) {
   return command;
 }
 
+function isLoopbackDesktopHost(hostname) {
+  const host = cleanText(hostname, 255).toLowerCase().replace(/^\[|\]$/g, "");
+  return host === "localhost"
+    || host.endsWith(".localhost")
+    || host === "127.0.0.1"
+    || host === "::1";
+}
+
+function requiresServerSideDesktopConfirmation(action, payload = {}) {
+  if (SERVER_CONFIRMATION_REQUIRED_ACTIONS.has(action)) return true;
+  if (action !== "open_url") return false;
+  try {
+    const parsed = new URL(String(payload?.url || ""));
+    return !isLoopbackDesktopHost(parsed.hostname);
+  } catch {
+    return true;
+  }
+}
+
 function normalizePayload(action, payload = {}) {
   const clean = { ...payload };
   if (action === "open_url") {
@@ -79,6 +99,12 @@ function normalizePayload(action, payload = {}) {
       const err = new Error("Only http and https URLs are allowed for desktop open_url.");
       err.status = 400;
       err.code = "unsupported_url_scheme";
+      throw err;
+    }
+    if (parsed.protocol === "http:" && !isLoopbackDesktopHost(parsed.hostname)) {
+      const err = new Error("Remote desktop open_url targets must use HTTPS.");
+      err.status = 400;
+      err.code = "remote_open_url_requires_https";
       throw err;
     }
     clean.url = parsed.toString();
@@ -451,12 +477,24 @@ export function buildLocalManagerDesktopCommandRoutes({ requireBackendApiKey, re
       const commandId = crypto.randomUUID();
       const ttlSeconds = Math.max(30, Math.min(Number(body.ttl_seconds || 300), 3600));
       const priority = Math.max(1, Math.min(Number(body.priority || 100), 1000));
-      const requiresUserConfirmation = body.requires_user_confirmation === true || body.requires_user_confirmation === 1;
+      const confirmationRequested = body.requires_user_confirmation === true || body.requires_user_confirmation === 1;
+      const confirmationServerEnforced = requiresServerSideDesktopConfirmation(action, payload);
+      const requiresUserConfirmation = confirmationRequested || confirmationServerEnforced;
+      const commandRequestContext = {
+        ...(target.request_context || {}),
+        desktop_confirmation_policy: {
+          requested_by_caller: confirmationRequested,
+          server_enforced: confirmationServerEnforced,
+          required: requiresUserConfirmation,
+          policy_version: "local_manager.desktop_confirmation.v1",
+          secrets_included: false,
+        },
+      };
       await getPool().query(
         `INSERT INTO \`local_manager_desktop_commands\`
           (command_id, tenant_id, user_id, device_id, execution_mode, action, status, priority, requires_user_confirmation, payload_json, requested_by, request_context_json, expires_at)
          VALUES (?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND))`,
-        [commandId, target.tenant_id, target.user_id, target.device_id, executionMode, action, priority, requiresUserConfirmation ? 1 : 0, jsonString(payload), cleanText(body.requested_by || "gpt", 128), jsonString(target.request_context || {}), ttlSeconds]
+        [commandId, target.tenant_id, target.user_id, target.device_id, executionMode, action, priority, requiresUserConfirmation ? 1 : 0, jsonString(payload), cleanText(body.requested_by || "gpt", 128), jsonString(commandRequestContext), ttlSeconds]
       );
       return res.status(201).json({
         ok: true,
@@ -466,6 +504,8 @@ export function buildLocalManagerDesktopCommandRoutes({ requireBackendApiKey, re
           action,
           status: "queued",
           expires_in: ttlSeconds,
+          requires_user_confirmation: requiresUserConfirmation,
+          confirmation_server_enforced: confirmationServerEnforced,
           target: {
             user_id: target.user_id,
             tenant_id: target.tenant_id,
