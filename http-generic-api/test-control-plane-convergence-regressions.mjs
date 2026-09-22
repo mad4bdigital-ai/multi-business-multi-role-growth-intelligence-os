@@ -128,7 +128,13 @@ assert.match(routeSource, /assertLocalManagerDesktopCommandSchema/);
 assert.match(routeSource, /claim_token = \?/u);
 assert.match(routeSource, /claim_lease_expires_at = DATE_ADD\(NOW\(\), INTERVAL \? SECOND\)/u);
 assert.match(routeSource, /ORDER BY priority ASC, created_at ASC\s+LIMIT \?/u);
+assert.match(routeSource, /router\.post\("\/local-manager\/device\/desktop-commands\/claim"/u);
+assert.doesNotMatch(routeSource, /router\.get\("\/local-manager\/device\/desktop-commands\/pending"/u);
 assert.match(routeSource, /\/heartbeat/u);
+assert.match(routeSource, /desktop_command_enqueue_readback_failed/u);
+assert.match(routeSource, /desktop_command_heartbeat_readback_failed/u);
+assert.match(routeSource, /desktop_command_complete_readback_failed/u);
+assert.match(routeSource, /reconcileDesktopCommandClaimsForDevice/u);
 assert.match(routeSource, /AND status = 'claimed'\s+AND claim_token = \?\s+AND claim_lease_expires_at > NOW\(\)/u);
 assert.match(routeSource, /desktop_command_claim_not_owned/u);
 assert.doesNotMatch(routeSource, /rows\.map\(\(row\) => sanitizeCommand\(\{ \.\.\.row, status: "claimed"/u);
@@ -146,7 +152,7 @@ const desktopHeartbeatPolicy = frontendSurfacePolicy.operation_rules.find(
   (rule) => rule.operation === "POST /local-manager/device/desktop-commands/{commandId}/heartbeat",
 );
 assert.ok(desktopHeartbeatPolicy, "desktop heartbeat must have explicit frontend governance");
-assert.equal(desktopHeartbeatPolicy.classification, "disabled");
+assert.equal(desktopHeartbeatPolicy.classification, "state_change");
 assert.equal(desktopHeartbeatPolicy.owner, "local-manager");
 
 const activationSurface = JSON.parse(readFileSync("./activation-surfaces/local_manager_desktop_commands.json", "utf8"));
