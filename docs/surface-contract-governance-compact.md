@@ -1,9 +1,9 @@
 # Surface Contract Governance Compact
 
 - Gate: fail
-- Blocking new items: 7
+- Blocking new items: 8
 - Docs completion: 470/480 (97.92%)
-- Queue items: 10
+- Queue items: 11
 - OpenAPI missing SQL routes: 2
 - OpenAPI-exempt SQL route-like literals: 676/710
 - Safety marker gap migrations: 3
