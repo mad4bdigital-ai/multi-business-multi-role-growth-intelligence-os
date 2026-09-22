@@ -141,6 +141,14 @@ assert.doesNotMatch(denied.message, /secret-user/);
 
 console.log("control plane convergence regression tests passed");
 
+const frontendSurfacePolicy = JSON.parse(readFileSync("./frontend-surface-policy.json", "utf8"));
+const desktopHeartbeatPolicy = frontendSurfacePolicy.operation_rules.find(
+  (rule) => rule.operation === "POST /local-manager/device/desktop-commands/{commandId}/heartbeat",
+);
+assert.ok(desktopHeartbeatPolicy, "desktop heartbeat must have explicit frontend governance");
+assert.equal(desktopHeartbeatPolicy.classification, "disabled");
+assert.equal(desktopHeartbeatPolicy.owner, "local-manager");
+
 const activationSurface = JSON.parse(readFileSync("./activation-surfaces/local_manager_desktop_commands.json", "utf8"));
 assert.deepEqual(
   activationSurface.active_status_values,
