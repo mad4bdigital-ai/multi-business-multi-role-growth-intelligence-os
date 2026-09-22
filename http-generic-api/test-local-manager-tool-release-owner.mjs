@@ -170,6 +170,12 @@ assert(localManagerWindows.includes('_desktopCommandPollBackoffUntil'), 'Windows
 assert(localManagerWindows.includes('Desktop command polling paused'), 'Windows app must show paused polling instead of noisy repeated failures');
 assert(localManagerWindows.includes('AutopilotNetworkRecovery.ClassifyHttp'), 'Windows app must classify polling HTTP failures');
 assert(localManagerWindows.includes('AutopilotNetworkRecovery.ClassifyAsync'), 'Windows app must classify DNS and transport failures');
+assert(localManagerWindows.includes('failure.Code'), 'Windows app must surface structured backend error codes');
+assert(localManagerWindows.includes('failure.RequestId'), 'Windows app must surface requestId without copying raw bodies');
+assert(localManagerWindows.includes('failure.Retryable'), 'Windows app must surface backend retryable metadata');
+assert(localManagerWindows.includes('failure.Surface'), 'Windows app must surface backend surface metadata');
+assert(localManagerWindows.includes('retry_after = serverRetryAfterSeconds'), 'Windows app must expose bounded retry_after metadata');
+assert(localManagerWindows.includes('token_plaintext_shown = false'), 'structured polling diagnostics must remain secret-safe');
 assert(localManagerWindows.includes('RunStartupAutopilotAsync'), 'Windows app must run recovery autopilot after startup and device linking');
 assert(localManagerWindows.includes('LocalConnectorFootprint.AssessAsync'), 'Windows app must inspect local connector services before recovery');
 assert(localManagerWindows.includes('WindowsAppRegistration.TryHandleCommandLine'), 'Windows app must support governed uninstall command handling');
