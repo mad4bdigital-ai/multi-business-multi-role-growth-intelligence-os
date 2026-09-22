@@ -7,6 +7,7 @@ import {
   listLinkedDevices,
   pollDeviceLinkSession,
   previewDeviceLinkSession,
+  revokeDeviceLinkSession,
   startDeviceLinkSession,
 } from "../services/localManagerDeviceLinkService.js";
 
@@ -593,6 +594,15 @@ async function completeAuth(token, user){
   const code = normalizeCode($('deviceCode').value);
   if(code) await approveDevice(); else setOut({ok:true,next:'Enter the pairing code, then approve this device.'});
 }
+async function revokeDevice(sessionId){
+  const token=getToken();
+  if(!token || !sessionId) return;
+  if(!window.confirm('Forget this device? Its existing device token will stop working immediately.')) return;
+  const res=await fetch('/local-manager/device-link/devices/'+encodeURIComponent(sessionId)+'/revoke',{method:'POST',headers:{authorization:'Bearer '+token,accept:'application/json'}});
+  const data=await res.json();
+  if(!res.ok || !data.ok){ renderDevices(data); return; }
+  await loadDevices();
+}
 function setupGoogle(){
   if(!GOOGLE_CLIENT_ID){ $('googleHint').style.display='block'; return; }
   if(!window.google?.accounts?.id) return window.setTimeout(setupGoogle, 250);
@@ -729,7 +739,7 @@ const $ = (id) => document.getElementById(id);
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 function setToken(token, user){ sessionStorage.setItem('mlm_user_token', token); sessionStorage.setItem('mlm_user', JSON.stringify(user || {})); try { localStorage.setItem('mlm_user_token', token); localStorage.setItem('mlm_user', JSON.stringify(user || {})); } catch {} $('authState').textContent = 'Signed in as '+(user?.email || user?.user_id || 'user'); }
 function getToken(){ return sessionStorage.getItem('mlm_user_token') || localStorage.getItem('mlm_user_token') || ''; }
-function renderDevices(data){ if(!data.ok){ $('devices').innerHTML='<pre>'+esc(JSON.stringify(data,null,2))+'</pre>'; return; } const rows=data.devices||[]; if(!rows.length){ $('devices').innerHTML='<p>No linked devices yet.</p>'; return; } $('devices').innerHTML='<table><thead><tr><th>device</th><th>status</th><th>platform</th><th>approved</th><th>completed</th></tr></thead><tbody>'+rows.map(d=>'<tr><td>'+esc(d.device_id)+'<br><small>'+esc(d.hostname||'')+'</small></td><td>'+esc(d.status)+'</td><td>'+esc(d.platform||'')+'</td><td>'+esc(d.approved_at||'')+'</td><td>'+esc(d.completed_at||'')+'</td></tr>').join('')+'</tbody></table>'; }
+function renderDevices(data){ if(!data.ok){ $('devices').innerHTML='<pre>'+esc(JSON.stringify(data,null,2))+'</pre>'; return; } const rows=data.devices||[]; if(!rows.length){ $('devices').innerHTML='<p>No linked devices yet.</p>'; return; } $('devices').innerHTML='<table><thead><tr><th>device</th><th>status</th><th>platform</th><th>approved</th><th>completed</th><th>action</th></tr></thead><tbody>'+rows.map(d=>'<tr><td>'+esc(d.device_id)+'<br><small>'+esc(d.hostname||'')+'</small></td><td>'+esc(d.status)+'</td><td>'+esc(d.platform||'')+'</td><td>'+esc(d.approved_at||'')+'</td><td>'+esc(d.completed_at||'')+'</td><td>'+(d.status==='revoked'?'revoked':'<button class="secondary" data-revoke-session="'+esc(d.session_id)+'">Forget device</button>')+'</td></tr>').join('')+'</tbody></table>'; document.querySelectorAll('[data-revoke-session]').forEach(btn=>{ btn.onclick=()=>revokeDevice(btn.getAttribute('data-revoke-session')); }); }
 async function loadDevices(){
   const token=getToken();
   if(!token){ renderDevices({ok:false,error:{code:'not_signed_in',message:'Sign in first or return from the link-device approval page.'}}); return; }
@@ -1081,6 +1091,7 @@ export function buildLocalManagerBetaRoutes(deps) {
   router.post("/local-manager/device-link/poll", pollDeviceLinkSession);
   router.post("/local-manager/device-link/approve", approveDeviceLinkSession);
   router.get("/local-manager/device-link/devices", listLinkedDevices);
+  router.post("/local-manager/device-link/devices/:sessionId/revoke", revokeDeviceLinkSession);
   router.get("/local-manager/device/session", getDeviceSession);
   router.get("/local-manager/device/controls", getDeviceControls);
 
