@@ -8,6 +8,7 @@ const ALLOWED_ACTIONS = new Set(["open_url", "open_n8n", "notify", "focus_local_
 const ALLOWED_MODES = new Set(["desktop", "background"]);
 const SENSITIVE_DESKTOP_PURPOSES = new Set(["secure_credential_intake", "secret_provisioning", "credential_rotation", "privileged_installer"]);
 const ALL_ZERO_TENANT_ID = "00000000-0000-0000-0000-000000000000";
+const DESKTOP_COMMAND_CLAIM_LEASE_SECONDS = 120;
 
 function isWildcardTenantId(value) {
   const tenantId = cleanText(value, 64);
@@ -32,9 +33,9 @@ function parseJson(value) {
   try { return JSON.parse(value); } catch { return null; }
 }
 
-function sanitizeCommand(row) {
+function sanitizeCommand(row, { includeClaimProof = false } = {}) {
   if (!row) return null;
-  return {
+  const command = {
     command_id: row.command_id,
     tenant_id: row.tenant_id,
     user_id: row.user_id,
@@ -56,6 +57,11 @@ function sanitizeCommand(row) {
     expires_at: row.expires_at ? new Date(row.expires_at).toISOString() : null,
     secrets_included: false,
   };
+  if (includeClaimProof) {
+    command.claim_token = row.claim_token || null;
+    command.claim_lease_expires_at = row.claim_lease_expires_at ? new Date(row.claim_lease_expires_at).toISOString() : null;
+  }
+  return command;
 }
 
 function normalizePayload(action, payload = {}) {
@@ -161,10 +167,41 @@ function desktopIdentityAuthorityError(error, table) {
 }
 
 async function expireOldCommands() {
-  await getPool().query(
+  const pool = getPool();
+  await pool.query(
     `UPDATE \`local_manager_desktop_commands\`
-        SET status = 'expired', error_code = 'command_expired', error_message = 'Command expired before completion.'
-      WHERE status IN ('queued','claimed') AND expires_at IS NOT NULL AND expires_at < NOW()`
+        SET status = 'expired',
+            error_code = 'command_expired',
+            error_message = 'Command expired before claim.',
+            claim_token = NULL,
+            claim_lease_expires_at = NULL
+      WHERE status = 'queued'
+        AND expires_at IS NOT NULL
+        AND expires_at < NOW()`
+  );
+  await pool.query(
+    `UPDATE \`local_manager_desktop_commands\`
+        SET status = 'expired',
+            error_code = 'command_expired',
+            error_message = 'Command claim lease expired after enqueue TTL elapsed.',
+            claim_token = NULL,
+            claim_lease_expires_at = NULL
+      WHERE status = 'claimed'
+        AND (claim_lease_expires_at IS NULL OR claim_lease_expires_at < NOW())
+        AND expires_at IS NOT NULL
+        AND expires_at < NOW()`
+  );
+  await pool.query(
+    `UPDATE \`local_manager_desktop_commands\`
+        SET status = 'queued',
+            claimed_at = NULL,
+            claim_token = NULL,
+            claim_lease_expires_at = NULL,
+            error_code = NULL,
+            error_message = NULL
+      WHERE status = 'claimed'
+        AND (claim_lease_expires_at IS NULL OR claim_lease_expires_at < NOW())
+        AND (expires_at IS NULL OR expires_at >= NOW())`
   );
 }
 
@@ -451,27 +488,72 @@ export function buildLocalManagerDesktopCommandRoutes({ requireBackendApiKey, re
       const limit = Math.max(1, Math.min(Number(req.query.limit || 5), 20));
       const deviceIds = await resolveDesktopCommandDeviceIds(device);
       const devicePlaceholders = deviceIds.map(() => "?").join(", ");
-      const [rows] = await getPool().query(
-        `SELECT * FROM \`local_manager_desktop_commands\`
+      const claimToken = crypto.randomUUID();
+      const [claimResult] = await getPool().query(
+        `UPDATE \`local_manager_desktop_commands\`
+            SET status = 'claimed',
+                claimed_at = NOW(),
+                claim_token = ?,
+                claim_lease_expires_at = DATE_ADD(NOW(), INTERVAL ? SECOND)
           WHERE user_id = ?
             AND device_id IN (${devicePlaceholders})
             AND (? IS NULL OR tenant_id = ? OR tenant_id IS NULL OR tenant_id = ?)
             AND execution_mode = 'desktop'
             AND status = 'queued'
+            AND (expires_at IS NULL OR expires_at >= NOW())
           ORDER BY priority ASC, created_at ASC
           LIMIT ?`,
-        [device.user_id, ...deviceIds, device.tenant_id, device.tenant_id, ALL_ZERO_TENANT_ID, limit]
+        [claimToken, DESKTOP_COMMAND_CLAIM_LEASE_SECONDS, device.user_id, ...deviceIds, device.tenant_id, device.tenant_id, ALL_ZERO_TENANT_ID, limit]
       );
-      const ids = rows.map((row) => row.command_id);
-      if (ids.length) {
-        await getPool().query(
-          `UPDATE \`local_manager_desktop_commands\` SET status = 'claimed', claimed_at = NOW() WHERE command_id IN (${ids.map(() => "?").join(",")}) AND status = 'queued'`,
-          ids
+      let rows = [];
+      if (Number(claimResult?.affectedRows || 0) > 0) {
+        [rows] = await getPool().query(
+          `SELECT * FROM \`local_manager_desktop_commands\`
+            WHERE claim_token = ?
+              AND status = 'claimed'
+            ORDER BY priority ASC, created_at ASC`,
+          [claimToken]
         );
       }
-      return res.status(200).json({ ok: true, commands: rows.map((row) => sanitizeCommand({ ...row, status: "claimed", claimed_at: row.claimed_at || new Date() })), secrets_included: false });
+      return res.status(200).json({
+        ok: true,
+        commands: rows.map((row) => sanitizeCommand(row, { includeClaimProof: true })),
+        claim_lease_seconds: DESKTOP_COMMAND_CLAIM_LEASE_SECONDS,
+        secrets_included: false
+      });
     } catch (err) {
       return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "desktop_command_poll_failed", message: err.message, details: err.details || undefined }, secrets_included: false });
+    }
+  });
+
+  router.post("/local-manager/device/desktop-commands/:commandId/heartbeat", async (req, res) => {
+    try {
+      await ensureDesktopCommandTable();
+      const device = await requireLocalManagerDevice(req);
+      const commandId = cleanText(req.params.commandId, 64);
+      const claimToken = cleanText(req.body?.claim_token, 64);
+      if (!claimToken) return res.status(400).json({ ok: false, error: { code: "desktop_command_claim_token_required", message: "Claim token is required." }, secrets_included: false });
+      const deviceIds = await resolveDesktopCommandDeviceIds(device);
+      const devicePlaceholders = deviceIds.map(() => "?").join(", ");
+      const [heartbeatResult] = await getPool().query(
+        `UPDATE \`local_manager_desktop_commands\`
+            SET claim_lease_expires_at = DATE_ADD(NOW(), INTERVAL ? SECOND)
+          WHERE command_id = ?
+            AND user_id = ?
+            AND device_id IN (${devicePlaceholders})
+            AND (? IS NULL OR tenant_id = ? OR tenant_id IS NULL OR tenant_id = ?)
+            AND status = 'claimed'
+            AND claim_token = ?
+            AND claim_lease_expires_at > NOW()
+          LIMIT 1`,
+        [DESKTOP_COMMAND_CLAIM_LEASE_SECONDS, commandId, device.user_id, ...deviceIds, device.tenant_id, device.tenant_id, ALL_ZERO_TENANT_ID, claimToken]
+      );
+      if (!Number(heartbeatResult?.affectedRows || 0)) {
+        return res.status(409).json({ ok: false, error: { code: "desktop_command_claim_not_owned", message: "Command claim is missing, expired, or owned by another poller." }, secrets_included: false });
+      }
+      return res.status(200).json({ ok: true, command_id: commandId, lease_seconds: DESKTOP_COMMAND_CLAIM_LEASE_SECONDS, secrets_included: false });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "desktop_command_heartbeat_failed", message: err.message }, secrets_included: false });
     }
   });
 
@@ -482,20 +564,31 @@ export function buildLocalManagerDesktopCommandRoutes({ requireBackendApiKey, re
       const commandId = cleanText(req.params.commandId, 64);
       const status = cleanText(req.body?.status || "completed", 24);
       const finalStatus = status === "completed" ? "completed" : "failed";
+      const claimToken = cleanText(req.body?.claim_token, 64);
+      if (!claimToken) return res.status(400).json({ ok: false, error: { code: "desktop_command_claim_token_required", message: "Claim token is required." }, secrets_included: false });
       const result = { ...(req.body?.result || {}), secrets_included: false };
       const deviceIds = await resolveDesktopCommandDeviceIds(device);
       const devicePlaceholders = deviceIds.map(() => "?").join(", ");
       const [resultRows] = await getPool().query(
         `UPDATE \`local_manager_desktop_commands\`
-            SET status = ?, result_json = ?, error_code = ?, error_message = ?, completed_at = NOW()
+            SET status = ?,
+                result_json = ?,
+                error_code = ?,
+                error_message = ?,
+                completed_at = NOW(),
+                claim_token = NULL,
+                claim_lease_expires_at = NULL
           WHERE command_id = ?
             AND user_id = ?
             AND device_id IN (${devicePlaceholders})
             AND (? IS NULL OR tenant_id = ? OR tenant_id IS NULL OR tenant_id = ?)
+            AND status = 'claimed'
+            AND claim_token = ?
+            AND claim_lease_expires_at > NOW()
           LIMIT 1`,
-        [finalStatus, jsonString(result), cleanText(req.body?.error_code, 96) || null, cleanText(req.body?.error_message, 1000) || null, commandId, device.user_id, ...deviceIds, device.tenant_id, device.tenant_id, ALL_ZERO_TENANT_ID]
+        [finalStatus, jsonString(result), cleanText(req.body?.error_code, 96) || null, cleanText(req.body?.error_message, 1000) || null, commandId, device.user_id, ...deviceIds, device.tenant_id, device.tenant_id, ALL_ZERO_TENANT_ID, claimToken]
       );
-      if (!Number(resultRows?.affectedRows || 0)) return res.status(404).json({ ok: false, error: { code: "desktop_command_not_found", message: "Command was not found for this device." }, secrets_included: false });
+      if (!Number(resultRows?.affectedRows || 0)) return res.status(409).json({ ok: false, error: { code: "desktop_command_claim_not_owned", message: "Command is not actively claimed by this poller or is already terminal." }, secrets_included: false });
       return res.status(200).json({ ok: true, command_id: commandId, status: finalStatus, secrets_included: false });
     } catch (err) {
       return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "desktop_command_complete_failed", message: err.message }, secrets_included: false });
