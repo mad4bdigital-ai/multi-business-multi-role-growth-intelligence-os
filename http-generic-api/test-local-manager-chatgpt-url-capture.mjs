@@ -27,6 +27,16 @@ assert.ok(program.includes('cookies_included = false'));
 assert.ok(program.includes('secrets_included = false'));
 assert.ok(program.includes('/share/'));
 assert.ok(program.includes('/c/'));
+assert.ok(program.includes('JsonBool(command, "requires_user_confirmation", false)'));
+assert.ok(program.includes('MessageBoxButtons.YesNo'));
+assert.ok(program.includes('MessageBoxDefaultButton.Button2'));
+assert.ok(program.includes('claim_token'));
+assert.ok(program.includes('/heartbeat'));
+assert.ok(program.includes('string.Equals(uri.Scheme, "https", StringComparison.OrdinalIgnoreCase)'));
+assert.ok(program.includes('string.Equals(host, "chatgpt.com", StringComparison.OrdinalIgnoreCase)'));
+assert.ok(program.includes('host.EndsWith(".chatgpt.com", StringComparison.OrdinalIgnoreCase)'));
+assert.doesNotMatch(program, /uri\.Host\.EndsWith\("chatgpt\.com"/);
+assert.doesNotMatch(program, /uri\.Scheme[\s\S]{0,160}"http"/);
 
 assert.ok(migration.includes('capture_chatgpt_current_url'));
 assert.ok(migration.includes('local_manager_desktop_command_enqueue'));
