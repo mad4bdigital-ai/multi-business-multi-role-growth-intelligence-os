@@ -61,9 +61,14 @@ assert.deepEqual(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_tables, [
   "execution_log",
   "json_assets",
   "local_manager_desktop_commands",
+  "local_manager_device_link_sessions",
 ]);
 assert.deepEqual(
   STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.local_manager_desktop_commands,
+  ["SELECT", "INSERT", "UPDATE"],
+);
+assert.deepEqual(
+  STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.local_manager_device_link_sessions,
   ["SELECT", "INSERT", "UPDATE"],
 );
 assert.deepEqual(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_operations, ["SELECT", "INSERT", "UPDATE"]);
@@ -249,7 +254,7 @@ assert.equal(roleManifest.validation.required_role_count, 3);
 assert.equal(roleManifest.validation.missing_required_table_is_blocking, true);
 assert.equal(roleManifest.validation.unexpected_governance_or_persistence_table_is_blocking, true);
 assert.equal(roleManifest.validation.runtime_exclusion_violation_is_blocking, true);
-for (const requiredDesktopSurface of ["local_manager_desktop_commands", "local_connector_device_aliases", "local_connector_user_configs"]) {
+for (const requiredDesktopSurface of ["local_manager_desktop_commands", "local_manager_device_link_sessions", "local_connector_device_aliases", "local_connector_user_configs"]) {
   assert.equal(roleManifest.roles.runtime.required_tables.includes(requiredDesktopSurface), true);
   assert.equal(roleManifest.validation.required_runtime_support_tables.includes(requiredDesktopSurface), true);
 }
