@@ -1063,7 +1063,16 @@ assert.equal(generatedGapOperations.filter((operation) => ["state_change", "exte
 const governedMutations = operations.filter((operation) => ["state_change", "external_effect"].includes(operation.governance?.classification));
 assert.ok(governedMutations.every((operation) => operation.governance?.governed === true), "every mutation operation must be fully governed");
 assert.ok(governedMutations.every((operation) => ["preflight", "approval", "readback", "rollback"].every((key) => operation.governance?.controls?.[key]?.mode)), "every mutation operation must expose all four control modes");
-assert.equal(governedMutations.length, 27, "the governed mutation set includes bounded Recovery controls, Gateway preflight, one-time installer redemption, WordPress Staging exact-artifact deployment, and three Managed Google OAuth protocol effects");
+assert.equal(governedMutations.length, 30, "the governed mutation set includes bounded Recovery controls, Gateway preflight, one-time installer redemption, WordPress Staging exact-artifact deployment, three Managed Google OAuth protocol effects, and the three device-link lifecycle mutations");
+for (const signature of [
+  "POST /local-manager/device-link/start",
+  "POST /local-manager/device-link/approve",
+  "POST /local-manager/device-link/poll",
+]) {
+  const operation = governedMutations.find((candidate) => candidate.signature === signature);
+  assert.ok(operation, `${signature} must be explicitly governed`);
+  assert.equal(operation.governance?.classification, "state_change", `${signature} must remain a state change`);
+}
 const wordpressStagingDeploy = governedMutations.find((operation) => operation.signature === "POST /platform/remote-runtime/wordpress/staging/deploy-plugin");
 assert.ok(wordpressStagingDeploy, "WordPress Staging exact-artifact deploy must remain explicitly governed as an external effect");
 assert.equal(wordpressStagingDeploy.governance?.classification, "external_effect", "WordPress Staging deploy must retain its externally consequential classification");
