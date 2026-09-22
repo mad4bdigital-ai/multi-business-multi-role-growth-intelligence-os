@@ -1657,8 +1657,7 @@ internal static class Program
                     {
                         var failure = AutopilotNetworkRecovery.ClassifyHttp(response.StatusCode, text);
                         RegisterDesktopCommandPollFailure(
-                            failure.Message,
-                            failure.Diagnostic,
+                            failure,
                             response.StatusCode == System.Net.HttpStatusCode.TooManyRequests ? RetryAfterSeconds(response, 120) : null);
                     }
                     return;
@@ -1672,14 +1671,34 @@ internal static class Program
             catch (Exception ex)
             {
                 var failure = await AutopilotNetworkRecovery.ClassifyAsync(BaseUrl, ex);
-                RegisterDesktopCommandPollFailure(failure.Message, failure.Diagnostic);
+                RegisterDesktopCommandPollFailure(failure);
             }
             finally
             {
                 _desktopCommandPollRunning = false;
             }
         }
-        private void RegisterDesktopCommandPollFailure(string message, string? diagnostic = null, int? serverRetryAfterSeconds = null)
+        private void RegisterDesktopCommandPollFailure(AutopilotFailure failure, int? headerRetryAfterSeconds = null)
+        {
+            var effectiveRetryAfter = failure.RetryAfterSeconds ?? headerRetryAfterSeconds;
+            RegisterDesktopCommandPollFailure(
+                failure.Message,
+                failure.Diagnostic,
+                effectiveRetryAfter,
+                failure.Code,
+                failure.RequestId,
+                failure.Retryable,
+                failure.Surface);
+        }
+
+        private void RegisterDesktopCommandPollFailure(
+            string message,
+            string? diagnostic = null,
+            int? serverRetryAfterSeconds = null,
+            string? errorCode = null,
+            string? requestId = null,
+            bool? retryable = null,
+            string? surface = null)
         {
             _desktopCommandPollFailureCount += 1;
             var localBackoffSeconds = _desktopCommandPollFailureCount switch
@@ -1706,6 +1725,14 @@ internal static class Program
                     backoff_seconds = backoffSeconds,
                     message,
                     diagnostic,
+                    error = new
+                    {
+                        code = errorCode,
+                        requestId,
+                        retryable,
+                        retry_after = serverRetryAfterSeconds,
+                        surface
+                    },
                     token_plaintext_shown = false,
                     secrets_included = false
                 }, _json);
