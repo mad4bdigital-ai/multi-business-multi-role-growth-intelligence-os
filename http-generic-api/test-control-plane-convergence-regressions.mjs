@@ -147,6 +147,12 @@ assert.doesNotMatch(
   "desktop identity authority failures must not collapse silently into an empty mapping",
 );
 
+const authConnectorControlPlaneDeclaration = ".changes/e2e/auth-connector-control-plane-convergence-20260922.json";
+const repositoryGovernanceConstitution = JSON.parse(readFileSync("./config/repository-governance-constitution.json", "utf8"));
+const derivedStateGovernance = JSON.parse(readFileSync("../.github/derived-state-governance.json", "utf8"));
+assert.ok(repositoryGovernanceConstitution.control_plane_paths.includes(authConnectorControlPlaneDeclaration));
+assert.ok(derivedStateGovernance.convergence.automation_control_paths.includes(authConnectorControlPlaneDeclaration));
+
 const e2eGovernanceWorkflowSource = readFileSync("../.github/workflows/e2e-phase-governance.yml", "utf8");
 assert.match(e2eGovernanceWorkflowSource, /local_manager_mariadb_certification:/u);
 assert.match(e2eGovernanceWorkflowSource, /local_manager_mariadb_required:/u);
