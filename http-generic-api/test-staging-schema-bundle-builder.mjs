@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 30526)
-Total output lines: 1701
-
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -894,7 +891,36 @@ test("all SHA2 ordinary-column bridges preserve source keys and exact trigger co
     assert.equal(rule.trigger_names.length, 2);
     assert.deepEqual(rule.trigger_events, ["INSERT", "UPDATE"]);
     rule.trigger_names.forEach((triggerName, index) => {
-      const triggerStatement = statements.find…526 tokens truncated… growthInsert = growthSource.match(/INSERT\s+INTO\s+growth_control_config_versions[\s\S]*?VALUES[\s\S]*?\)/iu)?.[0] || "";
+      const triggerStatement = statements.find((statement) => new RegExp("^\\s*CREATE\\s+OR\\s+REPLACE\\s+TRIGGER\\s+`?" + escape(triggerName) + "`?\\b", "iu").test(statement));
+      assert.ok(triggerStatement, `${rule.bridge_file} must declare ${triggerName}`);
+      assert.match(triggerStatement, new RegExp("\\bBEFORE\\s+" + rule.trigger_events[index] + "\\s+ON\\s+`?" + escape(rule.table) + "`?\\b", "iu"));
+      const assignment = triggerStatement.match(/SET\s+NEW\.\s*`?[^`\s]+`?\s*=\s*([\s\S]*)$/iu);
+      assert.ok(assignment, `${triggerName} must assign its declared NEW column`);
+      assert.equal(normalizeSql(assignment[1]), normalizeSql(rule.replacement_expression), `${triggerName} expression must match policy exactly`);
+    });
+  }
+});
+
+test("required SHA2 default bridges cover audited omitted-column writers", () => {
+  const migrationsDir = path.join(apiRoot, "migrations");
+  const defaultFiles = [
+    "096_zzzzzz_mariadb_sha2_required_insert_default_local_connector_device_routes.sql",
+    "20260718_zzzzzz_mariadb_sha2_required_insert_default_growth_control_config_versions.sql",
+    "20260802_01_zzzzzz_mariadb_sha2_required_insert_default_storage_execution_leases.sql",
+    "20260814_zzzzzz_mariadb_sha2_required_insert_default_act_as_user_sessions.sql",
+  ];
+  for (const file of defaultFiles) {
+    const sql = stripSqlComments(fs.readFileSync(path.join(migrationsDir, file), "utf8"));
+    assert.match(sql, /^\s*ALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?/iu);
+    assert.doesNotMatch(sql, /(?:^|;)\s*(?:INSERT|REPLACE|UPDATE|DELETE|LOAD\s+DATA)\b/imu);
+  }
+  const localStatements = splitStatements(fs.readFileSync(path.join(migrationsDir, "098_sprint62i_local_connector_device_routes.sql"), "utf8"));
+  const localInserts = localStatements.filter((statement) => /^\s*INSERT\s+INTO\s+`?local_connector_device_routes`?/iu.test(statement));
+  assert.equal(localInserts.length, 2);
+  for (const statement of localInserts) assert.doesNotMatch(statement, /endpoint_url_sha256/i);
+
+  const growthSource = fs.readFileSync(path.join(apiRoot, "src/infrastructure/growthControlPlane/growthControlPlaneRepository.js"), "utf8");
+  const growthInsert = growthSource.match(/INSERT\s+INTO\s+growth_control_config_versions[\s\S]*?VALUES[\s\S]*?\)/iu)?.[0] || "";
   assert.ok(growthInsert, "growth repository INSERT must remain discoverable for omission protection");
   assert.doesNotMatch(growthInsert, /scope_key_hash/i);
 
