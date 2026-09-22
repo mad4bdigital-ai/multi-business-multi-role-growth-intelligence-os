@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "779115bca27ae1c6003553ea71df71048abb48fb71d50eb94a8cee5b8d22edbb",
+    "source_digest": "e67ef948426dcc4bff22a7e1492e8609572b77867fce3b795cfde093f9d06997",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -16,7 +16,7 @@
       },
       {
         "file": "frontend-surface-policy.json",
-        "sha256": "bf0c52b80d7e2214af497563e0530114d9de41a2f6aa913f3133301b961e488b",
+        "sha256": "49459338670a1c19147f133bcf776bcb8850e70123494a54e496b424d0710ce9",
         "present": true
       },
       {
@@ -1219,7 +1219,7 @@
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
     "non_get_candidate_count": 653,
-    "unresolved_operation_class_count": 1,
+    "unresolved_operation_class_count": 0,
     "classified_mutation_count": 27,
     "governed_mutation_operation_count": 27,
     "embedded_ui_family_count": 7,
@@ -1228,9 +1228,9 @@
     "untested_family_count": 0,
     "test_owned_operation_count": 1075,
     "untested_operation_count": 0,
-    "ready_task_count": 175,
-    "blocked_task_count": 1,
-    "coverage_complete": false
+    "ready_task_count": 176,
+    "blocked_task_count": 0,
+    "coverage_complete": true
   },
   "waves": [
     {
@@ -7842,15 +7842,23 @@
             "test-frontend-surface-coverage-claims.mjs"
           ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "disabled",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-gap-post-local-manager-device-desktop-commands-commandid-heartbeat-routes-localmanagerdesktopcommandroutes-js",
+            "owner": "local-manager",
+            "rationale": "Explicit fail-closed classification for the Local Manager claim-lease heartbeat. The route is local-device lifecycle plumbing and is not frontend-dispatch authority; it remains disabled from frontend mutation surfaces while runtime ownership is enforced by localManagerBearerAuth, claim_token, and an unexpired claim lease.",
+            "evidence_refs": [
+              "frontend-surface-dispatch.generated.json",
+              "openapi.yaml",
+              "routes/localManagerDesktopCommandRoutes.js",
+              "test-control-plane-convergence-regressions.mjs",
+              "test-frontend-surface-coverage-claims.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -7976,14 +7984,7 @@
           "specs/010-unified-platform-frontend/plan.md"
         ]
       },
-      "operation_blockers": [
-        {
-          "signature": "POST /local-manager/device/desktop-commands/{commandId}/heartbeat",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        }
-      ],
+      "operation_blockers": [],
       "risk": {
         "score": 7,
         "class": "high"
@@ -99460,10 +99461,8 @@
       "task_key": "frontend.local-manager-desktop-command.local_device",
       "title": "Resolve and deliver local manager desktop command (local_device)",
       "wave": "F4-local-manager",
-      "state": "blocked",
-      "blockers": [
-        "operation_classification_gap"
-      ],
+      "state": "ready",
+      "blockers": [],
       "dependencies": [
         "F0-source-baseline",
         "F1-tenant-workspace-context",

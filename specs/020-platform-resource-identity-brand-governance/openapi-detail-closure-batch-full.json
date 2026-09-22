@@ -6,7 +6,7 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_artifact_sha256": "b7f58ccd341706ae6c7f9eced40bcf7da5efd0d361a20a1bc10de8a8c793b180",
+    "dispatch_artifact_sha256": "860c869b8998662f788a65ff8dc8285dd81d84ed2dde6d20e12efd80c5079dee",
     "family_count": 176,
     "detail_family_count": 75,
     "dispatch_operation_count": 1075
@@ -468,10 +468,15 @@
       "delivery_kind": "api",
       "openapi_contract_level": "operation-index-only",
       "auth_parity": "equivalent",
-      "governance_classification": "unresolved",
-      "governance_rule_id": null,
+      "governance_classification": "disabled",
+      "governance_rule_id": "generated-gap-post-local-manager-device-desktop-commands-commandid-heartbeat-routes-localmanagerdesktopcommandroutes-js",
       "evidence_refs": [
-        "http-generic-api/frontend-surface-dispatch.generated.json"
+        "frontend-surface-dispatch.generated.json",
+        "http-generic-api/frontend-surface-dispatch.generated.json",
+        "openapi.yaml",
+        "routes/localManagerDesktopCommandRoutes.js",
+        "test-control-plane-convergence-regressions.mjs",
+        "test-frontend-surface-coverage-claims.mjs"
       ],
       "closure_status": "detail_evidence_required",
       "canonical_openapi_added": false,
