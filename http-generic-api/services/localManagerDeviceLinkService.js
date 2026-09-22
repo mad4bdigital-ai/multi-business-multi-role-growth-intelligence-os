@@ -3,7 +3,11 @@ import jwt from "jsonwebtoken";
 import { getPool } from "../db.js";
 import { verifyUserJwtAuthorization } from "../userJwtAuth.js";
 
-const DEVICE_JWT_ISSUER = "https://auth.mad4b.com";
+const DEFAULT_LOCAL_MANAGER_JWT_ISSUER = "https://auth.mad4b.com";
+
+function localManagerJwtIssuer(env = process.env) {
+  return String(env?.PLATFORM_JWT_ISSUER || DEFAULT_LOCAL_MANAGER_JWT_ISSUER).trim().replace(/\/$/u, "");
+}
 const DEVICE_JWT_AUDIENCE = "mad4b-local-manager-device";
 const LOCAL_MANAGER_USER_JWT_AUDIENCE = "mad4b-local-manager-user";
 const LOCAL_MANAGER_USER_JWT_PURPOSE = "local_manager_user_access";
@@ -57,7 +61,7 @@ function signDeviceAccessToken(row, env = process.env) {
   }
   return jwt.sign(
     {
-      iss: DEVICE_JWT_ISSUER,
+      iss: localManagerJwtIssuer(env),
       aud: DEVICE_JWT_AUDIENCE,
       purpose: "local_manager_device_access",
       user_id: row.user_id,
@@ -419,7 +423,7 @@ async function ensureLocalConnectorAliasForDeviceLink({ session, principal }) {
 
 export async function requireLocalManagerUser(req) {
   const result = verifyUserJwtAuthorization(req.headers?.authorization, {
-    issuer: DEVICE_JWT_ISSUER,
+    issuer: localManagerJwtIssuer(),
     audience: LOCAL_MANAGER_USER_JWT_AUDIENCE,
     requiredPurpose: LOCAL_MANAGER_USER_JWT_PURPOSE,
     requiredScope: LOCAL_MANAGER_USER_JWT_SCOPE,
@@ -758,7 +762,7 @@ export async function requireLocalManagerDevice(req) {
   try {
     payload = jwt.verify(token, deviceJwtSecret(), {
       algorithms: ["HS256"],
-      issuer: DEVICE_JWT_ISSUER,
+      issuer: localManagerJwtIssuer(),
       audience: DEVICE_JWT_AUDIENCE,
     });
   } catch {
@@ -832,7 +836,7 @@ export async function requireFreshLocalManagerDeviceForPrivilegedInstaller(req) 
 
   const stepUpAuthorization = cleanText(req.headers?.["x-local-manager-user-authorization"], 8192);
   const result = verifyUserJwtAuthorization(stepUpAuthorization, {
-    issuer: DEVICE_JWT_ISSUER,
+    issuer: localManagerJwtIssuer(),
     audience: LOCAL_MANAGER_USER_JWT_AUDIENCE,
     requiredPurpose: LOCAL_MANAGER_USER_JWT_PURPOSE,
     requiredScope: LOCAL_MANAGER_USER_JWT_SCOPE,
