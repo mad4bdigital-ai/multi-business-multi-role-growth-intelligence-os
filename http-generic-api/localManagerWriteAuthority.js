@@ -116,20 +116,40 @@ export async function reconcileLocalConnectorAliases({
 
   const reason = "Governed Local Manager device-link approval reconciliation.";
   for (const alias of normalizedAliases) {
-    await writer.query(
-      `INSERT INTO \`local_connector_device_aliases\`
-        (alias_device_id, canonical_device_id, canonical_config_id, user_id, tenant_id, reason, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
-       ON DUPLICATE KEY UPDATE
-         canonical_device_id = VALUES(canonical_device_id),
-         canonical_config_id = VALUES(canonical_config_id),
-         user_id = VALUES(user_id),
-         tenant_id = VALUES(tenant_id),
-         reason = VALUES(reason),
-         status = 'active',
-         updated_at = NOW()`,
-      [alias, canonicalDevice, canonicalConfig, user, tenant, reason],
+    const [updateResult] = await writer.query(
+      `UPDATE \`local_connector_device_aliases\`
+          SET canonical_device_id = ?,
+              canonical_config_id = ?,
+              user_id = ?,
+              tenant_id = ?,
+              reason = ?,
+              status = 'active',
+              updated_at = NOW()
+        WHERE alias_device_id = ?
+          AND (user_id = ? OR user_id IS NULL)
+        LIMIT 1`,
+      [canonicalDevice, canonicalConfig, user, tenant, reason, alias, user],
     );
+    if (!Number(updateResult?.affectedRows || 0)) {
+      try {
+        await writer.query(
+          `INSERT INTO \`local_connector_device_aliases\`
+            (alias_device_id, canonical_device_id, canonical_config_id, user_id, tenant_id, reason, status, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())`,
+          [alias, canonicalDevice, canonicalConfig, user, tenant, reason],
+        );
+      } catch (error) {
+        if (["ER_DUP_ENTRY", "SQLITE_CONSTRAINT"].includes(String(error?.code || ""))) {
+          throw fail(
+            "LOCAL_MANAGER_ALIAS_OWNERSHIP_CONFLICT",
+            "The requested connector alias is already owned by a different identity scope.",
+            409,
+            { alias_device_id: alias },
+          );
+        }
+        throw error;
+      }
+    }
   }
 
   const placeholders = normalizedAliases.map(() => "?").join(", ");
