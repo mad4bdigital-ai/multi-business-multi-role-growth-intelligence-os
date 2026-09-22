@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { mkdirSync, openSync, closeSync, writeFileSync, chmodSync, existsSync, realpathSync } from "node:fs";
+import { mkdirSync, openSync, closeSync, writeFileSync, chmodSync, existsSync } from "node:fs";
 import path from "node:path";
 
 const UUID_RE = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
