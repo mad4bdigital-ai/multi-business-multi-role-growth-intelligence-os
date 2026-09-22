@@ -74,6 +74,9 @@ const PLATFORM_JWT_CLIENT_DEFAULT_TTL_SECONDS = 15 * 60;
 const PLATFORM_JWT_CLIENT_MAX_TTL_SECONDS = 60 * 60;
 const VALID_SIGN_IN_OPTIONS = new Set(["google", "email", "register"]);
 const PLATFORM_JWT_ISSUER = process.env.PLATFORM_JWT_ISSUER || "https://auth.mad4b.com";
+const LOCAL_MANAGER_USER_JWT_AUDIENCE = "mad4b-local-manager-user";
+const LOCAL_MANAGER_USER_JWT_PURPOSE = "local_manager_user_access";
+const LOCAL_MANAGER_USER_JWT_SCOPE = "local_manager.user";
 const CHATGPT_CANONICAL_CALLBACK_HOST = "chatgpt.com";
 const CHATGPT_LEGACY_CALLBACK_HOST = "chat.openai.com";
 const PASSWORD_RESET_TTL_SECONDS = 30 * 60;
@@ -1013,15 +1016,28 @@ export function buildAuthRoutes(deps) {
     throw authRouteFailure(400, "unsupported_credential", "OAuth credential kind is not supported.");
   }
 
-  function legacyAuthResponse(identity) {
+  function legacyAuthResponse(identity, input = {}) {
+    const tokenProfile = cleanText(input?.token_profile || "", 64);
+    if (tokenProfile && tokenProfile !== "local_manager_user") {
+      throw authRouteFailure(400, "invalid_token_profile", "token_profile is not supported.");
+    }
+    const claims = tokenProfile === "local_manager_user"
+      ? {
+          iss: PLATFORM_JWT_ISSUER,
+          aud: LOCAL_MANAGER_USER_JWT_AUDIENCE,
+          sub: `user:${identity.user_id}`,
+          purpose: LOCAL_MANAGER_USER_JWT_PURPOSE,
+          scope: LOCAL_MANAGER_USER_JWT_SCOPE,
+          user_id: identity.user_id,
+          email: identity.email,
+          tenant_id: identity.tenant_id || null,
+        }
+      : { user_id: identity.user_id, email: identity.email, tenant_id: identity.tenant_id || null };
     return {
       ok: true,
       ...identity,
-      token: jwt.sign(
-        { user_id: identity.user_id, email: identity.email, tenant_id: identity.tenant_id || null },
-        jwtSecret,
-        { expiresIn: "7d" }
-      ),
+      token_profile: tokenProfile || "legacy_user",
+      token: jwt.sign(claims, jwtSecret, { expiresIn: "7d", jwtid: randomUUID() }),
     };
   }
 
@@ -1552,7 +1568,7 @@ export function buildAuthRoutes(deps) {
   // ── POST /auth/register ─────────────────────────────────────────────────────
   router.post("/register", async (req, res) => {
     try {
-      return res.status(201).json(legacyAuthResponse(await registerUserCredential(req.body || {})));
+      return res.status(201).json(legacyAuthResponse(await registerUserCredential(req.body || {}), req.body || {}));
     } catch (err) {
       return sendAuthRouteFailure(res, err, "registration_failed");
     }
@@ -1561,7 +1577,7 @@ export function buildAuthRoutes(deps) {
   // ── POST /auth/login ────────────────────────────────────────────────────────
   router.post("/login", async (req, res) => {
     try {
-      return res.status(200).json(legacyAuthResponse(await loginUserCredential(req.body || {})));
+      return res.status(200).json(legacyAuthResponse(await loginUserCredential(req.body || {}), req.body || {}));
     } catch (err) {
       return sendAuthRouteFailure(res, err, "login_failed");
     }
@@ -1721,7 +1737,7 @@ export function buildAuthRoutes(deps) {
   // ── POST /auth/google ───────────────────────────────────────────────────────
   router.post("/google", async (req, res) => {
     try {
-      return res.status(200).json(legacyAuthResponse(await googleUserCredential(req.body || {})));
+      return res.status(200).json(legacyAuthResponse(await googleUserCredential(req.body || {}), req.body || {}));
     } catch (err) {
       return sendAuthRouteFailure(res, err, "google_auth_failed");
     }
