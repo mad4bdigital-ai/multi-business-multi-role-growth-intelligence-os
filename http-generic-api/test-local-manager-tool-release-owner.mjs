@@ -136,11 +136,11 @@ assert(localManagerWindowsInstallerSurface.includes('suppress_pause = true'), 'W
 assert(installRoutes.includes('app_managed: appManaged'), 'installer route must sign app-managed mode into download tokens');
 assert(installRoutes.includes('requireFreshLocalManagerDeviceForPrivilegedInstaller(req)'), 'privileged installer links must require fresh Local Manager authorization');
 assert(installRoutes.includes('auth_context: device.auth_context'), 'privileged installer link responses must disclose saved device-token auth context');
-assert(installRoutes.includes('reauth_required_for_stale_device_tokens: false'), 'privileged installer link responses must not require repeated sign-in for a valid saved device token');
-assert(localManagerDeviceLinkService.includes('PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = DEVICE_TOKEN_TTL_SECONDS'), 'Local Manager privileged installer authorization must follow the revocable device token lifetime');
+assert(installRoutes.includes('reauth_required_for_stale_device_tokens: true'), 'privileged installer link responses must require fresh step-up when the saved device token is stale');
+assert(localManagerDeviceLinkService.includes('PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = 15 * 60'), 'privileged installer authorization freshness must be bounded independently from the one-year device token lifetime');
 assert(localManagerDeviceLinkService.includes('source: "saved_device_token"'), 'Local Manager device session must disclose saved device-token identity source');
 assert(localManagerDeviceLinkService.includes('interactive_user_session_present: false'), 'Local Manager device session must distinguish saved token auth from an interactive user session');
-assert(localManagerDeviceLinkService.includes('requires_reauth_for_privileged_installers: false'), 'Local Manager privileged installer authorization must not require repeated sign-in for a valid device token');
+assert(localManagerDeviceLinkService.includes('requires_reauth_for_privileged_installers: true'), 'Local Manager device auth context must advertise step-up for privileged installer actions');
 assert(!localManagerDeviceLinkService.includes('reauth_action: "forget_device_and_link_again"'), 'Local Manager privileged installer authorization must not instruct a valid linked device to unlink and sign in again');
 assert(localManagerDeviceLinkService.includes('resolveConnectorRuntimeReadback'), 'repair controls must resolve authoritative connector runtime evidence');
 assert(localManagerDeviceLinkService.includes('runtime_readback: runtimeReadback'), 'repair controls must expose runtime readback to the Windows app');
@@ -184,6 +184,11 @@ assert(localManagerWindows.includes('HeartbeatDesktopCommandLeaseAsync'), 'long-
 assert(localManagerWindows.includes('claim_token = claimToken'), 'heartbeat and completion must send claim ownership proof');
 assert(localManagerWindows.includes('string.Equals(uri.Scheme, "https", StringComparison.OrdinalIgnoreCase)'), 'ChatGPT capture must require HTTPS');
 assert(localManagerWindows.includes('host.EndsWith(".chatgpt.com", StringComparison.OrdinalIgnoreCase)'), 'ChatGPT capture must allow only the exact domain boundary or a subdomain');
+assert(localManagerDesktopCommandRoutes.includes('SERVER_CONFIRMATION_REQUIRED_ACTIONS = new Set(["repair_connector", "codex_exec_readonly"])'), 'server must force confirmation for high-risk desktop actions');
+assert(localManagerDesktopCommandRoutes.includes('remote_open_url_requires_https'), 'remote desktop open_url must require HTTPS');
+assert(localManagerDesktopCommandRoutes.includes('confirmationServerEnforced = requiresServerSideDesktopConfirmation(action, payload)'), 'desktop confirmation must be computed server-side');
+assert(localManagerDesktopCommandRoutes.includes('desktop_confirmation_policy'), 'desktop enqueue must persist auditable confirmation policy metadata');
+assert(devAgentRoutes.includes("'codex_exec_readonly', 'queued', ?, 1"), 'direct Codex enqueue must not bypass user confirmation');
 assert(localManagerWindows.includes('RunStartupAutopilotAsync'), 'Windows app must run recovery autopilot after startup and device linking');
 assert(localManagerWindows.includes('LocalConnectorFootprint.AssessAsync'), 'Windows app must inspect local connector services before recovery');
 assert(localManagerWindows.includes('WindowsAppRegistration.TryHandleCommandLine'), 'Windows app must support governed uninstall command handling');
@@ -287,7 +292,7 @@ assert(localManagerDeviceLinkService.includes('requiredPurpose: LOCAL_MANAGER_US
 assert(localManagerDeviceLinkService.includes('requiredScope: LOCAL_MANAGER_USER_JWT_SCOPE'), 'Local Manager user verifier must require the dedicated scope');
 assert(localManagerDeviceLinkService.includes('deviceJwtSecret()'), 'device JWT verification must use the dedicated device signing key');
 assert(!/jwt\.(?:sign|verify)\([^;]+\bJWT_SECRET\b/s.test(localManagerDeviceLinkService), 'device authority must never sign or verify through the user JWT secret');
-assert(localManagerDeviceLinkService.includes("issuer: DEVICE_JWT_ISSUER"), 'device JWT verification must enforce issuer');
+assert(localManagerDeviceLinkService.includes("issuer: localManagerJwtIssuer()"), 'device JWT verification must enforce canonical issuer');
 assert(localManagerDeviceLinkService.includes("audience: DEVICE_JWT_AUDIENCE"), 'device JWT verification must enforce audience');
 assert(localManagerDeviceLinkService.includes("device_token_jti = ?"), 'device JWT acceptance must be bound to durable JTI state');
 assert(localManagerDeviceLinkService.includes("revoked_at IS NULL"), 'device JWT acceptance must fail closed after revocation');
