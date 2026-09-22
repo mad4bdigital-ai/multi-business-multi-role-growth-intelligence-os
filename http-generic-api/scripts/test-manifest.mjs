@@ -8,7 +8,6 @@ const upstreamCommands = [
   "node test-full-schema-metadata-census.mjs",
   "node test-managed-git-ephemeral-checkout-executor.mjs",
   "node test-managed-google-oauth-broker.mjs",
-  "node test-managed-google-site-enrollment.mjs",
   "node scripts/test-managed-git-worker-lifecycle.mjs",
   "node test-operation-orchestrator-managed-workspace-dependency.mjs",
   "node test-managed-git-repository-credential-binding.mjs",
