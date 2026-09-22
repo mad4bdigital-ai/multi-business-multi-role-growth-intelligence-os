@@ -198,6 +198,7 @@
           ".dockerignore",
           ".gitattributes",
           ".github/**",
+          ".specify/e2e-phase-governance.json",
           ".specify/schemas/**",
           ".specify/spec-kit-work-map-integration-policy.json",
           ".specify/work-map-schema-classification-registry.json",
@@ -207,6 +208,7 @@
           "docs/auto-docs-agent/**",
           "docs/change-documentation-governance.md",
           "docs/development-environment-governance.md",
+          "docs/e2e-phase-governance.md",
           "docs/governance/**",
           "docs/hostinger-node-deploy.md",
           "docs/openapi-split-governance.md",
@@ -263,6 +265,7 @@
           "http-generic-api/scripts/openapi-all-remaining-preflight-batch.mjs",
           "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
           "http-generic-api/scripts/platform-work-map-schema-intelligence.mjs",
+          "http-generic-api/scripts/prepare-managed-google-site-enrollment.mjs",
           "http-generic-api/scripts/run-test-and-run-adaptive-authorization-verification-manifest.mjs",
           "http-generic-api/scripts/run-test-and-run-adaptive-authorization-verification-manifest.mjs",
           "http-generic-api/scripts/runtime-data-lifecycle-guard.mjs",
@@ -303,9 +306,7 @@
           "specs/015-tenant-operating-system-studio/tools/validate-spec.mjs",
           "specs/021-portable-staging-autopilot/e2e-phases.json",
           "specs/integration-governed-execution-runtime-composition/wordpress-site-control-plane-provider-profile.json",
-          "specs/integration-governed-execution-runtime-composition/x0-external-certification-reference.json",
-          ".specify/e2e-phase-governance.json",
-          "docs/e2e-phase-governance.md"
+          "specs/integration-governed-execution-runtime-composition/x0-external-certification-reference.json"
         ],
         "environments": [
           "repository"
