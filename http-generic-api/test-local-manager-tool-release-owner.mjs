@@ -176,6 +176,13 @@ assert(localManagerWindows.includes('failure.Retryable'), 'Windows app must surf
 assert(localManagerWindows.includes('failure.Surface'), 'Windows app must surface backend surface metadata');
 assert(localManagerWindows.includes('retry_after = serverRetryAfterSeconds'), 'Windows app must expose bounded retry_after metadata');
 assert(localManagerWindows.includes('token_plaintext_shown = false'), 'structured polling diagnostics must remain secret-safe');
+assert(localManagerWindows.includes('var claimToken = JsonValue(command, "claim_token")'), 'desktop execution must require server-issued claim ownership proof');
+assert(localManagerWindows.includes('JsonBool(command, "requires_user_confirmation", false)'), 'desktop execution must enforce requires_user_confirmation');
+assert(localManagerWindows.includes('MessageBoxDefaultButton.Button2'), 'desktop confirmation must fail safe to No');
+assert(localManagerWindows.includes('HeartbeatDesktopCommandLeaseAsync'), 'long-running desktop execution must renew its claim lease');
+assert(localManagerWindows.includes('claim_token = claimToken'), 'heartbeat and completion must send claim ownership proof');
+assert(localManagerWindows.includes('string.Equals(uri.Scheme, "https", StringComparison.OrdinalIgnoreCase)'), 'ChatGPT capture must require HTTPS');
+assert(localManagerWindows.includes('host.EndsWith(".chatgpt.com", StringComparison.OrdinalIgnoreCase)'), 'ChatGPT capture must allow only the exact domain boundary or a subdomain');
 assert(localManagerWindows.includes('RunStartupAutopilotAsync'), 'Windows app must run recovery autopilot after startup and device linking');
 assert(localManagerWindows.includes('LocalConnectorFootprint.AssessAsync'), 'Windows app must inspect local connector services before recovery');
 assert(localManagerWindows.includes('WindowsAppRegistration.TryHandleCommandLine'), 'Windows app must support governed uninstall command handling');
