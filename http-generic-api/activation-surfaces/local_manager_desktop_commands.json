@@ -12,7 +12,7 @@
   "user_column": "user_id",
   "status_column": "status",
   "active_status_values": [
-    "pending",
+    "queued",
     "claimed",
     "completed",
     "failed",
