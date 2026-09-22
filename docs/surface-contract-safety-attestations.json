@@ -7172,7 +7172,7 @@
     },
     {
       "migration_file": "20260911_staging_activation_gateway_apply_adapter.sql",
-      "migration_sha256": "26d96fdf2dd8a611457bfffed721539587a02734c020797fe1160320fcd11aeb",
+      "migration_sha256": "2102e799cc7e6b4d48e7d96414cfa7fb8043c56ec45b13e3197385ff36177a33",
       "checksum_canonicalization": "utf8_lf_v1",
       "attestation_status": "verified_static_no_external_side_effects",
       "evidence_mode": "checksum_bound_static_contract",
