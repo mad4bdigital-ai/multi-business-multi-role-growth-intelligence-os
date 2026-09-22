@@ -38,11 +38,11 @@
       "docs/change-documentation-governance.md": 9
     },
     "safety_marker_counts": {
-      "no_provider_call": 473,
-      "no_credential_payload_read": 471,
-      "no_raw_secrets": 472,
-      "no_external_send": 471,
-      "no_external_write": 473,
+      "no_provider_call": 472,
+      "no_credential_payload_read": 470,
+      "no_raw_secrets": 471,
+      "no_external_send": 470,
+      "no_external_write": 472,
       "secrets_included_false": 477
     },
     "safety_marker_gap_migrations": 3,
@@ -66,19 +66,19 @@
     }
   },
   "queue": {
-    "total_items": 10,
+    "total_items": 11,
     "class_counts": {
       "critical_review": 4,
       "high_review": 2,
       "medium_review": 4,
-      "low_review": 0
+      "low_review": 1
     }
   },
   "triage": {
-    "total_items": 10,
+    "total_items": 11,
     "class_counts": {
       "new_surface_immediate_review": 6,
-      "safety_marker_review": 3,
+      "safety_marker_review": 4,
       "standard_backlog_review": 1
     },
     "gate_candidate_count": 6
@@ -86,8 +86,8 @@
   "gate": {
     "ok": false,
     "mode": "future_only_all_new_gaps",
-    "new_item_count": 7,
-    "blocking_new_item_count": 7
+    "new_item_count": 8,
+    "blocking_new_item_count": 8
   },
   "top_immediate_items": [
     {
