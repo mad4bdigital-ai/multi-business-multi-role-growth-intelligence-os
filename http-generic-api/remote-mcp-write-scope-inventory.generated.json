@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7797,
+  "file_count": 7800,
   "route_count": 1111,
   "write_route_count": 676,
   "classified_write_surface_count": 44,
@@ -382,8 +382,8 @@
     },
     {
       "route_id": "http-generic-api/routes/activationRoutes.js#GET:/activation/platform-access:5",
-      "source_line": 2054,
-      "source_offset": 82827,
+      "source_line": 2059,
+      "source_offset": 83105,
       "method": "GET",
       "path": "/activation/platform-access",
       "file": "http-generic-api/routes/activationRoutes.js",
@@ -409,8 +409,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminCliRoutes.js#POST:/gcloud:0",
-      "source_line": 2577,
-      "source_offset": 116219,
+      "source_line": 2578,
+      "source_offset": 116348,
       "method": "POST",
       "path": "/gcloud",
       "file": "http-generic-api/routes/adminCliRoutes.js",
@@ -418,8 +418,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminCliRoutes.js#POST:/github:1",
-      "source_line": 2594,
-      "source_offset": 116985,
+      "source_line": 2595,
+      "source_offset": 117114,
       "method": "POST",
       "path": "/github",
       "file": "http-generic-api/routes/adminCliRoutes.js",
@@ -427,8 +427,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminCliRoutes.js#POST:/control:2",
-      "source_line": 2611,
-      "source_offset": 117743,
+      "source_line": 2612,
+      "source_offset": 117872,
       "method": "POST",
       "path": "/control",
       "file": "http-generic-api/routes/adminCliRoutes.js",
@@ -436,8 +436,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminCliRoutes.js#GET:/dns:3",
-      "source_line": 2614,
-      "source_offset": 117966,
+      "source_line": 2615,
+      "source_offset": 118095,
       "method": "GET",
       "path": "/dns",
       "file": "http-generic-api/routes/adminCliRoutes.js",
@@ -445,8 +445,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminCliRoutes.js#POST:/dns:4",
-      "source_line": 2626,
-      "source_offset": 118771,
+      "source_line": 2627,
+      "source_offset": 118900,
       "method": "POST",
       "path": "/dns",
       "file": "http-generic-api/routes/adminCliRoutes.js",
@@ -454,8 +454,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminCliRoutes.js#DELETE:/dns:5",
-      "source_line": 2646,
-      "source_offset": 120010,
+      "source_line": 2647,
+      "source_offset": 120139,
       "method": "DELETE",
       "path": "/dns",
       "file": "http-generic-api/routes/adminCliRoutes.js",
@@ -463,8 +463,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminCliRoutes.js#POST:/hostinger:6",
-      "source_line": 2665,
-      "source_offset": 121012,
+      "source_line": 2666,
+      "source_offset": 121141,
       "method": "POST",
       "path": "/hostinger",
       "file": "http-generic-api/routes/adminCliRoutes.js",
@@ -472,8 +472,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminCliRoutes.js#POST:/cloudflare:7",
-      "source_line": 2684,
-      "source_offset": 121732,
+      "source_line": 2685,
+      "source_offset": 121861,
       "method": "POST",
       "path": "/cloudflare",
       "file": "http-generic-api/routes/adminCliRoutes.js",
@@ -481,8 +481,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminCliRoutes.js#GET:/local-connector/install-bundle:8",
-      "source_line": 2726,
-      "source_offset": 123484,
+      "source_line": 2727,
+      "source_offset": 123613,
       "method": "GET",
       "path": "/local-connector/install-bundle",
       "file": "http-generic-api/routes/adminCliRoutes.js",
@@ -490,8 +490,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminCliRoutes.js#POST:/local-connector/self-repair:9",
-      "source_line": 2836,
-      "source_offset": 128113,
+      "source_line": 2837,
+      "source_offset": 128242,
       "method": "POST",
       "path": "/local-connector/self-repair",
       "file": "http-generic-api/routes/adminCliRoutes.js",
@@ -499,8 +499,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminCliRoutes.js#GET:/data-source/census:10",
-      "source_line": 3125,
-      "source_offset": 140402,
+      "source_line": 3194,
+      "source_offset": 143938,
       "method": "GET",
       "path": "/data-source/census",
       "file": "http-generic-api/routes/adminCliRoutes.js",
@@ -4432,8 +4432,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerDesktopCommandRoutes.js#POST:/local-manager/device/desktop-commands:0",
-      "source_line": 373,
-      "source_offset": 15969,
+      "source_line": 387,
+      "source_offset": 16492,
       "method": "POST",
       "path": "/local-manager/device/desktop-commands",
       "file": "http-generic-api/routes/localManagerDesktopCommandRoutes.js",
@@ -4441,8 +4441,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerDesktopCommandRoutes.js#GET:/local-manager/device/desktop-commands/pending:1",
-      "source_line": 432,
-      "source_offset": 19710,
+      "source_line": 446,
+      "source_offset": 20233,
       "method": "GET",
       "path": "/local-manager/device/desktop-commands/pending",
       "file": "http-generic-api/routes/localManagerDesktopCommandRoutes.js",
@@ -4450,8 +4450,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerDesktopCommandRoutes.js#POST:/local-manager/device/desktop-commands/:commandId/complete:2",
-      "source_line": 464,
-      "source_offset": 21424,
+      "source_line": 478,
+      "source_offset": 21947,
       "method": "POST",
       "path": "/local-manager/device/desktop-commands/:commandId/complete",
       "file": "http-generic-api/routes/localManagerDesktopCommandRoutes.js",
@@ -4459,8 +4459,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerDesktopCommandRoutes.js#GET:/local-manager/device/desktop-commands/:commandId:3",
-      "source_line": 491,
-      "source_offset": 23258,
+      "source_line": 505,
+      "source_offset": 23781,
       "method": "GET",
       "path": "/local-manager/device/desktop-commands/:commandId",
       "file": "http-generic-api/routes/localManagerDesktopCommandRoutes.js",
@@ -11527,10 +11527,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/adminCliRoutes.js",
-        "source_line": 2577,
+        "source_line": 2578,
         "handler_window_lines": [
-          2577,
-          2592
+          2578,
+          2593
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -11595,10 +11595,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/adminCliRoutes.js",
-        "source_line": 2594,
+        "source_line": 2595,
         "handler_window_lines": [
-          2594,
-          2609
+          2595,
+          2610
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -11661,10 +11661,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/adminCliRoutes.js",
-        "source_line": 2611,
+        "source_line": 2612,
         "handler_window_lines": [
-          2611,
-          2613
+          2612,
+          2614
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -11723,10 +11723,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/adminCliRoutes.js",
-        "source_line": 2626,
+        "source_line": 2627,
         "handler_window_lines": [
-          2626,
-          2645
+          2627,
+          2646
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -11795,10 +11795,10 @@
       "operation_class": "delete",
       "evidence": {
         "file": "http-generic-api/routes/adminCliRoutes.js",
-        "source_line": 2646,
+        "source_line": 2647,
         "handler_window_lines": [
-          2646,
-          2663
+          2647,
+          2664
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -11867,10 +11867,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/adminCliRoutes.js",
-        "source_line": 2665,
+        "source_line": 2666,
         "handler_window_lines": [
-          2665,
-          2682
+          2666,
+          2683
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -11934,10 +11934,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/adminCliRoutes.js",
-        "source_line": 2684,
+        "source_line": 2685,
         "handler_window_lines": [
-          2684,
-          2725
+          2685,
+          2726
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -12006,10 +12006,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/adminCliRoutes.js",
-        "source_line": 2836,
+        "source_line": 2837,
         "handler_window_lines": [
-          2836,
-          3123
+          2837,
+          3192
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -12028,9 +12028,11 @@
           "db_registry": [],
           "authority": [
             "admin",
+            "authority",
             "admin"
           ],
           "readback": [
+            "select",
             "select",
             "select",
             "res.json"
@@ -28602,10 +28604,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/localManagerDesktopCommandRoutes.js",
-        "source_line": 373,
+        "source_line": 387,
         "handler_window_lines": [
-          373,
-          430
+          387,
+          444
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -28665,10 +28667,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/localManagerDesktopCommandRoutes.js",
-        "source_line": 464,
+        "source_line": 478,
         "handler_window_lines": [
-          464,
-          489
+          478,
+          503
         ],
         "evidence_flags": {
           "handler_window_present": true,
