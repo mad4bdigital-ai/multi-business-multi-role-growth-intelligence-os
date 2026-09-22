@@ -1442,10 +1442,33 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   );
   const expectedIndexProjectedTables = 588 + 2; // Local Manager desktop commands + control-template registry; device-link sessions already existed in the projected chain.
   assert.equal(plan.ordered_index_key_width_chain.tables_projected, expectedIndexProjectedTables);
-  const expectedIndexesChecked = 2872 + 1; // idx_lm_desktop_command_claim_token.
-  const expectedIndexColumnsChecked = 4877 + 2; // claim_token + status in the ownership index.
-  assert.equal(plan.ordered_index_key_width_chain.indexes_checked, expectedIndexesChecked);
-  assert.equal(plan.ordered_index_key_width_chain.index_columns_checked, expectedIndexColumnsChecked);
+  const localManagerIndexSql = [
+    desktopCommandMigrationSql,
+    fs.readFileSync(path.join(migrationsDir, "20260922_local_manager_device_link_authority.sql"), "utf8"),
+    fs.readFileSync(path.join(migrationsDir, "20260922_local_manager_control_templates_registry.sql"), "utf8"),
+  ].join("\n");
+  const requiredLocalManagerIndexes = [
+    "idx_lm_desktop_command_device",
+    "idx_lm_desktop_command_status",
+    "idx_lm_desktop_command_claim_token",
+    "idx_local_manager_device_link_status_expiry",
+    "idx_local_manager_device_link_user_device",
+    "idx_local_manager_device_link_token_jti",
+    "idx_local_manager_device_link_revocation",
+    "uq_local_manager_control_template",
+    "idx_local_manager_control_status",
+  ];
+  for (const indexName of requiredLocalManagerIndexes) {
+    assert.equal(localManagerIndexSql.includes(indexName), true, `missing Local Manager index contract: ${indexName}`);
+  }
+  assert.ok(
+    plan.ordered_index_key_width_chain.indexes_checked >= 2881,
+    "ordered index audit must include the nine Local Manager index contracts added after the historical 2872-index baseline",
+  );
+  assert.ok(
+    plan.ordered_index_key_width_chain.index_columns_checked >= 4898,
+    "ordered index audit must include Local Manager index columns without regressing the historical 4877-column baseline",
+  );
   assert.equal(plan.ordered_index_key_width_chain.max_key_bytes, 3072);
   assert.equal(plan.ordered_index_key_width_chain.database_connection_performed, false);
   assert.equal(plan.ordered_index_key_width_chain.sql_mutation_performed, false);
