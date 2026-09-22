@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "19efa8feab4a026d597b9aebb11b788759640c6cb7a89cd39b5a7fa908ba88da",
+    "source_digest": "779115bca27ae1c6003553ea71df71048abb48fb71d50eb94a8cee5b8d22edbb",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -76,7 +76,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "5fa9c8fb63d3f07c0a32a8ef75a7a0aaa437d17fc2f28110685d258d59841897",
+        "sha256": "59c6f5811e1e7fdb9e985eb51bbd826fbc7da9a3714778dc5ebb893bc0e60125",
         "present": true
       },
       {
@@ -681,7 +681,7 @@
       },
       {
         "file": "routes/localManagerDesktopCommandRoutes.js",
-        "sha256": "26068c4403a9c54a1e72c75f3e08670b7e831d8ab6473636cf2b842e868b330b",
+        "sha256": "85f4f41ecc95417e165c96429500b9556e631cbb427ab7a3193eeb1e2e0862da",
         "present": true
       },
       {
@@ -1116,7 +1116,7 @@
       },
       {
         "file": "test-frontend-surface-coverage-claims.mjs",
-        "sha256": "9a22da58eddec15e9aa3640724d621998bc2b077c2d8b179e6ca5ee58bb02dd7",
+        "sha256": "7ba3e874691bb61d466ded5254f1d8638e83174ed7d01dfe0aa84f4454702c3c",
         "present": true
       },
       {
@@ -1204,33 +1204,33 @@
     "mounted_family_count": 176,
     "mounted_route_file_count": 145,
     "mixed_scope_route_file_count": 26,
-    "operation_count": 1074,
-    "openapi_documented_count": 1058,
+    "operation_count": 1075,
+    "openapi_documented_count": 1059,
     "openapi_canonical_documented_count": 740,
-    "openapi_generated_index_count": 318,
+    "openapi_generated_index_count": 319,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 318,
+    "openapi_detail_gap_count": 319,
     "openapi_detail_gap_policy": "accepted_generated_index_only",
     "auth_parity_counts": {
-      "equivalent": 1058,
+      "equivalent": 1059,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 652,
-    "unresolved_operation_class_count": 0,
+    "non_get_candidate_count": 653,
+    "unresolved_operation_class_count": 1,
     "classified_mutation_count": 27,
     "governed_mutation_operation_count": 27,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 0,
     "test_owned_family_count": 176,
     "untested_family_count": 0,
-    "test_owned_operation_count": 1074,
+    "test_owned_operation_count": 1075,
     "untested_operation_count": 0,
-    "ready_task_count": 176,
-    "blocked_task_count": 0,
-    "coverage_complete": true
+    "ready_task_count": 175,
+    "blocked_task_count": 1,
+    "coverage_complete": false
   },
   "waves": [
     {
@@ -7504,7 +7504,7 @@
       "family_key": "local-manager-desktop-command.admin",
       "label": "local manager desktop command (admin)",
       "source_file": "routes/localManagerDesktopCommandRoutes.js",
-      "source_digest": "26068c4403a9c54a1e72c75f3e08670b7e831d8ab6473636cf2b842e868b330b",
+      "source_digest": "85f4f41ecc95417e165c96429500b9556e631cbb427ab7a3193eeb1e2e0862da",
       "mount_prefix": "/",
       "mount_order": 14244,
       "split_from_mixed_scope_file": true,
@@ -7724,7 +7724,7 @@
       "family_key": "local-manager-desktop-command.local_device",
       "label": "local manager desktop command (local_device)",
       "source_file": "routes/localManagerDesktopCommandRoutes.js",
-      "source_digest": "26068c4403a9c54a1e72c75f3e08670b7e831d8ab6473636cf2b842e868b330b",
+      "source_digest": "85f4f41ecc95417e165c96429500b9556e631cbb427ab7a3193eeb1e2e0862da",
       "mount_prefix": "/",
       "mount_order": 14244,
       "split_from_mixed_scope_file": true,
@@ -7791,6 +7791,68 @@
             "rule_id": null
           },
           "mutation_candidate": false,
+          "mutation": false
+        },
+        {
+          "method": "POST",
+          "path": "/local-manager/device/desktop-commands/{commandId}/heartbeat",
+          "signature": "POST /local-manager/device/desktop-commands/{commandId}/heartbeat",
+          "source_file": "routes/localManagerDesktopCommandRoutes.js",
+          "scope": "local_device",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "local_manager",
+            "alternatives": [
+              [
+                "localManagerBearerAuth"
+              ]
+            ],
+            "principal": "local_manager",
+            "guard_chain": [
+              "requireLocalManagerDevice"
+            ],
+            "evidence": [
+              "route:requireLocalManagerDevice"
+            ],
+            "configuration_dependencies": []
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "localManagerBearerAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [
+            "test-frontend-surface-coverage-claims.mjs"
+          ],
+          "governance": {
+            "classification": "unresolved",
+            "classification_source": "fail_closed",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": null,
+            "blockers": [
+              "operation_classification_gap"
+            ],
+            "rule_id": null
+          },
+          "mutation_candidate": true,
           "mutation": false
         },
         {
@@ -7867,6 +7929,7 @@
       "openapi_exemptions": [],
       "openapi_detail_gaps": [
         "GET /local-manager/device/desktop-commands/pending",
+        "POST /local-manager/device/desktop-commands/{commandId}/heartbeat",
         "POST /local-manager/device/desktop-commands/{commandId}/complete"
       ],
       "auth_contract_gaps": [],
@@ -7913,7 +7976,14 @@
           "specs/010-unified-platform-frontend/plan.md"
         ]
       },
-      "operation_blockers": [],
+      "operation_blockers": [
+        {
+          "signature": "POST /local-manager/device/desktop-commands/{commandId}/heartbeat",
+          "blockers": [
+            "operation_classification_gap"
+          ]
+        }
+      ],
       "risk": {
         "score": 7,
         "class": "high"
@@ -99390,8 +99460,10 @@
       "task_key": "frontend.local-manager-desktop-command.local_device",
       "title": "Resolve and deliver local manager desktop command (local_device)",
       "wave": "F4-local-manager",
-      "state": "ready",
-      "blockers": [],
+      "state": "blocked",
+      "blockers": [
+        "operation_classification_gap"
+      ],
       "dependencies": [
         "F0-source-baseline",
         "F1-tenant-workspace-context",

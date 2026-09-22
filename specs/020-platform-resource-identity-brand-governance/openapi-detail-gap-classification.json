@@ -6,19 +6,19 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "19efa8feab4a026d597b9aebb11b788759640c6cb7a89cd39b5a7fa908ba88da",
-    "dispatch_artifact_sha256": "84f660b9682daf7f352f8b82fb19135d8fdf20960bcdff637134dd0d1deec371"
+    "dispatch_source_digest": "779115bca27ae1c6003553ea71df71048abb48fb71d50eb94a8cee5b8d22edbb",
+    "dispatch_artifact_sha256": "b7f58ccd341706ae6c7f9eced40bcf7da5efd0d361a20a1bc10de8a8c793b180"
   },
   "coverage": {
-    "operation_count": 1074,
-    "openapi_documented_count": 1058,
+    "operation_count": 1075,
+    "openapi_documented_count": 1059,
     "openapi_canonical_documented_count": 740,
-    "openapi_generated_index_count": 318,
+    "openapi_generated_index_count": 319,
     "openapi_gap_count": 0,
     "auth_contract_gap_count": 0,
-    "openapi_detail_gap_count": 318,
+    "openapi_detail_gap_count": 319,
     "unresolved_surface_decision_count": 0,
-    "coverage_complete": true
+    "coverage_complete": false
   },
   "distributions": {
     "surface_decisions_by_family": [
@@ -54,7 +54,7 @@
       },
       {
         "decision": "legacy_compatibility",
-        "count": 4
+        "count": 5
       },
       {
         "decision": "embedded_ui",
@@ -64,7 +64,7 @@
     "detail_gap_entries_by_method": [
       {
         "method": "POST",
-        "count": 145
+        "count": 146
       },
       {
         "method": "GET",
@@ -141,6 +141,10 @@
         "count": 5
       },
       {
+        "path_first_segment": "local-manager",
+        "count": 5
+      },
+      {
         "path_first_segment": "logic-definitions",
         "count": 5
       },
@@ -150,10 +154,6 @@
       },
       {
         "path_first_segment": "installations",
-        "count": 4
-      },
-      {
-        "path_first_segment": "local-manager",
         "count": 4
       },
       {
@@ -459,6 +459,10 @@
         "count": 3
       },
       {
+        "family_key": "local-manager-desktop-command.local_device",
+        "count": 3
+      },
+      {
         "family_key": "mcp",
         "count": 3
       },
@@ -496,10 +500,6 @@
       },
       {
         "family_key": "local-manager-desktop-command.admin",
-        "count": 2
-      },
-      {
-        "family_key": "local-manager-desktop-command.local_device",
         "count": 2
       },
       {
@@ -651,7 +651,7 @@
   "priority_summary": {
     "blocking_contract_gap_count": 0,
     "surface_decision_required_family_count": 0,
-    "documentation_only_detail_gap_count": 318,
+    "documentation_only_detail_gap_count": 319,
     "top_surface_decision_families": []
   },
   "scope_boundary": {
