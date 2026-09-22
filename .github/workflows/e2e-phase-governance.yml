@@ -241,6 +241,97 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+
+  local_manager_mariadb_certification:
+    name: Local Manager Desktop Command MariaDB Certification
+    needs: evaluate
+    if: ${{ needs.evaluate.outputs.feature_key == 'auth-connector-control-plane-convergence-20260922' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      DB_NAME: ${{ format('lm_desktop_cert_{0}', github.run_id) }}
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_DATABASE: ${{ format('lm_desktop_cert_{0}', github.run_id) }}
+          MARIADB_ROOT_PASSWORD: lm-desktop-cert-root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    defaults:
+      run:
+        working-directory: http-generic-api
+    steps:
+      - name: Checkout exact candidate tree
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ env.CI_CANDIDATE_SHA }}
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run static authority regressions
+        run: |
+          node test-control-plane-convergence-regressions.mjs
+          node test-staging-database-readiness-repair.mjs
+
+      - name: Certify real lifecycle under least-privilege runtime principal
+        env:
+          LM_DESKTOP_MARIADB_CERTIFICATION_MODE: disposable
+          DB_HOST: 127.0.0.1
+          DB_ROOT_PASSWORD: lm-desktop-cert-root
+          RUNTIME_DB_PASSWORD: lm-runtime-cert-password
+        run: node scripts/local-manager-desktop-command-mariadb-certification.mjs
+
+      - name: Validate bounded certification evidence
+        run: |
+          node <<'NODE'
+          const fs = require("fs");
+          const path = "artifacts/local-manager-desktop-command-mariadb-certification.json";
+          const report = JSON.parse(fs.readFileSync(path, "utf8"));
+          const valid = report.ok === true
+            && report.mode === "disposable"
+            && report.lifecycle?.queued === true
+            && report.lifecycle?.claimed === true
+            && report.lifecycle?.completed === true
+            && report.lifecycle?.expired === true
+            && report.lifecycle?.route_cycle_complete === true
+            && Array.isArray(report.privilege_denials)
+            && report.privilege_denials.length === 3
+            && report.privilege_denials.every((item) => item.denied === true)
+            && report.projection?.forbidden_columns_exposed?.length === 0
+            && report.production_authorized === false
+            && report.staging_apply_authorized === false
+            && report.external_environment_touched === false
+            && report.secrets_included === false;
+          if (!valid) {
+            console.error(JSON.stringify(report, null, 2));
+            process.exit(1);
+          }
+          NODE
+
+      - name: Upload disposable certification evidence
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: local-manager-desktop-command-mariadb-certification
+          path: http-generic-api/artifacts/local-manager-desktop-command-mariadb-certification.json
+          if-no-files-found: error
+          retention-days: 30
+
   summarize:
     name: Publish canonical evidence report
     if: ${{ always() }}
