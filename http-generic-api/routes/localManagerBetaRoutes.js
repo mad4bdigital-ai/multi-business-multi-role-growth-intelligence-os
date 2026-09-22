@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { getPool } from "../db.js";
+import { createOperationResilienceController } from "../operationResilienceController.js";
 import {
   approveDeviceLinkSession,
   getDeviceControls,
@@ -14,6 +15,13 @@ import {
 } from "../services/localManagerDeviceLinkService.js";
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
+const localManagerPublicPairingResilience = createOperationResilienceController({
+  rateLimitRead: 30,
+  rateLimitMutation: 30,
+  rateWindowMs: 60_000,
+  circuitFailureThreshold: 5,
+  circuitCooldownMs: 15_000,
+});
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -1088,9 +1096,9 @@ export function buildLocalManagerBetaRoutes(deps) {
     }));
   });
 
-  router.post("/local-manager/device-link/start", startDeviceLinkSession);
-  router.get("/local-manager/device-link/preview", previewDeviceLinkSession);
-  router.post("/local-manager/device-link/poll", pollDeviceLinkSession);
+  router.post("/local-manager/device-link/start", localManagerPublicPairingResilience, startDeviceLinkSession);
+  router.get("/local-manager/device-link/preview", localManagerPublicPairingResilience, previewDeviceLinkSession);
+  router.post("/local-manager/device-link/poll", localManagerPublicPairingResilience, pollDeviceLinkSession);
   router.post("/local-manager/device-link/approve", approveDeviceLinkSession);
   router.get("/local-manager/device-link/devices", listLinkedDevices);
   router.post("/local-manager/device-link/devices/:sessionId/revoke", requireLocalManagerUserRouteGuard, revokeDeviceLinkSession);
