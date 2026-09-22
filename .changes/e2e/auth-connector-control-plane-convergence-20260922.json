@@ -1,0 +1,142 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "auth-connector-control-plane-convergence-20260922",
+  "title": "Auth and local connector control-plane convergence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/auth-connector-control-plane-convergence-20260922.json",
+      ".github/ops/production-runtime-recovery-autodeploy.mjs",
+      ".github/ops/production-runtime-recovery-routes.json",
+      ".github/ops/test-production-runtime-recovery-policy.mjs",
+      ".github/ops/test-production-runtime-recovery.mjs",
+      "http-generic-api/activation-surfaces/local_manager_desktop_commands.json",
+      "http-generic-api/activationSessionLifecycleService.js",
+      "http-generic-api/config/runtime-bootstrap-contract.json",
+      "http-generic-api/databasePrivilegeContracts.js",
+      "http-generic-api/localManagerDesktopCommandSchema.js",
+      "http-generic-api/migrations/20260922_local_manager_desktop_commands.sql",
+      "http-generic-api/recoveryExecutionBinding.js",
+      "http-generic-api/routes/activationRoutes.js",
+      "http-generic-api/routes/localManagerDesktopCommandRoutes.js",
+      "http-generic-api/services/localConnectorOrchestrator.js",
+      "http-generic-api/test-control-plane-convergence-regressions.mjs",
+      "http-generic-api/test-host-breakglass-catalog.mjs",
+      "http-generic-api/test-staging-database-readiness-repair.mjs",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Move Local Manager desktop command schema ownership out of request paths, bind the table to governed migration and least-privilege runtime grants, classify session authority failures as bounded readiness responses, and use connector credential fallback only for explicit credential rejection.",
+      "e2e_journeys": [
+        {
+          "id": "control-plane-fail-closed-recovery-contract",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authenticated activation and Local Manager client",
+          "entrypoint": "Activation session writes, desktop command polling, and local connector dispatch through injected runtime dependencies",
+          "terminal_outcome": "Missing schema or DML authority produces a bounded non-secret readiness response, governed recovery owns schema and grants, and connector fallback succeeds only after a credential-invalid primary response without masking transport or provider failures.",
+          "steps": [
+            "Exercise activation session access-denied classification and require a structured 503 that requests SELECT, INSERT, and UPDATE grants without exposing the database identity.",
+            "Inspect desktop command schema readiness without executing request-time CREATE or ALTER statements.",
+            "Validate the repository-owned migration, checksum-bound recovery execution binding, and runtime bootstrap grant contract for SELECT, INSERT, and UPDATE only.",
+            "Validate the read-only activation surface manifest exposes lifecycle metadata while excluding payload, result, request context, execution detail, and error text.",
+            "Exercise connector authentication with primary success, credential-invalid fallback success, both credentials rejected, forbidden, timeout, provider failure, and missing-token cases.",
+            "Require sanitized fallback telemetry and successful-credential preference without returning or logging credential material.",
+            "Run recovery policy and staging readiness regressions without applying a migration, changing a live grant, calling a provider, deploying, or mutating Production."
+          ],
+          "assertions": [
+            "HTTP request handlers perform read-only schema inspection and never create or alter local_manager_desktop_commands.",
+            "The runtime principal receives only SELECT, INSERT, and UPDATE on local_manager_desktop_commands in both governed target overlays.",
+            "CREATE, ALTER, DELETE, DROP, GRANT OPTION, schema ownership, and migration execution remain outside runtime authority.",
+            "Activation session table-access failures are bounded 503 responses with no SQL text, username, credential, or secret leakage.",
+            "Credential fallback is attempted only for an explicit credential-invalid response and never for 403, timeout, abort, transport, or 5xx failures.",
+            "The successful credential choice is preferred for later operations and fallback usage is observable only through sanitized metadata.",
+            "The activation surface is read-only and excludes command payloads, results, execution details, request context, and free-form error messages.",
+            "CI performs no live database mutation, migration apply, grant apply, provider mutation, external send, deployment, restart, or Production mutation."
+          ],
+          "tests": [
+            {
+              "id": "control-plane-convergence-regressions",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-control-plane-convergence-regressions.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-database-readiness-repair-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-database-readiness-repair.mjs",
+              "args": []
+            },
+            {
+              "id": "production-runtime-recovery-policy-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/ops/test-production-runtime-recovery-policy.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/auth-connector-control-plane-convergence-20260922.json",
+            "http-generic-api/activation-surfaces/local_manager_desktop_commands.json",
+            "http-generic-api/config/runtime-bootstrap-contract.json",
+            "http-generic-api/databasePrivilegeContracts.js",
+            "http-generic-api/migrations/20260922_local_manager_desktop_commands.sql",
+            "http-generic-api/recoveryExecutionBinding.js",
+            "http-generic-api/test-control-plane-convergence-regressions.mjs",
+            "http-generic-api/test-staging-database-readiness-repair.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Apply and read back the governed migration and least-privilege grants in live Staging through the separately approved recovery workflow.",
+      "blockers": [
+        "live_staging_migration_apply_approval",
+        "live_staging_grant_apply_approval",
+        "same_cycle_staging_readback"
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Add a disposable MariaDB route-cycle proof for enqueue, poll, claim, complete, expiry, and privilege denial under the exact runtime principal."
+    },
+    {
+      "id": "canary",
+      "status": "blocked",
+      "objective": "Keep any Production canary blocked until Staging migration, grant, route, and rollback evidence is independently approved.",
+      "blockers": [
+        "staging_certification_missing",
+        "typed_production_approval_missing"
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Production mutation remains disallowed by this pull request and requires the governed Production promotion path after Staging certification.",
+      "blockers": [
+        "production_mutation_not_authorized"
+      ]
+    }
+  ]
+}
