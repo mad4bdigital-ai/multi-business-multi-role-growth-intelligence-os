@@ -190,6 +190,37 @@ export async function assertLocalManagerWritePrivilegeReadiness({ pool = null } 
   };
 }
 
+async function withDedicatedWriteTransaction(writer, operation) {
+  const ownsConnection = typeof writer?.getConnection === "function";
+  const connection = ownsConnection ? await writer.getConnection() : writer;
+  if (!connection
+      || typeof connection.beginTransaction !== "function"
+      || typeof connection.commit !== "function"
+      || typeof connection.rollback !== "function") {
+    if (ownsConnection && typeof connection?.release === "function") connection.release();
+    throw fail(
+      "LOCAL_MANAGER_WRITE_TRANSACTION_UNAVAILABLE",
+      "Dedicated Local Manager writer must support atomic transactions.",
+    );
+  }
+
+  await connection.beginTransaction();
+  try {
+    const result = await operation(connection);
+    await connection.commit();
+    return result;
+  } catch (error) {
+    try {
+      await connection.rollback();
+    } catch {
+      // Preserve the original bounded writer failure; rollback errors never broaden authority.
+    }
+    throw error;
+  } finally {
+    if (ownsConnection && typeof connection.release === "function") connection.release();
+  }
+}
+
 export async function reconcileLocalConnectorAliases({
   userId,
   tenantId,
@@ -216,26 +247,52 @@ export async function reconcileLocalConnectorAliases({
     return { ok: true, resolved: true, mutation_performed: false, aliases: [], secrets_included: false };
   }
 
-  const reason = "Governed Local Manager device-link approval reconciliation.";
-  for (const alias of normalizedAliases) {
-    const [updateResult] = await writer.query(
-      `UPDATE \`local_connector_device_aliases\`
-          SET canonical_device_id = ?,
-              canonical_config_id = ?,
-              user_id = ?,
-              tenant_id = ?,
-              reason = ?,
-              status = 'active',
-              updated_at = NOW()
-        WHERE alias_device_id = ?
-          AND user_id = ?
-          AND ((? IS NULL AND tenant_id IS NULL) OR tenant_id = ?)
-        LIMIT 1`,
-      [canonicalDevice, canonicalConfig, user, tenant, reason, alias, user, tenant, tenant],
+  return withDedicatedWriteTransaction(writer, async (tx) => {
+    const placeholders = normalizedAliases.map(() => "?").join(", ");
+    const [lockedRows] = await tx.query(
+      `SELECT id, alias_device_id, canonical_device_id, canonical_config_id, user_id, tenant_id, status
+         FROM \`local_connector_device_aliases\`
+        WHERE user_id = ?
+          AND alias_device_id IN (${placeholders})
+        FOR UPDATE`,
+      [user, ...normalizedAliases],
     );
-    if (!Number(updateResult?.affectedRows || 0)) {
+
+    const reason = "Governed Local Manager device-link approval reconciliation.";
+    for (const alias of normalizedAliases) {
+      const scoped = lockedRows.filter((row) =>
+        clean(row.alias_device_id, 128) === alias
+        && sameTenant(row.tenant_id, tenant)
+      );
+      if (scoped.length > 1) {
+        throw fail(
+          "LOCAL_MANAGER_ALIAS_SCOPE_CARDINALITY_CONFLICT",
+          "More than one connector alias row exists for the same user and tenant scope.",
+          409,
+          { alias_device_id: alias },
+        );
+      }
+
+      const [existingAlias = null] = scoped;
+      if (existingAlias) {
+        await tx.query(
+          `UPDATE \`local_connector_device_aliases\`
+              SET canonical_device_id = ?,
+                  canonical_config_id = ?,
+                  reason = ?,
+                  status = 'active',
+                  updated_at = NOW()
+            WHERE id = ?
+              AND user_id = ?
+              AND ((? IS NULL AND tenant_id IS NULL) OR tenant_id = ?)
+            LIMIT 1`,
+          [canonicalDevice, canonicalConfig, reason, existingAlias.id, user, tenant, tenant],
+        );
+        continue;
+      }
+
       try {
-        await writer.query(
+        await tx.query(
           `INSERT INTO \`local_connector_device_aliases\`
             (alias_device_id, canonical_device_id, canonical_config_id, user_id, tenant_id, reason, status, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())`,
@@ -245,7 +302,7 @@ export async function reconcileLocalConnectorAliases({
         if (["ER_DUP_ENTRY", "SQLITE_CONSTRAINT"].includes(String(error?.code || ""))) {
           throw fail(
             "LOCAL_MANAGER_ALIAS_OWNERSHIP_CONFLICT",
-            "The requested connector alias is already owned by a different identity scope.",
+            "The requested connector alias changed concurrently or is already owned in this identity scope.",
             409,
             { alias_device_id: alias },
           );
@@ -253,42 +310,43 @@ export async function reconcileLocalConnectorAliases({
         throw error;
       }
     }
-  }
 
-  const placeholders = normalizedAliases.map(() => "?").join(", ");
-  const [rows] = await writer.query(
-    `SELECT alias_device_id, canonical_device_id, canonical_config_id, user_id, tenant_id, status
-       FROM \`local_connector_device_aliases\`
-      WHERE user_id = ?
-        AND alias_device_id IN (${placeholders})
-        AND status = 'active'`,
-    [user, ...normalizedAliases],
-  );
-  const matching = rows.filter((row) =>
-    clean(row.canonical_device_id, 128).toLowerCase() === canonicalDevice.toLowerCase()
-    && clean(row.canonical_config_id, 64) === canonicalConfig
-    && sameTenant(row.tenant_id, tenant)
-  );
-  if (matching.length !== normalizedAliases.length) {
-    throw fail(
-      "LOCAL_MANAGER_ALIAS_RECONCILIATION_READBACK_FAILED",
-      "Alias reconciliation could not be proven from the dedicated writer readback.",
-      409,
-      { expected_alias_count: normalizedAliases.length, observed_alias_count: matching.length },
+    const [rows] = await tx.query(
+      `SELECT alias_device_id, canonical_device_id, canonical_config_id, user_id, tenant_id, status
+         FROM \`local_connector_device_aliases\`
+        WHERE user_id = ?
+          AND alias_device_id IN (${placeholders})
+          AND status = 'active'`,
+      [user, ...normalizedAliases],
     );
-  }
-  return {
-    ok: true,
-    resolved: true,
-    mutation_performed: true,
-    aliases: matching.map((row) => ({
-      alias_device_id: row.alias_device_id,
-      canonical_device_id: row.canonical_device_id,
-      canonical_config_id: row.canonical_config_id,
-      status: row.status,
-    })),
-    secrets_included: false,
-  };
+    const matching = rows.filter((row) =>
+      clean(row.canonical_device_id, 128).toLowerCase() === canonicalDevice.toLowerCase()
+      && clean(row.canonical_config_id, 64) === canonicalConfig
+      && sameTenant(row.tenant_id, tenant)
+    );
+    const observedAliases = new Set(matching.map((row) => clean(row.alias_device_id, 128)));
+    if (matching.length !== normalizedAliases.length || observedAliases.size !== normalizedAliases.length) {
+      throw fail(
+        "LOCAL_MANAGER_ALIAS_RECONCILIATION_READBACK_FAILED",
+        "Alias reconciliation could not be proven from the dedicated writer readback.",
+        409,
+        { expected_alias_count: normalizedAliases.length, observed_alias_count: matching.length },
+      );
+    }
+    return {
+      ok: true,
+      resolved: true,
+      mutation_performed: true,
+      transactional: true,
+      aliases: matching.map((row) => ({
+        alias_device_id: row.alias_device_id,
+        canonical_device_id: row.canonical_device_id,
+        canonical_config_id: row.canonical_config_id,
+        status: row.status,
+      })),
+      secrets_included: false,
+    };
+  });
 }
 
 export async function provisionLocalManagerN8n({
@@ -304,7 +362,11 @@ export async function provisionLocalManagerN8n({
   if (!userId || !tenantId || !deviceId) {
     throw fail("LOCAL_MANAGER_N8N_PROVISIONING_SCOPE_INVALID", "n8n provisioning requires exact user, tenant, and device scope.", 400);
   }
-  const systemKey = `local_n8n:${clean(deviceId, 64)}`;
+
+  const rawSystemKey = `local_n8n:${deviceId}`;
+  const systemKey = rawSystemKey.length <= 128
+    ? rawSystemKey
+    : `local_n8n:${crypto.createHash("sha256").update(deviceId, "utf8").digest("hex")}`;
   const profileJson = JSON.stringify({ ...(profile || {}), secrets_included: false });
   const installationMeta = JSON.stringify({
     user_id: userId,
@@ -315,87 +377,132 @@ export async function provisionLocalManagerN8n({
     secrets_included: false,
   });
 
-  const [existing] = await writer.query(
-    `SELECT cs.system_id, cs.display_name, cs.status, cs.config_json, i.installation_id
-       FROM \`connected_systems\` cs
-       LEFT JOIN \`installations\` i
-         ON i.system_id = cs.system_id
-        AND i.tenant_id = cs.tenant_id
-        AND i.status = 'active'
-        AND JSON_UNQUOTE(JSON_EXTRACT(i.meta_json, '$.user_id')) = ?
-        AND JSON_UNQUOTE(JSON_EXTRACT(i.meta_json, '$.device_id')) = ?
-      WHERE cs.tenant_id = ?
-        AND cs.system_key = ?
-        AND cs.provider_family = 'n8n'
-        AND cs.status IN ('active','pending')
-      LIMIT 1`,
-    [userId, deviceId, tenantId, systemKey],
-  );
-  if (existing[0]?.installation_id) {
+  return withDedicatedWriteTransaction(writer, async (tx) => {
+    const [systemRows] = await tx.query(
+      `SELECT system_id, provider_family, status, config_json
+         FROM \`connected_systems\`
+        WHERE tenant_id = ?
+          AND system_key = ?
+        LIMIT 2
+        FOR UPDATE`,
+      [tenantId, systemKey],
+    );
+    if (systemRows.length > 1) {
+      throw fail(
+        "LOCAL_MANAGER_N8N_SYSTEM_CARDINALITY_CONFLICT",
+        "More than one connected-system row exists for the tenant/device n8n key.",
+        409,
+      );
+    }
+
+    const [existingSystem = null] = systemRows;
+    if (existingSystem && clean(existingSystem.provider_family, 64) !== "n8n") {
+      throw fail(
+        "LOCAL_MANAGER_N8N_SYSTEM_KEY_CONFLICT",
+        "The tenant/device system key is already owned by a different provider family.",
+        409,
+      );
+    }
+
+    let systemId = existingSystem?.system_id || crypto.randomUUID();
+    if (existingSystem) {
+      const [installationRows] = await tx.query(
+        `SELECT installation_id, status
+           FROM \`installations\`
+          WHERE system_id = ?
+            AND tenant_id = ?
+            AND status = 'active'
+            AND JSON_UNQUOTE(JSON_EXTRACT(meta_json, '$.user_id')) = ?
+            AND JSON_UNQUOTE(JSON_EXTRACT(meta_json, '$.device_id')) = ?
+          LIMIT 2
+          FOR UPDATE`,
+        [systemId, tenantId, userId, deviceId],
+      );
+      if (installationRows.length > 1) {
+        throw fail(
+          "LOCAL_MANAGER_N8N_INSTALLATION_CARDINALITY_CONFLICT",
+          "More than one active n8n installation exists for the same user and device.",
+          409,
+        );
+      }
+      const [existingInstallation = null] = installationRows;
+      if (existingInstallation) {
+        return {
+          ok: true,
+          provisioned: true,
+          created: false,
+          mutation_performed: false,
+          transactional: true,
+          system_id: systemId,
+          installation_id: existingInstallation.installation_id,
+          status: existingSystem.status,
+          secrets_included: false,
+        };
+      }
+
+      await tx.query(
+        `UPDATE \`connected_systems\`
+            SET config_json = ?, status = 'active', updated_at = NOW()
+          WHERE system_id = ?
+            AND tenant_id = ?
+            AND system_key = ?
+            AND provider_family = 'n8n'
+          LIMIT 1`,
+        [profileJson, systemId, tenantId, systemKey],
+      );
+    } else {
+      await tx.query(
+        `INSERT INTO \`connected_systems\`
+          (system_id, tenant_id, system_key, display_name, provider_family, provider_domain, connector_family, auth_type, service_mode, self_serve_capable, assisted_capable, managed_capable, status, config_json, created_at, updated_at)
+         VALUES (?, ?, ?, 'Local n8n', 'n8n', 'n8n.io', 'local_desktop', 'local_manual', 'self_serve', 1, 0, 0, 'active', ?, NOW(), NOW())`,
+        [systemId, tenantId, systemKey, profileJson],
+      );
+    }
+
+    const installationId = crypto.randomUUID();
+    await tx.query(
+      `INSERT INTO \`installations\`
+        (installation_id, system_id, tenant_id, scope, credential_ref, status, installed_at, expires_at, meta_json)
+       VALUES (?, ?, ?, 'local_device', NULL, 'active', NOW(), NULL, ?)`,
+      [installationId, systemId, tenantId, installationMeta],
+    );
+
+    const [readback] = await tx.query(
+      `SELECT cs.system_id, cs.status, i.installation_id
+         FROM \`connected_systems\` cs
+         JOIN \`installations\` i
+           ON i.system_id = cs.system_id
+          AND i.tenant_id = cs.tenant_id
+          AND i.status = 'active'
+        WHERE cs.system_id = ?
+          AND cs.tenant_id = ?
+          AND cs.system_key = ?
+          AND cs.provider_family = 'n8n'
+          AND JSON_UNQUOTE(JSON_EXTRACT(i.meta_json, '$.user_id')) = ?
+          AND JSON_UNQUOTE(JSON_EXTRACT(i.meta_json, '$.device_id')) = ?
+        LIMIT 2
+        FOR UPDATE`,
+      [systemId, tenantId, systemKey, userId, deviceId],
+    );
+    if (readback.length !== 1) {
+      throw fail(
+        "LOCAL_MANAGER_N8N_PROVISIONING_READBACK_FAILED",
+        "n8n provisioning could not be proven as exactly one installation before commit.",
+        409,
+        { observed_installation_count: readback.length },
+      );
+    }
+    const [provisioned] = readback;
     return {
       ok: true,
       provisioned: true,
-      created: false,
-      mutation_performed: false,
-      system_id: existing[0].system_id,
-      installation_id: existing[0].installation_id,
-      status: existing[0].status,
+      created: true,
+      mutation_performed: true,
+      transactional: true,
+      system_id: provisioned.system_id,
+      installation_id: provisioned.installation_id,
+      status: provisioned.status,
       secrets_included: false,
     };
-  }
-
-  let systemId = existing[0]?.system_id || crypto.randomUUID();
-  if (!existing[0]) {
-    await writer.query(
-      `INSERT INTO \`connected_systems\`
-        (system_id, tenant_id, system_key, display_name, provider_family, provider_domain, connector_family, auth_type, service_mode, self_serve_capable, assisted_capable, managed_capable, status, config_json, created_at, updated_at)
-       VALUES (?, ?, ?, 'Local n8n', 'n8n', 'n8n.io', 'local_desktop', 'local_manual', 'self_serve', 1, 0, 0, 'active', ?, NOW(), NOW())`,
-      [systemId, tenantId, systemKey, profileJson],
-    );
-  } else {
-    await writer.query(
-      `UPDATE \`connected_systems\`
-          SET config_json = ?, status = 'active', updated_at = NOW()
-        WHERE system_id = ? AND tenant_id = ? AND system_key = ? AND provider_family = 'n8n'
-        LIMIT 1`,
-      [profileJson, systemId, tenantId, systemKey],
-    );
-  }
-
-  const installationId = crypto.randomUUID();
-  await writer.query(
-    `INSERT INTO \`installations\`
-      (installation_id, system_id, tenant_id, scope, credential_ref, status, installed_at, expires_at, meta_json)
-     VALUES (?, ?, ?, 'local_device', NULL, 'active', NOW(), NULL, ?)`,
-    [installationId, systemId, tenantId, installationMeta],
-  );
-
-  const [readback] = await writer.query(
-    `SELECT cs.system_id, cs.status, i.installation_id
-       FROM \`connected_systems\` cs
-       JOIN \`installations\` i
-         ON i.system_id = cs.system_id
-        AND i.tenant_id = cs.tenant_id
-        AND i.status = 'active'
-      WHERE cs.system_id = ?
-        AND cs.tenant_id = ?
-        AND cs.system_key = ?
-        AND JSON_UNQUOTE(JSON_EXTRACT(i.meta_json, '$.user_id')) = ?
-        AND JSON_UNQUOTE(JSON_EXTRACT(i.meta_json, '$.device_id')) = ?
-      LIMIT 1`,
-    [systemId, tenantId, systemKey, userId, deviceId],
-  );
-  if (!readback[0]?.installation_id) {
-    throw fail("LOCAL_MANAGER_N8N_PROVISIONING_READBACK_FAILED", "n8n provisioning could not be proven from the dedicated writer readback.", 409);
-  }
-  return {
-    ok: true,
-    provisioned: true,
-    created: true,
-    mutation_performed: true,
-    system_id: readback[0].system_id,
-    installation_id: readback[0].installation_id,
-    status: readback[0].status,
-    secrets_included: false,
-  };
+  });
 }
