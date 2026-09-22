@@ -19,6 +19,15 @@ function clean(value, max = 255) {
   return String(value ?? "").trim().slice(0, max);
 }
 
+export function localManagerN8nSystemKey(deviceId) {
+  const normalizedDeviceId = clean(deviceId, 128);
+  if (!normalizedDeviceId) return null;
+  const rawSystemKey = `local_n8n:${normalizedDeviceId}`;
+  return rawSystemKey.length <= 128
+    ? rawSystemKey
+    : `local_n8n:${crypto.createHash("sha256").update(normalizedDeviceId, "utf8").digest("hex")}`;
+}
+
 function enabled(value) {
   return ["1", "true", "yes", "on"].includes(String(value ?? "").trim().toLowerCase());
 }
@@ -363,10 +372,7 @@ export async function provisionLocalManagerN8n({
     throw fail("LOCAL_MANAGER_N8N_PROVISIONING_SCOPE_INVALID", "n8n provisioning requires exact user, tenant, and device scope.", 400);
   }
 
-  const rawSystemKey = `local_n8n:${deviceId}`;
-  const systemKey = rawSystemKey.length <= 128
-    ? rawSystemKey
-    : `local_n8n:${crypto.createHash("sha256").update(deviceId, "utf8").digest("hex")}`;
+  const systemKey = localManagerN8nSystemKey(deviceId);
   const profileJson = JSON.stringify({ ...(profile || {}), secrets_included: false });
   const installationMeta = JSON.stringify({
     user_id: userId,
