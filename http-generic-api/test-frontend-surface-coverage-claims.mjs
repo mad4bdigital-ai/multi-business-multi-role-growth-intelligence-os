@@ -776,6 +776,7 @@ import { fileURLToPath } from "node:url";
 // frontend-surface-operation: post /local-manager/device-link/start
 // frontend-surface-operation: post /local-manager/device/agent-runtime
 // frontend-surface-operation: post /local-manager/device/desktop-commands
+// frontend-surface-operation: post /local-manager/device/desktop-commands/{commandId}/heartbeat
 // frontend-surface-operation: post /local-manager/device/desktop-commands/{commandId}/complete
 // frontend-surface-operation: post /local/tools/call
 // frontend-surface-operation: post /logic-definitions
