@@ -68,7 +68,7 @@ function signDeviceAccessToken(row, env = process.env) {
       iat: issuedAt,
     },
     deviceJwtSecret(env),
-    { expiresIn: DEVICE_TOKEN_TTL_SECONDS, jwtid: jti, noTimestamp: true }
+    { expiresIn: DEVICE_TOKEN_TTL_SECONDS, jwtid: jti, algorithm: "HS256" }
   );
 }
 
