@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import mysql from "mysql2/promise";
+import { LOCAL_MANAGER_WRITE_DB_PRIVILEGE_MATRIX } from "./databasePrivilegeContracts.js";
 
 let localManagerWritePool = null;
 
@@ -12,11 +13,7 @@ export const LOCAL_MANAGER_WRITE_IDENTITY_CONTRACT = Object.freeze({
   secrets_included: false,
 });
 
-export const LOCAL_MANAGER_WRITE_PRIVILEGE_MATRIX = Object.freeze({
-  local_connector_device_aliases: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
-  connected_systems: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
-  installations: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
-});
+export const LOCAL_MANAGER_WRITE_PRIVILEGE_MATRIX = LOCAL_MANAGER_WRITE_DB_PRIVILEGE_MATRIX;
 
 function clean(value, max = 255) {
   return String(value ?? "").trim().slice(0, max);
