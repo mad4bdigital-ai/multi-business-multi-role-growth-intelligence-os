@@ -4,8 +4,8 @@ export const LOCAL_MANAGER_DESKTOP_COMMAND_TABLE = "local_manager_desktop_comman
 const REQUIRED_COLUMNS = Object.freeze([
   "command_id", "tenant_id", "user_id", "device_id", "execution_mode", "action", "status",
   "priority", "requires_user_confirmation", "payload_json", "result_json", "requested_by",
-  "request_context_json", "error_code", "error_message", "created_at", "claimed_at",
-  "completed_at", "expires_at", "updated_at",
+  "request_context_json", "error_code", "error_message", "created_at", "claimed_at", "claim_token",
+  "claim_lease_expires_at", "completed_at", "expires_at", "updated_at",
 ]);
 
 export async function assertLocalManagerDesktopCommandSchema(pool) {
