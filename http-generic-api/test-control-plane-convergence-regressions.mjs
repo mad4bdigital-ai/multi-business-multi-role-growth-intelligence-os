@@ -149,7 +149,10 @@ assert.doesNotMatch(
 
 const e2eGovernanceWorkflowSource = readFileSync("../.github/workflows/e2e-phase-governance.yml", "utf8");
 assert.match(e2eGovernanceWorkflowSource, /local_manager_mariadb_certification:/u);
-assert.match(e2eGovernanceWorkflowSource, /needs\.evaluate\.outputs\.feature_key == 'auth-connector-control-plane-convergence-20260922'/u);
+assert.match(e2eGovernanceWorkflowSource, /local_manager_mariadb_required:/u);
+assert.match(e2eGovernanceWorkflowSource, /id: local_manager_mariadb/u);
+assert.match(e2eGovernanceWorkflowSource, /needs\.evaluate\.outputs\.local_manager_mariadb_required == 'true'/u);
+assert.match(e2eGovernanceWorkflowSource, /20260922_local_manager_desktop_commands\.sql/u);
 assert.match(e2eGovernanceWorkflowSource, /scripts\/local-manager-desktop-command-mariadb-certification\.mjs/u);
 assert.match(e2eGovernanceWorkflowSource, /mariadb:11\.4/u);
 assert.match(e2eGovernanceWorkflowSource, /privilege_denials\.every\(\(item\) => item\.denied === true\)/u);
