@@ -35,7 +35,7 @@ export const GOVERNANCE_DB_PRIVILEGE_MATRIX = Object.freeze({
 
 export const BOOTSTRAP_ROLE_GRANT_POLICIES = Object.freeze({
   runtime: buildGrantSpec(
-    ["customer_sessions", "gpt_session_turns", "actions", "dynamic_audit_scheduler_runs", "execution_log", "json_assets"],
+    ["customer_sessions", "gpt_session_turns", "actions", "dynamic_audit_scheduler_runs", "execution_log", "json_assets", "local_manager_desktop_commands"],
     ["SELECT", "INSERT", "UPDATE"],
   ),
   governance: buildGrantSpec(Object.keys(GOVERNANCE_DB_PRIVILEGE_MATRIX), ["SELECT"], "always", GOVERNANCE_DB_PRIVILEGE_MATRIX),
@@ -127,6 +127,7 @@ export const STAGING_ROLE_GRANT_POLICIES = Object.freeze({
       "dynamic_audit_scheduler_runs",
       "execution_log",
       "json_assets",
+      "local_manager_desktop_commands",
       ...STAGING_RUNTIME_READ_ONLY_TABLES,
     ],
     ["SELECT", "INSERT", "UPDATE"],
