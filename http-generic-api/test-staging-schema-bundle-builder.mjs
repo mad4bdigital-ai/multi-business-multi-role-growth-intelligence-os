@@ -1397,8 +1397,9 @@ test("generator plan-only mode inventories the exact migration chain", () => {
     "desktop command ownership must retain the bounded claim-token column",
   );
   const expectedBoundedTextColumns = 5249 + 1; // claim_token VARCHAR(64); claim_lease_expires_at is DATETIME.
+  const expectedTextWidthDefinitions = 6098 + 1; // the same new bounded claim-token definition.
   assert.equal(plan.ordered_text_width_chain.bounded_text_columns, expectedBoundedTextColumns);
-  assert.equal(plan.ordered_text_width_chain.definitions_applied, 6098);
+  assert.equal(plan.ordered_text_width_chain.definitions_applied, expectedTextWidthDefinitions);
   assert.equal(plan.ordered_text_width_chain.insert_select_source_domain_checks, 937);
   assert.equal(plan.ordered_text_width_chain.insert_select_source_domain_overflows, 0);
   assert.equal(plan.ordered_text_width_chain.database_connection_performed, false);
@@ -1415,9 +1416,16 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_index_key_width_chain.files_checked, expectedFilesChecked);
   assert.equal(plan.ordered_index_key_width_chain.migration_files_checked, canonicalMigrationFiles.length);
   assert.equal(plan.ordered_index_key_width_chain.statements_checked, expectedStatementsChecked);
+  assert.match(
+    desktopCommandMigrationSql,
+    /KEY `idx_lm_desktop_command_claim_token`\s*\(\s*`claim_token`\s*,\s*`status`\s*\)/iu,
+    "desktop command ownership must retain the claim-token lookup index",
+  );
   assert.equal(plan.ordered_index_key_width_chain.tables_projected, 589);
-  assert.equal(plan.ordered_index_key_width_chain.indexes_checked, 2872);
-  assert.equal(plan.ordered_index_key_width_chain.index_columns_checked, 4877);
+  const expectedIndexesChecked = 2872 + 1; // idx_lm_desktop_command_claim_token.
+  const expectedIndexColumnsChecked = 4877 + 2; // claim_token + status in the ownership index.
+  assert.equal(plan.ordered_index_key_width_chain.indexes_checked, expectedIndexesChecked);
+  assert.equal(plan.ordered_index_key_width_chain.index_columns_checked, expectedIndexColumnsChecked);
   assert.equal(plan.ordered_index_key_width_chain.max_key_bytes, 3072);
   assert.equal(plan.ordered_index_key_width_chain.database_connection_performed, false);
   assert.equal(plan.ordered_index_key_width_chain.sql_mutation_performed, false);
