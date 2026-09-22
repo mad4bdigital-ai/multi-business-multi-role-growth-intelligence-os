@@ -326,6 +326,7 @@ function Initialize-Environment([string]$RepoPath, [string]$ScriptRoot) {
         "RUNTIME_PERSISTENCE_DB_ROOT_PASSWORD" = New-Secret
         "BACKEND_API_KEY" = New-Secret
         "JWT_SECRET" = New-Secret
+        "LOCAL_MANAGER_DEVICE_JWT_SECRET" = New-Secret
         "TENANT_GPT_SSO_SIGNING_SECRET" = New-Secret
         "TOKEN_ENCRYPTION_KEY" = New-Secret
         "TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET" = New-Secret
