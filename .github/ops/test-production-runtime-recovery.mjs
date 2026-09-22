@@ -222,6 +222,7 @@ test('reviewed route contract narrows recovery tools, migrations and grant scope
     'dynamic_audit_scheduler_runs',
     'execution_log',
     'json_assets',
+    'local_manager_desktop_commands',
   ]);
   assert.deepEqual(routeContract.grant_policy.required_operations, ['SELECT', 'INSERT', 'UPDATE']);
   assert.equal(routeContract.grant_policy.allow_additional_tables, false);
