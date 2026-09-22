@@ -43,13 +43,13 @@ if (mode !== "disposable") throw new Error("Certification is restricted to LM_DE
 
 const host = required("DB_HOST");
 if (!["127.0.0.1", "localhost"].includes(host)) throw new Error("Disposable certification refuses non-local DB_HOST");
-const port = Number(process.env.DB_PORT || 3306);
+const port = 3306;
 const database = safeIdentifier(required("DB_NAME"), "DB_NAME");
 if (!/^lm_desktop_cert_/i.test(database)) throw new Error("Disposable certification DB_NAME must begin with lm_desktop_cert_");
 
-const rootUser = safeIdentifier(process.env.DB_ROOT_USER || "root", "DB_ROOT_USER");
+const rootUser = "root";
 const rootPassword = required("DB_ROOT_PASSWORD");
-const runtimeUser = safeIdentifier(process.env.RUNTIME_DB_USER || "lm_runtime_cert", "RUNTIME_DB_USER");
+const runtimeUser = "lm_runtime_cert";
 const runtimePassword = required("RUNTIME_DB_PASSWORD");
 
 const migrationSql = fs.readFileSync(migrationPath, "utf8");
