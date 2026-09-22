@@ -66,6 +66,7 @@ export async function probeLocalConnectorPublicHealth({ tunnelUrl, fetchImpl = f
       hostname: body?.hostname || null,
       platform: body?.platform || null,
       uptime: Number.isFinite(Number(body?.uptime)) ? Number(body.uptime) : null,
+      observed_at: new Date().toISOString(),
       secrets_included: false,
     };
   } catch (error) {
@@ -137,19 +138,174 @@ export async function probeLocalConnectorPublicHealthWithRetry({
   };
 }
 
-export function classifyLocalConnectorCompositeHealth({ tunnelStatus, publicProbe } = {}) {
+
+export async function probeLocalConnectorAuthenticatedHealth({
+  tunnelUrl,
+  credentialCandidates = [],
+  fetchImpl = fetch,
+  timeoutMs = 8000,
+} = {}) {
+  const baseUrl = String(tunnelUrl || "").trim().replace(/\/$/, "");
+  const candidates = (Array.isArray(credentialCandidates) ? credentialCandidates : [])
+    .map((candidate, index) => ({
+      source: String(candidate?.source || ("credential_" + (index + 1))).trim(),
+      token: String(candidate?.token || "").trim(),
+    }))
+    .filter((candidate) => candidate.token)
+    .filter((candidate, index, rows) => rows.findIndex((row) => row.token === candidate.token) === index);
+
+  if (!baseUrl) {
+    return { status: "not_attempted", http_status: null, reason: "tunnel_url_missing", secrets_included: false };
+  }
+  if (!candidates.length) {
+    return {
+      status: "credential_missing",
+      http_status: null,
+      credential_attempt_count: 0,
+      credential_fallback_used: false,
+      observed_at: new Date().toISOString(),
+      secrets_included: false,
+    };
+  }
+
+  for (let index = 0; index < candidates.length; index += 1) {
+    try {
+      const response = await fetchImpl(baseUrl + "/policy", {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          Authorization: "Bearer " + candidates[index].token,
+        },
+        signal: AbortSignal.timeout(Math.max(1000, Math.min(Number(timeoutMs) || 8000, 30000))),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (response.status === 401 && index < candidates.length - 1) continue;
+      if (response.status === 401) {
+        return {
+          status: "credential_rejected",
+          http_status: 401,
+          credential_attempt_count: index + 1,
+          credential_fallback_used: index > 0,
+          observed_at: new Date().toISOString(),
+          secrets_included: false,
+        };
+      }
+      if (response.status === 403) {
+        return {
+          status: "scope_denied",
+          http_status: 403,
+          credential_attempt_count: index + 1,
+          credential_fallback_used: index > 0,
+          observed_at: new Date().toISOString(),
+          secrets_included: false,
+        };
+      }
+      if (!response.ok || body?.ok === false) {
+        return {
+          status: "http_error",
+          http_status: response.status,
+          credential_attempt_count: index + 1,
+          credential_fallback_used: index > 0,
+          observed_at: new Date().toISOString(),
+          secrets_included: false,
+        };
+      }
+      return {
+        status: "pass",
+        http_status: response.status,
+        service: body?.service || null,
+        principal_scope: body?.principal_scope || null,
+        credential_source: candidates[index].source || null,
+        credential_attempt_count: index + 1,
+        credential_fallback_used: index > 0,
+        observed_at: new Date().toISOString(),
+        secrets_included: false,
+      };
+    } catch (error) {
+      return {
+        status: "transport_error",
+        http_status: null,
+        error_code: error?.name === "TimeoutError" ? "connector_authenticated_health_timeout" : "connector_authenticated_health_transport_error",
+        credential_attempt_count: index + 1,
+        credential_fallback_used: index > 0,
+        observed_at: new Date().toISOString(),
+        secrets_included: false,
+      };
+    }
+  }
+
+  return {
+    status: "credential_rejected",
+    http_status: 401,
+    credential_attempt_count: candidates.length,
+    credential_fallback_used: candidates.length > 1,
+    observed_at: new Date().toISOString(),
+    secrets_included: false,
+  };
+}
+
+function localConnectorTunnelEvidence({ tunnelStatus, publicProbe, authenticatedProbe, tunnelStatusObservedAt = null } = {}) {
+  const tunnel = normalizedStatus(tunnelStatus);
+  const tunnelUnhealthy = ["down", "inactive", "degraded", "error", "unhealthy"].includes(tunnel);
+  const dataPlaneReachable = publicProbe?.status === "pass" || authenticatedProbe?.status === "pass";
+  const conflict = Boolean(tunnelUnhealthy && dataPlaneReachable);
+  return {
+    control_plane: {
+      source: "cloudflare_api",
+      status: tunnelStatus || null,
+      observed_at: tunnelStatusObservedAt || null,
+      assessment: conflict ? "degraded_or_stale_metadata" : (tunnelStatus ? "same_cycle_observation" : "unavailable"),
+    },
+    data_plane: {
+      source: "connector_runtime_probe",
+      public_status: publicProbe?.status || "not_attempted",
+      authenticated_status: authenticatedProbe?.status || "not_attempted",
+      observed_at: authenticatedProbe?.observed_at || publicProbe?.observed_at || null,
+      authoritative_for_reachability: true,
+    },
+    conflict,
+    effective_reachability: dataPlaneReachable ? "reachable" : "not_proven",
+    secrets_included: false,
+  };
+}
+
+export function classifyLocalConnectorCompositeHealth({ tunnelStatus, publicProbe, authenticatedProbe, tunnelStatusObservedAt = null } = {}) {
   const tunnel = normalizedStatus(tunnelStatus);
   const probe = publicProbe || { status: "not_attempted" };
   const tunnelHealthy = ["healthy", "active", "up"].includes(tunnel);
   const tunnelUnhealthy = ["down", "inactive", "degraded", "error", "unhealthy"].includes(tunnel);
+  const authenticated = authenticatedProbe || null;
+  const tunnelEvidence = localConnectorTunnelEvidence({ tunnelStatus, publicProbe: probe, authenticatedProbe: authenticated, tunnelStatusObservedAt });
 
   if (probe.status === "pass") {
+    if (authenticated && authenticated.status !== "pass") {
+      const authorizationFailure = ["credential_missing", "credential_rejected", "scope_denied"].includes(authenticated.status);
+      return {
+        status: authorizationFailure ? "authorization_degraded" : "authenticated_command_degraded",
+        repair_required: true,
+        repair_class: authorizationFailure ? "credential_binding" : "authenticated_command_path",
+        likely_cause: authorizationFailure
+          ? "connector transport is reachable but authenticated command authority is not usable"
+          : "connector transport is reachable but authenticated command probing failed",
+        tunnel_status: tunnelStatus || null,
+        public_probe_status: probe.status,
+        authenticated_probe_status: authenticated.status,
+        transport_health: "reachable",
+        authenticated_command_health: authenticated.status,
+        tunnel_evidence: tunnelEvidence,
+        secrets_included: false,
+      };
+    }
     return {
       status: "active",
       repair_required: false,
       likely_cause: null,
       tunnel_status: tunnelStatus || null,
       public_probe_status: probe.status,
+      authenticated_probe_status: authenticated?.status || null,
+      transport_health: "reachable",
+      authenticated_command_health: authenticated?.status || "not_probed",
+      tunnel_evidence: tunnelEvidence,
       secrets_included: false,
     };
   }
@@ -160,6 +316,10 @@ export function classifyLocalConnectorCompositeHealth({ tunnelStatus, publicProb
       likely_cause: "connector health endpoint is reachable but requires authorization",
       tunnel_status: tunnelStatus || null,
       public_probe_status: probe.status,
+      authenticated_probe_status: authenticated?.status || null,
+      transport_health: probe.status === "authorization_gated" ? "reachable" : "degraded",
+      authenticated_command_health: authenticated?.status || "not_probed",
+      tunnel_evidence: tunnelEvidence,
       secrets_included: false,
     };
   }
@@ -170,6 +330,10 @@ export function classifyLocalConnectorCompositeHealth({ tunnelStatus, publicProb
       likely_cause: "Cloudflare tunnel is not healthy",
       tunnel_status: tunnelStatus || null,
       public_probe_status: probe.status,
+      authenticated_probe_status: authenticated?.status || null,
+      transport_health: probe.status === "authorization_gated" ? "reachable" : "degraded",
+      authenticated_command_health: authenticated?.status || "not_probed",
+      tunnel_evidence: tunnelEvidence,
       secrets_included: false,
     };
   }
@@ -180,6 +344,10 @@ export function classifyLocalConnectorCompositeHealth({ tunnelStatus, publicProb
       likely_cause: "Cloudflare tunnel is healthy but the local Node connector health endpoint is unavailable",
       tunnel_status: tunnelStatus || null,
       public_probe_status: probe.status,
+      authenticated_probe_status: authenticated?.status || null,
+      transport_health: probe.status === "authorization_gated" ? "reachable" : "degraded",
+      authenticated_command_health: authenticated?.status || "not_probed",
+      tunnel_evidence: tunnelEvidence,
       secrets_included: false,
     };
   }
