@@ -383,7 +383,7 @@ internal static class Program
                     "windows",
                     Application.ProductVersion);
                 var start = response.Payload;
-                if (!response.IsSuccessStatusCode || start?.Ok != true || string.IsNullOrWhiteSpace(start.UserCode) || string.IsNullOrWhiteSpace(start.PollToken))
+                if (!response.IsSuccessStatusCode || start?.Ok != true || string.IsNullOrWhiteSpace(start.UserCode) || string.IsNullOrWhiteSpace(start.PollToken) || string.IsNullOrWhiteSpace(start.SessionId) || string.IsNullOrWhiteSpace(start.DeviceProofChallenge))
                 {
                     var retryAfter = response.RetryAfterSeconds;
                     _status.Text = (int)response.StatusCode == 429
@@ -407,7 +407,7 @@ internal static class Program
                 var approvalUrl = start.VerificationUriComplete ?? start.VerificationUri ?? (BaseUrl + "/app/local-manager/link-device");
                 approvalUrl += approvalUrl.Contains('?') ? "&mode=" + Uri.EscapeDataString(mode) : "?mode=" + Uri.EscapeDataString(mode);
                 OpenUrl(approvalUrl);
-                await PollDeviceLinkAsync(start.UserCode, start.PollToken, Math.Max(2, start.Interval));
+                await PollDeviceLinkAsync(start.UserCode, start.PollToken, start.SessionId, start.DeviceProofChallenge, Math.Max(2, start.Interval));
             }
             catch (Exception ex)
             {
@@ -415,7 +415,7 @@ internal static class Program
             }
         }
 
-        private async Task PollDeviceLinkAsync(string code, string pollToken, int intervalSeconds)
+        private async Task PollDeviceLinkAsync(string code, string pollToken, string sessionId, string deviceProofChallenge, int intervalSeconds)
         {
             var started = DateTimeOffset.UtcNow;
             while (DateTimeOffset.UtcNow - started < TimeSpan.FromMinutes(10))
@@ -423,7 +423,7 @@ internal static class Program
                 await Task.Delay(TimeSpan.FromSeconds(intervalSeconds));
                 _status.Text = "Waiting for approval in browser…";
                 _progress.Value = Math.Min(90, _progress.Value + 5);
-                var response = await _deviceLinkClient.PollAsync(code, pollToken);
+                var response = await _deviceLinkClient.PollAsync(code, pollToken, sessionId, deviceProofChallenge);
                 var poll = response.Payload;
                 if ((int)response.StatusCode == 202 || string.Equals(poll?.Status, "pending", StringComparison.OrdinalIgnoreCase)) continue;
                 if (response.IsSuccessStatusCode && poll?.Ok == true && !string.IsNullOrWhiteSpace(poll.DeviceAccessToken))

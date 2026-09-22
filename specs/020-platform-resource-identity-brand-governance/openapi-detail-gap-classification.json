@@ -6,19 +6,19 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "f5f54aa1eb2d528b3d27cf029d5ab52ee81e3321966d12a180d8f677b1948639",
-    "dispatch_artifact_sha256": "af2a5d93448f953707d4c189916ed9f68993a84781561755bd4fe4a06fa6be35"
+    "dispatch_source_digest": "97530637974f6691c4624aa3e969af0a5a0e13a75d8319be5280947a2273c52d",
+    "dispatch_artifact_sha256": "b80b7c868f2ab3b87c260e48ee4c3c618f48ded54f40c2067490688491daa865"
   },
   "coverage": {
     "operation_count": 1077,
     "openapi_documented_count": 1061,
-    "openapi_canonical_documented_count": 740,
-    "openapi_generated_index_count": 321,
+    "openapi_canonical_documented_count": 742,
+    "openapi_generated_index_count": 319,
     "openapi_gap_count": 0,
     "auth_contract_gap_count": 0,
-    "openapi_detail_gap_count": 321,
+    "openapi_detail_gap_count": 319,
     "unresolved_surface_decision_count": 0,
-    "coverage_complete": false
+    "coverage_complete": true
   },
   "distributions": {
     "surface_decisions_by_family": [
@@ -54,7 +54,7 @@
       },
       {
         "decision": "legacy_compatibility",
-        "count": 7
+        "count": 5
       },
       {
         "decision": "embedded_ui",
@@ -64,7 +64,7 @@
     "detail_gap_entries_by_method": [
       {
         "method": "POST",
-        "count": 149
+        "count": 147
       },
       {
         "method": "GET",
@@ -129,10 +129,6 @@
         "count": 8
       },
       {
-        "path_first_segment": "local-manager",
-        "count": 7
-      },
-      {
         "path_first_segment": "github",
         "count": 6
       },
@@ -142,6 +138,10 @@
       },
       {
         "path_first_segment": "customers",
+        "count": 5
+      },
+      {
+        "path_first_segment": "local-manager",
         "count": 5
       },
       {
@@ -499,10 +499,6 @@
         "count": 2
       },
       {
-        "family_key": "local-manager-beta.local_device",
-        "count": 2
-      },
-      {
         "family_key": "local-manager-desktop-command.admin",
         "count": 2
       },
@@ -655,7 +651,7 @@
   "priority_summary": {
     "blocking_contract_gap_count": 0,
     "surface_decision_required_family_count": 0,
-    "documentation_only_detail_gap_count": 321,
+    "documentation_only_detail_gap_count": 319,
     "top_surface_decision_families": []
   },
   "scope_boundary": {

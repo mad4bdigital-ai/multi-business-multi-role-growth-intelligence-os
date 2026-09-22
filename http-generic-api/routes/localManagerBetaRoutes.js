@@ -595,14 +595,14 @@ function localManagerLinkDevicePage(initialCode = "") {
 <script>
 const GOOGLE_CLIENT_ID = ${JSON.stringify(GOOGLE_CLIENT_ID)};
 const $ = (id) => document.getElementById(id);
+let pairingFingerprint = '';
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 function normalizeCode(value){ return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/^(.{4})(.*)$/,'$1-$2').slice(0,9); }
 function setOut(obj){ $('out').textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2); }
-function setToken(token, user){ sessionStorage.setItem('mlm_user_token', token); sessionStorage.setItem('mlm_user', JSON.stringify(user || {})); try { localStorage.setItem('mlm_user_token', token); localStorage.setItem('mlm_user', JSON.stringify(user || {})); } catch {} $('authState').innerHTML = '<span class="ok">Signed in as '+esc(user?.email || user?.user_id || 'user')+'</span>'; }
+function setToken(token, user){ sessionStorage.setItem('mlm_user_token', token); sessionStorage.setItem('mlm_user', JSON.stringify(user || {})); $('authState').innerHTML = '<span class="ok">Signed in as '+esc(user?.email || user?.user_id || 'user')+'</span>'; }
 async function completeAuth(token, user){
   setToken(token, user);
-  const code = normalizeCode($('deviceCode').value);
-  if(code) await approveDevice(); else setOut({ok:true,next:'Enter the pairing code, then approve this device.'});
+  setOut({ok:true,status:'signed_in',next:'Review the device details, then click Approve device.'});
 }
 async function revokeDevice(sessionId){
   const token=getToken();
@@ -637,10 +637,11 @@ async function loadPreview(){
   const data = await res.json();
   if(!res.ok || !data.ok){ $('devicePreview').innerHTML = '<span class="bad">'+esc(data?.error?.message || 'Could not load pairing code.')+'</span>'; return; }
   const d = data.device || {};
-  $('devicePreview').innerHTML = 'Device: <strong>'+esc(d.hostname || d.device_id || 'Windows device')+'</strong> · Platform: '+esc(d.platform || 'windows')+' · Status: '+esc(d.status)+' · Expires: '+esc(d.expires_at || 'soon');
+  pairingFingerprint = String(d.pairing_fingerprint || '');
+  $('devicePreview').innerHTML = 'Device: <strong>'+esc(d.display_label || d.hostname || d.device_id || 'Windows device')+'</strong> · Platform: '+esc(d.platform || 'windows')+' · Version: '+esc(d.app_version || 'unknown')+' · Status: '+esc(d.effective_status || data.status)+' · Expires: '+esc(d.expires_at || 'soon');
 }
-function getToken(){ return sessionStorage.getItem('mlm_user_token') || localStorage.getItem('mlm_user_token') || ''; }
-function restore(){ const raw = sessionStorage.getItem('mlm_user') || localStorage.getItem('mlm_user'); if(!getToken()) return false; if(raw){ try { const u=JSON.parse(raw); $('authState').innerHTML='<span class="ok">Signed in as '+esc(u.email || u.user_id || 'user')+'</span>'; } catch { $('authState').innerHTML='<span class="ok">Signed in.</span>'; } } else { $('authState').innerHTML='<span class="ok">Signed in.</span>'; } return true; }
+function getToken(){ return sessionStorage.getItem('mlm_user_token') || ''; }
+function restore(){ const raw = sessionStorage.getItem('mlm_user'); if(!getToken()) return false; if(raw){ try { const u=JSON.parse(raw); $('authState').innerHTML='<span class="ok">Signed in as '+esc(u.email || u.user_id || 'user')+'</span>'; } catch { $('authState').innerHTML='<span class="ok">Signed in.</span>'; } } else { $('authState').innerHTML='<span class="ok">Signed in.</span>'; } return true; }
 $('normalize').onclick = async () => { $('deviceCode').value = normalizeCode($('deviceCode').value); $('codePreview').textContent = $('deviceCode').value || '---- ----'; await loadPreview(); };
 $('deviceCode').oninput = () => { $('codePreview').textContent = normalizeCode($('deviceCode').value) || '---- ----'; window.clearTimeout(window.__mlmPreviewTimer); window.__mlmPreviewTimer = window.setTimeout(loadPreview, 250); };
 async function approveDevice(){
@@ -648,8 +649,9 @@ async function approveDevice(){
   if(!code){ setOut({ok:false,error:{code:'missing_code',message:'Enter the pairing code from the Windows app.'}}); return false; }
   const token = getToken();
   if(!token){ setOut({ok:false,error:{code:'not_signed_in',message:'Sign in first.'}}); return false; }
+  if(!pairingFingerprint){ setOut({ok:false,error:{code:'pairing_preview_required',message:'Load and review the device details before approval.'}}); return false; }
   $('authState').innerHTML = '<span class="ok">Signed in. Approving device…</span>';
-  const res = await fetch('/local-manager/device-link/approve',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+token},body:JSON.stringify({code})});
+  const res = await fetch('/local-manager/device-link/approve',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+token},body:JSON.stringify({code,consent:'approve_device',pairing_fingerprint:pairingFingerprint})});
   const data = await res.json();
   setOut(data);
   if(res.ok && data.ok){
@@ -688,8 +690,7 @@ async function initializeLinkDevicePage(){
   $('codePreview').textContent = $('deviceCode').value || '---- ----';
   await loadPreview();
   if(signedIn && normalizeCode($('deviceCode').value)){
-    setOut({ok:true,status:'signed_in',message:'Signed in. Checking this device link…'});
-    await approveDevice();
+    setOut({ok:true,status:'signed_in',message:'Signed in. Review the device details, then click Approve device.'});
   }
 }
 setupGoogle(); initializeLinkDevicePage();
@@ -747,8 +748,8 @@ function localManagerDevicesPage() {
 const GOOGLE_CLIENT_ID = ${JSON.stringify(GOOGLE_CLIENT_ID)};
 const $ = (id) => document.getElementById(id);
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
-function setToken(token, user){ sessionStorage.setItem('mlm_user_token', token); sessionStorage.setItem('mlm_user', JSON.stringify(user || {})); try { localStorage.setItem('mlm_user_token', token); localStorage.setItem('mlm_user', JSON.stringify(user || {})); } catch {} $('authState').textContent = 'Signed in as '+(user?.email || user?.user_id || 'user'); }
-function getToken(){ return sessionStorage.getItem('mlm_user_token') || localStorage.getItem('mlm_user_token') || ''; }
+function setToken(token, user){ sessionStorage.setItem('mlm_user_token', token); sessionStorage.setItem('mlm_user', JSON.stringify(user || {})); $('authState').textContent = 'Signed in as '+(user?.email || user?.user_id || 'user'); }
+function getToken(){ return sessionStorage.getItem('mlm_user_token') || ''; }
 function renderDevices(data){ if(!data.ok){ $('devices').innerHTML='<pre>'+esc(JSON.stringify(data,null,2))+'</pre>'; return; } const rows=data.devices||[]; if(!rows.length){ $('devices').innerHTML='<p>No linked devices yet.</p>'; return; } $('devices').innerHTML='<table><thead><tr><th>device</th><th>status</th><th>platform</th><th>approved</th><th>completed</th><th>action</th></tr></thead><tbody>'+rows.map(d=>'<tr><td>'+esc(d.device_id)+'<br><small>'+esc(d.hostname||'')+'</small></td><td>'+esc(d.status)+'</td><td>'+esc(d.platform||'')+'</td><td>'+esc(d.approved_at||'')+'</td><td>'+esc(d.completed_at||'')+'</td><td>'+(d.status==='revoked'?'revoked':'<button class="secondary" data-revoke-session="'+esc(d.session_id)+'">Forget device</button>')+'</td></tr>').join('')+'</tbody></table>'; document.querySelectorAll('[data-revoke-session]').forEach(btn=>{ btn.onclick=()=>revokeDevice(btn.getAttribute('data-revoke-session')); }); }
 async function loadDevices(){
   const token=getToken();

@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+
+// frontend-surface-operation: post /local-manager/device/desktop-commands/claim
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

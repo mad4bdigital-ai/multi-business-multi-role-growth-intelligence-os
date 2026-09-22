@@ -112,6 +112,72 @@ function parseJson(value) {
   try { return JSON.parse(value); } catch { return null; }
 }
 
+function credentialDelivery(fields = []) {
+  return {
+    contains_credentials: fields.length > 0,
+    safe_to_log: fields.length === 0,
+    credential_delivery: {
+      intentional: fields.length > 0,
+      fields,
+      transport: fields.length > 0 ? "tls_response_body" : "none",
+    },
+    secrets_included: fields.length > 0,
+  };
+}
+
+function importDevicePublicKey(value) {
+  const encoded = cleanText(value, 2048);
+  if (!encoded) return null;
+  try {
+    const der = Buffer.from(encoded, "base64");
+    if (der.length < 64 || der.length > 1024) return null;
+    const key = crypto.createPublicKey({ key: der, format: "der", type: "spki" });
+    if (key.asymmetricKeyType !== "ec" || key.asymmetricKeyDetails?.namedCurve !== "prime256v1") return null;
+    return { key, encoded: der.toString("base64"), fingerprint: crypto.createHash("sha256").update(der).digest("hex") };
+  } catch {
+    return null;
+  }
+}
+
+function pairingFingerprint(row, displayCode = "") {
+  return sha256([
+    "mad4b.local-manager.pairing-preview.v1",
+    row.session_id,
+    cleanText(displayCode || row.display_code, 16).toUpperCase(),
+    row.device_id,
+    row.hostname || "",
+    row.platform || "",
+    row.app_version || "",
+    row.expires_at ? new Date(row.expires_at).toISOString() : "",
+  ].join("\n"));
+}
+
+function sanitizePublicPairingPreview(row, displayCode = "") {
+  return {
+    device_id: row.device_id,
+    display_label: row.hostname || row.device_id || "Local Manager device",
+    hostname: row.hostname || null,
+    platform: row.platform || null,
+    app_version: row.app_version || null,
+    effective_status: row.status,
+    expires_at: row.expires_at ? new Date(row.expires_at).toISOString() : null,
+    pairing_fingerprint: pairingFingerprint(row, displayCode),
+  };
+}
+
+function verifyDevicePossession({ row, displayCode, pollToken, challenge, signature }) {
+  const metadata = parseJson(row.metadata_json) || {};
+  const publicKey = importDevicePublicKey(metadata.device_public_key_spki);
+  if (!publicKey || publicKey.fingerprint !== metadata.device_public_key_fingerprint_sha256) return false;
+  if (!challenge || sha256(challenge) !== metadata.device_proof_challenge_sha256 || !signature) return false;
+  const canonical = ["mad4b.local-manager.device-proof.v1", row.session_id, cleanText(displayCode, 16).toUpperCase(), sha256(pollToken), challenge].join("\n");
+  try {
+    return crypto.verify("sha256", Buffer.from(canonical, "utf8"), publicKey.key, Buffer.from(signature, "base64"));
+  } catch {
+    return false;
+  }
+}
+
 function getBaseUrl(req, env = process.env) {
   const configured = String(env.PUBLIC_BASE_URL || "").trim();
   if (configured) return configured.replace(/\/$/, "");
@@ -484,7 +550,7 @@ async function inspectLocalConnectorAliasForDeviceLink({ session, principal }) {
       apply_authorized: false,
       required_authority: "local_connector_alias_reconciliation_writer",
       reason: "connector_alias_read_failed",
-      error: { code: err?.code || "connector_alias_read_failed", message: err?.message || String(err) },
+      error: { code: "connector_alias_read_failed", request_id: crypto.randomUUID() },
       secrets_included: false,
     };
   }
@@ -536,10 +602,7 @@ async function reconcileLocalConnectorAliasForDeviceLink({ session, principal })
       apply_authorized: true,
       mutation_performed: false,
       reason: "connector_alias_reconciliation_writer_failed",
-      error: {
-        code: error?.code || "connector_alias_reconciliation_writer_failed",
-        message: error?.message || String(error),
-      },
+      error: { code: "connector_alias_write_failed", request_id: crypto.randomUUID() },
       secrets_included: false,
     };
   }
@@ -605,14 +668,23 @@ export async function startDeviceLinkSession(req, res) {
     const deviceId = cleanId(body.device_id, { fallback: cleanId(hostname, { fallback: `device-${crypto.randomUUID().slice(0, 8)}` }), max: 128 });
     const platform = cleanText(body.platform || "windows", 32) || "windows";
     const appVersion = cleanText(body.app_version || "", 80);
+    const devicePublicKey = importDevicePublicKey(body.device_public_key);
+    if (!devicePublicKey) {
+      return res.status(400).json({ ok: false, error: { code: "device_public_key_required", message: "A P-256 device public key is required." }, secrets_included: false });
+    }
     const displayCode = randomDisplayCode();
     const pollToken = randomToken(32);
+    const deviceProofChallenge = randomToken(32);
     const sessionId = crypto.randomUUID();
     const expiresAt = new Date(nowMs() + DEVICE_LINK_TTL_SECONDS * 1000);
     const metadata = {
       source: "local_manager_windows_app",
       user_agent: cleanText(req.get("user-agent") || "", 255),
       ip_seen: cleanText(req.ip || req.socket?.remoteAddress || "", 64),
+      device_public_key_spki: devicePublicKey.encoded,
+      device_public_key_fingerprint_sha256: devicePublicKey.fingerprint,
+      device_proof_challenge_sha256: sha256(deviceProofChallenge),
+      device_proof_contract: "mad4b.local-manager.device-proof.v1",
     };
 
     await getPool().query(
@@ -648,7 +720,9 @@ export async function startDeviceLinkSession(req, res) {
       expires_in: DEVICE_LINK_TTL_SECONDS,
       interval: POLL_INTERVAL_SECONDS,
       poll_token: pollToken,
-      secrets_included: false,
+      device_proof_challenge: deviceProofChallenge,
+      device_public_key_fingerprint_sha256: devicePublicKey.fingerprint,
+      ...credentialDelivery(["poll_token"]),
     });
   } catch (err) {
     return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "device_link_start_failed", message: err.message }, secrets_included: false });
@@ -680,9 +754,7 @@ export async function previewDeviceLinkSession(req, res) {
     const effectiveStatus = new Date(row.expires_at).getTime() <= nowMs() && durableStatus === "pending"
       ? "expired"
       : durableStatus;
-    const safe = sanitizeSession({ ...row, status: effectiveStatus });
-    delete safe.user_id;
-    delete safe.tenant_id;
+    const safe = sanitizePublicPairingPreview({ ...row, status: effectiveStatus }, displayCode);
     return res.status(200).json({
       ok: true,
       status: effectiveStatus,
@@ -702,8 +774,10 @@ export async function pollDeviceLinkSession(req, res) {
     await assertDeviceLinkTableSchema();
     const displayCode = cleanText(req.body?.device_code || req.body?.user_code || req.body?.code, 16).toUpperCase();
     const pollToken = cleanText(req.body?.poll_token, 200);
-    if (!displayCode || !pollToken) {
-      return res.status(400).json({ ok: false, error: { code: "missing_poll_fields", message: "device_code and poll_token are required." }, secrets_included: false });
+    const challenge = cleanText(req.body?.device_proof_challenge, 200);
+    const signature = cleanText(req.body?.device_proof, 1024);
+    if (!displayCode || !pollToken || !challenge || !signature) {
+      return res.status(400).json({ ok: false, error: { code: "missing_poll_fields", message: "device_code, poll_token, device_proof_challenge, and device_proof are required." }, secrets_included: false });
     }
 
     const [rows] = await getPool().query(
@@ -713,6 +787,9 @@ export async function pollDeviceLinkSession(req, res) {
     const row = rows[0] || null;
     if (!row || row.poll_token_hash !== sha256(pollToken)) {
       return res.status(404).json({ ok: false, error: { code: "device_link_not_found", message: "Pairing session was not found." }, secrets_included: false });
+    }
+    if (!verifyDevicePossession({ row, displayCode, pollToken, challenge, signature })) {
+      return res.status(401).json({ ok: false, error: { code: "invalid_device_proof", message: "Device proof-of-possession is invalid." }, secrets_included: false });
     }
     if (new Date(row.expires_at).getTime() <= nowMs() && row.status === "pending") {
       await getPool().query(`UPDATE \`local_manager_device_link_sessions\` SET status = 'expired' WHERE session_id = ?`, [row.session_id]);
@@ -799,7 +876,7 @@ export async function pollDeviceLinkSession(req, res) {
       expires_in: DEVICE_TOKEN_TTL_SECONDS,
       device: sanitizeSession(issuedRow),
       token_replay_idempotent: true,
-      secrets_included: false,
+      ...credentialDelivery(["device_access_token"]),
     });
   } catch (err) {
     return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "device_link_poll_failed", message: err.message }, secrets_included: false });
@@ -811,6 +888,8 @@ export async function approveDeviceLinkSession(req, res) {
     await assertDeviceLinkTableSchema();
     const principal = await requireLocalManagerUser(req);
     const displayCode = cleanText(req.body?.device_code || req.body?.user_code || req.body?.code, 16).toUpperCase();
+    const consent = cleanText(req.body?.consent, 64);
+    const previewFingerprint = cleanText(req.body?.pairing_fingerprint, 64).toLowerCase();
     if (!displayCode) {
       return res.status(400).json({ ok: false, error: { code: "missing_device_code", message: "A pairing code is required." }, secrets_included: false });
     }
@@ -822,6 +901,9 @@ export async function approveDeviceLinkSession(req, res) {
     const row = rows[0] || null;
     if (!row) {
       return res.status(404).json({ ok: false, error: { code: "device_link_not_found", message: "Pairing code was not found." }, secrets_included: false });
+    }
+    if (consent !== "approve_device" || previewFingerprint !== pairingFingerprint(row, displayCode)) {
+      return res.status(400).json({ ok: false, error: { code: "explicit_pairing_consent_required", message: "Review the device preview and explicitly approve this exact pairing request." }, secrets_included: false });
     }
     if (new Date(row.expires_at).getTime() <= nowMs()) {
       await getPool().query(`UPDATE \`local_manager_device_link_sessions\` SET status = 'expired' WHERE session_id = ? AND status = 'pending'`, [row.session_id]);
@@ -1563,3 +1645,11 @@ export async function getDeviceControls(req, res) {
     return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "device_controls_failed", message: err.message }, secrets_included: false });
   }
 }
+
+export const _testingLocalManagerDeviceLink = Object.freeze({
+  credentialDelivery,
+  importDevicePublicKey,
+  pairingFingerprint,
+  sanitizePublicPairingPreview,
+  verifyDevicePossession,
+});

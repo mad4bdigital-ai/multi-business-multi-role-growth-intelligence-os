@@ -12,7 +12,7 @@ const client = readFileSync(
 
 assert.match(program, /private readonly DeviceLinkClient _deviceLinkClient = new\(BaseUrl\);/);
 assert.match(program, /_deviceLinkClient\.StartAsync\(/);
-assert.match(program, /_deviceLinkClient\.PollAsync\(code, pollToken\)/);
+assert.match(program, /_deviceLinkClient\.PollAsync\(code, pollToken, sessionId, deviceProofChallenge\)/);
 assert.match(program, /_deviceLinkClient\.GetSessionAsync\(token\)/);
 assert.doesNotMatch(program, /DeviceLinkStartUrl/);
 assert.doesNotMatch(program, /DeviceLinkPollUrl/);
@@ -25,6 +25,10 @@ assert.match(client, /\/local-manager\/device-link\/poll/);
 assert.match(client, /\/local-manager\/device\/session/);
 assert.match(client, /internal async Task<DeviceLinkHttpResult<DeviceLinkStartResponse>> StartAsync/);
 assert.match(client, /internal async Task<DeviceLinkHttpResult<DeviceLinkPollResponse>> PollAsync/);
+assert.match(client, /ECDsa\.Create\(ECCurve\.NamedCurves\.nistP256\)/);
+assert.match(client, /device_public_key = publicKey/);
+assert.match(client, /device_proof_challenge = deviceProofChallenge/);
+assert.match(client, /device_proof = proof/);
 assert.match(client, /internal async Task<DeviceLinkHttpResult<JsonElement>> GetSessionAsync/);
 assert.match(client, /new AuthenticationHeaderValue\("Bearer", deviceAccessToken\)/);
 assert.match(client, /Preserve the raw response so the recovery shell can display it/);
