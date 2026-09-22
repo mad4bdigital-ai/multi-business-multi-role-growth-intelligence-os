@@ -2900,9 +2900,9 @@ export function buildAdminCliRoutes(deps) {
       }
       if (!tunnelToken) {
         tunnelToken  = process.env.CLOUDFLARE_TUNNEL_TOKEN || "";
-        backendKey   = process.env.CONNECTOR_SECRET || process.env.BACKEND_API_KEY || "";
-        connectorLocalApiKey = process.env.CONNECTOR_LOCAL_API_KEY || "";
-        configSource = "env";
+        backendKey   = backendKey || process.env.CONNECTOR_SECRET || process.env.BACKEND_API_KEY || "";
+        connectorLocalApiKey = connectorLocalApiKey || process.env.CONNECTOR_LOCAL_API_KEY || "";
+        configSource = deviceIdentityResolution ? "db_with_env_tunnel_fallback" : "env";
         // Persist to DB so future calls resolve from DB
         if (tunnelToken) {
           try {
