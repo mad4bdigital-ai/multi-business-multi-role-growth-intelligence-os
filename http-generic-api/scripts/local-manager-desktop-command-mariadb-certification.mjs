@@ -60,7 +60,7 @@ const expectedStatuses = ["queued", "claimed", "completed", "failed", "expired",
 if (JSON.stringify(surface.active_status_values) !== JSON.stringify(expectedStatuses)) {
   throw new Error("Activation surface status taxonomy does not match the desktop command DB enum");
 }
-const forbiddenProjectionColumns = ["payload_json", "result_json", "request_context_json", "error_code", "error_message"];
+const forbiddenProjectionColumns = ["payload_json", "result_json", "request_context_json", "error_code", "error_message", "claim_token", "claim_lease_expires_at"];
 for (const column of forbiddenProjectionColumns) {
   if (surface.result_columns.includes(column)) throw new Error(`Activation projection exposes forbidden column: ${column}`);
 }
@@ -152,7 +152,7 @@ try {
     "SELECT column_name FROM information_schema.columns WHERE table_schema = ? AND table_name = 'local_manager_desktop_commands' ORDER BY ordinal_position",
     [database],
   );
-  if (schemaRows.length < 20) throw new Error("Runtime principal cannot inspect the desktop command schema");
+  if (schemaRows.length < 22) throw new Error("Runtime principal cannot inspect the desktop command ownership schema");
 
   const [aliasRows] = await runtime.query("SELECT alias_device_id, canonical_device_id FROM local_connector_device_aliases WHERE user_id = ? LIMIT 5", ["user-cert"]);
   const [configRows] = await runtime.query("SELECT device_id, hostname FROM local_connector_user_configs WHERE user_id = ? LIMIT 5", ["user-cert"]);
@@ -174,19 +174,91 @@ try {
   if (queued.length !== 1 || queued[0].command_id !== commandId) throw new Error("Queued desktop command was not pollable");
   evidence.lifecycle.queued = true;
 
+  const claimToken = "claim-cert-primary";
+  const competingClaimToken = "claim-cert-competing";
   const [claimResult] = await runtime.query(
-    "UPDATE local_manager_desktop_commands SET status='claimed', claimed_at=NOW() WHERE command_id=? AND status='queued'",
+    `UPDATE local_manager_desktop_commands
+        SET status='claimed', claimed_at=NOW(), claim_token=?, claim_lease_expires_at=DATE_ADD(NOW(), INTERVAL 120 SECOND)
+      WHERE command_id=? AND status='queued'`,
+    [claimToken, commandId],
+  );
+  if (Number(claimResult.affectedRows) !== 1) throw new Error("Desktop command atomic claim failed");
+  const [competingClaimResult] = await runtime.query(
+    `UPDATE local_manager_desktop_commands
+        SET status='claimed', claimed_at=NOW(), claim_token=?, claim_lease_expires_at=DATE_ADD(NOW(), INTERVAL 120 SECOND)
+      WHERE command_id=? AND status='queued'`,
+    [competingClaimToken, commandId],
+  );
+  if (Number(competingClaimResult.affectedRows) !== 0) throw new Error("Competing poller claimed an already-owned desktop command");
+  const [[claimedRow]] = await runtime.query(
+    "SELECT status, claim_token, claim_lease_expires_at FROM local_manager_desktop_commands WHERE command_id=?",
     [commandId],
   );
-  if (Number(claimResult.affectedRows) !== 1) throw new Error("Desktop command claim failed");
+  if (claimedRow?.status !== "claimed" || claimedRow?.claim_token !== claimToken || !claimedRow?.claim_lease_expires_at) {
+    throw new Error("Desktop command claim ownership proof was not persisted");
+  }
   evidence.lifecycle.claimed = true;
+  evidence.lifecycle.atomic_claim = true;
+  evidence.lifecycle.duplicate_claim_rejected = true;
+
+  const [heartbeatResult] = await runtime.query(
+    `UPDATE local_manager_desktop_commands
+        SET claim_lease_expires_at=DATE_ADD(NOW(), INTERVAL 120 SECOND)
+      WHERE command_id=? AND status='claimed' AND claim_token=? AND claim_lease_expires_at > NOW()`,
+    [commandId, claimToken],
+  );
+  if (Number(heartbeatResult.affectedRows) !== 1) throw new Error("Desktop command claim heartbeat failed");
+  evidence.lifecycle.heartbeat_extended = true;
+
+  const [wrongCompletionResult] = await runtime.query(
+    `UPDATE local_manager_desktop_commands
+        SET status='completed', completed_at=NOW(), claim_token=NULL, claim_lease_expires_at=NULL
+      WHERE command_id=? AND status='claimed' AND claim_token=? AND claim_lease_expires_at > NOW()`,
+    [commandId, competingClaimToken],
+  );
+  if (Number(wrongCompletionResult.affectedRows) !== 0) throw new Error("Wrong claim token completed a desktop command");
+  evidence.lifecycle.wrong_completion_rejected = true;
 
   const [completeResult] = await runtime.query(
-    "UPDATE local_manager_desktop_commands SET status='completed', result_json=JSON_OBJECT('ok', true, 'secrets_included', false), completed_at=NOW() WHERE command_id=? AND status='claimed'",
-    [commandId],
+    `UPDATE local_manager_desktop_commands
+        SET status='completed', result_json=JSON_OBJECT('ok', true, 'secrets_included', false), completed_at=NOW(), claim_token=NULL, claim_lease_expires_at=NULL
+      WHERE command_id=? AND status='claimed' AND claim_token=? AND claim_lease_expires_at > NOW()`,
+    [commandId, claimToken],
   );
-  if (Number(completeResult.affectedRows) !== 1) throw new Error("Desktop command completion failed");
+  if (Number(completeResult.affectedRows) !== 1) throw new Error("Desktop command owned completion failed");
   evidence.lifecycle.completed = true;
+
+  const [terminalRewriteResult] = await runtime.query(
+    "UPDATE local_manager_desktop_commands SET status='failed' WHERE command_id=? AND status='claimed' AND claim_token=?",
+    [commandId, claimToken],
+  );
+  if (Number(terminalRewriteResult.affectedRows) !== 0) throw new Error("Terminal desktop command was rewritten");
+  evidence.lifecycle.terminal_rewrite_rejected = true;
+
+  const leaseId = "cmd-cert-lease";
+  await runtime.query(
+    `INSERT INTO local_manager_desktop_commands
+      (command_id, tenant_id, user_id, device_id, execution_mode, action, status, priority, expires_at)
+     VALUES (?, ?, ?, ?, 'desktop', 'notify', 'queued', 15, DATE_ADD(NOW(), INTERVAL 5 MINUTE))`,
+    [leaseId, "tenant-cert", "user-cert", "device-canonical"],
+  );
+  await runtime.query(
+    `UPDATE local_manager_desktop_commands
+        SET status='claimed', claimed_at=NOW(), claim_token='claim-cert-lease', claim_lease_expires_at=DATE_SUB(NOW(), INTERVAL 1 SECOND)
+      WHERE command_id=? AND status='queued'`,
+    [leaseId],
+  );
+  const [requeueResult] = await runtime.query(
+    `UPDATE local_manager_desktop_commands
+        SET status='queued', claimed_at=NULL, claim_token=NULL, claim_lease_expires_at=NULL, error_code=NULL, error_message=NULL
+      WHERE status='claimed'
+        AND (claim_lease_expires_at IS NULL OR claim_lease_expires_at < NOW())
+        AND (expires_at IS NULL OR expires_at >= NOW())`,
+  );
+  if (Number(requeueResult.affectedRows) < 1) throw new Error("Expired claim lease was not requeued independently of enqueue TTL");
+  const [[requeuedRow]] = await runtime.query("SELECT status, claim_token FROM local_manager_desktop_commands WHERE command_id=?", [leaseId]);
+  if (requeuedRow?.status !== "queued" || requeuedRow?.claim_token !== null) throw new Error("Expired lease requeue retained claim ownership");
+  evidence.lifecycle.lease_requeued = true;
 
   const expiredId = "cmd-cert-expired";
   await runtime.query(
@@ -196,9 +268,11 @@ try {
     [expiredId, "tenant-cert", "user-cert", "device-canonical"],
   );
   const [expireResult] = await runtime.query(
-    "UPDATE local_manager_desktop_commands SET status='expired', error_code='command_expired', error_message='Command expired before completion.' WHERE status IN ('queued','claimed') AND expires_at IS NOT NULL AND expires_at < NOW()",
+    `UPDATE local_manager_desktop_commands
+        SET status='expired', error_code='command_expired', error_message='Command expired before claim.', claim_token=NULL, claim_lease_expires_at=NULL
+      WHERE status='queued' AND expires_at IS NOT NULL AND expires_at < NOW()`,
   );
-  if (Number(expireResult.affectedRows) < 1) throw new Error("Desktop command expiry transition failed");
+  if (Number(expireResult.affectedRows) < 1) throw new Error("Desktop command enqueue expiry transition failed");
   evidence.lifecycle.expired = true;
 
   const selectColumns = surface.result_columns.map((column) => `\`${column}\``).join(", ");
@@ -227,12 +301,19 @@ try {
   evidence.privilege_denials.push(await expectDenied("create", () => runtime.query("CREATE TABLE lm_runtime_forbidden_create (id INT)")));
   evidence.privilege_denials.push(await expectDenied("alter", () => runtime.query("ALTER TABLE local_manager_desktop_commands ADD COLUMN forbidden_probe INT NULL")));
 
-  const [finalRows] = await runtime.query("SELECT command_id, status FROM local_manager_desktop_commands WHERE command_id IN (?, ?) ORDER BY command_id", [commandId, expiredId]);
+  const [finalRows] = await runtime.query("SELECT command_id, status, claim_token FROM local_manager_desktop_commands WHERE command_id IN (?, ?, ?) ORDER BY command_id", [commandId, leaseId, expiredId]);
   evidence.lifecycle.final_rows = finalRows;
-  evidence.lifecycle.route_cycle_complete = finalRows.some((row) => row.command_id === commandId && row.status === "completed")
+  evidence.lifecycle.route_cycle_complete = finalRows.some((row) => row.command_id === commandId && row.status === "completed" && row.claim_token === null)
+    && finalRows.some((row) => row.command_id === leaseId && row.status === "queued" && row.claim_token === null)
     && finalRows.some((row) => row.command_id === expiredId && row.status === "expired");
 
   evidence.ok = evidence.lifecycle.route_cycle_complete
+    && evidence.lifecycle.atomic_claim === true
+    && evidence.lifecycle.duplicate_claim_rejected === true
+    && evidence.lifecycle.heartbeat_extended === true
+    && evidence.lifecycle.wrong_completion_rejected === true
+    && evidence.lifecycle.terminal_rewrite_rejected === true
+    && evidence.lifecycle.lease_requeued === true
     && evidence.privilege_denials.every((item) => item.denied === true)
     && evidence.projection.forbidden_columns_exposed.length === 0;
 
