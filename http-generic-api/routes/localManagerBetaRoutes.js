@@ -600,7 +600,7 @@ function setupGoogle(){
     client_id: GOOGLE_CLIENT_ID,
     callback: async (response) => {
       try {
-        const res = await fetch('/auth/google',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id_token:response.credential})});
+        const res = await fetch('/auth/google',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id_token:response.credential,token_profile:'local_manager_user'})});
         const data = await res.json();
         if(!res.ok || !data.token){ setOut(data); return; }
         await completeAuth(data.token, data);
@@ -642,7 +642,7 @@ async function approveDevice(){
   return false;
 }
 $('signIn').onclick = async () => {
-  const res = await fetch('/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value})});
+  const res = await fetch('/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value,token_profile:'local_manager_user'})});
   const data = await res.json();
   if(!res.ok || !data.token){ setOut(data); return; }
   await completeAuth(data.token, data);
@@ -656,7 +656,7 @@ $('forgotPassword').onclick = async () => {
   setOut(data);
 };
 $('createAccount').onclick = async () => {
-  const res = await fetch('/auth/register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value,display_name:$('displayName').value || $('email').value,tenant_display_name:$('workspaceName').value || 'Local Manager workspace'})});
+  const res = await fetch('/auth/register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value,display_name:$('displayName').value || $('email').value,tenant_display_name:$('workspaceName').value || 'Local Manager workspace',token_profile:'local_manager_user'})});
   const data = await res.json();
   if(!res.ok || !data.token){ setOut(data); return; }
   await completeAuth(data.token, data);
@@ -750,7 +750,7 @@ function setupGoogle(){
     client_id: GOOGLE_CLIENT_ID,
     callback: async (response) => {
       try {
-        const res = await fetch('/auth/google',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id_token:response.credential})});
+        const res = await fetch('/auth/google',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id_token:response.credential,token_profile:'local_manager_user'})});
         const data = await res.json();
         if(!res.ok || !data.token){ renderDevices(data); return; }
         setToken(data.token, data);
@@ -761,7 +761,7 @@ function setupGoogle(){
   // Allow GIS to localize from the Google Account or browser settings.
   window.google.accounts.id.renderButton($('googleSignIn'), { theme:'outline', size:'large', width:280, text:'continue_with' });
 }
-$('signIn').onclick = async () => { const res=await fetch('/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value})}); const data=await res.json(); if(!res.ok||!data.token){ renderDevices(data); return; } setToken(data.token,data); await loadDevices(); };
+$('signIn').onclick = async () => { const res=await fetch('/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value,token_profile:'local_manager_user'})}); const data=await res.json(); if(!res.ok||!data.token){ renderDevices(data); return; } setToken(data.token,data); await loadDevices(); };
 $('load').onclick = loadDevices;
 function restoreUser(){
   const token=getToken();
