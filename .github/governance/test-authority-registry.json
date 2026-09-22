@@ -58,6 +58,15 @@
       ]
     },
     {
+      "id": "centralized_user_jwt_authentication",
+      "test_paths": [
+        "http-generic-api/scripts/user-jwt-auth-governance.mjs",
+        "http-generic-api/userJwtAuth.js",
+        "http-generic-api/test-user-jwt-auth.mjs",
+        "http-generic-api/test-activation-awareness-user-jwt-boundary.mjs"
+      ]
+    },
+    {
       "id": "custom_gpt_live_registration_readback",
       "test_paths": [
         "canonicals/openapi/custom-gpt-surfaces.yaml",
