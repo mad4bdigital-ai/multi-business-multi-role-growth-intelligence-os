@@ -163,7 +163,8 @@
         "POST /local-connector/install/device-download-link",
         "POST /local-manager/device-link/approve",
         "POST /local-manager/device-link/devices/{sessionId}/revoke",
-        "POST /local-manager/device/agent-runtime"
+        "POST /local-manager/device/agent-runtime",
+        "POST /local-manager/device/n8n/provision"
       ],
       "profile": "local_manager",
       "owner": "local-manager",
@@ -5726,19 +5727,19 @@
       "source_file": "routes/localManagerBetaRoutes.js",
       "classification": "state_change",
       "owner": "local-manager",
-      "rationale": "A signed-in Local Manager user explicitly approves one unexpired pending pairing session. The handler binds ownership to the verified user and exact tenant scope, performs a conditional pending-to-approved transition, and reads the durable approved row back before returning success.",
+      "rationale": "A signed-in Local Manager user explicitly approves one unexpired pending pairing session. The handler binds ownership to the verified user and exact tenant scope, performs a conditional pending-to-approved transition, reads the durable approved row back, and may invoke only the separately configured dedicated Local Manager writer to reconcile missing connector aliases with same-cycle readback; it never falls back to DB_USER.",
       "preflight": {
-        "mode": "verified_local_manager_user_pending_session_expiry_and_exact_tenant_scope"
+        "mode": "verified_local_manager_user_pending_session_expiry_exact_tenant_and_dedicated_alias_writer_if_needed"
       },
       "approval": {
         "mode": "explicit_signed_in_user_pairing_approval"
       },
       "readback": {
-        "mode": "inline_post_commit"
+        "mode": "inline_approval_and_dedicated_alias_writer_readback"
       },
       "rollback": {
         "mode": "revoke_linked_device",
-        "rationale": "Approval can be invalidated through the governed linked-device revoke transition; connector alias reconciliation remains a separate fail-closed handoff."
+        "rationale": "Approval can be invalidated through the governed linked-device revoke transition. Alias rows are bounded identity reconciliation records and are changed only by the dedicated writer when enabled."
       },
       "parameter_bindings": {
         "device_code": "request body pairing code hash lookup",
@@ -5749,7 +5750,8 @@
         "services/localManagerDeviceLinkService.js",
         "routes/localManagerBetaRoutes.js",
         "test-connect-routes.mjs",
-        "openapi.yaml"
+        "openapi.yaml",
+        "localManagerWriteAuthority.js"
       ]
     },
     {
@@ -9743,6 +9745,40 @@
       "evidence_refs": [
         "routes/localManagerBetaRoutes.js",
         "services/localManagerDeviceLinkService.js",
+        "test-connect-routes.mjs",
+        "openapi.yaml"
+      ]
+    },
+    {
+      "rule_id": "local-manager-n8n-provision-governed-state-change",
+      "operation": "POST /local-manager/device/n8n/provision",
+      "source_file": "routes/localManagerBetaRoutes.js",
+      "classification": "state_change",
+      "owner": "local-manager",
+      "rationale": "An explicitly signed-in Local Manager user requests provisioning for one active linked device. The handler proves exact user/tenant/session ownership, requires a dedicated Local Manager DB writer distinct from DB_USER, writes only connected_systems/installations through that writer, and requires same-cycle runtime readback.",
+      "preflight": {
+        "mode": "verified_local_manager_user_owned_active_device_and_dedicated_writer_ready"
+      },
+      "approval": {
+        "mode": "explicit_signed_in_user_n8n_provision_request"
+      },
+      "readback": {
+        "mode": "dedicated_writer_then_runtime_select_readback"
+      },
+      "rollback": {
+        "mode": "separate_installation_deactivation_required",
+        "rationale": "Provisioning creates durable runtime configuration. Removal/deactivation must be a separately governed lifecycle action rather than an implicit rollback in a GET path."
+      },
+      "parameter_bindings": {
+        "session_id": "request.body.session_id",
+        "actor_user_id": "verified Local Manager user principal",
+        "actor_tenant_id": "verified exact tenant scope",
+        "writer_identity": "LOCAL_MANAGER_WRITE_DB_USER distinct from DB_USER"
+      },
+      "evidence_refs": [
+        "routes/localManagerBetaRoutes.js",
+        "services/localManagerDeviceLinkService.js",
+        "localManagerWriteAuthority.js",
         "test-connect-routes.mjs",
         "openapi.yaml"
       ]
