@@ -40,7 +40,7 @@
   "summary": {
     "family_count": 75,
     "dispatch_family_count": 176,
-    "operation_count": 318,
+    "operation_count": 319,
     "detail_evidence_required_count": 318,
     "canonical_openapi_added_count": 0,
     "excluded_scope_count": 0
@@ -451,6 +451,31 @@
       "governance_rule_id": null,
       "evidence_refs": [
         "http-generic-api/frontend-surface-dispatch.generated.json"
+      ],
+      "closure_status": "detail_evidence_required",
+      "canonical_openapi_added": false,
+      "route_wiring": false,
+      "runtime_authority": false,
+      "production_activation": false
+    },
+    {
+      "family_key": "local-manager-desktop-command.local_device",
+      "method": "POST",
+      "path": "/local-manager/device/desktop-commands/{commandId}/heartbeat",
+      "signature": "POST /local-manager/device/desktop-commands/{commandId}/heartbeat",
+      "source_file": "routes/localManagerDesktopCommandRoutes.js",
+      "scope": "local_device",
+      "delivery_kind": "api",
+      "openapi_contract_level": "operation-index-only",
+      "auth_parity": "equivalent",
+      "governance_classification": "disabled",
+      "governance_rule_id": "generated-gap-post-local-manager-device-desktop-commands-commandid-heartbeat-routes-localmanagerdesktopcommandroutes-js",
+      "evidence_refs": [
+        "frontend-surface-dispatch.generated.json",
+        "http-generic-api/frontend-surface-dispatch.generated.json",
+        "openapi.yaml",
+        "routes/localManagerDesktopCommandRoutes.js",
+        "test-frontend-surface-coverage-claims.mjs"
       ],
       "closure_status": "detail_evidence_required",
       "canonical_openapi_added": false,
