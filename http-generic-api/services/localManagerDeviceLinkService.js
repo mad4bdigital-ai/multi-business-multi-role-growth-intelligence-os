@@ -2,6 +2,11 @@ import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
 import { getPool } from "../db.js";
 import { verifyUserJwtAuthorization } from "../userJwtAuth.js";
+import {
+  localManagerWriteAuthorityEnabled,
+  provisionLocalManagerN8n,
+  reconcileLocalConnectorAliases,
+} from "../localManagerWriteAuthority.js";
 
 const DEFAULT_LOCAL_MANAGER_JWT_ISSUER = "https://auth.mad4b.com";
 
@@ -456,6 +461,61 @@ async function inspectLocalConnectorAliasForDeviceLink({ session, principal }) {
   }
 }
 
+async function reconcileLocalConnectorAliasForDeviceLink({ session, principal }) {
+  const inspected = await inspectLocalConnectorAliasForDeviceLink({ session, principal });
+  if (inspected.resolved || !inspected.reconciliation_required) return inspected;
+  if (!localManagerWriteAuthorityEnabled()) {
+    return {
+      ...inspected,
+      writer_ready: false,
+      apply_authorized: false,
+      mutation_performed: false,
+      required_authority: "local_connector_alias_reconciliation_writer",
+    };
+  }
+  if (!inspected.canonical_device_id || !inspected.canonical_config_id || !Array.isArray(inspected.missing_aliases)) {
+    return {
+      ...inspected,
+      writer_ready: true,
+      apply_authorized: false,
+      mutation_performed: false,
+      reason: inspected.reason || "canonical_connector_config_not_found",
+    };
+  }
+  try {
+    const applied = await reconcileLocalConnectorAliases({
+      userId: principal.user_id,
+      tenantId: principal.tenant_id,
+      canonicalDeviceId: inspected.canonical_device_id,
+      canonicalConfigId: inspected.canonical_config_id,
+      aliases: inspected.missing_aliases,
+    });
+    const readback = await inspectLocalConnectorAliasForDeviceLink({ session, principal });
+    return {
+      ...readback,
+      writer_ready: true,
+      apply_authorized: true,
+      mutation_performed: Boolean(applied.mutation_performed),
+      writer_authority: "local_connector_alias_reconciliation_writer",
+      writer_readback_proven: readback.resolved === true,
+      secrets_included: false,
+    };
+  } catch (error) {
+    return {
+      ...inspected,
+      writer_ready: true,
+      apply_authorized: true,
+      mutation_performed: false,
+      reason: "connector_alias_reconciliation_writer_failed",
+      error: {
+        code: error?.code || "connector_alias_reconciliation_writer_failed",
+        message: error?.message || String(error),
+      },
+      secrets_included: false,
+    };
+  }
+}
+
 export async function requireLocalManagerUser(req) {
   const result = verifyUserJwtAuthorization(req.headers?.authorization, {
     issuer: localManagerJwtIssuer(),
@@ -735,7 +795,7 @@ export async function approveDeviceLinkSession(req, res) {
     if (row.status !== "pending") {
       const sameOwner = row.user_id === principal.user_id && (sameTenantScope(row.tenant_id, principal.tenant_id));
       if (sameOwner && ["approved", "completed"].includes(row.status)) {
-        const connectorAlias = await inspectLocalConnectorAliasForDeviceLink({ session: row, principal });
+        const connectorAlias = await reconcileLocalConnectorAliasForDeviceLink({ session: row, principal });
         return res.status(200).json({
           ok: true,
           status: row.status,
@@ -807,7 +867,7 @@ export async function approveDeviceLinkSession(req, res) {
     if (!approved) {
       return res.status(409).json({ ok: false, error: { code: "device_link_approval_readback_failed", message: "Pairing approval could not be proven from durable state." }, secrets_included: false });
     }
-    const connectorAlias = await inspectLocalConnectorAliasForDeviceLink({ session: approved, principal });
+    const connectorAlias = await reconcileLocalConnectorAliasForDeviceLink({ session: approved, principal });
     return res.status(200).json({
       ok: true,
       status: "approved",
@@ -823,6 +883,89 @@ export async function approveDeviceLinkSession(req, res) {
     });
   } catch (err) {
     return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "device_link_approve_failed", message: err.message }, secrets_included: false });
+  }
+}
+
+export async function provisionDeviceN8n(req, res) {
+  try {
+    await assertDeviceLinkTableSchema();
+    const principal = await requireLocalManagerUser(req);
+    const sessionId = cleanText(req.body?.session_id, 64);
+    if (!sessionId) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: "local_manager_n8n_session_required", message: "session_id is required for explicit n8n provisioning." },
+        secrets_included: false,
+      });
+    }
+    const [rows] = await getPool().query(
+      `SELECT * FROM \`local_manager_device_link_sessions\`
+        WHERE session_id = ?
+          AND user_id = ?
+          AND ((? IS NULL AND tenant_id IS NULL) OR tenant_id = ?)
+          AND status IN ('approved','completed')
+          AND revoked_at IS NULL
+        LIMIT 1`,
+      [sessionId, principal.user_id, principal.tenant_id, principal.tenant_id]
+    );
+    const row = rows[0] || null;
+    if (!row) {
+      return res.status(404).json({
+        ok: false,
+        error: { code: "local_manager_n8n_device_not_found", message: "An active linked device was not found for this user and tenant." },
+        secrets_included: false,
+      });
+    }
+    if (!localManagerWriteAuthorityEnabled()) {
+      return res.status(503).json({
+        ok: false,
+        provisioning_required: true,
+        mutation_performed: false,
+        apply_authorized: false,
+        required_authority: "local_manager_n8n_provisioning_writer",
+        error: { code: "local_manager_n8n_writer_not_ready", message: "Dedicated Local Manager write authority is not enabled." },
+        secrets_included: false,
+      });
+    }
+    const device = {
+      user_id: principal.user_id,
+      tenant_id: principal.tenant_id,
+      device_id: row.device_id,
+      session_id: row.session_id,
+    };
+    const applied = await provisionLocalManagerN8n({
+      device,
+      profile: defaultN8nProfile({ device }),
+    });
+    const readback = await resolveTenantN8nProfile(device);
+    if (!readback.provisioned || !readback.installation_id) {
+      return res.status(409).json({
+        ok: false,
+        provisioning_required: true,
+        mutation_performed: Boolean(applied.mutation_performed),
+        apply_authorized: true,
+        required_authority: "local_manager_n8n_provisioning_writer",
+        error: { code: "local_manager_n8n_provisioning_readback_failed", message: "n8n provisioning was not visible through the runtime read path." },
+        secrets_included: false,
+      });
+    }
+    return res.status(applied.created ? 201 : 200).json({
+      ok: true,
+      provisioned: true,
+      provisioning_required: false,
+      mutation_performed: Boolean(applied.mutation_performed),
+      apply_authorized: true,
+      writer_authority: "local_manager_n8n_provisioning_writer",
+      writer_readback_proven: true,
+      n8n_connector: readback,
+      secrets_included: false,
+    });
+  } catch (err) {
+    return res.status(err.status || 500).json({
+      ok: false,
+      error: { code: err.code || "local_manager_n8n_provision_failed", message: err.message, ...(err.details ? { details: err.details } : {}) },
+      secrets_included: false,
+    });
   }
 }
 
