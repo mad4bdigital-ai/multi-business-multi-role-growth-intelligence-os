@@ -13,6 +13,12 @@ const buildGrantSpec = (required_tables, required_operations, apply_when = "alwa
   apply_when,
 });
 
+export const LOCAL_MANAGER_WRITE_DB_PRIVILEGE_MATRIX = Object.freeze({
+  local_connector_device_aliases: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
+  connected_systems: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
+  installations: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
+});
+
 export const GOVERNANCE_DB_PRIVILEGE_MATRIX = Object.freeze({
   capability_resolution_envelope_ledger: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
   approval_holds: Object.freeze(["SELECT", "INSERT"]),
