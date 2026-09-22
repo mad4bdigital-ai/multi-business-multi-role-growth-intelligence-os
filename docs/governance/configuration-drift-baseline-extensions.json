@@ -664,6 +664,17 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": "http-generic-api/scripts/local-manager-desktop-command-mariadb-certification.mjs|port|literal_declaration|port",
+      "owner": "local-manager-certification",
+      "reason": "Disposable MariaDB certification is intentionally pinned to the GitHub Actions service port 3306. This is a non-secret CI-only loopback invariant; the certifier separately refuses non-local DB_HOST values and grants no Staging, Production, provider, or external database authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": "http-generic-api/scripts/maintenance-tools/configuration-drift-guard.mjs|DEFAULT_BASELINE_EXTENSION|literal_declaration|baseline.extension",
       "owner": "repository-governance",
       "reason": "The default baseline-extension path is the code-owned locator for the permanent configuration governance extension authority. It selects a tracked report-only contract, contains no credential, and grants no runtime, database, protected-ref, or Production mutation authority.",
