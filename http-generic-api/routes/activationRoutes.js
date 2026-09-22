@@ -17,6 +17,7 @@ import { buildActivationDynamicTabsEvidence } from "../activationDynamicTabsEvid
 import { buildActivationOperationalIntelligenceEvidence } from "../activationOperationalIntelligenceEvidence.js";
 import {
   resolveActivationSessionLifecycle,
+  normalizeActivationSessionAuthorityError,
   acknowledgeActivationRun,
   markActivationRunDelivered,
 } from "../activationSessionLifecycleService.js";
@@ -1489,14 +1490,19 @@ export async function buildActivationSessionContext(req) {
     close_previous_sessions: asBoolean(req.query.close_previous_sessions) || asBoolean(req.query.close_previous),
     reuse_window_hours: req.query.reuse_window_hours,
   };
-  const sessionOpen = await resolveActivationSessionLifecycle({
-    pool,
-    subject,
-    options: lifecycleOptions,
-    openSession: () => autoOpenGptSession(pool, subject, {
-      close_previous_sessions: lifecycleOptions.close_previous_sessions,
-    }),
-  });
+  let sessionOpen;
+  try {
+    sessionOpen = await resolveActivationSessionLifecycle({
+      pool,
+      subject,
+      options: lifecycleOptions,
+      openSession: () => autoOpenGptSession(pool, subject, {
+        close_previous_sessions: lifecycleOptions.close_previous_sessions,
+      }),
+    });
+  } catch (error) {
+    throw normalizeActivationSessionAuthorityError(error);
+  }
   const { session_id: newSessionId, run_id: activationRunId, closed_sessions } = sessionOpen;
 
   const limit = capLimit(req.query.limit, SESSION_CONTEXT_DEFAULT_LIMIT, SESSION_CONTEXT_MAX_LIMIT);
@@ -2038,7 +2044,8 @@ export function buildActivationRoutes(deps) {
         ok: false,
         error: {
           code: err.code || "activation_session_context_failed",
-          message: err.message
+          message: err.message,
+          details: err.details || undefined
         }
       });
     }
