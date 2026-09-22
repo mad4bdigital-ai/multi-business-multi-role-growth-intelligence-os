@@ -686,6 +686,17 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": "http-generic-api/scripts/local-manager-desktop-command-mariadb-certification.mjs|batchClaimToken|literal_declaration|batchclaimtoken",
+      "owner": "local-manager-certification",
+      "reason": "Disposable MariaDB certification uses a fixed non-secret batch claim token only inside its isolated CI database to prove that a poller reads back exactly the rows atomically claimed by its own token. It is test-fixture data, not runtime configuration or credential material, and grants no Staging, Production, provider, or external database authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": "http-generic-api/scripts/local-manager-desktop-command-mariadb-certification.mjs|port|literal_declaration|port",
       "owner": "local-manager-certification",
       "reason": "Disposable MariaDB certification is intentionally pinned to the GitHub Actions service port 3306. This is a non-secret CI-only loopback invariant; the certifier separately refuses non-local DB_HOST values and grants no Staging, Production, provider, or external database authority.",
