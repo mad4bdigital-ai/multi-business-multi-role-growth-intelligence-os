@@ -84,6 +84,7 @@ const STAGING_RUNTIME_READ_ONLY_TABLES = Object.freeze([
   "workspace_assets",
   "local_connector_device_aliases",
   "local_connector_user_configs",
+  "local_manager_control_templates",
 ]);
 
 const STAGING_RUNTIME_OPTIONAL_READ_SURFACES = Object.freeze([
