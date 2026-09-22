@@ -142,7 +142,7 @@ test("empty rebuild exposes a hashed selected-role graph without granting grants
   assert.deepEqual(graph.zero_object_kinds, ["tables", "views", "triggers", "routines", "events"]);
   assert.deepEqual(graph.execution_order, ["full_inspection_durable_record", "selected_zero_object_role_recheck", "selected_role_bundle_baseline", "selected_role_seeds", "selected_role_postconditions", "next_selected_role_or_stop", "separate_least_privilege_grants_approval", "behavioral_probes"]);
   assert.deepEqual(graph.selected_roles, ROLE_SELECTION_PROOF.selected_roles);
-  assert.deepEqual(graph.migration_sequence.map((entry) => entry.file), [MIGRATION]);
+  assert.deepEqual(graph.migration_sequence.map((entry) => entry.file), [MIGRATION, "20260922_local_manager_desktop_commands.sql"]);
   assert.deepEqual(graph.behavioral_probes.map((probe) => probe.role), ["governance", "runtime_persistence", "runtime"]);
   assert.ok(graph.behavioral_probes.every((probe) => probe.execution_status === "declared_not_executed_in_preview" && probe.provider_accessed === false));
   assert.equal(graph.partial_role_rebuild_allowed, true);
