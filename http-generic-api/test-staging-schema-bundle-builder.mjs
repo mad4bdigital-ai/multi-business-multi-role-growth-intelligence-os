@@ -411,6 +411,7 @@ test("schema bundle manifest declares exactly three isolated roles", () => {
     "gpt_session_turns", "activation_dynamic_tab_registry", "activation_dynamic_tab_section_registry",
     "activation_dynamic_tab_discovery_rule_registry", "activation_section_action_registry", "activation_attention_rule_registry",
     "activation_freshness_policy_registry", "activation_signal_subscription_registry", "activation_connector_pack_registry", "workspace_registry",
+    "local_manager_desktop_commands", "local_connector_device_aliases", "local_connector_user_configs",
   ]);
   assert.equal(manifest.canonical_seed_lifecycle.contract, "mad4b.staging.canonical-seed-manifest.v1");
   assert.deepEqual(manifest.canonical_seed_lifecycle.seed_files, [
