@@ -54,6 +54,21 @@ for (const nonFallbackStatus of [403, 500]) {
   assert.equal(calls, 1, `${nonFallbackStatus} must not trigger credential fallback`);
 }
 
+await assert.rejects(
+  () => fetchLocalConnectorWithCredentialFallback({
+    config: { connector_secret: "primary", connector_local_api_key: "fallback" },
+    url: "https://connector.invalid/shell",
+    fetchImpl: async () => {
+      attempted.push("transport-timeout");
+      const error = new Error("timed out");
+      error.name = "AbortError";
+      throw error;
+    },
+  }),
+  (error) => error.name === "AbortError",
+);
+assert.equal(attempted.filter((entry) => entry === "transport-timeout").length, 1, "transport timeout must not trigger credential fallback");
+
 let bothRejectedCalls = 0;
 await assert.rejects(
   () => fetchLocalConnectorWithCredentialFallback({
