@@ -221,33 +221,37 @@ async function resolveOrCreateTenantN8nProfile(device) {
   return { system_id: systemId, installation_id: installationId, display_name: "Local n8n", status: "active", profile, created: true };
 }
 
-async function ensureDeviceLinkTable() {
-  await getPool().query(`
-    CREATE TABLE IF NOT EXISTS \`local_manager_device_link_sessions\` (
-      \`session_id\` VARCHAR(64) NOT NULL,
-      \`display_code\` VARCHAR(16) NOT NULL,
-      \`display_code_hash\` VARCHAR(64) NOT NULL,
-      \`poll_token_hash\` VARCHAR(64) NOT NULL,
-      \`status\` VARCHAR(24) NOT NULL DEFAULT 'pending',
-      \`device_id\` VARCHAR(128) NOT NULL,
-      \`hostname\` VARCHAR(255) NULL,
-      \`platform\` VARCHAR(32) NULL,
-      \`app_version\` VARCHAR(80) NULL,
-      \`user_id\` VARCHAR(64) NULL,
-      \`tenant_id\` VARCHAR(64) NULL,
-      \`approved_at\` DATETIME NULL,
-      \`completed_at\` DATETIME NULL,
-      \`expires_at\` DATETIME NOT NULL,
-      \`metadata_json\` JSON NULL,
-      \`created_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      \`updated_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      PRIMARY KEY (\`session_id\`),
-      UNIQUE KEY \`uq_local_manager_display_code_hash\` (\`display_code_hash\`),
-      KEY \`idx_local_manager_device_link_status\` (\`status\`, \`expires_at\`),
-      KEY \`idx_local_manager_device_link_owner\` (\`user_id\`, \`tenant_id\`),
-      KEY \`idx_local_manager_device_link_device\` (\`device_id\`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-  `);
+async function assertDeviceLinkTableSchema() {
+  try {
+    const [rows] = await getPool().query(
+      `SELECT COLUMN_NAME
+         FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'local_manager_device_link_sessions'`
+    );
+    const columns = new Set(rows.map((row) => String(row.COLUMN_NAME || row.column_name || "")));
+    const required = [
+      "session_id", "display_code_hash", "poll_token_hash", "status", "device_id",
+      "user_id", "tenant_id", "approved_at", "completed_at", "expires_at",
+      "device_token_jti", "device_token_issued_at", "revoked_at", "revoked_by_user_id",
+    ];
+    const missing = required.filter((column) => !columns.has(column));
+    if (missing.length) {
+      const err = new Error("Local Manager device-link schema is not ready.");
+      err.status = 503;
+      err.code = "device_link_schema_not_ready";
+      err.details = { missing_columns: missing, migration_required: "20260922_local_manager_device_link_authority.sql", secrets_included: false };
+      throw err;
+    }
+    return true;
+  } catch (error) {
+    if (error?.code === "device_link_schema_not_ready") throw error;
+    const err = new Error("Local Manager device-link schema is unavailable to runtime authority.");
+    err.status = 503;
+    err.code = "device_link_schema_unavailable";
+    err.details = { required_operations: ["SELECT", "INSERT", "UPDATE"], secrets_included: false };
+    throw err;
+  }
 }
 
 function sanitizeSession(row) {
@@ -410,32 +414,21 @@ async function ensureLocalConnectorAliasForDeviceLink({ session, principal }) {
 }
 
 export async function requireLocalManagerUser(req) {
-  const auth = String(req.headers.authorization || "");
-  const token = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
-  if (!token) {
-    const err = new Error("A signed-in user token is required.");
-    err.status = 401;
-    err.code = "user_jwt_required";
+  const result = verifyUserJwtAuthorization(req.headers?.authorization);
+  if (!result.ok) {
+    const err = new Error(result.message);
+    err.status = result.status;
+    err.code = result.code;
     throw err;
   }
-
-  let payload;
-  try {
-    payload = jwt.verify(token, JWT_SECRET);
-  } catch {
-    const err = new Error("User token is invalid or expired.");
-    err.status = 401;
-    err.code = "invalid_user_jwt";
+  const payload = result.claims;
+  if (payload?.purpose === "local_manager_device_access" || payload?.scope === "local_manager.device") {
+    const err = new Error("A device token cannot be used as signed-in user authority.");
+    err.status = 403;
+    err.code = "wrong_user_token_class";
     throw err;
   }
-
   const userId = cleanText(payload.user_id, 64);
-  if (!userId) {
-    const err = new Error("User token is missing user_id.");
-    err.status = 401;
-    err.code = "invalid_user_jwt";
-    throw err;
-  }
   const tenantId = cleanText(payload.tenant_id, 64) || null;
   const resolved = await fetchUserMembership({ userId, tenantId });
   if (!resolved) {
@@ -444,7 +437,6 @@ export async function requireLocalManagerUser(req) {
     err.code = "tenant_membership_required";
     throw err;
   }
-
   return {
     user_id: resolved.user.user_id,
     email: resolved.user.email,
@@ -457,7 +449,7 @@ export async function requireLocalManagerUser(req) {
 
 export async function startDeviceLinkSession(req, res) {
   try {
-    await ensureDeviceLinkTable();
+    await assertDeviceLinkTableSchema();
     const body = req.body || {};
     const hostname = cleanText(body.hostname || body.device_name || "", 255);
     const deviceId = cleanId(body.device_id, { fallback: cleanId(hostname, { fallback: `device-${crypto.randomUUID().slice(0, 8)}` }), max: 128 });
@@ -476,8 +468,8 @@ export async function startDeviceLinkSession(req, res) {
     await getPool().query(
       `INSERT INTO \`local_manager_device_link_sessions\`
         (session_id, display_code, display_code_hash, poll_token_hash, status, device_id, hostname, platform, app_version, expires_at, metadata_json)
-       VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)`,
-      [sessionId, displayCode, sha256(displayCode), sha256(pollToken), deviceId, hostname || null, platform, appVersion || null, expiresAt, jsonString(metadata)]
+       VALUES (?, NULL, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)`,
+      [sessionId, sha256(displayCode), sha256(pollToken), deviceId, hostname || null, platform, appVersion || null, expiresAt, jsonString(metadata)]
     );
 
     const verificationUri = `${getBaseUrl(req)}/app/local-manager/link-device?code=${encodeURIComponent(displayCode)}`;
@@ -500,7 +492,7 @@ export async function startDeviceLinkSession(req, res) {
 
 export async function previewDeviceLinkSession(req, res) {
   try {
-    await ensureDeviceLinkTable();
+    await assertDeviceLinkTableSchema();
     const displayCode = cleanText(req.query?.code || req.query?.device_code || req.query?.user_code, 16).toUpperCase();
     if (!displayCode) {
       return res.status(400).json({ ok: false, error: { code: "missing_device_code", message: "A pairing code is required." }, secrets_included: false });
@@ -528,7 +520,7 @@ export async function previewDeviceLinkSession(req, res) {
 
 export async function pollDeviceLinkSession(req, res) {
   try {
-    await ensureDeviceLinkTable();
+    await assertDeviceLinkTableSchema();
     const displayCode = cleanText(req.body?.device_code || req.body?.user_code || req.body?.code, 16).toUpperCase();
     const pollToken = cleanText(req.body?.poll_token, 200);
     if (!displayCode || !pollToken) {
@@ -589,7 +581,7 @@ export async function pollDeviceLinkSession(req, res) {
 
 export async function approveDeviceLinkSession(req, res) {
   try {
-    await ensureDeviceLinkTable();
+    await assertDeviceLinkTableSchema();
     const principal = await requireLocalManagerUser(req);
     const displayCode = cleanText(req.body?.device_code || req.body?.user_code || req.body?.code, 16).toUpperCase();
     if (!displayCode) {
@@ -666,7 +658,7 @@ export async function approveDeviceLinkSession(req, res) {
 
 export async function listLinkedDevices(req, res) {
   try {
-    await ensureDeviceLinkTable();
+    await assertDeviceLinkTableSchema();
     const principal = await requireLocalManagerUser(req);
     const [linkRows] = await getPool().query(
       `SELECT * FROM \`local_manager_device_link_sessions\`
@@ -721,7 +713,7 @@ export async function requireLocalManagerDevice(req) {
     throw err;
   }
 
-  await ensureDeviceLinkTable();
+  await assertDeviceLinkTableSchema();
   const [rows] = await getPool().query(
     `SELECT * FROM \`local_manager_device_link_sessions\`
       WHERE session_id = ? AND device_id = ? AND user_id = ? AND status IN ('approved','completed')
