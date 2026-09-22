@@ -87,6 +87,7 @@ export function evaluateProductionConfig(env = process.env) {
   const secrets = [
     secretEvidence("JWT_SECRET", env.JWT_SECRET),
     secretEvidence("TENANT_GPT_SSO_SIGNING_SECRET", env.TENANT_GPT_SSO_SIGNING_SECRET),
+    secretEvidence("LOCAL_MANAGER_DEVICE_JWT_SECRET", env.LOCAL_MANAGER_DEVICE_JWT_SECRET),
   ];
   for (const item of secrets) {
     if (!item.present) errors.push(`${item.key} is missing.`);
@@ -94,6 +95,12 @@ export function evaluateProductionConfig(env = process.env) {
   }
   if (secrets.every((item) => item.present) && secrets[0].sha256_prefix === secrets[1].sha256_prefix) {
     errors.push("JWT_SECRET and TENANT_GPT_SSO_SIGNING_SECRET must be distinct.");
+  }
+  if (secrets[0].present && secrets[2].present && secrets[0].sha256_prefix === secrets[2].sha256_prefix) {
+    errors.push("JWT_SECRET and LOCAL_MANAGER_DEVICE_JWT_SECRET must be distinct.");
+  }
+  if (secrets[1].present && secrets[2].present && secrets[1].sha256_prefix === secrets[2].sha256_prefix) {
+    errors.push("TENANT_GPT_SSO_SIGNING_SECRET and LOCAL_MANAGER_DEVICE_JWT_SECRET must be distinct.");
   }
 
   const trustedIngress = REQUIRED_TRUSTED_INGRESS_FLAGS.map((key) => checkBooleanFlag(env, key, errors));
