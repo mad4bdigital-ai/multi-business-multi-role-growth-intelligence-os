@@ -412,6 +412,7 @@ test("schema bundle manifest declares exactly three isolated roles", () => {
     "activation_dynamic_tab_discovery_rule_registry", "activation_section_action_registry", "activation_attention_rule_registry",
     "activation_freshness_policy_registry", "activation_signal_subscription_registry", "activation_connector_pack_registry", "workspace_registry",
     "local_manager_desktop_commands", "local_connector_device_aliases", "local_connector_user_configs",
+    "local_manager_device_link_sessions", "local_manager_control_templates",
   ]);
   assert.equal(manifest.canonical_seed_lifecycle.contract, "mad4b.staging.canonical-seed-manifest.v1");
   assert.deepEqual(manifest.canonical_seed_lifecycle.seed_files, [
@@ -1375,8 +1376,16 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_enum_seed_chain.files_checked, expectedFilesChecked);
   assert.equal(plan.ordered_enum_seed_chain.migration_files_checked, canonicalMigrationFiles.length);
   assert.equal(plan.ordered_enum_seed_chain.statements_checked, expectedStatementsChecked);
-  assert.equal(plan.ordered_enum_seed_chain.enum_columns, 839);
-  assert.equal(plan.ordered_enum_seed_chain.definitions_applied, 906);
+  const localManagerMigrationFiles = [
+    "20260922_local_manager_desktop_commands.sql",
+    "20260922_local_manager_device_link_authority.sql",
+    "20260922_local_manager_control_templates_registry.sql",
+  ];
+  for (const file of localManagerMigrationFiles) {
+    assert.equal(canonicalMigrationFiles.includes(file), true, `missing Local Manager migration from ordered plan: ${file}`);
+  }
+  assert.equal(plan.ordered_enum_seed_chain.enum_columns, 842);
+  assert.equal(plan.ordered_enum_seed_chain.definitions_applied, 912);
   assert.equal(plan.ordered_enum_seed_chain.database_connection_performed, false);
   assert.equal(plan.ordered_enum_seed_chain.sql_mutation_performed, false);
   assert.equal(plan.ordered_enum_seed_chain.provider_mutation_performed, false);
