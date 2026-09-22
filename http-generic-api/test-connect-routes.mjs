@@ -1076,7 +1076,11 @@ assert("local connector requires fresh Local Manager authorization for privilege
       localManagerWriteSource.includes("provisionLocalManagerN8n") &&
       localManagerWriteSource.includes("LOCAL_MANAGER_ALIAS_RECONCILIATION_READBACK_FAILED") &&
       localManagerWriteSource.includes("LOCAL_MANAGER_ALIAS_OWNERSHIP_CONFLICT") &&
-      localManagerWriteSource.includes("AND (user_id = ? OR user_id IS NULL)") &&
+      localManagerWriteSource.includes("const runtimeUser = clean(env.DB_USER") &&
+      localManagerWriteSource.includes("runtimeUser && user === runtimeUser") &&
+      localManagerWriteSource.includes("AND user_id = ?") &&
+      localManagerWriteSource.includes("AND ((? IS NULL AND tenant_id IS NULL) OR tenant_id = ?)") &&
+      !localManagerWriteSource.includes("user_id IS NULL") &&
       !localManagerWriteSource.includes("ON DUPLICATE KEY UPDATE") &&
       localManagerWriteSource.includes("LOCAL_MANAGER_N8N_PROVISIONING_READBACK_FAILED"));
     assert("Local Manager public pairing surfaces use the shared resilience limiter with Retry-After capable 429 behavior",
