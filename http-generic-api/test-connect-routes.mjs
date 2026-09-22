@@ -1188,6 +1188,12 @@ assert("local connector requires fresh Local Manager authorization for privilege
       localManagerWriteSource.includes("transactional: true") &&
       localManagerWriteSource.includes("LOCAL_MANAGER_N8N_SYSTEM_CARDINALITY_CONFLICT") &&
       localManagerWriteSource.includes("LOCAL_MANAGER_ALIAS_SCOPE_CARDINALITY_CONFLICT"));
+    assert("Local Manager n8n read and write paths share one collision-safe system identity",
+      localManagerWriteSource.includes("export function localManagerN8nSystemKey") &&
+      localManagerWriteSource.includes('crypto.createHash("sha256")') &&
+      deviceLinkSource.includes("localManagerN8nSystemKey(device.device_id)") &&
+      deviceLinkSource.includes("ambiguous_provisioning_state") &&
+      !deviceLinkSource.includes('const systemKey = `local_n8n:${cleanId(device.device_id'));
     assert("local manager linked-device tenant ownership is exact-or-both-null rather than missing-tenant wildcard",
       deviceLinkSource.includes("function sameTenantScope") &&
       (deviceLinkSource.match(/\(\(\? IS NULL AND tenant_id IS NULL\) OR tenant_id = \?\)/g) || []).length >= 5 &&
