@@ -146,6 +146,20 @@ async function ensureDesktopCommandTable() {
   return assertLocalManagerDesktopCommandSchema(getPool());
 }
 
+function desktopIdentityAuthorityError(error, table) {
+  const err = new Error(`Desktop command target identity dependency ${table} is not readable by runtime authority.`);
+  err.status = 503;
+  err.code = "desktop_target_identity_authority_not_ready";
+  err.details = {
+    table,
+    required_operations: ["SELECT"],
+    sql_code: cleanText(error?.code, 96) || null,
+    retryable: false,
+    secrets_included: false,
+  };
+  return err;
+}
+
 async function expireOldCommands() {
   await getPool().query(
     `UPDATE \`local_manager_desktop_commands\`
@@ -175,8 +189,8 @@ async function loadActiveDeviceAliasRows({ userId, tenantId, deviceId } = {}) {
       [primaryDeviceId, primaryDeviceId, scopedUserId, wildcardTenant ? 1 : 0, scopedTenantId, ALL_ZERO_TENANT_ID]
     );
     return rows || [];
-  } catch {
-    return [];
+  } catch (error) {
+    throw desktopIdentityAuthorityError(error, "local_connector_device_aliases");
   }
 }
 
@@ -339,8 +353,8 @@ async function resolveEffectiveDesktopCommandTarget({ userId, tenantId, deviceId
         },
       };
     }
-  } catch {
-    // Config fallback is best-effort. New devices must still be able to enqueue.
+  } catch (error) {
+    throw desktopIdentityAuthorityError(error, "local_connector_user_configs");
   }
 
   return {
