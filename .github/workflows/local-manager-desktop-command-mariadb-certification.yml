@@ -68,10 +68,7 @@ jobs:
         env:
           LM_DESKTOP_MARIADB_CERTIFICATION_MODE: disposable
           DB_HOST: 127.0.0.1
-          DB_PORT: 3306
-          DB_ROOT_USER: root
           DB_ROOT_PASSWORD: lm-desktop-cert-root
-          RUNTIME_DB_USER: lm_runtime_cert
           RUNTIME_DB_PASSWORD: lm-runtime-cert-password
         run: node scripts/local-manager-desktop-command-mariadb-certification.mjs
 
