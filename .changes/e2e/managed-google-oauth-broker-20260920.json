@@ -9,19 +9,23 @@
     "include": [
       ".changes/e2e/managed-google-oauth-broker-20260920.json",
       ".github/governance/test-authority-registry.json",
+      "docs/governance/configuration-drift-baseline-extensions.json",
       "docs/runbooks/managed-google-oauth-broker.md",
       "http-generic-api/.env.example",
       "http-generic-api/.env.staging.example",
       "http-generic-api/managedGoogleOAuthBroker.js",
+      "http-generic-api/managedGoogleOAuthEnrollment.js",
       "http-generic-api/managedGoogleOAuthProtocolPolicy.js",
       "http-generic-api/managedGoogleOAuthSiteRequestAuth.js",
-      "http-generic-api/routes/managedGoogleOAuthRoutes.js",
-      "http-generic-api/routes/index.js",
       "http-generic-api/migrations/20260920_managed_google_oauth_broker_v1.sql",
-      "http-generic-api/openapi/managed-google-oauth.yaml",
       "http-generic-api/openapi-route-contracts.d/managed-google-oauth.yaml",
+      "http-generic-api/openapi/managed-google-oauth.yaml",
       "http-generic-api/productionConfigPreflight.js",
+      "http-generic-api/routes/index.js",
+      "http-generic-api/routes/managedGoogleOAuthRoutes.js",
+      "http-generic-api/scripts/prepare-managed-google-site-enrollment.mjs",
       "http-generic-api/test-managed-google-oauth-broker.mjs",
+      "http-generic-api/test-managed-google-site-enrollment.mjs",
       "http-generic-api/test-production-config-preflight.mjs"
     ]
   },
@@ -70,13 +74,21 @@
             "Handoff redemption is verifier-bound, one-time, transactional, and replay fails closed.",
             "Only the exact read_only->drive.readonly and read_write->drive scope mappings are accepted.",
             "No Breakglass, Production deployment, Production database apply, provider mutation, or WordPress write authority is granted by this declaration.",
-            "secrets_included is false."
+            "secrets_included is false.",
+            "Per-site broker HMAC enrollment is dry-run by default, preserves existing registries, never prints the secret value, and materializes private fragments only outside the repository tree."
           ],
           "tests": [
             {
               "id": "managed-google-oauth-broker-lifecycle",
               "runner": "node",
               "path": "test-managed-google-oauth-broker.mjs",
+              "args": [],
+              "working_directory": "http-generic-api"
+            },
+            {
+              "id": "managed-google-site-enrollment-helper",
+              "runner": "node",
+              "path": "test-managed-google-site-enrollment.mjs",
               "args": [],
               "working_directory": "http-generic-api"
             },
@@ -108,7 +120,9 @@
             "http-generic-api/managedGoogleOAuthSiteRequestAuth.js",
             "http-generic-api/migrations/20260920_managed_google_oauth_broker_v1.sql",
             "http-generic-api/openapi/managed-google-oauth.yaml",
-            ".github/governance/test-authority-registry.json"
+            ".github/governance/test-authority-registry.json",
+            "http-generic-api/managedGoogleOAuthEnrollment.js",
+            "http-generic-api/test-managed-google-site-enrollment.mjs"
           ]
         }
       ]
