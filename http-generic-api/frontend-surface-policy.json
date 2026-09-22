@@ -5790,6 +5790,21 @@
       ]
     },
     {
+      "rule_id": "generated-gap-post-local-manager-device-desktop-commands-commandid-heartbeat-routes-localmanagerdesktopcommandroutes-js",
+      "operation": "POST /local-manager/device/desktop-commands/{commandId}/heartbeat",
+      "source_file": "routes/localManagerDesktopCommandRoutes.js",
+      "classification": "disabled",
+      "owner": "local-manager",
+      "rationale": "Explicit fail-closed classification for the Local Manager claim-lease heartbeat. The route is local-device lifecycle plumbing and is not frontend-dispatch authority; it remains disabled from frontend mutation surfaces while runtime ownership is enforced by localManagerBearerAuth, claim_token, and an unexpired claim lease.",
+      "evidence_refs": [
+        "routes/localManagerDesktopCommandRoutes.js",
+        "openapi.yaml",
+        "frontend-surface-dispatch.generated.json",
+        "test-frontend-surface-coverage-claims.mjs",
+        "test-control-plane-convergence-regressions.mjs"
+      ]
+    },
+    {
       "rule_id": "generated-gap-post-local-manager-device-desktop-commands-commandid-complete-routes-localmanagerdesktopcommandroutes-js",
       "operation": "POST /local-manager/device/desktop-commands/{commandId}/complete",
       "source_file": "routes/localManagerDesktopCommandRoutes.js",
