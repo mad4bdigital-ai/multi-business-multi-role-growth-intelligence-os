@@ -34,7 +34,7 @@
     },
     {
       "path": "autopilot-portable-staging/One-Click-Staging.ps1",
-      "sha256": "99670cb6625ae1c35c2406558d7fd437538067d235934ab267b5cfdd08b36232"
+      "sha256": "913cf5d3ed781df14f89d9fb9bb8842534e9f6a65daf79b3dd40acfb3783240b"
     },
     {
       "path": "autopilot-portable-staging/README.md",
@@ -62,7 +62,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "850af619709912a448997758ba1a660534b81a3449469cb9ebf0f0e61e6d33ac"
+      "sha256": "88047c7038cfec8dfba24da9bf92f4f546764c0e2071b0688d82d6ef33816822"
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
@@ -98,7 +98,7 @@
     },
     {
       "path": "http-generic-api/.env.staging.example",
-      "sha256": "c1dc914607911a37de2f6fc39e01be118bc99fa2ad7ac2c99a770a435b1f8fd4"
+      "sha256": "39272771007a9410b6bddd99861eccdd7246252ad444ac3c4f741d9611eaf157"
     },
     {
       "path": "http-generic-api/Dockerfile",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "4cadf4a47bac475cc205fc5f07ac91f94dce2793a69a9978534f41718ae801fe"
+      "sha256": "08ac7b4278a94a7ba56ea4e8f1c42972ebcc03f6722e2f3d03b305179b1302f4"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -258,7 +258,7 @@
     },
     {
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
-      "sha256": "c949a131673b9c63f4711ace57ec4ac2f279a38b9377b61f692d7dab03ca5256"
+      "sha256": "c4c21637bd726e96ba31081be50e6f156bd0894df56ba3aa3f4abc7f45ac772e"
     },
     {
       "path": "http-generic-api/test-staging-operations-logging-contract.mjs",
@@ -330,7 +330,7 @@
     },
     {
       "path": "http-generic-api/config/staging-database-role-migration-manifest.json",
-      "sha256": "052b2c613630b78f9a51e2e9e6e1f3b868b650651c290ec3f2cc2803a9423600"
+      "sha256": "5238dd2c77b91c1e4cefd3e8de89649d90bcb17141fb603156f6aef755474e63"
     },
     {
       "path": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
