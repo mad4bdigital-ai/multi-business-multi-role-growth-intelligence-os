@@ -19,7 +19,7 @@ assert.match(smartLauncher, /function Enter-TopologyTransitionLease/);
 assert.match(smartLauncher, /function Mark-TopologyTransitionFailed/);
 assert.match(smartLauncher, /function Publish-CanonicalTunnelRuntimeState/);
 assert.match(smartLauncher, /Write-StagingAtomicJson \$runtimeStatePath \$runtime 10/);
-assert.match(smartLauncher, /\$schemaPreflight = Join-Path \$root 'Staging-Schema-Governance-Preflight\\.ps1'/);
+assert.match(smartLauncher, /\$schemaPreflight = Join-Path \$root 'Staging-Schema-Governance-Preflight\.ps1'/);
 assert.match(smartLauncher, /function Ensure-ExactConvergencePreflight/);
 assert.match(smartLauncher, /STAGING_CONVERGENCE_PREFLIGHT_REFRESH/);
 assert.match(smartLauncher, /-ExpectedCommit \$normalizedCommit -ReportPath \$preflightReportPath/);
