@@ -1076,6 +1076,14 @@ assert("local connector requires fresh Local Manager authorization for privilege
       localManagerWriteSource.includes("provisionLocalManagerN8n") &&
       localManagerWriteSource.includes("LOCAL_MANAGER_ALIAS_RECONCILIATION_READBACK_FAILED") &&
       localManagerWriteSource.includes("LOCAL_MANAGER_N8N_PROVISIONING_READBACK_FAILED"));
+    assert("Local Manager public pairing surfaces use the shared resilience limiter with Retry-After capable 429 behavior",
+      betaSource.includes("createOperationResilienceController") &&
+      betaSource.includes("localManagerPublicPairingResilience") &&
+      betaSource.includes("rateLimitRead: 30") &&
+      betaSource.includes("rateWindowMs: 60_000") &&
+      betaSource.includes('router.post("/local-manager/device-link/start", localManagerPublicPairingResilience, startDeviceLinkSession)') &&
+      betaSource.includes('router.get("/local-manager/device-link/preview", localManagerPublicPairingResilience, previewDeviceLinkSession)') &&
+      betaSource.includes('router.post("/local-manager/device-link/poll", localManagerPublicPairingResilience, pollDeviceLinkSession)'));
     assert("local manager public app is true public UX while admin bridge holds token installer flow",
       betaSource.includes("keep platform tools installed") &&
       betaSource.includes("No token fields here") &&
