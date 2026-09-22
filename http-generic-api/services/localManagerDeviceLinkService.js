@@ -347,10 +347,10 @@ async function resolveCanonicalConnectorConfig({ userId, tenantId, deviceId, hos
         WHERE is_enabled = 1
           AND user_id = ?
           AND device_id IN (${placeholders})
-        ORDER BY CASE WHEN tenant_id = ? THEN 0 WHEN tenant_id = '00000000-0000-0000-0000-000000000000' THEN 1 ELSE 2 END,
-                 COALESCE(last_health_at, updated_at, created_at) DESC
+          AND ((? IS NULL AND tenant_id IS NULL) OR tenant_id = ?)
+        ORDER BY COALESCE(last_health_at, updated_at, created_at) DESC
         LIMIT 1`,
-      [userId, ...candidateIds, tenantId || ""]
+      [userId, ...candidateIds, tenantId || null, tenantId || null]
     );
     if (exactRows[0]) return exactRows[0];
   }
@@ -360,12 +360,11 @@ async function resolveCanonicalConnectorConfig({ userId, tenantId, deviceId, hos
        FROM \`local_connector_user_configs\`
       WHERE is_enabled = 1
         AND user_id = ?
-        AND ((? IS NULL AND tenant_id IS NULL) OR tenant_id = ? OR tenant_id = '00000000-0000-0000-0000-000000000000')
+        AND ((? IS NULL AND tenant_id IS NULL) OR tenant_id = ?)
         AND COALESCE(tunnel_url, public_gateway_url, device_runtime_url, admin_recovery_url) IS NOT NULL
-      ORDER BY CASE WHEN tenant_id = ? THEN 0 WHEN tenant_id = '00000000-0000-0000-0000-000000000000' THEN 1 ELSE 2 END,
-               COALESCE(last_health_at, updated_at, created_at) DESC
+      ORDER BY COALESCE(last_health_at, updated_at, created_at) DESC
       LIMIT 2`,
-    [userId, tenantId || null, tenantId || null, tenantId || ""]
+    [userId, tenantId || null, tenantId || null]
   );
 
   return fallbackRows.length === 1 ? fallbackRows[0] : null;
