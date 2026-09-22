@@ -50,8 +50,12 @@
         ],
         "mode_scoped_tools": {
           "governed_migration_execute": {
-            "read_only_modes": ["dry_run"],
-            "mutation_modes": ["apply"]
+            "read_only_modes": [
+              "dry_run"
+            ],
+            "mutation_modes": [
+              "apply"
+            ]
           }
         },
         "mutation_tools": [
@@ -88,20 +92,27 @@
     "225_sprint67_capability_resolution_envelope_ledger.sql": {
       "sha256": "35b034940c2be63d9bf8a8099573cac1c5a75b5fffd8ccfad60a453ed3cf7419",
       "statement_count": 3,
-      "allowed_modes": ["dry_run"],
+      "allowed_modes": [
+        "dry_run"
+      ],
       "incident_role": "verification_only"
     },
     "1048_transport_response_chunk_schema_recovery.sql": {
       "sha256": "aecfbd9d87dca6eba11677cd992637f55ecf3c0743f704df4bbea48c57d8d788",
       "statement_count": 34,
-      "allowed_modes": ["dry_run"],
+      "allowed_modes": [
+        "dry_run"
+      ],
       "incident_role": "verification_only",
       "note": "Ledger/schema presence alone is not live persistence proof; dedicated durable recovery smoke is required after apply recovery."
     },
     "20260815_custom_gpt_mcp_catalog_levels.sql": {
       "sha256": "528143808adac23eb457058c4c34dd95c4c5d462bca9ac4b170b1f19b2006681",
       "statement_count": 7,
-      "allowed_modes": ["dry_run", "apply"],
+      "allowed_modes": [
+        "dry_run",
+        "apply"
+      ],
       "incident_role": "only_current_apply_candidate",
       "direct_fallback_authorized": true,
       "direct_fallback_idempotent": true
@@ -175,9 +186,14 @@
       "dynamic_audit_scheduler_runs",
       "execution_log",
       "json_assets",
-      "local_manager_desktop_commands"
+      "local_manager_desktop_commands",
+      "local_manager_device_link_sessions"
     ],
-    "required_operations": ["SELECT", "INSERT", "UPDATE"],
+    "required_operations": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
     "allow_additional_tables": false,
     "allow_additional_operations": false,
     "allow_schema_write_privileges": false,
@@ -191,41 +207,137 @@
       "runtime": {
         "database_binding": "runtime",
         "principal_binding": "runtime",
-        "required_tables": ["customer_sessions", "gpt_session_turns", "actions", "dynamic_audit_scheduler_runs", "execution_log", "json_assets", "local_manager_desktop_commands"],
-        "required_operations": ["SELECT", "INSERT", "UPDATE"],
+        "required_tables": [
+          "customer_sessions",
+          "gpt_session_turns",
+          "actions",
+          "dynamic_audit_scheduler_runs",
+          "execution_log",
+          "json_assets",
+          "local_manager_desktop_commands",
+          "local_manager_device_link_sessions"
+        ],
+        "required_operations": [
+          "SELECT",
+          "INSERT",
+          "UPDATE"
+        ],
         "apply_when": "always"
       },
       "governance": {
         "database_binding": "governance",
         "principal_binding": "governance",
-        "required_tables": ["capability_resolution_envelope_ledger", "approval_holds", "governed_migration_authorization_registry", "capability_apply_authorization_policy_registry", "runtime_dispatch_certification_registry", "governed_migration_ledger", "platform_resource_authority_bindings", "platform_resource_recipes", "platform_resource_recipe_steps", "repository_operation_leases", "repository_mutation_plans_v6", "repository_mutation_runs_v6", "runtime_break_glass_incidents", "runtime_break_glass_audit_events", "runtime_verification_runs", "runtime_verification_evidence_chunks", "deployment_attestations"],
-        "required_operations": ["SELECT"],
+        "required_tables": [
+          "capability_resolution_envelope_ledger",
+          "approval_holds",
+          "governed_migration_authorization_registry",
+          "capability_apply_authorization_policy_registry",
+          "runtime_dispatch_certification_registry",
+          "governed_migration_ledger",
+          "platform_resource_authority_bindings",
+          "platform_resource_recipes",
+          "platform_resource_recipe_steps",
+          "repository_operation_leases",
+          "repository_mutation_plans_v6",
+          "repository_mutation_runs_v6",
+          "runtime_break_glass_incidents",
+          "runtime_break_glass_audit_events",
+          "runtime_verification_runs",
+          "runtime_verification_evidence_chunks",
+          "deployment_attestations"
+        ],
+        "required_operations": [
+          "SELECT"
+        ],
         "required_operations_by_table": {
-          "capability_resolution_envelope_ledger": ["SELECT", "INSERT", "UPDATE"],
-          "approval_holds": ["SELECT", "INSERT"],
-          "governed_migration_authorization_registry": ["SELECT", "INSERT", "UPDATE"],
-          "capability_apply_authorization_policy_registry": ["SELECT", "INSERT", "UPDATE"],
-          "runtime_dispatch_certification_registry": ["SELECT", "INSERT", "UPDATE"],
-          "governed_migration_ledger": ["SELECT"],
-          "platform_resource_authority_bindings": ["SELECT", "INSERT"],
-          "platform_resource_recipes": ["SELECT"],
-          "platform_resource_recipe_steps": ["SELECT"],
-          "repository_operation_leases": ["SELECT", "INSERT", "UPDATE"],
-          "repository_mutation_plans_v6": ["SELECT", "INSERT", "UPDATE"],
-          "repository_mutation_runs_v6": ["SELECT", "INSERT", "UPDATE"],
-          "runtime_break_glass_incidents": ["SELECT", "INSERT", "UPDATE"],
-          "runtime_break_glass_audit_events": ["SELECT", "INSERT"],
-          "runtime_verification_runs": ["SELECT"],
-          "runtime_verification_evidence_chunks": ["SELECT", "INSERT"],
-          "deployment_attestations": ["SELECT", "INSERT", "UPDATE"]
+          "capability_resolution_envelope_ledger": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
+          "approval_holds": [
+            "SELECT",
+            "INSERT"
+          ],
+          "governed_migration_authorization_registry": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
+          "capability_apply_authorization_policy_registry": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
+          "runtime_dispatch_certification_registry": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
+          "governed_migration_ledger": [
+            "SELECT"
+          ],
+          "platform_resource_authority_bindings": [
+            "SELECT",
+            "INSERT"
+          ],
+          "platform_resource_recipes": [
+            "SELECT"
+          ],
+          "platform_resource_recipe_steps": [
+            "SELECT"
+          ],
+          "repository_operation_leases": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
+          "repository_mutation_plans_v6": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
+          "repository_mutation_runs_v6": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
+          "runtime_break_glass_incidents": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
+          "runtime_break_glass_audit_events": [
+            "SELECT",
+            "INSERT"
+          ],
+          "runtime_verification_runs": [
+            "SELECT"
+          ],
+          "runtime_verification_evidence_chunks": [
+            "SELECT",
+            "INSERT"
+          ],
+          "deployment_attestations": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ]
         },
         "apply_when": "always"
       },
       "runtime_persistence": {
         "database_binding": "runtime_persistence",
         "principal_binding": "runtime_persistence",
-        "required_tables": ["governed_tool_response_chunks"],
-        "required_operations": ["SELECT", "INSERT", "UPDATE", "DELETE"],
+        "required_tables": [
+          "governed_tool_response_chunks"
+        ],
+        "required_operations": [
+          "SELECT",
+          "INSERT",
+          "UPDATE",
+          "DELETE"
+        ],
         "apply_when": "always"
       }
     },
