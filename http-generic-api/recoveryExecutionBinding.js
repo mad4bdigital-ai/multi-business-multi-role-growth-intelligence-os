@@ -77,6 +77,17 @@ export const RUNTIME_MIGRATION_TARGET_BINDINGS = Object.freeze({
     rollback_class: "forward_fix_only",
     secrets_included: false,
   }),
+  "20260922_local_manager_desktop_commands.sql": Object.freeze({
+    migration: "20260922_local_manager_desktop_commands.sql",
+    ownership_domain: "runtime",
+    database_target_role: "runtime",
+    credential_binding_prefix: "DB_",
+    required_resources: ["local_manager_desktop_commands"],
+    mutation_class: "schema_convergence",
+    traffic_policy: "normal",
+    rollback_class: "forward_fix_only",
+    secrets_included: false,
+  }),
 });
 export const PRODUCTION_LIVE_COMPOSITION_CONTRACT = Object.freeze({
   contract: "mad4b.recovery-production-live-composition.v1",
