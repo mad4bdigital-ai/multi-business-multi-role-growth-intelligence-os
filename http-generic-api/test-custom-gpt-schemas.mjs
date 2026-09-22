@@ -143,6 +143,7 @@ function openApiTextDoc(source) {
     "/local-manager/device-link/approve": ["post", "approveLocalManagerDeviceLink"],
     "/local-manager/device-link/devices": ["get", "listLocalManagerLinkedDevices"],
     "/local-manager/device-link/devices/{sessionId}/revoke": ["post", "revokeLocalManagerLinkedDevice"],
+    "/local-manager/device/n8n/provision": ["post", "provisionLocalManagerDeviceN8n"],
     "/local-manager/device/session": ["get", "getLocalManagerDeviceSession"],
     "/local-manager/device/controls": ["get", "getLocalManagerDeviceControls"],
     "/app/local-manager/update/windows": ["get", "getLocalManagerWindowsUpdate"],
