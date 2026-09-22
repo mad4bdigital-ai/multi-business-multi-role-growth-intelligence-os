@@ -13,6 +13,7 @@
       ".github/ops/production-runtime-recovery-routes.json",
       ".github/ops/test-production-runtime-recovery-policy.mjs",
       ".github/ops/test-production-runtime-recovery.mjs",
+      ".github/workflows/local-manager-desktop-command-mariadb-certification.yml",
       "apps/local-manager-windows/LocalManagerAutopilot.cs",
       "apps/local-manager-windows/Program.cs",
       "http-generic-api/activation-surfaces/local_manager_desktop_commands.json",
@@ -27,6 +28,7 @@
       "http-generic-api/routes/activationRoutes.js",
       "http-generic-api/routes/adminCliRoutes.js",
       "http-generic-api/routes/localManagerDesktopCommandRoutes.js",
+      "http-generic-api/scripts/local-manager-desktop-command-mariadb-certification.mjs",
       "http-generic-api/services/localConnectorOrchestrator.js",
       "http-generic-api/test-control-plane-convergence-regressions.mjs",
       "http-generic-api/test-host-breakglass-catalog.mjs",
@@ -74,7 +76,8 @@
             "Require Staging runtime census to include local_manager_desktop_commands and its connector identity dependencies, with SELECT-only authority on alias/config identity tables.",
             "Probe the connector public data plane and authenticated /policy path separately; public reachability must not be treated as authenticated command health.",
             "When Cloudflare control-plane tunnel status conflicts with a successful connector data-plane probe, retain both timestamped sources and make data-plane reachability authoritative.",
-            "Expose only bounded Local Manager polling error metadata: code, requestId, retryable, retry_after, and surface; never copy the raw response body or secret material."
+            "Expose only bounded Local Manager polling error metadata: code, requestId, retryable, retry_after, and surface; never copy the raw response body or secret material.",
+            "Run an isolated MariaDB 11.4 certification with a dedicated runtime principal to prove migration, least-privilege grants, enqueue, poll, claim, complete, expiry, activation projection, and denial of DELETE/CREATE/ALTER."
           ],
           "assertions": [
             "HTTP request handlers perform read-only schema inspection and never create or alter local_manager_desktop_commands.",
@@ -90,7 +93,8 @@
             "The connector repair surface cannot report healthy from public /health alone; authenticated command health must pass independently.",
             "A reachable connector with rejected command credentials is classified as credential-binding degradation and must not trigger a blind reinstall.",
             "Tunnel metadata/data-plane conflicts are explicit evidence conflicts rather than an unconditional down verdict.",
-            "Local Manager renders bounded structured backend diagnostics without raw response bodies, command payloads, credentials, or tokens."
+            "Local Manager renders bounded structured backend diagnostics without raw response bodies, command payloads, credentials, or tokens.",
+            "The disposable MariaDB certification mutates only its isolated CI database, proves the exact runtime privilege envelope, and explicitly forbids Production or live Staging apply."
           ],
           "tests": [
             {
@@ -145,7 +149,9 @@
             "http-generic-api/localConnectorCompositeHealth.js",
             "http-generic-api/routes/adminCliRoutes.js",
             "http-generic-api/test-local-connector-composite-health.mjs",
-            "http-generic-api/test-local-manager-tool-release-owner.mjs"
+            "http-generic-api/test-local-manager-tool-release-owner.mjs",
+            ".github/workflows/local-manager-desktop-command-mariadb-certification.yml",
+            "http-generic-api/scripts/local-manager-desktop-command-mariadb-certification.mjs"
           ]
         }
       ]
@@ -165,10 +171,18 @@
     {
       "id": "resilient",
       "status": "blocked",
-      "objective": "Add a disposable MariaDB proof using the real runtime principal for migration -> grants -> enqueue -> poll/claim -> complete -> activation projection, plus expiry and privilege-denial cases.",
+      "objective": "Certify the desktop command lifecycle on disposable MariaDB 11.4 under an exact least-privilege runtime principal, including activation projection, expiry, and privilege denial.",
       "blockers": [
-        "disposable_mariadb_runtime_principal_route_cycle_missing"
-      ]
+        "disposable_mariadb_runtime_principal_certification_pending"
+      ],
+      "certification": {
+        "workflow": ".github/workflows/local-manager-desktop-command-mariadb-certification.yml",
+        "evidence_artifact": "local-manager-desktop-command-mariadb-certification",
+        "required_outcome": "success",
+        "production_authorized": false,
+        "staging_apply_authorized": false,
+        "secrets_included": false
+      }
     },
     {
       "id": "canary",
@@ -188,4 +202,4 @@
       ]
     }
   ]
-}
+}\n
