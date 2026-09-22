@@ -13,7 +13,7 @@
       ".github/ops/production-runtime-recovery-routes.json",
       ".github/ops/test-production-runtime-recovery-policy.mjs",
       ".github/ops/test-production-runtime-recovery.mjs",
-      ".github/workflows/local-manager-desktop-command-mariadb-certification.yml",
+      ".github/workflows/e2e-phase-governance.yml",
       "apps/local-manager-windows/LocalManagerAutopilot.cs",
       "apps/local-manager-windows/Program.cs",
       "http-generic-api/activation-surfaces/local_manager_desktop_commands.json",
@@ -150,7 +150,7 @@
             "http-generic-api/routes/adminCliRoutes.js",
             "http-generic-api/test-local-connector-composite-health.mjs",
             "http-generic-api/test-local-manager-tool-release-owner.mjs",
-            ".github/workflows/local-manager-desktop-command-mariadb-certification.yml",
+            ".github/workflows/e2e-phase-governance.yml",
             "http-generic-api/scripts/local-manager-desktop-command-mariadb-certification.mjs"
           ]
         }
@@ -176,7 +176,7 @@
         "disposable_mariadb_runtime_principal_certification_pending"
       ],
       "certification": {
-        "workflow": ".github/workflows/local-manager-desktop-command-mariadb-certification.yml",
+        "workflow": ".github/workflows/e2e-phase-governance.yml",
         "evidence_artifact": "local-manager-desktop-command-mariadb-certification",
         "required_outcome": "success",
         "production_authorized": false,
