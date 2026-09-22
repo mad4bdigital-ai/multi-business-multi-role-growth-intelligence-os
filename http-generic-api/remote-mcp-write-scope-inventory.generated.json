@@ -8,14 +8,14 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7802,
-  "route_count": 1113,
-  "write_route_count": 678,
+  "file_count": 7803,
+  "route_count": 1114,
+  "write_route_count": 679,
   "classified_write_surface_count": 44,
-  "classified_write_route_count": 678,
+  "classified_write_route_count": 679,
   "unclassified_write_route_count": 0,
-  "intentionally_unmapped_write_route_count": 634,
-  "sensitive_intentionally_unmapped_write_route_count": 634,
+  "intentionally_unmapped_write_route_count": 635,
+  "sensitive_intentionally_unmapped_write_route_count": 635,
   "migration_count": 450,
   "registry_evidence_count": 118,
   "write_scope_count": 6,
@@ -2731,8 +2731,8 @@
     },
     {
       "route_id": "http-generic-api/routes/devAgentRoutes.js#GET:/dev-agent/summary-development/codex-interactive-execution/:runId:11",
-      "source_line": 1639,
-      "source_offset": 74516,
+      "source_line": 1641,
+      "source_offset": 74784,
       "method": "GET",
       "path": "/dev-agent/summary-development/codex-interactive-execution/:runId",
       "file": "http-generic-api/routes/devAgentRoutes.js",
@@ -2740,8 +2740,8 @@
     },
     {
       "route_id": "http-generic-api/routes/devAgentRoutes.js#GET:/dev-agent/summary-development/signals:12",
-      "source_line": 1684,
-      "source_offset": 76611,
+      "source_line": 1686,
+      "source_offset": 76879,
       "method": "GET",
       "path": "/dev-agent/summary-development/signals",
       "file": "http-generic-api/routes/devAgentRoutes.js",
@@ -2749,8 +2749,8 @@
     },
     {
       "route_id": "http-generic-api/routes/devAgentRoutes.js#POST:/dev-agent/summary-development/extract:13",
-      "source_line": 1710,
-      "source_offset": 77947,
+      "source_line": 1712,
+      "source_offset": 78215,
       "method": "POST",
       "path": "/dev-agent/summary-development/extract",
       "file": "http-generic-api/routes/devAgentRoutes.js",
@@ -2758,8 +2758,8 @@
     },
     {
       "route_id": "http-generic-api/routes/devAgentRoutes.js#POST:/dev-agent/summary-development/agent-dry-run:14",
-      "source_line": 1913,
-      "source_offset": 87851,
+      "source_line": 1915,
+      "source_offset": 88119,
       "method": "POST",
       "path": "/dev-agent/summary-development/agent-dry-run",
       "file": "http-generic-api/routes/devAgentRoutes.js",
@@ -2767,8 +2767,8 @@
     },
     {
       "route_id": "http-generic-api/routes/devAgentRoutes.js#POST:/dev-agent/summary-development/repo-analysis-dry-run:15",
-      "source_line": 2060,
-      "source_offset": 94619,
+      "source_line": 2062,
+      "source_offset": 94887,
       "method": "POST",
       "path": "/dev-agent/summary-development/repo-analysis-dry-run",
       "file": "http-generic-api/routes/devAgentRoutes.js",
@@ -2776,8 +2776,8 @@
     },
     {
       "route_id": "http-generic-api/routes/devAgentRoutes.js#POST:/dev-agent/summary-development/repo-analysis-approve:16",
-      "source_line": 2176,
-      "source_offset": 100259,
+      "source_line": 2178,
+      "source_offset": 100527,
       "method": "POST",
       "path": "/dev-agent/summary-development/repo-analysis-approve",
       "file": "http-generic-api/routes/devAgentRoutes.js",
@@ -2785,8 +2785,8 @@
     },
     {
       "route_id": "http-generic-api/routes/devAgentRoutes.js#POST:/dev-agent/summary-development/repo-analysis-execution-envelope:17",
-      "source_line": 2303,
-      "source_offset": 105848,
+      "source_line": 2305,
+      "source_offset": 106116,
       "method": "POST",
       "path": "/dev-agent/summary-development/repo-analysis-execution-envelope",
       "file": "http-generic-api/routes/devAgentRoutes.js",
@@ -2794,8 +2794,8 @@
     },
     {
       "route_id": "http-generic-api/routes/devAgentRoutes.js#GET:/dev-agent/model-settings:18",
-      "source_line": 2437,
-      "source_offset": 112547,
+      "source_line": 2439,
+      "source_offset": 112815,
       "method": "GET",
       "path": "/dev-agent/model-settings",
       "file": "http-generic-api/routes/devAgentRoutes.js",
@@ -2803,8 +2803,8 @@
     },
     {
       "route_id": "http-generic-api/routes/devAgentRoutes.js#PATCH:/dev-agent/model-settings:19",
-      "source_line": 2451,
-      "source_offset": 113059,
+      "source_line": 2453,
+      "source_offset": 113327,
       "method": "PATCH",
       "path": "/dev-agent/model-settings",
       "file": "http-generic-api/routes/devAgentRoutes.js",
@@ -2812,8 +2812,8 @@
     },
     {
       "route_id": "http-generic-api/routes/devAgentRoutes.js#POST:/dev-agent/run:20",
-      "source_line": 2467,
-      "source_offset": 113750,
+      "source_line": 2469,
+      "source_offset": 114018,
       "method": "POST",
       "path": "/dev-agent/run",
       "file": "http-generic-api/routes/devAgentRoutes.js",
@@ -2821,8 +2821,8 @@
     },
     {
       "route_id": "http-generic-api/routes/devAgentRoutes.js#POST:/dev-agent/session-summaries/autosweep:21",
-      "source_line": 2491,
-      "source_offset": 114686,
+      "source_line": 2493,
+      "source_offset": 114954,
       "method": "POST",
       "path": "/dev-agent/session-summaries/autosweep",
       "file": "http-generic-api/routes/devAgentRoutes.js",
@@ -2830,8 +2830,8 @@
     },
     {
       "route_id": "http-generic-api/routes/devAgentRoutes.js#GET:/dev-agent/session-summaries/health:22",
-      "source_line": 2513,
-      "source_offset": 115853,
+      "source_line": 2515,
+      "source_offset": 116121,
       "method": "GET",
       "path": "/dev-agent/session-summaries/health",
       "file": "http-generic-api/routes/devAgentRoutes.js",
@@ -2839,8 +2839,8 @@
     },
     {
       "route_id": "http-generic-api/routes/devAgentRoutes.js#GET:/dev-agent/runs:23",
-      "source_line": 2525,
-      "source_offset": 116435,
+      "source_line": 2527,
+      "source_offset": 116703,
       "method": "GET",
       "path": "/dev-agent/runs",
       "file": "http-generic-api/routes/devAgentRoutes.js",
@@ -2848,8 +2848,8 @@
     },
     {
       "route_id": "http-generic-api/routes/devAgentRoutes.js#GET:/dev-agent/proposals:24",
-      "source_line": 2543,
-      "source_offset": 117109,
+      "source_line": 2545,
+      "source_offset": 117377,
       "method": "GET",
       "path": "/dev-agent/proposals",
       "file": "http-generic-api/routes/devAgentRoutes.js",
@@ -2857,8 +2857,8 @@
     },
     {
       "route_id": "http-generic-api/routes/devAgentRoutes.js#GET:/dev-agent/proposals/:id:25",
-      "source_line": 2575,
-      "source_offset": 118522,
+      "source_line": 2577,
+      "source_offset": 118790,
       "method": "GET",
       "path": "/dev-agent/proposals/:id",
       "file": "http-generic-api/routes/devAgentRoutes.js",
@@ -2866,8 +2866,8 @@
     },
     {
       "route_id": "http-generic-api/routes/devAgentRoutes.js#POST:/dev-agent/proposals/:id/confirm:26",
-      "source_line": 2589,
-      "source_offset": 119066,
+      "source_line": 2591,
+      "source_offset": 119334,
       "method": "POST",
       "path": "/dev-agent/proposals/:id/confirm",
       "file": "http-generic-api/routes/devAgentRoutes.js",
@@ -2875,8 +2875,8 @@
     },
     {
       "route_id": "http-generic-api/routes/devAgentRoutes.js#POST:/dev-agent/proposals/:id/dismiss:27",
-      "source_line": 2607,
-      "source_offset": 119991,
+      "source_line": 2609,
+      "source_offset": 120259,
       "method": "POST",
       "path": "/dev-agent/proposals/:id/dismiss",
       "file": "http-generic-api/routes/devAgentRoutes.js",
@@ -2884,8 +2884,8 @@
     },
     {
       "route_id": "http-generic-api/routes/devAgentRoutes.js#GET:/dev-agent/proposals/:id/discussion:28",
-      "source_line": 2624,
-      "source_offset": 120791,
+      "source_line": 2626,
+      "source_offset": 121059,
       "method": "GET",
       "path": "/dev-agent/proposals/:id/discussion",
       "file": "http-generic-api/routes/devAgentRoutes.js",
@@ -2893,8 +2893,8 @@
     },
     {
       "route_id": "http-generic-api/routes/devAgentRoutes.js#POST:/dev-agent/proposals/:id/discussion:29",
-      "source_line": 2640,
-      "source_offset": 121379,
+      "source_line": 2642,
+      "source_offset": 121647,
       "method": "POST",
       "path": "/dev-agent/proposals/:id/discussion",
       "file": "http-generic-api/routes/devAgentRoutes.js",
@@ -2902,8 +2902,8 @@
     },
     {
       "route_id": "http-generic-api/routes/devAgentRoutes.js#GET:/dev-agent/session-summaries:30",
-      "source_line": 2728,
-      "source_offset": 124575,
+      "source_line": 2730,
+      "source_offset": 124843,
       "method": "GET",
       "path": "/dev-agent/session-summaries",
       "file": "http-generic-api/routes/devAgentRoutes.js",
@@ -4252,8 +4252,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager:0",
-      "source_line": 981,
-      "source_offset": 57866,
+      "source_line": 990,
+      "source_offset": 58194,
       "method": "GET",
       "path": "/app/local-manager",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4261,8 +4261,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager/update/windows:1",
-      "source_line": 987,
-      "source_offset": 58092,
+      "source_line": 996,
+      "source_offset": 58420,
       "method": "GET",
       "path": "/app/local-manager/update/windows",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4270,8 +4270,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager/download/windows:2",
-      "source_line": 993,
-      "source_offset": 58364,
+      "source_line": 1002,
+      "source_offset": 58692,
       "method": "GET",
       "path": "/app/local-manager/download/windows",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4279,8 +4279,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager/sign-in:3",
-      "source_line": 998,
-      "source_offset": 58549,
+      "source_line": 1007,
+      "source_offset": 58877,
       "method": "GET",
       "path": "/app/local-manager/sign-in",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4288,8 +4288,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager/sign-up:4",
-      "source_line": 1014,
-      "source_offset": 59502,
+      "source_line": 1023,
+      "source_offset": 59830,
       "method": "GET",
       "path": "/app/local-manager/sign-up",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4297,8 +4297,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager/link-device:5",
-      "source_line": 1030,
-      "source_offset": 60407,
+      "source_line": 1039,
+      "source_offset": 60735,
       "method": "GET",
       "path": "/app/local-manager/link-device",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4306,8 +4306,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager/devices:6",
-      "source_line": 1036,
-      "source_offset": 60671,
+      "source_line": 1045,
+      "source_offset": 60999,
       "method": "GET",
       "path": "/app/local-manager/devices",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4315,8 +4315,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager/routes:7",
-      "source_line": 1042,
-      "source_offset": 60909,
+      "source_line": 1051,
+      "source_offset": 61237,
       "method": "GET",
       "path": "/app/local-manager/routes",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4324,8 +4324,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager/backups:8",
-      "source_line": 1058,
-      "source_offset": 61720,
+      "source_line": 1067,
+      "source_offset": 62048,
       "method": "GET",
       "path": "/app/local-manager/backups",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4333,8 +4333,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager/settings:9",
-      "source_line": 1074,
-      "source_offset": 62540,
+      "source_line": 1083,
+      "source_offset": 62868,
       "method": "GET",
       "path": "/app/local-manager/settings",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4342,8 +4342,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#POST:/local-manager/device-link/start:10",
-      "source_line": 1090,
-      "source_offset": 63293,
+      "source_line": 1099,
+      "source_offset": 63621,
       "method": "POST",
       "path": "/local-manager/device-link/start",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4351,8 +4351,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/local-manager/device-link/preview:11",
-      "source_line": 1091,
-      "source_offset": 63368,
+      "source_line": 1100,
+      "source_offset": 63733,
       "method": "GET",
       "path": "/local-manager/device-link/preview",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4360,8 +4360,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#POST:/local-manager/device-link/poll:12",
-      "source_line": 1092,
-      "source_offset": 63446,
+      "source_line": 1101,
+      "source_offset": 63848,
       "method": "POST",
       "path": "/local-manager/device-link/poll",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4369,8 +4369,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#POST:/local-manager/device-link/approve:13",
-      "source_line": 1093,
-      "source_offset": 63519,
+      "source_line": 1102,
+      "source_offset": 63958,
       "method": "POST",
       "path": "/local-manager/device-link/approve",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4378,8 +4378,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/local-manager/device-link/devices:14",
-      "source_line": 1094,
-      "source_offset": 63598,
+      "source_line": 1103,
+      "source_offset": 64037,
       "method": "GET",
       "path": "/local-manager/device-link/devices",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4387,8 +4387,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#POST:/local-manager/device-link/devices/:sessionId/revoke:15",
-      "source_line": 1095,
-      "source_offset": 63669,
+      "source_line": 1104,
+      "source_offset": 64108,
       "method": "POST",
       "path": "/local-manager/device-link/devices/:sessionId/revoke",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4396,8 +4396,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/local-manager/device/session:16",
-      "source_line": 1096,
-      "source_offset": 63800,
+      "source_line": 1105,
+      "source_offset": 64239,
       "method": "GET",
       "path": "/local-manager/device/session",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4405,35 +4405,44 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/local-manager/device/controls:17",
-      "source_line": 1097,
-      "source_offset": 63865,
+      "source_line": 1106,
+      "source_offset": 64304,
       "method": "GET",
       "path": "/local-manager/device/controls",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
       "write": false
     },
     {
-      "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager/admin:18",
-      "source_line": 1099,
-      "source_offset": 63933,
+      "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#POST:/local-manager/device/n8n/provision:18",
+      "source_line": 1107,
+      "source_offset": 64371,
+      "method": "POST",
+      "path": "/local-manager/device/n8n/provision",
+      "file": "http-generic-api/routes/localManagerBetaRoutes.js",
+      "write": true
+    },
+    {
+      "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager/admin:19",
+      "source_line": 1109,
+      "source_offset": 64481,
       "method": "GET",
       "path": "/app/local-manager/admin",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
       "write": false
     },
     {
-      "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/local-manager/beta:19",
-      "source_line": 1105,
-      "source_offset": 64167,
+      "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/local-manager/beta:20",
+      "source_line": 1115,
+      "source_offset": 64715,
       "method": "GET",
       "path": "/local-manager/beta",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
       "write": false
     },
     {
-      "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/local-manager/beta/status:20",
-      "source_line": 1111,
-      "source_offset": 64383,
+      "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/local-manager/beta/status:21",
+      "source_line": 1121,
+      "source_offset": 64931,
       "method": "GET",
       "path": "/local-manager/beta/status",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4441,8 +4450,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerDesktopCommandRoutes.js#POST:/local-manager/device/desktop-commands:0",
-      "source_line": 424,
-      "source_offset": 17854,
+      "source_line": 450,
+      "source_offset": 18789,
       "method": "POST",
       "path": "/local-manager/device/desktop-commands",
       "file": "http-generic-api/routes/localManagerDesktopCommandRoutes.js",
@@ -4450,8 +4459,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerDesktopCommandRoutes.js#GET:/local-manager/device/desktop-commands/pending:1",
-      "source_line": 483,
-      "source_offset": 21595,
+      "source_line": 523,
+      "source_offset": 23238,
       "method": "GET",
       "path": "/local-manager/device/desktop-commands/pending",
       "file": "http-generic-api/routes/localManagerDesktopCommandRoutes.js",
@@ -4459,8 +4468,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerDesktopCommandRoutes.js#POST:/local-manager/device/desktop-commands/:commandId/heartbeat:2",
-      "source_line": 529,
-      "source_offset": 23729,
+      "source_line": 569,
+      "source_offset": 25372,
       "method": "POST",
       "path": "/local-manager/device/desktop-commands/:commandId/heartbeat",
       "file": "http-generic-api/routes/localManagerDesktopCommandRoutes.js",
@@ -4468,8 +4477,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerDesktopCommandRoutes.js#POST:/local-manager/device/desktop-commands/:commandId/complete:3",
-      "source_line": 560,
-      "source_offset": 25690,
+      "source_line": 600,
+      "source_offset": 27333,
       "method": "POST",
       "path": "/local-manager/device/desktop-commands/:commandId/complete",
       "file": "http-generic-api/routes/localManagerDesktopCommandRoutes.js",
@@ -4477,8 +4486,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerDesktopCommandRoutes.js#GET:/local-manager/device/desktop-commands/:commandId:4",
-      "source_line": 598,
-      "source_offset": 28084,
+      "source_line": 638,
+      "source_offset": 29727,
       "method": "GET",
       "path": "/local-manager/device/desktop-commands/:commandId",
       "file": "http-generic-api/routes/localManagerDesktopCommandRoutes.js",
@@ -21688,7 +21697,7 @@
         "source_line": 1515,
         "handler_window_lines": [
           1515,
-          1637
+          1639
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -21755,10 +21764,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/devAgentRoutes.js",
-        "source_line": 1710,
+        "source_line": 1712,
         "handler_window_lines": [
-          1710,
-          1911
+          1712,
+          1913
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -21826,10 +21835,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/devAgentRoutes.js",
-        "source_line": 1913,
+        "source_line": 1915,
         "handler_window_lines": [
-          1913,
-          2058
+          1915,
+          2060
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -21897,10 +21906,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/devAgentRoutes.js",
-        "source_line": 2060,
+        "source_line": 2062,
         "handler_window_lines": [
-          2060,
-          2174
+          2062,
+          2176
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -21968,10 +21977,10 @@
       "operation_class": "decision",
       "evidence": {
         "file": "http-generic-api/routes/devAgentRoutes.js",
-        "source_line": 2176,
+        "source_line": 2178,
         "handler_window_lines": [
-          2176,
-          2301
+          2178,
+          2303
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -22045,10 +22054,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/devAgentRoutes.js",
-        "source_line": 2303,
+        "source_line": 2305,
         "handler_window_lines": [
-          2303,
-          2436
+          2305,
+          2438
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -22115,10 +22124,10 @@
       "operation_class": "update",
       "evidence": {
         "file": "http-generic-api/routes/devAgentRoutes.js",
-        "source_line": 2451,
+        "source_line": 2453,
         "handler_window_lines": [
-          2451,
-          2466
+          2453,
+          2468
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -22177,10 +22186,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/devAgentRoutes.js",
-        "source_line": 2467,
+        "source_line": 2469,
         "handler_window_lines": [
-          2467,
-          2490
+          2469,
+          2492
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -22237,10 +22246,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/devAgentRoutes.js",
-        "source_line": 2491,
+        "source_line": 2493,
         "handler_window_lines": [
-          2491,
-          2512
+          2493,
+          2514
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -22295,10 +22304,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/devAgentRoutes.js",
-        "source_line": 2589,
+        "source_line": 2591,
         "handler_window_lines": [
-          2589,
-          2606
+          2591,
+          2608
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -22357,10 +22366,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/devAgentRoutes.js",
-        "source_line": 2607,
+        "source_line": 2609,
         "handler_window_lines": [
-          2607,
-          2623
+          2609,
+          2625
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -22419,10 +22428,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/devAgentRoutes.js",
-        "source_line": 2640,
+        "source_line": 2642,
         "handler_window_lines": [
-          2640,
-          2727
+          2642,
+          2729
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -28448,10 +28457,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/localManagerBetaRoutes.js",
-        "source_line": 1090,
+        "source_line": 1099,
         "handler_window_lines": [
-          1090,
-          1090
+          1099,
+          1099
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -28506,10 +28515,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/localManagerBetaRoutes.js",
-        "source_line": 1092,
+        "source_line": 1101,
         "handler_window_lines": [
-          1092,
-          1092
+          1101,
+          1101
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -28564,10 +28573,10 @@
       "operation_class": "decision",
       "evidence": {
         "file": "http-generic-api/routes/localManagerBetaRoutes.js",
-        "source_line": 1093,
+        "source_line": 1102,
         "handler_window_lines": [
-          1093,
-          1093
+          1102,
+          1102
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -28622,10 +28631,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/localManagerBetaRoutes.js",
-        "source_line": 1095,
+        "source_line": 1104,
         "handler_window_lines": [
-          1095,
-          1095
+          1104,
+          1104
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -28673,6 +28682,68 @@
       "reason": "agent_or_execution_state_requires_authority_binding"
     },
     {
+      "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#POST:/local-manager/device/n8n/provision:18",
+      "classification": "intentionally_unmapped",
+      "mapping_status": "blocked",
+      "domain": "connector",
+      "operation_class": "create_or_request",
+      "evidence": {
+        "file": "http-generic-api/routes/localManagerBetaRoutes.js",
+        "source_line": 1107,
+        "handler_window_lines": [
+          1107,
+          1107
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": false,
+          "db_registry_signal": false,
+          "authority_signal": false,
+          "readback_signal": false,
+          "mutation_signal": false
+        },
+        "signals": {
+          "provider": [],
+          "db_registry": [],
+          "authority": [],
+          "readback": [],
+          "mutation": []
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "none",
+        "basis": "domain_and_route_shape_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract",
+        "provider_adapter_allowlist",
+        "provider_idempotency",
+        "provider_rollback_or_compensation",
+        "device_capability_and_explicit_user_consent"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [],
+      "resource_candidate": "connector",
+      "resource_key": null,
+      "operation_key": null,
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "connector-governance",
+      "classification_confidence": "heuristic_requires_manual_confirmation",
+      "risk_class": "critical",
+      "reason": "connector_or_local_execution_requires_device_capability"
+    },
+    {
       "route_id": "http-generic-api/routes/localManagerDesktopCommandRoutes.js#POST:/local-manager/device/desktop-commands:0",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
@@ -28680,10 +28751,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/localManagerDesktopCommandRoutes.js",
-        "source_line": 424,
+        "source_line": 450,
         "handler_window_lines": [
-          424,
-          481
+          450,
+          521
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -28743,10 +28814,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/localManagerDesktopCommandRoutes.js",
-        "source_line": 529,
+        "source_line": 569,
         "handler_window_lines": [
-          529,
-          558
+          569,
+          598
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -28806,10 +28877,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/localManagerDesktopCommandRoutes.js",
-        "source_line": 560,
+        "source_line": 600,
         "handler_window_lines": [
-          560,
-          596
+          600,
+          636
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -54093,13 +54164,13 @@
   ],
   "evidence_graph": {
     "node_counts": {
-      "routes": 678,
+      "routes": 679,
       "domains": 11,
       "handler_files": 136
     },
     "edge_counts": {
-      "route_to_handler_file": 678,
-      "route_to_domain": 678,
+      "route_to_handler_file": 679,
+      "route_to_domain": 679,
       "route_to_provider_signal": 100,
       "route_to_db_registry_signal": 0,
       "route_to_authority_signal": 428,
@@ -60640,8 +60711,8 @@
     {
       "severity": "high",
       "code": "INTENTIONALLY_UNMAPPED_WRITE_ROUTES_BLOCKED",
-      "count": 634,
-      "sensitive_count": 634
+      "count": 635,
+      "sensitive_count": 635
     },
     {
       "severity": "medium",
