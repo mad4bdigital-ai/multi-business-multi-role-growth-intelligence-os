@@ -1440,7 +1440,8 @@ test("generator plan-only mode inventories the exact migration chain", () => {
     /KEY `idx_lm_desktop_command_claim_token`\s*\(\s*`claim_token`\s*,\s*`status`\s*\)/iu,
     "desktop command ownership must retain the claim-token lookup index",
   );
-  assert.equal(plan.ordered_index_key_width_chain.tables_projected, 589);
+  const expectedIndexProjectedTables = 588 + 2; // Local Manager desktop commands + control-template registry; device-link sessions already existed in the projected chain.
+  assert.equal(plan.ordered_index_key_width_chain.tables_projected, expectedIndexProjectedTables);
   const expectedIndexesChecked = 2872 + 1; // idx_lm_desktop_command_claim_token.
   const expectedIndexColumnsChecked = 4877 + 2; // claim_token + status in the ownership index.
   assert.equal(plan.ordered_index_key_width_chain.indexes_checked, expectedIndexesChecked);
