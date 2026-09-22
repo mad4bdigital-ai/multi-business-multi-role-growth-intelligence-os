@@ -6,6 +6,7 @@ import {
   getDeviceSession,
   listLinkedDevices,
   pollDeviceLinkSession,
+  provisionDeviceN8n,
   previewDeviceLinkSession,
   revokeDeviceLinkSession,
   requireLocalManagerUserRouteGuard,
@@ -1095,6 +1096,7 @@ export function buildLocalManagerBetaRoutes(deps) {
   router.post("/local-manager/device-link/devices/:sessionId/revoke", requireLocalManagerUserRouteGuard, revokeDeviceLinkSession);
   router.get("/local-manager/device/session", getDeviceSession);
   router.get("/local-manager/device/controls", getDeviceControls);
+  router.post("/local-manager/device/n8n/provision", requireLocalManagerUserRouteGuard, provisionDeviceN8n);
 
   router.get("/app/local-manager/admin", (_req, res) => {
     res.setHeader("Content-Type", "text/html; charset=utf-8");
