@@ -407,6 +407,21 @@
         "runtime_canonical_registry_snapshot"
       ],
       "snapshot_target_role": "runtime"
+    },
+    "local_manager_control_templates": {
+      "class": "canonical_registry",
+      "rebuild_from_git": true,
+      "zero_rows_allowed": false,
+      "known_replay_gap": false,
+      "replay_strategy": "disposable_git_semantic_snapshot",
+      "artifact_keys": [
+        "runtime_canonical_registry_snapshot"
+      ],
+      "snapshot_target_role": "runtime"
+    },
+    "local_manager_device_link_sessions": {
+      "class": "operational_state",
+      "reseed_forbidden": true
     }
   },
   "table_families": [
