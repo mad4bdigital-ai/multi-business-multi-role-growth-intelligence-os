@@ -289,4 +289,27 @@ assert(localManagerDeviceLinkService.includes('app_alias: "edge"') && localManag
 assert(localManagerWindows.includes('Registry.CurrentUser') && localManagerWindows.includes('Registry.LocalMachine'), 'installed-app discovery must read per-user and machine uninstall registries');
 assert(localManagerWindowsInstallerSurface.includes('RunAsAdminRequired'), 'Windows app must surface local Administrator requirement');
 
+assert(localManager.includes("token_profile:'local_manager_user'"), 'Local Manager browser login must request the dedicated user-token profile');
+assert(localManager.includes('/local-manager/device-link/devices/:sessionId/revoke'), 'Local Manager must expose user-owned device revocation');
+assert(localManager.includes('Forget device'), 'Local Manager devices UI must expose Forget Device');
+assert(localManagerDeviceLinkService.includes('LOCAL_MANAGER_USER_JWT_AUDIENCE = "mad4b-local-manager-user"'), 'Local Manager user authority must have a dedicated audience');
+assert(localManagerDeviceLinkService.includes('requiredPurpose: LOCAL_MANAGER_USER_JWT_PURPOSE'), 'Local Manager user verifier must require the dedicated purpose');
+assert(localManagerDeviceLinkService.includes('requiredScope: LOCAL_MANAGER_USER_JWT_SCOPE'), 'Local Manager user verifier must require the dedicated scope');
+assert(localManagerDeviceLinkService.includes('deviceJwtSecret()'), 'device JWT verification must use the dedicated device signing key');
+assert(!/jwt\.(?:sign|verify)\([^;]+\bJWT_SECRET\b/s.test(localManagerDeviceLinkService), 'device authority must never sign or verify through the user JWT secret');
+assert(localManagerDeviceLinkService.includes("issuer: DEVICE_JWT_ISSUER"), 'device JWT verification must enforce issuer');
+assert(localManagerDeviceLinkService.includes("audience: DEVICE_JWT_AUDIENCE"), 'device JWT verification must enforce audience');
+assert(localManagerDeviceLinkService.includes("device_token_jti = ?"), 'device JWT acceptance must be bound to durable JTI state');
+assert(localManagerDeviceLinkService.includes("revoked_at IS NULL"), 'device JWT acceptance must fail closed after revocation');
+assert(localManagerDeviceLinkService.includes("status = 'revoked'"), 'Forget Device must persist authoritative revocation state');
+assert(localManagerDeviceLinkService.includes("Number(approvalResult?.affectedRows || 0) !== 1"), 'device approval must verify ownership of the pending-to-approved transition');
+assert(localManagerDeviceLinkService.includes("Number(issuanceResult?.affectedRows || 0) === 1"), 'device token issuance must inspect atomic transition ownership');
+assert(localManagerDeviceLinkService.includes("device_token_issuance_not_owned"), 'competing token issuance must fail closed when durable state cannot prove ownership');
+assert(localManagerDeviceLinkService.includes("device_token_jti = ?"), 'token issuance and verification must share durable JTI authority');
+assert(localManagerDeviceLinkService.includes("x-local-manager-user-authorization"), 'stale privileged device actions must require a fresh user step-up header');
+assert(localManagerDeviceLinkService.includes("fresh_local_manager_user_authorization_required"), 'stale privileged installer authorization must fail closed');
+assert(installRoutes.includes("reauth_required_for_stale_device_tokens: true"), 'installer response must declare fresh authorization requirement');
+assert(installRoutes.includes('step_up_header: "x-local-manager-user-authorization"'), 'installer response must name the bounded step-up header');
+assert(installRoutes.includes("err.details ? { details: err.details }"), 'fresh authorization failures must preserve bounded non-secret remediation details');
+
 console.log('local manager tool release owner tests passed');
