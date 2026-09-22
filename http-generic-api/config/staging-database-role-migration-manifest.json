@@ -74,7 +74,8 @@
         "workspace_registry",
         "local_manager_desktop_commands",
         "local_connector_device_aliases",
-        "local_connector_user_configs"
+        "local_connector_user_configs",
+        "local_manager_device_link_sessions"
       ],
       "excluded_tables": [
         "capability_resolution_envelope_ledger",
@@ -232,7 +233,8 @@
       "workspace_registry",
       "local_manager_desktop_commands",
       "local_connector_device_aliases",
-      "local_connector_user_configs"
+      "local_connector_user_configs",
+      "local_manager_device_link_sessions"
     ],
     "required_bundle_files": [
       "runtime.schema.sql.gz",
