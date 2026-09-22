@@ -16,6 +16,7 @@
       ".github/workflows/e2e-phase-governance.yml",
       "apps/local-manager-windows/LocalManagerAutopilot.cs",
       "apps/local-manager-windows/Program.cs",
+      "docs/governance/configuration-drift-baseline-extensions.json",
       "http-generic-api/activation-surfaces/local_manager_desktop_commands.json",
       "http-generic-api/activationSessionLifecycleService.js",
       "http-generic-api/config/runtime-bootstrap-contract.json",
@@ -168,7 +169,8 @@
             "http-generic-api/scripts/local-manager-desktop-command-mariadb-certification.mjs",
             "http-generic-api/scripts/ci-evidence-router.mjs",
             "http-generic-api/scripts/test-ci-evidence-router.mjs",
-            "http-generic-api/test-local-manager-chatgpt-url-capture.mjs"
+            "http-generic-api/test-local-manager-chatgpt-url-capture.mjs",
+            "docs/governance/configuration-drift-baseline-extensions.json"
           ]
         }
       ]
