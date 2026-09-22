@@ -1226,6 +1226,8 @@
       }
     },
     "source_module": "http-generic-api/localManagerWriteAuthority.js",
-    "secrets_included": false
+    "secrets_included": false,
+    "canonical_privilege_contract": "http-generic-api/databasePrivilegeContracts.js#LOCAL_MANAGER_WRITE_DB_PRIVILEGE_MATRIX",
+    "prepared_profile_contract": "specs/020-platform-resource-identity-brand-governance/contracts/runtime-db-write-authority-profiles.json#local_manager_writer"
   }
 }
