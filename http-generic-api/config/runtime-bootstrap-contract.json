@@ -269,7 +269,8 @@
       "actions",
       "dynamic_audit_scheduler_runs",
       "execution_log",
-      "json_assets"
+      "json_assets",
+      "local_manager_desktop_commands"
     ],
     "required_governance_tables": ["capability_resolution_envelope_ledger", "approval_holds", "governed_migration_authorization_registry", "capability_apply_authorization_policy_registry", "runtime_dispatch_certification_registry", "governed_migration_ledger", "platform_resource_authority_bindings", "platform_resource_recipes", "platform_resource_recipe_steps", "repository_operation_leases", "repository_mutation_plans_v6", "repository_mutation_runs_v6", "runtime_break_glass_incidents", "runtime_break_glass_audit_events", "runtime_verification_runs", "runtime_verification_evidence_chunks", "deployment_attestations"],
     "required_runtime_persistence_tables": ["governed_tool_response_chunks"],
@@ -359,7 +360,7 @@
       "requires_tables": ["admin_platform_endpoint_tools", "tenant_platform_endpoint_tools"]
     },
     "20260922_local_manager_desktop_commands.sql": {
-      "sha256": "4f8647642651dd13dd4f0640ea692e072d5b8985ded6d3200015b3e6d5c93de4",
+      "sha256": "986ea60a7224cbccff926b26c88bcff02883e22036711a41f51f0678109556e5",
       "statement_count": 1,
       "allowed_modes": ["dry_run", "apply_migration", "apply_grants"],
       "role": "reviewed_runtime_apply_candidate",
@@ -375,7 +376,8 @@
       "actions",
       "dynamic_audit_scheduler_runs",
       "execution_log",
-      "json_assets"
+      "json_assets",
+      "local_manager_desktop_commands"
     ],
     "required_operations": ["SELECT", "INSERT", "UPDATE"],
     "allow_additional_tables": false,
@@ -393,7 +395,7 @@
       "runtime": {
         "database_binding": "runtime",
         "principal_binding": "runtime",
-        "required_tables": ["customer_sessions", "gpt_session_turns", "actions", "dynamic_audit_scheduler_runs", "execution_log", "json_assets"],
+        "required_tables": ["customer_sessions", "gpt_session_turns", "actions", "dynamic_audit_scheduler_runs", "execution_log", "json_assets", "local_manager_desktop_commands"],
         "required_operations": ["SELECT", "INSERT", "UPDATE"],
         "apply_when": "always"
       },
