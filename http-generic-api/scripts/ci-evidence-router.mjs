@@ -237,6 +237,9 @@ export function buildCiEvidenceSummary({ inputDir, policy = DEFAULT_POLICY, cont
 
   const evaluationFinding = firstEvaluationFinding(recognized);
   const executionFailures = failedExecutionResults(recognized);
+  const mariadbCertificationFinding = ["failure", "cancelled"].includes(mariadbCertificationJobResult)
+    ? { source: "local-manager-desktop-command-mariadb-certification", code: `mariadb_certification_${mariadbCertificationJobResult}`, status: mariadbCertificationJobResult }
+    : null;
   let outcome = "unknown";
   if (integrityFindings.length) outcome = "evidence_error";
   else if (evaluateJobResult === "failure" || evaluationFinding || evaluationReports.some((row) => row.data.ok === false)) outcome = "blocked";
@@ -245,7 +248,7 @@ export function buildCiEvidenceSummary({ inputDir, policy = DEFAULT_POLICY, cont
   else if (evaluateJobResult === "success" && ["success", "skipped"].includes(executeJobResult) && ["success", "skipped", "unknown"].includes(mariadbCertificationJobResult)) outcome = "passed";
   else if (recognized.length) outcome = "incomplete";
 
-  const firstFailure = integrityFindings[0] || executionFailures[0] || evaluationFinding || null;
+  const firstFailure = integrityFindings[0] || executionFailures[0] || evaluationFinding || mariadbCertificationFinding || null;
   const logDiagnosisRequired = outcome === "evidence_error" || (Boolean(firstFailure) && !diagnosticAvailable(firstFailure));
   const featureKeys = unique(recognized.flatMap((row) => [row.data?.feature_key, ...(row.data?.contracts || []).map((item) => item?.feature_key)]));
 
