@@ -129,3 +129,35 @@ assert.equal(denied.details.table, "customer_sessions");
 assert.doesNotMatch(denied.message, /secret-user/);
 
 console.log("control plane convergence regression tests passed");
+
+const activationSurface = JSON.parse(readFileSync("./activation-surfaces/local_manager_desktop_commands.json", "utf8"));
+assert.deepEqual(
+  activationSurface.active_status_values,
+  ["queued", "claimed", "completed", "failed", "expired", "cancelled"],
+  "desktop command activation status taxonomy must match the DB enum",
+);
+
+const desktopCommandRoutesSource = readFileSync("./routes/localManagerDesktopCommandRoutes.js", "utf8");
+assert.match(desktopCommandRoutesSource, /desktop_target_identity_authority_not_ready/u);
+assert.match(desktopCommandRoutesSource, /local_connector_device_aliases/u);
+assert.match(desktopCommandRoutesSource, /local_connector_user_configs/u);
+assert.doesNotMatch(
+  desktopCommandRoutesSource,
+  /catch\s*\{\s*return\s+\[\]\s*;\s*\}/u,
+  "desktop identity authority failures must not collapse silently into an empty mapping",
+);
+
+const activationRoutesSource = readFileSync("./routes/activationRoutes.js", "utf8");
+assert.match(
+  activationRoutesSource,
+  /read_only:\s*Object\.prototype\.hasOwnProperty\.call\(req\.query\s*\|\|\s*\{\},\s*"read_only"\)\s*\?\s*req\.query\.read_only\s*:\s*"true"/u,
+  "getActivationSessionContext diagnostics must be read-only when the caller omits a mutation flag",
+);
+assert.match(
+  activationRoutesSource,
+  /read_only:\s*!shouldOpenActivationSession\(diagnosticQuery\)/u,
+  "session-context response must state the effective read-only decision",
+);
+
+console.log("control-plane convergence regressions passed");
+
