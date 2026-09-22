@@ -32,7 +32,6 @@ function summaryFor(files, context = CONTEXT) {
     return buildCiEvidenceSummary({ inputDir: root, context });
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
-    fs.rmSync(certRoot, { recursive: true, force: true });
   }
 }
 
@@ -126,7 +125,10 @@ function summaryFor(files, context = CONTEXT) {
     assert.equal(summary.jobs.mariadb_certification, "success");
     assert.equal(summary.certifications.local_manager_desktop_command_mariadb.evidence_sha256, expectedDigest);
     assert.match(renderCiEvidenceMarkdown(summary), /MariaDB evidence SHA-256/u);
-  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(certRoot, { recursive: true, force: true });
+  }
 }
 
 {
