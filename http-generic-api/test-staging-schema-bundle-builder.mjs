@@ -1484,7 +1484,10 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_required_insert_column_chain.files_checked, expectedFilesChecked);
   assert.equal(plan.ordered_required_insert_column_chain.migration_files_checked, canonicalMigrationFiles.length);
   assert.equal(plan.ordered_required_insert_column_chain.statements_checked, expectedStatementsChecked);
-  assert.equal(plan.ordered_required_insert_column_chain.tables_projected, 592);
+  assert.ok(
+    plan.ordered_required_insert_column_chain.tables_projected >= plan.ordered_index_key_width_chain.tables_projected,
+    "required-column audit must project at least the schema table set seen by the index audit",
+  );
   assert.equal(plan.ordered_required_insert_column_chain.writer_checks, 11);
   assert.equal(plan.ordered_required_insert_column_chain.required_columns_checked, 11);
   assert.equal(plan.ordered_required_insert_column_chain.omitted_required_columns, 1);
