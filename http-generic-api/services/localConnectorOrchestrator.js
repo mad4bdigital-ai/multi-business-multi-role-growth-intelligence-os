@@ -6,6 +6,7 @@ const PLATFORM_TENANT_ID = "00000000-0000-4000-a000-000000000001";
 const PLATFORM_ADMIN_USER_ID = "00000000-0000-4000-a000-000000000002";
 const CONNECTOR_TIMEOUT_MS = 35_000;
 const CONNECTOR_RESPONSE_EXCERPT_MAX_CHARS = 768;
+const preferredCredentialSourceByConfig = new Map();
 
 function createLocalActionId() {
   return `local_action_${crypto.randomUUID().replace(/-/g, "")}`;
@@ -49,6 +50,18 @@ export function connectorAuthTokens(config) {
   ].map((value) => String(value || "").trim()).filter(Boolean))];
 }
 
+function connectorCredentialCandidates(config) {
+  const candidates = [
+    { source: "connector_secret", token: String(config?.connector_secret || "").trim() },
+    { source: "connector_local_api_key", token: String(config?.connector_local_api_key || "").trim() },
+  ].filter((candidate) => candidate.token);
+  const deduplicated = candidates.filter((candidate, index) => candidates.findIndex((entry) => entry.token === candidate.token) === index);
+  const configKey = String(config?.config_id || config?.device_id || "").trim();
+  const preferredSource = configKey ? preferredCredentialSourceByConfig.get(configKey) : null;
+  if (preferredSource) deduplicated.sort((left, right) => Number(right.source === preferredSource) - Number(left.source === preferredSource));
+  return { candidates: deduplicated, configKey };
+}
+
 function connectorAuthToken(config) {
   const token = connectorAuthTokens(config)[0] || "";
   if (!token) {
@@ -70,22 +83,36 @@ export async function fetchLocalConnectorWithCredentialFallback({
   operation = "local_connector_call",
   fetchImpl = fetch,
 } = {}) {
-  const tokens = connectorAuthTokens(config);
-  if (!tokens.length) connectorAuthToken(config);
+  const { candidates, configKey } = connectorCredentialCandidates(config);
+  if (!candidates.length) connectorAuthToken(config);
   let lastError = null;
-  for (let index = 0; index < tokens.length; index += 1) {
+  for (let index = 0; index < candidates.length; index += 1) {
     try {
       const response = await fetchImpl(url, {
         method,
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokens[index]}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${candidates[index].token}` },
         ...(body === null ? {} : { body }),
         signal: AbortSignal.timeout(CONNECTOR_TIMEOUT_MS),
       });
-      return await readLocalConnectorResponse(response, { operation });
+      const payload = await readLocalConnectorResponse(response, { operation });
+      if (configKey) preferredCredentialSourceByConfig.set(configKey, candidates[index].source);
+      return {
+        ...payload,
+        credential_fallback_used: index > 0,
+        credential_attempt_count: index + 1,
+        credential_source: candidates[index].source,
+      };
     } catch (error) {
       lastError = error;
       const credentialRejected = error?.code === "connector_credential_invalid" || Number(error?.http_status || error?.status) === 401;
-      if (!credentialRejected || index === tokens.length - 1) throw error;
+      if (!credentialRejected || index === candidates.length - 1) {
+        if (error?.details) {
+          error.details.credential_fallback_used = index > 0;
+          error.details.credential_attempt_count = index + 1;
+          error.details.secrets_included = false;
+        }
+        throw error;
+      }
     }
   }
   throw lastError;
