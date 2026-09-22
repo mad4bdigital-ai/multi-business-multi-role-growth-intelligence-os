@@ -72,8 +72,8 @@ assert.match(
 );
 assert.match(
   deploymentInfoRouteSource,
-  /executor: runtimePool \|\| pool \|\| null/u,
-  "deployment-info semantic readiness must consume the injected Runtime DB executor",
+  /const executor = runtimePool\s*\|\| pool\s*\|\| \(typeof runtimePoolFactory === "function"\s*\? await runtimePoolFactory\(\)\s*: null\);/u,
+  "deployment-info semantic readiness must prefer an injected Runtime DB executor and fall back only to the Runtime DB factory",
 );
 assert.doesNotMatch(
   serverSource,
