@@ -24,6 +24,8 @@ const localManagerWindowsInstallerSurface = localManagerWindows + signedInstalle
 const localManagerProject = readFileSync('../apps/local-manager-windows/Mad4B.LocalManager.Windows.csproj', 'utf8');
 const localManagerAutopilot = readFileSync('../apps/local-manager-windows/LocalManagerAutopilot.cs', 'utf8');
 const windowsAppRegistration = readFileSync('../apps/local-manager-windows/WindowsAppRegistration.cs', 'utf8');
+const localManagerDesktopCommandRoutes = readFileSync('routes/localManagerDesktopCommandRoutes.js', 'utf8');
+const devAgentRoutes = readFileSync('routes/devAgentRoutes.js', 'utf8');
 
 const advertisedVersionMatch = localManager.match(/LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "([0-9]+\.[0-9]+\.[0-9]+)"/);
 assert(advertisedVersionMatch, 'Local Manager update route must declare LOCAL_MANAGER_WINDOWS_LATEST_VERSION');
