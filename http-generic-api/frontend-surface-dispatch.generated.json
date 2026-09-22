@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "e67ef948426dcc4bff22a7e1492e8609572b77867fce3b795cfde093f9d06997",
+    "source_digest": "b46082f0941e20d6f15265b8b791e01d8883d6f430a3cd6c770c7990e52562f1",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -456,7 +456,7 @@
       },
       {
         "file": "routes/authRoutes.js",
-        "sha256": "53d1645d9169caaa6e782e13ef6086903b9d464e41c855c9a7aa0c6f1e8003a7",
+        "sha256": "1a7a78c808802ebb7506dbaeb8f6d4f4cae1a229bd7913726e194c36ac73c132",
         "present": true
       },
       {
@@ -661,7 +661,7 @@
       },
       {
         "file": "routes/localConnectorInstallRoutes.js",
-        "sha256": "127c7c064715742466fc00865ba3cf11be9bbe9693353fb228df773a33d31118",
+        "sha256": "0d7ebbbc6b2481b46a8d12a0bb3a3d4ce8052424ef53324c92053e9bb336ff72",
         "present": true
       },
       {
@@ -676,7 +676,7 @@
       },
       {
         "file": "routes/localManagerBetaRoutes.js",
-        "sha256": "7c874a456c26266c99509469aafddb806759ac9f47e68a7bcdd4839eb1e0cd4b",
+        "sha256": "a5ba19eafa704553869ea1c18f85b8e0be619323a106fa3c5cb24ceb027c48a6",
         "present": true
       },
       {
@@ -1204,33 +1204,33 @@
     "mounted_family_count": 176,
     "mounted_route_file_count": 145,
     "mixed_scope_route_file_count": 26,
-    "operation_count": 1075,
+    "operation_count": 1076,
     "openapi_documented_count": 1059,
     "openapi_canonical_documented_count": 740,
     "openapi_generated_index_count": 319,
-    "openapi_exemption_count": 16,
+    "openapi_exemption_count": 17,
     "openapi_gap_count": 0,
     "openapi_detail_gap_count": 319,
     "openapi_detail_gap_policy": "accepted_generated_index_only",
     "auth_parity_counts": {
       "equivalent": 1059,
-      "exempt": 16
+      "exempt": 17
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 653,
-    "unresolved_operation_class_count": 0,
+    "non_get_candidate_count": 654,
+    "unresolved_operation_class_count": 1,
     "classified_mutation_count": 27,
     "governed_mutation_operation_count": 27,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 0,
-    "test_owned_family_count": 176,
-    "untested_family_count": 0,
+    "test_owned_family_count": 175,
+    "untested_family_count": 1,
     "test_owned_operation_count": 1075,
-    "untested_operation_count": 0,
-    "ready_task_count": 176,
-    "blocked_task_count": 0,
-    "coverage_complete": true
+    "untested_operation_count": 1,
+    "ready_task_count": 175,
+    "blocked_task_count": 1,
+    "coverage_complete": false
   },
   "waves": [
     {
@@ -6061,7 +6061,7 @@
       "family_key": "local-manager-beta.admin",
       "label": "local manager beta (admin)",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "7c874a456c26266c99509469aafddb806759ac9f47e68a7bcdd4839eb1e0cd4b",
+      "source_digest": "a5ba19eafa704553869ea1c18f85b8e0be619323a106fa3c5cb24ceb027c48a6",
       "mount_prefix": "/",
       "mount_order": 14168,
       "split_from_mixed_scope_file": true,
@@ -6200,7 +6200,7 @@
       "family_key": "local-manager-beta.local_device",
       "label": "local manager beta (local_device)",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "7c874a456c26266c99509469aafddb806759ac9f47e68a7bcdd4839eb1e0cd4b",
+      "source_digest": "a5ba19eafa704553869ea1c18f85b8e0be619323a106fa3c5cb24ceb027c48a6",
       "mount_prefix": "/",
       "mount_order": 14168,
       "split_from_mixed_scope_file": true,
@@ -6340,6 +6340,51 @@
             "rule_id": null
           },
           "mutation_candidate": false,
+          "mutation": false
+        },
+        {
+          "method": "POST",
+          "path": "/local-manager/device-link/devices/{sessionId}/revoke",
+          "signature": "POST /local-manager/device-link/devices/{sessionId}/revoke",
+          "source_file": "routes/localManagerBetaRoutes.js",
+          "scope": "local_device",
+          "runtime_auth": {
+            "state": "unresolved",
+            "profile": "no_explicit_auth_evidence",
+            "alternatives": null,
+            "principal": null,
+            "guard_chain": [],
+            "evidence": [],
+            "configuration_dependencies": []
+          },
+          "openapi_auth": null,
+          "auth_parity": {
+            "state": "exempt",
+            "reasons": [
+              "repository_openapi_allowlist"
+            ]
+          },
+          "openapi_documented": false,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": true,
+          "openapi_contract_level": "explicit_exemption",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "unresolved",
+            "classification_source": "fail_closed",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": null,
+            "blockers": [
+              "operation_classification_gap"
+            ],
+            "rule_id": null
+          },
+          "mutation_candidate": true,
           "mutation": false
         },
         {
@@ -6516,6 +6561,7 @@
       ],
       "openapi_gaps": [],
       "openapi_exemptions": [
+        "POST /local-manager/device-link/devices/{sessionId}/revoke",
         "GET /local-manager/beta"
       ],
       "openapi_detail_gaps": [],
@@ -6524,7 +6570,9 @@
       "tests": [
         "test-frontend-surface-coverage-claims.mjs"
       ],
-      "untested_operations": [],
+      "untested_operations": [
+        "POST /local-manager/device-link/devices/{sessionId}/revoke"
+      ],
       "resources": [],
       "embedded_ui": true,
       "embedded_ui_operations": [
@@ -6579,9 +6627,16 @@
           "specs/010-unified-platform-frontend/plan.md"
         ]
       },
-      "operation_blockers": [],
+      "operation_blockers": [
+        {
+          "signature": "POST /local-manager/device-link/devices/{sessionId}/revoke",
+          "blockers": [
+            "operation_classification_gap"
+          ]
+        }
+      ],
       "risk": {
-        "score": 6,
+        "score": 8,
         "class": "high"
       },
       "wave": "F4-local-manager"
@@ -6590,7 +6645,7 @@
       "family_key": "local-manager-beta.public.default",
       "label": "local manager beta (public) [default]",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "7c874a456c26266c99509469aafddb806759ac9f47e68a7bcdd4839eb1e0cd4b",
+      "source_digest": "a5ba19eafa704553869ea1c18f85b8e0be619323a106fa3c5cb24ceb027c48a6",
       "mount_prefix": "/",
       "mount_order": 14168,
       "split_from_mixed_scope_file": true,
@@ -7264,7 +7319,7 @@
       "family_key": "local-manager-beta.public.local-manager",
       "label": "local manager beta (public) [local-manager]",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "7c874a456c26266c99509469aafddb806759ac9f47e68a7bcdd4839eb1e0cd4b",
+      "source_digest": "a5ba19eafa704553869ea1c18f85b8e0be619323a106fa3c5cb24ceb027c48a6",
       "mount_prefix": "/",
       "mount_order": 14168,
       "split_from_mixed_scope_file": true,
@@ -7995,7 +8050,7 @@
       "family_key": "local-connector-install.developer",
       "label": "local connector install (developer)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "127c7c064715742466fc00865ba3cf11be9bbe9693353fb228df773a33d31118",
+      "source_digest": "0d7ebbbc6b2481b46a8d12a0bb3a3d4ce8052424ef53324c92053e9bb336ff72",
       "mount_prefix": "/",
       "mount_order": 14330,
       "split_from_mixed_scope_file": true,
@@ -8438,7 +8493,7 @@
       "family_key": "local-connector-install.local_device",
       "label": "local connector install (local_device)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "127c7c064715742466fc00865ba3cf11be9bbe9693353fb228df773a33d31118",
+      "source_digest": "0d7ebbbc6b2481b46a8d12a0bb3a3d4ce8052424ef53324c92053e9bb336ff72",
       "mount_prefix": "/",
       "mount_order": 14330,
       "split_from_mixed_scope_file": true,
@@ -14402,7 +14457,7 @@
       "family_key": "auth.admin",
       "label": "auth (admin)",
       "source_file": "routes/authRoutes.js",
-      "source_digest": "53d1645d9169caaa6e782e13ef6086903b9d464e41c855c9a7aa0c6f1e8003a7",
+      "source_digest": "1a7a78c808802ebb7506dbaeb8f6d4f4cae1a229bd7913726e194c36ac73c132",
       "mount_prefix": "/auth",
       "mount_order": 15362,
       "split_from_mixed_scope_file": true,
@@ -14550,7 +14605,7 @@
       "family_key": "auth.public",
       "label": "auth (public)",
       "source_file": "routes/authRoutes.js",
-      "source_digest": "53d1645d9169caaa6e782e13ef6086903b9d464e41c855c9a7aa0c6f1e8003a7",
+      "source_digest": "1a7a78c808802ebb7506dbaeb8f6d4f4cae1a229bd7913726e194c36ac73c132",
       "mount_prefix": "/auth",
       "mount_order": 15362,
       "split_from_mixed_scope_file": true,
@@ -99394,11 +99449,64 @@
       ]
     },
     {
-      "task_key": "frontend.local-manager-beta.local_device",
-      "title": "Resolve and deliver local manager beta (local_device)",
+      "task_key": "frontend.local-manager-desktop-command.local_device",
+      "title": "Resolve and deliver local manager desktop command (local_device)",
       "wave": "F4-local-manager",
       "state": "ready",
       "blockers": [],
+      "dependencies": [
+        "F0-source-baseline",
+        "F1-tenant-workspace-context",
+        "F4-device-trust",
+        "operation-classification"
+      ],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/localManagerDesktopCommandRoutes.js",
+        "scripts/test-manifest.mjs",
+        "test-frontend-surface-coverage-claims.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered",
+        "operation_classification_explicit"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "task_key": "frontend.local-manager-beta.local_device",
+      "title": "Resolve and deliver local manager beta (local_device)",
+      "wave": "F4-local-manager",
+      "state": "blocked",
+      "blockers": [
+        "test_ownership_gap",
+        "operation_classification_gap"
+      ],
       "dependencies": [
         "F0-source-baseline",
         "F1-tenant-workspace-context",
@@ -99440,56 +99548,6 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/localManagerBetaRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-frontend-surface-coverage-claims.mjs"
-      ],
-      "acceptance_gates": [
-        "source_baseline_unchanged",
-        "scope_and_auth_explicit",
-        "openapi_or_explicit_exemption",
-        "surface_policy_resolved",
-        "tests_registered",
-        "operation_classification_explicit"
-      ],
-      "verification": [
-        "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
-      "task_key": "frontend.local-manager-desktop-command.local_device",
-      "title": "Resolve and deliver local manager desktop command (local_device)",
-      "wave": "F4-local-manager",
-      "state": "ready",
-      "blockers": [],
-      "dependencies": [
-        "F0-source-baseline",
-        "F1-tenant-workspace-context",
-        "F4-device-trust",
-        "operation-classification"
-      ],
-      "source_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/brand-core-asset-materialization.yaml",
-        "openapi/container-authority-override-governance-smoke.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/frontend-runtime-routes.generated.yaml",
-        "openapi/hostinger-storage-tenant-runtime.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "openapi/support-ticket-admin-brand.yaml",
-        "openapi/support-ticket-admin-execution.yaml",
-        "openapi/support-ticket-admin-remaining.yaml",
-        "openapi/support-ticket-runtime-completion.yaml",
-        "openapi/support-tickets.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/index.js",
-        "routes/localManagerDesktopCommandRoutes.js",
         "scripts/test-manifest.mjs",
         "test-frontend-surface-coverage-claims.mjs"
       ],
