@@ -60,7 +60,15 @@ assert.deepEqual(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_tables, [
   "dynamic_audit_scheduler_runs",
   "execution_log",
   "json_assets",
+  "local_manager_desktop_commands",
 ]);
+assert.deepEqual(
+  STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.local_manager_desktop_commands,
+  undefined,
+);
+assert.deepEqual(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_operations, ["SELECT", "INSERT", "UPDATE"]);
+assert.equal(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_operations.includes("CREATE"), false);
+assert.equal(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_operations.includes("ALTER"), false);
 assert.equal(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_tables.includes("admin_platform_endpoint_tools"), false);
 assert.equal(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_tables.includes("tenant_platform_endpoint_tools"), false);
 assert.equal(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_tables.includes("sql_cache_runtime_policies"), false);
