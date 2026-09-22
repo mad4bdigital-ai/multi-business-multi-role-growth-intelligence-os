@@ -86,6 +86,110 @@ function sameTenant(left, right) {
   return a === b;
 }
 
+const LOCAL_MANAGER_BROAD_WRITE_PRIVILEGES = new Set([
+  "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER", "INDEX",
+  "TRIGGER", "REFERENCES", "EXECUTE", "EVENT", "CREATE ROUTINE",
+  "ALTER ROUTINE", "CREATE VIEW", "CREATE TEMPORARY TABLES", "LOCK TABLES",
+]);
+
+function accountToGrantee(value) {
+  const account = clean(value, 255);
+  const split = account.lastIndexOf("@");
+  if (split <= 0 || split >= account.length - 1) {
+    throw fail("LOCAL_MANAGER_WRITE_CURRENT_ACCOUNT_INVALID", "Unable to normalize the dedicated Local Manager DB account.");
+  }
+  const quote = (part) => "'" + String(part).replaceAll("'", "''") + "'";
+  return quote(account.slice(0, split)) + "@" + quote(account.slice(split + 1));
+}
+
+export async function assertLocalManagerWritePrivilegeReadiness({ pool = null } = {}) {
+  const writer = pool || getLocalManagerWritePool();
+  const [identityRows] = await writer.query("SELECT CURRENT_USER() AS current_account, DATABASE() AS current_database");
+  const currentAccount = clean(identityRows?.[0]?.current_account, 255);
+  const currentDatabase = clean(identityRows?.[0]?.current_database, 128);
+  if (!currentAccount || !currentDatabase) {
+    throw fail("LOCAL_MANAGER_WRITE_IDENTITY_READBACK_FAILED", "Dedicated Local Manager DB identity/database readback failed.");
+  }
+  const grantee = accountToGrantee(currentAccount);
+  const [userPrivileges] = await writer.query(
+    "SELECT PRIVILEGE_TYPE FROM information_schema.USER_PRIVILEGES WHERE GRANTEE = ?",
+    [grantee],
+  );
+  const [schemaPrivileges] = await writer.query(
+    "SELECT TABLE_SCHEMA, PRIVILEGE_TYPE FROM information_schema.SCHEMA_PRIVILEGES WHERE GRANTEE = ?",
+    [grantee],
+  );
+  const [tablePrivileges] = await writer.query(
+    "SELECT TABLE_SCHEMA, TABLE_NAME, PRIVILEGE_TYPE, IS_GRANTABLE FROM information_schema.TABLE_PRIVILEGES WHERE GRANTEE = ?",
+    [grantee],
+  );
+
+  const globalWrites = userPrivileges
+    .map((row) => clean(row.PRIVILEGE_TYPE || row.privilege_type, 64).toUpperCase())
+    .filter((privilege) => LOCAL_MANAGER_BROAD_WRITE_PRIVILEGES.has(privilege));
+  const schemaWrites = schemaPrivileges
+    .filter((row) => clean(row.TABLE_SCHEMA || row.table_schema, 128) === currentDatabase)
+    .map((row) => clean(row.PRIVILEGE_TYPE || row.privilege_type, 64).toUpperCase())
+    .filter((privilege) => LOCAL_MANAGER_BROAD_WRITE_PRIVILEGES.has(privilege));
+
+  const observed = new Map(Object.keys(LOCAL_MANAGER_WRITE_PRIVILEGE_MATRIX).map((table) => [table, new Set()]));
+  const unexpected = [];
+  const grantable = [];
+  for (const row of tablePrivileges) {
+    const database = clean(row.TABLE_SCHEMA || row.table_schema, 128);
+    const table = clean(row.TABLE_NAME || row.table_name, 128);
+    const privilege = clean(row.PRIVILEGE_TYPE || row.privilege_type, 64).toUpperCase();
+    if (database !== currentDatabase) {
+      unexpected.push({ database, table, privilege });
+      continue;
+    }
+    const allowed = LOCAL_MANAGER_WRITE_PRIVILEGE_MATRIX[table];
+    if (!allowed || !allowed.includes(privilege)) {
+      unexpected.push({ database, table, privilege });
+      continue;
+    }
+    observed.get(table).add(privilege);
+    if (String(row.IS_GRANTABLE || row.is_grantable || "NO").toUpperCase() === "YES") {
+      grantable.push({ table, privilege });
+    }
+  }
+
+  const missing = [];
+  for (const [table, operations] of Object.entries(LOCAL_MANAGER_WRITE_PRIVILEGE_MATRIX)) {
+    for (const operation of operations) {
+      if (!observed.get(table)?.has(operation)) missing.push({ table, operation });
+    }
+  }
+  const ready = globalWrites.length === 0
+    && schemaWrites.length === 0
+    && unexpected.length === 0
+    && grantable.length === 0
+    && missing.length === 0;
+  if (!ready) {
+    throw fail(
+      "LOCAL_MANAGER_WRITE_PRIVILEGE_NOT_READY",
+      "Dedicated Local Manager DB privileges do not match the canonical least-privilege contract.",
+      503,
+      {
+        missing,
+        unexpected,
+        global_write_privileges: globalWrites,
+        schema_write_privileges: schemaWrites,
+        grantable,
+      },
+    );
+  }
+  return {
+    contract: "mad4b.local-manager-write-privilege-readiness.v1",
+    ready: true,
+    current_database: currentDatabase,
+    required_tables: Object.keys(LOCAL_MANAGER_WRITE_PRIVILEGE_MATRIX),
+    generic_runtime_fallback: false,
+    grant_option_allowed: false,
+    secrets_included: false,
+  };
+}
+
 export async function reconcileLocalConnectorAliases({
   userId,
   tenantId,
@@ -95,6 +199,7 @@ export async function reconcileLocalConnectorAliases({
   pool = null,
 } = {}) {
   const writer = pool || getLocalManagerWritePool();
+  await assertLocalManagerWritePrivilegeReadiness({ pool: writer });
   const user = clean(userId, 64);
   const tenant = clean(tenantId, 64) || null;
   const canonicalDevice = clean(canonicalDeviceId, 128);
@@ -191,6 +296,7 @@ export async function provisionLocalManagerN8n({
   pool = null,
 } = {}) {
   const writer = pool || getLocalManagerWritePool();
+  await assertLocalManagerWritePrivilegeReadiness({ pool: writer });
   const userId = clean(device?.user_id, 64);
   const tenantId = clean(device?.tenant_id, 64);
   const deviceId = clean(device?.device_id, 128);
