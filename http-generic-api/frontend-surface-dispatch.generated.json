@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "34dfcd1ea26611d33fedb10826eed34028a95831d8e7140e33577a38897da5f6",
+    "source_digest": "19efa8feab4a026d597b9aebb11b788759640c6cb7a89cd39b5a7fa908ba88da",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -381,7 +381,7 @@
       },
       {
         "file": "routes/activationRoutes.js",
-        "sha256": "fbd91dc0be168ae9fadf88829066df9fa41f78940c1309f5bff7ba21575e7bd4",
+        "sha256": "eba3e189189a15bb8506f3afb57013d3cc49b6c12521c51b0569402154d4c40c",
         "present": true
       },
       {
@@ -681,7 +681,7 @@
       },
       {
         "file": "routes/localManagerDesktopCommandRoutes.js",
-        "sha256": "d78c191bb1c1f63ed3f3c8c544dd36a66fcdef0c7fbfee3c0c7bceea014db288",
+        "sha256": "26068c4403a9c54a1e72c75f3e08670b7e831d8ab6473636cf2b842e868b330b",
         "present": true
       },
       {
@@ -7504,7 +7504,7 @@
       "family_key": "local-manager-desktop-command.admin",
       "label": "local manager desktop command (admin)",
       "source_file": "routes/localManagerDesktopCommandRoutes.js",
-      "source_digest": "d78c191bb1c1f63ed3f3c8c544dd36a66fcdef0c7fbfee3c0c7bceea014db288",
+      "source_digest": "26068c4403a9c54a1e72c75f3e08670b7e831d8ab6473636cf2b842e868b330b",
       "mount_prefix": "/",
       "mount_order": 14244,
       "split_from_mixed_scope_file": true,
@@ -7724,7 +7724,7 @@
       "family_key": "local-manager-desktop-command.local_device",
       "label": "local manager desktop command (local_device)",
       "source_file": "routes/localManagerDesktopCommandRoutes.js",
-      "source_digest": "d78c191bb1c1f63ed3f3c8c544dd36a66fcdef0c7fbfee3c0c7bceea014db288",
+      "source_digest": "26068c4403a9c54a1e72c75f3e08670b7e831d8ab6473636cf2b842e868b330b",
       "mount_prefix": "/",
       "mount_order": 14244,
       "split_from_mixed_scope_file": true,
@@ -18637,7 +18637,7 @@
       "family_key": "activation",
       "label": "activation",
       "source_file": "routes/activationRoutes.js",
-      "source_digest": "fbd91dc0be168ae9fadf88829066df9fa41f78940c1309f5bff7ba21575e7bd4",
+      "source_digest": "eba3e189189a15bb8506f3afb57013d3cc49b6c12521c51b0569402154d4c40c",
       "mount_prefix": "/",
       "mount_order": 15905,
       "split_from_mixed_scope_file": false,

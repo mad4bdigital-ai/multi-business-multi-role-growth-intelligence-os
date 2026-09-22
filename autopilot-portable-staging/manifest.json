@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "ce5af077b761d15a91dd6aa02394a89593e0a4896c8313b16abc682d8edc5423"
+      "sha256": "f963f7111268f719992977afab00311f37edf6315051de78be150ad277a7f752"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
@@ -150,7 +150,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "efd5c337c5b15f72d354802a84aa41de1eeb581ab4af6614b5ff88192ca59d04"
+      "sha256": "84f660b9682daf7f352f8b82fb19135d8fdf20960bcdff637134dd0d1deec371"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -330,7 +330,7 @@
     },
     {
       "path": "http-generic-api/config/staging-database-role-migration-manifest.json",
-      "sha256": "bdf6cec78cf89724e61cebcd37594d430314d6d748d61ba356d1d2f072703050"
+      "sha256": "052b2c613630b78f9a51e2e9e6e1f3b868b650651c290ec3f2cc2803a9423600"
     },
     {
       "path": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
