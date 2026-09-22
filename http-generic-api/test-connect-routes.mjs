@@ -1075,6 +1075,9 @@ assert("local connector requires fresh Local Manager authorization for privilege
       localManagerWriteSource.includes("reconcileLocalConnectorAliases") &&
       localManagerWriteSource.includes("provisionLocalManagerN8n") &&
       localManagerWriteSource.includes("LOCAL_MANAGER_ALIAS_RECONCILIATION_READBACK_FAILED") &&
+      localManagerWriteSource.includes("LOCAL_MANAGER_ALIAS_OWNERSHIP_CONFLICT") &&
+      localManagerWriteSource.includes("AND (user_id = ? OR user_id IS NULL)") &&
+      !localManagerWriteSource.includes("ON DUPLICATE KEY UPDATE") &&
       localManagerWriteSource.includes("LOCAL_MANAGER_N8N_PROVISIONING_READBACK_FAILED"));
     assert("Local Manager public pairing surfaces use the shared resilience limiter with Retry-After capable 429 behavior",
       betaSource.includes("createOperationResilienceController") &&
@@ -1181,7 +1184,8 @@ assert("local connector requires fresh Local Manager authorization for privilege
       deviceLinkSource.includes("function sameTenantScope") &&
       (deviceLinkSource.match(/\(\(\? IS NULL AND tenant_id IS NULL\) OR tenant_id = \?\)/g) || []).length >= 5 &&
       deviceLinkSource.includes("sameTenantScope(row.tenant_id, principal.tenant_id)") &&
-      deviceLinkSource.includes("sameTenantScope(current.tenant_id, principal.tenant_id)"));
+      deviceLinkSource.includes("sameTenantScope(current.tenant_id, principal.tenant_id)") &&
+      deviceLinkSource.includes("((? IS NULL AND tenant_id IS NULL) OR tenant_id = ? OR tenant_id = '00000000-0000-0000-0000-000000000000')"));
     assert("local manager poll response distinguishes compatibility authorization state from durable completed device state",
       deviceLinkSource.includes('authorization_status: "approved"') &&
       deviceLinkSource.includes("device_status: issuedRow.status"));
