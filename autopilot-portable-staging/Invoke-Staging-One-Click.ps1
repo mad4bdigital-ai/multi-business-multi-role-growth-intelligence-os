@@ -25,6 +25,7 @@ $envAuthorityGuard = Join-Path $root 'Assert-StagingEnvAuthority.ps1'
 $convergenceBridge = ''
 $trustInstaller = ''
 $preflightReportPath = Join-Path $root 'logs\staging-schema-governance-preflight.json'
+$schemaPreflight = Join-Path $root 'Staging-Schema-Governance-Preflight.ps1'
 $runtimeStatePath = Join-Path $root 'autopilot-state.json'
 $deploymentLeasePath = Join-Path (Get-StagingLogRoot) 'deployment-lease.json'
 $expectedRepository = 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os'
@@ -362,11 +363,60 @@ function Invoke-LocalRecoveryTrustRefresh {
     }
 }
 
+function Ensure-ExactConvergencePreflight([string]$Commit) {
+    $normalizedCommit = ([string]$Commit).Trim().ToLowerInvariant()
+    if ($normalizedCommit -notmatch '^[0-9a-f]{40}$') {
+        Fail 'Shared convergence preflight requires an exact commit.'
+    }
+
+    $refreshRequired = $true
+    if (Test-Path -LiteralPath $preflightReportPath -PathType Leaf) {
+        try {
+            $existing = Get-Content -Raw -LiteralPath $preflightReportPath | ConvertFrom-Json -ErrorAction Stop
+            $refreshRequired = (
+                [string]$existing.status -ne 'passed' -or
+                ([string]$existing.expected_commit).Trim().ToLowerInvariant() -ne $normalizedCommit -or
+                ([string]$existing.observed_commit).Trim().ToLowerInvariant() -ne $normalizedCommit
+            )
+        } catch {
+            $refreshRequired = $true
+        }
+    }
+
+    if (-not $refreshRequired) { return }
+    if (-not (Test-Path -LiteralPath $schemaPreflight -PathType Leaf)) {
+        Fail "Shared convergence schema/governance preflight is missing: $schemaPreflight"
+    }
+
+    Write-Host "STAGING_CONVERGENCE_PREFLIGHT_REFRESH: exact_commit=$normalizedCommit" -ForegroundColor Yellow
+    & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $schemaPreflight -RepositoryPath $RepositoryPath -ExpectedCommit $normalizedCommit -ReportPath $preflightReportPath
+    if ($LASTEXITCODE -ne 0) {
+        Fail 'Exact-current read-only schema/governance preflight blocked shared convergence.'
+    }
+
+    try {
+        $verified = Get-Content -Raw -LiteralPath $preflightReportPath | ConvertFrom-Json -ErrorAction Stop
+    } catch {
+        Fail 'Exact-current schema/governance preflight report is unreadable after refresh.'
+    }
+    if (
+        [string]$verified.status -ne 'passed' -or
+        ([string]$verified.expected_commit).Trim().ToLowerInvariant() -ne $normalizedCommit -or
+        ([string]$verified.observed_commit).Trim().ToLowerInvariant() -ne $normalizedCommit -or
+        $verified.safety.read_only -ne $true -or
+        $verified.safety.database_mutation -ne $false -or
+        $verified.safety.migration_apply -ne $false -or
+        $verified.safety.production_access -ne $false -or
+        $verified.safety.provider_access -ne $false
+    ) {
+        Fail 'Exact-current schema/governance preflight refresh did not preserve the read-only exact-commit contract.'
+    }
+}
+
 function Invoke-SharedConvergence([int]$ChildExitCode) {
     if (-not $EnableActivationGateway) { return $null }
     if ($RequireSchemaBundle -or $ApplySchemaBundle) { return $null }
     if (-not (Test-Path -LiteralPath $runtimeStatePath -PathType Leaf)) { return $null }
-    if (-not (Test-Path -LiteralPath $preflightReportPath -PathType Leaf)) { return $null }
     if (-not (Test-Path -LiteralPath $convergenceBridge -PathType Leaf)) { Fail "Shared convergence bridge is missing: $convergenceBridge" }
 
     $runtime = Get-Content -Raw -LiteralPath $runtimeStatePath | ConvertFrom-Json -ErrorAction Stop
@@ -374,6 +424,8 @@ function Invoke-SharedConvergence([int]$ChildExitCode) {
     if ($commit -notmatch '^[0-9a-f]{40}$') { return $null }
     $trustExact = Test-LocalRecoveryTrustExact $commit
     if ($ChildExitCode -eq 0 -and $trustExact -and -not $AcknowledgedConvergencePlanSha256) { return $null }
+
+    Ensure-ExactConvergencePreflight $commit
 
     $bridgeArgs = @(
         $convergenceBridge,

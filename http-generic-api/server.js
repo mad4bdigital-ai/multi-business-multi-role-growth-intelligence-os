@@ -3211,6 +3211,7 @@ registerRoutes(app, {
   getRedisRuntimeStatus,
   getSqlCacheRuntimeStatus,
   testDbConnection: testConnection,
+  runtimePoolFactory: getPool,
   runtimePersistencePoolFactory: getRuntimePersistencePool,
   runtimeBootstrapReader,
   productionActivationReadinessReader,

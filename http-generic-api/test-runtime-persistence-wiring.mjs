@@ -56,6 +56,7 @@ assert.match(routeSource, /runtimeDeps\.actAsUserAdapter = actAsUserAdapter \|\|
 assert.match(routeSource, /runtimeDeps\.actAsUserAuthorityResolver = actAsUserAuthorityResolver \|\| null/u);
 assert.match(routeSource, /act-as-user\/sessions/u);
 assert.doesNotMatch(routeSource, /chunkPersistenceDeps/u, "module-scope dispatch must not depend on a build-local lexical variable");
+assert.match(serverSource, /runtimePoolFactory: getPool/u);
 assert.match(serverSource, /runtimePersistencePoolFactory: getRuntimePersistencePool/u);
 assert.match(dbSource, /export function getPool\(\)/u);
 assert.match(serverSource, /import \{ getPool, getRuntimePersistencePool, testConnection \} from "\.\/db\.js";/u);
@@ -71,8 +72,8 @@ assert.match(
 );
 assert.match(
   deploymentInfoRouteSource,
-  /executor: runtimePool \|\| pool \|\| null/u,
-  "deployment-info semantic readiness must consume the injected Runtime DB executor",
+  /const executor = runtimePool\s*\|\| pool\s*\|\| \(typeof runtimePoolFactory === "function"\s*\? await runtimePoolFactory\(\)\s*: null\);/u,
+  "deployment-info semantic readiness must prefer an injected Runtime DB executor and fall back only to the Runtime DB factory",
 );
 assert.doesNotMatch(
   serverSource,

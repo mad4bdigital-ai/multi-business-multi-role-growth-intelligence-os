@@ -250,6 +250,7 @@ export function buildDeploymentInfoRoutes({
   runtimeBootstrapReader = runBootstrap,
   hostLocalInspectionReader = executeHostLocalRoleInspection,
   platformAdminWorkspaceReadinessReader,
+  runtimePoolFactory,
   runtimePool,
   pool,
   requireBackendApiKey,
@@ -257,10 +258,17 @@ export function buildDeploymentInfoRoutes({
   const router = Router();
   const readPlatformAdminWorkspaceReadiness = typeof platformAdminWorkspaceReadinessReader === "function"
     ? platformAdminWorkspaceReadinessReader
-    : async () => inspectCanonicalPlatformAdminWorkspaceReadiness({
-      executor: runtimePool || pool || null,
-      tenantId: PLATFORM_ADMIN_WORKSPACE_AUTHORITY.identity.tenant_id,
-    });
+    : async () => {
+      const executor = runtimePool
+        || pool
+        || (typeof runtimePoolFactory === "function"
+          ? await runtimePoolFactory()
+          : null);
+      return inspectCanonicalPlatformAdminWorkspaceReadiness({
+        executor,
+        tenantId: PLATFORM_ADMIN_WORKSPACE_AUTHORITY.identity.tenant_id,
+      });
+    };
 
   async function requireBackendServiceApiKey(req, res) {
     if (typeof requireBackendApiKey !== "function") {

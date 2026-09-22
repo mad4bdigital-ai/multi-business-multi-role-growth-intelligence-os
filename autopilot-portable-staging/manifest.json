@@ -46,7 +46,7 @@
     },
     {
       "path": "autopilot-portable-staging/Staging-Doctor.ps1",
-      "sha256": "3492dfd997068c783f83b3bee3f2a5f83859435b284e09d8ac94636774e45bdc"
+      "sha256": "ca4c960b2f94cdbba8bde5e61350e8b707f9f500f0661d480b06db8fa6e9cea4"
     },
     {
       "path": "autopilot-portable-staging/Staging-HealthMonitor.ps1",
@@ -150,7 +150,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "f2b81236cc4db8348f8a4bcc67c115913194792bdf257865d3fa11f108d9e1b3"
+      "sha256": "04a939fd34ecdd4d37d67c7da4c7856e2a2f1503f9bd9c845161c528acde049a"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "0b2f40ec1a0fa8fcabc07d60318b4a9266ea1b313caba091a02f8dcfa33bac07"
+      "sha256": "23ee3fa8d4743e036d12d65efb3f14ac057195b160eca14a7654a5fa16e26604"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -254,7 +254,7 @@
     },
     {
       "path": "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
-      "sha256": "32657f10120bc3da62881077ddbe4aba4ff01c11f8184808cf48db7c6ae47ef0"
+      "sha256": "ed72fa6c980928668fc0e632781b8f61af2152c70e575f3854bfd477a565153b"
     },
     {
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
@@ -262,7 +262,7 @@
     },
     {
       "path": "http-generic-api/test-staging-operations-logging-contract.mjs",
-      "sha256": "9ff4788d0ca3daec821caa7031b33808c3cbde0f92a7ff05e38e86122bfa9d01"
+      "sha256": "e1b69a5ba248bd1c5d405e1180c59c94ad20697835cec94189b26e756c286068"
     },
     {
       "path": "http-generic-api/test-staging-runtime-oauth-profile.mjs",
@@ -334,7 +334,7 @@
     },
     {
       "path": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
-      "sha256": "27f469f797f322aeaff5467707782935ab1bfac2ec595c87299b1fe2b836de28"
+      "sha256": "e80374143cdcc82ce8664c1c407757c093fbf41462cfcca8cabc3b0e4ffebd4b"
     },
     {
       "path": "autopilot-portable-staging/Staging-Environment.ps1",
