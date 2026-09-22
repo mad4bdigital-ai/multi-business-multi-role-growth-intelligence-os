@@ -18,10 +18,13 @@ CREATE TABLE IF NOT EXISTS `local_manager_desktop_commands` (
   `error_message` TEXT NULL,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `claimed_at` DATETIME NULL,
+  `claim_token` VARCHAR(64) NULL,
+  `claim_lease_expires_at` DATETIME NULL,
   `completed_at` DATETIME NULL,
   `expires_at` DATETIME NULL,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`command_id`),
   KEY `idx_lm_desktop_command_device` (`tenant_id`, `user_id`, `device_id`, `status`, `priority`, `created_at`),
-  KEY `idx_lm_desktop_command_status` (`status`, `expires_at`)
+  KEY `idx_lm_desktop_command_status` (`status`, `expires_at`),
+  UNIQUE KEY `uq_lm_desktop_command_claim_token` (`claim_token`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
