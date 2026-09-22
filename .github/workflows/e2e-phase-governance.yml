@@ -393,8 +393,6 @@ jobs:
         env:
           EVALUATE_JOB_RESULT: ${{ needs.evaluate.result }}
           EXECUTE_JOB_RESULT: ${{ needs.execute.result }}
-          MARIADB_CERTIFICATION_JOB_RESULT: ${{ needs.local_manager_mariadb_certification.result }}
-          MARIADB_CERTIFICATION_EVIDENCE_PATH: ${{ runner.temp }}/local-manager-mariadb-certification/local-manager-desktop-command-mariadb-certification.json
           CANDIDATE_HEAD_REF: ${{ github.head_ref || github.ref_name }}
           CANDIDATE_BASE_REF: ${{ github.base_ref || github.event.merge_group.base_ref || inputs.base_ref || 'main' }}
         run: >-
@@ -404,6 +402,8 @@ jobs:
           --json-output "${{ runner.temp }}/e2e-phase-summary.json"
           --markdown-output "${{ runner.temp }}/e2e-phase-summary.md"
           --workflow "E2E Phase Governance"
+          --mariadb-certification-result "${{ needs.local_manager_mariadb_certification.result }}"
+          --mariadb-certification-evidence "${{ runner.temp }}/local-manager-mariadb-certification/local-manager-desktop-command-mariadb-certification.json"
           --run-id "${{ github.run_id }}"
           --candidate-kind "${CI_CANDIDATE_KIND}"
           --candidate-sha "${CI_CANDIDATE_SHA}"
