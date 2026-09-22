@@ -1063,7 +1063,7 @@ assert.equal(generatedGapOperations.filter((operation) => ["state_change", "exte
 const governedMutations = operations.filter((operation) => ["state_change", "external_effect"].includes(operation.governance?.classification));
 assert.ok(governedMutations.every((operation) => operation.governance?.governed === true), "every mutation operation must be fully governed");
 assert.ok(governedMutations.every((operation) => ["preflight", "approval", "readback", "rollback"].every((key) => operation.governance?.controls?.[key]?.mode)), "every mutation operation must expose all four control modes");
-assert.equal(governedMutations.length, 30, "the governed mutation set includes bounded Recovery controls, Gateway preflight, one-time installer redemption, WordPress Staging exact-artifact deployment, three Managed Google OAuth protocol effects, and the three device-link lifecycle mutations");
+assert.equal(governedMutations.length, 31, "the governed mutation set includes bounded Recovery controls, Gateway preflight, one-time installer redemption, WordPress Staging exact-artifact deployment, three Managed Google OAuth protocol effects, three device-link lifecycle mutations, and explicit Local Manager n8n provisioning");
 for (const signature of [
   "POST /local-manager/device-link/start",
   "POST /local-manager/device-link/approve",
@@ -1074,6 +1074,9 @@ for (const signature of [
   assert.equal(operation.governance?.classification, "state_change", `${signature} must remain a state change`);
 }
 const wordpressStagingDeploy = governedMutations.find((operation) => operation.signature === "POST /platform/remote-runtime/wordpress/staging/deploy-plugin");
+const localManagerN8nProvision = governedMutations.find((operation) => operation.signature === "POST /local-manager/device/n8n/provision");
+assert.ok(localManagerN8nProvision, "explicit Local Manager n8n provisioning must be governed");
+assert.equal(localManagerN8nProvision.governance?.classification, "state_change", "Local Manager n8n provisioning must remain a state change");
 assert.ok(wordpressStagingDeploy, "WordPress Staging exact-artifact deploy must remain explicitly governed as an external effect");
 assert.equal(wordpressStagingDeploy.governance?.classification, "external_effect", "WordPress Staging deploy must retain its externally consequential classification");
 assert.ok(governedMutations.some((operation) => operation.signature === "POST /admin/recovery/staging/gateway/dark-deploy-dry-run"), "Staging Gateway dry-run plan persistence must remain explicitly governed");
