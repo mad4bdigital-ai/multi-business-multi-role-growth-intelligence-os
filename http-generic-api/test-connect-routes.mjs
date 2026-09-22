@@ -1034,6 +1034,7 @@ assert("local connector requires fresh Local Manager authorization for privilege
   {
     const indexSource = readFileSync("routes/index.js", "utf8");
     const betaSource = readFileSync("routes/localManagerBetaRoutes.js", "utf8");
+    const localManagerWriteSource = readFileSync("localManagerWriteAuthority.js", "utf8");
     const authSource = readFileSync("routes/authRoutes.js", "utf8");
     assert("local manager beta routes are imported and mounted",
       indexSource.includes("buildLocalManagerBetaRoutes") &&
@@ -1065,6 +1066,16 @@ assert("local connector requires fresh Local Manager authorization for privilege
       betaSource.includes('router.get("/app/local-manager/admin"') &&
       betaSource.includes('router.get("/local-manager/beta"') &&
       betaSource.includes('router.get("/local-manager/beta/status", requireBackendApiKey, requireAdminPrincipal'));
+    assert("Local Manager writer authority uses a dedicated identity with no DB_USER fallback",
+      localManagerWriteSource.includes('enabled_env: "LOCAL_MANAGER_WRITE_AUTHORITY_ENABLED"') &&
+      localManagerWriteSource.includes('identity_prefix: "LOCAL_MANAGER_WRITE_DB_"') &&
+      localManagerWriteSource.includes("generic_runtime_fallback_forbidden: true") &&
+      localManagerWriteSource.includes("LOCAL_MANAGER_WRITE_DB_IDENTITY_NOT_DEDICATED") &&
+      localManagerWriteSource.includes("user === runtimeUser") &&
+      localManagerWriteSource.includes("reconcileLocalConnectorAliases") &&
+      localManagerWriteSource.includes("provisionLocalManagerN8n") &&
+      localManagerWriteSource.includes("LOCAL_MANAGER_ALIAS_RECONCILIATION_READBACK_FAILED") &&
+      localManagerWriteSource.includes("LOCAL_MANAGER_N8N_PROVISIONING_READBACK_FAILED"));
     assert("local manager public app is true public UX while admin bridge holds token installer flow",
       betaSource.includes("keep platform tools installed") &&
       betaSource.includes("No token fields here") &&
