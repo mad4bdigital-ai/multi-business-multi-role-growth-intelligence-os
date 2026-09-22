@@ -168,7 +168,7 @@ assert.match(routeSource, /probeLocalConnectorPublicHealthWithRetry/);
 assert.match(routeSource, /probeLocalConnectorAuthenticatedHealth/);
 assert.match(routeSource, /authenticated_command_health/);
 assert.match(routeSource, /connectorLocalApiKeySelectFragment/);
-assert.match(routeSource, /Do not reinstall a reachable connector solely because an authenticated probe was rejected/);
+assert.match(routeSource, /Do not reinstall a reachable connector solely because an authenticated probe was rejected/);\nassert.match(routeSource, /backendKey\\s*=\\s*backendKey \\|\\| process\\.env\\.CONNECTOR_SECRET/, "tunnel env fallback must preserve a DB connector credential");\nassert.match(routeSource, /connectorLocalApiKey\\s*=\\s*connectorLocalApiKey \\|\\| process\\.env\\.CONNECTOR_LOCAL_API_KEY/, "tunnel env fallback must preserve the DB local API key alias");
 assert.match(routeSource, /admin_cli\.local_connector_self_repair\.not_required/);
 assert.match(routeSource, /installer_generated: false/);
 assert.match(routeSource, /retry_evidence: publicHealthProbe\.retry_evidence/);
