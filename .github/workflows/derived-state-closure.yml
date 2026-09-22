@@ -191,11 +191,37 @@ jobs:
           BASE_SHA: ${{ steps.target.outputs.base_sha }}
         run: |
           set -euo pipefail
+          mkdir -p "$OUT"
+          set +e
           node http-generic-api/scripts/environment-impact-closure.mjs \
             --base-sha "$BASE_SHA" --head-sha "$SOURCE_HEAD_SHA" --report-file "$OUT/environment-impact.json"
+          environment_impact_status=$?
           node scripts/derived-state-closure.mjs \
             --expected-sha "$CANDIDATE_SHA" --candidate-kind "$CANDIDATE_KIND" --pr-number "$PR_NUMBER" \
             --source-head-sha "$SOURCE_HEAD_SHA" --base-sha "$BASE_SHA" --report-file "$OUT/report.json"
+          derived_state_status=$?
+          set -e
+          test -f "$OUT/report.json"
+          test -f "$OUT/environment-impact.json"
+          node - "$OUT/environment-impact.json" "$environment_impact_status" "$OUT/report.json" "$derived_state_status" <<'NODE'
+          const fs = require('fs');
+          const [environmentFile, environmentStatusRaw, derivedFile, derivedStatusRaw] = process.argv.slice(2);
+          const environment = JSON.parse(fs.readFileSync(environmentFile, 'utf8'));
+          const derived = JSON.parse(fs.readFileSync(derivedFile, 'utf8'));
+          const environmentStatus = Number(environmentStatusRaw);
+          const derivedStatus = Number(derivedStatusRaw);
+          if (environment.contract !== 'mad4b.environment-impact-closure.v1') throw new Error('environment impact contract mismatch');
+          if (derived.contract !== 'mad4b.repository-derived-state-closure.v2') throw new Error('derived state contract mismatch');
+          for (const [name, report, status] of [
+            ['environment impact', environment, environmentStatus],
+            ['derived state', derived, derivedStatus],
+          ]) {
+            if (!Number.isInteger(status) || status < 0) throw new Error(`${name} status is invalid`);
+            if (report.converged === true && status !== 0) throw new Error(`${name} exited non-zero after reporting converged=true`);
+            if (report.converged !== true && status === 0) throw new Error(`${name} exited zero after reporting converged=false`);
+          }
+          if (environmentStatus !== 0 || derivedStatus !== 0) process.exit(1);
+          NODE
 
       - name: Resolve live exact-head manual authorization
         if: steps.target.outputs.pr_number != '0'
