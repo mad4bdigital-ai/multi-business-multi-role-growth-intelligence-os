@@ -86,6 +86,12 @@ function cleanText(value, max = 255) {
   return String(value || "").trim().slice(0, max);
 }
 
+function sameTenantScope(leftTenantId, rightTenantId) {
+  const left = cleanText(leftTenantId, 64) || null;
+  const right = cleanText(rightTenantId, 64) || null;
+  return left === right;
+}
+
 function jsonString(value) {
   try {
     return JSON.stringify(value || {});
@@ -411,7 +417,7 @@ async function inspectLocalConnectorAliasForDeviceLink({ session, principal }) {
     );
     const matching = rows.filter((row) =>
       cleanId(row.canonical_device_id, { max: 128 }).toLowerCase() === canonicalDeviceId.toLowerCase()
-      && (!principal.tenant_id || !row.tenant_id || String(row.tenant_id) === String(principal.tenant_id))
+      && (sameTenantScope(row.tenant_id, principal.tenant_id))
     );
     const resolvedAliases = new Set(matching.map((row) => cleanId(row.alias_device_id, { max: 128 }).toLowerCase()));
     const missingAliases = aliasInputs.filter((alias) => !resolvedAliases.has(alias.toLowerCase()));
@@ -526,6 +532,21 @@ export async function startDeviceLinkSession(req, res) {
        VALUES (?, NULL, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)`,
       [sessionId, sha256(displayCode), sha256(pollToken), deviceId, hostname || null, platform, appVersion || null, expiresAt, jsonString(metadata)]
     );
+    const [createdRows] = await getPool().query(
+      `SELECT session_id, status, expires_at
+         FROM \`local_manager_device_link_sessions\`
+        WHERE session_id = ?
+        LIMIT 1`,
+      [sessionId]
+    );
+    const created = createdRows[0] || null;
+    if (!created || created.status !== "pending") {
+      return res.status(409).json({
+        ok: false,
+        error: { code: "device_link_start_readback_failed", message: "Pairing session creation could not be proven from durable state." },
+        secrets_included: false,
+      });
+    }
 
     const verificationUri = `${getBaseUrl(req)}/app/local-manager/link-device?code=${encodeURIComponent(displayCode)}`;
     return res.status(201).json({
@@ -560,14 +581,22 @@ export async function previewDeviceLinkSession(req, res) {
     if (!row) {
       return res.status(404).json({ ok: false, error: { code: "device_link_not_found", message: "Pairing code was not found." }, secrets_included: false });
     }
-    if (new Date(row.expires_at).getTime() <= nowMs() && row.status === "pending") {
-      await getPool().query(`UPDATE \`local_manager_device_link_sessions\` SET status = 'expired' WHERE session_id = ?`, [row.session_id]);
-      row.status = "expired";
-    }
-    const safe = sanitizeSession(row);
+    const durableStatus = row.status;
+    const effectiveStatus = new Date(row.expires_at).getTime() <= nowMs() && durableStatus === "pending"
+      ? "expired"
+      : durableStatus;
+    const safe = sanitizeSession({ ...row, status: effectiveStatus });
     delete safe.user_id;
     delete safe.tenant_id;
-    return res.status(200).json({ ok: true, status: safe.status, device: safe, secrets_included: false });
+    return res.status(200).json({
+      ok: true,
+      status: effectiveStatus,
+      durable_status: durableStatus,
+      effective_status: effectiveStatus,
+      device: safe,
+      mutation_performed: false,
+      secrets_included: false,
+    });
   } catch (err) {
     return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "device_link_preview_failed", message: err.message }, secrets_included: false });
   }
@@ -668,6 +697,8 @@ export async function pollDeviceLinkSession(req, res) {
     return res.status(200).json({
       ok: true,
       status: "approved",
+      authorization_status: "approved",
+      device_status: issuedRow.status,
       device_access_token: deviceAccessToken,
       token_type: "Bearer",
       expires_in: DEVICE_TOKEN_TTL_SECONDS,
@@ -702,7 +733,7 @@ export async function approveDeviceLinkSession(req, res) {
       return res.status(410).json({ ok: false, error: { code: "device_link_expired", message: "Pairing code expired." }, secrets_included: false });
     }
     if (row.status !== "pending") {
-      const sameOwner = row.user_id === principal.user_id && (!row.tenant_id || !principal.tenant_id || row.tenant_id === principal.tenant_id);
+      const sameOwner = row.user_id === principal.user_id && (sameTenantScope(row.tenant_id, principal.tenant_id));
       if (sameOwner && ["approved", "completed"].includes(row.status)) {
         const connectorAlias = await inspectLocalConnectorAliasForDeviceLink({ session: row, principal });
         return res.status(200).json({
@@ -723,7 +754,7 @@ export async function approveDeviceLinkSession(req, res) {
       `SELECT * FROM \`local_manager_device_link_sessions\`
         WHERE device_id = ?
           AND user_id = ?
-          AND (? IS NULL OR tenant_id = ?)
+          AND ((? IS NULL AND tenant_id IS NULL) OR tenant_id = ?)
           AND status IN ('approved','completed')
         ORDER BY COALESCE(completed_at, approved_at, created_at) DESC
         LIMIT 1`,
@@ -753,7 +784,7 @@ export async function approveDeviceLinkSession(req, res) {
       const current = currentRows[0] || null;
       const sameOwner = current
         && current.user_id === principal.user_id
-        && (!current.tenant_id || !principal.tenant_id || current.tenant_id === principal.tenant_id);
+        && (sameTenantScope(current.tenant_id, principal.tenant_id));
       if (sameOwner && ["approved", "completed"].includes(current.status) && !current.revoked_at) {
         return res.status(200).json({
           ok: true,
@@ -801,7 +832,7 @@ export async function listLinkedDevices(req, res) {
     const principal = await requireLocalManagerUser(req);
     const [linkRows] = await getPool().query(
       `SELECT * FROM \`local_manager_device_link_sessions\`
-        WHERE user_id = ? AND (? IS NULL OR tenant_id = ?)
+        WHERE user_id = ? AND ((? IS NULL AND tenant_id IS NULL) OR tenant_id = ?)
         ORDER BY COALESCE(completed_at, approved_at, created_at) DESC
         LIMIT 50`,
       [principal.user_id, principal.tenant_id, principal.tenant_id]
@@ -862,7 +893,7 @@ export async function requireLocalManagerDevice(req) {
       WHERE session_id = ?
         AND device_id = ?
         AND user_id = ?
-        AND (? IS NULL OR tenant_id = ?)
+        AND ((? IS NULL AND tenant_id IS NULL) OR tenant_id = ?)
         AND status = 'completed'
         AND revoked_at IS NULL
         AND device_token_jti = ?
@@ -957,7 +988,7 @@ export async function revokeDeviceLinkSession(req, res) {
               revoked_by_user_id = ?
         WHERE session_id = ?
           AND user_id = ?
-          AND (? IS NULL OR tenant_id = ?)
+          AND ((? IS NULL AND tenant_id IS NULL) OR tenant_id = ?)
           AND status IN ('approved','completed')
           AND revoked_at IS NULL
         LIMIT 1`,
@@ -966,7 +997,7 @@ export async function revokeDeviceLinkSession(req, res) {
     if (Number(result?.affectedRows || 0) !== 1) {
       const [rows] = await getPool().query(
         `SELECT * FROM \`local_manager_device_link_sessions\`
-          WHERE session_id = ? AND user_id = ? AND (? IS NULL OR tenant_id = ?)
+          WHERE session_id = ? AND user_id = ? AND ((? IS NULL AND tenant_id IS NULL) OR tenant_id = ?)
           LIMIT 1`,
         [sessionId, principal.user_id, principal.tenant_id, principal.tenant_id]
       );
