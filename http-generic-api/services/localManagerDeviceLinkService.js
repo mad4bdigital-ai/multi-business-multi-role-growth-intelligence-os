@@ -50,6 +50,22 @@ function isDuplicateKeyError(error) {
   return error?.code === "ER_DUP_ENTRY" || Number(error?.errno || 0) === 1062;
 }
 
+function isExplicitPairingConsentValid({ row, displayCode, consent, previewFingerprint }) {
+  if (!row) return false;
+  return cleanText(consent, 64) === "approve_device"
+    && cleanText(previewFingerprint, 64).toLowerCase() === pairingFingerprint(row, displayCode);
+}
+
+function isDeviceSessionAuthorizedForToken(row, payload) {
+  if (!row || !payload) return false;
+  return row.status === "completed"
+    && !row.revoked_at
+    && cleanText(row.device_token_jti, 64) === cleanText(payload.jti, 64)
+    && cleanText(row.session_id, 64) === cleanText(payload.session_id, 64)
+    && cleanText(row.device_id, 128) === cleanText(payload.device_id, 128)
+    && cleanText(row.user_id, 64) === cleanText(payload.user_id, 64)
+    && sameTenantScope(row.tenant_id, payload.tenant_id);
+}
 async function createDeviceLinkSessionWithRetry({
   pool,
   deviceId,
@@ -963,7 +979,7 @@ export async function approveDeviceLinkSession(req, res) {
     if (!row) {
       return res.status(404).json({ ok: false, error: { code: "device_link_not_found", message: "Pairing code was not found." }, secrets_included: false });
     }
-    if (consent !== "approve_device" || previewFingerprint !== pairingFingerprint(row, displayCode)) {
+    if (!isExplicitPairingConsentValid({ row, displayCode, consent, previewFingerprint })) {
       return res.status(400).json({ ok: false, error: { code: "explicit_pairing_consent_required", message: "Review the device preview and explicitly approve this exact pairing request." }, secrets_included: false });
     }
     if (new Date(row.expires_at).getTime() <= nowMs()) {
@@ -1228,8 +1244,8 @@ export async function requireLocalManagerDevice(req) {
     [device.session_id, device.device_id, device.user_id, device.tenant_id, device.tenant_id, cleanText(payload.jti, 64)]
   );
   const row = rows[0] || null;
-  if (!row) {
-    const err = new Error("Linked device session was not found.");
+  if (!isDeviceSessionAuthorizedForToken(row, payload)) {
+    const err = new Error("Linked device session was not found or no longer authorizes this token.");
     err.status = 403;
     err.code = "device_session_not_found";
     throw err;
@@ -1715,4 +1731,6 @@ export const _testingLocalManagerDeviceLink = Object.freeze({
   verifyDevicePossession,
   isDuplicateKeyError,
   createDeviceLinkSessionWithRetry,
+  isExplicitPairingConsentValid,
+  isDeviceSessionAuthorizedForToken,
 });
