@@ -6,29 +6,29 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 480,
-    "docs_complete_count": 470,
+    "migrations_with_surfaces": 483,
+    "docs_complete_count": 473,
     "docs_gap_count": 10,
-    "docs_completion_percent": 97.92,
+    "docs_completion_percent": 97.93,
     "gap_severity_counts": {
       "high": 5,
       "medium": 1,
       "low": 4,
-      "none": 470
+      "none": 473
     },
     "surface_totals": {
       "plugins": 16,
-      "tools": 752,
-      "views": 535,
+      "tools": 754,
+      "views": 536,
       "policies": 199,
-      "routes": 710
+      "routes": 712
     },
     "migrations_by_surface_type": {
       "plugins": 13,
-      "tools": 273,
-      "views": 218,
+      "tools": 275,
+      "views": 219,
       "policies": 138,
-      "routes": 295
+      "routes": 297
     },
     "missing_doc_target_counts": {
       "Updating Registry Patch Index.md": 9,
@@ -38,24 +38,24 @@
       "docs/change-documentation-governance.md": 9
     },
     "safety_marker_counts": {
-      "no_provider_call": 473,
-      "no_credential_payload_read": 471,
-      "no_raw_secrets": 472,
-      "no_external_send": 471,
-      "no_external_write": 473,
-      "secrets_included_false": 477
+      "no_provider_call": 476,
+      "no_credential_payload_read": 474,
+      "no_raw_secrets": 475,
+      "no_external_send": 474,
+      "no_external_write": 476,
+      "secrets_included_false": 480
     },
     "safety_marker_gap_migrations": 3,
     "route_coverage": {
       "sql_route_count": 34,
-      "total_sql_route_like_count": 710,
-      "openapi_exempt_sql_route_count": 676,
+      "total_sql_route_like_count": 712,
+      "openapi_exempt_sql_route_count": 678,
       "openapi_documented_sql_route_count": 32,
       "openapi_missing_sql_route_count": 2,
       "openapi_sql_route_coverage_percent": 94.12,
       "route_class_counts": {
         "http_route": 34,
-        "admin_tool_registry_route": 217,
+        "admin_tool_registry_route": 219,
         "tenant_tool_registry_route": 42,
         "system_tool_dispatch_route": 15,
         "registry_only_surface": 8,
