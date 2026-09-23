@@ -14,7 +14,10 @@
       ".github/ops/test-production-runtime-recovery-policy.mjs",
       ".github/ops/test-production-runtime-recovery.mjs",
       ".github/workflows/e2e-phase-governance.yml",
+      "apps/local-manager-device-proof-certification/Mad4B.LocalManager.DeviceProofCertification.csproj",
+      "apps/local-manager-device-proof-certification/Program.cs",
       "apps/local-manager-windows/DeviceLinkClient.cs",
+      "apps/local-manager-windows/DeviceProofCrypto.cs",
       "apps/local-manager-windows/LocalManagerAutopilot.cs",
       "apps/local-manager-windows/Program.cs",
       "docs/governance/configuration-drift-baseline-extensions.json",
@@ -23,18 +26,18 @@
       "http-generic-api/config/runtime-bootstrap-contract.json",
       "http-generic-api/config/staging-database-role-migration-manifest.json",
       "http-generic-api/databasePrivilegeContracts.js",
-      "http-generic-api/localConnectorCompositeHealth.js",
-      "http-generic-api/localManagerDesktopCommandSchema.js",
-      "http-generic-api/migrations/20260922_local_manager_desktop_commands.sql",
       "http-generic-api/frontend-operation-governance.generated.json",
       "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/frontend-surface-policy.json",
+      "http-generic-api/localConnectorCompositeHealth.js",
+      "http-generic-api/localManagerDesktopCommandSchema.js",
+      "http-generic-api/migrations/20260922_local_manager_desktop_commands.sql",
       "http-generic-api/openapi.yaml",
       "http-generic-api/recoveryExecutionBinding.js",
       "http-generic-api/routes/activationRoutes.js",
       "http-generic-api/routes/adminCliRoutes.js",
-      "http-generic-api/routes/localManagerDesktopCommandRoutes.js",
       "http-generic-api/routes/localManagerBetaRoutes.js",
+      "http-generic-api/routes/localManagerDesktopCommandRoutes.js",
       "http-generic-api/scripts/ci-evidence-router.mjs",
       "http-generic-api/scripts/local-manager-desktop-command-mariadb-certification.mjs",
       "http-generic-api/scripts/test-ci-evidence-router.mjs",
@@ -47,6 +50,7 @@
       "http-generic-api/test-local-connector-composite-health.mjs",
       "http-generic-api/test-local-manager-chatgpt-url-capture.mjs",
       "http-generic-api/test-local-manager-device-link-client.mjs",
+      "http-generic-api/test-local-manager-device-proof-cross-runtime.mjs",
       "http-generic-api/test-local-manager-pairing-security.mjs",
       "http-generic-api/test-local-manager-tool-release-owner.mjs",
       "http-generic-api/test-staging-database-readiness-repair.mjs",
@@ -100,7 +104,10 @@
             "Bind the MariaDB certification job result and evidence SHA-256 into canonical E2E evidence.",
             "Require login and session restoration to remain read-only until an explicit Approve device gesture submits the displayed pairing fingerprint.",
             "Prove possession of the ephemeral P-256 device key over the exact session, code, poll-token hash, and server challenge before issuing a device JWT.",
-            "Verify public pairing preview excludes session internals, identity, IP address, User-Agent, and arbitrary metadata."
+            "Verify public pairing preview excludes session internals, identity, IP address, User-Agent, and arbitrary metadata.",
+            "Generate a P-256 device proof in .NET 8 using explicit RFC3279 DER encoding and verify that exact signature through the production Node verifier.",
+            "Bind explicit browser consent to the fingerprint of the exact public key that will be used for device proof-of-possession.",
+            "Read the local_app_releases registry without request-time schema or seed mutation and surface registry degradation when migration or seed state is unavailable."
           ],
           "assertions": [
             "HTTP request handlers perform read-only schema inspection and never create or alter local_manager_desktop_commands.",
@@ -126,7 +133,10 @@
             "Canonical E2E evidence cannot report MariaDB certification success without the certification evidence file and SHA-256.",
             "Opening a pairing link while signed in cannot approve the device without an explicit click after reviewing an immutable preview.",
             "A proof signed by any key other than the key bound at pairing start, or using a mismatched challenge, is rejected.",
-            "Browser User JWTs are session-only, and credential-bearing responses truthfully declare that they are unsafe to log."
+            "Browser User JWTs are session-only, and credential-bearing responses truthfully declare that they are unsafe to log.",
+            "Windows and Node explicitly use the same ECDSA DER wire format; the cross-runtime certification rejects IEEE-P1363 input.",
+            "Changing the device public-key fingerprint invalidates the previously displayed pairing_fingerprint.",
+            "The Local Manager update route never executes CREATE TABLE or INSERT against local_app_releases."
           ],
           "tests": [
             {
@@ -170,6 +180,13 @@
               "working_directory": "http-generic-api",
               "path": "test-local-manager-pairing-security.mjs",
               "args": []
+            },
+            {
+              "id": "local-manager-device-proof-cross-runtime",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-local-manager-device-proof-cross-runtime.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -198,7 +215,11 @@
             "http-generic-api/openapi.yaml",
             "http-generic-api/services/localManagerDeviceLinkService.js",
             "http-generic-api/test-local-manager-pairing-security.mjs",
-            "docs/governance/configuration-drift-baseline-extensions.json"
+            "docs/governance/configuration-drift-baseline-extensions.json",
+            "apps/local-manager-windows/DeviceProofCrypto.cs",
+            "apps/local-manager-device-proof-certification/Mad4B.LocalManager.DeviceProofCertification.csproj",
+            "apps/local-manager-device-proof-certification/Program.cs",
+            "http-generic-api/test-local-manager-device-proof-cross-runtime.mjs"
           ]
         }
       ]
