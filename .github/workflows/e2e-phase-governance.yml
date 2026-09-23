@@ -197,6 +197,11 @@ jobs:
             package-lock.json
             http-generic-api/package-lock.json
 
+      - name: Setup .NET 8 for cross-runtime device proof
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: "8.0.x"
+
       - name: Install repository governance dependencies
         run: npm ci --ignore-scripts --include=dev
 
