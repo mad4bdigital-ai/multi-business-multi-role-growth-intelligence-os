@@ -193,6 +193,16 @@
         "requires_live_certification": true
       },
       {
+        "id": "cross_runtime_certification",
+        "patterns": [
+          "apps/local-manager-device-proof-certification/**"
+        ],
+        "environments": [
+          "repository"
+        ],
+        "requires_live_certification": false
+      },
+      {
         "id": "repository_governance",
         "patterns": [
           ".changes/e2e/**",
