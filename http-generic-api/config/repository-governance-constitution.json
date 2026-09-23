@@ -283,7 +283,8 @@
         "src/**",
         "edge/**",
         "wordpress/**",
-        "apps/local-manager-windows/**"
+        "apps/local-manager-windows/**",
+        "apps/local-manager-device-proof-certification/**"
       ]
     },
     {
