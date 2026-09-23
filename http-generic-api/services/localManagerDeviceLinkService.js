@@ -769,7 +769,7 @@ export async function startDeviceLinkSession(req, res) {
         ip_seen: req.ip || req.socket?.remoteAddress || "",
       },
     });
-    const [createdRows] = await getPool().query(    const [createdRows] = await getPool().query(
+    const [createdRows] = await getPool().query(
       `SELECT session_id, status, expires_at
          FROM \`local_manager_device_link_sessions\`
         WHERE session_id = ?
