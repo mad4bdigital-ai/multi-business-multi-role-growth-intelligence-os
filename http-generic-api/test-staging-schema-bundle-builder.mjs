@@ -1528,7 +1528,12 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_foreign_key_compatibility_chain.files_checked, expectedFilesChecked);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.migration_files_checked, canonicalMigrationFiles.length);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.statements_checked, expectedStatementsChecked);
-  assert.equal(plan.ordered_foreign_key_compatibility_chain.tables_projected, 590);
+  assert.equal(
+    canonicalMigrationFiles.includes("20260922_local_manager_control_templates_registry.sql"),
+    true,
+    "Local Manager control-template registry migration must be part of the ordered schema plan",
+  );
+  assert.equal(plan.ordered_foreign_key_compatibility_chain.tables_projected, 591);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.foreign_keys_checked, 138);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.type_comparisons, 140);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.type_mismatches, 0);
