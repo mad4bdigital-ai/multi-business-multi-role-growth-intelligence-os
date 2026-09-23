@@ -62,6 +62,9 @@ test("explicit pairing consent rejects missing and stale fingerprints", () => {
     platform: "windows",
     app_version: "2.0.0",
     expires_at: new Date("2030-01-01T00:00:00.000Z"),
+    metadata_json: JSON.stringify({
+      device_public_key_fingerprint_sha256: "1".repeat(64),
+    }),
   };
   const fingerprint = pairing.pairingFingerprint(row, row.display_code);
   assert.equal(pairing.isExplicitPairingConsentValid({
@@ -72,6 +75,15 @@ test("explicit pairing consent rejects missing and stale fingerprints", () => {
   }), false);
   assert.equal(pairing.isExplicitPairingConsentValid({
     row: { ...row, hostname: "changed-host" },
+    displayCode: row.display_code,
+    consent: "approve_device",
+    previewFingerprint: fingerprint,
+  }), false);
+  assert.equal(pairing.isExplicitPairingConsentValid({
+    row: {
+      ...row,
+      metadata_json: JSON.stringify({ device_public_key_fingerprint_sha256: "2".repeat(64) }),
+    },
     displayCode: row.display_code,
     consent: "approve_device",
     previewFingerprint: fingerprint,
@@ -201,10 +213,13 @@ test("device proof-of-possession accepts the session key and rejects a different
   };
   const pollHash = crypto.createHash("sha256").update(pollToken).digest("hex");
   const canonical = ["mad4b.local-manager.device-proof.v1", row.session_id, displayCode, pollHash, challenge].join("\n");
-  const sign = (privateKey) => crypto.sign("sha256", Buffer.from(canonical), privateKey).toString("base64");
+  const sign = (privateKey) => crypto.sign("sha256", Buffer.from(canonical), { key: privateKey, dsaEncoding: "der" }).toString("base64");
   assert.equal(pairing.verifyDevicePossession({ row, displayCode, pollToken, challenge, signature: sign(key.privateKey) }), true);
   assert.equal(pairing.verifyDevicePossession({ row, displayCode, pollToken, challenge, signature: sign(wrongKey.privateKey) }), false);
   assert.equal(pairing.verifyDevicePossession({ row, displayCode, pollToken, challenge: "wrong", signature: sign(key.privateKey) }), false);
+  assert.equal(pairing.verifyDevicePossession({ row, displayCode, pollToken: "wrong-token", challenge, signature: sign(key.privateKey) }), false);
+  assert.equal(pairing.verifyDevicePossession({ row, displayCode, pollToken, challenge, signature: "" }), false);
+  assert.match(serviceSource, /dsaEncoding: "der"/u);
 });
 
 test("credential-bearing responses are truthful and explicitly unsafe to log", () => {
@@ -239,5 +254,5 @@ test("Windows client generates and proves possession of a P-256 pairing key", ()
   assert.match(clientSource, /ECDsa\.Create\(ECCurve\.NamedCurves\.nistP256\)/u);
   assert.match(clientSource, /ExportSubjectPublicKeyInfo/u);
   assert.match(clientSource, /mad4b\.local-manager\.device-proof\.v1/u);
-  assert.match(clientSource, /SignData\([^;]*HashAlgorithmName\.SHA256/u);
+  assert.match(clientSource, /DeviceProofCrypto\.SignDerBase64/u);
 });
