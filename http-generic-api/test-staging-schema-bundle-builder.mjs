@@ -1556,6 +1556,7 @@ test("generator plan-only mode inventories the exact migration chain", () => {
     "20260815_custom_gpt_mcp_catalog_levels.sql",
     "20260920_platform_admin_workspace_canonical_seed.sql",
     "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
+    "20260922_local_manager_control_templates_registry.sql",
   ]);
   assert.equal(plan.canonical_seed_lifecycle.readback_required, true);
   assert.equal(plan.ordered_preuse_audit.missing_table_gaps, 0);
