@@ -10,6 +10,7 @@ import { _testingLocalManagerDeviceLink as pairing } from "./services/localManag
 const routesSource = fs.readFileSync(new URL("./routes/localManagerBetaRoutes.js", import.meta.url), "utf8");
 const serviceSource = fs.readFileSync(new URL("./services/localManagerDeviceLinkService.js", import.meta.url), "utf8");
 const clientSource = fs.readFileSync(new URL("../apps/local-manager-windows/DeviceLinkClient.cs", import.meta.url), "utf8");
+const deviceProofCryptoSource = fs.readFileSync(new URL("../apps/local-manager-windows/DeviceProofCrypto.cs", import.meta.url), "utf8");
 const openapiSource = fs.readFileSync(new URL("./openapi.yaml", import.meta.url), "utf8");
 
 test("login and session restore never approve a pairing without the explicit button gesture", () => {
@@ -253,6 +254,8 @@ test("revoke invalidates the durable session and n8n provisioning is authenticat
 test("Windows client generates and proves possession of a P-256 pairing key", () => {
   assert.match(clientSource, /ECDsa\.Create\(ECCurve\.NamedCurves\.nistP256\)/u);
   assert.match(clientSource, /ExportSubjectPublicKeyInfo/u);
-  assert.match(clientSource, /mad4b\.local-manager\.device-proof\.v1/u);
+  assert.match(clientSource, /DeviceProofCrypto\.BuildCanonical/u);
   assert.match(clientSource, /DeviceProofCrypto\.SignDerBase64/u);
+  assert.match(deviceProofCryptoSource, /mad4b\.local-manager\.device-proof\.v1/u);
+  assert.match(deviceProofCryptoSource, /DSASignatureFormat\.Rfc3279DerSequence/u);
 });
