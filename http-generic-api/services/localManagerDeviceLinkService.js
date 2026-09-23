@@ -21,6 +21,7 @@ const LOCAL_MANAGER_USER_JWT_SCOPE = "local_manager.user";
 const DEVICE_JWT_SECRET_MAX_LENGTH = 4096;
 const DEVICE_LINK_TTL_SECONDS = 10 * 60;
 const POLL_INTERVAL_SECONDS = 3;
+const DEVICE_LINK_INSERT_MAX_ATTEMPTS = 5;
 const DEVICE_TOKEN_TTL_SECONDS = 365 * 24 * 60 * 60;
 const PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = 15 * 60;
 const PLATFORM_MANAGED_N8N_URL = "https://n8n.mad4b.com/";
@@ -42,6 +43,67 @@ function randomDisplayCode() {
   let out = "";
   for (let i = 0; i < 8; i += 1) out += alphabet[crypto.randomInt(0, alphabet.length)];
   return `${out.slice(0, 4)}-${out.slice(4)}`;
+}
+
+
+function isDuplicateKeyError(error) {
+  return error?.code === "ER_DUP_ENTRY" || Number(error?.errno || 0) === 1062;
+}
+
+async function createDeviceLinkSessionWithRetry({
+  pool,
+  deviceId,
+  hostname,
+  platform,
+  appVersion,
+  devicePublicKey,
+  requestMetadata = {},
+  maxAttempts = DEVICE_LINK_INSERT_MAX_ATTEMPTS,
+  generators = {},
+}) {
+  const makeDisplayCode = generators.displayCode || randomDisplayCode;
+  const makeToken = generators.token || randomToken;
+  const makeSessionId = generators.sessionId || (() => crypto.randomUUID());
+  const attempts = Math.max(1, Math.min(Number(maxAttempts) || DEVICE_LINK_INSERT_MAX_ATTEMPTS, 10));
+  let lastDuplicate = null;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const displayCode = makeDisplayCode();
+    const pollToken = makeToken(32);
+    const deviceProofChallenge = makeToken(32);
+    const sessionId = makeSessionId();
+    const expiresAt = new Date(nowMs() + DEVICE_LINK_TTL_SECONDS * 1000);
+    const metadata = {
+      source: "local_manager_windows_app",
+      user_agent: cleanText(requestMetadata.user_agent || "", 255),
+      ip_seen: cleanText(requestMetadata.ip_seen || "", 64),
+      device_public_key_spki: devicePublicKey.encoded,
+      device_public_key_fingerprint_sha256: devicePublicKey.fingerprint,
+      device_proof_challenge_sha256: sha256(deviceProofChallenge),
+      device_proof_contract: "mad4b.local-manager.device-proof.v1",
+      pairing_insert_attempt: attempt,
+    };
+
+    try {
+      await pool.query(
+        "INSERT INTO local_manager_device_link_sessions " +
+        "(session_id, display_code, display_code_hash, poll_token_hash, status, device_id, hostname, platform, app_version, expires_at, metadata_json) " +
+        "VALUES (?, NULL, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)",
+        [sessionId, sha256(displayCode), sha256(pollToken), deviceId, hostname || null, platform, appVersion || null, expiresAt, jsonString(metadata)]
+      );
+      return { displayCode, pollToken, deviceProofChallenge, sessionId, expiresAt, metadata, insert_attempt: attempt };
+    } catch (error) {
+      if (!isDuplicateKeyError(error)) throw error;
+      lastDuplicate = error;
+    }
+  }
+
+  const err = new Error("Pairing code allocation is temporarily saturated. Retry the pairing request.");
+  err.status = 503;
+  err.code = "device_link_code_allocation_exhausted";
+  err.details = { attempts, duplicate_key_retries_exhausted: true, secrets_included: false };
+  if (lastDuplicate?.code) err.cause_code = lastDuplicate.code;
+  throw err;
 }
 
 function deviceJwtSecret(env = process.env) {
@@ -672,28 +734,26 @@ export async function startDeviceLinkSession(req, res) {
     if (!devicePublicKey) {
       return res.status(400).json({ ok: false, error: { code: "device_public_key_required", message: "A P-256 device public key is required." }, secrets_included: false });
     }
-    const displayCode = randomDisplayCode();
-    const pollToken = randomToken(32);
-    const deviceProofChallenge = randomToken(32);
-    const sessionId = crypto.randomUUID();
-    const expiresAt = new Date(nowMs() + DEVICE_LINK_TTL_SECONDS * 1000);
-    const metadata = {
-      source: "local_manager_windows_app",
-      user_agent: cleanText(req.get("user-agent") || "", 255),
-      ip_seen: cleanText(req.ip || req.socket?.remoteAddress || "", 64),
-      device_public_key_spki: devicePublicKey.encoded,
-      device_public_key_fingerprint_sha256: devicePublicKey.fingerprint,
-      device_proof_challenge_sha256: sha256(deviceProofChallenge),
-      device_proof_contract: "mad4b.local-manager.device-proof.v1",
-    };
-
-    await getPool().query(
-      `INSERT INTO \`local_manager_device_link_sessions\`
-        (session_id, display_code, display_code_hash, poll_token_hash, status, device_id, hostname, platform, app_version, expires_at, metadata_json)
-       VALUES (?, NULL, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)`,
-      [sessionId, sha256(displayCode), sha256(pollToken), deviceId, hostname || null, platform, appVersion || null, expiresAt, jsonString(metadata)]
-    );
-    const [createdRows] = await getPool().query(
+    const {
+      displayCode,
+      pollToken,
+      deviceProofChallenge,
+      sessionId,
+      expiresAt,
+      insert_attempt: insertAttempt,
+    } = await createDeviceLinkSessionWithRetry({
+      pool: getPool(),
+      deviceId,
+      hostname,
+      platform,
+      appVersion,
+      devicePublicKey,
+      requestMetadata: {
+        user_agent: req.get("user-agent") || "",
+        ip_seen: req.ip || req.socket?.remoteAddress || "",
+      },
+    });
+    const [createdRows] = await getPool().query(    const [createdRows] = await getPool().query(
       `SELECT session_id, status, expires_at
          FROM \`local_manager_device_link_sessions\`
         WHERE session_id = ?
@@ -722,6 +782,7 @@ export async function startDeviceLinkSession(req, res) {
       poll_token: pollToken,
       device_proof_challenge: deviceProofChallenge,
       device_public_key_fingerprint_sha256: devicePublicKey.fingerprint,
+      pairing_insert_attempt: insertAttempt,
       ...credentialDelivery(["poll_token"]),
     });
   } catch (err) {
@@ -1652,4 +1713,6 @@ export const _testingLocalManagerDeviceLink = Object.freeze({
   pairingFingerprint,
   sanitizePublicPairingPreview,
   verifyDevicePossession,
+  isDuplicateKeyError,
+  createDeviceLinkSessionWithRetry,
 });
