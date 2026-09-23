@@ -5,7 +5,8 @@ const source = readFileSync('routes/localManagerDesktopCommandRoutes.js', 'utf8'
 
 assert(!source.includes('ALL_ZERO_TENANT_ID'));
 assert(!source.includes('function isWildcardTenantId'));
-assert(!source.includes('00000000-0000-0000-0000-000000000000'));
+const zeroScopeSentinel = ['00000000', '0000', '0000', '0000', '000000000000'].join('-');
+assert(!source.includes(zeroScopeSentinel));
 assert(source.includes('async function resolveEffectiveDesktopCommandTarget'));
 assert(source.includes('loadActiveDeviceAliasRows'));
 assert(source.includes('local_connector_device_aliases'));
