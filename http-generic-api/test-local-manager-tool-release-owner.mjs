@@ -254,6 +254,8 @@ assert(localManagerWindows.includes('"chromium", "Chromium"'), 'Windows app loca
 assert(localManagerDeviceLinkService.includes('local_manager_control_templates'), 'device controls settings must load supported capabilities/apps from a DB registry table');
 assert(localManagerDeviceLinkService.includes('loadLocalManagerControlTemplates'), 'device controls settings must use the dynamic Local Manager control template loader');
 assert(localManagerDeviceLinkService.includes('registry_source'), 'device controls settings must expose the registry source to the Windows app');
+assert.equal((localManagerDeviceLinkService.match(/registry_source = controlTemplates\.source/g) || []).length, 1, 'device controls settings must apply the control-template registry exactly once');
+assert.equal((localManagerDeviceLinkService.match(/supported_browser_providers = controlTemplates\.supported_browser_providers/g) || []).length, 2, 'browser-provider registry projection must populate the settings surface and its dynamic-grant view exactly once each');
 assert(!localManagerDeviceLinkService.includes('CREATE TABLE IF NOT EXISTS `local_manager_control_templates`'), 'runtime settings reads must never create the control-template registry');
 assert(!localManagerDeviceLinkService.includes('INSERT INTO `local_manager_control_templates`'), 'runtime settings reads must never seed or mutate the control-template registry');
 assert(!localManagerDeviceLinkService.includes('source: "code_fallback"'), 'registry authority failures must not be masked by runtime code fallback');
