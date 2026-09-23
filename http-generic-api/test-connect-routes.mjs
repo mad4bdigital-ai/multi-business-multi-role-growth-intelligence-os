@@ -1134,6 +1134,12 @@ assert("local connector requires fresh Local Manager authorization for privilege
     assert("local manager update comparison normalizes prerelease and build metadata",
       betaSource.includes("raw.split(/[+-]/)[0]") &&
       betaSource.includes("latestLocalManagerWindowsRelease"));
+    assert("local app release request path is read-only and exposes registry degradation",
+      !betaSource.includes("ensureLocalAppReleasesTable") &&
+      !betaSource.includes("CREATE TABLE IF NOT EXISTS") &&
+      !betaSource.includes("INSERT INTO \`local_app_releases\`") &&
+      betaSource.includes("registry_degraded") &&
+      betaSource.includes("local_app_release_registry_unavailable"));
     const releaseMigrationSource = readFileSync("migrations/100_sprint62k_local_app_releases.sql", "utf8");
     assert("local app releases migration seeds Local Manager Windows release",
       releaseMigrationSource.includes("CREATE TABLE IF NOT EXISTS `local_app_releases`") &&
