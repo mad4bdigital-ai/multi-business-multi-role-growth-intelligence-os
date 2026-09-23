@@ -1129,6 +1129,8 @@ assert("local connector requires fresh Local Manager authorization for privilege
       betaSource.includes("localManagerWindowsUpdateInfo") &&
       betaSource.includes("local_app_releases") &&
       betaSource.includes("registry_source") &&
+      betaSource.includes("registry_degraded") &&
+      betaSource.includes("registry_reason") &&
       betaSource.includes("update_available") &&
       betaSource.includes("secrets_included: false"));
     assert("local manager update comparison normalizes prerelease and build metadata",
