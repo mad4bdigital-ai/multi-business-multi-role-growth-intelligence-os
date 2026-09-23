@@ -821,57 +821,6 @@ function compareVersions(left, right) {
   return 0;
 }
 
-async function ensureLocalAppReleasesTable() {
-  await getPool().query(`
-    CREATE TABLE IF NOT EXISTS \`local_app_releases\` (
-      \`release_id\` VARCHAR(64) NOT NULL,
-      \`app_key\` VARCHAR(96) NOT NULL,
-      \`platform\` VARCHAR(32) NOT NULL,
-      \`release_channel\` VARCHAR(48) NOT NULL DEFAULT 'stable',
-      \`version\` VARCHAR(80) NOT NULL,
-      \`minimum_supported_version\` VARCHAR(80) NULL,
-      \`release_tag\` VARCHAR(128) NULL,
-      \`artifact_url\` VARCHAR(1024) NOT NULL,
-      \`sha256_url\` VARCHAR(1024) NULL,
-      \`sha256\` VARCHAR(128) NULL,
-      \`update_required\` TINYINT(1) NOT NULL DEFAULT 0,
-      \`release_notes_json\` JSON NULL,
-      \`status\` ENUM('draft','active','deprecated') NOT NULL DEFAULT 'active',
-      \`published_at\` DATETIME NULL,
-      \`created_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      \`updated_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      PRIMARY KEY (\`release_id\`),
-      UNIQUE KEY \`uq_local_app_release_version\` (\`app_key\`, \`platform\`, \`release_channel\`, \`version\`),
-      KEY \`idx_local_app_release_lookup\` (\`app_key\`, \`platform\`, \`release_channel\`, \`status\`, \`published_at\`),
-      KEY \`idx_local_app_release_updated\` (\`updated_at\`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-  `);
-
-  await getPool().query(
-    `INSERT INTO \`local_app_releases\`
-      (release_id, app_key, platform, release_channel, version, minimum_supported_version, release_tag, artifact_url, sha256_url, sha256, update_required, release_notes_json, status, published_at)
-     VALUES (?, 'mad4b-local-manager', 'windows', 'latest-prerelease', ?, NULL, ?, ?, ?, NULL, 0, JSON_ARRAY(
-       'Adds Continue with Google to Local Manager device approval.',
-       'Adds forgot-password entry point while preserving the pairing code.',
-       'Keeps device approval on the installed app polling flow after authentication.'
-     ), 'active', NOW())
-     ON DUPLICATE KEY UPDATE
-       release_tag = VALUES(release_tag),
-       artifact_url = VALUES(artifact_url),
-       sha256_url = VALUES(sha256_url),
-       release_notes_json = VALUES(release_notes_json),
-       status = VALUES(status),
-       published_at = COALESCE(published_at, VALUES(published_at))`,
-    [
-      "mad4b-local-manager-windows-latest-prerelease-0-1-2",
-      LOCAL_MANAGER_WINDOWS_LATEST_VERSION,
-      LOCAL_MANAGER_WINDOWS_RELEASE_TAG,
-      LOCAL_MANAGER_WINDOWS_EXE_URL,
-      LOCAL_MANAGER_WINDOWS_SHA256_URL,
-    ]
-  );
-}
-
 function localManagerFallbackReleaseRow() {
   return {
     app_key: "mad4b-local-manager",
@@ -894,8 +843,8 @@ function localManagerFallbackReleaseRow() {
 }
 
 async function latestLocalManagerWindowsRelease() {
+  const fallback = localManagerFallbackReleaseRow();
   try {
-    await ensureLocalAppReleasesTable();
     const [rows] = await getPool().query(
       `SELECT * FROM \`local_app_releases\`
         WHERE app_key = 'mad4b-local-manager'
@@ -905,17 +854,35 @@ async function latestLocalManagerWindowsRelease() {
         ORDER BY COALESCE(published_at, updated_at, created_at) DESC, version DESC
         LIMIT 1`
     );
-    const fallback = localManagerFallbackReleaseRow();
-    if (!rows[0]) return fallback;
-    const selected = { ...rows[0], source: "db" };
+    if (!rows[0]) {
+      return {
+        ...fallback,
+        source: "code_fallback_registry_empty",
+        registry_degraded: true,
+        registry_reason: "local_app_release_registry_empty",
+      };
+    }
+    const selected = { ...rows[0], source: "db", registry_degraded: false, registry_reason: null };
     const fallbackVersion = normalizeVersion(fallback.version);
     const selectedVersion = normalizeVersion(selected.version);
     if (compareVersions(fallbackVersion, selectedVersion) > 0) {
-      return { ...fallback, source: "code_fallback_newer_than_db", stale_db_version: selected.version || null, stale_db_release_id: selected.release_id || null };
+      return {
+        ...fallback,
+        source: "code_fallback_newer_than_db",
+        registry_degraded: true,
+        registry_reason: "local_app_release_registry_stale",
+        stale_db_version: selected.version || null,
+        stale_db_release_id: selected.release_id || null,
+      };
     }
     return selected;
   } catch {
-    return localManagerFallbackReleaseRow();
+    return {
+      ...fallback,
+      source: "code_fallback_registry_unavailable",
+      registry_degraded: true,
+      registry_reason: "local_app_release_registry_unavailable",
+    };
   }
 }
 
