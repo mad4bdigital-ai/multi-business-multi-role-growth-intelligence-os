@@ -218,14 +218,16 @@ function importDevicePublicKey(value) {
 }
 
 function pairingFingerprint(row, displayCode = "") {
+  const metadata = parseJson(row.metadata_json) || {};
   return sha256([
-    "mad4b.local-manager.pairing-preview.v1",
+    "mad4b.local-manager.pairing-preview.v2",
     row.session_id,
     cleanText(displayCode || row.display_code, 16).toUpperCase(),
     row.device_id,
     row.hostname || "",
     row.platform || "",
     row.app_version || "",
+    metadata.device_public_key_fingerprint_sha256 || "",
     row.expires_at ? new Date(row.expires_at).toISOString() : "",
   ].join("\n"));
 }
@@ -250,7 +252,7 @@ function verifyDevicePossession({ row, displayCode, pollToken, challenge, signat
   if (!challenge || sha256(challenge) !== metadata.device_proof_challenge_sha256 || !signature) return false;
   const canonical = ["mad4b.local-manager.device-proof.v1", row.session_id, cleanText(displayCode, 16).toUpperCase(), sha256(pollToken), challenge].join("\n");
   try {
-    return crypto.verify("sha256", Buffer.from(canonical, "utf8"), publicKey.key, Buffer.from(signature, "base64"));
+    return crypto.verify("sha256", Buffer.from(canonical, "utf8"), { key: publicKey.key, dsaEncoding: "der" }, Buffer.from(signature, "base64"));
   } catch {
     return false;
   }
