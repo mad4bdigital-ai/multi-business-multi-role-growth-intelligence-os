@@ -1,16 +1,30 @@
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
-import { dirname, resolve } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 import { _testingLocalManagerDeviceLink as pairing } from "./services/localManagerDeviceLinkService.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const project = resolve(here, "../apps/local-manager-device-proof-certification/Mad4B.LocalManager.DeviceProofCertification.csproj");
-const stdout = execFileSync("dotnet", ["run", "--project", project, "--configuration", "Release"], {
-  encoding: "utf8",
-  stdio: ["ignore", "pipe", "pipe"],
-});
+const buildRoot = mkdtempSync(join(tmpdir(), "mad4b-device-proof-certification-"));
+let stdout;
+try {
+  stdout = execFileSync("dotnet", [
+    "run",
+    "--project", project,
+    "--configuration", "Release",
+    `--property:BaseOutputPath=${join(buildRoot, "bin")}${sep}`,
+    `--property:BaseIntermediateOutputPath=${join(buildRoot, "obj")}${sep}`,
+  ], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+} finally {
+  rmSync(buildRoot, { recursive: true, force: true });
+}
 const line = stdout.split(/\r?\n/u).map((value) => value.trim()).filter((value) => value.startsWith("{") && value.endsWith("}")).at(-1);
 assert.ok(line, "cross-runtime .NET signer must emit JSON evidence");
 const vector = JSON.parse(line);
