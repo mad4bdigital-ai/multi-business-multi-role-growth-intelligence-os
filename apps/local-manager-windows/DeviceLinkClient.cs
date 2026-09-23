@@ -55,9 +55,8 @@ internal sealed class DeviceLinkClient
         CancellationToken cancellationToken = default)
     {
         if (_pairingKey is null) throw new InvalidOperationException("Device pairing key is unavailable.");
-        var pollTokenHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(pollToken))).ToLowerInvariant();
-        var canonical = string.Join("\n", "mad4b.local-manager.device-proof.v1", sessionId, deviceCode.Trim().ToUpperInvariant(), pollTokenHash, deviceProofChallenge);
-        var proof = Convert.ToBase64String(_pairingKey.SignData(Encoding.UTF8.GetBytes(canonical), HashAlgorithmName.SHA256));
+        var canonical = DeviceProofCrypto.BuildCanonical(sessionId, deviceCode, pollToken, deviceProofChallenge);
+        var proof = DeviceProofCrypto.SignDerBase64(_pairingKey, canonical);
         using var client = CreateClient();
         using var response = await client.PostAsync(
             _deviceLinkPollUrl,
