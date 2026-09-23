@@ -218,6 +218,7 @@ export const testCommands = [
   "node test-local-manager-device-identity-store.mjs",
   "node test-local-manager-device-link-client.mjs",
   "node test-local-manager-pairing-security.mjs",
+  "node test-local-manager-device-proof-cross-runtime.mjs",
   "node test-local-manager-device-control-client.mjs",
   "node test-local-manager-signed-installer-coordinator.mjs",
   "node test-local-manager-repair-connector-command.mjs",
