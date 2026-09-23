@@ -236,6 +236,7 @@
         "http-generic-api/test-local-manager-cloudflare-origin-classification.mjs",
         "http-generic-api/test-local-manager-desktop-identity-resolution.mjs",
         "http-generic-api/test-local-manager-device-link-client.mjs",
+        "http-generic-api/test-local-manager-device-proof-cross-runtime.mjs",
         "http-generic-api/test-local-manager-pairing-security.mjs",
         "http-generic-api/test-local-manager-repair-connector-command.mjs",
         "http-generic-api/test-local-manager-signed-installer-coordinator.mjs",
