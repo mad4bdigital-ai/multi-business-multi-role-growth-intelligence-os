@@ -908,6 +908,8 @@ async function localManagerWindowsUpdateInfo(req) {
     sha256: release.sha256 || null,
     release_notes: Array.isArray(notes) ? notes : [],
     registry_source: release.source || "db",
+    registry_degraded: release.registry_degraded === true,
+    registry_reason: release.registry_reason || null,
     checked_at: new Date().toISOString(),
     secrets_included: false,
   };
