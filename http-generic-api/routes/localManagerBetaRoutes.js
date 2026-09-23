@@ -851,8 +851,8 @@ async function latestLocalManagerWindowsRelease() {
           AND platform = 'windows'
           AND release_channel = 'latest-prerelease'
           AND status = 'active'
-        ORDER BY COALESCE(published_at, updated_at, created_at) DESC, version DESC
-        LIMIT 1`
+        ORDER BY COALESCE(published_at, updated_at, created_at) DESC, version DESC, release_id DESC
+        LIMIT 2`
     );
     if (!rows[0]) {
       return {
