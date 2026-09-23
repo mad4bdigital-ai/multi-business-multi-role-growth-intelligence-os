@@ -7331,6 +7331,7 @@ paths:
       security:
         - localManagerBearerAuth: []
       operationId: revokeLocalManagerLinkedDevice
+      x-custom-gpt-exclude: true
       summary: Revoke one linked device owned by the signed-in user
       x-openai-isConsequential: true
       parameters:
@@ -7365,6 +7366,7 @@ paths:
       security:
         - localManagerBearerAuth: []
       operationId: provisionLocalManagerDeviceN8n
+      x-custom-gpt-exclude: true
       summary: Idempotently provision the authenticated device's tenant-local n8n profile
       description: Requires a currently active device bearer session; creates no credential and performs no provider call.
       x-openai-isConsequential: true
