@@ -51,6 +51,139 @@ test("public preview is an explicit narrow DTO with an immutable pairing fingerp
   assert.equal(Object.hasOwn(preview, "session_id"), false);
 });
 
+
+test("explicit pairing consent rejects missing and stale fingerprints", () => {
+  const row = {
+    session_id: "session-consent",
+    display_code: "ABCD-EFGH",
+    status: "pending",
+    device_id: "device-consent",
+    hostname: "workstation-consent",
+    platform: "windows",
+    app_version: "2.0.0",
+    expires_at: new Date("2030-01-01T00:00:00.000Z"),
+  };
+  const fingerprint = pairing.pairingFingerprint(row, row.display_code);
+  assert.equal(pairing.isExplicitPairingConsentValid({
+    row, displayCode: row.display_code, consent: "", previewFingerprint: fingerprint,
+  }), false);
+  assert.equal(pairing.isExplicitPairingConsentValid({
+    row, displayCode: row.display_code, consent: "approve_device", previewFingerprint: "0".repeat(64),
+  }), false);
+  assert.equal(pairing.isExplicitPairingConsentValid({
+    row: { ...row, hostname: "changed-host" },
+    displayCode: row.display_code,
+    consent: "approve_device",
+    previewFingerprint: fingerprint,
+  }), false);
+  assert.equal(pairing.isExplicitPairingConsentValid({
+    row, displayCode: row.display_code, consent: "approve_device", previewFingerprint: fingerprint,
+  }), true);
+});
+
+test("display-code collision retries are bounded and regenerate pairing secrets", async () => {
+  const publicKey = crypto.generateKeyPairSync("ec", { namedCurve: "prime256v1" }).publicKey
+    .export({ format: "der", type: "spki" });
+  const codes = ["AAAA-BBBB", "CCCC-DDDD", "EEEE-FFFF"];
+  const tokens = ["poll-one", "challenge-one", "poll-two", "challenge-two", "poll-three", "challenge-three"];
+  const sessions = ["session-one", "session-two", "session-three"];
+  let calls = 0;
+  const pool = {
+    async query() {
+      calls += 1;
+      if (calls === 1) {
+        const error = new Error("duplicate display code hash");
+        error.code = "ER_DUP_ENTRY";
+        error.errno = 1062;
+        throw error;
+      }
+      return [{ affectedRows: 1 }];
+    },
+  };
+  const created = await pairing.createDeviceLinkSessionWithRetry({
+    pool,
+    deviceId: "device-collision",
+    hostname: "device-collision",
+    platform: "windows",
+    appVersion: "2.0.0",
+    devicePublicKey: {
+      encoded: publicKey.toString("base64"),
+      fingerprint: crypto.createHash("sha256").update(publicKey).digest("hex"),
+    },
+    maxAttempts: 3,
+    generators: {
+      displayCode: () => codes.shift(),
+      token: () => tokens.shift(),
+      sessionId: () => sessions.shift(),
+    },
+  });
+  assert.equal(calls, 2);
+  assert.equal(created.insert_attempt, 2);
+  assert.equal(created.displayCode, "CCCC-DDDD");
+  assert.equal(created.pollToken, "poll-two");
+  assert.equal(created.deviceProofChallenge, "challenge-two");
+  assert.equal(created.sessionId, "session-two");
+
+  const duplicatePool = {
+    async query() {
+      const error = new Error("duplicate");
+      error.code = "ER_DUP_ENTRY";
+      throw error;
+    },
+  };
+  await assert.rejects(
+    pairing.createDeviceLinkSessionWithRetry({
+      pool: duplicatePool,
+      deviceId: "device-exhausted",
+      hostname: "device-exhausted",
+      platform: "windows",
+      appVersion: "2.0.0",
+      devicePublicKey: {
+        encoded: publicKey.toString("base64"),
+        fingerprint: crypto.createHash("sha256").update(publicKey).digest("hex"),
+      },
+      maxAttempts: 2,
+      generators: {
+        displayCode: () => "ZZZZ-9999",
+        token: () => "duplicate-token",
+        sessionId: () => crypto.randomUUID(),
+      },
+    }),
+    (error) => error?.code === "device_link_code_allocation_exhausted"
+      && error?.details?.attempts === 2
+      && error?.details?.duplicate_key_retries_exhausted === true,
+  );
+});
+
+test("durable revocation and token ownership predicate reject replay immediately", () => {
+  const payload = {
+    jti: "jti-1",
+    session_id: "session-1",
+    device_id: "device-1",
+    user_id: "user-1",
+    tenant_id: "tenant-1",
+  };
+  const active = {
+    status: "completed",
+    revoked_at: null,
+    device_token_jti: "jti-1",
+    session_id: "session-1",
+    device_id: "device-1",
+    user_id: "user-1",
+    tenant_id: "tenant-1",
+  };
+  assert.equal(pairing.isDeviceSessionAuthorizedForToken(active, payload), true);
+  assert.equal(pairing.isDeviceSessionAuthorizedForToken({ ...active, revoked_at: new Date() }, payload), false);
+  assert.equal(pairing.isDeviceSessionAuthorizedForToken({ ...active, status: "revoked" }, payload), false);
+  assert.equal(pairing.isDeviceSessionAuthorizedForToken(active, { ...payload, jti: "stolen-jti" }), false);
+  assert.equal(pairing.isDeviceSessionAuthorizedForToken(active, { ...payload, device_id: "other-device" }), false);
+});
+
+test("pairing start requires a valid P-256 public key primitive", () => {
+  assert.equal(pairing.importDevicePublicKey(""), null);
+  assert.equal(pairing.importDevicePublicKey(Buffer.from("not-a-public-key").toString("base64")), null);
+});
+
 test("device proof-of-possession accepts the session key and rejects a different key", () => {
   const key = crypto.generateKeyPairSync("ec", { namedCurve: "prime256v1" });
   const wrongKey = crypto.generateKeyPairSync("ec", { namedCurve: "prime256v1" });
