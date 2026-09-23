@@ -9,6 +9,10 @@ const client = readFileSync(
   new URL("../apps/local-manager-windows/DeviceLinkClient.cs", import.meta.url),
   "utf8",
 );
+const deviceProofCrypto = readFileSync(
+  new URL("../apps/local-manager-windows/DeviceProofCrypto.cs", import.meta.url),
+  "utf8",
+);
 
 assert.match(program, /private readonly DeviceLinkClient _deviceLinkClient = new\(BaseUrl\);/);
 assert.match(program, /_deviceLinkClient\.StartAsync\(/);
@@ -29,6 +33,10 @@ assert.match(client, /ECDsa\.Create\(ECCurve\.NamedCurves\.nistP256\)/);
 assert.match(client, /device_public_key = publicKey/);
 assert.match(client, /device_proof_challenge = deviceProofChallenge/);
 assert.match(client, /device_proof = proof/);
+assert.match(client, /DeviceProofCrypto\.BuildCanonical/);
+assert.match(client, /DeviceProofCrypto\.SignDerBase64/);
+assert.match(deviceProofCrypto, /DSASignatureFormat\.Rfc3279DerSequence/);
+assert.match(deviceProofCrypto, /mad4b\.local-manager\.device-proof\.v1/);
 assert.match(client, /internal async Task<DeviceLinkHttpResult<JsonElement>> GetSessionAsync/);
 assert.match(client, /new AuthenticationHeaderValue\("Bearer", deviceAccessToken\)/);
 assert.match(client, /Preserve the raw response so the recovery shell can display it/);
