@@ -494,6 +494,24 @@
       "secrets_included": false
     },
     {
+      "config_key": "local.manager.jwt.issuer",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "identity-platform",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/.env.staging.example",
+      "resolver_ref": "http-generic-api/services/localManagerDeviceLinkService.js",
+      "readback_ref": "http-generic-api/test-connect-routes.mjs",
+      "shadow_evidence_ref": "docs/governance/configuration-drift-policy.json",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
       "config_key": "max.attestation.ttl.seconds",
       "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
       "owner": "platform-runtime",
@@ -1488,5 +1506,5 @@
     "production_activation_allowed": false
   },
   "$schema": "../../.specify/schemas/platform-configuration-entry-registry.schema.json",
-  "entry_count": 54
+  "entry_count": 84
 }

@@ -383,7 +383,7 @@ internal static class Program
                     "windows",
                     Application.ProductVersion);
                 var start = response.Payload;
-                if (!response.IsSuccessStatusCode || start?.Ok != true || string.IsNullOrWhiteSpace(start.UserCode) || string.IsNullOrWhiteSpace(start.PollToken))
+                if (!response.IsSuccessStatusCode || start?.Ok != true || string.IsNullOrWhiteSpace(start.UserCode) || string.IsNullOrWhiteSpace(start.PollToken) || string.IsNullOrWhiteSpace(start.SessionId) || string.IsNullOrWhiteSpace(start.DeviceProofChallenge))
                 {
                     var retryAfter = response.RetryAfterSeconds;
                     _status.Text = (int)response.StatusCode == 429
@@ -407,7 +407,7 @@ internal static class Program
                 var approvalUrl = start.VerificationUriComplete ?? start.VerificationUri ?? (BaseUrl + "/app/local-manager/link-device");
                 approvalUrl += approvalUrl.Contains('?') ? "&mode=" + Uri.EscapeDataString(mode) : "?mode=" + Uri.EscapeDataString(mode);
                 OpenUrl(approvalUrl);
-                await PollDeviceLinkAsync(start.UserCode, start.PollToken, Math.Max(2, start.Interval));
+                await PollDeviceLinkAsync(start.UserCode, start.PollToken, start.SessionId, start.DeviceProofChallenge, Math.Max(2, start.Interval));
             }
             catch (Exception ex)
             {
@@ -415,7 +415,7 @@ internal static class Program
             }
         }
 
-        private async Task PollDeviceLinkAsync(string code, string pollToken, int intervalSeconds)
+        private async Task PollDeviceLinkAsync(string code, string pollToken, string sessionId, string deviceProofChallenge, int intervalSeconds)
         {
             var started = DateTimeOffset.UtcNow;
             while (DateTimeOffset.UtcNow - started < TimeSpan.FromMinutes(10))
@@ -423,7 +423,7 @@ internal static class Program
                 await Task.Delay(TimeSpan.FromSeconds(intervalSeconds));
                 _status.Text = "Waiting for approval in browser…";
                 _progress.Value = Math.Min(90, _progress.Value + 5);
-                var response = await _deviceLinkClient.PollAsync(code, pollToken);
+                var response = await _deviceLinkClient.PollAsync(code, pollToken, sessionId, deviceProofChallenge);
                 var poll = response.Payload;
                 if ((int)response.StatusCode == 202 || string.Equals(poll?.Status, "pending", StringComparison.OrdinalIgnoreCase)) continue;
                 if (response.IsSuccessStatusCode && poll?.Ok == true && !string.IsNullOrWhiteSpace(poll.DeviceAccessToken))
@@ -1646,7 +1646,10 @@ internal static class Program
             try
             {
                 using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-                using var req = new HttpRequestMessage(HttpMethod.Get, DesktopCommandsUrl + "/pending?limit=5");
+                using var req = new HttpRequestMessage(HttpMethod.Post, DesktopCommandsUrl + "/claim?limit=5")
+                {
+                    Content = JsonContent(new { })
+                };
                 req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
                 req.Headers.Accept.ParseAdd("application/json");
                 using var response = await client.SendAsync(req);
@@ -1657,8 +1660,7 @@ internal static class Program
                     {
                         var failure = AutopilotNetworkRecovery.ClassifyHttp(response.StatusCode, text);
                         RegisterDesktopCommandPollFailure(
-                            failure.Message,
-                            failure.Diagnostic,
+                            failure,
                             response.StatusCode == System.Net.HttpStatusCode.TooManyRequests ? RetryAfterSeconds(response, 120) : null);
                     }
                     return;
@@ -1672,14 +1674,34 @@ internal static class Program
             catch (Exception ex)
             {
                 var failure = await AutopilotNetworkRecovery.ClassifyAsync(BaseUrl, ex);
-                RegisterDesktopCommandPollFailure(failure.Message, failure.Diagnostic);
+                RegisterDesktopCommandPollFailure(failure);
             }
             finally
             {
                 _desktopCommandPollRunning = false;
             }
         }
-        private void RegisterDesktopCommandPollFailure(string message, string? diagnostic = null, int? serverRetryAfterSeconds = null)
+        private void RegisterDesktopCommandPollFailure(AutopilotFailure failure, int? headerRetryAfterSeconds = null)
+        {
+            var effectiveRetryAfter = failure.RetryAfterSeconds ?? headerRetryAfterSeconds;
+            RegisterDesktopCommandPollFailure(
+                failure.Message,
+                failure.Diagnostic,
+                effectiveRetryAfter,
+                failure.Code,
+                failure.RequestId,
+                failure.Retryable,
+                failure.Surface);
+        }
+
+        private void RegisterDesktopCommandPollFailure(
+            string message,
+            string? diagnostic = null,
+            int? serverRetryAfterSeconds = null,
+            string? errorCode = null,
+            string? requestId = null,
+            bool? retryable = null,
+            string? surface = null)
         {
             _desktopCommandPollFailureCount += 1;
             var localBackoffSeconds = _desktopCommandPollFailureCount switch
@@ -1706,6 +1728,14 @@ internal static class Program
                     backoff_seconds = backoffSeconds,
                     message,
                     diagnostic,
+                    error = new
+                    {
+                        code = errorCode,
+                        requestId,
+                        retryable,
+                        retry_after = serverRetryAfterSeconds,
+                        surface
+                    },
                     token_plaintext_shown = false,
                     secrets_included = false
                 }, _json);
@@ -1729,17 +1759,33 @@ internal static class Program
         private async Task ExecuteDesktopCommandAsync(HttpClient client, string token, JsonElement command)
         {
             var commandId = JsonValue(command, "command_id");
+            var claimToken = JsonValue(command, "claim_token");
             var action = JsonValue(command, "action");
             command.TryGetProperty("payload", out var payload);
+            if (string.IsNullOrWhiteSpace(commandId) || string.IsNullOrWhiteSpace(claimToken))
+            {
+                _status.Text = "Desktop command skipped because claim ownership proof is missing.";
+                return;
+            }
+            using var claimLeaseCancellation = new CancellationTokenSource();
+            var claimLeaseHeartbeat = HeartbeatDesktopCommandLeaseAsync(client, token, commandId, claimToken, claimLeaseCancellation.Token);
             try
             {
+                if (JsonBool(command, "requires_user_confirmation", false) && !ConfirmDesktopCommandExecution(action))
+                {
+                    await CompleteDesktopCommandAsync(client, token, commandId, claimToken, false,
+                        new { action, handled_by = "local_manager_windows", visible_desktop = true, user_confirmation = "declined", secrets_included = false },
+                        "user_confirmation_declined",
+                        "The user declined this desktop command.");
+                    return;
+                }
                 if (string.Equals(action, "open_url", StringComparison.OrdinalIgnoreCase))
                 {
                     var url = JsonValue(payload, "url");
                     if (string.IsNullOrWhiteSpace(url)) throw new InvalidOperationException("open_url command is missing url.");
                     OpenUrl(url);
                     _status.Text = "Desktop command opened URL.";
-                    await CompleteDesktopCommandAsync(client, token, commandId, true, new { action, opened_url = url, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false });
+                    await CompleteDesktopCommandAsync(client, token, commandId, claimToken, true, new { action, opened_url = url, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false });
                     return;
                 }
                 if (string.Equals(action, "open_n8n", StringComparison.OrdinalIgnoreCase))
@@ -1748,7 +1794,7 @@ internal static class Program
                     var url = string.IsNullOrWhiteSpace(profile.PublicUrl) ? profile.LocalUrl : profile.PublicUrl;
                     OpenUrl(url);
                     _status.Text = "Desktop command opened n8n.";
-                    await CompleteDesktopCommandAsync(client, token, commandId, true, new { action, opened_url = url, system_id = profile.SystemId, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false });
+                    await CompleteDesktopCommandAsync(client, token, commandId, claimToken, true, new { action, opened_url = url, system_id = profile.SystemId, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false });
                     return;
                 }
                 if (string.Equals(action, "notify", StringComparison.OrdinalIgnoreCase))
@@ -1756,7 +1802,7 @@ internal static class Program
                     var title = JsonValue(payload, "title", "Mad4B");
                     var message = JsonValue(payload, "message", "");
                     ShowTopMostMessage(title, message);
-                    await CompleteDesktopCommandAsync(client, token, commandId, true, new { action, shown = true, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false });
+                    await CompleteDesktopCommandAsync(client, token, commandId, claimToken, true, new { action, shown = true, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false });
                     return;
                 }
                 if (string.Equals(action, "repair_connector", StringComparison.OrdinalIgnoreCase))
@@ -1768,7 +1814,7 @@ internal static class Program
                     var repairStatus = _status.Text ?? "";
                     var repairStage = ClassifyRepairOutcome(repairStatus);
                     var repairVerified = string.Equals(repairStage, "verification_completed", StringComparison.Ordinal);
-                    await CompleteDesktopCommandAsync(client, token, commandId, repairVerified, new
+                    await CompleteDesktopCommandAsync(client, token, commandId, claimToken, repairVerified, new
                     {
                         action,
                         source = "local_manager_windows",
@@ -1788,28 +1834,33 @@ internal static class Program
                     if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
                     Show();
                     Activate();
-                    await CompleteDesktopCommandAsync(client, token, commandId, true, new { action, focused = true, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false });
+                    await CompleteDesktopCommandAsync(client, token, commandId, claimToken, true, new { action, focused = true, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false });
                     return;
                 }
                 if (string.Equals(action, "capture_chatgpt_current_url", StringComparison.OrdinalIgnoreCase))
                 {
-                    await CaptureChatGptCurrentUrlCommandAsync(client, token, commandId, payload);
+                    await CaptureChatGptCurrentUrlCommandAsync(client, token, commandId, claimToken, payload);
                     return;
                 }
                 if (string.Equals(action, "codex_exec_readonly", StringComparison.OrdinalIgnoreCase))
                 {
-                    await ExecuteCodexReadOnlyCommandAsync(client, token, commandId, payload);
+                    await ExecuteCodexReadOnlyCommandAsync(client, token, commandId, claimToken, payload);
                     return;
                 }
                 throw new NotSupportedException("Unsupported desktop action: " + action);
             }
             catch (Exception ex)
             {
-                await CompleteDesktopCommandAsync(client, token, commandId, false, new { action, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false }, "desktop_action_failed", ex.Message);
+                await CompleteDesktopCommandAsync(client, token, commandId, claimToken, false, new { action, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false }, "desktop_action_failed", ex.Message);
+            }
+            finally
+            {
+                claimLeaseCancellation.Cancel();
+                try { await claimLeaseHeartbeat; } catch (OperationCanceledException) { }
             }
         }
 
-        private async Task CaptureChatGptCurrentUrlCommandAsync(HttpClient client, string token, string commandId, JsonElement payload)
+        private async Task CaptureChatGptCurrentUrlCommandAsync(HttpClient client, string token, string commandId, string claimToken, JsonElement payload)
         {
             var action = "capture_chatgpt_current_url";
             var sessionId = JsonValue(payload, "session_id");
@@ -1821,7 +1872,7 @@ internal static class Program
             var currentUrl = PromptForChatGptUrl(initialUrl);
             if (string.IsNullOrWhiteSpace(currentUrl)) throw new InvalidOperationException("No ChatGPT conversation URL was captured.");
             if (!LooksLikeChatGptConversationUrl(currentUrl)) throw new InvalidOperationException("Captured URL must be a chatgpt.com conversation or share URL.");
-            await CompleteDesktopCommandAsync(client, token, commandId, true, new
+            await CompleteDesktopCommandAsync(client, token, commandId, claimToken, true, new
             {
                 action,
                 current_url = currentUrl,
@@ -1841,8 +1892,10 @@ internal static class Program
         {
             if (string.IsNullOrWhiteSpace(value)) return false;
             if (!Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri)) return false;
-            if (!string.Equals(uri.Scheme, "https", StringComparison.OrdinalIgnoreCase) && !string.Equals(uri.Scheme, "http", StringComparison.OrdinalIgnoreCase)) return false;
-            if (!uri.Host.EndsWith("chatgpt.com", StringComparison.OrdinalIgnoreCase)) return false;
+            if (!string.Equals(uri.Scheme, "https", StringComparison.OrdinalIgnoreCase)) return false;
+            var host = uri.Host.TrimEnd('.');
+            if (!string.Equals(host, "chatgpt.com", StringComparison.OrdinalIgnoreCase)
+                && !host.EndsWith(".chatgpt.com", StringComparison.OrdinalIgnoreCase)) return false;
             var path = uri.AbsolutePath;
             return path.StartsWith("/share/", StringComparison.OrdinalIgnoreCase)
                 || path.Contains("/c/", StringComparison.OrdinalIgnoreCase)
@@ -1881,7 +1934,7 @@ internal static class Program
             return form.ShowDialog() == DialogResult.OK ? input.Text.Trim() : "";
         }
 
-        private async Task ExecuteCodexReadOnlyCommandAsync(HttpClient client, string token, string commandId, JsonElement payload)
+        private async Task ExecuteCodexReadOnlyCommandAsync(HttpClient client, string token, string commandId, string claimToken, JsonElement payload)
         {
             var action = "codex_exec_readonly";
             var commandPath = JsonValue(payload, "command_path", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "npm", "codex.cmd"));
@@ -1942,7 +1995,7 @@ internal static class Program
             var safeLastMessage = TailText(RedactLocalCommandOutput(lastMessage), outputMaxChars);
             _status.Text = ok ? "Codex read-only analysis completed." : "Codex read-only analysis failed.";
             _output.Text = JsonSerializer.Serialize(new { ok, exit_code = exitCode, duration_ms = durationMs, output_path = outputPath, last_message_path = lastMessagePath, secrets_included = false }, _json);
-            await CompleteDesktopCommandAsync(client, token, commandId, ok, new
+            await CompleteDesktopCommandAsync(client, token, commandId, claimToken, ok, new
             {
                 action,
                 handled_by = "local_manager_windows",
@@ -1964,8 +2017,76 @@ internal static class Program
             }, ok ? null : "codex_exec_readonly_failed", ok ? null : (completed ? "Codex exited with code " + exitCode : "Codex timed out."));
         }
 
-        private async Task CompleteDesktopCommandAsync(HttpClient client, string token, string commandId, bool ok, object result, string? errorCode = null, string? errorMessage = null) { if (string.IsNullOrWhiteSpace(commandId)) return; using var req = new HttpRequestMessage(HttpMethod.Post, DesktopCommandsUrl + "/" + Uri.EscapeDataString(commandId) + "/complete") { Content = JsonContent(new { status = ok ? "completed" : "failed", result, error_code = errorCode, error_message = errorMessage }) }; req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token); req.Headers.Accept.ParseAdd("application/json"); using var response = await client.SendAsync(req); }
+        private bool ConfirmDesktopCommandExecution(string action)
+        {
+            if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
+            Show();
+            Activate();
+            var result = MessageBox.Show(
+                this,
+                $"Mad4B requested desktop action '{action}'. Approve this action?",
+                "Confirm desktop command",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning,
+                MessageBoxDefaultButton.Button2);
+            return result == DialogResult.Yes;
+        }
+
+        private async Task HeartbeatDesktopCommandLeaseAsync(HttpClient client, string token, string commandId, string claimToken, CancellationToken cancellationToken)
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+
+                using var req = new HttpRequestMessage(HttpMethod.Post, DesktopCommandsUrl + "/" + Uri.EscapeDataString(commandId) + "/heartbeat")
+                {
+                    Content = JsonContent(new { claim_token = claimToken })
+                };
+                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                req.Headers.Accept.ParseAdd("application/json");
+                try
+                {
+                    using var response = await client.SendAsync(req, cancellationToken);
+                    if (response.StatusCode is System.Net.HttpStatusCode.Conflict
+                        or System.Net.HttpStatusCode.BadRequest
+                        or System.Net.HttpStatusCode.Unauthorized
+                        or System.Net.HttpStatusCode.Forbidden)
+                    {
+                        return;
+                    }
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    return;
+                }
+                catch
+                {
+                    // A transient heartbeat failure does not expose response bodies or claim tokens.
+                    // The server-side lease still fails closed if ownership expires before completion.
+                }
+            }
+        }
+
+        private async Task CompleteDesktopCommandAsync(HttpClient client, string token, string commandId, string claimToken, bool ok, object result, string? errorCode = null, string? errorMessage = null)
+        {
+            if (string.IsNullOrWhiteSpace(commandId) || string.IsNullOrWhiteSpace(claimToken)) return;
+            using var req = new HttpRequestMessage(HttpMethod.Post, DesktopCommandsUrl + "/" + Uri.EscapeDataString(commandId) + "/complete")
+            {
+                Content = JsonContent(new { claim_token = claimToken, status = ok ? "completed" : "failed", result, error_code = errorCode, error_message = errorMessage })
+            };
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            req.Headers.Accept.ParseAdd("application/json");
+            using var response = await client.SendAsync(req);
+        }
         private static string JsonValue(JsonElement element, string name, string fallback = "") { if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(name, out var value) || value.ValueKind == JsonValueKind.Null) return fallback; var text = value.ValueKind == JsonValueKind.String ? value.GetString() : value.ToString(); return string.IsNullOrWhiteSpace(text) ? fallback : text!; }
+        private static bool JsonBool(JsonElement element, string name, bool fallback) { if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(name, out var value)) return fallback; if (value.ValueKind == JsonValueKind.True) return true; if (value.ValueKind == JsonValueKind.False) return false; return bool.TryParse(value.ToString(), out var parsed) ? parsed : fallback; }
         private static int JsonInt(JsonElement element, string name, int fallback) { if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(name, out var value)) return fallback; return value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var number) ? number : (int.TryParse(value.ToString(), out var parsed) ? parsed : fallback); }
         private static string RedactLocalCommandOutput(string value) => Regex.Replace(value ?? "", @"(?i)(access[_-]?token|refresh[_-]?token|id[_-]?token|api[_-]?key|secret|authorization|bearer|password)\s*[:=]\s*\S+", "$1=[redacted]");
         private static string TailText(string value, int maxChars) { var text = value ?? ""; if (text.Length <= maxChars) return text; return "...[truncated]\n" + text.Substring(text.Length - maxChars); }

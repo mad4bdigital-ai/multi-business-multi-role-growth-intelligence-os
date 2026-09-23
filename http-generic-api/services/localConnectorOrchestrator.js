@@ -6,6 +6,7 @@ const PLATFORM_TENANT_ID = "00000000-0000-4000-a000-000000000001";
 const PLATFORM_ADMIN_USER_ID = "00000000-0000-4000-a000-000000000002";
 const CONNECTOR_TIMEOUT_MS = 35_000;
 const CONNECTOR_RESPONSE_EXCERPT_MAX_CHARS = 768;
+const preferredCredentialSourceByConfig = new Map();
 
 function createLocalActionId() {
   return `local_action_${crypto.randomUUID().replace(/-/g, "")}`;
@@ -42,8 +43,27 @@ function localConnectorError(code, message, httpStatus = 500, details = {}) {
   return error;
 }
 
+export function connectorAuthTokens(config) {
+  return [...new Set([
+    config?.connector_secret,
+    config?.connector_local_api_key,
+  ].map((value) => String(value || "").trim()).filter(Boolean))];
+}
+
+function connectorCredentialCandidates(config) {
+  const candidates = [
+    { source: "connector_secret", token: String(config?.connector_secret || "").trim() },
+    { source: "connector_local_api_key", token: String(config?.connector_local_api_key || "").trim() },
+  ].filter((candidate) => candidate.token);
+  const deduplicated = candidates.filter((candidate, index) => candidates.findIndex((entry) => entry.token === candidate.token) === index);
+  const configKey = String(config?.config_id || config?.device_id || "").trim();
+  const preferredSource = configKey ? preferredCredentialSourceByConfig.get(configKey) : null;
+  if (preferredSource) deduplicated.sort((left, right) => Number(right.source === preferredSource) - Number(left.source === preferredSource));
+  return { candidates: deduplicated, configKey };
+}
+
 function connectorAuthToken(config) {
-  const token = String(config?.connector_secret || "").trim();
+  const token = connectorAuthTokens(config)[0] || "";
   if (!token) {
     throw localConnectorError(
       "connector_credential_missing",
@@ -53,6 +73,49 @@ function connectorAuthToken(config) {
     );
   }
   return token;
+}
+
+export async function fetchLocalConnectorWithCredentialFallback({
+  config,
+  url,
+  method = "POST",
+  body = null,
+  operation = "local_connector_call",
+  fetchImpl = fetch,
+} = {}) {
+  const { candidates, configKey } = connectorCredentialCandidates(config);
+  if (!candidates.length) connectorAuthToken(config);
+  let lastError = null;
+  for (let index = 0; index < candidates.length; index += 1) {
+    try {
+      const response = await fetchImpl(url, {
+        method,
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${candidates[index].token}` },
+        ...(body === null ? {} : { body }),
+        signal: AbortSignal.timeout(CONNECTOR_TIMEOUT_MS),
+      });
+      const payload = await readLocalConnectorResponse(response, { operation });
+      if (configKey) preferredCredentialSourceByConfig.set(configKey, candidates[index].source);
+      return {
+        ...payload,
+        credential_fallback_used: index > 0,
+        credential_attempt_count: index + 1,
+        credential_source: candidates[index].source,
+      };
+    } catch (error) {
+      lastError = error;
+      const credentialRejected = error?.code === "connector_credential_invalid" || Number(error?.http_status || error?.status) === 401;
+      if (!credentialRejected || index === candidates.length - 1) {
+        if (error?.details) {
+          error.details.credential_fallback_used = index > 0;
+          error.details.credential_attempt_count = index + 1;
+          error.details.secrets_included = false;
+        }
+        throw error;
+      }
+    }
+  }
+  throw lastError;
 }
 
 function responseHeader(response, name) {
@@ -321,14 +384,12 @@ async function executeGovernedShellCommand(args) {
 
     const runtimeUrl = connectorRuntimeUrl(userConfig.config);
     if (!runtimeUrl) throw new Error("Local connector runtime URL is not configured for this user/device.");
-    const token = connectorAuthToken(userConfig.config);
-    const response = await fetch(`${runtimeUrl}/shell`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    output = await fetchLocalConnectorWithCredentialFallback({
+      config: userConfig.config,
+      url: `${runtimeUrl}/shell`,
       body: JSON.stringify({ action: "run", alias, extra_args: extraArgs }),
-      signal: AbortSignal.timeout(CONNECTOR_TIMEOUT_MS),
+      operation: `shell:${alias}`,
     });
-    output = await readLocalConnectorResponse(response, { operation: `shell:${alias}` });
     status = "completed";
   } catch (caught) {
     error = normalizeLocalConnectorError(caught, "local_command_execution_failed");
@@ -386,14 +447,12 @@ async function readGovernedLocalFile(args) {
 
     const runtimeUrl = connectorRuntimeUrl(userConfig.config);
     if (!runtimeUrl) throw new Error("Local connector runtime URL is not configured for this user/device.");
-    const token = connectorAuthToken(userConfig.config);
-    const response = await fetch(`${runtimeUrl}/files`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    const raw = await fetchLocalConnectorWithCredentialFallback({
+      config: userConfig.config,
+      url: `${runtimeUrl}/files`,
       body: JSON.stringify({ action: "read", path }),
-      signal: AbortSignal.timeout(CONNECTOR_TIMEOUT_MS),
+      operation: "file:read",
     });
-    const raw = await readLocalConnectorResponse(response, { operation: "file:read" });
     content = raw.content;
     status = "completed";
   } catch (caught) {
@@ -452,14 +511,12 @@ async function writeGovernedLocalFile(args) {
 
     const runtimeUrl = connectorRuntimeUrl(userConfig.config);
     if (!runtimeUrl) throw new Error("Local connector runtime URL is not configured for this user/device.");
-    const token = connectorAuthToken(userConfig.config);
-    const response = await fetch(`${runtimeUrl}/files`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    result = await fetchLocalConnectorWithCredentialFallback({
+      config: userConfig.config,
+      url: `${runtimeUrl}/files`,
       body: JSON.stringify({ action: "write", path, content }),
-      signal: AbortSignal.timeout(CONNECTOR_TIMEOUT_MS),
+      operation: "file:write",
     });
-    result = await readLocalConnectorResponse(response, { operation: "file:write" });
     status = "completed";
   } catch (caught) {
     error = normalizeLocalConnectorError(caught, "local_file_write_failed");

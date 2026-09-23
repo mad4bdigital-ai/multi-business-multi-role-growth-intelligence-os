@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+
 const source = readFileSync('routes/localManagerDesktopCommandRoutes.js', 'utf8');
-assert(source.includes('ALL_ZERO_TENANT_ID'));
-assert(source.includes('function isWildcardTenantId'));
+
+assert(!source.includes('ALL_ZERO_TENANT_ID'));
+assert(!source.includes('function isWildcardTenantId'));
+const zeroScopeSentinel = ['00000000', '0000', '0000', '0000', '000000000000'].join('-');
+assert(!source.includes(zeroScopeSentinel));
 assert(source.includes('async function resolveEffectiveDesktopCommandTarget'));
 assert(source.includes('loadActiveDeviceAliasRows'));
 assert(source.includes('local_connector_device_aliases'));
@@ -22,8 +26,10 @@ assert(source.includes('identity_resolution_source'));
 assert(source.includes('identity_resolution_status'));
 assert(source.includes('target.tenant_id') && source.includes('target.device_id'));
 assert(source.includes('identity_resolution: target.request_context?.desktop_identity_resolution'));
-assert(source.includes('OR tenant_id = ?') && source.includes('ALL_ZERO_TENANT_ID'));
-assert(source.includes('AND (user_id = ? OR user_id IS NULL)'));
+assert(source.includes('AND ((? IS NULL AND tenant_id IS NULL) OR tenant_id = ?)'));
+assert(source.includes('AND user_id = ?'));
+assert(!source.includes('user_id IS NULL'));
 assert(!source.includes('identity_resolution_source: "essam"'));
 assert(!source.includes('00000000-0000-4000-a000-000000000001'));
+
 console.log('local manager desktop identity resolution tests passed');

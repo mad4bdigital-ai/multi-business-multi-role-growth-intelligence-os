@@ -59,6 +59,15 @@ assert.match(workflow, /canonical-producer-evidence\.json/u);
 assert.match(workflow, /id: fixed_point[\s\S]*continue-on-error: true/u);
 assert.match(workflow, /set \+e[\s\S]*repository-governance-fixed-point\.mjs[\s\S]*fixed_point_status=\$\?/u);
 assert.match(workflow, /test -f "\$OUT\/repository-governance\.json"/u);
+assert.match(
+  workflow,
+  /set \+e[\s\S]*environment-impact-closure\.mjs[\s\S]*environment_impact_status=\$\?[\s\S]*derived-state-closure\.mjs[\s\S]*derived_state_status=\$\?[\s\S]*test -f "\$OUT\/report\.json"/u,
+  "Derived State Closure must emit canonical repair evidence before failing on non-convergence",
+);
+assert.ok(
+  workflow.indexOf('test -f "$OUT/report.json"') < workflow.indexOf("if (environmentStatus !== 0 || derivedStatus !== 0) process.exit(1);"),
+  "Canonical derived-state report must exist before the closure step returns its blocking status",
+);
 assert.match(workflow, /steps\.target\.outputs\.pr_number != '0' && steps\.fixed_point\.outcome == 'success'/u);
 assert.match(workflow, /FIXED_POINT_OUTCOME: \$\{\{ steps\.fixed_point\.outcome \}\}/u);
 assert.match(workflow, /if \[\[ "\$PR_NUMBER" != "0" && "\$FIXED_POINT_OUTCOME" == "success" \]\]/u);

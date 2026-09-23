@@ -72,6 +72,7 @@
     "draft_pr_automerge_forbidden": true,
     "automation_control_surface_changes_require_manual_merge": true,
     "automation_control_paths": [
+      ".changes/e2e/auth-connector-control-plane-convergence-20260922.json",
       ".changes/e2e/certified-release-cut-production-classifier-adapter.json",
       ".changes/e2e/ci-pull-request-recovery-exact-checkout-provenance.json",
       ".changes/e2e/collation-governance-runtime-persistence-wiring.json",
@@ -266,6 +267,7 @@
       ".github/tests/repository-governance-fixed-point.test.mjs",
       ".github/tests/repository-governance-objection-gate.test.mjs",
       ".github/workflows/automation-overlap-guard.yml",
+      ".github/workflows/branch-test-diagnostic-shards.yml",
       ".github/workflows/brand-skill-mariadb-certification.yml",
       ".github/workflows/ci-pull-request-recovery.yml",
       ".github/workflows/ci.yml",

@@ -1,0 +1,44 @@
+{
+  "surface_key": "local_manager_device_link_sessions",
+  "display_name": "Local Manager Linked Devices",
+  "description": "Tenant- and user-scoped Local Manager device-link lifecycle projection for pairing, linked-device readiness, revocation status, and expiry readback.",
+  "source_table": "local_manager_device_link_sessions",
+  "covered_source_tables": [
+    "local_manager_device_link_sessions"
+  ],
+  "result_key_column": "session_id",
+  "result_label_column": "device_id",
+  "tenant_column": "tenant_id",
+  "user_column": "user_id",
+  "status_column": "status",
+  "active_status_values": [
+    "pending",
+    "approved",
+    "completed",
+    "expired",
+    "revoked"
+  ],
+  "result_columns": [
+    "session_id",
+    "tenant_id",
+    "user_id",
+    "device_id",
+    "hostname",
+    "platform",
+    "app_version",
+    "status",
+    "approved_at",
+    "completed_at",
+    "revoked_at",
+    "revoked_by_user_id",
+    "expires_at",
+    "created_at",
+    "updated_at"
+  ],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 50,
+  "sort_order": 285,
+  "status": "active",
+  "notes": "Read-only activation projection. Pairing codes, code hashes, poll-token hashes, device-token identifiers, metadata_json, and all credential-bearing fields are excluded. This surface grants no pairing approval, token issuance, revocation, schema, provider, or database mutation authority."
+}

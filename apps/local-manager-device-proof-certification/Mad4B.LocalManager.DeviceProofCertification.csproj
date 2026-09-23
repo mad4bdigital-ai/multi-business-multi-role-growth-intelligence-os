@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Mad4B.LocalManager.Windows</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\local-manager-windows\DeviceProofCrypto.cs" Link="DeviceProofCrypto.cs" />
+  </ItemGroup>
+</Project>

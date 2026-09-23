@@ -256,6 +256,9 @@ function fakeConnection({ tableCount = 7, objectCounts = {}, missingTables = [],
     "capability_resolution_envelope_ledger",
     "governed_tool_response_chunks",
     "platform_runtime_config",
+    ...(contract.baseline_bundle?.required_runtime_tables || []),
+    ...(contract.baseline_bundle?.required_governance_tables || []),
+    ...(contract.baseline_bundle?.required_runtime_persistence_tables || []),
     ...Object.values(contract.grant_policy.role_policies || {}).flatMap((policy) => policy.required_tables || []),
   ]);
   const currentGrantRows = grantRows(grantDatabase, grantRole);

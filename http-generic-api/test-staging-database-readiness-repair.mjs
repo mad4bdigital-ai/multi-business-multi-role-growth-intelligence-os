@@ -60,7 +60,20 @@ assert.deepEqual(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_tables, [
   "dynamic_audit_scheduler_runs",
   "execution_log",
   "json_assets",
+  "local_manager_desktop_commands",
+  "local_manager_device_link_sessions",
 ]);
+assert.deepEqual(
+  STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.local_manager_desktop_commands,
+  ["SELECT", "INSERT", "UPDATE"],
+);
+assert.deepEqual(
+  STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.local_manager_device_link_sessions,
+  ["SELECT", "INSERT", "UPDATE"],
+);
+assert.deepEqual(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_operations, ["SELECT", "INSERT", "UPDATE"]);
+assert.equal(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_operations.includes("CREATE"), false);
+assert.equal(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_operations.includes("ALTER"), false);
 assert.equal(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_tables.includes("admin_platform_endpoint_tools"), false);
 assert.equal(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_tables.includes("tenant_platform_endpoint_tools"), false);
 assert.equal(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_tables.includes("sql_cache_runtime_policies"), false);
@@ -78,6 +91,10 @@ assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes("platf
 assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.platform_runtime_config, ["SELECT"]);
 assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.platform_tool_dispatch_bindings, ["SELECT"]);
 assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.workspace_assets, ["SELECT"]);
+for (const desktopIdentityDependency of ["local_connector_device_aliases", "local_connector_user_configs"]) {
+  assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes(desktopIdentityDependency), true);
+  assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table[desktopIdentityDependency], ["SELECT"]);
+}
 assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes("platform_resource_recipes"), false);
 assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes("platform_resource_recipe_steps"), false);
 assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.platform_resource_recipes, undefined);
@@ -169,6 +186,7 @@ assert.deepEqual(roleManifest.canonical_seed_lifecycle.seed_files, [
   "20260815_custom_gpt_mcp_catalog_levels.sql",
   "20260920_platform_admin_workspace_canonical_seed.sql",
   "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
+  "20260922_local_manager_control_templates_registry.sql",
 ]);
 assert.match(platformAdminWorkspaceSeed, /WHERE NOT EXISTS[\s\S]*workspace_id[\s\S]*workspace_key/i);
 assert.doesNotMatch(platformAdminWorkspaceSeed, /ON DUPLICATE KEY UPDATE/i);
@@ -237,6 +255,10 @@ assert.equal(roleManifest.validation.required_role_count, 3);
 assert.equal(roleManifest.validation.missing_required_table_is_blocking, true);
 assert.equal(roleManifest.validation.unexpected_governance_or_persistence_table_is_blocking, true);
 assert.equal(roleManifest.validation.runtime_exclusion_violation_is_blocking, true);
+for (const requiredDesktopSurface of ["local_manager_desktop_commands", "local_manager_device_link_sessions", "local_connector_device_aliases", "local_connector_user_configs"]) {
+  assert.equal(roleManifest.roles.runtime.required_tables.includes(requiredDesktopSurface), true);
+  assert.equal(roleManifest.validation.required_runtime_support_tables.includes(requiredDesktopSurface), true);
+}
 assert.deepEqual(
   [
     ...roleManifest.validation.required_runtime_table_census,

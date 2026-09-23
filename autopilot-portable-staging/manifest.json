@@ -34,7 +34,7 @@
     },
     {
       "path": "autopilot-portable-staging/One-Click-Staging.ps1",
-      "sha256": "99670cb6625ae1c35c2406558d7fd437538067d235934ab267b5cfdd08b36232"
+      "sha256": "913cf5d3ed781df14f89d9fb9bb8842534e9f6a65daf79b3dd40acfb3783240b"
     },
     {
       "path": "autopilot-portable-staging/README.md",
@@ -62,7 +62,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "850af619709912a448997758ba1a660534b81a3449469cb9ebf0f0e61e6d33ac"
+      "sha256": "88047c7038cfec8dfba24da9bf92f4f546764c0e2071b0688d82d6ef33816822"
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
@@ -74,7 +74,7 @@
     },
     {
       "path": "autopilot-portable-staging/auto-deploy-policy.json",
-      "sha256": "6810d6e7ebb83e5982f45433b9ec7248579c9cd675612dd2dcab0e6619d4e117"
+      "sha256": "abeffafbd351a62773b4be5e873ab7771e35a44b1c6cb81133e49fc9216825d0"
     },
     {
       "path": "autopilot-portable-staging/autopilot-one-click-policy.json",
@@ -98,7 +98,7 @@
     },
     {
       "path": "http-generic-api/.env.staging.example",
-      "sha256": "c1dc914607911a37de2f6fc39e01be118bc99fa2ad7ac2c99a770a435b1f8fd4"
+      "sha256": "82d88cf3b6fd719bfb3347d0607a24bfa830455070519f68576e2dec22480486"
     },
     {
       "path": "http-generic-api/Dockerfile",
@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "ce5af077b761d15a91dd6aa02394a89593e0a4896c8313b16abc682d8edc5423"
+      "sha256": "6db88d9bc2713edc76b70d42610793a9d637f31bf888b5578a57f54e7c1b131f"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
@@ -146,11 +146,11 @@
     },
     {
       "path": "http-generic-api/frontend-operation-governance.generated.json",
-      "sha256": "24541f105f4dd0bc0d6b30b07f71f6dec8f0d121ce190ee99f59f56335a1d3e5"
+      "sha256": "dea4514032fc7b481b320f871e885ae442ea88a4257f5ce4382835e7fe21e34d"
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "cd18ba80b2cd15b5abb78426a2c33b83df93aa37506bddc6219603b7fa87a2b6"
+      "sha256": "12a5d1ff82a1cfdea2f5da41c436758543c54346f902fe26cb3d1419cb8841e8"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -158,7 +158,7 @@
     },
     {
       "path": "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
-      "sha256": "585d49fd4fe29b423fe5435e3652d7c630a62be53eceed682aa2e990d7149b0a"
+      "sha256": "15116a068540b1e19655ca2d15015129b9eb403ffa578461206b51be1228b760"
     },
     {
       "path": "http-generic-api/openapi/openapi.remote-mcp.staging.yaml",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "d4415dddfce1a7bfad6b465a613c5428795854eb6750fc491299033ea189aea6"
+      "sha256": "0a29731f97a8bab9abc4d997fce16a421300502e84a6446be0d0bd0f040c2c35"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -258,7 +258,7 @@
     },
     {
       "path": "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
-      "sha256": "c949a131673b9c63f4711ace57ec4ac2f279a38b9377b61f692d7dab03ca5256"
+      "sha256": "c4c21637bd726e96ba31081be50e6f156bd0894df56ba3aa3f4abc7f45ac772e"
     },
     {
       "path": "http-generic-api/test-staging-operations-logging-contract.mjs",
@@ -294,7 +294,7 @@
     },
     {
       "path": "http-generic-api/test-staging-auto-deploy-contract.mjs",
-      "sha256": "a70ff64453b3dd836d6b7e030e553f254ea4b1ebd9f9e3a7c2f1d6cf8b658565"
+      "sha256": "d488ccf7c284c9c7e7a55f958635db28a386138c40941b0184afe54d86298e8c"
     },
     {
       "path": "http-generic-api/test-staging-environment-certification-contract.mjs",
@@ -318,7 +318,7 @@
     },
     {
       "path": "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1",
-      "sha256": "ff4a46dcce108b09a3e7233b4787e7b66b2abafc80733774f039041419929ad2"
+      "sha256": "81e47e485fb8da9822bf6bfbadc25023da86e6296c46742208c6c7e2725289ec"
     },
     {
       "path": "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs",
@@ -330,7 +330,7 @@
     },
     {
       "path": "http-generic-api/config/staging-database-role-migration-manifest.json",
-      "sha256": "bdf6cec78cf89724e61cebcd37594d430314d6d748d61ba356d1d2f072703050"
+      "sha256": "c36dda24009d3ae7b775192158222c55ec170989c9a9a66a01943432570a1d70"
     },
     {
       "path": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
@@ -338,7 +338,7 @@
     },
     {
       "path": "autopilot-portable-staging/Staging-Environment.ps1",
-      "sha256": "4f3dff4c8977552d2b03fed6e4acf29b6faaa11872714bf9f9d9d9b43c93e12b"
+      "sha256": "815e8993aecc5d758714321d4c1134a43207b8e1365e71dfc2cca41230946180"
     },
     {
       "path": "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
@@ -370,19 +370,19 @@
     },
     {
       "path": "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml",
-      "sha256": "10f64b6f3bd8d777ceea264a51e5c261ad6e9bfaf3cc7fefe6ef633d6641bdab"
+      "sha256": "c292fa11bf13c6d8e5938dcc662f462ee16e7ff227c427c84d64b0f601660d82"
     },
     {
       "path": "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml",
-      "sha256": "f50d724ae278b470767a14265eed08bf117405cd0f37ef65dd932f6a20ed85bd"
+      "sha256": "05859b97e556838402ab71c2ee61c3ae2648c05ace61dbf7e84db49ff5074a08"
     },
     {
       "path": "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
-      "sha256": "093ca888ec6ea6ca39f7a1fcfecaba6b9ce3d394a481e5d11c46c617e93103ee"
+      "sha256": "97ca2f59e78ffe0a35a957b643adc09ccce5a21fafa2c9eb104a7878d722f322"
     },
     {
       "path": "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml",
-      "sha256": "1c4783ce9d05cec8cdd48bf05b07be9384a43c51f45552ffe9b21f2347dff105"
+      "sha256": "593b1d773cef60def9a61b6a0914ba90903af3a73fced797a4edf9d9d681c966"
     },
     {
       "path": "autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1",

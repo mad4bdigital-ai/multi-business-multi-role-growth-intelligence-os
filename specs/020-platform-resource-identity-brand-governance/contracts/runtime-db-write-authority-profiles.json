@@ -46,28 +46,47 @@
     {
       "profile_key": "runtime_inventory_writer",
       "purpose": "Bounded inventory, action, endpoint, and synchronization lifecycle writes.",
-      "environment_keys": ["staging", "production"],
+      "environment_keys": [
+        "staging",
+        "production"
+      ],
       "status": "prepared-only",
       "identity_env_prefix": "RUNTIME_INVENTORY_DB_",
       "bindings": [
         {
           "table_name": "actions",
-          "allowed_operations": ["SELECT", "INSERT", "UPDATE"],
+          "allowed_operations": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
           "requires_same_cycle_readback": true
         },
         {
           "table_name": "endpoints",
-          "allowed_operations": ["SELECT", "INSERT", "UPDATE"],
+          "allowed_operations": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
           "requires_same_cycle_readback": true
         },
         {
           "table_name": "dynamic_audit_scheduler_runs",
-          "allowed_operations": ["SELECT", "INSERT", "UPDATE"],
+          "allowed_operations": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
           "requires_same_cycle_readback": true
         },
         {
           "table_name": "openapi_endpoint_inventory_sync_runs",
-          "allowed_operations": ["SELECT", "INSERT", "UPDATE"],
+          "allowed_operations": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
           "requires_same_cycle_readback": true
         }
       ]
@@ -75,18 +94,29 @@
     {
       "profile_key": "session_continuity_writer",
       "purpose": "Session row and bounded turn lifecycle persistence only.",
-      "environment_keys": ["staging", "production"],
+      "environment_keys": [
+        "staging",
+        "production"
+      ],
       "status": "prepared-only",
       "identity_env_prefix": "RUNTIME_SESSION_DB_",
       "bindings": [
         {
           "table_name": "customer_sessions",
-          "allowed_operations": ["SELECT", "INSERT", "UPDATE"],
+          "allowed_operations": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
           "requires_same_cycle_readback": true
         },
         {
           "table_name": "gpt_session_turns",
-          "allowed_operations": ["SELECT", "INSERT", "UPDATE"],
+          "allowed_operations": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
           "requires_same_cycle_readback": true
         }
       ]
@@ -94,13 +124,21 @@
     {
       "profile_key": "identity_oauth_writer",
       "purpose": "One-time OAuth authorization-code lifecycle persistence.",
-      "environment_keys": ["staging", "production"],
+      "environment_keys": [
+        "staging",
+        "production"
+      ],
       "status": "prepared-only",
       "identity_env_prefix": "RUNTIME_IDENTITY_DB_",
       "bindings": [
         {
           "table_name": "tenant_gpt_oauth_authorization_codes",
-          "allowed_operations": ["SELECT", "INSERT", "UPDATE", "DELETE"],
+          "allowed_operations": [
+            "SELECT",
+            "INSERT",
+            "UPDATE",
+            "DELETE"
+          ],
           "requires_same_cycle_readback": true,
           "operation_constraints": [
             "atomic_one_time_consumption",
@@ -114,18 +152,29 @@
     {
       "profile_key": "observability_sink_writer",
       "purpose": "Bounded execution and JSON asset observability persistence.",
-      "environment_keys": ["staging", "production"],
+      "environment_keys": [
+        "staging",
+        "production"
+      ],
       "status": "prepared-only",
       "identity_env_prefix": "RUNTIME_OBSERVABILITY_DB_",
       "bindings": [
         {
           "table_name": "execution_log",
-          "allowed_operations": ["SELECT", "INSERT", "UPDATE"],
+          "allowed_operations": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
           "requires_same_cycle_readback": true
         },
         {
           "table_name": "json_assets",
-          "allowed_operations": ["SELECT", "INSERT", "UPDATE"],
+          "allowed_operations": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
           "requires_same_cycle_readback": true
         }
       ]
@@ -133,14 +182,23 @@
     {
       "profile_key": "runtime_chunk_writer",
       "purpose": "Governed tool response chunk persistence and expiry maintenance only.",
-      "environment_keys": ["staging", "production"],
+      "environment_keys": [
+        "staging",
+        "production"
+      ],
       "status": "prepared-only",
       "identity_env_prefix": "RUNTIME_PERSISTENCE_DB_",
       "bindings": [
         {
           "table_name": "governed_tool_response_chunks",
-          "allowed_operations": ["SELECT", "INSERT", "UPDATE"],
-          "maintenance_operations": ["DELETE"],
+          "allowed_operations": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
+          "maintenance_operations": [
+            "DELETE"
+          ],
           "requires_same_cycle_readback": true
         }
       ]
@@ -148,14 +206,74 @@
     {
       "profile_key": "governance_writer",
       "purpose": "Governance authority store lifecycle, isolated from runtime and session writers.",
-      "environment_keys": ["staging", "production"],
+      "environment_keys": [
+        "staging",
+        "production"
+      ],
       "status": "prepared-only",
       "identity_env_prefix": "GOVERNANCE_DB_",
       "bindings": [
         {
           "table_name": "platform_resource_authority_bindings",
-          "allowed_operations": ["SELECT", "INSERT", "UPDATE"],
+          "allowed_operations": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
           "requires_same_cycle_readback": true
+        }
+      ]
+    },
+    {
+      "profile_key": "local_manager_writer",
+      "purpose": "Bounded Local Manager connector-alias reconciliation and explicit tenant n8n provisioning.",
+      "environment_keys": [
+        "staging",
+        "production"
+      ],
+      "status": "prepared-only",
+      "identity_env_prefix": "LOCAL_MANAGER_WRITE_DB_",
+      "bindings": [
+        {
+          "table_name": "local_connector_device_aliases",
+          "allowed_operations": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
+          "requires_same_cycle_readback": true,
+          "operation_constraints": [
+            "explicit_user_approved_device_link_only",
+            "exact_user_tenant_canonical_config_scope"
+          ]
+        },
+        {
+          "table_name": "connected_systems",
+          "allowed_operations": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
+          "requires_same_cycle_readback": true,
+          "operation_constraints": [
+            "explicit_n8n_provision_request_only",
+            "provider_family_n8n_only",
+            "exact_user_tenant_device_scope"
+          ]
+        },
+        {
+          "table_name": "installations",
+          "allowed_operations": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
+          "requires_same_cycle_readback": true,
+          "operation_constraints": [
+            "explicit_n8n_provision_request_only",
+            "local_device_scope_only",
+            "exact_user_tenant_device_scope"
+          ]
         }
       ]
     }
@@ -187,4 +305,3 @@
   ],
   "operator_approval_required": true
 }
-

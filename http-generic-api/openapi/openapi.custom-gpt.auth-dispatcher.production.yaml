@@ -2446,7 +2446,7 @@ paths:
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: 814d9f116cbf5551e13f4797a1fd8927af72eafa77746478de438e7dd5339834
+  source_openapi_sha256: 6a8d780fb6cf2f874efde0214e5b9b1cd48d0835582f33fbb4ac8dded308ee92
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
   registry_sha256: 155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9
   domain_family_policy: http-generic-api/config/domain-family-policy.json
@@ -2629,7 +2629,7 @@ x-mad4b-registration-contract:
   environment: production
   source_surface: admin_core
   generation_mode: generated_from_openapi
-  source_openapi_sha256: 814d9f116cbf5551e13f4797a1fd8927af72eafa77746478de438e7dd5339834
+  source_openapi_sha256: 6a8d780fb6cf2f874efde0214e5b9b1cd48d0835582f33fbb4ac8dded308ee92
   source_manifest_sha256: 155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9
   surface_operation_manifest_sha256: 41ea3c3cbdf1ec9b75a423b3b84ec6f77b888893edff08a04c7c9f699b5e3139
   surface_operation_manifest_hash_scope: split_surface_operation_manifest.v1

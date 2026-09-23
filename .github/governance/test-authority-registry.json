@@ -58,6 +58,15 @@
       ]
     },
     {
+      "id": "centralized_user_jwt_authentication",
+      "test_paths": [
+        "http-generic-api/scripts/user-jwt-auth-governance.mjs",
+        "http-generic-api/userJwtAuth.js",
+        "http-generic-api/test-user-jwt-auth.mjs",
+        "http-generic-api/test-activation-awareness-user-jwt-boundary.mjs"
+      ]
+    },
+    {
       "id": "custom_gpt_live_registration_readback",
       "test_paths": [
         "canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -216,12 +225,19 @@
         "http-generic-api/test-connect-routes.mjs",
         "http-generic-api/test-connector-agent-installer-permission-grants.mjs",
         "http-generic-api/test-connector-local-api-key-registry.mjs",
+        "http-generic-api/test-control-plane-convergence-regressions.mjs",
         "http-generic-api/test-db-driven-connector-capability-policy.mjs",
         "http-generic-api/test-local-connector-capability-installer-grants.mjs",
+        "http-generic-api/test-local-connector-composite-health.mjs",
         "http-generic-api/test-local-connector-convergence-inspector.mjs",
         "http-generic-api/test-local-connector-durable-self-healing.mjs",
         "http-generic-api/test-local-connector-installer-capability.mjs",
+        "http-generic-api/test-local-manager-chatgpt-url-capture.mjs",
         "http-generic-api/test-local-manager-cloudflare-origin-classification.mjs",
+        "http-generic-api/test-local-manager-desktop-identity-resolution.mjs",
+        "http-generic-api/test-local-manager-device-link-client.mjs",
+        "http-generic-api/test-local-manager-device-proof-cross-runtime.mjs",
+        "http-generic-api/test-local-manager-pairing-security.mjs",
         "http-generic-api/test-local-manager-repair-connector-command.mjs",
         "http-generic-api/test-local-manager-signed-installer-coordinator.mjs",
         "http-generic-api/test-local-manager-signed-installer-exit-code.mjs",

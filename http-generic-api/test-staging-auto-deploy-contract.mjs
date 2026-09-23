@@ -47,6 +47,7 @@ assert.deepEqual(policy.canonical_seed_lifecycle.seed_files, [
   "20260815_custom_gpt_mcp_catalog_levels.sql",
   "20260920_platform_admin_workspace_canonical_seed.sql",
   "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
+  "20260922_local_manager_control_templates_registry.sql",
 ]);
 assert.equal(policy.canonical_seed_lifecycle.explicit_apply_only, true);
 assert.equal(policy.canonical_seed_lifecycle.readback_required, true);

@@ -46,6 +46,7 @@ jobs:
       contract_path: ${{ steps.parallel.outputs.contract_path }}
       workstream_id: ${{ steps.parallel.outputs.workstream_id }}
       phase_evaluation_base: ${{ steps.parallel.outputs.phase_evaluation_base }}
+      local_manager_mariadb_required: ${{ steps.local_manager_mariadb.outputs.required }}
     steps:
       - name: Checkout exact candidate tree
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -57,6 +58,33 @@ jobs:
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "22"
+
+      - name: Detect Local Manager MariaDB certification scope
+        id: local_manager_mariadb
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || '' }}
+          BASE_REF: ${{ github.base_ref || github.event.merge_group.base_ref || inputs.base_ref || 'main' }}
+        run: |
+          set -euo pipefail
+          comparison_base="${BASE_SHA}"
+          if [[ -z "${comparison_base}" ]]; then
+            git fetch --no-tags origin "${BASE_REF}"
+            comparison_base="$(git merge-base HEAD "origin/${BASE_REF}")"
+          fi
+          mapfile -t changed < <(git diff --name-only "${comparison_base}"...HEAD -- \
+            http-generic-api/migrations/20260922_local_manager_desktop_commands.sql \
+            http-generic-api/activation-surfaces/local_manager_desktop_commands.json \
+            http-generic-api/databasePrivilegeContracts.js \
+            http-generic-api/config/staging-database-role-migration-manifest.json \
+            http-generic-api/routes/localManagerDesktopCommandRoutes.js \
+            http-generic-api/scripts/local-manager-desktop-command-mariadb-certification.mjs \
+            http-generic-api/test-control-plane-convergence-regressions.mjs \
+            http-generic-api/test-staging-database-readiness-repair.mjs)
+          required=false
+          if (( ${#changed[@]} > 0 )); then required=true; fi
+          echo "required=${required}" >> "${GITHUB_OUTPUT}"
+          printf 'Local Manager MariaDB certification required: %s\n' "${required}"
 
       - name: Run governance and evidence self-tests
         run: |
@@ -169,15 +197,17 @@ jobs:
             package-lock.json
             http-generic-api/package-lock.json
 
+      - name: Setup .NET 8 for cross-runtime device proof
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: "8.0.x"
+
       - name: Install repository governance dependencies
         run: npm ci --ignore-scripts --include=dev
 
       - name: Install connector dependencies
         working-directory: http-generic-api
         run: npm ci
-
-      - name: Install repository governance dependencies
-        run: npm ci --ignore-scripts --include=dev
 
       - name: Execute active workstream tests
         if: needs.evaluate.outputs.mode == 'workstream'
@@ -241,10 +271,108 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+
+  local_manager_mariadb_certification:
+    name: Local Manager Desktop Command MariaDB Certification
+    needs: evaluate
+    if: ${{ needs.evaluate.outputs.local_manager_mariadb_required == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      DB_NAME: ${{ format('lm_desktop_cert_{0}', github.run_id) }}
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_DATABASE: ${{ format('lm_desktop_cert_{0}', github.run_id) }}
+          MARIADB_ROOT_PASSWORD: lm-desktop-cert-root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    defaults:
+      run:
+        working-directory: http-generic-api
+    steps:
+      - name: Checkout exact candidate tree
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ env.CI_CANDIDATE_SHA }}
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run static authority regressions
+        run: |
+          node test-control-plane-convergence-regressions.mjs
+          node test-staging-database-readiness-repair.mjs
+
+      - name: Certify real lifecycle under least-privilege runtime principal
+        env:
+          LM_DESKTOP_MARIADB_CERTIFICATION_MODE: disposable
+          DB_HOST: 127.0.0.1
+          DB_ROOT_PASSWORD: lm-desktop-cert-root
+          RUNTIME_DB_PASSWORD: lm-runtime-cert-password
+        run: node scripts/local-manager-desktop-command-mariadb-certification.mjs
+
+      - name: Validate bounded certification evidence
+        run: |
+          node <<'NODE'
+          const fs = require("fs");
+          const path = "artifacts/local-manager-desktop-command-mariadb-certification.json";
+          const report = JSON.parse(fs.readFileSync(path, "utf8"));
+          const valid = report.ok === true
+            && report.mode === "disposable"
+            && report.lifecycle?.queued === true
+            && report.lifecycle?.claimed === true
+            && report.lifecycle?.atomic_claim === true
+            && report.lifecycle?.duplicate_claim_rejected === true
+            && report.lifecycle?.multi_row_batch_claim === true
+            && report.lifecycle?.heartbeat_extended === true
+            && report.lifecycle?.wrong_completion_rejected === true
+            && report.lifecycle?.terminal_rewrite_rejected === true
+            && report.lifecycle?.lease_requeued === true
+            && report.lifecycle?.completed === true
+            && report.lifecycle?.expired === true
+            && report.lifecycle?.route_cycle_complete === true
+            && Array.isArray(report.privilege_denials)
+            && report.privilege_denials.length === 3
+            && report.privilege_denials.every((item) => item.denied === true)
+            && report.projection?.forbidden_columns_exposed?.length === 0
+            && report.production_authorized === false
+            && report.staging_apply_authorized === false
+            && report.external_environment_touched === false
+            && report.secrets_included === false;
+          if (!valid) {
+            console.error(JSON.stringify(report, null, 2));
+            process.exit(1);
+          }
+          NODE
+
+      - name: Upload disposable certification evidence
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: local-manager-desktop-command-mariadb-certification
+          path: http-generic-api/artifacts/local-manager-desktop-command-mariadb-certification.json
+          if-no-files-found: error
+          retention-days: 30
+
   summarize:
     name: Publish canonical evidence report
     if: ${{ always() }}
-    needs: [evaluate, execute]
+    needs: [evaluate, execute, local_manager_mariadb_certification]
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout exact candidate tree
@@ -266,6 +394,13 @@ jobs:
           path: ${{ runner.temp }}/e2e-phase-reports
           merge-multiple: true
 
+      - name: Download Local Manager MariaDB certification evidence
+        if: ${{ needs.local_manager_mariadb_certification.result == 'success' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: local-manager-desktop-command-mariadb-certification
+          path: ${{ runner.temp }}/local-manager-mariadb-certification
+
       - name: Build canonical evidence summary
         env:
           EVALUATE_JOB_RESULT: ${{ needs.evaluate.result }}
@@ -279,6 +414,8 @@ jobs:
           --json-output "${{ runner.temp }}/e2e-phase-summary.json"
           --markdown-output "${{ runner.temp }}/e2e-phase-summary.md"
           --workflow "E2E Phase Governance"
+          --mariadb-certification-result "${{ needs.local_manager_mariadb_certification.result }}"
+          --mariadb-certification-evidence "${{ runner.temp }}/local-manager-mariadb-certification/local-manager-desktop-command-mariadb-certification.json"
           --run-id "${{ github.run_id }}"
           --candidate-kind "${CI_CANDIDATE_KIND}"
           --candidate-sha "${CI_CANDIDATE_SHA}"

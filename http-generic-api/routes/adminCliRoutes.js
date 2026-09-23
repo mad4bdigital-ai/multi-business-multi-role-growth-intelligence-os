@@ -12,7 +12,8 @@ import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.j
 import { evaluateRepositoryMutationPreflight, evaluateRepositoryPublishPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 import { createContinuationCheckpoint, planContinuationResume } from "../sharedReconciliationEngine.js";
 import { closeGithubPullRequest, deleteGithubBranchRef, githubBranchDeleteConfirmation } from "../githubRepositoryLifecycle.js";
-import { classifyLocalConnectorCompositeHealth, probeLocalConnectorPublicHealthWithRetry } from "../localConnectorCompositeHealth.js";
+import { classifyLocalConnectorCompositeHealth, probeLocalConnectorAuthenticatedHealth, probeLocalConnectorPublicHealthWithRetry } from "../localConnectorCompositeHealth.js";
+import { connectorLocalApiKeySelectFragment } from "../connectorSchemaCompatibility.js";
 
 const DEFAULT_COMMAND_TIMEOUT_MS = 120000;
 const MAX_COMMAND_TIMEOUT_MS = 600000;
@@ -2841,6 +2842,7 @@ export function buildAdminCliRoutes(deps) {
       // 1. Load config from DB
       let tunnelToken  = "";
       let backendKey   = "";
+      let connectorLocalApiKey = "";
       let cfTunnelId   = null;
       let cfTunnelName = null;
       let tunnelUrl    = null;
@@ -2850,8 +2852,9 @@ export function buildAdminCliRoutes(deps) {
       let deviceIdentityResolution = null;
       try {
         const pool = getPool();
+        const connectorLocalApiKeySelect = await connectorLocalApiKeySelectFragment(pool);
         const [[row]] = await pool.query(
-          "SELECT config_id, user_id, device_id, cf_token, connector_secret, cf_tunnel_id, cf_tunnel_name, tunnel_url FROM `local_connector_user_configs` WHERE user_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
+          `SELECT config_id, user_id, device_id, cf_token, connector_secret, ${connectorLocalApiKeySelect}, cf_tunnel_id, cf_tunnel_name, tunnel_url FROM \`local_connector_user_configs\` WHERE user_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1`,
           [userId, deviceId]
         );
         let selectedRow = row || null;
@@ -2861,7 +2864,7 @@ export function buildAdminCliRoutes(deps) {
           if (aliasPatterns.length) {
             const aliasWhere = aliasPatterns.map(() => "LOWER(device_id) LIKE ?").join(" OR ");
             const [aliasRows] = await pool.query(
-              `SELECT config_id, user_id, device_id, cf_token, connector_secret, cf_tunnel_id, cf_tunnel_name, tunnel_url, last_health_at, updated_at
+              `SELECT config_id, user_id, device_id, cf_token, connector_secret, ${connectorLocalApiKeySelect}, cf_tunnel_id, cf_tunnel_name, tunnel_url, last_health_at, updated_at
                  FROM \`local_connector_user_configs\`
                 WHERE is_enabled = 1
                   AND COALESCE(NULLIF(cf_token,''),'') <> ''
@@ -2883,6 +2886,7 @@ export function buildAdminCliRoutes(deps) {
         if (selectedRow) {
           tunnelToken  = selectedRow.cf_token || "";
           backendKey   = selectedRow.connector_secret || "";
+          connectorLocalApiKey = selectedRow.connector_local_api_key || "";
           cfTunnelId   = selectedRow.cf_tunnel_id || null;
           cfTunnelName = selectedRow.cf_tunnel_name || null;
           tunnelUrl    = selectedRow.tunnel_url || null;
@@ -2896,8 +2900,9 @@ export function buildAdminCliRoutes(deps) {
       }
       if (!tunnelToken) {
         tunnelToken  = process.env.CLOUDFLARE_TUNNEL_TOKEN || "";
-        backendKey   = process.env.BACKEND_API_KEY || "";
-        configSource = "env";
+        backendKey   = backendKey || process.env.BACKEND_API_KEY || "";
+        // connectorLocalApiKey remains DB-owned; do not introduce a second secret env authority in this route.
+        configSource = deviceIdentityResolution ? "db_with_env_tunnel_fallback" : "env";
         // Persist to DB so future calls resolve from DB
         if (tunnelToken) {
           try {
@@ -2915,6 +2920,7 @@ export function buildAdminCliRoutes(deps) {
 
       // 2. Check CF tunnel status via API (best-effort, non-blocking)
       let tunnelStatus = null;
+      let tunnelStatusObservedAt = null;
       const cfApiToken  = process.env.CLOUDFLARE_API_TOKEN || "";
       const cfAccountId = process.env.CLOUDFLARE_ACCOUNT_ID || "";
       if (cfApiToken && cfAccountId && cfTunnelId) {
@@ -2925,6 +2931,7 @@ export function buildAdminCliRoutes(deps) {
           );
           const cfJson = await cfRes.json();
           tunnelStatus = cfJson?.result?.status || null;
+          tunnelStatusObservedAt = new Date().toISOString();
         } catch (cfErr) {
           console.warn("[self-repair] CF tunnel status check failed:", cfErr.message);
         }
@@ -2934,11 +2941,21 @@ export function buildAdminCliRoutes(deps) {
         tunnelUrl: tunnelUrl || "https://connector.mad4b.com",
         timeoutMs: 8000,
       });
+      const authenticatedCommandHealth = await probeLocalConnectorAuthenticatedHealth({
+        tunnelUrl: tunnelUrl || "https://connector.mad4b.com",
+        credentialCandidates: [
+          { source: "connector_secret", token: backendKey },
+          { source: "connector_local_api_key", token: connectorLocalApiKey },
+        ],
+        timeoutMs: 8000,
+      });
       const compositeHealth = classifyLocalConnectorCompositeHealth({
         tunnelStatus,
         publicProbe: publicHealthProbe,
+        authenticatedProbe: authenticatedCommandHealth,
+        tunnelStatusObservedAt,
       });
-      if (["active", "authorization_gated"].includes(compositeHealth.status)) {
+      if (compositeHealth.status === "active") {
         writeAuditLogAsync({
           action: "admin_cli.local_connector_self_repair.not_required",
           resource_type: "local_connector_health",
@@ -2950,6 +2967,7 @@ export function buildAdminCliRoutes(deps) {
             resolved_device_id: resolvedDeviceId,
             tunnel_status: tunnelStatus,
             public_probe_status: publicHealthProbe.status,
+            authenticated_command_status: authenticatedCommandHealth.status,
             retry_evidence: publicHealthProbe.retry_evidence || null,
             composite_status: compositeHealth.status,
             repair_required: false,
@@ -2971,6 +2989,8 @@ export function buildAdminCliRoutes(deps) {
             cf_tunnel_id: cfTunnelId,
             cf_tunnel_name: cfTunnelName,
             cf_tunnel_status: tunnelStatus,
+            transport_health: publicHealthProbe,
+            authenticated_command_health: authenticatedCommandHealth,
             public_health_probe: publicHealthProbe,
             composite_health: compositeHealth,
             config_source: configSource,
@@ -2988,6 +3008,53 @@ export function buildAdminCliRoutes(deps) {
           },
         });
       }
+      if (["authorization_degraded", "authenticated_command_degraded"].includes(compositeHealth.status)) {
+        writeAuditLogAsync({
+          action: "admin_cli.local_connector_self_repair.authenticated_command_degraded",
+          resource_type: "local_connector_health",
+          resource_id: resolvedDeviceId,
+          payload: {
+            user_id: userId,
+            device_id: deviceId,
+            public_probe_status: publicHealthProbe.status,
+            authenticated_command_status: authenticatedCommandHealth.status,
+            tunnel_status: tunnelStatus,
+            tunnel_evidence: compositeHealth.tunnel_evidence,
+            repair_class: compositeHealth.repair_class || "credential_binding",
+            secrets_included: false,
+          },
+        });
+        return res.status(200).json({
+          ok: true,
+          diagnosis: {
+            device_id: resolvedDeviceId,
+            requested_device_id: deviceId,
+            requested_user_id: userId,
+            resolved_user_id: resolvedUserId,
+            resolved_device_id: resolvedDeviceId,
+            device_identity_resolution: deviceIdentityResolution,
+            tunnel_url: tunnelUrl || "https://connector.mad4b.com",
+            cf_tunnel_id: cfTunnelId,
+            cf_tunnel_name: cfTunnelName,
+            cf_tunnel_status: tunnelStatus,
+            transport_health: publicHealthProbe,
+            authenticated_command_health: authenticatedCommandHealth,
+            composite_health: compositeHealth,
+            config_source: configSource,
+            likely_cause: compositeHealth.likely_cause,
+            repair_required: true,
+            secrets_included: false,
+          },
+          repair: {
+            required: true,
+            repair_class: compositeHealth.repair_class || "credential_binding",
+            action: "Reconcile the connector credential binding used by authenticated commands. Do not reinstall a reachable connector solely because an authenticated probe was rejected.",
+            installer_generated: false,
+            secrets_included: false,
+          },
+        });
+      }
+
       // 3. Generate install bundle, or return a resumable provisioning handoff.
       if (!tunnelToken) {
         const continuation = buildLocalConnectorTunnelProvisioningContinuationEvidence({
@@ -3082,6 +3149,8 @@ export function buildAdminCliRoutes(deps) {
           cf_tunnel_status: tunnelStatus,
           config_source: configSource,
           alias_resolution_applied: configSource === "db_alias",
+          transport_health: publicHealthProbe,
+          authenticated_command_health: authenticatedCommandHealth,
           public_health_probe: publicHealthProbe,
           composite_health: compositeHealth,
           repair_required: compositeHealth.repair_required,

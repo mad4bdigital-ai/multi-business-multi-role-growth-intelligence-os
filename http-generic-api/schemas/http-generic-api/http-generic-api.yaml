@@ -798,12 +798,15 @@ components:
     LocalManagerDeviceLinkPreviewResponse:
       type: object
       additionalProperties: false
-      required: [ok, status, device, secrets_included]
+      required: [ok, status, durable_status, effective_status, device, mutation_performed, secrets_included]
       properties:
         ok: { type: boolean, enum: [true] }
         status: { type: string }
+        durable_status: { type: string }
+        effective_status: { type: string }
         device:
           $ref: "#/components/schemas/LocalManagerDeviceLinkPublicSession"
+        mutation_performed: { type: boolean, enum: [false] }
         secrets_included: { type: boolean, enum: [false] }
 
     LocalManagerDeviceLinkCodeRequest:
@@ -828,7 +831,9 @@ components:
       required: [ok, status, secrets_included]
       properties:
         ok: { type: boolean }
-        status: { type: string }
+        status: { type: string, description: "Compatibility authorization state; token-bearing success remains approved." }
+        authorization_status: { type: string, enum: [approved] }
+        device_status: { type: string, enum: [completed] }
         interval: { type: integer }
         expires_at: { type: string, format: date-time }
         device_access_token: { type: string }
@@ -876,6 +881,35 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/LocalManagerDeviceLinkSession"
+        secrets_included: { type: boolean, enum: [false] }
+
+    LocalManagerDeviceLinkRevokeResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, status, device, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        status: { type: string, enum: [revoked] }
+        already_revoked: { type: boolean }
+        device:
+          $ref: "#/components/schemas/LocalManagerDeviceLinkSession"
+        secrets_included: { type: boolean, enum: [false] }
+
+    LocalManagerN8nProvisionResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, provisioned, provisioning_required, mutation_performed, apply_authorized, writer_authority, writer_readback_proven, n8n_connector, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        provisioned: { type: boolean, enum: [true] }
+        provisioning_required: { type: boolean, enum: [false] }
+        mutation_performed: { type: boolean }
+        apply_authorized: { type: boolean, enum: [true] }
+        writer_authority: { type: string, enum: [local_manager_n8n_provisioning_writer] }
+        writer_readback_proven: { type: boolean, enum: [true] }
+        n8n_connector:
+          type: object
+          additionalProperties: true
         secrets_included: { type: boolean, enum: [false] }
 
     LocalManagerDeviceSessionResponse:
@@ -1398,7 +1432,7 @@ paths:
       security: []
       operationId: startLocalManagerDeviceLink
       summary: Start a Local Manager device-code pairing session
-      x-openai-isConsequential: false
+      x-openai-isConsequential: true
       requestBody:
         required: true
         content:
@@ -1420,6 +1454,21 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "500":
           description: Pairing session creation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Public pairing rate limit exceeded; honor Retry-After
+          headers:
+            Retry-After:
+              schema: { type: integer }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Pairing resilience circuit is temporarily open
           content:
             application/json:
               schema:
@@ -1464,6 +1513,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Public pairing rate limit exceeded; honor Retry-After
+          headers:
+            Retry-After:
+              schema: { type: integer }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Pairing resilience circuit is temporarily open
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /local-manager/device-link/poll:
     post:
@@ -1471,7 +1535,7 @@ paths:
       security: []
       operationId: pollLocalManagerDeviceLink
       summary: Poll device-link status from the Windows app
-      x-openai-isConsequential: false
+      x-openai-isConsequential: true
       requestBody:
         required: true
         content:
@@ -1509,6 +1573,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Public pairing rate limit exceeded; honor Retry-After
+          headers:
+            Retry-After:
+              schema: { type: integer }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Pairing resilience circuit is temporarily open
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /local-manager/device-link/approve:
     post:
@@ -1517,6 +1596,7 @@ paths:
         - localManagerBearerAuth: []
       operationId: approveLocalManagerDeviceLink
       summary: Approve a pending pairing code for the signed-in user
+      x-openai-isConsequential: true
       requestBody:
         required: true
         content:
@@ -1584,6 +1664,116 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "403":
           description: Active tenant membership required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /local-manager/device-link/devices/{sessionId}/revoke:
+    post:
+      tags: [local-manager]
+      security:
+        - localManagerBearerAuth: []
+      operationId: revokeLocalManagerLinkedDevice
+      x-custom-gpt-exclude: true
+      summary: Revoke a linked Local Manager device credential owned by the signed-in user
+      x-openai-isConsequential: true
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema: { type: string }
+          description: Durable linked-device session identifier.
+      responses:
+        "200":
+          description: Device credential revoked, or already revoked idempotently
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocalManagerDeviceLinkRevokeResponse"
+        "400":
+          description: Missing or invalid linked-device session identifier
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Signed-in Local Manager user authorization is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Session is not owned by the signed-in user and exact tenant scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Session exists but is not in a revocable state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /local-manager/device/n8n/provision:
+    post:
+      tags: [local-manager]
+      security:
+        - localManagerBearerAuth: []
+      operationId: provisionLocalManagerDeviceN8n
+      x-custom-gpt-exclude: true
+      summary: Explicitly provision the tenant-local n8n profile for one linked device
+      x-openai-isConsequential: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [session_id]
+              properties:
+                session_id: { type: string }
+      responses:
+        "200":
+          description: Existing n8n profile read back through runtime authority
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocalManagerN8nProvisionResponse"
+        "201":
+          description: n8n profile provisioned and read back
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocalManagerN8nProvisionResponse"
+        "400":
+          description: session_id or bounded provisioning scope is invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Signed-in Local Manager user authorization is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Active linked device was not found for the signed-in user and tenant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Dedicated-writer or runtime readback could not prove provisioning
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Dedicated Local Manager write authority is not enabled or not ready
           content:
             application/json:
               schema:

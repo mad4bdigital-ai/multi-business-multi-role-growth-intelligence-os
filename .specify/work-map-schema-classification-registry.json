@@ -17,6 +17,40 @@
   ],
   "rules": [
     {
+      "rule_key": "local_manager_control_template_registry",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "local_manager_control_templates"
+        ]
+      },
+      "domain": "Connectors & providers",
+      "existing_map_refs": [
+        "connector-provider-map",
+        "agent-skill-plugin-map",
+        "policy-authority-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "The Local Manager control-template registry defines repository-owned capability, app, helper, browser-provider, execution-location, and credential-scope metadata consumed by connector control surfaces. It is configuration/catalog metadata, not an execution queue, and requires explicit classification."
+    },
+    {
+      "rule_key": "local_manager_desktop_command_queue",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "local_manager_desktop_commands"
+        ]
+      },
+      "domain": "Workflow & tasks",
+      "existing_map_refs": [
+        "workflow-task-orchestration-map",
+        "connector-provider-map",
+        "execution-log-evidence-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "The Local Manager desktop command queue coordinates governed device work, bounded claim and completion transitions, and connector execution evidence without granting schema authority to request paths."
+    },
+    {
       "rule_key": "platform_configuration_control_plane_objects",
       "scope": "bounded_exact",
       "match": {

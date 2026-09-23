@@ -1575,7 +1575,7 @@ export function buildDevAgentRoutes(deps) {
         `INSERT INTO \`local_manager_desktop_commands\`
           (command_id, tenant_id, user_id, device_id, execution_mode, action, status, priority, requires_user_confirmation,
            payload_json, requested_by, request_context_json, expires_at)
-         VALUES (?, ?, ?, ?, 'desktop', 'codex_exec_readonly', 'queued', ?, 0, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND))`,
+         VALUES (?, ?, ?, ?, 'desktop', 'codex_exec_readonly', 'queued', ?, 1, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND))`,
         [
           commandId,
           tenantId,
@@ -1584,7 +1584,7 @@ export function buildDevAgentRoutes(deps) {
           Math.max(1, Math.min(Number(body.priority || 50), 1000)),
           JSON.stringify(commandPayload),
           requestedBy,
-          JSON.stringify({ run_id: runId, adapter: "codex_interactive_execution_request_v1", secrets_included: false }),
+          JSON.stringify({ run_id: runId, adapter: "codex_interactive_execution_request_v1", desktop_confirmation_policy: { requested_by_caller: false, server_enforced: true, required: true, policy_version: "local_manager.desktop_confirmation.v1", secrets_included: false }, secrets_included: false }),
           Math.max(60, Math.min(Number(body.ttl_seconds || 900), 3600)),
         ]
       );
@@ -1599,6 +1599,8 @@ export function buildDevAgentRoutes(deps) {
         tenant_id: tenantId,
         execution_status: "queued_local_manager_desktop_command",
         local_manager_action: "codex_exec_readonly",
+        requires_user_confirmation: true,
+        confirmation_server_enforced: true,
         envelope,
         auto_execute_code: false,
         auto_mutate_repo: false,

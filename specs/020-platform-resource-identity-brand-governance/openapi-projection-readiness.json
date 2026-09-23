@@ -26,13 +26,13 @@
     "production_activation_allowed": false
   },
   "repository_openapi_baseline": {
-    "operation_count": 1065,
-    "openapi_documented_count": 1049,
-    "openapi_canonical_documented_count": 731,
-    "openapi_generated_index_count": 318,
+    "operation_count": 1077,
+    "openapi_documented_count": 1061,
+    "openapi_canonical_documented_count": 742,
+    "openapi_generated_index_count": 319,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 318,
+    "openapi_detail_gap_count": 319,
     "auth_contract_gap_count": 0,
     "unresolved_operation_class_count": 0,
     "unresolved_surface_decision_count": 0,
@@ -49,7 +49,13 @@
       "projection_decision": "not_projected_pending_readonly_surface_contract",
       "existing_surface": "library_only",
       "candidate_openapi_operation_id": null,
-      "required_before_projection": ["canonical_request_response_schema", "security_parity", "tenant_privacy_evidence", "route_test", "surface_owner_approval"]
+      "required_before_projection": [
+        "canonical_request_response_schema",
+        "security_parity",
+        "tenant_privacy_evidence",
+        "route_test",
+        "surface_owner_approval"
+      ]
     },
     {
       "operation_key": "brand.identity.reconcile",
@@ -58,7 +64,12 @@
       "projection_decision": "not_projected_pending_diagnostics_contract",
       "existing_surface": "library_only",
       "candidate_openapi_operation_id": null,
-      "required_before_projection": ["diagnostics_response_schema", "select_only_evidence", "ambiguity_disclosure_contract", "surface_owner_approval"]
+      "required_before_projection": [
+        "diagnostics_response_schema",
+        "select_only_evidence",
+        "ambiguity_disclosure_contract",
+        "surface_owner_approval"
+      ]
     },
     {
       "operation_key": "brand.claim.list",
@@ -67,7 +78,12 @@
       "projection_decision": "not_projected_pending_claim_read_contract",
       "existing_surface": "library_only",
       "candidate_openapi_operation_id": null,
-      "required_before_projection": ["claim_read_schema", "tenant_filter_evidence", "privacy_safe_disclosure", "surface_owner_approval"]
+      "required_before_projection": [
+        "claim_read_schema",
+        "tenant_filter_evidence",
+        "privacy_safe_disclosure",
+        "surface_owner_approval"
+      ]
     },
     {
       "operation_key": "brand.claim.request",
@@ -76,7 +92,14 @@
       "projection_decision": "blocked_until_authority_persistence_and_readback",
       "existing_surface": "library_only",
       "candidate_openapi_operation_id": null,
-      "required_before_projection": ["approval_contract", "idempotency_contract", "expected_revision", "same_cycle_readback", "repository_port", "migration_authorization"]
+      "required_before_projection": [
+        "approval_contract",
+        "idempotency_contract",
+        "expected_revision",
+        "same_cycle_readback",
+        "repository_port",
+        "migration_authorization"
+      ]
     },
     {
       "operation_key": "brand.claim.challenge.prepare",
@@ -85,7 +108,11 @@
       "projection_decision": "not_projected_pending_claim_challenge_contract",
       "existing_surface": "library_only",
       "candidate_openapi_operation_id": null,
-      "required_before_projection": ["challenge_response_schema", "privacy_safe_disclosure", "surface_owner_approval"]
+      "required_before_projection": [
+        "challenge_response_schema",
+        "privacy_safe_disclosure",
+        "surface_owner_approval"
+      ]
     },
     {
       "operation_key": "brand.claim.evidence.submit",
@@ -94,7 +121,13 @@
       "projection_decision": "blocked_until_evidence_repository_and_readback",
       "existing_surface": "library_only",
       "candidate_openapi_operation_id": null,
-      "required_before_projection": ["evidence_repository_port", "credential_material_boundary", "approval_contract", "idempotency_contract", "migration_authorization"]
+      "required_before_projection": [
+        "evidence_repository_port",
+        "credential_material_boundary",
+        "approval_contract",
+        "idempotency_contract",
+        "migration_authorization"
+      ]
     },
     {
       "operation_key": "brand.claim.verify",
@@ -103,7 +136,13 @@
       "projection_decision": "blocked_until_verification_authority_and_readback",
       "existing_surface": "library_only",
       "candidate_openapi_operation_id": null,
-      "required_before_projection": ["verification_evidence_contract", "expected_revision", "same_cycle_readback", "authority_separation", "surface_owner_approval"]
+      "required_before_projection": [
+        "verification_evidence_contract",
+        "expected_revision",
+        "same_cycle_readback",
+        "authority_separation",
+        "surface_owner_approval"
+      ]
     },
     {
       "operation_key": "brand.claim.revoke",
@@ -112,7 +151,13 @@
       "projection_decision": "blocked_until_explicit_revoke_authority",
       "existing_surface": "library_only",
       "candidate_openapi_operation_id": null,
-      "required_before_projection": ["explicit_approval", "expected_revision", "readback_contract", "audit_evidence", "surface_owner_approval"]
+      "required_before_projection": [
+        "explicit_approval",
+        "expected_revision",
+        "readback_contract",
+        "audit_evidence",
+        "surface_owner_approval"
+      ]
     },
     {
       "operation_key": "asset.identity.resolve",
@@ -121,7 +166,12 @@
       "projection_decision": "not_projected_pending_asset_identity_contract",
       "existing_surface": "library_only",
       "candidate_openapi_operation_id": null,
-      "required_before_projection": ["asset_identity_schema", "rights_separation_evidence", "tenant_privacy_evidence", "surface_owner_approval"]
+      "required_before_projection": [
+        "asset_identity_schema",
+        "rights_separation_evidence",
+        "tenant_privacy_evidence",
+        "surface_owner_approval"
+      ]
     },
     {
       "operation_key": "provider_account.identity.resolve",
@@ -130,7 +180,12 @@
       "projection_decision": "not_projected_pending_provider_identity_contract",
       "existing_surface": "library_only",
       "candidate_openapi_operation_id": null,
-      "required_before_projection": ["provider_identity_schema", "credential_binding_separation", "credential_material_exclusion", "surface_owner_approval"]
+      "required_before_projection": [
+        "provider_identity_schema",
+        "credential_binding_separation",
+        "credential_material_exclusion",
+        "surface_owner_approval"
+      ]
     }
   ],
   "existing_surface_parity": [
@@ -138,13 +193,19 @@
       "surface": "mcp_readonly_brand_list",
       "operation_id": "list_accessible_brands",
       "state": "canonical_brand_id_with_legacy_compatibility",
-      "evidence": ["http-generic-api/chatgptMcpRuntime.js", "http-generic-api/test-chatgpt-mcp-readonly-runtime.mjs"]
+      "evidence": [
+        "http-generic-api/chatgptMcpRuntime.js",
+        "http-generic-api/test-chatgpt-mcp-readonly-runtime.mjs"
+      ]
     },
     {
       "surface": "rest_workspace_brand_list",
       "operation_id": "listCurrentWorkspaceBrands",
       "state": "legacy_target_key_compatible_response_requires_parity_review",
-      "evidence": ["http-generic-api/routes/workspaceResourceRoutes.js", "http-generic-api/openapi.yaml"],
+      "evidence": [
+        "http-generic-api/routes/workspaceResourceRoutes.js",
+        "http-generic-api/openapi.yaml"
+      ],
       "route_change_in_this_readiness_slice": false
     }
   ],

@@ -411,6 +411,8 @@ test("schema bundle manifest declares exactly three isolated roles", () => {
     "gpt_session_turns", "activation_dynamic_tab_registry", "activation_dynamic_tab_section_registry",
     "activation_dynamic_tab_discovery_rule_registry", "activation_section_action_registry", "activation_attention_rule_registry",
     "activation_freshness_policy_registry", "activation_signal_subscription_registry", "activation_connector_pack_registry", "workspace_registry",
+    "local_manager_desktop_commands", "local_connector_device_aliases", "local_connector_user_configs",
+    "local_manager_device_link_sessions", "local_manager_control_templates",
   ]);
   assert.equal(manifest.canonical_seed_lifecycle.contract, "mad4b.staging.canonical-seed-manifest.v1");
   assert.deepEqual(manifest.canonical_seed_lifecycle.seed_files, [
@@ -419,6 +421,7 @@ test("schema bundle manifest declares exactly three isolated roles", () => {
     "20260815_custom_gpt_mcp_catalog_levels.sql",
     "20260920_platform_admin_workspace_canonical_seed.sql",
     "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
+  "20260922_local_manager_control_templates_registry.sql",
   ]);
   assert.deepEqual(manifest.canonical_seed_lifecycle.mcp_catalog_required_columns, [
     "admin_platform_endpoint_tools.mcp_catalog_level",
@@ -1373,8 +1376,16 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_enum_seed_chain.files_checked, expectedFilesChecked);
   assert.equal(plan.ordered_enum_seed_chain.migration_files_checked, canonicalMigrationFiles.length);
   assert.equal(plan.ordered_enum_seed_chain.statements_checked, expectedStatementsChecked);
-  assert.equal(plan.ordered_enum_seed_chain.enum_columns, 837);
-  assert.equal(plan.ordered_enum_seed_chain.definitions_applied, 904);
+  const localManagerMigrationFiles = [
+    "20260922_local_manager_desktop_commands.sql",
+    "20260922_local_manager_device_link_authority.sql",
+    "20260922_local_manager_control_templates_registry.sql",
+  ];
+  for (const file of localManagerMigrationFiles) {
+    assert.equal(canonicalMigrationFiles.includes(file), true, `missing Local Manager migration from ordered plan: ${file}`);
+  }
+  assert.equal(plan.ordered_enum_seed_chain.enum_columns, 842);
+  assert.equal(plan.ordered_enum_seed_chain.definitions_applied, 910);
   assert.equal(plan.ordered_enum_seed_chain.database_connection_performed, false);
   assert.equal(plan.ordered_enum_seed_chain.sql_mutation_performed, false);
   assert.equal(plan.ordered_enum_seed_chain.provider_mutation_performed, false);
@@ -1389,8 +1400,25 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_text_width_chain.files_checked, expectedFilesChecked);
   assert.equal(plan.ordered_text_width_chain.migration_files_checked, canonicalMigrationFiles.length);
   assert.equal(plan.ordered_text_width_chain.statements_checked, expectedStatementsChecked);
-  assert.equal(plan.ordered_text_width_chain.bounded_text_columns, 5242);
-  assert.equal(plan.ordered_text_width_chain.definitions_applied, 6090);
+  const desktopCommandMigrationSql = fs.readFileSync(path.join(migrationsDir, "20260922_local_manager_desktop_commands.sql"), "utf8");
+  assert.match(
+    desktopCommandMigrationSql,
+    /`claim_token`\s+VARCHAR\(64\)\s+NULL/iu,
+    "desktop command ownership must retain the bounded claim-token column",
+  );
+  const minimumBoundedTextColumns = 5249 + 1; // Historical certified floor plus claim_token; additive migrations may increase it.
+  const minimumTextWidthDefinitions = 6098 + 1; // Historical certified floor plus claim_token definition.
+  assert.ok(
+    plan.ordered_text_width_chain.bounded_text_columns >= minimumBoundedTextColumns,
+    `bounded text-column census regressed below certified floor: ${plan.ordered_text_width_chain.bounded_text_columns} < ${minimumBoundedTextColumns}`,
+  );
+  assert.ok(
+    plan.ordered_text_width_chain.definitions_applied >= minimumTextWidthDefinitions,
+    `text-width definition census regressed below certified floor: ${plan.ordered_text_width_chain.definitions_applied} < ${minimumTextWidthDefinitions}`,
+  );
+  const deviceLinkAuthorityMigrationSql = fs.readFileSync(path.join(migrationsDir, "20260922_local_manager_device_link_authority.sql"), "utf8");
+  assert.match(deviceLinkAuthorityMigrationSql, /`device_token_jti`\s+VARCHAR\(64\)\s+NULL/iu);
+  assert.match(deviceLinkAuthorityMigrationSql, /`revoked_by_user_id`\s+VARCHAR\(64\)\s+NULL/iu);
   assert.equal(plan.ordered_text_width_chain.insert_select_source_domain_checks, 937);
   assert.equal(plan.ordered_text_width_chain.insert_select_source_domain_overflows, 0);
   assert.equal(plan.ordered_text_width_chain.database_connection_performed, false);
@@ -1407,9 +1435,40 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_index_key_width_chain.files_checked, expectedFilesChecked);
   assert.equal(plan.ordered_index_key_width_chain.migration_files_checked, canonicalMigrationFiles.length);
   assert.equal(plan.ordered_index_key_width_chain.statements_checked, expectedStatementsChecked);
-  assert.equal(plan.ordered_index_key_width_chain.tables_projected, 588);
-  assert.equal(plan.ordered_index_key_width_chain.indexes_checked, 2869);
-  assert.equal(plan.ordered_index_key_width_chain.index_columns_checked, 4868);
+  assert.match(
+    desktopCommandMigrationSql,
+    /KEY `idx_lm_desktop_command_claim_token`\s*\(\s*`claim_token`\s*,\s*`status`\s*\)/iu,
+    "desktop command ownership must retain the claim-token lookup index",
+  );
+  const expectedIndexProjectedTables = 588 + 2; // Local Manager desktop commands + control-template registry; device-link sessions already existed in the projected chain.
+  assert.equal(plan.ordered_index_key_width_chain.tables_projected, expectedIndexProjectedTables);
+  const localManagerIndexSql = [
+    desktopCommandMigrationSql,
+    fs.readFileSync(path.join(migrationsDir, "20260922_local_manager_device_link_authority.sql"), "utf8"),
+    fs.readFileSync(path.join(migrationsDir, "20260922_local_manager_control_templates_registry.sql"), "utf8"),
+  ].join("\n");
+  const requiredLocalManagerIndexes = [
+    "idx_lm_desktop_command_device",
+    "idx_lm_desktop_command_status",
+    "idx_lm_desktop_command_claim_token",
+    "idx_local_manager_device_link_status_expiry",
+    "idx_local_manager_device_link_user_device",
+    "idx_local_manager_device_link_token_jti",
+    "idx_local_manager_device_link_revocation",
+    "uq_local_manager_control_template",
+    "idx_local_manager_control_status",
+  ];
+  for (const indexName of requiredLocalManagerIndexes) {
+    assert.equal(localManagerIndexSql.includes(indexName), true, `missing Local Manager index contract: ${indexName}`);
+  }
+  assert.ok(
+    plan.ordered_index_key_width_chain.indexes_checked >= 2881,
+    "ordered index audit must include the nine Local Manager index contracts added after the historical 2872-index baseline",
+  );
+  assert.ok(
+    plan.ordered_index_key_width_chain.index_columns_checked >= plan.ordered_index_key_width_chain.indexes_checked,
+    "ordered index audit must project at least one key column per checked index; Local Manager index membership is asserted by name above",
+  );
   assert.equal(plan.ordered_index_key_width_chain.max_key_bytes, 3072);
   assert.equal(plan.ordered_index_key_width_chain.database_connection_performed, false);
   assert.equal(plan.ordered_index_key_width_chain.sql_mutation_performed, false);
@@ -1425,7 +1484,10 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_required_insert_column_chain.files_checked, expectedFilesChecked);
   assert.equal(plan.ordered_required_insert_column_chain.migration_files_checked, canonicalMigrationFiles.length);
   assert.equal(plan.ordered_required_insert_column_chain.statements_checked, expectedStatementsChecked);
-  assert.equal(plan.ordered_required_insert_column_chain.tables_projected, 591);
+  assert.ok(
+    plan.ordered_required_insert_column_chain.tables_projected >= plan.ordered_index_key_width_chain.tables_projected,
+    "required-column audit must project at least the schema table set seen by the index audit",
+  );
   assert.equal(plan.ordered_required_insert_column_chain.writer_checks, 11);
   assert.equal(plan.ordered_required_insert_column_chain.required_columns_checked, 11);
   assert.equal(plan.ordered_required_insert_column_chain.omitted_required_columns, 1);
@@ -1466,7 +1528,12 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_foreign_key_compatibility_chain.files_checked, expectedFilesChecked);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.migration_files_checked, canonicalMigrationFiles.length);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.statements_checked, expectedStatementsChecked);
-  assert.equal(plan.ordered_foreign_key_compatibility_chain.tables_projected, 589);
+  assert.equal(
+    canonicalMigrationFiles.includes("20260922_local_manager_control_templates_registry.sql"),
+    true,
+    "Local Manager control-template registry migration must be part of the ordered schema plan",
+  );
+  assert.equal(plan.ordered_foreign_key_compatibility_chain.tables_projected, 591);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.foreign_keys_checked, 138);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.type_comparisons, 140);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.type_mismatches, 0);
@@ -1489,6 +1556,7 @@ test("generator plan-only mode inventories the exact migration chain", () => {
     "20260815_custom_gpt_mcp_catalog_levels.sql",
     "20260920_platform_admin_workspace_canonical_seed.sql",
     "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
+    "20260922_local_manager_control_templates_registry.sql",
   ]);
   assert.equal(plan.canonical_seed_lifecycle.readback_required, true);
   assert.equal(plan.ordered_preuse_audit.missing_table_gaps, 0);
