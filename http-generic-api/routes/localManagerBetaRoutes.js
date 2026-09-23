@@ -854,7 +854,8 @@ async function latestLocalManagerWindowsRelease() {
         ORDER BY COALESCE(published_at, updated_at, created_at) DESC, version DESC, release_id DESC
         LIMIT 2`
     );
-    if (!rows[0]) {
+    const [selectedRow = null] = rows;
+    if (!selectedRow) {
       return {
         ...fallback,
         source: "code_fallback_registry_empty",
@@ -862,7 +863,7 @@ async function latestLocalManagerWindowsRelease() {
         registry_reason: "local_app_release_registry_empty",
       };
     }
-    const selected = { ...rows[0], source: "db", registry_degraded: false, registry_reason: null };
+    const selected = { ...selectedRow, source: "db", registry_degraded: false, registry_reason: null };
     const fallbackVersion = normalizeVersion(fallback.version);
     const selectedVersion = normalizeVersion(selected.version);
     if (compareVersions(fallbackVersion, selectedVersion) > 0) {
