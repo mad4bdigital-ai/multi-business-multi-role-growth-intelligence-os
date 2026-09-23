@@ -903,6 +903,7 @@ const VIRTUAL_ADMIN_TOOLS = [
         script_name: { type: "string", const: "mad4b-activation-gateway" },
         expected_source_commit: { type: "string", pattern: "^[a-f0-9]{40}$" },
         expected_policy_hash: { type: "string", pattern: "^[a-f0-9]{64}$" },
+        environment_convergence_plan_sha256: { type: "string", pattern: "^[a-f0-9]{64}$" },
         workspace_id: { type: "string" },
         resource_binding_id: { type: "string" },
       },
@@ -912,7 +913,7 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "activation_gateway_dark_deploy",
     displayName: "Activation Gateway Dark Deploy",
-    description: "Admin-only governed workers.dev dark deployment for the Activation Gateway. Defaults to dry-run. Apply requires an exact policy hash and source commit, signed Ed25519 attestation, active exact Worker resource binding, approved single-use capability envelope, execution nonce, typed confirmation derived from the policy hash, enabled feature flag, same-cycle Cloudflare inventory, awaited audit evidence, secret-safe Worker upload, workers.dev health/ready readback, and automatic rollback. DNS and custom-domain binding are forbidden.",
+    description: "Admin-only governed workers.dev dark deployment for the Activation Gateway. Defaults to dry-run. Apply requires an exact policy hash and source commit, signed Ed25519 attestation, active exact Worker resource binding, approved single-use capability envelope, execution nonce, Production typed confirmation uses the policy hash; Staging confirmation binds the source commit and immutable execution-plan hash, enabled feature flag, same-cycle Cloudflare inventory, awaited audit evidence, secret-safe Worker upload, workers.dev health/ready readback, and automatic rollback. DNS and custom-domain binding are forbidden.",
     method: "VIRTUAL",
     path: "internal://activation-gateway-dark-deploy",
     tags: ["activation_gateway", "cloudflare", "rollout", "mutation", "dry_run_default", "dry_run_default_true", "typed_confirmation", "capability_envelope", "same_cycle_readback", "rollback_required", "no_dns", "no_custom_domain", "no_secrets"],
@@ -922,15 +923,22 @@ const VIRTUAL_ADMIN_TOOLS = [
       properties: {
         mode: { type: "string", enum: ["dry_run", "apply"], default: "dry_run" },
         account_id: { type: "string", pattern: "^[a-f0-9]{32}$" },
-        script_name: { type: "string", const: "mad4b-activation-gateway" },
+        script_name: { type: "string", enum: ["mad4b-activation-gateway", "mad4b-activation-gateway-staging"] },
         expected_source_commit: { type: "string", pattern: "^[a-f0-9]{40}$" },
         expected_policy_hash: { type: "string", pattern: "^[a-f0-9]{64}$" },
+        environment_convergence_plan_sha256: { type: "string", pattern: "^[a-f0-9]{64}$" },
         workspace_id: { type: "string" },
         resource_binding_id: { type: "string" },
+        plan_id: { type: "string", pattern: "^[a-f0-9-]{36}$" },
+        plan_sha256: { type: "string", pattern: "^[a-f0-9]{64}$" },
         capability_envelope_id: { type: "string" },
         execution_nonce: { type: "string", minLength: 8, maxLength: 128, pattern: "^[A-Za-z0-9._:-]+$" },
         confirm: { type: "string" },
       },
+      oneOf: [
+        { required: ["environment_convergence_plan_sha256"], properties: { script_name: { const: "mad4b-activation-gateway-staging" } } },
+        { not: { required: ["environment_convergence_plan_sha256"] }, properties: { script_name: { const: "mad4b-activation-gateway" } } },
+      ],
       additionalProperties: false,
     },
   },
@@ -2561,11 +2569,33 @@ export async function dispatchToolForCaller(callerType, toolKey, args, req, runt
   });
 }
 
+
+function stableDescriptorValue(value) {
+  if (Array.isArray(value)) return value.map(stableDescriptorValue);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(Object.keys(value).sort().map((key) => [key, stableDescriptorValue(value[key])]));
+}
+
+export function computeToolInputSchemaSha256(inputSchema = null) {
+  const canonical = JSON.stringify(stableDescriptorValue(inputSchema && typeof inputSchema === "object" ? inputSchema : {}));
+  return crypto.createHash("sha256").update(canonical).digest("hex");
+}
+
+function withToolDescriptorIdentity(tool = {}) {
+  const inputSchema = tool.inputSchema || tool.input_schema || {};
+  return {
+    ...tool,
+    inputSchema,
+    descriptor_version: "input-schema-sha256.v1",
+    input_schema_sha256: computeToolInputSchemaSha256(inputSchema),
+  };
+}
+
 async function fetchTools(callerType, executionCapsule = null) {
   if (isRuntimeRecoverySnapshotEnabled()) {
     // Snapshot mode deliberately excludes VIRTUAL_ADMIN_TOOLS: the snapshot is a
     // read-only catalog and must never advertise a mutation-capable virtual tool.
-    return loadRuntimeRecoverySnapshot().catalog.tools;
+    return loadRuntimeRecoverySnapshot().catalog.tools.map(withToolDescriptorIdentity);
   }
   const table = TOOLS_TABLE[callerType] || TOOLS_TABLE.tenant;
   await assertMcpCatalogLevelColumn({ pool: getPool(), table });
@@ -2595,7 +2625,7 @@ async function fetchTools(callerType, executionCapsule = null) {
         blockedTenantSchemas
       )
     : rows;
-  const dbTools = visibleRows.map((r) => ({
+  const dbTools = visibleRows.map((r) => withToolDescriptorIdentity({
     name: r.tool_key,
     displayName: r.display_name,
     description: r.description,
@@ -2606,7 +2636,9 @@ async function fetchTools(callerType, executionCapsule = null) {
     catalog_level: String(r.mcp_catalog_level || "core"),
     inputSchema: parseJson(r.input_schema),
   }));
-  return callerType === "admin" ? [...VIRTUAL_ADMIN_TOOLS, ...dbTools] : dbTools;
+  return callerType === "admin"
+    ? [...VIRTUAL_ADMIN_TOOLS.map(withToolDescriptorIdentity), ...dbTools]
+    : dbTools;
 }
 
 export async function readGptToolsCatalogSchemaReadiness() {
@@ -2976,6 +3008,8 @@ async function dispatchToolImpl(callerType, toolKey, args, req, runtimeDeps = {}
     try {
       const result = await runActivationGatewayDarkDeploy(args || {}, {
         pool: getPool(),
+        runtimePool: getPool(),
+        governancePool: getGovernancePool(),
         auth: req?.auth || {},
         env: process.env,
         audit: async (entry = {}) => writeAuditLog({
@@ -4695,12 +4729,43 @@ export function buildGptToolsRoutes(deps) {
       }
 
       const callerType = resolveCallerType(req);
+      const expectedInputSchemaSha256 = body.expected_input_schema_sha256 == null
+        ? null
+        : String(body.expected_input_schema_sha256).trim().toLowerCase();
+      if (expectedInputSchemaSha256 && !/^[a-f0-9]{64}$/u.test(expectedInputSchemaSha256)) {
+        return res.status(400).json({
+          ok: false,
+          error: { code: "invalid_expected_input_schema_sha256", message: "expected_input_schema_sha256 must be a lowercase SHA-256 digest." },
+          secrets_included: false,
+        });
+      }
       const requestRuntimeDeps = {
         ...runtimeDeps,
         actAsUserSessionId: body.act_as_user_session_id || body.actAsUserSessionId || req?.auth?.act_as_user_session_id || null,
         actAsUserOperation: "call_tool",
         executionCapsule: createGptExecutionCapsule({ operation_key: name }),
       };
+
+      if (expectedInputSchemaSha256) {
+        const descriptor = await resolveToolPreflightDescriptor(callerType, name, requestRuntimeDeps.executionCapsule);
+        if (descriptor) {
+          const actualInputSchemaSha256 = computeToolInputSchemaSha256(descriptor.inputSchema || {});
+          if (actualInputSchemaSha256 !== expectedInputSchemaSha256) {
+            return res.status(409).json({
+              ok: false,
+              error: {
+                code: "descriptor_stale",
+                message: "The discovered input schema changed before execution. Refresh listAdminTools and retry with the new descriptor hash.",
+              },
+              expected_input_schema_sha256: expectedInputSchemaSha256,
+              actual_input_schema_sha256: actualInputSchemaSha256,
+              descriptor_version: "input-schema-sha256.v1",
+              execution_performed: false,
+              secrets_included: false,
+            });
+          }
+        }
+      }
 
       // Up-front required-args check so the GPT gets a clear retry signal
       // instead of a downstream HTTP error when its schema cache forgot to

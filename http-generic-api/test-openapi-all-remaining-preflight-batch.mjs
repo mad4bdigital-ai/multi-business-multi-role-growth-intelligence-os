@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const root = new URL('../', import.meta.url).pathname;
-const artifactPath = `${root}specs/020-platform-resource-identity-brand-governance/openapi-all-remaining-preflight-batch.json`;
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const artifactPath = path.join(root, "specs/020-platform-resource-identity-brand-governance/openapi-all-remaining-preflight-batch.json");
 const artifact = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
 
 if (artifact.contract !== 'spec020-openapi-all-remaining-preflight-batch-v1') throw new Error('unexpected contract');

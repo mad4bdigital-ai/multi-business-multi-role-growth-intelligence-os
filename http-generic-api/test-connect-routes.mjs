@@ -10,6 +10,8 @@
 // frontend-surface-operation: POST /connect/bootstrap
 
 import express from "express";
+import jwt from "jsonwebtoken";
+import { verifyUserJwtAuthorization } from "./userJwtAuth.js";
 import { readFileSync } from "node:fs";
 import YAML from "yaml";
 import { buildConnectRoutes, _testingSanitizeMetadataPayload, _testingAllowlists } from "./routes/connectRoutes.js";
@@ -957,15 +959,16 @@ assert("local connector requires fresh Local Manager authorization for privilege
       source.includes("canonical_device_id") &&
       source.includes("run_as_admin_required: true") &&
       source.includes("auth_context: device.auth_context") &&
-      source.includes("reauth_required_for_stale_device_tokens: false") &&
+      source.includes("reauth_required_for_stale_device_tokens: true") &&
       source.includes("secrets_included: false"));
     assert("local connector admin installer tenant selection is explicit and mismatch safe", source.includes("requestedTenantId") && source.includes("selectedTenantId") && source.includes("connector_config_tenant_mismatch"));
-assert("Local Manager privileged installer authorization uses a long-lived revocable device token without repeated sign-in",
+    assert("Local Manager privileged installer authorization requires bounded fresh user step-up for stale device tokens",
       deviceLinkSource.includes("requireFreshLocalManagerDeviceForPrivilegedInstaller") &&
       deviceLinkSource.includes("DEVICE_TOKEN_TTL_SECONDS = 365 * 24 * 60 * 60") &&
-      deviceLinkSource.includes("PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = DEVICE_TOKEN_TTL_SECONDS") &&
-      deviceLinkSource.includes("requires_reauth_for_privileged_installers: false") &&
-      deviceLinkSource.includes("return requireLocalManagerDevice(req);") && !deviceLinkSource.includes("fresh_local_manager_authorization_required") && !deviceLinkSource.includes("forget_device_and_link_again"));
+      deviceLinkSource.includes("PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = 15 * 60") &&
+      deviceLinkSource.includes("requires_reauth_for_privileged_installers: true") &&
+      deviceLinkSource.includes("x-local-manager-user-authorization") &&
+      deviceLinkSource.includes("fresh_local_manager_user_authorization_required"));
     assert("Local Manager device controls advertise connector repair installer action",
       deviceLinkSource.includes('connector_repair_installer: "/local-connector/install/device-download-link"') &&
       deviceLinkSource.includes('allowedSections = new Set(["overview", "routes", "backups", "repairs", "n8n", "settings"])') &&
@@ -973,11 +976,65 @@ assert("Local Manager privileged installer authorization uses a long-lived revoc
       deviceLinkSource.includes("verify_connector_policy"));
   }
 
+  section("local manager token class boundary");
+
+  {
+    const issuer = "https://auth.mad4b.com";
+    const userSecret = "u".repeat(64);
+    const deviceSecret = "d".repeat(64);
+    const verifyOptions = {
+      env: { JWT_SECRET: userSecret },
+      issuer,
+      audience: "mad4b-local-manager-user",
+      requiredPurpose: "local_manager_user_access",
+      requiredScope: "local_manager.user",
+    };
+
+    const deviceToken = jwt.sign({
+      iss: issuer,
+      aud: "mad4b-local-manager-device",
+      purpose: "local_manager_device_access",
+      scope: "local_manager.device",
+      user_id: "user-1",
+      tenant_id: "tenant-1",
+      device_id: "device-1",
+      session_id: "session-1",
+    }, deviceSecret, { algorithm: "HS256", expiresIn: 300 });
+
+    const separateKeyResult = verifyUserJwtAuthorization(`Bearer ${deviceToken}`, verifyOptions);
+    assert("device signing key cannot authenticate as Local Manager user", separateKeyResult.ok === false && separateKeyResult.status === 401);
+
+    const wrongClassToken = jwt.sign({
+      iss: issuer,
+      aud: "mad4b-local-manager-user",
+      purpose: "local_manager_device_access",
+      scope: "local_manager.device",
+      user_id: "user-1",
+      tenant_id: "tenant-1",
+    }, userSecret, { algorithm: "HS256", expiresIn: 300 });
+
+    const wrongClassResult = verifyUserJwtAuthorization(`Bearer ${wrongClassToken}`, verifyOptions);
+    assert("device-purpose token is rejected even under the user signing key", wrongClassResult.ok === false && wrongClassResult.code === "wrong_user_token_class");
+
+    const userToken = jwt.sign({
+      iss: issuer,
+      aud: "mad4b-local-manager-user",
+      purpose: "local_manager_user_access",
+      scope: "local_manager.user",
+      user_id: "user-1",
+      tenant_id: "tenant-1",
+    }, userSecret, { algorithm: "HS256", expiresIn: 300 });
+
+    const validUserResult = verifyUserJwtAuthorization(`Bearer ${userToken}`, verifyOptions);
+    assert("dedicated Local Manager user token profile verifies", validUserResult.ok === true && validUserResult.claims.user_id === "user-1");
+  }
+
   section("local manager beta read-only surface");
 
   {
     const indexSource = readFileSync("routes/index.js", "utf8");
     const betaSource = readFileSync("routes/localManagerBetaRoutes.js", "utf8");
+    const localManagerWriteSource = readFileSync("localManagerWriteAuthority.js", "utf8");
     const authSource = readFileSync("routes/authRoutes.js", "utf8");
     assert("local manager beta routes are imported and mounted",
       indexSource.includes("buildLocalManagerBetaRoutes") &&
@@ -1005,9 +1062,35 @@ assert("Local Manager privileged installer authorization uses a long-lived revoc
       betaSource.includes('router.get("/local-manager/device-link/devices"') &&
       betaSource.includes('router.get("/local-manager/device/session"') &&
       betaSource.includes('router.get("/local-manager/device/controls"') &&
+      betaSource.includes('router.post("/local-manager/device/n8n/provision"') &&
       betaSource.includes('router.get("/app/local-manager/admin"') &&
       betaSource.includes('router.get("/local-manager/beta"') &&
       betaSource.includes('router.get("/local-manager/beta/status", requireBackendApiKey, requireAdminPrincipal'));
+    assert("Local Manager writer authority uses a dedicated identity with no DB_USER fallback",
+      localManagerWriteSource.includes('enabled_env: "LOCAL_MANAGER_WRITE_AUTHORITY_ENABLED"') &&
+      localManagerWriteSource.includes('identity_prefix: "LOCAL_MANAGER_WRITE_DB_"') &&
+      localManagerWriteSource.includes("generic_runtime_fallback_forbidden: true") &&
+      localManagerWriteSource.includes("LOCAL_MANAGER_WRITE_DB_IDENTITY_NOT_DEDICATED") &&
+      localManagerWriteSource.includes("user === runtimeUser") &&
+      localManagerWriteSource.includes("reconcileLocalConnectorAliases") &&
+      localManagerWriteSource.includes("provisionLocalManagerN8n") &&
+      localManagerWriteSource.includes("LOCAL_MANAGER_ALIAS_RECONCILIATION_READBACK_FAILED") &&
+      localManagerWriteSource.includes("LOCAL_MANAGER_ALIAS_OWNERSHIP_CONFLICT") &&
+      localManagerWriteSource.includes("const runtimeUser = clean(env.DB_USER") &&
+      localManagerWriteSource.includes("runtimeUser && user === runtimeUser") &&
+      localManagerWriteSource.includes("AND user_id = ?") &&
+      localManagerWriteSource.includes("AND ((? IS NULL AND tenant_id IS NULL) OR tenant_id = ?)") &&
+      !localManagerWriteSource.includes("user_id IS NULL") &&
+      !localManagerWriteSource.includes("ON DUPLICATE KEY UPDATE") &&
+      localManagerWriteSource.includes("LOCAL_MANAGER_N8N_PROVISIONING_READBACK_FAILED"));
+    assert("Local Manager public pairing surfaces use the shared resilience limiter with Retry-After capable 429 behavior",
+      betaSource.includes("createOperationResilienceController") &&
+      betaSource.includes("localManagerPublicPairingResilience") &&
+      betaSource.includes("rateLimitRead: 30") &&
+      betaSource.includes("rateWindowMs: 60_000") &&
+      betaSource.includes('router.post("/local-manager/device-link/start", localManagerPublicPairingResilience, startDeviceLinkSession)') &&
+      betaSource.includes('router.get("/local-manager/device-link/preview", localManagerPublicPairingResilience, previewDeviceLinkSession)') &&
+      betaSource.includes('router.post("/local-manager/device-link/poll", localManagerPublicPairingResilience, pollDeviceLinkSession)'));
     assert("local manager public app is true public UX while admin bridge holds token installer flow",
       betaSource.includes("keep platform tools installed") &&
       betaSource.includes("No token fields here") &&
@@ -1023,11 +1106,14 @@ assert("Local Manager privileged installer authorization uses a long-lived revoc
       betaSource.includes("loadPreview") &&
       betaSource.includes("setupGoogle") &&
       betaSource.includes("/auth/google") &&
-      betaSource.includes("localStorage.setItem('mlm_user_token'") &&
-      betaSource.includes("localStorage.getItem('mlm_user_token'") &&
+      betaSource.includes("sessionStorage.setItem('mlm_user_token'") &&
+      betaSource.includes("sessionStorage.getItem('mlm_user_token'") &&
+      !betaSource.includes("localStorage.setItem('mlm_user_token'") &&
+      !betaSource.includes("localStorage.getItem('mlm_user_token'") &&
       betaSource.includes("Loading linked devices") &&
       betaSource.includes("initializeLinkDevicePage") &&
-      betaSource.includes("Checking this device link") &&
+      betaSource.includes("Review the device details, then click Approve device") &&
+      betaSource.includes("consent:'approve_device'") &&
       betaSource.includes("already linked") &&
       betaSource.includes("forgotPassword") &&
       betaSource.includes("/auth/password/forgot") &&
@@ -1043,11 +1129,19 @@ assert("Local Manager privileged installer authorization uses a long-lived revoc
       betaSource.includes("localManagerWindowsUpdateInfo") &&
       betaSource.includes("local_app_releases") &&
       betaSource.includes("registry_source") &&
+      betaSource.includes("registry_degraded") &&
+      betaSource.includes("registry_reason") &&
       betaSource.includes("update_available") &&
       betaSource.includes("secrets_included: false"));
     assert("local manager update comparison normalizes prerelease and build metadata",
       betaSource.includes("raw.split(/[+-]/)[0]") &&
       betaSource.includes("latestLocalManagerWindowsRelease"));
+    assert("local app release request path is read-only and exposes registry degradation",
+      !betaSource.includes("ensureLocalAppReleasesTable") &&
+      !betaSource.includes("CREATE TABLE IF NOT EXISTS") &&
+      !betaSource.includes("INSERT INTO \`local_app_releases\`") &&
+      betaSource.includes("registry_degraded") &&
+      betaSource.includes("local_app_release_registry_unavailable"));
     const releaseMigrationSource = readFileSync("migrations/100_sprint62k_local_app_releases.sql", "utf8");
     assert("local app releases migration seeds Local Manager Windows release",
       releaseMigrationSource.includes("CREATE TABLE IF NOT EXISTS `local_app_releases`") &&
@@ -1056,7 +1150,7 @@ assert("Local Manager privileged installer authorization uses a long-lived revoc
       releaseMigrationSource.includes("Mad4B-Local-Manager-Setup.exe"));
     const deviceLinkSource = readFileSync("services/localManagerDeviceLinkService.js", "utf8");
     assert("local manager Windows default download redirects to public EXE release asset",
-      betaSource.includes("Mad4B-Local-Manager-Setup-0.2.28.exe") &&
+      betaSource.includes("Mad4B-Local-Manager-Setup-0.2.29.exe") &&
       betaSource.includes("releases/download/local-manager-windows-latest") &&
       !betaSource.includes("Mad4B-Local-Manager-Windows-Bootstrap.ps1") &&
       !betaSource.includes("connector_secret") &&
@@ -1073,15 +1167,57 @@ assert("Local Manager privileged installer authorization uses a long-lived revoc
       deviceLinkSource.includes("reauthorized_existing_device") &&
       !deviceLinkSource.includes("connector_secret") &&
       !deviceLinkSource.includes("cf_token"));
-    assert("local manager approval auto-writes non-secret connector aliases for app device identity",
-      deviceLinkSource.includes("ensureLocalConnectorAliasForDeviceLink") &&
+    assert("local manager approval inspects connector aliases and fails closed to a separate reconciliation writer",
+      deviceLinkSource.includes("inspectLocalConnectorAliasForDeviceLink") &&
       deviceLinkSource.includes("resolveCanonicalConnectorConfig") &&
       deviceLinkSource.includes("local_connector_device_aliases") &&
       deviceLinkSource.includes("canonical_connector_config_not_found") &&
+      deviceLinkSource.includes('required_authority: "local_connector_alias_reconciliation_writer"') &&
+      deviceLinkSource.includes("mutation_performed: false") &&
       deviceLinkSource.includes("connector_alias: connectorAlias") &&
       deviceLinkSource.includes("secrets_included: false") &&
       !deviceLinkSource.includes("SELECT connector_secret") &&
       !deviceLinkSource.includes("SELECT cf_token"));
+    const previewStart = deviceLinkSource.indexOf("export async function previewDeviceLinkSession");
+    const previewEnd = deviceLinkSource.indexOf("export async function pollDeviceLinkSession", previewStart);
+    const previewSource = previewStart >= 0 && previewEnd > previewStart
+      ? deviceLinkSource.slice(previewStart, previewEnd)
+      : "";
+    assert("local manager pairing preview is physically read-only and exposes effective expiry without durable mutation",
+      previewSource.includes("durable_status: durableStatus") &&
+      previewSource.includes("effective_status: effectiveStatus") &&
+      previewSource.includes("mutation_performed: false") &&
+      !previewSource.includes("SET status = " + String.fromCharCode(39) + "expired" + String.fromCharCode(39)));
+    assert("Local Manager separated writer handoffs are dedicated, fail closed, and explicit",
+      deviceLinkSource.includes("localManagerWriteAuthorityEnabled") &&
+      deviceLinkSource.includes("reconcileLocalConnectorAliases") &&
+      deviceLinkSource.includes("provisionLocalManagerN8n") &&
+      deviceLinkSource.includes("writer_authority: \"local_connector_alias_reconciliation_writer\"") &&
+      deviceLinkSource.includes("writer_authority: \"local_manager_n8n_provisioning_writer\"") &&
+      betaSource.includes('router.post("/local-manager/device/n8n/provision", requireLocalManagerUserRouteGuard, provisionDeviceN8n)'));
+    assert("Local Manager separated writer handoffs are atomic and lock exact provisioning scope before commit",
+      localManagerWriteSource.includes("withDedicatedWriteTransaction") &&
+      localManagerWriteSource.includes("beginTransaction") &&
+      localManagerWriteSource.includes("rollback") &&
+      localManagerWriteSource.includes("FOR UPDATE") &&
+      localManagerWriteSource.includes("transactional: true") &&
+      localManagerWriteSource.includes("LOCAL_MANAGER_N8N_SYSTEM_CARDINALITY_CONFLICT") &&
+      localManagerWriteSource.includes("LOCAL_MANAGER_ALIAS_SCOPE_CARDINALITY_CONFLICT"));
+    assert("Local Manager n8n read and write paths share one collision-safe system identity",
+      localManagerWriteSource.includes("export function localManagerN8nSystemKey") &&
+      localManagerWriteSource.includes('crypto.createHash("sha256")') &&
+      deviceLinkSource.includes("localManagerN8nSystemKey(device.device_id)") &&
+      deviceLinkSource.includes("ambiguous_provisioning_state") &&
+      !deviceLinkSource.includes('const systemKey = `local_n8n:${cleanId(device.device_id'));
+    assert("local manager linked-device tenant ownership is exact-or-both-null rather than missing-tenant wildcard",
+      deviceLinkSource.includes("function sameTenantScope") &&
+      (deviceLinkSource.match(/\(\(\? IS NULL AND tenant_id IS NULL\) OR tenant_id = \?\)/g) || []).length >= 5 &&
+      deviceLinkSource.includes("sameTenantScope(row.tenant_id, principal.tenant_id)") &&
+      deviceLinkSource.includes("sameTenantScope(current.tenant_id, principal.tenant_id)") &&
+      !deviceLinkSource.includes("tenant_id = ? OR tenant_id ="));
+    assert("local manager poll response distinguishes compatibility authorization state from durable completed device state",
+      deviceLinkSource.includes('authorization_status: "approved"') &&
+      deviceLinkSource.includes("device_status: issuedRow.status"));
     assert("local manager beta is read-only and redacts secrets",
       betaSource.includes("read_only: true") &&
       betaSource.includes("secrets_included: false") &&

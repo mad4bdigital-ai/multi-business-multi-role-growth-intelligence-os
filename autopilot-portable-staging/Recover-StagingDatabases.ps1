@@ -155,6 +155,25 @@ function Reconcile-RoleGrant([object]$Role) {
     $password = Read-Env $script:EnvFile $Role.Password
     $plan = Get-RoleGrantPlan $Role.Key
 
+    # Resolve the exact object set before revoking anything. Required surfaces
+    # fail closed before mutation; optional version-dependent surfaces are
+    # granted only when present and recorded as degraded evidence when absent.
+    $effectiveGrants = @()
+    $missingOptionalSurfaces = @()
+    foreach ($grant in @($plan.grants)) {
+        $surface = [string]$grant.table
+        $surfaceCount = [int](Invoke-RootQuery $Role "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = $(Sql-String $database) AND TABLE_NAME = $(Sql-String $surface)")
+        $required = $true
+        if ($null -ne $grant.PSObject.Properties["required"]) { $required = [bool]$grant.required }
+        if ($surfaceCount -eq 1) {
+            $effectiveGrants += $grant
+        } elseif ($required) {
+            Fail "$($Role.Key) required grant surface is missing before authority mutation: $surface"
+        } else {
+            $missingOptionalSurfaces += $surface
+        }
+    }
+
     $account = "$(Sql-String $user)@'%'"
     $databaseIdentifier = Sql-Identifier $database
     $passwordLiteral = Sql-String $password
@@ -163,7 +182,7 @@ function Reconcile-RoleGrant([object]$Role) {
     $sql.Add("ALTER USER $account IDENTIFIED BY $passwordLiteral;")
     $sql.Add("REVOKE ALL PRIVILEGES, GRANT OPTION FROM $account;")
 
-    foreach ($grant in @($plan.grants)) {
+    foreach ($grant in @($effectiveGrants)) {
         $tableIdentifier = Sql-Identifier ([string]$grant.table)
         $operations = @($grant.operations | ForEach-Object { ([string]$_).ToUpperInvariant() })
         Require ($operations.Count -gt 0) "Empty Staging grant operation set"
@@ -180,7 +199,7 @@ function Reconcile-RoleGrant([object]$Role) {
     $actualText = Invoke-RootQuery $Role "SELECT CONCAT(TABLE_SCHEMA, '.', TABLE_NAME, ':', PRIVILEGE_TYPE) FROM information_schema.TABLE_PRIVILEGES WHERE GRANTEE = $granteeLiteral ORDER BY TABLE_SCHEMA, TABLE_NAME, PRIVILEGE_TYPE"
     $actual = @($actualText -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     $expected = @()
-    foreach ($grant in @($plan.grants)) {
+    foreach ($grant in @($effectiveGrants)) {
         foreach ($operation in @($grant.operations)) {
             $expected += "$database.$([string]$grant.table):$([string]$operation)"
         }
@@ -202,6 +221,11 @@ function Reconcile-RoleGrant([object]$Role) {
         role = $Role.Key
         required_table_privilege_count = $expected.Count
         observed_table_privilege_count = $actual.Count
+        optional_surface_count = @($plan.grants | Where-Object { $_.required -eq $false }).Count
+        missing_optional_surface_count = $missingOptionalSurfaces.Count
+        missing_optional_surfaces = @($missingOptionalSurfaces)
+        missing_optional_surface_is_blocking = $false
+        required_surface_preflight_completed = $true
         no_global_privileges = $true
         no_schema_wide_privileges = $true
         no_column_privileges = $true
@@ -225,6 +249,7 @@ $Builder = Join-Path $script:ApiPath "scripts\build-staging-schema-bundle.mjs"
 $script:GrantPlanScript = Join-Path $script:ApiPath "scripts\staging-role-grant-plan.mjs"
 $Clone = Join-Path $PSScriptRoot "Clone-StagingDatabases.ps1"
 $StartAutoPilot = Join-Path $PSScriptRoot "Start-AutoPilot.ps1"
+$GovernanceAuthoritySeedReplay = Join-Path $PSScriptRoot "Replay-StagingGovernanceAuthoritySeed.ps1"
 $DumpDirectory = Join-Path $PSScriptRoot "staging-db-dumps"
 $DataRoot = Join-Path $script:ApiPath ".staging-data"
 $RecoveryStatePath = Join-Path $DumpDirectory "staging-database-recovery-state.json"
@@ -241,6 +266,7 @@ Require (Test-Path -LiteralPath $Builder) "Missing Staging schema bundle builder
 Require (Test-Path -LiteralPath $script:GrantPlanScript) "Missing Staging role grant-plan helper"
 Require (Test-Path -LiteralPath $Clone) "Missing Staging schema importer"
 Require (Test-Path -LiteralPath $StartAutoPilot) "Missing Auto Pilot launcher"
+Require (Test-Path -LiteralPath $GovernanceAuthoritySeedReplay) "Missing Staging Governance authority seed replay helper"
 
 Require-Command "git"
 Require-Command "node"
@@ -297,6 +323,7 @@ try {
         backup_root = $backupRoot
         roles = @($roleConfig | ForEach-Object { $_.Key })
         schema_bundle = [ordered]@{ status = "validated"; directory = $DumpDirectory }
+        governance_authority_seed = [ordered]@{ status = "pending"; certification_status = "pending"; dispatch_allowed = $false; apply_allowed = $false }
         grants = [ordered]@{ status = "pending"; readback = @() }
         production_accessed = $false
         provider_accessed = $false
@@ -329,6 +356,13 @@ try {
     Write-JsonAtomic $RecoveryStatePath $script:RecoveryState
     & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $Clone -DumpDirectory $DumpDirectory -ExpectedCommit $ExpectedCommit -Mode schema_only -Apply
     Require ($LASTEXITCODE -eq 0) "Staging schema bundle apply failed"
+
+    $script:RecoveryState.status = "governance_authority_seed_replay"
+    Write-JsonAtomic $RecoveryStatePath $script:RecoveryState
+    & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $GovernanceAuthoritySeedReplay -RepositoryPath $RepositoryPath -ExpectedCommit $ExpectedCommit
+    Require ($LASTEXITCODE -eq 0) "Staging Governance authority seed replay failed"
+    $script:RecoveryState.governance_authority_seed = [ordered]@{ status = "completed"; certification_status = "pending"; dispatch_allowed = $false; apply_allowed = $false }
+    Write-JsonAtomic $RecoveryStatePath $script:RecoveryState
 
     $script:RecoveryState.status = "grant_reconciliation"
     Write-JsonAtomic $RecoveryStatePath $script:RecoveryState

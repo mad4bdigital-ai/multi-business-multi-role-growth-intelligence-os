@@ -27,8 +27,8 @@ jobs:
       STAGING_CERT_REQUIRE_GATEWAY: "true"
       STAGING_CERT_REQUIRE_GATEWAY_UPSTREAM: "true"
       STAGING_CERT_REQUIRE_READY: "true"
-      STAGING_CERT_GATEWAY_POLICY_PATH: edge/activation-gateway/generated/route-policy.staging.json
       STAGING_CERT_REPORT_FILE: .artifacts/staging-live-certification/report.json
+      STAGING_TRUST_REPORT_FILE: .artifacts/staging-cert-trust-runtime-binding/report.json
       STAGING_AUTHORITY_REPORT_FILE: .artifacts/staging-environment-authority-closure/report.json
       ENVIRONMENT_IMPACT_REPORT_FILE: .artifacts/staging-environment-impact-closure/report.json
     steps:
@@ -43,6 +43,10 @@ jobs:
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "22"
+
+      - name: Install locked runtime dependencies
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts
 
       - name: Resolve exact main release cut from certified candidate
         id: identity
@@ -94,6 +98,30 @@ jobs:
             echo "STAGING_CERT_EXPECTED_CONTEXT_FILE_SET_SHA256=$context_file_set"
           } >> "$GITHUB_ENV"
 
+      - name: Bind live Staging trusted-ingress evidence
+        env:
+          STAGING_CERT_EXPECTED_COMMIT: ${{ steps.identity.outputs.release_cut_sha }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "$(dirname "$STAGING_TRUST_REPORT_FILE")"
+          STAGING_CERT_TRUST_ENV_FILE="$GITHUB_ENV" \
+            node http-generic-api/scripts/prepare-staging-cert-trust-evidence.mjs | tee "$STAGING_TRUST_REPORT_FILE"
+          jq -e --arg cut "$STAGING_CERT_EXPECTED_COMMIT" '
+            .contract == "mad4b.staging-cert-trust-runtime-binding.v1" and
+            .ready == true and
+            .expected.deployment_sha == $cut and
+            .blocking_failures == [] and
+            .environment_binding_written == true and
+            .safety.read_only_remote_probe == true and
+            .safety.replay_claim_performed == false and
+            .safety.database_mutation == false and
+            .safety.provider_mutation == false and
+            .safety.production_mutation == false and
+            .safety.raw_public_key_reported == false and
+            .safety.secrets_included == false
+          ' "$STAGING_TRUST_REPORT_FILE" >/dev/null
+
       - name: Certify live Staging against exact main release cut
         env:
           STAGING_CERT_EXPECTED_COMMIT: ${{ steps.identity.outputs.release_cut_sha }}
@@ -106,7 +134,11 @@ jobs:
             .contract == "mad4b.staging-live-certification.v1" and
             .outcome == "ready" and .ready == true and
             .expected.branch == "main" and .expected.commit_sha == $cut and
+            (.expected.activation_gateway_policy_hash | test("^[0-9a-f]{64}$")) and
             .observed.branch == "main" and .observed.commit_sha == $cut and
+            .gateway.policy_source == "repository_profile" and
+            .gateway.profile_validation.ok == true and
+            .gateway.profile_validation.expected_policy_hash == .expected.activation_gateway_policy_hash and
             .artifact_set.complete == true and
             (.artifact_set.app.source_commit == $cut) and
             (.artifact_set.gateway.source_commit == $cut) and
@@ -133,6 +165,7 @@ jobs:
             --arg cut "$RELEASE_CUT_SHA" \
             --slurpfile authority "$STAGING_AUTHORITY_REPORT_FILE" \
             --slurpfile impact "$ENVIRONMENT_IMPACT_REPORT_FILE" \
+            --slurpfile trust "$STAGING_TRUST_REPORT_FILE" \
             --slurpfile live "$STAGING_CERT_REPORT_FILE" \
             '{
               contract:"mad4b.staging-live-certification-evidence.v1",
@@ -140,6 +173,7 @@ jobs:
               main_release_cut_sha:$cut,
               authority_closure:$authority[0],
               environment_impact_closure:$impact[0],
+              trusted_ingress_runtime_binding:$trust[0],
               live_certification:$live[0],
               production_merge:false,
               deployment:false,

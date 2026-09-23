@@ -6,17 +6,17 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "732800817cd77208957f025fa83b5961495d88f24289a79f47d2090731435efd",
-    "dispatch_artifact_sha256": "145a0589998ccc458a4eb2dcb7962d7a7cd820e749a8bfb3ce21670a0f1a8917"
+    "dispatch_source_digest": "3a26e65c3844fd756b4b17b05a31510d553698cc9d3273a529ada34c5de5a36c",
+    "dispatch_artifact_sha256": "12a5d1ff82a1cfdea2f5da41c436758543c54346f902fe26cb3d1419cb8841e8"
   },
   "coverage": {
-    "operation_count": 1066,
-    "openapi_documented_count": 1050,
-    "openapi_canonical_documented_count": 732,
-    "openapi_generated_index_count": 318,
+    "operation_count": 1077,
+    "openapi_documented_count": 1061,
+    "openapi_canonical_documented_count": 742,
+    "openapi_generated_index_count": 319,
     "openapi_gap_count": 0,
     "auth_contract_gap_count": 0,
-    "openapi_detail_gap_count": 318,
+    "openapi_detail_gap_count": 319,
     "unresolved_surface_decision_count": 0,
     "coverage_complete": true
   },
@@ -24,11 +24,11 @@
     "surface_decisions_by_family": [
       {
         "decision": "internal_only",
-        "count": 121
+        "count": 122
       },
       {
         "decision": "api_only",
-        "count": 39
+        "count": 41
       },
       {
         "decision": "embedded_ui",
@@ -54,7 +54,7 @@
       },
       {
         "decision": "legacy_compatibility",
-        "count": 4
+        "count": 5
       },
       {
         "decision": "embedded_ui",
@@ -64,11 +64,11 @@
     "detail_gap_entries_by_method": [
       {
         "method": "POST",
-        "count": 145
+        "count": 147
       },
       {
         "method": "GET",
-        "count": 118
+        "count": 117
       },
       {
         "method": "PUT",
@@ -141,6 +141,10 @@
         "count": 5
       },
       {
+        "path_first_segment": "local-manager",
+        "count": 5
+      },
+      {
         "path_first_segment": "logic-definitions",
         "count": 5
       },
@@ -150,10 +154,6 @@
       },
       {
         "path_first_segment": "installations",
-        "count": 4
-      },
-      {
-        "path_first_segment": "local-manager",
         "count": 4
       },
       {
@@ -459,6 +459,10 @@
         "count": 3
       },
       {
+        "family_key": "local-manager-desktop-command.local_device",
+        "count": 3
+      },
+      {
         "family_key": "mcp",
         "count": 3
       },
@@ -496,10 +500,6 @@
       },
       {
         "family_key": "local-manager-desktop-command.admin",
-        "count": 2
-      },
-      {
-        "family_key": "local-manager-desktop-command.local_device",
         "count": 2
       },
       {
@@ -651,7 +651,7 @@
   "priority_summary": {
     "blocking_contract_gap_count": 0,
     "surface_decision_required_family_count": 0,
-    "documentation_only_detail_gap_count": 318,
+    "documentation_only_detail_gap_count": 319,
     "top_surface_decision_families": []
   },
   "scope_boundary": {

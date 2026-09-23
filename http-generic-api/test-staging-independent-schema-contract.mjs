@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import express from "express";
 import YAML from "yaml";
 import { resolveSurfaceAuthority, SURFACE_KEYS } from "./surfaceAuthorityResolver.js";
@@ -17,7 +18,7 @@ process.env.REMOTE_MCP_RESOURCE_URL = "https://mcp-dev.mad4b.com";
 process.env.REMOTE_MCP_AUTHORIZATION_SERVER_URL = "https://dev.mad4b.com/auth/mcp";
 process.env.REMOTE_MCP_TRUST_PROXY_HOST_HEADERS = "true";
 
-const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
 const readJson = (relative) => JSON.parse(read(relative));
 const parseYaml = (relative) => YAML.parse(read(relative));
@@ -88,11 +89,21 @@ assert.ok(Object.keys(remoteMcp.paths ?? {}).includes("/mcp"));
 assert.equal(adminActivation["x-mad4b-registration"]?.registration_set, "admin_activation_staging");
 assert.equal(adminActivation["x-mad4b-registration"]?.audience, "admin_service");
 assert.deepEqual(adminActivation["x-mad4b-registration"]?.members, ["activation_admin_staging", "admin_recovery_staging"]);
-assert.equal(adminActivation["x-custom-gpt-generation"]?.operation_count, 12);
+assert.equal(adminActivation["x-custom-gpt-generation"]?.operation_count, 14);
 for (const pathname of ["/admin/recovery/staging/contract", "/admin/recovery/staging/readiness", "/admin/recovery/staging/certification"]) {
   assert.equal(adminActivation.paths[pathname]?.get?.["x-openai-isConsequential"], false, pathname);
   assert.equal(adminActivation.paths[pathname]?.get?.security?.[0]?.backendBearerAuth?.length, 0, pathname);
   assert.equal(adminActivation.paths[pathname]?.post, undefined, pathname);
+}
+for (const [pathname, operationId, consequential] of [
+  ["/admin/recovery/staging/gateway/rollout-plan", "previewStagingActivationGatewayRolloutPlan", false],
+  ["/admin/recovery/staging/gateway/dark-deploy-dry-run", "prepareStagingActivationGatewayDarkDeployDryRun", true],
+]) {
+  const operation = adminActivation.paths[pathname]?.post;
+  assert.equal(operation?.operationId, operationId, pathname);
+  assert.equal(operation?.["x-openai-isConsequential"], consequential, pathname);
+  assert.equal(operation?.security?.[0]?.backendBearerAuth?.length, 0, pathname);
+  assert.equal(adminActivation.paths[pathname]?.get, undefined, pathname);
 }
 assert.equal(tenantActivation["x-mad4b-registration"]?.registration_set, "tenant_activation_staging");
 assert.equal(tenantActivation["x-mad4b-registration"]?.audience, "tenant");
@@ -231,9 +242,9 @@ console.log(JSON.stringify({
   ok: true,
   registration_graph: "admin_activation_staging_composite_plus_tenant_activation_staging",
   admin_activation_staging_server: "https://activation-dev.mad4b.com",
-  admin_activation_staging_operation_count: 12,
+  admin_activation_staging_operation_count: 14,
   tenant_activation_staging_server: "https://activation-dev.mad4b.com",
-  recovery_routes_embedded_get_only: true,
+  recovery_routes_embedded_bounded_preflight: true,
   production_recovery_surface_standalone: true,
   discovery_isolation: true,
   execution_policy_surface_compatibility_verified: true,

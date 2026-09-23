@@ -190,10 +190,13 @@ test("Staging bootstrap authority enforces reserved to executing to verifying to
     assert.equal(first.reservation_receipt.contract, "mad4b.staging-bootstrap-reservation-receipt.v1");
 
     const replay = await authority.verifyForBootstrap({ ticket_id: ticket.ticket_id, ticket_hash: ticket.ticket_hash, expected });
-    assert.equal(replay.valid, false);
-    assert.equal(replay.error_code, "RECOVERY_TICKET_ALREADY_RESERVED");
-    assert.equal(replay.reconciliation_required, true);
-    assert.equal(replay.automatic_rerun_allowed, false);
+    assert.equal(replay.valid, true);
+    assert.equal(replay.reserved, true);
+    assert.equal(replay.idempotent_replay, true);
+    assert.equal(replay.lifecycle_state, "reserved");
+    assert.equal(replay.reservation_generation, first.reservation_generation);
+    assert.equal(replay.reservation_receipt.receipt_hash, first.reservation_receipt.receipt_hash);
+    assert.equal(replay.reconciliation_required, false);
 
     await assert.rejects(
       () => authority.finalizeForBootstrap({
@@ -261,11 +264,22 @@ test("Staging bootstrap authority enforces reserved to executing to verifying to
   }
 });
 
-test("Staging Recovery keeps internal bootstrap authority POSTs out of the advertised GPT operation set", () => {
+test("Staging Recovery exposes only bounded Gateway preflight POSTs and keeps bootstrap authority internal", () => {
   const contract = buildStagingRecoveryAdminContract();
-  assert.deepEqual(contract.operation_policy.advertised_methods, ["GET"]);
+  assert.deepEqual(contract.operation_policy.advertised_methods, ["GET", "POST"]);
+  assert.deepEqual(contract.operation_policy.gateway_preflight_methods, ["POST"]);
+  assert.equal(contract.operation_policy.consequential_gateway_apply_exposed, false);
+  assert.equal(contract.operation_policy.provider_mutation_allowed, false);
+  assert.equal(contract.operation_policy.target_database_mutation_allowed, false);
+  assert.equal(contract.operation_policy.production_mutation_allowed, false);
   assert.deepEqual(contract.operation_policy.internal_execution_authority_methods, ["POST"]);
-  assert.equal(contract.paths.length, 3);
+  assert.deepEqual(contract.paths, [
+    "/admin/recovery/staging/contract",
+    "/admin/recovery/staging/readiness",
+    "/admin/recovery/staging/certification",
+    "/admin/recovery/staging/gateway/rollout-plan",
+    "/admin/recovery/staging/gateway/dark-deploy-dry-run",
+  ]);
   assert.deepEqual(contract.internal_execution_authority_paths, [
     "/admin/recovery/staging/bootstrap-ticket/verify",
     "/admin/recovery/staging/bootstrap-ticket/finalize",

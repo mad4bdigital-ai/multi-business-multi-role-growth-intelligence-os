@@ -252,13 +252,95 @@ assert.equal(matchesPattern("src/a.ts", "docs/**"), false);
   assert.equal(executePhaseTests(result, { root }).test_count, 0);
 }
 
+
+{
+  const root = tempRepo();
+  const baseSha = "1".repeat(40);
+  const headSha = "2".repeat(40);
+  write(root, "sha-placeholder-test.mjs", `
+const expected = [${JSON.stringify(baseSha)}, ${JSON.stringify(headSha)}];
+if (JSON.stringify(process.argv.slice(2)) !== JSON.stringify(expected)) process.exit(9);
+`);
+  const evaluation = {
+    policy: { max_test_count_per_contract: 5, test_timeout_ms: policy.test_timeout_ms },
+    contracts: [{
+      featureKey: "sha-placeholder-resolution",
+      currentPhase: {
+        id: "mvp",
+        status: "implemented",
+        e2e_journeys: [{
+          id: "resolve-governed-sha-placeholders",
+          tests: [{
+            id: "sha-placeholder-resolution",
+            runner: "node",
+            working_directory: ".",
+            path: "sha-placeholder-test.mjs",
+            args: ["BASE_SHA", "HEAD_SHA"]
+          }]
+        }]
+      }
+    }]
+  };
+  const resolved = executePhaseTests(evaluation, { root, base: baseSha, head: headSha });
+  assert.equal(resolved.ok, true);
+  assert.equal(resolved.results.length, 1);
+  const [resolvedResult] = resolved.results;
+  assert.equal(resolvedResult.status, "passed");
+
+  const missingBase = executePhaseTests(evaluation, { root, head: headSha });
+  assert.equal(missingBase.ok, false);
+  assert.equal(missingBase.results.length, 1);
+  const [missingBaseResult] = missingBase.results;
+  assert.equal(missingBaseResult.status, "error");
+  assert.match(missingBaseResult.error, /BASE_SHA.*exact lowercase 40-character Git SHA/u);
+}
+
+
+{
+  const root = tempRepo();
+  write(root, "hung-e2e-test.mjs", "setInterval(() => {}, 1000);\n");
+  const evaluation = {
+    policy: { max_test_count_per_contract: 5, test_timeout_ms: 1000 },
+    contracts: [{
+      featureKey: "bounded-timeout",
+      currentPhase: {
+        id: "mvp",
+        status: "implemented",
+        e2e_journeys: [{
+          id: "hung-child-must-time-out",
+          tests: [{
+            id: "hung-e2e-test",
+            runner: "node",
+            working_directory: ".",
+            path: "hung-e2e-test.mjs",
+            args: []
+          }]
+        }]
+      }
+    }]
+  };
+  const startedAt = Date.now();
+  const timed = executePhaseTests(evaluation, { root });
+  assert.equal(timed.ok, false);
+  assert.equal(timed.results.length, 1);
+  const [timedResult] = timed.results;
+  assert.equal(timedResult.status, "error");
+  assert.equal(timedResult.timed_out, true);
+  assert.equal(timedResult.timeout_ms, 1000);
+  assert.match(timedResult.error, /ETIMEDOUT|timed out/iu);
+  assert.ok(Date.now() - startedAt < 10_000);
+}
+
 console.log(JSON.stringify({
   ok: true,
-  tests: 12,
+  tests: 15,
   gate: "e2e_phase_governance",
   reverse_scope_dependency_closure: true,
   governance_only_reverse_execution: true,
   unrelated_governance_e2e_storm: false,
   repository_governance_classification: "constitution_control_plane_paths",
+  governed_sha_placeholder_resolution: true,
+  missing_governed_sha_fails_closed: true,
+  bounded_child_test_timeout: true,
   secrets_included: false
 }));

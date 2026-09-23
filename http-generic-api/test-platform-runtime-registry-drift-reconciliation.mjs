@@ -5,6 +5,13 @@ const migration = await readFile(
   new URL("./migrations/20260810_platform_runtime_registry_drift_reconciliation.sql", import.meta.url),
   "utf8",
 );
+const attributes = await readFile(new URL("../.gitattributes", import.meta.url), "utf8");
+
+assert.match(
+  attributes,
+  /^http-generic-api\/migrations\/20260810_platform_runtime_registry_drift_reconciliation\.sql text eol=lf$/mu,
+  "LF-sensitive runtime/registry reconciliation migration must be pinned to LF",
+);
 
 for (const invariant of [
   "no_provider_call=true",

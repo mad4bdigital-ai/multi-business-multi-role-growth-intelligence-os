@@ -5,7 +5,12 @@
   "purpose": "Explicit GitHub or Hostinger release-hook bootstrap/recovery without weakening normal DB-backed authorization or tool catalog routes.",
   "execution_policy": {
     "default_mode": "plan",
-    "allowed_modes": ["plan", "dry_run", "apply_migration", "apply_grants"],
+    "allowed_modes": [
+      "plan",
+      "dry_run",
+      "apply_migration",
+      "apply_grants"
+    ],
     "combined_apply_mode": "deny",
     "apply_migration_confirmation_prefix": "APPLY_HOSTINGER_RUNTIME_MIGRATION",
     "apply_grants_confirmation_prefix": "APPLY_HOSTINGER_RUNTIME_GRANTS",
@@ -47,9 +52,16 @@
     "expected_sha_env": "BOOTSTRAP_EXPECTED_SHA",
     "expected_branch_env": "BOOTSTRAP_EXPECTED_BRANCH",
     "expected_repository_env": "BOOTSTRAP_EXPECTED_REPOSITORY",
-    "deployment_manifest_candidates": ["DEPLOYMENT_COMMIT.json", "http-generic-api/DEPLOYMENT_COMMIT.json"],
+    "deployment_manifest_candidates": [
+      "DEPLOYMENT_COMMIT.json",
+      "http-generic-api/DEPLOYMENT_COMMIT.json"
+    ],
     "local_checkout_sha_must_match_when_available": true,
-    "exact_sha_required_for": ["dry_run", "apply_migration", "apply_grants"]
+    "exact_sha_required_for": [
+      "dry_run",
+      "apply_migration",
+      "apply_grants"
+    ]
   },
   "target_binding": {
     "targets_json_env": "RUNTIME_BOOTSTRAP_TARGETS_JSON",
@@ -63,14 +75,21 @@
     "default_target_key": "production-runtime",
     "target_sources": {
       "repository_allowlist": {
-        "allowed_modes": ["plan", "dry_run", "apply_migration", "apply_grants"],
+        "allowed_modes": [
+          "plan",
+          "dry_run",
+          "apply_migration",
+          "apply_grants"
+        ],
         "requires_repository_target_json": true,
         "mutation_requires_injected_execution_ticket_authority": true,
         "mutation_requires_immutable_partial_receipt_store": true,
         "mutation_requires_host_side_role_executor": true
       },
       "runtime_env": {
-        "allowed_modes": ["dry_run"],
+        "allowed_modes": [
+          "dry_run"
+        ],
         "requires_repository_target_json": false,
         "database_env": "DB_NAME",
         "governance_database_env": "GOVERNANCE_DB_NAME",
@@ -84,17 +103,29 @@
         "local_connector_fallback_allowed": false
       },
       "host_local_role_env": {
-        "allowed_modes": ["dry_run", "apply_migration", "apply_grants"],
+        "allowed_modes": [
+          "dry_run",
+          "apply_migration",
+          "apply_grants"
+        ],
         "requires_explicit_host_breakglass_authorization": true,
         "execution_authority": "production_admin_governed_execution",
         "local_connector_required": false,
         "local_connector_fallback_allowed": false,
-        "allowed_operations": ["database.inspect", "database.repair", "database.rebuild_empty"],
+        "allowed_operations": [
+          "database.inspect",
+          "database.repair",
+          "database.rebuild_empty"
+        ],
         "inspection_requires_dry_run": true,
         "inspection_migration_optional": true,
         "role_selective_rebuild": true,
         "role_selection_env": "BOOTSTRAP_ROLE_SELECTION",
-        "selected_role_enum": ["runtime", "governance", "runtime_persistence"],
+        "selected_role_enum": [
+          "runtime",
+          "governance",
+          "runtime_persistence"
+        ],
         "selection_source": "full_inspection_durable_record_or_plan_bound_selector",
         "requires_pre_mutation_zero_object_recheck": true,
         "sequential_role_execution": true,
@@ -121,9 +152,16 @@
         "mutation_requires_immutable_partial_receipt_store": true
       },
       "staging_local_role_env": {
-        "allowed_modes": ["dry_run", "apply_migration", "apply_grants"],
+        "allowed_modes": [
+          "dry_run",
+          "apply_migration",
+          "apply_grants"
+        ],
         "requires_explicit_host_breakglass_authorization": true,
-        "allowed_operations": ["database.repair", "database.rebuild_empty"],
+        "allowed_operations": [
+          "database.repair",
+          "database.rebuild_empty"
+        ],
         "required_environment_key": "staging_local_windows_docker",
         "required_transport": "local_cli",
         "required_platform": "win32",
@@ -134,7 +172,11 @@
         "production_admin_path_not_available": true,
         "role_selective_rebuild": true,
         "role_selection_env": "BOOTSTRAP_ROLE_SELECTION",
-        "selected_role_enum": ["runtime", "governance", "runtime_persistence"],
+        "selected_role_enum": [
+          "runtime",
+          "governance",
+          "runtime_persistence"
+        ],
         "selection_source": "full_inspection_durable_record_or_plan_bound_selector",
         "requires_pre_mutation_zero_object_recheck": true,
         "sequential_role_execution": true,
@@ -166,18 +208,46 @@
     "require_database_sha256": true,
     "require_target_fingerprint": true,
     "target_fingerprint_formula": "sha256(json({repository,branch,key,role_identity_bindings:{runtime:{database,principal,principal_host},governance:{database,principal,principal_host},runtime_persistence:{database,principal,principal_host}}}))",
-    "target_fingerprint_includes": ["runtime_database", "governance_database", "runtime_persistence_database", "runtime_principal", "governance_principal", "runtime_persistence_principal", "runtime_principal_host", "governance_principal_host", "runtime_persistence_principal_host"],
+    "target_fingerprint_includes": [
+      "runtime_database",
+      "governance_database",
+      "runtime_persistence_database",
+      "runtime_principal",
+      "governance_principal",
+      "runtime_persistence_principal",
+      "runtime_principal_host",
+      "governance_principal_host",
+      "runtime_persistence_principal_host"
+    ],
     "role_identity_binding": {
       "required_for_distinct_databases": true,
-      "repository_target_fields": ["runtime_principal", "runtime_principal_host", "governance_principal", "governance_principal_host", "runtime_persistence_principal", "runtime_persistence_principal_host"],
-      "distinct_role_env_prefixes": {"runtime": "MYSQL_BOOTSTRAP", "governance": "MYSQL_BOOTSTRAP_GOVERNANCE", "runtime_persistence": "MYSQL_BOOTSTRAP_RUNTIME_PERSISTENCE"},
+      "repository_target_fields": [
+        "runtime_principal",
+        "runtime_principal_host",
+        "governance_principal",
+        "governance_principal_host",
+        "runtime_persistence_principal",
+        "runtime_persistence_principal_host"
+      ],
+      "distinct_role_env_prefixes": {
+        "runtime": "MYSQL_BOOTSTRAP",
+        "governance": "MYSQL_BOOTSTRAP_GOVERNANCE",
+        "runtime_persistence": "MYSQL_BOOTSTRAP_RUNTIME_PERSISTENCE"
+      },
       "single_database_legacy_binding_allowed": true,
       "cross_database_identity_reuse": false
     },
     "require_principal_binding": true,
     "require_principal_host_binding": true,
     "runtime_database_credentials_are_never_accepted": true,
-    "runtime_database_env_names": ["DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_PASSWORD", "DATABASE_URL"]
+    "runtime_database_env_names": [
+      "DB_HOST",
+      "DB_PORT",
+      "DB_NAME",
+      "DB_USER",
+      "DB_PASSWORD",
+      "DATABASE_URL"
+    ]
   },
   "mutation_authority": {
     "execution_lifecycle_contract": "mad4b.recovery-execute-and-verify.v1",
@@ -188,7 +258,7 @@
     "exact_durable_run_id_required": true,
     "in_memory_run_fallback_allowed": false,
     "separate_migration_ledger_required": true,
-    "production_live_composition_enabled": false,
+    "production_live_composition_enabled": true,
     "execution_ticket_contract": "mad4b.recovery-execution-ticket.v1",
     "mutation_requires_ticket_id_and_hash": true,
     "ticket_refs_are_not_authority": true,
@@ -196,7 +266,7 @@
     "mutation_requires_immutable_partial_receipt_store_before_connection": true,
     "default_cli_authority": "deny",
     "default_cli_partial_receipt_store": "deny",
-    "provider_wiring_in_repository": false,
+    "provider_wiring_in_repository": true,
     "server_managed_adapter_factory_wired": true,
     "server_managed_adapter_factory": "http-generic-api/productionRecoveryCompositionFactory.js",
     "server_managed_binding_provider_wired": true,
@@ -208,16 +278,52 @@
     "server_managed_authority_binding_contract": "mad4b.recovery-server-managed-authority-binding.v1",
     "server_managed_deployment_identity_contract": "mad4b.recovery-server-managed-deployment-identity-provider.v1",
     "server_managed_default_mode": "disabled",
-    "server_managed_readiness_capabilities": ["adapter_present", "durability_capable", "attestation_capable"],
+    "server_managed_readiness_capabilities": [
+      "adapter_present",
+      "durability_capable",
+      "attestation_capable"
+    ],
     "server_managed_live_ready": false,
     "live_provider_authority_configured": false,
     "live_authority_readiness_contract": "mad4b.recovery-live-authority-readiness.v1",
-    "required_live_authority_components": ["recoveryStore", "executionTicketSigner", "approvalVerifier", "recoveryLock", "readbackVerifier", "hostLocalMutationExecutor", "deploymentIdentityProvider"],
-    "live_activation_requires_separate_release": true
+    "required_live_authority_components": [
+      "recoveryStore",
+      "executionTicketSigner",
+      "approvalVerifier",
+      "recoveryLock",
+      "readbackVerifier",
+      "hostLocalMutationExecutor",
+      "deploymentIdentityProvider"
+    ],
+    "live_activation_requires_separate_release": false
   },
   "migration_target_role_bindings": {
     "20260815_custom_gpt_mcp_catalog_levels.sql": {
       "ownership_domain": "governance",
+      "database_target_role": "runtime",
+      "target_role": "runtime",
+      "credential_binding_prefix": "DB_",
+      "migration_ledger": "separate_governance_migration_ledger",
+      "secrets_included": false
+    },
+    "20260922_local_manager_desktop_commands.sql": {
+      "ownership_domain": "runtime",
+      "database_target_role": "runtime",
+      "target_role": "runtime",
+      "credential_binding_prefix": "DB_",
+      "migration_ledger": "separate_governance_migration_ledger",
+      "secrets_included": false
+    },
+    "20260922_local_manager_device_link_authority.sql": {
+      "ownership_domain": "runtime",
+      "database_target_role": "runtime",
+      "target_role": "runtime",
+      "credential_binding_prefix": "DB_",
+      "migration_ledger": "separate_governance_migration_ledger",
+      "secrets_included": false
+    },
+    "20260922_local_manager_control_templates_registry.sql": {
+      "ownership_domain": "runtime",
       "database_target_role": "runtime",
       "target_role": "runtime",
       "credential_binding_prefix": "DB_",
@@ -231,7 +337,11 @@
     "user_env": "MYSQL_BOOTSTRAP_USER",
     "password_env": "MYSQL_BOOTSTRAP_PASSWORD",
     "database_env": "MYSQL_BOOTSTRAP_DATABASE",
-    "role_specific_env_prefixes": {"runtime": "MYSQL_BOOTSTRAP", "governance": "MYSQL_BOOTSTRAP_GOVERNANCE", "runtime_persistence": "MYSQL_BOOTSTRAP_RUNTIME_PERSISTENCE"},
+    "role_specific_env_prefixes": {
+      "runtime": "MYSQL_BOOTSTRAP",
+      "governance": "MYSQL_BOOTSTRAP_GOVERNANCE",
+      "runtime_persistence": "MYSQL_BOOTSTRAP_RUNTIME_PERSISTENCE"
+    },
     "role_specific_binding_required_for_distinct_databases": true,
     "must_be_separate_from_runtime_credentials": true,
     "host_local_role_scoped_exception_requires_explicit_breakglass": true,
@@ -249,47 +359,112 @@
     "provider_accessed_required": false,
     "data_exported_required": false,
     "secrets_included_required": false,
-    "required_roles": ["runtime", "governance", "runtime_persistence"],
+    "required_roles": [
+      "runtime",
+      "governance",
+      "runtime_persistence"
+    ],
     "runtime_role_file": "runtime.schema.sql.gz",
     "governance_role_file": "governance.schema.sql.gz",
     "runtime_persistence_role_file": "persistence.schema.sql.gz",
     "required_runtime_tables": [
-      "admin_platform_endpoint_tools",
-      "tenant_platform_endpoint_tools",
-      "customer_sessions",
-      "gpt_session_turns",
       "actions",
+      "admin_platform_endpoint_tools",
+      "customer_sessions",
       "dynamic_audit_scheduler_runs",
       "execution_log",
-      "json_assets"
+      "gpt_session_turns",
+      "json_assets",
+      "local_manager_control_templates",
+      "local_manager_desktop_commands",
+      "local_manager_device_link_sessions",
+      "tenant_platform_endpoint_tools"
     ],
-    "required_governance_tables": ["capability_resolution_envelope_ledger", "approval_holds", "governed_migration_authorization_registry", "capability_apply_authorization_policy_registry", "runtime_dispatch_certification_registry", "governed_migration_ledger", "platform_resource_authority_bindings", "platform_resource_recipes", "platform_resource_recipe_steps", "repository_operation_leases", "repository_mutation_plans_v6", "repository_mutation_runs_v6", "runtime_break_glass_incidents", "runtime_break_glass_audit_events", "runtime_verification_runs", "runtime_verification_evidence_chunks", "deployment_attestations"],
-    "required_runtime_persistence_tables": ["governed_tool_response_chunks"],
+    "required_governance_tables": [
+      "capability_resolution_envelope_ledger",
+      "approval_holds",
+      "governed_migration_authorization_registry",
+      "capability_apply_authorization_policy_registry",
+      "runtime_dispatch_certification_registry",
+      "governed_migration_ledger",
+      "platform_resource_authority_bindings",
+      "platform_resource_recipes",
+      "platform_resource_recipe_steps",
+      "repository_operation_leases",
+      "repository_mutation_plans_v6",
+      "repository_mutation_runs_v6",
+      "runtime_break_glass_incidents",
+      "runtime_break_glass_audit_events",
+      "runtime_verification_runs",
+      "runtime_verification_evidence_chunks",
+      "deployment_attestations"
+    ],
+    "required_runtime_persistence_tables": [
+      "governed_tool_response_chunks"
+    ],
     "runtime_persistence_readback_migration": "1048_transport_response_chunk_schema_recovery.sql",
     "governance_database_optional": true,
     "governance_database_must_be_allowlisted_when_present": true,
     "role_split_baseline_requires_no_partial_pair": true,
     "empty_database_classification": "EMPTY_UNINITIALIZED_DATABASE",
-    "empty_database_object_kinds": ["tables", "views", "triggers", "routines", "events"],
+    "empty_database_object_kinds": [
+      "tables",
+      "views",
+      "triggers",
+      "routines",
+      "events"
+    ],
     "empty_database_requires_all_roles_zero_objects": false,
     "empty_database_role_selection": "only_roles_classified_zero_objects_by_same_cycle_full_inspection",
-    "selected_role_enum": ["runtime", "governance", "runtime_persistence"],
+    "selected_role_enum": [
+      "runtime",
+      "governance",
+      "runtime_persistence"
+    ],
     "selection_cannot_be_caller_database_name": true,
     "empty_database_standalone_migration_first_denied": true,
     "sequential_role_execution": true,
     "stop_on_role_verification_failure": true,
     "pre_mutation_zero_object_recheck": true,
     "role_rebuild_postconditions": {
-      "runtime": {"required_tables": "required_runtime_tables", "object_count_nonzero": true, "behavioral_probe": "runtime_full_inspection_readiness"},
-      "governance": {"required_tables": "required_governance_tables", "object_count_nonzero": true, "behavioral_probe": "governance_catalog_readiness"},
-      "runtime_persistence": {"required_tables": "required_runtime_persistence_tables", "object_count_nonzero": true, "behavioral_probe": "runtime_persistence_response_chunk_readiness"}
+      "runtime": {
+        "required_tables": "required_runtime_tables",
+        "object_count_nonzero": true,
+        "behavioral_probe": "runtime_full_inspection_readiness"
+      },
+      "governance": {
+        "required_tables": "required_governance_tables",
+        "object_count_nonzero": true,
+        "behavioral_probe": "governance_catalog_readiness"
+      },
+      "runtime_persistence": {
+        "required_tables": "required_runtime_persistence_tables",
+        "object_count_nonzero": true,
+        "behavioral_probe": "runtime_persistence_response_chunk_readiness"
+      }
     },
-    "empty_database_execution_order": ["full_inspection_durable_record", "selected_zero_object_role_recheck", "selected_role_bundle_baseline", "selected_role_seeds", "selected_role_postconditions", "next_selected_role_or_stop", "separate_least_privilege_grants_approval", "behavioral_probes"],
+    "empty_database_execution_order": [
+      "full_inspection_durable_record",
+      "selected_zero_object_role_recheck",
+      "selected_role_bundle_baseline",
+      "selected_role_seeds",
+      "selected_role_postconditions",
+      "next_selected_role_or_stop",
+      "separate_least_privilege_grants_approval",
+      "behavioral_probes"
+    ],
     "baseline_before_ordinary_migration": {
       "contract": "mad4b.baseline-before-ordinary-migration.v1",
       "verification_before_ordinary_migration": true,
       "ordinary_migration_first_denied": true,
-      "required_predecessors": ["recovery_control_plane_ready", "durable_full_inspection", "governance_baseline_ready", "runtime_persistence_baseline_ready", "canonical_grants_readback_ready", "governance_authority_ready"],
+      "required_predecessors": [
+        "recovery_control_plane_ready",
+        "durable_full_inspection",
+        "governance_baseline_ready",
+        "runtime_persistence_baseline_ready",
+        "canonical_grants_readback_ready",
+        "governance_authority_ready"
+      ],
       "proof_source": "injected_durable_baseline_readback",
       "proof_hash_required": true,
       "database_independent_control_plane": true,
@@ -306,23 +481,54 @@
       "secrets_included": false
     },
     "behavioral_probes": [
-      {"probe": "governance_catalog_readiness", "role": "governance", "mutation": false, "provider_accessed": false},
-      {"probe": "runtime_persistence_response_chunk_readiness", "role": "runtime_persistence", "migration": "1048_transport_response_chunk_schema_recovery.sql", "mutation": false, "provider_accessed": false},
-      {"probe": "runtime_full_inspection_readiness", "role": "runtime", "mutation": false, "provider_accessed": false}
+      {
+        "probe": "governance_catalog_readiness",
+        "role": "governance",
+        "mutation": false,
+        "provider_accessed": false
+      },
+      {
+        "probe": "runtime_persistence_response_chunk_readiness",
+        "role": "runtime_persistence",
+        "migration": "1048_transport_response_chunk_schema_recovery.sql",
+        "mutation": false,
+        "provider_accessed": false
+      },
+      {
+        "probe": "runtime_full_inspection_readiness",
+        "role": "runtime",
+        "mutation": false,
+        "provider_accessed": false
+      }
     ],
     "recovery_store_must_be_independent_of_target_role_databases": true,
     "partial_rebuild_policy": {
       "ddl_rollback_claimed": false,
       "on_statement_failure": "immutable_partial_rebuild_receipt_and_reconciliation_required",
       "automatic_rerun_allowed": false,
-      "resume_requires": ["durable_partial_receipt", "same_bundle_sha", "same_target_fingerprint", "same_execution_ticket", "valid_fence", "explicit_resume_partial_baseline_approval"],
+      "resume_requires": [
+        "durable_partial_receipt",
+        "same_bundle_sha",
+        "same_target_fingerprint",
+        "same_execution_ticket",
+        "valid_fence",
+        "explicit_resume_partial_baseline_approval"
+      ],
       "progress_contract": "mad4b.role-bundle-progress.v1",
       "reconciliation_before_resume": true
     },
     "role_seed_files": {
       "runtime": [
-        {"file": "039_sprint43_data_integrity_and_missing_tables.sql", "sha256": "719d43521a0aca776f8967332e6b2e2c68101644150135d49580708b84c3b308", "statement_count": 13},
-        {"file": "1043_sprint69_dynamic_container_hvac_activity_seed.sql", "sha256": "ea95dba9c2968c43535cda20aca5649d02098fc2027adbad094b6f99caaa9c47", "statement_count": 1}
+        {
+          "file": "039_sprint43_data_integrity_and_missing_tables.sql",
+          "sha256": "719d43521a0aca776f8967332e6b2e2c68101644150135d49580708b84c3b308",
+          "statement_count": 13
+        },
+        {
+          "file": "1043_sprint69_dynamic_container_hvac_activity_seed.sql",
+          "sha256": "ea95dba9c2968c43535cda20aca5649d02098fc2027adbad094b6f99caaa9c47",
+          "statement_count": 1
+        }
       ],
       "governance": [],
       "runtime_persistence": []
@@ -332,23 +538,73 @@
     "225_sprint67_capability_resolution_envelope_ledger.sql": {
       "sha256": "35b034940c2be63d9bf8a8099573cac1c5a75b5fffd8ccfad60a453ed3cf7419",
       "statement_count": 3,
-      "allowed_modes": ["dry_run"],
+      "allowed_modes": [
+        "dry_run"
+      ],
       "role": "verification_only"
     },
     "1048_transport_response_chunk_schema_recovery.sql": {
       "sha256": "aecfbd9d87dca6eba11677cd992637f55ecf3c0743f704df4bbea48c57d8d788",
       "statement_count": 34,
-      "allowed_modes": ["dry_run"],
+      "allowed_modes": [
+        "dry_run"
+      ],
       "role": "verification_only"
     },
     "20260815_custom_gpt_mcp_catalog_levels.sql": {
       "sha256": "528143808adac23eb457058c4c34dd95c4c5d462bca9ac4b170b1f19b2006681",
       "statement_count": 7,
-      "allowed_modes": ["dry_run", "apply_migration", "apply_grants"],
+      "allowed_modes": [
+        "dry_run",
+        "apply_migration",
+        "apply_grants"
+      ],
       "role": "only_current_apply_candidate",
       "direct_fallback_authorized": true,
       "direct_fallback_idempotent": true,
-      "requires_tables": ["admin_platform_endpoint_tools", "tenant_platform_endpoint_tools"]
+      "requires_tables": [
+        "admin_platform_endpoint_tools",
+        "tenant_platform_endpoint_tools"
+      ]
+    },
+    "20260922_local_manager_desktop_commands.sql": {
+      "sha256": "740f7d1adba99cd1466fea40f5e04f10676fda46df445d8ef81da4c4bff303e1",
+      "statement_count": 1,
+      "allowed_modes": [
+        "dry_run",
+        "apply_migration",
+        "apply_grants"
+      ],
+      "role": "reviewed_runtime_apply_candidate",
+      "direct_fallback_authorized": true,
+      "direct_fallback_idempotent": true,
+      "requires_tables": []
+    },
+    "20260922_local_manager_device_link_authority.sql": {
+      "sha256": "e4039c5d8256d298b9606e2a6fe0c1d0f2903eecf830f26f2c00ceb93798a3e2",
+      "statement_count": 2,
+      "allowed_modes": [
+        "dry_run",
+        "apply_migration",
+        "apply_grants"
+      ],
+      "role": "reviewed_runtime_apply_candidate",
+      "direct_fallback_authorized": true,
+      "direct_fallback_idempotent": true,
+      "requires_tables": []
+    },
+    "20260922_local_manager_control_templates_registry.sql": {
+      "sha256": "e2e7cb35e32928d4c0ba5565e515bbc86408f7615d0cafee7b791a655f6de4b3",
+      "statement_count": 2,
+      "allowed_modes": [
+        "dry_run",
+        "apply_migration",
+        "apply_grants"
+      ],
+      "role": "reviewed_runtime_apply_candidate",
+      "direct_fallback_authorized": true,
+      "direct_fallback_idempotent": true,
+      "requires_tables": []
     }
   },
   "grant_policy": {
@@ -358,9 +614,15 @@
       "actions",
       "dynamic_audit_scheduler_runs",
       "execution_log",
-      "json_assets"
+      "json_assets",
+      "local_manager_desktop_commands",
+      "local_manager_device_link_sessions"
     ],
-    "required_operations": ["SELECT", "INSERT", "UPDATE"],
+    "required_operations": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
     "allow_additional_tables": false,
     "allow_additional_operations": false,
     "allow_schema_write_privileges": false,
@@ -376,41 +638,137 @@
       "runtime": {
         "database_binding": "runtime",
         "principal_binding": "runtime",
-        "required_tables": ["customer_sessions", "gpt_session_turns", "actions", "dynamic_audit_scheduler_runs", "execution_log", "json_assets"],
-        "required_operations": ["SELECT", "INSERT", "UPDATE"],
+        "required_tables": [
+          "customer_sessions",
+          "gpt_session_turns",
+          "actions",
+          "dynamic_audit_scheduler_runs",
+          "execution_log",
+          "json_assets",
+          "local_manager_desktop_commands",
+          "local_manager_device_link_sessions"
+        ],
+        "required_operations": [
+          "SELECT",
+          "INSERT",
+          "UPDATE"
+        ],
         "apply_when": "always"
       },
       "governance": {
         "database_binding": "governance",
         "principal_binding": "governance",
-        "required_tables": ["capability_resolution_envelope_ledger", "approval_holds", "governed_migration_authorization_registry", "capability_apply_authorization_policy_registry", "runtime_dispatch_certification_registry", "governed_migration_ledger", "platform_resource_authority_bindings", "platform_resource_recipes", "platform_resource_recipe_steps", "repository_operation_leases", "repository_mutation_plans_v6", "repository_mutation_runs_v6", "runtime_break_glass_incidents", "runtime_break_glass_audit_events", "runtime_verification_runs", "runtime_verification_evidence_chunks", "deployment_attestations"],
-        "required_operations": ["SELECT"],
+        "required_tables": [
+          "capability_resolution_envelope_ledger",
+          "approval_holds",
+          "governed_migration_authorization_registry",
+          "capability_apply_authorization_policy_registry",
+          "runtime_dispatch_certification_registry",
+          "governed_migration_ledger",
+          "platform_resource_authority_bindings",
+          "platform_resource_recipes",
+          "platform_resource_recipe_steps",
+          "repository_operation_leases",
+          "repository_mutation_plans_v6",
+          "repository_mutation_runs_v6",
+          "runtime_break_glass_incidents",
+          "runtime_break_glass_audit_events",
+          "runtime_verification_runs",
+          "runtime_verification_evidence_chunks",
+          "deployment_attestations"
+        ],
+        "required_operations": [
+          "SELECT"
+        ],
         "required_operations_by_table": {
-          "capability_resolution_envelope_ledger": ["SELECT", "INSERT", "UPDATE"],
-          "approval_holds": ["SELECT", "INSERT"],
-          "governed_migration_authorization_registry": ["SELECT", "INSERT", "UPDATE"],
-          "capability_apply_authorization_policy_registry": ["SELECT", "INSERT", "UPDATE"],
-          "runtime_dispatch_certification_registry": ["SELECT", "INSERT", "UPDATE"],
-          "governed_migration_ledger": ["SELECT"],
-          "platform_resource_authority_bindings": ["SELECT", "INSERT"],
-          "platform_resource_recipes": ["SELECT"],
-          "platform_resource_recipe_steps": ["SELECT"],
-          "repository_operation_leases": ["SELECT", "INSERT", "UPDATE"],
-          "repository_mutation_plans_v6": ["SELECT", "INSERT", "UPDATE"],
-          "repository_mutation_runs_v6": ["SELECT", "INSERT", "UPDATE"],
-          "runtime_break_glass_incidents": ["SELECT", "INSERT", "UPDATE"],
-          "runtime_break_glass_audit_events": ["SELECT", "INSERT"],
-          "runtime_verification_runs": ["SELECT"],
-          "runtime_verification_evidence_chunks": ["SELECT", "INSERT"],
-          "deployment_attestations": ["SELECT", "INSERT", "UPDATE"]
+          "capability_resolution_envelope_ledger": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
+          "approval_holds": [
+            "SELECT",
+            "INSERT"
+          ],
+          "governed_migration_authorization_registry": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
+          "capability_apply_authorization_policy_registry": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
+          "runtime_dispatch_certification_registry": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
+          "governed_migration_ledger": [
+            "SELECT"
+          ],
+          "platform_resource_authority_bindings": [
+            "SELECT",
+            "INSERT"
+          ],
+          "platform_resource_recipes": [
+            "SELECT"
+          ],
+          "platform_resource_recipe_steps": [
+            "SELECT"
+          ],
+          "repository_operation_leases": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
+          "repository_mutation_plans_v6": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
+          "repository_mutation_runs_v6": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
+          "runtime_break_glass_incidents": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
+          "runtime_break_glass_audit_events": [
+            "SELECT",
+            "INSERT"
+          ],
+          "runtime_verification_runs": [
+            "SELECT"
+          ],
+          "runtime_verification_evidence_chunks": [
+            "SELECT",
+            "INSERT"
+          ],
+          "deployment_attestations": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ]
         },
         "apply_when": "always"
       },
       "runtime_persistence": {
         "database_binding": "runtime_persistence",
         "principal_binding": "runtime_persistence",
-        "required_tables": ["governed_tool_response_chunks"],
-        "required_operations": ["SELECT", "INSERT", "UPDATE", "DELETE"],
+        "required_tables": [
+          "governed_tool_response_chunks"
+        ],
+        "required_operations": [
+          "SELECT",
+          "INSERT",
+          "UPDATE",
+          "DELETE"
+        ],
         "apply_when": "always"
       }
     },
@@ -418,54 +776,391 @@
   },
   "postconditions": {
     "225_sprint67_capability_resolution_envelope_ledger.sql": [
-      {"type": "column", "table": "capability_resolution_envelope_ledger", "column": "envelope_id"},
-      {"type": "column", "table": "capability_resolution_envelope_ledger", "column": "envelope_sha256"},
-      {"type": "column", "table": "capability_resolution_envelope_ledger", "column": "envelope_json"},
-      {"type": "column", "table": "capability_resolution_envelope_ledger", "column": "envelope_status"},
-      {"type": "column", "table": "capability_resolution_envelope_ledger", "column": "dispatch_allowed"},
-      {"type": "column", "table": "capability_resolution_envelope_ledger", "column": "apply_allowed"},
-      {"type": "column", "table": "capability_resolution_envelope_ledger", "column": "approval_required"},
-      {"type": "column", "table": "capability_resolution_envelope_ledger", "column": "quota_required"},
-      {"type": "column", "table": "capability_resolution_envelope_ledger", "column": "audit_required"},
-      {"type": "column", "table": "capability_resolution_envelope_ledger", "column": "readback_required"},
-      {"type": "column", "table": "capability_resolution_envelope_ledger", "column": "blocking_gap_count"},
-      {"type": "column", "table": "capability_resolution_envelope_ledger", "column": "execution_status"},
-      {"type": "column", "table": "capability_resolution_envelope_ledger", "column": "expires_at"},
-      {"type": "column", "table": "capability_resolution_envelope_ledger", "column": "secrets_included"},
-      {"type": "index", "table": "capability_resolution_envelope_ledger", "index": "uq_capability_resolution_envelope_id"},
-      {"type": "index", "table": "capability_resolution_envelope_ledger", "index": "idx_capability_resolution_envelope_status"},
-      {"type": "index", "table": "capability_resolution_envelope_ledger", "index": "idx_capability_resolution_envelope_decision"},
-      {"type": "row", "table": "platform_runtime_config", "key_column": "config_key", "key_value": "capability_resolution_envelope_ledger_policy_v1", "value_column": "config_key", "expected_value": "capability_resolution_envelope_ledger_policy_v1"},
-      {"type": "row", "table": "admin_platform_endpoint_tools", "key_column": "tool_key", "key_value": "capability_resolution_envelope_create", "value_column": "tool_key", "expected_value": "capability_resolution_envelope_create"}
+      {
+        "type": "column",
+        "table": "capability_resolution_envelope_ledger",
+        "column": "envelope_id"
+      },
+      {
+        "type": "column",
+        "table": "capability_resolution_envelope_ledger",
+        "column": "envelope_sha256"
+      },
+      {
+        "type": "column",
+        "table": "capability_resolution_envelope_ledger",
+        "column": "envelope_json"
+      },
+      {
+        "type": "column",
+        "table": "capability_resolution_envelope_ledger",
+        "column": "envelope_status"
+      },
+      {
+        "type": "column",
+        "table": "capability_resolution_envelope_ledger",
+        "column": "dispatch_allowed"
+      },
+      {
+        "type": "column",
+        "table": "capability_resolution_envelope_ledger",
+        "column": "apply_allowed"
+      },
+      {
+        "type": "column",
+        "table": "capability_resolution_envelope_ledger",
+        "column": "approval_required"
+      },
+      {
+        "type": "column",
+        "table": "capability_resolution_envelope_ledger",
+        "column": "quota_required"
+      },
+      {
+        "type": "column",
+        "table": "capability_resolution_envelope_ledger",
+        "column": "audit_required"
+      },
+      {
+        "type": "column",
+        "table": "capability_resolution_envelope_ledger",
+        "column": "readback_required"
+      },
+      {
+        "type": "column",
+        "table": "capability_resolution_envelope_ledger",
+        "column": "blocking_gap_count"
+      },
+      {
+        "type": "column",
+        "table": "capability_resolution_envelope_ledger",
+        "column": "execution_status"
+      },
+      {
+        "type": "column",
+        "table": "capability_resolution_envelope_ledger",
+        "column": "expires_at"
+      },
+      {
+        "type": "column",
+        "table": "capability_resolution_envelope_ledger",
+        "column": "secrets_included"
+      },
+      {
+        "type": "index",
+        "table": "capability_resolution_envelope_ledger",
+        "index": "uq_capability_resolution_envelope_id"
+      },
+      {
+        "type": "index",
+        "table": "capability_resolution_envelope_ledger",
+        "index": "idx_capability_resolution_envelope_status"
+      },
+      {
+        "type": "index",
+        "table": "capability_resolution_envelope_ledger",
+        "index": "idx_capability_resolution_envelope_decision"
+      },
+      {
+        "type": "row",
+        "table": "platform_runtime_config",
+        "key_column": "config_key",
+        "key_value": "capability_resolution_envelope_ledger_policy_v1",
+        "value_column": "config_key",
+        "expected_value": "capability_resolution_envelope_ledger_policy_v1"
+      },
+      {
+        "type": "row",
+        "table": "admin_platform_endpoint_tools",
+        "key_column": "tool_key",
+        "key_value": "capability_resolution_envelope_create",
+        "value_column": "tool_key",
+        "expected_value": "capability_resolution_envelope_create"
+      }
     ],
     "1048_transport_response_chunk_schema_recovery.sql": [
-      {"type": "column", "table": "governed_tool_response_chunks", "column": "chunk_id"},
-      {"type": "column", "table": "governed_tool_response_chunks", "column": "source_tool_key"},
-      {"type": "column", "table": "governed_tool_response_chunks", "column": "response_sha256"},
-      {"type": "column", "table": "governed_tool_response_chunks", "column": "response_bytes"},
-      {"type": "column", "table": "governed_tool_response_chunks", "column": "response_json"},
-      {"type": "column", "table": "governed_tool_response_chunks", "column": "cursor_policy"},
-      {"type": "column", "table": "governed_tool_response_chunks", "column": "redaction_status"},
-      {"type": "column", "table": "governed_tool_response_chunks", "column": "secrets_included"},
-      {"type": "column", "table": "governed_tool_response_chunks", "column": "owner_tenant_id"},
-      {"type": "column", "table": "governed_tool_response_chunks", "column": "owner_user_id"},
-      {"type": "column", "table": "governed_tool_response_chunks", "column": "owner_workspace_id"},
-      {"type": "column", "table": "governed_tool_response_chunks", "column": "owner_principal_type"},
-      {"type": "column", "table": "governed_tool_response_chunks", "column": "owner_principal_id"},
-      {"type": "column", "table": "governed_tool_response_chunks", "column": "source_surface"},
-      {"type": "column", "table": "governed_tool_response_chunks", "column": "created_at"},
-      {"type": "column", "table": "governed_tool_response_chunks", "column": "expires_at"},
-      {"type": "index", "table": "governed_tool_response_chunks", "index": "idx_governed_tool_response_chunks_expires_at"},
-      {"type": "index", "table": "governed_tool_response_chunks", "index": "idx_governed_chunk_owner_user_expiry"},
-      {"type": "index", "table": "governed_tool_response_chunks", "index": "idx_governed_chunk_principal_expiry"},
-      {"type": "view_row", "view": "v_governed_response_chunk_transport_schema_readiness", "key_column": "contract_key", "key_value": "governed_response_chunk_transport_schema_v1", "value_column": "readiness_status", "expected_value": "ready"}
+      {
+        "type": "column",
+        "table": "governed_tool_response_chunks",
+        "column": "chunk_id"
+      },
+      {
+        "type": "column",
+        "table": "governed_tool_response_chunks",
+        "column": "source_tool_key"
+      },
+      {
+        "type": "column",
+        "table": "governed_tool_response_chunks",
+        "column": "response_sha256"
+      },
+      {
+        "type": "column",
+        "table": "governed_tool_response_chunks",
+        "column": "response_bytes"
+      },
+      {
+        "type": "column",
+        "table": "governed_tool_response_chunks",
+        "column": "response_json"
+      },
+      {
+        "type": "column",
+        "table": "governed_tool_response_chunks",
+        "column": "cursor_policy"
+      },
+      {
+        "type": "column",
+        "table": "governed_tool_response_chunks",
+        "column": "redaction_status"
+      },
+      {
+        "type": "column",
+        "table": "governed_tool_response_chunks",
+        "column": "secrets_included"
+      },
+      {
+        "type": "column",
+        "table": "governed_tool_response_chunks",
+        "column": "owner_tenant_id"
+      },
+      {
+        "type": "column",
+        "table": "governed_tool_response_chunks",
+        "column": "owner_user_id"
+      },
+      {
+        "type": "column",
+        "table": "governed_tool_response_chunks",
+        "column": "owner_workspace_id"
+      },
+      {
+        "type": "column",
+        "table": "governed_tool_response_chunks",
+        "column": "owner_principal_type"
+      },
+      {
+        "type": "column",
+        "table": "governed_tool_response_chunks",
+        "column": "owner_principal_id"
+      },
+      {
+        "type": "column",
+        "table": "governed_tool_response_chunks",
+        "column": "source_surface"
+      },
+      {
+        "type": "column",
+        "table": "governed_tool_response_chunks",
+        "column": "created_at"
+      },
+      {
+        "type": "column",
+        "table": "governed_tool_response_chunks",
+        "column": "expires_at"
+      },
+      {
+        "type": "index",
+        "table": "governed_tool_response_chunks",
+        "index": "idx_governed_tool_response_chunks_expires_at"
+      },
+      {
+        "type": "index",
+        "table": "governed_tool_response_chunks",
+        "index": "idx_governed_chunk_owner_user_expiry"
+      },
+      {
+        "type": "index",
+        "table": "governed_tool_response_chunks",
+        "index": "idx_governed_chunk_principal_expiry"
+      },
+      {
+        "type": "view_row",
+        "view": "v_governed_response_chunk_transport_schema_readiness",
+        "key_column": "contract_key",
+        "key_value": "governed_response_chunk_transport_schema_v1",
+        "value_column": "readiness_status",
+        "expected_value": "ready"
+      }
     ],
     "20260815_custom_gpt_mcp_catalog_levels.sql": [
-      {"type": "column", "table": "admin_platform_endpoint_tools", "column": "mcp_catalog_level"},
-      {"type": "column", "table": "tenant_platform_endpoint_tools", "column": "mcp_catalog_level"},
-      {"type": "index", "table": "admin_platform_endpoint_tools", "index": "idx_enabled_mcp_level_sort"},
-      {"type": "index", "table": "tenant_platform_endpoint_tools", "index": "idx_enabled_mcp_level_sort"},
-      {"type": "row", "table": "tenant_platform_endpoint_tools", "key_column": "tool_key", "key_value": "tenant_growth_recommendation_feedback", "value_column": "mcp_catalog_level", "expected_value": "growth_feedback"}
+      {
+        "type": "column",
+        "table": "admin_platform_endpoint_tools",
+        "column": "mcp_catalog_level"
+      },
+      {
+        "type": "column",
+        "table": "tenant_platform_endpoint_tools",
+        "column": "mcp_catalog_level"
+      },
+      {
+        "type": "index",
+        "table": "admin_platform_endpoint_tools",
+        "index": "idx_enabled_mcp_level_sort"
+      },
+      {
+        "type": "index",
+        "table": "tenant_platform_endpoint_tools",
+        "index": "idx_enabled_mcp_level_sort"
+      },
+      {
+        "type": "row",
+        "table": "tenant_platform_endpoint_tools",
+        "key_column": "tool_key",
+        "key_value": "tenant_growth_recommendation_feedback",
+        "value_column": "mcp_catalog_level",
+        "expected_value": "growth_feedback"
+      }
+    ],
+    "20260922_local_manager_desktop_commands.sql": [
+      {
+        "type": "table",
+        "table": "local_manager_desktop_commands"
+      },
+      {
+        "type": "column",
+        "table": "local_manager_desktop_commands",
+        "column": "command_id"
+      },
+      {
+        "type": "column",
+        "table": "local_manager_desktop_commands",
+        "column": "status"
+      },
+      {
+        "type": "index",
+        "table": "local_manager_desktop_commands",
+        "index": "idx_lm_desktop_command_device"
+      },
+      {
+        "type": "index",
+        "table": "local_manager_desktop_commands",
+        "index": "idx_lm_desktop_command_status"
+      },
+      {
+        "type": "column",
+        "table": "local_manager_desktop_commands",
+        "column": "claim_token"
+      },
+      {
+        "type": "column",
+        "table": "local_manager_desktop_commands",
+        "column": "claim_lease_expires_at"
+      },
+      {
+        "type": "index",
+        "table": "local_manager_desktop_commands",
+        "index": "idx_lm_desktop_command_claim_token"
+      }
+    ],
+    "20260922_local_manager_device_link_authority.sql": [
+      {
+        "type": "table",
+        "table": "local_manager_device_link_sessions"
+      },
+      {
+        "type": "column",
+        "table": "local_manager_device_link_sessions",
+        "column": "device_token_jti"
+      },
+      {
+        "type": "column",
+        "table": "local_manager_device_link_sessions",
+        "column": "device_token_issued_at"
+      },
+      {
+        "type": "column",
+        "table": "local_manager_device_link_sessions",
+        "column": "revoked_at"
+      },
+      {
+        "type": "column",
+        "table": "local_manager_device_link_sessions",
+        "column": "revoked_by_user_id"
+      },
+      {
+        "type": "index",
+        "table": "local_manager_device_link_sessions",
+        "index": "idx_local_manager_device_link_token_jti"
+      },
+      {
+        "type": "index",
+        "table": "local_manager_device_link_sessions",
+        "index": "idx_local_manager_device_link_revocation"
+      },
+      {
+        "type": "column",
+        "table": "local_manager_device_link_sessions",
+        "column": "display_code_hash"
+      },
+      {
+        "type": "column",
+        "table": "local_manager_device_link_sessions",
+        "column": "poll_token_hash"
+      },
+      {
+        "type": "column",
+        "table": "local_manager_device_link_sessions",
+        "column": "status"
+      },
+      {
+        "type": "index",
+        "table": "local_manager_device_link_sessions",
+        "index": "idx_local_manager_device_link_status_expiry"
+      },
+      {
+        "type": "index",
+        "table": "local_manager_device_link_sessions",
+        "index": "idx_local_manager_device_link_user_device"
+      }
+    ],
+    "20260922_local_manager_control_templates_registry.sql": [
+      {
+        "type": "table",
+        "table": "local_manager_control_templates"
+      },
+      {
+        "type": "column",
+        "table": "local_manager_control_templates",
+        "column": "template_id"
+      },
+      {
+        "type": "column",
+        "table": "local_manager_control_templates",
+        "column": "template_type"
+      },
+      {
+        "type": "column",
+        "table": "local_manager_control_templates",
+        "column": "metadata_json"
+      },
+      {
+        "type": "index",
+        "table": "local_manager_control_templates",
+        "index": "uq_local_manager_control_template"
+      },
+      {
+        "type": "index",
+        "table": "local_manager_control_templates",
+        "index": "idx_local_manager_control_status"
+      },
+      {
+        "type": "row",
+        "table": "local_manager_control_templates",
+        "key_column": "template_key",
+        "key_value": "powershell_admin",
+        "value_column": "status",
+        "expected_value": "active"
+      },
+      {
+        "type": "row",
+        "table": "local_manager_control_templates",
+        "key_column": "template_key",
+        "key_value": "managed_n8n_client",
+        "value_column": "status",
+        "expected_value": "active"
+      }
     ]
   },
   "evidence": {
@@ -475,7 +1170,64 @@
     "credential_values_included": false,
     "sql_text_included": false,
     "database_password_included": false,
-    "mutation_fields": ["database_mutation_performed", "migration_apply_performed", "grant_mutation_performed", "mutation_evidence"],
-    "required_classifications": ["missing_schema", "privilege_denied", "target_not_bound", "bootstrap_not_configured", "verification_only", "mutation_partial_possible", "migration_approval_required", "grants_approval_required"]
+    "mutation_fields": [
+      "database_mutation_performed",
+      "migration_apply_performed",
+      "grant_mutation_performed",
+      "mutation_evidence"
+    ],
+    "required_classifications": [
+      "missing_schema",
+      "privilege_denied",
+      "target_not_bound",
+      "bootstrap_not_configured",
+      "verification_only",
+      "mutation_partial_possible",
+      "migration_approval_required",
+      "grants_approval_required"
+    ]
+  },
+  "separated_writer_handoffs": {
+    "contract": "mad4b.local-manager-separated-writer-handoffs.v1",
+    "automatic_grant_apply_allowed": false,
+    "generic_runtime_principal_fallback": false,
+    "operator_approval_required": true,
+    "identity_env_prefix": "LOCAL_MANAGER_WRITE_DB_",
+    "enablement_env": "LOCAL_MANAGER_WRITE_AUTHORITY_ENABLED",
+    "authorities": {
+      "local_connector_alias_reconciliation_writer": {
+        "table_operations": {
+          "local_connector_device_aliases": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ]
+        },
+        "invocation_surface": "POST /local-manager/device-link/approve",
+        "explicit_user_approval_required": true,
+        "same_cycle_readback_required": true
+      },
+      "local_manager_n8n_provisioning_writer": {
+        "table_operations": {
+          "connected_systems": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
+          "installations": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ]
+        },
+        "invocation_surface": "POST /local-manager/device/n8n/provision",
+        "explicit_user_approval_required": true,
+        "same_cycle_readback_required": true
+      }
+    },
+    "source_module": "http-generic-api/localManagerWriteAuthority.js",
+    "secrets_included": false,
+    "canonical_privilege_contract": "http-generic-api/databasePrivilegeContracts.js#LOCAL_MANAGER_WRITE_DB_PRIVILEGE_MATRIX",
+    "prepared_profile_contract": "specs/020-platform-resource-identity-brand-governance/contracts/runtime-db-write-authority-profiles.json#local_manager_writer"
   }
 }

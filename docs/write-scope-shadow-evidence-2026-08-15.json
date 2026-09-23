@@ -8,7 +8,7 @@
     "inventory_catalog_fingerprint": "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2",
     "catalog_fingerprint": "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2",
     "write_scope_count": 6,
-    "route_count": 670
+    "route_count": 680
   },
   "scope_selection": [
     "approvals.request",
@@ -372,7 +372,7 @@
       "default_request": false,
       "tool_bound": false,
       "route_evidence": {
-        "route_count": 10,
+        "route_count": 12,
         "route_ids": [
           "http-generic-api/routes/adminCliRoutes.js#POST:/hostinger:6",
           "http-generic-api/routes/agentSurfaceRoutes.js#PUT:/me/agent-surfaces/:surface_key/deployment:4",
@@ -383,10 +383,12 @@
           "http-generic-api/routes/governanceRoutes.js#POST:/hostinger/ssh-runtime-read:4",
           "http-generic-api/routes/hostingerStorageTenantRoutes.js#POST:/tenant/storage-operations/apply-plan:0",
           "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/hosting/deploy-release:28",
-          "http-generic-api/routes/runtimeBreakglassRoutes.js#POST:/deployment-info/runtime-breakglass-plan:4"
+          "http-generic-api/routes/runtimeBreakglassRoutes.js#POST:/deployment-info/runtime-breakglass-plan:4",
+          "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/gateway/dark-deploy-dry-run:4",
+          "http-generic-api/routes/wordpressStagingPluginDeployRoutes.js#POST:/platform/remote-runtime/wordpress/staging/deploy-plugin:0"
         ],
         "classification_counts": {
-          "shadow_candidate": 10
+          "shadow_candidate": 12
         },
         "prerequisites": [
           "approval_policy_evidence",
@@ -443,7 +445,7 @@
   ],
   "summary": {
     "scope_count": 6,
-    "route_count": 42,
+    "route_count": 44,
     "all_preflight_decisions_denied": true,
     "all_execution_attempts_false": true,
     "all_rollback_plans_validated": true
@@ -460,5 +462,5 @@
     "credential_payload_reads": false,
     "secrets_included": false
   },
-  "evidence_fingerprint": "85b221173a915cd83bdbcb78ed9b55d9fed29ee01c992e8292241ea66855aeb9"
+  "evidence_fingerprint": "39768ae1a59cd2198cc65026fb8886a5a39f1184613e62dba4bd1013962bdbcf"
 }

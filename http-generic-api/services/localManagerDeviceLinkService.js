@@ -1,12 +1,29 @@
 import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
 import { getPool } from "../db.js";
+import { verifyUserJwtAuthorization } from "../userJwtAuth.js";
+import {
+  localManagerN8nSystemKey,
+  localManagerWriteAuthorityEnabled,
+  provisionLocalManagerN8n,
+  reconcileLocalConnectorAliases,
+} from "../localManagerWriteAuthority.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
+const DEFAULT_LOCAL_MANAGER_JWT_ISSUER = "https://auth.mad4b.com";
+
+function localManagerJwtIssuer(env = process.env) {
+  return String(env?.PLATFORM_JWT_ISSUER || DEFAULT_LOCAL_MANAGER_JWT_ISSUER).trim().replace(/\/$/u, "");
+}
+const DEVICE_JWT_AUDIENCE = "mad4b-local-manager-device";
+const LOCAL_MANAGER_USER_JWT_AUDIENCE = "mad4b-local-manager-user";
+const LOCAL_MANAGER_USER_JWT_PURPOSE = "local_manager_user_access";
+const LOCAL_MANAGER_USER_JWT_SCOPE = "local_manager.user";
+const DEVICE_JWT_SECRET_MAX_LENGTH = 4096;
 const DEVICE_LINK_TTL_SECONDS = 10 * 60;
 const POLL_INTERVAL_SECONDS = 3;
+const DEVICE_LINK_INSERT_MAX_ATTEMPTS = 5;
 const DEVICE_TOKEN_TTL_SECONDS = 365 * 24 * 60 * 60;
-const PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = DEVICE_TOKEN_TTL_SECONDS;
+const PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = 15 * 60;
 const PLATFORM_MANAGED_N8N_URL = "https://n8n.mad4b.com/";
 
 function nowMs() {
@@ -28,6 +45,121 @@ function randomDisplayCode() {
   return `${out.slice(0, 4)}-${out.slice(4)}`;
 }
 
+
+function isDuplicateKeyError(error) {
+  return error?.code === "ER_DUP_ENTRY" || Number(error?.errno || 0) === 1062;
+}
+
+function isExplicitPairingConsentValid({ row, displayCode, consent, previewFingerprint }) {
+  if (!row) return false;
+  return cleanText(consent, 64) === "approve_device"
+    && cleanText(previewFingerprint, 64).toLowerCase() === pairingFingerprint(row, displayCode);
+}
+
+function isDeviceSessionAuthorizedForToken(row, payload) {
+  if (!row || !payload) return false;
+  return row.status === "completed"
+    && !row.revoked_at
+    && cleanText(row.device_token_jti, 64) === cleanText(payload.jti, 64)
+    && cleanText(row.session_id, 64) === cleanText(payload.session_id, 64)
+    && cleanText(row.device_id, 128) === cleanText(payload.device_id, 128)
+    && cleanText(row.user_id, 64) === cleanText(payload.user_id, 64)
+    && sameTenantScope(row.tenant_id, payload.tenant_id);
+}
+async function createDeviceLinkSessionWithRetry({
+  pool,
+  deviceId,
+  hostname,
+  platform,
+  appVersion,
+  devicePublicKey,
+  requestMetadata = {},
+  maxAttempts = DEVICE_LINK_INSERT_MAX_ATTEMPTS,
+  generators = {},
+}) {
+  const makeDisplayCode = generators.displayCode || randomDisplayCode;
+  const makeToken = generators.token || randomToken;
+  const makeSessionId = generators.sessionId || (() => crypto.randomUUID());
+  const attempts = Math.max(1, Math.min(Number(maxAttempts) || DEVICE_LINK_INSERT_MAX_ATTEMPTS, 10));
+  let lastDuplicate = null;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const displayCode = makeDisplayCode();
+    const pollToken = makeToken(32);
+    const deviceProofChallenge = makeToken(32);
+    const sessionId = makeSessionId();
+    const expiresAt = new Date(nowMs() + DEVICE_LINK_TTL_SECONDS * 1000);
+    const metadata = {
+      source: "local_manager_windows_app",
+      user_agent: cleanText(requestMetadata.user_agent || "", 255),
+      ip_seen: cleanText(requestMetadata.ip_seen || "", 64),
+      device_public_key_spki: devicePublicKey.encoded,
+      device_public_key_fingerprint_sha256: devicePublicKey.fingerprint,
+      device_proof_challenge_sha256: sha256(deviceProofChallenge),
+      device_proof_contract: "mad4b.local-manager.device-proof.v1",
+      pairing_insert_attempt: attempt,
+    };
+
+    try {
+      await pool.query(
+        "INSERT INTO local_manager_device_link_sessions " +
+        "(session_id, display_code, display_code_hash, poll_token_hash, status, device_id, hostname, platform, app_version, expires_at, metadata_json) " +
+        "VALUES (?, NULL, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)",
+        [sessionId, sha256(displayCode), sha256(pollToken), deviceId, hostname || null, platform, appVersion || null, expiresAt, jsonString(metadata)]
+      );
+      return { displayCode, pollToken, deviceProofChallenge, sessionId, expiresAt, metadata, insert_attempt: attempt };
+    } catch (error) {
+      if (!isDuplicateKeyError(error)) throw error;
+      lastDuplicate = error;
+    }
+  }
+
+  const err = new Error("Pairing code allocation is temporarily saturated. Retry the pairing request.");
+  err.status = 503;
+  err.code = "device_link_code_allocation_exhausted";
+  err.details = { attempts, duplicate_key_retries_exhausted: true, secrets_included: false };
+  if (lastDuplicate?.code) err.cause_code = lastDuplicate.code;
+  throw err;
+}
+
+function deviceJwtSecret(env = process.env) {
+  const secret = String(env?.LOCAL_MANAGER_DEVICE_JWT_SECRET || "").trim();
+  if (!secret || secret.length < 32 || secret.length > DEVICE_JWT_SECRET_MAX_LENGTH) {
+    const err = new Error("Local Manager device authentication is temporarily unavailable.");
+    err.status = 503;
+    err.code = "local_manager_device_jwt_unavailable";
+    throw err;
+  }
+  return secret;
+}
+
+function signDeviceAccessToken(row, env = process.env) {
+  const issuedAt = Number(row.device_token_issued_at_seconds || 0)
+    || Math.floor(new Date(row.device_token_issued_at || Date.now()).getTime() / 1000);
+  const jti = cleanText(row.device_token_jti, 64);
+  if (!jti || !issuedAt) {
+    const err = new Error("Device token issuance state is incomplete.");
+    err.status = 503;
+    err.code = "device_token_issuance_state_incomplete";
+    throw err;
+  }
+  return jwt.sign(
+    {
+      iss: localManagerJwtIssuer(env),
+      aud: DEVICE_JWT_AUDIENCE,
+      purpose: "local_manager_device_access",
+      user_id: row.user_id,
+      tenant_id: row.tenant_id,
+      device_id: row.device_id,
+      session_id: row.session_id,
+      scope: "local_manager.device",
+      iat: issuedAt,
+    },
+    deviceJwtSecret(env),
+    { expiresIn: DEVICE_TOKEN_TTL_SECONDS, jwtid: jti, algorithm: "HS256" }
+  );
+}
+
 function cleanId(value, { fallback = "", max = 128 } = {}) {
   const raw = String(value || "").trim().slice(0, max);
   const safe = raw.replace(/[^A-Za-z0-9._-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
@@ -36,6 +168,12 @@ function cleanId(value, { fallback = "", max = 128 } = {}) {
 
 function cleanText(value, max = 255) {
   return String(value || "").trim().slice(0, max);
+}
+
+function sameTenantScope(leftTenantId, rightTenantId) {
+  const left = cleanText(leftTenantId, 64) || null;
+  const right = cleanText(rightTenantId, 64) || null;
+  return left === right;
 }
 
 function jsonString(value) {
@@ -52,10 +190,87 @@ function parseJson(value) {
   try { return JSON.parse(value); } catch { return null; }
 }
 
-function getBaseUrl(req) {
+function credentialDelivery(fields = []) {
+  return {
+    contains_credentials: fields.length > 0,
+    safe_to_log: fields.length === 0,
+    credential_delivery: {
+      intentional: fields.length > 0,
+      fields,
+      transport: fields.length > 0 ? "tls_response_body" : "none",
+    },
+    secrets_included: fields.length > 0,
+  };
+}
+
+function importDevicePublicKey(value) {
+  const encoded = cleanText(value, 2048);
+  if (!encoded) return null;
+  try {
+    const der = Buffer.from(encoded, "base64");
+    if (der.length < 64 || der.length > 1024) return null;
+    const key = crypto.createPublicKey({ key: der, format: "der", type: "spki" });
+    if (key.asymmetricKeyType !== "ec" || key.asymmetricKeyDetails?.namedCurve !== "prime256v1") return null;
+    return { key, encoded: der.toString("base64"), fingerprint: crypto.createHash("sha256").update(der).digest("hex") };
+  } catch {
+    return null;
+  }
+}
+
+function pairingFingerprint(row, displayCode = "") {
+  const metadata = parseJson(row.metadata_json) || {};
+  return sha256([
+    "mad4b.local-manager.pairing-preview.v2",
+    row.session_id,
+    cleanText(displayCode || row.display_code, 16).toUpperCase(),
+    row.device_id,
+    row.hostname || "",
+    row.platform || "",
+    row.app_version || "",
+    metadata.device_public_key_fingerprint_sha256 || "",
+    row.expires_at ? new Date(row.expires_at).toISOString() : "",
+  ].join("\n"));
+}
+
+function sanitizePublicPairingPreview(row, displayCode = "") {
+  return {
+    device_id: row.device_id,
+    display_label: row.hostname || row.device_id || "Local Manager device",
+    hostname: row.hostname || null,
+    platform: row.platform || null,
+    app_version: row.app_version || null,
+    effective_status: row.status,
+    expires_at: row.expires_at ? new Date(row.expires_at).toISOString() : null,
+    pairing_fingerprint: pairingFingerprint(row, displayCode),
+  };
+}
+
+function verifyDevicePossession({ row, displayCode, pollToken, challenge, signature }) {
+  const metadata = parseJson(row.metadata_json) || {};
+  const publicKey = importDevicePublicKey(metadata.device_public_key_spki);
+  if (!publicKey || publicKey.fingerprint !== metadata.device_public_key_fingerprint_sha256) return false;
+  if (!challenge || sha256(challenge) !== metadata.device_proof_challenge_sha256 || !signature) return false;
+  const canonical = ["mad4b.local-manager.device-proof.v1", row.session_id, cleanText(displayCode, 16).toUpperCase(), sha256(pollToken), challenge].join("\n");
+  try {
+    return crypto.verify("sha256", Buffer.from(canonical, "utf8"), { key: publicKey.key, dsaEncoding: "der" }, Buffer.from(signature, "base64"));
+  } catch {
+    return false;
+  }
+}
+
+function getBaseUrl(req, env = process.env) {
+  const configured = String(env.PUBLIC_BASE_URL || "").trim();
+  if (configured) return configured.replace(/\/$/, "");
+  const nodeEnv = String(env.NODE_ENV || "").trim().toLowerCase();
+  if (nodeEnv === "production" || nodeEnv === "staging") {
+    const err = new Error("PUBLIC_BASE_URL is required for Local Manager pairing in deployed environments.");
+    err.status = 503;
+    err.code = "local_manager_canonical_origin_required";
+    throw err;
+  }
   const proto = String(req.get("x-forwarded-proto") || req.protocol || "https").split(",")[0].trim() || "https";
-  const host = req.get("host") || "auth.mad4b.com";
-  return (process.env.PUBLIC_BASE_URL || `${proto}://${host}`).replace(/\/$/, "");
+  const host = req.get("host") || "localhost";
+  return `${proto}://${host}`.replace(/\/$/, "");
 }
 
 function defaultN8nProfile({ device }) {
@@ -132,9 +347,23 @@ function sanitizeN8nProfileConfig(value, { device }) {
   };
 }
 
-async function resolveOrCreateTenantN8nProfile(device) {
+async function resolveTenantN8nProfile(device) {
   const pool = getPool();
-  const systemKey = `local_n8n:${cleanId(device.device_id, { fallback: "device", max: 64 })}`;
+  const systemKey = localManagerN8nSystemKey(device.device_id);
+  if (!systemKey) {
+    return {
+      system_id: null,
+      installation_id: null,
+      display_name: "Local n8n",
+      status: "not_provisioned",
+      profile: defaultN8nProfile({ device }),
+      provisioned: false,
+      provisioning_required: true,
+      provisioning_reason: "invalid_device_identity",
+      mutation_performed: false,
+      secrets_included: false,
+    };
+  }
   const [rows] = await pool.query(
     `SELECT cs.*, i.installation_id, i.meta_json AS installation_meta_json
        FROM \`connected_systems\` cs
@@ -148,65 +377,85 @@ async function resolveOrCreateTenantN8nProfile(device) {
         AND cs.provider_family = 'n8n'
         AND cs.status IN ('active','pending')
       ORDER BY FIELD(cs.status, 'active', 'pending'), cs.updated_at DESC
-      LIMIT 1`,
-    [device.user_id, device.device_id, device.tenant_id || "", systemKey]
+      LIMIT 2`,
+    [device.user_id, device.device_id, device.tenant_id, systemKey]
   );
-  if (rows[0]) {
+  if (rows.length > 1) {
     return {
-      system_id: rows[0].system_id,
-      installation_id: rows[0].installation_id || null,
-      display_name: rows[0].display_name,
-      status: rows[0].status,
-      profile: sanitizeN8nProfileConfig(rows[0].config_json, { device }),
-      created: false,
+      system_id: null,
+      installation_id: null,
+      display_name: "Local n8n",
+      status: "ambiguous",
+      profile: defaultN8nProfile({ device }),
+      provisioned: false,
+      provisioning_required: true,
+      provisioning_reason: "ambiguous_provisioning_state",
+      mutation_performed: false,
+      secrets_included: false,
+    };
+  }
+  const [row = null] = rows;
+  if (row) {
+    return {
+      system_id: row.system_id,
+      installation_id: row.installation_id || null,
+      display_name: row.display_name,
+      status: row.status,
+      profile: sanitizeN8nProfileConfig(row.config_json, { device }),
+      provisioned: true,
+      provisioning_required: false,
+      mutation_performed: false,
+      secrets_included: false,
     };
   }
 
-  const systemId = crypto.randomUUID();
-  const installationId = crypto.randomUUID();
-  const profile = defaultN8nProfile({ device });
-  await pool.query(
-    `INSERT INTO \`connected_systems\`
-      (system_id, tenant_id, system_key, display_name, provider_family, provider_domain, connector_family, auth_type, service_mode, self_serve_capable, assisted_capable, managed_capable, status, config_json, created_at, updated_at)
-     VALUES (?, ?, ?, ?, 'n8n', 'n8n.io', 'local_desktop', 'local_manual', 'self_serve', 1, 0, 0, 'active', ?, NOW(), NOW())`,
-    [systemId, device.tenant_id || "", systemKey, "Local n8n", jsonString(profile)]
-  );
-  await pool.query(
-    `INSERT INTO \`installations\`
-      (installation_id, system_id, tenant_id, scope, credential_ref, status, installed_at, expires_at, meta_json)
-     VALUES (?, ?, ?, 'local_device', NULL, 'active', NOW(), NULL, ?)`,
-    [installationId, systemId, device.tenant_id || "", jsonString({ user_id: device.user_id, device_id: device.device_id, autopilot_enabled: true, local_only: true, writes_local_files: true, secrets_included: false })]
-  );
-  return { system_id: systemId, installation_id: installationId, display_name: "Local n8n", status: "active", profile, created: true };
+  return {
+    system_id: null,
+    installation_id: null,
+    display_name: "Local n8n",
+    status: "not_provisioned",
+    profile: defaultN8nProfile({ device }),
+    provisioned: false,
+    provisioning_required: true,
+    mutation_performed: false,
+    apply_authorized: false,
+    required_authority: "local_manager_n8n_provisioning_writer",
+    reason: "No governed runtime-database writer is bound for n8n provisioning; the device control read remains SELECT-only.",
+    secrets_included: false,
+  };
 }
 
-async function ensureDeviceLinkTable() {
-  await getPool().query(`
-    CREATE TABLE IF NOT EXISTS \`local_manager_device_link_sessions\` (
-      \`session_id\` VARCHAR(64) NOT NULL,
-      \`display_code\` VARCHAR(16) NOT NULL,
-      \`display_code_hash\` VARCHAR(64) NOT NULL,
-      \`poll_token_hash\` VARCHAR(64) NOT NULL,
-      \`status\` VARCHAR(24) NOT NULL DEFAULT 'pending',
-      \`device_id\` VARCHAR(128) NOT NULL,
-      \`hostname\` VARCHAR(255) NULL,
-      \`platform\` VARCHAR(32) NULL,
-      \`app_version\` VARCHAR(80) NULL,
-      \`user_id\` VARCHAR(64) NULL,
-      \`tenant_id\` VARCHAR(64) NULL,
-      \`approved_at\` DATETIME NULL,
-      \`completed_at\` DATETIME NULL,
-      \`expires_at\` DATETIME NOT NULL,
-      \`metadata_json\` JSON NULL,
-      \`created_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      \`updated_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      PRIMARY KEY (\`session_id\`),
-      UNIQUE KEY \`uq_local_manager_display_code_hash\` (\`display_code_hash\`),
-      KEY \`idx_local_manager_device_link_status\` (\`status\`, \`expires_at\`),
-      KEY \`idx_local_manager_device_link_owner\` (\`user_id\`, \`tenant_id\`),
-      KEY \`idx_local_manager_device_link_device\` (\`device_id\`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-  `);
+async function assertDeviceLinkTableSchema() {
+  try {
+    const [rows] = await getPool().query(
+      `SELECT COLUMN_NAME
+         FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'local_manager_device_link_sessions'`
+    );
+    const columns = new Set(rows.map((row) => String(row.COLUMN_NAME || row.column_name || "")));
+    const required = [
+      "session_id", "display_code_hash", "poll_token_hash", "status", "device_id",
+      "user_id", "tenant_id", "approved_at", "completed_at", "expires_at",
+      "device_token_jti", "device_token_issued_at", "revoked_at", "revoked_by_user_id",
+    ];
+    const missing = required.filter((column) => !columns.has(column));
+    if (missing.length) {
+      const err = new Error("Local Manager device-link schema is not ready.");
+      err.status = 503;
+      err.code = "device_link_schema_not_ready";
+      err.details = { missing_columns: missing, migration_required: "20260922_local_manager_device_link_authority.sql", secrets_included: false };
+      throw err;
+    }
+    return true;
+  } catch (error) {
+    if (error?.code === "device_link_schema_not_ready") throw error;
+    const err = new Error("Local Manager device-link schema is unavailable to runtime authority.");
+    err.status = 503;
+    err.code = "device_link_schema_unavailable";
+    err.details = { required_operations: ["SELECT", "INSERT", "UPDATE"], secrets_included: false };
+    throw err;
+  }
 }
 
 function sanitizeSession(row) {
@@ -222,6 +471,7 @@ function sanitizeSession(row) {
     tenant_id: row.tenant_id || null,
     approved_at: row.approved_at ? new Date(row.approved_at).toISOString() : null,
     completed_at: row.completed_at ? new Date(row.completed_at).toISOString() : null,
+    revoked_at: row.revoked_at ? new Date(row.revoked_at).toISOString() : null,
     expires_at: row.expires_at ? new Date(row.expires_at).toISOString() : null,
     created_at: row.created_at ? new Date(row.created_at).toISOString() : null,
     metadata: parseJson(row.metadata_json),
@@ -273,10 +523,10 @@ async function resolveCanonicalConnectorConfig({ userId, tenantId, deviceId, hos
         WHERE is_enabled = 1
           AND user_id = ?
           AND device_id IN (${placeholders})
-        ORDER BY CASE WHEN tenant_id = ? THEN 0 WHEN tenant_id = '00000000-0000-0000-0000-000000000000' THEN 1 ELSE 2 END,
-                 COALESCE(last_health_at, updated_at, created_at) DESC
+          AND ((? IS NULL AND tenant_id IS NULL) OR tenant_id = ?)
+        ORDER BY COALESCE(last_health_at, updated_at, created_at) DESC
         LIMIT 1`,
-      [userId, ...candidateIds, tenantId || ""]
+      [userId, ...candidateIds, tenantId || null, tenantId || null]
     );
     if (exactRows[0]) return exactRows[0];
   }
@@ -286,51 +536,17 @@ async function resolveCanonicalConnectorConfig({ userId, tenantId, deviceId, hos
        FROM \`local_connector_user_configs\`
       WHERE is_enabled = 1
         AND user_id = ?
-        AND (? IS NULL OR tenant_id = ? OR tenant_id = '00000000-0000-0000-0000-000000000000')
+        AND ((? IS NULL AND tenant_id IS NULL) OR tenant_id = ?)
         AND COALESCE(tunnel_url, public_gateway_url, device_runtime_url, admin_recovery_url) IS NOT NULL
-      ORDER BY CASE WHEN tenant_id = ? THEN 0 WHEN tenant_id = '00000000-0000-0000-0000-000000000000' THEN 1 ELSE 2 END,
-               COALESCE(last_health_at, updated_at, created_at) DESC
+      ORDER BY COALESCE(last_health_at, updated_at, created_at) DESC
       LIMIT 2`,
-    [userId, tenantId || null, tenantId || null, tenantId || ""]
+    [userId, tenantId || null, tenantId || null]
   );
 
   return fallbackRows.length === 1 ? fallbackRows[0] : null;
 }
 
-async function upsertConnectorAlias({ aliasDeviceId, canonical, principal }) {
-  const pool = getPool();
-  const alias = cleanId(aliasDeviceId, { max: 128 });
-  const canonicalDeviceId = cleanId(canonical?.device_id, { max: 128 });
-  if (!alias || !canonicalDeviceId || alias.toLowerCase() === canonicalDeviceId.toLowerCase()) return null;
-
-  const reason = "Auto-created from Local Manager device-link approval so app hostname/device id resolves to the executable local connector device.";
-  const [updateResult] = await pool.query(
-    `UPDATE \`local_connector_device_aliases\`
-        SET canonical_device_id = ?, canonical_config_id = ?, user_id = ?, tenant_id = ?, reason = ?, status = 'active', updated_at = NOW()
-      WHERE alias_device_id = ?
-        AND (user_id = ? OR user_id IS NULL)
-      LIMIT 1`,
-    [canonicalDeviceId, canonical.config_id, principal.user_id, principal.tenant_id || null, reason, alias, principal.user_id]
-  );
-
-  if (!Number(updateResult?.affectedRows || 0)) {
-    await pool.query(
-      `INSERT INTO \`local_connector_device_aliases\`
-        (alias_device_id, canonical_device_id, canonical_config_id, user_id, tenant_id, reason, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())`,
-      [alias, canonicalDeviceId, canonical.config_id, principal.user_id, principal.tenant_id || null, reason]
-    );
-  }
-
-  return {
-    alias_device_id: alias,
-    canonical_device_id: canonicalDeviceId,
-    canonical_config_id: canonical.config_id,
-    status: "active",
-  };
-}
-
-async function ensureLocalConnectorAliasForDeviceLink({ session, principal }) {
+async function inspectLocalConnectorAliasForDeviceLink({ session, principal }) {
   try {
     const canonical = await resolveCanonicalConnectorConfig({
       userId: principal.user_id,
@@ -339,62 +555,160 @@ async function ensureLocalConnectorAliasForDeviceLink({ session, principal }) {
       hostname: session.hostname,
     });
     if (!canonical) {
-      return { attempted: true, resolved: false, reason: "canonical_connector_config_not_found", secrets_included: false };
+      return {
+        attempted: true,
+        resolved: false,
+        reconciliation_required: true,
+        mutation_performed: false,
+        apply_authorized: false,
+        required_authority: "local_connector_alias_reconciliation_writer",
+        reason: "canonical_connector_config_not_found",
+        secrets_included: false,
+      };
     }
 
-    const aliasInputs = [...new Set([session.device_id, session.hostname].filter(Boolean))];
-    const aliases = [];
-    for (const aliasDeviceId of aliasInputs) {
-      const alias = await upsertConnectorAlias({ aliasDeviceId, canonical, principal });
-      if (alias) aliases.push(alias);
+    const canonicalDeviceId = cleanId(canonical.device_id, { max: 128 });
+    const aliasInputs = [...new Set([session.device_id, session.hostname]
+      .map((value) => cleanId(value, { max: 128 }))
+      .filter(Boolean)
+      .filter((value) => value.toLowerCase() !== canonicalDeviceId.toLowerCase()))];
+
+    if (!aliasInputs.length) {
+      return {
+        attempted: true,
+        resolved: true,
+        reconciliation_required: false,
+        mutation_performed: false,
+        canonical_device_id: canonicalDeviceId,
+        canonical_config_id: canonical.config_id,
+        aliases: [],
+        secrets_included: false,
+      };
     }
+
+    const placeholders = aliasInputs.map(() => "?").join(", ");
+    const [rows] = await getPool().query(
+      `SELECT alias_device_id, canonical_device_id, canonical_config_id, user_id, tenant_id, status, updated_at
+         FROM \`local_connector_device_aliases\`
+        WHERE status = 'active'
+          AND user_id = ?
+          AND alias_device_id IN (${placeholders})`,
+      [principal.user_id, ...aliasInputs]
+    );
+    const matching = rows.filter((row) =>
+      cleanId(row.canonical_device_id, { max: 128 }).toLowerCase() === canonicalDeviceId.toLowerCase()
+      && (sameTenantScope(row.tenant_id, principal.tenant_id))
+    );
+    const resolvedAliases = new Set(matching.map((row) => cleanId(row.alias_device_id, { max: 128 }).toLowerCase()));
+    const missingAliases = aliasInputs.filter((alias) => !resolvedAliases.has(alias.toLowerCase()));
 
     return {
       attempted: true,
-      resolved: true,
-      canonical_device_id: canonical.device_id,
+      resolved: missingAliases.length === 0,
+      reconciliation_required: missingAliases.length > 0,
+      mutation_performed: false,
+      apply_authorized: false,
+      required_authority: missingAliases.length ? "local_connector_alias_reconciliation_writer" : null,
+      canonical_device_id: canonicalDeviceId,
       canonical_config_id: canonical.config_id,
-      aliases,
+      aliases: matching.map((row) => ({
+        alias_device_id: row.alias_device_id,
+        canonical_device_id: row.canonical_device_id,
+        canonical_config_id: row.canonical_config_id || null,
+        status: row.status,
+      })),
+      missing_aliases: missingAliases,
+      reason: missingAliases.length ? "connector_alias_reconciliation_required" : null,
       secrets_included: false,
     };
   } catch (err) {
     return {
       attempted: true,
       resolved: false,
-      reason: "connector_alias_upsert_failed",
-      error: { code: err?.code || "connector_alias_upsert_failed", message: err?.message || String(err) },
+      reconciliation_required: true,
+      mutation_performed: false,
+      apply_authorized: false,
+      required_authority: "local_connector_alias_reconciliation_writer",
+      reason: "connector_alias_read_failed",
+      error: { code: "connector_alias_read_failed", request_id: crypto.randomUUID() },
+      secrets_included: false,
+    };
+  }
+}
+
+async function reconcileLocalConnectorAliasForDeviceLink({ session, principal }) {
+  const inspected = await inspectLocalConnectorAliasForDeviceLink({ session, principal });
+  if (inspected.resolved || !inspected.reconciliation_required) return inspected;
+  if (!localManagerWriteAuthorityEnabled()) {
+    return {
+      ...inspected,
+      writer_ready: false,
+      apply_authorized: false,
+      mutation_performed: false,
+      required_authority: "local_connector_alias_reconciliation_writer",
+    };
+  }
+  if (!inspected.canonical_device_id || !inspected.canonical_config_id || !Array.isArray(inspected.missing_aliases)) {
+    return {
+      ...inspected,
+      writer_ready: true,
+      apply_authorized: false,
+      mutation_performed: false,
+      reason: inspected.reason || "canonical_connector_config_not_found",
+    };
+  }
+  try {
+    const applied = await reconcileLocalConnectorAliases({
+      userId: principal.user_id,
+      tenantId: principal.tenant_id,
+      canonicalDeviceId: inspected.canonical_device_id,
+      canonicalConfigId: inspected.canonical_config_id,
+      aliases: inspected.missing_aliases,
+    });
+    const readback = await inspectLocalConnectorAliasForDeviceLink({ session, principal });
+    return {
+      ...readback,
+      writer_ready: true,
+      apply_authorized: true,
+      mutation_performed: Boolean(applied.mutation_performed),
+      writer_authority: "local_connector_alias_reconciliation_writer",
+      writer_readback_proven: readback.resolved === true,
+      secrets_included: false,
+    };
+  } catch (error) {
+    return {
+      ...inspected,
+      writer_ready: true,
+      apply_authorized: true,
+      mutation_performed: false,
+      reason: "connector_alias_reconciliation_writer_failed",
+      error: { code: "connector_alias_write_failed", request_id: crypto.randomUUID() },
       secrets_included: false,
     };
   }
 }
 
 export async function requireLocalManagerUser(req) {
-  const auth = String(req.headers.authorization || "");
-  const token = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
-  if (!token) {
-    const err = new Error("A signed-in user token is required.");
-    err.status = 401;
-    err.code = "user_jwt_required";
+  const result = verifyUserJwtAuthorization(req.headers?.authorization, {
+    issuer: localManagerJwtIssuer(),
+    audience: LOCAL_MANAGER_USER_JWT_AUDIENCE,
+    requiredPurpose: LOCAL_MANAGER_USER_JWT_PURPOSE,
+    requiredScope: LOCAL_MANAGER_USER_JWT_SCOPE,
+  });
+  if (!result.ok) {
+    const err = new Error(result.message);
+    err.status = result.status;
+    err.code = result.code;
     throw err;
   }
-
-  let payload;
-  try {
-    payload = jwt.verify(token, JWT_SECRET);
-  } catch {
-    const err = new Error("User token is invalid or expired.");
-    err.status = 401;
-    err.code = "invalid_user_jwt";
+  const payload = result.claims;
+  if (payload?.purpose === "local_manager_device_access" || payload?.scope === "local_manager.device") {
+    const err = new Error("A device token cannot be used as signed-in user authority.");
+    err.status = 403;
+    err.code = "wrong_user_token_class";
     throw err;
   }
-
   const userId = cleanText(payload.user_id, 64);
-  if (!userId) {
-    const err = new Error("User token is missing user_id.");
-    err.status = 401;
-    err.code = "invalid_user_jwt";
-    throw err;
-  }
   const tenantId = cleanText(payload.tenant_id, 64) || null;
   const resolved = await fetchUserMembership({ userId, tenantId });
   if (!resolved) {
@@ -403,7 +717,6 @@ export async function requireLocalManagerUser(req) {
     err.code = "tenant_membership_required";
     throw err;
   }
-
   return {
     user_id: resolved.user.user_id,
     email: resolved.user.email,
@@ -414,30 +727,65 @@ export async function requireLocalManagerUser(req) {
   };
 }
 
+export async function requireLocalManagerUserRouteGuard(req, res, next) {
+  try {
+    req.local_manager_user_principal = await requireLocalManagerUser(req);
+    return next();
+  } catch (err) {
+    return res.status(err.status || 401).json({
+      ok: false,
+      error: { code: err.code || "local_manager_user_authorization_required", message: err.message },
+      secrets_included: false,
+    });
+  }
+}
+
 export async function startDeviceLinkSession(req, res) {
   try {
-    await ensureDeviceLinkTable();
+    await assertDeviceLinkTableSchema();
     const body = req.body || {};
     const hostname = cleanText(body.hostname || body.device_name || "", 255);
     const deviceId = cleanId(body.device_id, { fallback: cleanId(hostname, { fallback: `device-${crypto.randomUUID().slice(0, 8)}` }), max: 128 });
     const platform = cleanText(body.platform || "windows", 32) || "windows";
     const appVersion = cleanText(body.app_version || "", 80);
-    const displayCode = randomDisplayCode();
-    const pollToken = randomToken(32);
-    const sessionId = crypto.randomUUID();
-    const expiresAt = new Date(nowMs() + DEVICE_LINK_TTL_SECONDS * 1000);
-    const metadata = {
-      source: "local_manager_windows_app",
-      user_agent: cleanText(req.get("user-agent") || "", 255),
-      ip_seen: cleanText(req.ip || req.socket?.remoteAddress || "", 64),
-    };
-
-    await getPool().query(
-      `INSERT INTO \`local_manager_device_link_sessions\`
-        (session_id, display_code, display_code_hash, poll_token_hash, status, device_id, hostname, platform, app_version, expires_at, metadata_json)
-       VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)`,
-      [sessionId, displayCode, sha256(displayCode), sha256(pollToken), deviceId, hostname || null, platform, appVersion || null, expiresAt, jsonString(metadata)]
+    const devicePublicKey = importDevicePublicKey(body.device_public_key);
+    if (!devicePublicKey) {
+      return res.status(400).json({ ok: false, error: { code: "device_public_key_required", message: "A P-256 device public key is required." }, secrets_included: false });
+    }
+    const {
+      displayCode,
+      pollToken,
+      deviceProofChallenge,
+      sessionId,
+      expiresAt,
+      insert_attempt: insertAttempt,
+    } = await createDeviceLinkSessionWithRetry({
+      pool: getPool(),
+      deviceId,
+      hostname,
+      platform,
+      appVersion,
+      devicePublicKey,
+      requestMetadata: {
+        user_agent: req.get("user-agent") || "",
+        ip_seen: req.ip || req.socket?.remoteAddress || "",
+      },
+    });
+    const [createdRows] = await getPool().query(
+      `SELECT session_id, status, expires_at
+         FROM \`local_manager_device_link_sessions\`
+        WHERE session_id = ?
+        LIMIT 1`,
+      [sessionId]
     );
+    const created = createdRows[0] || null;
+    if (!created || created.status !== "pending") {
+      return res.status(409).json({
+        ok: false,
+        error: { code: "device_link_start_readback_failed", message: "Pairing session creation could not be proven from durable state." },
+        secrets_included: false,
+      });
+    }
 
     const verificationUri = `${getBaseUrl(req)}/app/local-manager/link-device?code=${encodeURIComponent(displayCode)}`;
     return res.status(201).json({
@@ -450,7 +798,10 @@ export async function startDeviceLinkSession(req, res) {
       expires_in: DEVICE_LINK_TTL_SECONDS,
       interval: POLL_INTERVAL_SECONDS,
       poll_token: pollToken,
-      secrets_included: false,
+      device_proof_challenge: deviceProofChallenge,
+      device_public_key_fingerprint_sha256: devicePublicKey.fingerprint,
+      pairing_insert_attempt: insertAttempt,
+      ...credentialDelivery(["poll_token"]),
     });
   } catch (err) {
     return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "device_link_start_failed", message: err.message }, secrets_included: false });
@@ -459,7 +810,7 @@ export async function startDeviceLinkSession(req, res) {
 
 export async function previewDeviceLinkSession(req, res) {
   try {
-    await ensureDeviceLinkTable();
+    await assertDeviceLinkTableSchema();
     const displayCode = cleanText(req.query?.code || req.query?.device_code || req.query?.user_code, 16).toUpperCase();
     if (!displayCode) {
       return res.status(400).json({ ok: false, error: { code: "missing_device_code", message: "A pairing code is required." }, secrets_included: false });
@@ -468,18 +819,30 @@ export async function previewDeviceLinkSession(req, res) {
       `SELECT * FROM \`local_manager_device_link_sessions\` WHERE display_code_hash = ? LIMIT 1`,
       [sha256(displayCode)]
     );
-    const row = rows[0] || null;
+    if (rows.length > 1) {
+      const error = new Error("Device-link session cardinality is ambiguous.");
+      error.status = 409;
+      error.code = "local_manager_device_link_cardinality_conflict";
+      throw error;
+    }
+    const [row = null] = rows;
     if (!row) {
       return res.status(404).json({ ok: false, error: { code: "device_link_not_found", message: "Pairing code was not found." }, secrets_included: false });
     }
-    if (new Date(row.expires_at).getTime() <= nowMs() && row.status === "pending") {
-      await getPool().query(`UPDATE \`local_manager_device_link_sessions\` SET status = 'expired' WHERE session_id = ?`, [row.session_id]);
-      row.status = "expired";
-    }
-    const safe = sanitizeSession(row);
-    delete safe.user_id;
-    delete safe.tenant_id;
-    return res.status(200).json({ ok: true, status: safe.status, device: safe, secrets_included: false });
+    const durableStatus = row.status;
+    const effectiveStatus = new Date(row.expires_at).getTime() <= nowMs() && durableStatus === "pending"
+      ? "expired"
+      : durableStatus;
+    const safe = sanitizePublicPairingPreview({ ...row, status: effectiveStatus }, displayCode);
+    return res.status(200).json({
+      ok: true,
+      status: effectiveStatus,
+      durable_status: durableStatus,
+      effective_status: effectiveStatus,
+      device: safe,
+      mutation_performed: false,
+      secrets_included: false,
+    });
   } catch (err) {
     return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "device_link_preview_failed", message: err.message }, secrets_included: false });
   }
@@ -487,11 +850,13 @@ export async function previewDeviceLinkSession(req, res) {
 
 export async function pollDeviceLinkSession(req, res) {
   try {
-    await ensureDeviceLinkTable();
+    await assertDeviceLinkTableSchema();
     const displayCode = cleanText(req.body?.device_code || req.body?.user_code || req.body?.code, 16).toUpperCase();
     const pollToken = cleanText(req.body?.poll_token, 200);
-    if (!displayCode || !pollToken) {
-      return res.status(400).json({ ok: false, error: { code: "missing_poll_fields", message: "device_code and poll_token are required." }, secrets_included: false });
+    const challenge = cleanText(req.body?.device_proof_challenge, 200);
+    const signature = cleanText(req.body?.device_proof, 1024);
+    if (!displayCode || !pollToken || !challenge || !signature) {
+      return res.status(400).json({ ok: false, error: { code: "missing_poll_fields", message: "device_code, poll_token, device_proof_challenge, and device_proof are required." }, secrets_included: false });
     }
 
     const [rows] = await getPool().query(
@@ -502,6 +867,9 @@ export async function pollDeviceLinkSession(req, res) {
     if (!row || row.poll_token_hash !== sha256(pollToken)) {
       return res.status(404).json({ ok: false, error: { code: "device_link_not_found", message: "Pairing session was not found." }, secrets_included: false });
     }
+    if (!verifyDevicePossession({ row, displayCode, pollToken, challenge, signature })) {
+      return res.status(401).json({ ok: false, error: { code: "invalid_device_proof", message: "Device proof-of-possession is invalid." }, secrets_included: false });
+    }
     if (new Date(row.expires_at).getTime() <= nowMs() && row.status === "pending") {
       await getPool().query(`UPDATE \`local_manager_device_link_sessions\` SET status = 'expired' WHERE session_id = ?`, [row.session_id]);
       return res.status(410).json({ ok: false, status: "expired", error: { code: "device_link_expired", message: "Pairing code expired." }, secrets_included: false });
@@ -509,37 +877,85 @@ export async function pollDeviceLinkSession(req, res) {
     if (row.status === "pending") {
       return res.status(202).json({ ok: true, status: "pending", interval: POLL_INTERVAL_SECONDS, expires_at: new Date(row.expires_at).toISOString(), secrets_included: false });
     }
-    if (row.status !== "approved") {
+    if (row.status === "revoked" || row.revoked_at) {
+      return res.status(403).json({ ok: false, status: "revoked", error: { code: "device_link_revoked", message: "This linked device has been revoked." }, secrets_included: false });
+    }
+    if (!["approved", "completed"].includes(row.status)) {
       return res.status(200).json({ ok: true, status: row.status, device: sanitizeSession(row), secrets_included: false });
     }
-    if (row.completed_at) {
-      return res.status(200).json({ ok: true, status: "completed", device: sanitizeSession(row), secrets_included: false });
+
+    const connectorAlias = await inspectLocalConnectorAliasForDeviceLink({
+      session: row,
+      principal: { user_id: row.user_id, tenant_id: row.tenant_id || null },
+    });
+    if (!connectorAlias.resolved) {
+      return res.status(409).json({
+        ok: false,
+        status: "approved",
+        error: {
+          code: "connector_alias_reconciliation_required",
+          message: "Device approval is durable, but canonical connector identity must be reconciled before a device token can be issued.",
+          details: {
+            reconciliation_required: true,
+            required_authority: connectorAlias.required_authority,
+            missing_aliases: connectorAlias.missing_aliases || [],
+          },
+        },
+        connector_alias: connectorAlias,
+        secrets_included: false,
+      });
     }
 
-    const deviceAccessToken = jwt.sign(
-      {
-        purpose: "local_manager_device_access",
-        user_id: row.user_id,
-        tenant_id: row.tenant_id,
-        device_id: row.device_id,
-        session_id: row.session_id,
-        scope: "local_manager.device",
-      },
-      JWT_SECRET,
-      { expiresIn: DEVICE_TOKEN_TTL_SECONDS, jwtid: crypto.randomUUID() }
-    );
-    await getPool().query(
-      `UPDATE \`local_manager_device_link_sessions\` SET status = 'completed', completed_at = NOW() WHERE session_id = ?`,
-      [row.session_id]
-    );
+    let issuedRow = row;
+    if (row.status === "approved" && !row.completed_at) {
+      const issuanceJti = crypto.randomUUID();
+      const [issuanceResult] = await getPool().query(
+        `UPDATE \`local_manager_device_link_sessions\`
+            SET status = 'completed',
+                completed_at = NOW(),
+                device_token_jti = ?,
+                device_token_issued_at = NOW(),
+                display_code = NULL
+          WHERE session_id = ?
+            AND status = 'approved'
+            AND completed_at IS NULL
+            AND revoked_at IS NULL
+          LIMIT 1`,
+        [issuanceJti, row.session_id]
+      );
+      const [issuedRows] = await getPool().query(
+        `SELECT * FROM \`local_manager_device_link_sessions\`
+          WHERE session_id = ?
+            AND status = 'completed'
+            AND revoked_at IS NULL
+          LIMIT 1`,
+        [row.session_id]
+      );
+      issuedRow = issuedRows[0] || null;
+      if (!issuedRow?.device_token_jti || !issuedRow?.device_token_issued_at) {
+        const code = Number(issuanceResult?.affectedRows || 0) === 1
+          ? "device_token_issuance_readback_failed"
+          : "device_token_issuance_not_owned";
+        return res.status(409).json({ ok: false, error: { code, message: "Device token issuance could not be proven from durable state." }, secrets_included: false });
+      }
+    }
+
+    if (!issuedRow?.device_token_jti || !issuedRow?.device_token_issued_at) {
+      return res.status(409).json({ ok: false, error: { code: "device_token_issuance_state_missing", message: "This device link predates durable token issuance. Re-link the device." }, secrets_included: false });
+    }
+
+    const deviceAccessToken = signDeviceAccessToken(issuedRow);
     return res.status(200).json({
       ok: true,
       status: "approved",
+      authorization_status: "approved",
+      device_status: issuedRow.status,
       device_access_token: deviceAccessToken,
       token_type: "Bearer",
       expires_in: DEVICE_TOKEN_TTL_SECONDS,
-      device: sanitizeSession({ ...row, status: "completed", completed_at: new Date() }),
-      secrets_included: false,
+      device: sanitizeSession(issuedRow),
+      token_replay_idempotent: true,
+      ...credentialDelivery(["device_access_token"]),
     });
   } catch (err) {
     return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "device_link_poll_failed", message: err.message }, secrets_included: false });
@@ -548,9 +964,11 @@ export async function pollDeviceLinkSession(req, res) {
 
 export async function approveDeviceLinkSession(req, res) {
   try {
-    await ensureDeviceLinkTable();
+    await assertDeviceLinkTableSchema();
     const principal = await requireLocalManagerUser(req);
     const displayCode = cleanText(req.body?.device_code || req.body?.user_code || req.body?.code, 16).toUpperCase();
+    const consent = cleanText(req.body?.consent, 64);
+    const previewFingerprint = cleanText(req.body?.pairing_fingerprint, 64).toLowerCase();
     if (!displayCode) {
       return res.status(400).json({ ok: false, error: { code: "missing_device_code", message: "A pairing code is required." }, secrets_included: false });
     }
@@ -563,14 +981,17 @@ export async function approveDeviceLinkSession(req, res) {
     if (!row) {
       return res.status(404).json({ ok: false, error: { code: "device_link_not_found", message: "Pairing code was not found." }, secrets_included: false });
     }
+    if (!isExplicitPairingConsentValid({ row, displayCode, consent, previewFingerprint })) {
+      return res.status(400).json({ ok: false, error: { code: "explicit_pairing_consent_required", message: "Review the device preview and explicitly approve this exact pairing request." }, secrets_included: false });
+    }
     if (new Date(row.expires_at).getTime() <= nowMs()) {
       await getPool().query(`UPDATE \`local_manager_device_link_sessions\` SET status = 'expired' WHERE session_id = ? AND status = 'pending'`, [row.session_id]);
       return res.status(410).json({ ok: false, error: { code: "device_link_expired", message: "Pairing code expired." }, secrets_included: false });
     }
     if (row.status !== "pending") {
-      const sameOwner = row.user_id === principal.user_id && (!row.tenant_id || !principal.tenant_id || row.tenant_id === principal.tenant_id);
+      const sameOwner = row.user_id === principal.user_id && (sameTenantScope(row.tenant_id, principal.tenant_id));
       if (sameOwner && ["approved", "completed"].includes(row.status)) {
-        const connectorAlias = await ensureLocalConnectorAliasForDeviceLink({ session: row, principal });
+        const connectorAlias = await reconcileLocalConnectorAliasForDeviceLink({ session: row, principal });
         return res.status(200).json({
           ok: true,
           status: row.status,
@@ -589,7 +1010,7 @@ export async function approveDeviceLinkSession(req, res) {
       `SELECT * FROM \`local_manager_device_link_sessions\`
         WHERE device_id = ?
           AND user_id = ?
-          AND (? IS NULL OR tenant_id = ?)
+          AND ((? IS NULL AND tenant_id IS NULL) OR tenant_id = ?)
           AND status IN ('approved','completed')
         ORDER BY COALESCE(completed_at, approved_at, created_at) DESC
         LIMIT 1`,
@@ -597,14 +1018,52 @@ export async function approveDeviceLinkSession(req, res) {
     );
     const existingLinked = existingRows[0] || null;
 
-    await getPool().query(
+    const [approvalResult] = await getPool().query(
       `UPDATE \`local_manager_device_link_sessions\`
-          SET status = 'approved', user_id = ?, tenant_id = ?, approved_at = NOW()
-        WHERE session_id = ? AND status = 'pending'`,
+          SET status = 'approved',
+              user_id = ?,
+              tenant_id = ?,
+              approved_at = NOW(),
+              display_code = NULL
+        WHERE session_id = ?
+          AND status = 'pending'
+          AND expires_at > NOW()
+          AND revoked_at IS NULL
+        LIMIT 1`,
       [principal.user_id, principal.tenant_id, row.session_id]
     );
-    const approved = { ...row, status: "approved", user_id: principal.user_id, tenant_id: principal.tenant_id, approved_at: new Date() };
-    const connectorAlias = await ensureLocalConnectorAliasForDeviceLink({ session: approved, principal });
+    if (Number(approvalResult?.affectedRows || 0) !== 1) {
+      const [currentRows] = await getPool().query(
+        `SELECT * FROM \`local_manager_device_link_sessions\` WHERE session_id = ? LIMIT 1`,
+        [row.session_id]
+      );
+      const current = currentRows[0] || null;
+      const sameOwner = current
+        && current.user_id === principal.user_id
+        && (sameTenantScope(current.tenant_id, principal.tenant_id));
+      if (sameOwner && ["approved", "completed"].includes(current.status) && !current.revoked_at) {
+        return res.status(200).json({
+          ok: true,
+          status: current.status,
+          already_linked: true,
+          reauthorized_existing_device: true,
+          user: principal,
+          device: sanitizeSession(current),
+          connector_alias: { attempted: false, resolved: false, reason: "approval_transition_already_owned", secrets_included: false },
+          secrets_included: false,
+        });
+      }
+      return res.status(409).json({ ok: false, status: current?.status || "unknown", error: { code: "device_link_approval_not_owned", message: "Pairing approval was completed or changed by another request." }, secrets_included: false });
+    }
+    const [approvedRows] = await getPool().query(
+      `SELECT * FROM \`local_manager_device_link_sessions\` WHERE session_id = ? AND status = 'approved' LIMIT 1`,
+      [row.session_id]
+    );
+    const approved = approvedRows[0] || null;
+    if (!approved) {
+      return res.status(409).json({ ok: false, error: { code: "device_link_approval_readback_failed", message: "Pairing approval could not be proven from durable state." }, secrets_included: false });
+    }
+    const connectorAlias = await reconcileLocalConnectorAliasForDeviceLink({ session: approved, principal });
     return res.status(200).json({
       ok: true,
       status: "approved",
@@ -623,13 +1082,102 @@ export async function approveDeviceLinkSession(req, res) {
   }
 }
 
+export async function provisionDeviceN8n(req, res) {
+  try {
+    await assertDeviceLinkTableSchema();
+    const principal = await requireLocalManagerUser(req);
+    const sessionId = cleanText(req.body?.session_id, 64);
+    if (!sessionId) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: "local_manager_n8n_session_required", message: "session_id is required for explicit n8n provisioning." },
+        secrets_included: false,
+      });
+    }
+    const [rows] = await getPool().query(
+      `SELECT * FROM \`local_manager_device_link_sessions\`
+        WHERE session_id = ?
+          AND user_id = ?
+          AND ((? IS NULL AND tenant_id IS NULL) OR tenant_id = ?)
+          AND status IN ('approved','completed')
+          AND revoked_at IS NULL
+        LIMIT 1`,
+      [sessionId, principal.user_id, principal.tenant_id, principal.tenant_id]
+    );
+    if (rows.length > 1) {
+      const error = new Error("Device-link session cardinality is ambiguous.");
+      error.status = 409;
+      error.code = "local_manager_device_link_cardinality_conflict";
+      throw error;
+    }
+    const [row = null] = rows;
+    if (!row) {
+      return res.status(404).json({
+        ok: false,
+        error: { code: "local_manager_n8n_device_not_found", message: "An active linked device was not found for this user and tenant." },
+        secrets_included: false,
+      });
+    }
+    if (!localManagerWriteAuthorityEnabled()) {
+      return res.status(503).json({
+        ok: false,
+        provisioning_required: true,
+        mutation_performed: false,
+        apply_authorized: false,
+        required_authority: "local_manager_n8n_provisioning_writer",
+        error: { code: "local_manager_n8n_writer_not_ready", message: "Dedicated Local Manager write authority is not enabled." },
+        secrets_included: false,
+      });
+    }
+    const device = {
+      user_id: principal.user_id,
+      tenant_id: principal.tenant_id,
+      device_id: row.device_id,
+      session_id: row.session_id,
+    };
+    const applied = await provisionLocalManagerN8n({
+      device,
+      profile: defaultN8nProfile({ device }),
+    });
+    const readback = await resolveTenantN8nProfile(device);
+    if (!readback.provisioned || !readback.installation_id) {
+      return res.status(409).json({
+        ok: false,
+        provisioning_required: true,
+        mutation_performed: Boolean(applied.mutation_performed),
+        apply_authorized: true,
+        required_authority: "local_manager_n8n_provisioning_writer",
+        error: { code: "local_manager_n8n_provisioning_readback_failed", message: "n8n provisioning was not visible through the runtime read path." },
+        secrets_included: false,
+      });
+    }
+    return res.status(applied.created ? 201 : 200).json({
+      ok: true,
+      provisioned: true,
+      provisioning_required: false,
+      mutation_performed: Boolean(applied.mutation_performed),
+      apply_authorized: true,
+      writer_authority: "local_manager_n8n_provisioning_writer",
+      writer_readback_proven: true,
+      n8n_connector: readback,
+      secrets_included: false,
+    });
+  } catch (err) {
+    return res.status(err.status || 500).json({
+      ok: false,
+      error: { code: err.code || "local_manager_n8n_provision_failed", message: err.message, ...(err.details ? { details: err.details } : {}) },
+      secrets_included: false,
+    });
+  }
+}
+
 export async function listLinkedDevices(req, res) {
   try {
-    await ensureDeviceLinkTable();
+    await assertDeviceLinkTableSchema();
     const principal = await requireLocalManagerUser(req);
     const [linkRows] = await getPool().query(
       `SELECT * FROM \`local_manager_device_link_sessions\`
-        WHERE user_id = ? AND (? IS NULL OR tenant_id = ?)
+        WHERE user_id = ? AND ((? IS NULL AND tenant_id IS NULL) OR tenant_id = ?)
         ORDER BY COALESCE(completed_at, approved_at, created_at) DESC
         LIMIT 50`,
       [principal.user_id, principal.tenant_id, principal.tenant_id]
@@ -652,7 +1200,11 @@ export async function requireLocalManagerDevice(req) {
 
   let payload;
   try {
-    payload = jwt.verify(token, JWT_SECRET);
+    payload = jwt.verify(token, deviceJwtSecret(), {
+      algorithms: ["HS256"],
+      issuer: localManagerJwtIssuer(),
+      audience: DEVICE_JWT_AUDIENCE,
+    });
   } catch {
     const err = new Error("Device token is invalid or expired.");
     err.status = 401;
@@ -680,16 +1232,22 @@ export async function requireLocalManagerDevice(req) {
     throw err;
   }
 
-  await ensureDeviceLinkTable();
+  await assertDeviceLinkTableSchema();
   const [rows] = await getPool().query(
     `SELECT * FROM \`local_manager_device_link_sessions\`
-      WHERE session_id = ? AND device_id = ? AND user_id = ? AND status IN ('approved','completed')
+      WHERE session_id = ?
+        AND device_id = ?
+        AND user_id = ?
+        AND ((? IS NULL AND tenant_id IS NULL) OR tenant_id = ?)
+        AND status = 'completed'
+        AND revoked_at IS NULL
+        AND device_token_jti = ?
       LIMIT 1`,
-    [device.session_id, device.device_id, device.user_id]
+    [device.session_id, device.device_id, device.user_id, device.tenant_id, device.tenant_id, cleanText(payload.jti, 64)]
   );
   const row = rows[0] || null;
-  if (!row) {
-    const err = new Error("Linked device session was not found.");
+  if (!isDeviceSessionAuthorizedForToken(row, payload)) {
+    const err = new Error("Linked device session was not found or no longer authorizes this token.");
     err.status = 403;
     err.code = "device_session_not_found";
     throw err;
@@ -702,7 +1260,7 @@ export async function requireLocalManagerDevice(req) {
     token_scope: "local_manager.device",
     saved_device_token: true,
     interactive_user_session_present: false,
-    requires_reauth_for_privileged_installers: false,
+    requires_reauth_for_privileged_installers: true,
     privileged_authorization_max_age_seconds: PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS,
     privileged_authorization_fresh: authAgeSeconds !== null && authAgeSeconds <= PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS,
     auth_age_seconds: authAgeSeconds,
@@ -713,7 +1271,113 @@ export async function requireLocalManagerDevice(req) {
 }
 
 export async function requireFreshLocalManagerDeviceForPrivilegedInstaller(req) {
-  return requireLocalManagerDevice(req);
+  const device = await requireLocalManagerDevice(req);
+  if (device.auth_context?.privileged_authorization_fresh === true) return device;
+
+  const stepUpAuthorization = cleanText(req.headers?.["x-local-manager-user-authorization"], 8192);
+  const result = verifyUserJwtAuthorization(stepUpAuthorization, {
+    issuer: localManagerJwtIssuer(),
+    audience: LOCAL_MANAGER_USER_JWT_AUDIENCE,
+    requiredPurpose: LOCAL_MANAGER_USER_JWT_PURPOSE,
+    requiredScope: LOCAL_MANAGER_USER_JWT_SCOPE,
+  });
+  const claims = result.ok ? result.claims : null;
+  const issuedAtSeconds = Number(claims?.iat || 0) || null;
+  const authAgeSeconds = issuedAtSeconds ? Math.max(0, Math.floor(Date.now() / 1000) - issuedAtSeconds) : null;
+  const deviceTenantId = cleanText(device.tenant_id, 64) || null;
+  const claimTenantId = cleanText(claims?.tenant_id, 64) || null;
+  const tenantMatches = deviceTenantId ? claimTenantId === deviceTenantId : claimTenantId === null;
+  if (!result.ok
+      || cleanText(claims?.user_id, 64) !== device.user_id
+      || !tenantMatches
+      || authAgeSeconds === null
+      || authAgeSeconds > PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS) {
+    const err = new Error("Fresh Local Manager user authorization is required for privileged installer actions.");
+    err.status = 401;
+    err.code = "fresh_local_manager_user_authorization_required";
+    err.details = {
+      header: "x-local-manager-user-authorization",
+      max_age_seconds: PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS,
+      same_user_required: true,
+      same_tenant_required: true,
+      secrets_included: false,
+    };
+    throw err;
+  }
+  return {
+    ...device,
+    auth_context: {
+      ...device.auth_context,
+      source: "saved_device_token_plus_fresh_user_step_up",
+      interactive_user_session_present: true,
+      requires_reauth_for_privileged_installers: true,
+      privileged_authorization_fresh: true,
+      step_up_auth_age_seconds: authAgeSeconds,
+      step_up_purpose: LOCAL_MANAGER_USER_JWT_PURPOSE,
+    },
+  };
+}
+
+export async function revokeDeviceLinkSession(req, res) {
+  try {
+    await assertDeviceLinkTableSchema();
+    const principal = req.local_manager_user_principal || await requireLocalManagerUser(req);
+    const sessionId = cleanText(req.params?.sessionId || req.body?.session_id, 64);
+    if (!sessionId) {
+      return res.status(400).json({ ok: false, error: { code: "device_link_session_id_required", message: "session_id is required." }, secrets_included: false });
+    }
+    const [result] = await getPool().query(
+      `UPDATE \`local_manager_device_link_sessions\`
+          SET status = 'revoked',
+              revoked_at = NOW(),
+              revoked_by_user_id = ?
+        WHERE session_id = ?
+          AND user_id = ?
+          AND ((? IS NULL AND tenant_id IS NULL) OR tenant_id = ?)
+          AND status IN ('approved','completed')
+          AND revoked_at IS NULL
+        LIMIT 1`,
+      [principal.user_id, sessionId, principal.user_id, principal.tenant_id, principal.tenant_id]
+    );
+    if (Number(result?.affectedRows || 0) !== 1) {
+      const [rows] = await getPool().query(
+        `SELECT * FROM \`local_manager_device_link_sessions\`
+          WHERE session_id = ? AND user_id = ? AND ((? IS NULL AND tenant_id IS NULL) OR tenant_id = ?)
+          LIMIT 1`,
+        [sessionId, principal.user_id, principal.tenant_id, principal.tenant_id]
+      );
+      if (rows.length > 1) {
+        const error = new Error("Device-link session cardinality is ambiguous.");
+        error.status = 409;
+        error.code = "local_manager_device_link_cardinality_conflict";
+        throw error;
+      }
+      const [current = null] = rows;
+      if (current?.status === "revoked" || current?.revoked_at) {
+        return res.status(200).json({ ok: true, status: "revoked", already_revoked: true, device: sanitizeSession(current), secrets_included: false });
+      }
+      return res.status(404).json({ ok: false, error: { code: "device_link_not_found", message: "Linked device session was not found for this user." }, secrets_included: false });
+    }
+    const [rows] = await getPool().query(
+      `SELECT * FROM \`local_manager_device_link_sessions\`
+        WHERE session_id = ?
+          AND user_id = ?
+          AND ((? IS NULL AND tenant_id IS NULL) OR tenant_id = ?)
+        LIMIT 1`,
+      [sessionId, principal.user_id, principal.tenant_id, principal.tenant_id]
+    );
+    if (rows.length > 1) {
+      const error = new Error("Device-link session cardinality is ambiguous.");
+      error.status = 409;
+      error.code = "local_manager_device_link_cardinality_conflict";
+      throw error;
+    }
+    const [revokedRow = null] = rows;
+    const device = revokedRow || { session_id: sessionId, status: "revoked" };
+    return res.status(200).json({ ok: true, status: "revoked", device: sanitizeSession(device), secrets_included: false });
+  } catch (err) {
+    return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "device_link_revoke_failed", message: err.message, ...(err.details ? { details: err.details } : {}) }, secrets_included: false });
+  }
 }
 
 export async function getDeviceSession(req, res) {
@@ -736,94 +1400,6 @@ export async function getDeviceSession(req, res) {
     });
   } catch (err) {
     return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "device_session_failed", message: err.message }, secrets_included: false });
-  }
-}
-
-function localManagerControlTemplateSeeds() {
-  return [
-    { template_type: "capability", template_key: "powershell_admin", label: "Admin PowerShell recovery", env_flag: "CONNECTOR_POWERSHELL_ENABLED", risk_class: "high", sort_order: 10, surface_type: "helper_tool", execution_location: "local_device", integration_type: "capability", credential_scope: "device", metadata: { note: "Break-glass recovery only. Enables governed /ps proxy after local elevated reinstall." } },
-    { template_type: "capability", template_key: "windows_control", label: "Windows app/process control", env_flag: "CONNECTOR_WIN_ENABLED", risk_class: "high", sort_order: 20, surface_type: "desktop_control", execution_location: "local_device", integration_type: "capability", credential_scope: "device", metadata: { note: "Break-glass/desktop-control only. Enables governed /win proxy after local elevated reinstall." } },
-    { template_type: "capability", template_key: "hermes_agent_surface", label: "Hermes Agent Surface", env_flag: "CONNECTOR_HERMES_AGENT_SURFACE_ENABLED", risk_class: "interactive", sort_order: 30, surface_type: "agent_surface", execution_location: "local_device", integration_type: "capability", credential_scope: "tenant", metadata: { note: "Enables governed local Hermes agent surface controls when tenant policy grants it." } },
-    { template_type: "capability", template_key: "auto_browser", label: "Auto Browser", env_flag: "CONNECTOR_AUTO_BROWSER_ENABLED", risk_class: "interactive", sort_order: 40, surface_type: "automation_surface", execution_location: "platform_managed", integration_type: "capability", credential_scope: "tenant", metadata: { note: "Enables governed automated browser surface controls when tenant policy grants it." } },
-    { template_type: "app", template_key: "managed_n8n_client", label: "Managed n8n Client", process_name: "n8n", browser: false, capability_class: "workflow_runtime", risk_class: "managed", sort_order: 50, surface_type: "workflow_runtime", execution_location: "mad4b_service_side", integration_type: "managed_service_client", credential_scope: "tenant", metadata: { app_manager_scope: "managed_mad4b_service_side", current_hosting_target: "essam_local_device", future_hosting_target: "vps", managed_by: "mad4b", tenant_installs_local_service: false, note: "Mad4B-managed n8n client. Currently may run on Essam local device during bootstrap; target hosting is VPS/platform service side." } },
-    { template_type: "app", template_key: "tenant_dedicated_n8n", label: "Dedicated tenant n8n", process_name: "n8n", browser: false, capability_class: "workflow_runtime", risk_class: "interactive", sort_order: 60, surface_type: "workflow_runtime", execution_location: "tenant_local_device", integration_type: "tenant_local_service", credential_scope: "tenant", metadata: { app_manager_scope: "tenant_local_device_side", managed_by: "tenant", tenant_installs_local_service: true, writes_local_files: true, note: "Tenant-dedicated n8n installation that is installed and run on the tenant local device." } },
-    { template_type: "app", template_key: "edge", label: "Microsoft Edge", process_name: "msedge", browser: true, capability_class: "browser", risk_class: "interactive", sort_order: 100, surface_type: "browser_runtime", execution_location: "local_device", integration_type: "local_app", credential_scope: "none", metadata: { app_manager_scope: "tenant_local_device_side" } },
-    { template_type: "app", template_key: "chrome", label: "Google Chrome", process_name: "chrome", browser: true, capability_class: "browser", risk_class: "interactive", sort_order: 110, surface_type: "browser_runtime", execution_location: "local_device", integration_type: "local_app", credential_scope: "none" },
-    { template_type: "app", template_key: "firefox", label: "Mozilla Firefox", process_name: "firefox", browser: true, capability_class: "browser", risk_class: "interactive", sort_order: 112, surface_type: "browser_runtime", execution_location: "local_device", integration_type: "local_app", credential_scope: "none" },
-    { template_type: "app", template_key: "brave", label: "Brave Browser", process_name: "brave", browser: true, capability_class: "browser", risk_class: "interactive", sort_order: 114, surface_type: "browser_runtime", execution_location: "local_device", integration_type: "local_app", credential_scope: "none" },
-    { template_type: "app", template_key: "opera", label: "Opera", process_name: "opera", browser: true, capability_class: "browser", risk_class: "interactive", sort_order: 116, surface_type: "browser_runtime", execution_location: "local_device", integration_type: "local_app", credential_scope: "none" },
-    { template_type: "app", template_key: "chromium", label: "Chromium", process_name: "chromium", browser: true, capability_class: "browser", risk_class: "interactive", sort_order: 118, surface_type: "browser_runtime", execution_location: "local_device", integration_type: "local_app", credential_scope: "none" },
-    { template_type: "app", template_key: "browserbase", label: "Browserbase", process_name: "browserbase", browser: true, capability_class: "browser_provider", risk_class: "external", sort_order: 121, surface_type: "browser_runtime", execution_location: "external_cloud", integration_type: "external_provider", credential_scope: "tenant", metadata: { requires_credentials: true } },
-    { template_type: "app", template_key: "browserless", label: "Browserless", process_name: "browserless", browser: true, capability_class: "browser_provider", risk_class: "external", sort_order: 122, surface_type: "browser_runtime", execution_location: "external_cloud", integration_type: "external_provider", credential_scope: "tenant", metadata: { requires_credentials: true } },
-    { template_type: "app", template_key: "steel_browser", label: "Steel Browser", process_name: "steel", browser: true, capability_class: "browser_provider", risk_class: "external", sort_order: 123, surface_type: "browser_runtime", execution_location: "external_cloud", integration_type: "external_provider", credential_scope: "tenant", metadata: { requires_credentials: true } },
-    { template_type: "capability", template_key: "playwright_adapter", label: "Playwright Adapter", env_flag: "CONNECTOR_PLAYWRIGHT_ENABLED", risk_class: "interactive", sort_order: 124, surface_type: "browser_adapter", execution_location: "local_device", integration_type: "plugin_adapter", credential_scope: "device", metadata: { note: "Governed browser automation adapter; requires local runtime installation and tenant consent." } },
-    { template_type: "capability", template_key: "puppeteer_adapter", label: "Puppeteer Adapter", env_flag: "CONNECTOR_PUPPETEER_ENABLED", risk_class: "interactive", sort_order: 125, surface_type: "browser_adapter", execution_location: "local_device", integration_type: "plugin_adapter", credential_scope: "device", metadata: { note: "Governed browser automation adapter; requires local runtime installation and tenant consent." } },
-    { template_type: "capability", template_key: "selenium_adapter", label: "Selenium Adapter", env_flag: "CONNECTOR_SELENIUM_ENABLED", risk_class: "interactive", sort_order: 126, surface_type: "browser_adapter", execution_location: "local_device", integration_type: "plugin_adapter", credential_scope: "device", metadata: { note: "Governed browser automation adapter; requires local runtime installation and tenant consent." } },
-    { template_type: "app", template_key: "vscode", label: "Visual Studio Code", process_name: "Code", browser: false, capability_class: "developer_tool", risk_class: "interactive", sort_order: 130, surface_type: "desktop_app", execution_location: "local_device", integration_type: "local_app", credential_scope: "none" },
-    { template_type: "app", template_key: "cursor", label: "Cursor", process_name: "Cursor", browser: false, capability_class: "developer_tool", risk_class: "interactive", sort_order: 130 },
-    { template_type: "app", template_key: "open_claude", label: "Open Claude", process_name: "Claude", browser: false, capability_class: "agent_surface", risk_class: "interactive", sort_order: 140, metadata: { aliases: ["open_cloude"] } },
-    { template_type: "app", template_key: "open_claw", label: "Open Claw", process_name: "OpenClaw", browser: false, capability_class: "agent_surface", risk_class: "interactive", sort_order: 150, metadata: { aliases: ["open_claw", "open_claude_claw"] } },
-    { template_type: "app", template_key: "notepad", label: "Windows Notepad", process_name: "notepad", browser: false, capability_class: "desktop_app", risk_class: "low", sort_order: 900 },
-    { template_type: "app", template_key: "git_bash", label: "Git Bash", process_name: "git-bash", browser: false, capability_class: "developer_tool", risk_class: "interactive", sort_order: 910 },
-  ];
-}
-
-async function ensureLocalManagerControlTemplatesTable() {
-  await getPool().query(`
-    CREATE TABLE IF NOT EXISTS \`local_manager_control_templates\` (
-      \`template_id\` VARCHAR(128) NOT NULL,
-      \`template_type\` ENUM('capability','app','helper') NOT NULL,
-      \`template_key\` VARCHAR(128) NOT NULL,
-      \`label\` VARCHAR(191) NOT NULL,
-      \`env_flag\` VARCHAR(128) NULL,
-      \`process_name\` VARCHAR(191) NULL,
-      \`browser\` TINYINT(1) NOT NULL DEFAULT 0,
-      \`capability_class\` VARCHAR(128) NULL,
-      \`risk_class\` VARCHAR(64) NOT NULL DEFAULT 'interactive',
-      \`metadata_json\` JSON NULL,
-      \`sort_order\` INT NOT NULL DEFAULT 1000,
-      \`status\` ENUM('active','disabled','deprecated') NOT NULL DEFAULT 'active',
-      \`created_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      \`updated_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      PRIMARY KEY (\`template_id\`),
-      UNIQUE KEY \`uq_local_manager_control_template\` (\`template_type\`, \`template_key\`),
-      KEY \`idx_local_manager_control_status\` (\`status\`, \`template_type\`, \`sort_order\`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-  `);
-}
-
-async function seedLocalManagerControlTemplates() {
-  const rows = localManagerControlTemplateSeeds();
-  for (const row of rows) {
-    await getPool().query(
-      `INSERT INTO \`local_manager_control_templates\`
-        (template_id, template_type, template_key, label, env_flag, process_name, browser, capability_class, risk_class, metadata_json, sort_order, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
-       ON DUPLICATE KEY UPDATE
-         label = VALUES(label), env_flag = VALUES(env_flag), process_name = VALUES(process_name), browser = VALUES(browser),
-         capability_class = VALUES(capability_class), risk_class = VALUES(risk_class), metadata_json = VALUES(metadata_json),
-         sort_order = VALUES(sort_order), updated_at = NOW()`,
-      [
-        `local-manager-${row.template_type}-${row.template_key}`,
-        row.template_type,
-        row.template_key,
-        row.label,
-        row.env_flag || null,
-        row.process_name || null,
-        row.browser ? 1 : 0,
-        row.capability_class || null,
-        row.risk_class || "interactive",
-        jsonString({
-          ...(row.metadata || {}),
-          surface_type: row.surface_type || row.capability_class || row.template_type,
-          execution_location: row.execution_location || "local_device",
-          integration_type: row.integration_type || (row.template_type === "app" ? "local_app" : "capability"),
-          credential_scope: row.credential_scope || "device",
-          requires_credentials: Boolean(row.metadata?.requires_credentials || row.integration_type === "external_provider"),
-        }),
-        Number(row.sort_order || 1000),
-      ]
-    );
   }
 }
 
@@ -862,13 +1438,24 @@ function normalizeControlTemplate(row) {
 
 async function loadLocalManagerControlTemplates() {
   try {
-    await ensureLocalManagerControlTemplatesTable();
-    await seedLocalManagerControlTemplates();
     const [rows] = await getPool().query(
       `SELECT * FROM \`local_manager_control_templates\`
         WHERE status = 'active' AND template_type IN ('capability','app')
         ORDER BY template_type ASC, sort_order ASC, label ASC`
     );
+    if (!rows.length) {
+      const error = new Error("Local Manager control-template registry is empty.");
+      error.status = 503;
+      error.code = "local_manager_control_template_registry_empty";
+      error.details = {
+        registry_table: "local_manager_control_templates",
+        migration_required: "20260922_local_manager_control_templates_registry.sql",
+        governed_seed_required: true,
+        code_fallback_allowed: false,
+        secrets_included: false,
+      };
+      throw error;
+    }
     const supportedCapabilities = rows.filter((row) => row.template_type === "capability").map(normalizeControlTemplate);
     const supportedApps = rows.filter((row) => row.template_type === "app").map(normalizeControlTemplate);
     const supportedBrowsers = supportedApps.filter((item) => item.surface_type === "browser_runtime" && item.integration_type === "local_app");
@@ -893,45 +1480,21 @@ async function loadLocalManagerControlTemplates() {
       secrets_included: false,
     };
   } catch (err) {
-    const fallbackRows = localManagerControlTemplateSeeds();
-    const supportedCapabilities = fallbackRows.filter((row) => row.template_type === "capability").map((row) => {
-      const metadata = {
-        ...(row.metadata || {}),
-        surface_type: row.surface_type || row.capability_class || row.template_type,
-        execution_location: row.execution_location || "local_device",
-        integration_type: row.integration_type || "capability",
-        credential_scope: row.credential_scope || "device",
-        requires_credentials: Boolean(row.metadata?.requires_credentials || row.integration_type === "external_provider"),
-      };
-      return { key: row.template_key, label: row.label, env_flag: row.env_flag || null, risk: row.risk_class || "interactive", note: metadata.note || "Fallback Local Manager capability.", ...metadata, metadata };
-    });
-    const supportedApps = fallbackRows.filter((row) => row.template_type === "app").map((row) => {
-      const metadata = {
-        ...(row.metadata || {}),
-        surface_type: row.surface_type || row.capability_class || "desktop_app",
-        execution_location: row.execution_location || "local_device",
-        integration_type: row.integration_type || "local_app",
-        credential_scope: row.credential_scope || "none",
-        requires_credentials: Boolean(row.metadata?.requires_credentials || row.integration_type === "external_provider"),
-      };
-      return { app_alias: row.template_key, display_name: row.label, process_name: row.process_name || row.template_key, browser: Boolean(row.browser), capability_class: row.capability_class || "desktop_app", risk_class: row.risk_class || "interactive", ...metadata, metadata };
-    });
-    return {
-      source: "code_fallback",
+    const error = new Error("Local Manager control-template registry is unavailable to runtime read authority.");
+    error.status = 503;
+    error.code = "local_manager_control_template_registry_unavailable";
+    error.details = {
       registry_table: "local_manager_control_templates",
-      error: { code: err?.code || "control_template_registry_unavailable", message: err?.message || String(err) },
-      supported_capabilities: supportedCapabilities,
-      supported_apps: supportedApps,
-      supported_browsers: supportedApps.filter((item) => item.surface_type === "browser_runtime" && item.integration_type === "local_app"),
-      supported_browser_providers: supportedApps.filter((item) => item.surface_type === "browser_runtime" && item.integration_type === "external_provider"),
-      supported_browser_adapters: supportedCapabilities.filter((item) => item.surface_type === "browser_adapter" || item.integration_type === "plugin_adapter"),
-      supported_agent_surfaces: supportedCapabilities.filter((item) => item.surface_type === "agent_surface" || item.surface_type === "automation_surface"),
-      supported_managed_mad4b_services: supportedCapabilities.concat(supportedApps).filter((item) => item.metadata?.app_manager_scope === "managed_mad4b_service_side" || item.execution_location === "mad4b_service_side" || item.integration_type === "managed_service_client"),
-      supported_tenant_local_services: supportedCapabilities.concat(supportedApps).filter((item) => item.metadata?.app_manager_scope === "tenant_local_device_side" || item.execution_location === "tenant_local_device" || item.integration_type === "tenant_local_service"),
-      last_loaded_at: new Date().toISOString(),
+      migration_required: "20260922_local_manager_control_templates_registry.sql",
+      required_operations: ["SELECT"],
+      runtime_schema_mutation_allowed: false,
+      code_fallback_allowed: false,
+      cause_code: err?.code || null,
       secrets_included: false,
     };
+    throw error;
   }
+
 }
 
 async function resolveConnectorRuntimeReadback(device) {
@@ -1048,15 +1611,6 @@ export async function getDeviceControls(req, res) {
         elevation_required: true,
         note: "Local Manager should call the endpoint with its device token, download the signed installer, elevate locally, run it, then verify /policy and alias refresh.",
       },
-      repairs: {
-        label: "Connector repairs",
-        actions: ["request_connector_upgrade_installer", "download_signed_installer", "run_installer_as_administrator", "verify_connector_policy"],
-        write_actions_enabled: true,
-        endpoint: "/local-connector/install/device-download-link",
-        default_format: "bat",
-        elevation_required: true,
-        note: "Local Manager should call the endpoint with its device token, download the signed installer, elevate locally, run it, then verify /policy and alias refresh.",
-      },
       n8n: {
         label: "Local n8n",
         actions: ["resolve_connected_system_profile", "install_node_if_missing", "install_n8n_if_missing", "write_tenant_start_script", "start_local_n8n", "open_local_or_public_url", "validate_local_reachability"],
@@ -1126,17 +1680,6 @@ export async function getDeviceControls(req, res) {
       baseControls.settings.capability_consent.registry_loaded_at = controlTemplates.last_loaded_at;
       baseControls.settings.capability_consent.supported_capabilities = controlTemplates.supported_capabilities;
       baseControls.settings.capability_consent.supported_apps = controlTemplates.supported_apps;
-      if (baseControls.settings.capability_consent.dynamic_grants) {
-        baseControls.settings.capability_consent.dynamic_grants.supported_apps = controlTemplates.supported_apps;
-      }
-    }
-
-    if (section === "settings" && controlTemplates && baseControls.settings?.capability_consent) {
-      baseControls.settings.capability_consent.registry_source = controlTemplates.source;
-      baseControls.settings.capability_consent.registry_table = controlTemplates.registry_table;
-      baseControls.settings.capability_consent.registry_loaded_at = controlTemplates.last_loaded_at;
-      baseControls.settings.capability_consent.supported_capabilities = controlTemplates.supported_capabilities;
-      baseControls.settings.capability_consent.supported_apps = controlTemplates.supported_apps;
       baseControls.settings.capability_consent.supported_browsers = controlTemplates.supported_browsers;
       baseControls.settings.capability_consent.supported_browser_providers = controlTemplates.supported_browser_providers;
       baseControls.settings.capability_consent.supported_browser_adapters = controlTemplates.supported_browser_adapters;
@@ -1154,7 +1697,7 @@ export async function getDeviceControls(req, res) {
       }
     }
 
-    const n8nConnector = section === "n8n" ? await resolveOrCreateTenantN8nProfile(device) : null;
+    const n8nConnector = section === "n8n" ? await resolveTenantN8nProfile(device) : null;
     const runtimeReadback = section === "repairs" ? await resolveConnectorRuntimeReadback(device) : null;
     return res.status(200).json({
       ok: true,
@@ -1170,3 +1713,15 @@ export async function getDeviceControls(req, res) {
     return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "device_controls_failed", message: err.message }, secrets_included: false });
   }
 }
+
+export const _testingLocalManagerDeviceLink = Object.freeze({
+  credentialDelivery,
+  importDevicePublicKey,
+  pairingFingerprint,
+  sanitizePublicPairingPreview,
+  verifyDevicePossession,
+  isDuplicateKeyError,
+  createDeviceLinkSessionWithRetry,
+  isExplicitPairingConsentValid,
+  isDeviceSessionAuthorizedForToken,
+});

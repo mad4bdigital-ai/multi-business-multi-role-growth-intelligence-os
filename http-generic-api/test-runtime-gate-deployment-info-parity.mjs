@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { loadHostingerSshGate } from "./hostingerSshDeployExecutor.js";
 import { buildDeploymentInfoRoutes } from "./routes/deploymentInfoRoutes.js";
 import { buildVersionPayload } from "./deploymentManifest.js";
+import { PLATFORM_ADMIN_WORKSPACE_AUTHORITY } from "./src/domain/authorityScope/platformAdminWorkspaceAuthority.generated.js";
 
 // frontend-surface-operation: GET /deployment-info/runtime-binding
 // frontend-surface-operation: POST /deployment-info/runtime-bootstrap-dry-run
@@ -77,6 +78,7 @@ const previousRuntimeGovernanceDbName = process.env.GOVERNANCE_DB_NAME;
   const previousGithubRefName = process.env.GITHUB_REF_NAME;
   const previousGithubRepository = process.env.GITHUB_REPOSITORY;
   let server;
+  let runtimePoolFactoryCalls = 0;
 
 try {
   writeFileSync(manifestPath, JSON.stringify({
@@ -171,6 +173,27 @@ try {
       reasons: ["explicit_release_hook_not_configured"],
       secrets_included: false,
     }),
+    runtimePoolFactory: () => {
+      runtimePoolFactoryCalls += 1;
+      const identity = PLATFORM_ADMIN_WORKSPACE_AUTHORITY.identity;
+      return {
+        async query(sql) {
+          assert.match(String(sql), /FROM workspace_registry/u);
+          return [[{
+            workspace_id: identity.workspace_id,
+            tenant_id: identity.tenant_id,
+            workspace_key: identity.seed_workspace_key,
+            display_name: identity.display_name,
+            workspace_type: identity.workspace_type,
+            bootstrap_status: identity.bootstrap_status,
+            config_json: JSON.stringify({
+              authority_scope_key: PLATFORM_ADMIN_WORKSPACE_AUTHORITY.resolver.authority_scope_key,
+              platform_admin_workspace: true,
+            }),
+          }]];
+        },
+      };
+    },
     productionActivationReadinessReader: async () => ({
       contract: "mad4b.production-activation-readiness.v1",
       status: "blocked",
@@ -231,6 +254,7 @@ try {
     "/deployment-info and /version must report the same deployed commit"
   );
   assert.equal(Object.hasOwn(deploymentInfo, "production_activation_readiness"), false, "combined readiness must remain opt-in");
+  assert.equal(Object.hasOwn(deploymentInfo, "platform_admin_semantic_readiness"), false, "semantic readiness must remain opt-in");
 
   const bindingUnauthorizedResponse = await fetch(`http://127.0.0.1:${address.port}/deployment-info/runtime-binding`);
   assert.equal(bindingUnauthorizedResponse.status, 401);
@@ -339,6 +363,22 @@ try {
   assert.equal(readinessInfo.production_activation_readiness.sql_mutation_performed, false);
   assert.equal(readinessInfo.production_activation_readiness.migration_apply_performed, false);
   assert.equal(readinessInfo.production_activation_readiness.secrets_included, false);
+
+  const semanticResponse = await fetch(`http://127.0.0.1:${address.port}/deployment-info?include_platform_admin_semantic_readiness=1`);
+  assert.equal(semanticResponse.status, 200);
+  const semanticInfo = await semanticResponse.json();
+  assert.equal(semanticInfo.platform_admin_semantic_readiness.contract, "mad4b.platform-admin-workspace-readiness.v1");
+  assert.equal(semanticInfo.platform_admin_semantic_readiness.status, "ready");
+  assert.equal(semanticInfo.platform_admin_semantic_readiness.ready, true);
+  assert.equal(semanticInfo.platform_admin_semantic_readiness.relevant_row_count, 1);
+  assert.equal(semanticInfo.platform_admin_semantic_readiness.database_read_performed, true);
+  assert.equal(runtimePoolFactoryCalls, 1, "semantic readiness must resolve the deployment-owned Runtime DB pool lazily");
+  assert.equal(semanticInfo.platform_admin_semantic_readiness.database_mutation_performed, false);
+  assert.equal(semanticInfo.platform_admin_semantic_readiness.provider_access_performed, false);
+  assert.equal(semanticInfo.platform_admin_semantic_readiness.production_access_performed, false);
+  assert.equal(semanticInfo.platform_admin_semantic_readiness.secrets_included, false);
+  assert.equal(Object.hasOwn(semanticInfo.platform_admin_semantic_readiness, "workspace"), false);
+  assert.equal(JSON.stringify(semanticInfo).includes("must-not-be-exposed"), false);
 } finally {
   if (server) await new Promise((resolve) => server.close(resolve));
   if (previousManifestPath === undefined) delete process.env.DEPLOYMENT_MANIFEST_PATH;

@@ -98,6 +98,13 @@ function Assert-StagingEnvironmentSafety([string]$Path) {
     if ((Get-StagingEnvValue $Path 'REMOTE_MCP_OAUTH_SIGNING_SECRET') -eq (Get-StagingEnvValue $Path 'JWT_SECRET')) {
         throw 'Remote MCP signing authority must be isolated from the platform JWT secret.'
     }
+    $deviceJwtSecret = Get-StagingEnvValue $Path 'LOCAL_MANAGER_DEVICE_JWT_SECRET'
+    if ([string]::IsNullOrWhiteSpace($deviceJwtSecret) -or $deviceJwtSecret.Length -lt 32) {
+        throw 'LOCAL_MANAGER_DEVICE_JWT_SECRET must be a dedicated Staging secret with at least 32 characters.'
+    }
+    if ($deviceJwtSecret -eq (Get-StagingEnvValue $Path 'JWT_SECRET')) {
+        throw 'Local Manager device JWT authority must be isolated from the platform user JWT secret.'
+    }
 }
 
 function Initialize-StagingEnvironment {
@@ -125,6 +132,7 @@ function Initialize-StagingEnvironment {
         'RUNTIME_PERSISTENCE_DB_ROOT_PASSWORD' = { New-StagingRandomValue 32 }
         'BACKEND_API_KEY' = { New-StagingRandomValue 32 -Prefix 'stg_bak_' }
         'JWT_SECRET' = { New-StagingRandomValue 48 }
+        'LOCAL_MANAGER_DEVICE_JWT_SECRET' = { New-StagingRandomValue 48 -Prefix 'stg_lm_device_' }
         'TENANT_GPT_SSO_SIGNING_SECRET' = { New-StagingRandomValue 48 }
         'TOKEN_ENCRYPTION_KEY' = { New-StagingRandomValue 48 }
         'TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET' = { New-StagingRandomValue 32 -Prefix 'stg_tenant_' }

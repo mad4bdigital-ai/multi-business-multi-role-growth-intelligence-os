@@ -1,0 +1,152 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-gateway-canonical-platform-workspace-20260919",
+  "title": "Staging gateway canonical Platform Admin workspace resolution",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-gateway-canonical-platform-workspace-20260919.json",
+      "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+      "http-generic-api/test-activation-gateway-rollout-surface.mjs",
+      "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+      "http-generic-api/src/infrastructure/authorityScope/platformAdminWorkspaceResolver.js",
+      "http-generic-api/src/infrastructure/authorityScope/platformTopologyVerificationRepository.js",
+      "http-generic-api/test-platform-admin-workspace-resolver.mjs",
+      ".github/governance/test-authority-registry.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/scripts/manifests/test-manifest-upstream-main.mjs",
+      ".github/derived-state-governance.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Consolidate canonical Platform Admin Workspace resolution so topology verification and the Staging Activation Gateway share one marker contract, require a ready workspace for execution, preserve non-ready marked workspaces for read-only topology diagnostics, preserve the existing platform-global tenant sentinel boundary, and fail closed on ambiguity without provider access or mutation. Register the new regression in canonical repository test authority so fixed-point closure cannot classify it as an unregistered test. Register the changed authorityScope runtime files with exact semantic executable paths, include the resolver regression in the ordered full test manifest, and prove zero-or-one candidate cardinality before returning the executable workspace. Register the feature declaration in both canonical control-plane authorities while preserving manual-merge-only self-amendment semantics.",
+      "e2e_journeys": [
+        {
+          "id": "staging-gateway-canonical-platform-workspace-resolution",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Server-governed Staging Activation Gateway dry-run authority",
+          "entrypoint": "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+          "terminal_outcome": "The service principal resolves exactly one ready canonical Platform Admin Workspace from Runtime DB markers, rejects ambiguity, preserves Governance-owned resource binding resolution, and performs no provider or Production mutation.",
+          "steps": [
+            "Resolve the authenticated backend service principal as service/platform_admin.",
+            "Read workspace_registry only from the Runtime DB.",
+            "Use the shared canonical Platform Admin Workspace resolver for both topology evidence and the Staging service principal.",
+            "Match the canonical Platform Admin Workspace using workspace_key or config_json authority markers.",
+            "Reject more than one ready canonical Platform Admin Workspace instead of selecting an arbitrary row.",
+            "Continue resolving the exact Staging Worker resource binding only from the Governance DB.",
+            "Keep feature-gate and server credential checks independent and fail closed before provider execution."
+          ],
+          "assertions": [
+            "workspace_type='platform_admin' is not used as Platform Admin authority evidence.",
+            "Topology verification and Staging execution consume the same canonical marker contract.",
+            "workspace_key, authority_scope_key, and platform_admin_workspace=true each resolve independently.",
+            "A schema-valid workspace_type with canonical platform markers resolves successfully.",
+            "Ambiguous canonical Platform Admin Workspace matches fail closed.",
+            "A canonically marked workspace with bootstrap_status other than ready is visible to topology diagnostics but not executable Staging resolution.",
+            "Runtime DB never serves platform_resource_authority_bindings.",
+            "Governance DB never serves workspace_registry.",
+            "Feature gate false keeps apply_ready=false after successful workspace resolution.",
+            "No Cloudflare provider call, provider mutation, database mutation, or Production mutation is introduced.",
+            "secrets_included is false.",
+            "Executable Staging resolution preserves the existing platform-global tenant sentinel boundary and does not add a tenants-table prerequisite.",
+            "The new canonical resolver regression is registered in repository test authority.",
+            "The shared authorityScope runtime files are registered as exact api_runtime semantic executables.",
+            "The canonical resolver regression participates in the ordered full npm test manifest.",
+            "Executable workspace selection proves zero-or-one cardinality before returning the candidate.",
+            "The feature E2E declaration is registered in Constitution.control_plane_paths.",
+            "The feature E2E declaration is registered in convergence.automation_control_paths.",
+            "Control-plane self-amendment remains manual-merge-only; no autonomous merge authority is introduced."
+          ],
+          "tests": [
+            {
+              "id": "staging-gateway-rollout-surface",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-activation-gateway-rollout-surface.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-smart-gateway-convergence-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-smart-gateway-convergence-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "platform-admin-workspace-marker-migration",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-admin-workspace-marker-migration.mjs",
+              "args": []
+            },
+            {
+              "id": "platform-admin-workspace-canonical-resolver",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-admin-workspace-resolver.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-gateway-canonical-platform-workspace-20260919.json",
+            "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+            "http-generic-api/src/infrastructure/authorityScope/platformTopologyVerificationRepository.js",
+            "http-generic-api/migrations/005_sprint07_connected_systems.sql",
+            "http-generic-api/migrations/20260728_platform_admin_workspace_marker.sql",
+            "http-generic-api/test-activation-gateway-rollout-surface.mjs",
+            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+            "http-generic-api/src/infrastructure/authorityScope/platformAdminWorkspaceResolver.js",
+            "http-generic-api/test-platform-admin-workspace-resolver.mjs",
+            ".github/governance/test-authority-registry.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "http-generic-api/scripts/manifests/test-manifest-upstream-main.mjs",
+            ".github/derived-state-governance.json"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "staging-gateway-rollout-surface",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-activation-gateway-rollout-surface.mjs",
+          "args": []
+        },
+        {
+          "id": "staging-smart-gateway-convergence-contract",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-staging-smart-gateway-convergence-contract.mjs",
+          "args": []
+        },
+        {
+          "id": "platform-admin-workspace-canonical-resolver",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-platform-admin-workspace-resolver.mjs",
+          "args": []
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

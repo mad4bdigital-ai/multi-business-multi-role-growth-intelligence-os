@@ -3215,9 +3215,9 @@ paths:
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: 423f1ee6cc8399ad9f3eb5d837dbb16a954788899120ed8b5cfef6091a5e5ac8
+  source_openapi_sha256: 6a8d780fb6cf2f874efde0214e5b9b1cd48d0835582f33fbb4ac8dded308ee92
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
-  registry_sha256: 47af71783edd817abfa6da6d461bb11c59f2842a51e4fec222832b042363ab1d
+  registry_sha256: 155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9
   domain_family_policy: http-generic-api/config/domain-family-policy.json
   domain_family_policy_sha256: 5cdcb4b16a07d999dcff35d8a1fef14d441f4bac4ee26b8326cba1b2d92b3d3d
   environment: unspecified
@@ -3781,6 +3781,42 @@ x-custom-gpt-generation:
     - getMeWorkspacesTenantIdOperationsOperationId
     - recordTenantGrowthRecommendationFeedback
   operation_count: 30
+  operation_manifest:
+    surface: tenant_core
+    environment: unspecified
+    operation_count: 30
+    operation_ids:
+      - callTool
+      - decideTenantSkillApproval
+      - deleteMeWorkspacesTenantIdResourcesResourceKeyResourceId
+      - endSession
+      - executeTenantOperation
+      - getMeWorkspacesTenantIdResources
+      - getMeWorkspacesTenantIdResourcesResourceKey
+      - getMeWorkspacesTenantIdResourcesResourceKeyResourceId
+      - getMeWorkspacesTenantIdResourcesResourceKeyResourceIdChanges
+      - getMeWorkspacesTenantIdResourcesResourceKeyResourceIdPermissions
+      - getMeWorkspacesTenantIdResourcesResourceKeyResourceIdRevisions
+      - getTenantDashboardPreferences
+      - getTenantGrowthDashboard
+      - getTenantGrowthDashboardTab
+      - getTenantGrowthDigest
+      - getTenantOperationStatus
+      - listLocalGatewayTools
+      - listTenantSkillApprovals
+      - listTools
+      - patchMeWorkspacesTenantIdResourcesResourceKeyResourceId
+      - postMeWorkspacesTenantIdResourcesResourceKey
+      - postMeWorkspacesTenantIdResourcesResourceKeyResourceIdRestore
+      - previewTenantGrowthAction
+      - previewTenantOperation
+      - tenantPlatformPluginCatalog
+      - tenantPlatformPluginCredentialIntakeSessionCreate
+      - tenantPlatformPluginInstall
+      - tenantPlatformPluginResolve
+      - updateTenantDashboardPreferences
+      - writeSessionTurn
+    sha256: 682dd83bf5d84cdd53c1215809ca8bc0f98e2c8d46f3bb95e4742aee5ad78d02
   warning_operation_limit: 30
   warning_budget_exceeded: false
   hard_operation_limit: 30

@@ -9,7 +9,9 @@ import {
   validateRecoveryCompositionAdapters,
   _testingRecoveryComposition,
 } from "./recoveryComposition.js";
+import { _testingProductionRecoveryCompositionFactory } from "./productionRecoveryCompositionFactory.js";
 
+const { buildReadOnlyEvidenceStore, READ_ONLY_EVIDENCE_STORE_METHODS } = _testingProductionRecoveryCompositionFactory;
 const serverSource = readFileSync(new URL("./server.js", import.meta.url), "utf8");
 const routesSource = readFileSync(new URL("./routes/recoveryKernelRoutes.js", import.meta.url), "utf8");
 const systemLayerSource = readFileSync(new URL("./routes/systemLayerRoutes.js", import.meta.url), "utf8");
@@ -52,6 +54,23 @@ function makeCompleteAdapters() {
     partialReceiptStore: { putImmutablePartialRebuildReceipt: asyncMethod({ persisted: true }) },
     proofResolver: () => ({ source: "durable_full_inspection", selected_roles: ["runtime"] }),
     migrationLedger: { contract: "mad4b.governance-migration-ledger.v1", finalize: asyncMethod({ finalized: true }) },
+  };
+}
+
+function makeEvidenceStore(overrides = {}) {
+  return {
+    recovery_store_contract: "mad4b.recovery-durable-store.v1",
+    independent_of_target_databases: true,
+    target_database_binding: "forbidden",
+    shared_replica_safe: true,
+    schema_auto_apply: false,
+    payload_integrity_verified_on_read: true,
+    provider_accessed: false,
+    ...Object.fromEntries(READ_ONLY_EVIDENCE_STORE_METHODS.map((name) => [name, asyncMethod(true)])),
+    claimExecution: asyncMethod(true),
+    reserveApproval: asyncMethod(true),
+    putExecutionTicket: asyncMethod(true),
+    ...overrides,
   };
 }
 
@@ -123,6 +142,28 @@ test("complete injected graph remains non-live and is exposed through three boun
   assert.equal(routeDeps.runtimeBootstrapDependencies.executionTicketVerifier, adapters.executionTicketVerifier);
 });
 
+test("read-only Recovery store projection exposes evidence persistence only", () => {
+  const source = makeEvidenceStore();
+  const projected = buildReadOnlyEvidenceStore(source);
+  assert.ok(projected);
+  assert.notEqual(projected, source);
+  assert.equal(projected.evidence_authority_only, true);
+  assert.equal(projected.mutation_authority, false);
+  assert.equal(projected.shared_replica_safe, true);
+  assert.equal(projected.schema_auto_apply, false);
+  for (const name of READ_ONLY_EVIDENCE_STORE_METHODS) assert.equal(typeof projected[name], "function");
+  for (const name of ["claimExecution", "reserveApproval", "putExecutionTicket"]) assert.equal(projected[name], undefined);
+});
+
+test("read-only Recovery store projection rejects unsafe persistence boundaries", () => {
+  assert.equal(buildReadOnlyEvidenceStore(makeEvidenceStore({ independent_of_target_databases: false })), null);
+  assert.equal(buildReadOnlyEvidenceStore(makeEvidenceStore({ target_database_binding: "runtime_persistence" })), null);
+  assert.equal(buildReadOnlyEvidenceStore(makeEvidenceStore({ shared_replica_safe: false })), null);
+  assert.equal(buildReadOnlyEvidenceStore(makeEvidenceStore({ schema_auto_apply: true })), null);
+  assert.equal(buildReadOnlyEvidenceStore(makeEvidenceStore({ payload_integrity_verified_on_read: false })), null);
+  assert.equal(buildReadOnlyEvidenceStore(makeEvidenceStore({ provider_accessed: true })), null);
+});
+
 test("composition root wires the contract without auto-discovering credentials or providers", () => {
   assert.match(serverSource, /createProductionRecoveryComposition\(\{[\s\S]*source: "server_composition_root"/u);
   assert.match(serverSource, /getServerManagedRecoveryBindingMode/u);
@@ -153,6 +194,8 @@ test("Admin Recovery connection is pinned to the existing embedded Staging Recov
     "getStagingRecoveryAdminContract",
     "getStagingRecoveryAdminReadiness",
     "getStagingRecoveryCertificationStatus",
+    "previewStagingActivationGatewayRolloutPlan",
+    "prepareStagingActivationGatewayDarkDeployDryRun",
   ]);
   assert.match(customGptSurfaces, /admin_activation_staging:/);
   assert.match(customGptSurfaces, /admin_recovery_staging/);
@@ -160,11 +203,17 @@ test("Admin Recovery connection is pinned to the existing embedded Staging Recov
   assert.match(customGptSurfaces, /upstream_origin:\s*https:\/\/dev\.mad4b\.com/);
 });
 
-test("Admin Recovery Staging Gateway convergence exposes read/preflight only", () => {
+test("Admin Recovery Staging Gateway convergence exposes bounded preflight but no provider apply", () => {
   const gateway = adminRecoveryConnection.gateway_convergence;
   assert.equal(gateway.trusted_ingress, "https://activation-dev.mad4b.com");
   assert.equal(gateway.upstream_origin, "https://dev.mad4b.com");
   assert.equal(gateway.direct_upstream_registration_allowed, false);
+  assert.equal(gateway.rollout_preview_operation_id, "previewStagingActivationGatewayRolloutPlan");
+  assert.equal(gateway.dark_deploy_dry_run_operation_id, "prepareStagingActivationGatewayDarkDeployDryRun");
+  assert.equal(gateway.rollout_preview_persistent, false);
+  assert.equal(gateway.dark_deploy_dry_run_governance_plan_persistence, true);
+  assert.equal(gateway.operator_acknowledgement_server_verified_on_preflight, false);
+  assert.equal(gateway.operator_acknowledgement_is_execution_authority, false);
   assert.equal(gateway.consequential_apply_exposed, false);
   assert.equal(gateway.apply_authority, "certified_server_side_workflow_only");
   assert.deepEqual(gateway.safe_read_or_preflight_operations, [

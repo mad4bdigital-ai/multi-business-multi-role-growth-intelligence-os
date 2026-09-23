@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import {
   assertTrustForMutation,
   buildCausalFindingGraph,
@@ -9,6 +12,7 @@ import {
   readRuntimeAttestation,
   verifyRecoveryManifest,
 } from "./recoveryTrustModel.js";
+import { readCanonicalDeploymentIdentity } from "./deploymentManifest.js";
 
 const SHA = "a".repeat(40);
 const REPOSITORY = "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os";
@@ -54,6 +58,86 @@ test("manifest verification requires exact runtime SHA and production binding", 
   assert.equal(wrongSha.ok, false);
   const wrongBranch = verifyRecoveryManifest({ expectedSha: SHA, env: { ...ENV, DEPLOYMENT_MANIFEST_JSON: JSON.stringify({ repository: REPOSITORY, branch: "main", commit_sha: SHA, source: "test_fixture", secrets_included: false }) } });
   assert.equal(wrongBranch.ok, false);
+});
+
+test("env-only identity remains diagnostic but cannot satisfy Recovery Manifest trust", () => {
+  const env = {
+    GITHUB_REPOSITORY: REPOSITORY,
+    GITHUB_REF_NAME: "Production",
+    GITHUB_SHA: SHA,
+    DEPLOYMENT_MANIFEST_PATH: "__missing_recovery_deployment_manifest_for_test__.json",
+  };
+  const verified = verifyRecoveryManifest({ expectedSha: SHA, env });
+  assert.equal(verified.repository_match, true);
+  assert.equal(verified.branch_match, true);
+  assert.equal(verified.sha_match, true);
+  assert.equal(verified.manifest_bound, false);
+  assert.equal(verified.ok, false);
+
+  const attestation = readRuntimeAttestation({ env, expectedSha: SHA });
+  assert.equal(attestation.deployment_identity_manifest_bound, false);
+  assert.equal(attestation.manifest_bound, false);
+  assert.equal(attestation.parity, false);
+});
+
+test("canonical deployment identity prefers manifest JSON and supports legacy commit JSON", () => {
+  const legacySha = "b".repeat(40);
+  const legacy = readCanonicalDeploymentIdentity({
+    env: {
+      DEPLOYMENT_COMMIT_JSON: JSON.stringify({ repository: REPOSITORY, branch: "Production", commit_sha: legacySha }),
+    },
+  });
+  assert.equal(legacy.ok, true);
+  assert.equal(legacy.source, "env:DEPLOYMENT_COMMIT_JSON");
+  assert.equal(legacy.repository, REPOSITORY);
+  assert.equal(legacy.branch, "Production");
+  assert.equal(legacy.sha, legacySha);
+  assert.equal(legacy.manifest_bound, true);
+
+  const preferred = readCanonicalDeploymentIdentity({
+    env: {
+      DEPLOYMENT_MANIFEST_JSON: JSON.stringify({ repository: REPOSITORY, branch: "Production", commit_sha: SHA }),
+      DEPLOYMENT_COMMIT_JSON: JSON.stringify({ repository: "wrong/repo", branch: "main", commit_sha: legacySha }),
+    },
+  });
+  assert.equal(preferred.ok, true);
+  assert.equal(preferred.source, "env:DEPLOYMENT_MANIFEST_JSON");
+  assert.equal(preferred.repository, REPOSITORY);
+  assert.equal(preferred.branch, "Production");
+  assert.equal(preferred.sha, SHA);
+});
+
+test("runtime attestation resolves manifest path through the same canonical identity source", () => {
+  const dir = mkdtempSync(join(tmpdir(), "mad4b-recovery-identity-"));
+  const manifestPath = join(dir, "deployment-manifest.json");
+  try {
+    writeFileSync(manifestPath, JSON.stringify({ repository: REPOSITORY, branch: "Production", commit_sha: SHA, secrets_included: false }));
+    const env = {
+      DEPLOYMENT_MANIFEST_PATH: manifestPath,
+      DEPLOYMENT_ENVIRONMENT: "production",
+      GITHUB_REPOSITORY: "wrong/repository",
+      GITHUB_REF_NAME: "main",
+      GITHUB_SHA: "1".repeat(40),
+    };
+    const attestation = readRuntimeAttestation({ env, expectedSha: SHA });
+    assert.equal(attestation.parity, true);
+    assert.equal(attestation.manifest_bound, true);
+    assert.equal(attestation.repository, REPOSITORY);
+    assert.equal(attestation.branch, "Production");
+    assert.equal(attestation.deployment_sha, SHA);
+    assert.equal(attestation.identity_source, manifestPath);
+    assert.equal(attestation.deployment_identity_manifest_bound, true);
+
+    const model = getRecoveryTrustModel({ env, expectedSha: SHA });
+    assert.equal(model.ok, true);
+    assert.equal(model.identity.repository, REPOSITORY);
+    assert.equal(model.identity.branch, "Production");
+    assert.equal(model.identity.sha, SHA);
+    assert.equal(model.identity.source, manifestPath);
+    assert.equal(model.identity.manifest_bound, true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("runtime attestation is hash-only and includes independent role target fingerprints", () => {

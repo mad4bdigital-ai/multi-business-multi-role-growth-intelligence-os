@@ -8,16 +8,18 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 const productionPath = path.join(repoRoot, "edge", "activation-gateway", "generated", "route-policy.json");
 const stagingPath = path.join(repoRoot, "edge", "activation-gateway", "generated", "route-policy.staging.json");
 const EXPECTED = new Map([
-  ["/admin/recovery/staging/contract", "getStagingRecoveryAdminContract"],
-  ["/admin/recovery/staging/readiness", "getStagingRecoveryAdminReadiness"],
-  ["/admin/recovery/staging/certification", "getStagingRecoveryCertificationStatus"],
+  ["GET /admin/recovery/staging/contract", "getStagingRecoveryAdminContract"],
+  ["GET /admin/recovery/staging/readiness", "getStagingRecoveryAdminReadiness"],
+  ["GET /admin/recovery/staging/certification", "getStagingRecoveryCertificationStatus"],
+  ["POST /admin/recovery/staging/gateway/rollout-plan", "previewStagingActivationGatewayRolloutPlan"],
+  ["POST /admin/recovery/staging/gateway/dark-deploy-dry-run", "prepareStagingActivationGatewayDarkDeployDryRun"],
 ]);
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
-test("staging route policy exposes only bounded Staging Recovery GET routes", () => {
+test("staging route policy exposes bounded Staging Recovery reads and Gateway preflight only", () => {
   const production = readJson(productionPath);
   const staging = readJson(stagingPath);
   assert.equal(staging.policy_key, "activation_gateway_staging");
@@ -30,20 +32,23 @@ test("staging route policy exposes only bounded Staging Recovery GET routes", ()
     require_policy_hash: true,
     require_source_commit: true,
   });
-  for (const [routePath, operationId] of EXPECTED) {
-    const route = staging.routes.find((entry) => entry.path === routePath);
-    assert.ok(route, `missing staging route ${routePath}`);
-    assert.equal(route.method, "GET", routePath);
+  for (const [signature, operationId] of EXPECTED) {
+    const [method, routePath] = signature.split(" ", 2);
+    const route = staging.routes.find((entry) => entry.path === routePath && entry.method === method);
+    assert.ok(route, `missing staging route ${signature}`);
     for (const field of ["request_body_limit_bytes", "response_body_limit_bytes", "timeout_ms"]) {
-      assert(Number.isSafeInteger(route[field]) && route[field] > 0, `${routePath}: ${field} must be bounded`);
+      assert(Number.isSafeInteger(route[field]) && route[field] > 0, `${signature}: ${field} must be bounded`);
     }
-    assert.equal(route.mutation, false, routePath);
-    assert.equal(route.freshness_class, "recovery_strict", routePath);
-    assert.deepEqual(route.operation_ids, [operationId], routePath);
-    assert.deepEqual(route.surfaces, ["activation_admin_staging", "admin_recovery_staging"], routePath);
-    assert.deepEqual(route.allowed_query_parameters, [], routePath);
-    assert.equal(production.routes.some((entry) => entry.path === routePath), false, `Production policy must not expose ${routePath}`);
+    const isMutationClass = method === "POST";
+    assert.equal(route.mutation, isMutationClass, signature);
+    assert.equal(route.freshness_class, isMutationClass ? "mutation_strict" : "recovery_strict", signature);
+    assert.deepEqual(route.operation_ids, [operationId], signature);
+    assert.deepEqual(route.surfaces, ["activation_admin_staging", "admin_recovery_staging"], signature);
+    assert.deepEqual(route.allowed_query_parameters, [], signature);
+    assert.equal(production.routes.some((entry) => entry.path === routePath && entry.method === method), false, `Production policy must not expose ${signature}`);
   }
+  assert.equal(staging.routes.some((entry) => entry.path.includes("dark-deploy") && entry.method !== "POST"), false);
+  assert.equal(staging.routes.some((entry) => entry.path.startsWith("/admin/recovery/staging/gateway/") && !EXPECTED.has(`${entry.method} ${entry.path}`)), false);
   assert.deepEqual(staging.source_surfaces, ["activation_admin_staging", "admin_recovery_staging", "tenant_activation_staging"]);
   assert.equal(staging.secrets_included, false);
 });

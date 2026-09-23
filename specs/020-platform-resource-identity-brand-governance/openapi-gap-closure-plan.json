@@ -6,15 +6,15 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "732800817cd77208957f025fa83b5961495d88f24289a79f47d2090731435efd",
-    "dispatch_artifact_sha256": "145a0589998ccc458a4eb2dcb7962d7a7cd820e749a8bfb3ce21670a0f1a8917"
+    "dispatch_source_digest": "3a26e65c3844fd756b4b17b05a31510d553698cc9d3273a529ada34c5de5a36c",
+    "dispatch_artifact_sha256": "12a5d1ff82a1cfdea2f5da41c436758543c54346f902fe26cb3d1419cb8841e8"
   },
   "coverage": {
-    "operation_count": 1066,
-    "mounted_family_count": 173,
+    "operation_count": 1077,
+    "mounted_family_count": 176,
     "openapi_gap_count": 0,
     "auth_contract_gap_count": 0,
-    "openapi_detail_gap_count": 318,
+    "openapi_detail_gap_count": 319,
     "unresolved_surface_decision_count": 0,
     "unresolved_operation_class_count": 0,
     "untested_family_count": 0,
@@ -23,17 +23,17 @@
   },
   "closure_summary": {
     "blocking_contract_gaps": 0,
-    "read_only_traceability_closures": 318,
+    "read_only_traceability_closures": 319,
     "surface_decisions_requiring_owner": 0,
     "priority_family_counts": {
       "P1_surface_decision": 0,
       "P2_detail_traceability": 75,
-      "P3_observe": 98
+      "P3_observe": 101
     },
     "surface_decision_family_counts": {
-      "api_only": 39,
+      "api_only": 41,
       "embedded_ui": 6,
-      "internal_only": 121,
+      "internal_only": 122,
       "legacy_compatibility": 6,
       "unified_ui": 1
     },
@@ -1302,6 +1302,43 @@
       ]
     },
     {
+      "family_key": "local-manager-desktop-command.local_device",
+      "label": "local manager desktop command (local_device)",
+      "scope": "local_device",
+      "surface_decision": "legacy_compatibility",
+      "priority": "P2_detail_traceability",
+      "detail_gap_count": 3,
+      "operation_count": 3,
+      "untested_operation_count": 0,
+      "unresolved_operation_count": 0,
+      "next_action": "add_detail_evidence_without_claiming_canonical_coverage",
+      "activation_allowed": false,
+      "evidence_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/localManagerDesktopCommandRoutes.js",
+        "scripts/test-manifest.mjs",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
       "family_key": "mcp",
       "label": "mcp",
       "scope": "developer",
@@ -1419,7 +1456,7 @@
       "surface_decision": "internal_only",
       "priority": "P2_detail_traceability",
       "detail_gap_count": 3,
-      "operation_count": 6,
+      "operation_count": 8,
       "untested_operation_count": 0,
       "unresolved_operation_count": 0,
       "next_action": "add_detail_evidence_without_claiming_canonical_coverage",
@@ -1435,7 +1472,6 @@
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
-        "openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
         "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
@@ -1448,7 +1484,8 @@
         "routes/stagingRecoveryAdminRoutes.js",
         "scripts/test-manifest.mjs",
         "test-recovery-execution-ticket.mjs",
-        "test-staging-recovery-admin-surface.mjs"
+        "test-staging-recovery-admin-surface.mjs",
+        "test-staging-recovery-gateway-preflight.mjs"
       ]
     },
     {
@@ -1644,43 +1681,6 @@
       "family_key": "local-manager-desktop-command.admin",
       "label": "local manager desktop command (admin)",
       "scope": "admin",
-      "surface_decision": "legacy_compatibility",
-      "priority": "P2_detail_traceability",
-      "detail_gap_count": 2,
-      "operation_count": 2,
-      "untested_operation_count": 0,
-      "unresolved_operation_count": 0,
-      "next_action": "add_detail_evidence_without_claiming_canonical_coverage",
-      "activation_allowed": false,
-      "evidence_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/brand-core-asset-materialization.yaml",
-        "openapi/container-authority-override-governance-smoke.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/frontend-runtime-routes.generated.yaml",
-        "openapi/hostinger-storage-tenant-runtime.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "openapi/support-ticket-admin-brand.yaml",
-        "openapi/support-ticket-admin-execution.yaml",
-        "openapi/support-ticket-admin-remaining.yaml",
-        "openapi/support-ticket-runtime-completion.yaml",
-        "openapi/support-tickets.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/index.js",
-        "routes/localManagerDesktopCommandRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
-      "family_key": "local-manager-desktop-command.local_device",
-      "label": "local manager desktop command (local_device)",
-      "scope": "local_device",
       "surface_decision": "legacy_compatibility",
       "priority": "P2_detail_traceability",
       "detail_gap_count": 2,
@@ -2121,7 +2121,8 @@
         "routes/index.js",
         "routes/platformPluginRoutes.js",
         "scripts/test-manifest.mjs",
-        "test-frontend-surface-coverage-claims.mjs"
+        "test-frontend-surface-coverage-claims.mjs",
+        "test-remote-runtime-catalog-probe.mjs"
       ]
     },
     {
@@ -4906,7 +4907,7 @@
       "surface_decision": "legacy_compatibility",
       "priority": "P3_observe",
       "detail_gap_count": 0,
-      "operation_count": 5,
+      "operation_count": 7,
       "untested_operation_count": 0,
       "unresolved_operation_count": 0,
       "next_action": "continue_deterministic_observation_and_regression_checks",
@@ -4947,7 +4948,8 @@
         "routes/index.js",
         "routes/localManagerBetaRoutes.js",
         "scripts/test-manifest.mjs",
-        "test-frontend-surface-coverage-claims.mjs"
+        "test-frontend-surface-coverage-claims.mjs",
+        "test-local-manager-pairing-security.mjs"
       ]
     },
     {
@@ -5036,6 +5038,78 @@
         "routes/localManagerBetaRoutes.js",
         "scripts/test-manifest.mjs",
         "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "family_key": "managed-google-oauth.developer",
+      "label": "managed google oauth (developer)",
+      "scope": "developer",
+      "surface_decision": "api_only",
+      "priority": "P3_observe",
+      "detail_gap_count": 0,
+      "operation_count": 3,
+      "untested_operation_count": 0,
+      "unresolved_operation_count": 0,
+      "next_action": "continue_deterministic_observation_and_regression_checks",
+      "activation_allowed": false,
+      "evidence_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/managedGoogleOAuthRoutes.js",
+        "scripts/test-manifest.mjs",
+        "test-managed-google-oauth-broker.mjs"
+      ]
+    },
+    {
+      "family_key": "managed-google-oauth.public",
+      "label": "managed google oauth (public)",
+      "scope": "public",
+      "surface_decision": "api_only",
+      "priority": "P3_observe",
+      "detail_gap_count": 0,
+      "operation_count": 1,
+      "untested_operation_count": 0,
+      "unresolved_operation_count": 0,
+      "next_action": "continue_deterministic_observation_and_regression_checks",
+      "activation_allowed": false,
+      "evidence_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/managedGoogleOAuthRoutes.js",
+        "scripts/test-manifest.mjs",
+        "test-managed-google-oauth-broker.mjs"
       ]
     },
     {
@@ -5197,7 +5271,7 @@
       "surface_decision": "internal_only",
       "priority": "P3_observe",
       "detail_gap_count": 0,
-      "operation_count": 2,
+      "operation_count": 3,
       "untested_operation_count": 0,
       "unresolved_operation_count": 0,
       "next_action": "continue_deterministic_observation_and_regression_checks",
@@ -5213,6 +5287,7 @@
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/openapi.custom-gpt.staging-admin.yaml",
         "openapi/sql-cache-policy.yaml",
         "openapi/support-ticket-admin-brand.yaml",
         "openapi/support-ticket-admin-execution.yaml",
@@ -5223,7 +5298,8 @@
         "routes/index.js",
         "routes/operationalConsoleRoutes.js",
         "scripts/test-manifest.mjs",
-        "test-frontend-surface-coverage-claims.mjs"
+        "test-frontend-surface-coverage-claims.mjs",
+        "test-remote-runtime-catalog-probe.mjs"
       ]
     },
     {
@@ -6554,6 +6630,42 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/tenantPlatformPluginRoutes.js",
+        "scripts/test-manifest.mjs",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "family_key": "wordpress-staging-plugin-deploy",
+      "label": "wordpress staging plugin deploy",
+      "scope": "admin",
+      "surface_decision": "internal_only",
+      "priority": "P3_observe",
+      "detail_gap_count": 0,
+      "operation_count": 1,
+      "untested_operation_count": 0,
+      "unresolved_operation_count": 0,
+      "next_action": "continue_deterministic_observation_and_regression_checks",
+      "activation_allowed": false,
+      "evidence_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/wordpressStagingPluginDeployRoutes.js",
         "scripts/test-manifest.mjs",
         "test-frontend-surface-coverage-claims.mjs"
       ]

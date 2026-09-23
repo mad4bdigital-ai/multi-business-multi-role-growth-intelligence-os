@@ -671,9 +671,9 @@ paths:
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: 423f1ee6cc8399ad9f3eb5d837dbb16a954788899120ed8b5cfef6091a5e5ac8
+  source_openapi_sha256: 6a8d780fb6cf2f874efde0214e5b9b1cd48d0835582f33fbb4ac8dded308ee92
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
-  registry_sha256: 47af71783edd817abfa6da6d461bb11c59f2842a51e4fec222832b042363ab1d
+  registry_sha256: 155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9
   domain_family_policy: http-generic-api/config/domain-family-policy.json
   domain_family_policy_sha256: 5cdcb4b16a07d999dcff35d8a1fef14d441f4bac4ee26b8326cba1b2d92b3d3d
   environment: production
@@ -690,15 +690,27 @@ x-custom-gpt-generation:
   static_operation_ids: null
   dynamic_operation_ids: null
   operation_count: 6
+  operation_manifest:
+    surface: admin_recovery_production
+    environment: production
+    operation_count: 6
+    operation_ids:
+      - callAdminRecoveryKernel
+      - createAdminRecoveryApprovalChallenge
+      - executeAdminRecoveryKernelStep
+      - executeApprovedAdminRecoveryKernelStep
+      - getAdminRecoveryKernelEvidence
+      - getAdminRecoveryKernelRun
+    sha256: f3fa723deabf8d6a8c2eb7453a23e8b2fd9d596919713880ab327b1bc946bd91
   warning_operation_limit: 12
   warning_budget_exceeded: false
   hard_operation_limit: 12
   secrets_included: false
-  registration_set: production_recovery
+  registration_set: admin_recovery_production
   registration_members:
     - admin_recovery_production
 x-mad4b-registration:
-  registration_set: production_recovery
+  registration_set: admin_recovery_production
   action_slot: recovery_kernel
   audience: admin_service
   auth_profile: admin_service
@@ -712,4 +724,24 @@ x-mad4b-registration:
   warning_operation_limit: 12
   tenant_surfaces_forbidden:
     - tenant_activation_production
+  secrets_included: false
+x-mad4b-registration-contract:
+  contract: mad4b.custom-gpt-registration-contract.v1
+  registration_set: admin_recovery_production
+  live_registration_set: admin_recovery_production
+  action_slot: recovery_kernel
+  environment: production
+  source_surface: admin_recovery_production
+  generation_mode: generated_from_openapi
+  source_openapi_sha256: 6a8d780fb6cf2f874efde0214e5b9b1cd48d0835582f33fbb4ac8dded308ee92
+  source_manifest_sha256: 155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9
+  surface_operation_manifest_sha256: f3fa723deabf8d6a8c2eb7453a23e8b2fd9d596919713880ab327b1bc946bd91
+  surface_operation_manifest_hash_scope: split_surface_operation_manifest.v1
+  registration_operation_manifest_sha256: 90e3b46d44d727401ba0636646c406c4f2964d08a7155dfd2737cd2762290797
+  registration_operation_manifest_hash_scope: custom_admin_operation_manifest.v1
+  operation_manifest_sha256: 90e3b46d44d727401ba0636646c406c4f2964d08a7155dfd2737cd2762290797
+  operation_manifest_sha256_compatibility_alias_of: registration_operation_manifest_sha256
+  operation_count: 6
+  server_uri: https://auth.mad4b.com
+  auth_profile: admin_service
   secrets_included: false

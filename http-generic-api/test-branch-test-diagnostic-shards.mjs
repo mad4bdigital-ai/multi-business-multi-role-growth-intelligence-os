@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
 import { testCommands } from "./scripts/run-test-manifest.mjs";
 import { deriveDiagnosticFamily } from "./scripts/run-test-diagnostic-shard.mjs";
 
-const API_ROOT = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1"));
+const API_ROOT = path.dirname(fileURLToPath(import.meta.url));
 const temporaryDirectory = mkdtempSync(path.join(tmpdir(), "branch-test-diagnostic-"));
 
 function run(args, env = {}) {

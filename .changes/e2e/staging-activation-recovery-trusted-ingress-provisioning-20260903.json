@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "staging-activation-recovery-trusted-ingress-provisioning-20260903",
-  "title": "Staging Activation Recovery trusted-ingress provisioning and durable replay convergence",
+  "title": "Staging Activation Recovery trusted-ingress provisioning, durable replay, and shared environment convergence",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "secrets_included": false,
@@ -17,6 +17,10 @@
       "http-generic-api/scripts/build-staging-worker.mjs",
       "http-generic-api/trustedIngressContract.js",
       "http-generic-api/routes/activationHostGatewayRoutes.js",
+      "http-generic-api/config/environment-convergence-registry.json",
+      "http-generic-api/environmentConvergenceRegistry.js",
+      "http-generic-api/environmentConvergenceEngine.js",
+      "http-generic-api/test-staging-activation-gateway.mjs",
       "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
     ]
   },
@@ -37,7 +41,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Provision the missing Staging Activation Recovery Worker signing authority, bind its exact deployed public trust into the local Staging origin, provide durable single-filesystem replay claims for local Windows/Docker, and make One-Click recover the trusted-ingress gap even when ordinary Gateway health is already green, without using Local Connector authority or synthesizing certification readiness.",
+      "objective": "Preserve the governed Staging Activation Recovery trusted-ingress path while introducing one shared Staging/Production environment-convergence engine that classifies repairable release drift, builds an immutable profile-bound reconciliation plan, stops at an explicit approval checkpoint, and emits only a governed handoff without performing provider, database, Production, or secret mutation.",
       "e2e_journeys": [
         {
           "id": "staging-activation-recovery-trusted-ingress-convergence",
@@ -99,15 +103,65 @@
             "http-generic-api/test-staging-recovery-admin-surface.mjs",
             "http-generic-api/test-trusted-ingress-contract.mjs"
           ]
+        },
+        {
+          "id": "shared-environment-convergence-approval-handoff",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Shared environment convergence controller",
+          "entrypoint": "http-generic-api/environmentConvergenceEngine.js",
+          "terminal_outcome": "The same engine selects the Staging or Production profile, classifies Activation Gateway release drift, creates a deterministic immutable plan bound to repository/source branch/commit and policy identity, stops at approval_required without mutation, and after a matching approval returns only a handoff_ready state for the governed apply capability; provider execution remains outside this engine.",
+          "steps": [
+            "Load and validate mad4b.environment-convergence-registry.v1 and require both environments to share environment_convergence.v1.",
+            "Bind the requested environment to its exact source branch, runtime adapter, Activation Gateway policy key, policy path, public host and governed authority metadata.",
+            "Classify gateway_exact_commit, gateway policy hash/key/staleness failures as repairable convergence drift while keeping unreachable or profile-mismatched dependencies blocked.",
+            "Build a canonical plan containing the exact release identity, environment profile binding, classified drift, bounded reconciliation-pass limit and governed plan/apply capability names.",
+            "Hash the canonical plan as plan_sha256 and expose it as an immutable plan identity.",
+            "Without approval, stop at approval_checkpoint with status=approval_required and perform no apply action.",
+            "Accept an approval only when environment, release commit and plan_sha256 exactly match the current plan; otherwise remain approval_required.",
+            "With a matching approval, return status=handoff_ready and next_stage=apply while emitting only the governed capability handoff; do not invoke Cloudflare, GitHub workflow dispatch, Hostinger, SQL, migration, database or Production mutation.",
+            "Keep certification as the final judge after a later governed apply path and never infer certification success from planning or approval."
+          ],
+          "assertions": [
+            "Staging and Production use one engine and one environment_convergence.v1 state machine; environment differences are data profiles and authority bindings only.",
+            "The Staging profile binds main/local_windows_docker/activation_gateway_staging/activation-dev.mad4b.com and the Production profile binds Production/hostinger/activation_gateway/activation.mad4b.com.",
+            "gateway_exact_commit is convergence_drift/release_identity_mismatch, not integrity corruption.",
+            "Every repairable plan is bound to an exact repository, profile source branch, 40-character commit SHA, policy identity and maximum reconciliation-pass limit.",
+            "The same inputs produce the same plan_sha256 and the returned plan is immutable.",
+            "No approval means approval_required; an incorrect approval never advances to apply.",
+            "A matching approval advances only to handoff_ready and does not execute the apply capability.",
+            "The shared engine performs zero provider, database, migration, Production, ruleset, workflow-dispatch or secret mutation.",
+            "Top-level AutoPilot orchestrators remain free of provider credentials, direct Cloudflare API calls, wrangler deploy and gh workflow run implementation."
+          ],
+          "tests": [
+            {
+              "id": "staging-activation-gateway-and-shared-convergence",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-activation-gateway.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/config/environment-convergence-registry.json",
+            "http-generic-api/environmentConvergenceRegistry.js",
+            "http-generic-api/environmentConvergenceEngine.js",
+            "http-generic-api/test-staging-activation-gateway.mjs",
+            "edge/activation-gateway/generated/route-policy.staging.json",
+            "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
+            "http-generic-api/scripts/staging-live-certification.mjs",
+            "autopilot-portable-staging/Start-AutoPilot.ps1",
+            "autopilot-portable-staging/Auto-Deploy-Staging.ps1"
+          ]
         }
       ]
     },
     {
       "id": "production",
       "status": "blocked",
-      "objective": "Production Recovery activation, Production trusted-ingress provisioning and Production provider/database mutation remain outside this feature.",
+      "objective": "Production provider execution remains outside this feature; the shared engine may classify and plan with the Production profile but cannot deploy or mutate Production.",
       "blockers": [
-        "Production requires its separate governed release, trust provisioning, certification and authorization lifecycle.",
+        "Production apply requires its separate governed release, C5 authority, approval, execution and certification lifecycle.",
         "This feature grants no Production database, provider, Hostinger, Cloudflare DNS, deployment or Recovery execution authority."
       ]
     }

@@ -12,9 +12,18 @@ on:
         type: choice
         options:
           - eligibility
+          - activation_worker_refresh_dry_run
           - deploy_activation_worker
       source_sha:
         description: Exact current main SHA for Activation Worker deployment
+        required: false
+        type: string
+      expected_policy_hash:
+        description: Exact activation_gateway_staging policy hash for refresh dry-run/deploy
+        required: false
+        type: string
+      environment_convergence_plan_sha256:
+        description: Operator-acknowledged convergence-plan SHA-256; server-verified against the current workflow-owned plan and never execution authority
         required: false
         type: string
       confirmation:
@@ -176,17 +185,99 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  activation_worker_refresh_preflight:
+    name: Stale Gateway refresh dry-run
+    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.operation == 'activation_worker_refresh_dry_run' || inputs.operation == 'deploy_activation_worker') }}
+    needs: eligibility
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      authoritative_plan_sha256: ${{ steps.handoff.outputs.authoritative_plan_sha256 }}
+      worker_bundle_sha256: ${{ steps.handoff.outputs.worker_bundle_sha256 }}
+      preflight_binding_sha256: ${{ steps.handoff.outputs.preflight_binding_sha256 }}
+    env:
+      SOURCE_SHA: ${{ inputs.source_sha }}
+      EXPECTED_POLICY_HASH: ${{ inputs.expected_policy_hash }}
+      CALLER_CONVERGENCE_PLAN_SHA256: ${{ inputs.environment_convergence_plan_sha256 }}
+      PUBLIC_HEALTH_URL: https://activation-dev.mad4b.com/health
+    steps:
+      - name: Validate exact stale-recovery dry-run identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$SOURCE_SHA" = "${SOURCE_SHA,,}"
+          [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$EXPECTED_POLICY_HASH" =~ ^[a-f0-9]{64}$ ]]
+          [[ "$CALLER_CONVERGENCE_PLAN_SHA256" =~ ^[a-f0-9]{64}$ ]]
+
+      - name: Checkout exact current main candidate
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Require exact current main for stale recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git rev-parse origin/main)" = "$SOURCE_SHA"
+          test -z "$(git status --porcelain)"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+
+      - name: Verify live server-governed handoff and build same-run binding
+        id: handoff
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/staging-activation-worker-refresh"
+          summary="$(node http-generic-api/scripts/staging-activation-worker-handoff-verifier.mjs \
+            --source-sha="$SOURCE_SHA" \
+            --expected-policy-hash="$EXPECTED_POLICY_HASH" \
+            --caller-plan-sha256="$CALLER_CONVERGENCE_PLAN_SHA256" \
+            --health-url="$PUBLIC_HEALTH_URL" \
+            --output="$RUNNER_TEMP/staging-activation-worker-refresh/evidence.json")"
+          echo "$summary"
+          authoritative_plan_sha256="$(jq -r '.authoritative_plan_sha256' <<<"$summary")"
+          worker_bundle_sha256="$(jq -r '.worker_bundle_sha256' <<<"$summary")"
+          preflight_binding_sha256="$(jq -r '.preflight_binding_sha256' <<<"$summary")"
+          [[ "$authoritative_plan_sha256" =~ ^[a-f0-9]{64}$ ]]
+          [[ "$worker_bundle_sha256" =~ ^[a-f0-9]{64}$ ]]
+          [[ "$preflight_binding_sha256" =~ ^[a-f0-9]{64}$ ]]
+          echo "authoritative_plan_sha256=$authoritative_plan_sha256" >> "$GITHUB_OUTPUT"
+          echo "worker_bundle_sha256=$worker_bundle_sha256" >> "$GITHUB_OUTPUT"
+          echo "preflight_binding_sha256=$preflight_binding_sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Upload stale-recovery dry-run evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: staging-activation-worker-refresh-dry-run-${{ inputs.source_sha }}
+          path: ${{ runner.temp }}/staging-activation-worker-refresh/evidence.json
+          if-no-files-found: error
+          retention-days: 30
+
   deploy_activation_worker:
     name: Deploy exact main SHA to Staging Worker
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'deploy_activation_worker' }}
-    needs: eligibility
+    needs:
+      - eligibility
+      - activation_worker_refresh_preflight
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
       SOURCE_SHA: ${{ inputs.source_sha }}
       CONFIRMATION: ${{ inputs.confirmation }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      EXPECTED_POLICY_HASH: ${{ inputs.expected_policy_hash }}
+      CALLER_CONVERGENCE_PLAN_SHA256: ${{ inputs.environment_convergence_plan_sha256 }}
+      VERIFIED_CONVERGENCE_PLAN_SHA256: ${{ needs.activation_worker_refresh_preflight.outputs.authoritative_plan_sha256 }}
+      VERIFIED_WORKER_BUNDLE_SHA256: ${{ needs.activation_worker_refresh_preflight.outputs.worker_bundle_sha256 }}
+      PREFLIGHT_BINDING_SHA256: ${{ needs.activation_worker_refresh_preflight.outputs.preflight_binding_sha256 }}
       WORKER_NAME: mad4b-activation-gateway-staging
       PUBLIC_HEALTH_URL: https://activation-dev.mad4b.com/health
       ARTIFACT_DIR: .artifacts/activation-gateway-staging
@@ -199,8 +290,12 @@ jobs:
           test "$CONFIRMATION" = "DEPLOY_STAGING_ACTIVATION_WORKER"
           test "$SOURCE_SHA" = "${SOURCE_SHA,,}"
           [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
-          test -n "$CLOUDFLARE_ACCOUNT_ID"
-          test -n "$CLOUDFLARE_API_TOKEN"
+          [[ "$EXPECTED_POLICY_HASH" =~ ^[a-f0-9]{64}$ ]]
+          [[ "$CALLER_CONVERGENCE_PLAN_SHA256" =~ ^[a-f0-9]{64}$ ]]
+          test "$CALLER_CONVERGENCE_PLAN_SHA256" = "$VERIFIED_CONVERGENCE_PLAN_SHA256"
+          [[ "$VERIFIED_CONVERGENCE_PLAN_SHA256" =~ ^[a-f0-9]{64}$ ]]
+          [[ "$VERIFIED_WORKER_BUNDLE_SHA256" =~ ^[a-f0-9]{64}$ ]]
+          [[ "$PREFLIGHT_BINDING_SHA256" =~ ^[a-f0-9]{64}$ ]]
 
       - name: Checkout exact authorized commit
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -218,10 +313,71 @@ jobs:
           test "$(git rev-parse origin/main)" = "$SOURCE_SHA"
           test -z "$(git status --porcelain)"
 
-      - name: Verify Cloudflare Worker API authority
+      - name: Build signed exact-SHA Worker artifact
         shell: bash
         run: |
           set -euo pipefail
+          node http-generic-api/scripts/build-staging-worker.mjs \
+            --source-sha="$SOURCE_SHA" \
+            --output-dir="$ARTIFACT_DIR" \
+            --lifetime-hours=168
+          jq -e --arg sha "$SOURCE_SHA" --arg policy_hash "$EXPECTED_POLICY_HASH" '
+            .contract == "mad4b.staging.activation-recovery-origin-trust.v2"
+            and .source_commit == $sha
+            and .worker_build_sha == $sha
+            and .policy_hash == $policy_hash
+            and .gateway_host == "activation-dev.mad4b.com"
+            and .canonical_host == "activation-dev.mad4b.com"
+            and .audience == "https://dev.mad4b.com"
+            and .issuer == "https://activation-dev.mad4b.com"
+            and (.key_id | type == "string" and length >= 16)
+            and (.public_key_pem_escaped | startswith("-----BEGIN PUBLIC KEY-----\\n"))
+            and .trusted_ingress_mode == "signature"
+            and .strip_caller_headers == true
+            and .replay_store_scope == "single_filesystem"
+            and .provider_credentials_included == false
+            and .secrets_included == false
+            and ([keys[] | select(. != "secrets_included" and . != "provider_credentials_included" and test("private|secret|credential|token"; "i"))] | length == 0)
+          ' "$ARTIFACT_DIR/origin-trust.json" >/dev/null
+
+      - name: Verify same-run plan and Worker bundle binding
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -e --arg bundle_sha "$VERIFIED_WORKER_BUNDLE_SHA256" '
+            .worker_bundle_sha256 == $bundle_sha
+            and .source_commit == env.SOURCE_SHA
+            and .policy_hash == env.EXPECTED_POLICY_HASH
+          ' "$ARTIFACT_DIR/deployment-evidence.json" >/dev/null
+          node --input-type=module <<'NODE'
+          import { buildStagingActivationWorkerPreflightBinding } from "./http-generic-api/scripts/staging-activation-worker-handoff-verifier.mjs";
+          const binding = buildStagingActivationWorkerPreflightBinding({
+            sourceSha: process.env.SOURCE_SHA,
+            expectedPolicyHash: process.env.EXPECTED_POLICY_HASH,
+            authoritativePlanSha256: process.env.VERIFIED_CONVERGENCE_PLAN_SHA256,
+            workerBundleSha256: process.env.VERIFIED_WORKER_BUNDLE_SHA256,
+          });
+          if (binding.preflight_binding_sha256 !== process.env.PREFLIGHT_BINDING_SHA256) {
+            throw new Error("same-run stale recovery binding mismatch");
+          }
+          console.log(JSON.stringify({
+            authoritative_plan_sha256: process.env.VERIFIED_CONVERGENCE_PLAN_SHA256,
+            worker_bundle_sha256: process.env.VERIFIED_WORKER_BUNDLE_SHA256,
+            preflight_binding_sha256: binding.preflight_binding_sha256,
+            caller_plan_digest_is_execution_authority: false,
+            same_run_preflight_verified: true,
+          }));
+          NODE
+
+      - name: Verify Cloudflare Worker API authority
+        shell: bash
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$CLOUDFLARE_API_TOKEN"
           response_file="$(mktemp)"
           trap 'rm -f "$response_file"' EXIT
           status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
@@ -235,31 +391,6 @@ jobs:
           fi
           echo "Cloudflare Worker API authority preflight passed."
 
-      - name: Build signed exact-SHA Worker artifact
-        shell: bash
-        run: |
-          set -euo pipefail
-          node http-generic-api/scripts/build-staging-worker.mjs \
-            --source-sha="$SOURCE_SHA" \
-            --output-dir="$ARTIFACT_DIR" \
-            --lifetime-hours=168
-          jq -e --arg sha "$SOURCE_SHA" '
-            .contract == "mad4b.staging.activation-recovery-origin-trust.v1"
-            and .source_commit == $sha
-            and .worker_build_sha == $sha
-            and .gateway_host == "activation-dev.mad4b.com"
-            and .canonical_host == "activation-dev.mad4b.com"
-            and .audience == "https://dev.mad4b.com"
-            and .issuer == "https://activation-dev.mad4b.com"
-            and (.key_id | type == "string" and length >= 16)
-            and (.public_key_pem_escaped | startswith("-----BEGIN PUBLIC KEY-----\\n"))
-            and .trusted_ingress_mode == "signature"
-            and .strip_caller_headers == true
-            and .replay_store_scope == "single_filesystem"
-            and .secrets_included == false
-            and ([keys[] | select(. != "secrets_included" and test("private|secret|credential|token"; "i"))] | length == 0)
-          ' "$ARTIFACT_DIR/origin-trust.json" >/dev/null
-
       - name: Verify pinned Wrangler deployment capability
         shell: bash
         run: |
@@ -269,8 +400,13 @@ jobs:
 
       - name: Deploy Staging Worker and bound secrets
         shell: bash
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           set -euo pipefail
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$CLOUDFLARE_API_TOKEN"
           trap 'rm -f "$ARTIFACT_DIR/deployment-secrets.json"' EXIT
           npx --yes "wrangler@$WRANGLER_VERSION" deploy "$ARTIFACT_DIR/worker-staging.mjs" \
             --name "$WORKER_NAME" \
@@ -288,11 +424,13 @@ jobs:
             status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
               --connect-timeout 10 --max-time 20 "$PUBLIC_HEALTH_URL" || true)"
             if test "$status" = "200" \
-              && jq -e --arg sha "$SOURCE_SHA" '
+              && jq -e --arg sha "$SOURCE_SHA" --arg policy_hash "$EXPECTED_POLICY_HASH" '
                 .ok == true
                 and .stale == false
                 and .sourceCommit == $sha
                 and .workerBuildSha == $sha
+                and .policyKey == "activation_gateway_staging"
+                and .policyHash == $policy_hash
                 and .secretsIncluded == false
               ' "$response_file" >/dev/null; then
               jq '{ok, service, policyKey, policyHash, deploymentId, sourceCommit, workerBuildSha, workerBundleSha256, stale, secretsIncluded}' "$response_file"

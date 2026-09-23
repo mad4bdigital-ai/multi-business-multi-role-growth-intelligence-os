@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = path.resolve(new URL(".", import.meta.url).pathname, "..");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const packageRoot = path.join(root, "autopilot-portable-staging");
 const logger = fs.readFileSync(path.join(packageRoot, "Staging-Operations-Log.ps1"), "utf8");
 const healthMonitor = fs.readFileSync(path.join(packageRoot, "Staging-HealthMonitor.ps1"), "utf8");
@@ -72,6 +74,9 @@ assert.match(doctor, /ValidateSet\("Status", "Repair", "Logs"\)/);
 assert.match(doctor, /maintenance-status\.json/);
 assert.match(doctor, /RepairTasks/);
 assert.match(doctor, /Repair/);
+assert.match(doctor, /\$gitCommand = Get-Command git -ErrorAction SilentlyContinue/);
+assert.match(doctor, /if \(\$null -ne \$gitCommand -and \(Test-Path/);
+assert.doesNotMatch(doctor, /Get-Command git -ErrorAction SilentlyContinue -and/);
 assert.equal(maintenancePolicy.maintenance.repair_may_delete_data, false);
 assert.match(maintenanceCmd, /Staging-Doctor\.ps1/);
 assert.equal(maintenancePolicy.contract, "mad4b.staging-maintenance.v1");
@@ -91,6 +96,13 @@ for (const source of [logger, healthMonitor, doctor, maintenanceCmd, installer, 
   assert.doesNotMatch(source, /JWT_SECRET\s*=\s*[A-Za-z0-9]{20,}/i);
 }
 
+const gatewaySeedContract = spawnSync(
+  process.execPath,
+  [path.join(root, "http-generic-api", "staging-governance-authority-seed-recovery-contract.mjs")],
+  { cwd: root, encoding: "utf8" },
+);
+assert.equal(gatewaySeedContract.status, 0, gatewaySeedContract.stderr || gatewaySeedContract.stdout);
+
 console.log(JSON.stringify({
   ok: true,
   contract: "mad4b.staging-operations-logging.v1",
@@ -104,4 +116,5 @@ console.log(JSON.stringify({
   correlation_id: true,
   maintenance_doctor: true,
   destructive_repair: false,
+  gateway_authority_seed_recovery_contract: true,
 }));

@@ -6,6 +6,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export const DEFAULT_DEPLOYMENT_MANIFEST_PATH = resolve(__dirname, "deployment-manifest.json");
 
+const SHA_RE = /^[0-9a-f]{40}$/iu;
+
 function parseJson(value = "") {
   try {
     return JSON.parse(String(value || ""));
@@ -22,10 +24,10 @@ function normalizeDeploymentBranch(value) {
 function normalizeManifest(raw = {}, source = "unknown", env = process.env) {
   return {
     source,
-    repository: String(raw.repository || "").trim(),
-    branch: normalizeDeploymentBranch(raw.branch),
+    repository: String(raw.repository || raw.repo || env.GITHUB_REPOSITORY || env.DEPLOY_REPOSITORY || "").trim(),
+    branch: normalizeDeploymentBranch(raw.branch || raw.ref_name || env.GITHUB_REF_NAME || env.DEPLOY_BRANCH || env.BRANCH_NAME || ""),
     branch_source: String(raw.branch_source || "").trim(),
-    commit_sha: String(raw.commit_sha || raw.commit || raw.sha || "").trim(),
+    commit_sha: String(raw.commit_sha || raw.commit || raw.sha || raw.revision_sha || "").trim().toLowerCase(),
     commit_source: String(raw.commit_source || "").trim(),
     tree_sha: String(raw.tree_sha || "").trim().toLowerCase(),
     tree_source: String(raw.tree_source || "").trim(),
@@ -45,6 +47,14 @@ export function readDeploymentManifest(env = process.env) {
     return {
       ok: true,
       manifest: normalizeManifest(inlineManifest, "env:DEPLOYMENT_MANIFEST_JSON", env),
+    };
+  }
+
+  const inlineCommit = parseJson(env.DEPLOYMENT_COMMIT_JSON);
+  if (inlineCommit) {
+    return {
+      ok: true,
+      manifest: normalizeManifest(inlineCommit, "env:DEPLOYMENT_COMMIT_JSON", env),
     };
   }
 
@@ -80,8 +90,58 @@ export function readDeploymentManifest(env = process.env) {
     source: "none",
     error: {
       code: "deployment_manifest_not_found",
-      message: "No deployment manifest found in DEPLOYMENT_MANIFEST_JSON, DEPLOYMENT_MANIFEST_PATH, or default runtime path.",
+      message: "No deployment manifest found in DEPLOYMENT_MANIFEST_JSON, DEPLOYMENT_COMMIT_JSON, DEPLOYMENT_MANIFEST_PATH, or default runtime path.",
     },
+  };
+}
+
+export function readCanonicalDeploymentIdentity({ env = process.env, requireManifest = false } = {}) {
+  const manifestResult = readDeploymentManifest(env);
+  if (manifestResult.ok) {
+    const manifest = manifestResult.manifest;
+    return {
+      ok: Boolean(manifest.repository && manifest.branch && SHA_RE.test(manifest.commit_sha)),
+      source: manifest.source,
+      repository: manifest.repository || null,
+      branch: manifest.branch || null,
+      sha: SHA_RE.test(manifest.commit_sha) ? manifest.commit_sha.toLowerCase() : (manifest.commit_sha || null),
+      commit_sha: SHA_RE.test(manifest.commit_sha) ? manifest.commit_sha.toLowerCase() : (manifest.commit_sha || null),
+      manifest_bound: true,
+      manifest,
+      error: null,
+      secrets_included: false,
+    };
+  }
+
+  if (requireManifest) {
+    return {
+      ok: false,
+      source: manifestResult.source || "none",
+      repository: null,
+      branch: null,
+      sha: null,
+      commit_sha: null,
+      manifest_bound: false,
+      manifest: null,
+      error: manifestResult.error,
+      secrets_included: false,
+    };
+  }
+
+  const repository = String(env.GITHUB_REPOSITORY || env.DEPLOY_REPOSITORY || "").trim() || null;
+  const branch = normalizeDeploymentBranch(env.GITHUB_REF_NAME || env.DEPLOY_BRANCH || env.BRANCH_NAME || "") || null;
+  const sha = String(env.GITHUB_SHA || env.DEPLOY_COMMIT || env.COMMIT_SHA || env.REVISION_SHA || "").trim().toLowerCase() || null;
+  return {
+    ok: Boolean(repository && branch && SHA_RE.test(sha || "")),
+    source: "env:fallback",
+    repository,
+    branch,
+    sha,
+    commit_sha: sha,
+    manifest_bound: false,
+    manifest: null,
+    error: manifestResult.error,
+    secrets_included: false,
   };
 }
 

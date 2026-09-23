@@ -1,0 +1,100 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr8081-governed-migration-capability-envelope-environment-impact",
+  "title": "PR8081 governed migration capability envelope environment impact",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr8081-governed-migration-capability-envelope-environment-impact.json",
+      ".github/governance/test-authority-registry.json",
+      ".github/ops/github-main-review-policy-live-activation.mjs",
+      "http-generic-api/config/deployment-branch-policy.json",
+      "http-generic-api/governedMigrationAuthorizationBootstrapRuntime.js",
+      "http-generic-api/scripts/capability-resolution-envelope-create.mjs",
+      "http-generic-api/test-capability-resolution-envelope-ledger.mjs",
+      "http-generic-api/test-governed-migration-authorization-bootstrap.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Declare the shared-runtime impact of the governed migration authorization capability-envelope path while preserving approval, migration, provider, database, and production mutation boundaries.",
+      "e2e_journeys": [
+        {
+          "id": "pr8081-governed-migration-capability-envelope-environment-impact-readback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed CI",
+          "entrypoint": "Evaluate the exact PR head against the canonical environment-impact policy and the focused migration capability-envelope regressions.",
+          "terminal_outcome": "The creator is classified as shared runtime, staging and production impact are explicit, live Staging certification remains required, and production mutation remains denied.",
+          "steps": [
+            "Classify the capability-envelope creator and migration authorization runtime against the canonical environment path classes.",
+            "Read back the environment-impact declaration from the exact PR diff.",
+            "Run the focused capability-envelope ledger and governed migration authorization bootstrap regressions.",
+            "Verify the envelope remains approval-gated and does not execute migration or provider writes.",
+            "Bind environment closure to the exact evaluated HEAD SHA."
+          ],
+          "assertions": [
+            "The environment impact source of truth is the canonical deployment branch policy.",
+            "Staging and production are explicitly declared because the changed runtime path is shared.",
+            "Cross-environment review is explicit and live Staging certification remains required.",
+            "production_mutation_allowed is false.",
+            "Capability-envelope creation does not auto-approve or execute governed migrations or provider writes.",
+            "No raw SQL, manual grant, Cloudflare mutation, credential payload read, or production mutation is introduced.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "pr8081-capability-resolution-envelope-ledger",
+              "runner": "node",
+              "path": "http-generic-api/test-capability-resolution-envelope-ledger.mjs",
+              "args": []
+            },
+            {
+              "id": "pr8081-governed-migration-authorization-bootstrap",
+              "runner": "node",
+              "path": "http-generic-api/test-governed-migration-authorization-bootstrap.mjs",
+              "args": []
+            },
+            {
+              "id": "pr8081-environment-impact-closure",
+              "runner": "node",
+              "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+              "args": ["--base-sha", "BASE_SHA", "--head-sha", "HEAD_SHA"]
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/pr8081-governed-migration-capability-envelope-environment-impact.json",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/governedMigrationAuthorizationBootstrapRuntime.js",
+            "http-generic-api/scripts/capability-resolution-envelope-create.mjs",
+            "http-generic-api/test-capability-resolution-envelope-ledger.mjs",
+            "http-generic-api/test-governed-migration-authorization-bootstrap.mjs"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "pr8081-environment-impact-closure",
+          "runner": "node",
+          "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+          "args": ["--base-sha", "BASE_SHA", "--head-sha", "HEAD_SHA"]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

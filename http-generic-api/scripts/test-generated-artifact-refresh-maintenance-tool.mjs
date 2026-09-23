@@ -113,12 +113,17 @@ runCheck("tool-canonical-auth-repair", () => {
   assert.match(toolSource, /scripts\/openapi-runtime-auth-sync\.mjs", "--write"/u);
   assert.match(toolSource, /scripts\/test-openapi-runtime-auth-sync-operation-insertion\.mjs/u);
   assert.match(toolSource, /http-generic-api\/openapi\/support-tickets\.yaml/u);
+  const preciseSyncIndex = toolSource.indexOf("sync_precise_registry");
   const authSyncIndex = toolSource.indexOf("sync_openapi_runtime_auth");
   const dispatchIndex = toolSource.indexOf("generate_frontend_dispatch");
   const detailGapIndex = toolSource.indexOf("generate_openapi_detail_gap_classification");
+  const customGptIndex = toolSource.indexOf("generate_custom_gpt_schemas");
+  const stagingAdminIndex = toolSource.indexOf("generate_staging_admin_openapi");
   const gapClosureIndex = toolSource.indexOf("generate_openapi_gap_closure_plan");
   const detailBatchIndex = toolSource.indexOf("generate_openapi_detail_closure_batch");
-  assert.ok(authSyncIndex >= 0 && dispatchIndex > authSyncIndex, "auth repair must precede frontend projection generation");
+  assert.ok(preciseSyncIndex >= 0 && authSyncIndex > preciseSyncIndex, "precise contract composition must precede runtime auth synchronization");
+  assert.ok(customGptIndex > authSyncIndex, "auth repair must precede Custom GPT generation");
+  assert.ok(stagingAdminIndex > customGptIndex && dispatchIndex > stagingAdminIndex, "Staging Admin generation must follow shared Custom GPT generation and precede frontend projection generation");
   assert.ok(detailGapIndex > dispatchIndex, "detail-gap classification must follow frontend dispatch generation");
   assert.ok(gapClosureIndex > detailGapIndex, "gap-closure planning must follow detail-gap classification");
   assert.ok(detailBatchIndex > gapClosureIndex, "detail-batch generation must follow gap-closure planning");
@@ -127,9 +132,44 @@ runCheck("tool-canonical-auth-repair", () => {
   assert.match(toolSource, /openapi:detail-batch:check/u);
   assert.match(toolSource, /verify_openapi_detail_closure_batch/u);
   assert.match(toolSource, /OPENAPI_DETAIL_BATCH_OUTPUT/u);
+  assert.match(toolSource, /scripts\/build-staging-admin-openapi\.mjs/u);
+  assert.ok(toolSource.includes('"http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml"'));
   assert.match(toolSource, /openapi:detail-gaps:check/u);
   assert.match(toolSource, /openapi:gap-closure-plan:check/u);
 });
+runCheck("tool-openapi-mutation-policy-refresh", () => {
+  assert.ok(
+    toolSource.includes('"http-generic-api/openapi/openapi-mutation-policy.generated.json"'),
+    "frontend recipe must bound the generated mutation policy registry",
+  );
+  assert.match(toolSource, /scripts\/generate-openapi-mutation-policy\.mjs/u);
+  const customGptIndex = toolSource.indexOf("generate_custom_gpt_schemas");
+  const mutationPolicyIndex = toolSource.indexOf("generate_openapi_mutation_policy");
+  const stagingPolicyIndex = toolSource.indexOf("generate_activation_staging_policy");
+  assert.ok(
+    customGptIndex >= 0 && mutationPolicyIndex > customGptIndex && stagingPolicyIndex > mutationPolicyIndex,
+    "mutation policy generation must follow Custom GPT generation and precede Staging gateway policy generation",
+  );
+});
+
+runCheck("tool-staging-gateway-policy-refresh", () => {
+  for (const output of [
+    "edge/activation-gateway/generated/route-policy.staging.json",
+    "http-generic-api/activation-gateway-runtime/generated/route-policy.staging.json",
+  ]) {
+    assert.ok(toolSource.includes(`"${output}"`), `Staging gateway generated output must be explicitly bounded: ${output}`);
+  }
+  assert.match(toolSource, /scripts\/generate-activation-staging-policy\.mjs", "--write"/u);
+  assert.match(toolSource, /scripts\/generate-activation-staging-policy\.mjs", "--check"/u);
+  const customGptIndex = toolSource.indexOf("generate_custom_gpt_schemas");
+  const stagingPolicyIndex = toolSource.indexOf("generate_activation_staging_policy");
+  const bundleSyncIndex = toolSource.indexOf("sync_activation_gateway_runtime_bundle");
+  assert.ok(
+    customGptIndex >= 0 && stagingPolicyIndex > customGptIndex && bundleSyncIndex > stagingPolicyIndex,
+    "Staging policy generation must follow Custom GPT generation and precede runtime bundle synchronization",
+  );
+});
+
 runCheck("tool-work-map-self-hosting-bootstrap", () => {
   assert.match(toolSource, /work_map_self_hosting_bootstrap/u);
   assert.match(toolSource, /work_map_self_hosting_scope_violation/u);
@@ -172,12 +212,16 @@ runCheck("tool-remote-mcp-write-scope-refresh", () => {
   for (const output of [
     "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
     "docs/remote-mcp-write-scope-inventory.md",
+    "docs/write-scope-shadow-evidence-2026-08-15.json",
   ]) {
     assert.ok(toolSource.includes(`"${output}"`), `Remote MCP output must be explicitly bounded: ${output}`);
   }
   assert.match(toolSource, /remoteMcpWriteScopeInventoryIsCurrent/u);
   assert.match(toolSource, /generate_remote_mcp_write_scope_first_pass/u);
   assert.match(toolSource, /generate_remote_mcp_write_scope_second_pass/u);
+  assert.match(toolSource, /generate_write_scope_shadow_evidence_first_pass/u);
+  assert.match(toolSource, /generate_write_scope_shadow_evidence_second_pass/u);
+  assert.match(toolSource, /write-scope-shadow-preflight\.mjs", "--check"/u);
   assert.match(toolSource, /remote_mcp_write_scope_not_deterministic/u);
   assert.match(toolSource, /remote-mcp-write-scope-inventory\.mjs", "--check"/u);
   assert.match(toolSource, /test-remote-mcp-write-scope-inventory\.mjs/u);
@@ -357,6 +401,19 @@ runCheck("trusted-publisher-dispatch-route", () => {
 });
 
 const policy = JSON.parse(fs.readFileSync("../.github/repository-maintenance-tool-governance.json", "utf8"));
+const derivedStateGovernance = JSON.parse(fs.readFileSync("../.github/derived-state-governance.json", "utf8"));
+runCheck("custom-gpt-generated-contract-write-set-parity", () => {
+  const expectedOutputs = ["http-generic-api/openapi/generated/custom-admin-schema-index.json","http-generic-api/openapi/generated/custom-gpt-registration-manifest.json","http-generic-api/openapi/generated/operation-manifests/admin_core_production.json","http-generic-api/openapi/generated/operation-manifests/admin_core_staging.json","http-generic-api/openapi/generated/operation-manifests/activation_admin_production.json","http-generic-api/openapi/generated/operation-manifests/activation_admin_staging.json","http-generic-api/openapi/generated/operation-manifests/admin_recovery_production.json","http-generic-api/openapi/generated/operation-manifests/admin_recovery_staging.json","http-generic-api/openapi/openapi.custom-gpt.recovery-admin.staging.yaml"];
+  const registration = policy.tools?.["generated-artifact-refresh"];
+  const frontendArtifact = derivedStateGovernance.artifacts?.find((artifact) => artifact.artifact_id === "frontend_openapi_projection");
+  assert.ok(frontendArtifact, "frontend_openapi_projection must remain registered");
+  for (const output of expectedOutputs) {
+    assert.ok(toolSource.includes('"' + output + '"'), "frontend writer exact allowlist missing: " + output);
+    const pattern = "^" + output.replace(/\./g, "\\.") + "$";
+    assert.ok(registration?.allowed_changed_path_patterns?.includes(pattern), "maintenance governance missing exact generated output: " + output);
+    assert.ok(frontendArtifact.outputs?.includes(output), "derived-state frontend projection missing generated output: " + output);
+  }
+});
 runCheck("maintenance-tool-registration", () => {
   const registration = policy.tools?.["generated-artifact-refresh"];
   assert.equal(registration?.mode, "mutating");
@@ -367,6 +424,18 @@ runCheck("maintenance-tool-registration", () => {
     "canonical support-ticket auth repair must be explicitly governed",
   );
   for (const requiredPattern of [
+    "^http-generic-api/openapi/openapi\\.custom-gpt\\.activation-admin\\.production\\.yaml$",
+    "^http-generic-api/openapi/openapi\\.custom-gpt\\.activation-admin\\.staging\\.yaml$",
+    "^http-generic-api/openapi/openapi\\.custom-gpt\\.auth-dispatcher\\.production\\.yaml$",
+    "^http-generic-api/openapi/openapi\\.custom-gpt\\.auth-dispatcher\\.staging\\.yaml$",
+    "^http-generic-api/openapi/openapi\\.custom-gpt\\.recovery-admin\\.production\\.yaml$",
+    "^http-generic-api/openapi/openapi\\.tenant-gpt\\.activation\\.production\\.yaml$",
+    "^http-generic-api/openapi/openapi\\.tenant-gpt\\.activation\\.staging\\.yaml$",
+    "^http-generic-api/openapi/openapi\\.tenant-gpt\\.auth\\.production\\.yaml$",
+    "^http-generic-api/openapi/openapi\\.tenant-gpt\\.auth\\.staging\\.yaml$",
+    "^http-generic-api/openapi/openapi-mutation-policy\\.generated\\.json$",
+    "^edge/activation-gateway/generated/route-policy\\.staging\\.json$",
+    "^http-generic-api/activation-gateway-runtime/generated/route-policy\\.staging\\.json$",
     "^docs/work-maps/.*$",
     "^specs/014-governed-hostinger-storage-orchestration/work-map-integration\\.json$",
     "^specs/014-governed-hostinger-storage-orchestration/tasks\\.md$",
@@ -382,6 +451,15 @@ runCheck("maintenance-tool-registration", () => {
       `generated-artifact output must be registered: ${requiredPattern}`,
     );
   }
+  assert.ok(toolSource.includes("  \"http-generic-api/openapi/openapi.custom-gpt.activation-admin.production.yaml\","), "frontend recipe exact output missing: http-generic-api/openapi/openapi.custom-gpt.activation-admin.production.yaml");
+  assert.ok(toolSource.includes("  \"http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml\","), "frontend recipe exact output missing: http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml");
+  assert.ok(toolSource.includes("  \"http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.production.yaml\","), "frontend recipe exact output missing: http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.production.yaml");
+  assert.ok(toolSource.includes("  \"http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml\","), "frontend recipe exact output missing: http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml");
+  assert.ok(toolSource.includes("  \"http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml\","), "frontend recipe exact output missing: http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml");
+  assert.ok(toolSource.includes("  \"http-generic-api/openapi/openapi.tenant-gpt.activation.production.yaml\","), "frontend recipe exact output missing: http-generic-api/openapi/openapi.tenant-gpt.activation.production.yaml");
+  assert.ok(toolSource.includes("  \"http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml\","), "frontend recipe exact output missing: http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml");
+  assert.ok(toolSource.includes("  \"http-generic-api/openapi/openapi.tenant-gpt.auth.production.yaml\","), "frontend recipe exact output missing: http-generic-api/openapi/openapi.tenant-gpt.auth.production.yaml");
+  assert.ok(toolSource.includes("  \"http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml\","), "frontend recipe exact output missing: http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml");
   assert.equal(registration?.report_contract, "mad4b.governed-generated-artifact-refresh.v1");
 });
 

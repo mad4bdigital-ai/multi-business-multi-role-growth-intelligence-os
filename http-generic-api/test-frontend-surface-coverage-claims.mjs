@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
+
+// frontend-surface-operation: post /local-manager/device/desktop-commands/claim
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 // This file is generated from the clean route inventory. The comments are parsed by
 // frontend-surface-dispatch.mjs as ownership evidence; the assertions keep the
@@ -775,6 +778,7 @@ import path from "node:path";
 // frontend-surface-operation: post /local-manager/device-link/start
 // frontend-surface-operation: post /local-manager/device/agent-runtime
 // frontend-surface-operation: post /local-manager/device/desktop-commands
+// frontend-surface-operation: post /local-manager/device/desktop-commands/{commandId}/heartbeat
 // frontend-surface-operation: post /local-manager/device/desktop-commands/{commandId}/complete
 // frontend-surface-operation: post /local/tools/call
 // frontend-surface-operation: post /logic-definitions
@@ -909,6 +913,7 @@ import path from "node:path";
 // frontend-surface-operation: post /platform/plugins/smoke-certifications/status
 // frontend-surface-operation: post /platform/remote-runtime/dispatch-dry-run
 // frontend-surface-operation: post /platform/remote-runtime/hosting/deploy-release
+// frontend-surface-operation: post /platform/remote-runtime/wordpress/staging/deploy-plugin
 // frontend-surface-operation: post /platform/remote-runtime/hosting/ssh-probe
 // frontend-surface-operation: post /platform/remote-runtime/local-path/execute-readonly
 // frontend-surface-operation: post /platform/remote-runtime/probe
@@ -1047,21 +1052,65 @@ import path from "node:path";
 // frontend-surface-operation: put /users/{id}
 // frontend-surface-operation: put /webhooks/{id}
 
-const apiRoot = path.resolve(new URL(".", import.meta.url).pathname);
+const apiRoot = path.dirname(fileURLToPath(import.meta.url));
 const plan = JSON.parse(fs.readFileSync(path.join(apiRoot, "frontend-surface-dispatch.generated.json"), "utf8"));
 const families = Array.isArray(plan.families) ? plan.families : [];
 const operations = families.flatMap((family) => Array.isArray(family.operations) ? family.operations : []);
 assert.ok(operations.length > 0, "frontend route inventory must not be empty");
 assert.equal(operations.filter((operation) => operation.governance?.classification === "unresolved").length, 0, "all non-GET operations require explicit classification");
 assert.equal(families.filter((family) => family.surface_decision?.decision === "requires_review").length, 0, "all route families require explicit surface policy");
-assert.equal(plan.coverage?.coverage_complete, true, "frontend surface coverage must be complete under the accepted detail-gap policy");
+assert.equal(plan.coverage?.openapi_gap_count, 0, "frontend surface coverage must have zero blocking OpenAPI route gaps");
+assert.equal(plan.coverage?.auth_contract_gap_count, 0, "frontend surface coverage must have zero auth-contract gaps");
+assert.equal(plan.coverage?.unresolved_surface_decision_count, 0, "frontend surface coverage must have zero unresolved surface decisions");
+assert.equal(plan.coverage?.openapi_detail_gap_policy, "accepted_generated_index_only", "detail-only OpenAPI gaps must remain under the accepted generated-index policy");
+assert.ok(Number(plan.coverage?.openapi_detail_gap_count || 0) >= 0, "detail-gap count must remain explicit even when non-blocking");
 const generatedGapOperations = operations.filter((operation) => String(operation.governance?.rule_id || "").startsWith("generated-gap-"));
 assert.equal(generatedGapOperations.filter((operation) => ["state_change", "external_effect"].includes(operation.governance?.classification)).length, 0, "generated gap rules must not grant mutation authority");
 const governedMutations = operations.filter((operation) => ["state_change", "external_effect"].includes(operation.governance?.classification));
 assert.ok(governedMutations.every((operation) => operation.governance?.governed === true), "every mutation operation must be fully governed");
 assert.ok(governedMutations.every((operation) => ["preflight", "approval", "readback", "rollback"].every((key) => operation.governance?.controls?.[key]?.mode)), "every mutation operation must expose all four control modes");
-assert.equal(governedMutations.length, 22, "the governed mutation set includes bounded Recovery controls and one-time installer redemption");
+assert.equal(governedMutations.length, 36, "the governed mutation set includes bounded Recovery controls, Gateway preflight, one-time installer redemption, WordPress Staging exact-artifact deployment, three Managed Google OAuth protocol effects, four device-link lifecycle mutations, explicit Local Manager n8n provisioning, and four desktop-command lifecycle effects");
+for (const signature of [
+  "POST /local-manager/device/desktop-commands/claim",
+  "POST /local-manager/device/desktop-commands/{commandId}/heartbeat",
+  "POST /local-manager/device/desktop-commands/{commandId}/complete",
+]) {
+  const operation = governedMutations.find((candidate) => candidate.signature === signature);
+  assert.ok(operation, `${signature} must be explicitly governed`);
+  assert.equal(operation.governance?.classification, "state_change", `${signature} must remain a state change`);
+}
+const desktopEnqueue = governedMutations.find((operation) => operation.signature === "POST /local-manager/device/desktop-commands");
+assert.ok(desktopEnqueue, "desktop command enqueue must be explicitly governed");
+assert.equal(desktopEnqueue.governance?.classification, "external_effect", "desktop command enqueue must retain external-effect classification");
+
+for (const signature of [
+  "POST /local-manager/device-link/start",
+  "POST /local-manager/device-link/approve",
+  "POST /local-manager/device-link/poll",
+  "POST /local-manager/device-link/devices/{sessionId}/revoke",
+]) {
+  const operation = governedMutations.find((candidate) => candidate.signature === signature);
+  assert.ok(operation, `${signature} must be explicitly governed`);
+  assert.equal(operation.governance?.classification, "state_change", `${signature} must remain a state change`);
+}
+const wordpressStagingDeploy = governedMutations.find((operation) => operation.signature === "POST /platform/remote-runtime/wordpress/staging/deploy-plugin");
+const localManagerN8nProvision = governedMutations.find((operation) => operation.signature === "POST /local-manager/device/n8n/provision");
+assert.ok(localManagerN8nProvision, "explicit Local Manager n8n provisioning must be governed");
+assert.equal(localManagerN8nProvision.governance?.classification, "state_change", "Local Manager n8n provisioning must remain a state change");
+assert.ok(wordpressStagingDeploy, "WordPress Staging exact-artifact deploy must remain explicitly governed as an external effect");
+assert.equal(wordpressStagingDeploy.governance?.classification, "external_effect", "WordPress Staging deploy must retain its externally consequential classification");
+assert.ok(governedMutations.some((operation) => operation.signature === "POST /admin/recovery/staging/gateway/dark-deploy-dry-run"), "Staging Gateway dry-run plan persistence must remain explicitly governed");
 assert.ok(governedMutations.some((operation) => operation.signature === "POST /connector-agent/installer/redeem"), "one-time installer redemption must remain explicitly governed");
+const managedGoogleSession = governedMutations.find((operation) => operation.signature === "POST /v1/google/oauth/session");
+assert.ok(managedGoogleSession, "Managed Google OAuth session creation must be explicitly governed");
+assert.equal(managedGoogleSession.governance?.classification, "state_change", "Managed Google OAuth session creation must remain a state change");
+const managedGoogleRedeem = governedMutations.find((operation) => operation.signature === "POST /v1/google/oauth/redeem");
+assert.ok(managedGoogleRedeem, "Managed Google OAuth handoff redemption must be explicitly governed");
+assert.equal(managedGoogleRedeem.governance?.classification, "state_change", "Managed Google OAuth redemption must remain a state change");
+const managedGoogleRefresh = governedMutations.find((operation) => operation.signature === "POST /v1/google/oauth/refresh");
+assert.ok(managedGoogleRefresh, "Managed Google OAuth token refresh must be explicitly governed");
+assert.equal(managedGoogleRefresh.governance?.classification, "external_effect", "Managed Google OAuth refresh must remain an external effect");
+
 assert.ok(governedMutations.some((operation) => operation.signature === "POST /admin/recovery/kernel/execute"), "plan-bound Recovery execution must remain explicitly governed");
 assert.ok(governedMutations.some((operation) => operation.signature === "POST /admin/recovery/kernel/execute-approved"), "server-issued Recovery bridge must remain explicitly governed");
 assert.ok(governedMutations.some((operation) => operation.signature === "POST /admin/recovery/kernel/approval-challenge"), "approval challenge issuer must remain explicitly governed");

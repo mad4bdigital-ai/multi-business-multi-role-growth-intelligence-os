@@ -13,7 +13,6 @@ tags:
   - name: runtime-verification
     description: Runtime verification control plane, production parity ledger, and paginated evidence surfaces.
   - name: staging-recovery
-    description: Staging-only Recovery authority and certification evidence.
 components:
   securitySchemes:
     backendBearerAuth:
@@ -910,91 +909,60 @@ components:
           type: string
         message:
           type: string
-        request_id:
-          type:
-            - string
-            - "null"
+        status:
+          type: integer
+        details:
+          oneOf:
+            - type: object
+              additionalProperties: true
+              properties: {}
+            - type: "null"
     adminrecoverystaging_ErrorResponse:
       type: object
       additionalProperties: false
       required:
         - ok
         - error
-        - environment
-        - production_authority
-        - secrets_included
       properties:
         ok:
           type: boolean
-          const: false
+          enum:
+            - false
         error:
           $ref: "#/components/schemas/adminrecoverystaging_ErrorObject"
-        environment:
-          type: string
-          const: staging
-        production_authority:
+        execution_guardrail:
           type: boolean
-          const: false
-        database_mutation_performed:
-          type: boolean
-          const: false
-        provider_mutation_performed:
-          type: boolean
-          const: false
-        secrets_included:
-          type: boolean
-          const: false
-    adminrecoverystaging_StagingRecoveryContract:
+    adminrecoverystaging_StagingRecoveryContractResponse:
       type: object
       additionalProperties: true
       required:
         - contract
         - surface
         - environment
-        - server_uri
-        - operation_policy
-        - paths
         - secrets_included
       properties:
         contract:
           type: string
-          const: mad4b.staging-recovery-admin-surface.v1
         surface:
           type: string
-          const: staging_recovery_admin
         environment:
           type: string
           const: staging
-        server_uri:
-          type: string
-          const: https://activation-dev.mad4b.com
-        operation_policy:
-          type: object
-          additionalProperties: true
-        paths:
-          type: array
-          items:
-            type: string
         secrets_included:
           type: boolean
           const: false
-    adminrecoverystaging_ReadinessResponse:
+    adminrecoverystaging_StagingRecoveryReadinessResponse:
       type: object
       additionalProperties: true
       required:
         - ok
-        - contract
         - status
         - ready
         - environment
-        - production_live
         - secrets_included
       properties:
         ok:
           type: boolean
-        contract:
-          type: string
-          const: mad4b.staging-recovery-admin-surface.v1
         status:
           type: string
           enum:
@@ -1005,23 +973,55 @@ components:
         environment:
           type: string
           const: staging
-        production_live:
+        secrets_included:
+          type: boolean
+          const: false
+    adminrecoverystaging_StagingRecoveryCertificationStatusResponse:
+      type: object
+      additionalProperties: true
+      required:
+        - ok
+        - environment
+        - certification
+        - live_certification
+        - secrets_included
+      properties:
+        ok:
+          type: boolean
+        environment:
+          type: string
+          const: staging
+        certification:
           type: object
-          required:
-            - requested
-            - eligible
-            - enabled
-          properties:
-            requested:
-              type: boolean
-              const: false
-            eligible:
-              type: boolean
-              const: false
-            enabled:
-              type: boolean
-              const: false
-        database_mutation_performed:
+          additionalProperties: true
+          properties: {}
+        live_certification:
+          type: object
+          additionalProperties: true
+          properties: {}
+        secrets_included:
+          type: boolean
+          const: false
+    adminrecoverystaging_StagingRecoveryGatewayPreviewResponse:
+      type: object
+      additionalProperties: true
+      required:
+        - ok
+        - environment
+        - preflight_ready
+        - apply_ready
+        - provider_mutation_performed
+        - production_mutation_performed
+        - secrets_included
+      properties:
+        ok:
+          type: boolean
+        environment:
+          type: string
+          const: staging
+        preflight_ready:
+          type: boolean
+        apply_ready:
           type: boolean
           const: false
         provider_mutation_performed:
@@ -1033,52 +1033,32 @@ components:
         secrets_included:
           type: boolean
           const: false
-    adminrecoverystaging_CertificationStatusResponse:
+    adminrecoverystaging_StagingRecoveryGatewayDryRunResponse:
       type: object
       additionalProperties: true
       required:
         - ok
-        - contract
         - environment
-        - certification
-        - live_certification
-        - production_live
+        - execution_plan_issued
+        - apply_authority_issued
+        - provider_mutation_performed
+        - production_mutation_performed
         - secrets_included
       properties:
         ok:
           type: boolean
-        contract:
-          type: string
-          const: mad4b.staging-recovery-admin-surface.v1
         environment:
           type: string
           const: staging
-        certification:
-          type: object
-          additionalProperties: true
-        live_certification:
-          type: object
-          additionalProperties: true
-        production_live:
-          type: object
-          required:
-            - requested
-            - eligible
-            - enabled
-          properties:
-            requested:
-              type: boolean
-              const: false
-            eligible:
-              type: boolean
-              const: false
-            enabled:
-              type: boolean
-              const: false
-        database_mutation_performed:
+        execution_plan_issued:
+          type: boolean
+        apply_authority_issued:
           type: boolean
           const: false
         provider_mutation_performed:
+          type: boolean
+          const: false
+        production_mutation_performed:
           type: boolean
           const: false
         secrets_included:
@@ -1091,20 +1071,32 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
+    adminrecoverystaging_BadRequest:
+      description: Invalid request body or missing required field
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/adminrecoverystaging_ErrorResponse"
     adminrecoverystaging_Unauthorized:
-      description: Missing or invalid backend authorization.
+      description: Invalid or missing backend API key
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/adminrecoverystaging_ErrorResponse"
     adminrecoverystaging_Forbidden:
-      description: Principal is not authorized for the private Staging surface.
+      description: Authenticated principal is not authorized for this operation
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/adminrecoverystaging_ErrorResponse"
+    adminrecoverystaging_Conflict:
+      description: Resource state conflicts with the requested operation
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/adminrecoverystaging_ErrorResponse"
     adminrecoverystaging_NotFound:
-      description: Surface is not available outside a declared Staging runtime.
+      description: Resource not found
       content:
         application/json:
           schema:
@@ -1901,21 +1893,27 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
   /admin/recovery/staging/contract:
     get:
+      operationId: getStagingRecoveryAdminContract
       tags:
         - staging-recovery
-      operationId: getStagingRecoveryAdminContract
+      x-mad4b-operation-ownership:
+        authority_domain: staging_recovery
+        owning_surface: admin_recovery_staging
+        environment: staging
+        execution_class: read_only
+        admin_only: true
+        tenant_visible: false
       x-openai-isConsequential: false
       summary: Read the Staging Recovery surface contract
-      description: Returns the bounded Staging-only Recovery surface contract. It never executes a provider or database operation.
       security:
         - backendBearerAuth: []
       responses:
         "200":
-          description: Staging Recovery contract.
+          description: Staging Recovery contract
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/adminrecoverystaging_StagingRecoveryContract"
+                $ref: "#/components/schemas/adminrecoverystaging_StagingRecoveryContractResponse"
         "401":
           $ref: "#/components/responses/adminrecoverystaging_Unauthorized"
         "403":
@@ -1924,23 +1922,30 @@ paths:
           $ref: "#/components/responses/adminrecoverystaging_NotFound"
       x-mad4b-embedded-surface: admin_recovery_staging
       x-mad4b-registration-set: admin_activation_staging
+      x-mad4b-registration-identity: admin_recovery_staging
   /admin/recovery/staging/readiness:
     get:
+      operationId: getStagingRecoveryAdminReadiness
       tags:
         - staging-recovery
-      operationId: getStagingRecoveryAdminReadiness
+      x-mad4b-operation-ownership:
+        authority_domain: staging_recovery
+        owning_surface: admin_recovery_staging
+        environment: staging
+        execution_class: read_only
+        admin_only: true
+        tenant_visible: false
       x-openai-isConsequential: false
       summary: Read Staging Recovery authority readiness
-      description: Returns server-managed authority, certification, attestation, and environment-isolation readiness without enabling Production or performing a mutation.
       security:
         - backendBearerAuth: []
       responses:
         "200":
-          description: Bounded Staging Recovery readiness.
+          description: Bounded Staging Recovery readiness
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/adminrecoverystaging_ReadinessResponse"
+                $ref: "#/components/schemas/adminrecoverystaging_StagingRecoveryReadinessResponse"
         "401":
           $ref: "#/components/responses/adminrecoverystaging_Unauthorized"
         "403":
@@ -1949,23 +1954,30 @@ paths:
           $ref: "#/components/responses/adminrecoverystaging_NotFound"
       x-mad4b-embedded-surface: admin_recovery_staging
       x-mad4b-registration-set: admin_activation_staging
+      x-mad4b-registration-identity: admin_recovery_staging
   /admin/recovery/staging/certification:
     get:
+      operationId: getStagingRecoveryCertificationStatus
       tags:
         - staging-recovery
-      operationId: getStagingRecoveryCertificationStatus
+      x-mad4b-operation-ownership:
+        authority_domain: staging_recovery
+        owning_surface: admin_recovery_staging
+        environment: staging
+        execution_class: read_only
+        admin_only: true
+        tenant_visible: false
       x-openai-isConsequential: false
       summary: Read Staging Recovery certification status
-      description: Returns bounded certification status only. A missing or expired certification remains blocked and does not trigger execution.
       security:
         - backendBearerAuth: []
       responses:
         "200":
-          description: Bounded Staging Recovery certification status.
+          description: Bounded Staging Recovery certification status
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/adminrecoverystaging_CertificationStatusResponse"
+                $ref: "#/components/schemas/adminrecoverystaging_StagingRecoveryCertificationStatusResponse"
         "401":
           $ref: "#/components/responses/adminrecoverystaging_Unauthorized"
         "403":
@@ -1974,12 +1986,123 @@ paths:
           $ref: "#/components/responses/adminrecoverystaging_NotFound"
       x-mad4b-embedded-surface: admin_recovery_staging
       x-mad4b-registration-set: admin_activation_staging
+      x-mad4b-registration-identity: admin_recovery_staging
+  /admin/recovery/staging/gateway/rollout-plan:
+    post:
+      operationId: previewStagingActivationGatewayRolloutPlan
+      tags:
+        - staging-recovery
+      x-mad4b-operation-ownership:
+        authority_domain: staging_recovery
+        owning_surface: admin_recovery_staging
+        environment: staging
+        execution_class: preview
+        admin_only: true
+        tenant_visible: false
+      x-openai-isConsequential: false
+      summary: Preview the server-bound Staging Activation Gateway rollout plan
+      security:
+        - backendBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - expected_source_commit
+                - expected_policy_hash
+                - environment_convergence_plan_sha256
+              properties:
+                expected_source_commit:
+                  type: string
+                  pattern: ^[0-9a-f]{40}$
+                expected_policy_hash:
+                  type: string
+                  pattern: ^[0-9a-f]{64}$
+                environment_convergence_plan_sha256:
+                  type: string
+                  pattern: ^[0-9a-f]{64}$
+      responses:
+        "200":
+          description: Non-persistent Gateway rollout preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/adminrecoverystaging_StagingRecoveryGatewayPreviewResponse"
+        "400":
+          $ref: "#/components/responses/adminrecoverystaging_BadRequest"
+        "401":
+          $ref: "#/components/responses/adminrecoverystaging_Unauthorized"
+        "403":
+          $ref: "#/components/responses/adminrecoverystaging_Forbidden"
+        "409":
+          $ref: "#/components/responses/adminrecoverystaging_Conflict"
+      x-mad4b-embedded-surface: admin_recovery_staging
+      x-mad4b-registration-set: admin_activation_staging
+      x-mad4b-registration-identity: admin_recovery_staging
+  /admin/recovery/staging/gateway/dark-deploy-dry-run:
+    post:
+      operationId: prepareStagingActivationGatewayDarkDeployDryRun
+      tags:
+        - staging-recovery
+      x-mad4b-operation-ownership:
+        authority_domain: staging_recovery
+        owning_surface: admin_recovery_staging
+        environment: staging
+        execution_class: governed_dry_run_prepare
+        admin_only: true
+        tenant_visible: false
+      x-openai-isConsequential: true
+      summary: Prepare a server-bound Staging Activation Gateway dark-deploy dry-run
+      security:
+        - backendBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - expected_source_commit
+                - expected_policy_hash
+                - environment_convergence_plan_sha256
+              properties:
+                expected_source_commit:
+                  type: string
+                  pattern: ^[0-9a-f]{40}$
+                expected_policy_hash:
+                  type: string
+                  pattern: ^[0-9a-f]{64}$
+                environment_convergence_plan_sha256:
+                  type: string
+                  pattern: ^[0-9a-f]{64}$
+      responses:
+        "200":
+          description: Bounded dry-run plan preparation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/adminrecoverystaging_StagingRecoveryGatewayDryRunResponse"
+        "400":
+          $ref: "#/components/responses/adminrecoverystaging_BadRequest"
+        "401":
+          $ref: "#/components/responses/adminrecoverystaging_Unauthorized"
+        "403":
+          $ref: "#/components/responses/adminrecoverystaging_Forbidden"
+        "409":
+          $ref: "#/components/responses/adminrecoverystaging_Conflict"
+      x-mad4b-embedded-surface: admin_recovery_staging
+      x-mad4b-registration-set: admin_activation_staging
+      x-mad4b-registration-identity: admin_recovery_staging
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: 423f1ee6cc8399ad9f3eb5d837dbb16a954788899120ed8b5cfef6091a5e5ac8
+  source_openapi_sha256: 6a8d780fb6cf2f874efde0214e5b9b1cd48d0835582f33fbb4ac8dded308ee92
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
-  registry_sha256: 47af71783edd817abfa6da6d461bb11c59f2842a51e4fec222832b042363ab1d
+  registry_sha256: 155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9
   domain_family_policy: http-generic-api/config/domain-family-policy.json
   domain_family_policy_sha256: 5cdcb4b16a07d999dcff35d8a1fef14d441f4bac4ee26b8326cba1b2d92b3d3d
   environment: staging
@@ -2104,7 +2227,22 @@ x-custom-gpt-generation:
   catalog_policy: null
   static_operation_ids: null
   dynamic_operation_ids: null
-  operation_count: 12
+  operation_count: 14
+  operation_manifest:
+    surface: activation_admin_staging
+    environment: staging
+    operation_count: 9
+    operation_ids:
+      - acknowledgeActivationRun
+      - getActivationHardRunSummary
+      - getActivationPlatformAccess
+      - getActivationSessionContext
+      - readActivationAwareness
+      - readActivationDynamicTabDetail
+      - readActivationOperationalAttention
+      - runHardActivation
+      - runLegacyFullHardActivation
+    sha256: bca2edebb19407fdda1ad0650291931d03ec6232f5da43a1e8320fbc631453ba
   warning_operation_limit: 16
   warning_budget_exceeded: false
   hard_operation_limit: 20
@@ -2131,6 +2269,26 @@ x-mad4b-registration:
   secrets_included: false
   auth_profile: admin_service
   gateway_host: activation-dev.mad4b.com
-  operation_count: 12
+  operation_count: 14
   hard_operation_limit: 20
   warning_operation_limit: 16
+x-mad4b-registration-contract:
+  contract: mad4b.custom-gpt-registration-contract.v1
+  registration_set: admin_activation_staging
+  live_registration_set: admin_activation_staging
+  action_slot: admin_activation
+  environment: staging
+  source_surface: activation_admin
+  generation_mode: generated_from_openapi
+  source_openapi_sha256: 6a8d780fb6cf2f874efde0214e5b9b1cd48d0835582f33fbb4ac8dded308ee92
+  source_manifest_sha256: 155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9
+  surface_operation_manifest_sha256: bca2edebb19407fdda1ad0650291931d03ec6232f5da43a1e8320fbc631453ba
+  surface_operation_manifest_hash_scope: split_surface_operation_manifest.v1
+  registration_operation_manifest_sha256: 59c6b63bc9bfae72b405666d410d6636d9b5268fe6bc133f7ef28b6c01ffbfb8
+  registration_operation_manifest_hash_scope: custom_admin_operation_manifest.v1
+  operation_manifest_sha256: 59c6b63bc9bfae72b405666d410d6636d9b5268fe6bc133f7ef28b6c01ffbfb8
+  operation_manifest_sha256_compatibility_alias_of: registration_operation_manifest_sha256
+  operation_count: 14
+  server_uri: https://activation-dev.mad4b.com
+  auth_profile: admin_service
+  secrets_included: false

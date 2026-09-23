@@ -1,14 +1,17 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { buildReplayPlanFromBundleTexts } from "./prepare-staging-role-schema-replay.mjs";
 
-const root = path.resolve(new URL("..", import.meta.url).pathname, "..");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const recovery = fs.readFileSync(path.join(root, "autopilot-portable-staging/Recover-StagingDatabases.ps1"), "utf8");
 const clone = fs.readFileSync(path.join(root, "autopilot-portable-staging/Clone-StagingDatabases.ps1"), "utf8");
 const legacyClone = fs.readFileSync(path.join(root, "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1"), "utf8");
 const replayPlanner = fs.readFileSync(path.join(root, "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs"), "utf8");
 const roleManifest = JSON.parse(fs.readFileSync(path.join(root, "http-generic-api/config/staging-database-role-migration-manifest.json"), "utf8"));
+const lifecycleContract = JSON.parse(fs.readFileSync(path.join(root, "http-generic-api/config/runtime-data-lifecycle-contract.json"), "utf8"));
+const resolverCardinality = lifecycleContract.datasets.workspace_registry.canonical_rows[0].resolver_cardinality;
 const grantPlan = fs.readFileSync(path.join(root, "http-generic-api/scripts/staging-role-grant-plan.mjs"), "utf8");
 const grantContracts = fs.readFileSync(path.join(root, "http-generic-api/databasePrivilegeContracts.js"), "utf8");
 
@@ -50,6 +53,23 @@ assert.match(recovery, /hostinger_mutation = \$false/);
 assert.match(recovery, /cloudflare_mutation = \$false/);
 assert.match(recovery, /secrets_included = \$false/);
 
+const recoveryGrantStart = recovery.indexOf("function Reconcile-RoleGrant");
+const recoveryGrantEnd = recovery.indexOf("\n}\n\nif ([string]::IsNullOrWhiteSpace($RepositoryPath))", recoveryGrantStart);
+assert.ok(recoveryGrantStart >= 0 && recoveryGrantEnd > recoveryGrantStart);
+const recoveryGrantFunction = recovery.slice(recoveryGrantStart, recoveryGrantEnd + 2);
+assert.match(recoveryGrantFunction, /information_schema\.TABLES/);
+assert.match(recoveryGrantFunction, /\$grant\.PSObject\.Properties\["required"\]/);
+assert.match(recoveryGrantFunction, /if \(\$surfaceCount -eq 1\) \{\s*\$effectiveGrants \+= \$grant\s*\} elseif \(\$required\) \{\s*Fail "\$\(\$Role\.Key\) required grant surface is missing before authority mutation: \$surface"\s*\} else \{\s*\$missingOptionalSurfaces \+= \$surface\s*\}/);
+assert.equal((recoveryGrantFunction.match(/foreach \(\$grant in @\(\$effectiveGrants\)\)/g) || []).length, 2);
+const recoveryMutationSection = recoveryGrantFunction.slice(recoveryGrantFunction.indexOf("$account ="));
+assert.doesNotMatch(recoveryMutationSection, /foreach \(\$grant in @\(\$plan\.grants\)\)/);
+const requiredSurfaceFailureIndex = recoveryGrantFunction.indexOf("required grant surface is missing before authority mutation");
+const revokeMutationIndex = recoveryGrantFunction.indexOf("REVOKE ALL PRIVILEGES, GRANT OPTION");
+assert.ok(requiredSurfaceFailureIndex >= 0 && revokeMutationIndex > requiredSurfaceFailureIndex);
+assert.match(recoveryGrantFunction, /missing_optional_surfaces = @\(\$missingOptionalSurfaces\)/);
+assert.match(recoveryGrantFunction, /missing_optional_surface_is_blocking = \$false/);
+assert.match(recoveryGrantFunction, /required_surface_preflight_completed = \$true/);
+
 assert.match(recovery, /for \(\$attempt = 1; \$attempt -le 60; \$attempt\+\+\)/);
 assert.match(recovery, /\$previousErrorActionPreference = \$ErrorActionPreference/);
 assert.match(recovery, /\$ErrorActionPreference = "Continue"/);
@@ -79,21 +99,125 @@ assert.match(clone, /Remove-Item -LiteralPath \$tempRoot -Recurse -Force/);
 assert.doesNotMatch(clone, /mariadb[^\r\n]*-uroot/i);
 assert.doesNotMatch(clone.replace(/^\s*#.*$/gm, ""), /GRANT\s+SET\s+USER/i);
 
-assert.equal((legacyClone.match(/"--user=\$user"/g) || []).length, 2);
-assert.equal((legacyClone.match(/"--user=\$runtimeUser"/g) || []).length, 1);
+const extractPowerShellFunction = (source, name) => {
+  const start = source.indexOf("function " + name);
+  assert.ok(start >= 0, name + " function is missing");
+  const next = source.indexOf("\nfunction ", start + 1);
+  return source.slice(start, next >= 0 ? next : source.length);
+};
+
+const invokeDatabaseQueryFunction = extractPowerShellFunction(legacyClone, "Invoke-DatabaseQuery");
+assert.match(
+  invokeDatabaseQueryFunction,
+  /mariadb --protocol=socket "--user=\$user" \$db --batch --skip-column-names --raw --binary-mode -e \$Sql/
+);
+
+const completedImportReadbackFunction = extractPowerShellFunction(legacyClone, "Assert-CompletedImportLiveReadback");
+assert.match(
+  completedImportReadbackFunction,
+  /mariadb --protocol=socket "--user=\$user" \$db --batch --skip-column-names -e "SHOW FULL TABLES"[\s\S]*Completed-state table readback failed/
+);
+
+const canonicalSeedStart = legacyClone.indexOf("foreach ($seed in $canonicalSeedRows)");
+const canonicalSeedEnd = legacyClone.indexOf('$state.canonical_seed_status = "completed"', canonicalSeedStart);
+assert.ok(canonicalSeedStart >= 0 && canonicalSeedEnd > canonicalSeedStart, "canonical seed replay block is missing");
+const canonicalSeedBlock = legacyClone.slice(canonicalSeedStart, canonicalSeedEnd);
+assert.match(
+  canonicalSeedBlock,
+  /MYSQL_PWD=\$runtimePassword"[\s\S]*mariadb --protocol=socket "--user=\$runtimeUser" \$runtimeDb --binary-mode[\s\S]*Canonical seed apply failed/
+);
+
+const postImportReadbackStart = legacyClone.indexOf('Write-Host "STAGING_AUTHORITY_SEEDS_COMPLETED');
+const postImportReadbackEnd = legacyClone.indexOf("$supportRowCounts = [ordered]@{", postImportReadbackStart);
+assert.ok(postImportReadbackStart >= 0 && postImportReadbackEnd > postImportReadbackStart, "post-import canonical semantic readback block is missing");
+const postImportReadbackBlock = legacyClone.slice(postImportReadbackStart, postImportReadbackEnd);
+assert.match(
+  postImportReadbackBlock,
+  /mariadb --protocol=socket "--user=\$user" \$db --batch --skip-column-names -e "SHOW FULL TABLES"[\s\S]*Post-import table readback failed/
+);
+for (const resolverReadbackBlock of [completedImportReadbackFunction, postImportReadbackBlock]) {
+  assert.match(resolverReadbackBlock, /resolver-equivalent canonical Platform Admin workspace candidates/);
+  assert.ok(resolverReadbackBlock.includes(`tenant_id = '${resolverCardinality.tenant_id}'`));
+  assert.ok(resolverReadbackBlock.includes(`workspace_key = '${resolverCardinality.workspace_key}'`));
+  assert.ok(resolverReadbackBlock.includes(`JSON_UNQUOTE(JSON_EXTRACT(config_json, '$.authority_scope_key')) = '${resolverCardinality.authority_scope_key}'`));
+  assert.ok(resolverReadbackBlock.includes(`JSON_UNQUOTE(JSON_EXTRACT(config_json, '$.platform_admin_workspace')) = 'true'`));
+  assert.ok(resolverReadbackBlock.includes("bootstrap_status = 'ready'"));
+}
 assert.doesNotMatch(legacyClone, /(?:^|\s)-u\$(?:user|runtimeUser)\b/m);
 assert.match(legacyClone, /sed -E 's\/DEFINER=\[\^ \]\+\/DEFINER=CURRENT_USER\/g'/);
 assert.match(legacyClone, /mariadb --protocol=socket -u'\$user' '\$db'/);
 assert.doesNotMatch(legacyClone.replace(/^\s*#.*$/gm, ""), /GRANT\s+SET\s+USER/i);
-assert.equal((legacyClone.match(/mariadb[^\r\n]*-uroot/gi) || []).length, 1);
+const roleObjectCensusFunction = extractPowerShellFunction(legacyClone, "Get-RoleObjectCensus");
+assert.match(
+  roleObjectCensusFunction,
+  /MYSQL_PWD=\$rootPassword"[\s\S]*mariadb --protocol=socket -uroot --batch --skip-column-names -e "SELECT COUNT\(\*\) FROM information_schema\.SCHEMATA WHERE SCHEMA_NAME=\$literal"[\s\S]*Role database is missing or unreadable/
+);
+assert.match(
+  roleObjectCensusFunction,
+  /MYSQL_PWD=\$rootPassword"[\s\S]*mariadb --protocol=socket -uroot --batch --skip-column-names -e \$query[\s\S]*Pre-apply object-kind census failed/
+);
+const authoritySeedStart = legacyClone.indexOf("foreach ($seed in $authoritySeedRows)");
+const authoritySeedEnd = legacyClone.indexOf('$state.authority_seed_status = "completed"', authoritySeedStart);
+assert.ok(authoritySeedStart >= 0 && authoritySeedEnd > authoritySeedStart, "authority seed replay block is missing");
+const authoritySeedBlock = legacyClone.slice(authoritySeedStart, authoritySeedEnd);
+assert.match(
+  authoritySeedBlock,
+  /MYSQL_PWD=\$runtimeRootPassword"[\s\S]*mariadb --protocol=socket -uroot \$runtimeDb --binary-mode[\s\S]*Authority seed apply failed/
+);
 assert.match(legacyClone, /\$seedSql \| docker compose @compose exec -T -e "MYSQL_PWD=\$runtimeRootPassword" \$runtimeService\.Service mariadb --protocol=socket -uroot \$runtimeDb --binary-mode/);
 assert.doesNotMatch(legacyClone, /gzip -dc[^\r\n]*mariadb[^\r\n]*-uroot/i);
+const semanticSnapshotStart = legacyClone.indexOf('$semanticContainerPath = "/tmp/$([string]$semanticSnapshotManifest.file)"');
+const semanticSnapshotEnd = legacyClone.indexOf("foreach ($seed in $canonicalSeedRows)", semanticSnapshotStart);
+assert.ok(semanticSnapshotStart >= 0 && semanticSnapshotEnd > semanticSnapshotStart, "canonical semantic snapshot apply block is missing");
+const semanticSnapshotBlock = legacyClone.slice(semanticSnapshotStart, semanticSnapshotEnd);
+assert.match(legacyClone, /\$semanticSnapshotPolicy = \$roleMigrationManifest\.canonical_semantic_snapshot/);
+assert.match(legacyClone, /\$semanticSnapshotManifest = \$bundleManifest\.canonical_semantic_snapshot/);
+assert.match(
+  legacyClone,
+  /Require \(\[string\]\$semanticSnapshotPolicy\.contract -eq "mad4b\.staging\.canonical-semantic-snapshot\.v1" -and \[string\]\$semanticSnapshotManifest\.contract -eq \[string\]\$semanticSnapshotPolicy\.contract\)/,
+);
+assert.match(legacyClone, /disposable_git_migration_projection/);
+assert.match(legacyClone, /zero_object_rebuild_only/);
+assert.match(legacyClone, /live_environment_data_copy_forbidden/);
+assert.match(legacyClone, /exact_source_commit[^\r\n]*ExpectedCommit/);
+assert.match(legacyClone, /Get-Sha256 \$semanticSnapshotSource/);
+assert.match(semanticSnapshotBlock, /MYSQL_PWD=\$runtimePassword/);
+assert.match(semanticSnapshotBlock, /--user=\$runtimeUser/);
+assert.doesNotMatch(semanticSnapshotBlock, /-uroot\b/);
+assert.match(semanticSnapshotBlock, /Assert-CountExactly[\s\S]*canonical semantic snapshot \$table/);
+assert.match(completedImportReadbackFunction, /SemanticSnapshotManifest/);
+assert.match(completedImportReadbackFunction, /canonical_semantic_snapshot_readback/);
+assert.match(completedImportReadbackFunction, /Assert-CountAtLeast[\s\S]*completed-state semantic snapshot/);
+assert.match(legacyClone, /canonical_semantic_snapshot_status -eq "completed"/);
+assert.match(legacyClone, /canonical_semantic_snapshot_readback\.status -eq "passed"/);
+
 assert.doesNotMatch(legacyClone, /\$canonicalSeedRows[\s\S]*?mariadb[^\r\n]*-uroot[\s\S]*?canonical_seed_status = "completed"/i);
 assert.match(legacyClone, /if \(\$LASTEXITCODE -ne 0\) \{ Fail "Schema import failed for role \$\(\$item\.Key\); state remains applying for explicit recovery\." \}/);
 
 assert.equal(roleManifest.contract, "mad4b.staging.database-role-migration-manifest.v1");
 assert.equal(roleManifest.validation.required_runtime_table_census.length, 18);
-assert.equal(roleManifest.validation.required_runtime_support_tables.length, 19);
+assert.equal(roleManifest.validation.required_runtime_support_tables.length, 25);
+for (const table of [
+  "local_manager_desktop_commands",
+  "local_connector_device_aliases",
+  "local_connector_user_configs",
+  "local_manager_device_link_sessions",
+  "local_manager_control_templates",
+]) {
+  assert.equal(
+    roleManifest.validation.required_runtime_support_tables.includes(table),
+    true,
+    `missing Local Manager runtime support table: ${table}`,
+  );
+}
+assert.match(
+  legacyClone,
+  /\$requiredRuntimeSupportTables\.Count -eq 25/,
+);
+assert.doesNotMatch(
+  legacyClone,
+  /\$requiredRuntimeSupportTables\.Count -eq (?:11|20)/,
+);
 assert.match(legacyClone, /staging-database-role-migration-manifest\.json/);
 assert.match(legacyClone, /Assert-SetEqual \$canonicalRuntimeCensus \$requiredRuntimeCensus "schema bundle runtime census projection"/);
 assert.match(legacyClone, /\$requiredRuntimeSupportTables = @\(\$roleMigrationManifest\.validation\.required_runtime_support_tables\)/);
@@ -210,6 +334,9 @@ assert.throws(() => buildReplayPlanFromBundleTexts({
 assert.match(grantPlan, /STAGING_ROLE_GRANT_POLICIES/);
 assert.doesNotMatch(grantPlan, /const spec = BOOTSTRAP_ROLE_GRANT_POLICIES\[role\]/);
 assert.match(grantPlan, /runtime_persistence/);
+assert.match(grantPlan, /required: !optionalSet\.has\(table\)/);
+assert.match(grantPlan, /missing_optional_surface_is_blocking: false/);
+assert.match(grantPlan, /missing_required_surface_is_blocking: true/);
 assert.match(grantPlan, /broad_schema_grants_allowed: false/);
 assert.match(grantPlan, /grant_option_allowed: false/);
 assert.match(grantPlan, /production_accessed: false/);
@@ -217,6 +344,8 @@ assert.match(grantPlan, /provider_accessed: false/);
 assert.match(grantPlan, /secrets_included: false/);
 assert.match(grantContracts, /GOVERNANCE_DB_PRIVILEGE_MATRIX/);
 assert.match(grantContracts, /runtime_persistence: buildGrantSpec/);
+assert.match(grantContracts, /STAGING_RUNTIME_OPTIONAL_READ_SURFACES[\s\S]*?"v_platform_evolution_activation_card"/);
+assert.match(grantContracts, /STAGING_RUNTIME_OPTIONAL_READ_SURFACES[\s\S]*?"v_platform_capability_readiness_vector"/);
 
 console.log(JSON.stringify({
   ok: true,
@@ -226,6 +355,9 @@ console.log(JSON.stringify({
   explicit_reset_confirmation_required: true,
   explicit_grant_confirmation_required: true,
   canonical_runtime_support_contract_required: true,
+  optional_grant_surfaces_filtered_before_mutation: true,
+  missing_optional_grant_surface_is_non_blocking: true,
+  missing_required_grant_surface_is_pre_mutation_blocking: true,
   windows_powershell_transient_db_probe_safe: true,
   windows_powershell_native_user_argument_safe: true,
   schema_view_definer_rebound_to_authenticated_role: true,

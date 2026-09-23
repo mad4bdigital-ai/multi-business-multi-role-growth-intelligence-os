@@ -1,0 +1,82 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-live-certification-runtime-trust-evidence-20260916",
+  "title": "Staging live certification runtime trusted-ingress evidence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-live-certification-runtime-trust-evidence-20260916.json",
+      ".github/workflows/staging-live-certification.yml",
+      "http-generic-api/routes/healthRoutes.js",
+      "http-generic-api/scripts/prepare-staging-cert-trust-evidence.mjs",
+      "http-generic-api/stagingTrustedIngressCertificationEvidence.js",
+      "http-generic-api/test-trusted-ingress-contract.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Restore GitHub-hosted Staging live certification without trusting runner-local ingress environment values by reading a bounded, opt-in trusted-ingress snapshot from the live Staging application, matching its public-key digest and exact non-secret identity against the profile-owned Activation Gateway /ready trust bundle, and hydrating only those verified public values into the transient certification runner environment while preserving the existing certifier and all mutation prohibitions.",
+      "e2e_journeys": [
+        {
+          "id": "staging-live-certification-runtime-trust-readback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging release certification controller",
+          "entrypoint": ".github/workflows/staging-live-certification.yml",
+          "terminal_outcome": "A GitHub-hosted certification run can prove the exact Staging trusted-ingress configuration from live application evidence plus the profile-owned Gateway public trust bundle, hydrate the existing certifier with matching public values, and fail closed on any mismatch without provider, database, replay-store, Production or credential mutation.",
+          "steps": [
+            "Request /health with include_staging_trusted_ingress_readiness=1 from the exact Staging application origin; the default health payload remains unchanged when the flag is absent.",
+            "Read only a sanitized Staging trusted-ingress snapshot containing mode, proxy/strip flags, canonical host identity, public key digest/type, key id, audience, issuer, deployment SHA and replay-directory binding; never expose the application public-key PEM or any secret.",
+            "Resolve the Staging Activation Gateway policy exclusively from the canonical environment-convergence registry and reject live Gateway URL overrides unless they are explicit loopback fixtures used by tests.",
+            "Read the profile-owned Gateway /ready public trust bundle and require exact release SHA, policy hash, host, audience, issuer, key id and Ed25519 public-key digest parity with the application snapshot.",
+            "Only after every read-only check passes, write the verified public trusted-ingress values to the GitHub runner environment for the existing staging-live-certification.mjs process.",
+            "Publish the bounded runtime-binding report inside the existing Staging certification evidence artifact."
+          ],
+          "assertions": [
+            "The binder performs only GET probes and does not call /admin/recovery/staging/*, so no durable replay claim is consumed.",
+            "The application evidence is unavailable outside Staging and reports read_only=true, raw_public_key_exposed=false and secrets_included=false.",
+            "The Gateway target and expected policy identity come from the canonical Staging environment profile; caller-selected live targets remain forbidden.",
+            "The application public-key SHA-256 must equal the SHA-256 of the Ed25519 public key published by the exact Gateway /ready bundle before runner hydration.",
+            "Deployment SHA, policy hash, canonical host, audience, issuer, key id and replay-directory binding must all be exact before the existing certifier runs.",
+            "No database, provider, Production, migration, grant, replay-store or ruleset mutation is introduced by this evidence bridge.",
+            "Production behavior is not enabled or widened; the new health evidence is opt-in and returns an unavailable bounded snapshot outside Staging."
+          ],
+          "tests": [
+            {
+              "id": "trusted-ingress-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-trusted-ingress-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-live-certification-runtime-trust-evidence-20260916.json",
+            ".github/workflows/staging-live-certification.yml",
+            "http-generic-api/routes/healthRoutes.js",
+            "http-generic-api/scripts/prepare-staging-cert-trust-evidence.mjs",
+            "http-generic-api/stagingTrustedIngressCertificationEvidence.js",
+            "http-generic-api/test-trusted-ingress-contract.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}

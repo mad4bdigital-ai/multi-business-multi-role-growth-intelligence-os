@@ -32,6 +32,14 @@
     {
       "file": "test-fixed-host-local-system-tool.mjs",
       "evidence_scope": "recovery-kernel-fixed-system-dispatcher"
+    },
+    {
+      "file": "test-staging-recovery-gateway-preflight.mjs",
+      "evidence_scope": "staging-recovery-gateway-preflight"
+    },
+    {
+      "file": "test-remote-runtime-catalog-probe.mjs",
+      "evidence_scope": "remote-runtime-target-catalog-readonly"
     }
   ]
 }

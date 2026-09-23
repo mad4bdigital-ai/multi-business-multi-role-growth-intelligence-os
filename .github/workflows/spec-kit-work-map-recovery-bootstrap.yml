@@ -206,9 +206,21 @@ jobs:
             '{contract:$contract,outcome:$outcome,source_event:$source_event,actor:$actor,pr_number:$pr_number,target_branch:$target_branch,expected_head_sha:$expected_head_sha,behind_by:$behind_by,recovery_workflow_state:$workflow_state,delegated_recovery_run_id:$delegated_run_id,direct_repository_mutation:false,authorization_consumed:false,protected_branch_mutation:false,force_push:false,secrets_included:false}' \
             > "${REPORT_DIR}/report.json"
 
+          {
+            echo "### Work Map Recovery Bootstrap"
+            echo "- outcome: \`${outcome}\`"
+            echo "- exact head: \`${EXPECTED_HEAD_SHA:-unresolved}\`"
+            echo "- target branch: \`${TARGET_BRANCH:-unresolved}\`"
+            echo "- delegated recovery run: \`${DELEGATED_RUN_ID:-none}\`"
+            echo "- canonical evidence: uploaded bootstrap artifact"
+            echo "- PR comment: supplemental only"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
           if [[ "${PR_NUMBER:-}" =~ ^[1-9][0-9]*$ ]]; then
             body="WORK_MAP_RECOVERY_BOOTSTRAP outcome=${outcome} source_event=${GITHUB_EVENT_NAME} actor=${COMMAND_ACTOR} expected_head_sha=${EXPECTED_HEAD_SHA:-unresolved} target_branch=${TARGET_BRANCH:-unresolved} behind_by=${BEHIND_BY:-unknown} recovery_workflow_state=${WORKFLOW_STATE:-unknown} delegated_recovery_run_id=${DELEGATED_RUN_ID:-none} direct_repository_mutation=false authorization_consumed=false protected_branch_mutation=false force_push=false"
-            gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="${body}"
+            if ! gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="${body}"; then
+              echo "::warning::PR comment publication is supplemental and was unavailable; canonical bootstrap evidence remains in the uploaded artifact and job summary."
+            fi
           fi
 
       - name: Upload bounded bootstrap evidence

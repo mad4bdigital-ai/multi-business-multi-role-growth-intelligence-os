@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   classifyLineEndingDrift,
   classifySensitiveChanges,
@@ -256,7 +257,7 @@ assert.match(planRunner, /events\.length > 200/);
 assert.match(architecture, /isolated clean worktree/);
 assert.match(executionLog, /Dependency failures are classified before tests/);
 
-const apiDirectory = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1"));
+const apiDirectory = path.dirname(fileURLToPath(import.meta.url));
 const temporaryDirectory = mkdtempSync(path.join(tmpdir(), "interruption-readiness-test-"));
 try {
   const headRun = spawnSync("git", ["rev-parse", "HEAD"], { cwd: apiDirectory, encoding: "utf8", shell: false });

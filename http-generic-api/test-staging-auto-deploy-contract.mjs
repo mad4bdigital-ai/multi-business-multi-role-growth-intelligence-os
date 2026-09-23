@@ -1,15 +1,17 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 
-const root = path.resolve(new URL(".", import.meta.url).pathname, "..");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
 const policy = JSON.parse(read("autopilot-portable-staging/auto-deploy-policy.json"));
 const workflow = read(".github/workflows/staging-main-deploy-eligibility.yml");
 const liveWorkflow = read(".github/workflows/staging-live-certification.yml");
 const activationWorkerWorkflow = workflow;
-const activationWorkerBuilder = read("http-generic-api/scripts/build-staging-worker.mjs");
+const activationWorkerBuilderCli = read("http-generic-api/scripts/build-staging-worker.mjs");
+const activationWorkerBuilder = read("http-generic-api/stagingActivationGatewayBundle.js");
 const activationPolicyGenerator = read("http-generic-api/scripts/generate-activation-staging-policy.mjs");
 const promotionGates = JSON.parse(read(".github/contracts/production-promotion-supporting-gates.v1.json"));
 const deployScript = read("autopilot-portable-staging/Auto-Deploy-Staging.ps1");
@@ -43,6 +45,9 @@ assert.deepEqual(policy.canonical_seed_lifecycle.seed_files, [
   "039_sprint43_data_integrity_and_missing_tables.sql",
   "1043_sprint69_dynamic_container_hvac_activity_seed.sql",
   "20260815_custom_gpt_mcp_catalog_levels.sql",
+  "20260920_platform_admin_workspace_canonical_seed.sql",
+  "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
+  "20260922_local_manager_control_templates_registry.sql",
 ]);
 assert.equal(policy.canonical_seed_lifecycle.explicit_apply_only, true);
 assert.equal(policy.canonical_seed_lifecycle.readback_required, true);
@@ -97,6 +102,8 @@ assert.match(activationWorkerWorkflow, /sourceCommit == \$sha/);
 assert.match(activationWorkerWorkflow, /workerBuildSha == \$sha/);
 assert.match(activationWorkerWorkflow, /\.stale == false/);
 assert.doesNotMatch(activationWorkerWorkflow, /refs\/heads\/Production|activation\.mad4b\.com/);
+assert.match(activationWorkerBuilderCli, /writeStagingActivationGatewayBundle/);
+assert.match(activationWorkerBuilderCli, /\.\.\/stagingActivationGatewayBundle\.js/);
 assert.match(activationWorkerBuilder, /WORKER_BUILD_IDENTITY/);
 assert.match(activationWorkerBuilder, /generateKeyPairSync\("ed25519"\)/);
 assert.match(activationWorkerBuilder, /worker_bundle_sha256/);

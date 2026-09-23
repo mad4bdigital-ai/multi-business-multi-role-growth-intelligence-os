@@ -21,7 +21,23 @@ const repair = read("autopilot-portable-staging/Repair-StagingDatabaseReadiness.
 const runtimePersistenceReadiness = read("http-generic-api/scripts/runtime-persistence-operational-readiness.mjs");
 const importer = read("autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1");
 const sqlCacheMigration = read("http-generic-api/migrations/1023_sprint69_sql_cache_runtime_policy.sql");
+const platformAdminWorkspaceSeed = read("http-generic-api/migrations/20260920_platform_admin_workspace_canonical_seed.sql");
+const wordpressDeployAuthorityMigration = read("http-generic-api/migrations/20260920_wordpress_staging_plugin_deploy_v2_authority.sql");
+const wordpressDeployCanonicalSeed = read("http-generic-api/migrations/20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql");
 const roleManifest = readJson("http-generic-api/config/staging-database-role-migration-manifest.json");
+for (const table of STAGING_ROLE_GRANT_POLICIES.governance.required_tables) {
+  assert.equal(
+    roleManifest.roles.governance.required_tables.includes(table),
+    true,
+    `governance grant-required surface missing from role manifest: ${table}`,
+  );
+
+  assert.equal(
+    roleManifest.roles.runtime.excluded_tables.includes(table),
+    true,
+    `runtime must exclude governance grant-required surface: ${table}`,
+  );
+}
 const autoDeployPolicy = readJson("autopilot-portable-staging/auto-deploy-policy.json");
 const oneClickPolicy = readJson("autopilot-portable-staging/autopilot-one-click-policy.json");
 
@@ -44,7 +60,20 @@ assert.deepEqual(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_tables, [
   "dynamic_audit_scheduler_runs",
   "execution_log",
   "json_assets",
+  "local_manager_desktop_commands",
+  "local_manager_device_link_sessions",
 ]);
+assert.deepEqual(
+  STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.local_manager_desktop_commands,
+  ["SELECT", "INSERT", "UPDATE"],
+);
+assert.deepEqual(
+  STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.local_manager_device_link_sessions,
+  ["SELECT", "INSERT", "UPDATE"],
+);
+assert.deepEqual(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_operations, ["SELECT", "INSERT", "UPDATE"]);
+assert.equal(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_operations.includes("CREATE"), false);
+assert.equal(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_operations.includes("ALTER"), false);
 assert.equal(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_tables.includes("admin_platform_endpoint_tools"), false);
 assert.equal(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_tables.includes("tenant_platform_endpoint_tools"), false);
 assert.equal(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_tables.includes("sql_cache_runtime_policies"), false);
@@ -55,8 +84,23 @@ assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes("sql_c
 assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.admin_platform_endpoint_tools, ["SELECT"]);
 assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.tenant_platform_endpoint_tools, ["SELECT"]);
 assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.sql_cache_runtime_policies, ["SELECT"]);
+assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.workspace_registry, ["SELECT"]);
+assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.workspace_registry.includes("INSERT"), false);
+assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.workspace_registry.includes("UPDATE"), false);
 assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes("platform_runtime_config"), true);
 assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.platform_runtime_config, ["SELECT"]);
+assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.platform_tool_dispatch_bindings, ["SELECT"]);
+assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.workspace_assets, ["SELECT"]);
+for (const desktopIdentityDependency of ["local_connector_device_aliases", "local_connector_user_configs"]) {
+  assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes(desktopIdentityDependency), true);
+  assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table[desktopIdentityDependency], ["SELECT"]);
+}
+assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes("platform_resource_recipes"), false);
+assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes("platform_resource_recipe_steps"), false);
+assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.platform_resource_recipes, undefined);
+assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.platform_resource_recipe_steps, undefined);
+assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.optional_tables.includes("platform_resource_recipes"), false);
+assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.optional_tables.includes("platform_resource_recipe_steps"), false);
 assert.equal(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_tables.includes("platform_runtime_config"), false);
 for (const operationalReadSurface of [
   "v_activation_pending_tasks",
@@ -84,7 +128,18 @@ for (const identityTable of ["users", "memberships", "tenants"]) {
   assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table[identityTable], ["SELECT"]);
   assert.equal(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_tables.includes(identityTable), false);
 }
-assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.governance, BOOTSTRAP_ROLE_GRANT_POLICIES.governance);
+for (const [table, operations] of Object.entries(BOOTSTRAP_ROLE_GRANT_POLICIES.governance.required_operations_by_table)) {
+  assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.governance.required_operations_by_table[table], operations);
+}
+for (const [table, operations] of Object.entries({
+  staging_activation_gateway_execution_artifacts: ["SELECT", "INSERT"],
+  staging_activation_gateway_execution_plans: ["SELECT", "INSERT", "UPDATE"],
+  staging_activation_gateway_envelope_plan_bindings: ["SELECT", "INSERT"],
+})) {
+  assert.equal(STAGING_ROLE_GRANT_POLICIES.governance.required_tables.includes(table), true);
+  assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.governance.required_operations_by_table[table], operations);
+  assert.equal(BOOTSTRAP_ROLE_GRANT_POLICIES.governance.required_tables.includes(table), false);
+}
 assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime_persistence, BOOTSTRAP_ROLE_GRANT_POLICIES.runtime_persistence);
 
 assert.match(grantPlan, /STAGING_ROLE_GRANT_POLICIES/);
@@ -129,7 +184,59 @@ assert.deepEqual(roleManifest.canonical_seed_lifecycle.seed_files, [
   "039_sprint43_data_integrity_and_missing_tables.sql",
   "1043_sprint69_dynamic_container_hvac_activity_seed.sql",
   "20260815_custom_gpt_mcp_catalog_levels.sql",
+  "20260920_platform_admin_workspace_canonical_seed.sql",
+  "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
+  "20260922_local_manager_control_templates_registry.sql",
 ]);
+assert.match(platformAdminWorkspaceSeed, /WHERE NOT EXISTS[\s\S]*workspace_id[\s\S]*workspace_key/i);
+assert.doesNotMatch(platformAdminWorkspaceSeed, /ON DUPLICATE KEY UPDATE/i);
+assert.match(
+  platformAdminWorkspaceSeed,
+  /AND display_name = 'Platform Admin'[\s\S]*AND workspace_type = 'brand'[\s\S]*AND bootstrap_status = 'ready'/i,
+);
+const wordpressDeployTagWidening = "ALTER TABLE admin_platform_endpoint_tools\n  MODIFY COLUMN tags TEXT NULL";
+assert.ok(
+  wordpressDeployCanonicalSeed.indexOf(wordpressDeployTagWidening) >= 0 &&
+  wordpressDeployCanonicalSeed.indexOf(wordpressDeployTagWidening) <
+    wordpressDeployCanonicalSeed.indexOf("INSERT INTO admin_platform_endpoint_tools"),
+  "canonical WordPress deploy seed must widen admin tool tags before the long governance tag writer",
+);
+
+for (const token of [
+  "no_caller_target",
+  "no_caller_artifact",
+  "no_caller_path",
+  "no_caller_credentials",
+  "wordpress_staging_plugin_deploy_exact_artifact_guard",
+  "remote_runtime:ssh:wordpress_staging_plugin_deploy",
+]) {
+  assert.equal(wordpressDeployAuthorityMigration.includes(token), true, "source authority migration missing " + token);
+  assert.equal(wordpressDeployCanonicalSeed.includes(token), true, "canonical replay seed drifted from source authority token " + token);
+}
+assert.match(importer, /Assert-CountExactly[\s\S]*canonical Platform Admin workspace/);
+assert.match(importer, /function Get-RoleObjectCensus/);
+assert.equal((importer.match(/function Get-RoleObjectCensus/g) || []).length, 1);
+assert.doesNotMatch(importer, /\^\[A-Za-z0-9_\]\+Require/);
+assert.match(importer, /function Assert-CompletedImportLiveReadback/);
+assert.match(importer, /Assert-CompletedImportLiveReadback \$services \$compose \$requiredRuntimeCensus \$requiredRuntimeSupportTables/);
+assert.match(importer, /SCHEMA_IMPORT_ALREADY_COMPLETE:[^\r\n]*live_semantic_readback=passed/);
+assert.match(importer, /Direct schema-only importer may apply only when all three local Staging role databases are zero-object/);
+assert.match(importer, /Rebuild-EmptyStagingRoleDatabases Recovery flow/);
+assert.match(importer, /pre_apply_role_object_census/);
+assert.match(importer, /nonempty_role_apply_forbidden = \$true/);
+assert.match(importer, /\(\?im\)\^\\s\*TRUNCATE\\b/);
+assert.match(importer, /\(\?im\)\^\\s\*DELETE\\b/);
+assert.match(importer, /\(\?im\)\^\\s\*REPLACE\\b/);
+assert.match(importer, /ALTER\\s\+TABLE\\b\[\^;\]\*\\bDROP\\b/);
+assert.equal(roleManifest.source.nonempty_direct_schema_replay_forbidden, true);
+assert.equal(roleManifest.source.pre_apply_role_object_census_required, true);
+assert.equal(
+  roleManifest.source.partial_role_rebuild_authority,
+  "autopilot-portable-staging/Rebuild-EmptyStagingRoleDatabases.ps1",
+);
+assert.match(importer, /nonempty_direct_schema_replay_forbidden/);
+assert.match(importer, /pre_apply_role_object_census_required/);
+assert.match(importer, /partial_role_rebuild_authority/);
 assert.equal(roleManifest.authority_seed_lifecycle.contract, "mad4b.staging.authority-seed-manifest.v1");
 assert.equal(roleManifest.authority_seed_lifecycle.target_role, "runtime");
 assert.equal(roleManifest.authority_seed_lifecycle.execution_identity, "local_database_root");
@@ -148,6 +255,10 @@ assert.equal(roleManifest.validation.required_role_count, 3);
 assert.equal(roleManifest.validation.missing_required_table_is_blocking, true);
 assert.equal(roleManifest.validation.unexpected_governance_or_persistence_table_is_blocking, true);
 assert.equal(roleManifest.validation.runtime_exclusion_violation_is_blocking, true);
+for (const requiredDesktopSurface of ["local_manager_desktop_commands", "local_manager_device_link_sessions", "local_connector_device_aliases", "local_connector_user_configs"]) {
+  assert.equal(roleManifest.roles.runtime.required_tables.includes(requiredDesktopSurface), true);
+  assert.equal(roleManifest.validation.required_runtime_support_tables.includes(requiredDesktopSurface), true);
+}
 assert.deepEqual(
   [
     ...roleManifest.validation.required_runtime_table_census,

@@ -18,7 +18,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
 const canonicalRoot = path.join(repoRoot, "edge", "activation-gateway");
 const runtimeRoot = path.join(__dirname, "activation-gateway-runtime");
-const files = ["src/worker.mjs", "src/gateway.mjs", "generated/route-policy.json", "generated/route-policy.staging.json"];
+const files = ["src/worker.mjs", "src/worker-staging.mjs", "src/gateway.mjs", "generated/route-policy.json", "generated/route-policy.staging.json"];
 
 for (const relativePath of files) {
   const canonical = fs.readFileSync(path.join(canonicalRoot, ...relativePath.split("/")), "utf8").replace(/\r\n?/g, "\n");
@@ -60,7 +60,11 @@ assert.deepEqual(runtimeVerification, canonicalVerification);
 assert.equal(runtimeVerification.ok, true);
 assert.equal(runtimeVerification.stale, false);
 
-const rolloutSource = fs.readFileSync(path.join(__dirname, "activationGatewayRolloutTool.js"), "utf8");
+const stagingBundleSource = fs.readFileSync(path.join(__dirname, "stagingActivationGatewayBundle.js"), "utf8");
+assert.match(stagingBundleSource, /activation-gateway-runtime/u);
+assert.doesNotMatch(stagingBundleSource, /path\.join\(root, "edge", "activation-gateway"/u);
+
+const rolloutSource = fs.readFileSync(path.join(__dirname, "activationGatewayRolloutToolProduction.js"), "utf8");
 assert.doesNotMatch(rolloutSource, /\.\.\/edge\/activation-gateway/);
 assert.doesNotMatch(rolloutSource, /edge\/activation-gateway\/src/);
 assert.match(rolloutSource, /activation-gateway-runtime/);

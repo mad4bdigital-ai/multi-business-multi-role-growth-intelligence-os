@@ -151,6 +151,8 @@ jobs:
           node http-generic-api/test-single-owner-review-gate.mjs
 
       - name: Verify repository governance fixed point
+        id: fixed_point
+        continue-on-error: true
         env:
           OUT: ${{ runner.temp }}/derived-state-closure
           CANDIDATE_SHA: ${{ steps.target.outputs.candidate_sha }}
@@ -159,13 +161,24 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$OUT"
+          set +e
           node scripts/repository-governance-fixed-point.mjs \
             --expected-sha "$CANDIDATE_SHA" --candidate-kind "$CANDIDATE_KIND" --base-sha "$BASE_SHA" \
             --report-file "$OUT/repository-governance.json"
-          node - "$OUT/repository-governance.json" <<'NODE'
+          fixed_point_status=$?
+          set -e
+          test -f "$OUT/repository-governance.json"
+          node - "$OUT/repository-governance.json" "$fixed_point_status" <<'NODE'
           const fs = require('fs');
-          const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
-          if (report?.fixed_point?.converged !== true) throw new Error('repository governance fixed point is not converged');
+          const [file, statusRaw] = process.argv.slice(2);
+          const report = JSON.parse(fs.readFileSync(file, 'utf8'));
+          const status = Number(statusRaw);
+          if (report?.contract !== 'mad4b.repository-governance-closure.v2') throw new Error('repository governance report contract mismatch');
+          if (!Number.isInteger(status) || status < 0) throw new Error('repository governance fixed-point status is invalid');
+          const converged = report?.fixed_point?.converged === true;
+          if (converged && status !== 0) throw new Error('fixed-point command exited non-zero after reporting converged=true');
+          if (!converged && status === 0) throw new Error('fixed-point command exited zero after reporting converged=false');
+          if (!converged) process.exit(1);
           NODE
 
       - name: Verify environment impact and migration compatibility closure
@@ -178,11 +191,37 @@ jobs:
           BASE_SHA: ${{ steps.target.outputs.base_sha }}
         run: |
           set -euo pipefail
+          mkdir -p "$OUT"
+          set +e
           node http-generic-api/scripts/environment-impact-closure.mjs \
             --base-sha "$BASE_SHA" --head-sha "$SOURCE_HEAD_SHA" --report-file "$OUT/environment-impact.json"
+          environment_impact_status=$?
           node scripts/derived-state-closure.mjs \
             --expected-sha "$CANDIDATE_SHA" --candidate-kind "$CANDIDATE_KIND" --pr-number "$PR_NUMBER" \
             --source-head-sha "$SOURCE_HEAD_SHA" --base-sha "$BASE_SHA" --report-file "$OUT/report.json"
+          derived_state_status=$?
+          set -e
+          test -f "$OUT/report.json"
+          test -f "$OUT/environment-impact.json"
+          node - "$OUT/environment-impact.json" "$environment_impact_status" "$OUT/report.json" "$derived_state_status" <<'NODE'
+          const fs = require('fs');
+          const [environmentFile, environmentStatusRaw, derivedFile, derivedStatusRaw] = process.argv.slice(2);
+          const environment = JSON.parse(fs.readFileSync(environmentFile, 'utf8'));
+          const derived = JSON.parse(fs.readFileSync(derivedFile, 'utf8'));
+          const environmentStatus = Number(environmentStatusRaw);
+          const derivedStatus = Number(derivedStatusRaw);
+          if (environment.contract !== 'mad4b.environment-impact-closure.v1') throw new Error('environment impact contract mismatch');
+          if (derived.contract !== 'mad4b.repository-derived-state-closure.v2') throw new Error('derived state contract mismatch');
+          for (const [name, report, status] of [
+            ['environment impact', environment, environmentStatus],
+            ['derived state', derived, derivedStatus],
+          ]) {
+            if (!Number.isInteger(status) || status < 0) throw new Error(`${name} status is invalid`);
+            if (report.converged === true && status !== 0) throw new Error(`${name} exited non-zero after reporting converged=true`);
+            if (report.converged !== true && status === 0) throw new Error(`${name} exited zero after reporting converged=false`);
+          }
+          if (environmentStatus !== 0 || derivedStatus !== 0) process.exit(1);
+          NODE
 
       - name: Resolve live exact-head manual authorization
         if: steps.target.outputs.pr_number != '0'
@@ -215,7 +254,7 @@ jobs:
           fi
 
       - name: Resolve canonical producer evidence for exact candidate
-        if: steps.target.outputs.pr_number != '0'
+        if: steps.target.outputs.pr_number != '0' && steps.fixed_point.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
           OUT: ${{ runner.temp }}/derived-state-closure
@@ -265,11 +304,12 @@ jobs:
           OUT: ${{ runner.temp }}/derived-state-closure
           PR_NUMBER: ${{ steps.target.outputs.pr_number }}
           CANDIDATE_SHA: ${{ steps.target.outputs.candidate_sha }}
+          FIXED_POINT_OUTCOME: ${{ steps.fixed_point.outcome }}
         shell: bash
         run: |
           set -euo pipefail
           args=(--mode source --governance-report "$OUT/repository-governance.json" --derived-report "$OUT/report.json" --report-file "$OUT/policy-objections.json")
-          if [[ "$PR_NUMBER" != "0" ]]; then
+          if [[ "$PR_NUMBER" != "0" && "$FIXED_POINT_OUTCOME" == "success" ]]; then
             args=(
               --mode finalizer
               --governance-report "$OUT/repository-governance.json"
@@ -279,15 +319,25 @@ jobs:
               --report-file "$OUT/policy-objections.json"
             )
           fi
+          set +e
           node scripts/repository-governance-objection-gate.mjs "${args[@]}"
-          node - "$OUT/policy-objections.json" "$CANDIDATE_SHA" <<'NODE'
+          objection_status=$?
+          set -e
+          test -f "$OUT/policy-objections.json"
+          node - "$OUT/policy-objections.json" "$CANDIDATE_SHA" "$objection_status" <<'NODE'
           const fs = require('fs');
-          const [file, candidate] = process.argv.slice(2);
+          const [file, candidate, statusRaw] = process.argv.slice(2);
           const report = JSON.parse(fs.readFileSync(file, 'utf8'));
+          const status = Number(statusRaw);
           if (report.contract !== 'mad4b.repository-policy-objections.v1') throw new Error('objection contract mismatch');
           if (report.candidate_sha !== candidate) throw new Error('objection candidate mismatch');
-          if (Number(report.blocking_count) !== 0) throw new Error(`blocking objections remain: ${report.blocking_count}`);
-          if (Number(report.manual_count) !== 0) throw new Error(`manual authorization required: ${report.manual_count}`);
+          if (!Number.isInteger(status) || status < 0) throw new Error('objection gate exit status is invalid');
+          const blocking = Number(report.blocking_count);
+          const manual = Number(report.manual_count);
+          if (blocking === 0 && manual === 0 && status !== 0) throw new Error('objection gate exited non-zero with no blocking/manual objections');
+          if ((blocking !== 0 || manual !== 0) && status === 0) throw new Error('objection gate exited zero while objections remain');
+          if (blocking !== 0) throw new Error(`blocking objections remain: ${blocking}`);
+          if (manual !== 0) throw new Error(`manual authorization required: ${manual}`);
           NODE
 
       - name: Write exact-candidate detector identity

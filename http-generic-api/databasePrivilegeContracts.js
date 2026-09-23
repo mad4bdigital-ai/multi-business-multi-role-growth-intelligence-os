@@ -13,6 +13,12 @@ const buildGrantSpec = (required_tables, required_operations, apply_when = "alwa
   apply_when,
 });
 
+export const LOCAL_MANAGER_WRITE_DB_PRIVILEGE_MATRIX = Object.freeze({
+  local_connector_device_aliases: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
+  connected_systems: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
+  installations: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
+});
+
 export const GOVERNANCE_DB_PRIVILEGE_MATRIX = Object.freeze({
   capability_resolution_envelope_ledger: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
   approval_holds: Object.freeze(["SELECT", "INSERT"]),
@@ -35,7 +41,7 @@ export const GOVERNANCE_DB_PRIVILEGE_MATRIX = Object.freeze({
 
 export const BOOTSTRAP_ROLE_GRANT_POLICIES = Object.freeze({
   runtime: buildGrantSpec(
-    ["customer_sessions", "gpt_session_turns", "actions", "dynamic_audit_scheduler_runs", "execution_log", "json_assets"],
+    ["customer_sessions", "gpt_session_turns", "actions", "dynamic_audit_scheduler_runs", "execution_log", "json_assets", "local_manager_desktop_commands", "local_manager_device_link_sessions"],
     ["SELECT", "INSERT", "UPDATE"],
   ),
   governance: buildGrantSpec(Object.keys(GOVERNANCE_DB_PRIVILEGE_MATRIX), ["SELECT"], "always", GOVERNANCE_DB_PRIVILEGE_MATRIX),
@@ -77,6 +83,14 @@ const STAGING_RUNTIME_READ_ONLY_TABLES = Object.freeze([
   "activation_freshness_policy_registry",
   "activation_signal_subscription_registry",
   "activation_connector_pack_registry",
+  // Governed Staging discovery reads these runtime-owned registries before it
+  // can resolve dispatch and workspace context. Keep them SELECT-only; neither
+  // surface grants mutation, schema authority, or GRANT OPTION.
+  "platform_tool_dispatch_bindings",
+  "workspace_assets",
+  "local_connector_device_aliases",
+  "local_connector_user_configs",
+  "local_manager_control_templates",
 ]);
 
 const STAGING_RUNTIME_OPTIONAL_READ_SURFACES = Object.freeze([
@@ -93,12 +107,25 @@ const STAGING_RUNTIME_OPTIONAL_READ_SURFACES = Object.freeze([
   "operational_alerts",
   "v_platform_evolution_activation_card",
   "v_platform_capability_gaps",
+  "v_platform_capability_readiness_vector",
 ]);
 
 const STAGING_RUNTIME_READ_ONLY_MATRIX = Object.freeze(Object.fromEntries(
   [...STAGING_RUNTIME_READ_ONLY_TABLES, ...STAGING_RUNTIME_OPTIONAL_READ_SURFACES]
     .map((table) => [table, Object.freeze(["SELECT"])]),
 ));
+
+const STAGING_RUNTIME_OPERATION_MATRIX = Object.freeze({
+  ...STAGING_RUNTIME_READ_ONLY_MATRIX,
+  local_manager_desktop_commands: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
+  local_manager_device_link_sessions: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
+});
+
+const STAGING_GATEWAY_PLAN_GRANTS = Object.freeze({
+  staging_activation_gateway_execution_artifacts: Object.freeze(["SELECT", "INSERT"]),
+  staging_activation_gateway_execution_plans: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
+  staging_activation_gateway_envelope_plan_bindings: Object.freeze(["SELECT", "INSERT"]),
+});
 
 // Local Staging keeps the production bootstrap grant surface unchanged while
 // adding only bounded read-only runtime authority surfaces that the running
@@ -115,14 +142,21 @@ export const STAGING_ROLE_GRANT_POLICIES = Object.freeze({
       "dynamic_audit_scheduler_runs",
       "execution_log",
       "json_assets",
+      "local_manager_desktop_commands",
+      "local_manager_device_link_sessions",
       ...STAGING_RUNTIME_READ_ONLY_TABLES,
     ],
     ["SELECT", "INSERT", "UPDATE"],
     "always",
-    STAGING_RUNTIME_READ_ONLY_MATRIX,
+    STAGING_RUNTIME_OPERATION_MATRIX,
     STAGING_RUNTIME_OPTIONAL_READ_SURFACES,
   ),
-  governance: BOOTSTRAP_ROLE_GRANT_POLICIES.governance,
+  governance: buildGrantSpec(
+    [...Object.keys(GOVERNANCE_DB_PRIVILEGE_MATRIX), ...Object.keys(STAGING_GATEWAY_PLAN_GRANTS)],
+    ["SELECT"],
+    "always",
+    { ...GOVERNANCE_DB_PRIVILEGE_MATRIX, ...STAGING_GATEWAY_PLAN_GRANTS },
+  ),
   runtime_persistence: BOOTSTRAP_ROLE_GRANT_POLICIES.runtime_persistence,
 });
 

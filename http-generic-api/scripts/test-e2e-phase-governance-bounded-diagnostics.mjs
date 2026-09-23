@@ -6,6 +6,8 @@ import {
   executePhaseTests,
 } from "./e2e-phase-governance.mjs";
 
+const policy = JSON.parse(fs.readFileSync(new URL("../../.specify/e2e-phase-governance.json", import.meta.url), "utf8"));
+
 const root = fs.mkdtempSync(path.join(os.tmpdir(), "e2e-direct-diagnostic-"));
 const scriptPath = path.join(root, "failing-test.mjs");
 fs.writeFileSync(scriptPath, [
@@ -18,6 +20,7 @@ fs.writeFileSync(scriptPath, [
 const evaluation = {
   policy: {
     max_test_count_per_contract: 5,
+    test_timeout_ms: policy.test_timeout_ms,
   },
   contracts: [
     {
@@ -48,14 +51,19 @@ const execution = executePhaseTests(evaluation, { root });
 assert.equal(execution.ok, false);
 assert.equal(execution.test_count, 1);
 assert.equal(execution.results.length, 1);
-assert.equal(execution.results[0].status, "failed");
-assert.equal(execution.results[0].exit_code, 7);
+const [executionResult] = execution.results;
+assert.equal(executionResult.status, "failed");
+assert.equal(executionResult.exit_code, 7);
+assert.equal(executionResult.timed_out, false);
+assert.equal(executionResult.timeout_ms, policy.test_timeout_ms);
 assert.equal(execution.diagnostics.capture_mode, "bounded_redacted_failure_tail");
 assert.equal(execution.diagnostics.max_chars_per_stream, 12000);
+assert.equal(execution.diagnostics.test_timeout_ms, policy.test_timeout_ms);
+assert.equal(execution.diagnostics.kill_signal, "SIGTERM");
 assert.equal(execution.diagnostics.job_logs_role, "diagnostic_only");
 assert.equal(execution.secrets_included, false);
 
-const diagnostic = execution.results[0].diagnostic;
+const diagnostic = executionResult.diagnostic;
 assert.ok(diagnostic);
 assert.match(JSON.stringify(diagnostic.stdout), /safe-prefix/u);
 assert.doesNotMatch(JSON.stringify(diagnostic.stderr), /diagnostic-secret-value/u);

@@ -154,9 +154,13 @@ nodeAssert.match(agentSource, /\[version\]'2025\.4\.0'/);
 nodeAssert.doesNotMatch(agentSource, /publicBaseUrl\(req\)/);
 nodeAssert.match(runtimeBootstrapSource, /CONNECTOR_SECRET_FILE/);
 nodeAssert.match(runtimeBootstrapSource, /CONNECTOR_LOCAL_API_KEY_FILE/);
-nodeAssert.match(localManagerDeviceSource, /PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = DEVICE_TOKEN_TTL_SECONDS/);
-nodeAssert.doesNotMatch(localManagerDeviceSource, /privileged_installer_reauth_required/);
-nodeAssert.match(localManagerDeviceSource, /requires_reauth_for_privileged_installers:\s*false/);
+nodeAssert.match(localManagerDeviceSource, /PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = 15 \* 60/);
+nodeAssert.match(localManagerDeviceSource, /requires_reauth_for_privileged_installers:\s*true/);
+nodeAssert.match(localManagerDeviceSource, /requireFreshLocalManagerDeviceForPrivilegedInstaller/);
+nodeAssert.match(localManagerDeviceSource, /x-local-manager-user-authorization/);
+nodeAssert.match(localManagerDeviceSource, /fresh_local_manager_user_authorization_required/);
+nodeAssert.match(localManagerDeviceSource, /same_user_required:\s*true/);
+nodeAssert.match(localManagerDeviceSource, /same_tenant_required:\s*true/);
 
 nodeAssert.match(agentSource, /\$CfService = 'Mad4B-LocalConnector-Cloudflared'/);
 nodeAssert.match(agentSource, /CONNECTOR_CLOUDFLARED_SERVICE=Mad4B-LocalConnector-Cloudflared/);

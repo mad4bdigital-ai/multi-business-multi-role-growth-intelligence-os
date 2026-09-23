@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { resolveActivationGatewayHostProfile } from "./activationGatewayHostProfile.js";
 
-const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
 const policy = JSON.parse(read("http-generic-api/config/staging-openapi-mcp-policy.json"));
 const domain = JSON.parse(read("http-generic-api/config/domain-family-policy.json"));
@@ -95,7 +96,7 @@ assert.match(env, /^TENANT_GPT_STAGING_ENABLED=true\s*$/m);
 assert.match(env, /^ACTIVATION_STAGING_GATEWAY_ENABLED=false\s*$/m);
 assert.match(env, /^TENANT_GPT_STAGING_ACTIVATION_OAUTH_CLIENT_SECRET=\s*$/m);
 assert.match(env, /^TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET=\s*$/m);
-for (const key of ["JWT_SECRET", "TENANT_GPT_SSO_SIGNING_SECRET", "TOKEN_ENCRYPTION_KEY", "PUBLIC_BASE_URL", "AUTH_BASE_URL", "PLATFORM_JWT_ISSUER", "GOVERNANCE_DB_ROOT_PASSWORD", "DB_CONNECTION_LIMIT", "DB_CONNECT_TIMEOUT_MS", "GOVERNANCE_DB_CONNECT_TIMEOUT_MS", "RUNTIME_PERSISTENCE_DB_CONNECT_TIMEOUT_MS"]) assert.match(env, new RegExp(`^${key}=`, "m"));
+for (const key of ["JWT_SECRET", "LOCAL_MANAGER_DEVICE_JWT_SECRET", "TENANT_GPT_SSO_SIGNING_SECRET", "TOKEN_ENCRYPTION_KEY", "PUBLIC_BASE_URL", "AUTH_BASE_URL", "PLATFORM_JWT_ISSUER", "GOVERNANCE_DB_ROOT_PASSWORD", "DB_CONNECTION_LIMIT", "DB_CONNECT_TIMEOUT_MS", "GOVERNANCE_DB_CONNECT_TIMEOUT_MS", "RUNTIME_PERSISTENCE_DB_CONNECT_TIMEOUT_MS"]) assert.match(env, new RegExp(`^${key}=`, "m"));
 assert.doesNotMatch(env, /^REMOTE_MCP_RESOURCE_URL=https:\/\/mcp\.mad4b\.com\s*$/m);
 assert.match(cloneEntrypointScript, /Clone-StagingDatabases\.Legacy\.ps1/);
 assert.match(cloneEntrypointScript, /prepare-staging-role-schema-replay\.mjs/);
@@ -105,6 +106,7 @@ assert.match(cloneScript, /Production\/provider paths are forbidden/);
 assert.match(cloneScript, /STAGING_DB_COPY_APPROVED=true/);
 assert.match(autopilotScript, /Assert-UniqueEnvKeys/);
 assert.match(autopilotScript, /JWT_SECRET/);
+assert.match(autopilotScript, /LOCAL_MANAGER_DEVICE_JWT_SECRET/);
 assert.match(autopilotScript, /TENANT_GPT_SSO_SIGNING_SECRET/);
 assert.match(autopilotScript, /TOKEN_ENCRYPTION_KEY/);
 assert.match(autopilotScript, /REMOTE_MCP_OAUTH_SIGNING_SECRET/);

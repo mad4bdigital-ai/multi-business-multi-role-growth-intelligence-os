@@ -10,7 +10,8 @@ const read = (relative) => fs.readFileSync(path.join(repoRoot, relative), "utf8"
 
 const envHelper = read("autopilot-portable-staging/Staging-Environment.ps1");
 const entrypoint = read("autopilot-portable-staging/Invoke-Staging-One-Click.ps1");
-const launcher = `${entrypoint}\n${read("autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1")}`;
+const core = read("autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1");
+const launcher = `${entrypoint}\n${core}`;
 const windowsCloudflared = read("autopilot-portable-staging/Staging-WindowsCloudflared.ps1");
 const bootstrap = read("autopilot-portable-staging/Bootstrap-Staging-One-Click.ps1");
 const oneClick = read("autopilot-portable-staging/One-Click-Staging.ps1");
@@ -77,6 +78,7 @@ for (const key of [
   "RUNTIME_PERSISTENCE_DB_ROOT_PASSWORD",
   "BACKEND_API_KEY",
   "JWT_SECRET",
+  "LOCAL_MANAGER_DEVICE_JWT_SECRET",
   "TENANT_GPT_SSO_SIGNING_SECRET",
   "TOKEN_ENCRYPTION_KEY",
   "TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET",
@@ -108,6 +110,13 @@ assert.match(stagingCompose, /app:\s*[\s\S]*?ports:\s*!reset\s*\[\]/);
 assert.equal((stagingCompose.match(/ports:\s*!reset\s*\[\]/g) || []).length, 2, "Staging must reset inherited Redis and app host publications");
 assert.doesNotMatch(stagingCompose, /^\s+ports:\s*\[\]\s*$/m);
 assert.match(stagingCompose, /cloudflared:[\s\S]*?--token/);
+assert.doesNotMatch(stagingCompose, /^\s+TUNNEL_HOSTNAME:/m, "Named Tunnel sidecar must not set the ignored singular TUNNEL_HOSTNAME option");
+assert.match(
+  windowsCloudflared,
+  /\$ErrorActionPreference = 'Continue'[\s\S]*?docker logs --tail 500 \$ContainerId 2>&1[\s\S]*?\$dockerExitCode = \[int\]\$LASTEXITCODE[\s\S]*?\$ErrorActionPreference = \$previousErrorActionPreference/,
+  "Docker cloudflared stderr logs must be captured as evidence without inheriting fail-closed ErrorActionPreference",
+);
+assert.match(windowsCloudflared, /Unable to read Docker cloudflared logs: docker exited with code/);
 
 assert.match(entrypoint, /ValidateSet\('disabled','windows_service','docker_sidecar'\)/);
 assert.match(entrypoint, /ValidateRange\(65,300\)/);
@@ -155,7 +164,10 @@ assert.doesNotMatch(
 );
 assert.match(launcher, /ProcessId -ne \$initialPid/);
 assert.match(launcher, /RequireTunnelToken:\(\$TunnelMode -eq 'docker_sidecar'\)/);
-assert.match(launcher, /'-BuildMode',\$BuildMode,'-AutoDeployTunnelMode',\$TunnelMode,'-NoTunnel'/);
+assert.match(core, /'-BuildMode',\$BuildMode,'-AutoDeployTunnelMode',\$TunnelMode,'-NoTunnel'/);
+assert.doesNotMatch(core, /if \(\$EnableActivationGateway\) \{ \$bootstrapArgs \+= '-EnableActivationGateway' \}/);
+assert.match(core, /Initialize-StagingEnvironment[\s\S]*?-EnableActivationGateway:\$EnableActivationGateway[\s\S]*?Invoke-Checked 'powershell\.exe' \$bootstrapArgs[\s\S]*?Initialize-StagingEnvironment[\s\S]*?-EnableActivationGateway:\$EnableActivationGateway/);
+assert.match(core, /Set-StagingEnvValue \$envFile 'ACTIVATION_STAGING_GATEWAY_ENABLED' 'false'[\s\S]*?Invoke-Checked 'powershell\.exe' \$bootstrapArgs[\s\S]*?Initialize-StagingEnvironment[\s\S]*?-EnableActivationGateway:\$EnableActivationGateway/);
 assert.match(bootstrap, /"-AutoDeployTunnelMode", \$AutoDeployTunnelMode/);
 assert.match(oneClick, /"-TunnelMode", \$AutoDeployTunnelMode/);
 assert.match(autoDeployInstaller, /-TunnelMode \$TunnelMode/);

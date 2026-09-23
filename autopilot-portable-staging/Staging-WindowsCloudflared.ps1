@@ -187,7 +187,25 @@ function Get-StagingCloudflaredRuntimeLog([string]$Mode, [string]$EnvFile, [stri
         return (Get-Content -LiteralPath $logFile -Tail 500 -ErrorAction SilentlyContinue | Out-String)
     }
     if ($Mode -eq 'docker_sidecar' -and -not [string]::IsNullOrWhiteSpace($ContainerId)) {
-        return (& docker logs --tail 500 $ContainerId 2>&1 | Out-String)
+        # cloudflared emits normal runtime logs, including WARN records, on stderr.
+        # Windows PowerShell 5.1 can promote redirected native stderr to ErrorRecord
+        # objects; with the caller's ErrorActionPreference=Stop that would turn a
+        # successful docker logs read into a false fail-closed exception. Capture
+        # stderr as evidence text and gate only on Docker's native exit code.
+        $previousErrorActionPreference = $ErrorActionPreference
+        $dockerExitCode = -1
+        $logText = ''
+        try {
+            $ErrorActionPreference = 'Continue'
+            $logText = (& docker logs --tail 500 $ContainerId 2>&1 | ForEach-Object { [string]$_ } | Out-String)
+            $dockerExitCode = [int]$LASTEXITCODE
+        } finally {
+            $ErrorActionPreference = $previousErrorActionPreference
+        }
+        if ($dockerExitCode -ne 0) {
+            throw "Unable to read Docker cloudflared logs: docker exited with code $dockerExitCode."
+        }
+        return $logText
     }
     return ''
 }

@@ -312,6 +312,156 @@
       "rule_id": "fixed_customer_identifier",
       "line": 348,
       "reason": "This UUID is an explicit reviewed_by platform-admin principal in a checksum-bound safety attestation, not a customer or tenant identifier."
+    },
+    {
+      "path": "http-generic-api/migrations/20260920_platform_admin_workspace_canonical_seed.sql",
+      "rule_id": "zero_scope_fallback",
+      "line": 11,
+      "reason": "Canonical platform-scope sentinel is the reviewed Platform Admin seed tenant identity, not a customer fallback."
+    },
+    {
+      "path": "http-generic-api/migrations/20260920_platform_admin_workspace_canonical_seed.sql",
+      "rule_id": "fixed_customer_identifier",
+      "line": 19,
+      "reason": "Canonical Platform Admin workspace UUID is used only by the conflict-detecting seed guard for the registered authority row."
+    },
+    {
+      "path": "http-generic-api/migrations/20260920_platform_admin_workspace_canonical_seed.sql",
+      "rule_id": "zero_scope_fallback",
+      "line": 20,
+      "reason": "Canonical platform-scope sentinel is used only with the registered workspace key in the conflict-detecting seed guard."
+    },
+    {
+      "path": "http-generic-api/migrations/20260920_platform_admin_workspace_canonical_seed.sql",
+      "rule_id": "fixed_customer_identifier",
+      "line": 31,
+      "reason": "Canonical Platform Admin workspace UUID is part of the exact identity selector for idempotent marker repair."
+    },
+    {
+      "path": "http-generic-api/migrations/20260920_platform_admin_workspace_canonical_seed.sql",
+      "rule_id": "zero_scope_fallback",
+      "line": 32,
+      "reason": "Canonical platform-scope sentinel is part of the exact identity selector for idempotent marker repair."
+    },
+    {
+      "path": "http-generic-api/config/runtime-data-lifecycle-contract.json",
+      "rule_id": "zero_scope_fallback",
+      "line": 53,
+      "reason": "Canonical platform-scope sentinel is declarative authority data for the hash-bound Platform Admin semantic artifact, not a customer fallback."
+    },
+    {
+      "path": "http-generic-api/config/runtime-data-lifecycle-contract.json",
+      "rule_id": "fixed_customer_identifier",
+      "line": 61,
+      "reason": "Canonical Platform Admin workspace UUID is registered immutable artifact identity, not caller-selected customer scope."
+    },
+    {
+      "path": "http-generic-api/config/runtime-data-lifecycle-contract.json",
+      "rule_id": "zero_scope_fallback",
+      "line": 62,
+      "reason": "Canonical global tenant sentinel is the exact immutable artifact selector and cannot broaden runtime scope."
+    },
+    {
+      "path": "http-generic-api/config/runtime-data-lifecycle-contract.json",
+      "rule_id": "fixed_customer_identifier",
+      "line": 69,
+      "reason": "Canonical Platform Admin UUID is the exact reviewed update selector for the registered artifact."
+    },
+    {
+      "path": "http-generic-api/config/runtime-data-lifecycle-contract.json",
+      "rule_id": "zero_scope_fallback",
+      "line": 70,
+      "reason": "Canonical global tenant sentinel is part of the exact reviewed update selector."
+    },
+    {
+      "path": "http-generic-api/config/runtime-data-lifecycle-contract.json",
+      "rule_id": "zero_scope_fallback",
+      "line": 91,
+      "reason": "Resolver-equivalent cardinality intentionally scopes the registered Platform Admin authority row to the global tenant sentinel."
+    },
+    {
+      "path": "http-generic-api/test-staging-canonical-semantic-repair.mjs",
+      "rule_id": "fixed_customer_identifier",
+      "line": 5,
+      "reason": "Test fixture uses the registered canonical Platform Admin identity to verify exact artifact binding and fail-closed conflict handling."
+    },
+    {
+      "path": "http-generic-api/test-staging-canonical-semantic-repair.mjs",
+      "rule_id": "zero_scope_fallback",
+      "line": 5,
+      "reason": "Test fixture uses the canonical global tenant sentinel and never treats it as caller-selected scope."
+    },
+    {
+      "path": "http-generic-api/test-staging-canonical-semantic-repair.mjs",
+      "rule_id": "fixed_customer_identifier",
+      "line": 37,
+      "reason": "Negative test uses a synthetic conflicting UUID to prove exact identity conflicts cannot be repaired automatically."
+    },
+    {
+      "path": "http-generic-api/test-staging-canonical-semantic-repair.mjs",
+      "rule_id": "fixed_customer_identifier",
+      "line": 38,
+      "reason": "Negative ambiguity fixture uses a synthetic UUID to prove multiple resolver candidates fail closed."
+    },
+    {
+      "path": "http-generic-api/config/platform-admin-workspace-authority.json",
+      "rule_id": "fixed_customer_identifier",
+      "line": 5,
+      "reason": "Canonical Platform Admin workspace UUID is declarative repository authority identity, not caller/customer scope."
+    },
+    {
+      "path": "http-generic-api/config/platform-admin-workspace-authority.json",
+      "rule_id": "zero_scope_fallback",
+      "line": 6,
+      "reason": "All-zero tenant is the explicit global platform tenant sentinel in the canonical authority descriptor, not a missing-scope fallback."
+    },
+    {
+      "path": "http-generic-api/config/runtime-data-lifecycle-contract.json",
+      "rule_id": "zero_scope_fallback",
+      "line": 57,
+      "reason": "Canonical global tenant sentinel is a lifecycle selector token bound to the Platform Admin authority descriptor."
+    },
+    {
+      "path": "http-generic-api/config/runtime-data-lifecycle-contract.json",
+      "rule_id": "fixed_customer_identifier",
+      "line": 65,
+      "reason": "Canonical Platform Admin workspace UUID is the exact reviewed lifecycle insert guard identity."
+    },
+    {
+      "path": "http-generic-api/config/runtime-data-lifecycle-contract.json",
+      "rule_id": "zero_scope_fallback",
+      "line": 66,
+      "reason": "Canonical global tenant sentinel is the exact reviewed lifecycle insert guard identity."
+    },
+    {
+      "path": "http-generic-api/config/runtime-data-lifecycle-contract.json",
+      "rule_id": "fixed_customer_identifier",
+      "line": 73,
+      "reason": "Canonical Platform Admin workspace UUID is the exact reviewed lifecycle update selector identity."
+    },
+    {
+      "path": "http-generic-api/config/runtime-data-lifecycle-contract.json",
+      "rule_id": "zero_scope_fallback",
+      "line": 74,
+      "reason": "Canonical global tenant sentinel is the exact reviewed lifecycle update selector identity."
+    },
+    {
+      "path": "http-generic-api/config/runtime-data-lifecycle-contract.json",
+      "rule_id": "zero_scope_fallback",
+      "line": 95,
+      "reason": "Canonical global tenant sentinel scopes resolver-equivalent cardinality to platform authority only."
+    },
+    {
+      "path": "http-generic-api/src/domain/authorityScope/platformAdminWorkspaceAuthority.generated.js",
+      "rule_id": "fixed_customer_identifier",
+      "line": 14,
+      "reason": "Generated static projection repeats the reviewed canonical Platform Admin UUID from the authority descriptor; runtime does not infer customer scope from it."
+    },
+    {
+      "path": "http-generic-api/src/domain/authorityScope/platformAdminWorkspaceAuthority.generated.js",
+      "rule_id": "zero_scope_fallback",
+      "line": 15,
+      "reason": "Generated static projection repeats the explicit global platform tenant sentinel from the authority descriptor."
     }
   ]
 }

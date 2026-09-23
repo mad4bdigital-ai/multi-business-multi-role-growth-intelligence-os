@@ -1,16 +1,27 @@
 import { Router } from "express";
 import { getPool } from "../db.js";
+import { createOperationResilienceController } from "../operationResilienceController.js";
 import {
   approveDeviceLinkSession,
   getDeviceControls,
   getDeviceSession,
   listLinkedDevices,
   pollDeviceLinkSession,
+  provisionDeviceN8n,
   previewDeviceLinkSession,
+  revokeDeviceLinkSession,
+  requireLocalManagerUserRouteGuard,
   startDeviceLinkSession,
 } from "../services/localManagerDeviceLinkService.js";
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
+const localManagerPublicPairingResilience = createOperationResilienceController({
+  rateLimitRead: 30,
+  rateLimitMutation: 30,
+  rateWindowMs: 60_000,
+  circuitFailureThreshold: 5,
+  circuitCooldownMs: 15_000,
+});
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -584,14 +595,23 @@ function localManagerLinkDevicePage(initialCode = "") {
 <script>
 const GOOGLE_CLIENT_ID = ${JSON.stringify(GOOGLE_CLIENT_ID)};
 const $ = (id) => document.getElementById(id);
+let pairingFingerprint = '';
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 function normalizeCode(value){ return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/^(.{4})(.*)$/,'$1-$2').slice(0,9); }
 function setOut(obj){ $('out').textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2); }
-function setToken(token, user){ sessionStorage.setItem('mlm_user_token', token); sessionStorage.setItem('mlm_user', JSON.stringify(user || {})); try { localStorage.setItem('mlm_user_token', token); localStorage.setItem('mlm_user', JSON.stringify(user || {})); } catch {} $('authState').innerHTML = '<span class="ok">Signed in as '+esc(user?.email || user?.user_id || 'user')+'</span>'; }
+function setToken(token, user){ sessionStorage.setItem('mlm_user_token', token); sessionStorage.setItem('mlm_user', JSON.stringify(user || {})); $('authState').innerHTML = '<span class="ok">Signed in as '+esc(user?.email || user?.user_id || 'user')+'</span>'; }
 async function completeAuth(token, user){
   setToken(token, user);
-  const code = normalizeCode($('deviceCode').value);
-  if(code) await approveDevice(); else setOut({ok:true,next:'Enter the pairing code, then approve this device.'});
+  setOut({ok:true,status:'signed_in',next:'Review the device details, then click Approve device.'});
+}
+async function revokeDevice(sessionId){
+  const token=getToken();
+  if(!token || !sessionId) return;
+  if(!window.confirm('Forget this device? Its existing device token will stop working immediately.')) return;
+  const res=await fetch('/local-manager/device-link/devices/'+encodeURIComponent(sessionId)+'/revoke',{method:'POST',headers:{authorization:'Bearer '+token,accept:'application/json'}});
+  const data=await res.json();
+  if(!res.ok || !data.ok){ renderDevices(data); return; }
+  await loadDevices();
 }
 function setupGoogle(){
   if(!GOOGLE_CLIENT_ID){ $('googleHint').style.display='block'; return; }
@@ -600,7 +620,7 @@ function setupGoogle(){
     client_id: GOOGLE_CLIENT_ID,
     callback: async (response) => {
       try {
-        const res = await fetch('/auth/google',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id_token:response.credential})});
+        const res = await fetch('/auth/google',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id_token:response.credential,token_profile:'local_manager_user'})});
         const data = await res.json();
         if(!res.ok || !data.token){ setOut(data); return; }
         await completeAuth(data.token, data);
@@ -617,10 +637,11 @@ async function loadPreview(){
   const data = await res.json();
   if(!res.ok || !data.ok){ $('devicePreview').innerHTML = '<span class="bad">'+esc(data?.error?.message || 'Could not load pairing code.')+'</span>'; return; }
   const d = data.device || {};
-  $('devicePreview').innerHTML = 'Device: <strong>'+esc(d.hostname || d.device_id || 'Windows device')+'</strong> · Platform: '+esc(d.platform || 'windows')+' · Status: '+esc(d.status)+' · Expires: '+esc(d.expires_at || 'soon');
+  pairingFingerprint = String(d.pairing_fingerprint || '');
+  $('devicePreview').innerHTML = 'Device: <strong>'+esc(d.display_label || d.hostname || d.device_id || 'Windows device')+'</strong> · Platform: '+esc(d.platform || 'windows')+' · Version: '+esc(d.app_version || 'unknown')+' · Status: '+esc(d.effective_status || data.status)+' · Expires: '+esc(d.expires_at || 'soon');
 }
-function getToken(){ return sessionStorage.getItem('mlm_user_token') || localStorage.getItem('mlm_user_token') || ''; }
-function restore(){ const raw = sessionStorage.getItem('mlm_user') || localStorage.getItem('mlm_user'); if(!getToken()) return false; if(raw){ try { const u=JSON.parse(raw); $('authState').innerHTML='<span class="ok">Signed in as '+esc(u.email || u.user_id || 'user')+'</span>'; } catch { $('authState').innerHTML='<span class="ok">Signed in.</span>'; } } else { $('authState').innerHTML='<span class="ok">Signed in.</span>'; } return true; }
+function getToken(){ return sessionStorage.getItem('mlm_user_token') || ''; }
+function restore(){ const raw = sessionStorage.getItem('mlm_user'); if(!getToken()) return false; if(raw){ try { const u=JSON.parse(raw); $('authState').innerHTML='<span class="ok">Signed in as '+esc(u.email || u.user_id || 'user')+'</span>'; } catch { $('authState').innerHTML='<span class="ok">Signed in.</span>'; } } else { $('authState').innerHTML='<span class="ok">Signed in.</span>'; } return true; }
 $('normalize').onclick = async () => { $('deviceCode').value = normalizeCode($('deviceCode').value); $('codePreview').textContent = $('deviceCode').value || '---- ----'; await loadPreview(); };
 $('deviceCode').oninput = () => { $('codePreview').textContent = normalizeCode($('deviceCode').value) || '---- ----'; window.clearTimeout(window.__mlmPreviewTimer); window.__mlmPreviewTimer = window.setTimeout(loadPreview, 250); };
 async function approveDevice(){
@@ -628,8 +649,9 @@ async function approveDevice(){
   if(!code){ setOut({ok:false,error:{code:'missing_code',message:'Enter the pairing code from the Windows app.'}}); return false; }
   const token = getToken();
   if(!token){ setOut({ok:false,error:{code:'not_signed_in',message:'Sign in first.'}}); return false; }
+  if(!pairingFingerprint){ setOut({ok:false,error:{code:'pairing_preview_required',message:'Load and review the device details before approval.'}}); return false; }
   $('authState').innerHTML = '<span class="ok">Signed in. Approving device…</span>';
-  const res = await fetch('/local-manager/device-link/approve',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+token},body:JSON.stringify({code})});
+  const res = await fetch('/local-manager/device-link/approve',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+token},body:JSON.stringify({code,consent:'approve_device',pairing_fingerprint:pairingFingerprint})});
   const data = await res.json();
   setOut(data);
   if(res.ok && data.ok){
@@ -642,7 +664,7 @@ async function approveDevice(){
   return false;
 }
 $('signIn').onclick = async () => {
-  const res = await fetch('/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value})});
+  const res = await fetch('/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value,token_profile:'local_manager_user'})});
   const data = await res.json();
   if(!res.ok || !data.token){ setOut(data); return; }
   await completeAuth(data.token, data);
@@ -656,7 +678,7 @@ $('forgotPassword').onclick = async () => {
   setOut(data);
 };
 $('createAccount').onclick = async () => {
-  const res = await fetch('/auth/register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value,display_name:$('displayName').value || $('email').value,tenant_display_name:$('workspaceName').value || 'Local Manager workspace'})});
+  const res = await fetch('/auth/register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value,display_name:$('displayName').value || $('email').value,tenant_display_name:$('workspaceName').value || 'Local Manager workspace',token_profile:'local_manager_user'})});
   const data = await res.json();
   if(!res.ok || !data.token){ setOut(data); return; }
   await completeAuth(data.token, data);
@@ -668,8 +690,7 @@ async function initializeLinkDevicePage(){
   $('codePreview').textContent = $('deviceCode').value || '---- ----';
   await loadPreview();
   if(signedIn && normalizeCode($('deviceCode').value)){
-    setOut({ok:true,status:'signed_in',message:'Signed in. Checking this device link…'});
-    await approveDevice();
+    setOut({ok:true,status:'signed_in',message:'Signed in. Review the device details, then click Approve device.'});
   }
 }
 setupGoogle(); initializeLinkDevicePage();
@@ -727,9 +748,9 @@ function localManagerDevicesPage() {
 const GOOGLE_CLIENT_ID = ${JSON.stringify(GOOGLE_CLIENT_ID)};
 const $ = (id) => document.getElementById(id);
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
-function setToken(token, user){ sessionStorage.setItem('mlm_user_token', token); sessionStorage.setItem('mlm_user', JSON.stringify(user || {})); try { localStorage.setItem('mlm_user_token', token); localStorage.setItem('mlm_user', JSON.stringify(user || {})); } catch {} $('authState').textContent = 'Signed in as '+(user?.email || user?.user_id || 'user'); }
-function getToken(){ return sessionStorage.getItem('mlm_user_token') || localStorage.getItem('mlm_user_token') || ''; }
-function renderDevices(data){ if(!data.ok){ $('devices').innerHTML='<pre>'+esc(JSON.stringify(data,null,2))+'</pre>'; return; } const rows=data.devices||[]; if(!rows.length){ $('devices').innerHTML='<p>No linked devices yet.</p>'; return; } $('devices').innerHTML='<table><thead><tr><th>device</th><th>status</th><th>platform</th><th>approved</th><th>completed</th></tr></thead><tbody>'+rows.map(d=>'<tr><td>'+esc(d.device_id)+'<br><small>'+esc(d.hostname||'')+'</small></td><td>'+esc(d.status)+'</td><td>'+esc(d.platform||'')+'</td><td>'+esc(d.approved_at||'')+'</td><td>'+esc(d.completed_at||'')+'</td></tr>').join('')+'</tbody></table>'; }
+function setToken(token, user){ sessionStorage.setItem('mlm_user_token', token); sessionStorage.setItem('mlm_user', JSON.stringify(user || {})); $('authState').textContent = 'Signed in as '+(user?.email || user?.user_id || 'user'); }
+function getToken(){ return sessionStorage.getItem('mlm_user_token') || ''; }
+function renderDevices(data){ if(!data.ok){ $('devices').innerHTML='<pre>'+esc(JSON.stringify(data,null,2))+'</pre>'; return; } const rows=data.devices||[]; if(!rows.length){ $('devices').innerHTML='<p>No linked devices yet.</p>'; return; } $('devices').innerHTML='<table><thead><tr><th>device</th><th>status</th><th>platform</th><th>approved</th><th>completed</th><th>action</th></tr></thead><tbody>'+rows.map(d=>'<tr><td>'+esc(d.device_id)+'<br><small>'+esc(d.hostname||'')+'</small></td><td>'+esc(d.status)+'</td><td>'+esc(d.platform||'')+'</td><td>'+esc(d.approved_at||'')+'</td><td>'+esc(d.completed_at||'')+'</td><td>'+(d.status==='revoked'?'revoked':'<button class="secondary" data-revoke-session="'+esc(d.session_id)+'">Forget device</button>')+'</td></tr>').join('')+'</tbody></table>'; document.querySelectorAll('[data-revoke-session]').forEach(btn=>{ btn.onclick=()=>revokeDevice(btn.getAttribute('data-revoke-session')); }); }
 async function loadDevices(){
   const token=getToken();
   if(!token){ renderDevices({ok:false,error:{code:'not_signed_in',message:'Sign in first or return from the link-device approval page.'}}); return; }
@@ -750,7 +771,7 @@ function setupGoogle(){
     client_id: GOOGLE_CLIENT_ID,
     callback: async (response) => {
       try {
-        const res = await fetch('/auth/google',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id_token:response.credential})});
+        const res = await fetch('/auth/google',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id_token:response.credential,token_profile:'local_manager_user'})});
         const data = await res.json();
         if(!res.ok || !data.token){ renderDevices(data); return; }
         setToken(data.token, data);
@@ -761,7 +782,7 @@ function setupGoogle(){
   // Allow GIS to localize from the Google Account or browser settings.
   window.google.accounts.id.renderButton($('googleSignIn'), { theme:'outline', size:'large', width:280, text:'continue_with' });
 }
-$('signIn').onclick = async () => { const res=await fetch('/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value})}); const data=await res.json(); if(!res.ok||!data.token){ renderDevices(data); return; } setToken(data.token,data); await loadDevices(); };
+$('signIn').onclick = async () => { const res=await fetch('/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value,token_profile:'local_manager_user'})}); const data=await res.json(); if(!res.ok||!data.token){ renderDevices(data); return; } setToken(data.token,data); await loadDevices(); };
 $('load').onclick = loadDevices;
 function restoreUser(){
   const token=getToken();
@@ -779,10 +800,10 @@ if(restoreUser()) loadDevices();
 </body></html>`;
 }
 
-const LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "0.2.28";
+const LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "0.2.29";
 const LOCAL_MANAGER_WINDOWS_RELEASE_TAG = "local-manager-windows-latest";
-const LOCAL_MANAGER_WINDOWS_EXE_URL = "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-latest/Mad4B-Local-Manager-Setup-0.2.28.exe";
-const LOCAL_MANAGER_WINDOWS_SHA256_URL = "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-latest/Mad4B-Local-Manager-Setup-0.2.28.exe.sha256.json";
+const LOCAL_MANAGER_WINDOWS_EXE_URL = "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-latest/Mad4B-Local-Manager-Setup-0.2.29.exe";
+const LOCAL_MANAGER_WINDOWS_SHA256_URL = "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-latest/Mad4B-Local-Manager-Setup-0.2.29.exe.sha256.json";
 
 function normalizeVersion(value) {
   const raw = String(value || "").trim().replace(/^v/i, "");
@@ -798,57 +819,6 @@ function compareVersions(left, right) {
     if (delta !== 0) return delta > 0 ? 1 : -1;
   }
   return 0;
-}
-
-async function ensureLocalAppReleasesTable() {
-  await getPool().query(`
-    CREATE TABLE IF NOT EXISTS \`local_app_releases\` (
-      \`release_id\` VARCHAR(64) NOT NULL,
-      \`app_key\` VARCHAR(96) NOT NULL,
-      \`platform\` VARCHAR(32) NOT NULL,
-      \`release_channel\` VARCHAR(48) NOT NULL DEFAULT 'stable',
-      \`version\` VARCHAR(80) NOT NULL,
-      \`minimum_supported_version\` VARCHAR(80) NULL,
-      \`release_tag\` VARCHAR(128) NULL,
-      \`artifact_url\` VARCHAR(1024) NOT NULL,
-      \`sha256_url\` VARCHAR(1024) NULL,
-      \`sha256\` VARCHAR(128) NULL,
-      \`update_required\` TINYINT(1) NOT NULL DEFAULT 0,
-      \`release_notes_json\` JSON NULL,
-      \`status\` ENUM('draft','active','deprecated') NOT NULL DEFAULT 'active',
-      \`published_at\` DATETIME NULL,
-      \`created_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      \`updated_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      PRIMARY KEY (\`release_id\`),
-      UNIQUE KEY \`uq_local_app_release_version\` (\`app_key\`, \`platform\`, \`release_channel\`, \`version\`),
-      KEY \`idx_local_app_release_lookup\` (\`app_key\`, \`platform\`, \`release_channel\`, \`status\`, \`published_at\`),
-      KEY \`idx_local_app_release_updated\` (\`updated_at\`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-  `);
-
-  await getPool().query(
-    `INSERT INTO \`local_app_releases\`
-      (release_id, app_key, platform, release_channel, version, minimum_supported_version, release_tag, artifact_url, sha256_url, sha256, update_required, release_notes_json, status, published_at)
-     VALUES (?, 'mad4b-local-manager', 'windows', 'latest-prerelease', ?, NULL, ?, ?, ?, NULL, 0, JSON_ARRAY(
-       'Adds Continue with Google to Local Manager device approval.',
-       'Adds forgot-password entry point while preserving the pairing code.',
-       'Keeps device approval on the installed app polling flow after authentication.'
-     ), 'active', NOW())
-     ON DUPLICATE KEY UPDATE
-       release_tag = VALUES(release_tag),
-       artifact_url = VALUES(artifact_url),
-       sha256_url = VALUES(sha256_url),
-       release_notes_json = VALUES(release_notes_json),
-       status = VALUES(status),
-       published_at = COALESCE(published_at, VALUES(published_at))`,
-    [
-      "mad4b-local-manager-windows-latest-prerelease-0-1-2",
-      LOCAL_MANAGER_WINDOWS_LATEST_VERSION,
-      LOCAL_MANAGER_WINDOWS_RELEASE_TAG,
-      LOCAL_MANAGER_WINDOWS_EXE_URL,
-      LOCAL_MANAGER_WINDOWS_SHA256_URL,
-    ]
-  );
 }
 
 function localManagerFallbackReleaseRow() {
@@ -873,28 +843,47 @@ function localManagerFallbackReleaseRow() {
 }
 
 async function latestLocalManagerWindowsRelease() {
+  const fallback = localManagerFallbackReleaseRow();
   try {
-    await ensureLocalAppReleasesTable();
     const [rows] = await getPool().query(
       `SELECT * FROM \`local_app_releases\`
         WHERE app_key = 'mad4b-local-manager'
           AND platform = 'windows'
           AND release_channel = 'latest-prerelease'
           AND status = 'active'
-        ORDER BY COALESCE(published_at, updated_at, created_at) DESC, version DESC
-        LIMIT 1`
+        ORDER BY COALESCE(published_at, updated_at, created_at) DESC, version DESC, release_id DESC
+        LIMIT 2`
     );
-    const fallback = localManagerFallbackReleaseRow();
-    if (!rows[0]) return fallback;
-    const selected = { ...rows[0], source: "db" };
+    const [selectedRow = null] = rows;
+    if (!selectedRow) {
+      return {
+        ...fallback,
+        source: "code_fallback_registry_empty",
+        registry_degraded: true,
+        registry_reason: "local_app_release_registry_empty",
+      };
+    }
+    const selected = { ...selectedRow, source: "db", registry_degraded: false, registry_reason: null };
     const fallbackVersion = normalizeVersion(fallback.version);
     const selectedVersion = normalizeVersion(selected.version);
     if (compareVersions(fallbackVersion, selectedVersion) > 0) {
-      return { ...fallback, source: "code_fallback_newer_than_db", stale_db_version: selected.version || null, stale_db_release_id: selected.release_id || null };
+      return {
+        ...fallback,
+        source: "code_fallback_newer_than_db",
+        registry_degraded: true,
+        registry_reason: "local_app_release_registry_stale",
+        stale_db_version: selected.version || null,
+        stale_db_release_id: selected.release_id || null,
+      };
     }
     return selected;
   } catch {
-    return localManagerFallbackReleaseRow();
+    return {
+      ...fallback,
+      source: "code_fallback_registry_unavailable",
+      registry_degraded: true,
+      registry_reason: "local_app_release_registry_unavailable",
+    };
   }
 }
 
@@ -920,6 +909,8 @@ async function localManagerWindowsUpdateInfo(req) {
     sha256: release.sha256 || null,
     release_notes: Array.isArray(notes) ? notes : [],
     registry_source: release.source || "db",
+    registry_degraded: release.registry_degraded === true,
+    registry_reason: release.registry_reason || null,
     checked_at: new Date().toISOString(),
     secrets_included: false,
   };
@@ -1076,13 +1067,15 @@ export function buildLocalManagerBetaRoutes(deps) {
     }));
   });
 
-  router.post("/local-manager/device-link/start", startDeviceLinkSession);
-  router.get("/local-manager/device-link/preview", previewDeviceLinkSession);
-  router.post("/local-manager/device-link/poll", pollDeviceLinkSession);
+  router.post("/local-manager/device-link/start", localManagerPublicPairingResilience, startDeviceLinkSession);
+  router.get("/local-manager/device-link/preview", localManagerPublicPairingResilience, previewDeviceLinkSession);
+  router.post("/local-manager/device-link/poll", localManagerPublicPairingResilience, pollDeviceLinkSession);
   router.post("/local-manager/device-link/approve", approveDeviceLinkSession);
   router.get("/local-manager/device-link/devices", listLinkedDevices);
+  router.post("/local-manager/device-link/devices/:sessionId/revoke", requireLocalManagerUserRouteGuard, revokeDeviceLinkSession);
   router.get("/local-manager/device/session", getDeviceSession);
   router.get("/local-manager/device/controls", getDeviceControls);
+  router.post("/local-manager/device/n8n/provision", requireLocalManagerUserRouteGuard, provisionDeviceN8n);
 
   router.get("/app/local-manager/admin", (_req, res) => {
     res.setHeader("Content-Type", "text/html; charset=utf-8");

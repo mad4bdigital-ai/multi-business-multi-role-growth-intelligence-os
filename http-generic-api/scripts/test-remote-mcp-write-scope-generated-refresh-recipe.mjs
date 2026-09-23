@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { evaluateRepository } from "./e2e-phase-governance.mjs";
 
-const CONTRACT = "mad4b.remote-mcp-write-scope-generated-refresh-recipe-test.v5";
+const CONTRACT = "mad4b.remote-mcp-write-scope-generated-refresh-recipe-test.v6";
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const readRepositoryFile = (...parts) => fs.readFileSync(path.join(repositoryRoot, ...parts), "utf8");
 const toolSource = readRepositoryFile("http-generic-api", "scripts", "maintenance-tools", "generated-artifact-refresh.mjs");
@@ -82,6 +82,17 @@ check("frontend-recipe-keeps-portable-manifest-converged", () => {
   assert.ok(frontendStart >= 0 && manifestRefresh > frontendStart && verification > manifestRefresh);
 });
 
+check("frontend-recipe-keeps-activation-gateway-runtime-bundle-converged", () => {
+  assert.match(toolSource, /FRONTEND_OPENAPI_ALLOWED_CHANGED_FILES[\s\S]*http-generic-api\/activation-gateway-runtime\/generated\/route-policy\.json/u);
+  assert.match(toolSource, /FRONTEND_OPENAPI_ALLOWED_CHANGED_FILES[\s\S]*http-generic-api\/activation-gateway-runtime\/bundle-manifest\.json/u);
+  const frontendStart = toolSource.indexOf("function runFrontendOpenApiRefresh()");
+  const gatewaySync = toolSource.indexOf("sync_activation_gateway_runtime_bundle", frontendStart);
+  const manifestRefresh = toolSource.indexOf("refreshPortableStagingManifest();", frontendStart);
+  const schemaGuard = toolSource.indexOf("verify_schema_guard", frontendStart);
+  assert.ok(frontendStart >= 0 && gatewaySync > frontendStart && manifestRefresh > gatewaySync && schemaGuard > manifestRefresh);
+});
+
+
 check("writer-dispatch-registers-recipe-and-dedicated-verifier", () => {
   assert.match(writerWorkflowSource, /- remote_mcp_write_scope_refresh/u);
   assert.match(writerWorkflowSource, /remote_mcp_write_scope_refresh/u);
@@ -103,6 +114,14 @@ check("remote-verifier-is-read-only-exact-head-and-root-scoped", () => {
   assert.match(verifierWorkflowSource, /run: npm run write-scopes:inventory:check/u);
   assert.match(verifierWorkflowSource, /run: npm run write-scopes:inventory:test/u);
   assert.doesNotMatch(verifierWorkflowSource, /working-directory:\s*http-generic-api/u);
+});
+
+check("maintenance-governance-registers-frontend-gateway-mirror-outputs", () => {
+  const patterns = governance.tools?.["generated-artifact-refresh"]?.allowed_changed_path_patterns || [];
+  for (const pattern of [
+    "^http-generic-api/activation-gateway-runtime/generated/route-policy\\.json$",
+    "^http-generic-api/activation-gateway-runtime/bundle-manifest\\.json$",
+  ]) assert.ok(patterns.includes(pattern), `missing governed frontend gateway mirror output: ${pattern}`);
 });
 
 check("maintenance-governance-registers-exact-three-remote-refresh-outputs", () => {
@@ -152,7 +171,7 @@ check("e2e-phase-classifies-bounded-refresh-tooling-as-governance-only", () => {
 const report = {
   contract: CONTRACT,
   ok: failures.length === 0,
-  checks: 9,
+  checks: 11,
   failures,
   repository_mutation: false,
   runtime_mutation: false,

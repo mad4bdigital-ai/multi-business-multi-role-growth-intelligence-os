@@ -9,6 +9,42 @@ oauth_client_contract:
   activation_gateway_alias: true
   consent_model: one_client_resource_bound
 registration_sets:
+  admin_core_production:
+    registration_class: custom_gpt_admin_actions
+    consumer_principal_class: admin_gpt
+    audience: admin_service
+    auth_profile: admin_service
+    environment: production
+    server_uri: https://auth.mad4b.com
+    public_host: auth.mad4b.com
+    upstream_origin: https://auth.mad4b.com
+    gateway_host: auth.mad4b.com
+    scope_authority: admin_service
+    oauth_issuer: null
+    action_slot: admin_core
+    output_surface: admin_core_production
+    members:
+      - admin_core_production
+    hard_operation_limit: 30
+    warning_operation_limit: 30
+  admin_core_staging:
+    registration_class: custom_gpt_admin_actions
+    consumer_principal_class: admin_gpt
+    audience: admin_service
+    auth_profile: admin_service
+    environment: staging
+    server_uri: https://dev.mad4b.com
+    public_host: dev.mad4b.com
+    upstream_origin: https://dev.mad4b.com
+    gateway_host: dev.mad4b.com
+    scope_authority: admin_service
+    oauth_issuer: null
+    action_slot: admin_core
+    output_surface: admin_core_staging
+    members:
+      - admin_core_staging
+    hard_operation_limit: 30
+    warning_operation_limit: 30
   admin_activation_production:
     registration_class: custom_gpt_admin_actions
     consumer_principal_class: admin_gpt
@@ -29,7 +65,7 @@ registration_sets:
       - tenant_activation_production
     hard_operation_limit: 20
     warning_operation_limit: 16
-  production_recovery:
+  admin_recovery_production:
     registration_class: custom_gpt_admin_actions
     consumer_principal_class: admin_gpt
     audience: admin_service
@@ -49,6 +85,26 @@ registration_sets:
       - tenant_activation_production
     hard_operation_limit: 12
     warning_operation_limit: 12
+  admin_recovery_staging:
+    registration_mode: embedded_member
+    parent_registration_set: admin_activation_staging
+    registration_class: custom_gpt_admin_embedded_actions
+    consumer_principal_class: admin_gpt
+    audience: admin_service
+    auth_profile: admin_service
+    environment: staging
+    server_uri: https://activation-dev.mad4b.com
+    public_host: activation-dev.mad4b.com
+    upstream_origin: https://dev.mad4b.com
+    gateway_host: activation-dev.mad4b.com
+    scope_authority: admin_service
+    oauth_issuer: null
+    action_slot: admin_activation
+    output_surface: activation_admin_staging
+    members:
+      - admin_recovery_staging
+    hard_operation_limit: 5
+    warning_operation_limit: 5
   admin_activation_staging:
     registration_class: custom_gpt_admin_actions
     consumer_principal_class: admin_gpt
@@ -65,6 +121,7 @@ registration_sets:
     output_surface: activation_admin_staging
     members:
       - activation_admin_staging
+    embedded_members:
       - admin_recovery_staging
     tenant_surfaces_forbidden:
       - tenant_activation_staging
@@ -133,6 +190,10 @@ surfaces:
         - system-layer
       omission: fail
       exclusion_records:
+        - operation_id: wordpressStagingPluginDeploy
+          reason: Staging-only exact-artifact WordPress deployment is an internal governed admin/runtime operation and must not be exposed through public Custom GPT action surfaces.
+          owner: runtime-operations
+          review_after: 2026-09-30
         - operation_id: revokeAuthOAuthSsoSession
           reason: Shared OAuth and SSO lifecycle endpoint remains outside the public Custom GPT operation surfaces; revocation is handled by the auth boundary.
           owner: identity-platform
@@ -221,6 +282,10 @@ surfaces:
           reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
           owner: platform-governance
           review_after: 2026-09-30
+        - operation_id: getRemoteRuntimeTargetCatalogReadonly
+          reason: Staging-only Remote Runtime target catalog is projected only through the dedicated GET-only Staging Admin schema and must not consume or leak into the shared Admin Core surface.
+          owner: platform-governance
+          review_after: 2026-10-15
     selector:
       source_markers:
         - admin_core
@@ -1070,7 +1135,7 @@ surfaces:
   admin_recovery_production:
     mode: generated_from_openapi
     registration_status: standalone
-    registration_set: production_recovery
+    registration_set: admin_recovery_production
     action_slot: recovery_kernel
     base_surface: admin_core
     source_surface_key: admin_recovery_production
@@ -1097,29 +1162,53 @@ surfaces:
       source_markers:
         - admin_recovery_production
   admin_recovery_staging:
-    mode: canonical_copy
+    mode: generated_from_openapi
     registration_status: embedded
     embed_into: activation_admin_staging
-    registration_set: admin_activation_staging
+    registration_set: admin_recovery_staging
+    embed_registration_set: admin_activation_staging
     action_slot: admin_activation
     private_only: true
     environment: staging
     domain_service: activation
-    canonical_file: http-generic-api/openapi/openapi.custom-gpt.recovery-admin.staging.yaml
     output_file: openapi/openapi.custom-gpt.recovery-admin.staging.yaml
     server_url: https://activation-dev.mad4b.com
     auth_profile: admin_service
-    hard_operation_limit: 3
-    warning_operation_limit: 3
+    hard_operation_limit: 5
+    warning_operation_limit: 5
+    expected_operation_manifest:
+      operation_count: 5
+      operation_ids:
+        - getStagingRecoveryAdminContract
+        - getStagingRecoveryAdminReadiness
+        - getStagingRecoveryCertificationStatus
+        - previewStagingActivationGatewayRolloutPlan
+        - prepareStagingActivationGatewayDarkDeployDryRun
     info:
       title: Growth Intelligence Platform - Staging Recovery Admin
-      summary: Private Staging-only Recovery readiness and certification-status surface.
-      description: This canonical Staging surface exposes only bounded GET operations. Consequential certification execution remains a separately authorized workflow and Production authority is forbidden.
+      summary: Private Staging-only Recovery readiness, certification, and bounded Gateway preflight surface.
+      description: Generated from the canonical source OpenAPI. Exposes three bounded reads plus rollout preview and dark-deploy dry-run preparation; Production/provider/target-database apply authority is never advertised.
+    candidate_policy:
+      mode: marker_required
+      required_marker: admin_recovery_staging
+      candidate_tags:
+        - staging-recovery
+      omission: fail
+      exclusion_records: []
+    selector:
+      source_markers:
+        - admin_recovery_staging
   admin_core_production:
     mode: generated_from_openapi
+    registration_set: admin_core_production
+    action_slot: admin_core
     base_surface: admin_core
     environment: production
     domain_service: auth
+    server_url: https://auth.mad4b.com
+    auth_profile: admin_service
+    hard_operation_limit: 30
+    warning_operation_limit: 30
     output_file: openapi/openapi.custom-gpt.auth-dispatcher.production.yaml
     info:
       title: Growth Intelligence Platform - Admin Core Actions - production
@@ -1127,9 +1216,15 @@ surfaces:
       description: Stable Admin Core transport. Prefer bounded operation preview/execute/status for known intents; use generic MCP tool dispatch only as a governed fallback for unknown or unclassified operations. Dynamic MCP tool schemas remain SQL-driven. Environment is resolved from the fail-closed domain-family policy.
   admin_core_staging:
     mode: generated_from_openapi
+    registration_set: admin_core_staging
+    action_slot: admin_core
     base_surface: admin_core
     environment: staging
     domain_service: auth
+    server_url: https://dev.mad4b.com
+    auth_profile: admin_service
+    hard_operation_limit: 30
+    warning_operation_limit: 30
     output_file: openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml
     info:
       title: Growth Intelligence Platform - Admin Core Actions - staging

@@ -1343,11 +1343,13 @@ export function buildLocalConnectorInstallRoutes(deps) {
         app_managed: appManaged,
         run_as_admin_required: true,
         auth_context: device.auth_context,
-        reauth_required_for_stale_device_tokens: false,
+        reauth_required_for_stale_device_tokens: true,
+        fresh_authorization_max_age_seconds: device.auth_context?.privileged_authorization_max_age_seconds || 900,
+        step_up_header: "x-local-manager-user-authorization",
         secrets_included: false,
       });
     } catch (err) {
-      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "device_download_link_failed", message: err.message }, secrets_included: false });
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "device_download_link_failed", message: err.message, ...(err.details ? { details: err.details } : {}) }, secrets_included: false });
     }
   });
 

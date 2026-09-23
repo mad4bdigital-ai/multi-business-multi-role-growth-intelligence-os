@@ -1,0 +1,111 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-doctor-runtime-readiness-convergence-20260922",
+  "title": "Repair Staging convergence diagnostics and Runtime DB semantic readiness wiring",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-doctor-runtime-readiness-convergence-20260922.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
+      "autopilot-portable-staging/Staging-Doctor.ps1",
+      "http-generic-api/routes/deploymentInfoRoutes.js",
+      "http-generic-api/server.js",
+      "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
+      "http-generic-api/test-runtime-persistence-wiring.mjs",
+      "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+      "http-generic-api/test-staging-operations-logging-contract.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Keep Staging Doctor and One-Click convergence diagnostics exact-current while wiring deployment-info semantic readiness to the Runtime DB without crossing the Runtime Persistence DB boundary.",
+      "e2e_journeys": [
+        {
+          "id": "staging-diagnostics-runtime-db-readiness",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging operator",
+          "entrypoint": "Run Staging Doctor/One-Click diagnostics and query /deployment-info?include_platform_admin_semantic_readiness=1 on the exact candidate.",
+          "terminal_outcome": "Diagnostics parse safely, shared convergence preflight is refreshed when stale, and semantic readiness reads workspace_registry through the Runtime DB while Runtime Persistence remains separate.",
+          "steps": [
+            "Validate the Staging Doctor git-command guard and operations logging contract.",
+            "Refresh the shared read-only convergence preflight when the current schema/governance evidence is missing, stale, or non-exact.",
+            "Resolve /deployment-info through the deployment composition root with the Runtime DB read dependency.",
+            "Keep Runtime Persistence DB wiring separate from workspace_registry semantic readiness.",
+            "Verify exact-current frontend and Remote MCP generated evidence.",
+            "Require live Staging certification before any promotion decision."
+          ],
+          "assertions": [
+            "Staging Doctor PowerShell command detection is syntactically valid and guarded.",
+            "One-Click convergence uses exact-current read-only evidence before plan creation.",
+            "deployment-info semantic readiness performs the bounded Runtime DB workspace_registry read.",
+            "Runtime Persistence DB is not substituted for Runtime DB semantic readiness.",
+            "Production deployment, Production mutation, provider mutation, DNS mutation, credential mutation, database mutation, and grant widening are not authorized.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "runtime-gate-deployment-info-parity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-gate-deployment-info-parity.mjs",
+              "args": []
+            },
+            {
+              "id": "runtime-persistence-wiring",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-persistence-wiring.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-one-click-autopilot-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-one-click-autopilot-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-operations-logging-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-operations-logging-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-doctor-runtime-readiness-convergence-20260922.json",
+            "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
+            "autopilot-portable-staging/Staging-Doctor.ps1",
+            "http-generic-api/routes/deploymentInfoRoutes.js",
+            "http-generic-api/server.js",
+            "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
+            "http-generic-api/test-runtime-persistence-wiring.mjs",
+            "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
+            "http-generic-api/test-staging-operations-logging-contract.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

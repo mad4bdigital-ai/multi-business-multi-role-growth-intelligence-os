@@ -22,13 +22,14 @@ const gateRejectIndex = executor.indexOf("if (!executorGate.enabled)", executorG
 const planReadyIndex = executor.indexOf("if (!plan.dispatch_ready)", deployFunctionIndex);
 const envelopeGateIndex = executor.indexOf("const envelope = await resolveCapabilityEnvelopeForHostingerDeploy", deployFunctionIndex);
 const credentialIndex = executor.indexOf("const sshConnection = await resolveSshConnectionCredentials", deployFunctionIndex);
-const sshCommandIndex = executor.indexOf("const sshResult = await runSshCommand", deployFunctionIndex);
+const sshCommandIndex = executor.indexOf("const sshResult = await runHostingerSshCommand", deployFunctionIndex);
 assert.ok(executorGateIndex > -1, "Hostinger deploy execution must remain behind the ENV-or-DB executor gate.");
 assert.ok(gateRejectIndex > executorGateIndex, "Disabled executor gates must fail closed before dispatch.");
 assert.ok(planReadyIndex > gateRejectIndex, "Dispatch plan readiness must still be checked after the executor gate.");
 assert.ok(envelopeGateIndex > planReadyIndex, "Capability envelope must be checked after dispatch dry-run readiness.");
 assert.ok(credentialIndex > envelopeGateIndex, "SSH credentials must not resolve before capability envelope validation.");
-assert.ok(sshCommandIndex > credentialIndex, "SSH command must run only after credential resolution and envelope validation.");
+assert.ok(sshCommandIndex > credentialIndex, "Shared Hostinger SSH command must run only after credential resolution and envelope validation.");
+assert.match(executor, /export function runHostingerSshCommand/);
 
 assert.match(migration, /hostinger_deploy_capability_envelope_requirement_v1/);
 assert.match(migration, /capability_resolution_envelope_ledger/);

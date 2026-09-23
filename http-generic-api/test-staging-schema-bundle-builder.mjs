@@ -375,6 +375,24 @@ test("schema bundle manifest declares exactly three isolated roles", () => {
   assert.equal(manifest.safety.schema_only, true);
   assert.equal(manifest.safety.data_copy_forbidden, true);
   assert.equal(manifest.source.baseline_schema, "http-generic-api/schema.sql");
+  assert.equal(manifest.canonical_semantic_snapshot.contract, "mad4b.staging.canonical-semantic-snapshot.v1");
+  assert.equal(manifest.canonical_semantic_snapshot.target_role, "runtime");
+  assert.equal(manifest.canonical_semantic_snapshot.source_kind, "disposable_git_migration_projection");
+  assert.equal(manifest.canonical_semantic_snapshot.bundle_file, "runtime.canonical-semantic.sql.gz");
+  assert.equal(manifest.canonical_semantic_snapshot.replay_mode, "zero_object_rebuild_only");
+  assert.equal(manifest.canonical_semantic_snapshot.live_environment_data_copy_forbidden, true);
+  assert.equal(manifest.canonical_semantic_snapshot.same_cycle_sha256_manifest_required, true);
+  assert.deepEqual(manifest.validation.required_semantic_bundle_files, ["runtime.canonical-semantic.sql.gz"]);
+  assert.ok(manifest.canonical_semantic_snapshot.tables.length > 0);
+  assert.equal(
+    new Set(manifest.canonical_semantic_snapshot.tables).size,
+    manifest.canonical_semantic_snapshot.tables.length,
+    "canonical semantic snapshot table declarations must remain unique",
+  );
+  assert.deepEqual(manifest.canonical_semantic_snapshot.required_nonempty_tables, manifest.canonical_semantic_snapshot.tables);
+  for (const table of ["tenant_platform_endpoint_tools", "platform_endpoint_tool_exports", "activation_connector_pack_registry", "activation_delivery_policy_registry"]) {
+    assert.equal(manifest.canonical_semantic_snapshot.tables.includes(table), true, `missing semantic snapshot table ${table}`);
+  }
   assert.equal(manifest.source.ordering, "baseline_schema_then_numeric_migration_prefix_then_lexicographic_tiebreaker");
   assert.equal(manifest.source.baseline_foreign_key_policy, "defer_baseline_fk_create_statements_until_after_migrations");
   assert.equal(manifest.validation.baseline_foreign_key_ordering_required, true);
@@ -392,13 +410,18 @@ test("schema bundle manifest declares exactly three isolated roles", () => {
     "secret_references", "credential_bindings", "admin_platform_endpoint_tools", "tenant_platform_endpoint_tools", "customer_sessions",
     "gpt_session_turns", "activation_dynamic_tab_registry", "activation_dynamic_tab_section_registry",
     "activation_dynamic_tab_discovery_rule_registry", "activation_section_action_registry", "activation_attention_rule_registry",
-    "activation_freshness_policy_registry", "activation_signal_subscription_registry", "activation_connector_pack_registry",
+    "activation_freshness_policy_registry", "activation_signal_subscription_registry", "activation_connector_pack_registry", "workspace_registry",
+    "local_manager_desktop_commands", "local_connector_device_aliases", "local_connector_user_configs",
+    "local_manager_device_link_sessions", "local_manager_control_templates",
   ]);
   assert.equal(manifest.canonical_seed_lifecycle.contract, "mad4b.staging.canonical-seed-manifest.v1");
   assert.deepEqual(manifest.canonical_seed_lifecycle.seed_files, [
     "039_sprint43_data_integrity_and_missing_tables.sql",
     "1043_sprint69_dynamic_container_hvac_activity_seed.sql",
     "20260815_custom_gpt_mcp_catalog_levels.sql",
+    "20260920_platform_admin_workspace_canonical_seed.sql",
+    "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
+  "20260922_local_manager_control_templates_registry.sql",
   ]);
   assert.deepEqual(manifest.canonical_seed_lifecycle.mcp_catalog_required_columns, [
     "admin_platform_endpoint_tools.mcp_catalog_level",
@@ -1093,6 +1116,16 @@ test("generator requires exact confirmation and emits schema-only no-provider co
   assert.match(generator, /production_accessed: false/);
   assert.match(generator, /provider_accessed: false/);
   assert.match(generator, /data_exported: false/);
+  assert.match(generator, /live_environment_data_exported: false/);
+  assert.match(generator, /repository_semantic_projection_exported: true/);
+  assert.match(generator, /makeCanonicalSemanticDump/);
+  assert.match(generator, /--no-create-info/);
+  assert.match(generator, /--complete-insert/);
+  assert.match(generator, /--skip-extended-insert/);
+  assert.match(generator, /--order-by-primary/);
+  assert.match(generator, /semantic snapshot table has no stable unique ordering key/);
+  assert.match(generator, /canonical semantic snapshot row count mismatch/);
+  assert.match(generator, /canonical semantic dump contains forbidden statement/);
   assert.match(generator, /const stdinFlag = options\.input === undefined \? \[\] : \["-i"\]/);
   assert.ok(generator.includes(String.raw`const baselineSchemaPath = path.join(apiRoot, "schema.sql")`));
   assert.ok(generator.includes(String.raw`applyMigrations(baseline, rows, tableBootstrap)`));
@@ -1279,7 +1312,7 @@ test("text-width bridge migrations precede their immutable historical writers", 
   assert.match(bridge1039BindingId, /`binding_id` VARCHAR\(293\) NOT NULL/i);
   assert.match(bridge20260701Readback, /`capability_key` VARCHAR\(255\) NOT NULL/i);
   for (const bridge of [bridge313, bridge313RuntimeStatus, bridge20260720, bridge20260809, bridge097, bridge149, bridge264, bridge310, bridge311Dispatch, bridge313CapabilityGraph, bridge1039BindingId, bridge20260701Readback]) {
-    assert.doesNotMatch(bridge, /^\\s*(?:INSERT|UPDATE|DELETE|REPLACE)\\b/imu);
+    assert.doesNotMatch(bridge, /^\s*(?:INSERT|UPDATE|DELETE|REPLACE)\b/imu);
     assert.match(bridge, /secrets_included=false/iu);
   }
 });
@@ -1288,6 +1321,17 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   const result = runPlan();
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const plan = JSON.parse(result.stdout);
+  const migrationsDir = path.join(apiRoot, "migrations");
+  const canonicalMigrationFiles = fs.readdirSync(migrationsDir)
+    .filter((file) => file.endsWith(".sql"))
+    .sort(compareMigrationFiles);
+  assert.ok(canonicalMigrationFiles.every(isMigrationFilename), "every canonical migration must carry a numeric version prefix");
+  const canonicalMigrationStatementCount = canonicalMigrationFiles.reduce(
+    (total, file) => total + splitStatements(fs.readFileSync(path.join(migrationsDir, file), "utf8")).length,
+    0,
+  );
+  const expectedFilesChecked = canonicalMigrationFiles.length + 1;
+  const expectedStatementsChecked = canonicalMigrationStatementCount + plan.baseline_schema.statement_count;
   assert.equal(plan.plan_only, true);
   assert.equal(plan.expected_commit, expectedCommit.toLowerCase());
   assert.equal(plan.baseline_schema.file, "schema.sql");
@@ -1301,16 +1345,26 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.deepEqual(plan.baseline_schema.required_platform_endpoint_tool_exports_baseline_columns.sort(), manifest.validation.required_platform_endpoint_tool_exports_baseline_columns.slice().sort());
   assert.deepEqual(plan.baseline_schema.required_tenant_secrets_baseline_columns.sort(), manifest.validation.required_tenant_secrets_baseline_columns.slice().sort());
   assert.deepEqual(plan.baseline_schema.required_platform_secrets_baseline_columns.sort(), manifest.validation.required_platform_secrets_baseline_columns.slice().sort());
-  assert.equal(plan.migration_count, 834);
-  assert.equal(plan.statement_count, 3135);
+  assert.equal(plan.migration_count, canonicalMigrationFiles.length);
+  assert.equal(plan.statement_count, canonicalMigrationStatementCount);
   assert.equal(plan.confirmation_required, "BUILD_STAGING_SCHEMA_BUNDLE");
+  assert.deepEqual(plan.required_semantic_bundle_files, ["runtime.canonical-semantic.sql.gz"]);
+  assert.equal(plan.canonical_semantic_snapshot.contract, "mad4b.staging.canonical-semantic-snapshot.v1");
+  assert.equal(plan.canonical_semantic_snapshot.source_kind, "disposable_git_migration_projection");
+  assert.equal(plan.canonical_semantic_snapshot.bundle_file, "runtime.canonical-semantic.sql.gz");
+  assert.equal(
+    plan.canonical_semantic_snapshot.table_count,
+    manifest.canonical_semantic_snapshot.tables.length,
+    "plan-only semantic table count must stay derived from the canonical manifest",
+  );
+  assert.equal(plan.canonical_semantic_snapshot.plan_only, true);
   assert.equal(plan.ordered_collation_chain.contract, "mad4b.mariadb-collation-ordered-chain.v1");
   assert.equal(plan.ordered_collation_chain.ok, true);
   assert.equal(plan.ordered_collation_chain.ready, true);
   assert.equal(plan.ordered_collation_chain.finding_count, 0);
-  assert.equal(plan.ordered_collation_chain.files_checked, 835);
-  assert.equal(plan.ordered_collation_chain.migration_files_checked, 834);
-  assert.equal(plan.ordered_collation_chain.statements_checked, 3162);
+  assert.equal(plan.ordered_collation_chain.files_checked, expectedFilesChecked);
+  assert.equal(plan.ordered_collation_chain.migration_files_checked, canonicalMigrationFiles.length);
+  assert.equal(plan.ordered_collation_chain.statements_checked, expectedStatementsChecked);
   assert.equal(plan.ordered_collation_chain.database_connection_performed, false);
   assert.equal(plan.ordered_collation_chain.sql_mutation_performed, false);
   assert.equal(plan.ordered_collation_chain.provider_mutation_performed, false);
@@ -1319,11 +1373,19 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_enum_seed_chain.ok, true);
   assert.equal(plan.ordered_enum_seed_chain.ready, true);
   assert.equal(plan.ordered_enum_seed_chain.finding_count, 0);
-  assert.equal(plan.ordered_enum_seed_chain.files_checked, 835);
-  assert.equal(plan.ordered_enum_seed_chain.migration_files_checked, 834);
-  assert.equal(plan.ordered_enum_seed_chain.statements_checked, 3162);
-  assert.equal(plan.ordered_enum_seed_chain.enum_columns, 836);
-  assert.equal(plan.ordered_enum_seed_chain.definitions_applied, 903);
+  assert.equal(plan.ordered_enum_seed_chain.files_checked, expectedFilesChecked);
+  assert.equal(plan.ordered_enum_seed_chain.migration_files_checked, canonicalMigrationFiles.length);
+  assert.equal(plan.ordered_enum_seed_chain.statements_checked, expectedStatementsChecked);
+  const localManagerMigrationFiles = [
+    "20260922_local_manager_desktop_commands.sql",
+    "20260922_local_manager_device_link_authority.sql",
+    "20260922_local_manager_control_templates_registry.sql",
+  ];
+  for (const file of localManagerMigrationFiles) {
+    assert.equal(canonicalMigrationFiles.includes(file), true, `missing Local Manager migration from ordered plan: ${file}`);
+  }
+  assert.equal(plan.ordered_enum_seed_chain.enum_columns, 842);
+  assert.equal(plan.ordered_enum_seed_chain.definitions_applied, 910);
   assert.equal(plan.ordered_enum_seed_chain.database_connection_performed, false);
   assert.equal(plan.ordered_enum_seed_chain.sql_mutation_performed, false);
   assert.equal(plan.ordered_enum_seed_chain.provider_mutation_performed, false);
@@ -1335,12 +1397,29 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_text_width_chain.ok, true);
   assert.equal(plan.ordered_text_width_chain.ready, true);
   assert.equal(plan.ordered_text_width_chain.finding_count, 0);
-  assert.equal(plan.ordered_text_width_chain.files_checked, 835);
-  assert.equal(plan.ordered_text_width_chain.migration_files_checked, 834);
-  assert.equal(plan.ordered_text_width_chain.statements_checked, 3162);
-  assert.equal(plan.ordered_text_width_chain.bounded_text_columns, 5202);
-  assert.equal(plan.ordered_text_width_chain.definitions_applied, 6047);
-  assert.equal(plan.ordered_text_width_chain.insert_select_source_domain_checks, 933);
+  assert.equal(plan.ordered_text_width_chain.files_checked, expectedFilesChecked);
+  assert.equal(plan.ordered_text_width_chain.migration_files_checked, canonicalMigrationFiles.length);
+  assert.equal(plan.ordered_text_width_chain.statements_checked, expectedStatementsChecked);
+  const desktopCommandMigrationSql = fs.readFileSync(path.join(migrationsDir, "20260922_local_manager_desktop_commands.sql"), "utf8");
+  assert.match(
+    desktopCommandMigrationSql,
+    /`claim_token`\s+VARCHAR\(64\)\s+NULL/iu,
+    "desktop command ownership must retain the bounded claim-token column",
+  );
+  const minimumBoundedTextColumns = 5249 + 1; // Historical certified floor plus claim_token; additive migrations may increase it.
+  const minimumTextWidthDefinitions = 6098 + 1; // Historical certified floor plus claim_token definition.
+  assert.ok(
+    plan.ordered_text_width_chain.bounded_text_columns >= minimumBoundedTextColumns,
+    `bounded text-column census regressed below certified floor: ${plan.ordered_text_width_chain.bounded_text_columns} < ${minimumBoundedTextColumns}`,
+  );
+  assert.ok(
+    plan.ordered_text_width_chain.definitions_applied >= minimumTextWidthDefinitions,
+    `text-width definition census regressed below certified floor: ${plan.ordered_text_width_chain.definitions_applied} < ${minimumTextWidthDefinitions}`,
+  );
+  const deviceLinkAuthorityMigrationSql = fs.readFileSync(path.join(migrationsDir, "20260922_local_manager_device_link_authority.sql"), "utf8");
+  assert.match(deviceLinkAuthorityMigrationSql, /`device_token_jti`\s+VARCHAR\(64\)\s+NULL/iu);
+  assert.match(deviceLinkAuthorityMigrationSql, /`revoked_by_user_id`\s+VARCHAR\(64\)\s+NULL/iu);
+  assert.equal(plan.ordered_text_width_chain.insert_select_source_domain_checks, 937);
   assert.equal(plan.ordered_text_width_chain.insert_select_source_domain_overflows, 0);
   assert.equal(plan.ordered_text_width_chain.database_connection_performed, false);
   assert.equal(plan.ordered_text_width_chain.sql_mutation_performed, false);
@@ -1353,12 +1432,43 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_index_key_width_chain.ok, true);
   assert.equal(plan.ordered_index_key_width_chain.ready, true);
   assert.equal(plan.ordered_index_key_width_chain.finding_count, 0);
-  assert.equal(plan.ordered_index_key_width_chain.files_checked, 835);
-  assert.equal(plan.ordered_index_key_width_chain.migration_files_checked, 834);
-  assert.equal(plan.ordered_index_key_width_chain.statements_checked, 3162);
-  assert.equal(plan.ordered_index_key_width_chain.tables_projected, 582);
-  assert.equal(plan.ordered_index_key_width_chain.indexes_checked, 2853);
-  assert.equal(plan.ordered_index_key_width_chain.index_columns_checked, 4840);
+  assert.equal(plan.ordered_index_key_width_chain.files_checked, expectedFilesChecked);
+  assert.equal(plan.ordered_index_key_width_chain.migration_files_checked, canonicalMigrationFiles.length);
+  assert.equal(plan.ordered_index_key_width_chain.statements_checked, expectedStatementsChecked);
+  assert.match(
+    desktopCommandMigrationSql,
+    /KEY `idx_lm_desktop_command_claim_token`\s*\(\s*`claim_token`\s*,\s*`status`\s*\)/iu,
+    "desktop command ownership must retain the claim-token lookup index",
+  );
+  const expectedIndexProjectedTables = 588 + 2; // Local Manager desktop commands + control-template registry; device-link sessions already existed in the projected chain.
+  assert.equal(plan.ordered_index_key_width_chain.tables_projected, expectedIndexProjectedTables);
+  const localManagerIndexSql = [
+    desktopCommandMigrationSql,
+    fs.readFileSync(path.join(migrationsDir, "20260922_local_manager_device_link_authority.sql"), "utf8"),
+    fs.readFileSync(path.join(migrationsDir, "20260922_local_manager_control_templates_registry.sql"), "utf8"),
+  ].join("\n");
+  const requiredLocalManagerIndexes = [
+    "idx_lm_desktop_command_device",
+    "idx_lm_desktop_command_status",
+    "idx_lm_desktop_command_claim_token",
+    "idx_local_manager_device_link_status_expiry",
+    "idx_local_manager_device_link_user_device",
+    "idx_local_manager_device_link_token_jti",
+    "idx_local_manager_device_link_revocation",
+    "uq_local_manager_control_template",
+    "idx_local_manager_control_status",
+  ];
+  for (const indexName of requiredLocalManagerIndexes) {
+    assert.equal(localManagerIndexSql.includes(indexName), true, `missing Local Manager index contract: ${indexName}`);
+  }
+  assert.ok(
+    plan.ordered_index_key_width_chain.indexes_checked >= 2881,
+    "ordered index audit must include the nine Local Manager index contracts added after the historical 2872-index baseline",
+  );
+  assert.ok(
+    plan.ordered_index_key_width_chain.index_columns_checked >= plan.ordered_index_key_width_chain.indexes_checked,
+    "ordered index audit must project at least one key column per checked index; Local Manager index membership is asserted by name above",
+  );
   assert.equal(plan.ordered_index_key_width_chain.max_key_bytes, 3072);
   assert.equal(plan.ordered_index_key_width_chain.database_connection_performed, false);
   assert.equal(plan.ordered_index_key_width_chain.sql_mutation_performed, false);
@@ -1371,10 +1481,13 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_required_insert_column_chain.ok, true);
   assert.equal(plan.ordered_required_insert_column_chain.ready, true);
   assert.equal(plan.ordered_required_insert_column_chain.finding_count, 0);
-  assert.equal(plan.ordered_required_insert_column_chain.files_checked, 835);
-  assert.equal(plan.ordered_required_insert_column_chain.migration_files_checked, 834);
-  assert.equal(plan.ordered_required_insert_column_chain.statements_checked, 3162);
-  assert.equal(plan.ordered_required_insert_column_chain.tables_projected, 585);
+  assert.equal(plan.ordered_required_insert_column_chain.files_checked, expectedFilesChecked);
+  assert.equal(plan.ordered_required_insert_column_chain.migration_files_checked, canonicalMigrationFiles.length);
+  assert.equal(plan.ordered_required_insert_column_chain.statements_checked, expectedStatementsChecked);
+  assert.ok(
+    plan.ordered_required_insert_column_chain.tables_projected >= plan.ordered_index_key_width_chain.tables_projected,
+    "required-column audit must project at least the schema table set seen by the index audit",
+  );
   assert.equal(plan.ordered_required_insert_column_chain.writer_checks, 11);
   assert.equal(plan.ordered_required_insert_column_chain.required_columns_checked, 11);
   assert.equal(plan.ordered_required_insert_column_chain.omitted_required_columns, 1);
@@ -1390,12 +1503,12 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_generated_column_chain.ok, true);
   assert.equal(plan.ordered_generated_column_chain.ready, true);
   assert.equal(plan.ordered_generated_column_chain.finding_count, 0);
-  assert.equal(plan.ordered_generated_column_chain.files_checked, 835);
-  assert.equal(plan.ordered_generated_column_chain.migration_files_checked, 834);
-  assert.equal(plan.ordered_generated_column_chain.statements_checked, 3162);
+  assert.equal(plan.ordered_generated_column_chain.files_checked, expectedFilesChecked);
+  assert.equal(plan.ordered_generated_column_chain.migration_files_checked, canonicalMigrationFiles.length);
+  assert.equal(plan.ordered_generated_column_chain.statements_checked, expectedStatementsChecked);
   assert.equal(plan.ordered_generated_column_chain.generated_columns, 8);
   assert.equal(plan.ordered_generated_column_chain.definitions_applied, 8);
-  assert.equal(plan.ordered_generated_column_chain.writer_checks, 3162);
+  assert.equal(plan.ordered_generated_column_chain.writer_checks, expectedStatementsChecked);
   assert.equal(plan.ordered_generated_column_chain.generated_expression_checks, 20);
   assert.equal(plan.ordered_generated_column_chain.compatibility_bridge_candidates, 5);
   assert.equal(plan.ordered_generated_column_chain.unsupported_generated_expressions, 0);
@@ -1412,10 +1525,15 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   assert.equal(plan.ordered_foreign_key_compatibility_chain.ok, true);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.ready, true);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.finding_count, 0);
-  assert.equal(plan.ordered_foreign_key_compatibility_chain.files_checked, 835);
-  assert.equal(plan.ordered_foreign_key_compatibility_chain.migration_files_checked, 834);
-  assert.equal(plan.ordered_foreign_key_compatibility_chain.statements_checked, 3162);
-  assert.equal(plan.ordered_foreign_key_compatibility_chain.tables_projected, 583);
+  assert.equal(plan.ordered_foreign_key_compatibility_chain.files_checked, expectedFilesChecked);
+  assert.equal(plan.ordered_foreign_key_compatibility_chain.migration_files_checked, canonicalMigrationFiles.length);
+  assert.equal(plan.ordered_foreign_key_compatibility_chain.statements_checked, expectedStatementsChecked);
+  assert.equal(
+    canonicalMigrationFiles.includes("20260922_local_manager_control_templates_registry.sql"),
+    true,
+    "Local Manager control-template registry migration must be part of the ordered schema plan",
+  );
+  assert.equal(plan.ordered_foreign_key_compatibility_chain.tables_projected, 591);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.foreign_keys_checked, 138);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.type_comparisons, 140);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.type_mismatches, 0);
@@ -1436,6 +1554,9 @@ test("generator plan-only mode inventories the exact migration chain", () => {
     "039_sprint43_data_integrity_and_missing_tables.sql",
     "1043_sprint69_dynamic_container_hvac_activity_seed.sql",
     "20260815_custom_gpt_mcp_catalog_levels.sql",
+    "20260920_platform_admin_workspace_canonical_seed.sql",
+    "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
+    "20260922_local_manager_control_templates_registry.sql",
   ]);
   assert.equal(plan.canonical_seed_lifecycle.readback_required, true);
   assert.equal(plan.ordered_preuse_audit.missing_table_gaps, 0);

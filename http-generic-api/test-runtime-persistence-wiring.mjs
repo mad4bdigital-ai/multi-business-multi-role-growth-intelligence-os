@@ -35,6 +35,7 @@ const routeSource = fs.readFileSync(new URL("./routes/gptToolsRoutes.js", import
 const legacyRouteSource = fs.readFileSync(new URL("./routes/gptToolsRoutesLegacy.js", import.meta.url), "utf8");
 const smokeSource = fs.readFileSync(new URL("./governedResponseChunkDurableRecoverySmoke.js", import.meta.url), "utf8");
 const serverSource = fs.readFileSync(new URL("./server.js", import.meta.url), "utf8");
+const deploymentInfoRouteSource = fs.readFileSync(new URL("./routes/deploymentInfoRoutes.js", import.meta.url), "utf8");
 assert.match(dbSource, /export function getRuntimePersistencePool\(\)/u);
 assert.match(routeSource, /getPool, getRuntimePersistencePool/u);
 assert.match(routeSource, /runtimePersistencePoolFactory: runtimeDeps\.runtimePersistencePoolFactory \|\| getRuntimePersistencePool/u);
@@ -55,7 +56,35 @@ assert.match(routeSource, /runtimeDeps\.actAsUserAdapter = actAsUserAdapter \|\|
 assert.match(routeSource, /runtimeDeps\.actAsUserAuthorityResolver = actAsUserAuthorityResolver \|\| null/u);
 assert.match(routeSource, /act-as-user\/sessions/u);
 assert.doesNotMatch(routeSource, /chunkPersistenceDeps/u, "module-scope dispatch must not depend on a build-local lexical variable");
+assert.match(serverSource, /runtimePoolFactory: getPool/u);
 assert.match(serverSource, /runtimePersistencePoolFactory: getRuntimePersistencePool/u);
+assert.match(dbSource, /export function getPool\(\)/u);
+assert.match(serverSource, /import \{ getPool, getRuntimePersistencePool, testConnection \} from "\.\/db\.js";/u);
+assert.match(
+  serverSource,
+  /const runtimeDatabaseReadExecutor = Object\.freeze\(\{\s*query: \(\.\.\.args\) => getPool\(\)\.query\(\.\.\.args\),\s*\}\);/u,
+  "server composition must expose a lazy query-capable Runtime DB executor",
+);
+assert.match(
+  serverSource,
+  /registerRoutes\(app, \{[\s\S]*?\.\.\.recoveryCompositionDependencies,[\s\S]*?runtimePool: runtimeDatabaseReadExecutor,[\s\S]*?runtimePersistencePoolFactory: getRuntimePersistencePool,/u,
+  "deployment-info must receive Runtime DB separately from Runtime Persistence DB",
+);
+assert.match(
+  deploymentInfoRouteSource,
+  /const executor = runtimePool\s*\|\| pool\s*\|\| \(typeof runtimePoolFactory === "function"\s*\? await runtimePoolFactory\(\)\s*: null\);/u,
+  "deployment-info semantic readiness must prefer an injected Runtime DB executor and fall back only to the Runtime DB factory",
+);
+assert.doesNotMatch(
+  serverSource,
+  /runtimePool:\s*getPool\(\)/u,
+  "Runtime DB wiring must stay lazy and must not initialize the pool during startup",
+);
+assert.doesNotMatch(
+  serverSource,
+  /runtimePool:\s*getRuntimePersistencePool/u,
+  "Runtime Persistence DB must never be substituted for the Runtime DB workspace_registry reader",
+);
 
 await pool.end();
 for (const [key, value] of Object.entries(previous)) {

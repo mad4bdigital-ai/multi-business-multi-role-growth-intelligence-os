@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { getRemoteMcpCatalogFingerprint } from "../http-generic-api/remoteMcpScopeCatalog.js";
 
-const root = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const inventory = JSON.parse(readFileSync(`${root}/http-generic-api/remote-mcp-write-scope-inventory.generated.json`, "utf8"));
 const catalog = JSON.parse(readFileSync(`${root}/http-generic-api/remote-mcp-scope-catalog.generated.json`, "utf8"));
 

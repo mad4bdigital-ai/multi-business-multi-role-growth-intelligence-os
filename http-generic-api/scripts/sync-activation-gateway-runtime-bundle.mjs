@@ -13,6 +13,7 @@ const mode = process.argv.includes("--write") ? "write" : "check";
 
 const files = [
   "src/worker.mjs",
+  "src/worker-staging.mjs",
   "src/gateway.mjs",
   "generated/route-policy.json",
   "generated/route-policy.staging.json",

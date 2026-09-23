@@ -21,6 +21,10 @@ export function verifyUserJwtAuthorization(
     env = process.env,
     verifyToken = jwt.verify,
     algorithms = USER_JWT_ALLOWED_ALGORITHMS,
+    issuer = null,
+    audience = null,
+    requiredPurpose = null,
+    requiredScope = null,
   } = {},
 ) {
   const token = bearerToken(authorization);
@@ -38,10 +42,22 @@ export function verifyUserJwtAuthorization(
   }
 
   try {
-    const claims = verifyToken(token, secret, { algorithms: [...algorithms] });
+    const verifyOptions = { algorithms: [...algorithms] };
+    if (issuer) verifyOptions.issuer = issuer;
+    if (audience) verifyOptions.audience = audience;
+    const claims = verifyToken(token, secret, verifyOptions);
     const userId = String(claims?.user_id || "").trim();
     if (!claims || typeof claims !== "object" || !userId) {
       return authFailure(401, "user_jwt_required", "Sign in required.");
+    }
+    if (requiredPurpose && claims.purpose !== requiredPurpose) {
+      return authFailure(403, "wrong_user_token_class", "This token is not valid for the requested user authority.");
+    }
+    if (requiredScope) {
+      const scopes = String(claims.scope || "").split(/\s+/u).filter(Boolean);
+      if (!scopes.includes(requiredScope)) {
+        return authFailure(403, "wrong_user_token_scope", "This token does not grant the required user scope.");
+      }
     }
     return { ok: true, claims: { ...claims, user_id: userId } };
   } catch {

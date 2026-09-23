@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
 import {
   chmodSync,
   existsSync,
@@ -16,12 +17,12 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-const scriptPath = new URL('./hostinger-storage-cleanup.sh', import.meta.url).pathname;
+const scriptPath = fileURLToPath(new URL('./hostinger-storage-cleanup.sh', import.meta.url));
 const script = readFileSync(scriptPath, 'utf8');
 
-const policyPath = new URL('../config/hostinger-storage-cleanup-policy.json', import.meta.url).pathname;
-const docsPath = new URL('../../docs/hostinger-storage-cleanup.md', import.meta.url).pathname;
-const architecturePath = new URL('../../docs/hostinger-storage-control-plane.md', import.meta.url).pathname;
+const policyPath = fileURLToPath(new URL('../config/hostinger-storage-cleanup-policy.json', import.meta.url));
+const docsPath = fileURLToPath(new URL('../../docs/hostinger-storage-cleanup.md', import.meta.url));
+const architecturePath = fileURLToPath(new URL('../../docs/hostinger-storage-control-plane.md', import.meta.url));
 const policy = JSON.parse(readFileSync(policyPath, 'utf8'));
 const docs = readFileSync(docsPath, 'utf8');
 const architecture = readFileSync(architecturePath, 'utf8');

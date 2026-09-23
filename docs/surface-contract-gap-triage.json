@@ -282,7 +282,7 @@
     },
     {
       "migration_file": "20260810_platform_runtime_registry_drift_reconciliation.sql",
-      "score": 389,
+      "score": 388,
       "queue_class": "medium_review",
       "triage_class": "safety_marker_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -411,7 +411,7 @@
     },
     {
       "migration_file": "20260728_governed_response_chunk_ownership.sql",
-      "score": 317,
+      "score": 316,
       "queue_class": "medium_review",
       "triage_class": "standard_backlog_review",
       "gate_scope": "new_gap_gate_candidate",

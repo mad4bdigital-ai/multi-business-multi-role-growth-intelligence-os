@@ -68,8 +68,14 @@ assert.equal(syntaxExactCheckoutCount, 1, `expected one syntax exact candidate c
 assert.equal(testExactCheckoutCount, 1, `expected one test exact candidate checkout, got ${testExactCheckoutCount}`);
 const exactCheckoutCount = syntaxExactCheckoutCount + testExactCheckoutCount;
 
+const canonicalCheckoutStepCount = canonical.split("uses: actions/checkout@").length - 1;
 const canonicalExactCheckoutCount = canonical.split("ref: ${{ github.event.pull_request.head.sha || github.sha }}").length - 1;
-assert.equal(canonicalExactCheckoutCount, 5, `expected five canonical exact candidate checkouts, got ${canonicalExactCheckoutCount}`);
+assert.ok(canonicalCheckoutStepCount > 0, "canonical CI must contain at least one checkout step");
+assert.equal(
+  canonicalExactCheckoutCount,
+  canonicalCheckoutStepCount,
+  `every canonical CI checkout must bind to the exact pull-request head; checkouts=${canonicalCheckoutStepCount}, exact=${canonicalExactCheckoutCount}`,
+);
 assert(canonical.includes('DEPLOYMENT_COMMIT_SHA: "${{ github.event.pull_request.head.sha || github.sha }}"'), "canonical deployment evidence must bind to the exact pull-request head");
 
 const testJobNeedsSyntax = /test:\n\s+name: Unit & Integration Tests[\s\S]*?needs: syntax/.test(recovery);

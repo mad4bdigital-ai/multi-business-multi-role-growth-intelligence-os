@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -12,6 +13,7 @@ internal sealed class DeviceLinkClient
     private readonly string _deviceLinkPollUrl;
     private readonly string _deviceSessionUrl;
     private readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web);
+    private ECDsa? _pairingKey;
 
     internal DeviceLinkClient(string baseUrl)
     {
@@ -27,6 +29,9 @@ internal sealed class DeviceLinkClient
         string? appVersion,
         CancellationToken cancellationToken = default)
     {
+        _pairingKey?.Dispose();
+        _pairingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var publicKey = Convert.ToBase64String(_pairingKey.ExportSubjectPublicKeyInfo());
         using var client = CreateClient();
         using var response = await client.PostAsync(
             _deviceLinkStartUrl,
@@ -35,7 +40,8 @@ internal sealed class DeviceLinkClient
                 device_id = deviceId,
                 hostname,
                 platform,
-                app_version = appVersion
+                app_version = appVersion,
+                device_public_key = publicKey
             }),
             cancellationToken);
         return await ReadAsync<DeviceLinkStartResponse>(response, cancellationToken);
@@ -44,12 +50,23 @@ internal sealed class DeviceLinkClient
     internal async Task<DeviceLinkHttpResult<DeviceLinkPollResponse>> PollAsync(
         string deviceCode,
         string pollToken,
+        string sessionId,
+        string deviceProofChallenge,
         CancellationToken cancellationToken = default)
     {
+        if (_pairingKey is null) throw new InvalidOperationException("Device pairing key is unavailable.");
+        var canonical = DeviceProofCrypto.BuildCanonical(sessionId, deviceCode, pollToken, deviceProofChallenge);
+        var proof = DeviceProofCrypto.SignDerBase64(_pairingKey, canonical);
         using var client = CreateClient();
         using var response = await client.PostAsync(
             _deviceLinkPollUrl,
-            JsonContent(new { device_code = deviceCode, poll_token = pollToken }),
+            JsonContent(new
+            {
+                device_code = deviceCode,
+                poll_token = pollToken,
+                device_proof_challenge = deviceProofChallenge,
+                device_proof = proof
+            }),
             cancellationToken);
         return await ReadAsync<DeviceLinkPollResponse>(response, cancellationToken);
     }
@@ -92,7 +109,21 @@ internal sealed class DeviceLinkClient
             response.IsSuccessStatusCode,
             response.ReasonPhrase,
             text,
-            payload);
+            payload,
+            RetryAfterSeconds(response));
+    }
+
+    private static int? RetryAfterSeconds(HttpResponseMessage response)
+    {
+        if (response.Headers.RetryAfter?.Delta is TimeSpan delta)
+        {
+            return Math.Clamp((int)Math.Ceiling(delta.TotalSeconds), 1, 300);
+        }
+        if (response.Headers.RetryAfter?.Date is DateTimeOffset retryAt)
+        {
+            return Math.Clamp((int)Math.Ceiling((retryAt - DateTimeOffset.UtcNow).TotalSeconds), 1, 300);
+        }
+        return null;
     }
 }
 
@@ -101,7 +132,8 @@ internal sealed record DeviceLinkHttpResult<T>(
     bool IsSuccessStatusCode,
     string? ReasonPhrase,
     string RawText,
-    T? Payload);
+    T? Payload,
+    int? RetryAfterSeconds);
 
 internal sealed class DeviceLinkError
 {
@@ -117,6 +149,8 @@ internal sealed class DeviceLinkStartResponse
     [JsonPropertyName("verification_uri")] public string? VerificationUri { get; set; }
     [JsonPropertyName("verification_uri_complete")] public string? VerificationUriComplete { get; set; }
     [JsonPropertyName("poll_token")] public string? PollToken { get; set; }
+    [JsonPropertyName("session_id")] public string? SessionId { get; set; }
+    [JsonPropertyName("device_proof_challenge")] public string? DeviceProofChallenge { get; set; }
     [JsonPropertyName("interval")] public int Interval { get; set; } = 3;
     [JsonPropertyName("expires_in")] public int ExpiresIn { get; set; }
     [JsonPropertyName("error")] public DeviceLinkError? Error { get; set; }

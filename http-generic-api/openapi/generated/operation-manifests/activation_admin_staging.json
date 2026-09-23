@@ -1,0 +1,22 @@
+{
+  "contract": "mad4b.custom-admin-operation-manifest.v1",
+  "environment": "staging",
+  "operation_count": 14,
+  "operation_ids": [
+    "acknowledgeActivationRun",
+    "getActivationHardRunSummary",
+    "getActivationPlatformAccess",
+    "getActivationSessionContext",
+    "getStagingRecoveryAdminContract",
+    "getStagingRecoveryAdminReadiness",
+    "getStagingRecoveryCertificationStatus",
+    "prepareStagingActivationGatewayDarkDeployDryRun",
+    "previewStagingActivationGatewayRolloutPlan",
+    "readActivationAwareness",
+    "readActivationDynamicTabDetail",
+    "readActivationOperationalAttention",
+    "runHardActivation",
+    "runLegacyFullHardActivation"
+  ],
+  "surface": "activation_admin_staging"
+}

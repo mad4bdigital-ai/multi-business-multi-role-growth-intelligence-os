@@ -315,7 +315,7 @@ import {
   executeSiteMigrationJob,
   firstPopulated
 } from "./domainAdapters/wordpressAdapter.js";
-import { getRuntimePersistencePool, testConnection } from "./db.js";
+import { getPool, getRuntimePersistencePool, testConnection } from "./db.js";
 import { runMcpCatalogSchemaStartupPreflight } from "./mcpCatalogSchemaGuard.js";
 import { getRuntimeBootstrapStatus } from "./runtimeBootstrapStatus.js";
 import { runBootstrap } from "./runtimeBootstrapContract.js";
@@ -3174,7 +3174,7 @@ const executionFacade = createExecutionFacade({
 });
 
 const recoveryBindingMode = getServerManagedRecoveryBindingMode(process.env);
-const recoveryBindingProvider = recoveryBindingMode === "injected_non_live"
+const recoveryBindingProvider = ["injected_non_live", "production_live"].includes(recoveryBindingMode)
   ? createServerManagedRecoveryBindingProvider({ env: process.env })
   : null;
 const recoveryComposition = createProductionRecoveryComposition({
@@ -3191,11 +3191,17 @@ const runtimeBootstrapReader = (options = {}) => runBootstrap({
 const productionActivationReadinessReader = async () => runProductionActivationReadiness({
   ...await recoveryCompositionDependencies.recoveryReadinessEvidenceReader(),
   recoveryComposition,
-  productionLiveRequested: false,
-  productionLiveEnabled: false,
+  productionLiveRequested: recoveryBindingMode === "production_live",
+  productionLiveEnabled: recoveryComposition.mode === "production_live"
+    && recoveryComposition.live_activation === true,
 });
+const runtimeDatabaseReadExecutor = Object.freeze({
+  query: (...args) => getPool().query(...args),
+});
+
 registerRoutes(app, {
   ...recoveryCompositionDependencies,
+  runtimePool: runtimeDatabaseReadExecutor,
   // --- health ---
   jobRepository,
   executeSingleQueuedJob,
@@ -3205,6 +3211,7 @@ registerRoutes(app, {
   getRedisRuntimeStatus,
   getSqlCacheRuntimeStatus,
   testDbConnection: testConnection,
+  runtimePoolFactory: getPool,
   runtimePersistencePoolFactory: getRuntimePersistencePool,
   runtimeBootstrapReader,
   productionActivationReadinessReader,

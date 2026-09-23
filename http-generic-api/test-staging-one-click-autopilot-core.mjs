@@ -41,9 +41,28 @@ assert.deepEqual(policy.lifecycle.canonical_seeds.seed_files, [
   "039_sprint43_data_integrity_and_missing_tables.sql",
   "1043_sprint69_dynamic_container_hvac_activity_seed.sql",
   "20260815_custom_gpt_mcp_catalog_levels.sql",
+  "20260920_platform_admin_workspace_canonical_seed.sql",
+  "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
 ]);
 assert.equal(policy.lifecycle.canonical_seeds.explicit_apply_only, true);
 assert.equal(policy.lifecycle.canonical_seeds.readback_required, true);
+assert.equal(policy.lifecycle.canonical_semantic_snapshot.contract, "mad4b.staging.canonical-semantic-snapshot.v1");
+assert.equal(policy.lifecycle.canonical_semantic_snapshot.target_role, "runtime");
+assert.equal(policy.lifecycle.canonical_semantic_snapshot.source_kind, "disposable_git_migration_projection");
+assert.equal(policy.lifecycle.canonical_semantic_snapshot.bundle_file, "runtime.canonical-semantic.sql.gz");
+assert.equal(policy.lifecycle.canonical_semantic_snapshot.replay_mode, "zero_object_rebuild_only");
+assert.equal(policy.lifecycle.canonical_semantic_snapshot.same_cycle_sha256_required, true);
+assert.equal(policy.lifecycle.canonical_semantic_snapshot.exact_source_commit_required, true);
+assert.equal(policy.lifecycle.canonical_semantic_snapshot.readback_required, true);
+assert.equal(policy.lifecycle.canonical_semantic_snapshot.live_environment_data_copy_forbidden, true);
+assert.equal(policy.lifecycle.activation_readiness.platform_admin_semantic_readiness_required, true);
+assert.equal(policy.lifecycle.activation_readiness.semantic_repair_handoff.contract, "mad4b.staging.canonical-semantic-repair-handoff.v1");
+assert.deepEqual(policy.lifecycle.activation_readiness.semantic_repair_handoff.eligible_plan_statuses, ["canonical_missing"]);
+assert.equal(policy.lifecycle.activation_readiness.semantic_repair_handoff.canonical_missing_action, "plan_required");
+assert.equal(policy.lifecycle.activation_readiness.semantic_repair_handoff.nonmissing_unready_action, "inspection_required");
+assert.equal(policy.lifecycle.activation_readiness.semantic_repair_handoff.automatic_apply, false);
+assert.equal(policy.lifecycle.activation_readiness.semantic_repair_handoff.automatic_retry, false);
+assert.equal(policy.lifecycle.activation_readiness.semantic_repair_handoff.reconcile_before_retry, true);
 assert.equal(policy.lifecycle.activation_readiness.stale_policy_blocks_activation, true);
 assert.equal(policy.lifecycle.activation_readiness.schema_and_catalog_readiness_required, true);
 assert.deepEqual(policy.safety, {
@@ -171,13 +190,16 @@ assert.match(launcher, /schema_only_dry_run/);
 assert.match(launcher, /schema_only_applied/);
 assert.match(launcher, /explicit Staging schema seed completed; re-certifying same exact commit/);
 assert.match(launcher, /staging_schema_seed_applied = \$schemaSeedApplied/);
+assert.match(launcher, /canonical_semantic_snapshot_status/);
+assert.match(launcher, /canonical_semantic_snapshot_readback/);
+assert.match(launcher, /Canonical semantic snapshot\/readback evidence is incomplete/);
 assert.match(launcher, /canonical_seed_status/);
 assert.match(launcher, /canonical_seed_readback/);
 assert.match(launcher, /Canonical seed\/readback evidence is incomplete/);
 assert.match(launcher, /Activation Gateway cannot be enabled until schema\/catalog\/gateway readback is ready/);
 assert.ok(launcher.includes(`$activationBlockers = @(
         @($runtimeState.certification_degraded_reasons | ForEach-Object { [string]$_ }) |
-            Where-Object { $_ -in @("gateway_policy_not_stale", "gateway_policy_hash_current", "gateway_exact_commit", "mcp_catalog_schema_ready", "combined_database_readiness", "governance_db_privilege_ready") }
+            Where-Object { $_ -in @("gateway_policy_not_stale", "gateway_policy_hash_current", "gateway_exact_commit", "mcp_catalog_schema_ready", "combined_database_readiness", "platform_admin_semantic_readiness", "governance_db_privilege_ready") }
     )`));
 assert.doesNotMatch(launcher, /\$activationBlockers = @\([^\n]+\) \| Where-Object/);
 assert.match(launcher, /if \(\$activationBlockers\.Count -gt 0 -or \[string\]\$runtimeState\.certification_status -ne "ready"\)/);
@@ -187,6 +209,7 @@ assert.match(launcher, /certification_status = \[string\]\$runtimeState\.certifi
 assert.match(launcher, /AUTO_PILOT_ONE_CLICK_DEGRADED/);
 assert.match(launcher, /AUTO_PILOT_ONE_CLICK_READY/);
 assert.match(launcher, /if \(\$EnableActivationGateway\) \{ \$argList \+= "-EnableActivationGateway" \}/);
+assert.match(dualModeCore, /Set-StagingEnvValue \$envFile 'ACTIVATION_STAGING_GATEWAY_ENABLED' 'false'[\s\S]*?Invoke-Checked 'powershell\.exe' \$bootstrapArgs[\s\S]*?Initialize-StagingEnvironment[\s\S]*?-EnableActivationGateway:\$EnableActivationGateway/);
 assert.match(launcher, /if \(\$ApplySchemaBundle\) \{ \$argList \+= "-ApplySchemaBundle" \}/);
 assert.match(launcher, /CLOUDFLARE_TUNNEL_TOKEN/);
 assert.match(launcher, /Read-Host "Staging Tunnel token" -AsSecureString/);
@@ -244,6 +267,20 @@ assert.match(certification, /docker inspect --format '\{\{\.Image\}\}'/);
 assert.match(certification, /full container ID/);
 assert.match(certification, /content-addressed sha256 digest/);
 assert.match(certification, /certification_degraded_reasons/);
+assert.match(certification, /platform_admin_semantic_readiness/);
+assert.match(launcher, /platform_admin_semantic_readiness/);
+assert.match(launcher, /Write-CanonicalSemanticRepairHandoff/);
+assert.match(launcher, /mad4b\.staging\.canonical-semantic-repair-handoff\.v1/);
+assert.match(launcher, /canonical-semantic-repair-handoff\.json/);
+assert.match(launcher, /canonical_missing/);
+assert.match(launcher, /plan_required/);
+assert.match(launcher, /inspection_required/);
+assert.match(launcher, /staging:canonical-repair:plan/);
+assert.match(launcher, /automatic = \$false/);
+assert.match(launcher, /reconcile_before_retry = \$true/);
+assert.match(launcher, /canonical_semantic_repair_handoff = \$semanticRepairHandoff/);
+assert.match(launcher, /canonical_semantic_snapshot_contract/);
+assert.match(launcher, /canonical_semantic_snapshot_sha256/);
 assert.match(autoDeploy, /Assert-StagingOriginIdentity/);
 assert.match(autoDeploy, /ExpectedRepository.*ExpectedCommit/);
 assert.match(installAutoDeploy, /-LogonType Interactive(\s|`|$)/);

@@ -9,7 +9,7 @@ const branchSha = "b".repeat(40);
 let reconcileCalls = 0;
 let executeStepCalls = 0;
 
-const pool = {
+const recipeStorePool = {
   async query(sql) {
     if (sql.includes("FROM platform_resource_recipes")) {
       return [[{
@@ -45,7 +45,13 @@ const pool = {
         status: "active",
       }]];
     }
-    throw new Error(`unexpected query: ${sql}`);
+    throw new Error(`unexpected recipe store query: ${sql}`);
+  },
+};
+
+const runtimePool = {
+  async query(sql) {
+    throw new Error(`dry-run must not query runtime DB: ${sql}`);
   },
 };
 
@@ -60,7 +66,8 @@ const result = await runRepositoryReconciliationOrchestrator({
   mode: "dry_run",
   operation_id: "orchestrator-test-run-0001",
 }, {
-  pool,
+  pool: runtimePool,
+  recipeStorePool,
   randomUUID: () => "orchestrator-test-run-0001",
   reconcileBranch: async () => {
     reconcileCalls += 1;
@@ -111,7 +118,8 @@ await assert.rejects(
     expected_branch_sha: branchSha,
     mode: "dry_run",
   }, {
-    pool,
+    pool: runtimePool,
+    recipeStorePool,
     reconcileBranch: async () => ({
       classification: "diverged_no_overlap",
       evidence: { base_ref_sha: "c".repeat(40), branch_ref_sha: branchSha },

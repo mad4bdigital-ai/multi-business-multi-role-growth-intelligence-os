@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 import {
   PLATFORM_RESOURCE_RECIPE_SYSTEM_TOOLS,
   PLATFORM_RESOURCE_RECIPE_TOOL_NAMES,
+  catalogGovernedResources,
+  resolveGovernedResource,
   resolveResourceRefInput,
 } from "./platformResourceRecipeCapability.js";
 import { validateRequestBody } from "./schemaValidation.js";
@@ -21,6 +23,12 @@ const systemLayerRoutes = readFileSync("routes/systemLayerRoutes.js", "utf8");
 const runtimeModule = readFileSync("platformResourceRecipeCapability.js", "utf8");
 const providerTransportEncoderRegistry = readFileSync("providerTransportEncoderRegistry.js", "utf8");
 const executionDispatch = readFileSync("executionDispatch.js", "utf8");
+
+assert(!/FROM platform_resource_recipes/i.test(runtimeModule), "runtime capability must not query Governance recipe rows directly");
+assert(!/FROM platform_resource_recipe_steps/i.test(runtimeModule), "runtime capability must not query Governance recipe steps directly");
+assert(runtimeModule.includes("getPlatformResourceRecipeByKey"), "runtime capability must use Governance Recipe Store by-key reads");
+assert(runtimeModule.includes("listPlatformResourceRecipes"), "runtime capability must use Governance Recipe Store catalog reads");
+assert(runtimeModule.includes("listPlatformResourceRecipeSteps"), "runtime capability must use Governance Recipe Store step reads");
 
 function includesAll(source, values, label) {
   for (const value of values) {
@@ -190,10 +198,13 @@ includesAll(githubFileContentGatePatchPlanMigration, [
   "secrets_included',false",
 ], "GitHub file content gate and patch plan registry migration");
 
-assert(
-  manifest.includes("node test-platform-resource-recipe-capability.mjs"),
-  "test manifest must include platform resource recipe capability test"
-);
+for (const command of [
+  "node test-platform-resource-recipe-capability.mjs",
+  "node test-platform-resource-recipe-store.mjs",
+  "node test-repository-tenant-intelligence-recipe-store.mjs",
+]) {
+  assert(manifest.includes(command), `test manifest must include ${command}`);
+}
 
 assert.deepEqual(PLATFORM_RESOURCE_RECIPE_TOOL_NAMES, [
   "governed_resource_resolve",
@@ -376,5 +387,119 @@ assert.equal(githubResolved.resource_ref.branch, "gpt/example");
 const pluginResolved = resolveResourceRefInput({ resource_ref: { contribution_id: "ppc_test" } });
 assert.equal(pluginResolved.resource_type, "platform_plugin_contribution");
 assert.equal(pluginResolved.resource_uri, "platform-plugin-contribution://ppc_test");
+
+const runtimeRecipeQueries = [];
+const governanceRecipeQueries = [];
+const runtimePool = {
+  async query(sql, params = []) {
+    const query = String(sql).replace(/\s+/g, " ").trim();
+    runtimeRecipeQueries.push({ query, params });
+    assert(!/platform_resource_recipes|platform_resource_recipe_steps/i.test(query), `Runtime pool received Governance recipe SQL: ${query}`);
+    if (/FROM platform_resource_types WHERE provider_key = \?/i.test(query)) return [[{ resource_type: "drive_folder" }]];
+    if (/FROM platform_resource_types WHERE display_name LIKE \?/i.test(query)) return [[{ resource_type: "drive_folder" }]];
+    if (/FROM platform_resource_adapters WHERE adapter_key LIKE \?/i.test(query)) return [[{ adapter_key: "google_drive.folder.inspect.adapter" }]];
+    if (/SELECT resource_type, resource_family, provider_key, display_name FROM platform_resource_types/i.test(query)) {
+      return [[{
+        resource_type: "drive_folder",
+        resource_family: "google_drive",
+        provider_key: "google_drive_api",
+        display_name: "Google Drive Folder",
+      }]];
+    }
+    if (/SELECT adapter_key, adapter_kind, installed_tool_key FROM platform_resource_adapters/i.test(query)) {
+      return [[{
+        adapter_key: "google_drive.folder.inspect.adapter",
+        adapter_kind: "installed_tool",
+        installed_tool_key: "google_drive_folder_inspect",
+      }]];
+    }
+    throw new Error(`Unexpected Runtime metadata SQL: ${query}`);
+  },
+};
+const recipeStorePool = {
+  async query(sql, params = []) {
+    const query = String(sql).replace(/\s+/g, " ").trim();
+    governanceRecipeQueries.push({ query, params });
+    assert(!/platform_resource_types|platform_resource_adapters/i.test(query), `Governance pool received Runtime metadata SQL: ${query}`);
+    if (/FROM platform_resource_recipes r/i.test(query)) {
+      return [[{
+        recipe_key: "google_drive.folder.inspect_tree",
+        resource_type: "drive_folder",
+        operation_key: "inspect_tree",
+        adapter_key: "google_drive.folder.inspect.adapter",
+        risk_class: "read_only",
+        mode: "inspect",
+        read_only: 1,
+        requires_dry_run: 1,
+        requires_capability_envelope: 0,
+        requires_typed_confirmation: 0,
+        requires_same_cycle_readback: 0,
+        graph_write_policy: "none",
+        engine_key: "resource_authority_engine",
+        status: "active",
+        policy_json: JSON.stringify({ max_depth: 3 }),
+      }]];
+    }
+    if (/FROM platform_resource_recipes/i.test(query)) {
+      return [[{
+        recipe_key: "google_drive.folder.inspect_tree",
+        resource_type: "drive_folder",
+        operation_key: "inspect_tree",
+        adapter_key: "google_drive.folder.inspect.adapter",
+        risk_class: "read_only",
+        mode: "inspect",
+        read_only: 1,
+        requires_dry_run: 1,
+        requires_capability_envelope: 0,
+        requires_typed_confirmation: 0,
+        requires_same_cycle_readback: 0,
+        graph_write_policy: "none",
+        engine_key: "resource_authority_engine",
+        status: "active",
+        policy_json: JSON.stringify({ max_depth: 3 }),
+      }]];
+    }
+    if (/FROM platform_resource_recipe_steps/i.test(query)) {
+      return [[{
+        step_order: 1,
+        step_key: "inspect",
+        step_kind: "installed_tool_call",
+        tool_key: "google_drive_folder_inspect",
+        required: 1,
+        on_error_policy: "fail",
+        status: "active",
+      }]];
+    }
+    throw new Error(`Unexpected Governance recipe SQL: ${query}`);
+  },
+};
+
+const catalog = await catalogGovernedResources(
+  {
+    provider_key: "google_drive_api",
+    search: "Drive",
+    include_steps: true,
+    limit: 10,
+  },
+  { runtimePool, recipeStorePool },
+);
+assert.equal(catalog.count, 1);
+assert.equal(catalog.recipes[0].provider_key, "google_drive_api");
+assert.equal(catalog.recipes[0].adapter_kind, "installed_tool");
+assert.equal(catalog.steps_by_recipe["google_drive.folder.inspect_tree"][0].tool_key, "google_drive_folder_inspect");
+
+const resolvedWithRecipe = await resolveGovernedResource(
+  {
+    input: "https://drive.google.com/drive/folders/1E2mS1cOPL3ZAAiVWzEg9iv6klHCOVqES",
+    recipe_key: "google_drive.folder.inspect_tree",
+  },
+  { runtimePool, recipeStorePool },
+);
+assert.equal(resolvedWithRecipe.recipe_hint.recipe_key, "google_drive.folder.inspect_tree");
+assert.equal(resolvedWithRecipe.recipe_hint.resource_family, "google_drive");
+assert(runtimeRecipeQueries.length > 0);
+assert(governanceRecipeQueries.length > 0);
+assert(runtimeRecipeQueries.every(({ query }) => !/platform_resource_recipes|platform_resource_recipe_steps/i.test(query)));
+assert(governanceRecipeQueries.every(({ query }) => !/platform_resource_types|platform_resource_adapters/i.test(query)));
 
 console.log("platform resource recipe capability migration and runtime contract ok");

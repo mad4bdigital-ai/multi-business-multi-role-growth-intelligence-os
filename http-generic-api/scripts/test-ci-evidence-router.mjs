@@ -15,7 +15,9 @@ const CONTEXT = Object.freeze({
   headRef: "gpt/example",
   baseRef: "main",
   evaluateResult: "success",
-  executeResult: "success"
+  executeResult: "success",
+  mariadbCertificationResult: "skipped",
+  mariadbCertificationEvidencePath: null
 });
 
 function tempDir() { return fs.mkdtempSync(path.join(os.tmpdir(), "ci-evidence-router-")); }
@@ -28,7 +30,9 @@ function summaryFor(files, context = CONTEXT) {
   try {
     for (const [name, data] of Object.entries(files)) write(root, name, data);
     return buildCiEvidenceSummary({ inputDir: root, context });
-  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 }
 
 {
@@ -92,4 +96,48 @@ function summaryFor(files, context = CONTEXT) {
   assert(summary.integrity_findings.some((finding) => finding.code === "canonical_source_reports_missing"));
 }
 
-console.log(JSON.stringify({ ok: true, tests: 7, contract: "mad4b.ci-evidence-summary.v1", secrets_included: false }));
+
+{
+  const root = tempDir();
+  const certRoot = tempDir();
+  try {
+    write(root, "e2e-phase-evaluation.json", source("mad4b.e2e-phase-evaluation.v1", { findings: [] }));
+    write(root, "e2e-phase-execution.json", source("mad4b.e2e-phase-execution.v1", { results: [] }));
+    const certPath = path.join(certRoot, "mariadb-certification.json");
+    write(certRoot, "mariadb-certification.json", {
+      report_type: "local_manager_desktop_command_mariadb_certification",
+      ok: true,
+      mode: "disposable",
+      migration_sha256: "b".repeat(64),
+      lifecycle: { atomic_claim: true, terminal_rewrite_rejected: true },
+      privilege_denials: [{ label: "delete", denied: true }],
+      production_authorized: false,
+      staging_apply_authorized: false,
+      secrets_included: false
+    });
+    const reportText = fs.readFileSync(certPath, "utf8");
+    const expectedDigest = (await import("node:crypto")).createHash("sha256").update(reportText).digest("hex");
+    const summary = buildCiEvidenceSummary({
+      inputDir: root,
+      context: { ...CONTEXT, mariadbCertificationResult: "success", mariadbCertificationEvidencePath: certPath }
+    });
+    assert.equal(summary.outcome, "passed");
+    assert.equal(summary.jobs.mariadb_certification, "success");
+    assert.equal(summary.certifications.local_manager_desktop_command_mariadb.evidence_sha256, expectedDigest);
+    assert.match(renderCiEvidenceMarkdown(summary), /MariaDB evidence SHA-256/u);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(certRoot, { recursive: true, force: true });
+  }
+}
+
+{
+  const summary = summaryFor({
+    "e2e-phase-evaluation.json": source("mad4b.e2e-phase-evaluation.v1", { findings: [] }),
+    "e2e-phase-execution.json": source("mad4b.e2e-phase-execution.v1", { results: [] })
+  }, { ...CONTEXT, mariadbCertificationResult: "success", mariadbCertificationEvidencePath: "/missing/certification.json" });
+  assert.equal(summary.outcome, "evidence_error");
+  assert(summary.integrity_findings.some((finding) => finding.code === "successful_mariadb_certification_missing_evidence"));
+}
+
+console.log(JSON.stringify({ ok: true, tests: 9, contract: "mad4b.ci-evidence-summary.v1", secrets_included: false }));

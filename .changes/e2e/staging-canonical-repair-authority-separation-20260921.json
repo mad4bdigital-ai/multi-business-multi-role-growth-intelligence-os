@@ -1,0 +1,106 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-canonical-repair-authority-separation-20260921",
+  "title": "Staging canonical semantic repair authority separation",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-canonical-repair-authority-separation-20260921.json",
+      ".github/governance/test-authority-registry.json",
+      "autopilot-portable-staging/manifest.json",
+      "autopilot-portable-staging/Repair-StagingCanonicalSemanticData.ps1",
+      "autopilot-portable-staging/Staging-CanonicalRepairLedger.ps1",
+      "autopilot-portable-staging/test/Test-StagingCanonicalRepairLedgerEncoding.ps1",
+      ".github/workflows/ci.yml",
+      "http-generic-api/config/deployment-branch-policy.json",
+      "http-generic-api/scripts/staging-canonical-semantic-repair.mjs",
+      "http-generic-api/scripts/staging-canonical-semantic-repair-runtime-check.mjs",
+      "http-generic-api/scripts/validate-staging-canonical-semantic-repair-plan.mjs",
+      "http-generic-api/stagingCanonicalSemanticRepair.js",
+      "http-generic-api/stagingCanonicalSemanticRepairLedger.js",
+      "http-generic-api/test-staging-canonical-semantic-repair-ledger.mjs",
+      "http-generic-api/test-staging-canonical-semantic-repair-runner.mjs",
+      "http-generic-api/test-staging-canonical-semantic-repair.mjs",
+      "http-generic-api/test-staging-database-readiness-repair.mjs"
+    ]
+  },
+  "merge_contract": { "minimum_phase": "mvp" },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Separate read-only Runtime inspection from bounded local Staging canonical repair authority, preserve runtime_app SELECT-only access to workspace_registry, make mutation outcomes durable and accurate, and require a new immutable plan after every terminal attempt.",
+      "e2e_journeys": [
+        {
+          "id": "canonical-semantic-repair-plan-to-runtime-readback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository-bound local Staging repair operator",
+          "entrypoint": "autopilot-portable-staging/Repair-StagingCanonicalSemanticData.ps1",
+          "terminal_outcome": "The exact registered Platform Admin workspace artifact is applied only through bounded local Staging authority and verified through the normal read-only Runtime identity with a durable terminal receipt.",
+          "steps": [
+            "Inspect and plan through the read-only Runtime identity.",
+            "Verify exact Git and origin/main commit identity.",
+            "Validate the immutable plan, registered artifact SHA, statement count, environment and typed confirmation.",
+            "Reserve the durable ledger before dispatch.",
+            "Execute only the registered platform_admin_workspace artifact inside the local runtime-db container.",
+            "Read back exact canonical and resolver cardinality through runtime_app.",
+            "Persist succeeded, known_not_applied, unknown_outcome or reconciled_no_mutation as a terminal result."
+          ],
+          "assertions": [
+            "runtime_app retains SELECT-only access to workspace_registry.",
+            "No caller SQL, table, database, workspace identity or migration path is accepted.",
+            "Production and provider access remain forbidden.",
+            "A first-mutation permission denial with confirmed rollback is known_not_applied.",
+            "Any successful mutation or uncertain commit or rollback remains unknown_outcome.",
+            "Negative reconciliation persists evidence and cannot reactivate the consumed plan.",
+            "A successor plan has a new generation and supersedes_plan_sha256 lineage.",
+            "Historical plan and ledger evidence are preserved.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {"id":"canonical-semantic-repair","runner":"node","working_directory":"http-generic-api","path":"test-staging-canonical-semantic-repair.mjs","args":[]},
+            {"id":"canonical-semantic-repair-ledger","runner":"node","working_directory":"http-generic-api","path":"test-staging-canonical-semantic-repair-ledger.mjs","args":[]},
+            {"id":"canonical-semantic-repair-runner","runner":"node","working_directory":"http-generic-api","path":"test-staging-canonical-semantic-repair-runner.mjs","args":[]},
+            {"id":"staging-database-readiness-repair","runner":"node","working_directory":"http-generic-api","path":"test-staging-database-readiness-repair.mjs","args":[]},
+            {"id":"runtime-data-lifecycle-guard","runner":"node","working_directory":"http-generic-api","path":"test-runtime-data-lifecycle-guard.mjs","args":[]}
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-canonical-repair-authority-separation-20260921.json",
+            ".github/governance/test-authority-registry.json",
+            "autopilot-portable-staging/manifest.json",
+            "autopilot-portable-staging/Repair-StagingCanonicalSemanticData.ps1",
+            "autopilot-portable-staging/Staging-CanonicalRepairLedger.ps1",
+            "autopilot-portable-staging/test/Test-StagingCanonicalRepairLedgerEncoding.ps1",
+            ".github/workflows/ci.yml",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/stagingCanonicalSemanticRepair.js",
+            "http-generic-api/stagingCanonicalSemanticRepairLedger.js",
+            "http-generic-api/scripts/staging-canonical-semantic-repair-runtime-check.mjs",
+            "http-generic-api/test-staging-canonical-semantic-repair.mjs",
+            "http-generic-api/test-staging-canonical-semantic-repair-ledger.mjs",
+            "http-generic-api/test-staging-canonical-semantic-repair-runner.mjs",
+            "http-generic-api/test-staging-database-readiness-repair.mjs",
+            "http-generic-api/test-runtime-data-lifecycle-guard.mjs"
+          ]
+        }
+      ],
+      "tests": [
+        {"id":"environment-impact-closure","runner":"node","path":"http-generic-api/scripts/environment-impact-closure.mjs","args":["--base-sha","BASE_SHA","--head-sha","HEAD_SHA"]}
+      ],
+      "evidence_paths": [
+        ".changes/e2e/staging-canonical-repair-authority-separation-20260921.json",
+        "http-generic-api/config/deployment-branch-policy.json"
+      ]
+    }
+  ]
+}

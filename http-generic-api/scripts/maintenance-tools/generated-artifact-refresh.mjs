@@ -37,7 +37,31 @@ const FRONTEND_OPENAPI_ALLOWED_CHANGED_FILES = new Set([
   "http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml",
   "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
   "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
+  "http-generic-api/openapi/openapi-mutation-policy.generated.json",
+  "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml",
+  "http-generic-api/openapi/openapi.tenant-gpt.auth.production.yaml",
+  "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
+  "http-generic-api/openapi/openapi.tenant-gpt.activation.production.yaml",
+  "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml",
+  "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
+  "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml",
+  "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.production.yaml",
+  "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml",
+  "http-generic-api/openapi/openapi.custom-gpt.activation-admin.production.yaml",
+  "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
+  "http-generic-api/openapi/generated/operation-manifests/admin_recovery_staging.json",
+  "http-generic-api/openapi/generated/operation-manifests/admin_recovery_production.json",
+  "http-generic-api/openapi/generated/operation-manifests/activation_admin_staging.json",
+  "http-generic-api/openapi/generated/operation-manifests/activation_admin_production.json",
+  "http-generic-api/openapi/generated/operation-manifests/admin_core_staging.json",
+  "http-generic-api/openapi/generated/operation-manifests/admin_core_production.json",
+  "http-generic-api/openapi/generated/custom-gpt-registration-manifest.json",
+  "http-generic-api/openapi/generated/custom-admin-schema-index.json",
   "http-generic-api/openapi.gpt-action.local-connector.yaml",
+  "http-generic-api/activation-gateway-runtime/generated/route-policy.json",
+  "edge/activation-gateway/generated/route-policy.staging.json",
+  "http-generic-api/activation-gateway-runtime/generated/route-policy.staging.json",
+  "http-generic-api/activation-gateway-runtime/bundle-manifest.json",
   "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
   "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
   OPENAPI_DETAIL_BATCH_OUTPUT,
@@ -61,6 +85,7 @@ const WORK_MAP_BOOTSTRAP_STATIC_FEATURE_KEYS = new Set([
 const REMOTE_MCP_WRITE_SCOPE_OUTPUTS = new Set([
   "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
   "docs/remote-mcp-write-scope-inventory.md",
+  "docs/write-scope-shadow-evidence-2026-08-15.json",
   STAGING_MANIFEST_PATH,
 ]);
 const REPOSITORY_INVENTORY_OUTPUTS = new Set([
@@ -410,11 +435,15 @@ function runFrontendOpenApiRefresh() {
   run("sync_precise_registry", "node", ["scripts/openapi-precise-contract-registry-sync.mjs", "--write"], { cwd: apiDir });
   run("autofill_openapi_routes", "node", ["scripts/openapi-autofill-missing-routes.mjs", "--write"], { cwd: apiDir });
   run("sync_openapi_runtime_auth", "node", ["scripts/openapi-runtime-auth-sync.mjs", "--write"], { cwd: apiDir });
+  run("generate_custom_gpt_schemas", "node", ["scripts/generate-custom-gpt-schemas.mjs", "--write"], { cwd: apiDir });
+  run("generate_openapi_mutation_policy", "node", ["scripts/generate-openapi-mutation-policy.mjs"], { cwd: apiDir });
+  run("generate_staging_admin_openapi", "node", ["scripts/build-staging-admin-openapi.mjs"], { cwd: apiDir });
+  run("generate_activation_staging_policy", "node", ["scripts/generate-activation-staging-policy.mjs", "--write"], { cwd: apiDir });
   run("generate_frontend_dispatch", "npm", ["run", "frontend:dispatch:generate", "--", "--baseline-ref=main"], { cwd: apiDir });
   run("generate_openapi_detail_gap_classification", "npm", ["run", "openapi:detail-gaps:generate"], { cwd: apiDir });
   run("generate_openapi_gap_closure_plan", "npm", ["run", "openapi:gap-closure-plan:generate"], { cwd: apiDir });
   run("generate_openapi_detail_closure_batch", "npm", ["run", "openapi:detail-batch:write"], { cwd: repoRoot });
-  run("generate_custom_gpt_schemas", "node", ["scripts/generate-custom-gpt-schemas.mjs", "--write"], { cwd: apiDir });
+  run("sync_activation_gateway_runtime_bundle", "node", ["scripts/sync-activation-gateway-runtime-bundle.mjs", "--write"], { cwd: apiDir });
   refreshPortableStagingManifest();
 
   const verificationCommands = [
@@ -428,6 +457,7 @@ function runFrontendOpenApiRefresh() {
     ["verify_auth_parity", "node", ["test-frontend-auth-openapi-parity.mjs"]],
     ["verify_openapi_route_coverage", "node", ["test-openapi-route-coverage.mjs"]],
     ["verify_openapi_auth", "npm", ["run", "openapi:auth:check"]],
+    ["verify_activation_staging_policy", "node", ["scripts/generate-activation-staging-policy.mjs", "--check"]],
     ["verify_schema_guard", "npm", ["run", "schemas:guard"]],
     ["verify_staging_manifest_hash_contract", "node", ["test-staging-autopilot-closure.mjs"]],
   ];
@@ -509,9 +539,11 @@ function runRemoteMcpWriteScopeRefresh() {
   const beforeHashes = readRemoteMcpWriteScopeHashes();
   run("generate_remote_mcp_write_scope_first_pass", "node", ["scripts/remote-mcp-write-scope-inventory.mjs"], { cwd: repoRoot });
   refreshPortableStagingManifest();
+  run("generate_write_scope_shadow_evidence_first_pass", "node", ["scripts/write-scope-shadow-preflight.mjs"], { cwd: repoRoot });
   const firstPassHashes = readRemoteMcpWriteScopeHashes();
   run("generate_remote_mcp_write_scope_second_pass", "node", ["scripts/remote-mcp-write-scope-inventory.mjs"], { cwd: repoRoot });
   refreshPortableStagingManifest();
+  run("generate_write_scope_shadow_evidence_second_pass", "node", ["scripts/write-scope-shadow-preflight.mjs"], { cwd: repoRoot });
   const secondPassHashes = readRemoteMcpWriteScopeHashes();
   if (JSON.stringify(firstPassHashes) !== JSON.stringify(secondPassHashes)) {
     throw new ToolFailure({
@@ -525,6 +557,7 @@ function runRemoteMcpWriteScopeRefresh() {
   }
   run("verify_remote_mcp_write_scope_current", "node", ["scripts/remote-mcp-write-scope-inventory.mjs", "--check"], { cwd: repoRoot });
   run("verify_remote_mcp_write_scope_contract", "node", ["scripts/test-remote-mcp-write-scope-inventory.mjs"], { cwd: repoRoot });
+  run("verify_write_scope_shadow_evidence_current", "node", ["scripts/write-scope-shadow-preflight.mjs", "--check"], { cwd: repoRoot });
   run("verify_staging_manifest_hash_contract", "node", ["http-generic-api/test-staging-autopilot-closure.mjs"], { cwd: repoRoot });
   return {
     deterministic: true,

@@ -1,5 +1,6 @@
 import { getPool } from "./db.js";
 import { getGovernancePool, resolveGovernanceDbConfig } from "./governanceDb.js";
+import { STAGING_ROLE_GRANT_POLICIES } from "./databasePrivilegeContracts.js";
 import {
   GOVERNANCE_DB_PRIVILEGE_MATRIX,
   assertGovernanceDbPrivilegeReadiness,
@@ -10,8 +11,6 @@ export const GOVERNANCE_DB_PRIVILEGE_READINESS_PROBE_CONTRACT =
   "mad4b.governance-db-privilege-readiness-probe.v1";
 export const GOVERNANCE_DB_SCHEMA_READINESS_CONTRACT =
   "mad4b.governance-db-schema-readiness.v1";
-
-const REQUIRED_GOVERNANCE_TABLES = Object.freeze(Object.keys(GOVERNANCE_DB_PRIVILEGE_MATRIX));
 
 function text(value = "") {
   return String(value ?? "").trim();
@@ -30,18 +29,18 @@ function currentAccountToGrantee(value) {
   return `${quote(account.slice(0, separator))}@${quote(account.slice(separator + 1))}`;
 }
 
-function schemaReadinessFromRows(rows = []) {
+function schemaReadinessFromRows(rows = [], requiredGovernanceTables = Object.keys(GOVERNANCE_DB_PRIVILEGE_MATRIX)) {
   const observed = new Set(
     (Array.isArray(rows) ? rows : [])
       .map((row) => text(row?.TABLE_NAME ?? row?.table_name))
       .filter(Boolean),
   );
-  const observedRequiredCount = REQUIRED_GOVERNANCE_TABLES.filter((table) => observed.has(table)).length;
-  const missingRequiredCount = REQUIRED_GOVERNANCE_TABLES.length - observedRequiredCount;
+  const observedRequiredCount = requiredGovernanceTables.filter((table) => observed.has(table)).length;
+  const missingRequiredCount = requiredGovernanceTables.length - observedRequiredCount;
   return {
     contract: GOVERNANCE_DB_SCHEMA_READINESS_CONTRACT,
     ready: missingRequiredCount === 0,
-    required_table_count: REQUIRED_GOVERNANCE_TABLES.length,
+    required_table_count: requiredGovernanceTables.length,
     observed_required_table_count: observedRequiredCount,
     missing_required_table_count: missingRequiredCount,
     table_names_exposed: false,
@@ -88,6 +87,10 @@ export async function runGovernanceDbPrivilegeReadiness(options = {}, deps = {})
 
   try {
     const localStaging = text(env.DEPLOYMENT_ENVIRONMENT) === "staging_local_windows_docker";
+    const expectedPrivilegeMatrix = localStaging
+      ? STAGING_ROLE_GRANT_POLICIES.governance.required_operations_by_table
+      : GOVERNANCE_DB_PRIVILEGE_MATRIX;
+    const requiredGovernanceTables = Object.keys(expectedPrivilegeMatrix);
     const environmentAuthorityDeps = localStaging
       ? {
           repositoryAuthorityOnly: true,
@@ -122,13 +125,13 @@ export async function runGovernanceDbPrivilegeReadiness(options = {}, deps = {})
       throw error;
     }
 
-    const schemaPlaceholders = REQUIRED_GOVERNANCE_TABLES.map(() => "?").join(", ");
+    const schemaPlaceholders = requiredGovernanceTables.map(() => "?").join(", ");
     const [requiredTableRows] = await governanceConnection.query(
       `SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME IN (${schemaPlaceholders}) ORDER BY TABLE_NAME`,
-      [governanceConfig.database, ...REQUIRED_GOVERNANCE_TABLES],
+      [governanceConfig.database, ...requiredGovernanceTables],
     );
     telemetry.sql_readback_performed = true;
-    const schemaReadiness = schemaReadinessFromRows(requiredTableRows);
+    const schemaReadiness = schemaReadinessFromRows(requiredTableRows, requiredGovernanceTables);
     if (!schemaReadiness.ready) {
       const error = new Error("Governance DB schema readiness failed closed.");
       error.code = "GOVERNANCE_DB_SCHEMA_READINESS_FAILED";
@@ -167,6 +170,7 @@ export async function runGovernanceDbPrivilegeReadiness(options = {}, deps = {})
       tablePrivileges,
       columnPrivileges,
       applicableRoles,
+      expectedPrivilegeMatrix,
     });
 
     return {

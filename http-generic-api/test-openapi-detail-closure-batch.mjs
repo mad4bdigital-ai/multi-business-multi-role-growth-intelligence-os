@@ -30,8 +30,10 @@ assert.equal(artifact.source.detail_family_count, 75);
 assert.equal(artifact.source.dispatch_operation_count, dispatch.coverage.operation_count);
 assert.equal(artifact.summary.family_count, 75);
 assert.equal(artifact.summary.dispatch_family_count, dispatch.coverage.mounted_family_count);
-assert.equal(artifact.summary.operation_count, 318);
-assert.equal(artifact.operations.length, 318);
+const expectedDetailOperationCount = dispatch.coverage.openapi_detail_gap_count;
+assert.equal(artifact.summary.operation_count, expectedDetailOperationCount);
+assert.equal(artifact.summary.detail_evidence_required_count, expectedDetailOperationCount);
+assert.equal(artifact.operations.length, expectedDetailOperationCount);
 
 const signatures = new Set();
 for (const operation of artifact.operations) {

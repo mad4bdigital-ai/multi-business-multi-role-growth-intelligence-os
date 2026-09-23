@@ -42,7 +42,9 @@ function parseArgs(argv) {
     headRef: process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME || null,
     baseRef: process.env.GITHUB_BASE_REF || null,
     evaluateResult: process.env.EVALUATE_JOB_RESULT || null,
-    executeResult: process.env.EXECUTE_JOB_RESULT || null
+    executeResult: process.env.EXECUTE_JOB_RESULT || null,
+    mariadbCertificationResult: null,
+    mariadbCertificationEvidencePath: null
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -81,6 +83,10 @@ function parseArgs(argv) {
     else if (arg.startsWith("--evaluate-result=")) options.evaluateResult = arg.slice(18);
     else if (arg === "--execute-result") options.executeResult = read();
     else if (arg.startsWith("--execute-result=")) options.executeResult = arg.slice(17);
+    else if (arg === "--mariadb-certification-result") options.mariadbCertificationResult = read();
+    else if (arg.startsWith("--mariadb-certification-result=")) options.mariadbCertificationResult = arg.slice(31);
+    else if (arg === "--mariadb-certification-evidence") options.mariadbCertificationEvidencePath = read();
+    else if (arg.startsWith("--mariadb-certification-evidence=")) options.mariadbCertificationEvidencePath = arg.slice(33);
     else throw new Error(`Unknown argument: ${arg}`);
   }
   if (!options.inputDir) throw new Error("--input-dir is required.");
@@ -182,7 +188,46 @@ export function buildCiEvidenceSummary({ inputDir, policy = DEFAULT_POLICY, cont
   const { reports, malformed } = collectReports(inputDir);
   const evaluateJobResult = normalizedJobResult(context.evaluateResult);
   const executeJobResult = normalizedJobResult(context.executeResult);
+  const mariadbCertificationJobResult = normalizedJobResult(context.mariadbCertificationResult);
   const integrityFindings = [];
+
+  let mariadbCertification = null;
+  if (mariadbCertificationJobResult === "success") {
+    const evidencePath = context.mariadbCertificationEvidencePath ? path.resolve(context.mariadbCertificationEvidencePath) : null;
+    if (!evidencePath || !fs.existsSync(evidencePath)) {
+      integrityFindings.push({ code: "successful_mariadb_certification_missing_evidence" });
+    } else {
+      try {
+        const text = fs.readFileSync(evidencePath, "utf8");
+        const data = JSON.parse(text);
+        if (data?.report_type !== "local_manager_desktop_command_mariadb_certification"
+          || data?.ok !== true
+          || data?.mode !== "disposable"
+          || data?.secrets_included !== false
+          || data?.production_authorized !== false
+          || data?.staging_apply_authorized !== false) {
+          integrityFindings.push({ code: "mariadb_certification_evidence_invalid" });
+        } else {
+          mariadbCertification = {
+            result: mariadbCertificationJobResult,
+            report_type: data.report_type,
+            mode: data.mode,
+            migration_sha256: data.migration_sha256 || null,
+            evidence_sha256: digest(text),
+            lifecycle: data.lifecycle || {},
+            privilege_denials: Array.isArray(data.privilege_denials) ? data.privilege_denials : [],
+            secrets_included: false
+          };
+        }
+      } catch (error) {
+        integrityFindings.push({ code: "mariadb_certification_evidence_malformed", error: String(error?.message || error) });
+      }
+    }
+  } else if (["failure", "cancelled"].includes(mariadbCertificationJobResult)) {
+    mariadbCertification = { result: mariadbCertificationJobResult, secrets_included: false };
+  } else if (mariadbCertificationJobResult === "skipped") {
+    mariadbCertification = { result: "skipped", secrets_included: false };
+  }
 
   if (!reports.length) integrityFindings.push({ code: "canonical_source_reports_missing" });
   for (const item of malformed) integrityFindings.push({ code: "malformed_structured_report", file: item.name, error: item.error });
@@ -196,14 +241,18 @@ export function buildCiEvidenceSummary({ inputDir, policy = DEFAULT_POLICY, cont
 
   const evaluationFinding = firstEvaluationFinding(recognized);
   const executionFailures = failedExecutionResults(recognized);
+  const mariadbCertificationFinding = ["failure", "cancelled"].includes(mariadbCertificationJobResult)
+    ? { source: "local-manager-desktop-command-mariadb-certification", code: `mariadb_certification_${mariadbCertificationJobResult}`, status: mariadbCertificationJobResult }
+    : null;
   let outcome = "unknown";
   if (integrityFindings.length) outcome = "evidence_error";
   else if (evaluateJobResult === "failure" || evaluationFinding || evaluationReports.some((row) => row.data.ok === false)) outcome = "blocked";
   else if (executeJobResult === "failure" || executionFailures.length || executionReports.some((row) => row.data.ok === false)) outcome = "failed";
-  else if (evaluateJobResult === "success" && ["success", "skipped"].includes(executeJobResult)) outcome = "passed";
+  else if (["failure", "cancelled"].includes(mariadbCertificationJobResult)) outcome = "failed";
+  else if (evaluateJobResult === "success" && ["success", "skipped"].includes(executeJobResult) && ["success", "skipped", "unknown"].includes(mariadbCertificationJobResult)) outcome = "passed";
   else if (recognized.length) outcome = "incomplete";
 
-  const firstFailure = integrityFindings[0] || executionFailures[0] || evaluationFinding || null;
+  const firstFailure = integrityFindings[0] || executionFailures[0] || evaluationFinding || mariadbCertificationFinding || null;
   const logDiagnosisRequired = outcome === "evidence_error" || (Boolean(firstFailure) && !diagnosticAvailable(firstFailure));
   const featureKeys = unique(recognized.flatMap((row) => [row.data?.feature_key, ...(row.data?.contracts || []).map((item) => item?.feature_key)]));
 
@@ -229,7 +278,8 @@ export function buildCiEvidenceSummary({ inputDir, policy = DEFAULT_POLICY, cont
       base_ref: context.baseRef || null
     },
     outcome,
-    jobs: { evaluate: evaluateJobResult, execute: executeJobResult },
+    jobs: { evaluate: evaluateJobResult, execute: executeJobResult, mariadb_certification: mariadbCertificationJobResult },
+    certifications: { local_manager_desktop_command_mariadb: mariadbCertification },
     subject: {
       feature_keys: featureKeys,
       modes: unique(recognized.map((row) => row.data?.pr_mode || row.data?.mode)),
@@ -281,10 +331,18 @@ export function renderCiEvidenceMarkdown(summary) {
     "",
     `- Evaluate job: **${summary.jobs.evaluate}**`,
     `- Execute job: **${summary.jobs.execute}**`,
+    `- MariaDB certification job: **${summary.jobs.mariadb_certification}**`,
     `- PR mode: ${summary.subject.modes.length ? summary.subject.modes.map((value) => `\`${value}\``).join(", ") : "—"}`,
     `- Feature: ${summary.subject.feature_keys.length ? summary.subject.feature_keys.map((value) => `\`${value}\``).join(", ") : "—"}`,
     `- Workstream: ${summary.subject.workstream_ids.length ? summary.subject.workstream_ids.map((value) => `\`${value}\``).join(", ") : "—"}`
   ];
+  const maria = summary.certifications?.local_manager_desktop_command_mariadb;
+  if (maria?.result === "success") {
+    lines.push(
+      `- MariaDB evidence SHA-256: \`${maria.evidence_sha256}\``,
+      `- MariaDB migration SHA-256: \`${maria.migration_sha256 || "unknown"}\``
+    );
+  }
   if (summary.first_failure) {
     const failure = summary.first_failure;
     lines.push("", "## First blocking evidence", "", `- Source: \`${failure.source || failure.file || "summary-integrity"}\``);
@@ -331,7 +389,9 @@ export function runCiEvidenceRouter(argv = process.argv.slice(2)) {
       headRef: options.headRef,
       baseRef: options.baseRef,
       evaluateResult: options.evaluateResult,
-      executeResult: options.executeResult
+      executeResult: options.executeResult,
+      mariadbCertificationResult: options.mariadbCertificationResult,
+      mariadbCertificationEvidencePath: options.mariadbCertificationEvidencePath
     }
   });
   const markdown = renderCiEvidenceMarkdown(summary);

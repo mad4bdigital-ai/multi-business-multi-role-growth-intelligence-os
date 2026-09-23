@@ -9,6 +9,10 @@ import { buildDiagnosticStream, redactDiagnosticOutput } from "./bounded-diagnos
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const REPO_ROOT = path.resolve(HERE, "..", "..");
 const MAX_CAPTURE_BUFFER_BYTES = 16 * 1024 * 1024;
+const MIN_TEST_TIMEOUT_MS = 1_000;
+const MAX_TEST_TIMEOUT_MS = 900_000;
+const EXACT_GIT_SHA_RE = /^[a-f0-9]{40}$/u;
+const TEST_ARG_SHA_PLACEHOLDERS = Object.freeze({ BASE_SHA: "base", HEAD_SHA: "head" });
 
 function normalize(value) {
   return String(value || "").replaceAll("\\", "/").replace(/^\.\//, "");
@@ -393,32 +397,73 @@ function emitCapturedOutput(result) {
   if (stderr) process.stderr.write(stderr);
 }
 
+function resolveTestArguments(testArgs = [], options = {}) {
+  return testArgs.map((argument) => {
+    const optionKey = TEST_ARG_SHA_PLACEHOLDERS[argument];
+    if (!optionKey) return argument;
+    const value = String(options[optionKey] || "").trim();
+    if (!EXACT_GIT_SHA_RE.test(value)) {
+      throw new Error(`E2E test argument placeholder ${argument} requires an exact lowercase 40-character Git SHA from the governed phase invocation.`);
+    }
+    return value;
+  });
+}
+
 export function executePhaseTests(evaluation, options = {}) {
   const root = options.root || REPO_ROOT;
   const tests = executableTests(evaluation.contracts);
   const maxTests = evaluation.policy.max_test_count_per_contract * Math.max(1, evaluation.contracts.length);
   if (tests.length > maxTests) throw new Error(`Refusing to run ${tests.length} tests; policy maximum is ${maxTests}.`);
+  const testTimeoutMs = Number(evaluation.policy.test_timeout_ms);
+  if (!Number.isInteger(testTimeoutMs) || testTimeoutMs < MIN_TEST_TIMEOUT_MS || testTimeoutMs > MAX_TEST_TIMEOUT_MS) {
+    throw new Error(`E2E phase governance test_timeout_ms must be an integer between ${MIN_TEST_TIMEOUT_MS} and ${MAX_TEST_TIMEOUT_MS}.`);
+  }
   const results = [];
   for (const item of tests) {
     const workingDirectory = path.resolve(root, item.test.working_directory || ".");
+    const startedAt = Date.now();
+    let resolvedTestArgs;
+    try {
+      resolvedTestArgs = resolveTestArguments(item.test.args || [], options);
+    } catch (error) {
+      const message = redactDiagnosticOutput(error?.message || String(error));
+      results.push({
+        feature_key: item.featureKey,
+        phase: item.phase,
+        journey_id: item.journeyId,
+        test_id: item.test.id,
+        runner: item.test.runner,
+        status: "error",
+        exit_code: 1,
+        duration_ms: Date.now() - startedAt,
+        error: message,
+        diagnostic: {
+          stdout: buildDiagnosticStream(""),
+          stderr: buildDiagnosticStream(message)
+        }
+      });
+      break;
+    }
     let executable;
     let args;
     if (item.test.runner === "node") {
       executable = process.execPath;
-      args = [item.test.path, ...(item.test.args || [])];
+      args = [item.test.path, ...resolvedTestArgs];
     } else {
       executable = process.platform === "win32" ? "npm.cmd" : "npm";
-      args = ["run", item.test.script, "--", ...(item.test.args || [])];
+      args = ["run", item.test.script, "--", ...resolvedTestArgs];
     }
-    const startedAt = Date.now();
     const result = spawnSync(executable, args, {
       cwd: workingDirectory,
       env: { ...process.env, E2E_PHASE_GOVERNANCE: "true", E2E_FEATURE_KEY: item.featureKey, E2E_PHASE: item.phase },
       shell: false,
       encoding: "utf8",
-      maxBuffer: MAX_CAPTURE_BUFFER_BYTES
+      maxBuffer: MAX_CAPTURE_BUFFER_BYTES,
+      timeout: testTimeoutMs,
+      killSignal: "SIGTERM"
     });
     emitCapturedOutput(result);
+    const timedOut = result.error?.code === "ETIMEDOUT";
     const failed = Boolean(result.error || result.status !== 0);
     results.push({
       feature_key: item.featureKey,
@@ -429,6 +474,8 @@ export function executePhaseTests(evaluation, options = {}) {
       status: result.error ? "error" : result.status === 0 ? "passed" : "failed",
       exit_code: result.error ? 1 : (result.status ?? 1),
       duration_ms: Date.now() - startedAt,
+      timeout_ms: testTimeoutMs,
+      timed_out: timedOut,
       ...(result.error ? { error: redactDiagnosticOutput(result.error.message) } : {}),
       ...(failed ? { diagnostic: { stdout: buildDiagnosticStream(result.stdout), stderr: buildDiagnosticStream(result.stderr) } } : {})
     });
@@ -438,7 +485,7 @@ export function executePhaseTests(evaluation, options = {}) {
     ok: results.length === tests.length && results.every((row) => row.status === "passed"),
     test_count: tests.length,
     results,
-    diagnostics: { capture_mode: "bounded_redacted_failure_tail", max_chars_per_stream: 12_000, job_logs_role: "diagnostic_only" },
+    diagnostics: { capture_mode: "bounded_redacted_failure_tail", max_chars_per_stream: 12_000, test_timeout_ms: testTimeoutMs, kill_signal: "SIGTERM", job_logs_role: "diagnostic_only" },
     secrets_included: false
   };
 }
