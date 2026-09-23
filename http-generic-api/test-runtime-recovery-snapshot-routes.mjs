@@ -65,9 +65,22 @@ test("snapshot routes serve read-only evidence without database access", async (
   assert.equal(sessionResponse.body.conversation_memory.status, "snapshot");
   assert.equal(sessionResponse.body.runtime_recovery_source.database_connection_performed, false);
 
-  const openResponse = response();
+  const defaultContextResponse = response();
   await routeHandler(activationRouter, "get", "/activation/session-context")({
     query: {},
+    auth: { mode: "backend_api_key", is_admin: true },
+    headers: {},
+  }, defaultContextResponse, () => {});
+  assert.equal(defaultContextResponse.statusCode, 200);
+  assert.equal(defaultContextResponse.body.ok, true);
+  assert.equal(defaultContextResponse.body.read_only, true);
+  assert.equal(defaultContextResponse.body.session_id, null);
+  assert.equal(defaultContextResponse.body.session_management.persistent, false);
+  assert.equal(defaultContextResponse.body.runtime_recovery_source.database_connection_performed, false);
+
+  const openResponse = response();
+  await routeHandler(activationRouter, "get", "/activation/session-context")({
+    query: { read_only: "false" },
     auth: { mode: "backend_api_key", is_admin: true },
     headers: {},
   }, openResponse, () => {});
