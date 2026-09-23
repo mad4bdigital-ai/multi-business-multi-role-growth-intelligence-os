@@ -78,6 +78,11 @@ assert.deepEqual(classifyPath("autopilot-portable-production/Deploy.ps1", classe
 assert.deepEqual(classifyPath("http-generic-api/.env.staging.example", classes).map((entry) => entry.id), ["staging_only"]);
 assert.deepEqual(classifyPath("http-generic-api/frontend-surface-dispatch.generated.json", classes).map((entry) => entry.id), ["shared_runtime"]);
 assert.deepEqual(classifyPath("http-generic-api/auth.mjs", classes).map((entry) => entry.id), ["shared_runtime"]);
+assert.deepEqual(classifyPath("apps/local-manager-device-proof-certification/Program.cs", classes).map((entry) => entry.id), ["cross_runtime_certification"]);
+assert.deepEqual(classifyPath("apps/local-manager-device-proof-certification/Mad4B.LocalManager.DeviceProofCertification.csproj", classes).map((entry) => entry.id), ["cross_runtime_certification"]);
+const certificationClass = classes.find((entry) => entry.id === "cross_runtime_certification");
+assert.deepEqual(certificationClass.environments, ["repository"]);
+assert.equal(certificationClass.requires_live_certification, false);
 assert.deepEqual(classifyPath("http-generic-api/test-environment-impact-closure.mjs", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath("http-generic-api/test-example.js", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath("docs/repository-inventory.json", classes).map((entry) => entry.id), ["repository_governance"]);
