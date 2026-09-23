@@ -565,6 +565,7 @@
     ".github/tests/repository-governance-fixed-point.test.mjs",
     ".github/tests/repository-governance-objection-gate.test.mjs",
     ".github/workflows/automation-overlap-guard.yml",
+    ".github/workflows/branch-test-diagnostic-shards.yml",
     ".github/workflows/brand-skill-mariadb-certification.yml",
     ".github/workflows/ci-pull-request-recovery.yml",
     ".github/workflows/ci.yml",
