@@ -9,6 +9,7 @@
     "include": [
       ".changes/e2e/production-recovery-baseline-authority-bridge-7999-20260924.json",
       ".github/governance/test-authority-registry.json",
+      "docs/governance/configuration-drift-baseline-extensions.json",
       "docs/runbooks/production-recovery-baseline-authority-bridge-7999.md",
       "http-generic-api/productionRecoveryBaselineAuthorityBinding.js",
       "http-generic-api/productionRecoveryHostLocalBaselineRebuild.js",
