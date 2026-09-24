@@ -27,10 +27,21 @@ export function classifyStagingEmptyRoleCensus(rows) {
   };
 }
 
+function parseCliCensus(flag, value) {
+  if (flag === "--census-json") return JSON.parse(String(value ?? ""));
+  if (flag !== "--census-json-base64") throw new Error("expected --census-json or --census-json-base64 argument");
+  const encoded = String(value ?? "").trim();
+  if (!encoded || encoded.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/u.test(encoded)) throw new Error("invalid --census-json-base64 payload");
+  const decoded = Buffer.from(encoded, "base64").toString("utf8");
+  const canonical = Buffer.from(decoded, "utf8").toString("base64");
+  if (canonical.replace(/=+$/u, "") !== encoded.replace(/=+$/u, "")) throw new Error("non-canonical --census-json-base64 payload");
+  return JSON.parse(decoded);
+}
+
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
   try {
-    if (process.argv.length !== 4 || process.argv[2] !== "--census-json") throw new Error("expected --census-json argument");
-    const result = classifyStagingEmptyRoleCensus(JSON.parse(process.argv[3]));
+    if (process.argv.length !== 4) throw new Error("expected one census payload argument");
+    const result = classifyStagingEmptyRoleCensus(parseCliCensus(process.argv[2], process.argv[3]));
     console.log(JSON.stringify(result));
     if (!result.candidate_for_governed_rebuild_empty) process.exitCode = 2;
   } catch (error) { console.error(`STAGING_EMPTY_CENSUS_BLOCKED: ${error.message}`); process.exitCode = 1; }

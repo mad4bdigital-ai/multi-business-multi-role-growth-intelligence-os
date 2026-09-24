@@ -11,6 +11,7 @@ import { computeTargetBindingFingerprint, sha256Hex } from "./runtimeBootstrapCo
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const classifier = path.join(root, "http-generic-api/scripts/classify-staging-empty-role-census.mjs");
 const roles = ["runtime", "governance", "runtime_persistence"];
+const censusBase64 = (rows) => Buffer.from(JSON.stringify(rows), "utf8").toString("base64");
 const empty = roles.map((role) => ({ role, object_count: 0 }));
 const emptyResult = classifyStagingEmptyRoleCensus(empty);
 assert.equal(emptyResult.ready_for_rebuild_empty, true);
@@ -45,6 +46,8 @@ for (const invalid of [empty.slice(1), [...empty, empty[0]], [{ ...empty[0], obj
   assert.throws(() => classifyStagingEmptyRoleCensus(invalid));
 }
 assert.equal(spawnSync(process.execPath, [classifier, "--census-json", JSON.stringify(empty)], { encoding: "utf8" }).status, 0);
+assert.equal(spawnSync(process.execPath, [classifier, "--census-json-base64", censusBase64(empty)], { encoding: "utf8" }).status, 0);
+assert.equal(spawnSync(process.execPath, [classifier, "--census-json-base64", "not-json-base64"], { encoding: "utf8" }).status, 1);
 
 const zeroCounts = { tables: 0, views: 0, triggers: 0, routines: 0, events: 0, total: 0 };
 const runtimeNormalized = { ...zeroCounts, legacy_table_only: false, secrets_included: false };
@@ -82,6 +85,7 @@ fs.rmSync(tempDir, { recursive: true, force: true });
 
 const replay = fs.readFileSync(path.join(root, "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs"), "utf8");
 const entry = fs.readFileSync(path.join(root, "autopilot-portable-staging/Rebuild-EmptyStagingRoleDatabases.ps1"), "utf8");
+const inspectionPreparer = fs.readFileSync(path.join(root, "http-generic-api/scripts/prepare-staging-rebuild-empty-inspection.mjs"), "utf8");
 const authority = fs.readFileSync(path.join(root, "http-generic-api/stagingRebuildEmptyAuthority.js"), "utf8");
 const handoff = fs.readFileSync(path.join(root, "http-generic-api/stagingRebuildEmptyHandoff.js"), "utf8");
 const kernelBridge = fs.readFileSync(path.join(root, "http-generic-api/recoveryKernelInspectionBridge.js"), "utf8");
@@ -102,6 +106,11 @@ assert.match(entry, /TABLE_TYPE='BASE TABLE'/u);
 assert.match(replay, /views: plan\.roles\[role\]\.views/u);
 assert.match(entry, /classify-staging-empty-role-census\.mjs/u);
 assert.match(entry, /prepare-staging-rebuild-empty-inspection\.mjs/u);
+assert.match(entry, /\[Convert\]::ToBase64String/u);
+assert.match(entry, /--census-json-base64 \$censusJsonBase64/u);
+assert.doesNotMatch(entry, /--census-json \$censusJson/u);
+assert.match(inspectionPreparer, /--census-json-base64/u);
+assert.match(inspectionPreparer, /Buffer\.from\(encoded, "base64"\)/u);
 assert.match(entry, /--env-file \$envFile/u);
 assert.match(entry, /\/admin\/system\/tools\/call/u);
 for (const tool of ["staging_recovery_rebuild_empty_inspection_record", "staging_recovery_rebuild_empty_prepare", "staging_recovery_rebuild_empty_approve"]) assert.ok(entry.includes(tool) && systemTools.includes(tool) && recoveryRoutes.includes(tool));

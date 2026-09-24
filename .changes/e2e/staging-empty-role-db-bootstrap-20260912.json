@@ -56,6 +56,7 @@
       "terminal_outcome": "Canonical Recovery Kernel findings select only zero-object roles; each selected role has one role-specific remediation plan, approval-bound execution ticket and verified local handoff; the canonical local apply path holds one exclusive set-level host lock across the role sequence and revalidates origin/main before every role; preserved non-empty roles retain equal before/after fingerprints; lifecycle retries reuse durable semantic results; grants remain unapplied and Gateway apply certification remains pending.",
       "steps": [
         "Inspect all three local role databases read-only across base tables, views, triggers, routines and events; treat the local census only as candidate evidence.",
+        "Serialize the bounded census as UTF-8 Base64 before crossing the Windows PowerShell native argv boundary; decode and validate it in both classifier and inspection-preparer CLIs without changing census semantics or mutation authority.",
         "Bind the census to the exact local database/principal target fingerprint, exact source SHA and exact generated role bundle bindings; normalize and recompute fingerprints server-side, then classify zero-object findings through RecoveryKernel.findingsFromInspection before persisting the durable Recovery inspection.",
         "Create one deterministic mad4b.recovery-remediation-plan.v1 step for every server-selected role using runtime.baseline.rebuild_empty, governance.baseline.rebuild_empty or runtime_persistence.baseline.rebuild_empty; bind all role plans into one exact set-level approval confirmation.",
         "Consume only expected SHA, durable inspection run, idempotency key and the exact set-level confirmation; caller-selected role, plan and step references are forbidden. Issue one single-use execution ticket and verified Host Breakglass local handoff for each canonical role plan.",
@@ -67,6 +68,7 @@
       ],
       "assertions": [
         "A mixed topology is valid only when at least one role is zero-object; non-empty roles are excluded from mutation rather than blocking eligible empty roles.",
+        "Windows PowerShell native argv transport cannot strip JSON quotes from census evidence: the canonical operator path uses Base64/UTF-8 with canonical decode validation, while legacy --census-json remains backward-compatible for non-Windows callers.",
         "Caller-selected role sets are non-authoritative; durable Recovery inspection evidence plus RecoveryKernel.findingsFromInspection determine eligible roles and canonical role-specific capabilities.",
         "There is no staging_database_rebuild_empty execution capability: every consequential rebuild step is exactly one registered role-specific *.baseline.rebuild_empty capability inside a mad4b.recovery-remediation-plan.v1 plan.",
         "The Recovery System Tool surface is the sole Staging rebuild orchestration authority; Host Breakglass is transport only and the former /admin/runtime-bootstrap/staging/rebuild-empty lifecycle is absent.",
