@@ -19,7 +19,6 @@ const REPO_ROOT = path.resolve(HERE, "..");
 const REPOSITORY = "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os";
 const PRODUCTION_BRANCH = "Production";
 const TARGET_KEY = "production-runtime";
-const ENVIRONMENT_KEY = "production_hostinger_autodeploy";
 const ROLES = new Set(["runtime", "governance", "runtime_persistence"]);
 const SHA40 = /^[0-9a-f]{40}$/u;
 const SHA256 = /^[0-9a-f]{64}$/u;
@@ -246,7 +245,6 @@ function buildBootstrapEnvironment(input, env = process.env) {
     BOOTSTRAP_EXECUTION_TICKET_ID: input.execution_ticket_id,
     BOOTSTRAP_EXECUTION_TICKET_HASH: input.execution_ticket_hash,
     HOST_BREAKGLASS_OPERATION: "database.rebuild_empty",
-    HOST_BREAKGLASS_ENVIRONMENT_KEY: ENVIRONMENT_KEY,
     HOST_BREAKGLASS_HOST_LOCAL_ROLE_CREDENTIALS: "true",
     BOOTSTRAP_HOST_LOCAL_ROLE_IDENTITY: "true",
   };
