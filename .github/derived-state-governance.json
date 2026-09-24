@@ -181,6 +181,7 @@
       ".changes/e2e/staging-empty-role-db-bootstrap-20260912.json",
       ".changes/e2e/staging-endpoints-baseline-autopilot-entrypoint.json",
       ".changes/e2e/staging-endpoints-column-baseline-contract.json",
+      ".changes/e2e/staging-execution-policies-stable-semantic-identity-20260924.json",
       ".changes/e2e/staging-env-authority-canonicalization-20260902.json",
       ".changes/e2e/staging-environment-convergence-certification-20260910.json",
       ".changes/e2e/staging-gateway-canonical-platform-workspace-20260919.json",
