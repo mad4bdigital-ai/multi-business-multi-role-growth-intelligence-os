@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - Production
     paths:
       - 'apps/local-manager-windows/**'
       - 'http-generic-api/routes/localManagerBetaRoutes.js'
@@ -20,6 +21,10 @@ on:
 permissions:
   contents: read
   actions: read
+
+concurrency:
+  group: local-manager-windows-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-windows-exe:
@@ -91,7 +96,7 @@ jobs:
 
   publish-release:
     name: Publish public latest EXE release asset
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/Production'
     needs: build-windows-exe
     runs-on: windows-latest
     permissions:
@@ -107,6 +112,32 @@ jobs:
         with:
           name: Mad4B-Local-Manager-Windows-EXE
           path: dist
+
+      - name: Verify Hostinger runs this exact Production commit
+        shell: pwsh
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ready = $false
+          for ($attempt = 1; $attempt -le 8; $attempt++) {
+            try {
+              $health = Invoke-WebRequest -Uri 'https://auth.mad4b.com/health' -TimeoutSec 12
+              $version = Invoke-RestMethod -Uri 'https://auth.mad4b.com/version' -TimeoutSec 12
+              $deployment = Invoke-RestMethod -Uri 'https://auth.mad4b.com/deployment-info' -TimeoutSec 12
+              $ready = $health.StatusCode -eq 200 `
+                -and $version.gitCommitFull -eq $env:EXPECTED_SHA `
+                -and $version.gitBranch -eq 'Production' `
+                -and $deployment.commit_sha -eq $env:EXPECTED_SHA `
+                -and $deployment.branch -eq 'Production'
+              if ($ready) { break }
+            } catch {
+              Write-Host "Production readback unavailable on attempt $attempt."
+            }
+            if ($attempt -lt 8) { Start-Sleep -Seconds 20 }
+          }
+          if (-not $ready) { throw 'Local Manager release blocked: Hostinger does not run this exact Production commit.' }
+          Write-Host "Production runtime parity verified for $env:EXPECTED_SHA"
 
       - name: Publish public latest EXE release asset
         shell: pwsh
