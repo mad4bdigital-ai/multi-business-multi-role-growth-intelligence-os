@@ -144,6 +144,10 @@ function buildResolver(testEnv) {
   const serialized = JSON.stringify(provider({ requested_mode: "production_live" }));
   assert(!serialized.includes(testEnv.RECOVERY_PRODUCTION_APPROVAL_SECRET));
   assert(!serialized.includes(testEnv.RECOVERY_PRODUCTION_EXECUTION_PRIVATE_KEY_JWK));
+  assert(!serialized.includes("raw_sql"));
+  assert(!serialized.includes("caller_credentials"));
+  assert(!serialized.includes("gpt_credentials"));
+  assert(!serialized.includes("local_connector"));
 }
 
 {
