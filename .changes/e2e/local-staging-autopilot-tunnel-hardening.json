@@ -61,7 +61,11 @@
       "http-generic-api/test-staging-runtime-oauth-profile.mjs",
       "http-generic-api/test-staging-three-db-topology.mjs",
       "http-generic-api/test-workspace-brand-create.mjs",
-      "http-generic-api/workspaceBrandLifecycle.js"
+      "http-generic-api/workspaceBrandLifecycle.js",
+      "autopilot-portable-staging/Staging-Environment.ps1",
+      "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs",
+      "http-generic-api/test-staging-one-click-autopilot-core.mjs",
+      "http-generic-api/test-staging-post-build-image-discovery.mjs"
     ],
     "exclude": [
       "auth.mad4b.com",
@@ -105,7 +109,9 @@
             "Verify that the generated Staging OAuth preset points to openapi.tenant-gpt.staging.yaml, has no activation schema, and returns 404 on mcp-dev and activation_dev discovery hosts.",
             "Verify that Compose binds the origin to loopback, keeps Redis unexposed, gates cloudflared on app health, and requires health status rather than HTTP 200 alone.",
             "Verify that Auto Pilot and database cloning enforce WSL2 presence, local Docker context, valid Compose model, healthy services, duplicate-key rejection, and mutation flags read from .env.staging.",
-            "Verify the manifest hashes the complete Staging operational scope while migration_applied, database_mutated, production_deploy, provider_mutation, cloudflare_dns_mutation, and hostinger_mutation remain false."
+            "Verify the manifest hashes the complete Staging operational scope while migration_applied, database_mutated, production_deploy, provider_mutation, cloudflare_dns_mutation, and hostinger_mutation remain false.",
+            "Classify platform_admin_semantic_readiness=not_required as no canonical semantic repair handoff and remove a stale handoff artifact instead of reporting inspection_required.",
+            "Validate exact Staging image provenance from one canonical docker image inspect JSON payload so Windows PowerShell 5.1 does not depend on Docker Go-template quoting for label or image-ID readback."
           ],
           "assertions": [
             "Staging active hostnames are exactly dev.mad4b.com and mcp-dev.mad4b.com.",
@@ -138,7 +144,10 @@
             "The shared operations logger initializes Mad4bStagingRunId through a StrictMode-safe Get-Variable lookup before the first durable log write, and the logging contract prevents regression to an unset-global read.",
             "The one-click launcher parses WSL2 readiness independently and retries wsl.exe --list --verbose with bounded backoff after installation or reboot instead of failing on a single transient probe.",
             "The WSL2 readiness parser normalizes NUL-padded output and treats a valid Ubuntu version-2 row as authoritative even when the probe exit code is transiently nonzero.",
-            "The WSL2 output normalization uses PowerShell 5.1-compatible regex replacement and does not rely on a [char]0 conversion that can throw before readiness evaluation."
+            "The WSL2 output normalization uses PowerShell 5.1-compatible regex replacement and does not rely on a [char]0 conversion that can throw before readiness evaluation.",
+            "Canonical semantic readiness values ready and not_required both produce handoff status not_required; canonical_missing remains plan_required and other non-ready states remain inspection_required.",
+            "Exact-image reuse validates image ID, provenance contract, commit, tree, context file-set digest, and secrets_included=false from canonical docker image inspect JSON, avoiding Windows PowerShell Go-template false negatives.",
+            "SkipBuild reuses an existing exact-provenance image and must fail closed only when no exact commit/tree/context image is actually present."
           ],
           "tests": [
             {
@@ -224,6 +233,13 @@
               "working_directory": "http-generic-api",
               "path": "test-staging-independent-schema-contract.mjs",
               "args": []
+            },
+            {
+              "id": "staging-post-build-image-discovery",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-post-build-image-discovery.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -264,7 +280,12 @@
             "http-generic-api/test-staging-operations-logging-contract.mjs",
             "http-generic-api/test-staging-runtime-oauth-profile.mjs",
             "http-generic-api/test-workspace-brand-create.mjs",
-            "http-generic-api/workspaceBrandLifecycle.js"
+            "http-generic-api/workspaceBrandLifecycle.js",
+            "autopilot-portable-staging/One-Click-Staging.ps1",
+            "autopilot-portable-staging/Staging-Environment.ps1",
+            "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs",
+            "http-generic-api/test-staging-one-click-autopilot-core.mjs",
+            "http-generic-api/test-staging-post-build-image-discovery.mjs"
           ]
         }
       ]
