@@ -63,6 +63,8 @@ assert.equal(policy.lifecycle.activation_readiness.semantic_repair_handoff.nonmi
 assert.equal(policy.lifecycle.activation_readiness.semantic_repair_handoff.automatic_apply, false);
 assert.equal(policy.lifecycle.activation_readiness.semantic_repair_handoff.automatic_retry, false);
 assert.equal(policy.lifecycle.activation_readiness.semantic_repair_handoff.reconcile_before_retry, true);
+assert.match(launcher, /\$handoffState = if \(\$status -in @\("ready", "not_required"\)\) \{ "not_required" \} elseif \(\$planEligible\) \{ "plan_required" \} else \{ "inspection_required" \}/);
+assert.match(launcher, /if \(\$handoffState -eq "not_required"\) \{[\s\S]*?Remove-Item -LiteralPath \$handoffPath -Force/s);
 assert.equal(policy.lifecycle.activation_readiness.stale_policy_blocks_activation, true);
 assert.equal(policy.lifecycle.activation_readiness.schema_and_catalog_readiness_required, true);
 assert.deepEqual(policy.safety, {
