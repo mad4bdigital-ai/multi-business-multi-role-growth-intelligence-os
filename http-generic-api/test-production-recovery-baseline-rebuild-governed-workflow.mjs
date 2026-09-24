@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
-const workflow = fs.readFileSync(path.join(ROOT, ".github/workflows/production-recovery-baseline-rebuild-governed.yml"), "utf8");
+const workflow = fs.readFileSync(path.join(ROOT, ".github/workflows/governed-production-promotion-dispatch-bridge.yml"), "utf8");
 const runner = fs.readFileSync(path.join(ROOT, ".github/ops/production-recovery-baseline-rebuild-governed.mjs"), "utf8");
 
 assert.match(workflow, /issue_comment:[\s\S]*types:\s*\[created\]/u);
