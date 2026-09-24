@@ -115,7 +115,44 @@ function executionPayload() {
     lease_id: "lease:1234567890abcdef",
     fencing_token: "fence:1234567890abcdef",
     role_selection_proof_hash: hashA,
+    role_selection_proof: {
+      source: "durable_full_inspection",
+      expected_sha: exactSha,
+      target_key: "production-runtime",
+      inspection_run_id: "run:github:123456789",
+      inspection_evidence_hash: hashB,
+      finding_ids: ["finding:1234567890abcdef"],
+      selected_roles: ["governance"],
+      role_object_count_fingerprints: { governance: hashC },
+      composite_target_fingerprint: hashC,
+      selection_hash: hashA,
+      database_mutation_performed: false,
+      secrets_included: false,
+    },
+    selected_roles: ["governance"],
     deployment_attestation_hash: hashB,
+    role_bundle_binding: {
+      contract: "mad4b.role-bundle-binding.v1",
+      role: "governance",
+      bundle_manifest_sha256: hashA,
+      role_bundle_sha256: hashB,
+      statement_count: 1,
+      statement_fingerprints: [hashC],
+      binding_hash: hashD,
+      secrets_included: false,
+    },
+    role_bundle_bindings: {
+      governance: {
+        contract: "mad4b.role-bundle-binding.v1",
+        role: "governance",
+        bundle_manifest_sha256: hashA,
+        role_bundle_sha256: hashB,
+        statement_count: 1,
+        statement_fingerprints: [hashC],
+        binding_hash: hashD,
+        secrets_included: false,
+      },
+    },
   };
 }
 
@@ -132,6 +169,12 @@ function executionPayload() {
   assert.equal(receipt.ok, true);
   assert.equal(receipt.caller_routing_override_used, false);
   assert.equal(calls.execute, 1);
+  assert.equal(calls.execution.plan_id, "plan:1234567890abcdef");
+  assert.equal(calls.execution.step_hash, hashB);
+  assert.equal(calls.execution.role_selection_proof.selection_hash, hashA);
+  assert.deepEqual(calls.execution.selected_roles, ["governance"]);
+  assert.equal(calls.execution.role_bundle_binding.role, "governance");
+  assert.equal(calls.execution.role_bundle_bindings.governance.role, "governance");
 
   await assert.rejects(
     () => graph.hostLocalMutationExecutor({ ...executionPayload(), workflow: "caller-selected.yml" }),

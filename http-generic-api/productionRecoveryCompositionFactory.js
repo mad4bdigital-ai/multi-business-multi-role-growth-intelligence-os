@@ -309,12 +309,21 @@ export function createProductionRecoveryComposition({
     return failClosedComposition(source, "server_managed_binding_provider_not_configured");
   }
 
-  const envelope = validateServerManagedEnvelope(
-    serverManagedBindingProvider(Object.freeze({
+  let resolvedEnvelope;
+  try {
+    resolvedEnvelope = serverManagedBindingProvider(Object.freeze({
       ...SERVER_MANAGED_CONTEXT,
       requested_mode: mode,
-    })),
-  );
+    }));
+  } catch (error) {
+    if (mode === "production_live"
+      && error?.code === "RECOVERY_SERVER_MANAGED_BINDING_RESOLUTION_FAILED"
+      && error?.details?.cause_code === "RECOVERY_PRODUCTION_BASELINE_MODE_DENIED") {
+      return failClosedComposition(source, "production_live_server_managed_intent_mismatch");
+    }
+    throw error;
+  }
+  const envelope = validateServerManagedEnvelope(resolvedEnvelope);
   if (mode === "production_live" && envelope.requested_mode !== "production_live") {
     return failClosedComposition(source, "production_live_server_managed_intent_mismatch", { envelope });
   }
