@@ -425,6 +425,19 @@ internal static class Program
                 _progress.Value = Math.Min(90, _progress.Value + 5);
                 var response = await _deviceLinkClient.PollAsync(code, pollToken, sessionId, deviceProofChallenge);
                 var poll = response.Payload;
+                if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                {
+                    var waitSeconds = response.RetryAfterSeconds ?? 120;
+                    _status.Text = $"Pairing temporarily rate limited. Retrying after {waitSeconds} seconds.";
+                    _output.Text = JsonSerializer.Serialize(new
+                    {
+                        pairing_code = "rate_limited",
+                        retry_after_seconds = waitSeconds,
+                        secrets_included = false
+                    }, _json);
+                    await Task.Delay(TimeSpan.FromSeconds(waitSeconds));
+                    continue;
+                }
                 if ((int)response.StatusCode == 202 || string.Equals(poll?.Status, "pending", StringComparison.OrdinalIgnoreCase)) continue;
                 if (response.IsSuccessStatusCode && poll?.Ok == true && !string.IsNullOrWhiteSpace(poll.DeviceAccessToken))
                 {
@@ -1521,9 +1534,7 @@ internal static class Program
                 using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
                 var infoUrl = UpdateInfoUrl + "?current_version=" + Uri.EscapeDataString(CurrentSemVer());
                 using var response = await client.GetAsync(infoUrl);
-                var text = await response.Content.ReadAsStringAsync();
-                var info = JsonSerializer.Deserialize<WindowsUpdateInfo>(text, _json);
-                if (!response.IsSuccessStatusCode || info?.Ok != true)
+                if (!response.IsSuccessStatusCode)
                 {
                     if (userInitiated)
                     {
@@ -1536,6 +1547,31 @@ internal static class Program
                             update_check = "failed",
                             status_code = (int)response.StatusCode,
                             retry_after_seconds = response.StatusCode == System.Net.HttpStatusCode.TooManyRequests ? retryAfterSeconds : (int?)null,
+                            secrets_included = false
+                        }, _json);
+                    }
+                    return;
+                }
+
+                var text = await response.Content.ReadAsStringAsync();
+                WindowsUpdateInfo? info;
+                try
+                {
+                    info = JsonSerializer.Deserialize<WindowsUpdateInfo>(text, _json);
+                }
+                catch (JsonException)
+                {
+                    info = null;
+                }
+                if (info?.Ok != true)
+                {
+                    if (userInitiated)
+                    {
+                        _status.Text = "Update check returned an invalid response. Try again later.";
+                        _output.Text = JsonSerializer.Serialize(new
+                        {
+                            update_check = "invalid_response",
+                            status_code = (int)response.StatusCode,
                             secrets_included = false
                         }, _json);
                     }
@@ -1683,7 +1719,7 @@ internal static class Program
         }
         private void RegisterDesktopCommandPollFailure(AutopilotFailure failure, int? headerRetryAfterSeconds = null)
         {
-            var effectiveRetryAfter = failure.RetryAfterSeconds ?? headerRetryAfterSeconds;
+            var effectiveRetryAfter = Math.Max(failure.RetryAfterSeconds ?? 0, headerRetryAfterSeconds ?? 0);
             RegisterDesktopCommandPollFailure(
                 failure.Message,
                 failure.Diagnostic,
