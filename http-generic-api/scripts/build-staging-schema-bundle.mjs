@@ -13,6 +13,7 @@ import { inspectOrderedMigrationChainGeneratedColumns } from "../databaseGenerat
 import { inspectOrderedMigrationChainIndexKeyWidths } from "../databaseIndexKeyWidthPolicyGuard.js";
 import { inspectOrderedMigrationChainRequiredInsertColumns } from "../databaseRequiredInsertColumnPolicyGuard.js";
 import { inspectOrderedMigrationChainForeignKeys } from "../databaseForeignKeyCompatibilityPolicyGuard.js";
+import { inspectSemanticSnapshotForeignKeyOrder } from "./semantic-snapshot-foreign-key-order.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const apiRoot = path.resolve(__dirname, "..");
@@ -1087,6 +1088,23 @@ function makeCanonicalSemanticDump(manifest, runtimeTables) {
   for (const table of names) {
     if (!/^[A-Za-z0-9_]+$/u.test(table) || !runtimeSet.has(table)) fail(`canonical semantic snapshot table is not owned by Runtime role: ${table}`);
   }
+
+  const foreignKeyResult = dockerExec([containerName, "mariadb", ...dbArgs([
+    "--batch", "--raw", "--skip-column-names", "-e",
+    `SELECT TABLE_NAME, REFERENCED_TABLE_NAME, CONSTRAINT_NAME
+       FROM information_schema.KEY_COLUMN_USAGE
+      WHERE TABLE_SCHEMA=DATABASE() AND REFERENCED_TABLE_SCHEMA=DATABASE()
+        AND REFERENCED_TABLE_NAME IS NOT NULL
+      GROUP BY TABLE_NAME, REFERENCED_TABLE_NAME, CONSTRAINT_NAME
+      ORDER BY TABLE_NAME, REFERENCED_TABLE_NAME, CONSTRAINT_NAME`,
+  ])]);
+  const foreignKeys = foreignKeyResult.stdout.split(/\r?\n/u).filter(Boolean).map((line) => {
+    const [child, parent, constraint] = line.split("\t");
+    if (!child || !parent || !constraint) fail(`malformed semantic snapshot foreign-key metadata: ${line}`);
+    return { child, parent, constraint };
+  });
+  const orderFindings = inspectSemanticSnapshotForeignKeyOrder(names, foreignKeys);
+  if (orderFindings.length) fail(`canonical semantic snapshot foreign-key replay order is unsafe: ${orderFindings.join("; ")}`);
 
   const plans = new Map(names.map((table) => [table, semanticSnapshotColumnPlan(table)]));
   const dumpResult = dockerExec([containerName, "mariadb-dump", ...dbConnectionArgs([
