@@ -54,7 +54,8 @@
             "Successful parity still requires health ok plus exact Production SHA evidence in both version and deployment-info.",
             "Terminal failure remains fail-closed with runtime_parity_not_converged and secrets_included=false.",
             "No GitHub Ruleset Apply, provider mutation, Hostinger mutation, database mutation, migration Apply, force push, or Production ref mutation is authorized.",
-            "All new configuration candidates introduced by this maintenance patch are explicitly governed baseline extensions with runtime and Production mutation authority false."
+            "All new configuration candidates introduced by this maintenance patch are explicitly governed baseline extensions with runtime and Production mutation authority false.",
+            "Configuration-drift handling uses permanent governed baseline extensions only; no suppression entry is introduced."
           ],
           "tests": [
             {
