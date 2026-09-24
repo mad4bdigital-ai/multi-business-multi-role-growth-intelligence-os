@@ -127,7 +127,7 @@ function isMutationMode(mode) {
   return mode === "apply_migration" || mode === "apply_grants";
 }
 
-async function verifyBootstrapExecutionAuthority({ env, mode, target, source, operation, targetRole = null, roleSelectionHash = null, grantBindingHash = null, executionTicketVerifier }) {
+async function verifyBootstrapExecutionAuthority({ env, mode, target, source, operation, targetRole = null, planHash = null, roleSelectionHash = null, grantBindingHash = null, executionTicketVerifier }) {
   if (!isMutationMode(mode)) return null;
   const ticketId = String(env.BOOTSTRAP_EXECUTION_TICKET_ID || "").trim();
   const ticketHash = String(env.BOOTSTRAP_EXECUTION_TICKET_HASH || "").trim().toLowerCase();
@@ -149,6 +149,7 @@ async function verifyBootstrapExecutionAuthority({ env, mode, target, source, op
     selected_roles: targetRole ? [targetRole] : null,
     role_bundle_bindings: targetRole ? { [targetRole]: roleBundleBinding } : null,
     operation,
+    ...(planHash ? { plan_hash: planHash } : {}),
     role_selection_hash: roleSelectionHash,
     grant_binding_hash: grantBindingHash,
   };
@@ -1565,7 +1566,7 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
   }
   if (!roleSelectiveRebuild && mode === "apply_migration") validateApplyConfirmation(env, source.sha, { ...target, migration }, contract, "migration");
   if (mode === "apply_grants") validateApplyConfirmation(env, source.sha, target, contract, "grants");
-  const executionTicket = await verifyBootstrapExecutionAuthority({ env, mode, target, source, operation: roleSelectiveRebuild ? "database.rebuild_empty" : mode === "apply_migration" ? "migration" : "grants", targetRole: rebuildTargetRole, roleSelectionHash: rebuildBinding?.selection_hash || null, grantBindingHash: mode === "apply_grants" ? computeGrantBindingHash(target, contract) : null, executionTicketVerifier });
+  const executionTicket = await verifyBootstrapExecutionAuthority({ env, mode, target, source, operation: roleSelectiveRebuild ? "database.rebuild_empty" : mode === "apply_migration" ? "migration" : "grants", targetRole: rebuildTargetRole, planHash: rebuildBinding?.plan_hash || null, roleSelectionHash: rebuildBinding?.selection_hash || null, grantBindingHash: mode === "apply_grants" ? computeGrantBindingHash(target, contract) : null, executionTicketVerifier });
   const mutationEvidence = mutationEvidenceTemplate(migration, spec?.statement_count || 0, 0);
   const createConnection = connectionFactory || (async ({ credentials }) => {
     const { createConnection: connect } = await import("mysql2/promise");
