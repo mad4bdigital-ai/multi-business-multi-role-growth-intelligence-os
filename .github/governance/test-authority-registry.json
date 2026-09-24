@@ -580,6 +580,7 @@
         "http-generic-api/scripts/build-staging-schema-bundle.mjs",
         "http-generic-api/test-approval-hold-identity-collation-alignment.mjs",
         "http-generic-api/test-database-foreign-key-compatibility-policy.mjs",
+        "http-generic-api/test-execution-policies-stable-semantic-identity.mjs",
         "http-generic-api/test-mariadb-collation-ci-guard.mjs",
         "http-generic-api/test-staging-auto-deploy-contract.mjs",
         "http-generic-api/test-staging-bootstrap-ticket-idempotency.mjs",
