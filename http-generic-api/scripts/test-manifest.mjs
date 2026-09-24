@@ -38,6 +38,7 @@ const upstreamCommands = [
   "node test-recovery-kernel-routes.mjs",
   "node test-recovery-composition.mjs",
   "node test-production-recovery-composition-factory.mjs",
+  "node test-production-recovery-baseline-rebuild-governed-workflow.mjs",
   "node test-server-managed-recovery-binding.mjs",
   "node test-recovery-action-bridge.mjs",
   "node test-recovery-action-bridge-system-layer.mjs",
