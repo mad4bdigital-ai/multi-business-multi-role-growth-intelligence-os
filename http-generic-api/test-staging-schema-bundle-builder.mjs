@@ -11,7 +11,7 @@ import { inspectOrderedMigrationChainTextWidths } from "./databaseTextWidthPolic
 import { inspectOrderedMigrationChainGeneratedColumns, stripSqlComments } from "./databaseGeneratedColumnPolicyGuard.js";
 import { inspectOrderedMigrationChainIndexKeyWidths } from "./databaseIndexKeyWidthPolicyGuard.js";
 import { inspectOrderedMigrationChainRequiredInsertColumns } from "./databaseRequiredInsertColumnPolicyGuard.js";
-import { inspectSemanticSnapshotForeignKeyOrder } from "./scripts/semantic-snapshot-foreign-key-order.mjs";
+import { inspectSemanticSnapshotForeignKeyOrder } from "./scripts/staging-semantic-snapshot-foreign-key-order.mjs";
 
 const apiRoot = path.resolve(import.meta.dirname);
 const repoRoot = path.resolve(apiRoot, "..");
