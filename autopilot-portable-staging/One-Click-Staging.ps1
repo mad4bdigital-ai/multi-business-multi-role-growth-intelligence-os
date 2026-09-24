@@ -516,9 +516,12 @@ function Write-CanonicalSemanticRepairHandoff([string]$RepoPath, [string]$Script
         target_role = "runtime"
         plan = if ($planEligible) {
             [ordered]@{
-                working_directory = (Join-Path $RepoPath "http-generic-api")
-                npm_script = "staging:canonical-repair:plan"
+                runner = (Join-Path $RepoPath "autopilot-portable-staging\Repair-StagingCanonicalSemanticData.ps1")
+                mode = "Plan"
+                plan_file_parameter_required = $true
                 expected_commit = $Sha
+                host_git_authority_required = $true
+                runtime_provenance_required = $true
                 database_mutation_performed = $false
             }
         } else { $null }

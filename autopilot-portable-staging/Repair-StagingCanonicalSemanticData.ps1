@@ -2,8 +2,9 @@
 param(
     [Parameter(Mandatory = $true)][string]$RepositoryPath,
     [Parameter(Mandatory = $true)][ValidatePattern('^[0-9a-fA-F]{40}$')][string]$ExpectedCommit,
+    [ValidateSet("Plan","Apply")][string]$Mode = "Apply",
     [Parameter(Mandatory = $true)][string]$PlanFile,
-    [Parameter(Mandatory = $true)][string]$Confirmation
+    [string]$Confirmation = ""
 )
 
 Set-StrictMode -Version Latest
@@ -16,14 +17,64 @@ $root=(Resolve-Path -LiteralPath $RepositoryPath).Path
 $api=Join-Path $root "http-generic-api";$envFile=Join-Path $api ".env.staging"
 . (Join-Path $root "autopilot-portable-staging/Staging-CanonicalRepairLedger.ps1")
 $composeBase=Join-Path $api "docker-compose.yml";$composeStaging=Join-Path $api "docker-compose.staging.yml"
-$planPath=(Resolve-Path -LiteralPath $PlanFile).Path;$ExpectedCommit=$ExpectedCommit.ToLowerInvariant()
+$planPath=[System.IO.Path]::GetFullPath($PlanFile);$ExpectedCommit=$ExpectedCommit.ToLowerInvariant()
 Require ((& git -C $root rev-parse HEAD).Trim().ToLowerInvariant() -eq $ExpectedCommit) "checked-out Git SHA differs from ExpectedCommit"
 & git -C $root fetch origin main --quiet; Require ($LASTEXITCODE -eq 0) "origin/main refresh failed"
 Require ((& git -C $root rev-parse origin/main).Trim().ToLowerInvariant() -eq $ExpectedCommit) "origin/main differs from ExpectedCommit"
 Require (Test-Path $envFile -PathType Leaf) "local Staging environment file is missing"
 Require ((Read-Env $envFile "STAGING_ENVIRONMENT_KEY") -eq "staging_local_windows_docker") "environment is not local Staging"
 $database=Read-Env $envFile "DB_NAME";Require ($database -notmatch '(?i)production|hostinger') "Production database target is forbidden"
+$compose=@('-f',$composeBase,'-f',$composeStaging,'--env-file',$envFile)
 
+if($Mode -eq "Plan"){
+    Require (-not (Test-Path -LiteralPath $planPath)) "plan output already exists; choose a new immutable plan path"
+    $planParent=Split-Path -Parent $planPath
+    if(-not [string]::IsNullOrWhiteSpace($planParent)){New-Item -ItemType Directory -Force -Path $planParent | Out-Null}
+
+    $runtimePlan=& docker compose @compose exec -T app node scripts/staging-canonical-semantic-repair-runtime-check.mjs --action=plan "--actual-commit=$ExpectedCommit"
+    Require ($LASTEXITCODE -eq 0) "live Runtime canonical semantic repair planning failed"
+    try{$runtimePlanResult=($runtimePlan|Out-String|ConvertFrom-Json)}catch{Fail "live Runtime canonical semantic repair plan output is invalid JSON"}
+    Require ($runtimePlanResult.ok -eq $true -and [string]$runtimePlanResult.action -eq "plan") "live Runtime canonical semantic repair planner did not return a bounded plan"
+    $plan=$runtimePlanResult.plan
+    Require ([string]$plan.expected_commit -eq $ExpectedCommit) "runtime plan commit differs from ExpectedCommit"
+    Require ([string]$plan.execution_authority -eq "repository_bound_local_staging_canonical_repair") "runtime plan repair authority mismatch"
+    Require ($plan.repair_allowed -eq $true -and [string]$plan.precondition_status -eq "missing") "runtime semantic state is not eligible for bounded in-place repair"
+    Require ([int]$plan.exact_identity_count -eq 0 -and [int]$plan.resolver_candidate_count -eq 0 -and [int]$plan.conflict_count -eq 0) "runtime semantic repair precondition is not an exact missing identity"
+
+    $planEnvelope=[ordered]@{
+        contract="mad4b.staging.canonical-semantic-repair-plan-output.v1"
+        plan=$plan
+        runtime_provenance_verified=$true
+        database_mutation_performed=$false
+        production_mutation_performed=$false
+        provider_mutation_performed=$false
+        secrets_included=$false
+        generated_at=[DateTime]::UtcNow.ToString('o')
+    }
+    Write-StagingCanonicalRepairJsonAtomic $planPath $planEnvelope
+
+    $validatedText=& node (Join-Path $api "scripts/validate-staging-canonical-semantic-repair-plan.mjs") "--plan-file=$planPath" "--actual-commit=$ExpectedCommit"
+    Require ($LASTEXITCODE -eq 0) "generated immutable plan validation failed"
+    $validated=($validatedText|Out-String|ConvertFrom-Json)
+    Require ([string]$validated.plan.plan_sha256 -eq [string]$plan.plan_sha256) "generated plan hash changed during host validation"
+    [ordered]@{
+        contract="mad4b.staging.canonical-semantic-repair-plan-handoff.v1"
+        status="plan_ready"
+        plan_file=$planPath
+        plan_sha256=[string]$plan.plan_sha256
+        required_confirmation=[string]$validated.validation.required_confirmation
+        expected_commit=$ExpectedCommit
+        repair_allowed=$true
+        database_mutation_performed=$false
+        production_mutation_performed=$false
+        provider_mutation_performed=$false
+        secrets_included=$false
+    }|ConvertTo-Json -Depth 20
+    return
+}
+
+Require (Test-Path -LiteralPath $planPath -PathType Leaf) "immutable plan file is missing"
+Require (-not [string]::IsNullOrWhiteSpace($Confirmation)) "typed confirmation is required for Apply"
 $validatedText=& node (Join-Path $api "scripts/validate-staging-canonical-semantic-repair-plan.mjs") "--plan-file=$planPath" "--actual-commit=$ExpectedCommit"
 Require ($LASTEXITCODE -eq 0) "immutable plan validation failed";$validated=($validatedText|Out-String|ConvertFrom-Json);$plan=$validated.plan
 Require ([string]$plan.artifact.artifact_key -eq "platform_admin_workspace") "artifact_key is not bounded"
@@ -34,7 +85,6 @@ Require ($Confirmation -ceq [string]$validated.validation.required_confirmation)
 $artifact=Join-Path $api ([string]$plan.artifact.file -replace '^http-generic-api/','')
 Require (Test-Path $artifact -PathType Leaf) "registered artifact is missing"
 Require ((Get-FileHash -Algorithm SHA256 $artifact).Hash.ToLowerInvariant() -eq [string]$plan.artifact.sha256) "registered artifact SHA mismatch"
-$compose=@('-f',$composeBase,'-f',$composeStaging,'--env-file',$envFile)
 $planJson=Get-Content -Raw -LiteralPath $planPath
 $precondition=$planJson | & docker compose @compose exec -T app node scripts/staging-canonical-semantic-repair-runtime-check.mjs --action=precondition "--actual-commit=$ExpectedCommit"
 Require ($LASTEXITCODE -eq 0) "live Runtime semantic precondition verification failed before ledger reservation"
