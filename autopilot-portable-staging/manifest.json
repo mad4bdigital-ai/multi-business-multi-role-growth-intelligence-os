@@ -26,7 +26,7 @@
     },
     {
       "path": "autopilot-portable-staging/Clone-StagingDatabases.ps1",
-      "sha256": "8dc34831b3e42728abc64b287adb97a5333e1b775e5bd644559755958645fd99"
+      "sha256": "b2d0f3e64b59a09f2050aa59a1bd8183ed385691977e9cd5e795c803db3eb73c"
     },
     {
       "path": "autopilot-portable-staging/Install-AutoDeployTask.ps1",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "547490f098cc31f14843e2a972ee05a4ff47cdb453b1ae766e1b44a769aaefe2"
+      "sha256": "d74f3fb69e616e12a9eb25179d9461e165b568a5e61b9047a401b2d40b3d2977"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -322,7 +322,7 @@
     },
     {
       "path": "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs",
-      "sha256": "41566f018476d621a4225c031badfd42a78502f1a7d4807ff59724a9adb7eb59"
+      "sha256": "6549434ebc968d00df8a7404ab4178297bfd8310d687dbe24dbb1f4e17227579"
     },
     {
       "path": "http-generic-api/scripts/staging-sql-parser.mjs",

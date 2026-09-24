@@ -1,0 +1,98 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-role-replay-semantic-snapshot-handoff-20260924",
+  "title": "Preserve canonical semantic snapshot across Staging role replay preparation",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-role-replay-semantic-snapshot-handoff-20260924.json",
+      "autopilot-portable-staging/Clone-StagingDatabases.ps1",
+      "autopilot-portable-staging/manifest.json",
+      "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs",
+      "http-generic-api/scripts/staging-database-recovery-contract.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Preserve the canonical semantic snapshot artifact across role-aware Staging schema replay preparation so the governed full local Staging recovery can hand the exact manifest-referenced snapshot to the fail-closed legacy importer.",
+      "e2e_journeys": [
+        {
+          "id": "staging-semantic-snapshot-prepared-replay-handoff",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Windows Docker Staging recovery operator",
+          "entrypoint": "autopilot-portable-staging/Clone-StagingDatabases.ps1 -Apply after governed full local Staging recovery has produced an exact-SHA schema bundle",
+          "terminal_outcome": "Role-aware replay preparation carries the exact canonical semantic snapshot into the prepared replay directory, verifies its SHA-256 before legacy import handoff, and leaves Production/provider authority unchanged.",
+          "steps": [
+            "Validate the exact source bundle and role-aware replay plan against the authorized commit.",
+            "Prepare the three role schema bundles in the temporary replay directory.",
+            "Read the canonical semantic snapshot reference from the bundle manifest and require the expected contract, safe file name, source presence, exact SHA-256, and valid gzip payload.",
+            "Copy the semantic snapshot bytes unchanged into the prepared replay directory and expose its prepared path and SHA in replay evidence.",
+            "Require the PowerShell wrapper to read back the prepared semantic snapshot path and exact manifest SHA before invoking the legacy importer.",
+            "Run the Staging database recovery contract regression and environment-impact closure against the exact PR diff."
+          ],
+          "assertions": [
+            "The prepared replay directory contains the canonical semantic snapshot referenced by the prepared manifest.",
+            "The prepared semantic snapshot SHA-256 exactly equals the original bundle manifest SHA-256.",
+            "The semantic snapshot is not regenerated, transformed, or weakened during role-aware preparation.",
+            "Missing, malformed, checksum-mismatched, or non-gzip semantic snapshot input fails closed before database replay.",
+            "The existing zero-object and role-aware replay guards remain unchanged.",
+            "Only Staging is declared as an affected environment and live Staging certification remains required.",
+            "Production mutation, provider mutation, Hostinger mutation, Cloudflare mutation, credential payload access, and Production deployment remain forbidden by this declaration."
+          ],
+          "tests": [
+            {
+              "id": "staging-database-recovery-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/staging-database-recovery-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "environment-impact-closure",
+              "runner": "node",
+              "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+              "args": [
+                "--base-sha",
+                "BASE_SHA",
+                "--head-sha",
+                "HEAD_SHA"
+              ]
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-role-replay-semantic-snapshot-handoff-20260924.json",
+            "autopilot-portable-staging/Clone-StagingDatabases.ps1",
+            "autopilot-portable-staging/manifest.json",
+            "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs",
+            "http-generic-api/scripts/staging-database-recovery-contract.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "This Staging-only replay handoff repair grants no Production deployment, provider mutation, Hostinger mutation, Cloudflare mutation, credential authority, or production_live authority.",
+      "blockers": [
+        "Production remains outside this pull request and requires a separate governed promotion with independent evidence.",
+        "No Production, provider, Hostinger, Cloudflare, migration Apply, grant Apply, or production database action is authorized by this declaration."
+      ]
+    }
+  ]
+}

@@ -318,6 +318,37 @@ function main() {
       publicPlan.roles[role].output_file = target;
       publicPlan.roles[role].prepared_bundle_sha256 = preparedManifest.roles[role].sha256;
     }
+
+    const semanticSnapshot = preparedManifest.canonical_semantic_snapshot;
+    if (!semanticSnapshot || semanticSnapshot.contract !== "mad4b.staging.canonical-semantic-snapshot.v1") {
+      fail("prepared manifest canonical semantic snapshot contract is missing");
+    }
+    const semanticFile = String(semanticSnapshot.file || "");
+    if (!semanticFile || path.basename(semanticFile) !== semanticFile) {
+      fail("canonical semantic snapshot bundle file is invalid");
+    }
+    const semanticSource = path.resolve(options.dumpDirectory, semanticFile);
+    if (!fs.existsSync(semanticSource)) {
+      fail(`canonical semantic snapshot bundle is missing: ${semanticSource}`);
+    }
+    const semanticRaw = fs.readFileSync(semanticSource);
+    const semanticObservedSha = sha256(semanticRaw);
+    if (semanticObservedSha !== normalizeName(semanticSnapshot.sha256)) {
+      fail("canonical semantic snapshot bundle checksum mismatch");
+    }
+    try {
+      zlib.gunzipSync(semanticRaw);
+    } catch (error) {
+      fail(`canonical semantic snapshot gzip decode failed: ${error.message}`);
+    }
+    const semanticTarget = path.join(outputDirectory, semanticFile);
+    fs.copyFileSync(semanticSource, semanticTarget);
+    fs.chmodSync(semanticTarget, 0o600);
+    publicPlan.canonical_semantic_snapshot = {
+      output_file: semanticTarget,
+      sha256: semanticObservedSha,
+    };
+
     preparedManifest.replay_preparation = {
       contract: "mad4b.staging.role-schema-replay-plan.v1",
       plan_sha256: publicPlan.plan_sha256,
