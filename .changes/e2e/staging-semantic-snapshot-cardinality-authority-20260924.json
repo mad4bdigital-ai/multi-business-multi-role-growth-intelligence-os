@@ -13,7 +13,9 @@
       ".changes/e2e/staging-semantic-snapshot-cardinality-authority-20260924.json",
       "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1",
       "autopilot-portable-staging/manifest.json",
-      "http-generic-api/scripts/staging-database-recovery-contract.mjs"
+      "http-generic-api/scripts/staging-database-recovery-contract.mjs",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json"
     ]
   },
   "environment_impact": {
@@ -65,7 +67,9 @@
             ".changes/e2e/staging-semantic-snapshot-cardinality-authority-20260924.json",
             "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1",
             "autopilot-portable-staging/manifest.json",
-            "http-generic-api/scripts/staging-database-recovery-contract.mjs"
+            "http-generic-api/scripts/staging-database-recovery-contract.mjs",
+            ".github/derived-state-governance.json",
+            "http-generic-api/config/repository-governance-constitution.json"
           ]
         }
       ]
