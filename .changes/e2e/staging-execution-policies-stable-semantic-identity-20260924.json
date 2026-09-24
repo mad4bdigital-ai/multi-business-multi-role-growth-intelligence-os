@@ -13,6 +13,9 @@
       ".changes/e2e/staging-execution-policies-stable-semantic-identity-20260924.json",
       ".github/derived-state-governance.json",
       ".github/governance/test-authority-registry.json",
+      ".github/ops/production-runtime-recovery-routes.json",
+      ".github/ops/test-production-runtime-recovery-policy.mjs",
+      ".github/ops/test-production-runtime-recovery.mjs",
       "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/migrations/20260924_execution_policies_stable_semantic_identity.sql",
       "http-generic-api/schema.sql",
@@ -55,7 +58,8 @@
             "The legacy idx_policy_group_key baseline index is removed.",
             "The migration is replay-safe when the baseline already contains the UNIQUE identity.",
             "A disposable schema bundle build must no longer fail with semantic snapshot table has no stable unique ordering key: execution_policies.",
-            "Production mutation remains forbidden."
+            "Production mutation remains forbidden.",
+            "The reviewed Production recovery baseline checksum is updated to the exact new schema.sql bytes without authorizing any Production Apply."
           ],
           "tests": [
             {
@@ -70,6 +74,9 @@
             ".changes/e2e/staging-execution-policies-stable-semantic-identity-20260924.json",
             ".github/derived-state-governance.json",
             ".github/governance/test-authority-registry.json",
+            ".github/ops/production-runtime-recovery-routes.json",
+            ".github/ops/test-production-runtime-recovery-policy.mjs",
+            ".github/ops/test-production-runtime-recovery.mjs",
             "http-generic-api/config/repository-governance-constitution.json",
             "http-generic-api/migrations/20260924_execution_policies_stable_semantic_identity.sql",
             "http-generic-api/schema.sql",
