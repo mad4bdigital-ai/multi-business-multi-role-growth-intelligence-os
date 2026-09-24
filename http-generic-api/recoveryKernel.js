@@ -709,9 +709,10 @@ async function readAndValidateDeploymentAttestation(deploymentIdentityProvider, 
 }
 
 function roleBundleBindingsForStep(step, plan = null) {
-  if (plan?.role_bundle_bindings && typeof plan.role_bundle_bindings === "object" && Object.keys(plan.role_bundle_bindings).length) return plan.role_bundle_bindings;
-  if (!step?.role_bundle_binding) return {};
-  return { [step.target_role]: step.role_bundle_binding };
+  const role = text(step?.target_role, 64);
+  const binding = step?.role_bundle_binding || (role ? plan?.role_bundle_bindings?.[role] : null) || null;
+  if (!role || !binding) return {};
+  return { [role]: binding };
 }
 
 function deriveRoleSelectionProofFromFindings(findings, expectedSha, targetFingerprints = {}, { durable = false } = {}) {
@@ -1789,6 +1790,7 @@ export const _testingRecoveryKernel = Object.freeze({
   findingsFromInspection,
   classifyFinding,
   planSteps,
+  roleBundleBindingsForStep,
   requireProductionRequest,
   noMutationAttestation,
   CAPABILITY_INDEX,
