@@ -8,10 +8,12 @@
   "scope": {
     "include": [
       ".changes/e2e/staging-canonical-semantic-plan-runtime-handoff-20260924.json",
+      ".github/derived-state-governance.json",
       "autopilot-portable-staging/One-Click-Staging.ps1",
       "autopilot-portable-staging/Repair-StagingCanonicalSemanticData.ps1",
       "autopilot-portable-staging/manifest.json",
       "docs/governance/configuration-drift-baseline-extensions.json",
+      "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/scripts/staging-canonical-semantic-repair-runtime-check.mjs",
       "http-generic-api/test-staging-canonical-semantic-repair-runner.mjs",
       "http-generic-api/test-staging-one-click-autopilot-core.mjs"
@@ -23,7 +25,8 @@
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
     "declared_targets": [
-      "staging"
+      "staging",
+      "production"
     ],
     "cross_environment_reviewed": true,
     "live_staging_certification_required": true,
@@ -56,7 +59,8 @@
             "DEPLOY_COMMIT is treated only as a non-secret exact-runtime identity reference and grants no execution authority.",
             "Plan mode performs no database, provider, Hostinger, Cloudflare, or Production mutation.",
             "Caller-controlled SQL, database target, workspace identity, and artifact path remain forbidden.",
-            "secrets_included is false."
+            "secrets_included is false.",
+            "Repository control-plane registration affects governance for staging and production branches, but this change grants no Production mutation authority."
           ],
           "tests": [
             {
@@ -87,11 +91,13 @@
           ],
           "evidence_paths": [
             ".changes/e2e/staging-canonical-semantic-plan-runtime-handoff-20260924.json",
-            "http-generic-api/config/deployment-branch-policy.json",
+            ".github/derived-state-governance.json",
             "autopilot-portable-staging/One-Click-Staging.ps1",
             "autopilot-portable-staging/Repair-StagingCanonicalSemanticData.ps1",
             "autopilot-portable-staging/manifest.json",
             "docs/governance/configuration-drift-baseline-extensions.json",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/config/repository-governance-constitution.json",
             "http-generic-api/scripts/staging-canonical-semantic-repair-runtime-check.mjs",
             "http-generic-api/test-staging-canonical-semantic-repair-runner.mjs",
             "http-generic-api/test-staging-one-click-autopilot-core.mjs"
