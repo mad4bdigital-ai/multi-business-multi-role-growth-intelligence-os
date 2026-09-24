@@ -158,7 +158,7 @@ function bootstrapEnvForExecution(input, env = process.env) {
     BOOTSTRAP_PLAN_SHA256: input.plan_hash,
     BOOTSTRAP_ROLE_SELECTION_HASH: proof.selection_hash,
     BOOTSTRAP_ROLE_OBJECT_COUNT_FINGERPRINTS: JSON.stringify(proof),
-    BOOTSTRAP_ROLE_BUNDLE_BINDING_JSON: JSON.stringify(bundle),
+    BOOTSTRAP_ROLE_BUNDLE_BINDINGS_JSON: JSON.stringify(input.role_bundle_bindings || { [role]: bundle }),
     BOOTSTRAP_EXECUTION_TICKET_ID: input.execution_ticket_id,
     BOOTSTRAP_EXECUTION_TICKET_HASH: input.execution_ticket_hash,
     BOOTSTRAP_REBUILD_CONFIRMATION: `APPLY_HOSTINGER_RUNTIME_BASELINE_REBUILD:${input.expected_sha}:production-runtime:${role}`,
