@@ -1361,6 +1361,10 @@ export async function executeRemediationStep(input = {}, { env = process.env, ad
     await writeRun(run, { recoveryStore });
     let result;
     const executionPayload = {
+      plan_id: plan.plan_id,
+      plan_hash: plan.plan_hash,
+      step_id: step.step_id,
+      step_hash: step.step_hash,
       capability_key: step.capability_key,
       operation: step.operation,
       target_role: step.target_role,
@@ -1368,16 +1372,17 @@ export async function executeRemediationStep(input = {}, { env = process.env, ad
       expected_sha: plan.expected_sha,
       target_key: plan.target_key,
       target_fingerprint: step.target_fingerprint || plan.target_fingerprint,
-      plan_hash: plan.plan_hash,
-      step_id: step.step_id,
       idempotency_key: idempotencyKey,
       execution_ticket_id: executionTicketId,
       execution_ticket_hash: executionTicket.ticket_hash,
       lease_id: lockHandle.lease_id,
       fencing_token: lockHandle.fencing_token,
       role_selection_proof_hash: plan.role_selection_hash || null,
+      role_selection_proof: plan.role_selection_proof ? sanitizeEvidence(plan.role_selection_proof) : null,
+      selected_roles: Array.isArray(plan.role_selection_proof?.selected_roles) ? [...plan.role_selection_proof.selected_roles] : [step.target_role],
       deployment_attestation_hash: deploymentAttestation.attestation_hash,
       role_bundle_binding: step.role_bundle_binding || null,
+      role_bundle_bindings: roleBundleBindingsForStep(step, plan),
       grant_binding_hash: step.grant_binding_hash || plan.grant_binding_hash || null,
     };
     try {
