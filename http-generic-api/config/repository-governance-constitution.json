@@ -516,7 +516,6 @@
     ".changes/e2e/staging-schema-bootstrap-role-aware.json",
     ".changes/e2e/staging-schema-bootstrap-stdin-transport.json",
     ".changes/e2e/staging-semantic-data-durability-20260920.json",
-    ".changes/e2e/staging-semantic-snapshot-cardinality-authority-20260924.json",
     ".changes/e2e/staging-tenant-secrets-baseline-contract.json",
     ".changes/e2e/staging-unqualified-view-dependency-replay-20260829.json",
     ".changes/e2e/staging-validation-repair-baseline-contract.json",
