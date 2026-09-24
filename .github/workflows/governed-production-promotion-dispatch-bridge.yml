@@ -251,6 +251,9 @@ jobs:
 
   prepare:
     name: Prepare exact Production baseline rebuild approval
+    permissions:
+      contents: read
+      issues: write
     if: >-
       github.event.issue.number == 6813 &&
       !github.event.issue.pull_request &&
@@ -295,6 +298,9 @@ jobs:
 
   execute:
     name: Execute one approved Production Recovery role step
+    permissions:
+      contents: read
+      issues: write
     if: >-
       github.event.issue.number == 6813 &&
       !github.event.issue.pull_request &&
