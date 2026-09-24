@@ -1570,7 +1570,9 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
   validateBootstrapCredentials(env, { requirePassword: true, target });
   const roleCredentials = preflightRoleBootstrapCredentials(env, target, { requirePassword: true });
   const rebuildBinding = roleSelectiveRebuild ? validateRoleRebuildConfirmation(env, source.sha, target, contract) : null;
-  const productionHostLocalRebuild = roleSelectiveRebuild && String(env.BOOTSTRAP_TARGET_SOURCE || "").trim().toLowerCase() === "host_local_role_env";
+  const productionHostLocalRebuild = roleSelectiveRebuild
+    && String(env.BOOTSTRAP_TARGET_SOURCE || "").trim().toLowerCase() === "host_local_role_env"
+    && String(env.BOOTSTRAP_SERVER_MANAGED_RECOVERY_STEP || "").trim().toLowerCase() === "true";
   const rebuildTargetRole = productionHostLocalRebuild && rebuildBinding?.selected_roles?.length === 1 ? rebuildBinding.selected_roles[0] : null;
   if (productionHostLocalRebuild && !rebuildTargetRole) {
     throw bootstrapError("bootstrap_rebuild_single_role_required", "Server-managed Production Recovery executes one approved rebuild role per ticket and per fenced step.", { selected_roles: rebuildBinding?.selected_roles || [], database_connection_performed: false, database_mutation_performed: false });
