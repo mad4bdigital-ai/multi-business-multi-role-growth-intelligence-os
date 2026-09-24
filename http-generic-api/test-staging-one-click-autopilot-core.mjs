@@ -106,6 +106,14 @@ assert.match(launcher, /Write-StagingUtf8NoBom/);
 assert.match(launcher, /Start-AutoPilot\.ps1/);
 assert.match(launcher, /Install-AutoDeployTask\.ps1/);
 assert.ok(dualModeCore.includes("Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ORIGIN_APP' 'http://127.0.0.1:8080'"));
+assert.ok(
+  startAutoPilot.includes('if ($TunnelSelected -and $effectiveEnv -notmatch'),
+  "Start-AutoPilot must scope the loopback tunnel-origin guard to selected tunnel transports",
+);
+assert.ok(
+  startAutoPilot.includes('if (-not $TunnelSelected -and (Read-EnvValue $EnvFile "CLOUDFLARE_TUNNEL_ORIGIN_APP") -ne "")'),
+  "disabled Staging bootstrap must require the tunnel origin to remain empty",
+);
 assert.equal(dualModeCore.includes("Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ORIGIN_APP' 'http://app:8080'"), false);
 assert.match(bootstrap, /git.*fetch.*origin/s);
 assert.match(bootstrap, /git.*checkout.*--detach/s);

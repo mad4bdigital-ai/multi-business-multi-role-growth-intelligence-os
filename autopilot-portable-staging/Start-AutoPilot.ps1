@@ -572,7 +572,151 @@ try {
     if ($effectiveEnv -notmatch '(?im)^CLOUDFLARE_TUNNEL_HOSTNAMES=dev\.mad4b\.com,mcp-dev\.mad4b\.com\s*$') { Fail "Staging Tunnel requires exactly dev.mad4b.com and mcp-dev.mad4b.com; Activation uses a separate Worker custom domain" }
     if ($activationGatewayEnabled -and (Read-EnvValue $EnvFile "ACTIVATION_HOST_GATEWAY_HOST") -ne "activation-dev.mad4b.com") { Fail "Activation Staging Gateway must use activation-dev.mad4b.com as its Worker custom domain" }
     if ($activationGatewayEnabled -and (Read-EnvValue $EnvFile "ACTIVATION_STAGING_AUTH_HOST") -ne "activation-dev.mad4b.com") { Fail "Activation Staging OAuth host must be activation-dev.mad4b.com" }
-    if ($effectiveEnv -notmatch '(?im)^CLOUDFLARE_TUNNEL_ORIGIN_APP=http://127\.0\.0\.1:8080\s*$') { Fail "Staging tunnel origin must be exactly http://127.0.0.1:8080" }
+    if ($TunnelSelected -and $effectiveEnv -notmatch '(?im)^CLOUDFLARE_TUNNEL_ORIGIN_APP=http://127\.0\.0\.1:8080\s*
+    if ($effectiveEnv -notmatch '(?im)^CLOUDFLARE_TUNNEL_LOGLEVEL=info\s*$') { Fail "Staging tunnel loglevel must remain info; debug may expose request headers" }
+    if ($effectiveEnv -notmatch '(?im)^CLOUDFLARE_TUNNEL_GRACE_PERIOD=30s\s*$') { Fail "Staging tunnel grace period must remain 30s" }
+    if ($effectiveEnv -match '(?im)^CLOUDFLARE_TUNNEL_HOSTNAMES=.*(auth\.mad4b\.com|mcp\.mad4b\.com|activation\.mad4b\.com)') { Fail "Forbidden Production hostname found in staging tunnel list" }
+
+    $composeArgs = @(Get-StagingComposeArgs $ApiPath $EnvFile $TunnelMode)
+    Invoke-Native "docker" ($composeArgs + @("config", "--quiet"))
+    if ($ValidateOnly) {
+        Write-Host "AUTO_PILOT_VALIDATED: commit=$ExpectedCommit context=$context tunnel_mode=$TunnelMode"
+        return
+    }
+    if ($Stop) {
+        Write-StagingLog -Level info -Component $LogComponent -Stage "stop" -Message "stopping local Staging services"
+        Invoke-Native "docker" ($composeArgs + @("--profile", "tunnel", "stop"))
+        $stagingService = Get-Service -Name "Mad4B-Staging-Cloudflared" -ErrorAction SilentlyContinue
+        if ($null -ne $stagingService -and $stagingService.Status -ne "Stopped") { Stop-Service -Name "Mad4B-Staging-Cloudflared" -Force -ErrorAction Stop }
+        Write-StagingOperationBoundary -Component $LogComponent -Stage "stop" -Outcome "success" -Message "local Staging services and Staging-owned tunnel runtimes stopped"
+        return
+    }
+    $existingImageId = Find-ExactStagingImageId $ExpectedCommit $buildTree $buildContextMetadata.context_file_set_sha256 $EnvFile $composeArgs
+    $imageReused = $false
+    $buildAction = "built"
+    $imageMatchesExactProvenance = $existingImageId -match '^sha256:[0-9a-f]{64}$'
+    if ($BuildMode -eq "Smart" -and $imageMatchesExactProvenance) {
+        $imageReused = $true
+        $buildAction = "reused_exact_provenance"
+        Write-StagingOperationBoundary -Component $LogComponent -Stage "compose-build" -Outcome "success" -Message "reused exact Staging image; build skipped" -Data @{ mode = $BuildMode; image_id = $existingImageId; commit = $ExpectedCommit; tree = $buildTree; context_file_set_sha256 = [string]$buildContextMetadata.context_file_set_sha256; secrets_included = $false }
+    } elseif ($BuildMode -eq "SkipBuild") {
+        Fail "SkipBuild requested but no local app image matches exact commit/tree/context provenance"
+    } else {
+        if ($BuildMode -eq "ForceBuild") { $buildAction = "forced_build" }
+        Write-StagingLog -Level info -Component $LogComponent -Stage "compose-build" -Message "building Staging app from exact Git context" -Data @{ mode = $BuildMode; previous_image_id = $existingImageId; previous_image_exact = [bool]$imageMatchesExactProvenance }
+        Invoke-Native "docker" ($composeArgs + @("build", "app"))
+    }
+    $imageId = Find-ExactStagingImageId $ExpectedCommit $buildTree $buildContextMetadata.context_file_set_sha256 $EnvFile $composeArgs
+    if ($imageId -notmatch '^sha256:[0-9a-fA-F]{64}$') { Fail "Staging app image ID is not a content-addressed sha256 digest with exact provenance" }
+    Set-EnvValue $EnvFile "STAGING_APP_IMAGE_ID" $imageId.ToLowerInvariant()
+    Assert-UniqueEnvKeys $EnvFile
+    Invoke-Native "docker" ($composeArgs + @("config", "--quiet"))
+    $upArgs = $composeArgs + @("up", "-d")
+    Write-StagingLog -Level info -Component $LogComponent -Stage "compose-up" -Message "starting local application topology"
+    Invoke-Native "docker" $upArgs
+    foreach ($service in @("redis", "runtime-db", "governance-db", "persistence-db", "app")) { Wait-ServiceHealthy $composeArgs $service }
+    Assert-WindowsHostOriginReachable $composeArgs $TunnelMode
+    if ($TunnelMode -eq "windows_service") {
+        Write-StagingLog -Level info -Component $LogComponent -Stage "tunnel" -Message "reconciling Staging tunnel in windows_service mode"
+        Invoke-Native "docker" ($composeArgs + @("--profile", "tunnel", "stop", "cloudflared"))
+        $service = Get-Service -Name "Mad4B-Staging-Cloudflared" -ErrorAction SilentlyContinue
+        if ($null -eq $service -or $service.Status -ne "Running") { [void](Ensure-StagingCloudflaredWindowsService $EnvFile) }
+        $serviceReadback = Get-CimInstance Win32_Service -Filter "Name='Mad4B-Staging-Cloudflared'" -ErrorAction Stop
+        if ($serviceReadback.State -ne "Running" -or [int]$serviceReadback.ProcessId -le 0) { Fail "windows_service tunnel did not reach Running" }
+        $dockerTunnelId = (& docker @($composeArgs + @("ps", "-q", "cloudflared")) 2>$null | Out-String).Trim()
+        if (-not [string]::IsNullOrWhiteSpace($dockerTunnelId)) {
+            $dockerTunnelRunning = (& docker inspect --format "{{.State.Running}}" $dockerTunnelId 2>$null | Out-String).Trim().ToLowerInvariant()
+            if ($dockerTunnelRunning -eq "true") { Fail "windows_service mode refuses concurrent Docker cloudflared sidecar" }
+        }
+        Write-StagingOperationBoundary -Component $LogComponent -Stage "tunnel" -Outcome "success" -Message "Staging Windows service tunnel is the sole runtime" -Data @{ tunnel_mode = $TunnelMode; service = "Mad4B-Staging-Cloudflared"; pid = [int]$serviceReadback.ProcessId }
+    } elseif ($TunnelMode -eq "docker_sidecar") {
+        Write-StagingLog -Level info -Component $LogComponent -Stage "tunnel" -Message "reconciling Staging tunnel in docker_sidecar mode"
+        $service = Get-Service -Name "Mad4B-Staging-Cloudflared" -ErrorAction SilentlyContinue
+        if ($null -ne $service -and $service.Status -ne "Stopped") {
+            Stop-Service -Name "Mad4B-Staging-Cloudflared" -Force -ErrorAction Stop
+            $service.WaitForStatus([System.ServiceProcess.ServiceControllerStatus]::Stopped, [TimeSpan]::FromSeconds(20))
+        }
+        Invoke-Native "docker" ($composeArgs + @("--profile", "tunnel", "up", "-d", "cloudflared"))
+        Write-StagingOperationBoundary -Component $LogComponent -Stage "tunnel" -Outcome "success" -Message "Staging Docker sidecar tunnel is the sole runtime" -Data @{ tunnel_mode = $TunnelMode; hostnames = "dev.mad4b.com,mcp-dev.mad4b.com" }
+    } else {
+        Invoke-Native "docker" ($composeArgs + @("--profile", "tunnel", "stop", "cloudflared"))
+        $service = Get-Service -Name "Mad4B-Staging-Cloudflared" -ErrorAction SilentlyContinue
+        if ($null -ne $service -and $service.Status -ne "Stopped") { Stop-Service -Name "Mad4B-Staging-Cloudflared" -Force -ErrorAction Stop }
+        Write-StagingOperationBoundary -Component $LogComponent -Stage "tunnel" -Outcome "success" -Message "Staging tunnel disabled; no Staging-owned tunnel runtime is running" -Data @{ tunnel_mode = $TunnelMode }
+    }
+    Invoke-Native "docker" ($composeArgs + @("ps"))
+
+    $schemaSeedStatus = Seed-SchemaBundle $RepositoryPath $ExpectedCommit
+    $baseState = @{
+        commit = $ExpectedCommit
+        ref = $Ref
+        docker_context = $context
+        build_context_source = "git_archive_exact_commit"
+        build_tree_sha = $buildTree.ToLowerInvariant()
+        build_context_file_set_sha256 = [string]$buildContextMetadata.context_file_set_sha256
+        app_image_digest = $imageId.ToLowerInvariant()
+        build_mode = $BuildMode
+        build_action = $buildAction
+        image_reused = [bool]$imageReused
+        tunnel_started = [bool]$TunnelSelected
+        tunnel_mode = $TunnelMode
+        schema_bundle_required = [bool]$RequireSchemaBundle
+        schema_bundle_apply_requested = [bool]$ApplySchemaBundle
+        schema_seed_status = $schemaSeedStatus
+        certification_status = "pending"
+        certification_ready = $false
+        migration_applied = $false
+        database_mutated = $false
+        production_deploy = $false
+        provider_mutation = $false
+        ruleset_mutation = $false
+        secrets_included = $false
+        generated_at = (Get-Date).ToUniversalTime().ToString("o")
+    }
+    Set-Content -Encoding utf8 $StateFile ($baseState | ConvertTo-Json -Depth 8)
+
+    $certArgs = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $CertificationScript, "-RepositoryPath", $RepositoryPath, "-ExpectedCommit", $ExpectedCommit, "-Ref", $Ref, "-StatePath", $StateFile)
+    $certArgs += @("-TunnelMode", $TunnelMode)
+    Write-StagingLog -Level info -Component $LogComponent -Stage "certification" -Message "same-cycle Staging certification started" -Data @{ commit = $ExpectedCommit; gateway_enabled = [bool]$activationGatewayEnabled }
+    & powershell.exe @certArgs
+    if ($LASTEXITCODE -ne 0) {
+        $certificationBlockingFailures = @()
+        $certificationDegradedReasons = @()
+        try {
+            $failedCertificationState = Get-Content -Raw -LiteralPath $StateFile | ConvertFrom-Json
+            $blockingProperty = $failedCertificationState.PSObject.Properties["certification_blocking_failures"]
+            $degradedProperty = $failedCertificationState.PSObject.Properties["certification_degraded_reasons"]
+            if ($null -ne $blockingProperty) {
+                $certificationBlockingFailures = @($blockingProperty.Value | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+            }
+            if ($null -ne $degradedProperty) {
+                $certificationDegradedReasons = @($degradedProperty.Value | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+            }
+        } catch { }
+        $reasonSuffix = if (@($certificationBlockingFailures).Count -gt 0) { " reasons=$($certificationBlockingFailures -join ',')" } else { " reasons=unavailable" }
+        $failureMessage = "Staging certification blocked exact commit $ExpectedCommit$reasonSuffix"
+        Write-StagingOperationBoundary -Component $LogComponent -Stage "certification" -Outcome "failure" -Message $failureMessage -Data @{ commit = $ExpectedCommit; blocking_failures = $certificationBlockingFailures; degraded_reasons = $certificationDegradedReasons }
+        Fail $failureMessage
+    }
+    try { $certState = Get-Content -Raw -LiteralPath $StateFile | ConvertFrom-Json }
+    catch { Fail "Staging certification state could not be read" }
+    if ($certState.certification_status -eq "degraded") {
+        Write-StagingLog -Level warning -Component $LogComponent -Stage "certification" -Message "Staging is running but not release-ready" -Data @{ commit = $ExpectedCommit; degraded_reasons = @($certState.certification_degraded_reasons); database_readiness = $certState.database_readiness }
+    } elseif ($certState.certification_status -eq "ready") {
+        Write-StagingOperationBoundary -Component $LogComponent -Stage "certification" -Outcome "success" -Message "Staging exact commit certified ready" -Data @{ commit = $ExpectedCommit; database_readiness = $certState.database_readiness }
+    } else {
+        Fail "Unsupported Staging certification state: $($certState.certification_status)"
+    }
+
+    Write-Host "AUTO_PILOT_STARTED: local staging is running; tunnel_mode=$TunnelMode; commit=$ExpectedCommit certification=$($certState.certification_status)"
+    Write-StagingOperationBoundary -Component $LogComponent -Stage "complete" -Outcome "success" -Message "local Staging application operations completed" -Data @{ commit = $ExpectedCommit; tunnel_started = [bool]$TunnelSelected; tunnel_mode = $TunnelMode; services = "redis,runtime-db,governance-db,persistence-db,app"; certification_status = $certState.certification_status }
+    Write-Host "APP_OPERATIONS_LOG: $(Get-StagingLogRoot)"
+} finally {
+    Pop-Location
+    if (Test-Path -LiteralPath $BuildContextPath) { Remove-Item -LiteralPath $BuildContextPath -Recurse -Force -ErrorAction SilentlyContinue }
+}
+) { Fail "Staging tunnel origin must be exactly http://127.0.0.1:8080 when a tunnel transport is selected" }
+    if (-not $TunnelSelected -and (Read-EnvValue $EnvFile "CLOUDFLARE_TUNNEL_ORIGIN_APP") -ne "") { Fail "Disabled Staging tunnel mode must not retain a tunnel origin" }
     if ($effectiveEnv -notmatch '(?im)^CLOUDFLARE_TUNNEL_LOGLEVEL=info\s*$') { Fail "Staging tunnel loglevel must remain info; debug may expose request headers" }
     if ($effectiveEnv -notmatch '(?im)^CLOUDFLARE_TUNNEL_GRACE_PERIOD=30s\s*$') { Fail "Staging tunnel grace period must remain 30s" }
     if ($effectiveEnv -match '(?im)^CLOUDFLARE_TUNNEL_HOSTNAMES=.*(auth\.mad4b\.com|mcp\.mad4b\.com|activation\.mad4b\.com)') { Fail "Forbidden Production hostname found in staging tunnel list" }

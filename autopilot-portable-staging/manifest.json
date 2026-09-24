@@ -62,7 +62,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "8e2148459e166e944ca62ae883d69570b2ae52404c38c48bb76e2042cfe08bdb"
+      "sha256": "b62f3d91ec8e5e0a60b8e88dfbf6685db80546546a7c2403dc4536012622f68a"
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
