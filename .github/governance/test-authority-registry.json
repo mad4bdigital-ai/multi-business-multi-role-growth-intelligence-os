@@ -859,6 +859,7 @@
     {
       "invariant_id": "migration_execution_safety",
       "protected_by_tests": [
+        "http-generic-api/test-execution-policies-stable-semantic-identity.mjs",
         "http-generic-api/test-migration-execution-safety.mjs"
       ],
       "protected_by_verifiers": [
