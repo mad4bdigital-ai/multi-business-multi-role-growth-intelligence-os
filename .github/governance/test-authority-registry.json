@@ -569,6 +569,7 @@
         "http-generic-api/test-staging-canonical-semantic-repair-ledger.mjs",
         "http-generic-api/test-staging-canonical-semantic-repair-runner.mjs",
         "http-generic-api/test-staging-canonical-semantic-repair.mjs",
+        "http-generic-api/test-staging-canonical-resource-registry-grant.mjs",
         "http-generic-api/test-staging-database-readiness-repair.mjs",
         "http-generic-api/test-staging-execution-policies-grant.mjs"
       ]
