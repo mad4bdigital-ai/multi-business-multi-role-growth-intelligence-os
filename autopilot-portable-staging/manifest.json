@@ -62,7 +62,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "88047c7038cfec8dfba24da9bf92f4f546764c0e2071b0688d82d6ef33816822"
+      "sha256": "8e2148459e166e944ca62ae883d69570b2ae52404c38c48bb76e2042cfe08bdb"
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
@@ -338,7 +338,7 @@
     },
     {
       "path": "autopilot-portable-staging/Staging-Environment.ps1",
-      "sha256": "815e8993aecc5d758714321d4c1134a43207b8e1365e71dfc2cca41230946180"
+      "sha256": "1d2cb3d42de0a1e30d81e363aea4ed735fd814c760ad697349cc938bde5259f7"
     },
     {
       "path": "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
