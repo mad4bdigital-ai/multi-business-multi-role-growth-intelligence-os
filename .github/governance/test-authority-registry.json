@@ -338,7 +338,7 @@
       "id": "recovery_composition_wiring",
       "test_paths": [
         ".github/ops/production-recovery-baseline-rebuild-governed.mjs",
-        ".github/workflows/production-recovery-baseline-rebuild-governed.yml",
+        ".github/workflows/governed-production-promotion-dispatch-bridge.yml",
         "docs/governance/recovery-server-managed-authority-binding.md",
         "docs/recovery-action-ticket-bridge.md",
         "edge/activation-gateway/generated/route-policy.staging.json",
