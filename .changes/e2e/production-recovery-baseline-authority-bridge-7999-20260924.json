@@ -1,0 +1,159 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-recovery-baseline-authority-bridge-7999-20260924",
+  "title": "Production Recovery governed baseline-only authority bridge",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/production-recovery-baseline-authority-bridge-7999-20260924.json",
+      ".github/governance/test-authority-registry.json",
+      "docs/runbooks/production-recovery-baseline-authority-bridge-7999.md",
+      "http-generic-api/productionRecoveryBaselineAuthorityBinding.js",
+      "http-generic-api/productionRecoveryHostLocalBaselineRebuild.js",
+      "http-generic-api/productionRecoveryOperationalAdapters.js",
+      "http-generic-api/recoveryKernel.js",
+      "http-generic-api/runtimeBootstrapContract.js",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/test-production-recovery-baseline-authority-binding.mjs",
+      "http-generic-api/test-production-recovery-host-local-baseline-rebuild.mjs",
+      "http-generic-api/test-production-recovery-operational-adapters.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "production",
+      "staging"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": false,
+    "production_mutation_allowed": false,
+    "live_migration_executed": false,
+    "live_grant_executed": false,
+    "deployment_or_restart_executed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Close the missing server-managed Production Recovery baseline-rebuild wiring while retaining explicit external activation and fail-closed ordinary migration/grant authority.",
+      "e2e_journeys": [
+        {
+          "id": "production-recovery-baseline-single-role-execution-contract",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Production Recovery Kernel and Hostinger host-local baseline executor",
+          "entrypoint": "createProductionRecoveryHostLocalBaselineRebuildExecutor",
+          "terminal_outcome": "One approved baseline.rebuild_empty role step is converted into an exact host-local bootstrap invocation, rebound to the exact checkout bundle, and independently read back without widening authority.",
+          "steps": [
+            "Derive a step-scoped role-selection proof from the immutable durable multi-role Recovery plan.",
+            "Bind one server-issued execution ticket to one role, one role-selection hash, and one exact role-bundle binding.",
+            "Translate only the approved baseline role step into controlled host-local Runtime Bootstrap environment inputs.",
+            "Recompute and compare the exact checkout role bundle before the first DDL boundary.",
+            "Require the role to become non-empty with required role tables present in independent same-cycle readback."
+          ],
+          "assertions": [
+            "Exactly one role is executable per Recovery step and ticket.",
+            "Caller-selected repository, workflow, ref, host, path, credential, token, raw SQL, and shell routing remain forbidden.",
+            "Role-bundle mismatch fails before database mutation.",
+            "Ordinary migration apply and grant repair are not included.",
+            "Partial or unknown execution remains reconciliation-only with automatic rerun forbidden.",
+            "Same-cycle readback has mutation_authority=false.",
+            "No Production operation is performed by synthetic certification."
+          ],
+          "tests": [
+            {
+              "id": "production-recovery-host-local-baseline-rebuild",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-recovery-host-local-baseline-rebuild.mjs",
+              "args": []
+            },
+            {
+              "id": "production-recovery-operational-adapters",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-recovery-operational-adapters.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/recoveryKernel.js",
+            "http-generic-api/runtimeBootstrapContract.js",
+            "http-generic-api/productionRecoveryHostLocalBaselineRebuild.js",
+            "http-generic-api/test-production-recovery-host-local-baseline-rebuild.mjs"
+          ]
+        },
+        {
+          "id": "production-recovery-baseline-live-binding-contract",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Production server-managed Recovery composition root",
+          "entrypoint": "createProductionRecoveryBaselineBindingForEnv",
+          "terminal_outcome": "The canonical Production factory can certify a baseline-only live authority graph only under explicit Hostinger Production runtime intent and server-owned authority material, while source merge remains non-activating.",
+          "steps": [
+            "Require explicit Hostinger Production runtime identity and production_live binding intent.",
+            "Build ticket and approval authorities over the independent mutation-grade Recovery Control Store.",
+            "Compose durable proof, immutable partial receipt, baseline-only mutation, and independent readback authorities.",
+            "Expose a complete server-managed Recovery envelope with a baseline_rebuild_only live authorization scope.",
+            "Keep the ordinary Governance Migration Ledger finalizer fail-closed."
+          ],
+          "assertions": [
+            "Missing server-owned approval or signing material fails closed.",
+            "Disabled binding intent cannot activate Production live authority.",
+            "The composition performs no provider or database activity while it is being resolved.",
+            "The envelope contains no secret values.",
+            "ordinary_migration_enabled=false.",
+            "grant_repair_enabled=false.",
+            "raw_sql_enabled=false.",
+            "shell_enabled=false.",
+            "production_auto_apply=false."
+          ],
+          "tests": [
+            {
+              "id": "production-recovery-baseline-authority-binding",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-recovery-baseline-authority-binding.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/productionRecoveryBaselineAuthorityBinding.js",
+            "http-generic-api/test-production-recovery-baseline-authority-binding.mjs",
+            "docs/runbooks/production-recovery-baseline-authority-bridge-7999.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Keep actual Production activation and baseline execution blocked until exact deployed-source, live store, configuration, fresh inspection, and separate typed execution authority are proven.",
+      "blockers": [
+        "source_not_merged",
+        "exact_production_deployment_not_updated",
+        "production_binding_module_not_configured",
+        "production_server_authority_material_not_configured_or_read_back",
+        "fresh_exact_sha_full_role_inspection_required",
+        "explicit_production_baseline_execution_authorization_required"
+      ]
+    }
+  ],
+  "safety": {
+    "repository_only": true,
+    "production_mutation_allowed": false,
+    "database_mutation": false,
+    "migration_apply": false,
+    "grant_execution": false,
+    "provider_call": false,
+    "workflow_dispatch": false,
+    "production_deploy": false,
+    "secrets_included": false
+  }
+}
