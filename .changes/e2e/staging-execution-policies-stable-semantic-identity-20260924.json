@@ -1,0 +1,84 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-execution-policies-stable-semantic-identity-20260924",
+  "title": "Give execution_policies a stable semantic snapshot identity",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-execution-policies-stable-semantic-identity-20260924.json",
+      ".github/derived-state-governance.json",
+      ".github/governance/test-authority-registry.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/migrations/20260924_execution_policies_stable_semantic_identity.sql",
+      "http-generic-api/schema.sql",
+      "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+      "http-generic-api/test-execution-policies-stable-semantic-identity.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make execution_policies expose one stable natural UNIQUE ordering key for canonical semantic snapshots while keeping this pull request schema-only and mutation-free against live Staging and Production.",
+      "e2e_journeys": [
+        {
+          "id": "execution-policies-stable-semantic-ordering",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging schema bundle generator",
+          "entrypoint": "A clean exact commit builds the disposable Staging schema bundle from schema.sql and the full ordered migration chain.",
+          "terminal_outcome": "execution_policies resolves uq_execution_policies_policy_identity over policy_group and policy_key as its stable semantic snapshot ordering key; historical duplicate identities fail the disposable migration replay rather than being silently normalized.",
+          "steps": [
+            "The canonical baseline replaces idx_policy_group_key with uq_execution_policies_policy_identity.",
+            "The new idempotent migration drops the legacy non-unique index when present and adds the UNIQUE identity only when absent.",
+            "The focused regression locks the baseline and migration contract.",
+            "The disposable bundle build replays the complete migration chain on a clean commit and generates canonical semantic outputs.",
+            "No live Staging database, Production database, provider, or Hostinger mutation is authorized by this pull request."
+          ],
+          "assertions": [
+            "schema.sql exposes exactly the intended UNIQUE natural identity for execution_policies.",
+            "The legacy idx_policy_group_key baseline index is removed.",
+            "The migration is replay-safe when the baseline already contains the UNIQUE identity.",
+            "A disposable schema bundle build must no longer fail with semantic snapshot table has no stable unique ordering key: execution_policies.",
+            "Production mutation remains forbidden."
+          ],
+          "tests": [
+            {
+              "id": "execution-policies-stable-semantic-identity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-execution-policies-stable-semantic-identity.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-execution-policies-stable-semantic-identity-20260924.json",
+            ".github/derived-state-governance.json",
+            ".github/governance/test-authority-registry.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "http-generic-api/migrations/20260924_execution_policies_stable_semantic_identity.sql",
+            "http-generic-api/schema.sql",
+            "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+            "http-generic-api/test-execution-policies-stable-semantic-identity.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
