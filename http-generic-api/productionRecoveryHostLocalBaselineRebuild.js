@@ -224,6 +224,7 @@ function buildBootstrapEnvironment(input, env = process.env) {
     "HOST_BREAKGLASS_ENVIRONMENT_KEY",
     "HOST_BREAKGLASS_HOST_LOCAL_ROLE_CREDENTIALS",
     "BOOTSTRAP_HOST_LOCAL_ROLE_IDENTITY",
+    "BOOTSTRAP_SERVER_MANAGED_RECOVERY_STEP",
   ];
   for (const key of controlled) delete next[key];
   return {
@@ -247,6 +248,7 @@ function buildBootstrapEnvironment(input, env = process.env) {
     HOST_BREAKGLASS_OPERATION: "database.rebuild_empty",
     HOST_BREAKGLASS_HOST_LOCAL_ROLE_CREDENTIALS: "true",
     BOOTSTRAP_HOST_LOCAL_ROLE_IDENTITY: "true",
+    BOOTSTRAP_SERVER_MANAGED_RECOVERY_STEP: "true",
   };
 }
 
