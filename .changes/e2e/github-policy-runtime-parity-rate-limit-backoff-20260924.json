@@ -1,0 +1,85 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "github-policy-runtime-parity-rate-limit-backoff-20260924",
+  "title": "GitHub policy runtime parity rate-limit backoff",
+  "delivery_mode": "single_pr",
+  "secrets_included": false,
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/github-policy-runtime-parity-rate-limit-backoff-20260924.json",
+      ".github/ops/github-main-review-policy-live-activation.mjs",
+      "http-generic-api/test-github-repository-policy-live-activation-contract.mjs",
+      "docs/governance/configuration-drift-baseline-extensions.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "production"
+    ],
+    "cross_environment_reviewed": false,
+    "live_staging_certification_required": false,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make GitHub review-policy readiness respect bounded Production runtime rate limiting instead of repeatedly hammering identity endpoints, while preserving exact-SHA fail-closed parity and zero mutation authority.",
+      "e2e_journeys": [
+        {
+          "id": "bounded-runtime-parity-rate-limit-backoff",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository governance CI",
+          "entrypoint": "The existing GitHub review-policy readiness runner verifies the exact protected Production runtime before any Ruleset plan or Apply.",
+          "terminal_outcome": "HTTP 429 responses honor Retry-After within the existing six-minute parity window, use a bounded fallback delay when Retry-After is absent, and emit secret-free final status diagnostics without weakening exact SHA or branch stability checks.",
+          "steps": [
+            "Keep the exact main and Production ref pins and repository-policy source parity checks unchanged.",
+            "Capture Retry-After from bounded GET-only health, version, and deployment-info probes.",
+            "Back off 429 probes for at least the provider-requested interval when it fits inside the fixed parity window, otherwise wait only through the remaining window and fail closed.",
+            "Record only attempt count, last HTTP statuses, rate-limit observation, maximum Retry-After delay, and the fixed parity window on terminal failure.",
+            "Keep Ruleset Apply, database, migration, provider, Hostinger, and Production mutation disabled in this maintenance change.",
+            "Register only the new backoff/diagnostic literals as permanent non-secret configuration-drift baseline extensions; do not suppress drift.",
+            "Register this maintenance contract in the repository Constitution control-plane set and convergence automation control surface so the self-amendment is explicit and reviewable."
+          ],
+          "assertions": [
+            "The runtime parity window remains bounded to six minutes and at most 24 probe attempts.",
+            "429 responses cannot trigger the old fixed 15-second retry loop.",
+            "Retry-After values are parsed as delta-seconds or HTTP dates and never expose response bodies or credentials.",
+            "Successful parity still requires health ok plus exact Production SHA evidence in both version and deployment-info.",
+            "Terminal failure remains fail-closed with runtime_parity_not_converged and secrets_included=false.",
+            "No GitHub Ruleset Apply, provider mutation, Hostinger mutation, database mutation, migration Apply, force push, or Production ref mutation is authorized.",
+            "All new configuration candidates introduced by this maintenance patch are explicitly governed baseline extensions with runtime and Production mutation authority false.",
+            "Configuration-drift handling uses permanent governed baseline extensions only; no suppression entry is introduced.",
+            "The new critical maintenance contract is registered in both control-plane registries before merge."
+          ],
+          "tests": [
+            {
+              "id": "github-repository-policy-live-activation-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-policy-live-activation-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/github-policy-runtime-parity-rate-limit-backoff-20260924.json",
+            ".github/ops/github-main-review-policy-live-activation.mjs",
+            "http-generic-api/test-github-repository-policy-live-activation-contract.mjs",
+            "docs/governance/configuration-drift-baseline-extensions.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json"
+          ]
+        }
+      ]
+    }
+  ]
+}

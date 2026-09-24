@@ -85,6 +85,7 @@
       ".changes/e2e/final-governance-enforcement-semantic-closure-20260820.json",
       ".changes/e2e/final-repository-governance-enforcement-semantic-closure-20260819.json",
       ".changes/e2e/fixed-admin-host-local-inspection-20260825.json",
+      ".changes/e2e/github-policy-runtime-parity-rate-limit-backoff-20260924.json",
       ".changes/e2e/github-repository-policy-1050-governed-rollout.json",
       ".changes/e2e/github-repository-policy-1051-orphan-ledger-recovery.json",
       ".changes/e2e/github-repository-policy-readback-dependency-isolation.json",

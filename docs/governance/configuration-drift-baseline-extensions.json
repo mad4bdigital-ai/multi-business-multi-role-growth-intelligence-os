@@ -1597,6 +1597,72 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/github-main-review-policy-live-activation.mjs|PARITY_DEFAULT_DELAY_MS|literal_declaration|parity.default.delay.ms",
+      "owner": "repository-governance",
+      "reason": "The fixed default delay bounds read-only Production identity polling between attempts; it contains no endpoint credential or provider value and grants no Ruleset, runtime, database, Hostinger, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/github-main-review-policy-live-activation.mjs|PARITY_RATE_LIMIT_FALLBACK_MS|literal_declaration|parity.rate.limit.fallback.ms",
+      "owner": "repository-governance",
+      "reason": "The fixed 429 fallback delay prevents aggressive read-only Production identity retries when Retry-After is absent; it contains no credential or provider value and grants no mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/github-main-review-policy-live-activation.mjs|maxRetryAfterMs|literal_declaration|maxretryafterms",
+      "owner": "repository-governance",
+      "reason": "This value is derived only from bounded HTTP Retry-After metadata for secret-free readiness diagnostics; it is not a configurable provider value and grants no mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/github-main-review-policy-live-activation.mjs|rateLimitObserved|literal_declaration|ratelimitobserved",
+      "owner": "repository-governance",
+      "reason": "This boolean records whether bounded read-only parity probes observed HTTP 429; it is diagnostic evidence only and grants no runtime, provider, database, Ruleset, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/github-main-review-policy-live-activation.mjs|rateLimited|literal_declaration|ratelimited",
+      "owner": "repository-governance",
+      "reason": "This local boolean classifies a bounded GET response set for backoff selection; it is not external configuration and grants no runtime, provider, database, Ruleset, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/test-github-repository-policy-live-activation-contract.mjs|PARITY_RATE_LIMIT_FALLBACK_MS|literal_declaration|parity.rate.limit.fallback.ms",
+      "owner": "repository-governance",
+      "reason": "This test-only literal pins the governed 429 fallback contract for deterministic regression coverage; it contains no secret or provider setting and grants no mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {
