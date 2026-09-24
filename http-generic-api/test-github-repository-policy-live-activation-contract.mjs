@@ -216,6 +216,18 @@ assert.doesNotMatch(liveRunner, /ENVELOPE_CREATOR_BLOB_SHA/);
 assert.match(liveRunner, /repositoryPolicyEnvelopeSourceContract/);
 assert.match(liveRunner, /Runtime repository-policy envelope contract mismatch/);
 assert.match(liveRunner, /envelope_creator_contract_fingerprint/);
+assert.match(liveRunner, /const PARITY_WINDOW_MS = 6 \* 60 \* 1000/);
+assert.match(liveRunner, /const PARITY_RATE_LIMIT_FALLBACK_MS = 30000/);
+assert.match(liveRunner, /function parseRetryAfterMs\(value, nowMs = Date\.now\(\)\)/);
+assert.match(liveRunner, /response\.headers\.get\("retry-after"\)/);
+assert.match(liveRunner, /function boundedParityDelay\(results, remainingMs\)/);
+assert.match(liveRunner, /rate_limit_observed: rateLimitObserved/);
+assert.match(liveRunner, /max_retry_after_ms: maxRetryAfterMs \|\| null/);
+assert.match(liveRunner, /error\.code = "runtime_parity_not_converged"/);
+assert.match(liveRunner, /last_statuses: lastStatuses/);
+const parityRunner = liveRunner.slice(liveRunner.indexOf("async function verifySourceAndRuntimeParity()"), liveRunner.indexOf("async function verifyMigration1051Applied()"));
+assert.match(parityRunner, /boundedParityDelay\(probes, remainingMs\)/);
+assert.doesNotMatch(parityRunner, /setTimeout\(resolve, 15000\)/);
 
 assert.match(publisher, /EXPECTED_WORKFLOW = "Governed GitHub Review Policy Live Activation"/);
 assert.match(publisher, /assert\.equal\(summary\?\.migration_1051_verified, true\)/);
