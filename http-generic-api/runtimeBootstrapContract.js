@@ -10,6 +10,7 @@ import {
   BASELINE_ORDER_CONTRACT,
   validateBaselineBeforeOrdinaryMigration,
   buildRoleBundleBinding,
+  validateRoleBundleBinding,
   createRoleBundleProgress,
   recordRoleBundleProgress,
 } from "./recoveryExecutionBinding.js";
@@ -766,6 +767,50 @@ export function validateRoleRebuildConfirmation(env, sha, target, contract) {
     throw bootstrapError("bootstrap_rebuild_confirmation_mismatch", "Role-selective baseline rebuild requires an exact SHA-, target-, and role-set-bound confirmation.", { confirmation_key: "BOOTSTRAP_REBUILD_CONFIRMATION", expected_confirmation: expected, selected_roles: selected });
   }
   return { confirmation: expected, plan_hash: planHash, selection_hash: selectionHash, selected_roles: selected, inspection_run_id: inspectionRunId, role_object_count_fingerprints: normalizedRoleFingerprints };
+}
+
+
+function expectedRoleBundleBindingFromEnvironment(env, role) {
+  const raw = String(env.BOOTSTRAP_ROLE_BUNDLE_BINDING_JSON || "").trim();
+  if (!raw) {
+    throw bootstrapError("bootstrap_role_bundle_binding_missing", "Role-selective baseline rebuild requires the exact server-issued role-bundle binding before any schema mutation.", { role, required_field: "BOOTSTRAP_ROLE_BUNDLE_BINDING_JSON", database_mutation_performed: false });
+  }
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch {
+    throw bootstrapError("bootstrap_role_bundle_binding_invalid", "Server-issued role-bundle binding JSON is invalid.", { role, database_mutation_performed: false });
+  }
+  const validation = validateRoleBundleBinding(parsed, {
+    role,
+    bundleManifestSha256: parsed?.bundle_manifest_sha256,
+    roleBundleSha256: parsed?.role_bundle_sha256,
+    statementCount: parsed?.statement_count,
+    statementFingerprints: parsed?.statement_fingerprints,
+  });
+  if (!validation.ok || validation.binding.role !== role) {
+    throw bootstrapError("bootstrap_role_bundle_binding_invalid", "Server-issued role-bundle binding is malformed or bound to a different role.", { role, problems: validation.problems, database_mutation_performed: false });
+  }
+  return validation.binding;
+}
+
+function assertLocalRoleBundleMatchesExpected({ env, role, bundle, bundleSql }) {
+  const expected = expectedRoleBundleBindingFromEnvironment(env, role);
+  const statements = assertSqlArtifactSafe(bundleSql, { allowData: false });
+  const local = buildRoleBundleBinding({
+    role,
+    bundleManifestSha256: bundle.manifest_sha256,
+    roleBundleSha256: bundle.role.sha256,
+    statementCount: statements.length,
+    statementFingerprints: statements.map((statement) => sha256Hex(statement)),
+  });
+  if (JSON.stringify(local) !== JSON.stringify(expected)) {
+    throw bootstrapError("bootstrap_role_bundle_binding_mismatch", "Exact checkout schema bundle does not match the server-issued Recovery role-bundle binding.", {
+      role,
+      expected_binding_hash: expected.binding_hash,
+      observed_binding_hash: local.binding_hash,
+      database_mutation_performed: false,
+    });
+  }
+  return local;
 }
 
 function normalizeOperationsByTable(policy, expectedTables, role) {
@@ -1727,6 +1772,7 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
         manifestPath ||= resolveBundleManifestPath(repoRoot, env.BOOTSTRAP_SCHEMA_BUNDLE_MANIFEST, contract);
         const bundle = readBundleManifest(manifestPath, source.sha, contract, role);
         const bundleSql = zlib.gunzipSync(fs.readFileSync(bundle.bundlePath)).toString("utf8");
+        assertLocalRoleBundleMatchesExpected({ env, role, bundle, bundleSql });
         const ddlPreflight = await assertDdlPrivilegePreflight(binding.connection, binding.database, bundleSql, bundle.role.tables, { kind: "baseline_bundle", role });
         mutationEvidence.ddl_privilege_preflight.push(ddlPreflight);
         const applied = role === "runtime"
