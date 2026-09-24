@@ -166,7 +166,7 @@ test('fallback separates canonical baseline bootstrap from incident recovery', (
     baseline_bootstrap_migrations: [{
       kind: 'schema',
       file: 'http-generic-api/schema.sql',
-      expected_checksum: '14e624b74f86160475c66ba02f1003f3221acb46d9d9f79334352afa16a36c33',
+      expected_checksum: '7c089cb4262f7a8020ed2cffd47b5e549ed0a14f2a6410d43b212590e2196518',
       expected_statement_count: 27,
       data_statements_allowed: false,
     }],
