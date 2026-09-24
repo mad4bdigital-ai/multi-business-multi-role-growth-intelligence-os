@@ -9,6 +9,7 @@
     "include": [
       ".changes/e2e/local-manager-update-production-parity-20260924.json",
       ".github/workflows/local-manager-windows.yml",
+      ".github/workflows/local-manager-windows-release.yml",
       "apps/local-manager-windows/Program.cs",
       "apps/local-manager-windows/Mad4B.LocalManager.Windows.csproj",
       "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -18,7 +19,10 @@
   },
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
-    "declared_targets": ["staging", "production"],
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
     "cross_environment_reviewed": true,
     "live_staging_certification_required": true,
     "production_mutation_allowed": false,
@@ -26,7 +30,9 @@
     "live_grant_executed": false,
     "deployment_or_restart_executed": false
   },
-  "merge_contract": {"minimum_phase": "mvp"},
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
   "phases": [
     {
       "id": "mvp",
@@ -54,11 +60,24 @@
             "No Production deployment, migration, grant, or credential mutation is performed by this candidate."
           ],
           "tests": [
-            {"id": "local-manager-tool-release-owner", "runner": "node", "working_directory": "http-generic-api", "path": "test-local-manager-tool-release-owner.mjs", "args": []},
-            {"id": "connect-routes", "runner": "node", "working_directory": "http-generic-api", "path": "test-connect-routes.mjs", "args": []}
+            {
+              "id": "local-manager-tool-release-owner",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-local-manager-tool-release-owner.mjs",
+              "args": []
+            },
+            {
+              "id": "connect-routes",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-connect-routes.mjs",
+              "args": []
+            }
           ],
           "evidence_paths": [
             ".github/workflows/local-manager-windows.yml",
+            ".github/workflows/local-manager-windows-release.yml",
             "apps/local-manager-windows/Program.cs",
             "apps/local-manager-windows/Mad4B.LocalManager.Windows.csproj",
             "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -68,10 +87,28 @@
         }
       ],
       "tests": [
-        {"id": "local-manager-tool-release-owner", "runner": "node", "working_directory": "http-generic-api", "path": "test-local-manager-tool-release-owner.mjs", "args": []},
-        {"id": "connect-routes", "runner": "node", "working_directory": "http-generic-api", "path": "test-connect-routes.mjs", "args": []}
+        {
+          "id": "local-manager-tool-release-owner",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-local-manager-tool-release-owner.mjs",
+          "args": []
+        },
+        {
+          "id": "connect-routes",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-connect-routes.mjs",
+          "args": []
+        }
       ]
     }
   ],
-  "safety": {"repository_only": true, "production_mutation_allowed": false, "database_mutation": false, "provider_call": false, "secrets_included": false}
+  "safety": {
+    "repository_only": true,
+    "production_mutation_allowed": false,
+    "database_mutation": false,
+    "provider_call": false,
+    "secrets_included": false
+  }
 }
