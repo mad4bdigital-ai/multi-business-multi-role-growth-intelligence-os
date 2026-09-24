@@ -101,13 +101,18 @@ function ticketBootstrapVerifier({ recoveryStore, executionTicketVerifier }) {
         return { valid: false, secrets_included: false };
       }
       const payload = verified.payload || {};
-      const expectedComposite = text(expected.target_fingerprint, 128).toLowerCase();
+      const expectedFingerprint = text(expected.target_fingerprint, 128).toLowerCase();
+      const expectedRole = text(expected.target_role, 64);
       const valid = payload.production_sha === expected.production_sha
         && payload.target_key === expected.target_key
         && payload.operation === expected.operation
+        && (!expected.plan_hash || payload.plan_hash === expected.plan_hash)
+        && (!expectedRole || payload.target_role === expectedRole)
+        && (!expectedFingerprint || text(payload.target_fingerprint, 128).toLowerCase() === expectedFingerprint)
         && text(payload.role_selection_hash, 128).toLowerCase() === text(expected.role_selection_hash, 128).toLowerCase()
-        && (!expected.grant_binding_hash || payload.grant_binding_hash === expected.grant_binding_hash)
-        && (!expectedComposite || text(payload.target_fingerprints?.composite, 128).toLowerCase() === expectedComposite);
+        && JSON.stringify(payload.selected_roles || []) === JSON.stringify(expected.selected_roles || [])
+        && JSON.stringify(payload.role_bundle_bindings || {}) === JSON.stringify(expected.role_bundle_bindings || {})
+        && (!expected.grant_binding_hash || payload.grant_binding_hash === expected.grant_binding_hash);
       return { valid, ticket_id: ticketId, ticket_hash: ticketHash, secrets_included: false };
     },
   });
@@ -129,10 +134,12 @@ function assertBaselineExecution(input = {}) {
     || proof.expected_sha !== input.expected_sha
     || JSON.stringify(proof.selected_roles) !== JSON.stringify([role])
     || !SHA256.test(text(proof.selection_hash, 128).toLowerCase())
+    || text(input.role_selection_proof_hash, 128).toLowerCase() !== text(proof.selection_hash, 128).toLowerCase()
     || !SHA256.test(text(proof.role_object_count_fingerprints?.[role], 128).toLowerCase())
     || !bundle
     || bundle.role !== role
-    || !SHA256.test(text(bundle.binding_hash, 128).toLowerCase())) {
+    || !SHA256.test(text(bundle.binding_hash, 128).toLowerCase())
+    || JSON.stringify(input.role_bundle_bindings || {}) !== JSON.stringify({ [role]: bundle })) {
     fail("RECOVERY_PRODUCTION_BASELINE_EXECUTION_DENIED", "Production Recovery live binding permits only one exact approved baseline-rebuild role step.", { target_role: role || null }, 403);
   }
   return { role, proof, bundle };
