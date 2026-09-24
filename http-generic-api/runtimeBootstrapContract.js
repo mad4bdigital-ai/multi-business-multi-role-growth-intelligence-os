@@ -127,7 +127,7 @@ function isMutationMode(mode) {
   return mode === "apply_migration" || mode === "apply_grants";
 }
 
-async function verifyBootstrapExecutionAuthority({ env, mode, target, source, operation, targetRole = null, planHash = null, roleSelectionHash = null, grantBindingHash = null, executionTicketVerifier }) {
+async function verifyBootstrapExecutionAuthority({ env, mode, target, source, operation, targetRole = null, selectedRoles = [], planHash = null, roleSelectionHash = null, grantBindingHash = null, executionTicketVerifier }) {
   if (!isMutationMode(mode)) return null;
   const ticketId = String(env.BOOTSTRAP_EXECUTION_TICKET_ID || "").trim();
   const ticketHash = String(env.BOOTSTRAP_EXECUTION_TICKET_HASH || "").trim().toLowerCase();
@@ -137,8 +137,11 @@ async function verifyBootstrapExecutionAuthority({ env, mode, target, source, op
   if (!executionTicketVerifier || typeof executionTicketVerifier.verifyForBootstrap !== "function") {
     throw bootstrapError("bootstrap_execution_ticket_authority_unavailable", "No injected governed execution-ticket authority is configured; mutation is unavailable and no database connection was opened.", { database_connection_performed: false, database_mutation_performed: false });
   }
+  const canonicalSelectedRoles = Array.isArray(selectedRoles) ? [...new Set(selectedRoles)] : [];
   const roleFingerprints = targetRole ? deriveRoleTargetFingerprints({ env }) : null;
-  const roleBundleBinding = targetRole ? expectedRoleBundleBindingFromEnvironment(env, targetRole) : null;
+  const roleBundleBindings = roleSelectionHash
+    ? Object.fromEntries(canonicalSelectedRoles.map((role) => [role, expectedRoleBundleBindingFromEnvironment(env, role)]))
+    : null;
   const expected = {
     ticket_id: ticketId,
     ticket_hash: ticketHash,
@@ -146,8 +149,8 @@ async function verifyBootstrapExecutionAuthority({ env, mode, target, source, op
     target_key: target.key,
     target_fingerprint: targetRole ? roleFingerprints?.[targetRole] : target.target_fingerprint,
     target_role: targetRole || null,
-    selected_roles: targetRole ? [targetRole] : null,
-    role_bundle_bindings: targetRole ? { [targetRole]: roleBundleBinding } : null,
+    selected_roles: roleSelectionHash ? canonicalSelectedRoles : null,
+    role_bundle_bindings: roleBundleBindings,
     operation,
     ...(planHash ? { plan_hash: planHash } : {}),
     role_selection_hash: roleSelectionHash,
@@ -1567,13 +1570,26 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
   validateBootstrapCredentials(env, { requirePassword: true, target });
   const roleCredentials = preflightRoleBootstrapCredentials(env, target, { requirePassword: true });
   const rebuildBinding = roleSelectiveRebuild ? validateRoleRebuildConfirmation(env, source.sha, target, contract) : null;
-  const rebuildTargetRole = roleSelectiveRebuild && rebuildBinding?.selected_roles?.length === 1 ? rebuildBinding.selected_roles[0] : null;
-  if (roleSelectiveRebuild && !rebuildTargetRole) {
+  const productionHostLocalRebuild = roleSelectiveRebuild && String(env.BOOTSTRAP_TARGET_SOURCE || "").trim().toLowerCase() === "host_local_role_env";
+  const rebuildTargetRole = productionHostLocalRebuild && rebuildBinding?.selected_roles?.length === 1 ? rebuildBinding.selected_roles[0] : null;
+  if (productionHostLocalRebuild && !rebuildTargetRole) {
     throw bootstrapError("bootstrap_rebuild_single_role_required", "Server-managed Production Recovery executes one approved rebuild role per ticket and per fenced step.", { selected_roles: rebuildBinding?.selected_roles || [], database_connection_performed: false, database_mutation_performed: false });
   }
   if (!roleSelectiveRebuild && mode === "apply_migration") validateApplyConfirmation(env, source.sha, { ...target, migration }, contract, "migration");
   if (mode === "apply_grants") validateApplyConfirmation(env, source.sha, target, contract, "grants");
-  const executionTicket = await verifyBootstrapExecutionAuthority({ env, mode, target, source, operation: roleSelectiveRebuild ? "database.rebuild_empty" : mode === "apply_migration" ? "migration" : "grants", targetRole: rebuildTargetRole, planHash: rebuildBinding?.plan_hash || null, roleSelectionHash: rebuildBinding?.selection_hash || null, grantBindingHash: mode === "apply_grants" ? computeGrantBindingHash(target, contract) : null, executionTicketVerifier });
+  const executionTicket = await verifyBootstrapExecutionAuthority({
+    env,
+    mode,
+    target,
+    source,
+    operation: roleSelectiveRebuild ? "database.rebuild_empty" : mode === "apply_migration" ? "migration" : "grants",
+    targetRole: rebuildTargetRole,
+    selectedRoles: rebuildBinding?.selected_roles || [],
+    planHash: rebuildBinding?.plan_hash || null,
+    roleSelectionHash: rebuildBinding?.selection_hash || null,
+    grantBindingHash: mode === "apply_grants" ? computeGrantBindingHash(target, contract) : null,
+    executionTicketVerifier,
+  });
   const mutationEvidence = mutationEvidenceTemplate(migration, spec?.statement_count || 0, 0);
   const createConnection = connectionFactory || (async ({ credentials }) => {
     const { createConnection: connect } = await import("mysql2/promise");
