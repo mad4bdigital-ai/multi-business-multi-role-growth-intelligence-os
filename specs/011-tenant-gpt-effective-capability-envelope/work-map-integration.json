@@ -3,8 +3,8 @@
   "feature_key": "011-tenant-gpt-effective-capability-envelope",
   "review_state": "draft",
   "registry": {
-    "fingerprint": "7c0131dcba8f94ca09beb07a9d3e8d4bac799caf9f76c412c881383742fe05d2",
-    "index_source_hash": "7fc0c11dd9cc399eed1804a19e4b7caf8e269a3b3956b68377c37d8043a3ec01",
+    "fingerprint": "2f5be3de81a3a11b96d797c720dd5ba6bbd1d09ae224be0a01d36f7011165f7a",
+    "index_source_hash": "037534bfd31f98d48bd11c5bcfd6d5feacd7ff97bfd34433926e02815665fb17",
     "coverage_source_hash": "929f60aa3a6f6a6689bd25f8a31f3e200a58f9b527b38802fb87e57baf98c6d1",
     "map_count": 19,
     "domain_count": 16,
