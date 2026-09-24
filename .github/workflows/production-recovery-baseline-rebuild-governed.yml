@@ -1,0 +1,98 @@
+name: Governed Production Recovery Baseline Rebuild
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  prepare:
+    name: Prepare exact Production baseline rebuild approval
+    if: >-
+      github.event.issue.number == 6813 &&
+      !github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, 'APPLY_HOSTINGER_RUNTIME_BASELINE_REBUILD:') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 35
+    concurrency:
+      group: production-recovery-baseline-prepare
+      cancel-in-progress: false
+    env:
+      RECOVERY_BRIDGE_PHASE: prepare
+      COMMENT_BODY: ${{ github.event.comment.body }}
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      CONTROL_ISSUE: '6813'
+      EVIDENCE_DIR: .artifacts/production-recovery-baseline-prepare
+    steps:
+      - name: Checkout exact issue-comment event head
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '22'
+      - name: Validate governed bridge source
+        run: node --check .github/ops/production-recovery-baseline-rebuild-governed.mjs
+      - name: Prepare fresh inspection, canonical plan, and first single-step approval
+        run: node .github/ops/production-recovery-baseline-rebuild-governed.mjs
+      - name: Upload no-secret preparation evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: production-recovery-baseline-prepare-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}
+          if-no-files-found: error
+          retention-days: 30
+
+  execute:
+    name: Execute one approved Production Recovery role step
+    if: >-
+      github.event.issue.number == 6813 &&
+      !github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, 'APPROVE PRODUCTION RECOVERY ') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    concurrency:
+      group: production-recovery-baseline-execute
+      cancel-in-progress: false
+    env:
+      RECOVERY_BRIDGE_PHASE: execute
+      COMMENT_BODY: ${{ github.event.comment.body }}
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      CONTROL_ISSUE: '6813'
+      EVIDENCE_DIR: .artifacts/production-recovery-baseline-execute
+    steps:
+      - name: Checkout exact issue-comment event head
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '22'
+      - name: Validate governed bridge source
+        run: node --check .github/ops/production-recovery-baseline-rebuild-governed.mjs
+      - name: Execute exactly one server-approved Recovery step and require durable readback
+        run: node .github/ops/production-recovery-baseline-rebuild-governed.mjs
+      - name: Upload no-secret execution evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: production-recovery-baseline-execute-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}
+          if-no-files-found: error
+          retention-days: 30
