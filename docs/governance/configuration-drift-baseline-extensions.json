@@ -1663,6 +1663,116 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/production-recovery-baseline-rebuild-governed.mjs|BASE|environment_reference|runtime.base.url",
+      "owner": "recovery-governance",
+      "reason": "RUNTIME_BASE_URL binds the governed Production Recovery bridge to the canonical admin control surface. It is an addressing input only; consequential execution additionally requires the exact Production SHA, a server-derived Recovery plan, a server-issued single-step challenge, and the typed approval confirmation.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/production-recovery-baseline-rebuild-governed.mjs|KEY|environment_reference|backend.api.key",
+      "owner": "recovery-governance",
+      "reason": "BACKEND_API_KEY is a credential reference used by the governed bridge to authenticate to the existing admin control surface. No credential value is tracked or emitted; possession of this reference is not sufficient to execute Recovery because exact-SHA plan, server challenge, approval binding, execution ticket, fence, and same-cycle readback gates remain mandatory.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "credential_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/production-recovery-baseline-rebuild-governed.mjs|GH|environment_reference|gh.token",
+      "owner": "recovery-governance",
+      "reason": "GH_TOKEN is a workflow credential reference used only for exact Production-ref readback and bounded issue-comment evidence on the configured control issue. It is not accepted by the Recovery Kernel as database or execution authority, and its value is never persisted or emitted.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "credential_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/production-recovery-baseline-rebuild-governed.mjs|REPO|environment_reference|repository",
+      "owner": "recovery-governance",
+      "reason": "Repository identity scopes GitHub readback and issue evidence to the repository that owns the governed Recovery workflow. It narrows authority and cannot select a database, role, plan, ticket, or provider target.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/production-recovery-baseline-rebuild-governed.mjs|ISSUE|environment_reference|control.issue",
+      "owner": "recovery-governance",
+      "reason": "CONTROL_ISSUE binds the producer to the dedicated Production Recovery governance thread. It is an audit/routing identity and is not accepted as Recovery execution authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/production-recovery-baseline-rebuild-governed.mjs|PHASE|environment_reference|recovery.bridge.phase",
+      "owner": "recovery-governance",
+      "reason": "RECOVERY_BRIDGE_PHASE selects the bounded prepare or execute code path inside the governed producer. The execute path still requires the exact workflow-authored approval marker and typed server challenge; the phase selector cannot authorize mutation by itself.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/production-recovery-baseline-rebuild-governed.mjs|COMMENT|environment_reference|comment.body",
+      "owner": "recovery-governance",
+      "reason": "COMMENT_BODY carries the immutable issue-comment command into the producer. The producer accepts only the exact baseline prepare command or exact server-issued single-step approval phrase and rejects all other input before Recovery execution.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/production-recovery-baseline-rebuild-governed.mjs|EVIDENCE_DIR|environment_reference|evidence.dir",
+      "owner": "recovery-governance",
+      "reason": "EVIDENCE_DIR selects only the ephemeral no-secret GitHub Actions artifact directory for governed Production Recovery receipts and failures; it is not a runtime or database target.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/production-recovery-baseline-rebuild-governed.mjs|WORKFLOW_RUN_ID|environment_reference|github.run.id",
+      "owner": "recovery-governance",
+      "reason": "GITHUB_RUN_ID contributes to the producer idempotency namespace so separate workflow executions cannot collide or silently reuse an earlier prepare cycle. It narrows replay behavior and grants no authority by itself.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/production-recovery-baseline-rebuild-governed.mjs|WORKFLOW_RUN_ATTEMPT|environment_reference|github.run.attempt",
+      "owner": "recovery-governance",
+      "reason": "GITHUB_RUN_ATTEMPT contributes to the bounded idempotency namespace so a rerun does not silently alias a previous prepare cycle. It carries no Recovery plan, approval, ticket, database, or provider authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {

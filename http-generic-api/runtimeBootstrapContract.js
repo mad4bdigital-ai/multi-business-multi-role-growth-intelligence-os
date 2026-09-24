@@ -6,10 +6,12 @@ import { fileURLToPath } from "node:url";
 import { splitMigrationSqlStatements } from "./migrationSqlStatements.js";
 import { computeRoleSelectionProofHash } from "./roleSelectionProof.js";
 import { allowedGrantPrivilegesForRole } from "./databasePrivilegeContracts.js";
+import { deriveRoleTargetFingerprints } from "./recoveryTrustModel.js";
 import {
   BASELINE_ORDER_CONTRACT,
   validateBaselineBeforeOrdinaryMigration,
   buildRoleBundleBinding,
+  validateRoleBundleBinding,
   createRoleBundleProgress,
   recordRoleBundleProgress,
 } from "./recoveryExecutionBinding.js";
@@ -125,7 +127,7 @@ function isMutationMode(mode) {
   return mode === "apply_migration" || mode === "apply_grants";
 }
 
-async function verifyBootstrapExecutionAuthority({ env, mode, target, source, operation, roleSelectionHash = null, grantBindingHash = null, executionTicketVerifier }) {
+async function verifyBootstrapExecutionAuthority({ env, mode, target, source, operation, targetRole = null, selectedRoles = [], planHash = null, roleSelectionHash = null, grantBindingHash = null, executionTicketVerifier }) {
   if (!isMutationMode(mode)) return null;
   const ticketId = String(env.BOOTSTRAP_EXECUTION_TICKET_ID || "").trim();
   const ticketHash = String(env.BOOTSTRAP_EXECUTION_TICKET_HASH || "").trim().toLowerCase();
@@ -135,13 +137,22 @@ async function verifyBootstrapExecutionAuthority({ env, mode, target, source, op
   if (!executionTicketVerifier || typeof executionTicketVerifier.verifyForBootstrap !== "function") {
     throw bootstrapError("bootstrap_execution_ticket_authority_unavailable", "No injected governed execution-ticket authority is configured; mutation is unavailable and no database connection was opened.", { database_connection_performed: false, database_mutation_performed: false });
   }
+  const canonicalSelectedRoles = Array.isArray(selectedRoles) ? [...new Set(selectedRoles)] : [];
+  const roleFingerprints = targetRole ? deriveRoleTargetFingerprints({ env }) : null;
+  const roleBundleBindings = roleSelectionHash
+    ? Object.fromEntries(canonicalSelectedRoles.map((role) => [role, expectedRoleBundleBindingFromEnvironment(env, role)]))
+    : null;
   const expected = {
     ticket_id: ticketId,
     ticket_hash: ticketHash,
     production_sha: source.sha,
     target_key: target.key,
-    target_fingerprint: target.target_fingerprint,
+    target_fingerprint: targetRole ? roleFingerprints?.[targetRole] : target.target_fingerprint,
+    target_role: targetRole || null,
+    selected_roles: roleSelectionHash ? canonicalSelectedRoles : null,
+    role_bundle_bindings: roleBundleBindings,
     operation,
+    ...(planHash ? { plan_hash: planHash } : {}),
     role_selection_hash: roleSelectionHash,
     grant_binding_hash: grantBindingHash,
   };
@@ -766,6 +777,57 @@ export function validateRoleRebuildConfirmation(env, sha, target, contract) {
     throw bootstrapError("bootstrap_rebuild_confirmation_mismatch", "Role-selective baseline rebuild requires an exact SHA-, target-, and role-set-bound confirmation.", { confirmation_key: "BOOTSTRAP_REBUILD_CONFIRMATION", expected_confirmation: expected, selected_roles: selected });
   }
   return { confirmation: expected, plan_hash: planHash, selection_hash: selectionHash, selected_roles: selected, inspection_run_id: inspectionRunId, role_object_count_fingerprints: normalizedRoleFingerprints };
+}
+
+
+function expectedRoleBundleBindingFromEnvironment(env, role) {
+  const raw = String(env.BOOTSTRAP_ROLE_BUNDLE_BINDINGS_JSON || "").trim();
+  if (!raw) {
+    throw bootstrapError("bootstrap_role_bundle_binding_missing", "Role-selective baseline rebuild requires the exact server-issued role-bundle binding map before any schema mutation.", { role, required_field: "BOOTSTRAP_ROLE_BUNDLE_BINDINGS_JSON", database_mutation_performed: false });
+  }
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch {
+    throw bootstrapError("bootstrap_role_bundle_binding_invalid", "Server-issued role-bundle binding map JSON is invalid.", { role, database_mutation_performed: false });
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw bootstrapError("bootstrap_role_bundle_binding_invalid", "Server-issued role-bundle bindings must be a role-keyed object.", { role, database_mutation_performed: false });
+  }
+  const binding = parsed[role];
+  if (!binding || typeof binding !== "object" || Array.isArray(binding)) {
+    throw bootstrapError("bootstrap_role_bundle_binding_missing", "Selected role is missing its exact server-issued role-bundle binding.", { role, database_mutation_performed: false });
+  }
+  const validation = validateRoleBundleBinding(binding, {
+    role,
+    bundleManifestSha256: binding?.bundle_manifest_sha256,
+    roleBundleSha256: binding?.role_bundle_sha256,
+    statementCount: binding?.statement_count,
+    statementFingerprints: binding?.statement_fingerprints,
+  });
+  if (!validation.ok || validation.binding.role !== role) {
+    throw bootstrapError("bootstrap_role_bundle_binding_invalid", "Server-issued role-bundle binding is malformed or bound to a different role.", { role, problems: validation.problems, database_mutation_performed: false });
+  }
+  return validation.binding;
+}
+
+function assertLocalRoleBundleMatchesExpected({ env, role, bundle, bundleSql }) {
+  const expected = expectedRoleBundleBindingFromEnvironment(env, role);
+  const statements = assertSqlArtifactSafe(bundleSql, { allowData: false });
+  const local = buildRoleBundleBinding({
+    role,
+    bundleManifestSha256: bundle.manifest_sha256,
+    roleBundleSha256: bundle.role.sha256,
+    statementCount: statements.length,
+    statementFingerprints: statements.map((statement) => sha256Hex(statement)),
+  });
+  if (JSON.stringify(local) !== JSON.stringify(expected)) {
+    throw bootstrapError("bootstrap_role_bundle_binding_mismatch", "Exact checkout schema bundle does not match the server-issued Recovery role-bundle binding.", {
+      role,
+      expected_binding_hash: expected.binding_hash,
+      observed_binding_hash: local.binding_hash,
+      database_mutation_performed: false,
+    });
+  }
+  return local;
 }
 
 function normalizeOperationsByTable(policy, expectedTables, role) {
@@ -1508,9 +1570,28 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
   validateBootstrapCredentials(env, { requirePassword: true, target });
   const roleCredentials = preflightRoleBootstrapCredentials(env, target, { requirePassword: true });
   const rebuildBinding = roleSelectiveRebuild ? validateRoleRebuildConfirmation(env, source.sha, target, contract) : null;
+  const productionHostLocalRebuild = roleSelectiveRebuild
+    && String(env.BOOTSTRAP_TARGET_SOURCE || "").trim().toLowerCase() === "host_local_role_env"
+    && String(env.BOOTSTRAP_SERVER_MANAGED_RECOVERY_STEP || "").trim().toLowerCase() === "true";
+  const rebuildTargetRole = productionHostLocalRebuild && rebuildBinding?.selected_roles?.length === 1 ? rebuildBinding.selected_roles[0] : null;
+  if (productionHostLocalRebuild && !rebuildTargetRole) {
+    throw bootstrapError("bootstrap_rebuild_single_role_required", "Server-managed Production Recovery executes one approved rebuild role per ticket and per fenced step.", { selected_roles: rebuildBinding?.selected_roles || [], database_connection_performed: false, database_mutation_performed: false });
+  }
   if (!roleSelectiveRebuild && mode === "apply_migration") validateApplyConfirmation(env, source.sha, { ...target, migration }, contract, "migration");
   if (mode === "apply_grants") validateApplyConfirmation(env, source.sha, target, contract, "grants");
-  const executionTicket = await verifyBootstrapExecutionAuthority({ env, mode, target, source, operation: roleSelectiveRebuild ? "database.rebuild_empty" : mode === "apply_migration" ? "migration" : "grants", roleSelectionHash: rebuildBinding?.selection_hash || null, grantBindingHash: mode === "apply_grants" ? computeGrantBindingHash(target, contract) : null, executionTicketVerifier });
+  const executionTicket = await verifyBootstrapExecutionAuthority({
+    env,
+    mode,
+    target,
+    source,
+    operation: roleSelectiveRebuild ? "database.rebuild_empty" : mode === "apply_migration" ? "migration" : "grants",
+    targetRole: rebuildTargetRole,
+    selectedRoles: rebuildBinding?.selected_roles || [],
+    planHash: rebuildBinding?.plan_hash || null,
+    roleSelectionHash: rebuildBinding?.selection_hash || null,
+    grantBindingHash: mode === "apply_grants" ? computeGrantBindingHash(target, contract) : null,
+    executionTicketVerifier,
+  });
   const mutationEvidence = mutationEvidenceTemplate(migration, spec?.statement_count || 0, 0);
   const createConnection = connectionFactory || (async ({ credentials }) => {
     const { createConnection: connect } = await import("mysql2/promise");
@@ -1727,6 +1808,7 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
         manifestPath ||= resolveBundleManifestPath(repoRoot, env.BOOTSTRAP_SCHEMA_BUNDLE_MANIFEST, contract);
         const bundle = readBundleManifest(manifestPath, source.sha, contract, role);
         const bundleSql = zlib.gunzipSync(fs.readFileSync(bundle.bundlePath)).toString("utf8");
+        assertLocalRoleBundleMatchesExpected({ env, role, bundle, bundleSql });
         const ddlPreflight = await assertDdlPrivilegePreflight(binding.connection, binding.database, bundleSql, bundle.role.tables, { kind: "baseline_bundle", role });
         mutationEvidence.ddl_privilege_preflight.push(ddlPreflight);
         const applied = role === "runtime"

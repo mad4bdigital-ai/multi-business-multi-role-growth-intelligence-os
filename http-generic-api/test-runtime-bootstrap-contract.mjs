@@ -27,7 +27,8 @@ import {
 import { GOVERNANCE_DB_PRIVILEGE_MATRIX } from "./databasePrivilegeContracts.js";
 import { getRuntimeBootstrapStatus as readStartupStatus } from "./runtimeBootstrapStatus.js";
 import { computeRoleSelectionProofHash } from "./roleSelectionProof.js";
-import { buildBaselineExecutionOrderProof } from "./recoveryExecutionBinding.js";
+import { buildBaselineExecutionOrderProof, buildRoleBundleBinding } from "./recoveryExecutionBinding.js";
+import { splitMigrationSqlStatements } from "./migrationSqlStatements.js";
 
 const contract = JSON.parse(fs.readFileSync(new URL("./config/runtime-bootstrap-contract.json", import.meta.url), "utf8"));
 const recoveryContract = JSON.parse(fs.readFileSync(new URL("../.github/ops/production-runtime-recovery-routes.json", import.meta.url), "utf8"));
@@ -87,6 +88,23 @@ function createRoleBundleFixture() {
 
 const ROLE_BUNDLE_FIXTURE = createRoleBundleFixture();
 const ROLE_BUNDLE_FIXTURE_ROOT = path.dirname(path.resolve(path.resolve(process.cwd(), ".."), ROLE_BUNDLE_FIXTURE));
+
+function fixtureRoleBundleBindings(roles) {
+  const repoRoot = path.resolve(process.cwd(), "..");
+  const manifestPath = path.resolve(repoRoot, ROLE_BUNDLE_FIXTURE);
+  return Object.fromEntries(roles.map((role) => {
+    const bundle = validateSchemaBundleManifest(manifestPath, EXPECTED_SHA, contract, role);
+    const sql = zlib.gunzipSync(fs.readFileSync(bundle.bundlePath)).toString("utf8");
+    const statements = splitMigrationSqlStatements(sql).map((item) => String(item).trim()).filter(Boolean);
+    return [role, buildRoleBundleBinding({
+      role,
+      bundleManifestSha256: bundle.manifest_sha256,
+      roleBundleSha256: bundle.role.sha256,
+      statementCount: statements.length,
+      statementFingerprints: statements.map((statement) => sha256Hex(statement)),
+    })];
+  }));
+}
 test.after(() => fs.rmSync(ROLE_BUNDLE_FIXTURE_ROOT, { recursive: true, force: true }));
 
 function envFor(migration = "20260815_custom_gpt_mcp_catalog_levels.sql", mode = "dry_run") {
@@ -179,6 +197,7 @@ function roleBoundRebuildEnv(selectedRoles, roleCounts) {
   env.BOOTSTRAP_ROLE_OBJECT_COUNT_FINGERPRINTS = JSON.stringify(roleProof);
   env.BOOTSTRAP_ROLE_SELECTION_HASH = computeRoleSelectionProofHash({ ...roleProof, selected_roles: selectedRoles, inspection_run_id: env.BOOTSTRAP_INSPECTION_RUN_ID });
   env.BOOTSTRAP_REBUILD_CONFIRMATION = `APPLY_HOSTINGER_RUNTIME_BASELINE_REBUILD:${EXPECTED_SHA}:${TARGET_KEY}:${selectedRoles.join(",")}`;
+  env.BOOTSTRAP_ROLE_BUNDLE_BINDINGS_JSON = JSON.stringify(fixtureRoleBundleBindings(selectedRoles));
   return env;
 }
 
