@@ -469,6 +469,7 @@
     ".changes/e2e/staging-batch-baseline-column-contracts.json",
     ".changes/e2e/staging-canonical-repair-authority-separation-20260921.json",
     ".changes/e2e/staging-canonical-resource-registry-read-grant-20260924.json",
+    ".changes/e2e/staging-canonical-semantic-plan-runtime-handoff-20260924.json",
     ".changes/e2e/staging-cloudflared-cim-service-reconcile-20260902.json",
     ".changes/e2e/staging-connector-provisioning-boundary-20260906.json",
     ".changes/e2e/staging-convergence-acknowledgement-handoff-20260912.json",
