@@ -737,6 +737,31 @@ function deriveRoleSelectionProofFromFindings(findings, expectedSha, targetFinge
   return { ...proof, selection_hash: computeRoleSelectionProofHash(proof) };
 }
 
+function roleSelectionProofForStep(plan, step) {
+  const base = plan?.role_selection_proof || null;
+  if (step?.mutation_class !== "C5") return base;
+  const role = text(step.target_role, 64);
+  if (!base || base.source !== "durable_full_inspection" || base.expected_sha !== plan.expected_sha
+    || !Array.isArray(base.selected_roles) || !base.selected_roles.includes(role)
+    || !Array.isArray(base.finding_ids) || !base.finding_ids.includes(step.finding_id)
+    || !text(base.role_object_count_fingerprints?.[role], 128)
+    || !text(base.inspection_run_id, 160) || !text(base.inspection_evidence_hash, 128)
+    || !text(base.composite_target_fingerprint, 128)) {
+    throw kernelError(409, "RECOVERY_ROLE_SELECTION_PROVENANCE_UNAVAILABLE", "Baseline execution requires a complete durable role-selection proof for the exact approved step.", { target_role: role, finding_id: step?.finding_id || null });
+  }
+  const proof = {
+    source: base.source,
+    expected_sha: base.expected_sha,
+    selected_roles: [role],
+    inspection_run_id: base.inspection_run_id,
+    inspection_evidence_hash: base.inspection_evidence_hash,
+    finding_ids: [step.finding_id],
+    role_object_count_fingerprints: { [role]: base.role_object_count_fingerprints[role] },
+    composite_target_fingerprint: base.composite_target_fingerprint,
+  };
+  return { ...proof, selection_hash: computeRoleSelectionProofHash(proof) };
+}
+
 function roleBundleBindingFromFinding(finding, targetRole) {
   const raw = finding.observed_state?.actual?.role_bundle_binding || finding.observed_state?.actual?.baseline_bundle_binding || null;
   if (!raw) return null;
@@ -1061,20 +1086,21 @@ export async function createExecutionTicket(input = {}, { recoveryStore, executi
   requireMutationRecoveryStore(recoveryStore);
   if (!executionTicketSigner || typeof executionTicketSigner.sign !== "function") throw kernelError(503, "RECOVERY_EXECUTION_TICKET_SIGNER_UNAVAILABLE", "A server-side execution-ticket signer is required; tickets are never self-issued or synthesized.");
   const approvalToken = assertApprovalTokenShape(input.approval_token);
+  const stepRoleSelectionProof = roleSelectionProofForStep(plan, step);
   const approvalResult = await verifyAndBuildApprovalBinding(plan, step, approvalToken, { approvalVerifier, approvalStore, recoveryStore });
   const approvalReservationContext = { ...approvalResult.context, approval_id: approvalResult.approval.approval_id, approval_hash: approvalResult.binding.approval_hash, approval_binding_hash: approvalResult.binding.binding_hash, idempotency_key: text(input.idempotency_key, 160), execution_ticket_id: null };
   if (!approvalReservationContext.idempotency_key) throw kernelError(400, "RECOVERY_IDEMPOTENCY_KEY_REQUIRED", "A caller-supplied idempotency_key is required before approval reservation and ticket issuance.");
   await reserveApproval(recoveryStore, approvalReservationContext);
   try {
     const ticket = await issueExecutionTicket({
-      inspection_run_id: plan.role_selection_proof?.inspection_run_id || `run:${plan.plan_id.slice(-32)}`,
-      inspection_evidence_hash: plan.role_selection_proof?.inspection_evidence_hash || plan.finding_hash,
-      finding_ids: plan.finding_ids,
-      selected_roles: plan.role_selection_proof?.selected_roles || ["composite"],
+      inspection_run_id: stepRoleSelectionProof?.inspection_run_id || `run:${plan.plan_id.slice(-32)}`,
+      inspection_evidence_hash: stepRoleSelectionProof?.inspection_evidence_hash || plan.finding_hash,
+      finding_ids: stepRoleSelectionProof?.finding_ids || plan.finding_ids,
+      selected_roles: stepRoleSelectionProof?.selected_roles || ["composite"],
       role_selection_required: step.mutation_class === "C5",
-      role_object_count_fingerprints: plan.role_selection_proof?.role_object_count_fingerprints || {},
+      role_object_count_fingerprints: stepRoleSelectionProof?.role_object_count_fingerprints || {},
       target_fingerprints: plan.target_fingerprints || { composite: plan.target_fingerprint },
-      role_selection_hash: plan.role_selection_hash || null,
+      role_selection_hash: stepRoleSelectionProof?.selection_hash || null,
       role_bundle_bindings: roleBundleBindingsForStep(step, plan),
       deployment_attestation_hash: deploymentAttestation.attestation_hash,
       approval_id: approvalResult.binding.approval_id,
@@ -1282,6 +1308,7 @@ export async function executeRemediationStep(input = {}, { env = process.env, ad
   const approval = approvalResult.approval;
   const approvalContext = approvalResult.context;
   const approvalBinding = approvalResult.binding;
+  const stepRoleSelectionProof = roleSelectionProofForStep(plan, step);
   const executionTicketExpected = {
     plan_hash: plan.plan_hash,
     step_hash: step.step_hash,
@@ -1295,11 +1322,11 @@ export async function executeRemediationStep(input = {}, { env = process.env, ad
     approval_hash: approvalBinding.approval_hash,
     approval_version: approvalBinding.approval_version,
     approval_binding: approvalBinding,
-    role_selection_hash: plan.role_selection_hash || null,
+    role_selection_hash: stepRoleSelectionProof?.selection_hash || null,
     role_bundle_bindings: roleBundleBindingsForStep(step, plan),
     deployment_attestation_hash: plan.runtime_attestation_hash || null,
     target_fingerprints: plan.target_fingerprints || { composite: plan.target_fingerprint },
-    selected_roles: plan.role_selection_proof?.selected_roles || ["composite"],
+    selected_roles: stepRoleSelectionProof?.selected_roles || ["composite"],
     grant_binding_hash: step.grant_binding_hash || plan.grant_binding_hash || null,
   };
   try {
@@ -1377,9 +1404,9 @@ export async function executeRemediationStep(input = {}, { env = process.env, ad
       execution_ticket_hash: executionTicket.ticket_hash,
       lease_id: lockHandle.lease_id,
       fencing_token: lockHandle.fencing_token,
-      role_selection_proof_hash: plan.role_selection_hash || null,
-      role_selection_proof: plan.role_selection_proof ? sanitizeEvidence(plan.role_selection_proof) : null,
-      selected_roles: Array.isArray(plan.role_selection_proof?.selected_roles) ? [...plan.role_selection_proof.selected_roles] : [step.target_role],
+      role_selection_proof_hash: stepRoleSelectionProof?.selection_hash || null,
+      role_selection_proof: stepRoleSelectionProof ? sanitizeEvidence(stepRoleSelectionProof) : null,
+      selected_roles: Array.isArray(stepRoleSelectionProof?.selected_roles) ? [...stepRoleSelectionProof.selected_roles] : [step.target_role],
       deployment_attestation_hash: deploymentAttestation.attestation_hash,
       role_bundle_binding: step.role_bundle_binding || null,
       role_bundle_bindings: roleBundleBindingsForStep(step, plan),
