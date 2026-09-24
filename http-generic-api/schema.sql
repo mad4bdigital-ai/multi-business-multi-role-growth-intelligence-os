@@ -222,7 +222,8 @@ CREATE TABLE IF NOT EXISTS `execution_policies` (
   `created_at`  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at`  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `idx_policy_group_key` (`policy_group`, `policy_key`)
+  UNIQUE KEY `uq_execution_policies_policy_identity`
+    (`policy_group`, `policy_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ── 6. Hosting Account Registry ───────────────────────────────────────────────
