@@ -35,9 +35,8 @@ test("semantic snapshot replays foreign-key parents before children", () => {
   assert.match(inspectSemanticSnapshotForeignKeyOrder([dependency.child], [dependency])[0], /absent from semantic snapshot/);
   assert.match(inspectSemanticSnapshotForeignKeyOrder([dependency.child], [{ ...dependency, parent: dependency.child }])[0], /self-referencing/);
   assert.deepEqual(inspectSemanticSnapshotForeignKeyOrder(["other_table"], [dependency]), [], "unrelated FK relationships do not affect snapshot");
-  assert.match(generator, /FROM information_schema\\.KEY_COLUMN_USAGE/u);
+  assert.match(generator, /FROM information_schema\.KEY_COLUMN_USAGE/u);
   assert.ok(generator.indexOf("inspectSemanticSnapshotForeignKeyOrder(names, foreignKeys)") < generator.indexOf("const dumpResult = dockerExec(", generator.indexOf("function makeCanonicalSemanticDump(")), "validate dependencies before dump output");
-
 });
 
 function runPlan() {
