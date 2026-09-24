@@ -30,6 +30,10 @@ assert.match(runner, /execution_ticket_returned !== false/u);
 assert.match(runner, /approval_token_returned !== false/u);
 assert.match(runner, /automatic_rerun_allowed:\s*false/u);
 assert.match(runner, /\/admin\/recovery\/kernel\/runs\//u);
+assert.match(runner, /SOURCE_PARITY_PATHS/u);
+assert.match(runner, /RECOVERY_BRIDGE_SOURCE_PARITY_MISMATCH/u);
+assert.match(runner, /RECOVERY_BRIDGE_SOURCE_PARITY_CHANGED/u);
+assert.match(runner, /source_parity_hash/u);
 
 assert.ok(
   runner.indexOf('capability_key: "database_full_inspection"')
