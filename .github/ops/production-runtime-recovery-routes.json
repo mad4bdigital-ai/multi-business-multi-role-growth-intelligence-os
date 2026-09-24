@@ -123,7 +123,7 @@
       {
         "kind": "schema",
         "file": "http-generic-api/schema.sql",
-        "sha256": "14e624b74f86160475c66ba02f1003f3221acb46d9d9f79334352afa16a36c33",
+        "sha256": "7c089cb4262f7a8020ed2cffd47b5e549ed0a14f2a6410d43b212590e2196518",
         "statement_count": 27,
         "when": "database_missing_or_empty",
         "data_statements_allowed": false
