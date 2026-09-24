@@ -505,7 +505,7 @@ function Read-RuntimeCertificationState([string]$RepoPath, [string]$Sha) {
 function Write-CanonicalSemanticRepairHandoff([string]$RepoPath, [string]$ScriptRoot, [string]$Sha, [string]$SemanticStatus) {
     $status = if ([string]::IsNullOrWhiteSpace($SemanticStatus)) { "runtime_database_unavailable" } else { $SemanticStatus }
     $planEligible = $status -eq "canonical_missing"
-    $handoffState = if ($status -eq "ready") { "not_required" } elseif ($planEligible) { "plan_required" } else { "inspection_required" }
+    $handoffState = if ($status -in @("ready", "not_required")) { "not_required" } elseif ($planEligible) { "plan_required" } else { "inspection_required" }
     $handoff = [ordered]@{
         contract = "mad4b.staging.canonical-semantic-repair-handoff.v1"
         status = $handoffState

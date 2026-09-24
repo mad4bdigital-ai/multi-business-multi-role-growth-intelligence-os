@@ -17,6 +17,7 @@ const bootstrap = read("autopilot-portable-staging/Bootstrap-Staging-One-Click.p
 const oneClick = read("autopilot-portable-staging/One-Click-Staging.ps1");
 const autoDeployInstaller = read("autopilot-portable-staging/Install-AutoDeployTask.ps1");
 const autoDeploy = read("autopilot-portable-staging/Auto-Deploy-Staging.ps1");
+const startAutoPilot = read("autopilot-portable-staging/Start-AutoPilot.ps1");
 const semanticReadiness = read("http-generic-api/scripts/staging-public-schema-readiness.mjs");
 const cmd = read("autopilot-portable-staging/Start-Staging-One-Click.cmd");
 const windowsCompose = read("http-generic-api/docker-compose.staging.windows-service.yml");
@@ -172,6 +173,9 @@ assert.match(bootstrap, /"-AutoDeployTunnelMode", \$AutoDeployTunnelMode/);
 assert.match(oneClick, /"-TunnelMode", \$AutoDeployTunnelMode/);
 assert.match(autoDeployInstaller, /-TunnelMode \$TunnelMode/);
 assert.match(autoDeploy, /provider_mutation_authorized = \$false/);
+assert.match(startAutoPilot, /Set-StagingTunnelRuntimeProfile -Path \$EnvFile -TunnelMode \$TunnelMode/);
+assert.match(envHelper, /function Set-StagingTunnelRuntimeProfile/);
+assert.match(envHelper, /mad4b\.staging-tunnel-runtime-profile\.v1/);
 assert.doesNotMatch(autoDeployInstaller, /EnableActivationGateway/);
 assert.doesNotMatch(autoDeploy, /EnableActivationGateway/);
 assert.match(launcher, /scripts\/staging-public-schema-readiness\.mjs/);

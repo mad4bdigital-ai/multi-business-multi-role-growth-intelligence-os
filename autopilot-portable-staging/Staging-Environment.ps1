@@ -107,6 +107,72 @@ function Assert-StagingEnvironmentSafety([string]$Path) {
     }
 }
 
+function Set-StagingTunnelRuntimeProfile {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [ValidateSet('disabled','windows_service','docker_sidecar')][string]$TunnelMode
+    )
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        throw "Staging environment file is missing: $Path"
+    }
+
+    # This helper owns only the tunnel transport profile. It deliberately does not
+    # generate secrets or change Activation Gateway, database, provider, or
+    # Production mutation authority.
+    Set-StagingEnvValue $Path 'STAGING_TUNNEL_MODE' $TunnelMode
+    Set-StagingEnvValue $Path 'STAGING_TUNNEL_REMOTE_ORIGIN' 'http://127.0.0.1:8080'
+    Set-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_HOSTNAMES' 'dev.mad4b.com,mcp-dev.mad4b.com'
+    Set-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_TOKEN_FILE' 'C:\ProgramData\cloudflared\tunnel-token.txt'
+    Set-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_LOG_FILE' 'C:\ProgramData\cloudflared\staging-cloudflared.log'
+    Set-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_METRICS' '127.0.0.1:49312'
+    Set-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_LOGLEVEL' 'info'
+    Set-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_GRACE_PERIOD' '30s'
+
+    switch ($TunnelMode) {
+        'windows_service' {
+            Set-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_ENABLED' 'true'
+            Set-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_RUNTIME' 'windows_service'
+            Set-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_ORIGIN_APP' 'http://127.0.0.1:8080'
+            Set-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_TOKEN_REQUIRED' 'false'
+            Set-StagingEnvValue $Path 'STAGING_APP_HOST_BIND' '127.0.0.1:8080:8080'
+            Set-StagingEnvValue $Path 'STAGING_DOCKER_TUNNEL_ENABLED' 'false'
+            Set-StagingEnvValue $Path 'STAGING_DOCKER_TUNNEL_COMPOSE_OVERRIDE' ''
+        }
+        'docker_sidecar' {
+            Set-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_ENABLED' 'true'
+            Set-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_RUNTIME' 'docker_sidecar'
+            Set-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_ORIGIN_APP' 'http://127.0.0.1:8080'
+            Set-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_TOKEN_REQUIRED' 'true'
+            Set-StagingEnvValue $Path 'STAGING_APP_HOST_BIND' ''
+            Set-StagingEnvValue $Path 'STAGING_DOCKER_TUNNEL_ENABLED' 'true'
+            Set-StagingEnvValue $Path 'STAGING_DOCKER_TUNNEL_COMPOSE_OVERRIDE' 'docker-compose.staging.docker-sidecar.yml'
+        }
+        default {
+            Set-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_ENABLED' 'false'
+            Set-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_RUNTIME' 'disabled'
+            Set-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_ORIGIN_APP' ''
+            Set-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_TOKEN_REQUIRED' 'false'
+            Set-StagingEnvValue $Path 'STAGING_APP_HOST_BIND' ''
+            Set-StagingEnvValue $Path 'STAGING_DOCKER_TUNNEL_ENABLED' 'false'
+            Set-StagingEnvValue $Path 'STAGING_DOCKER_TUNNEL_COMPOSE_OVERRIDE' ''
+        }
+    }
+
+    return [pscustomobject]@{
+        contract = 'mad4b.staging-tunnel-runtime-profile.v1'
+        tunnel_mode = $TunnelMode
+        remote_managed_origin = Get-StagingEnvValue $Path 'STAGING_TUNNEL_REMOTE_ORIGIN'
+        tunnel_origin = Get-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_ORIGIN_APP'
+        app_host_bind = Get-StagingEnvValue $Path 'STAGING_APP_HOST_BIND'
+        production_mutation = $false
+        provider_mutation = $false
+        database_mutation = $false
+        secrets_included = $false
+    }
+}
+
 function Initialize-StagingEnvironment {
     [CmdletBinding()]
     param(
@@ -153,13 +219,8 @@ function Initialize-StagingEnvironment {
     }
     Set-StagingEnvValue $envFile 'STAGING_AUTHENTICATED_REMOTE_E2E_REQUIRED' 'true'
 
-    # Canonical shared Staging environment authority.
-    Set-StagingEnvValue $envFile 'STAGING_TUNNEL_MODE' $TunnelMode
-    Set-StagingEnvValue $envFile 'STAGING_TUNNEL_REMOTE_ORIGIN' 'http://127.0.0.1:8080'
-    Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_HOSTNAMES' 'dev.mad4b.com,mcp-dev.mad4b.com'
-    Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_TOKEN_FILE' 'C:\ProgramData\cloudflared\tunnel-token.txt'
-    Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_LOG_FILE' 'C:\ProgramData\cloudflared\staging-cloudflared.log'
-    Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_METRICS' '127.0.0.1:49312'
+    # Canonical shared Staging tunnel authority.
+    [void](Set-StagingTunnelRuntimeProfile -Path $envFile -TunnelMode $TunnelMode)
     Set-StagingEnvValue $envFile 'STAGING_PUBLIC_SCHEMA_SEMANTIC_VALIDATION_REQUIRED' 'true'
     Set-StagingEnvValue $envFile 'STAGING_REMOTE_ORIGIN_EVIDENCE_REQUIRED' 'true'
     Set-StagingEnvValue $envFile 'STAGING_ACTIVATION_REQUIRED_FOR_PLATFORM_READY' 'true'
@@ -175,36 +236,6 @@ function Initialize-StagingEnvironment {
     Set-StagingEnvValue $envFile 'REMOTE_MCP_RESOURCE_URL' 'https://mcp-dev.mad4b.com'
     Set-StagingEnvValue $envFile 'REMOTE_MCP_AUTHORIZATION_SERVER_URL' 'https://dev.mad4b.com/auth/mcp'
     Set-StagingEnvValue $envFile 'REMOTE_MCP_RESOURCE_DOCUMENTATION_URL' 'https://mcp-dev.mad4b.com/docs'
-
-    switch ($TunnelMode) {
-        'windows_service' {
-            Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ENABLED' 'true'
-            Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_RUNTIME' 'windows_service'
-            Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ORIGIN_APP' 'http://127.0.0.1:8080'
-            Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_TOKEN_REQUIRED' 'false'
-            Set-StagingEnvValue $envFile 'STAGING_APP_HOST_BIND' '127.0.0.1:8080:8080'
-            Set-StagingEnvValue $envFile 'STAGING_DOCKER_TUNNEL_ENABLED' 'false'
-            Set-StagingEnvValue $envFile 'STAGING_DOCKER_TUNNEL_COMPOSE_OVERRIDE' ''
-        }
-        'docker_sidecar' {
-            Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ENABLED' 'true'
-            Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_RUNTIME' 'docker_sidecar'
-            Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ORIGIN_APP' 'http://127.0.0.1:8080'
-            Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_TOKEN_REQUIRED' 'true'
-            Set-StagingEnvValue $envFile 'STAGING_APP_HOST_BIND' ''
-            Set-StagingEnvValue $envFile 'STAGING_DOCKER_TUNNEL_ENABLED' 'true'
-            Set-StagingEnvValue $envFile 'STAGING_DOCKER_TUNNEL_COMPOSE_OVERRIDE' 'docker-compose.staging.docker-sidecar.yml'
-        }
-        default {
-            Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ENABLED' 'false'
-            Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_RUNTIME' 'disabled'
-            Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ORIGIN_APP' ''
-            Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_TOKEN_REQUIRED' 'false'
-            Set-StagingEnvValue $envFile 'STAGING_APP_HOST_BIND' ''
-            Set-StagingEnvValue $envFile 'STAGING_DOCKER_TUNNEL_ENABLED' 'false'
-            Set-StagingEnvValue $envFile 'STAGING_DOCKER_TUNNEL_COMPOSE_OVERRIDE' ''
-        }
-    }
 
     Set-StagingEnvValue $envFile 'ACTIVATION_STAGING_GATEWAY_ENABLED' ($(if ($EnableActivationGateway) { 'true' } else { 'false' }))
     Set-StagingEnvValue $envFile 'ACTIVATION_HOST_GATEWAY_HOST' 'activation-dev.mad4b.com'
