@@ -13,7 +13,7 @@ import { inspectOrderedMigrationChainGeneratedColumns } from "../databaseGenerat
 import { inspectOrderedMigrationChainIndexKeyWidths } from "../databaseIndexKeyWidthPolicyGuard.js";
 import { inspectOrderedMigrationChainRequiredInsertColumns } from "../databaseRequiredInsertColumnPolicyGuard.js";
 import { inspectOrderedMigrationChainForeignKeys } from "../databaseForeignKeyCompatibilityPolicyGuard.js";
-import { inspectSemanticSnapshotForeignKeyOrder } from "./semantic-snapshot-foreign-key-order.mjs";
+import { inspectSemanticSnapshotForeignKeyOrder } from "./staging-semantic-snapshot-foreign-key-order.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const apiRoot = path.resolve(__dirname, "..");
