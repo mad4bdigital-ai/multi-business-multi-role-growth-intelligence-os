@@ -1,0 +1,67 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr8243-staging-semantic-fk-replay-order",
+  "title": "Staging canonical semantic replay FK order",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr8243-staging-semantic-fk-replay-order.json",
+      "http-generic-api/config/staging-database-role-migration-manifest.json",
+      "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+      "http-generic-api/scripts/staging-semantic-snapshot-foreign-key-order.mjs",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging"
+    ],
+    "cross_environment_reviewed": false,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Reject semantic snapshot bundles whose foreign-key parents cannot be replayed before children.",
+      "e2e_journeys": [
+        {
+          "id": "staging-semantic-fk-replay-synthetic",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed CI",
+          "entrypoint": "Run the staging schema bundle builder test suite on the exact PR head.",
+          "terminal_outcome": "Parent-before-child replay is accepted and reversed, missing, or self-referencing dependencies fail closed before bundle output.",
+          "steps": [
+            "Read snapshot ordering and disposable schema foreign-key relationships.",
+            "Run regression tests for the affected callback registry and general dependency guard."
+          ],
+          "assertions": [
+            "Activation tile precedes callback registry.",
+            "Missing and reversed parents fail closed.",
+            "Live Staging certification remains required before recovery."
+          ],
+          "tests": [
+            {
+              "id": "staging-schema-bundle-builder",
+              "runner": "node",
+              "path": "http-generic-api/test-staging-schema-bundle-builder.mjs"
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/test-staging-schema-bundle-builder.mjs",
+            "http-generic-api/config/staging-database-role-migration-manifest.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

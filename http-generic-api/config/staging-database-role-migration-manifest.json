@@ -551,8 +551,8 @@
       "activation_connector_pack_component_registry",
       "activation_authorized_surface_registry",
       "activation_guidance_invocation_registry",
-      "activation_callback_registry",
       "activation_operational_tile_registry",
+      "activation_callback_registry",
       "activation_response_profile_registry",
       "activation_delivery_policy_registry"
     ],
@@ -574,8 +574,8 @@
       "activation_connector_pack_component_registry",
       "activation_authorized_surface_registry",
       "activation_guidance_invocation_registry",
-      "activation_callback_registry",
       "activation_operational_tile_registry",
+      "activation_callback_registry",
       "activation_response_profile_registry",
       "activation_delivery_policy_registry"
     ]

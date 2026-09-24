@@ -126,6 +126,7 @@
       ".changes/e2e/pr8106-governance-recipe-store-runtime-isolation.json",
       ".changes/e2e/pr8123-staging-gateway-governance-pool-routing-environment-impact.json",
       ".changes/e2e/pr8127-windows-portability-environment-impact.json",
+      ".changes/e2e/pr8243-staging-semantic-fk-replay-order.json",
       ".changes/e2e/production-composition-adapter-factory-20260827.json",
       ".changes/e2e/production-full-schema-metadata-census-20260905.json",
       ".changes/e2e/production-long-term-remediation-20260824.json",
