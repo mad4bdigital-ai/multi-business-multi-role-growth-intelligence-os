@@ -11,6 +11,7 @@ import { inspectOrderedMigrationChainTextWidths } from "./databaseTextWidthPolic
 import { inspectOrderedMigrationChainGeneratedColumns, stripSqlComments } from "./databaseGeneratedColumnPolicyGuard.js";
 import { inspectOrderedMigrationChainIndexKeyWidths } from "./databaseIndexKeyWidthPolicyGuard.js";
 import { inspectOrderedMigrationChainRequiredInsertColumns } from "./databaseRequiredInsertColumnPolicyGuard.js";
+import { inspectSemanticSnapshotForeignKeyOrder } from "./scripts/semantic-snapshot-foreign-key-order.mjs";
 
 const apiRoot = path.resolve(import.meta.dirname);
 const repoRoot = path.resolve(apiRoot, "..");
@@ -25,6 +26,15 @@ const indexKeyWidthPolicy = JSON.parse(fs.readFileSync(indexKeyWidthPolicyPath, 
 const generator = fs.readFileSync(generatorPath, "utf8");
 const baselineSchema = fs.readFileSync(path.join(apiRoot, "schema.sql"), "utf8");
 const expectedCommit = spawnSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).stdout.trim();
+
+test("semantic snapshot replays foreign-key parents before children", () => {
+  const tables = manifest.canonical_semantic_snapshot.tables;
+  const dependency = { child: "activation_callback_registry", parent: "activation_operational_tile_registry", constraint: "fk_activation_callback_tile" };
+  assert.deepEqual(inspectSemanticSnapshotForeignKeyOrder(tables, [dependency]), []);
+  assert.match(inspectSemanticSnapshotForeignKeyOrder([dependency.child, dependency.parent], [dependency])[0], /must precede child/);
+  assert.match(inspectSemanticSnapshotForeignKeyOrder([dependency.child], [dependency])[0], /absent from semantic snapshot/);
+  assert.match(inspectSemanticSnapshotForeignKeyOrder([dependency.child], [{ ...dependency, parent: dependency.child }])[0], /self-referencing/);
+});
 
 function runPlan() {
   return spawnSync(process.execPath, [generatorPath, "--expected-commit", expectedCommit, "--plan"], {
