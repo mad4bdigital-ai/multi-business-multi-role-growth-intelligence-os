@@ -7,6 +7,8 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
 const workflow = fs.readFileSync(path.join(ROOT, ".github/workflows/governed-production-promotion-dispatch-bridge.yml"), "utf8");
 const runner = fs.readFileSync(path.join(ROOT, ".github/ops/production-recovery-baseline-rebuild-governed.mjs"), "utf8");
+const constitution = JSON.parse(fs.readFileSync(path.join(ROOT, "http-generic-api/config/repository-governance-constitution.json"), "utf8"));
+const derivedGovernance = JSON.parse(fs.readFileSync(path.join(ROOT, ".github/derived-state-governance.json"), "utf8"));
 
 assert.match(workflow, /issue_comment:[\s\S]*types:\s*\[created\]/u);
 assert.match(workflow, /github\.event\.issue\.number == 6813/u);
@@ -16,6 +18,14 @@ assert.match(workflow, /contents:\s*read/u);
 assert.match(workflow, /issues:\s*write/u);
 assert.match(workflow, /BACKEND_API_KEY:\s*\$\{\{\s*secrets\.BACKEND_API_KEY\s*\}\}/u);
 assert.match(workflow, /cancel-in-progress:\s*false/u);
+
+for (const criticalPath of [
+  ".changes/e2e/production-recovery-baseline-authority-bridge-7999-20260924.json",
+  ".github/ops/production-recovery-baseline-rebuild-governed.mjs",
+]) {
+  assert.ok(constitution.control_plane_paths.includes(criticalPath), criticalPath + " must be Constitution-registered");
+  assert.ok(derivedGovernance.convergence.automation_control_paths.includes(criticalPath), criticalPath + " must be convergence-registered");
+}
 
 assert.match(runner, /APPLY_HOSTINGER_RUNTIME_BASELINE_REBUILD:\(\[0-9a-f\]\{40\}\):production-runtime:governance,runtime_persistence/u);
 assert.match(runner, /APPROVE PRODUCTION RECOVERY/u);
