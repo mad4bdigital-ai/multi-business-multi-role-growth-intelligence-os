@@ -35,6 +35,9 @@ if (-not (Test-Path -LiteralPath $GitTransportPath)) { throw "Missing shared Git
 $StagingCloudflaredPath = Join-Path $PSScriptRoot "Staging-WindowsCloudflared.ps1"
 if (-not (Test-Path -LiteralPath $StagingCloudflaredPath)) { throw "Missing Staging Cloudflared helper: $StagingCloudflaredPath" }
 . $StagingCloudflaredPath
+$StagingEnvironmentPath = Join-Path $PSScriptRoot "Staging-Environment.ps1"
+if (-not (Test-Path -LiteralPath $StagingEnvironmentPath)) { throw "Missing Staging environment helper: $StagingEnvironmentPath" }
+. $StagingEnvironmentPath
 $LogComponent = "app-operations"
 Write-StagingOperationBoundary -Component $LogComponent -Stage "process" -Outcome "start" -Message "application operations process started" -Data @{ validate_only = [bool]$ValidateOnly; stop = [bool]$Stop; tunnel = [bool]$TunnelSelected; tunnel_mode = $TunnelMode; require_schema_bundle = [bool]$RequireSchemaBundle; apply_schema_bundle = [bool]$ApplySchemaBundle }
 trap {
@@ -552,6 +555,11 @@ try {
     Set-EnvValue $EnvFile "STAGING_BUILD_CONTEXT" (([IO.Path]::GetFullPath($BuildContextPath)) -replace '\\','/')
     Set-EnvValue $EnvFile "STAGING_BUILD_TREE" $buildTree.ToLowerInvariant()
     Set-EnvValue $EnvFile "STAGING_BUILD_CONTEXT_FILE_SET_SHA256" ([string]$buildContextMetadata.context_file_set_sha256)
+    # Reconcile only the selected tunnel transport profile. This is safe for direct
+    # Start-AutoPilot and Auto-Deploy callers and does not widen Activation Gateway,
+    # database, provider, or Production mutation authority.
+    $tunnelProfile = Set-StagingTunnelRuntimeProfile -Path $EnvFile -TunnelMode $TunnelMode
+    Write-StagingOperationBoundary -Component $LogComponent -Stage "tunnel-profile" -Outcome "success" -Message "canonical Staging tunnel runtime profile reconciled" -Data @{ tunnel_mode = [string]$tunnelProfile.tunnel_mode; tunnel_origin = [string]$tunnelProfile.tunnel_origin; app_host_bind = [string]$tunnelProfile.app_host_bind; production_mutation = [bool]$tunnelProfile.production_mutation; provider_mutation = [bool]$tunnelProfile.provider_mutation; database_mutation = [bool]$tunnelProfile.database_mutation; secrets_included = [bool]$tunnelProfile.secrets_included }
     Assert-UniqueEnvKeys $EnvFile
     $effectiveEnv = Get-Content -Raw $EnvFile
     if ($effectiveEnv -match '(?im)^CLOUDFLARE_TUNNEL_TOKEN=\s*$' -and $TunnelMode -eq "docker_sidecar") { Fail "docker_sidecar requested but CLOUDFLARE_TUNNEL_TOKEN is empty" }
