@@ -52,8 +52,11 @@ const executionKeys = Object.freeze([
   "lease_id",
   "fencing_token",
   "role_selection_proof_hash",
+  "role_selection_proof",
+  "selected_roles",
   "deployment_attestation_hash",
   "role_bundle_binding",
+  "role_bundle_bindings",
   "grant_binding_hash",
 ]);
 

@@ -118,7 +118,7 @@ async function verifySelectiveRoleBundles({ request, plan, args } = {}) {
   if (!response.ok || payload?.status !== "ticket_role_bundle_bindings_verified" || payload?.database_mutation_performed !== false) {
     fail(payload?.error?.code || "host_breakglass_staging_bundle_ticket_mismatch", "Server rejected the exact local role schema bundles for this rebuild ticket; no local mutation is allowed.", response.status || 409);
   }
-  return payload;
+  return { ...payload, role_bundle_bindings: roleBundleBindings };
 }
 
 async function main() {
@@ -136,6 +136,9 @@ async function main() {
         HOST_BREAKGLASS_VERIFIED_REQUEST_SHA256: verified.request.request_sha256,
         HOST_BREAKGLASS_AUTHORITY_PLAN_HASH: verified.request.authority_plan_hash || "",
         HOST_BREAKGLASS_ROLE_BUNDLE_VERIFICATION: bundleVerification?.status || "",
+        BOOTSTRAP_ROLE_BUNDLE_BINDINGS_JSON: bundleVerification?.role_bundle_bindings
+          ? JSON.stringify(bundleVerification.role_bundle_bindings)
+          : "",
       },
       stdio: "inherit",
       windowsHide: true,

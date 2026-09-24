@@ -236,11 +236,36 @@ async function storeExecutionTicket(store, plan, step, idempotencyKey) {
       operation: step.operation,
     }),
     operation: step.operation,
-    role_bundle_bindings: plan.role_bundle_bindings && Object.keys(plan.role_bundle_bindings).length ? plan.role_bundle_bindings : (step.role_bundle_binding ? { [step.target_role]: step.role_bundle_binding } : {}),
+    role_bundle_bindings: _testingRecoveryKernel.roleBundleBindingsForStep(step, plan),
   }, { signer: { sign: async ({ ticket_hash }) => `sig:${ticket_hash}` } });
   await store.putExecutionTicket(ticket);
   return ticket;
 }
+
+test("multi-role recovery plan projects exactly one role-bundle binding per approved step", () => {
+  const governanceStep = {
+    target_role: "governance",
+    role_bundle_binding: ROLE_BUNDLE_BINDINGS.governance,
+  };
+  const persistenceStep = {
+    target_role: "runtime_persistence",
+    role_bundle_binding: ROLE_BUNDLE_BINDINGS.runtime_persistence,
+  };
+  const plan = { role_bundle_bindings: ROLE_BUNDLE_BINDINGS };
+
+  assert.deepEqual(
+    _testingRecoveryKernel.roleBundleBindingsForStep(governanceStep, plan),
+    { governance: ROLE_BUNDLE_BINDINGS.governance },
+  );
+  assert.deepEqual(
+    _testingRecoveryKernel.roleBundleBindingsForStep(persistenceStep, plan),
+    { runtime_persistence: ROLE_BUNDLE_BINDINGS.runtime_persistence },
+  );
+  assert.deepEqual(
+    _testingRecoveryKernel.roleBundleBindingsForStep({ target_role: "runtime" }, plan),
+    {},
+  );
+});
 
 async function prepareExecutableStep(idempotencyKey) {
   const durable = makeDurableStore();
