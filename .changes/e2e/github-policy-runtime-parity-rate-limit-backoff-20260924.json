@@ -10,7 +10,8 @@
     "include": [
       ".changes/e2e/github-policy-runtime-parity-rate-limit-backoff-20260924.json",
       ".github/ops/github-main-review-policy-live-activation.mjs",
-      "http-generic-api/test-github-repository-policy-live-activation-contract.mjs"
+      "http-generic-api/test-github-repository-policy-live-activation-contract.mjs",
+      "docs/governance/configuration-drift-baseline-extensions.json"
     ]
   },
   "merge_contract": {
@@ -43,7 +44,8 @@
             "Capture Retry-After from bounded GET-only health, version, and deployment-info probes.",
             "Back off 429 probes for at least the provider-requested interval when it fits inside the fixed parity window, otherwise wait only through the remaining window and fail closed.",
             "Record only attempt count, last HTTP statuses, rate-limit observation, maximum Retry-After delay, and the fixed parity window on terminal failure.",
-            "Keep Ruleset Apply, database, migration, provider, Hostinger, and Production mutation disabled in this maintenance change."
+            "Keep Ruleset Apply, database, migration, provider, Hostinger, and Production mutation disabled in this maintenance change.",
+            "Register only the new backoff/diagnostic literals as permanent non-secret configuration-drift baseline extensions; do not suppress drift."
           ],
           "assertions": [
             "The runtime parity window remains bounded to six minutes and at most 24 probe attempts.",
@@ -51,7 +53,8 @@
             "Retry-After values are parsed as delta-seconds or HTTP dates and never expose response bodies or credentials.",
             "Successful parity still requires health ok plus exact Production SHA evidence in both version and deployment-info.",
             "Terminal failure remains fail-closed with runtime_parity_not_converged and secrets_included=false.",
-            "No GitHub Ruleset Apply, provider mutation, Hostinger mutation, database mutation, migration Apply, force push, or Production ref mutation is authorized."
+            "No GitHub Ruleset Apply, provider mutation, Hostinger mutation, database mutation, migration Apply, force push, or Production ref mutation is authorized.",
+            "All new configuration candidates introduced by this maintenance patch are explicitly governed baseline extensions with runtime and Production mutation authority false."
           ],
           "tests": [
             {
@@ -65,7 +68,8 @@
           "evidence_paths": [
             ".changes/e2e/github-policy-runtime-parity-rate-limit-backoff-20260924.json",
             ".github/ops/github-main-review-policy-live-activation.mjs",
-            "http-generic-api/test-github-repository-policy-live-activation-contract.mjs"
+            "http-generic-api/test-github-repository-policy-live-activation-contract.mjs",
+            "docs/governance/configuration-drift-baseline-extensions.json"
           ]
         }
       ]
