@@ -778,20 +778,27 @@ export function validateRoleRebuildConfirmation(env, sha, target, contract) {
 
 
 function expectedRoleBundleBindingFromEnvironment(env, role) {
-  const raw = String(env.BOOTSTRAP_ROLE_BUNDLE_BINDING_JSON || "").trim();
+  const raw = String(env.BOOTSTRAP_ROLE_BUNDLE_BINDINGS_JSON || "").trim();
   if (!raw) {
-    throw bootstrapError("bootstrap_role_bundle_binding_missing", "Role-selective baseline rebuild requires the exact server-issued role-bundle binding before any schema mutation.", { role, required_field: "BOOTSTRAP_ROLE_BUNDLE_BINDING_JSON", database_mutation_performed: false });
+    throw bootstrapError("bootstrap_role_bundle_binding_missing", "Role-selective baseline rebuild requires the exact server-issued role-bundle binding map before any schema mutation.", { role, required_field: "BOOTSTRAP_ROLE_BUNDLE_BINDINGS_JSON", database_mutation_performed: false });
   }
   let parsed;
   try { parsed = JSON.parse(raw); } catch {
-    throw bootstrapError("bootstrap_role_bundle_binding_invalid", "Server-issued role-bundle binding JSON is invalid.", { role, database_mutation_performed: false });
+    throw bootstrapError("bootstrap_role_bundle_binding_invalid", "Server-issued role-bundle binding map JSON is invalid.", { role, database_mutation_performed: false });
   }
-  const validation = validateRoleBundleBinding(parsed, {
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw bootstrapError("bootstrap_role_bundle_binding_invalid", "Server-issued role-bundle bindings must be a role-keyed object.", { role, database_mutation_performed: false });
+  }
+  const binding = parsed[role];
+  if (!binding || typeof binding !== "object" || Array.isArray(binding)) {
+    throw bootstrapError("bootstrap_role_bundle_binding_missing", "Selected role is missing its exact server-issued role-bundle binding.", { role, database_mutation_performed: false });
+  }
+  const validation = validateRoleBundleBinding(binding, {
     role,
-    bundleManifestSha256: parsed?.bundle_manifest_sha256,
-    roleBundleSha256: parsed?.role_bundle_sha256,
-    statementCount: parsed?.statement_count,
-    statementFingerprints: parsed?.statement_fingerprints,
+    bundleManifestSha256: binding?.bundle_manifest_sha256,
+    roleBundleSha256: binding?.role_bundle_sha256,
+    statementCount: binding?.statement_count,
+    statementFingerprints: binding?.statement_fingerprints,
   });
   if (!validation.ok || validation.binding.role !== role) {
     throw bootstrapError("bootstrap_role_bundle_binding_invalid", "Server-issued role-bundle binding is malformed or bound to a different role.", { role, problems: validation.problems, database_mutation_performed: false });
