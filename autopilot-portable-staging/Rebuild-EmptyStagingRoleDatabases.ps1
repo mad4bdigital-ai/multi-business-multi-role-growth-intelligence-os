@@ -130,8 +130,9 @@ foreach ($role in $roles) {
   $census += [pscustomobject]@{ role = $role.key; object_count = $total; object_counts = [ordered]@{ tables = $counts.tables; views = $counts.views; triggers = $counts.triggers; routines = $counts.routines; events = $counts.events; total = $total } }
 }
 
-$censusJson = ConvertTo-Json -InputObject $census -Depth 8 -Compress
-$classificationJson = (& node $classifier --census-json $censusJson | Out-String).Trim()
+$censusJson = ConvertTo-Json -InputObject @($census) -Depth 8 -Compress
+$censusJsonBase64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($censusJson))
+$classificationJson = (& node $classifier --census-json-base64 $censusJsonBase64 | Out-String).Trim()
 Require ($LASTEXITCODE -eq 0) "No zero-object role is eligible for governed rebuild_empty"
 $classification = $classificationJson | ConvertFrom-Json
 Require ($classification.candidate_for_governed_rebuild_empty -eq $true -and $classification.ready_for_local_mutation -eq $false -and $classification.role_selection_authoritative -eq $false) "Local census must remain non-authoritative and mutation-disabled"
@@ -142,7 +143,7 @@ Require ($LASTEXITCODE -eq 0) "Canonical role schema bundle plan failed"
 Require ($LASTEXITCODE -eq 0) "Canonical schema bundle build failed"
 Require (Test-Path -LiteralPath $bundleManifest -PathType Leaf) "Canonical generated schema-bundle manifest is missing"
 
-$inspectionJson = (& node $inspectionPreparer --expected-commit $ExpectedCommit --correlation-id $CorrelationId --census-json $censusJson --manifest $bundleManifest --env-file $envFile | Out-String).Trim()
+$inspectionJson = (& node $inspectionPreparer --expected-commit $ExpectedCommit --correlation-id $CorrelationId --census-json-base64 $censusJsonBase64 --manifest $bundleManifest --env-file $envFile | Out-String).Trim()
 Require ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($inspectionJson)) "Governed inspection evidence preparation failed"
 $inspectionEnvelope = $inspectionJson | ConvertFrom-Json
 New-Item -ItemType Directory -Force -Path $EvidenceDirectory | Out-Null
