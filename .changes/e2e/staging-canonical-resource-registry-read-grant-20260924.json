@@ -9,7 +9,9 @@
   "scope": {
     "include": [
       ".changes/e2e/staging-canonical-resource-registry-read-grant-20260924.json",
+      ".github/derived-state-governance.json",
       ".github/governance/test-authority-registry.json",
+      "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/databasePrivilegeContracts.js",
       "http-generic-api/test-staging-canonical-resource-registry-grant.mjs"
     ]
@@ -46,13 +48,15 @@
             "Derive its per-table operation set as SELECT only.",
             "Verify the repository-owned Staging runtime grant plan marks the table required and SELECT-only.",
             "Run the governed regression suite before any database mutation.",
-            "After merge to main and exact local synchronization, use the existing official Staging readiness repair path for grant reconciliation and same-cycle readback."
+            "After merge to main and exact local synchronization, use the existing official Staging readiness repair path for grant reconciliation and same-cycle readback.",
+            "Register this critical Staging read-authority contract exactly in Constitution.control_plane_paths and convergence.automation_control_paths without broadening patterns or granting autonomous merge authority."
           ],
           "assertions": [
             "STAGING_ROLE_GRANT_POLICIES.runtime requires canonical_resource_registry.",
             "canonical_resource_registry receives SELECT only.",
             "BOOTSTRAP_ROLE_GRANT_POLICIES.runtime does not include canonical_resource_registry.",
-            "No schema-wide grant, GRANT OPTION, Production database mutation, provider mutation, Hostinger mutation, Cloudflare mutation, or secret output is introduced."
+            "No schema-wide grant, GRANT OPTION, Production database mutation, provider mutation, Hostinger mutation, Cloudflare mutation, or secret output is introduced.",
+            "The critical declaration is registered exactly in both control-plane registries; control-plane self-amendment remains manual-merge-only."
           ],
           "tests": [
             {
@@ -85,14 +89,16 @@
             }
           ],
           "evidence_paths": [
+            ".github/derived-state-governance.json",
             ".github/governance/test-authority-registry.json",
+            "autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1",
+            "http-generic-api/config/repository-governance-constitution.json",
             "http-generic-api/databasePrivilegeContracts.js",
             "http-generic-api/scripts/staging-role-grant-plan.mjs",
-            "http-generic-api/test-staging-canonical-resource-registry-grant.mjs",
-            "http-generic-api/test-staging-execution-policies-grant.mjs",
-            "http-generic-api/test-staging-database-readiness-repair.mjs",
             "http-generic-api/test-runtime-bootstrap-contract.mjs",
-            "autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1"
+            "http-generic-api/test-staging-canonical-resource-registry-grant.mjs",
+            "http-generic-api/test-staging-database-readiness-repair.mjs",
+            "http-generic-api/test-staging-execution-policies-grant.mjs"
           ]
         }
       ]
