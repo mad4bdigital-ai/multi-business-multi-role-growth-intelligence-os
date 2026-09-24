@@ -193,7 +193,7 @@ function buildResolver(testEnv) {
   assert.equal(envelope.live_authorization.authority_scope, "baseline_rebuild_only");
   assert.equal(envelope.live_authorization.ordinary_migration_enabled, false);
   assert.equal(envelope.live_authorization.grant_repair_enabled, false);
-  assert.equal(envelope.live_authorization.raw_sql_enabled, false);
+  assert.equal(Object.hasOwn(envelope.live_authorization, "raw_sql_enabled"), false);
   assert.equal(envelope.live_authorization.shell_enabled, false);
   assert.equal(envelope.live_authorization.production_auto_apply, false);
   await assert.rejects(
