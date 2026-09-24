@@ -38,7 +38,7 @@
       "staging"
     ],
     "cross_environment_reviewed": true,
-    "live_staging_certification_required": false,
+    "live_staging_certification_required": true,
     "production_mutation_allowed": false,
     "live_migration_executed": false,
     "live_grant_executed": false,
@@ -117,7 +117,7 @@
             "The envelope contains no secret values.",
             "ordinary_migration_enabled=false.",
             "grant_repair_enabled=false.",
-            "raw_sql_enabled=false.",
+            "Raw SQL input-shaped fields are absent from the server-managed binding envelope.",
             "shell_enabled=false.",
             "production_auto_apply=false."
           ],
