@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
 
 const BASE = String(process.env.RUNTIME_BASE_URL || "https://auth.mad4b.com").replace(/\/+$/u, "");
@@ -23,6 +24,15 @@ const FINDING = /^finding:[0-9a-f]{16,64}$/u;
 const RUN = /^run:[A-Za-z0-9._:-]{8,160}$/u;
 const ROLES = Object.freeze(["governance", "runtime_persistence"]);
 const MARKER = "mad4b-production-recovery-approval-v1:";
+const SOURCE_PARITY_PATHS = Object.freeze([
+  ".github/ops/production-recovery-baseline-rebuild-governed.mjs",
+  "http-generic-api/productionRecoveryBaselineAuthorityBinding.js",
+  "http-generic-api/productionRecoveryHostLocalBaselineRebuild.js",
+  "http-generic-api/productionRecoveryOperationalAdapters.js",
+  "http-generic-api/recoveryActionBridge.js",
+  "http-generic-api/recoveryKernel.js",
+  "http-generic-api/runtimeBootstrapContract.js",
+]);
 
 function safe(value, max = 512) {
   return String(value ?? "").trim().slice(0, max);
@@ -117,6 +127,42 @@ async function currentProductionSha() {
   const sha = safe(ref?.object?.sha, 64).toLowerCase();
   if (!SHA40.test(sha)) fail("RECOVERY_BRIDGE_PRODUCTION_SHA_INVALID", "Production ref is invalid.");
   return sha;
+}
+
+function sha256Bytes(value) {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+async function assertSourceParity(expectedSha) {
+  const [owner, repo] = REPO.split("/");
+  const evidence = [];
+  for (const file of SOURCE_PARITY_PATHS) {
+    const local = fs.readFileSync(file);
+    const encodedPath = file.split("/").map((part) => encodeURIComponent(part)).join("/");
+    const remote = await github("/repos/" + owner + "/" + repo + "/contents/" + encodedPath + "?ref=" + encodeURIComponent(expectedSha));
+    if (remote?.type !== "file" || remote?.encoding !== "base64" || !remote?.content) {
+      fail("RECOVERY_BRIDGE_SOURCE_PARITY_UNAVAILABLE", "Critical Production Recovery source could not be read at the exact Production SHA.", { path: file });
+    }
+    const production = Buffer.from(String(remote.content).replace(/\s+/gu, ""), "base64");
+    const localHash = sha256Bytes(local);
+    const productionHash = sha256Bytes(production);
+    if (localHash !== productionHash) {
+      fail("RECOVERY_BRIDGE_SOURCE_PARITY_MISMATCH", "Workflow source differs from the exact Production Recovery implementation; execution is blocked until source parity is restored.", {
+        path: file,
+        expected_sha: expectedSha,
+        local_sha256: localHash,
+        production_sha256: productionHash,
+      });
+    }
+    evidence.push({ path: file, sha256: localHash });
+  }
+  return {
+    contract: "mad4b.production-recovery-source-parity.v1",
+    expected_sha: expectedSha,
+    files: evidence,
+    source_parity_hash: sha256Bytes(Buffer.from(JSON.stringify(evidence), "utf8")),
+    secrets_included: false,
+  };
 }
 
 async function postIssueComment(body) {
@@ -215,6 +261,7 @@ async function prepare() {
       observed_sha: observed,
     });
   }
+  const sourceParity = await assertSourceParity(expectedSha);
 
   const inspected = await runtime("POST", "/admin/recovery/kernel/call", {
     capability_key: "database_full_inspection",
@@ -269,6 +316,7 @@ async function prepare() {
     approval_id: first.approval_id,
     idempotency_namespace: namespace,
     created_by_run_id: WORKFLOW_RUN_ID,
+    source_parity_hash: sourceParity.source_parity_hash,
     secrets_included: false,
   };
 
@@ -299,6 +347,7 @@ async function prepare() {
     current_role: plan.steps[0].target_role,
     approval_id: first.approval_id,
     evidence_comment_id: comment?.id || null,
+    source_parity_hash: sourceParity.source_parity_hash,
     database_mutation_performed: false,
     provider_mutation_performed: false,
   });
@@ -332,10 +381,16 @@ async function execute() {
       observed_sha: observed,
     });
   }
+  const sourceParity = await assertSourceParity(expectedSha);
 
   const state = await lookupMarker(approvalId, stepId, expectedSha);
   if (!PLAN.test(state.plan_id) || !SHA256.test(String(state.plan_hash || "")) || !Array.isArray(state.steps)) {
     fail("RECOVERY_BRIDGE_APPROVAL_MARKER_INVALID", "Approval marker is malformed.");
+  }
+  if (!SHA256.test(String(state.source_parity_hash || "")) || state.source_parity_hash !== sourceParity.source_parity_hash) {
+    fail("RECOVERY_BRIDGE_SOURCE_PARITY_CHANGED", "Critical Recovery source parity changed between prepare and execute; a fresh prepare cycle is required.", {
+      expected_sha: expectedSha,
+    });
   }
   const current = state.steps[state.current_step_index];
   if (current?.step_id !== stepId || !ROLES.includes(current?.target_role)) {
