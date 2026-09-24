@@ -1,0 +1,116 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "local-manager-update-production-parity-20260924",
+  "title": "Local Manager update recovery and Production release parity",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/local-manager-update-production-parity-20260924.json",
+      ".github/workflows/local-manager-windows.yml",
+      "apps/local-manager-windows/Program.cs",
+      "apps/local-manager-windows/Mad4B.LocalManager.Windows.csproj",
+      "http-generic-api/routes/localManagerBetaRoutes.js",
+      "http-generic-api/test-connect-routes.mjs",
+      "http-generic-api/test-local-manager-tool-release-owner.mjs",
+      "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs",
+      "http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false,
+    "live_migration_executed": false,
+    "live_grant_executed": false,
+    "deployment_or_restart_executed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Recover safely from empty update and pairing rate-limit responses, and publish the public Windows executable only when the Hostinger Production runtime has reached the exact release commit.",
+      "e2e_journeys": [
+        {
+          "id": "update-and-production-release-parity",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Linked Mad4B Local Manager Windows app",
+          "entrypoint": "A desktop checks for an update while the shared auth host is rate limited, then receives an update after the Production release gate passes.",
+          "terminal_outcome": "Empty or invalid responses produce bounded retry diagnostics without a JSON exception; the public 0.2.30 executable is released only after the Production runtime reports the exact release commit.",
+          "steps": [
+            "Check HTTP response status before JSON parsing and handle an empty rate-limit response.",
+            "Respect bounded Retry-After values for pairing and desktop command polling.",
+            "Build a Windows executable whose version matches the update route metadata.",
+            "Verify Hostinger health and exact Production commit through version and deployment-info before publishing the public release."
+          ],
+          "assertions": [
+            "Empty or invalid update responses never throw a JSON parsing exception into the desktop UI.",
+            "A rate limit does not authorize connector repair or disclose credentials.",
+            "The Windows executable and release owner route agree on version 0.2.30.",
+            "A main or pull-request build cannot publish the public executable.",
+            "No Production deployment, migration, grant, or credential mutation is performed by this candidate."
+          ],
+          "tests": [
+            {
+              "id": "local-manager-tool-release-owner",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-local-manager-tool-release-owner.mjs",
+              "args": []
+            },
+            {
+              "id": "connect-routes",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-connect-routes.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/local-manager-windows.yml",
+            "apps/local-manager-windows/Program.cs",
+            "apps/local-manager-windows/Mad4B.LocalManager.Windows.csproj",
+            "http-generic-api/routes/localManagerBetaRoutes.js",
+            "http-generic-api/test-connect-routes.mjs",
+            "http-generic-api/test-local-manager-tool-release-owner.mjs",
+            "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs",
+            "http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "local-manager-tool-release-owner",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-local-manager-tool-release-owner.mjs",
+          "args": []
+        },
+        {
+          "id": "connect-routes",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-connect-routes.mjs",
+          "args": []
+        }
+      ]
+    }
+  ],
+  "safety": {
+    "repository_only": true,
+    "production_mutation_allowed": false,
+    "database_mutation": false,
+    "provider_call": false,
+    "secrets_included": false
+  }
+}

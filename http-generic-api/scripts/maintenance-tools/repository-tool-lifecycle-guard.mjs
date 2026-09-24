@@ -139,9 +139,9 @@ function hasAnyWritePermission(content) {
     if (indentation <= 2 && /^(?:jobs|[A-Za-z0-9_-]+):/u.test(trimmed)) jobIf = "";
     if (indentation === 4 && /^if\s*:/u.test(trimmed)) jobIf = trimmed;
     if (indentation >= 4 && /:\s*write(?:-all)?\s*$/iu.test(trimmed)) {
-      const isPushMainOnly = /github\.event_name\s*==\s*['"]push['"]/iu.test(jobIf)
-        && /github\.ref\s*==\s*['"]refs\/heads\/main['"]/iu.test(jobIf);
-      if (!isPushMainOnly) return true;
+      const isProtectedBranchPushOnly = /github\.event_name\s*==\s*['"]push['"]/iu.test(jobIf)
+        && /github\.ref\s*==\s*['"]refs\/heads\/(?:main|Production)['"]/u.test(jobIf);
+      if (!isProtectedBranchPushOnly) return true;
     }
   }
   return false;
