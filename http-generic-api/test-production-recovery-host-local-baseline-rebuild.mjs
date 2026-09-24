@@ -118,7 +118,7 @@ function input() {
   assert.equal(invocation.env.BOOTSTRAP_ROLE_SELECTION, "governance");
   assert.equal(invocation.env.BOOTSTRAP_ROLE_SELECTION_HASH, proof.selection_hash);
   assert.equal(invocation.env.BOOTSTRAP_REBUILD_CONFIRMATION, `APPLY_HOSTINGER_RUNTIME_BASELINE_REBUILD:${SHA}:production-runtime:governance`);
-  assert.deepEqual(JSON.parse(invocation.env.BOOTSTRAP_ROLE_BUNDLE_BINDING_JSON), roleBundle);
+  assert.deepEqual(JSON.parse(invocation.env.BOOTSTRAP_ROLE_BUNDLE_BINDINGS_JSON), { governance: roleBundle });
   assert.equal(invocation.env.BOOTSTRAP_MIGRATION, "");
 }
 
