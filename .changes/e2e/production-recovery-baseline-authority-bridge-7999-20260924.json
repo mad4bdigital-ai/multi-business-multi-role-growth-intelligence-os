@@ -10,7 +10,7 @@
       ".changes/e2e/production-recovery-baseline-authority-bridge-7999-20260924.json",
       ".github/governance/test-authority-registry.json",
       ".github/ops/production-recovery-baseline-rebuild-governed.mjs",
-      ".github/workflows/production-recovery-baseline-rebuild-governed.yml",
+      ".github/workflows/governed-production-promotion-dispatch-bridge.yml",
       "docs/governance/configuration-drift-baseline-extensions.json",
       "docs/runbooks/production-recovery-baseline-authority-bridge-7999.md",
       "http-generic-api/productionRecoveryBaselineAuthorityBinding.js",
@@ -141,7 +141,7 @@
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Repository owner through control Issue #6813",
-          "entrypoint": "Governed Production Recovery Baseline Rebuild issue_comment workflow",
+          "entrypoint": "existing Governed Production Promotion Dispatch Bridge issue_comment workflow",
           "terminal_outcome": "Exact-SHA baseline authorization can only prepare a fresh server-derived plan; each role then requires its own server-issued typed approval and durable same-cycle readback before the next role is challenged.",
           "steps": [
             "Accept only the exact baseline rebuild confirmation on control Issue #6813 from an authorized repository actor.",
@@ -170,7 +170,7 @@
           ],
           "evidence_paths": [
             ".github/ops/production-recovery-baseline-rebuild-governed.mjs",
-            ".github/workflows/production-recovery-baseline-rebuild-governed.yml",
+            ".github/workflows/governed-production-promotion-dispatch-bridge.yml",
             "http-generic-api/test-production-recovery-baseline-rebuild-governed-workflow.mjs"
           ]
         }
