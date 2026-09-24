@@ -350,6 +350,50 @@ jobs:
 );
 assert(!gatedReleaseFindings.some((item) => item.code === "PULL_REQUEST_WRITE_WORKFLOW"));
 
+const productionReleaseFindings = await evaluate(
+  [{ status: "M", path: gatedReleaseWorkflow }],
+  {
+    [gatedReleaseWorkflow]: `
+on:
+  push:
+    branches: [Production]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  publish:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/Production'
+    permissions:
+      contents: write
+    steps:
+      - run: gh release upload latest artifact.exe
+`,
+  },
+);
+assert(!productionReleaseFindings.some((item) => item.code === "PULL_REQUEST_WRITE_WORKFLOW"));
+
+const unguardedProductionReleaseFindings = await evaluate(
+  [{ status: "M", path: gatedReleaseWorkflow }],
+  {
+    [gatedReleaseWorkflow]: `
+on:
+  push:
+    branches: [Production]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/Production'
+    permissions:
+      contents: write
+    steps:
+      - run: gh release upload latest artifact.exe
+`,
+  },
+);
+assert(unguardedProductionReleaseFindings.some((item) => item.code === "PULL_REQUEST_WRITE_WORKFLOW"));
+
 const writeAllWorkflow = ".github/workflows/write-all-pr.yml";
 const writeAllFindings = await evaluate(
   [{ status: "A", path: writeAllWorkflow }],

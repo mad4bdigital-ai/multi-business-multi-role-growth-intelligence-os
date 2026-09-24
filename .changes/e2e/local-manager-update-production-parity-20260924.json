@@ -9,12 +9,13 @@
     "include": [
       ".changes/e2e/local-manager-update-production-parity-20260924.json",
       ".github/workflows/local-manager-windows.yml",
-      ".github/workflows/local-manager-windows-release.yml",
       "apps/local-manager-windows/Program.cs",
       "apps/local-manager-windows/Mad4B.LocalManager.Windows.csproj",
       "http-generic-api/routes/localManagerBetaRoutes.js",
       "http-generic-api/test-connect-routes.mjs",
-      "http-generic-api/test-local-manager-tool-release-owner.mjs"
+      "http-generic-api/test-local-manager-tool-release-owner.mjs",
+      "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs",
+      "http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs"
     ]
   },
   "environment_impact": {
@@ -77,12 +78,13 @@
           ],
           "evidence_paths": [
             ".github/workflows/local-manager-windows.yml",
-            ".github/workflows/local-manager-windows-release.yml",
             "apps/local-manager-windows/Program.cs",
             "apps/local-manager-windows/Mad4B.LocalManager.Windows.csproj",
             "http-generic-api/routes/localManagerBetaRoutes.js",
             "http-generic-api/test-connect-routes.mjs",
-            "http-generic-api/test-local-manager-tool-release-owner.mjs"
+            "http-generic-api/test-local-manager-tool-release-owner.mjs",
+            "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs",
+            "http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs"
           ]
         }
       ],
