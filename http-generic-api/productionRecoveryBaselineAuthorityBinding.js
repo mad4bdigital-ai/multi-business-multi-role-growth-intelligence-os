@@ -190,7 +190,6 @@ export function createProductionRecoveryBaselineBindingForEnv(
       baseline_rebuild_only: true,
       ordinary_migration_enabled: false,
       grant_repair_enabled: false,
-      raw_sql_enabled: false,
       shell_enabled: false,
     },
   });
@@ -221,7 +220,6 @@ export function createProductionRecoveryBaselineBindingForEnv(
       authority_scope: "baseline_rebuild_only",
       ordinary_migration_enabled: false,
       grant_repair_enabled: false,
-      raw_sql_enabled: false,
       shell_enabled: false,
       production_auto_apply: false,
       secrets_included: false,
