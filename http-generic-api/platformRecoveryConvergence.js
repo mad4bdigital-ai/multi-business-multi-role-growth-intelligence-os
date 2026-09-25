@@ -605,7 +605,7 @@ function buildFinalClosureEvidence(run) {
   const device = result("device_tools_functional_readback") || {};
   const activation = result("production_activation_readiness") || {};
   const connector = result("connector_auth_verify") || {};
-  const deployment = result("deployment_parity") || {};
+  const deployment = run.final_parity || result("deployment_parity") || {};
   const rateStep = state("local_manager_rate_limit_recovery");
 
   const mutationAuditReady = run.steps
@@ -723,6 +723,71 @@ async function verifyPreMutationDeploymentParity(run, step, executors) {
       };
 }
 
+async function verifyFinalDeploymentParity(run, finalStep, executors) {
+  const reader = executorFor(executors, "deployment_parity", "execute");
+  if (!reader) {
+    return {
+      ready: false,
+      error_code: "platform_recovery_final_parity_unavailable",
+      next_safe_action: "restore_exact_production_sha_parity_reader",
+      result: null,
+    };
+  }
+
+  let result;
+  try {
+    result = await reader(Object.freeze({
+      expected_sha: run.expected_sha,
+      target_key: run.target_key,
+      run_id: run.run_id,
+      plan_hash: run.plan_hash,
+      step_id: finalStep.step_id,
+      step_key: "final_gate",
+      step_kind: "read_only_final_recertification",
+      idempotency_key: `platform-recovery-final-parity:${run.plan_hash.slice(0, 24)}`,
+      prior_steps: run.steps
+        .filter((candidate) => candidate.key !== "final_gate")
+        .map((candidate) => ({ key: candidate.key, status: candidate.status, result: candidate.result })),
+      secrets_included: false,
+    }));
+  } catch (error) {
+    return {
+      ready: false,
+      error_code: text(error?.code || "platform_recovery_final_parity_read_failed", 160),
+      request_id: text(error?.request_id || error?.details?.request_id, 160) || null,
+      next_safe_action: "restore_exact_production_sha_parity_before_final_closure",
+      result: null,
+    };
+  }
+
+  const ready = result?.status === "pass"
+    && text(result?.expected_sha, 64).toLowerCase() === run.expected_sha
+    && result?.exact_sha_parity === true
+    && result?.version_readback === true
+    && result?.deployment_info_readback === true
+    && result?.mutation_performed !== true
+    && result?.secrets_included === false;
+
+  return {
+    ready,
+    error_code: ready ? null : "platform_recovery_final_parity_failed",
+    request_id: text(result?.request_id, 160) || null,
+    next_safe_action: ready ? "none" : "restore_exact_production_sha_parity_before_final_closure",
+    result: result && typeof result === "object"
+      ? {
+          expected_sha: run.expected_sha,
+          exact_sha_parity: result.exact_sha_parity === true,
+          version_readback: result.version_readback === true,
+          deployment_info_readback: result.deployment_info_readback === true,
+          request_id: text(result.request_id, 160) || null,
+          checked_at: new Date().toISOString(),
+          mutation_performed: false,
+          secrets_included: false,
+        }
+      : null,
+  };
+}
+
 function summarize(run) {
   return {
     ok: run.status === "recovered" && run.active === true,
@@ -736,6 +801,7 @@ function summarize(run) {
     error_code: run.error_code,
     request_id: run.request_id,
     next_safe_action: run.next_safe_action,
+    final_parity: run.final_parity ? clone(run.final_parity) : null,
     closure: run.closure ? clone(run.closure) : null,
     steps: run.steps.map((step) => ({
       order: step.order,
@@ -1070,6 +1136,41 @@ export async function runPlatformRecoveryConvergence(input = {}, deps = {}) {
         run.blocking_stage = incomplete[0].key;
         run.error_code = "platform_recovery_final_gate_incomplete";
         run.next_safe_action = "resolve_blocking_stage_and_resume_same_run";
+        await persistRun(deps.recoveryStore, run);
+        return summarize(run);
+      }
+
+      const finalParity = await verifyFinalDeploymentParity(run, step, deps.executors || {});
+      run.final_parity = finalParity.result ? clone(finalParity.result) : null;
+      if (!finalParity.ready) {
+        step.status = "blocked";
+        step.error_code = finalParity.error_code;
+        step.request_id = finalParity.request_id || null;
+        step.result = {
+          ok: false,
+          status: "blocked",
+          expected_sha: run.expected_sha,
+          run_id: run.run_id,
+          plan_hash: run.plan_hash,
+          step_id: step.step_id,
+          idempotency_key: step.idempotency_key,
+          error_code: step.error_code,
+          request_id: step.request_id,
+          next_safe_action: finalParity.next_safe_action,
+          mutation_performed: false,
+          readback_verified: false,
+          secrets_included: false,
+        };
+        run.status = "blocked";
+        run.active = false;
+        run.blocking_stage = "final_gate";
+        run.error_code = step.error_code;
+        run.request_id = step.request_id;
+        run.next_safe_action = finalParity.next_safe_action;
+        await appendEvent(deps.recoveryStore, run, step, "final_parity_blocked", {
+          error_code: step.error_code,
+          request_id: step.request_id,
+        });
         await persistRun(deps.recoveryStore, run);
         return summarize(run);
       }
