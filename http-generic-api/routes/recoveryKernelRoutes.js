@@ -33,6 +33,7 @@ const READ_ONLY_CAPABILITIES = new Set([
   "recovery_evidence_chain_preview",
   "secret_observation",
   "production_activation_readiness",
+  "production_recovery_closure",
   "production_activation_readiness_probe",
   "database_full_inspection",
   "production_host_local_database_inspect",
