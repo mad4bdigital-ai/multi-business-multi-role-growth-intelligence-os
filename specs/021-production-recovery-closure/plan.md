@@ -54,3 +54,16 @@ Standalone migration-first recovery remains forbidden.
 ## Production boundary
 
 This PR performs no Production operation. Live evidence resolver wiring, exact deployed-source verification, fresh durable inspection, backup capture, approvals, and mutations remain separate governed operations.
+
+
+## Composite convergence entrypoint
+
+The consequential surface is `POST /admin/recovery/kernel/platform-converge` with capability key `platform_recovery_converge_v1`.
+
+The caller provides only exact SHA, optional existing run ID, and advance/status/reconcile action. The server composition projects the durable store, step executors and approval resolver; the request cannot inject them.
+
+One advance may execute read-only stages freely but returns after at most one consequential/bounded mutation. Resume uses the same durable run and skips already verified stages.
+
+The connector lane is conditional: rate limiting runs the Retry-After/backoff recovery path; credential-invalid runs two-phase rebind. They must not be conflated.
+
+The final gate derives `active` only after database, grants, catalog, chunks, activation, connector authentication, Local Manager command E2E and deployment parity all verify.
