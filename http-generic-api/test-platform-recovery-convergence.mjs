@@ -143,6 +143,20 @@ function happyExecutors({ zeroGovernance = true, zeroPersistence = true, calls =
   };
 }
 
+async function advanceUntilBoundary({ store, executors, runId = null, approvalResolver = happyApprovalResolver, maxCycles = 32 }) {
+  let currentRunId = runId;
+  let result = null;
+  for (let cycle = 0; cycle < maxCycles; cycle += 1) {
+    result = await runPlatformRecoveryConvergence(
+      { expected_sha: SHA, ...(currentRunId ? { run_id: currentRunId } : {}) },
+      { recoveryStore: store, executors, approvalResolver },
+    );
+    currentRunId = result.run_id;
+    if (result.status !== "pending") return result;
+  }
+  throw new Error("convergence did not reach a boundary within maxCycles");
+}
+
 test("convergence reaches active only after every required gate passes", async () => {
   const store = makeStore();
   const calls = [];
