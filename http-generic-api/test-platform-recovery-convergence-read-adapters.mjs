@@ -190,3 +190,80 @@ test("connector probe classifies 401 and 429 without triggering mutation", async
     assert.equal(result.mutation_performed, false);
   }
 });
+
+
+test("backup evidence must be durable hash-addressed and exact-SHA bound", async () => {
+  const base = {
+    backup_verified: true,
+    durable: true,
+    expected_sha: SHA,
+    evidence_sha256: "d".repeat(64),
+    roles: ["runtime", "governance", "runtime_persistence"],
+    secrets_included: false,
+  };
+  const good = createPlatformRecoveryConvergenceReadExecutors({
+    env: ENV,
+    deploymentParityReader: async () => ({ exact_sha_parity: true }),
+    backupEvidenceReader: async () => base,
+  });
+  assert.equal((await good.backup_evidence(ctx("backup_evidence"))).status, "pass");
+
+  for (const mutation of [
+    { durable: false },
+    { expected_sha: "f".repeat(40) },
+    { evidence_sha256: "short" },
+  ]) {
+    const bad = createPlatformRecoveryConvergenceReadExecutors({
+      env: ENV,
+      deploymentParityReader: async () => ({ exact_sha_parity: true }),
+      backupEvidenceReader: async () => ({ ...base, ...mutation }),
+    });
+    const result = await bad.backup_evidence(ctx("backup_evidence"));
+    assert.equal(result.status, "blocked");
+    assert.equal(result.error_code, "platform_recovery_backup_evidence_not_ready");
+  }
+});
+
+test("persistent edge rate limit is degraded and resumable without credential rotation", async () => {
+  const executors = createPlatformRecoveryConvergenceReadExecutors({
+    env: ENV,
+    deploymentParityReader: async () => ({ exact_sha_parity: true }),
+    localManagerRateLimitRecoveryReader: async () => ({
+      http_status_checked_before_json: true,
+      retry_after_respected: true,
+      backoff_persisted: true,
+      rate_limit_source_attributed: true,
+      post_recovery_auth_failure_kind: "edge_rate_limited",
+      retry_after_seconds: 120,
+      request_id: "req-edge-429",
+      secrets_included: false,
+    }),
+  });
+  const result = await executors.local_manager_rate_limit_recovery(ctx("local_manager_rate_limit_recovery"));
+  assert.equal(result.status, "degraded");
+  assert.equal(result.error_code, "platform_recovery_external_rate_limit_still_active");
+  assert.equal(result.next_safe_action, "resume_same_run_after_retry_after");
+  assert.equal(result.retry_after_seconds, 120);
+  assert.equal(result.mutation_performed, false);
+});
+
+test("connector verify returns a structured blocker for forbidden or origin failures", async () => {
+  for (const [status, kind] of [[403, "authorization_forbidden"], [502, "origin_unavailable"]]) {
+    const executors = createPlatformRecoveryConvergenceReadExecutors({
+      env: ENV,
+      deploymentParityReader: async () => ({ exact_sha_parity: true }),
+      connectorAuthProbeReader: async () => ({
+        auth_ready: false,
+        http_status: status,
+        failure_kind: kind,
+        request_id: `req-${status}`,
+        secrets_included: false,
+      }),
+    });
+    const result = await executors.connector_auth_verify(ctx("connector_auth_verify"));
+    assert.equal(result.status, "blocked");
+    assert.equal(result.error_code, "platform_recovery_connector_auth_not_ready");
+    assert.equal(result.failure_kind, kind);
+    assert.equal(result.request_id, `req-${status}`);
+  }
+});
