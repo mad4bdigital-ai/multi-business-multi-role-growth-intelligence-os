@@ -91,6 +91,9 @@ test("default Recovery composition is explicitly fail-closed and provider-free",
   assert.equal(composition.runtimeBootstrapDependencies.deploymentIdentityProvider, null);
   assert.equal(composition.runtimeBootstrapDependencies.partialReceiptStore, null);
   assert.equal(composition.runtimeBootstrapDependencies.executionTicketVerifier, null);
+  const routeDeps = getRecoveryCompositionRouteDependencies(composition);
+  assert.deepEqual(routeDeps.platformRecoveryConvergenceExecutors, {});
+  assert.equal(routeDeps.platformRecoveryConvergenceApprovalResolver, null);
 });
 
 test("partial authority graphs are rejected before they can reach a route", () => {
@@ -140,6 +143,29 @@ test("complete injected graph remains non-live and is exposed through three boun
   assert.equal(routeDeps.runtimeBootstrapDependencies.deploymentIdentityProvider, adapters.deploymentIdentityProvider);
   assert.equal(routeDeps.runtimeBootstrapDependencies.partialReceiptStore, adapters.partialReceiptStore);
   assert.equal(routeDeps.runtimeBootstrapDependencies.executionTicketVerifier, adapters.executionTicketVerifier);
+});
+
+test("server-managed convergence adapters are projected only from the composition", () => {
+  const adapters = makeCompleteAdapters();
+  const productionIdentityExecutor = async () => ({ ok: true, secrets_included: false });
+  const approvalResolver = async () => ({ verified: true, server_resolved: true, single_use: true, secrets_included: false });
+  adapters.platformRecoveryConvergenceExecutors = Object.freeze({
+    production_identity: productionIdentityExecutor,
+  });
+  adapters.platformRecoveryConvergenceApprovalResolver = approvalResolver;
+
+  const composition = createRecoveryComposition({
+    mode: "injected_non_live",
+    adapters,
+    source: "test_convergence_projection",
+  });
+  const routeDeps = getRecoveryCompositionRouteDependencies(composition);
+
+  assert.equal(routeDeps.platformRecoveryConvergenceExecutors.production_identity, productionIdentityExecutor);
+  assert.equal(routeDeps.platformRecoveryConvergenceApprovalResolver, approvalResolver);
+  assert.equal(composition.platformRecoveryConvergence.caller_managed, false);
+  assert.deepEqual(composition.platformRecoveryConvergence.configured_executor_keys, ["production_identity"]);
+  assert.equal(composition.platformRecoveryConvergence.approval_resolver_configured, true);
 });
 
 test("read-only Recovery store projection exposes evidence persistence only", () => {
