@@ -205,6 +205,17 @@ function verifySignedAttestation(env, request) {
   };
 }
 
+const RECOVERY_INGRESS_ALLOWED_METHODS_BY_PATH = new Map([
+  ["/admin/recovery/staging/contract", new Set(["GET"])],
+  ["/admin/recovery/staging/readiness", new Set(["GET"])],
+  ["/admin/recovery/staging/certification", new Set(["GET"])],
+  ["/admin/recovery/staging/gateway/rollout-plan", new Set(["POST"])],
+  ["/admin/recovery/staging/gateway/dark-deploy-dry-run", new Set(["POST"])],
+  ["/admin/recovery/staging/bootstrap-ticket/verify", new Set(["POST"])],
+  ["/admin/recovery/staging/bootstrap-ticket/finalize", new Set(["POST"])],
+  ["/admin/recovery/staging/bootstrap-partial-receipt", new Set(["POST"])],
+]);
+
 export async function verifyRecoveryGatewayIngress({ env = process.env, request, policy, replayStore } = {}) {
   const runtime = resolveRuntimeEnvironmentStrict(env);
   if (!runtime.ok || runtime.environment_key !== "staging") return { ok: false, code: "ingress_runtime_invalid" };
@@ -214,19 +225,31 @@ export async function verifyRecoveryGatewayIngress({ env = process.env, request,
   const proof = verifySignedAttestation(env, request);
   if (!proof.ok) return proof;
   const c = proof.claims;
-  const requestPath = String(request?.originalUrl || request?.url || "");
+  const requestUrl = String(request?.originalUrl || request?.url || "");
+  const requestPath = requestUrl.split("?", 1)[0];
+  const requestMethod = String(request?.method || "").toUpperCase();
+  const allowedMethods = RECOVERY_INGRESS_ALLOWED_METHODS_BY_PATH.get(requestPath);
+  const rawBodyPresent = Buffer.isBuffer(request?.rawBody);
+  const rawBody = rawBodyPresent ? request.rawBody : Buffer.alloc(0);
+  const bodyDigest = createHash("sha256").update(rawBody).digest("hex");
   const authDigest = createHash("sha256").update(JSON.stringify([
     request?.headers?.authorization || "", request?.headers?.["x-api-key"] || "",
   ])).digest("hex");
-  if (request?.method !== "GET" || !requestPath.startsWith("/admin/recovery/staging/") || requestPath.includes("?")
-    || c.method !== request.method || c.path !== requestPath
+  const getBodyInvalid = requestMethod === "GET" && (
+    rawBody.length !== 0
+    || Boolean(request.headers?.["transfer-encoding"])
+    || Number(request.headers?.["content-length"] || 0) !== 0
+  );
+  const postBodyCaptureInvalid = requestMethod === "POST" && !rawBodyPresent;
+  if (!allowedMethods?.has(requestMethod) || requestUrl !== requestPath
+    || c.method !== requestMethod || c.path !== requestPath
     || c.request_id !== request.headers?.["x-request-id"]
     || c.policy_hash !== policy?.content_hash_sha256
     || c.worker_build_sha !== c.deployment_sha
     || !/^[a-f0-9]{64}$/.test(c.worker_bundle_sha256 || "")
     || c.auth_digest !== authDigest
-    || c.body_digest !== createHash("sha256").update("").digest("hex")
-    || request.headers?.["transfer-encoding"] || Number(request.headers?.["content-length"] || 0) !== 0
+    || c.body_digest !== bodyDigest
+    || getBodyInvalid || postBodyCaptureInvalid
     || c.key_id !== env.REMOTE_MCP_TRUSTED_INGRESS_KEY_ID
     || c.exp <= Date.now() / 1000) return { ok: false, code: "ingress_request_binding_invalid" };
   if (replayStore?.contract !== RECOVERY_REPLAY_STORE_CONTRACT || typeof replayStore.claim !== "function") {
