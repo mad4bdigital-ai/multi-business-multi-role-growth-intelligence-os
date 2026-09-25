@@ -112,7 +112,7 @@ function readyMutationStore(overrides = {}) {
   };
 }
 
-function buildTestApp({ recoveryStore, readOnlyRecoveryStore, mutationRecoveryStore, approvalIssuer, approvalStore, mutationExecutor } = {}) {
+function buildTestApp({ recoveryStore, readOnlyRecoveryStore, mutationRecoveryStore, approvalIssuer, approvalStore, mutationExecutor, platformRecoveryConvergenceExecutors, platformRecoveryConvergenceApprovalResolver } = {}) {
   const app = express();
   app.use(express.json());
   const routeOptions = {
@@ -126,6 +126,8 @@ function buildTestApp({ recoveryStore, readOnlyRecoveryStore, mutationRecoverySt
     approvalIssuer,
     approvalStore,
     mutationExecutor,
+    platformRecoveryConvergenceExecutors,
+    platformRecoveryConvergenceApprovalResolver,
   };
   if (readOnlyRecoveryStore !== undefined) routeOptions.readOnlyRecoveryStore = readOnlyRecoveryStore;
   if (mutationRecoveryStore !== undefined) routeOptions.mutationRecoveryStore = mutationRecoveryStore;
