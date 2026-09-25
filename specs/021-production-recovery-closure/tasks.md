@@ -61,10 +61,24 @@
 - [x] Block blind retry after unknown outcome.
 - [x] Require unknown-outcome reconciliation to be readback-only.
 - [x] Keep credential rebind conditional on credential-invalid and separate from 429 recovery.
-- [x] Add full synthetic convergence regression suite and register it in the repository test manifest.\n- [x] Add fixed-origin Production parity read adapter for `/version` + `/deployment-info`.\n- [x] Normalize native full-inspection role classifications/counts into convergence zero-object evidence.\n- [x] Recheck exact deployment parity before every mutation stage.\n- [x] Bind every mutation to a canonical nested authority reference and operation.\n- [x] Gate MCP migration on bootstrap ledger readiness.\n- [x] Classify persistent external 429 as resumable degradation when Retry-After/backoff behavior is healthy.\n- [x] Add and govern the 19-map/16-domain Work Map integration plus pipeline scenario matrix.
+- [x] Add full synthetic convergence regression suite and register it in the repository test manifest.
+- [x] Add fixed-origin Production parity read adapter for `/version` + `/deployment-info`.
+- [x] Normalize native full-inspection role classifications/counts into convergence zero-object evidence.
+- [x] Recheck exact deployment parity before every mutation stage.
+- [x] Bind every mutation to a canonical nested authority reference and operation.
+- [x] Gate MCP migration on bootstrap ledger readiness.
+- [x] Classify persistent external 429 as resumable degradation when Retry-After/backoff behavior is healthy.
+- [x] Add and govern the 19-map/16-domain Work Map integration plus pipeline scenario matrix.
 - [x] Skip grant and MCP-catalog mutations when durable full inspection proves they are already ready; retain independent verify stages.
 - [x] Recheck exact `/version` + `/deployment-info` parity inside the final gate before recovered.
 - [x] Add direct `productionRecoveryClosure` contract tests for backup freshness, restore proof, cycle/target binding, degraded non-DB state, unknown outcome, and deterministic recovered hash.
 - [x] Detect a stale prior-process executing checkpoint and require read-only reconciliation without replay.
+- [x] Preserve readiness as tri-state evidence; missing checks block rather than imply repair eligibility.
+- [x] Require a consistent per-role object census (`zero_objects`/`nonempty_objects` + total) before any role-dependent repair.
+- [x] Add conditional `runtime_persistence.schema.repair` for proven non-empty schema drift using the existing Recovery Kernel authority only.
+- [x] Reserve and durably finalize each exact step approval around the orchestration execution claim.
+- [x] Preserve original mutation audit across read-only unknown-outcome reconciliation.
+- [x] Re-run Production activation readiness inside the final gate after the last mutation.
+- [x] Reuse the canonical recursive Recovery proof boundary for connector rebind receipts.
 - [ ] Wire live durable store and governed step executors — blocked for separate Production-governed delivery.
 - [ ] Bind live approval resolver to the existing Recovery approval authority — blocked for separate Production-governed delivery.
