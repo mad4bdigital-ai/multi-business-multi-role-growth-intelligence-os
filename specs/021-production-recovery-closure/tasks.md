@@ -48,3 +48,19 @@
 - [ ] Close connector credential binding.
 - [ ] Attribute 429 source.
 - [ ] Evaluate final closure.
+
+## Durable convergence framework
+
+- [x] Add exact-SHA deterministic recovery plan and durable run identity.
+- [x] Persist run state, evidence events and idempotency receipts independently of target databases.
+- [x] Sequence backup → inspection → conditional baselines → grants → catalog migration → functional readbacks → activation → connector/rate-limit → Local Manager → deployment parity.
+- [x] Skip baseline rebuild when the role is not zero-object.
+- [x] Require server-resolved step-bound approval before consequential/bounded mutation executors.
+- [x] Forbid caller-supplied approval as execution truth.
+- [x] Require mutation authority verification and same-cycle readback.
+- [x] Block blind retry after unknown outcome.
+- [x] Require unknown-outcome reconciliation to be readback-only.
+- [x] Keep credential rebind conditional on credential-invalid and separate from 429 recovery.
+- [x] Add full synthetic convergence regression suite and register it in the repository test manifest.
+- [ ] Wire live durable store and governed step executors — blocked for separate Production-governed delivery.
+- [ ] Bind live approval resolver to the existing Recovery approval authority — blocked for separate Production-governed delivery.
