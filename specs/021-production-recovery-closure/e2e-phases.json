@@ -74,7 +74,7 @@
             "Run durable full inspection and classify zero-object roles.",
             "Rebuild governance only when governance is proven zero-object and verify its baseline.",
             "Rebuild runtime-persistence only when runtime-persistence is proven zero-object and verify its baseline.",
-            "For a non-empty runtime-persistence role, run only the registered runtime_persistence.schema.repair authority when the durable inspection explicitly proves runtime_persistence_ready=false; missing readiness evidence blocks.",
+            "For a non-empty runtime-persistence role with runtime_persistence_ready=false, stop convergence and return the canonical Recovery Kernel remediation-plan handoff; never execute migration-first repair inside convergence.",
             "Apply and verify canonical least-privilege grants through nested Recovery authority.",
             "Apply the MCP catalog migration only after baselines and grants are verified.",
             "Verify MCP catalog schema, durable response chunk write/read smoke, Admin tool readback, Device tool readback, and Production activation readiness."
@@ -88,7 +88,7 @@
             "A verified step is never replayed when a later stage blocks.",
             "Missing readiness evidence remains unknown/null and never authorizes a grant, MCP migration, or runtime-persistence schema repair.",
             "A role-dependent repair requires a consistent zero_objects/nonempty_objects classification and object count.",
-            "Partial non-empty Runtime or unregistered Governance schema corruption remains fail-closed rather than falling back to raw SQL."
+            "Partial non-empty runtime-persistence drift routes to the Recovery Kernel remediation plan, while partial Runtime or unregistered Governance schema corruption remains fail-closed."
           ],
           "tests": [
             {
