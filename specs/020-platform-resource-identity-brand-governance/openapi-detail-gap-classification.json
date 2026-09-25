@@ -6,8 +6,8 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "e4042441fbe4f3172f42484777869149deaf7c1ff93baac027a652e842075146",
-    "dispatch_artifact_sha256": "aa046fbc885ea65c327f89abc09a56383ad4bccea92cb141814c243fb7f6b08c"
+    "dispatch_source_digest": "39dc2f4c3babb0844765b08725d0b6afcb3943cbab53c068db52df02416244a8",
+    "dispatch_artifact_sha256": "93376119b80f3406ed5b21cf23ad56220e3b555446fd19b5ea6b1cf2ff463c61"
   },
   "coverage": {
     "operation_count": 1078,
@@ -18,7 +18,7 @@
     "auth_contract_gap_count": 0,
     "openapi_detail_gap_count": 320,
     "unresolved_surface_decision_count": 0,
-    "coverage_complete": false
+    "coverage_complete": true
   },
   "distributions": {
     "surface_decisions_by_family": [
