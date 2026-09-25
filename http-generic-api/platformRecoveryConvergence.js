@@ -10,14 +10,15 @@ export const PLATFORM_RECOVERY_CONVERGENCE_CAPABILITY = "platform_recovery_conve
 
 export const PLATFORM_RECOVERY_CONVERGENCE_STEPS = Object.freeze([
   Object.freeze({ key: "production_identity", kind: "read_only" }),
-  Object.freeze({ key: "backup_evidence", kind: "read_only" }),
   Object.freeze({ key: "database_full_inspection", kind: "read_only" }),
+  Object.freeze({ key: "backup_evidence", kind: "read_only" }),
   Object.freeze({ key: "governance_baseline_rebuild", kind: "consequential", role: "governance", conditional_zero_object: true }),
   Object.freeze({ key: "governance_baseline_verify", kind: "read_only", role: "governance" }),
   Object.freeze({ key: "runtime_persistence_baseline_rebuild", kind: "consequential", role: "runtime_persistence", conditional_zero_object: true }),
   Object.freeze({ key: "runtime_persistence_baseline_verify", kind: "read_only", role: "runtime_persistence" }),
   Object.freeze({ key: "canonical_grants_apply", kind: "consequential" }),
   Object.freeze({ key: "canonical_grants_verify", kind: "read_only" }),
+  Object.freeze({ key: "bootstrap_ledger_verify", kind: "read_only" }),
   Object.freeze({ key: "mcp_catalog_migration_apply", kind: "consequential", migration: "20260815_custom_gpt_mcp_catalog_levels.sql" }),
   Object.freeze({ key: "mcp_catalog_verify", kind: "read_only" }),
   Object.freeze({ key: "response_chunk_storage_smoke", kind: "bounded_mutation" }),
@@ -406,6 +407,10 @@ function validateBoundResult(run, step, result) {
 
   if (step.key === "canonical_grants_verify" && status === "pass" && value.grants_ready !== true) {
     fail("PLATFORM_RECOVERY_GRANTS_NOT_READY", "Canonical grants readback did not pass.", 502);
+  }
+
+  if (step.key === "bootstrap_ledger_verify" && status === "pass" && value.bootstrap_ledger_ready !== true) {
+    fail("PLATFORM_RECOVERY_BOOTSTRAP_LEDGER_NOT_READY", "Bootstrap ledger readiness did not pass.", 502);
   }
 
   if (step.key === "mcp_catalog_verify" && status === "pass" && value.mcp_catalog_level_ready !== true) {
