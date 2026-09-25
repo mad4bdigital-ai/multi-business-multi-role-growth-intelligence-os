@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "production-recovery-closure-20260925",
-  "title": "Production Recovery exact-SHA closure and recoverability proof",
+  "title": "Platform Recovery exact-SHA convergence and closure",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
@@ -24,7 +24,23 @@
       "http-generic-api/openapi.yaml",
       "http-generic-api/platformRecoveryConvergence.js",
       "http-generic-api/test-platform-recovery-convergence.mjs",
-      "http-generic-api/scripts/test-manifest.mjs"
+      "http-generic-api/scripts/test-manifest.mjs",
+      ".github/governance/test-authority-registry.json",
+      "apps/local-manager-windows/DesktopCommandPollBackoffStore.cs",
+      "apps/local-manager-windows/Program.cs",
+      "autopilot-portable-staging/manifest.json",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "docs/write-scope-shadow-evidence-2026-08-15.json",
+      "http-generic-api/localConnectorTwoPhaseRebind.js",
+      "http-generic-api/productionRecoveryOperationalAdapters.js",
+      "http-generic-api/recoveryComposition.js",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/scripts/manifests/test-manifest-spec011.mjs",
+      "http-generic-api/scripts/manifests/test-manifest-upstream-main.mjs",
+      "http-generic-api/test-local-connector-two-phase-rebind.mjs",
+      "http-generic-api/test-local-manager-rate-limit-persistence.mjs",
+      "http-generic-api/test-recovery-composition.mjs",
+      "http-generic-api/test-recovery-kernel-routes.mjs"
     ]
   },
   "merge_contract": {
@@ -47,7 +63,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Add exact-SHA recovery closure plus a durable, fail-closed convergence framework without enabling live Production executors.",
+      "objective": "Add one exact-SHA durable Recovery Kernel convergence entrypoint plus final closure classification, connector two-phase rebind, and persistent Local Manager throttling recovery without activating Production from repository source.",
       "e2e_journeys": [
         {
           "id": "production-recovery-closure-proof",
