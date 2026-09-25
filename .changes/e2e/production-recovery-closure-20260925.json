@@ -20,7 +20,8 @@
       "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml",
       "http-generic-api/test-recovery-kernel.mjs",
       "specs/021-production-recovery-closure/completion.json",
-      "specs/021-production-recovery-closure/checklists/requirements.md"
+      "specs/021-production-recovery-closure/checklists/requirements.md",
+      "http-generic-api/openapi.yaml"
     ]
   },
   "merge_contract": {
