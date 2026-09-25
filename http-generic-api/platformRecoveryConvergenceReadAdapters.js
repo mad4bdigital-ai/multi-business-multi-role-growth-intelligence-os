@@ -137,10 +137,16 @@ export function normalizeFullInspectionForConvergence(result = {}) {
   const classifications = inspection.role_database_object_classifications || {};
   const counts = inspection.role_database_object_counts || {};
   const rawChecks = inspection.checks && typeof inspection.checks === "object" ? inspection.checks : {};
+  const readiness = (key) => {
+    if (!Object.prototype.hasOwnProperty.call(rawChecks, key)) return null;
+    if (rawChecks[key] === true) return true;
+    if (rawChecks[key] === false) return false;
+    return null;
+  };
   const checks = Object.freeze({
-    governance_db_privilege_ready: rawChecks.governance_db_privilege_ready === true,
-    mcp_catalog_schema_ready: rawChecks.mcp_catalog_schema_ready === true,
-    runtime_persistence_ready: rawChecks.runtime_persistence_ready === true,
+    governance_db_privilege_ready: readiness("governance_db_privilege_ready"),
+    mcp_catalog_schema_ready: readiness("mcp_catalog_schema_ready"),
+    runtime_persistence_ready: readiness("runtime_persistence_ready"),
   });
   const roles = {};
 
