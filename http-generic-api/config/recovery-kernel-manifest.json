@@ -207,6 +207,21 @@
       "mutation_allowed": false,
       "caller_supplied_readiness_forbidden": true
     },
+    "platform_recovery_converge_v1": {
+      "level": "R4",
+      "mutation_class": "C5",
+      "target_roles": ["server_resolved"],
+      "authority_ref": "durable_exact_sha_nested_step_authorities",
+      "outer_orchestrator_grants_mutation_authority": false,
+      "server_step_approval_required": true,
+      "step_idempotency_required": true,
+      "same_cycle_readback_required": true,
+      "unknown_outcome_requires_reconciliation": true,
+      "automatic_retry_allowed": false,
+      "caller_sql_forbidden": true,
+      "caller_credentials_forbidden": true,
+      "caller_database_selection_forbidden": true
+    },
     "database_full_inspection": {
       "level": "R1",
       "mutation_class": "C0",
