@@ -1089,7 +1089,7 @@ test("successful reconciliation preserves original mutation audit for final clos
 test("missing grant readiness evidence blocks before approval claim or mutation", async () => {
   const store = makeStore();
   const calls = [];
-  let approvalCalls = 0;
+  let resolverInvocations = 0;
   const executors = happyExecutors({ zeroGovernance: false, zeroPersistence: false, calls });
   executors.database_full_inspection = async (ctx) => {
     calls.push("database_full_inspection");
@@ -1111,7 +1111,7 @@ test("missing grant readiness evidence blocks before approval claim or mutation"
     });
   };
   const resolver = async (ctx) => {
-    approvalCalls += 1;
+    resolverInvocations += 1;
     return happyApprovalResolver(ctx);
   };
 
@@ -1120,7 +1120,7 @@ test("missing grant readiness evidence blocks before approval claim or mutation"
   assert.equal(result.blocking_stage, "canonical_grants_apply");
   assert.equal(result.error_code, "platform_recovery_grant_gap_evidence_unavailable");
   assert.equal(calls.includes("canonical_grants_apply"), false);
-  assert.equal(approvalCalls, 0);
+  assert.equal(resolverInvocations, 0);
 });
 
 test("missing MCP catalog readiness evidence blocks ordinary migration before authority", async () => {
