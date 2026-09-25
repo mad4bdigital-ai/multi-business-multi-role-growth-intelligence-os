@@ -12,24 +12,24 @@ export const PLATFORM_RECOVERY_CONVERGENCE_STEPS = Object.freeze([
   Object.freeze({ key: "production_identity", kind: "read_only" }),
   Object.freeze({ key: "database_full_inspection", kind: "read_only" }),
   Object.freeze({ key: "backup_evidence", kind: "read_only" }),
-  Object.freeze({ key: "governance_baseline_rebuild", kind: "consequential", role: "governance", conditional_zero_object: true }),
+  Object.freeze({ key: "governance_baseline_rebuild", kind: "consequential", role: "governance", conditional_zero_object: true, authority_ref: "governance.baseline.rebuild_empty", nested_operation: "database.rebuild_empty" }),
   Object.freeze({ key: "governance_baseline_verify", kind: "read_only", role: "governance" }),
-  Object.freeze({ key: "runtime_persistence_baseline_rebuild", kind: "consequential", role: "runtime_persistence", conditional_zero_object: true }),
+  Object.freeze({ key: "runtime_persistence_baseline_rebuild", kind: "consequential", role: "runtime_persistence", conditional_zero_object: true, authority_ref: "runtime_persistence.baseline.rebuild_empty", nested_operation: "database.rebuild_empty" }),
   Object.freeze({ key: "runtime_persistence_baseline_verify", kind: "read_only", role: "runtime_persistence" }),
-  Object.freeze({ key: "canonical_grants_apply", kind: "consequential" }),
+  Object.freeze({ key: "canonical_grants_apply", kind: "consequential", authority_ref: "runtime_bootstrap_canonical_grant_contract", nested_operation: "apply_grants" }),
   Object.freeze({ key: "canonical_grants_verify", kind: "read_only" }),
   Object.freeze({ key: "bootstrap_ledger_verify", kind: "read_only" }),
-  Object.freeze({ key: "mcp_catalog_migration_apply", kind: "consequential", migration: "20260815_custom_gpt_mcp_catalog_levels.sql" }),
+  Object.freeze({ key: "mcp_catalog_migration_apply", kind: "consequential", migration: "20260815_custom_gpt_mcp_catalog_levels.sql", authority_ref: "governance.mcp_catalog.repair", nested_operation: "apply_migration" }),
   Object.freeze({ key: "mcp_catalog_verify", kind: "read_only" }),
-  Object.freeze({ key: "response_chunk_storage_smoke", kind: "bounded_mutation" }),
+  Object.freeze({ key: "response_chunk_storage_smoke", kind: "bounded_mutation", authority_ref: "response_chunk_durable_recovery_smoke", nested_operation: "execute_smoke" }),
   Object.freeze({ key: "admin_tools_functional_readback", kind: "read_only" }),
   Object.freeze({ key: "device_tools_functional_readback", kind: "read_only" }),
   Object.freeze({ key: "production_activation_readiness", kind: "read_only" }),
   Object.freeze({ key: "connector_auth_probe", kind: "read_only" }),
   Object.freeze({ key: "local_manager_rate_limit_recovery", kind: "read_only", conditional_rate_limit: true }),
-  Object.freeze({ key: "connector_two_phase_rebind", kind: "consequential", conditional_credential_invalid: true }),
+  Object.freeze({ key: "connector_two_phase_rebind", kind: "consequential", conditional_credential_invalid: true, authority_ref: "local_connector_two_phase_rebind", nested_operation: "credential_rebind" }),
   Object.freeze({ key: "connector_auth_verify", kind: "read_only" }),
-  Object.freeze({ key: "local_manager_e2e_round_trip", kind: "bounded_mutation" }),
+  Object.freeze({ key: "local_manager_e2e_round_trip", kind: "bounded_mutation", authority_ref: "local_manager_desktop_command_round_trip", nested_operation: "create_claim_complete" }),
   Object.freeze({ key: "deployment_parity", kind: "read_only" }),
   Object.freeze({ key: "final_gate", kind: "derived" }),
 ]);
@@ -113,6 +113,8 @@ async function resolveStepAuthority(run, step, approvalResolver) {
       step_id: step.step_id,
       step_key: step.key,
       step_kind: step.kind,
+      authority_ref: step.authority_ref || null,
+      nested_operation: step.nested_operation || null,
       idempotency_key: step.idempotency_key,
       secrets_included: false,
     }));
@@ -131,6 +133,7 @@ async function resolveStepAuthority(run, step, approvalResolver) {
     ["run_id", run.run_id],
     ["plan_hash", run.plan_hash],
     ["step_id", step.step_id],
+    ["authority_ref", step.authority_ref],
     ["idempotency_key", step.idempotency_key],
   ];
   const bindingMismatch = bindings.find(([key, expected]) => text(value[key], 256).toLowerCase() !== String(expected).toLowerCase());
@@ -157,6 +160,8 @@ async function resolveStepAuthority(run, step, approvalResolver) {
       run_id: run.run_id,
       plan_hash: run.plan_hash,
       step_id: step.step_id,
+      authority_ref: step.authority_ref,
+      nested_operation: step.nested_operation || null,
       idempotency_key: step.idempotency_key,
       single_use: true,
       server_verified: true,
@@ -179,6 +184,8 @@ export function buildPlatformRecoveryConvergencePlan(expectedSha) {
       kind: step.kind,
       role: step.role || null,
       migration: step.migration || null,
+      authority_ref: step.authority_ref || null,
+      nested_operation: step.nested_operation || null,
       nested_authority_required: ["consequential", "bounded_mutation"].includes(step.kind),
       caller_sql_forbidden: true,
       caller_credentials_forbidden: true,
@@ -371,6 +378,8 @@ function validateBoundResult(run, step, result) {
 
     if (["consequential", "bounded_mutation"].includes(step.kind)) {
       if (value.authority_verified !== true) fail("PLATFORM_RECOVERY_STEP_AUTHORITY_UNVERIFIED", `Step ${step.key} did not verify nested execution authority.`, 502);
+      if (text(value.authority_ref, 256) !== text(step.authority_ref, 256)) fail("PLATFORM_RECOVERY_STEP_AUTHORITY_REF_MISMATCH", `Step ${step.key} used a different nested authority.`, 502);
+      if (text(value.nested_operation, 128) !== text(step.nested_operation, 128)) fail("PLATFORM_RECOVERY_STEP_OPERATION_MISMATCH", `Step ${step.key} used a different nested operation.`, 502);
       if (value.readback_verified !== true) fail("PLATFORM_RECOVERY_STEP_READBACK_UNVERIFIED", `Step ${step.key} did not complete same-cycle readback.`, 502);
     }
   }
@@ -677,6 +686,8 @@ async function executeOneStep(run, step, { recoveryStore, executors, approvalRes
       step_kind: step.kind,
       role: step.role || null,
       migration: step.migration || null,
+      authority_ref: step.authority_ref || null,
+      nested_operation: step.nested_operation || null,
       idempotency_key: step.idempotency_key,
       approval: authority.approval,
       prior_steps: run.steps
@@ -743,6 +754,8 @@ async function reconcileUnknownStep(run, { recoveryStore, executors }) {
     plan_hash: run.plan_hash,
     step_id: step.step_id,
     step_key: step.key,
+    authority_ref: step.authority_ref || null,
+    nested_operation: step.nested_operation || null,
     idempotency_key: step.idempotency_key,
     original_result: clone(step.result),
     secrets_included: false,
