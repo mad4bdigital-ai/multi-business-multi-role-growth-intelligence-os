@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "049351595f8ec53a8d4d344914113df0f0f90897d3e58b88546c680133a70fef",
+    "source_digest": "1ec55ac6a67b82cce9a2d004f718abdc4b2cc611f0da07b75f96496262e144a5",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "c3f7df74aa9187822c6f72cd7d5a707ba63f6d6ba1e9a74d5624424bcf1ecfb3",
+        "sha256": "5474885dd22edab3f4f324c88c0c146e5e4d72010b488b85c4d812749fce7b37",
         "present": true
       },
       {
@@ -26,7 +26,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "6a8d780fb6cf2f874efde0214e5b9b1cd48d0835582f33fbb4ac8dded308ee92",
+        "sha256": "2387d7bd7f44c369c884c654ac6e6296fff55b175cf4f09e65c5f0a2b0201df5",
         "present": true
       },
       {
@@ -76,7 +76,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "457c6faf5f0e8e4b635a4ea6385f756d97fde254cfe5782a5add461591eff486",
+        "sha256": "24c990a3566f12abf7076d864542ceb902380de9ca03c1bd2f0660faec459928",
         "present": true
       },
       {
@@ -131,7 +131,7 @@
       },
       {
         "file": "openapi/openapi.custom-gpt.staging-admin.yaml",
-        "sha256": "15116a068540b1e19655ca2d15015129b9eb403ffa578461206b51be1228b760",
+        "sha256": "8893c99b9b9a229070c547ea570f7168a0250cafd4b1a36c6c0bc27af5c7cc1a",
         "present": true
       },
       {
@@ -781,7 +781,7 @@
       },
       {
         "file": "routes/recoveryKernelRoutes.js",
-        "sha256": "f409df342737dc7477306886f2372f990c4084d97ab521bef3bb007f026012e0",
+        "sha256": "1add3c0cbb7c5d554b3676a4191ec6b774ce1034a0de2879509ebc6d910e2178",
         "present": true
       },
       {
@@ -1001,7 +1001,7 @@
       },
       {
         "file": "routes/systemLayerRoutes.js",
-        "sha256": "fb1ba7f6e41a1842c3c481420a46d7183ca6d956f4290c54e27fecddd4f55cc6",
+        "sha256": "a6a13c21e6ea867702408b45083f90e30f688d40af26f22e94230a9c3fc4d4c3",
         "present": true
       },
       {
@@ -1091,7 +1091,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "7f4c244d123671acd2d31ab70faa4dc3d53d01e444c3c823bcc235e45273a148",
+        "sha256": "86d9b73d2dc15ba19f55b367183f75576d7862b7982257ce4434967ae2cf1e1e",
         "present": true
       },
       {
@@ -1141,12 +1141,12 @@
       },
       {
         "file": "test-recovery-kernel-routes.mjs",
-        "sha256": "650f837513cbbda951cb46582ebe72d3cb745c3a5420f21c65360434b64933f8",
+        "sha256": "4e05bdc5598ea6c1d0a3d7a5701f813d1fc2a761b60dee9855a837052a1b2fe8",
         "present": true
       },
       {
         "file": "test-recovery-kernel.mjs",
-        "sha256": "686d47b56a2349e99aefa1edd55a9ea868b03ae1de25fb43e02ba36a697ee00c",
+        "sha256": "46d5f2ff54cd025a541a153a08ffcf9720d87261c1b91d3ec123142bc4c07629",
         "present": true
       },
       {
@@ -1209,33 +1209,33 @@
     "mounted_family_count": 176,
     "mounted_route_file_count": 145,
     "mixed_scope_route_file_count": 26,
-    "operation_count": 1077,
-    "openapi_documented_count": 1061,
+    "operation_count": 1078,
+    "openapi_documented_count": 1062,
     "openapi_canonical_documented_count": 742,
-    "openapi_generated_index_count": 319,
+    "openapi_generated_index_count": 320,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 319,
+    "openapi_detail_gap_count": 320,
     "openapi_detail_gap_policy": "accepted_generated_index_only",
     "auth_parity_counts": {
-      "equivalent": 1061,
+      "equivalent": 1062,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 656,
-    "unresolved_operation_class_count": 0,
+    "non_get_candidate_count": 657,
+    "unresolved_operation_class_count": 1,
     "classified_mutation_count": 36,
     "governed_mutation_operation_count": 36,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 0,
-    "test_owned_family_count": 176,
-    "untested_family_count": 0,
+    "test_owned_family_count": 175,
+    "untested_family_count": 1,
     "test_owned_operation_count": 1077,
-    "untested_operation_count": 0,
-    "ready_task_count": 176,
-    "blocked_task_count": 0,
-    "coverage_complete": true
+    "untested_operation_count": 1,
+    "ready_task_count": 175,
+    "blocked_task_count": 1,
+    "coverage_complete": false
   },
   "waves": [
     {
@@ -3164,7 +3164,7 @@
       "family_key": "recovery-kernel",
       "label": "recovery kernel",
       "source_file": "routes/recoveryKernelRoutes.js",
-      "source_digest": "f409df342737dc7477306886f2372f990c4084d97ab521bef3bb007f026012e0",
+      "source_digest": "1add3c0cbb7c5d554b3676a4191ec6b774ce1034a0de2879509ebc6d910e2178",
       "mount_prefix": "/",
       "mount_order": 13611,
       "split_from_mixed_scope_file": false,
@@ -3251,6 +3251,76 @@
               "test-fixed-host-local-system-tool.mjs",
               "test-recovery-kernel.mjs"
             ]
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        },
+        {
+          "method": "POST",
+          "path": "/admin/recovery/kernel/platform-converge",
+          "signature": "POST /admin/recovery/kernel/platform-converge",
+          "source_file": "routes/recoveryKernelRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "router.use:requireAdminPrincipal",
+              "router.use:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "unresolved",
+            "classification_source": "fail_closed",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": null,
+            "blockers": [
+              "operation_classification_gap"
+            ],
+            "rule_id": null
           },
           "mutation_candidate": true,
           "mutation": false
@@ -3702,7 +3772,9 @@
       ],
       "openapi_gaps": [],
       "openapi_exemptions": [],
-      "openapi_detail_gaps": [],
+      "openapi_detail_gaps": [
+        "POST /admin/recovery/kernel/platform-converge"
+      ],
       "auth_contract_gaps": [],
       "evidence_routes": [
         "GET /admin/recovery/kernel/evidence/{run_id}"
@@ -3711,7 +3783,9 @@
         "test-recovery-kernel-routes.mjs",
         "test-recovery-kernel.mjs"
       ],
-      "untested_operations": [],
+      "untested_operations": [
+        "POST /admin/recovery/kernel/platform-converge"
+      ],
       "resources": [],
       "embedded_ui": false,
       "embedded_ui_operations": [],
@@ -3723,6 +3797,7 @@
         "openapi/brand-core-asset-materialization.yaml",
         "openapi/container-authority-override-governance-smoke.yaml",
         "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
@@ -3752,9 +3827,16 @@
           "test-recovery-kernel.mjs"
         ]
       },
-      "operation_blockers": [],
+      "operation_blockers": [
+        {
+          "signature": "POST /admin/recovery/kernel/platform-converge",
+          "blockers": [
+            "operation_classification_gap"
+          ]
+        }
+      ],
       "risk": {
-        "score": 9,
+        "score": 12,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -13471,7 +13553,7 @@
       "family_key": "system-layer.admin",
       "label": "system layer (admin)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "fb1ba7f6e41a1842c3c481420a46d7183ca6d956f4290c54e27fecddd4f55cc6",
+      "source_digest": "a6a13c21e6ea867702408b45083f90e30f688d40af26f22e94230a9c3fc4d4c3",
       "mount_prefix": "/",
       "mount_order": 15321,
       "split_from_mixed_scope_file": true,
@@ -14247,7 +14329,7 @@
       "family_key": "system-layer.developer",
       "label": "system layer (developer)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "fb1ba7f6e41a1842c3c481420a46d7183ca6d956f4290c54e27fecddd4f55cc6",
+      "source_digest": "a6a13c21e6ea867702408b45083f90e30f688d40af26f22e94230a9c3fc4d4c3",
       "mount_prefix": "/",
       "mount_order": 15321,
       "split_from_mixed_scope_file": true,
@@ -97597,59 +97679,6 @@
       ]
     },
     {
-      "task_key": "frontend.recovery-kernel",
-      "title": "Resolve and deliver recovery kernel",
-      "wave": "F3-admin-workspaces",
-      "state": "ready",
-      "blockers": [],
-      "dependencies": [
-        "F0-source-baseline",
-        "F2-admin-bff-session",
-        "mutation-preflight",
-        "operation-classification",
-        "same-cycle-readback"
-      ],
-      "source_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/brand-core-asset-materialization.yaml",
-        "openapi/container-authority-override-governance-smoke.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/hostinger-storage-tenant-runtime.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "openapi/support-ticket-admin-brand.yaml",
-        "openapi/support-ticket-admin-execution.yaml",
-        "openapi/support-ticket-admin-remaining.yaml",
-        "openapi/support-ticket-runtime-completion.yaml",
-        "openapi/support-tickets.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/index.js",
-        "routes/recoveryKernelRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-recovery-kernel-routes.mjs",
-        "test-recovery-kernel.mjs"
-      ],
-      "acceptance_gates": [
-        "source_baseline_unchanged",
-        "scope_and_auth_explicit",
-        "openapi_or_explicit_exemption",
-        "surface_policy_resolved",
-        "tests_registered",
-        "operation_classification_explicit",
-        "preflight_approval_readback_rollback"
-      ],
-      "verification": [
-        "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-recovery-kernel-routes.mjs",
-        "node test-recovery-kernel.mjs"
-      ]
-    },
-    {
       "task_key": "frontend.registry-data-management.admin",
       "title": "Resolve and deliver registry data management (admin)",
       "wave": "F3-admin-workspaces",
@@ -99578,6 +99607,63 @@
         "node scripts/frontend-surface-dispatch.mjs --check",
         "node scripts/resource-api-coverage-audit.mjs --changed",
         "node test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "task_key": "frontend.recovery-kernel",
+      "title": "Resolve and deliver recovery kernel",
+      "wave": "F3-admin-workspaces",
+      "state": "blocked",
+      "blockers": [
+        "test_ownership_gap",
+        "operation_classification_gap"
+      ],
+      "dependencies": [
+        "F0-source-baseline",
+        "F2-admin-bff-session",
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
+      ],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/recoveryKernelRoutes.js",
+        "scripts/test-manifest.mjs",
+        "test-recovery-kernel-routes.mjs",
+        "test-recovery-kernel.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered",
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-recovery-kernel-routes.mjs",
+        "node test-recovery-kernel.mjs"
       ]
     },
     {

@@ -462,100 +462,6 @@ paths:
           $ref: "#/components/responses/Conflict"
         "503":
           description: Approval authority or durable Recovery store is unavailable; no provider or database mutation was attempted.
-  /admin/recovery/kernel/platform-converge:
-    post:
-      tags:
-        - admin-control
-        - recovery-kernel
-      security:
-        - backendBearerAuth: []
-      operationId: platformRecoveryConvergeV1
-      x-openai-isConsequential: true
-      summary: Run or resume exact-SHA Production platform recovery convergence
-      description: Durable composite Recovery Kernel operation. The caller may select only the exact Production SHA, an existing run_id for resume/status/reconciliation, and the action. The server derives every recovery stage, executor, target, database role, and single-use step approval. The outer operation never accepts SQL, database names, credentials, provider routes, or caller-declared readiness. A run becomes active only after every required live readback and end-to-end gate passes.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required:
-                - expected_sha
-              properties:
-                expected_sha:
-                  type: string
-                  pattern: ^[0-9a-fA-F]{40}$
-                run_id:
-                  type: string
-                  minLength: 8
-                  maxLength: 220
-                  description: Required for status and reconcile; omitted only when creating the deterministic run on the first advance.
-                action:
-                  type: string
-                  enum:
-                    - advance
-                    - status
-                    - reconcile
-                  default: advance
-      responses:
-        "200":
-          description: Read-only status receipt for an existing convergence run.
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-                properties:
-                  ok:
-                    type: boolean
-                  capability_key:
-                    type: string
-                    const: platform_recovery_converge_v1
-                  result:
-                    type: object
-                    additionalProperties: true
-                  secrets_included:
-                    type: boolean
-                    const: false
-        "202":
-          description: Convergence advanced to the next durable boundary. This does not imply active or recovered status.
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-                properties:
-                  ok:
-                    type: boolean
-                  capability_key:
-                    type: string
-                    const: platform_recovery_converge_v1
-                  result:
-                    type: object
-                    additionalProperties: true
-                  caller_sql_forbidden:
-                    type: boolean
-                    const: true
-                  caller_credentials_forbidden:
-                    type: boolean
-                    const: true
-                  caller_database_selection_forbidden:
-                    type: boolean
-                    const: true
-                  secrets_included:
-                    type: boolean
-                    const: false
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "409":
-          $ref: "#/components/responses/Conflict"
-        "503":
-          description: Durable store, nested approval authority, stage executor, or reconciliation authority is unavailable. No unapproved recovery mutation is attempted.
   /admin/recovery/kernel/execute:
     post:
       tags:
@@ -766,7 +672,7 @@ paths:
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: 6a8d780fb6cf2f874efde0214e5b9b1cd48d0835582f33fbb4ac8dded308ee92
+  source_openapi_sha256: 2387d7bd7f44c369c884c654ac6e6296fff55b175cf4f09e65c5f0a2b0201df5
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
   registry_sha256: 155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9
   domain_family_policy: http-generic-api/config/domain-family-policy.json
@@ -828,7 +734,7 @@ x-mad4b-registration-contract:
   environment: production
   source_surface: admin_recovery_production
   generation_mode: generated_from_openapi
-  source_openapi_sha256: 6a8d780fb6cf2f874efde0214e5b9b1cd48d0835582f33fbb4ac8dded308ee92
+  source_openapi_sha256: 2387d7bd7f44c369c884c654ac6e6296fff55b175cf4f09e65c5f0a2b0201df5
   source_manifest_sha256: 155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9
   surface_operation_manifest_sha256: f3fa723deabf8d6a8c2eb7453a23e8b2fd9d596919713880ab327b1bc946bd91
   surface_operation_manifest_hash_scope: split_surface_operation_manifest.v1

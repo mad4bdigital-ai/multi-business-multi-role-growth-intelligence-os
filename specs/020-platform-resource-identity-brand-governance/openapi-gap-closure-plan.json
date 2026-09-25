@@ -6,29 +6,29 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "049351595f8ec53a8d4d344914113df0f0f90897d3e58b88546c680133a70fef",
-    "dispatch_artifact_sha256": "1a5158bf9e91c1ac4c0452c234a0a6b33e5dea8c67a1f28365f7c1489a9dfc6f"
+    "dispatch_source_digest": "1ec55ac6a67b82cce9a2d004f718abdc4b2cc611f0da07b75f96496262e144a5",
+    "dispatch_artifact_sha256": "68dcda977743d49ce35908fb2e3858449a85842d3601691cb9c4df38bdd31585"
   },
   "coverage": {
-    "operation_count": 1077,
+    "operation_count": 1078,
     "mounted_family_count": 176,
     "openapi_gap_count": 0,
     "auth_contract_gap_count": 0,
-    "openapi_detail_gap_count": 319,
+    "openapi_detail_gap_count": 320,
     "unresolved_surface_decision_count": 0,
-    "unresolved_operation_class_count": 0,
-    "untested_family_count": 0,
-    "untested_operation_count": 0,
-    "coverage_complete": true
+    "unresolved_operation_class_count": 1,
+    "untested_family_count": 1,
+    "untested_operation_count": 1,
+    "coverage_complete": false
   },
   "closure_summary": {
     "blocking_contract_gaps": 0,
-    "read_only_traceability_closures": 319,
+    "read_only_traceability_closures": 320,
     "surface_decisions_requiring_owner": 0,
     "priority_family_counts": {
       "P1_surface_decision": 0,
-      "P2_detail_traceability": 75,
-      "P3_observe": 101
+      "P2_detail_traceability": 76,
+      "P3_observe": 100
     },
     "surface_decision_family_counts": {
       "api_only": 41,
@@ -2123,6 +2123,44 @@
         "scripts/test-manifest.mjs",
         "test-frontend-surface-coverage-claims.mjs",
         "test-remote-runtime-catalog-probe.mjs"
+      ]
+    },
+    {
+      "family_key": "recovery-kernel",
+      "label": "recovery kernel",
+      "scope": "admin",
+      "surface_decision": "internal_only",
+      "priority": "P2_detail_traceability",
+      "detail_gap_count": 1,
+      "operation_count": 7,
+      "untested_operation_count": 1,
+      "unresolved_operation_count": 1,
+      "next_action": "add_detail_evidence_without_claiming_canonical_coverage",
+      "activation_allowed": false,
+      "evidence_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/recoveryKernelRoutes.js",
+        "scripts/test-manifest.mjs",
+        "test-recovery-kernel-routes.mjs",
+        "test-recovery-kernel.mjs"
       ]
     },
     {
@@ -5495,43 +5533,6 @@
         "routes/platformSmokeRoutes.js",
         "scripts/test-manifest.mjs",
         "test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
-      "family_key": "recovery-kernel",
-      "label": "recovery kernel",
-      "scope": "admin",
-      "surface_decision": "internal_only",
-      "priority": "P3_observe",
-      "detail_gap_count": 0,
-      "operation_count": 6,
-      "untested_operation_count": 0,
-      "unresolved_operation_count": 0,
-      "next_action": "continue_deterministic_observation_and_regression_checks",
-      "activation_allowed": false,
-      "evidence_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/brand-core-asset-materialization.yaml",
-        "openapi/container-authority-override-governance-smoke.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/hostinger-storage-tenant-runtime.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "openapi/support-ticket-admin-brand.yaml",
-        "openapi/support-ticket-admin-execution.yaml",
-        "openapi/support-ticket-admin-remaining.yaml",
-        "openapi/support-ticket-runtime-completion.yaml",
-        "openapi/support-tickets.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/index.js",
-        "routes/recoveryKernelRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-recovery-kernel-routes.mjs",
-        "test-recovery-kernel.mjs"
       ]
     },
     {
