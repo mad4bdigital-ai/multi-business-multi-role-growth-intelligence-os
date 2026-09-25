@@ -107,9 +107,22 @@ async function readTokenRecord(file) {
       phaseBFailure("RECOVERY_PHASE_B_APPROVAL_TOKEN_STATE_INVALID", "The internal Phase B approval-token state is invalid.");
     }
 
-    const encoded = await handle.readFile("utf8");
+    const buffer = Buffer.alloc(TOKEN_RECORD_MAX_BYTES + 1);
+    let offset = 0;
+    while (offset < buffer.length) {
+      const { bytesRead } = await handle.read(buffer, offset, buffer.length - offset, offset);
+      if (!Number.isInteger(bytesRead) || bytesRead < 0) {
+        phaseBFailure("RECOVERY_PHASE_B_APPROVAL_TOKEN_STATE_INVALID", "The internal Phase B approval-token state is invalid.");
+      }
+      if (bytesRead === 0) break;
+      offset += bytesRead;
+    }
+    if (offset <= 0 || offset > TOKEN_RECORD_MAX_BYTES) {
+      phaseBFailure("RECOVERY_PHASE_B_APPROVAL_TOKEN_STATE_INVALID", "The internal Phase B approval-token state is invalid.");
+    }
+
     try {
-      return JSON.parse(encoded);
+      return JSON.parse(buffer.subarray(0, offset).toString("utf8"));
     } catch {
       phaseBFailure("RECOVERY_PHASE_B_APPROVAL_TOKEN_STATE_INVALID", "The internal Phase B approval-token state is invalid.");
     }
