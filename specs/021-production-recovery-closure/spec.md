@@ -92,7 +92,7 @@ It is a durable resumable state machine, not a monolithic SQL transaction. The c
 
 Every stage is bound to `run_id + plan_hash + step_id + idempotency_key`. Completed stages are not replayed. One advance executes at most one consequential/bounded mutation before returning to a durable boundary.
 
-The canonical order is: identity → durable full inspection → backup evidence → conditional Governance baseline rebuild → verify → conditional runtime-persistence baseline rebuild → conditional non-empty runtime-persistence schema repair → verify → canonical grants apply/verify → bootstrap ledger verify → MCP catalog migration/verify → durable response-chunk smoke → Admin tools readback → Device tools readback → Production activation readiness → connector auth probe → conditional 429 recovery → conditional two-phase credential rebind → connector auth verify → Local Manager create/claim/complete E2E → deployment parity → final Production activation recertification → closure evaluator.
+The canonical order is: identity → durable full inspection → backup evidence → conditional Governance baseline rebuild → verify → conditional runtime-persistence baseline rebuild → verify → canonical grants apply/verify → bootstrap ledger verify → MCP catalog migration/verify → durable response-chunk smoke → Admin tools readback → Device tools readback → Production activation readiness → connector auth probe → conditional 429 recovery → conditional two-phase credential rebind → connector auth verify → Local Manager create/claim/complete E2E → deployment parity → final Production activation recertification → closure evaluator.
 
 The runtime role is inspected and preserved; this convergence plan does not rebuild it.
 
@@ -107,11 +107,11 @@ Readiness evidence is tri-state: `true`, `false`, or `null`. A repair mutation i
 For runtime-persistence:
 
 - `zero_objects` uses only the registered `runtime_persistence.baseline.rebuild_empty` capability;
-- `nonempty_objects` with `runtime_persistence_ready=false` may use only the registered `runtime_persistence.schema.repair` capability;
+- `nonempty_objects` with `runtime_persistence_ready=false` blocks this convergence run and returns a handoff to a separate Recovery Kernel remediation plan for the registered `runtime_persistence.schema.repair` capability;
 - `runtime_persistence_ready=true` skips schema repair and still requires independent baseline/readiness verification;
 - missing object census or missing readiness evidence blocks fail-closed.
 
-The runtime role is inspected and preserved. Arbitrary partial Runtime or Governance corruption without a registered Recovery capability remains outside this convergence slice and must not fall back to raw SQL.
+The convergence operation does not execute partial non-empty schema repair itself. The runtime role is inspected and preserved, and partial runtime-persistence drift is handed off to the canonical Recovery Kernel plan so its baseline-order proof, execution ticket, approval, migration ledger, and independent readback remain authoritative. Arbitrary partial Runtime or Governance corruption without a registered Recovery capability remains fail-closed and must not fall back to raw SQL.
 
 ## Approval and execution fencing
 
