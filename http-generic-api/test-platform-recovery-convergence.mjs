@@ -51,6 +51,15 @@ function makeStore() {
     async putIdempotencyReceipt(key, receipt) {
       idempotency.set(key, receipt.run_id);
     },
+    async claimExecution() {
+      return { claimed: true };
+    },
+    async reserveApproval() {
+      return { reserved: true };
+    },
+    async markApprovalUsed() {
+      return { used: true };
+    },
   };
 }
 
@@ -105,12 +114,26 @@ function happyExecutors({ zeroGovernance = true, zeroPersistence = true, calls =
     governance_baseline_verify: wrap("governance_baseline_verify", (ctx) => pass(ctx, { baseline_ready: true })),
     runtime_persistence_baseline_rebuild: wrap("runtime_persistence_baseline_rebuild", (ctx) => mutationPass(ctx)),
     runtime_persistence_baseline_verify: wrap("runtime_persistence_baseline_verify", (ctx) => pass(ctx, { baseline_ready: true })),
-    canonical_grants_apply: wrap("canonical_grants_apply", (ctx) => mutationPass(ctx)),
+    canonical_grants_apply: wrap("canonical_grants_apply", (ctx) => mutationPass(ctx, {
+      execution_mode: "host_local",
+      local_connector_required: false,
+      local_connector_fallback_allowed: false,
+      grant_binding_hash: "c".repeat(64),
+      resources: [
+        { table: "local_manager_device_link_sessions" },
+        { table: "local_manager_desktop_commands" },
+      ],
+      database_mutation_performed: true,
+    })),
     canonical_grants_verify: wrap("canonical_grants_verify", (ctx) => pass(ctx, { grants_ready: true })),
     bootstrap_ledger_verify: wrap("bootstrap_ledger_verify", (ctx) => pass(ctx, { bootstrap_ledger_ready: true })),
     mcp_catalog_migration_apply: wrap("mcp_catalog_migration_apply", (ctx) => mutationPass(ctx)),
     mcp_catalog_verify: wrap("mcp_catalog_verify", (ctx) => pass(ctx, { mcp_catalog_level_ready: true })),
-    response_chunk_storage_smoke: wrap("response_chunk_storage_smoke", (ctx) => mutationPass(ctx, { write_read_verified: true })),
+    response_chunk_storage_smoke: wrap("response_chunk_storage_smoke", (ctx) => mutationPass(ctx, {
+      write_read_verified: true,
+      delete_verified: true,
+      absence_readback_verified: true,
+    })),
     admin_tools_functional_readback: wrap("admin_tools_functional_readback", (ctx) => pass(ctx, {
       listAdminTools: true,
       repo_inspect: true,
