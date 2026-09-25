@@ -55,14 +55,24 @@ function values(input) {
   return [...new Set((Array.isArray(input) ? input : []).map((value) => String(value || "").trim()).filter(Boolean))];
 }
 
-function reasonCheck(reason, registry) {
+function reasonCheck(reason, registry, { liveReasons = [], observation = null } = {}) {
   const metadata = registry?.dependencies?.activation_gateway?.checks?.[reason] || null;
+  const live = liveReasons.includes(reason);
   return {
     key: reason,
     ok: false,
     severity: metadata?.failure_kind === "integrity_failure" ? "blocking" : "readiness",
     detail: {
-      source: "staging_autopilot_runtime_observation",
+      source: live ? "staging_activation_gateway_live_observation" : "staging_autopilot_runtime_observation",
+      ...(live ? {
+        public_host: observation?.publicHost || null,
+        http_status: observation?.httpStatus ?? null,
+        source_commit: observation?.sourceCommit || null,
+        worker_build_sha: observation?.workerBuildSha || null,
+        policy_key: observation?.policyKey || null,
+        policy_hash: observation?.policyHash || null,
+        stale: observation?.stale ?? null,
+      } : {}),
       secrets_included: false,
     },
   };
@@ -105,7 +115,17 @@ try {
   const reasons = observedReasons.filter((reason) => !deferredReasons.includes(reason));
   const runtimeObservedGatewaySourceCommit = String(runtime?.activation_gateway_source_commit || "").trim().toLowerCase() || null;
   const liveObservedGatewaySourceCommit = String(liveGateway.observation?.sourceCommit || "").trim().toLowerCase() || null;
-  const observedGatewaySourceCommit = liveObservedGatewaySourceCommit || runtimeObservedGatewaySourceCommit;
+  const liveObservedGatewayWorkerBuildSha = String(liveGateway.observation?.workerBuildSha || "").trim().toLowerCase() || null;
+  const liveExactCommitMismatch = liveGateway.reasons.includes("gateway_exact_commit");
+  const liveMismatchCommit = liveExactCommitMismatch
+    ? (
+        (liveObservedGatewaySourceCommit && liveObservedGatewaySourceCommit !== commit ? liveObservedGatewaySourceCommit : null)
+        || (liveObservedGatewayWorkerBuildSha && liveObservedGatewayWorkerBuildSha !== commit ? liveObservedGatewayWorkerBuildSha : null)
+      )
+    : null;
+  const observedGatewaySourceCommit = liveMismatchCommit
+    || liveObservedGatewaySourceCommit
+    || runtimeObservedGatewaySourceCommit;
   const planObservedGatewaySourceCommit = staleWorkerRefreshRequired ? null : observedGatewaySourceCommit;
 
   if (reasons.length === 0) {
@@ -127,7 +147,10 @@ try {
     process.exit(0);
   }
 
-  const checks = reasons.map((reason) => reasonCheck(reason, registry));
+  const checks = reasons.map((reason) => reasonCheck(reason, registry, {
+    liveReasons: liveGateway.reasons,
+    observation: liveGateway.observation,
+  }));
   const certificationReport = {
     outcome: "degraded",
     expected: { commit_sha: commit },
@@ -192,6 +215,7 @@ try {
     deferred_reasons: deferredReasons,
     runtime_observed_gateway_source_commit: runtimeObservedGatewaySourceCommit,
     live_observed_gateway_source_commit: liveObservedGatewaySourceCommit,
+    live_observed_gateway_worker_build_sha: liveObservedGatewayWorkerBuildSha,
     plan_observed_gateway_source_commit: planObservedGatewaySourceCommit,
     gateway_observation: liveGateway.observation,
     report: { convergence: finalRun.classification || null },
