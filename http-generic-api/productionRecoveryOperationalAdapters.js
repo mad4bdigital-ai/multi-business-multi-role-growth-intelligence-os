@@ -189,6 +189,8 @@ export function createProductionRecoveryOperationalAdapters({
   persistImmutablePartialReceipt,
   resolveDurableInspectionProof,
   finalizeGovernanceMigrationLedger,
+  platformRecoveryConvergenceExecutors = null,
+  platformRecoveryConvergenceApprovalResolver = null,
 } = {}) {
   const core = assertFoundation(foundation);
   const executeOwned = requireFn(executeDeploymentOwnedMutation, "executeDeploymentOwnedMutation");
@@ -298,6 +300,12 @@ export function createProductionRecoveryOperationalAdapters({
     partialReceiptStore,
     proofResolver,
     migrationLedger,
+    ...(platformRecoveryConvergenceExecutors && typeof platformRecoveryConvergenceExecutors === "object" && !Array.isArray(platformRecoveryConvergenceExecutors)
+      ? { platformRecoveryConvergenceExecutors: Object.freeze({ ...platformRecoveryConvergenceExecutors }) }
+      : {}),
+    ...(typeof platformRecoveryConvergenceApprovalResolver === "function"
+      ? { platformRecoveryConvergenceApprovalResolver }
+      : {}),
   });
 }
 
