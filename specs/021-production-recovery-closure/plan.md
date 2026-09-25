@@ -12,16 +12,20 @@ Register `production_recovery_closure` as an R0/C0 capability. The capability ac
 
 ```
 exact Production SHA
-→ backup evidence
 → durable full inspection
-→ governance baseline
-→ runtime-persistence baseline
-→ canonical grants readback
+→ backup evidence
+→ conditional Governance zero-object rebuild
+→ conditional runtime-persistence zero-object rebuild
+→ conditional non-empty runtime-persistence schema repair
+→ canonical grants apply/readback when explicitly required
 → bootstrap ledger readiness
-→ ordinary migrations
+→ MCP catalog migration only when explicitly required
 → MCP catalog schema + functional catalog readback
 → durable response-chunk smoke
 → Production activation readiness
+→ connector + Local Manager recovery
+→ final deployment parity
+→ final Production activation recertification
 → closure evaluator
 → recovered | degraded_non_db | blocked | unknown_outcome
 ```
@@ -66,6 +70,30 @@ One advance may execute read-only stages freely but returns after at most one co
 
 The connector lane is conditional: rate limiting runs the Retry-After/backoff recovery path; credential-invalid runs two-phase rebind. They must not be conflated.
 
-The final gate derives `status=recovered` and `active=true` only after database, grants, catalog, chunks, activation, connector authentication, Local Manager command E2E, a final same-cycle deployment-parity recertification, and the Production Recovery closure evaluator all verify.
-\n## Hardened transition controls\n\n- A fixed-origin GET-only reader verifies `https://auth.mad4b.com/version` and `/deployment-info`; caller-selected origins are forbidden.\n- Read adapters normalize native Recovery Kernel inspection/readiness contracts into convergence evidence without widening mutation authority.\n- A pre-mutation parity guard runs before every consequential/bounded mutation.\n- Each mutation declares one canonical `authority_ref` and `nested_operation`; receipts using a different authority or operation are rejected.\n- One `advance` request can complete at most one consequential/bounded mutation before returning a durable checkpoint.\n- Persistent external rate limiting with valid Retry-After/backoff persistence is classified `degraded`, preserving the same run for later resume.\n- The full branch model is maintained in `pipeline-scenario-matrix.md`.\n
+The final gate derives `status=recovered` and `active=true` only after database, grants, catalog, chunks, connector authentication, Local Manager command E2E, final same-cycle deployment parity, final Production activation recertification, and the Production Recovery closure evaluator all verify.
+
+## Hardened transition controls
+
+- A fixed-origin GET-only reader verifies `https://auth.mad4b.com/version` and `/deployment-info`; caller-selected origins are forbidden.
+- Read adapters normalize native Recovery Kernel inspection/readiness contracts into convergence evidence without widening mutation authority.
+- A pre-mutation parity guard runs before every consequential/bounded mutation.
+- Each mutation declares one canonical `authority_ref` and `nested_operation`; receipts using a different authority or operation are rejected.
+- One `advance` request can complete at most one consequential/bounded mutation before returning a durable checkpoint.
+- Persistent external rate limiting with valid Retry-After/backoff persistence is classified `degraded`, preserving the same run for later resume.
+- The full branch model is maintained in `pipeline-scenario-matrix.md`.
+
 - A stale `executing` checkpoint from a previous process is never replayed. After the bounded liveness window it is promoted to `unknown_outcome`; only read-only reconciliation may resolve the original idempotency key before execution can continue.
+
+## Repair-selection proof
+
+Repair selection is evidence-driven and tri-state. The full inspection must preserve `true | false | null` readiness rather than collapsing missing evidence to false. Consequential repair is allowed only on explicit false evidence. An unknown readiness state blocks before approval reservation or execution claim.
+
+The only partial non-empty schema repair added by this slice is the existing Recovery Kernel capability `runtime_persistence.schema.repair` with operation `apply_migration`. It is eligible only when the runtime-persistence role is explicitly classified `nonempty_objects`, has a positive object count, and `runtime_persistence_ready=false`. No generic SQL repair path is introduced.
+
+## Durable approval fencing
+
+For mutating steps the outer convergence layer adds a replay-prevention fence around, but never replaces, nested Recovery authority:
+
+`resolve approval → claim execution → reserve approval → persist executing → execute nested authority → validate/readback → finalize approval → persist pass → release reservation/claim`.
+
+If provider or finalization outcome is unknown, the claim and reservation remain durable and automatic retry is forbidden. Reconciliation is read-only, proves `mutation_outcome_known` and `mutation_applied`, preserves the original mutation audit, then finalizes/releases the same authority records.
