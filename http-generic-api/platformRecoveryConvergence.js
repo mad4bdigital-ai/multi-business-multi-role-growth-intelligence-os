@@ -23,6 +23,7 @@ export const PLATFORM_RECOVERY_CONVERGENCE_STEPS = Object.freeze([
   Object.freeze({ key: "response_chunk_storage_smoke", kind: "bounded_mutation" }),
   Object.freeze({ key: "admin_tools_functional_readback", kind: "read_only" }),
   Object.freeze({ key: "device_tools_functional_readback", kind: "read_only" }),
+  Object.freeze({ key: "production_activation_readiness", kind: "read_only" }),
   Object.freeze({ key: "connector_auth_probe", kind: "read_only" }),
   Object.freeze({ key: "local_manager_rate_limit_recovery", kind: "read_only", conditional_rate_limit: true }),
   Object.freeze({ key: "connector_two_phase_rebind", kind: "consequential", conditional_credential_invalid: true }),
