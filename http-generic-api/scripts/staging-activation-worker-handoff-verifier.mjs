@@ -238,8 +238,15 @@ export async function verifyStagingActivationWorkerHandoff({
     }
   } else {
     if (bootstrapOverride?.mode !== "exact_commit_bootstrap"
+      || bootstrapOverride?.authority !== "server_governed"
       || bootstrapOverride?.current_authority_adapter !== "staging_activation_worker_workflow"
       || bootstrapOverride?.target_authority_model !== "server_governed_out_of_band"
+      || bootstrapOverride?.plan_capability !== "staging_activation_worker_refresh_dry_run"
+      || bootstrapOverride?.apply_capability !== "deploy_activation_worker"
+      || bootstrapOverride?.execution_surface !== "staging_activation_worker_workflow"
+      || !Array.isArray(bootstrapOverride?.environments)
+      || bootstrapOverride.environments.length !== 1
+      || bootstrapOverride.environments[0] !== "staging"
       || bootstrapOverride?.transport !== "github_actions"
       || bootstrapOverride?.workflow !== WORKFLOW
       || bootstrapOverride?.dry_run_operation !== "activation_worker_refresh_dry_run"
@@ -336,6 +343,7 @@ export async function verifyStagingActivationWorkerHandoff({
     stale_plan_observed_release_commit_in_hash: false,
     exact_commit_bootstrap_source_worker_equal: exactCommitBootstrapIdentity ? observedSourceCommit === observedWorkerBuildSha : null,
     exact_commit_bootstrap_source_not_desired: exactCommitBootstrapIdentity ? observedSourceCommit !== source : null,
+    exact_commit_bootstrap_observed_release_commit_in_hash: exactCommitBootstrapIdentity ? true : null,
     exact_current_main_required: true,
     same_run_preflight_required_for_apply: true,
     provider_target_caller_selectable: false,
