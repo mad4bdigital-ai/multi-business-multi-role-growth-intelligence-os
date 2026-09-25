@@ -136,6 +136,12 @@ export function normalizeFullInspectionForConvergence(result = {}) {
     : {};
   const classifications = inspection.role_database_object_classifications || {};
   const counts = inspection.role_database_object_counts || {};
+  const rawChecks = inspection.checks && typeof inspection.checks === "object" ? inspection.checks : {};
+  const checks = Object.freeze({
+    governance_db_privilege_ready: rawChecks.governance_db_privilege_ready === true,
+    mcp_catalog_schema_ready: rawChecks.mcp_catalog_schema_ready === true,
+    runtime_persistence_ready: rawChecks.runtime_persistence_ready === true,
+  });
   const roles = {};
 
   for (const role of ["runtime", "governance", "runtime_persistence"]) {
@@ -160,6 +166,7 @@ export function normalizeFullInspectionForConvergence(result = {}) {
         || inspection?.target_fingerprint,
       256,
     ) || null,
+    checks,
     roles: Object.freeze(roles),
   });
 }
