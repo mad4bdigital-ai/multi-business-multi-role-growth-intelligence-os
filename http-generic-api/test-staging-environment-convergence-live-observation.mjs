@@ -60,6 +60,19 @@ test("live Gateway SHA drift emits gateway_exact_commit", async () => {
   assert.equal(result.observation.sourceCommit, "b".repeat(40));
 });
 
+test("worker build SHA drift emits gateway_exact_commit", async () => {
+  const result = await observeStagingGatewayConvergence({
+    registry,
+    expectedCommit: desiredCommit,
+    fetchImpl: async () => response(healthyBody({
+      workerBuildSha: "c".repeat(40),
+    })),
+  });
+  assert.deepEqual(result.reasons, ["gateway_exact_commit"]);
+  assert.equal(result.observation.sourceCommit, desiredCommit);
+  assert.equal(result.observation.workerBuildSha, "c".repeat(40));
+});
+
 test("live policy hash drift is observed before not_required", async () => {
   const result = await observeStagingGatewayConvergence({
     registry,
