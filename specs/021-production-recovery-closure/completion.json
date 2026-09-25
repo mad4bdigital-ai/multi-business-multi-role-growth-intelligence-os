@@ -36,6 +36,17 @@
         "server_evidence_resolver_required": true,
         "runtime_authority": false,
         "production_activation": false
+      },
+      {
+        "role": "durable_platform_recovery_convergence_framework",
+        "status": "implemented_on_current_branch",
+        "live_executor_wiring": false,
+        "approval_resolver_live_wiring": false,
+        "durable_store_live_wiring": false,
+        "runtime_authority": false,
+        "production_activation": false,
+        "database_mutation_performed": false,
+        "provider_write_performed": false
       }
     ]
   },
@@ -44,7 +55,8 @@
     "kernel_capability_tests": "implemented_pending_exact_head_ci",
     "e2e_governance": "pending_exact_head_ci",
     "security_review": "pending_pr_review",
-    "architecture_review": "pending_pr_review"
+    "architecture_review": "pending_pr_review",
+    "platform_recovery_convergence_tests": "implemented_pending_exact_head_ci"
   },
   "implementation": {
     "started": true,
@@ -85,7 +97,8 @@
   "notes": [
     "This PR adds closure evaluation only and performs no live Production recovery.",
     "Live backup capture, durable inspection, database recovery, grants, migrations, deployment, and functional Production readbacks remain separately governed operations.",
-    "The Spec Kit remains in_progress until live deployment-owned evidence resolver wiring and operational closure are delivered in later governed slices."
+    "The Spec Kit remains in_progress until live deployment-owned evidence resolver wiring and operational closure are delivered in later governed slices.",
+    "The durable convergence framework is repository code only in this PR; consequential executors and live approval/store wiring remain disabled until a separately governed Production slice."
   ],
   "secrets_included": false,
   "sensitive_values_included": false
