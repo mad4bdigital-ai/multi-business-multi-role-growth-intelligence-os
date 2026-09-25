@@ -80,3 +80,18 @@ A recovered closure must expose:
 - deterministic `closure_sha256`.
 
 Source merge alone never activates Production recovery.
+
+
+## Convergence extension
+
+The same feature now also defines one consequential Recovery Kernel entrypoint:
+
+`platform_recovery_converge_v1`
+
+It is a durable resumable state machine, not a monolithic SQL transaction. The caller may select only exact `expected_sha`, an existing `run_id`, and `action=advance|status|reconcile`. SQL, database names, credentials, provider routes, arbitrary targets, and caller-declared readiness are forbidden.
+
+Every stage is bound to `run_id + plan_hash + step_id + idempotency_key`. Completed stages are not replayed. One advance executes at most one consequential/bounded mutation before returning to a durable boundary.
+
+The canonical order is: identity → backup evidence → durable full inspection → conditional governance baseline → verify → conditional runtime-persistence baseline → verify → grants → verify → MCP catalog migration → catalog verify → durable response-chunk smoke → Admin tools readback → Device tools readback → Production activation readiness → connector auth probe → conditional 429 recovery → conditional two-phase credential rebind → connector auth verify → Local Manager create/claim/complete E2E → deployment parity → final gate.
+
+The runtime role is inspected and preserved; this convergence plan does not rebuild it.
