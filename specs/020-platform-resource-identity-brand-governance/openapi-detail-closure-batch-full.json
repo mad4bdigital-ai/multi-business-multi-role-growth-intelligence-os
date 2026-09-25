@@ -6,7 +6,7 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_artifact_sha256": "2b5778d8bf7771e4d96e235ff40c04d6b99ba9933e9821ec6f3d7d79b2c96410",
+    "dispatch_artifact_sha256": "aa046fbc885ea65c327f89abc09a56383ad4bccea92cb141814c243fb7f6b08c",
     "family_count": 176,
     "detail_family_count": 76,
     "dispatch_operation_count": 1078
@@ -161,10 +161,18 @@
       "delivery_kind": "api",
       "openapi_contract_level": "operation-index-only",
       "auth_parity": "equivalent",
-      "governance_classification": "unresolved",
-      "governance_rule_id": null,
+      "governance_classification": "external_effect",
+      "governance_rule_id": "recovery-kernel-platform-convergence-orchestrator",
       "evidence_refs": [
-        "http-generic-api/frontend-surface-dispatch.generated.json"
+        "http-generic-api/frontend-surface-dispatch.generated.json",
+        "platformRecoveryConvergence.js",
+        "platformRecoveryConvergenceReadAdapters.js",
+        "productionRecoveryClosure.js",
+        "routes/recoveryKernelRoutes.js",
+        "specs/021-production-recovery-closure/pipeline-scenario-matrix.md",
+        "test-platform-recovery-convergence-read-adapters.mjs",
+        "test-platform-recovery-convergence.mjs",
+        "test-production-recovery-closure.mjs"
       ],
       "closure_status": "detail_evidence_required",
       "canonical_openapi_added": false,

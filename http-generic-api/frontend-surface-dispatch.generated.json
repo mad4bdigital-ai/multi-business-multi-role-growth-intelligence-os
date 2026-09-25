@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "377171c11572193dbf220bfe802ebeae9aa5431b22b5af1ea45c0b7f8c8205a4",
+    "source_digest": "e4042441fbe4f3172f42484777869149deaf7c1ff93baac027a652e842075146",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -16,7 +16,7 @@
       },
       {
         "file": "frontend-surface-policy.json",
-        "sha256": "c269f154b9475df9e1aa74de3668b37e11eb37cfe5ac93b4384f0393f09e79e7",
+        "sha256": "22e9554b0373f3ad09c243181856c67c2451cf734f899f33cd17ab396f3472bd",
         "present": true
       },
       {
@@ -1116,7 +1116,7 @@
       },
       {
         "file": "test-frontend-surface-coverage-claims.mjs",
-        "sha256": "ebaa9387c5b8edd17c8a1c6ce56ca2e7d48ccfb962e0e18b8fc265db5760b247",
+        "sha256": "a158fa00b4b11d27cd47879e2f813778b227721df39a8b2deaf25cf63a18bd33",
         "present": true
       },
       {
@@ -1146,7 +1146,7 @@
       },
       {
         "file": "test-recovery-kernel.mjs",
-        "sha256": "46d5f2ff54cd025a541a153a08ffcf9720d87261c1b91d3ec123142bc4c07629",
+        "sha256": "07f64951ece2e7051a49b0dfca914846f64542408d6b69eff20c773d80dfc938",
         "present": true
       },
       {
@@ -1224,9 +1224,9 @@
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
     "non_get_candidate_count": 657,
-    "unresolved_operation_class_count": 1,
-    "classified_mutation_count": 36,
-    "governed_mutation_operation_count": 36,
+    "unresolved_operation_class_count": 0,
+    "classified_mutation_count": 37,
+    "governed_mutation_operation_count": 37,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 0,
     "test_owned_family_count": 175,
@@ -3312,18 +3312,52 @@
           "delivery_kind": "api",
           "tests": [],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "external_effect",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "exact_sha_durable_run_nested_authority_and_pre_mutation_parity"
+              },
+              "approval": {
+                "mode": "server_resolved_step_bound_nested_approval"
+              },
+              "readback": {
+                "mode": "inline_post_commit",
+                "operation": "GET /admin/recovery/kernel/runs/{run_id}"
+              },
+              "rollback": {
+                "mode": "step_owned_compensation_or_reconciliation",
+                "rationale": "The orchestrator itself does not synthesize rollback. Each nested effect retains its registered compensation/reconciliation contract, unknown outcomes block blind retry, and verified prior steps are not replayed."
+              }
+            },
+            "parameter_bindings": {
+              "expected_sha": "request.body.expected_sha",
+              "run_id": "request.body.run_id (optional resume binding)",
+              "action": "request.body.action in {advance,status,reconcile}",
+              "approval": "forbidden from caller",
+              "sql": "forbidden from caller",
+              "credentials": "forbidden from caller",
+              "database_selection": "forbidden from caller"
+            },
+            "blockers": [],
+            "rule_id": "recovery-kernel-platform-convergence-orchestrator",
+            "owner": "runtime-operations",
+            "rationale": "The private Production Recovery convergence endpoint persists a durable exact-SHA run and may advance one nested consequential stage per request when live authorities are injected. It forbids caller SQL, database names, credentials, raw targets, migration selection, and caller approval material; every consequential effect remains bound to a canonical nested authority, exact operation, durable idempotency claim, same-cycle readback, and final Recovery closure.",
+            "evidence_refs": [
+              "platformRecoveryConvergence.js",
+              "platformRecoveryConvergenceReadAdapters.js",
+              "productionRecoveryClosure.js",
+              "routes/recoveryKernelRoutes.js",
+              "specs/021-production-recovery-closure/pipeline-scenario-matrix.md",
+              "test-platform-recovery-convergence-read-adapters.mjs",
+              "test-platform-recovery-convergence.mjs",
+              "test-production-recovery-closure.mjs"
+            ]
           },
           "mutation_candidate": true,
-          "mutation": false
+          "mutation": true
         },
         {
           "method": "POST",
@@ -3827,14 +3861,7 @@
           "test-recovery-kernel.mjs"
         ]
       },
-      "operation_blockers": [
-        {
-          "signature": "POST /admin/recovery/kernel/platform-converge",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        }
-      ],
+      "operation_blockers": [],
       "risk": {
         "score": 12,
         "class": "critical"
@@ -99615,8 +99642,7 @@
       "wave": "F3-admin-workspaces",
       "state": "blocked",
       "blockers": [
-        "test_ownership_gap",
-        "operation_classification_gap"
+        "test_ownership_gap"
       ],
       "dependencies": [
         "F0-source-baseline",
