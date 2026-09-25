@@ -132,27 +132,21 @@ try {
   const bridgeScript = path.join(root, "http-generic-api/scripts/staging-environment-convergence-plan.mjs");
   const fetchPreloadPath = path.join(parityDir, "gateway-fetch-preload.mjs");
   fs.writeFileSync(fetchPreloadPath, `
+const health = ${JSON.stringify(staleHealth)};
 globalThis.fetch = async () => ({
   ok: false,
   status: 503,
-  async json() { return JSON.parse(process.env.MAD4B_TEST_GATEWAY_HEALTH_JSON); },
+  async json() { return health; },
 });
 `, "utf8");
-  const preloadOption = `--import=${pathToFileURL(fetchPreloadPath).href}`;
   const bridgeRun = spawnSync(process.execPath, [
+    "--import", pathToFileURL(fetchPreloadPath).href,
     bridgeScript,
     "--runtime-state", runtimePath,
     "--preflight", preflightPath,
     "--repository", "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
     "--recovery-trust-exact", "false",
-  ], {
-    encoding: "utf8",
-    env: {
-      ...process.env,
-      NODE_OPTIONS: [process.env.NODE_OPTIONS, preloadOption].filter(Boolean).join(" "),
-      MAD4B_TEST_GATEWAY_HEALTH_JSON: JSON.stringify(staleHealth),
-    },
-  });
+  ], { encoding: "utf8" });
   assert.equal(bridgeRun.status, 0, bridgeRun.stderr);
   const bridgePlan = JSON.parse(bridgeRun.stdout);
   assert.equal(bridgePlan.status, "approval_required");
