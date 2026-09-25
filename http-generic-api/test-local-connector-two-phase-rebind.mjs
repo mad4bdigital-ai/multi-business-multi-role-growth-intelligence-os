@@ -157,3 +157,64 @@ test("credential material is rejected if an adapter attempts to return it", asyn
 
   await assert.rejects(executor(STEP), (error) => error.code === "LOCAL_CONNECTOR_REBIND_SECRET_MATERIAL_FORBIDDEN");
 });
+
+
+test("canonical recovery proof boundary rejects nested token and client-secret material", async () => {
+  for (const forbiddenReceipt of [
+    { metadata: { access_token: "must-not-cross" } },
+    { metadata: { refresh_token: "must-not-cross" } },
+    { metadata: { client_secret: "must-not-cross" } },
+    { metadata: { bearer_token: "must-not-cross" } },
+    { metadata: { nested: { private_key: "must-not-cross" } } },
+  ]) {
+    const executor = createLocalConnectorTwoPhaseRebindExecutor({
+      resolveBoundDeviceContext: async () => ({
+        ...baseContext(),
+        ...forbiddenReceipt,
+      }),
+      preparePendingCredential: async () => ({}),
+      installPendingCredentialLocally: async () => ({}),
+      probePendingCredential: async () => ({}),
+      commitPendingCredential: async () => ({}),
+    });
+
+    await assert.rejects(
+      executor(STEP),
+      (error) => error.code === "LOCAL_CONNECTOR_REBIND_SECRET_MATERIAL_FORBIDDEN",
+    );
+  }
+});
+
+test("opaque credential references remain allowed by the canonical proof boundary", async () => {
+  const executor = createLocalConnectorTwoPhaseRebindExecutor({
+    resolveBoundDeviceContext: async () => ({ ...baseContext() }),
+    preparePendingCredential: async () => ({
+      pending_credential_ref: "credential:pending-opaque-ref",
+      old_credential_active: true,
+      old_credential_revoked: false,
+      secrets_included: false,
+    }),
+    installPendingCredentialLocally: async () => ({
+      local_atomic_install_verified: true,
+      old_credential_revoked: false,
+      secrets_included: false,
+    }),
+    probePendingCredential: async () => ({
+      authenticated: true,
+      http_status: 200,
+      old_credential_revoked: false,
+      request_id: "request:opaque-ref-probe",
+      secrets_included: false,
+    }),
+    commitPendingCredential: async () => ({
+      new_credential_active: true,
+      old_credential_revoked: true,
+      commit_readback_verified: true,
+      secrets_included: false,
+    }),
+  });
+
+  const result = await executor(STEP);
+  assert.equal(result.status, "pass");
+  assert.equal(result.credential_material_returned_to_orchestrator, false);
+});
