@@ -148,6 +148,30 @@ export function normalizeFullInspectionForConvergence(result = {}) {
     mcp_catalog_schema_ready: readiness("mcp_catalog_schema_ready"),
     runtime_persistence_ready: readiness("runtime_persistence_ready"),
   });
+  const rawFindings = Array.isArray(result?.findings)
+    ? result.findings
+    : Array.isArray(inspection?.findings)
+      ? inspection.findings
+      : [];
+  const normalizedFindings = Object.freeze(rawFindings
+    .filter((finding) => finding && typeof finding === "object" && !Array.isArray(finding))
+    .map((finding) => Object.freeze({
+      finding_id: text(finding.finding_id, 160) || null,
+      candidate_capability: text(finding.candidate_capability, 160) || null,
+      category: text(finding.category, 96) || null,
+      repairability: text(finding.repairability, 96) || null,
+      target_role: text(finding.subject?.target_role, 64) || null,
+      inspection_run_id: text(finding.inspection_run_id, 192) || null,
+      inspection_evidence_hash: text(finding.inspection_evidence_hash, 128).toLowerCase() || null,
+      mutation_required: finding.mutation_required === true,
+      secrets_included: false,
+    }))
+    .filter((finding) =>
+      /^finding:[0-9a-f]{32}$/u.test(finding.finding_id || "")
+      && /^[0-9a-f]{64}$/u.test(finding.inspection_evidence_hash || "")
+      && ["runtime", "governance", "runtime_persistence", "unknown"].includes(finding.target_role || "unknown")
+    ));
+
   const roles = {};
 
   for (const role of ["runtime", "governance", "runtime_persistence"]) {
@@ -173,6 +197,7 @@ export function normalizeFullInspectionForConvergence(result = {}) {
       256,
     ) || null,
     checks,
+    findings: normalizedFindings,
     roles: Object.freeze(roles),
   });
 }
