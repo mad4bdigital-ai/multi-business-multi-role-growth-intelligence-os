@@ -116,16 +116,7 @@ try {
   const runtimeObservedGatewaySourceCommit = String(runtime?.activation_gateway_source_commit || "").trim().toLowerCase() || null;
   const liveObservedGatewaySourceCommit = String(liveGateway.observation?.sourceCommit || "").trim().toLowerCase() || null;
   const liveObservedGatewayWorkerBuildSha = String(liveGateway.observation?.workerBuildSha || "").trim().toLowerCase() || null;
-  const liveExactCommitMismatch = liveGateway.reasons.includes("gateway_exact_commit");
-  const liveMismatchCommit = liveExactCommitMismatch
-    ? (
-        (liveObservedGatewaySourceCommit && liveObservedGatewaySourceCommit !== commit ? liveObservedGatewaySourceCommit : null)
-        || (liveObservedGatewayWorkerBuildSha && liveObservedGatewayWorkerBuildSha !== commit ? liveObservedGatewayWorkerBuildSha : null)
-      )
-    : null;
-  const observedGatewaySourceCommit = liveMismatchCommit
-    || liveObservedGatewaySourceCommit
-    || runtimeObservedGatewaySourceCommit;
+  const observedGatewaySourceCommit = liveObservedGatewaySourceCommit || runtimeObservedGatewaySourceCommit;
   const planObservedGatewaySourceCommit = staleWorkerRefreshRequired ? null : observedGatewaySourceCommit;
 
   if (reasons.length === 0) {
