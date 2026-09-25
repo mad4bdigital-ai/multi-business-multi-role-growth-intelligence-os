@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "feature_key": "021-production-recovery-closure",
+  "title": "Production Recovery Closure",
+  "status": "in_progress",
+  "delivery_mode": "single_pr",
+  "requirements": {
+    "migration": false,
+    "production_verification": false,
+    "post_merge_audit": false,
+    "security_review": true,
+    "openapi_3_1": true
+  },
+  "delivery": {
+    "specification": {
+      "status": "current_pr",
+      "role": "exact_sha_recovery_closure_contract"
+    },
+    "implementation_slices": [
+      {
+        "role": "server_derived_closure_evaluator",
+        "status": "implemented_on_current_branch",
+        "runtime_authority": false,
+        "database_write": false,
+        "migration_applied": false,
+        "grant_mutation": false,
+        "provider_call": false,
+        "production_activation": false
+      },
+      {
+        "role": "recovery_kernel_readonly_capability",
+        "status": "implemented_on_current_branch",
+        "capability_key": "production_recovery_closure",
+        "risk_class": "C0",
+        "caller_supplied_readiness_forbidden": true,
+        "server_evidence_resolver_required": true,
+        "runtime_authority": false,
+        "production_activation": false
+      }
+    ]
+  },
+  "verification": {
+    "closure_contract_tests": "implemented_pending_exact_head_ci",
+    "kernel_capability_tests": "implemented_pending_exact_head_ci",
+    "e2e_governance": "pending_exact_head_ci",
+    "security_review": "pending_pr_review",
+    "architecture_review": "pending_pr_review"
+  },
+  "implementation": {
+    "started": true,
+    "runtime_enforcement_enabled": false,
+    "migrations_authored": false,
+    "migrations_applied": false,
+    "runtime_deployed": false,
+    "production_mutation_performed": false,
+    "database_mutation_performed": false,
+    "grant_mutation_performed": false,
+    "provider_write_performed": false,
+    "production_activated": false
+  },
+  "evidence": {
+    "tests": [
+      "http-generic-api/test-recovery-kernel.mjs"
+    ],
+    "implementation_files": [
+      "http-generic-api/productionRecoveryClosure.js",
+      "http-generic-api/recoveryKernel.js",
+      "http-generic-api/routes/recoveryKernelRoutes.js",
+      "http-generic-api/routes/systemLayerRoutes.js",
+      "http-generic-api/config/recovery-kernel-manifest.json",
+      "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml"
+    ],
+    "e2e_contract": ".changes/e2e/production-recovery-closure-20260925.json",
+    "secrets_included": false,
+    "sensitive_values_included": false
+  },
+  "required_closeout_evidence": [
+    "exact_head_ci",
+    "e2e_phase_governance",
+    "derived_state_closure",
+    "custom_gpt_contract_guard",
+    "branch_test_diagnostic",
+    "pr_review"
+  ],
+  "notes": [
+    "This PR adds closure evaluation only and performs no live Production recovery.",
+    "Live backup capture, durable inspection, database recovery, grants, migrations, deployment, and functional Production readbacks remain separately governed operations.",
+    "The Spec Kit remains in_progress until live deployment-owned evidence resolver wiring and operational closure are delivered in later governed slices."
+  ],
+  "secrets_included": false,
+  "sensitive_values_included": false
+}
