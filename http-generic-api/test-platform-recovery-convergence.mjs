@@ -7,6 +7,20 @@ import {
 
 const SHA = "a".repeat(40);
 
+async function happyApprovalResolver(ctx) {
+  return {
+    verified: true,
+    approval_id: `approval:${ctx.step_id.replace(/[^A-Za-z0-9._:-]/gu, "_")}`,
+    expected_sha: ctx.expected_sha,
+    run_id: ctx.run_id,
+    plan_hash: ctx.plan_hash,
+    step_id: ctx.step_id,
+    idempotency_key: ctx.idempotency_key,
+    single_use: true,
+    secrets_included: false,
+  };
+}
+
 function clone(value) {
   return structuredClone(value);
 }
@@ -134,7 +148,7 @@ test("convergence reaches active only after every required gate passes", async (
   const calls = [];
   const result = await runPlatformRecoveryConvergence(
     { expected_sha: SHA },
-    { recoveryStore: store, executors: happyExecutors({ calls }) },
+    { recoveryStore: store, executors: happyExecutors({ calls }), approvalResolver: happyApprovalResolver },
   );
 
   assert.equal(result.status, "active");
@@ -155,7 +169,7 @@ test("nonzero database roles are never rebuilt and are verified instead", async 
   const calls = [];
   const result = await runPlatformRecoveryConvergence(
     { expected_sha: SHA },
-    { recoveryStore: store, executors: happyExecutors({ zeroGovernance: false, zeroPersistence: false, calls }) },
+    { recoveryStore: store, executors: happyExecutors({ zeroGovernance: false, zeroPersistence: false, calls }), approvalResolver: happyApprovalResolver },
   );
 
   assert.equal(result.status, "active");
@@ -173,7 +187,7 @@ test("completed steps are not replayed when a later stage waits for authority", 
 
   const first = await runPlatformRecoveryConvergence(
     { expected_sha: SHA },
-    { recoveryStore: store, executors },
+    { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
   );
   assert.equal(first.status, "awaiting_approval");
   assert.equal(first.blocking_stage, "canonical_grants_apply");
@@ -186,7 +200,7 @@ test("completed steps are not replayed when a later stage waits for authority", 
 
   const second = await runPlatformRecoveryConvergence(
     { expected_sha: SHA, run_id: first.run_id },
-    { recoveryStore: store, executors },
+    { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
   );
   assert.equal(second.status, "active");
   assert.equal(calls.filter((key) => key === "production_identity").length, identityCalls);
@@ -215,12 +229,12 @@ test("unknown mutation outcome blocks blind retry and requires explicit reconcil
         secrets_included: false,
       };
     },
-    reconcile: async (ctx) => mutationPass(ctx, { reconciled: true }),
+    reconcile: async (ctx) => pass(ctx, { reconciled: true, authority_verified: true, readback_verified: true }),
   };
 
   const first = await runPlatformRecoveryConvergence(
     { expected_sha: SHA },
-    { recoveryStore: store, executors },
+    { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
   );
   assert.equal(first.status, "unknown_outcome");
   assert.equal(first.next_safe_action, "reconcile_same_operation_before_retry");
@@ -228,21 +242,21 @@ test("unknown mutation outcome blocks blind retry and requires explicit reconcil
 
   const blindRetry = await runPlatformRecoveryConvergence(
     { expected_sha: SHA, run_id: first.run_id, action: "advance" },
-    { recoveryStore: store, executors },
+    { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
   );
   assert.equal(blindRetry.status, "unknown_outcome");
   assert.equal(executeCount, 1);
 
   const reconciled = await runPlatformRecoveryConvergence(
     { expected_sha: SHA, run_id: first.run_id, action: "reconcile" },
-    { recoveryStore: store, executors },
+    { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
   );
   assert.equal(reconciled.status, "pending");
   assert.equal(reconciled.steps.find((step) => step.key === "canonical_grants_apply").status, "pass");
 
   const final = await runPlatformRecoveryConvergence(
     { expected_sha: SHA, run_id: first.run_id, action: "advance" },
-    { recoveryStore: store, executors },
+    { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
   );
   assert.equal(final.status, "active");
   assert.equal(executeCount, 1);
@@ -259,7 +273,7 @@ test("credential-invalid connector probe invokes two-phase rebind before authent
 
   const result = await runPlatformRecoveryConvergence(
     { expected_sha: SHA },
-    { recoveryStore: store, executors },
+    { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
   );
 
   assert.equal(result.status, "active");
@@ -288,7 +302,7 @@ test("rate limited connector recovery honors the rate-limit contract and never t
 
   const result = await runPlatformRecoveryConvergence(
     { expected_sha: SHA },
-    { recoveryStore: store, executors },
+    { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
   );
 
   assert.equal(result.status, "active");
@@ -318,7 +332,7 @@ test("two-phase rebind rejects revoking the old credential before the new creden
   await assert.rejects(
     runPlatformRecoveryConvergence(
       { expected_sha: SHA },
-      { recoveryStore: store, executors },
+      { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
     ),
     (error) => error.code === "PLATFORM_RECOVERY_CONNECTOR_REBIND_INCOMPLETE"
       || error.code === "PLATFORM_RECOVERY_CONNECTOR_REBIND_ORDER_INVALID",
@@ -345,4 +359,84 @@ test("status action is read-only and does not execute pending stages", async () 
   assert.equal(status.run_id, first.run_id);
   assert.equal(status.plan_hash, plan.plan_hash);
   assert.equal(status.status, "awaiting_approval");
+});
+
+
+test("server approval resolver is required before any mutation executor is invoked", async () => {
+  const store = makeStore();
+  const calls = [];
+  const executors = happyExecutors({ calls });
+
+  const result = await runPlatformRecoveryConvergence(
+    { expected_sha: SHA },
+    { recoveryStore: store, executors },
+  );
+
+  assert.equal(result.status, "awaiting_approval");
+  assert.equal(result.blocking_stage, "governance_baseline_rebuild");
+  assert.equal(result.error_code, "platform_recovery_step_approval_required");
+  assert.equal(calls.includes("governance_baseline_rebuild"), false);
+  assert.equal(result.next_safe_action, "obtain_server_verified_step_bound_approval");
+});
+
+test("caller supplied approval is forbidden", async () => {
+  const store = makeStore();
+  await assert.rejects(
+    runPlatformRecoveryConvergence(
+      {
+        expected_sha: SHA,
+        approval: { approval_id: "approval:caller", typed_confirmation: "DO_IT" },
+      },
+      { recoveryStore: store, executors: happyExecutors(), approvalResolver: happyApprovalResolver },
+    ),
+    (error) => error.code === "PLATFORM_RECOVERY_INPUT_FIELD_FORBIDDEN",
+  );
+});
+
+test("server approval must bind exact SHA run plan step and idempotency key", async () => {
+  const store = makeStore();
+  const calls = [];
+  const executors = happyExecutors({ calls });
+  const badResolver = async (ctx) => ({
+    ...(await happyApprovalResolver(ctx)),
+    step_id: "platform-recovery:99:wrong-step",
+  });
+
+  await assert.rejects(
+    runPlatformRecoveryConvergence(
+      { expected_sha: SHA },
+      { recoveryStore: store, executors, approvalResolver: badResolver },
+    ),
+    (error) => error.code === "PLATFORM_RECOVERY_APPROVAL_BINDING_INVALID",
+  );
+  assert.equal(calls.includes("governance_baseline_rebuild"), false);
+});
+
+test("unknown-outcome reconciliation cannot perform a second mutation", async () => {
+  const store = makeStore();
+  const executors = happyExecutors();
+  executors.canonical_grants_apply = {
+    execute: async (ctx) => ({
+      ...mutationPass(ctx),
+      ok: false,
+      status: "unknown_outcome",
+      request_id: "req-unknown-reconcile-guard",
+      error_code: "provider_outcome_unknown",
+    }),
+    reconcile: async (ctx) => mutationPass(ctx, { reconciled: true }),
+  };
+
+  const first = await runPlatformRecoveryConvergence(
+    { expected_sha: SHA },
+    { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
+  );
+  assert.equal(first.status, "unknown_outcome");
+
+  await assert.rejects(
+    runPlatformRecoveryConvergence(
+      { expected_sha: SHA, run_id: first.run_id, action: "reconcile" },
+      { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
+    ),
+    (error) => error.code === "PLATFORM_RECOVERY_RECONCILIATION_MUTATION_FORBIDDEN",
+  );
 });
