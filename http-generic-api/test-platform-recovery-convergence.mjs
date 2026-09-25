@@ -69,7 +69,7 @@ function happyExecutors({ zeroGovernance = true, zeroPersistence = true, calls =
     return fn(ctx);
   };
   return {
-    production_identity: wrap("production_identity", (ctx) => pass(ctx, { exact_sha_parity: true })),
+    production_identity: wrap("production_identity", (ctx) => pass(ctx, { exact_sha_parity: true, version_readback: true, deployment_info_readback: true })),
     backup_evidence: wrap("backup_evidence", (ctx) => pass(ctx, {
       backup_verified: true,
       roles: ["runtime", "governance", "runtime_persistence"],
