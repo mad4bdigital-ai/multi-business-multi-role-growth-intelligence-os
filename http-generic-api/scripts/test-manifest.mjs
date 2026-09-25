@@ -35,6 +35,7 @@ const upstreamCommands = [
   "node test-recovery-activation-readiness.mjs",
   "node test-production-recovery-canary-readiness.mjs",
   "node test-recovery-kernel.mjs",
+  "node test-production-recovery-closure.mjs",
   "node test-platform-recovery-convergence.mjs",
   "node test-platform-recovery-convergence-read-adapters.mjs",
   "node test-recovery-kernel-routes.mjs",
