@@ -609,6 +609,19 @@ function validateBoundResult(run, step, result, { mode = "execute" } = {}) {
     fail("PLATFORM_RECOVERY_BASELINE_NOT_READY", `Step ${step.key} did not prove baseline readiness.`, 502);
   }
 
+  if (
+    step.key === "runtime_persistence_schema_repair"
+    && status === "pass"
+    && mode !== "reconcile"
+    && value.database_mutation_performed !== true
+  ) {
+    fail(
+      "PLATFORM_RECOVERY_RUNTIME_PERSISTENCE_SCHEMA_REPAIR_RECEIPT_INVALID",
+      "Runtime Persistence schema repair must prove the bounded database mutation occurred before same-cycle verification.",
+      502,
+    );
+  }
+
   if (step.key === "canonical_grants_verify" && status === "pass" && value.grants_ready !== true) {
     fail("PLATFORM_RECOVERY_GRANTS_NOT_READY", "Canonical grants readback did not pass.", 502);
   }
