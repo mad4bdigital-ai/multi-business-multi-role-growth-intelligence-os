@@ -1,3 +1,4 @@
+// frontend-surface-operation: post /admin/recovery/kernel/platform-converge
 // frontend-surface-operation: post /admin/recovery/kernel/execute-approved
 // frontend-surface-operation: post /admin/recovery/kernel/approval-challenge
 // frontend-surface-operation: post /admin/recovery/kernel/execute
