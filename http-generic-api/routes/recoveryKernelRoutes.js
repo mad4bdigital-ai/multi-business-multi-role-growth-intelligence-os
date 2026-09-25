@@ -7,6 +7,7 @@ import {
   getRecoveryRun,
   sanitizeEvidence,
 } from "../recoveryKernel.js";
+import { runPlatformRecoveryConvergence } from "../platformRecoveryConvergence.js";
 import {
   buildRecoveryTypedConfirmationRequirements,
   issueAndExecuteApprovedRecoveryStep,
@@ -160,6 +161,8 @@ export function buildRecoveryKernelRoutes(options = {}) {
     hostBreakglassMutationExecutor,
     migrationLedger,
     productionActivationReadinessExecutor,
+    platformRecoveryConvergenceExecutors,
+    platformRecoveryConvergenceApprovalResolver,
     systemToolLookup,
   } = options;
   const {
@@ -259,6 +262,35 @@ export function buildRecoveryKernelRoutes(options = {}) {
       return errorResponse(res, error, "recovery_action_bridge_failed");
     }
   };
+
+  router.post("/admin/recovery/kernel/platform-converge", async (req, res) => {
+    try {
+      const body = assertExactKeys(
+        req.body || {},
+        ["expected_sha", "run_id", "action"],
+        ["expected_sha"],
+      );
+      const action = String(body.action || "advance").trim().toLowerCase();
+      const result = await runPlatformRecoveryConvergence(body, {
+        recoveryStore: mutationRecoveryStore,
+        executors: platformRecoveryConvergenceExecutors || {},
+        approvalResolver: platformRecoveryConvergenceApprovalResolver,
+      });
+      const statusCode = action === "status" ? 200 : 202;
+      return res.status(statusCode).json(sanitizeEvidence({
+        ok: result.active === true,
+        contract: "mad4b.platform-recovery-convergence-route-receipt.v1",
+        capability_key: "platform_recovery_converge_v1",
+        result,
+        caller_sql_forbidden: true,
+        caller_credentials_forbidden: true,
+        caller_database_selection_forbidden: true,
+        secrets_included: false,
+      }));
+    } catch (error) {
+      return errorResponse(res, error, "platform_recovery_convergence_failed");
+    }
+  });
 
   router.post("/admin/recovery/kernel/approval-challenge", async (req, res) => {
     try {
