@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "feature_key": "021-production-recovery-closure",
-  "title": "Production Recovery Closure",
+  "title": "Platform Recovery Convergence and Closure",
   "status": "in_progress",
   "delivery_mode": "single_pr",
   "requirements": {
@@ -47,6 +47,22 @@
         "production_activation": false,
         "database_mutation_performed": false,
         "provider_write_performed": false
+      },
+      {
+        "role": "connector_two_phase_rebind",
+        "status": "implemented_on_current_branch",
+        "fresh_device_authorization_required": true,
+        "old_credential_retained_until_probe": true,
+        "credential_material_returned": false,
+        "live_credential_rotation_performed": false
+      },
+      {
+        "role": "local_manager_persistent_rate_limit_recovery",
+        "status": "implemented_on_current_branch",
+        "retry_after_supported": true,
+        "backoff_persisted_across_restart": true,
+        "backoff_max_seconds": 300,
+        "secrets_included": false
       }
     ]
   },
@@ -56,7 +72,9 @@
     "e2e_governance": "pending_exact_head_ci",
     "security_review": "pending_pr_review",
     "architecture_review": "pending_pr_review",
-    "platform_recovery_convergence_tests": "implemented_pending_exact_head_ci"
+    "platform_recovery_convergence_tests": "implemented_pending_exact_head_ci",
+    "connector_two_phase_rebind_tests": "implemented_pending_exact_head_ci",
+    "local_manager_rate_limit_persistence_tests": "implemented_pending_exact_head_ci"
   },
   "implementation": {
     "started": true,
@@ -72,7 +90,12 @@
   },
   "evidence": {
     "tests": [
-      "http-generic-api/test-recovery-kernel.mjs"
+      "http-generic-api/test-recovery-kernel.mjs",
+      "http-generic-api/test-platform-recovery-convergence.mjs",
+      "http-generic-api/test-local-connector-two-phase-rebind.mjs",
+      "http-generic-api/test-local-manager-rate-limit-persistence.mjs",
+      "http-generic-api/test-recovery-composition.mjs",
+      "http-generic-api/test-recovery-kernel-routes.mjs"
     ],
     "implementation_files": [
       "http-generic-api/productionRecoveryClosure.js",
@@ -80,7 +103,13 @@
       "http-generic-api/routes/recoveryKernelRoutes.js",
       "http-generic-api/routes/systemLayerRoutes.js",
       "http-generic-api/config/recovery-kernel-manifest.json",
-      "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml"
+      "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml",
+      "http-generic-api/platformRecoveryConvergence.js",
+      "http-generic-api/localConnectorTwoPhaseRebind.js",
+      "http-generic-api/recoveryComposition.js",
+      "http-generic-api/productionRecoveryOperationalAdapters.js",
+      "apps/local-manager-windows/DesktopCommandPollBackoffStore.cs",
+      "apps/local-manager-windows/Program.cs"
     ],
     "e2e_contract": ".changes/e2e/production-recovery-closure-20260925.json",
     "secrets_included": false,
@@ -98,7 +127,8 @@
     "This PR adds closure evaluation only and performs no live Production recovery.",
     "Live backup capture, durable inspection, database recovery, grants, migrations, deployment, and functional Production readbacks remain separately governed operations.",
     "The Spec Kit remains in_progress until live deployment-owned evidence resolver wiring and operational closure are delivered in later governed slices.",
-    "The durable convergence framework is repository code only in this PR; consequential executors and live approval/store wiring remain disabled until a separately governed Production slice."
+    "The durable convergence framework is repository code only in this PR; consequential executors and live approval/store wiring remain disabled until a separately governed Production slice.",
+    "The single platform_recovery_converge_v1 entrypoint is repository-wired and fail-closed; live Production executor/approval composition remains a separately governed deployment-owned authority."
   ],
   "secrets_included": false,
   "sensitive_values_included": false
