@@ -9,7 +9,6 @@ This matrix is normative for platform_recovery_converge_v1. The operation is res
     → backup_evidence
     → governance_baseline_rebuild? → governance_baseline_verify
     → runtime_persistence_baseline_rebuild?
-    → runtime_persistence_schema_repair?
     → runtime_persistence_baseline_verify
     → canonical_grants_apply → canonical_grants_verify
     → bootstrap_ledger_verify
@@ -44,7 +43,7 @@ Every consequential or bounded-mutation stage rechecks exact Production deployme
 | Runtime Persistence zero-object | selected repair | Runtime Persistence only | Inspection evidence retained | Rebuild Runtime Persistence only |
 | Runtime role zero-object | unsupported by this convergence slice | No implicit Runtime rebuild | Run remains fail-closed | Use separately registered Runtime recovery authority |
 | Backup evidence missing | blocked | No | Inspection remains usable | Capture and verify all-role backup evidence |
-| Runtime Persistence non-empty + readiness=false | selected schema repair | `runtime_persistence.schema.repair` only | Same run/finding evidence retained | Execute registered migration authority, then verify baseline/readiness |
+| Runtime Persistence non-empty + readiness=false | blocked handoff | No migration from convergence | Same run/finding evidence retained | Create a separate Recovery Kernel remediation plan for `runtime_persistence.schema.repair`, then resume after fresh readback |
 | Runtime Persistence non-empty + readiness=true | repair skipped | No schema repair | Inspection evidence retained | Continue to independent verify |
 | Runtime Persistence readiness missing/null | blocked | No | Current run retained | Re-run durable inspection with explicit readiness evidence |
 | Role classification/count inconsistent or missing | blocked | No | Current run retained | Re-run full role census; do not infer non-empty from `zero_object=false` |
@@ -94,7 +93,7 @@ Every consequential or bounded-mutation stage rechecks exact Production deployme
 9. Old connector credentials are revoked only after the newly installed credential succeeds on an authenticated probe.
 10. `active=true` is an operational boolean only; `status=recovered` is emitted only after a server-derived final closure proves every core gate, backup restore evidence, mutation audit, final same-cycle exact deployment-parity recertification, and final Production activation recertification.
 11. Missing readiness evidence is never equivalent to a failed readiness check. Repair eligibility requires explicit `false` evidence from the durable inspection.
-12. Partial non-empty Runtime or unregistered Governance schema corruption remains fail-closed; this slice adds only the existing `runtime_persistence.schema.repair` capability.
+12. Partial non-empty runtime-persistence drift is detected but not executed by convergence; it is handed off to the existing Recovery Kernel `runtime_persistence.schema.repair` plan so baseline-order proof remains authoritative. Partial Runtime or unregistered Governance schema corruption remains fail-closed.
 
 ## Live authority boundary
 
