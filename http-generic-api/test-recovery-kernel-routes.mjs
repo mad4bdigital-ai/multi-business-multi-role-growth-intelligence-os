@@ -325,3 +325,23 @@ test("explicit route store boundary preserves evidence reads while denying execu
 });
 
 console.log("recovery kernel route contract tests loaded");
+
+
+test("platform convergence status requires an existing run", async () => {
+  const store = readyMutationStore();
+  const app = buildTestApp({
+    mutationRecoveryStore: store,
+    recoveryStore: store,
+  });
+  const { server, baseUrl } = await startServer(app);
+  try {
+    const response = await postJson(baseUrl, {
+      expected_sha: EXACT_SHA,
+      action: "status",
+    }, "/admin/recovery/kernel/platform-converge");
+    assert.equal(response.status, 400);
+    assert.equal(response.body.error.code, "PLATFORM_RECOVERY_RUN_ID_REQUIRED");
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
