@@ -6,6 +6,7 @@ param(
     [string]$ExpectedRepository = "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
     [int]$PollSeconds = 300,
     [switch]$Watch,
+    [switch]$EnableActivationGateway,
     [switch]$StartTunnel,
     [ValidateSet("disabled", "windows_service", "docker_sidecar")]
     [string]$TunnelMode = "disabled",
