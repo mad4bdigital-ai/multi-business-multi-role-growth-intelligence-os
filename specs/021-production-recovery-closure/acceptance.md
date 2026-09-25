@@ -67,3 +67,16 @@ A repair mutation may not be selected from missing readiness evidence. `null`/un
 When the full inspection proves `classification=nonempty_objects`, a positive object count, and `runtime_persistence_ready=false`, convergence must block with the canonical remediation-plan handoff; it must not execute `runtime_persistence.schema.repair` directly. Zero-object roles remain on the baseline-rebuild path. After separate Recovery Kernel remediation, the same convergence run may resume only after fresh readiness evidence. Runtime-core partial corruption and unregistered Governance schema corruption remain fail-closed.
 
 For every mutation, the exact approval is durably reserved after the orchestration claim and finalized only after a verified terminal receipt. Unknown outcome or approval-finalization uncertainty requires reconciliation under the original idempotency key; no second mutation is allowed.
+
+
+## Partial-corruption acceptance
+
+For non-empty Runtime Persistence with `runtime_persistence_ready=false`:
+
+- exactly one deterministic canonical finding with capability `runtime_persistence.schema.repair` must exist;
+- the finding must match the full inspection run ID and evidence hash;
+- the server-derived finding binding must be carried through approval, durable reservation, execution, receipt, and reconciliation;
+- one request may execute at most that one bounded mutation;
+- the following Runtime Persistence readiness verification must pass before grants/MCP/connector stages continue.
+
+Zero-object roles must never execute the partial-schema repair. Unknown or ambiguous corruption must remain blocked; no raw SQL, migration selection, or generic schema reconstruction is inferred.
