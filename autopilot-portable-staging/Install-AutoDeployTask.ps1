@@ -10,6 +10,7 @@ param(
     [int]$LogonDelaySeconds = 25,
     [ValidateRange(60, 600)]
     [int]$BootGraceSeconds = 180,
+    [switch]$EnableActivationGateway,
     [switch]$StartTunnel,
     [ValidateSet("disabled", "windows_service", "docker_sidecar")]
     [string]$TunnelMode = "disabled",
@@ -46,6 +47,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $RepositoryPath ".git"))) { Fail "Re
 $escapedScript = $autoDeployScript.Replace('"', '\"')
 $escapedRepo = $RepositoryPath.Replace('"', '\"')
 $arguments = "-NoLogo -NoProfile -ExecutionPolicy Bypass -File `"$escapedScript`" -RepositoryPath `"$escapedRepo`" -Watch -PollSeconds $PollSeconds -BuildMode $BuildMode -TunnelMode $TunnelMode"
+if ($EnableActivationGateway) { $arguments += " -EnableActivationGateway" }
 
 $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Highest
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) -MultipleInstances IgnoreNew
@@ -78,6 +80,6 @@ $healthTrigger.Delay = "PT${healthDelaySeconds}S"
 Register-ScheduledTask -TaskName $HealthTaskName -Action $healthAction -Trigger $healthTrigger -Settings $settings -Principal $principal -Force | Out-Null
 
 Write-Host "STAGING_DOCKER_BOOTSTRAP_TASK_INSTALLED: task=$DockerBootstrapTaskName user=$env:USERDOMAIN\$env:USERNAME logon_delay_seconds=$dockerDelaySeconds local_runtime_bootstrap_only=True deployment_authorized=False"
-Write-Host "AUTO_DEPLOY_TASK_INSTALLED: task=$TaskName user=$env:USERDOMAIN\$env:USERNAME poll_seconds=$PollSeconds tunnel_mode=$TunnelMode logon_delay_seconds=$LogonDelaySeconds multiple_instances=IgnoreNew provider_mutation_authorized=False"
+Write-Host "AUTO_DEPLOY_TASK_INSTALLED: task=$TaskName user=$env:USERDOMAIN\$env:USERNAME poll_seconds=$PollSeconds tunnel_mode=$TunnelMode activation_gateway_desired=$([bool]$EnableActivationGateway) logon_delay_seconds=$LogonDelaySeconds multiple_instances=IgnoreNew provider_mutation_authorized=False"
 Write-Host "STAGING_HEALTH_TASK_INSTALLED: task=$HealthTaskName interval_seconds=$HealthIntervalSeconds boot_grace_seconds=$BootGraceSeconds logon_delay_seconds=$healthDelaySeconds"
 Write-Host "All tasks run only when this Windows user is logged in and never change Production, DNS, Hostinger, or database state."

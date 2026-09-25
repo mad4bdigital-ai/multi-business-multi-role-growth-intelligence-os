@@ -416,6 +416,7 @@ function Start-LocalStaging([string]$RepoPath, [string]$Sha, [string]$EnvFile) {
     if (-not (Test-Path $start)) { Fail "Start-AutoPilot.ps1 is missing" }
     $args = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $start, "-RepositoryPath", $RepoPath, "-RepositoryUrl", $RepositoryUrl, "-ExpectedRepository", $ExpectedRepository, "-Ref", $Ref, "-ExpectedCommit", $Sha, "-BuildMode", $BuildMode)
     if (-not $NoTunnel) { $args += "-StartTunnel" }
+    if ($EnableActivationGateway) { $args += "-EnableActivationGateway" }
     Invoke-Native "powershell.exe" $args
 }
 
@@ -560,6 +561,7 @@ function Install-AutoDeploy([string]$RepoPath) {
     $installer = Join-Path $RepoPath "autopilot-portable-staging\Install-AutoDeployTask.ps1"
     if (-not (Test-Path $installer)) { Fail "Install-AutoDeployTask.ps1 is missing" }
     $args = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $installer, "-RepositoryPath", $RepoPath, "-PollSeconds", "$PollSeconds", "-BuildMode", $BuildMode, "-TunnelMode", $AutoDeployTunnelMode)
+    if ($EnableActivationGateway) { $args += "-EnableActivationGateway" }
     Invoke-Native "powershell.exe" $args
 }
 
@@ -600,8 +602,9 @@ if ($Mode -eq "Validate") {
     $start = Join-Path $repo "autopilot-portable-staging\Start-AutoPilot.ps1"
     $args = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $start, "-RepositoryPath", $repo, "-RepositoryUrl", $RepositoryUrl, "-ExpectedRepository", $ExpectedRepository, "-Ref", $Ref, "-ExpectedCommit", $sha, "-BuildMode", $BuildMode, "-ValidateOnly")
     if (-not $NoTunnel) { $args += "-StartTunnel" }
+    if ($EnableActivationGateway) { $args += "-EnableActivationGateway" }
     Invoke-Native "powershell.exe" $args
-    Write-Host "AUTO_PILOT_VALIDATED: commit=$sha tunnel=$(-not $NoTunnel)"
+    Write-Host "AUTO_PILOT_VALIDATED: commit=$sha tunnel=$(-not $NoTunnel) activation_gateway_desired=$([bool]$EnableActivationGateway)"
     return
 }
 

@@ -107,51 +107,86 @@ export async function verifyStagingActivationWorkerHandoff({
   if (!health || typeof health !== "object" || Array.isArray(health)) {
     fail("staging_activation_worker_health_invalid", "Staging Activation Gateway health must be JSON.");
   }
-  const staleIdentity = health.service === "activation-gateway"
-    && health.stale === true
-    && (Number(response?.status || 0) === 503
-      || health?.error?.code === "GATEWAY_POLICY_STALE"
-      || health?.code === "GATEWAY_POLICY_STALE");
-  if (!staleIdentity) {
-    fail("staging_activation_worker_handoff_not_stale", "Out-of-band Worker recovery is allowed only for a cryptographically identified stale Staging Gateway.", {
-      status: Number(response?.status || 0),
-      service: health.service || null,
-      stale: health.stale ?? null,
-    });
-  }
   if (health.secretsIncluded !== false) {
-    fail("staging_activation_worker_health_secret_boundary_invalid", "Stale Gateway health must explicitly prove secretsIncluded=false.");
+    fail("staging_activation_worker_health_secret_boundary_invalid", "Gateway health must explicitly prove secretsIncluded=false.");
   }
 
-  const readinessChecks = [
-    failedReadinessCheck("gateway_policy_not_stale", {
+  const bootstrapOverride = registry?.dependencies?.activation_gateway?.checks?.gateway_exact_commit?.bootstrap_override || null;
+  const responseStatus = Number(response?.status || 0);
+  const observedSourceCommit = normalized(health.sourceCommit);
+  const observedWorkerBuildSha = normalized(health.workerBuildSha);
+  const staleIdentity = health.service === "activation-gateway"
+    && health.stale === true
+    && (responseStatus === 503
+      || health?.error?.code === "GATEWAY_POLICY_STALE"
+      || health?.code === "GATEWAY_POLICY_STALE");
+  const exactCommitBootstrapIdentity = bootstrapOverride?.mode === "exact_commit_bootstrap"
+    && responseStatus === bootstrapOverride.requires_http_status
+    && health.service === bootstrapOverride.requires_service
+    && health.ok === bootstrapOverride.requires_ok
+    && health.stale === bootstrapOverride.requires_stale
+    && String(health.policyKey || "") === String(profile.policy_key || "")
+    && String(health.policyKey || "") === bootstrapOverride.requires_policy_key
+    && normalized(health.policyHash) === policyHash
+    && SHA40_RE.test(observedSourceCommit)
+    && SHA40_RE.test(observedWorkerBuildSha)
+    && observedSourceCommit === observedWorkerBuildSha
+    && observedSourceCommit !== source
+    && health.secretsIncluded === false;
+
+  if (!staleIdentity && !exactCommitBootstrapIdentity) {
+    fail("staging_activation_worker_handoff_not_stale", "Out-of-band Worker recovery requires either a cryptographically identified stale Gateway or the bounded exact-commit bootstrap predicate.", {
+      status: responseStatus,
+      service: health.service || null,
+      stale: health.stale ?? null,
+      source_commit: health.sourceCommit || null,
+      worker_build_sha: health.workerBuildSha || null,
+      policy_key: health.policyKey || null,
+      policy_hash_matches: normalized(health.policyHash) === policyHash,
+      exact_commit_bootstrap_eligible: false,
+    });
+  }
+
+  const handoffVariant = staleIdentity ? "stale_policy" : "exact_commit_bootstrap";
+  const readinessChecks = [];
+  if (staleIdentity) {
+    readinessChecks.push(failedReadinessCheck("gateway_policy_not_stale", {
       source: "github_actions_live_activation_gateway_health",
       stale: true,
       source_commit: health.sourceCommit || null,
       gateway_error_code: health?.error?.code || health?.code || null,
-    }),
-  ];
-  if (normalized(health.sourceCommit) !== source || normalized(health.workerBuildSha) !== source) {
+    }));
+    if (observedSourceCommit !== source || observedWorkerBuildSha !== source) {
+      readinessChecks.push(failedReadinessCheck("gateway_exact_commit", {
+        source: "github_actions_live_activation_gateway_health",
+        expected: source,
+        observed: health.sourceCommit || null,
+        source_commit: health.sourceCommit || null,
+        worker_build_sha: health.workerBuildSha || null,
+      }));
+    }
+    if (normalized(health.policyHash) !== policyHash) {
+      readinessChecks.push(failedReadinessCheck("gateway_policy_hash_current", {
+        source: "github_actions_live_activation_gateway_health",
+        expected: policyHash,
+        observed: health.policyHash || null,
+      }));
+    }
+    if (String(health.policyKey || "") !== String(profile.policy_key || "")) {
+      readinessChecks.push(failedReadinessCheck("gateway_policy_key_current", {
+        source: "github_actions_live_activation_gateway_health",
+        expected: profile.policy_key || null,
+        observed: health.policyKey || null,
+      }));
+    }
+  } else {
     readinessChecks.push(failedReadinessCheck("gateway_exact_commit", {
       source: "github_actions_live_activation_gateway_health",
+      bootstrap_mode: "exact_commit_bootstrap",
       expected: source,
       observed: health.sourceCommit || null,
       source_commit: health.sourceCommit || null,
       worker_build_sha: health.workerBuildSha || null,
-    }));
-  }
-  if (normalized(health.policyHash) !== policyHash) {
-    readinessChecks.push(failedReadinessCheck("gateway_policy_hash_current", {
-      source: "github_actions_live_activation_gateway_health",
-      expected: policyHash,
-      observed: health.policyHash || null,
-    }));
-  }
-  if (String(health.policyKey || "") !== String(profile.policy_key || "")) {
-    readinessChecks.push(failedReadinessCheck("gateway_policy_key_current", {
-      source: "github_actions_live_activation_gateway_health",
-      expected: profile.policy_key || null,
-      observed: health.policyKey || null,
     }));
   }
 
@@ -160,7 +195,7 @@ export async function verifyStagingActivationWorkerHandoff({
     expected: { commit_sha: source },
     gateway: {
       health: {
-        sourceCommit: null,
+        sourceCommit: staleIdentity ? null : observedSourceCommit,
         workerBuildSha: normalized(health.workerBuildSha) || null,
         policyKey: String(health.policyKey || "").trim() || null,
         policyHash: normalized(health.policyHash) || null,
@@ -188,17 +223,54 @@ export async function verifyStagingActivationWorkerHandoff({
     });
   }
   const handoff = initialRun.classification?.next_governed_handoff || {};
-  if (handoff.target_authority_model !== "server_governed_out_of_band"
-    || handoff.transport !== "github_actions"
-    || handoff.workflow !== WORKFLOW
-    || handoff.dry_run_operation !== "activation_worker_refresh_dry_run"
-    || handoff.apply_operation !== "deploy_activation_worker"
-    || handoff.requires_exact_main !== true
-    || handoff.requires_same_run_preflight !== true
-    || handoff.caller_selected_provider_target_allowed !== false
-    || handoff.stale_gateway_bypass_required !== true
-    || handoff.automatic_apply_allowed !== false) {
-    fail("staging_activation_worker_handoff_contract_invalid", "Live convergence did not resolve to the bounded Staging out-of-band authority.");
+  if (staleIdentity) {
+    if (handoff.target_authority_model !== "server_governed_out_of_band"
+      || handoff.transport !== "github_actions"
+      || handoff.workflow !== WORKFLOW
+      || handoff.dry_run_operation !== "activation_worker_refresh_dry_run"
+      || handoff.apply_operation !== "deploy_activation_worker"
+      || handoff.requires_exact_main !== true
+      || handoff.requires_same_run_preflight !== true
+      || handoff.caller_selected_provider_target_allowed !== false
+      || handoff.stale_gateway_bypass_required !== true
+      || handoff.automatic_apply_allowed !== false) {
+      fail("staging_activation_worker_handoff_contract_invalid", "Live stale convergence did not resolve to the bounded Staging out-of-band authority.");
+    }
+  } else {
+    if (bootstrapOverride?.mode !== "exact_commit_bootstrap"
+      || bootstrapOverride?.authority !== "server_governed"
+      || bootstrapOverride?.current_authority_adapter !== "staging_activation_worker_workflow"
+      || bootstrapOverride?.target_authority_model !== "server_governed_out_of_band"
+      || bootstrapOverride?.plan_capability !== "staging_activation_worker_refresh_dry_run"
+      || bootstrapOverride?.apply_capability !== "deploy_activation_worker"
+      || bootstrapOverride?.execution_surface !== "staging_activation_worker_workflow"
+      || !Array.isArray(bootstrapOverride?.environments)
+      || bootstrapOverride.environments.length !== 1
+      || bootstrapOverride.environments[0] !== "staging"
+      || bootstrapOverride?.transport !== "github_actions"
+      || bootstrapOverride?.workflow !== WORKFLOW
+      || bootstrapOverride?.dry_run_operation !== "activation_worker_refresh_dry_run"
+      || bootstrapOverride?.apply_operation !== "deploy_activation_worker"
+      || bootstrapOverride?.requires_exact_main !== true
+      || bootstrapOverride?.requires_same_run_preflight !== true
+      || bootstrapOverride?.caller_selected_provider_target_allowed !== false
+      || bootstrapOverride?.requires_http_status !== 200
+      || bootstrapOverride?.requires_service !== "activation-gateway"
+      || bootstrapOverride?.requires_ok !== true
+      || bootstrapOverride?.requires_stale !== false
+      || bootstrapOverride?.requires_policy_key !== "activation_gateway_staging"
+      || bootstrapOverride?.requires_policy_hash_match !== true
+      || bootstrapOverride?.requires_source_worker_equality !== true
+      || bootstrapOverride?.requires_source_not_desired !== true
+      || bootstrapOverride?.requires_secrets_included_false !== true
+      || bootstrapOverride?.automatic_apply_allowed !== false) {
+      fail("staging_activation_worker_bootstrap_override_invalid", "Exact-commit bootstrap override is not the bounded Staging recovery bridge.");
+    }
+    if (handoff.target_authority_model !== "server_governed"
+      || handoff.transport !== null
+      || handoff.automatic_apply_allowed !== false) {
+      fail("staging_activation_worker_bootstrap_normal_authority_drift", "Exact-commit bootstrap must not replace the normal server-governed convergence authority.");
+    }
   }
 
   const authoritativePlanSha256 = initialRun.plan.plan_sha256;
@@ -256,19 +328,26 @@ export async function verifyStagingActivationWorkerHandoff({
     worker_bundle_sha256: bundle.worker_bundle_sha256,
     preflight_binding_sha256: binding.preflight_binding_sha256,
     profile_owned_health_url: canonicalHealthUrl,
+    recovery_mode: handoffVariant,
+    bootstrap_override_authorized: exactCommitBootstrapIdentity,
+    bootstrap_override_source: exactCommitBootstrapIdentity ? "gateway_exact_commit.bootstrap_override" : null,
     observed_gateway: {
-      status: Number(response?.status || 0),
+      status: responseStatus,
       source_commit: health.sourceCommit || null,
       worker_build_sha: health.workerBuildSha || null,
       policy_key: health.policyKey || null,
       policy_hash: health.policyHash || null,
-      stale: true,
+      stale: health.stale === true,
     },
-    stale_plan_identity_uses_desired_release_commit: true,
+    stale_plan_identity_uses_desired_release_commit: staleIdentity,
     stale_plan_observed_release_commit_in_hash: false,
+    exact_commit_bootstrap_source_worker_equal: exactCommitBootstrapIdentity ? observedSourceCommit === observedWorkerBuildSha : null,
+    exact_commit_bootstrap_source_not_desired: exactCommitBootstrapIdentity ? observedSourceCommit !== source : null,
+    exact_commit_bootstrap_observed_release_commit_in_hash: exactCommitBootstrapIdentity ? true : null,
     exact_current_main_required: true,
     same_run_preflight_required_for_apply: true,
     provider_target_caller_selectable: false,
+    automatic_apply_allowed: false,
     provider_accessed: false,
     provider_mutation_performed: false,
     database_mutation_performed: false,

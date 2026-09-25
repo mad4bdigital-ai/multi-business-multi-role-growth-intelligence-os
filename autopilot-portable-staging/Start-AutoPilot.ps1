@@ -5,6 +5,7 @@ param(
     [string]$ExpectedRepository = "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
     [string]$Ref = "main",
     [string]$ExpectedCommit = "",
+    [switch]$EnableActivationGateway,
     [switch]$StartTunnel,
     [ValidateSet("disabled", "windows_service", "docker_sidecar")]
     [string]$TunnelMode = "disabled",
@@ -39,7 +40,7 @@ $StagingEnvironmentPath = Join-Path $PSScriptRoot "Staging-Environment.ps1"
 if (-not (Test-Path -LiteralPath $StagingEnvironmentPath)) { throw "Missing Staging environment helper: $StagingEnvironmentPath" }
 . $StagingEnvironmentPath
 $LogComponent = "app-operations"
-Write-StagingOperationBoundary -Component $LogComponent -Stage "process" -Outcome "start" -Message "application operations process started" -Data @{ validate_only = [bool]$ValidateOnly; stop = [bool]$Stop; tunnel = [bool]$TunnelSelected; tunnel_mode = $TunnelMode; require_schema_bundle = [bool]$RequireSchemaBundle; apply_schema_bundle = [bool]$ApplySchemaBundle }
+Write-StagingOperationBoundary -Component $LogComponent -Stage "process" -Outcome "start" -Message "application operations process started" -Data @{ validate_only = [bool]$ValidateOnly; stop = [bool]$Stop; tunnel = [bool]$TunnelSelected; tunnel_mode = $TunnelMode; activation_gateway_desired = [bool]$EnableActivationGateway; require_schema_bundle = [bool]$RequireSchemaBundle; apply_schema_bundle = [bool]$ApplySchemaBundle }
 trap {
     Write-StagingLog -Level error -Component $LogComponent -Stage "unhandled" -Message $_.Exception.Message -Data @{ error_type = $_.Exception.GetType().FullName }
     Write-Host "APP_OPERATIONS_FAILURE_LOGGED: $(Get-StagingLogRoot)" -ForegroundColor Red
@@ -287,6 +288,7 @@ function Invoke-SelfUpdate {
         "-ExpectedCommit", $ExpectedCommit, "-BuildMode", $childBuildMode, "-SkipSelfUpdate"
     )
     $childArgs += @("-TunnelMode", $TunnelMode)
+    if ($EnableActivationGateway) { $childArgs += "-EnableActivationGateway" }
     if ($RequireSchemaBundle) { $childArgs += "-RequireSchemaBundle" }
     if ($ApplySchemaBundle) { $childArgs += "-ApplySchemaBundle" }
     if ($ValidateOnly) { $childArgs += "-ValidateOnly" }
@@ -545,9 +547,10 @@ try {
     Write-StagingUtf8NoBom $EnvFile $envText
     Ensure-EnvDefault $EnvFile "TENANT_GPT_STAGING_OAUTH_CLIENT_ID" "mad4b-tenant-gpt-staging"
     Ensure-EnvDefault $EnvFile "TENANT_GPT_ACTIONS_CONFIDENTIAL_CLIENT_COMPAT_ENABLED" "true"
-    Ensure-EnvDefault $EnvFile "ACTIVATION_STAGING_GATEWAY_ENABLED" "false"
-    Ensure-EnvDefault $EnvFile "ACTIVATION_HOST_GATEWAY_HOST" "activation-dev.mad4b.com"
-    Ensure-EnvDefault $EnvFile "ACTIVATION_STAGING_AUTH_HOST" "activation-dev.mad4b.com"
+    $activationGatewayDesired = if ($EnableActivationGateway) { "true" } else { "false" }
+    Set-EnvValue $EnvFile "ACTIVATION_STAGING_GATEWAY_ENABLED" $activationGatewayDesired
+    Set-EnvValue $EnvFile "ACTIVATION_HOST_GATEWAY_HOST" "activation-dev.mad4b.com"
+    Set-EnvValue $EnvFile "ACTIVATION_STAGING_AUTH_HOST" "activation-dev.mad4b.com"
     # Keep runtime deployment readback bound to the immutable commit selected above.
     Set-EnvValue $EnvFile "DEPLOYMENT_EXPECTED_COMMIT_SHA" $ExpectedCommit
     Set-EnvValue $EnvFile "DEPLOY_COMMIT" $ExpectedCommit

@@ -32,6 +32,20 @@ const staleFetch = async () => new Response(JSON.stringify(staleHealth), {
   status: 503,
   headers: { "content-type": "application/json" },
 });
+const exactCommitBootstrapHealth = {
+  ok: true,
+  service: "activation-gateway",
+  stale: false,
+  policyKey: profile.policy_key,
+  policyHash: profile.expected_policy_hash,
+  sourceCommit: oldSha,
+  workerBuildSha: oldSha,
+  secretsIncluded: false,
+};
+const exactCommitBootstrapFetch = async () => new Response(JSON.stringify(exactCommitBootstrapHealth), {
+  status: 200,
+  headers: { "content-type": "application/json" },
+});
 
 const authoritativePreview = runEnvironmentConvergence({
   environment: "staging",
@@ -68,11 +82,62 @@ const authoritativePreview = runEnvironmentConvergence({
 assert.equal(authoritativePreview.status, "approval_required");
 const acknowledgedPlanSha = authoritativePreview.plan.plan_sha256;
 
+const exactCommitBootstrapPreview = runEnvironmentConvergence({
+  environment: "staging",
+  releaseSpec: {
+    repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+    source_branch: "main",
+    commit_sha: sourceSha,
+  },
+  certificationReport: {
+    outcome: "degraded",
+    expected: { commit_sha: sourceSha },
+    gateway: {
+      health: {
+        sourceCommit: oldSha,
+        workerBuildSha: oldSha,
+        policyKey: profile.policy_key,
+        policyHash: profile.expected_policy_hash,
+        stale: false,
+        ok: true,
+        httpStatus: 200,
+      },
+      profile_validation: {
+        observed_public_host: profile.public_host,
+      },
+    },
+    integrity_checks: [],
+    readiness_checks: [
+      { key: "gateway_exact_commit", ok: false, severity: "readiness", detail: { expected: sourceSha, observed: oldSha } },
+    ],
+  },
+  registry,
+});
+assert.equal(exactCommitBootstrapPreview.status, "approval_required");
+assert.equal(exactCommitBootstrapPreview.classification.next_governed_handoff.target_authority_model, "server_governed");
+assert.equal(exactCommitBootstrapPreview.classification.next_governed_handoff.transport, null);
+assert.equal(exactCommitBootstrapPreview.classification.next_governed_handoff.automatic_apply_allowed, false);
+assert.deepEqual(
+  exactCommitBootstrapPreview.plan.drift.map((entry) => entry.check_key),
+  ["gateway_exact_commit"],
+  "exact-commit bootstrap must not synthesize gateway_policy_not_stale or any other drift reason",
+);
+assert.equal(exactCommitBootstrapPreview.plan.drift[0]?.desired_release_commit, sourceSha);
+assert.equal(exactCommitBootstrapPreview.plan.drift[0]?.observed_release_commit, oldSha);
+const exactCommitBootstrapPlanSha = exactCommitBootstrapPreview.plan.plan_sha256;
+
 const first = await verifyStagingActivationWorkerHandoff({
   sourceSha,
   expectedPolicyHash: profile.expected_policy_hash,
   callerPlanSha256: acknowledgedPlanSha,
   fetchImpl: staleFetch,
+  repositoryRoot: root,
+});
+const exactCommitBootstrap = await verifyStagingActivationWorkerHandoff({
+  sourceSha,
+  expectedPolicyHash: profile.expected_policy_hash,
+  callerPlanSha256: exactCommitBootstrapPlanSha,
+  fetchImpl: exactCommitBootstrapFetch,
   repositoryRoot: root,
 });
 
@@ -102,8 +167,28 @@ assert.equal(first.production_mutation_performed, false);
 assert.equal(first.authoritative_plan_sha256, acknowledgedPlanSha);
 assert.equal(first.caller_parent_convergence_plan_sha256, acknowledgedPlanSha);
 assert.equal(first.caller_plan_digest_matches_authoritative, true);
+assert.equal(first.recovery_mode, "stale_policy");
+assert.equal(first.bootstrap_override_authorized, false);
 assert.equal(first.stale_plan_identity_uses_desired_release_commit, true);
 assert.equal(first.stale_plan_observed_release_commit_in_hash, false);
+
+assert.equal(exactCommitBootstrap.recovery_mode, "exact_commit_bootstrap");
+assert.equal(exactCommitBootstrap.bootstrap_override_authorized, true);
+assert.equal(exactCommitBootstrap.bootstrap_override_source, "gateway_exact_commit.bootstrap_override");
+assert.equal(exactCommitBootstrap.authoritative_plan_sha256, exactCommitBootstrapPlanSha);
+assert.equal(exactCommitBootstrap.observed_gateway.status, 200);
+assert.equal(exactCommitBootstrap.observed_gateway.stale, false);
+assert.equal(exactCommitBootstrap.observed_gateway.source_commit, oldSha);
+assert.equal(exactCommitBootstrap.observed_gateway.worker_build_sha, oldSha);
+assert.equal(exactCommitBootstrap.exact_commit_bootstrap_source_worker_equal, true);
+assert.equal(exactCommitBootstrap.exact_commit_bootstrap_source_not_desired, true);
+assert.equal(exactCommitBootstrap.exact_commit_bootstrap_observed_release_commit_in_hash, true);
+assert.equal(exactCommitBootstrap.exact_current_main_required, true);
+assert.equal(exactCommitBootstrap.same_run_preflight_required_for_apply, true);
+assert.equal(exactCommitBootstrap.provider_target_caller_selectable, false);
+assert.equal(exactCommitBootstrap.automatic_apply_allowed, false);
+assert.equal(exactCommitBootstrap.provider_mutation_performed, false);
+assert.equal(exactCommitBootstrap.production_mutation_performed, false);
 const exactCommitDrift = authoritativePreview.plan.drift.find((entry) => entry.check_key === "gateway_exact_commit");
 assert.equal(exactCommitDrift?.desired_release_commit, sourceSha);
 assert.equal(exactCommitDrift?.observed_release_commit, null);
@@ -171,10 +256,116 @@ await assert.rejects(
     sourceSha,
     expectedPolicyHash: profile.expected_policy_hash,
     callerPlanSha256: first.authoritative_plan_sha256,
-    fetchImpl: async () => new Response(JSON.stringify({ ...staleHealth, stale: false, ok: true }), { status: 200 }),
+    fetchImpl: async () => new Response(JSON.stringify({
+      ...exactCommitBootstrapHealth,
+      sourceCommit: sourceSha,
+      workerBuildSha: sourceSha,
+    }), { status: 200 }),
     repositoryRoot: root,
   }),
   (error) => error?.code === "staging_activation_worker_handoff_not_stale",
+);
+await assert.rejects(
+  verifyStagingActivationWorkerHandoff({
+    sourceSha,
+    expectedPolicyHash: profile.expected_policy_hash,
+    callerPlanSha256: exactCommitBootstrapPlanSha,
+    fetchImpl: async () => new Response(JSON.stringify({
+      ...exactCommitBootstrapHealth,
+      workerBuildSha: "c".repeat(40),
+    }), { status: 200 }),
+    repositoryRoot: root,
+  }),
+  (error) => error?.code === "staging_activation_worker_handoff_not_stale",
+);
+await assert.rejects(
+  verifyStagingActivationWorkerHandoff({
+    sourceSha,
+    expectedPolicyHash: profile.expected_policy_hash,
+    callerPlanSha256: exactCommitBootstrapPlanSha,
+    fetchImpl: async () => new Response(JSON.stringify({
+      ...exactCommitBootstrapHealth,
+      policyHash: "0".repeat(64),
+    }), { status: 200 }),
+    repositoryRoot: root,
+  }),
+  (error) => error?.code === "staging_activation_worker_handoff_not_stale",
+);
+await assert.rejects(
+  verifyStagingActivationWorkerHandoff({
+    sourceSha,
+    expectedPolicyHash: profile.expected_policy_hash,
+    callerPlanSha256: exactCommitBootstrapPlanSha,
+    fetchImpl: async () => new Response(JSON.stringify({
+      ...exactCommitBootstrapHealth,
+      policyKey: "wrong_staging_profile",
+    }), { status: 200 }),
+    repositoryRoot: root,
+  }),
+  (error) => error?.code === "staging_activation_worker_handoff_not_stale",
+);
+await assert.rejects(
+  verifyStagingActivationWorkerHandoff({
+    sourceSha,
+    expectedPolicyHash: profile.expected_policy_hash,
+    callerPlanSha256: exactCommitBootstrapPlanSha,
+    fetchImpl: async () => new Response(JSON.stringify({
+      ...exactCommitBootstrapHealth,
+      service: "unexpected-service",
+    }), { status: 200 }),
+    repositoryRoot: root,
+  }),
+  (error) => error?.code === "staging_activation_worker_handoff_not_stale",
+);
+await assert.rejects(
+  verifyStagingActivationWorkerHandoff({
+    sourceSha,
+    expectedPolicyHash: profile.expected_policy_hash,
+    callerPlanSha256: exactCommitBootstrapPlanSha,
+    fetchImpl: async () => new Response(JSON.stringify({
+      ...exactCommitBootstrapHealth,
+      ok: false,
+    }), { status: 200 }),
+    repositoryRoot: root,
+  }),
+  (error) => error?.code === "staging_activation_worker_handoff_not_stale",
+);
+
+await assert.rejects(
+  verifyStagingActivationWorkerHandoff({
+    sourceSha,
+    expectedPolicyHash: profile.expected_policy_hash,
+    callerPlanSha256: exactCommitBootstrapPlanSha,
+    fetchImpl: async () => new Response(JSON.stringify(exactCommitBootstrapHealth), { status: 201 }),
+    repositoryRoot: root,
+  }),
+  (error) => error?.code === "staging_activation_worker_handoff_not_stale",
+);
+await assert.rejects(
+  verifyStagingActivationWorkerHandoff({
+    sourceSha,
+    expectedPolicyHash: profile.expected_policy_hash,
+    callerPlanSha256: exactCommitBootstrapPlanSha,
+    fetchImpl: async () => new Response(JSON.stringify({
+      ...exactCommitBootstrapHealth,
+      stale: true,
+    }), { status: 200 }),
+    repositoryRoot: root,
+  }),
+  (error) => error?.code === "staging_activation_worker_handoff_not_stale",
+);
+await assert.rejects(
+  verifyStagingActivationWorkerHandoff({
+    sourceSha,
+    expectedPolicyHash: profile.expected_policy_hash,
+    callerPlanSha256: exactCommitBootstrapPlanSha,
+    fetchImpl: async () => new Response(JSON.stringify({
+      ...exactCommitBootstrapHealth,
+      secretsIncluded: true,
+    }), { status: 200 }),
+    repositoryRoot: root,
+  }),
+  (error) => error?.code === "staging_activation_worker_health_secret_boundary_invalid",
 );
 await assert.rejects(
   verifyStagingActivationWorkerHandoff({
@@ -194,6 +385,29 @@ assert.match(workflow, /VERIFIED_CONVERGENCE_PLAN_SHA256: \$\{\{ needs\.activati
 assert.match(workflow, /VERIFIED_WORKER_BUNDLE_SHA256: \$\{\{ needs\.activation_worker_refresh_preflight\.outputs\.worker_bundle_sha256 \}\}/u);
 assert.match(workflow, /PREFLIGHT_BINDING_SHA256: \$\{\{ needs\.activation_worker_refresh_preflight\.outputs\.preflight_binding_sha256 \}\}/u);
 assert.match(workflow, /staging-activation-worker-handoff-verifier\.mjs/u);
+assert.equal(profile.policy_key, "activation_gateway_staging");
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.mode, "exact_commit_bootstrap");
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.authority, "server_governed");
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.current_authority_adapter, "staging_activation_worker_workflow");
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.target_authority_model, "server_governed_out_of_band");
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.plan_capability, "staging_activation_worker_refresh_dry_run");
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.apply_capability, "deploy_activation_worker");
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.execution_surface, "staging_activation_worker_workflow");
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.transport, "github_actions");
+assert.deepEqual(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.environments, ["staging"]);
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.requires_exact_main, true);
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.requires_same_run_preflight, true);
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.caller_selected_provider_target_allowed, false);
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.automatic_apply_allowed, false);
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.requires_http_status, 200);
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.requires_service, "activation-gateway");
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.requires_ok, true);
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.requires_stale, false);
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.requires_policy_key, "activation_gateway_staging");
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.requires_policy_hash_match, true);
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.requires_source_worker_equality, true);
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.requires_source_not_desired, true);
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.requires_secrets_included_false, true);
 assert.match(workflow, /buildStagingActivationWorkerPreflightBinding/u);
 assert.ok(
   workflow.indexOf("      - name: Verify same-run plan and Worker bundle binding")

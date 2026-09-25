@@ -1,0 +1,231 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr8262-trusted-recovery-ingress-post-body-binding",
+  "title": "Trusted Recovery Ingress POST raw-body binding",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr8262-trusted-recovery-ingress-post-body-binding.json",
+      "edge/activation-gateway/src/gateway.mjs",
+      "http-generic-api/activation-gateway-runtime/src/gateway.mjs",
+      "http-generic-api/server.js",
+      "http-generic-api/trustedIngressContract.js",
+      "http-generic-api/test-staging-recovery-admin-surface.mjs",
+      "http-generic-api/test-trusted-ingress-contract.mjs",
+      "edge/activation-gateway/generated/route-policy.staging.json",
+      "http-generic-api/activation-gateway-runtime/generated/route-policy.staging.json",
+      "autopilot-portable-staging/Start-AutoPilot.ps1",
+      "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
+      "autopilot-portable-staging/Install-AutoDeployTask.ps1",
+      "autopilot-portable-staging/One-Click-Staging.ps1",
+      "http-generic-api/config/environment-convergence-registry.json",
+      "http-generic-api/environmentConvergenceRegistry.js",
+      "http-generic-api/scripts/staging-activation-worker-handoff-verifier.mjs",
+      "http-generic-api/test-staging-activation-worker-plan-provenance.mjs",
+      "http-generic-api/test-staging-auto-deploy-contract.mjs",
+      "http-generic-api/test-windows-staging-bootstrap-supervisor.mjs",
+      "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs",
+      "edge/activation-gateway/test-ingress-signing-diagnostics.mjs",
+      "http-generic-api/test-staging-one-click-autopilot-core.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Bind signed Staging Recovery POST ingress to the exact raw body bytes while preserving GET empty-body semantics, durable replay protection, host isolation, and zero provider or Production mutation.",
+      "e2e_journeys": [
+        {
+          "id": "trusted-recovery-ingress-post-body-binding",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Activation Gateway and Staging Recovery origin",
+          "entrypoint": "Send signed Recovery GET and POST requests through the canonical Activation Gateway Worker into the Staging Recovery origin verifier.",
+          "terminal_outcome": "Allowed GETs remain body-empty, allowed POSTs are accepted only when method, exact path, request id, auth digest, policy identity, raw-body digest and durable replay claim all match.",
+          "steps": [
+            "Capture exact raw JSON bytes for POST /admin/recovery/staging/* before Express JSON parsing.",
+            "Bound the Worker request body once and sign the SHA-256 of those same bytes before forwarding them upstream.",
+            "Resolve the explicit GET/POST allowlist for each Recovery path and reject methods or paths outside that matrix.",
+            "Recompute the SHA-256 digest from req.rawBody at the origin and compare it with the signed body_digest.",
+            "Reject changed-body substitution, GET-to-POST signature reuse, wrong-path reuse, replay, and a nonempty POST signed as an empty body.",
+            "Preserve durable atomic replay claim, trusted host identity, Staging-only authority and direct-origin fail-closed isolation.",
+            "Propagate explicit -EnableActivationGateway intent through Start-AutoPilot self-update, Auto-Deploy, scheduled-task installation, One-Click local start/validation, and scheduled supervision without changing the temporary local bootstrap false in Invoke-Staging-One-Click-Core.ps1.",
+            "Permit the existing out-of-band Activation Worker workflow to break a non-stale exact-commit bootstrap deadlock only when live health is HTTP 200, service=activation-gateway, ok=true, stale=false, policy identity is canonical, sourceCommit equals workerBuildSha, both differ from desired exact-main, secretsIncluded=false, caller plan matches the authoritative current plan, and automatic apply remains false."
+          ],
+          "assertions": [
+            "GET contract/readiness/certification remain empty-body signed requests.",
+            "POST rollout-plan, dark-deploy-dry-run and bounded internal authority paths require captured raw-body bytes.",
+            "JSON.stringify(req.body) is never used as verification input; verification hashes exact raw bytes.",
+            "The Worker hashes the same bounded bytes forwarded upstream.",
+            "A valid signed POST reaches the Recovery route; changed body, changed method, changed path and replay are rejected before route execution.",
+            "Direct-origin and wrong-host requests remain unavailable.",
+            "No provider mutation, database mutation, migration apply or Production mutation is introduced.",
+            "Live Staging certification remains required before any rollout.",
+            "secrets_included is false.",
+            "AutoPilot activation-gateway enablement is explicit desired state and is preserved across self-update, Auto-Deploy, scheduled-task installation, One-Click validation/install, and later scheduled runs.",
+            "Invoke-Staging-One-Click-Core.ps1 retains its documented temporary local-only ACTIVATION_STAGING_GATEWAY_ENABLED=false bootstrap boundary.",
+            "gateway_exact_commit retains the normal server-governed engine authority; exact_commit_bootstrap is verifier-only metadata and cannot make automatic apply true.",
+            "Non-stale exact-commit bootstrap is accepted only when sourceCommit equals workerBuildSha, policy/service/health identity is exact, source differs from desired exact-main, and secretsIncluded is false.",
+            "The existing stale-policy out-of-band recovery path remains valid and unchanged in authority semantics."
+          ],
+          "tests": [
+            {
+              "id": "trusted-recovery-ingress-e2e",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-admin-surface.mjs",
+              "args": []
+            },
+            {
+              "id": "trusted-ingress-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-trusted-ingress-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-activation-worker-plan-provenance",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-activation-worker-plan-provenance.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-auto-deploy-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-auto-deploy-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "windows-staging-bootstrap-supervisor",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-windows-staging-bootstrap-supervisor.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-dual-mode-one-click-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/staging-dual-mode-one-click-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "activation-gateway-ingress-signing-diagnostics",
+              "runner": "node",
+              "working_directory": "edge/activation-gateway",
+              "path": "test-ingress-signing-diagnostics.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-one-click-autopilot-core",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-one-click-autopilot-core.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/pr8262-trusted-recovery-ingress-post-body-binding.json",
+            "http-generic-api/server.js",
+            "http-generic-api/trustedIngressContract.js",
+            "edge/activation-gateway/src/gateway.mjs",
+            "http-generic-api/activation-gateway-runtime/src/gateway.mjs",
+            "http-generic-api/test-staging-recovery-admin-surface.mjs",
+            "http-generic-api/test-trusted-ingress-contract.mjs",
+            "edge/activation-gateway/generated/route-policy.staging.json",
+            "http-generic-api/activation-gateway-runtime/generated/route-policy.staging.json",
+            "autopilot-portable-staging/Start-AutoPilot.ps1",
+            "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
+            "autopilot-portable-staging/Install-AutoDeployTask.ps1",
+            "autopilot-portable-staging/One-Click-Staging.ps1",
+            "http-generic-api/config/environment-convergence-registry.json",
+            "http-generic-api/environmentConvergenceRegistry.js",
+            "http-generic-api/scripts/staging-activation-worker-handoff-verifier.mjs",
+            "http-generic-api/test-staging-activation-worker-plan-provenance.mjs",
+            "http-generic-api/test-staging-auto-deploy-contract.mjs",
+            "http-generic-api/test-windows-staging-bootstrap-supervisor.mjs",
+            "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs",
+            "edge/activation-gateway/test-ingress-signing-diagnostics.mjs",
+            "http-generic-api/test-staging-one-click-autopilot-core.mjs"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "trusted-recovery-ingress-e2e",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-staging-recovery-admin-surface.mjs",
+          "args": []
+        },
+        {
+          "id": "trusted-ingress-contract",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-trusted-ingress-contract.mjs",
+          "args": []
+        },
+        {
+          "id": "staging-activation-worker-plan-provenance",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-staging-activation-worker-plan-provenance.mjs",
+          "args": []
+        },
+        {
+          "id": "staging-auto-deploy-contract",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-staging-auto-deploy-contract.mjs",
+          "args": []
+        },
+        {
+          "id": "windows-staging-bootstrap-supervisor",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-windows-staging-bootstrap-supervisor.mjs",
+          "args": []
+        },
+        {
+          "id": "staging-dual-mode-one-click-contract",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "scripts/staging-dual-mode-one-click-contract.mjs",
+          "args": []
+        },
+        {
+          "id": "activation-gateway-ingress-signing-diagnostics",
+          "runner": "node",
+          "working_directory": "edge/activation-gateway",
+          "path": "test-ingress-signing-diagnostics.mjs",
+          "args": []
+        },
+        {
+          "id": "staging-one-click-autopilot-core",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-staging-one-click-autopilot-core.mjs",
+          "args": []
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
