@@ -185,6 +185,8 @@ async function resolveStepAuthority(run, step, approvalResolver) {
       step_id: step.step_id,
       authority_ref: step.authority_ref,
       nested_operation: step.nested_operation || null,
+      finding_id: step.finding_binding?.finding_id || null,
+      finding_binding_hash: step.finding_binding_hash || null,
       idempotency_key: step.idempotency_key,
       single_use: true,
       server_verified: true,
