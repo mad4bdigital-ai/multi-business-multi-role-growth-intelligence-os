@@ -15,6 +15,8 @@ async function happyApprovalResolver(ctx) {
     run_id: ctx.run_id,
     plan_hash: ctx.plan_hash,
     step_id: ctx.step_id,
+    authority_ref: ctx.authority_ref,
+    nested_operation: ctx.nested_operation || null,
     idempotency_key: ctx.idempotency_key,
     single_use: true,
     secrets_included: false,
@@ -60,6 +62,8 @@ function pass(ctx, extra = {}) {
     run_id: ctx.run_id,
     plan_hash: ctx.plan_hash,
     step_id: ctx.step_id,
+    authority_ref: ctx.authority_ref || null,
+    nested_operation: ctx.nested_operation || null,
     idempotency_key: ctx.idempotency_key,
     mutation_performed: false,
     readback_verified: true,
@@ -590,4 +594,39 @@ test("unknown connector rebind outcome stops before connector verification and L
   assert.equal(result.next_safe_action, "reconcile_same_operation_before_retry");
   assert.equal(calls.includes("connector_auth_verify"), false);
   assert.equal(calls.includes("local_manager_e2e_round_trip"), false);
+});
+
+
+test("nested authority substitution is rejected before a consequential stage can pass", async () => {
+  const store = makeStore();
+  const executors = happyExecutors({ zeroGovernance: false, zeroPersistence: false });
+  executors.canonical_grants_apply = async (ctx) => mutationPass(ctx, {
+    authority_ref: "governance.mcp_catalog.repair",
+    nested_operation: "apply_migration",
+  });
+
+  await assert.rejects(
+    advanceUntilBoundary({ store, executors }),
+    (error) => error.code === "PLATFORM_RECOVERY_STEP_AUTHORITY_REF_MISMATCH"
+      || error.code === "PLATFORM_RECOVERY_STEP_OPERATION_MISMATCH",
+  );
+});
+
+test("convergence plan declares canonical nested authorities for every mutating stage", () => {
+  const plan = buildPlatformRecoveryConvergencePlan(SHA);
+  const expected = {
+    governance_baseline_rebuild: ["governance.baseline.rebuild_empty", "database.rebuild_empty"],
+    runtime_persistence_baseline_rebuild: ["runtime_persistence.baseline.rebuild_empty", "database.rebuild_empty"],
+    canonical_grants_apply: ["runtime_bootstrap_canonical_grant_contract", "apply_grants"],
+    mcp_catalog_migration_apply: ["governance.mcp_catalog.repair", "apply_migration"],
+    response_chunk_storage_smoke: ["response_chunk_durable_recovery_smoke", "execute_smoke"],
+    connector_two_phase_rebind: ["local_connector_two_phase_rebind", "credential_rebind"],
+    local_manager_e2e_round_trip: ["local_manager_desktop_command_round_trip", "create_claim_complete"],
+  };
+  for (const [key, [authorityRef, operation]] of Object.entries(expected)) {
+    const step = plan.steps.find((candidate) => candidate.key === key);
+    assert.equal(step.authority_ref, authorityRef);
+    assert.equal(step.nested_operation, operation);
+    assert.equal(step.nested_authority_required, true);
+  }
 });
