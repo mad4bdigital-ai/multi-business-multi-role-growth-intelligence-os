@@ -345,3 +345,23 @@ test("platform convergence status requires an existing run", async () => {
     await new Promise((resolve) => server.close(resolve));
   }
 });
+
+
+test("platform convergence rejects unregistered caller fields", async () => {
+  const store = readyMutationStore();
+  const app = buildTestApp({
+    mutationRecoveryStore: store,
+    recoveryStore: store,
+  });
+  const { server, baseUrl } = await startServer(app);
+  try {
+    const response = await postJson(baseUrl, {
+      expected_sha: EXACT_SHA,
+      caller_override: "forbidden",
+    }, "/admin/recovery/kernel/platform-converge");
+    assert.equal(response.status, 400);
+    assert.equal(response.body.error.code, "recovery_kernel_input_field_forbidden");
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
