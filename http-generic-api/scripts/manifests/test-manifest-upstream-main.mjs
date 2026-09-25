@@ -1,4 +1,5 @@
 export const testCommands = [
+  "node test-production-recovery-closure.mjs",
   "node test-platform-recovery-convergence.mjs",
   "node test-platform-recovery-convergence-read-adapters.mjs",
   "node test-runtime-parity-startup-reconciler.mjs",
