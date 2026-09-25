@@ -8,7 +8,9 @@ This matrix is normative for platform_recovery_converge_v1. The operation is res
     → database_full_inspection
     → backup_evidence
     → governance_baseline_rebuild? → governance_baseline_verify
-    → runtime_persistence_baseline_rebuild? → runtime_persistence_baseline_verify
+    → runtime_persistence_baseline_rebuild?
+    → runtime_persistence_schema_repair?
+    → runtime_persistence_baseline_verify
     → canonical_grants_apply → canonical_grants_verify
     → bootstrap_ledger_verify
     → mcp_catalog_migration_apply → mcp_catalog_verify
@@ -24,7 +26,8 @@ This matrix is normative for platform_recovery_converge_v1. The operation is res
     → connector_auth_verify
     → local_manager_e2e_round_trip
     → deployment_parity
-    → final_gate
+    → final_production_activation_readiness
+    → recovery_closure
 
 Every consequential or bounded-mutation stage rechecks exact Production deployment parity immediately before execution. One advance call may execute at most one consequential/bounded mutation.
 
@@ -41,6 +44,12 @@ Every consequential or bounded-mutation stage rechecks exact Production deployme
 | Runtime Persistence zero-object | selected repair | Runtime Persistence only | Inspection evidence retained | Rebuild Runtime Persistence only |
 | Runtime role zero-object | unsupported by this convergence slice | No implicit Runtime rebuild | Run remains fail-closed | Use separately registered Runtime recovery authority |
 | Backup evidence missing | blocked | No | Inspection remains usable | Capture and verify all-role backup evidence |
+| Runtime Persistence non-empty + readiness=false | selected schema repair | `runtime_persistence.schema.repair` only | Same run/finding evidence retained | Execute registered migration authority, then verify baseline/readiness |
+| Runtime Persistence non-empty + readiness=true | repair skipped | No schema repair | Inspection evidence retained | Continue to independent verify |
+| Runtime Persistence readiness missing/null | blocked | No | Current run retained | Re-run durable inspection with explicit readiness evidence |
+| Role classification/count inconsistent or missing | blocked | No | Current run retained | Re-run full role census; do not infer non-empty from `zero_object=false` |
+| Grant readiness missing/null | blocked | No grant mutation | Current run retained | Re-run inspection with Governance privilege readiness |
+| MCP catalog readiness missing/null | blocked | No migration | Current run retained | Re-run inspection with MCP catalog readiness |
 | Backup not exact-SHA, not durable, or hash invalid | blocked | No | Current run retained | Replace with exact-SHA hash-addressed durable backup |
 | Nested approval missing | awaiting_approval | No | Current step retained | Obtain server-resolved step-bound approval |
 | Approval belongs to another step/run/SHA/idempotency key | hard reject | No | No success recorded | Issue correct nested approval |
@@ -69,6 +78,7 @@ Every consequential or bounded-mutation stage rechecks exact Production deployme
 | Local Manager create succeeds but claim fails | blocked | No final active | Command receipt retained | Repair device claim/lease authority |
 | Claim succeeds but completion outcome is unknown | unknown_outcome | No duplicate command | Claim identity retained | Read command status/reconcile |
 | Final deployment parity changes, including between the parity stage and final gate | blocked | No final recovered state | Prior receipts retained | Restore exact deployment parity and resume same run |
+| Final Production activation recertification regresses after connector/Local Manager mutation | blocked | No final recovered state | Prior receipts retained | Restore activation readiness and resume same run |
 | Every stage pass or explicitly skipped_not_required, final parity passes, and closure evaluator returns recovered | recovered (`active=true`) | N/A | Terminal idempotency receipt + closure hash | None |
 
 ## Pipeline invariants
@@ -77,12 +87,14 @@ Every consequential or bounded-mutation stage rechecks exact Production deployme
 2. Zero-object evidence is role-specific. A zero-object Governance database never authorizes Runtime reconstruction.
 3. Backup evidence is required before the first recovery mutation, while read-only full inspection may run before backup capture.
 4. Baseline rebuild, grant apply, MCP migration, response-chunk smoke, connector rebind, and Local Manager E2E remain separate consequential stages.
-5. The outer convergence run does not replace nested Recovery authority. Each mutation receipt must match the stage canonical authority reference and nested operation.
+5. The outer convergence run does not replace nested Recovery authority. Each mutation receipt must match the stage canonical authority reference and nested operation; the exact single-use approval is durably reserved and finalized around execution.
 6. A successful consequential stage forces a checkpoint; one advance request cannot consume approval for a later mutation.
 7. Unknown outcomes are not retryable until read-only reconciliation resolves the original idempotency key.
 8. HTTP 401 may justify credential rebind; HTTP 429, 403, 5xx, DNS, tunnel, and transport failures do not.
 9. Old connector credentials are revoked only after the newly installed credential succeeds on an authenticated probe.
-10. `active=true` is an operational boolean only; `status=recovered` is emitted only after a server-derived final closure proves every core gate, backup restore evidence, mutation audit, and a final same-cycle exact deployment-parity recertification.
+10. `active=true` is an operational boolean only; `status=recovered` is emitted only after a server-derived final closure proves every core gate, backup restore evidence, mutation audit, final same-cycle exact deployment-parity recertification, and final Production activation recertification.
+11. Missing readiness evidence is never equivalent to a failed readiness check. Repair eligibility requires explicit `false` evidence from the durable inspection.
+12. Partial non-empty Runtime or unregistered Governance schema corruption remains fail-closed; this slice adds only the existing `runtime_persistence.schema.repair` capability.
 
 ## Live authority boundary
 
