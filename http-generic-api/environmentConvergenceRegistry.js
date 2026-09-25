@@ -337,6 +337,35 @@ export function validateEnvironmentConvergenceRegistry(registry = readEnvironmen
   if (registry?.dependencies?.activation_gateway?.checks?.gateway_exact_commit?.failure_kind !== "convergence_drift") {
     errors.push("gateway_exact_commit_must_be_convergence_drift");
   }
+  const exactCommitBootstrap = registry?.dependencies?.activation_gateway?.checks?.gateway_exact_commit?.bootstrap_override;
+  if (
+    !exactCommitBootstrap
+    || exactCommitBootstrap.mode !== "exact_commit_bootstrap"
+    || !Array.isArray(exactCommitBootstrap.environments)
+    || exactCommitBootstrap.environments.length !== 1
+    || exactCommitBootstrap.environments[0] !== "staging"
+    || exactCommitBootstrap.current_authority_adapter !== "staging_activation_worker_workflow"
+    || exactCommitBootstrap.target_authority_model !== "server_governed_out_of_band"
+    || exactCommitBootstrap.transport !== "github_actions"
+    || exactCommitBootstrap.workflow !== ".github/workflows/staging-main-deploy-eligibility.yml"
+    || exactCommitBootstrap.dry_run_operation !== "activation_worker_refresh_dry_run"
+    || exactCommitBootstrap.apply_operation !== "deploy_activation_worker"
+    || exactCommitBootstrap.requires_exact_main !== true
+    || exactCommitBootstrap.requires_same_run_preflight !== true
+    || exactCommitBootstrap.caller_selected_provider_target_allowed !== false
+    || exactCommitBootstrap.requires_http_status !== 200
+    || exactCommitBootstrap.requires_service !== "activation-gateway"
+    || exactCommitBootstrap.requires_ok !== true
+    || exactCommitBootstrap.requires_stale !== false
+    || exactCommitBootstrap.requires_policy_key !== "activation_gateway_staging"
+    || exactCommitBootstrap.requires_policy_hash_match !== true
+    || exactCommitBootstrap.requires_source_worker_equality !== true
+    || exactCommitBootstrap.requires_source_not_desired !== true
+    || exactCommitBootstrap.requires_secrets_included_false !== true
+    || exactCommitBootstrap.automatic_apply_allowed !== false
+  ) {
+    errors.push("gateway_exact_commit_bootstrap_override_invalid");
+  }
   const staleOverride = registry?.dependencies?.activation_gateway?.checks?.gateway_policy_not_stale?.handoff_override;
   if (
     !staleOverride
