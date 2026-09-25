@@ -341,6 +341,7 @@ export const testCommands = [
   "node test-openapi-inventory-fragment-discovery.mjs",
   "node test-openapi-builder-schema-guard.mjs",
   "node test-activation-gateway.mjs",
+  "node test-health-gateway-ready-provenance.mjs",
   "node test-auth-mad4b-proxy-edge.mjs",
   "node test-auth-mad4b-proxy-rollout-tool.mjs",
   "node test-auth-mad4b-proxy-rollout-surface.mjs",
