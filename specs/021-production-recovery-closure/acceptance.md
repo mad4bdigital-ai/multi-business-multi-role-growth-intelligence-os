@@ -42,9 +42,9 @@ The following must all be true in one exact-SHA closure evidence pack:
 - closure evaluation itself performs no mutation.
 
 
-## Convergence active gate
+## Convergence recovered gate
 
-`platform_recovery_converge_v1` may report `active=true` only after every ordered stage is `pass` or an explicitly proven `skipped_not_required`.
+`platform_recovery_converge_v1` may report `status=recovered` with `active=true` only after every ordered stage is `pass` or an explicitly proven `skipped_not_required`, final same-cycle Production parity succeeds, and `mad4b.production-recovery-closure.v1` independently derives `recovered`.
 
 Required live acceptance includes exact SHA/version/deployment-info parity, verified backup evidence, durable full inspection, governance/runtime-persistence baseline readiness, canonical grants readback, MCP catalog migration/readback, real response-chunk write/read smoke, Admin and Device tool functional readbacks, Production activation readiness, connector authenticated HTTP 200, Local Manager create→claim→complete round-trip, and final deployment parity.
 
@@ -52,3 +52,4 @@ A role baseline rebuild is `skipped_not_required` only when the durable inspecti
 
 Each mutation boundary requires its own server-resolved exact-step approval and same-cycle readback. Completed steps are not replayed. Unknown outcome requires readback-only reconciliation and automatic retry remains false.
 \n## Transition acceptance\n\nEvery consequential stage must re-prove exact public deployment parity immediately before mutation. Every mutation receipt must match the planned canonical authority reference and nested operation. A successful mutation must return a checkpoint before any later mutation can execute.\n\nBackup evidence must be durable, hash-addressed, exact-SHA bound, no-secret, and cover runtime, governance, and runtime-persistence. Full inspection may run before backup because it is read-only, but no mutation may run before backup passes.\n\nPersistent external 429 may return `degraded` only when HTTP status is handled before JSON parsing, bounded Retry-After is honored, backoff survives restart, and the rate-limit source is attributed. 429 must never authorize credential rotation.\n
+A stale prior-process execution may not be retried. It becomes reconciliation-eligible only after the bounded liveness window, is promoted to `unknown_outcome`, and must be resolved by a read-only reconciler before any subsequent mutation.
