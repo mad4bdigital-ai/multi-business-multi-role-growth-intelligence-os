@@ -334,6 +334,7 @@ test("Recovery Kernel capability catalog is static, bounded, and secret-safe", (
     "system_tools_search",
     "production_activation_readiness",
     "production_recovery_closure",
+    "platform_recovery_converge_v1",
     "database_full_inspection",
     "remediation_plan_create",
     "remediation_plan_preview",
@@ -350,7 +351,7 @@ test("Recovery Kernel capability catalog is static, bounded, and secret-safe", (
     "ephemeral_capability_create",
     "unsupported_capability_execute",
   ]) assert.ok(result.capabilities.some((entry) => entry.capability_key === key), key);
-  assert.deepEqual(result.mutation_capabilities, ["runtime.baseline.rebuild_empty", "governance.baseline.rebuild_empty", "runtime_persistence.baseline.rebuild_empty", "remediation_step_execute", "unsupported_capability_execute"]);
+  assert.deepEqual(result.mutation_capabilities, ["platform_recovery_converge_v1", "runtime.baseline.rebuild_empty", "governance.baseline.rebuild_empty", "runtime_persistence.baseline.rebuild_empty", "remediation_step_execute", "unsupported_capability_execute"]);
   assert.equal(result.database_independent_capabilities.includes("recovery_capabilities"), true);
 });
 
