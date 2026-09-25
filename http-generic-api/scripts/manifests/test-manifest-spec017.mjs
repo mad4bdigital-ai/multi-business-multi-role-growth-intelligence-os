@@ -5,5 +5,7 @@ export const testCommands = Object.freeze([
   "node test-remote-mcp-client-provisioning.mjs",
   "node test-trusted-request-host-routing.mjs",
   "node test-environment-convergence-packaged-policy.mjs",
+  "node test-staging-environment-convergence-live-observation.mjs",
+  "node test-staging-environment-convergence-plan-live-observation.mjs",
   "node scripts/test-e2e-github-main-review-policy-readiness-failure-publisher.mjs",
 ]);
