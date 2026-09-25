@@ -1869,8 +1869,8 @@
         "mode": "server_resolved_step_bound_nested_approval"
       },
       "readback": {
-        "mode": "durable_run_checkpoint_and_same_cycle_nested_readback",
-        "operation": "POST /admin/recovery/kernel/platform-converge action=status"
+        "mode": "inline_post_commit",
+        "operation": "GET /admin/recovery/kernel/runs/{run_id}"
       },
       "rollback": {
         "mode": "step_owned_compensation_or_reconciliation",
