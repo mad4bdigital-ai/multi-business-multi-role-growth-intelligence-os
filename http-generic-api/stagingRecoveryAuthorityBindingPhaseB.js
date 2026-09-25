@@ -67,7 +67,7 @@ async function openPortableTokenRecordForRead(file) {
 
   let before;
   try {
-    before = await lstat(file);
+    before = await lstat(file, { bigint: true });
   } catch (error) {
     if (error?.code === "ENOENT") return null;
     throw error;
@@ -86,7 +86,7 @@ async function openPortableTokenRecordForRead(file) {
   }
 
   try {
-    const after = await handle.stat();
+    const after = await handle.stat({ bigint: true });
     if (!after.isFile() || before.dev !== after.dev || before.ino !== after.ino) {
       phaseBFailure("RECOVERY_PHASE_B_APPROVAL_TOKEN_STATE_CHANGED", "The internal Phase B approval-token state changed while it was being opened.");
     }
@@ -164,7 +164,16 @@ async function finalizeTokenRecord(handle, challenge, issued) {
   };
   const encoded = Buffer.from(`${JSON.stringify(record)}\n`, "utf8");
   await handle.truncate(0);
-  await handle.write(encoded, 0, encoded.length, 0);
+
+  let offset = 0;
+  while (offset < encoded.length) {
+    const { bytesWritten } = await handle.write(encoded, offset, encoded.length - offset, offset);
+    if (!Number.isInteger(bytesWritten) || bytesWritten <= 0) {
+      phaseBFailure("RECOVERY_PHASE_B_APPROVAL_TOKEN_WRITE_INCOMPLETE", "The internal Phase B approval-token state could not be finalized durably.");
+    }
+    offset += bytesWritten;
+  }
+
   await handle.sync();
   return record;
 }
