@@ -37,7 +37,8 @@
       "http-generic-api/test-recovery-composition.mjs",
       "http-generic-api/platformRecoveryConvergenceReadAdapters.js",
       "http-generic-api/test-platform-recovery-convergence-read-adapters.mjs",
-      "specs/021-production-recovery-closure/pipeline-scenario-matrix.md"
+      "specs/021-production-recovery-closure/pipeline-scenario-matrix.md",
+      "http-generic-api/test-production-recovery-closure.mjs"
     ]
   },
   "merge_contract": {
@@ -215,13 +216,21 @@
               "working_directory": "http-generic-api",
               "path": "test-platform-recovery-convergence.mjs",
               "args": []
+            },
+            {
+              "id": "production-recovery-closure-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-recovery-closure.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             "http-generic-api/platformRecoveryConvergence.js",
             "http-generic-api/routes/recoveryKernelRoutes.js",
             "specs/021-production-recovery-closure/acceptance.md",
-            "specs/021-production-recovery-closure/pipeline-scenario-matrix.md"
+            "specs/021-production-recovery-closure/pipeline-scenario-matrix.md",
+            "http-generic-api/test-production-recovery-closure.mjs"
           ]
         }
       ]
