@@ -48,6 +48,7 @@ Every consequential or bounded-mutation stage rechecks exact Production deployme
 | Production moves after an earlier successful mutation | blocked before next mutation | No next mutation | Prior receipt retained | Restore exact SHA or start a new exact-SHA run |
 | Mutation returns known not-applied failure | blocked | Retry after blocker fixed | Prior verified steps retained | Resume same run without replay |
 | Mutation outcome unknown | unknown_outcome | Blind retry forbidden | Original operation retained | Read-only reconcile under same idempotency key |
+| Process exits after durable `executing` checkpoint but before terminal receipt | executing → unknown_outcome after bounded stale window | Blind retry forbidden | Execution claim + step checkpoint retained | Read same-run status; after stale window use read-only reconciliation |
 | Reconciliation still unknown | unknown_outcome | No | Same run retained | Escalate evidence acquisition; no second mutation |
 | Governance grant readback fails | blocked | No MCP migration | Grant receipt retained | Repair grants and resume |
 | Bootstrap ledger not ready | blocked | No MCP migration | Prior steps retained | Repair/read bootstrap ledger |
@@ -67,8 +68,8 @@ Every consequential or bounded-mutation stage rechecks exact Production deployme
 | Connector returns 502/503/504/transport error | availability blocker | No credential rotation | Request evidence retained | Restore origin/tunnel/provider availability |
 | Local Manager create succeeds but claim fails | blocked | No final active | Command receipt retained | Repair device claim/lease authority |
 | Claim succeeds but completion outcome is unknown | unknown_outcome | No duplicate command | Claim identity retained | Read command status/reconcile |
-| Final deployment parity changes | blocked | No final active | Prior receipts retained | Restore exact deployment parity |
-| Every stage pass or explicitly skipped_not_required | active | N/A | Terminal idempotency receipt | None |
+| Final deployment parity changes, including between the parity stage and final gate | blocked | No final recovered state | Prior receipts retained | Restore exact deployment parity and resume same run |
+| Every stage pass or explicitly skipped_not_required, final parity passes, and closure evaluator returns recovered | recovered (`active=true`) | N/A | Terminal idempotency receipt + closure hash | None |
 
 ## Pipeline invariants
 
@@ -81,7 +82,7 @@ Every consequential or bounded-mutation stage rechecks exact Production deployme
 7. Unknown outcomes are not retryable until read-only reconciliation resolves the original idempotency key.
 8. HTTP 401 may justify credential rebind; HTTP 429, 403, 5xx, DNS, tunnel, and transport failures do not.
 9. Old connector credentials are revoked only after the newly installed credential succeeds on an authenticated probe.
-10. active is an operational state only; recovered is emitted only after a server-derived final closure proves every core gate, backup restore evidence, mutation audit, and exact deployment parity.
+10. `active=true` is an operational boolean only; `status=recovered` is emitted only after a server-derived final closure proves every core gate, backup restore evidence, mutation audit, and a final same-cycle exact deployment-parity recertification.
 
 ## Live authority boundary
 
