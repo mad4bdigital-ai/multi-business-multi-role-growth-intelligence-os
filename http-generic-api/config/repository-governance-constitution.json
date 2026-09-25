@@ -491,6 +491,7 @@
     ".changes/e2e/staging-gateway-transaction-hardening-20260912.json",
     ".changes/e2e/staging-git-transport-native-stderr-20260828.json",
     ".changes/e2e/staging-governance-authority-seed-recovery-20260915.json",
+    ".changes/e2e/staging-health-gateway-ready-provenance-20260925.json",
     ".changes/e2e/staging-inherited-port-publication-reset.json",
     ".changes/e2e/staging-live-certification-runtime-trust-evidence-20260916.json",
     ".changes/e2e/staging-local-allowlist-id-contract.json",

@@ -150,7 +150,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "c9fb013d5596a043abe2dbb3aee785aed297384feda00ba03e88309b620547f6"
+      "sha256": "1a5158bf9e91c1ac4c0452c234a0a6b33e5dea8c67a1f28365f7c1489a9dfc6f"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "cf492a0573365ae494ca2fa89444548688c3611f37fe81b23458c59e32abd761"
+      "sha256": "3590b386668333e2c84b1bbaa52421c677c99abd729e916f3dabd773f51c6f3a"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -186,7 +186,7 @@
     },
     {
       "path": "http-generic-api/routes/healthRoutes.js",
-      "sha256": "cc5b70689c4e30add9e093dc0dc36e6a798ae70cc3c9ece26e144004dafd3987"
+      "sha256": "4c8f25bc92da636e285c55bfc3b3c63c8682e2c45531593d5df007329f8f6780"
     },
     {
       "path": "http-generic-api/routes/rootDiscoveryRoutes.js",

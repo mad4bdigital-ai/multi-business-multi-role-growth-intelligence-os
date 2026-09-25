@@ -1,6 +1,35 @@
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { Router } from "express";
 import { buildVersionPayload, readDeploymentManifest } from "../deploymentManifest.js";
 import { buildStagingTrustedIngressCertificationEvidence } from "../stagingTrustedIngressCertificationEvidence.js";
+
+const SHA256_RE = /^[0-9a-f]{64}$/u;
+const SHA40_RE = /^[0-9a-f]{40}$/u;
+
+function readStagingGatewayReadyProvenance(env = process.env) {
+  const manifestResult = readDeploymentManifest(env);
+  const sourceCommit = String(
+    manifestResult?.ok ? manifestResult?.manifest?.commit_sha || "" : "",
+  ).trim().toLowerCase();
+
+  const policyPath = resolve(process.cwd(), "staging-route-policy.json");
+  let policyHash = "";
+
+  if (existsSync(policyPath)) {
+    try {
+      const policy = JSON.parse(readFileSync(policyPath, "utf8"));
+      policyHash = String(policy?.content_hash_sha256 || "").trim().toLowerCase();
+    } catch {
+      policyHash = "";
+    }
+  }
+
+  return {
+    sourceCommit: SHA40_RE.test(sourceCommit) ? sourceCommit : null,
+    policyHash: SHA256_RE.test(policyHash) ? policyHash : null,
+  };
+}
 
 export function buildHealthRoutes(deps) {
   const {
@@ -60,11 +89,31 @@ export function buildHealthRoutes(deps) {
       ? buildStagingTrustedIngressCertificationEvidence(runtimeEnv)
       : undefined;
 
+    const gatewayReadyProvenance =
+      readStagingGatewayReadyProvenance(runtimeEnv);
+
+    if (gatewayReadyProvenance.sourceCommit) {
+      res.set("x-mad4b-deployment-sha", gatewayReadyProvenance.sourceCommit);
+    }
+
+    if (gatewayReadyProvenance.policyHash) {
+      res.set(
+        "x-activation-gateway-policy-hash",
+        gatewayReadyProvenance.policyHash,
+      );
+    }
+
     res.json({
       ok: true,
       service: "http_generic_api_connector",
       status: dependencyStatus,
       version: SERVICE_VERSION,
+      ...(gatewayReadyProvenance.sourceCommit
+        ? { sourceCommit: gatewayReadyProvenance.sourceCommit }
+        : {}),
+      ...(gatewayReadyProvenance.policyHash
+        ? { policyHash: gatewayReadyProvenance.policyHash }
+        : {}),
       jobs: {
         total: jobRepository.size(),
         queued_buffer_size: queueHealth.count,

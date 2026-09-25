@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7826,
+  "file_count": 7830,
   "route_count": 1114,
   "write_route_count": 680,
   "classified_write_surface_count": 44,
@@ -3811,8 +3811,8 @@
     },
     {
       "route_id": "http-generic-api/routes/healthRoutes.js#GET:/health:0",
-      "source_line": 20,
-      "source_offset": 574,
+      "source_line": 49,
+      "source_offset": 1477,
       "method": "GET",
       "path": "/health",
       "file": "http-generic-api/routes/healthRoutes.js",
@@ -3820,8 +3820,8 @@
     },
     {
       "route_id": "http-generic-api/routes/healthRoutes.js#GET:/deployment-manifest:1",
-      "source_line": 98,
-      "source_offset": 3213,
+      "source_line": 147,
+      "source_offset": 4744,
       "method": "GET",
       "path": "/deployment-manifest",
       "file": "http-generic-api/routes/healthRoutes.js",
@@ -3829,8 +3829,8 @@
     },
     {
       "route_id": "http-generic-api/routes/healthRoutes.js#GET:/version:2",
-      "source_line": 106,
-      "source_offset": 3429,
+      "source_line": 155,
+      "source_offset": 4960,
       "method": "GET",
       "path": "/version",
       "file": "http-generic-api/routes/healthRoutes.js",
