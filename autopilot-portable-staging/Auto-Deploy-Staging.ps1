@@ -10,7 +10,6 @@ param(
     [switch]$StartTunnel,
     [ValidateSet("disabled", "windows_service", "docker_sidecar")]
     [string]$TunnelMode = "disabled",
-    [switch]$EnableActivationGateway,
     [switch]$ValidateOnly,
     [ValidateSet("Smart", "ForceBuild", "SkipBuild")]
     [string]$BuildMode = "Smart",
