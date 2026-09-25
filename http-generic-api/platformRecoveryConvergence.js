@@ -1199,6 +1199,17 @@ export async function runPlatformRecoveryConvergence(input = {}, deps = {}) {
     executors: deps.executors || {},
   });
 
+  const staleExecution = staleExecutingStep(run);
+  if (staleExecution) {
+    await promoteStaleExecutionToUnknown(
+      run,
+      deps.recoveryStore,
+      staleExecution.step,
+      staleExecution.age_ms,
+    );
+    return summarize(run);
+  }
+
   if (run.status === "unknown_outcome") {
     run.next_safe_action = "reconcile_same_operation_before_retry";
     return summarize(run);
