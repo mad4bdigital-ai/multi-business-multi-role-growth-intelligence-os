@@ -232,20 +232,30 @@ export function createPlatformRecoveryConvergenceReadExecutors({
     if (missing) return missing;
     const result = await backupEvidenceReader({ expected_sha: ctx.expected_sha, target_key: "production-runtime" });
     const roles = Array.isArray(result?.roles) ? result.roles.map((role) => text(role, 64)) : [];
+    const evidenceSha = text(result?.evidence_sha256 || result?.backup_evidence_sha256, 128).toLowerCase();
+    const evidenceExpectedSha = normalizeSha(result?.expected_sha || result?.source_sha);
     const ready = result?.backup_verified === true
+      && result?.durable === true
+      && evidenceExpectedSha === ctx.expected_sha
+      && /^[0-9a-f]{64}$/u.test(evidenceSha)
       && ["runtime", "governance", "runtime_persistence"].every((role) => roles.includes(role))
       && result?.secrets_included === false;
     if (!ready) {
       return blocked(ctx, "platform_recovery_backup_evidence_not_ready", "capture_and_verify_all_role_backup_evidence", {
         backup_verified: false,
+        durable: result?.durable === true,
+        exact_sha_bound: evidenceExpectedSha === ctx.expected_sha,
+        evidence_hash_valid: /^[0-9a-f]{64}$/u.test(evidenceSha),
         roles,
       });
     }
     return bound(ctx, {
       status: "pass",
       backup_verified: true,
+      durable: true,
+      exact_sha_bound: true,
       roles,
-      evidence_sha256: result.evidence_sha256 || result.backup_evidence_sha256 || null,
+      evidence_sha256: evidenceSha,
       evidence_ref: result.evidence_ref || result.backup_evidence_ref || null,
       readback_verified: true,
     });
@@ -378,7 +388,19 @@ export function createPlatformRecoveryConvergenceReadExecutors({
         });
   };
 
-  executors.connector_auth_verify = executors.connector_auth_probe;
+  executors.connector_auth_verify = async (ctx) => {
+    const result = await executors.connector_auth_probe(ctx);
+    if (result?.auth_ready === true && Number(result?.authenticated_operation_http_status) === 200) {
+      return result;
+    }
+    return blocked(ctx, "platform_recovery_connector_auth_not_ready", "resolve_connector_authentication_and_resume", {
+      authenticated_operation_http_status: result?.authenticated_operation_http_status ?? null,
+      auth_ready: false,
+      failure_kind: result?.failure_kind || "connector_auth_not_ready",
+      request_id: result?.request_id || null,
+      retry_after_seconds: result?.retry_after_seconds ?? null,
+    });
+  };
 
   executors.deployment_parity = async (ctx) => {
     const parity = await deploymentParityReader(ctx.expected_sha);
