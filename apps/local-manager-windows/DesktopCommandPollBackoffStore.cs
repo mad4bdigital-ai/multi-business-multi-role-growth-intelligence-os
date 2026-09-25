@@ -7,6 +7,7 @@ internal sealed record DesktopCommandPollBackoffState(DateTimeOffset BackoffUnti
 
 internal sealed class DesktopCommandPollBackoffStore
 {
+    internal const int MaxBackoffSeconds = 300;
     private readonly string _statePath;
 
     public DesktopCommandPollBackoffStore(string installRoot)
@@ -35,8 +36,10 @@ internal sealed class DesktopCommandPollBackoffStore
                 return null;
             }
 
-            // A server Retry-After deadline is a lower bound, including across restart.
-            var boundedUntil = persistedUntil;
+            // Persisted throttling is bounded so corrupted or extreme state cannot
+            // starve device polling indefinitely after restart.
+            var maxUntil = now.AddSeconds(MaxBackoffSeconds);
+            var boundedUntil = persistedUntil > maxUntil ? maxUntil : persistedUntil;
             var failureCount = 1;
             if (root.TryGetProperty("failure_count", out var countProperty)
                 && countProperty.TryGetInt32(out var parsedCount))
@@ -58,7 +61,9 @@ internal sealed class DesktopCommandPollBackoffStore
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_statePath)!);
-            var boundedUntil = backoffUntilUtc;
+            var now = DateTimeOffset.UtcNow;
+            var maxUntil = now.AddSeconds(MaxBackoffSeconds);
+            var boundedUntil = backoffUntilUtc > maxUntil ? maxUntil : backoffUntilUtc;
             var payload = JsonSerializer.Serialize(new
             {
                 contract = "mad4b.local-manager-desktop-poll-backoff.v1",
