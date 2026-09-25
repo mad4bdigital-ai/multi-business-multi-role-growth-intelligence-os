@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { evaluateProductionRecoveryClosure } from "./productionRecoveryClosure.js";
+import { assertRecoveryData } from "./recoveryProofBoundary.js";
 
 const SHA40_RE = /^[0-9a-f]{40}$/u;
 const SAFE_ID_RE = /^[A-Za-z0-9._:-]{8,220}$/u;
@@ -43,6 +45,9 @@ const REQUIRED_STORE_METHODS = Object.freeze([
   "getRunByIdempotency",
   "appendEvidenceEvent",
   "putIdempotencyReceipt",
+  "claimExecution",
+  "reserveApproval",
+  "markApprovalUsed",
 ]);
 
 function text(value, max = 512) {
@@ -84,8 +89,8 @@ function assertStore(store) {
       fail("PLATFORM_RECOVERY_DURABLE_STORE_UNAVAILABLE", `Recovery store is missing required method ${method}.`, 503);
     }
   }
-  if (store.independent_of_target_databases === false) {
-    fail("PLATFORM_RECOVERY_STORE_NOT_INDEPENDENT", "Recovery convergence store must remain independent of target databases.", 503);
+  if (store.independent_of_target_databases !== true) {
+    fail("PLATFORM_RECOVERY_STORE_NOT_INDEPENDENT", "Recovery convergence store must explicitly prove independence from target databases.", 503);
   }
 }
 
@@ -297,6 +302,7 @@ async function loadOrCreateRun({ expectedSha, runId = null, recoveryStore }) {
     current_step_id: plan.steps[0]?.step_id || null,
     steps: plan.steps.map((step) => createStepState(step, expectedRunId, plan.plan_hash)),
     active: false,
+    closure: run.closure ? clone(run.closure) : null,
     automatic_retry_allowed: false,
     database_names_caller_selectable: false,
     raw_sql_allowed: false,
@@ -369,6 +375,7 @@ function validateBoundResult(run, step, result) {
   if (value.secrets_included !== false) {
     fail("PLATFORM_RECOVERY_STEP_SECRET_BOUNDARY_INVALID", `Step ${step.key} did not prove secrets_included=false.`, 502);
   }
+  try { assertRecoveryData(value); } catch (error) { fail("PLATFORM_RECOVERY_PROOF_BOUNDARY_INVALID", `Step ${step.key} returned forbidden proof fields.`, 502, { error_code: String(error?.code || "proof_boundary") }); }
 
   if (status === "pass") {
     if (text(value.expected_sha, 64).toLowerCase() !== run.expected_sha) fail("PLATFORM_RECOVERY_STEP_SHA_MISMATCH", `Step ${step.key} returned the wrong SHA.`, 502);
@@ -419,6 +426,15 @@ function validateBoundResult(run, step, result) {
     fail("PLATFORM_RECOVERY_GRANTS_NOT_READY", "Canonical grants readback did not pass.", 502);
   }
 
+  if (step.key === "canonical_grants_apply" && status === "pass") {
+    if (value.execution_mode !== "host_local" || value.local_connector_required !== false || value.local_connector_fallback_allowed !== false) fail("PLATFORM_RECOVERY_GRANTS_HOST_AUTHORITY_INVALID", "Runtime grants must use host-local authority without connector fallback.", 502);
+    if (typeof value.grant_binding_hash !== "string" || !/^[0-9a-f]{64}$/u.test(value.grant_binding_hash)) fail("PLATFORM_RECOVERY_GRANT_BINDING_MISSING", "Grant binding hash must be server-derived and durable.", 502);
+    const resources = Array.isArray(value.resources) ? value.resources : [];
+    const allowed = new Set(["local_manager_device_link_sessions", "local_manager_desktop_commands"]);
+    if (resources.length === 0 || resources.some((resource) => !allowed.has(String(resource.table || resource)))) fail("PLATFORM_RECOVERY_GRANT_SCOPE_INVALID", "Local Manager runtime grant scope is broader than the bounded runtime tables.", 502);
+    if (value.database_mutation_performed !== true || value.readback_verified !== true) fail("PLATFORM_RECOVERY_GRANT_READBACK_INCOMPLETE", "Grant repair requires durable host-local readback.", 502);
+  }
+
   if (step.key === "bootstrap_ledger_verify" && status === "pass" && value.bootstrap_ledger_ready !== true) {
     fail("PLATFORM_RECOVERY_BOOTSTRAP_LEDGER_NOT_READY", "Bootstrap ledger readiness did not pass.", 502);
   }
@@ -427,8 +443,10 @@ function validateBoundResult(run, step, result) {
     fail("PLATFORM_RECOVERY_MCP_CATALOG_NOT_READY", "MCP catalog schema/readback is not ready.", 502);
   }
 
-  if (step.key === "response_chunk_storage_smoke" && status === "pass" && value.write_read_verified !== true) {
-    fail("PLATFORM_RECOVERY_RESPONSE_CHUNK_SMOKE_FAILED", "Response chunk write/read smoke did not verify.", 502);
+  if (step.key === "response_chunk_storage_smoke" && status === "pass") {
+    for (const flag of ["write_read_verified", "delete_verified", "absence_readback_verified"]) {
+      if (value[flag] !== true) fail("PLATFORM_RECOVERY_RESPONSE_CHUNK_SMOKE_FAILED", `Response chunk smoke did not verify ${flag}.`, 502);
+    }
   }
 
   if (step.key === "admin_tools_functional_readback" && status === "pass") {
@@ -553,7 +571,7 @@ async function verifyPreMutationDeploymentParity(run, step, executors) {
 
 function summarize(run) {
   return {
-    ok: run.status === "active",
+    ok: run.status === "recovered",
     contract: RUN_CONTRACT,
     run_id: run.run_id,
     expected_sha: run.expected_sha,

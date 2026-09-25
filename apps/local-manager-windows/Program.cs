@@ -1683,7 +1683,8 @@ internal static class Program
 
         private void SaveDesktopCommandPollBackoff()
         {
-            _desktopCommandPollBackoffStore.Save(_desktopCommandPollBackoffUntil, _desktopCommandPollFailureCount);
+            if (!_desktopCommandPollBackoffStore.Save(_desktopCommandPollBackoffUntil, _desktopCommandPollFailureCount))
+                _status.Text = "Polling backoff is active in memory; its restart persistence could not be verified.";
         }
 
         private void ClearDesktopCommandPollBackoff()
@@ -1712,7 +1713,17 @@ internal static class Program
                 var text = await response.Content.ReadAsStringAsync();
                 if (!response.IsSuccessStatusCode)
                 {
-                    if (response.StatusCode != System.Net.HttpStatusCode.Unauthorized && response.StatusCode != System.Net.HttpStatusCode.Forbidden)
+                    if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized || response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+                    {
+                        var authenticationRequired = response.StatusCode == System.Net.HttpStatusCode.Unauthorized;
+                        RegisterDesktopCommandPollFailure(
+                            authenticationRequired ? "Device authentication required. Reconnect this device." : "Device permission denied. Check access without rotating credentials.",
+                            serverRetryAfterSeconds: 300,
+                            errorCode: authenticationRequired ? "credential_invalid" : "authorization_denied",
+                            retryable: false,
+                            surface: "desktop_commands_claim");
+                    }
+                    else
                     {
                         var failure = AutopilotNetworkRecovery.ClassifyHttp(response.StatusCode, text);
                         RegisterDesktopCommandPollFailure(
@@ -1721,11 +1732,12 @@ internal static class Program
                     }
                     return;
                 }
+                using var doc = JsonDocument.Parse(text);
+                if (!doc.RootElement.TryGetProperty("commands", out var commands) || commands.ValueKind != JsonValueKind.Array)
+                    throw new InvalidDataException("Desktop command response did not contain the expected commands array.");
                 _desktopCommandPollFailureCount = 0;
                 _desktopCommandPollBackoffUntil = DateTimeOffset.MinValue;
                 ClearDesktopCommandPollBackoff();
-                using var doc = JsonDocument.Parse(text);
-                if (!doc.RootElement.TryGetProperty("commands", out var commands) || commands.ValueKind != JsonValueKind.Array) return;
                 foreach (var command in commands.EnumerateArray()) await ExecuteDesktopCommandAsync(client, token, command);
             }
             catch (Exception ex)
@@ -1768,7 +1780,7 @@ internal static class Program
                 3 => 60,
                 _ => 120
             };
-            var backoffSeconds = Math.Min(300, Math.Max(localBackoffSeconds, serverRetryAfterSeconds ?? 0));
+            var backoffSeconds = Math.Max(localBackoffSeconds, serverRetryAfterSeconds ?? 0);
             _desktopCommandPollBackoffUntil = DateTimeOffset.UtcNow.AddSeconds(backoffSeconds);
             SaveDesktopCommandPollBackoff();
 
@@ -1805,13 +1817,13 @@ internal static class Program
             var retryAfter = response.Headers.RetryAfter;
             if (retryAfter?.Delta is TimeSpan delta)
             {
-                return Math.Clamp((int)Math.Ceiling(delta.TotalSeconds), 1, 300);
+                return (int)Math.Clamp(Math.Ceiling(delta.TotalSeconds), 1, int.MaxValue);
             }
             if (retryAfter?.Date is DateTimeOffset retryAt)
             {
-                return Math.Clamp((int)Math.Ceiling((retryAt - DateTimeOffset.UtcNow).TotalSeconds), 1, 300);
+                return (int)Math.Clamp(Math.Ceiling((retryAt - DateTimeOffset.UtcNow).TotalSeconds), 1, int.MaxValue);
             }
-            return Math.Clamp(fallbackSeconds, 1, 300);
+            return Math.Max(fallbackSeconds, 1);
         }
 
         private async Task ExecuteDesktopCommandAsync(HttpClient client, string token, JsonElement command)
@@ -2241,3 +2253,4 @@ internal static class Program
     }
 
 }
+

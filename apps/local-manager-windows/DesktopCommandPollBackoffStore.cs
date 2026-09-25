@@ -7,7 +7,6 @@ internal sealed record DesktopCommandPollBackoffState(DateTimeOffset BackoffUnti
 
 internal sealed class DesktopCommandPollBackoffStore
 {
-    private const int MaxBackoffSeconds = 300;
     private readonly string _statePath;
 
     public DesktopCommandPollBackoffStore(string installRoot)
@@ -36,9 +35,8 @@ internal sealed class DesktopCommandPollBackoffStore
                 return null;
             }
 
-            var boundedUntil = persistedUntil > now.AddSeconds(MaxBackoffSeconds)
-                ? now.AddSeconds(MaxBackoffSeconds)
-                : persistedUntil;
+            // A server Retry-After deadline is a lower bound, including across restart.
+            var boundedUntil = persistedUntil;
             var failureCount = 1;
             if (root.TryGetProperty("failure_count", out var countProperty)
                 && countProperty.TryGetInt32(out var parsedCount))
@@ -55,15 +53,12 @@ internal sealed class DesktopCommandPollBackoffStore
         }
     }
 
-    public void Save(DateTimeOffset backoffUntilUtc, int failureCount)
+    public bool Save(DateTimeOffset backoffUntilUtc, int failureCount)
     {
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_statePath)!);
-            var now = DateTimeOffset.UtcNow;
-            var boundedUntil = backoffUntilUtc > now.AddSeconds(MaxBackoffSeconds)
-                ? now.AddSeconds(MaxBackoffSeconds)
-                : backoffUntilUtc;
+            var boundedUntil = backoffUntilUtc;
             var payload = JsonSerializer.Serialize(new
             {
                 contract = "mad4b.local-manager-desktop-poll-backoff.v1",
@@ -71,14 +66,16 @@ internal sealed class DesktopCommandPollBackoffStore
                 failure_count = Math.Clamp(failureCount, 1, 10),
                 secrets_included = false
             });
-            var temporary = _statePath + ".tmp";
+            var temporary = _statePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
             File.WriteAllText(temporary, payload, Encoding.UTF8);
-            File.Move(temporary, _statePath, true);
+            try { File.Move(temporary, _statePath, true); }
+            finally { if (File.Exists(temporary)) File.Delete(temporary); }
+            return true;
         }
         catch
         {
-            // Backoff state is secret-free local scheduling metadata. Filesystem
-            // failure must not expose credentials or authorize any command.
+            // Keep the in-memory deadline, but do not claim restart durability.
+            return false;
         }
     }
 
@@ -91,3 +88,4 @@ internal sealed class DesktopCommandPollBackoffStore
         catch { }
     }
 }
+

@@ -51,7 +51,7 @@ function normalizeGateMap(value = {}) {
   ));
 }
 
-function validateBackupEvidence(backup, expectedSha) {
+function validateBackupEvidence(backup, expectedSha, nowMs = Date.now()) {
   const problems = [];
   const value = backup && typeof backup === "object" && !Array.isArray(backup) ? backup : null;
   if (!value) {
@@ -66,10 +66,18 @@ function validateBackupEvidence(backup, expectedSha) {
   if (value.contract !== PRODUCTION_RECOVERY_BACKUP_EVIDENCE_CONTRACT) problems.push("backup_contract_invalid");
   if (sha !== expectedSha) problems.push("backup_sha_mismatch");
   if (!SHA256_RE.test(evidenceHash)) problems.push("backup_hash_invalid");
-  if (!createdAt || Number.isNaN(Date.parse(createdAt))) problems.push("backup_created_at_invalid");
+  const createdAtMs = Date.parse(createdAt);
+  if (!createdAt || Number.isNaN(createdAtMs)) problems.push("backup_created_at_invalid");
+  else if (createdAtMs > nowMs + 60_000) problems.push("backup_created_at_in_future");
+  else if (nowMs - createdAtMs > 24 * 60 * 60 * 1000) problems.push("backup_evidence_stale");
   if (!evidenceRef) problems.push("backup_evidence_ref_missing");
   for (const role of REQUIRED_ROLES) if (!roles.includes(role)) problems.push(`backup_role_missing:${role}`);
   if (value.verified !== true) problems.push("backup_not_verified");
+  if (value.storage_readback_verified !== true) problems.push("backup_storage_readback_unverified");
+  if (value.restore_test_verified !== true) problems.push("backup_restore_test_unverified");
+  if (!SHA256_RE.test(text(value.artifact_manifest_hash, 128))) problems.push("backup_artifact_manifest_hash_invalid");
+  if (!text(value.target_fingerprint, 256)) problems.push("backup_target_fingerprint_missing");
+  if (!text(value.cycle_id, 192)) problems.push("backup_cycle_id_missing");
   if (value.secrets_included !== false) problems.push("backup_secret_boundary_invalid");
 
   return {
@@ -83,6 +91,11 @@ function validateBackupEvidence(backup, expectedSha) {
       evidence_ref: evidenceRef || null,
       roles,
       verified: value.verified === true,
+      storage_readback_verified: value.storage_readback_verified === true,
+      restore_test_verified: value.restore_test_verified === true,
+      artifact_manifest_hash: SHA256_RE.test(text(value.artifact_manifest_hash, 128)) ? text(value.artifact_manifest_hash, 128).toLowerCase() : null,
+      target_fingerprint: text(value.target_fingerprint, 256) || null,
+      cycle_id: text(value.cycle_id, 192) || null,
       secrets_included: false,
     },
   };
@@ -107,6 +120,9 @@ export function evaluateProductionRecoveryClosure({ expectedSha = "", evidence =
   if (!inspectionRunId) problems.push("inspection_run_id_missing");
   if (!SHA256_RE.test(inspectionEvidenceHash)) problems.push("inspection_evidence_hash_invalid");
   if (value.secrets_included !== false) problems.push("closure_secret_boundary_invalid");
+  if (!text(value.cycle_id, 192)) problems.push("closure_cycle_id_missing");
+  if (backup.evidence?.cycle_id && backup.evidence.cycle_id !== text(value.cycle_id, 192)) problems.push("closure_cycle_id_mismatch");
+  if (backup.evidence?.target_fingerprint && backup.evidence.target_fingerprint !== text(value.target_fingerprint, 256)) problems.push("closure_target_fingerprint_mismatch");
   problems.push(...backup.problems);
 
   for (const gate of PRODUCTION_RECOVERY_CORE_GATES) {
