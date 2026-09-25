@@ -1227,13 +1227,43 @@ async function executeOneStep(run, step, { recoveryStore, executors, approvalRes
   }
 
   if (mutationEvidence.finding_binding) {
-    step.finding_binding = clone(mutationEvidence.finding_binding);
-    step.finding_binding_hash = mutationEvidence.finding_binding_hash;
-    await appendEvent(recoveryStore, run, step, "step_finding_bound", {
-      finding_id: step.finding_binding.finding_id,
-      finding_binding_hash: step.finding_binding_hash,
-    });
-    await persistRun(recoveryStore, run);
+    if (
+      step.finding_binding_hash
+      && step.finding_binding_hash !== mutationEvidence.finding_binding_hash
+    ) {
+      step.status = "blocked";
+      step.error_code = "platform_recovery_finding_binding_drift";
+      step.result = {
+        ok: false,
+        status: "blocked",
+        error_code: step.error_code,
+        next_safe_action: "discard_stale_run_and_repeat_durable_full_inspection",
+        mutation_performed: false,
+        readback_verified: false,
+        secrets_included: false,
+      };
+      run.status = "blocked";
+      run.active = false;
+      run.blocking_stage = step.key;
+      run.error_code = step.error_code;
+      run.next_safe_action = step.result.next_safe_action;
+      await appendEvent(recoveryStore, run, step, "step_blocked_finding_binding_drift", {
+        previous_finding_binding_hash: step.finding_binding_hash,
+        observed_finding_binding_hash: mutationEvidence.finding_binding_hash,
+      });
+      await persistRun(recoveryStore, run);
+      return { continue: false };
+    }
+
+    if (!step.finding_binding_hash) {
+      step.finding_binding = clone(mutationEvidence.finding_binding);
+      step.finding_binding_hash = mutationEvidence.finding_binding_hash;
+      await appendEvent(recoveryStore, run, step, "step_finding_bound", {
+        finding_id: step.finding_binding.finding_id,
+        finding_binding_hash: step.finding_binding_hash,
+      });
+      await persistRun(recoveryStore, run);
+    }
   }
 
   const preMutationParity = await verifyPreMutationDeploymentParity(run, step, executors);
