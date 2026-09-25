@@ -169,13 +169,21 @@ const preflightPath = path.join(tempRoot, "staging-schema-governance-preflight.j
 const commit = "a".repeat(40);
 const fetchPreloadPath = path.join(tempRoot, "gateway-fetch-preload.mjs");
 fs.writeFileSync(fetchPreloadPath, `
+const health = ${JSON.stringify({
+  ok: true,
+  service: "activation-gateway",
+  policyKey: gatewayProfile.policy_key,
+  policyHash: gatewayProfile.expected_policy_hash,
+  sourceCommit: commit,
+  workerBuildSha: commit,
+  stale: false,
+})};
 globalThis.fetch = async () => ({
   ok: true,
   status: 200,
-  async json() { return JSON.parse(process.env.MAD4B_TEST_GATEWAY_HEALTH_JSON); },
+  async json() { return health; },
 });
 `, "utf8");
-const preloadOption = `--import=${pathToFileURL(fetchPreloadPath).href}`;
 
 const runtime = {
   commit,
@@ -210,6 +218,7 @@ try {
   fs.writeFileSync(preflightPath, `\uFEFF${JSON.stringify(preflight)}`, "utf8");
 
   const result = spawnSync(process.execPath, [
+    "--import", pathToFileURL(fetchPreloadPath).href,
     bridgePath,
     "--runtime-state", runtimePath,
     "--preflight", preflightPath,
@@ -218,19 +227,7 @@ try {
   ], {
     cwd: here,
     encoding: "utf8",
-    env: {
-      ...process.env,
-      NODE_OPTIONS: [process.env.NODE_OPTIONS, preloadOption].filter(Boolean).join(" "),
-      MAD4B_TEST_GATEWAY_HEALTH_JSON: JSON.stringify({
-        ok: true,
-        service: "activation-gateway",
-        policyKey: gatewayProfile.policy_key,
-        policyHash: gatewayProfile.expected_policy_hash,
-        sourceCommit: commit,
-        workerBuildSha: commit,
-        stale: false,
-      }),
-    },
+    env: process.env,
   });
 
   assert.equal(result.status, 0, `bridge must accept Windows PowerShell UTF-8 BOM JSON inputs: ${result.stderr || result.stdout}`);
