@@ -420,10 +420,15 @@ function validateBoundResult(run, step, result, { mode = "execute" } = {}) {
       if (value.readback_verified !== true) fail("PLATFORM_RECOVERY_STEP_READBACK_UNVERIFIED", `Step ${step.key} did not complete same-cycle readback.`, 502);
     }
     if (mode === "reconcile" && isMutationStep(step)) {
-      if (value.mutation_performed !== false || value.reconciled !== true) {
+      if (
+        value.mutation_performed !== false
+        || value.reconciled !== true
+        || value.mutation_outcome_known !== true
+        || value.mutation_applied !== true
+      ) {
         fail(
           "PLATFORM_RECOVERY_RECONCILIATION_READBACK_INVALID",
-          `Reconciliation for ${step.key} must be read-only and explicitly reconciled.`,
+          `Reconciliation for ${step.key} must be read-only and prove the original mutation outcome.`,
           502,
         );
       }
@@ -1349,7 +1354,15 @@ async function reconcileUnknownStep(run, { recoveryStore, executors }) {
     const reconciliationApproval = approvalReservationContext(run, step, step.approval_id);
     await finalizeStepApproval(recoveryStore, reconciliationApproval);
     step.status = "pass";
-    step.result = result;
+    step.result = {
+      ...result,
+      original_mutation_performed: step.result?.mutation_performed === true,
+      reconciliation_mutation_performed: false,
+      mutation_performed: result.mutation_applied === true,
+      mutation_outcome_known: true,
+      mutation_applied: true,
+      secrets_included: false,
+    };
     step.completed_at = new Date().toISOString();
     step.error_code = null;
     step.request_id = text(result.request_id, 160) || null;
