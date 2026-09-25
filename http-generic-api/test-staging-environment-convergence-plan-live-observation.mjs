@@ -121,7 +121,11 @@ test("worker-only SHA drift is represented by the mismatching worker commit", ()
   assert.deepEqual(output.observed_reasons, ["gateway_exact_commit"]);
   assert.equal(output.live_observed_gateway_source_commit, commit);
   assert.equal(output.live_observed_gateway_worker_build_sha, oldCommit);
-  assert.equal(output.plan.gateway_policy_identity.observed.source_commit, oldCommit);
+  assert.equal(output.plan.gateway_policy_identity.observed.source_commit, commit);
+  const exactCommitCheck = output.report.convergence.classified_failures.find((entry) => entry.check_key === "gateway_exact_commit");
+  assert.equal(exactCommitCheck?.detail?.source, "staging_activation_gateway_live_observation");
+  assert.equal(exactCommitCheck?.detail?.source_commit, commit);
+  assert.equal(exactCommitCheck?.detail?.worker_build_sha, oldCommit);
   assert.equal(output.plan.governed_handoff.automatic_apply_allowed, false);
   assert.equal(output.safety.provider_mutation, false);
 });
