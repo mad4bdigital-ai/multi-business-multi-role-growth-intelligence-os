@@ -1,0 +1,118 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-health-gateway-ready-provenance-20260925",
+  "title": "Expose canonical Gateway-ready deployment provenance on API health",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-health-gateway-ready-provenance-20260925.json",
+      ".github/derived-state-governance.json",
+      ".github/governance/test-authority-registry.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/routes/healthRoutes.js",
+      "http-generic-api/scripts/manifests/test-manifest-spec011.mjs",
+      "http-generic-api/scripts/manifests/test-manifest-upstream-main.mjs",
+      "http-generic-api/test-health-gateway-ready-provenance.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Expose only canonical, packaged deployment provenance on /health so the Activation Gateway readiness verifier can distinguish missing upstream evidence from exact deployment drift without weakening fail-closed behavior or performing any provider, database, DNS, Cloudflare, Gateway, Staging, or Production mutation.",
+      "e2e_journeys": [
+        {
+          "id": "gateway-ready-health-provenance",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Activation Gateway readiness verifier",
+          "entrypoint": "GET /health",
+          "terminal_outcome": "The API health surface exposes the canonical deployment commit and packaged route-policy hash in both JSON and response headers when valid, omits malformed or unavailable evidence, and leaves Gateway deployment convergence to a separately governed rollout.",
+          "steps": [
+            "Read sourceCommit only through readDeploymentManifest(env), including DEPLOYMENT_MANIFEST_PATH support for isolated tests.",
+            "Read policyHash only from the packaged staging-route-policy.json located at the runtime working directory.",
+            "Validate sourceCommit as an exact lowercase 40-hex SHA and policyHash as an exact lowercase 64-hex SHA-256.",
+            "Emit x-mad4b-deployment-sha and x-activation-gateway-policy-hash only when the corresponding canonical evidence is valid.",
+            "Emit sourceCommit and policyHash in the /health JSON body only when valid.",
+            "Omit malformed or missing provenance rather than synthesizing fallback evidence.",
+            "Run the upstream health provenance regression, Activation Gateway verifier regression, Staging Gateway convergence regression, and runtime bundle parity check."
+          ],
+          "assertions": [
+            "No commit SHA or policy hash is hard-coded in runtime code.",
+            "The deployment commit is sourced from the canonical deployment manifest contract.",
+            "The policy hash is sourced from the policy artifact packaged into the Staging runtime image.",
+            "Malformed or missing manifest/policy evidence is omitted from body and headers.",
+            "Missing evidence remains fail-closed for Gateway readiness rather than being replaced by environment guesses.",
+            "The source repair performs no Gateway, Cloudflare, DNS, database, Staging deploy, or Production deploy mutation.",
+            "Production mutation remains unauthorized even though healthRoutes.js is classified as shared_runtime."
+          ],
+          "tests": [
+            {
+              "id": "health-gateway-ready-provenance",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-health-gateway-ready-provenance.mjs",
+              "args": []
+            },
+            {
+              "id": "activation-gateway",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-activation-gateway.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-activation-gateway",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-activation-gateway.mjs",
+              "args": []
+            },
+            {
+              "id": "activation-gateway-runtime-bundle-check",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/sync-activation-gateway-runtime-bundle.mjs",
+              "args": [
+                "--check"
+              ]
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-health-gateway-ready-provenance-20260925.json",
+            "http-generic-api/routes/healthRoutes.js",
+            "http-generic-api/test-health-gateway-ready-provenance.mjs",
+            "http-generic-api/scripts/manifests/test-manifest-spec011.mjs",
+            "http-generic-api/scripts/manifests/test-manifest-upstream-main.mjs",
+            ".github/governance/test-authority-registry.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Keep Production rollout and provider mutation outside this source repair.",
+      "blockers": [
+        "Production deployment requires a separate governed promotion after merge and independent evidence.",
+        "This PR grants no Gateway, Cloudflare, DNS, database, provider, Staging deploy, or Production deploy authority."
+      ]
+    }
+  ]
+}
