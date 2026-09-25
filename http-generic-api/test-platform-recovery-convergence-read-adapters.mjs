@@ -103,6 +103,11 @@ test("full inspection normalization preserves all role zero-object evidence and 
     durability: { inspection_durable: true },
     trust: { target_fingerprints: { composite: TARGET_FINGERPRINT } },
     inspection: {
+      checks: {
+        governance_db_privilege_ready: true,
+        mcp_catalog_schema_ready: true,
+        runtime_persistence_ready: false,
+      },
       role_database_object_classifications: {
         runtime: "nonempty_objects",
         governance: "zero_objects",
@@ -126,6 +131,9 @@ test("full inspection normalization preserves all role zero-object evidence and 
   assert.equal(normalized.roles.runtime_persistence.zero_object, true);
   assert.equal(normalized.roles.runtime.object_count_total, 17);
   assert.equal(normalized.target_fingerprint, TARGET_FINGERPRINT);
+  assert.equal(normalized.checks.governance_db_privilege_ready, true);
+  assert.equal(normalized.checks.mcp_catalog_schema_ready, true);
+  assert.equal(normalized.checks.runtime_persistence_ready, false);
 });
 
 test("identity adapter combines server identity with fixed public parity", async () => {
