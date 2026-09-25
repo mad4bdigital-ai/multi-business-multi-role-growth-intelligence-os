@@ -175,6 +175,7 @@ assert.equal(exactCommitBootstrap.observed_gateway.source_commit, oldSha);
 assert.equal(exactCommitBootstrap.observed_gateway.worker_build_sha, oldSha);
 assert.equal(exactCommitBootstrap.exact_commit_bootstrap_source_worker_equal, true);
 assert.equal(exactCommitBootstrap.exact_commit_bootstrap_source_not_desired, true);
+assert.equal(exactCommitBootstrap.exact_commit_bootstrap_observed_release_commit_in_hash, true);
 assert.equal(exactCommitBootstrap.exact_current_main_required, true);
 assert.equal(exactCommitBootstrap.same_run_preflight_required_for_apply, true);
 assert.equal(exactCommitBootstrap.provider_target_caller_selectable, false);
@@ -322,6 +323,43 @@ await assert.rejects(
   }),
   (error) => error?.code === "staging_activation_worker_handoff_not_stale",
 );
+
+await assert.rejects(
+  verifyStagingActivationWorkerHandoff({
+    sourceSha,
+    expectedPolicyHash: profile.expected_policy_hash,
+    callerPlanSha256: exactCommitBootstrapPlanSha,
+    fetchImpl: async () => new Response(JSON.stringify(exactCommitBootstrapHealth), { status: 201 }),
+    repositoryRoot: root,
+  }),
+  (error) => error?.code === "staging_activation_worker_handoff_not_stale",
+);
+await assert.rejects(
+  verifyStagingActivationWorkerHandoff({
+    sourceSha,
+    expectedPolicyHash: profile.expected_policy_hash,
+    callerPlanSha256: exactCommitBootstrapPlanSha,
+    fetchImpl: async () => new Response(JSON.stringify({
+      ...exactCommitBootstrapHealth,
+      stale: true,
+    }), { status: 200 }),
+    repositoryRoot: root,
+  }),
+  (error) => error?.code === "staging_activation_worker_handoff_not_stale",
+);
+await assert.rejects(
+  verifyStagingActivationWorkerHandoff({
+    sourceSha,
+    expectedPolicyHash: profile.expected_policy_hash,
+    callerPlanSha256: exactCommitBootstrapPlanSha,
+    fetchImpl: async () => new Response(JSON.stringify({
+      ...exactCommitBootstrapHealth,
+      secretsIncluded: true,
+    }), { status: 200 }),
+    repositoryRoot: root,
+  }),
+  (error) => error?.code === "staging_activation_worker_health_secret_boundary_invalid",
+);
 await assert.rejects(
   verifyStagingActivationWorkerHandoff({
     sourceSha,
@@ -342,6 +380,14 @@ assert.match(workflow, /PREFLIGHT_BINDING_SHA256: \$\{\{ needs\.activation_worke
 assert.match(workflow, /staging-activation-worker-handoff-verifier\.mjs/u);
 assert.equal(profile.policy_key, "activation_gateway_staging");
 assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.mode, "exact_commit_bootstrap");
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.authority, "server_governed");
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.current_authority_adapter, "staging_activation_worker_workflow");
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.target_authority_model, "server_governed_out_of_band");
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.plan_capability, "staging_activation_worker_refresh_dry_run");
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.apply_capability, "deploy_activation_worker");
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.execution_surface, "staging_activation_worker_workflow");
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.transport, "github_actions");
+assert.deepEqual(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.environments, ["staging"]);
 assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.requires_exact_main, true);
 assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.requires_same_run_preflight, true);
 assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.caller_selected_provider_target_allowed, false);
