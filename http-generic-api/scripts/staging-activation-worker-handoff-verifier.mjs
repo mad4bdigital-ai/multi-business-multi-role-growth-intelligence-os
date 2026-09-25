@@ -237,7 +237,8 @@ export async function verifyStagingActivationWorkerHandoff({
       fail("staging_activation_worker_handoff_contract_invalid", "Live stale convergence did not resolve to the bounded Staging out-of-band authority.");
     }
   } else {
-    if (bootstrapOverride?.current_authority_adapter !== "staging_activation_worker_workflow"
+    if (bootstrapOverride?.mode !== "exact_commit_bootstrap"
+      || bootstrapOverride?.current_authority_adapter !== "staging_activation_worker_workflow"
       || bootstrapOverride?.target_authority_model !== "server_governed_out_of_band"
       || bootstrapOverride?.transport !== "github_actions"
       || bootstrapOverride?.workflow !== WORKFLOW
@@ -246,6 +247,15 @@ export async function verifyStagingActivationWorkerHandoff({
       || bootstrapOverride?.requires_exact_main !== true
       || bootstrapOverride?.requires_same_run_preflight !== true
       || bootstrapOverride?.caller_selected_provider_target_allowed !== false
+      || bootstrapOverride?.requires_http_status !== 200
+      || bootstrapOverride?.requires_service !== "activation-gateway"
+      || bootstrapOverride?.requires_ok !== true
+      || bootstrapOverride?.requires_stale !== false
+      || bootstrapOverride?.requires_policy_key !== "activation_gateway_staging"
+      || bootstrapOverride?.requires_policy_hash_match !== true
+      || bootstrapOverride?.requires_source_worker_equality !== true
+      || bootstrapOverride?.requires_source_not_desired !== true
+      || bootstrapOverride?.requires_secrets_included_false !== true
       || bootstrapOverride?.automatic_apply_allowed !== false) {
       fail("staging_activation_worker_bootstrap_override_invalid", "Exact-commit bootstrap override is not the bounded Staging recovery bridge.");
     }
