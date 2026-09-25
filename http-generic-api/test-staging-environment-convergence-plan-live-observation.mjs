@@ -37,30 +37,24 @@ function runPlanner(health, { preflightCommit = commit } = {}) {
         migration_apply: false,
       },
     }));
+    const status = health?.stale === true ? 503 : 200;
     fs.writeFileSync(preloadPath, `
-const health = JSON.parse(process.env.MAD4B_TEST_GATEWAY_HEALTH_JSON);
+const health = ${JSON.stringify(health)};
+const status = ${status};
 globalThis.fetch = async () => ({
-  ok: Number(process.env.MAD4B_TEST_GATEWAY_STATUS || 200) >= 200
-    && Number(process.env.MAD4B_TEST_GATEWAY_STATUS || 200) < 300,
-  status: Number(process.env.MAD4B_TEST_GATEWAY_STATUS || 200),
+  ok: status >= 200 && status < 300,
+  status,
   async json() { return health; },
 });
 `, "utf8");
     const result = spawnSync(process.execPath, [
+      "--import", pathToFileURL(preloadPath).href,
       script,
       "--runtime-state", runtimePath,
       "--preflight", preflightPath,
       "--repository", "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
       "--recovery-trust-exact", "true",
-    ], {
-      encoding: "utf8",
-      env: {
-        ...process.env,
-        NODE_OPTIONS: [process.env.NODE_OPTIONS, `--import=${pathToFileURL(preloadPath).href}`].filter(Boolean).join(" "),
-        MAD4B_TEST_GATEWAY_HEALTH_JSON: JSON.stringify(health),
-        MAD4B_TEST_GATEWAY_STATUS: String(health?.stale === true ? 503 : 200),
-      },
-    });
+    ], { encoding: "utf8" });
     return result;
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
