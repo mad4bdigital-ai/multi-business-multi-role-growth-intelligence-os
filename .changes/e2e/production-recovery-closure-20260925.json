@@ -45,7 +45,8 @@
       "specs/021-production-recovery-closure/e2e-phases.json",
       "http-generic-api/platformRecoveryConvergenceReadAdapters.js",
       "http-generic-api/test-platform-recovery-convergence-read-adapters.mjs",
-      "specs/021-production-recovery-closure/pipeline-scenario-matrix.md"
+      "specs/021-production-recovery-closure/pipeline-scenario-matrix.md",
+      "http-generic-api/test-production-recovery-closure.mjs"
     ]
   },
   "merge_contract": {
