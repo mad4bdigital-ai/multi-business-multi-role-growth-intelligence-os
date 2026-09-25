@@ -344,8 +344,12 @@ export function validateEnvironmentConvergenceRegistry(registry = readEnvironmen
     || !Array.isArray(exactCommitBootstrap.environments)
     || exactCommitBootstrap.environments.length !== 1
     || exactCommitBootstrap.environments[0] !== "staging"
+    || exactCommitBootstrap.authority !== "server_governed"
     || exactCommitBootstrap.current_authority_adapter !== "staging_activation_worker_workflow"
     || exactCommitBootstrap.target_authority_model !== "server_governed_out_of_band"
+    || exactCommitBootstrap.plan_capability !== "staging_activation_worker_refresh_dry_run"
+    || exactCommitBootstrap.apply_capability !== "deploy_activation_worker"
+    || exactCommitBootstrap.execution_surface !== "staging_activation_worker_workflow"
     || exactCommitBootstrap.transport !== "github_actions"
     || exactCommitBootstrap.workflow !== ".github/workflows/staging-main-deploy-eligibility.yml"
     || exactCommitBootstrap.dry_run_operation !== "activation_worker_refresh_dry_run"
