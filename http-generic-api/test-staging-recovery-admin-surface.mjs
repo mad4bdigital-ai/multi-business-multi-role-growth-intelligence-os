@@ -299,6 +299,14 @@ test("real signed Worker to origin rejects forgery, substitution, replay and mis
     REMOTE_MCP_EXPECTED_DEPLOYMENT_SHA: identity.source_sha,
   };
   const app = express();
+  app.use(express.json({
+    verify: (req, _res, buffer) => {
+      const requestPath = String(req.originalUrl || req.url || "").split("?", 1)[0];
+      if (req.method === "POST" && requestPath.startsWith("/admin/recovery/staging/")) {
+        req.rawBody = Buffer.from(buffer);
+      }
+    },
+  }));
   let replayClaims = 0;
   app.use(buildActivationHostGatewayRoutes({ env,
     deploymentAttestationReader: async () => ({ environment: "staging", branch: "main", sha: identity.source_sha,
@@ -361,6 +369,120 @@ test("real signed Worker to origin rejects forgery, substitution, replay and mis
       assert.equal((await fetch(`${origin.url}${pathname}`, { headers })).status, 403, JSON.stringify(patch));
     }
     assert.equal(replayClaims, 2, "invalid signed claims are rejected before consuming replay storage");
+
+    const rolloutPath = "/admin/recovery/staging/gateway/rollout-plan";
+    const dryRunPath = "/admin/recovery/staging/gateway/dark-deploy-dry-run";
+    const rolloutBody = JSON.stringify({
+      expected_source_commit: identity.source_sha,
+      expected_policy_hash: policy.content_hash_sha256,
+      environment_convergence_plan_sha256: "c".repeat(64),
+    });
+
+    async function captureSignedRequest({ method, requestPath, body = undefined }) {
+      let signed;
+      const captureHandler = createActivationGateway({
+        policy,
+        workerBuildIdentity: identity,
+        cryptoImpl: webcrypto,
+        logger: { info() {} },
+        fetchImpl: async (_url, options) => {
+          signed = { headers: new Headers(options.headers), body: options.body };
+          return new Response(JSON.stringify({ ok: true }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        },
+      });
+      const response = await captureHandler(new Request(`https://${policy.public_host}${requestPath}`, {
+        method,
+        headers: body === undefined ? undefined : { "content-type": "application/json" },
+        body,
+      }), workerEnv);
+      assert.equal(response.status, 200);
+      assert.ok(signed?.headers);
+      return signed;
+    }
+
+    let capturedPostHeaders;
+    const postHandler = createActivationGateway({
+      policy,
+      workerBuildIdentity: identity,
+      cryptoImpl: webcrypto,
+      logger: { info() {} },
+      fetchImpl: async (url, options) => {
+        capturedPostHeaders = new Headers(options.headers);
+        return fetch(`${origin.url}${url.pathname}`, options);
+      },
+    });
+    const validPost = await postHandler(new Request(`https://${policy.public_host}${rolloutPath}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: rolloutBody,
+    }), workerEnv);
+    assert.notEqual(validPost.status, 403, "valid signed POST must pass trusted ingress");
+    assert.notEqual(validPost.status, 404, "valid signed POST must reach the Recovery route");
+    assert.equal(guards, 4, "valid signed POST reaches both server-managed route guards");
+
+    const postEncoded = capturedPostHeaders.get("x-mad4b-ingress-attestation").split(".")[0];
+    const postClaims = JSON.parse(Buffer.from(postEncoded, "base64url"));
+    const expectedPostDigest = Buffer.from(await webcrypto.subtle.digest("SHA-256", Buffer.from(rolloutBody))).toString("hex");
+    assert.equal(postClaims.method, "POST");
+    assert.equal(postClaims.path, rolloutPath);
+    assert.equal(postClaims.body_digest, expectedPostDigest);
+
+    const replayPost = await fetch(`${origin.url}${rolloutPath}`, {
+      method: "POST",
+      headers: capturedPostHeaders,
+      body: rolloutBody,
+    });
+    assert.equal(replayPost.status, 403, "same signed POST cannot be replayed");
+
+    const changedBodyProof = await captureSignedRequest({ method: "POST", requestPath: rolloutPath, body: rolloutBody });
+    const changedBody = rolloutBody.replace(identity.source_sha, "d".repeat(40));
+    const changedBodyResponse = await fetch(`${origin.url}${rolloutPath}`, {
+      method: "POST",
+      headers: changedBodyProof.headers,
+      body: changedBody,
+    });
+    assert.equal(changedBodyResponse.status, 403, "same signature with changed body is rejected");
+
+    const getProof = await captureSignedRequest({ method: "GET", requestPath: pathname });
+    const getAsPost = await fetch(`${origin.url}${rolloutPath}`, {
+      method: "POST",
+      headers: getProof.headers,
+      body: rolloutBody,
+    });
+    assert.equal(getAsPost.status, 403, "GET signature cannot be reused for POST");
+
+    const wrongPathProof = await captureSignedRequest({ method: "POST", requestPath: rolloutPath, body: rolloutBody });
+    const wrongPathPost = await fetch(`${origin.url}${dryRunPath}`, {
+      method: "POST",
+      headers: wrongPathProof.headers,
+      body: rolloutBody,
+    });
+    assert.equal(wrongPathPost.status, 403, "POST signature is path-bound");
+
+    const emptyDigestProof = await captureSignedRequest({ method: "POST", requestPath: rolloutPath, body: rolloutBody });
+    const emptyEncoded = emptyDigestProof.headers.get("x-mad4b-ingress-attestation").split(".")[0];
+    const emptyClaims = JSON.parse(Buffer.from(emptyEncoded, "base64url"));
+    const emptyBodyDigest = Buffer.from(await webcrypto.subtle.digest("SHA-256", Buffer.alloc(0))).toString("hex");
+    const changedClaims = Buffer.from(JSON.stringify({
+      ...emptyClaims,
+      body_digest: emptyBodyDigest,
+      jti: webcrypto.randomUUID(),
+    }));
+    const emptySignedHeaders = new Headers(emptyDigestProof.headers);
+    emptySignedHeaders.set(
+      "x-mad4b-ingress-attestation",
+      `${changedClaims.toString("base64url")}.${sign(null, changedClaims, ingressKeys.privateKey).toString("base64url")}`,
+    );
+    const nonEmptySignedAsEmpty = await fetch(`${origin.url}${rolloutPath}`, {
+      method: "POST",
+      headers: emptySignedHeaders,
+      body: rolloutBody,
+    });
+    assert.equal(nonEmptySignedAsEmpty.status, 403, "nonempty POST signed as empty body is rejected");
+
     const readiness = await handler(new Request(`https://${policy.public_host}/ready`), workerEnv);
     assert.equal(readiness.status, 200);
     assert.equal((await readiness.json()).upstreamEvidenceVerified, true);
