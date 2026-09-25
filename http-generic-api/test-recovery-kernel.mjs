@@ -333,6 +333,7 @@ test("Recovery Kernel capability catalog is static, bounded, and secret-safe", (
     "system_tool_get",
     "system_tools_search",
     "production_activation_readiness",
+    "production_recovery_closure",
     "database_full_inspection",
     "remediation_plan_create",
     "remediation_plan_preview",
@@ -980,4 +981,130 @@ test("unsupported capability is plan-bound and brokerless execution fails closed
   const run = [...durable.runs.values()].at(-1);
   assert.ok(run.events.some((event) => event.phase === "executing"));
   assert.equal(run.evidence.database_mutation_performed, undefined);
+});
+
+
+function makeProductionRecoveryClosureEvidence(overrides = {}) {
+  const gates = {
+    exact_source_sha_verified: true,
+    durable_inspection_verified: true,
+    governance_baseline_ready: true,
+    runtime_persistence_baseline_ready: true,
+    canonical_grants_ready: true,
+    bootstrap_ledger_ready: true,
+    mcp_catalog_schema_ready: true,
+    admin_catalog_functional_readback: true,
+    device_catalog_functional_readback: true,
+    response_chunk_storage_smoke: true,
+    production_activation_readiness: true,
+    backup_evidence_verified: true,
+    production_mutation_audited: true,
+    connector_auth_ready: true,
+    rate_limit_attribution_ready: true,
+    ...(overrides.gates || {}),
+  };
+  return {
+    contract: "mad4b.production-recovery-closure-evidence.v1",
+    expected_sha: SHA,
+    server_derived: true,
+    durable: true,
+    same_cycle: true,
+    inspection_run_id: "run:production-recovery-closure-test",
+    inspection_evidence_hash: "9".repeat(64),
+    backup_evidence: {
+      contract: "mad4b.production-recovery-backup-evidence.v1",
+      expected_sha: SHA,
+      evidence_sha256: "8".repeat(64),
+      created_at: "2026-09-25T00:00:00.000Z",
+      evidence_ref: "recovery-backup:test-fixture",
+      roles: ["runtime", "governance", "runtime_persistence"],
+      verified: true,
+      secrets_included: false,
+    },
+    unknown_outcome: false,
+    gates,
+    secrets_included: false,
+    ...overrides,
+    gates,
+  };
+}
+
+test("Production Recovery closure requires server-derived durable same-cycle evidence", async () => {
+  await assert.rejects(
+    callRecoveryKernelCapability("production_recovery_closure", { expected_sha: SHA }, { env: ENV }),
+    (error) => error.code === "RECOVERY_PRODUCTION_CLOSURE_EVIDENCE_RESOLVER_UNAVAILABLE",
+  );
+
+  const result = await callRecoveryKernelCapability(
+    "production_recovery_closure",
+    { expected_sha: SHA },
+    {
+      env: ENV,
+      productionRecoveryClosureEvidenceResolver: async () => makeProductionRecoveryClosureEvidence(),
+    },
+  );
+  assert.equal(result.status, "recovered");
+  assert.equal(result.ok, true);
+  assert.equal(result.core_recovered, true);
+  assert.equal(result.unknown_outcome, false);
+  assert.equal(result.read_only_probe, true);
+  assert.equal(result.database_mutation_performed, false);
+  assert.equal(result.provider_mutation_performed, false);
+  assert.equal(result.production_mutation_performed, false);
+  assert.equal(result.closure_sha256.length, 64);
+});
+
+test("Production Recovery closure cannot report recovered without verified backup evidence", async () => {
+  const result = await callRecoveryKernelCapability(
+    "production_recovery_closure",
+    { expected_sha: SHA },
+    {
+      env: ENV,
+      productionRecoveryClosureEvidenceResolver: async () => makeProductionRecoveryClosureEvidence({
+        backup_evidence: null,
+      }),
+    },
+  );
+  assert.equal(result.status, "blocked");
+  assert.equal(result.core_recovered, false);
+  assert.equal(result.backup_evidence_verified, false);
+  assert.ok(result.problems.includes("backup_evidence_missing"));
+});
+
+test("Production Recovery closure preserves unknown outcome as terminal until reconciliation", async () => {
+  const result = await callRecoveryKernelCapability(
+    "production_recovery_closure",
+    { expected_sha: SHA },
+    {
+      env: ENV,
+      productionRecoveryClosureEvidenceResolver: async () => makeProductionRecoveryClosureEvidence({
+        unknown_outcome: true,
+      }),
+    },
+  );
+  assert.equal(result.status, "unknown_outcome");
+  assert.equal(result.ok, false);
+  assert.equal(result.core_recovered, false);
+  assert.equal(result.reconciliation_required, true);
+  assert.equal(result.automatic_retry_allowed, false);
+});
+
+test("Production Recovery closure separates non-DB connector and rate-limit gaps", async () => {
+  const result = await callRecoveryKernelCapability(
+    "production_recovery_closure",
+    { expected_sha: SHA },
+    {
+      env: ENV,
+      productionRecoveryClosureEvidenceResolver: async () => makeProductionRecoveryClosureEvidence({
+        gates: {
+          connector_auth_ready: false,
+          rate_limit_attribution_ready: false,
+        },
+      }),
+    },
+  );
+  assert.equal(result.status, "degraded_non_db");
+  assert.equal(result.core_recovered, true);
+  assert.equal(result.ok, false);
+  assert.deepEqual(result.non_db_gaps, ["connector_auth_ready", "rate_limit_attribution_ready"]);
 });
