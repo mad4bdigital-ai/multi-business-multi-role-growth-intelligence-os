@@ -75,7 +75,7 @@
 - [x] Detect a stale prior-process executing checkpoint and require read-only reconciliation without replay.
 - [x] Preserve readiness as tri-state evidence; missing checks block rather than imply repair eligibility.
 - [x] Require a consistent per-role object census (`zero_objects`/`nonempty_objects` + total) before any role-dependent repair.
-- [x] Add conditional `runtime_persistence.schema.repair` for proven non-empty schema drift using the existing Recovery Kernel authority only.
+- [x] Detect proven non-empty runtime-persistence schema drift and hand it off to a separate Recovery Kernel remediation plan; do not execute migration-first repair inside convergence.
 - [x] Reserve and durably finalize each exact step approval around the orchestration execution claim.
 - [x] Preserve original mutation audit across read-only unknown-outcome reconciliation.
 - [x] Re-run Production activation readiness inside the final gate after the last mutation.
