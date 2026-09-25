@@ -68,6 +68,11 @@
 - [x] Bind every mutation to a canonical nested authority reference and operation.
 - [x] Gate MCP migration on bootstrap ledger readiness.
 - [x] Classify persistent external 429 as resumable degradation when Retry-After/backoff behavior is healthy.
+- [x] Preserve bounded canonical full-inspection findings without observed-state/secret payloads.
+- [x] Add finding-bound Runtime Persistence partial schema repair for non-empty deterministic schema drift.
+- [x] Bind partial repair finding ID/provenance into approval, durable reservation, executor receipt, and reconciliation.
+- [x] Keep zero-object rebuild and partial-schema repair mutually exclusive.
+- [x] Fail closed on missing or ambiguous partial-repair findings.
 - [x] Add and govern the 19-map/16-domain Work Map integration plus pipeline scenario matrix.
 - [x] Skip grant and MCP-catalog mutations when durable full inspection proves they are already ready; retain independent verify stages.
 - [x] Recheck exact `/version` + `/deployment-info` parity inside the final gate before recovered.
