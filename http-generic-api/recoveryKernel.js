@@ -1,3 +1,4 @@
+import { evaluateProductionRecoveryClosure } from "./productionRecoveryClosure.js";
 import { createHash, randomUUID } from "node:crypto";
 import { readDeploymentManifest } from "./deploymentManifest.js";
 import { executeHostLocalRoleInspection } from "./hostLocalRuntimeInspection.js";
@@ -298,6 +299,7 @@ export const RECOVERY_KERNEL_CAPABILITIES = Object.freeze([
   capability("system_tools_search", "C0", "Search the bounded repository-registered fixed system-tool descriptors without loading the large dynamic catalog.", { dependencies: ["static_system_tool_registry"] }),
   capability("recovery_capabilities", "C0", "Return the static Recovery Kernel capability matrix, risk classes, dependencies, and boundaries.", { dependencies: ["repository_static_contract"] }),
   capability("production_activation_readiness", "C0", "Read the three bounded Production readiness dimensions without loading a large catalog or performing mutation.", { dependencies: ["mcp_catalog_schema_reader", "governance_privilege_reader", "runtime_persistence_reader"] }),
+  capability("production_recovery_closure", "C0", "Derive final Production Recovery closure only from exact-SHA durable same-cycle server evidence; caller-supplied readiness booleans are forbidden.", { dependencies: ["production_recovery_closure_evidence_resolver", "durable_full_inspection", "backup_evidence", "functional_readbacks"] }),
   capability("database_full_inspection", "C0", "Run the exact-SHA Production host-local full database inspection using the three independent role identities in the server environment.", { dependencies: ["host_local_role_env", "production_identity", "runtime_bootstrap_contract"] }),
   capability("runtime.baseline.rebuild_empty", "C5", "Rebuild only the runtime role from its repository-owned baseline when the same-cycle inspection proves that role has zero schema objects; never drops a nonempty target.", { dependencies: ["database_full_inspection", "role_object_proof", "role_fingerprint", "recovery_plan_state"], mutation: true, approval_required: true, blast_radius: { database_roles: ["runtime"], tables_max: 0, rows_data_mutation: false, schema_mutation: true, grants_mutation: false, cross_database: false }, rollback: "forward_only_or_capability_declared" }),
   capability("governance.baseline.rebuild_empty", "C5", "Rebuild only the governance role from its repository-owned baseline when the same-cycle inspection proves that role has zero schema objects; never drops a nonempty target.", { dependencies: ["database_full_inspection", "role_object_proof", "role_fingerprint", "recovery_plan_state"], mutation: true, approval_required: true, blast_radius: { database_roles: ["governance"], tables_max: 0, rows_data_mutation: false, schema_mutation: true, grants_mutation: false, cross_database: false }, rollback: "forward_only_or_capability_declared" }),
@@ -1749,6 +1751,17 @@ export async function callRecoveryKernelCapability(capabilityKey, input = {}, de
           read_only_probe: true,
         }),
       });
+    }
+    case "production_recovery_closure": {
+      const body = assertObject(input);
+      const unexpected = Object.keys(body).filter((field) => field !== "expected_sha");
+      if (unexpected.length) throw kernelError(400, "RECOVERY_INPUT_FIELD_FORBIDDEN", "production_recovery_closure accepts only expected_sha.", { fields: unexpected });
+      const expectedSha = requireSha(body.expected_sha);
+      if (typeof deps.productionRecoveryClosureEvidenceResolver !== "function") {
+        throw kernelError(503, "RECOVERY_PRODUCTION_CLOSURE_EVIDENCE_RESOLVER_UNAVAILABLE", "Production Recovery closure requires a server-injected durable evidence resolver.");
+      }
+      const evidence = await deps.productionRecoveryClosureEvidenceResolver({ expected_sha: expectedSha });
+      return sanitizeEvidence(evaluateProductionRecoveryClosure({ expectedSha, evidence }));
     }
     case "database_full_inspection": return inspectProductionDatabase(input, deps);
     case "unsupported_recovery_escalate": return escalateUnsupportedRecovery(input, { ...deps, adminPrincipal: deps.adminPrincipal });
