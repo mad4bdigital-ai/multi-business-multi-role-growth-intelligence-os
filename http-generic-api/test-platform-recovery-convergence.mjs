@@ -160,10 +160,10 @@ async function advanceUntilBoundary({ store, executors, runId = null, approvalRe
 test("convergence reaches active only after every required gate passes", async () => {
   const store = makeStore();
   const calls = [];
-  const result = await runPlatformRecoveryConvergence(
-    { expected_sha: SHA },
-    { recoveryStore: store, executors: happyExecutors({ calls }), approvalResolver: happyApprovalResolver },
-  );
+  const result = await advanceUntilBoundary({
+    store,
+    executors: happyExecutors({ calls }),
+  });
 
   assert.equal(result.status, "active");
   assert.equal(result.active, true);
@@ -181,10 +181,10 @@ test("convergence reaches active only after every required gate passes", async (
 test("nonzero database roles are never rebuilt and are verified instead", async () => {
   const store = makeStore();
   const calls = [];
-  const result = await runPlatformRecoveryConvergence(
-    { expected_sha: SHA },
-    { recoveryStore: store, executors: happyExecutors({ zeroGovernance: false, zeroPersistence: false, calls }), approvalResolver: happyApprovalResolver },
-  );
+  const result = await advanceUntilBoundary({
+    store,
+    executors: happyExecutors({ zeroGovernance: false, zeroPersistence: false, calls }),
+  });
 
   assert.equal(result.status, "active");
   assert.equal(calls.includes("governance_baseline_rebuild"), false);
