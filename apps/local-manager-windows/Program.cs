@@ -1780,7 +1780,9 @@ internal static class Program
                 3 => 60,
                 _ => 120
             };
-            var backoffSeconds = Math.Max(localBackoffSeconds, serverRetryAfterSeconds ?? 0);
+            var backoffSeconds = Math.Min(
+                DesktopCommandPollBackoffStore.MaxBackoffSeconds,
+                Math.Max(localBackoffSeconds, serverRetryAfterSeconds ?? 0));
             _desktopCommandPollBackoffUntil = DateTimeOffset.UtcNow.AddSeconds(backoffSeconds);
             SaveDesktopCommandPollBackoff();
 
