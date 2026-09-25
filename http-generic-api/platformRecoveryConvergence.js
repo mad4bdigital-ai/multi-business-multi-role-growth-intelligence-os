@@ -134,6 +134,7 @@ async function resolveStepAuthority(run, step, approvalResolver) {
     ["plan_hash", run.plan_hash],
     ["step_id", step.step_id],
     ["authority_ref", step.authority_ref],
+    ["nested_operation", step.nested_operation],
     ["idempotency_key", step.idempotency_key],
   ];
   const bindingMismatch = bindings.find(([key, expected]) => text(value[key], 256).toLowerCase() !== String(expected).toLowerCase());
