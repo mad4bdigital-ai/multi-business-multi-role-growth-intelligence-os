@@ -169,6 +169,7 @@ internal static class Program
         private bool _desktopCommandPollRunning;
         private int _desktopCommandPollFailureCount;
         private DateTimeOffset _desktopCommandPollBackoffUntil = DateTimeOffset.MinValue;
+        private readonly DesktopCommandPollBackoffStore _desktopCommandPollBackoffStore = new(InstallRoot);
         private bool _autopilotRecoveryRunning;
         private bool _autopilotRecoveryAttempted;
         private readonly Label _status;
@@ -1672,6 +1673,24 @@ internal static class Program
 
         private void LaunchUpdaterAndRestart(string installerPath) { var helperPath = Path.Combine(UpdatesRoot, "run-local-manager-update.cmd"); var appPath = Application.ExecutablePath; var currentPid = Environment.ProcessId; var script = string.Join("\r\n", new[] { "@echo off", "setlocal", "set \"INSTALLER=" + installerPath + "\"", "set \"APP=" + appPath + "\"", "set \"PID=" + currentPid + "\"", "echo Updating Mad4B Local Manager...", "timeout /t 1 /nobreak >nul", "taskkill /PID %PID% /T /F >nul 2>nul", "for /l %%i in (1,1,30) do ( tasklist /fi \"PID eq %PID%\" | find \"%PID%\" >nul || goto app_stopped & timeout /t 1 /nobreak >nul )", ":app_stopped", "copy /y \"%INSTALLER%\" \"%APP%\" >nul", "if errorlevel 1 ( echo ERROR: Could not replace Local Manager executable. & pause & exit /b 1 )", "start \"\" \"%APP%\"", "exit /b 0" }) + "\r\n"; File.WriteAllText(helperPath, script, Encoding.ASCII); Process.Start(new ProcessStartInfo { FileName = "cmd.exe", Arguments = "/c \"" + helperPath + "\"", WorkingDirectory = UpdatesRoot, UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden }); BeginInvoke(new Action(Close)); }
         private void ShowTopMostMessage(string title, string message) { var previousTopMost = TopMost; try { if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal; Show(); Activate(); TopMost = true; MessageBox.Show(this, message, title, MessageBoxButtons.OK, MessageBoxIcon.Information); } finally { TopMost = previousTopMost; } }
+        private void RestoreDesktopCommandPollBackoff()
+        {
+            var state = _desktopCommandPollBackoffStore.Load(DateTimeOffset.UtcNow);
+            if (state is null) return;
+            _desktopCommandPollBackoffUntil = state.BackoffUntilUtc;
+            _desktopCommandPollFailureCount = state.FailureCount;
+        }
+
+        private void SaveDesktopCommandPollBackoff()
+        {
+            _desktopCommandPollBackoffStore.Save(_desktopCommandPollBackoffUntil, _desktopCommandPollFailureCount);
+        }
+
+        private void ClearDesktopCommandPollBackoff()
+        {
+            _desktopCommandPollBackoffStore.Clear();
+        }
+
         private void StartDesktopCommandPolling() { if (_desktopCommandTimer.Enabled) return; _desktopCommandTimer.Tick += async (_, _) => await PollDesktopCommandsAsync(); _desktopCommandTimer.Start(); _ = PollDesktopCommandsAsync(); }
         private async Task PollDesktopCommandsAsync()
         {
