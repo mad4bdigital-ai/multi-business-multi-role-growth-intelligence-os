@@ -44,12 +44,26 @@ The following must all be true in one exact-SHA closure evidence pack:
 
 ## Convergence recovered gate
 
-`platform_recovery_converge_v1` may report `status=recovered` with `active=true` only after every ordered stage is `pass` or an explicitly proven `skipped_not_required`, final same-cycle Production parity succeeds, and `mad4b.production-recovery-closure.v1` independently derives `recovered`.
+`platform_recovery_converge_v1` may report `status=recovered` with `active=true` only after every ordered stage is `pass` or an explicitly proven `skipped_not_required`, final same-cycle Production parity succeeds, final Production activation recertification succeeds, and `mad4b.production-recovery-closure.v1` independently derives `recovered`.
 
-Required live acceptance includes exact SHA/version/deployment-info parity, verified backup evidence, durable full inspection, governance/runtime-persistence baseline readiness, canonical grants readback, MCP catalog migration/readback, real response-chunk write/read smoke, Admin and Device tool functional readbacks, Production activation readiness, connector authenticated HTTP 200, Local Manager create→claim→complete round-trip, and final deployment parity.
+Required live acceptance includes exact SHA/version/deployment-info parity, verified backup evidence, durable full inspection with consistent role census and tri-state readiness, governance/runtime-persistence baseline readiness, any evidence-selected partial runtime-persistence schema repair, canonical grants readback, MCP catalog migration/readback, real response-chunk write/read/delete/absence smoke, Admin and Device tool functional readbacks, connector authenticated HTTP 200, Local Manager create→claim→complete round-trip, final deployment parity, and final Production activation readiness.
 
 A role baseline rebuild is `skipped_not_required` only when the durable inspection proves that role is not zero-object. Runtime is never rebuilt by this convergence plan.
 
 Each mutation boundary requires its own server-resolved exact-step approval and same-cycle readback. Completed steps are not replayed. Unknown outcome requires readback-only reconciliation and automatic retry remains false.
-\n## Transition acceptance\n\nEvery consequential stage must re-prove exact public deployment parity immediately before mutation. Every mutation receipt must match the planned canonical authority reference and nested operation. A successful mutation must return a checkpoint before any later mutation can execute.\n\nBackup evidence must be durable, hash-addressed, exact-SHA bound, no-secret, and cover runtime, governance, and runtime-persistence. Full inspection may run before backup because it is read-only, but no mutation may run before backup passes.\n\nPersistent external 429 may return `degraded` only when HTTP status is handled before JSON parsing, bounded Retry-After is honored, backoff survives restart, and the rate-limit source is attributed. 429 must never authorize credential rotation.\n
+
+## Transition acceptance
+
+Every consequential stage must re-prove exact public deployment parity immediately before mutation. Every mutation receipt must match the planned canonical authority reference and nested operation. A successful mutation must return a checkpoint before any later mutation can execute.
+
+Backup evidence must be durable, hash-addressed, exact-SHA bound, no-secret, and cover runtime, governance, and runtime-persistence. Full inspection may run before backup because it is read-only, but no mutation may run before backup passes.
+
+Persistent external 429 may return `degraded` only when HTTP status is handled before JSON parsing, bounded Retry-After is honored, backoff survives restart, and the rate-limit source is attributed. 429 must never authorize credential rotation.
+
 A stale prior-process execution may not be retried. It becomes reconciliation-eligible only after the bounded liveness window, is promoted to `unknown_outcome`, and must be resolved by a read-only reconciler before any subsequent mutation.
+
+A repair mutation may not be selected from missing readiness evidence. `null`/unknown readiness blocks before approval resolution, reservation, execution claim, or provider/database mutation.
+
+A non-empty runtime-persistence role may use `runtime_persistence.schema.repair` only when the full inspection proves `classification=nonempty_objects`, a positive object count, and `runtime_persistence_ready=false`. Zero-object roles remain on the baseline-rebuild path. Runtime-core partial corruption and unregistered Governance schema corruption remain fail-closed.
+
+For every mutation, the exact approval is durably reserved after the orchestration claim and finalized only after a verified terminal receipt. Unknown outcome or approval-finalization uncertainty requires reconciliation under the original idempotency key; no second mutation is allowed.
