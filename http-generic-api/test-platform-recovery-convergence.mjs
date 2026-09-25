@@ -31,6 +31,8 @@ function makeStore() {
   const runs = new Map();
   const idempotency = new Map();
   const executionClaims = new Map();
+  const approvalReservations = new Map();
+  const finalizedApprovals = new Set();
   const events = [];
   return {
     independent_of_target_databases: true,
@@ -64,10 +66,25 @@ function makeStore() {
     async releaseExecutionClaim(context) {
       return { released: executionClaims.delete(context.idempotency_key) };
     },
-    async reserveApproval() {
-      return { reserved: true };
+    async reserveApproval(context) {
+      if (finalizedApprovals.has(context.approval_id)) return { reserved: false };
+      const key = `${context.approval_id}:${context.plan_hash}:${context.step_id}`;
+      if (approvalReservations.has(key)) {
+        return {
+          reserved: false,
+          existing: true,
+          same_idempotency: approvalReservations.get(key).idempotency_key === context.idempotency_key,
+        };
+      }
+      approvalReservations.set(key, clone(context));
+      return { reserved: true, reservation_key: key };
     },
-    async markApprovalUsed() {
+    async releaseApprovalReservation(context) {
+      const key = `${context.approval_id}:${context.plan_hash}:${context.step_id}`;
+      return { released: approvalReservations.delete(key) };
+    },
+    async markApprovalUsed(approvalId) {
+      finalizedApprovals.add(approvalId);
       return { finalized: true };
     },
   };
@@ -96,6 +113,37 @@ function mutationPass(ctx, extra = {}) {
     mutation_performed: true,
     authority_verified: true,
     readback_verified: true,
+    ...extra,
+  });
+}
+
+const CANONICAL_GRANT_RESOURCES = Object.freeze([
+  Object.freeze({ table: "local_manager_device_link_sessions" }),
+  Object.freeze({ table: "local_manager_desktop_commands" }),
+]);
+
+function canonicalGrantMutationPass(ctx, extra = {}) {
+  return mutationPass(ctx, {
+    execution_mode: "host_local",
+    local_connector_required: false,
+    local_connector_fallback_allowed: false,
+    grant_binding_hash: "c".repeat(64),
+    resources: CANONICAL_GRANT_RESOURCES,
+    database_mutation_performed: true,
+    ...extra,
+  });
+}
+
+function canonicalGrantReconcilePass(ctx, extra = {}) {
+  return pass(ctx, {
+    reconciled: true,
+    authority_verified: true,
+    execution_mode: "host_local",
+    local_connector_required: false,
+    local_connector_fallback_allowed: false,
+    grant_binding_hash: "c".repeat(64),
+    resources: CANONICAL_GRANT_RESOURCES,
+    database_mutation_performed: false,
     ...extra,
   });
 }
@@ -138,17 +186,7 @@ function happyExecutors({ zeroGovernance = true, zeroPersistence = true, calls =
     governance_baseline_verify: wrap("governance_baseline_verify", (ctx) => pass(ctx, { baseline_ready: true })),
     runtime_persistence_baseline_rebuild: wrap("runtime_persistence_baseline_rebuild", (ctx) => mutationPass(ctx)),
     runtime_persistence_baseline_verify: wrap("runtime_persistence_baseline_verify", (ctx) => pass(ctx, { baseline_ready: true })),
-    canonical_grants_apply: wrap("canonical_grants_apply", (ctx) => mutationPass(ctx, {
-      execution_mode: "host_local",
-      local_connector_required: false,
-      local_connector_fallback_allowed: false,
-      grant_binding_hash: "c".repeat(64),
-      resources: [
-        { table: "local_manager_device_link_sessions" },
-        { table: "local_manager_desktop_commands" },
-      ],
-      database_mutation_performed: true,
-    })),
+    canonical_grants_apply: wrap("canonical_grants_apply", (ctx) => canonicalGrantMutationPass(ctx)),
     canonical_grants_verify: wrap("canonical_grants_verify", (ctx) => pass(ctx, { grants_ready: true })),
     bootstrap_ledger_verify: wrap("bootstrap_ledger_verify", (ctx) => pass(ctx, { bootstrap_ledger_ready: true })),
     mcp_catalog_migration_apply: wrap("mcp_catalog_migration_apply", (ctx) => mutationPass(ctx)),
@@ -231,7 +269,7 @@ test("convergence reaches active only after every required gate passes", async (
   assert.equal(result.steps.find((step) => step.key === "local_manager_rate_limit_recovery").status, "skipped_not_required");
   assert.equal(calls.includes("connector_two_phase_rebind"), false);
   assert.equal(result.secrets_included, false);
-  assert.ok(store.events.some((event) => event.event_type === "run_activated"));
+  assert.ok(store.events.some((event) => event.event_type === "run_recovered"));
 });
 
 test("nonzero database roles are never rebuilt and are verified instead", async () => {
@@ -262,7 +300,7 @@ test("completed steps are not replayed when a later stage waits for authority", 
 
   executors.canonical_grants_apply = async (ctx) => {
     calls.push("canonical_grants_apply");
-    return mutationPass(ctx);
+    return canonicalGrantMutationPass(ctx);
   };
 
   const second = await advanceUntilBoundary({ store, executors, runId: first.run_id });
@@ -293,7 +331,7 @@ test("unknown mutation outcome blocks blind retry and requires explicit reconcil
         secrets_included: false,
       };
     },
-    reconcile: async (ctx) => pass(ctx, { reconciled: true, authority_verified: true, readback_verified: true }),
+    reconcile: async (ctx) => canonicalGrantReconcilePass(ctx),
   };
 
   const first = await advanceUntilBoundary({ store, executors });
@@ -381,10 +419,12 @@ test("two-phase rebind rejects revoking the old credential before the new creden
     credential_material_returned_to_orchestrator: false,
   });
 
-  await assert.rejects(
-    advanceUntilBoundary({ store, executors }),
-    (error) => error.code === "PLATFORM_RECOVERY_CONNECTOR_REBIND_INCOMPLETE"
-      || error.code === "PLATFORM_RECOVERY_CONNECTOR_REBIND_ORDER_INVALID",
+  const result = await advanceUntilBoundary({ store, executors });
+  assert.equal(result.status, "unknown_outcome");
+  assert.equal(result.blocking_stage, "connector_two_phase_rebind");
+  assert.equal(
+    result.steps.find((step) => step.key === "connector_two_phase_rebind").result?.receipt_validation_error,
+    "PLATFORM_RECOVERY_CONNECTOR_REBIND_INCOMPLETE",
   );
 });
 
@@ -656,10 +696,12 @@ test("nested authority substitution is rejected before a consequential stage can
     nested_operation: "apply_migration",
   });
 
-  await assert.rejects(
-    advanceUntilBoundary({ store, executors }),
-    (error) => error.code === "PLATFORM_RECOVERY_STEP_AUTHORITY_REF_MISMATCH"
-      || error.code === "PLATFORM_RECOVERY_STEP_OPERATION_MISMATCH",
+  const result = await advanceUntilBoundary({ store, executors });
+  assert.equal(result.status, "unknown_outcome");
+  assert.equal(result.blocking_stage, "canonical_grants_apply");
+  assert.equal(
+    result.steps.find((step) => step.key === "canonical_grants_apply").result?.receipt_validation_error,
+    "PLATFORM_RECOVERY_STEP_AUTHORITY_REF_MISMATCH",
   );
 });
 
@@ -882,13 +924,9 @@ test("stale executing mutation after process restart requires reconciliation wit
   executors.canonical_grants_apply = {
     execute: async (ctx) => {
       calls.push("canonical_grants_apply");
-      return mutationPass(ctx);
+      return canonicalGrantMutationPass(ctx);
     },
-    reconcile: async (ctx) => pass(ctx, {
-      reconciled: true,
-      authority_verified: true,
-      readback_verified: true,
-    }),
+    reconcile: async (ctx) => canonicalGrantReconcilePass(ctx),
   };
 
   const reconciled = await runPlatformRecoveryConvergence(
@@ -906,4 +944,77 @@ test("stale executing mutation after process restart requires reconciliation wit
   });
   assert.equal(final.status, "recovered");
   assert.equal(calls.includes("canonical_grants_apply"), false);
+});
+
+
+test("approval reservation fences execution and finalizes only after verified mutation", async () => {
+  const store = makeStore();
+  const order = [];
+  const originalClaim = store.claimExecution.bind(store);
+  const originalReserve = store.reserveApproval.bind(store);
+  const originalFinalize = store.markApprovalUsed.bind(store);
+  store.claimExecution = async (context) => {
+    order.push("claim");
+    return originalClaim(context);
+  };
+  store.reserveApproval = async (context) => {
+    order.push("reserve");
+    return originalReserve(context);
+  };
+  store.markApprovalUsed = async (approvalId) => {
+    order.push("finalize");
+    return originalFinalize(approvalId);
+  };
+
+  const executors = happyExecutors({ zeroGovernance: false, zeroPersistence: false });
+  executors.canonical_grants_apply = async (ctx) => {
+    order.push("execute");
+    return canonicalGrantMutationPass(ctx);
+  };
+
+  const first = await runPlatformRecoveryConvergence(
+    { expected_sha: SHA },
+    { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
+  );
+  assert.equal(first.status, "pending");
+  assert.deepEqual(order.slice(0, 4), ["claim", "reserve", "execute", "finalize"]);
+});
+
+test("approval reservation denial prevents mutation executor invocation", async () => {
+  const store = makeStore();
+  const calls = [];
+  store.reserveApproval = async () => ({ reserved: false });
+  const executors = happyExecutors({ zeroGovernance: false, zeroPersistence: false, calls });
+
+  await assert.rejects(
+    runPlatformRecoveryConvergence(
+      { expected_sha: SHA },
+      { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
+    ),
+    (error) => error.code === "PLATFORM_RECOVERY_APPROVAL_RESERVATION_DENIED",
+  );
+  assert.equal(calls.includes("canonical_grants_apply"), false);
+});
+
+test("final activation recertification blocks recovered after later mutation if readiness regresses", async () => {
+  const store = makeStore();
+  const calls = [];
+  const executors = happyExecutors({ calls });
+  executors.production_activation_readiness = async (ctx) => {
+    calls.push(`production_activation_readiness:${ctx.step_key}`);
+    if (ctx.step_key === "final_gate") {
+      return pass(ctx, { ready: false });
+    }
+    return pass(ctx, { ready: true });
+  };
+
+  const result = await advanceUntilBoundary({ store, executors });
+  assert.equal(result.status, "blocked");
+  assert.equal(result.active, false);
+  assert.equal(result.blocking_stage, "final_gate");
+  assert.equal(result.error_code, "platform_recovery_final_activation_not_ready");
+  assert.equal(result.final_activation?.ready, false);
+  assert.equal(calls.includes("production_activation_readiness:final_gate"), true);
+  assert.equal(calls.filter((key) => key === "canonical_grants_apply").length, 1);
+  assert.equal(calls.filter((key) => key === "local_manager_e2e_round_trip").length, 1);
 });
