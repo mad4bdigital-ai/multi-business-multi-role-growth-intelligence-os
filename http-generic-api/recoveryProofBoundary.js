@@ -1,5 +1,5 @@
 // Recovery evidence is data, never an authority handle or an arbitrary adapter payload.
-const forbidden = /^(?:secret|.*_secret|password|.*_password|token|access_token|refresh_token|bearer_token|api_key|private_key|credential_value|authorization|authorization_header|bearer)$/i;
+const forbidden = /^(?:secret|.*_secret|password|.*_password|token|.*_token|access_token|refresh_token|bearer|bearer_token|api_key|.*_api_key|private_key|.*_private_key|credential|.*_credential|credential_value|client_secret|authorization|authorization_header|.*_authorization)$/i;
 export function assertRecoveryData(value, { routing = false } = {}, depth = 0) {
   if (depth > 24) throw Object.assign(new Error('Recovery evidence exceeds maximum depth.'), { code: 'RECOVERY_EVIDENCE_DEPTH_INVALID' });
   if (value === null || ['string', 'number', 'boolean'].includes(typeof value)) return;
