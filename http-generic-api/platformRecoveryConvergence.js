@@ -23,6 +23,7 @@ export const PLATFORM_RECOVERY_CONVERGENCE_STEPS = Object.freeze([
   Object.freeze({ key: "governance_baseline_rebuild", kind: "consequential", role: "governance", conditional_zero_object: true, authority_ref: "governance.baseline.rebuild_empty", nested_operation: "database.rebuild_empty" }),
   Object.freeze({ key: "governance_baseline_verify", kind: "read_only", role: "governance" }),
   Object.freeze({ key: "runtime_persistence_baseline_rebuild", kind: "consequential", role: "runtime_persistence", conditional_zero_object: true, authority_ref: "runtime_persistence.baseline.rebuild_empty", nested_operation: "database.rebuild_empty" }),
+  Object.freeze({ key: "runtime_persistence_schema_repair", kind: "consequential", role: "runtime_persistence", conditional_partial_schema: true, authority_ref: "runtime_persistence.schema.repair", nested_operation: "apply_migration" }),
   Object.freeze({ key: "runtime_persistence_baseline_verify", kind: "read_only", role: "runtime_persistence" }),
   Object.freeze({ key: "canonical_grants_apply", kind: "consequential", authority_ref: "runtime_bootstrap_canonical_grant_contract", nested_operation: "apply_grants" }),
   Object.freeze({ key: "canonical_grants_verify", kind: "read_only" }),
@@ -130,6 +131,8 @@ async function resolveStepAuthority(run, step, approvalResolver) {
       step_kind: step.kind,
       authority_ref: step.authority_ref || null,
       nested_operation: step.nested_operation || null,
+      finding_id: step.finding_binding?.finding_id || null,
+      finding_binding_hash: step.finding_binding_hash || null,
       idempotency_key: step.idempotency_key,
       secrets_included: false,
     }));
@@ -150,6 +153,10 @@ async function resolveStepAuthority(run, step, approvalResolver) {
     ["step_id", step.step_id],
     ["authority_ref", step.authority_ref],
     ["nested_operation", step.nested_operation],
+    ...(step.finding_binding ? [
+      ["finding_id", step.finding_binding.finding_id],
+      ["finding_binding_hash", step.finding_binding_hash],
+    ] : []),
     ["idempotency_key", step.idempotency_key],
   ];
   const bindingMismatch = bindings.find(([key, expected]) => text(value[key], 256).toLowerCase() !== String(expected).toLowerCase());
@@ -228,6 +235,8 @@ function createStepState(planStep, runId, planHash) {
     request_id: null,
     error_code: null,
     approval_id: null,
+    finding_binding: null,
+    finding_binding_hash: null,
     execution_process_id: null,
     started_at: null,
     completed_at: null,
@@ -344,6 +353,45 @@ function priorResult(run, key) {
   return findStep(run, key)?.result || null;
 }
 
+function canonicalFindingBinding(run, { capability, targetRole }) {
+  const inspection = priorResult(run, "database_full_inspection");
+  const findings = Array.isArray(inspection?.findings) ? inspection.findings : [];
+  const matches = findings.filter((finding) =>
+    finding?.candidate_capability === capability
+    && finding?.target_role === targetRole
+    && finding?.repairability === "deterministic"
+    && finding?.mutation_required === true
+    && finding?.inspection_run_id === inspection?.inspection_run_id
+    && finding?.inspection_evidence_hash === inspection?.inspection_evidence_hash
+  );
+
+  if (matches.length !== 1) {
+    return {
+      ready: false,
+      error_code: matches.length > 1
+        ? "platform_recovery_partial_repair_finding_ambiguous"
+        : "platform_recovery_partial_repair_finding_missing",
+      next_safe_action: "rerun_durable_full_inspection_and_recreate_canonical_finding",
+      match_count: matches.length,
+    };
+  }
+
+  const finding = matches[0];
+  const binding = Object.freeze({
+    finding_id: finding.finding_id,
+    candidate_capability: finding.candidate_capability,
+    target_role: finding.target_role,
+    inspection_run_id: finding.inspection_run_id,
+    inspection_evidence_hash: finding.inspection_evidence_hash,
+    secrets_included: false,
+  });
+  return {
+    ready: true,
+    binding,
+    binding_hash: hash(binding),
+  };
+}
+
 function markSkipped(step, reason) {
   step.status = "skipped_not_required";
   step.completed_at = new Date().toISOString();
@@ -363,6 +411,14 @@ function shouldSkip(run, step) {
     const role = step.role;
     const zeroObject = inspection?.roles?.[role]?.zero_object === true;
     if (!zeroObject) return "role_not_zero_object";
+  }
+
+  if (step.key === "runtime_persistence_schema_repair") {
+    const inspection = priorResult(run, "database_full_inspection");
+    const role = inspection?.roles?.runtime_persistence || {};
+    const readiness = inspection?.checks?.runtime_persistence_ready;
+    if (role.zero_object === true) return "runtime_persistence_zero_object_owned_by_baseline_rebuild";
+    if (readiness === true) return "runtime_persistence_schema_already_ready";
   }
 
   if (step.key === "canonical_grants_apply") {
@@ -400,6 +456,42 @@ function mutationEvidenceGate(run, step) {
   if (!isMutationStep(step)) return { ready: true };
 
   const inspection = priorResult(run, "database_full_inspection");
+  if (step.key === "runtime_persistence_schema_repair") {
+    const role = inspection?.roles?.runtime_persistence || {};
+    const readiness = inspection?.checks?.runtime_persistence_ready;
+
+    if (role.zero_object === true) {
+      return { ready: false, skip: true, reason: "runtime_persistence_zero_object_owned_by_baseline_rebuild" };
+    }
+    if (readiness === true) {
+      return { ready: false, skip: true, reason: "runtime_persistence_schema_already_ready" };
+    }
+    if (
+      readiness !== false
+      || role.classification !== "nonempty_objects"
+      || role.zero_object !== false
+      || !Number.isInteger(Number(role.object_count_total))
+      || Number(role.object_count_total) <= 0
+    ) {
+      return {
+        ready: false,
+        error_code: "platform_recovery_runtime_persistence_schema_gap_evidence_unavailable",
+        next_safe_action: "rerun_full_inspection_with_runtime_persistence_schema_evidence",
+      };
+    }
+
+    const finding = canonicalFindingBinding(run, {
+      capability: "runtime_persistence.schema.repair",
+      targetRole: "runtime_persistence",
+    });
+    if (!finding.ready) return finding;
+    return {
+      ready: true,
+      finding_binding: finding.binding,
+      finding_binding_hash: finding.binding_hash,
+    };
+  }
+
   if (step.key === "canonical_grants_apply") {
     const value = inspection?.checks?.governance_db_privilege_ready;
     if (value === false) return { ready: true };
@@ -448,6 +540,16 @@ function validateBoundResult(run, step, result, { mode = "execute" } = {}) {
       if (text(value.authority_ref, 256) !== text(step.authority_ref, 256)) fail("PLATFORM_RECOVERY_STEP_AUTHORITY_REF_MISMATCH", `Step ${step.key} used a different nested authority.`, 502);
       if (text(value.nested_operation, 128) !== text(step.nested_operation, 128)) fail("PLATFORM_RECOVERY_STEP_OPERATION_MISMATCH", `Step ${step.key} used a different nested operation.`, 502);
       if (value.readback_verified !== true) fail("PLATFORM_RECOVERY_STEP_READBACK_UNVERIFIED", `Step ${step.key} did not complete same-cycle readback.`, 502);
+      if (step.finding_binding) {
+        if (
+          text(value.finding_id, 160) !== step.finding_binding.finding_id
+          || text(value.finding_binding_hash, 128) !== step.finding_binding_hash
+          || text(value.inspection_run_id, 192) !== step.finding_binding.inspection_run_id
+          || text(value.inspection_evidence_hash, 128) !== step.finding_binding.inspection_evidence_hash
+        ) {
+          fail("PLATFORM_RECOVERY_STEP_FINDING_BINDING_MISMATCH", `Step ${step.key} did not echo the canonical inspection finding binding.`, 502);
+        }
+      }
     }
     if (mode === "reconcile" && isMutationStep(step)) {
       if (
@@ -1118,6 +1220,16 @@ async function executeOneStep(run, step, { recoveryStore, executors, approvalRes
     return { continue: false };
   }
 
+  if (mutationEvidence.finding_binding) {
+    step.finding_binding = clone(mutationEvidence.finding_binding);
+    step.finding_binding_hash = mutationEvidence.finding_binding_hash;
+    await appendEvent(recoveryStore, run, step, "step_finding_bound", {
+      finding_id: step.finding_binding.finding_id,
+      finding_binding_hash: step.finding_binding_hash,
+    });
+    await persistRun(recoveryStore, run);
+  }
+
   const preMutationParity = await verifyPreMutationDeploymentParity(run, step, executors);
   if (!preMutationParity.ready) {
     step.status = "blocked";
@@ -1231,6 +1343,8 @@ async function executeOneStep(run, step, { recoveryStore, executors, approvalRes
       migration: step.migration || null,
       authority_ref: step.authority_ref || null,
       nested_operation: step.nested_operation || null,
+      finding_binding: step.finding_binding ? clone(step.finding_binding) : null,
+      finding_binding_hash: step.finding_binding_hash || null,
       idempotency_key: step.idempotency_key,
       approval: authority.approval,
       prior_steps: run.steps
