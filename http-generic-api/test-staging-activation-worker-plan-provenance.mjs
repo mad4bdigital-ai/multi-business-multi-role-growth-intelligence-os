@@ -117,6 +117,13 @@ assert.equal(exactCommitBootstrapPreview.status, "approval_required");
 assert.equal(exactCommitBootstrapPreview.classification.next_governed_handoff.target_authority_model, "server_governed");
 assert.equal(exactCommitBootstrapPreview.classification.next_governed_handoff.transport, null);
 assert.equal(exactCommitBootstrapPreview.classification.next_governed_handoff.automatic_apply_allowed, false);
+assert.deepEqual(
+  exactCommitBootstrapPreview.plan.drift.map((entry) => entry.check_key),
+  ["gateway_exact_commit"],
+  "exact-commit bootstrap must not synthesize gateway_policy_not_stale or any other drift reason",
+);
+assert.equal(exactCommitBootstrapPreview.plan.drift[0]?.desired_release_commit, sourceSha);
+assert.equal(exactCommitBootstrapPreview.plan.drift[0]?.observed_release_commit, oldSha);
 const exactCommitBootstrapPlanSha = exactCommitBootstrapPreview.plan.plan_sha256;
 
 const first = await verifyStagingActivationWorkerHandoff({
