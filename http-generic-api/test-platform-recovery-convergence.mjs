@@ -191,7 +191,11 @@ function happyExecutors({ zeroGovernance = true, zeroPersistence = true, calls =
       command_claimed: true,
       command_completed: true,
     })),
-    deployment_parity: wrap("deployment_parity", (ctx) => pass(ctx, { exact_sha_parity: true })),
+    deployment_parity: wrap("deployment_parity", (ctx) => pass(ctx, {
+      exact_sha_parity: true,
+      version_readback: true,
+      deployment_info_readback: true,
+    })),
   };
 }
 
@@ -782,4 +786,37 @@ test("already-ready grants and MCP catalog are verified without mutation", async
   assert.equal(calls.includes("mcp_catalog_verify"), true);
   assert.equal(result.steps.find((step) => step.key === "canonical_grants_apply").status, "skipped_not_required");
   assert.equal(result.steps.find((step) => step.key === "mcp_catalog_migration_apply").status, "skipped_not_required");
+});
+
+
+test("final parity recheck blocks recovery if Production moves after prior gates", async () => {
+  const store = makeStore();
+  const calls = [];
+  const executors = happyExecutors({ calls });
+  executors.deployment_parity = async (ctx) => {
+    calls.push(`deployment_parity:${ctx.step_key}`);
+    if (ctx.step_key === "final_gate") {
+      return pass(ctx, {
+        exact_sha_parity: false,
+        version_readback: false,
+        deployment_info_readback: false,
+      });
+    }
+    return pass(ctx, {
+      exact_sha_parity: true,
+      version_readback: true,
+      deployment_info_readback: true,
+    });
+  };
+
+  const result = await advanceUntilBoundary({ store, executors });
+  assert.equal(result.status, "blocked");
+  assert.equal(result.active, false);
+  assert.equal(result.blocking_stage, "final_gate");
+  assert.equal(result.error_code, "platform_recovery_final_parity_failed");
+  assert.equal(result.final_parity?.exact_sha_parity, false);
+  assert.equal(calls.includes("deployment_parity:final_gate"), true);
+  assert.equal(calls.filter((key) => key === "canonical_grants_apply").length, 1);
+  assert.equal(calls.filter((key) => key === "mcp_catalog_migration_apply").length, 1);
+  assert.equal(calls.filter((key) => key === "local_manager_e2e_round_trip").length, 1);
 });
