@@ -1,0 +1,1383 @@
+{
+  "schema_version": 1,
+  "feature_key": "021-production-recovery-closure",
+  "review_state": "ready_for_implementation",
+  "registry": {
+    "fingerprint": "992a4bc9dcd725d174f8026f195ea1de7c392a07c14a718b6b6faa7007403aab",
+    "index_source_hash": "bd02f1cf335d639e13a4916c88cedac7478149467683f5e137f48c1b9b38afb8",
+    "coverage_source_hash": "763f2907274cf6d6d8ecb20caa8124a20f4804498a6ebea8a71c068828bfa2ca",
+    "map_count": 19,
+    "domain_count": 16,
+    "uncategorized_count": 0,
+    "taxonomy_gap_cluster_count": 0
+  },
+  "work_map_decisions": {
+    "activation-access-map": {
+      "decision": "reuse",
+      "rationale": "The recovery pipeline consumes existing Production activation readiness as a final behavioral gate; it does not create a second activation authority.",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 5,
+        "matched_terms": [
+          "active",
+          "authorized",
+          "http-generic-api",
+          "image",
+          "json"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "integration_points": [
+        "http-generic-api/productionActivationReadiness.js",
+        "http-generic-api/platformRecoveryConvergence.js"
+      ]
+    },
+    "activation-onboarding-map": {
+      "decision": "not_applicable",
+      "rationale": "The Production Recovery convergence feature does not add or change this dimension; it preserves the existing platform authority and data model unchanged.",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 6,
+        "matched_terms": [
+          "database",
+          "http-generic-api",
+          "image",
+          "raw",
+          "schema",
+          "start"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "integration_points": [],
+      "non_applicability_evidence": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ]
+    },
+    "agent-skill-plugin-map": {
+      "decision": "not_applicable",
+      "rationale": "The Production Recovery convergence feature does not add or change this dimension; it preserves the existing platform authority and data model unchanged.",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 6,
+        "matched_terms": [
+          "database",
+          "http-generic-api",
+          "image",
+          "raw",
+          "repository",
+          "schema"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "integration_points": [],
+      "non_applicability_evidence": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ]
+    },
+    "asset-package-map": {
+      "decision": "not_applicable",
+      "rationale": "The Production Recovery convergence feature does not add or change this dimension; it preserves the existing platform authority and data model unchanged.",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 6,
+        "matched_terms": [
+          "database",
+          "http-generic-api",
+          "image",
+          "raw",
+          "runtime",
+          "schema"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "integration_points": [],
+      "non_applicability_evidence": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ]
+    },
+    "commercial-usage-map": {
+      "decision": "not_applicable",
+      "rationale": "The Production Recovery convergence feature does not add or change this dimension; it preserves the existing platform authority and data model unchanged.",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 6,
+        "matched_terms": [
+          "database",
+          "eligibility",
+          "http-generic-api",
+          "image",
+          "raw",
+          "schema"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "integration_points": [],
+      "non_applicability_evidence": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ]
+    },
+    "connector-provider-map": {
+      "decision": "integrate",
+      "rationale": "Connector authentication recovery, bounded 429 classification, and two-phase credential rebind are composed through existing device and connector authorities without caller-supplied credentials.",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 9,
+        "matched_terms": [
+          "database",
+          "http-generic-api",
+          "image",
+          "migration",
+          "provider",
+          "raw",
+          "repository",
+          "schema",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "integration_points": [
+        "http-generic-api/localConnectorTwoPhaseRebind.js",
+        "apps/local-manager-windows/Program.cs",
+        "apps/local-manager-windows/DesktopCommandPollBackoffStore.cs"
+      ]
+    },
+    "data-model-domain-map": {
+      "decision": "reuse",
+      "rationale": "The feature orchestrates existing runtime, governance, and runtime-persistence schemas; zero-object classification is derived from durable full inspection and no new domain taxonomy is introduced.",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 11,
+        "matched_terms": [
+          "database",
+          "governance",
+          "http-generic-api",
+          "image",
+          "json",
+          "migration",
+          "raw",
+          "repository",
+          "schema",
+          "specify",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "integration_points": [
+        "http-generic-api/platformRecoveryConvergence.js",
+        "http-generic-api/recoveryKernel.js"
+      ]
+    },
+    "delivery-support-map": {
+      "decision": "reuse",
+      "rationale": "Structured blocking_stage, error_code, request_id, and next_safe_action provide bounded operator recovery evidence without introducing a new support system.",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 7,
+        "matched_terms": [
+          "database",
+          "http-generic-api",
+          "image",
+          "raw",
+          "repository",
+          "schema",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "integration_points": [
+        "http-generic-api/platformRecoveryConvergence.js"
+      ]
+    },
+    "execution-log-evidence-map": {
+      "decision": "integrate",
+      "rationale": "Every convergence run and step uses durable run identity, plan hash, step idempotency, append-only evidence, same-cycle readback, and secret-free terminal receipts.",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 7,
+        "matched_terms": [
+          "governance",
+          "http-generic-api",
+          "image",
+          "json",
+          "operational",
+          "runtime",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "integration_points": [
+        "http-generic-api/platformRecoveryConvergence.js",
+        "http-generic-api/productionRecoveryOperationalAdapters.js"
+      ]
+    },
+    "migration-lifecycle-map": {
+      "decision": "integrate",
+      "rationale": "Governance and runtime-persistence baseline repair must precede ordinary migration, and 20260815_custom_gpt_mcp_catalog_levels.sql is gated after baseline and grants verification.",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 9,
+        "matched_terms": [
+          "apply",
+          "database",
+          "http-generic-api",
+          "image",
+          "migration",
+          "raw",
+          "recovery",
+          "repair",
+          "schema"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "integration_points": [
+        "http-generic-api/platformRecoveryConvergence.js",
+        "http-generic-api/recoveryKernel.js"
+      ]
+    },
+    "observability-release-map": {
+      "decision": "integrate",
+      "rationale": "The final state is active only after exact deployment SHA parity, functional readbacks, connector authentication, Local Manager E2E, and Production activation readiness.",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 11,
+        "matched_terms": [
+          "database",
+          "governance",
+          "http-generic-api",
+          "image",
+          "migration",
+          "raw",
+          "repair",
+          "repository",
+          "runtime",
+          "schema",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "integration_points": [
+        "http-generic-api/platformRecoveryConvergence.js",
+        "http-generic-api/productionRecoveryClosure.js"
+      ]
+    },
+    "platform-resource-graph-map": {
+      "decision": "reuse",
+      "rationale": "Recovery targets are resolved by server-owned runtime/governance/runtime-persistence bindings and existing resource authority, never from caller-selected database names.",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 9,
+        "matched_terms": [
+          "contract",
+          "database",
+          "governance",
+          "http-generic-api",
+          "image",
+          "raw",
+          "repository",
+          "schema",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "integration_points": [
+        "http-generic-api/recoveryComposition.js",
+        "http-generic-api/productionRecoveryOperationalAdapters.js"
+      ]
+    },
+    "platform-runtime-map": {
+      "decision": "integrate",
+      "rationale": "platform_recovery_converge_v1 composes Recovery Kernel operations into a resumable state machine while preserving nested authority and fail-closed execution.",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 7,
+        "matched_terms": [
+          "http-generic-api",
+          "image",
+          "operational",
+          "provider",
+          "records",
+          "runtime",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "integration_points": [
+        "http-generic-api/platformRecoveryConvergence.js",
+        "http-generic-api/routes/recoveryKernelRoutes.js"
+      ]
+    },
+    "policy-authority-map": {
+      "decision": "integrate",
+      "rationale": "Consequential steps require nested server-resolved approval/authority; the outer convergence operation never substitutes for step-bound approval, execution tickets, or post-write verification.",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 10,
+        "matched_terms": [
+          "actor",
+          "database",
+          "governance",
+          "http-generic-api",
+          "image",
+          "raw",
+          "repository",
+          "runtime",
+          "schema",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "integration_points": [
+        "http-generic-api/platformRecoveryConvergence.js",
+        "http-generic-api/recoveryComposition.js"
+      ]
+    },
+    "repository-automation-map": {
+      "decision": "reuse",
+      "rationale": "CI, E2E phase governance, generated artifact refresh, and exact-head certification remain repository-owned delivery controls and do not become runtime recovery authority.",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 39,
+        "matched_terms": [
+          "apply",
+          "authorized",
+          "auto",
+          "build",
+          "canary",
+          "capture",
+          "commit",
+          "contract",
+          "dedicated",
+          "deployment",
+          "eligibility",
+          "exact",
+          "governance",
+          "hostinger",
+          "image",
+          "launcher",
+          "live",
+          "local",
+          "main",
+          "migration"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "integration_points": [
+        ".changes/e2e/production-recovery-closure-20260925.json",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ]
+    },
+    "repository-development-map": {
+      "decision": "not_applicable",
+      "rationale": "The Production Recovery convergence feature does not add or change this dimension; it preserves the existing platform authority and data model unchanged.",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 8,
+        "matched_terms": [
+          "database",
+          "deployment",
+          "http-generic-api",
+          "image",
+          "raw",
+          "repository",
+          "schema",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "integration_points": [],
+      "non_applicability_evidence": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ]
+    },
+    "session-memory-map": {
+      "decision": "not_applicable",
+      "rationale": "The Production Recovery convergence feature does not add or change this dimension; it preserves the existing platform authority and data model unchanged.",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 12,
+        "matched_terms": [
+          "canonical",
+          "database",
+          "governance",
+          "http-generic-api",
+          "image",
+          "json",
+          "raw",
+          "required",
+          "runtime",
+          "schema",
+          "schemas",
+          "scope"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "integration_points": [],
+      "non_applicability_evidence": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ]
+    },
+    "work-map-coverage-matrix": {
+      "decision": "reuse",
+      "rationale": "The new Spec Kit is bound to the current 19-map/16-domain registry and records explicit decisions for every map and domain.",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 11,
+        "matched_terms": [
+          "database",
+          "governance",
+          "http-generic-api",
+          "image",
+          "json",
+          "migration",
+          "raw",
+          "repository",
+          "schema",
+          "specify",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "integration_points": [
+        "specs/021-production-recovery-closure/work-map-integration.json"
+      ]
+    },
+    "workflow-task-orchestration-map": {
+      "decision": "integrate",
+      "rationale": "The feature is a durable dependency-ordered recovery workflow with resumable checkpoints, stable per-step idempotency, unknown-outcome reconciliation, and no replay of verified steps.",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 11,
+        "matched_terms": [
+          "approval",
+          "database",
+          "governance",
+          "http-generic-api",
+          "image",
+          "migration",
+          "raw",
+          "repository",
+          "runs",
+          "schema",
+          "workflow"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "integration_points": [
+        "http-generic-api/platformRecoveryConvergence.js"
+      ]
+    }
+  },
+  "domain_decisions": {
+    "activation-and-onboarding": {
+      "label": "Activation & onboarding",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "decision": "reuse",
+      "rationale": "Production activation readiness is consumed as a final gate; no onboarding authority is added.",
+      "integration_points": [
+        "http-generic-api/platformRecoveryConvergence.js"
+      ]
+    },
+    "agents-and-intelligence": {
+      "label": "Agents & intelligence",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "decision": "not_applicable",
+      "rationale": "This recovery feature does not alter this domain or create a new authority boundary.",
+      "integration_points": [],
+      "non_applicability_evidence": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ]
+    },
+    "assets-and-packages": {
+      "label": "Assets & packages",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "decision": "not_applicable",
+      "rationale": "This recovery feature does not alter this domain or create a new authority boundary.",
+      "integration_points": [],
+      "non_applicability_evidence": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ]
+    },
+    "brand-and-business": {
+      "label": "Brand & business",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "decision": "not_applicable",
+      "rationale": "This recovery feature does not alter this domain or create a new authority boundary.",
+      "integration_points": [],
+      "non_applicability_evidence": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ]
+    },
+    "commercial-and-usage": {
+      "label": "Commercial & usage",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "decision": "not_applicable",
+      "rationale": "This recovery feature does not alter this domain or create a new authority boundary.",
+      "integration_points": [],
+      "non_applicability_evidence": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ]
+    },
+    "connectors-and-providers": {
+      "label": "Connectors & providers",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "decision": "integrate",
+      "rationale": "Connector authentication, two-phase rebind, and rate-limit recovery use existing server/device authorities.",
+      "integration_points": [
+        "http-generic-api/platformRecoveryConvergence.js"
+      ]
+    },
+    "delivery-and-support": {
+      "label": "Delivery & support",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "decision": "reuse",
+      "rationale": "Recovery emits structured operator diagnostics and safe resume actions.",
+      "integration_points": [
+        "http-generic-api/platformRecoveryConvergence.js"
+      ]
+    },
+    "developer-and-api": {
+      "label": "Developer & API",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "decision": "integrate",
+      "rationale": "A bounded Recovery admin operation exposes plan/status/advance semantics without raw SQL, credentials, or arbitrary database selection.",
+      "integration_points": [
+        "http-generic-api/platformRecoveryConvergence.js"
+      ]
+    },
+    "governance-and-authority": {
+      "label": "Governance & authority",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "decision": "integrate",
+      "rationale": "Nested approval, durable store, role-bound grants, and same-cycle readback remain mandatory.",
+      "integration_points": [
+        "http-generic-api/platformRecoveryConvergence.js"
+      ]
+    },
+    "migration-and-lifecycle": {
+      "label": "Migration & lifecycle",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "decision": "integrate",
+      "rationale": "Baseline-before-migration and MCP catalog migration ordering are explicit recovery stages.",
+      "integration_points": [
+        "http-generic-api/platformRecoveryConvergence.js"
+      ]
+    },
+    "observability-and-release": {
+      "label": "Observability & release",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "decision": "integrate",
+      "rationale": "Exact SHA parity, durable evidence, functional probes, and final active gate are mandatory.",
+      "integration_points": [
+        "http-generic-api/platformRecoveryConvergence.js"
+      ]
+    },
+    "platform-resources-and-graph": {
+      "label": "Platform resources & graph",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "decision": "reuse",
+      "rationale": "Existing role and resource bindings select runtime/governance/runtime-persistence targets.",
+      "integration_points": [
+        "http-generic-api/platformRecoveryConvergence.js"
+      ]
+    },
+    "repository-and-development": {
+      "label": "Repository & development",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "decision": "reuse",
+      "rationale": "PR delivery, generated artifacts, CI, and E2E remain repository-governed delivery controls.",
+      "integration_points": [
+        "http-generic-api/platformRecoveryConvergence.js"
+      ]
+    },
+    "sessions-and-memory": {
+      "label": "Sessions & memory",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "decision": "not_applicable",
+      "rationale": "This recovery feature does not alter this domain or create a new authority boundary.",
+      "integration_points": [],
+      "non_applicability_evidence": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ]
+    },
+    "tenancy-and-identity": {
+      "label": "Tenancy & identity",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "decision": "reuse",
+      "rationale": "Connector rebind remains bound to authenticated user, tenant, device, nonce/authorization context.",
+      "integration_points": [
+        "http-generic-api/platformRecoveryConvergence.js"
+      ]
+    },
+    "workflow-and-tasks": {
+      "label": "Workflow & tasks",
+      "owner": "platform-team",
+      "requirement_refs": [
+        "specs/021-production-recovery-closure/spec.md"
+      ],
+      "task_refs": [
+        "specs/021-production-recovery-closure/tasks.md"
+      ],
+      "acceptance_refs": [
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "evidence_refs": [
+        "specs/021-production-recovery-closure/spec.md",
+        "specs/021-production-recovery-closure/plan.md",
+        "specs/021-production-recovery-closure/tasks.md",
+        "specs/021-production-recovery-closure/acceptance.md",
+        "specs/021-production-recovery-closure/checklists/requirements.md",
+        "specs/021-production-recovery-closure/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "decision": "integrate",
+      "rationale": "The convergence run is resumable, ordered, idempotent, and reconciliation-aware.",
+      "integration_points": [
+        "http-generic-api/platformRecoveryConvergence.js"
+      ]
+    }
+  },
+  "cross_map_dependencies": [
+    {
+      "from": "policy-authority-map",
+      "to": "migration-lifecycle-map",
+      "reason": "No migration or grant repair may execute without nested Recovery authority and exact plan binding."
+    },
+    {
+      "from": "migration-lifecycle-map",
+      "to": "data-model-domain-map",
+      "reason": "Zero-object role classification controls whether baseline rebuild is eligible."
+    },
+    {
+      "from": "connector-provider-map",
+      "to": "workflow-task-orchestration-map",
+      "reason": "Credential rebind and rate-limit recovery are conditional resumable stages inside the same run."
+    },
+    {
+      "from": "execution-log-evidence-map",
+      "to": "observability-release-map",
+      "reason": "Final active status requires durable same-run evidence and behavioral readbacks."
+    }
+  ],
+  "dimension_discovery": {
+    "registry_gap_clusters": {},
+    "new_dimension_candidates": [],
+    "unresolved": [],
+    "no_new_dimensions_rationale": "The recovery pipeline composes existing Recovery Kernel, database-role, connector/device, migration, workflow, and observability dimensions. No new taxonomy or schema domain is required."
+  },
+  "implementation_readiness": {
+    "status": "ready",
+    "blocking_dimensions": [],
+    "reviewed_by": "platform-team",
+    "evidence_refs": [
+      "specs/021-production-recovery-closure/spec.md",
+      "specs/021-production-recovery-closure/plan.md",
+      "specs/021-production-recovery-closure/tasks.md",
+      "specs/021-production-recovery-closure/acceptance.md",
+      "specs/021-production-recovery-closure/checklists/requirements.md",
+      "specs/021-production-recovery-closure/e2e-phases.json"
+    ]
+  },
+  "secrets_included": false
+}
