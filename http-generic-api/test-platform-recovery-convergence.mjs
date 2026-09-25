@@ -1393,3 +1393,106 @@ test("zero-object runtime persistence rebuild never also runs partial schema rep
     "skipped_not_required",
   );
 });
+
+
+test("finding binding drift across resume is rejected before approval", async () => {
+  const store = makeStore();
+  const calls = [];
+  const executors = happyExecutors({ zeroGovernance: false, zeroPersistence: false, calls });
+  const inspectionRunId = "run:inspection:binding-drift";
+  const inspectionEvidenceHash = "8".repeat(64);
+  const findingA = runtimePersistenceRepairFinding({
+    findingId: "finding:11111111111111111111111111111111",
+    inspectionRunId,
+    inspectionEvidenceHash,
+  });
+  const findingB = runtimePersistenceRepairFinding({
+    findingId: "finding:22222222222222222222222222222222",
+    inspectionRunId,
+    inspectionEvidenceHash,
+  });
+
+  executors.database_full_inspection = async (ctx) => pass(ctx, {
+    durable: true,
+    inspection_run_id: inspectionRunId,
+    inspection_evidence_hash: inspectionEvidenceHash,
+    target_fingerprint: "f".repeat(64),
+    checks: {
+      governance_db_privilege_ready: true,
+      mcp_catalog_schema_ready: true,
+      runtime_persistence_ready: false,
+    },
+    findings: [findingA],
+    roles: {
+      runtime: roleInspectionEvidence(false, 7),
+      governance: roleInspectionEvidence(false, 5),
+      runtime_persistence: roleInspectionEvidence(false, 4),
+    },
+  });
+
+  const first = await advanceUntilBoundary({
+    store,
+    executors,
+    approvalResolver: null,
+  });
+  assert.equal(first.status, "awaiting_approval");
+  assert.equal(first.blocking_stage, "runtime_persistence_schema_repair");
+  const stepA = first.steps.find((entry) => entry.key === "runtime_persistence_schema_repair");
+  assert.equal(stepA.finding_binding?.finding_id, findingA.finding_id);
+
+  const persisted = await store.getRun(first.run_id);
+  const inspectionStep = persisted.steps.find((entry) => entry.key === "database_full_inspection");
+  inspectionStep.result.findings = [findingB];
+  await store.putRun(persisted);
+
+  let resolverInvocations = 0;
+  const resolver = async (ctx) => {
+    resolverInvocations += 1;
+    return happyApprovalResolver(ctx);
+  };
+  const second = await runPlatformRecoveryConvergence(
+    { expected_sha: SHA, run_id: first.run_id },
+    { recoveryStore: store, executors, approvalResolver: resolver },
+  );
+  assert.equal(second.status, "blocked");
+  assert.equal(second.error_code, "platform_recovery_finding_binding_drift");
+  assert.equal(resolverInvocations, 0);
+  assert.equal(calls.includes("runtime_persistence_schema_repair"), false);
+});
+
+test("partial schema repair receipt without database mutation proof becomes unknown outcome", async () => {
+  const store = makeStore();
+  const calls = [];
+  const executors = happyExecutors({ zeroGovernance: false, zeroPersistence: false, calls });
+  const inspectionRunId = "run:inspection:missing-db-mutation-proof";
+  const inspectionEvidenceHash = "9".repeat(64);
+  const finding = runtimePersistenceRepairFinding({ inspectionRunId, inspectionEvidenceHash });
+
+  executors.database_full_inspection = async (ctx) => pass(ctx, {
+    durable: true,
+    inspection_run_id: inspectionRunId,
+    inspection_evidence_hash: inspectionEvidenceHash,
+    target_fingerprint: "f".repeat(64),
+    checks: {
+      governance_db_privilege_ready: true,
+      mcp_catalog_schema_ready: true,
+      runtime_persistence_ready: false,
+    },
+    findings: [finding],
+    roles: {
+      runtime: roleInspectionEvidence(false, 7),
+      governance: roleInspectionEvidence(false, 5),
+      runtime_persistence: roleInspectionEvidence(false, 4),
+    },
+  });
+  executors.runtime_persistence_schema_repair = async (ctx) => {
+    calls.push("runtime_persistence_schema_repair");
+    return mutationPass(ctx, { database_mutation_performed: false });
+  };
+
+  const result = await advanceUntilBoundary({ store, executors });
+  assert.equal(result.status, "unknown_outcome");
+  assert.equal(result.blocking_stage, "runtime_persistence_schema_repair");
+  assert.equal(result.error_code, "platform_recovery_mutation_receipt_invalid");
+  assert.equal(calls.filter((key) => key === "runtime_persistence_schema_repair").length, 1);
+});
