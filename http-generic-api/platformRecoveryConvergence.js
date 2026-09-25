@@ -23,7 +23,6 @@ export const PLATFORM_RECOVERY_CONVERGENCE_STEPS = Object.freeze([
   Object.freeze({ key: "governance_baseline_rebuild", kind: "consequential", role: "governance", conditional_zero_object: true, authority_ref: "governance.baseline.rebuild_empty", nested_operation: "database.rebuild_empty" }),
   Object.freeze({ key: "governance_baseline_verify", kind: "read_only", role: "governance" }),
   Object.freeze({ key: "runtime_persistence_baseline_rebuild", kind: "consequential", role: "runtime_persistence", conditional_zero_object: true, authority_ref: "runtime_persistence.baseline.rebuild_empty", nested_operation: "database.rebuild_empty" }),
-  Object.freeze({ key: "runtime_persistence_schema_repair", kind: "consequential", role: "runtime_persistence", conditional_nonzero_schema_drift: true, authority_ref: "runtime_persistence.schema.repair", nested_operation: "apply_migration" }),
   Object.freeze({ key: "runtime_persistence_baseline_verify", kind: "read_only", role: "runtime_persistence" }),
   Object.freeze({ key: "canonical_grants_apply", kind: "consequential", authority_ref: "runtime_bootstrap_canonical_grant_contract", nested_operation: "apply_grants" }),
   Object.freeze({ key: "canonical_grants_verify", kind: "read_only" }),
@@ -366,16 +365,6 @@ function shouldSkip(run, step) {
     if (!zeroObject) return "role_not_zero_object";
   }
 
-  if (step.key === "runtime_persistence_schema_repair") {
-    const inspection = priorResult(run, "database_full_inspection");
-    if (inspection?.roles?.runtime_persistence?.zero_object === true) {
-      return "zero_object_role_uses_baseline_rebuild";
-    }
-    if (inspection?.checks?.runtime_persistence_ready === true) {
-      return "runtime_persistence_schema_already_ready";
-    }
-  }
-
   if (step.key === "canonical_grants_apply") {
     const inspection = priorResult(run, "database_full_inspection");
     if (inspection?.checks?.governance_db_privilege_ready === true) {
@@ -433,32 +422,6 @@ function mutationEvidenceGate(run, step) {
     };
   }
 
-  if (step.key === "runtime_persistence_schema_repair") {
-    const zeroObject = inspection?.roles?.runtime_persistence?.zero_object;
-    const value = inspection?.checks?.runtime_persistence_ready;
-    if (zeroObject === true) {
-      return { ready: false, skip: true, reason: "zero_object_role_uses_baseline_rebuild" };
-    }
-    const roleEvidence = inspection?.roles?.runtime_persistence || {};
-    const explicitNonempty = roleEvidence.classification === "nonempty_objects"
-      && Number.isInteger(Number(roleEvidence.object_count_total))
-      && Number(roleEvidence.object_count_total) > 0
-      && roleEvidence.zero_object === false;
-    if (!explicitNonempty) {
-      return {
-        ready: false,
-        error_code: "platform_recovery_runtime_persistence_object_evidence_unavailable",
-        next_safe_action: "rerun_durable_full_inspection_before_schema_repair",
-      };
-    }
-    if (value === false) return { ready: true };
-    if (value === true) return { ready: false, skip: true, reason: "runtime_persistence_schema_already_ready" };
-    return {
-      ready: false,
-      error_code: "platform_recovery_runtime_persistence_schema_gap_evidence_unavailable",
-      next_safe_action: "rerun_full_inspection_with_runtime_persistence_readiness",
-    };
-  }
 
   return { ready: true };
 }
