@@ -369,23 +369,41 @@ export function createPlatformRecoveryConvergenceReadExecutors({
     const missing = requireReader(localManagerRateLimitRecoveryReader, ctx, "platform_recovery_rate_limit_reader_unavailable", "configure_rate_limit_recovery_readback");
     if (missing) return missing;
     const result = await localManagerRateLimitRecoveryReader({ expected_sha: ctx.expected_sha, prior_steps: ctx.prior_steps });
-    const ready = result?.http_status_checked_before_json === true
+    const contractReady = result?.http_status_checked_before_json === true
       && result?.retry_after_respected === true
       && result?.backoff_persisted === true
       && result?.rate_limit_source_attributed === true;
-    return ready
-      ? bound(ctx, {
-          status: "pass",
-          http_status_checked_before_json: true,
-          retry_after_respected: true,
-          backoff_persisted: true,
-          rate_limit_source_attributed: true,
-          post_recovery_auth_failure_kind: result?.post_recovery_auth_failure_kind || null,
-          readback_verified: true,
-        })
-      : blocked(ctx, "platform_recovery_rate_limit_recovery_not_ready", "respect_retry_after_and_resume_after_cooldown", {
-          request_id: result?.request_id || null,
-        });
+    if (!contractReady) {
+      return blocked(ctx, "platform_recovery_rate_limit_recovery_not_ready", "repair_rate_limit_recovery_contract", {
+        request_id: result?.request_id || null,
+      });
+    }
+    const postFailureKind = text(result?.post_recovery_auth_failure_kind, 96) || null;
+    if (["rate_limited", "edge_rate_limited", "proxy_rate_limited"].includes(postFailureKind)) {
+      return bound(ctx, {
+        ok: false,
+        status: "degraded",
+        error_code: "platform_recovery_external_rate_limit_still_active",
+        next_safe_action: "resume_same_run_after_retry_after",
+        http_status_checked_before_json: true,
+        retry_after_respected: true,
+        backoff_persisted: true,
+        rate_limit_source_attributed: true,
+        post_recovery_auth_failure_kind: postFailureKind,
+        retry_after_seconds: result?.retry_after_seconds ?? null,
+        request_id: result?.request_id || null,
+        readback_verified: true,
+      });
+    }
+    return bound(ctx, {
+      status: "pass",
+      http_status_checked_before_json: true,
+      retry_after_respected: true,
+      backoff_persisted: true,
+      rate_limit_source_attributed: true,
+      post_recovery_auth_failure_kind: postFailureKind,
+      readback_verified: true,
+    });
   };
 
   executors.connector_auth_verify = async (ctx) => {
