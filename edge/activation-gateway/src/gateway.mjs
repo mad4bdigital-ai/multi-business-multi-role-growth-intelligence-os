@@ -177,7 +177,7 @@ export async function verifyDeploymentAttestation(policy, env, { cryptoImpl = cr
   };
 }
 
-export async function signedRecoveryIngressHeaders(request, policy, requestId, verification, env, workerBuildIdentity, cryptoImpl = crypto, now = () => Date.now(), bodyBytes = undefined) {
+export async function signedRecoveryIngressHeaders(request, policy, requestId, verification, env, workerBuildIdentity, bodyBytes = undefined, cryptoImpl = crypto, now = () => Date.now()) {
   if (!env.ACTIVATION_GATEWAY_INGRESS_PRIVATE_KEY_JWK || !env.ACTIVATION_GATEWAY_INGRESS_KEY_ID
     || workerBuildIdentity?.source_sha !== verification.sourceCommit
     || !/^[a-f0-9]{64}$/.test(workerBuildIdentity?.bundle_sha256 || "")) {
@@ -594,7 +594,7 @@ export function createActivationGateway({
         upstream = await fetchImpl(target, {
           method: request.method,
           headers: policy.policy_key === "activation_gateway_staging" && url.pathname.startsWith("/admin/recovery/staging/")
-            ? await signedRecoveryIngressHeaders(request, policy, requestId, verification, env, workerBuildIdentity, cryptoImpl, now, body)
+            ? await signedRecoveryIngressHeaders(request, policy, requestId, verification, env, workerBuildIdentity, body, cryptoImpl, now)
             : forwardedRequestHeaders(request, policy, requestId),
           body,
           redirect: "manual",
