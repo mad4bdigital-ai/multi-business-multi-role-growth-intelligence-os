@@ -95,7 +95,8 @@
       "http-generic-api/test-local-connector-two-phase-rebind.mjs",
       "http-generic-api/test-local-manager-rate-limit-persistence.mjs",
       "http-generic-api/test-recovery-composition.mjs",
-      "http-generic-api/test-recovery-kernel-routes.mjs"
+      "http-generic-api/test-recovery-kernel-routes.mjs",
+      "http-generic-api/test-platform-recovery-convergence-read-adapters.mjs"
     ],
     "implementation_files": [
       "http-generic-api/productionRecoveryClosure.js",
@@ -109,11 +110,13 @@
       "http-generic-api/recoveryComposition.js",
       "http-generic-api/productionRecoveryOperationalAdapters.js",
       "apps/local-manager-windows/DesktopCommandPollBackoffStore.cs",
-      "apps/local-manager-windows/Program.cs"
+      "apps/local-manager-windows/Program.cs",
+      "http-generic-api/platformRecoveryConvergenceReadAdapters.js"
     ],
     "e2e_contract": ".changes/e2e/production-recovery-closure-20260925.json",
     "secrets_included": false,
-    "sensitive_values_included": false
+    "sensitive_values_included": false,
+    "pipeline_scenario_matrix": "specs/021-production-recovery-closure/pipeline-scenario-matrix.md"
   },
   "required_closeout_evidence": [
     "exact_head_ci",
