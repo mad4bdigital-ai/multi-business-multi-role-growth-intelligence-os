@@ -30,7 +30,7 @@
     },
     {
       "path": "autopilot-portable-staging/Install-AutoDeployTask.ps1",
-      "sha256": "2d8e19f1630f74a842759ccd2d27a722f93f5f13fd62885c02ee3ba7d0af6417"
+      "sha256": "d54df58b26c96928fe391e735f8cdd4197b8e3b9e89d46cb81530e1f9dec419a"
     },
     {
       "path": "autopilot-portable-staging/One-Click-Staging.ps1",
