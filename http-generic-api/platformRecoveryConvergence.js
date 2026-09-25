@@ -233,6 +233,21 @@ async function appendEvent(store, run, step, eventType, details = {}) {
   });
 }
 
+async function loadExistingRun({ expectedSha, runId, recoveryStore }) {
+  assertStore(recoveryStore);
+  const plan = buildPlatformRecoveryConvergencePlan(expectedSha);
+  const normalized = text(runId, 220);
+  if (!normalized || !SAFE_ID_RE.test(normalized)) {
+    fail("PLATFORM_RECOVERY_RUN_ID_REQUIRED", "run_id is required for status or reconciliation.", 400);
+  }
+  const run = await recoveryStore.getRun(normalized);
+  if (!run) fail("PLATFORM_RECOVERY_RUN_NOT_FOUND", "Requested convergence run was not found.", 404);
+  if (run.expected_sha !== plan.expected_sha || run.plan_hash !== plan.plan_hash) {
+    fail("PLATFORM_RECOVERY_RUN_BINDING_MISMATCH", "Existing run is not bound to the requested exact SHA and plan.", 409);
+  }
+  return { run, plan };
+}
+
 async function loadOrCreateRun({ expectedSha, runId = null, recoveryStore }) {
   assertStore(recoveryStore);
   const plan = buildPlatformRecoveryConvergencePlan(expectedSha);
@@ -637,7 +652,7 @@ async function executeOneStep(run, step, { recoveryStore, executors, approvalRes
   run.request_id = null;
   run.next_safe_action = "advance_same_run";
   await persistRun(recoveryStore, run);
-  return { continue: true };
+  return { continue: true, consequential_executed: isMutationStep(step) };
 }
 
 async function reconcileUnknownStep(run, { recoveryStore, executors }) {
@@ -707,11 +722,10 @@ export async function runPlatformRecoveryConvergence(input = {}, deps = {}) {
   const action = text(input.action || "advance", 32).toLowerCase();
   if (!["advance", "status", "reconcile"].includes(action)) fail("PLATFORM_RECOVERY_ACTION_INVALID", "action must be advance, status, or reconcile.", 400);
 
-  const { run } = await loadOrCreateRun({
-    expectedSha,
-    runId: input.run_id || null,
-    recoveryStore: deps.recoveryStore,
-  });
+  const loaded = action === "advance"
+    ? await loadOrCreateRun({ expectedSha, runId: input.run_id || null, recoveryStore: deps.recoveryStore })
+    : await loadExistingRun({ expectedSha, runId: input.run_id, recoveryStore: deps.recoveryStore });
+  const { run } = loaded;
 
   if (action === "status") return summarize(run);
   if (action === "reconcile") return reconcileUnknownStep(run, {
@@ -781,6 +795,12 @@ export async function runPlatformRecoveryConvergence(input = {}, deps = {}) {
       approvalResolver: deps.approvalResolver,
     });
     if (!result.continue) return summarize(run);
+    if (result.consequential_executed) {
+      run.status = "pending";
+      run.next_safe_action = "advance_same_run";
+      await persistRun(deps.recoveryStore, run);
+      return summarize(run);
+    }
   }
 
   return summarize(run);
