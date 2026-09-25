@@ -40,7 +40,11 @@
       "http-generic-api/test-local-connector-two-phase-rebind.mjs",
       "http-generic-api/test-local-manager-rate-limit-persistence.mjs",
       "http-generic-api/test-recovery-composition.mjs",
-      "http-generic-api/test-recovery-kernel-routes.mjs"
+      "http-generic-api/test-recovery-kernel-routes.mjs",
+      "specs/021-production-recovery-closure/work-map-integration.json",
+      "specs/021-production-recovery-closure/e2e-phases.json",
+      "http-generic-api/platformRecoveryConvergenceReadAdapters.js",
+      "http-generic-api/test-platform-recovery-convergence-read-adapters.mjs"
     ]
   },
   "merge_contract": {
