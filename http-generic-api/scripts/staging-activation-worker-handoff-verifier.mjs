@@ -131,11 +131,13 @@ export async function verifyStagingActivationWorkerHandoff({
       gateway_error_code: health?.error?.code || health?.code || null,
     }),
   ];
-  if (normalized(health.sourceCommit) !== source) {
+  if (normalized(health.sourceCommit) !== source || normalized(health.workerBuildSha) !== source) {
     readinessChecks.push(failedReadinessCheck("gateway_exact_commit", {
       source: "github_actions_live_activation_gateway_health",
       expected: source,
       observed: health.sourceCommit || null,
+      source_commit: health.sourceCommit || null,
+      worker_build_sha: health.workerBuildSha || null,
     }));
   }
   if (normalized(health.policyHash) !== policyHash) {
@@ -156,7 +158,20 @@ export async function verifyStagingActivationWorkerHandoff({
   const certificationReport = {
     outcome: "degraded",
     expected: { commit_sha: source },
-    gateway: { health: { sourceCommit: null } },
+    gateway: {
+      health: {
+        sourceCommit: null,
+        workerBuildSha: normalized(health.workerBuildSha) || null,
+        policyKey: String(health.policyKey || "").trim() || null,
+        policyHash: normalized(health.policyHash) || null,
+        stale: health.stale === true,
+        ok: health.ok === true,
+        httpStatus: Number(response?.status || 0),
+      },
+      profile_validation: {
+        observed_public_host: profile.public_host,
+      },
+    },
     integrity_checks: [],
     readiness_checks: readinessChecks,
   };

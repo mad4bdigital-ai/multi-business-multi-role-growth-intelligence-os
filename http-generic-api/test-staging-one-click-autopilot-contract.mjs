@@ -6,11 +6,13 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { readEnvironmentConvergenceRegistry } from "./environmentConvergenceRegistry.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const packageRoot = path.resolve(here, "..", "autopilot-portable-staging");
 const bridgePath = path.join(here, "scripts", "staging-environment-convergence-plan.mjs");
+const gatewayProfile = readEnvironmentConvergenceRegistry().profiles.staging.activation_gateway;
 const smartLauncher = fs.readFileSync(path.join(packageRoot, "Invoke-Staging-One-Click.ps1"), "utf8");
 const cmdLauncher = fs.readFileSync(path.join(packageRoot, "Start-Staging-One-Click.cmd"), "utf8");
 
@@ -165,6 +167,23 @@ const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mad4b-staging-convergenc
 const runtimePath = path.join(tempRoot, "autopilot-state.json");
 const preflightPath = path.join(tempRoot, "staging-schema-governance-preflight.json");
 const commit = "a".repeat(40);
+const fetchPreloadPath = path.join(tempRoot, "gateway-fetch-preload.mjs");
+fs.writeFileSync(fetchPreloadPath, `
+const health = ${JSON.stringify({
+  ok: true,
+  service: "activation-gateway",
+  policyKey: gatewayProfile.policy_key,
+  policyHash: gatewayProfile.expected_policy_hash,
+  sourceCommit: commit,
+  workerBuildSha: commit,
+  stale: false,
+})};
+globalThis.fetch = async () => ({
+  ok: true,
+  status: 200,
+  async json() { return health; },
+});
+`, "utf8");
 
 const runtime = {
   commit,
@@ -199,6 +218,7 @@ try {
   fs.writeFileSync(preflightPath, `\uFEFF${JSON.stringify(preflight)}`, "utf8");
 
   const result = spawnSync(process.execPath, [
+    "--import", pathToFileURL(fetchPreloadPath).href,
     bridgePath,
     "--runtime-state", runtimePath,
     "--preflight", preflightPath,

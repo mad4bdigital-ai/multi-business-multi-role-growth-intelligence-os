@@ -24,6 +24,8 @@
         "http-generic-api/test-auth-oauth-routes.mjs",
         "http-generic-api/test-chatgpt-mcp-metadata-routing.mjs",
         "http-generic-api/test-environment-convergence-packaged-policy.mjs",
+        "http-generic-api/test-staging-environment-convergence-live-observation.mjs",
+        "http-generic-api/test-staging-environment-convergence-plan-live-observation.mjs",
         "http-generic-api/test-frontend-surface-dispatch.mjs",
         "http-generic-api/test-health-gateway-ready-provenance.mjs",
         "http-generic-api/test-platform-admin-workspace-resolver.mjs",
