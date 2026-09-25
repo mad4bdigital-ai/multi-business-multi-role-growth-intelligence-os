@@ -276,6 +276,7 @@ internal static class Program
             Shown += async (_, _) =>
             {
                 EnsureLocalFiles(_status);
+                RestoreDesktopCommandPollBackoff();
                 ShowTokenStatus();
                 await CheckAndInstallUpdateAsync(false);
                 await RunStartupAutopilotAsync();
@@ -1703,6 +1704,7 @@ internal static class Program
                 }
                 _desktopCommandPollFailureCount = 0;
                 _desktopCommandPollBackoffUntil = DateTimeOffset.MinValue;
+                ClearDesktopCommandPollBackoff();
                 using var doc = JsonDocument.Parse(text);
                 if (!doc.RootElement.TryGetProperty("commands", out var commands) || commands.ValueKind != JsonValueKind.Array) return;
                 foreach (var command in commands.EnumerateArray()) await ExecuteDesktopCommandAsync(client, token, command);
@@ -1749,6 +1751,7 @@ internal static class Program
             };
             var backoffSeconds = Math.Min(300, Math.Max(localBackoffSeconds, serverRetryAfterSeconds ?? 0));
             _desktopCommandPollBackoffUntil = DateTimeOffset.UtcNow.AddSeconds(backoffSeconds);
+            SaveDesktopCommandPollBackoff();
 
             // Desktop command polling is a background convenience path. Do not keep
             // overwriting the main status every timer tick for transient TLS/network
