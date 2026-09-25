@@ -1,4 +1,5 @@
 export const testCommands = [
+  "node test-platform-recovery-convergence.mjs",
   "node test-runtime-parity-startup-reconciler.mjs",
   "node test-platform-frontend-routes.mjs",
   "node test-frontend-operation-governance-generator.mjs",
@@ -222,6 +223,8 @@ export const testCommands = [
   "node test-local-manager-device-control-client.mjs",
   "node test-local-manager-signed-installer-coordinator.mjs",
   "node test-local-manager-repair-connector-command.mjs",
+  "node test-local-connector-two-phase-rebind.mjs",
+  "node test-local-manager-rate-limit-persistence.mjs",
   "node test-local-manager-desktop-command-mutation-policy.mjs",
   "node test-local-manager-capability-verifier-and-sidecar-dispatcher.mjs",
   "node test-local-manager-runtime-readback-boundary.mjs",
