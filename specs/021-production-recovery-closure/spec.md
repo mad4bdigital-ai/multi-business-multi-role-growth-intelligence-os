@@ -118,3 +118,16 @@ The convergence operation does not execute partial non-empty schema repair itsel
 Every mutating stage resolves an exact server-side single-use approval, acquires a durable orchestration execution claim, reserves the exact approval, persists an `executing` checkpoint, executes the nested Recovery authority, validates same-cycle readback, durably finalizes the approval, then releases the approval reservation and execution claim. Unknown outcomes retain the fence until read-only reconciliation resolves the original idempotency key.
 
 The final gate re-runs both exact Production deployment parity and Production activation readiness after the last mutation. Only then may the server-derived closure evaluator emit `status=recovered`; `active=true` is a compatibility/operational boolean, not an independent success status.
+
+
+## Known partial corruption
+
+The convergence pipeline may repair a non-empty database only when the durable full inspection emits exactly one deterministic canonical finding for a registered Recovery Kernel capability. The current bounded non-empty repair classes are:
+
+- `governance.grant.repair` for the registered Governance grant gap;
+- `governance.mcp_catalog.repair` for the registered MCP catalog migration gap;
+- `runtime_persistence.schema.repair` for the registered Runtime Persistence schema-drift gap.
+
+For Runtime Persistence schema drift, the convergence step is bound to the canonical `finding_id`, inspection run, inspection evidence hash, exact SHA, run, plan, step, nested operation, and durable approval. Missing or ambiguous findings block before approval and mutation.
+
+This is not a generic SQL/schema-repair authority. Arbitrary partial corruption with no registered deterministic finding remains fail-closed and requires a separately registered Recovery capability.
