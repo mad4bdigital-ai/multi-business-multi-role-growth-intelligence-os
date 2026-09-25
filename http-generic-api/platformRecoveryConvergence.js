@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   evaluateProductionRecoveryClosure,
   PRODUCTION_RECOVERY_BACKUP_EVIDENCE_CONTRACT,
@@ -11,6 +11,8 @@ const SAFE_ID_RE = /^[A-Za-z0-9._:-]{8,220}$/u;
 const RUN_CONTRACT = "mad4b.platform-recovery-convergence-run.v1";
 const PLAN_CONTRACT = "mad4b.platform-recovery-convergence-plan.v1";
 const EVENT_CONTRACT = "mad4b.platform-recovery-convergence-event.v1";
+const PROCESS_INSTANCE_ID = `recovery-process:${randomUUID()}`;
+const STALE_EXECUTION_RECONCILE_AFTER_MS = 15 * 60 * 1000;
 
 export const PLATFORM_RECOVERY_CONVERGENCE_CAPABILITY = "platform_recovery_converge_v1";
 
@@ -220,6 +222,9 @@ function createStepState(planStep, runId, planHash) {
     result: null,
     request_id: null,
     error_code: null,
+    execution_process_id: null,
+    started_at: null,
+    completed_at: null,
     secrets_included: false,
   };
 }
@@ -335,6 +340,7 @@ function priorResult(run, key) {
 
 function markSkipped(step, reason) {
   step.status = "skipped_not_required";
+  step.completed_at = new Date().toISOString();
   step.result = {
     ok: true,
     status: "skipped_not_required",
@@ -544,6 +550,52 @@ function executorFor(executors, key, mode = "execute") {
   if (typeof value === "function") return mode === "execute" ? value : null;
   if (value && typeof value === "object" && typeof value[mode] === "function") return value[mode];
   return null;
+}
+
+function staleExecutingStep(run, nowMs = Date.now()) {
+  const step = run.steps.find((candidate) => candidate.status === "executing");
+  if (!step) return null;
+  const startedMs = Date.parse(text(step.started_at, 80));
+  if (!Number.isFinite(startedMs)) return null;
+  const differentProcess = text(step.execution_process_id, 220) !== PROCESS_INSTANCE_ID;
+  const ageMs = Math.max(0, nowMs - startedMs);
+  if (!differentProcess || ageMs < STALE_EXECUTION_RECONCILE_AFTER_MS) return null;
+  return { step, age_ms: ageMs };
+}
+
+async function promoteStaleExecutionToUnknown(run, recoveryStore, step, ageMs) {
+  step.status = "unknown_outcome";
+  step.error_code = "platform_recovery_orphaned_execution_after_process_restart";
+  step.request_id = step.request_id || null;
+  step.completed_at = null;
+  step.result = {
+    ok: false,
+    status: "unknown_outcome",
+    expected_sha: run.expected_sha,
+    run_id: run.run_id,
+    plan_hash: run.plan_hash,
+    step_id: step.step_id,
+    authority_ref: step.authority_ref || null,
+    nested_operation: step.nested_operation || null,
+    idempotency_key: step.idempotency_key,
+    error_code: step.error_code,
+    request_id: step.request_id,
+    next_safe_action: "reconcile_same_operation_before_retry",
+    mutation_outcome_known: false,
+    stale_execution_age_ms: ageMs,
+    secrets_included: false,
+  };
+  run.status = "unknown_outcome";
+  run.active = false;
+  run.blocking_stage = step.key;
+  run.error_code = step.error_code;
+  run.request_id = step.request_id;
+  run.next_safe_action = "reconcile_same_operation_before_retry";
+  await appendEvent(recoveryStore, run, step, "stale_execution_promoted_to_unknown_outcome", {
+    error_code: step.error_code,
+    stale_execution_age_ms: ageMs,
+  });
+  await persistRun(recoveryStore, run);
 }
 
 function orchestrationClaimContext(run, step) {
@@ -789,6 +841,7 @@ async function verifyFinalDeploymentParity(run, finalStep, executors) {
 }
 
 function summarize(run) {
+  const staleExecution = staleExecutingStep(run);
   return {
     ok: run.status === "recovered" && run.active === true,
     contract: RUN_CONTRACT,
@@ -800,7 +853,9 @@ function summarize(run) {
     blocking_stage: run.blocking_stage,
     error_code: run.error_code,
     request_id: run.request_id,
-    next_safe_action: run.next_safe_action,
+    next_safe_action: staleExecution ? "reconcile_same_operation_before_retry" : run.next_safe_action,
+    stale_execution_reconciliation_eligible: Boolean(staleExecution),
+    stale_execution_step: staleExecution?.step?.key || null,
     final_parity: run.final_parity ? clone(run.final_parity) : null,
     closure: run.closure ? clone(run.closure) : null,
     steps: run.steps.map((step) => ({
@@ -910,6 +965,9 @@ async function executeOneStep(run, step, { recoveryStore, executors, approvalRes
   const orchestrationClaim = await acquireOrchestrationClaim(recoveryStore, run, step);
 
   step.status = "executing";
+  step.execution_process_id = PROCESS_INSTANCE_ID;
+  step.started_at = new Date().toISOString();
+  step.completed_at = null;
   step.attempts += 1;
   run.status = "running";
   run.current_step_id = step.step_id;
@@ -968,6 +1026,7 @@ async function executeOneStep(run, step, { recoveryStore, executors, approvalRes
   } catch (error) {
     if (isMutationStep(step) && rawResult?.mutation_performed !== false) {
       step.status = "unknown_outcome";
+      step.completed_at = null;
       step.error_code = "platform_recovery_mutation_receipt_invalid";
       step.request_id = text(rawResult?.request_id, 160) || null;
       step.result = {
@@ -999,6 +1058,7 @@ async function executeOneStep(run, step, { recoveryStore, executors, approvalRes
   }
   step.result = result;
   step.status = result.status;
+  step.completed_at = result.status === "unknown_outcome" ? null : new Date().toISOString();
   step.request_id = text(result.request_id, 160) || null;
   step.error_code = text(result.error_code, 160) || null;
   await appendEvent(recoveryStore, run, step, `step_${result.status}`, {
@@ -1034,8 +1094,29 @@ async function executeOneStep(run, step, { recoveryStore, executors, approvalRes
 }
 
 async function reconcileUnknownStep(run, { recoveryStore, executors }) {
-  const step = run.steps.find((candidate) => candidate.status === "unknown_outcome");
-  if (!step) fail("PLATFORM_RECOVERY_RECONCILIATION_NOT_REQUIRED", "No unknown outcome requires reconciliation.", 409);
+  let step = run.steps.find((candidate) => candidate.status === "unknown_outcome");
+  if (!step) {
+    const executing = run.steps.find((candidate) => candidate.status === "executing");
+    const stale = staleExecutingStep(run);
+    if (executing && !stale) {
+      const startedMs = Date.parse(text(executing.started_at, 80));
+      const ageMs = Number.isFinite(startedMs) ? Math.max(0, Date.now() - startedMs) : 0;
+      const retryAfterSeconds = Math.max(1, Math.ceil((STALE_EXECUTION_RECONCILE_AFTER_MS - ageMs) / 1000));
+      fail(
+        "PLATFORM_RECOVERY_EXECUTION_MAY_STILL_BE_IN_PROGRESS",
+        "The mutating step is still inside the bounded execution-liveness window; reconciliation is not yet allowed.",
+        409,
+        {
+          step_key: executing.key,
+          retry_after_seconds: retryAfterSeconds,
+          next_safe_action: "read_same_run_status_then_reconcile_after_stale_window",
+        },
+      );
+    }
+    if (!stale) fail("PLATFORM_RECOVERY_RECONCILIATION_NOT_REQUIRED", "No unknown outcome requires reconciliation.", 409);
+    step = stale.step;
+    await promoteStaleExecutionToUnknown(run, recoveryStore, step, stale.age_ms);
+  }
   const reconcile = executorFor(executors, step.key, "reconcile");
   if (!reconcile) fail("PLATFORM_RECOVERY_RECONCILER_UNAVAILABLE", `No reconciliation adapter is available for ${step.key}.`, 503);
 
@@ -1070,6 +1151,7 @@ async function reconcileUnknownStep(run, { recoveryStore, executors }) {
   } else if (result.status === "pass") {
     step.status = "pass";
     step.result = result;
+    step.completed_at = new Date().toISOString();
     step.error_code = null;
     step.request_id = text(result.request_id, 160) || null;
     run.status = "pending";
@@ -1080,6 +1162,7 @@ async function reconcileUnknownStep(run, { recoveryStore, executors }) {
   } else {
     step.status = result.status;
     step.result = result;
+    step.completed_at = result.status === "unknown_outcome" ? null : new Date().toISOString();
     run.status = result.status === "degraded" ? "degraded" : "blocked";
     run.blocking_stage = step.key;
     run.error_code = text(result.error_code, 160) || `platform_recovery_${step.key}_reconciliation_failed`;
