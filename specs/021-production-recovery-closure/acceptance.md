@@ -40,3 +40,14 @@ The following must all be true in one exact-SHA closure evidence pack:
 - recovered requires exact SHA;
 - automatic retry is always false after partial or unknown outcome;
 - closure evaluation itself performs no mutation.
+
+
+## Convergence active gate
+
+`platform_recovery_converge_v1` may report `active=true` only after every ordered stage is `pass` or an explicitly proven `skipped_not_required`.
+
+Required live acceptance includes exact SHA/version/deployment-info parity, verified backup evidence, durable full inspection, governance/runtime-persistence baseline readiness, canonical grants readback, MCP catalog migration/readback, real response-chunk write/read smoke, Admin and Device tool functional readbacks, Production activation readiness, connector authenticated HTTP 200, Local Manager create→claim→complete round-trip, and final deployment parity.
+
+A role baseline rebuild is `skipped_not_required` only when the durable inspection proves that role is not zero-object. Runtime is never rebuilt by this convergence plan.
+
+Each mutation boundary requires its own server-resolved exact-step approval and same-cycle readback. Completed steps are not replayed. Unknown outcome requires readback-only reconciliation and automatic retry remains false.
