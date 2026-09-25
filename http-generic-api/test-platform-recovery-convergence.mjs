@@ -150,6 +150,20 @@ function canonicalGrantReconcilePass(ctx, extra = {}) {
   });
 }
 
+function roleInspectionEvidence(zeroObject, nonzeroTotal = 7) {
+  return zeroObject
+    ? {
+        zero_object: true,
+        classification: "zero_objects",
+        object_count_total: 0,
+      }
+    : {
+        zero_object: false,
+        classification: "nonempty_objects",
+        object_count_total: nonzeroTotal,
+      };
+}
+
 function happyExecutors({ zeroGovernance = true, zeroPersistence = true, calls = [] } = {}) {
   const wrap = (key, fn) => async (ctx) => {
     calls.push(key);
@@ -178,15 +192,21 @@ function happyExecutors({ zeroGovernance = true, zeroPersistence = true, calls =
       inspection_run_id: "run:inspection:test-001",
       inspection_evidence_hash: "e".repeat(64),
       target_fingerprint: "f".repeat(64),
+      checks: {
+        governance_db_privilege_ready: false,
+        mcp_catalog_schema_ready: false,
+        runtime_persistence_ready: zeroPersistence ? false : true,
+      },
       roles: {
-        runtime: { zero_object: false },
-        governance: { zero_object: zeroGovernance },
-        runtime_persistence: { zero_object: zeroPersistence },
+        runtime: roleInspectionEvidence(false, 7),
+        governance: roleInspectionEvidence(zeroGovernance, 5),
+        runtime_persistence: roleInspectionEvidence(zeroPersistence, 4),
       },
     })),
     governance_baseline_rebuild: wrap("governance_baseline_rebuild", (ctx) => mutationPass(ctx)),
     governance_baseline_verify: wrap("governance_baseline_verify", (ctx) => pass(ctx, { baseline_ready: true })),
     runtime_persistence_baseline_rebuild: wrap("runtime_persistence_baseline_rebuild", (ctx) => mutationPass(ctx)),
+    runtime_persistence_schema_repair: wrap("runtime_persistence_schema_repair", (ctx) => mutationPass(ctx)),
     runtime_persistence_baseline_verify: wrap("runtime_persistence_baseline_verify", (ctx) => pass(ctx, { baseline_ready: true })),
     canonical_grants_apply: wrap("canonical_grants_apply", (ctx) => canonicalGrantMutationPass(ctx)),
     canonical_grants_verify: wrap("canonical_grants_verify", (ctx) => pass(ctx, { grants_ready: true })),
@@ -716,6 +736,7 @@ test("convergence plan declares canonical nested authorities for every mutating 
   const expected = {
     governance_baseline_rebuild: ["governance.baseline.rebuild_empty", "database.rebuild_empty"],
     runtime_persistence_baseline_rebuild: ["runtime_persistence.baseline.rebuild_empty", "database.rebuild_empty"],
+    runtime_persistence_schema_repair: ["runtime_persistence.schema.repair", "apply_migration"],
     canonical_grants_apply: ["runtime_bootstrap_canonical_grant_contract", "apply_grants"],
     mcp_catalog_migration_apply: ["governance.mcp_catalog.repair", "apply_migration"],
     response_chunk_storage_smoke: ["response_chunk_durable_recovery_smoke", "execute_smoke"],
@@ -819,9 +840,9 @@ test("already-ready grants and MCP catalog are verified without mutation", async
         runtime_persistence_ready: true,
       },
       roles: {
-        runtime: { zero_object: false },
-        governance: { zero_object: false },
-        runtime_persistence: { zero_object: false },
+        runtime: roleInspectionEvidence(false, 7),
+        governance: roleInspectionEvidence(false, 5),
+        runtime_persistence: roleInspectionEvidence(false, 4),
       },
     });
   };
@@ -1064,4 +1085,173 @@ test("successful reconciliation preserves original mutation audit for final clos
   assert.equal(final.status, "recovered");
   assert.equal(final.closure?.production_mutation_audited, true);
   assert.equal(executeCount, 1);
+});
+
+
+test("nonempty runtime persistence schema drift uses only the registered schema repair capability", async () => {
+  const store = makeStore();
+  const calls = [];
+  const executors = happyExecutors({ zeroGovernance: false, zeroPersistence: false, calls });
+  executors.database_full_inspection = async (ctx) => {
+    calls.push("database_full_inspection");
+    return pass(ctx, {
+      durable: true,
+      inspection_run_id: "run:inspection:runtime-persistence-drift",
+      inspection_evidence_hash: "e".repeat(64),
+      target_fingerprint: "f".repeat(64),
+      checks: {
+        governance_db_privilege_ready: false,
+        mcp_catalog_schema_ready: false,
+        runtime_persistence_ready: false,
+      },
+      roles: {
+        runtime: roleInspectionEvidence(false, 7),
+        governance: roleInspectionEvidence(false, 5),
+        runtime_persistence: roleInspectionEvidence(false, 4),
+      },
+    });
+  };
+
+  const result = await advanceUntilBoundary({ store, executors });
+  assert.equal(result.status, "recovered");
+  assert.equal(calls.includes("runtime_persistence_baseline_rebuild"), false);
+  assert.equal(calls.filter((key) => key === "runtime_persistence_schema_repair").length, 1);
+  const repair = result.steps.find((step) => step.key === "runtime_persistence_schema_repair");
+  assert.equal(repair.status, "pass");
+  assert.equal(repair.authority_ref, "runtime_persistence.schema.repair");
+  assert.equal(repair.nested_operation, "apply_migration");
+});
+
+test("missing runtime persistence readiness blocks before schema repair authority", async () => {
+  const store = makeStore();
+  const calls = [];
+  const executors = happyExecutors({ zeroGovernance: false, zeroPersistence: false, calls });
+  executors.database_full_inspection = async (ctx) => {
+    calls.push("database_full_inspection");
+    return pass(ctx, {
+      durable: true,
+      inspection_run_id: "run:inspection:missing-runtime-persistence-readiness",
+      inspection_evidence_hash: "e".repeat(64),
+      target_fingerprint: "f".repeat(64),
+      checks: {
+        governance_db_privilege_ready: false,
+        mcp_catalog_schema_ready: false,
+        runtime_persistence_ready: null,
+      },
+      roles: {
+        runtime: roleInspectionEvidence(false, 7),
+        governance: roleInspectionEvidence(false, 5),
+        runtime_persistence: roleInspectionEvidence(false, 4),
+      },
+    });
+  };
+
+  const result = await advanceUntilBoundary({ store, executors });
+  assert.equal(result.status, "blocked");
+  assert.equal(result.blocking_stage, "runtime_persistence_schema_repair");
+  assert.equal(result.error_code, "platform_recovery_runtime_persistence_schema_gap_evidence_unavailable");
+  assert.equal(calls.includes("runtime_persistence_schema_repair"), false);
+});
+
+test("missing grant readiness evidence blocks before approval claim or mutation", async () => {
+  const store = makeStore();
+  const calls = [];
+  let approvalCalls = 0;
+  const executors = happyExecutors({ zeroGovernance: false, zeroPersistence: false, calls });
+  executors.database_full_inspection = async (ctx) => {
+    calls.push("database_full_inspection");
+    return pass(ctx, {
+      durable: true,
+      inspection_run_id: "run:inspection:missing-grant-readiness",
+      inspection_evidence_hash: "e".repeat(64),
+      target_fingerprint: "f".repeat(64),
+      checks: {
+        governance_db_privilege_ready: null,
+        mcp_catalog_schema_ready: false,
+        runtime_persistence_ready: true,
+      },
+      roles: {
+        runtime: roleInspectionEvidence(false, 7),
+        governance: roleInspectionEvidence(false, 5),
+        runtime_persistence: roleInspectionEvidence(false, 4),
+      },
+    });
+  };
+  const resolver = async (ctx) => {
+    approvalCalls += 1;
+    return happyApprovalResolver(ctx);
+  };
+
+  const result = await advanceUntilBoundary({ store, executors, approvalResolver: resolver });
+  assert.equal(result.status, "blocked");
+  assert.equal(result.blocking_stage, "canonical_grants_apply");
+  assert.equal(result.error_code, "platform_recovery_grant_gap_evidence_unavailable");
+  assert.equal(calls.includes("canonical_grants_apply"), false);
+  assert.equal(approvalCalls, 0);
+});
+
+test("missing MCP catalog readiness evidence blocks ordinary migration before authority", async () => {
+  const store = makeStore();
+  const calls = [];
+  const executors = happyExecutors({ zeroGovernance: false, zeroPersistence: false, calls });
+  executors.database_full_inspection = async (ctx) => {
+    calls.push("database_full_inspection");
+    return pass(ctx, {
+      durable: true,
+      inspection_run_id: "run:inspection:missing-mcp-readiness",
+      inspection_evidence_hash: "e".repeat(64),
+      target_fingerprint: "f".repeat(64),
+      checks: {
+        governance_db_privilege_ready: true,
+        mcp_catalog_schema_ready: null,
+        runtime_persistence_ready: true,
+      },
+      roles: {
+        runtime: roleInspectionEvidence(false, 7),
+        governance: roleInspectionEvidence(false, 5),
+        runtime_persistence: roleInspectionEvidence(false, 4),
+      },
+    });
+  };
+
+  const result = await advanceUntilBoundary({ store, executors });
+  assert.equal(result.status, "blocked");
+  assert.equal(result.blocking_stage, "mcp_catalog_migration_apply");
+  assert.equal(result.error_code, "platform_recovery_mcp_catalog_gap_evidence_unavailable");
+  assert.equal(calls.includes("mcp_catalog_migration_apply"), false);
+});
+
+test("inconsistent role census is rejected before any recovery mutation", async () => {
+  const store = makeStore();
+  const calls = [];
+  const executors = happyExecutors({ calls });
+  executors.database_full_inspection = async (ctx) => {
+    calls.push("database_full_inspection");
+    return pass(ctx, {
+      durable: true,
+      inspection_run_id: "run:inspection:inconsistent-census",
+      inspection_evidence_hash: "e".repeat(64),
+      target_fingerprint: "f".repeat(64),
+      checks: {
+        governance_db_privilege_ready: false,
+        mcp_catalog_schema_ready: false,
+        runtime_persistence_ready: false,
+      },
+      roles: {
+        runtime: roleInspectionEvidence(false, 7),
+        governance: {
+          zero_object: false,
+          classification: "zero_objects",
+          object_count_total: 0,
+        },
+        runtime_persistence: roleInspectionEvidence(true),
+      },
+    });
+  };
+
+  await assert.rejects(
+    advanceUntilBoundary({ store, executors }),
+    (error) => error.code === "PLATFORM_RECOVERY_INSPECTION_ROLE_INVALID",
+  );
+  assert.equal(calls.includes("governance_baseline_rebuild"), false);
 });
