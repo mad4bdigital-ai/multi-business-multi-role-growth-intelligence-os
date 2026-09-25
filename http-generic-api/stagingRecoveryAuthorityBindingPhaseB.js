@@ -10,6 +10,7 @@ import {
 import {
   createFileRecoveryEvidenceStore,
   createRecoveryReadinessAuthorities as createCanonicalReadinessAuthority,
+  syncRecoveryDirectory,
 } from "./recoveryReadinessEvidence.js";
 import { readDeploymentManifest } from "./deploymentManifest.js";
 import { wrapStagingRecoveryAdaptersForPhaseB } from "./stagingRecoveryPhaseBConcurrency.js";
@@ -139,6 +140,7 @@ async function createIssuanceClaim(file, challenge) {
   try {
     await handle.writeFile(`${JSON.stringify(claim)}\n`);
     await handle.sync();
+    await syncRecoveryDirectory(path.dirname(file));
     return handle;
   } catch (error) {
     try {
