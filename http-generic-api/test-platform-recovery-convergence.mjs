@@ -30,6 +30,7 @@ function clone(value) {
 function makeStore() {
   const runs = new Map();
   const idempotency = new Map();
+  const executionClaims = new Map();
   const events = [];
   return {
     independent_of_target_databases: true,
@@ -51,14 +52,23 @@ function makeStore() {
     async putIdempotencyReceipt(key, receipt) {
       idempotency.set(key, receipt.run_id);
     },
-    async claimExecution() {
-      return { claimed: true };
+    async claimExecution(context) {
+      const key = context.idempotency_key;
+      if (executionClaims.has(key)) {
+        return { existing: true, status: "claimed", claim_id: executionClaims.get(key).claim_id };
+      }
+      const value = { claim_id: `claim:${key}`, ...clone(context) };
+      executionClaims.set(key, value);
+      return { claimed: true, claim_id: value.claim_id };
+    },
+    async releaseExecutionClaim(context) {
+      return { released: executionClaims.delete(context.idempotency_key) };
     },
     async reserveApproval() {
       return { reserved: true };
     },
     async markApprovalUsed() {
-      return { used: true };
+      return { finalized: true };
     },
   };
 }
@@ -98,12 +108,26 @@ function happyExecutors({ zeroGovernance = true, zeroPersistence = true, calls =
   return {
     production_identity: wrap("production_identity", (ctx) => pass(ctx, { exact_sha_parity: true, version_readback: true, deployment_info_readback: true })),
     backup_evidence: wrap("backup_evidence", (ctx) => pass(ctx, {
+      contract: "mad4b.production-recovery-backup-evidence.v1",
       backup_verified: true,
+      verified: true,
+      durable: true,
+      expected_sha: ctx.expected_sha,
       roles: ["runtime", "governance", "runtime_persistence"],
       evidence_sha256: "b".repeat(64),
+      evidence_ref: "backup:evidence:test",
+      created_at: new Date().toISOString(),
+      storage_readback_verified: true,
+      restore_test_verified: true,
+      artifact_manifest_hash: "d".repeat(64),
+      target_fingerprint: "f".repeat(64),
+      cycle_id: ctx.run_id,
     })),
     database_full_inspection: wrap("database_full_inspection", (ctx) => pass(ctx, {
       durable: true,
+      inspection_run_id: "run:inspection:test-001",
+      inspection_evidence_hash: "e".repeat(64),
+      target_fingerprint: "f".repeat(64),
       roles: {
         runtime: { zero_object: false },
         governance: { zero_object: zeroGovernance },
@@ -193,7 +217,7 @@ test("convergence reaches active only after every required gate passes", async (
     executors: happyExecutors({ calls }),
   });
 
-  assert.equal(result.status, "active");
+  assert.equal(result.status, "recovered");
   assert.equal(result.active, true);
   assert.equal(result.blocking_stage, null);
   assert.equal(result.next_safe_action, "none");
@@ -214,7 +238,7 @@ test("nonzero database roles are never rebuilt and are verified instead", async 
     executors: happyExecutors({ zeroGovernance: false, zeroPersistence: false, calls }),
   });
 
-  assert.equal(result.status, "active");
+  assert.equal(result.status, "recovered");
   assert.equal(calls.includes("governance_baseline_rebuild"), false);
   assert.equal(calls.includes("runtime_persistence_baseline_rebuild"), false);
   assert.equal(result.steps.find((step) => step.key === "governance_baseline_rebuild").status, "skipped_not_required");
@@ -238,7 +262,7 @@ test("completed steps are not replayed when a later stage waits for authority", 
   };
 
   const second = await advanceUntilBoundary({ store, executors, runId: first.run_id });
-  assert.equal(second.status, "active");
+  assert.equal(second.status, "recovered");
   assert.equal(calls.filter((key) => key === "production_identity").length, identityCalls);
   assert.equal(calls.filter((key) => key === "canonical_grants_apply").length, 1);
 });
@@ -288,7 +312,7 @@ test("unknown mutation outcome blocks blind retry and requires explicit reconcil
   assert.equal(reconciled.steps.find((step) => step.key === "canonical_grants_apply").status, "pass");
 
   const final = await advanceUntilBoundary({ store, executors, runId: first.run_id });
-  assert.equal(final.status, "active");
+  assert.equal(final.status, "recovered");
   assert.equal(executeCount, 1);
 });
 
@@ -303,7 +327,7 @@ test("credential-invalid connector probe invokes two-phase rebind before authent
 
   const result = await advanceUntilBoundary({ store, executors });
 
-  assert.equal(result.status, "active");
+  assert.equal(result.status, "recovered");
   assert.equal(result.steps.find((step) => step.key === "connector_two_phase_rebind").status, "pass");
   assert.ok(calls.indexOf("connector_two_phase_rebind") < calls.indexOf("connector_auth_verify"));
 });
@@ -329,7 +353,7 @@ test("rate limited connector recovery honors the rate-limit contract and never t
 
   const result = await advanceUntilBoundary({ store, executors });
 
-  assert.equal(result.status, "active");
+  assert.equal(result.status, "recovered");
   assert.equal(result.steps.find((step) => step.key === "local_manager_rate_limit_recovery").status, "pass");
   assert.equal(result.steps.find((step) => step.key === "connector_two_phase_rebind").status, "skipped_not_required");
   assert.equal(calls.includes("connector_two_phase_rebind"), false);
@@ -669,4 +693,62 @@ test("server approval nested operation must match the exact stage", async () => 
     (error) => error.code === "PLATFORM_RECOVERY_APPROVAL_BINDING_INVALID",
   );
   assert.equal(calls.includes("governance_baseline_rebuild"), false);
+});
+
+
+test("final closure is recovered only from same-run durable evidence", async () => {
+  const store = makeStore();
+  const result = await advanceUntilBoundary({
+    store,
+    executors: happyExecutors(),
+  });
+
+  assert.equal(result.status, "recovered");
+  assert.equal(result.active, true);
+  assert.equal(result.ok, true);
+  assert.equal(result.closure?.status, "recovered");
+  assert.equal(result.closure?.core_recovered, true);
+  assert.match(result.closure?.closure_sha256 || "", /^[0-9a-f]{64}$/u);
+  assert.equal(result.closure?.backup_evidence?.cycle_id, result.run_id);
+  assert.equal(result.closure?.backup_evidence?.target_fingerprint, "f".repeat(64));
+});
+
+test("duplicate concurrent orchestration claim blocks a second mutation invocation", async () => {
+  const store = makeStore();
+  const executors = happyExecutors({ zeroGovernance: false, zeroPersistence: false });
+  const originalClaim = store.claimExecution.bind(store);
+  let holdClaim = false;
+  store.claimExecution = async (context) => {
+    const result = await originalClaim(context);
+    if (!holdClaim && result.claimed === true) {
+      holdClaim = true;
+      return result;
+    }
+    return { existing: true, status: "claimed", claim_id: "claim:existing" };
+  };
+  store.releaseExecutionClaim = async () => ({ released: true });
+
+  await assert.rejects(
+    runPlatformRecoveryConvergence(
+      { expected_sha: SHA },
+      { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
+    ),
+    (error) => error.code === "PLATFORM_RECOVERY_STEP_EXECUTION_IN_PROGRESS",
+  );
+});
+
+test("mutation without a verified terminal receipt is promoted to unknown outcome", async () => {
+  const store = makeStore();
+  const executors = happyExecutors({ zeroGovernance: false, zeroPersistence: false });
+  executors.canonical_grants_apply = async (ctx) => ({
+    ...mutationPass(ctx),
+    ok: false,
+    status: "blocked",
+    error_code: "provider_returned_unverified_mutation",
+  });
+
+  const result = await advanceUntilBoundary({ store, executors });
+  assert.equal(result.status, "unknown_outcome");
+  assert.equal(result.blocking_stage, "canonical_grants_apply");
+  assert.equal(result.next_safe_action, "reconcile_same_operation_before_retry");
 });
