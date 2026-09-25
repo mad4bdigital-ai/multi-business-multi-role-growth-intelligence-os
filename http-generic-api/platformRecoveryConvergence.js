@@ -501,6 +501,46 @@ function executorFor(executors, key, mode = "execute") {
   return null;
 }
 
+async function verifyPreMutationDeploymentParity(run, step, executors) {
+  if (!isMutationStep(step)) return { ready: true };
+  const reader = executorFor(executors, "deployment_parity", "execute");
+  if (!reader) {
+    return {
+      ready: false,
+      error_code: "platform_recovery_pre_mutation_parity_unavailable",
+      next_safe_action: "restore_exact_production_sha_parity_reader",
+    };
+  }
+  const result = await reader(Object.freeze({
+    expected_sha: run.expected_sha,
+    target_key: run.target_key,
+    run_id: run.run_id,
+    plan_hash: run.plan_hash,
+    step_id: step.step_id,
+    step_key: step.key,
+    step_kind: step.kind,
+    role: step.role || null,
+    migration: step.migration || null,
+    idempotency_key: step.idempotency_key,
+    prior_steps: run.steps
+      .filter((candidate) => candidate.order < step.order)
+      .map((candidate) => ({ key: candidate.key, status: candidate.status, result: candidate.result })),
+    secrets_included: false,
+  }));
+  const ready = result?.status === "pass"
+    && result?.exact_sha_parity === true
+    && result?.mutation_performed !== true
+    && result?.secrets_included === false;
+  return ready
+    ? { ready: true }
+    : {
+        ready: false,
+        error_code: "platform_recovery_pre_mutation_parity_failed",
+        next_safe_action: "restore_exact_production_sha_parity_before_mutation",
+        request_id: text(result?.request_id, 160) || null,
+      };
+}
+
 function summarize(run) {
   return {
     ok: run.status === "active",
@@ -544,6 +584,35 @@ async function executeOneStep(run, step, { recoveryStore, executors, approvalRes
     await appendEvent(recoveryStore, run, step, "step_skipped", { reason: skipReason });
     await persistRun(recoveryStore, run);
     return { continue: true };
+  }
+
+  const preMutationParity = await verifyPreMutationDeploymentParity(run, step, executors);
+  if (!preMutationParity.ready) {
+    step.status = "blocked";
+    step.error_code = preMutationParity.error_code;
+    step.request_id = preMutationParity.request_id || null;
+    step.result = {
+      ok: false,
+      status: "blocked",
+      error_code: preMutationParity.error_code,
+      request_id: step.request_id,
+      next_safe_action: preMutationParity.next_safe_action,
+      mutation_performed: false,
+      readback_verified: false,
+      secrets_included: false,
+    };
+    run.status = "blocked";
+    run.active = false;
+    run.blocking_stage = step.key;
+    run.error_code = preMutationParity.error_code;
+    run.request_id = step.request_id;
+    run.next_safe_action = preMutationParity.next_safe_action;
+    await appendEvent(recoveryStore, run, step, "step_blocked_pre_mutation_parity", {
+      error_code: step.error_code,
+      request_id: step.request_id,
+    });
+    await persistRun(recoveryStore, run);
+    return { continue: false };
   }
 
   const authority = await resolveStepAuthority(run, step, approvalResolver);
