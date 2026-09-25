@@ -132,6 +132,7 @@ paths:
                     - recovery_evidence_chain_preview
                     - secret_observation
                     - production_activation_readiness
+                    - production_recovery_closure
                     - production_activation_readiness_probe
                     - database_full_inspection
                     - production_host_local_database_inspect
@@ -671,7 +672,7 @@ paths:
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: 6a8d780fb6cf2f874efde0214e5b9b1cd48d0835582f33fbb4ac8dded308ee92
+  source_openapi_sha256: 2387d7bd7f44c369c884c654ac6e6296fff55b175cf4f09e65c5f0a2b0201df5
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
   registry_sha256: 155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9
   domain_family_policy: http-generic-api/config/domain-family-policy.json
@@ -733,7 +734,7 @@ x-mad4b-registration-contract:
   environment: production
   source_surface: admin_recovery_production
   generation_mode: generated_from_openapi
-  source_openapi_sha256: 6a8d780fb6cf2f874efde0214e5b9b1cd48d0835582f33fbb4ac8dded308ee92
+  source_openapi_sha256: 2387d7bd7f44c369c884c654ac6e6296fff55b175cf4f09e65c5f0a2b0201df5
   source_manifest_sha256: 155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9
   surface_operation_manifest_sha256: f3fa723deabf8d6a8c2eb7453a23e8b2fd9d596919713880ab327b1bc946bd91
   surface_operation_manifest_hash_scope: split_surface_operation_manifest.v1

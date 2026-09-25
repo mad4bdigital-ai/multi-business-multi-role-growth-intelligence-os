@@ -120,6 +120,23 @@ function immutableComponents(adapters = {}) {
   return Object.freeze(Object.fromEntries(COMPONENT_KEYS.map((key) => [key, adapters[key] ?? null])));
 }
 
+function buildPlatformRecoveryConvergenceDependencies(adapters = {}) {
+  const executors = isObject(adapters?.platformRecoveryConvergenceExecutors)
+    ? Object.freeze({ ...adapters.platformRecoveryConvergenceExecutors })
+    : Object.freeze({});
+  const resolver = typeof adapters?.platformRecoveryConvergenceApprovalResolver === "function"
+    ? adapters.platformRecoveryConvergenceApprovalResolver
+    : null;
+  return Object.freeze({
+    executors,
+    approvalResolver: resolver,
+    configured_executor_keys: Object.freeze(Object.keys(executors).sort()),
+    approval_resolver_configured: typeof resolver === "function",
+    caller_managed: false,
+    secrets_included: false,
+  });
+}
+
 function buildReadOnlyDependencies(readOnlyAuthorities = {}) {
   return Object.freeze({
     recoveryStore: readOnlyAuthorities?.recoveryStore || null,
@@ -169,6 +186,7 @@ function buildFailClosedComposition(source, { readOnlyAuthorities = null } = {})
     readOnlyDependencies,
     hostBreakglassBroker,
     runtimeBootstrapDependencies,
+    platformRecoveryConvergence: buildPlatformRecoveryConvergenceDependencies(),
     secrets_included: false,
   });
 }
@@ -227,6 +245,7 @@ export function createRecoveryComposition({ mode = "fail_closed", adapters = nul
     partialReceiptStore: components.partialReceiptStore,
     executionTicketVerifier: components.executionTicketVerifier,
   });
+  const platformRecoveryConvergence = buildPlatformRecoveryConvergenceDependencies(adapters);
   const authorityInventory = Object.freeze({
     contract: "mad4b.recovery-authority-inventory.v1",
     required_components: [...COMPONENT_KEYS],
@@ -256,6 +275,7 @@ export function createRecoveryComposition({ mode = "fail_closed", adapters = nul
     readOnlyDependencies,
     hostBreakglassBroker,
     runtimeBootstrapDependencies,
+    platformRecoveryConvergence,
     secrets_included: false,
   });
 }
@@ -274,6 +294,8 @@ export function getRecoveryCompositionRouteDependencies(composition = buildFailC
     broker: composition.hostBreakglassBroker,
     hostBreakglassMutationExecutor: composition.hostBreakglassBroker.hostLocalMutationExecutor || null,
     runtimeBootstrapDependencies: composition.runtimeBootstrapDependencies,
+    platformRecoveryConvergenceExecutors: composition.platformRecoveryConvergence?.executors || Object.freeze({}),
+    platformRecoveryConvergenceApprovalResolver: composition.platformRecoveryConvergence?.approvalResolver || null,
     ...recoveryReadinessRouteDependencies(readinessAuthority),
   });
 }

@@ -1,3 +1,4 @@
+// frontend-surface-operation: post /admin/recovery/kernel/platform-converge
 // frontend-surface-operation: post /admin/recovery/kernel/execute-approved
 // frontend-surface-operation: post /admin/recovery/kernel/approval-challenge
 // frontend-surface-operation: post /admin/recovery/kernel/execute
@@ -112,7 +113,7 @@ function readyMutationStore(overrides = {}) {
   };
 }
 
-function buildTestApp({ recoveryStore, readOnlyRecoveryStore, mutationRecoveryStore, approvalIssuer, approvalStore, mutationExecutor } = {}) {
+function buildTestApp({ recoveryStore, readOnlyRecoveryStore, mutationRecoveryStore, approvalIssuer, approvalStore, mutationExecutor, platformRecoveryConvergenceExecutors, platformRecoveryConvergenceApprovalResolver } = {}) {
   const app = express();
   app.use(express.json());
   const routeOptions = {
@@ -126,6 +127,8 @@ function buildTestApp({ recoveryStore, readOnlyRecoveryStore, mutationRecoverySt
     approvalIssuer,
     approvalStore,
     mutationExecutor,
+    platformRecoveryConvergenceExecutors,
+    platformRecoveryConvergenceApprovalResolver,
   };
   if (readOnlyRecoveryStore !== undefined) routeOptions.readOnlyRecoveryStore = readOnlyRecoveryStore;
   if (mutationRecoveryStore !== undefined) routeOptions.mutationRecoveryStore = mutationRecoveryStore;
@@ -323,3 +326,43 @@ test("explicit route store boundary preserves evidence reads while denying execu
 });
 
 console.log("recovery kernel route contract tests loaded");
+
+
+test("platform convergence status requires an existing run", async () => {
+  const store = readyMutationStore();
+  const app = buildTestApp({
+    mutationRecoveryStore: store,
+    recoveryStore: store,
+  });
+  const { server, baseUrl } = await startServer(app);
+  try {
+    const response = await postJson(baseUrl, {
+      expected_sha: EXACT_SHA,
+      action: "status",
+    }, "/admin/recovery/kernel/platform-converge");
+    assert.equal(response.status, 400);
+    assert.equal(response.body.error.code, "PLATFORM_RECOVERY_RUN_ID_REQUIRED");
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+
+test("platform convergence rejects unregistered caller fields", async () => {
+  const store = readyMutationStore();
+  const app = buildTestApp({
+    mutationRecoveryStore: store,
+    recoveryStore: store,
+  });
+  const { server, baseUrl } = await startServer(app);
+  try {
+    const response = await postJson(baseUrl, {
+      expected_sha: EXACT_SHA,
+      caller_override: "forbidden",
+    }, "/admin/recovery/kernel/platform-converge");
+    assert.equal(response.status, 400);
+    assert.equal(response.body.error.code, "recovery_kernel_input_field_forbidden");
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
