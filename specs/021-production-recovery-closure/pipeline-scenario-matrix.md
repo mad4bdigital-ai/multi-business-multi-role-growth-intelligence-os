@@ -41,6 +41,10 @@ Every consequential or bounded-mutation stage rechecks exact Production deployme
 | Runtime non-empty; Governance zero-object | selected repair | Governance only | Inspection evidence retained | Rebuild Governance only; Runtime remains untouched |
 | Governance non-empty | rebuild skipped | No baseline rebuild | Step becomes skipped_not_required | Verify Governance baseline independently |
 | Runtime Persistence zero-object | selected repair | Runtime Persistence only | Inspection evidence retained | Rebuild Runtime Persistence only |
+| Runtime Persistence non-empty + deterministic schema-drift finding | selected partial repair | Registered Runtime Persistence schema repair only | Finding binding retained | Execute one finding-bound repair then verify readiness |
+| Runtime Persistence non-empty + readiness false but finding missing | blocked | No | Inspection retained | Rerun durable full inspection / restore canonical finding |
+| Runtime Persistence non-empty + multiple matching findings | blocked ambiguous | No | Inspection retained | Reconcile finding classification before mutation |
+| Runtime Persistence partial repair receipt references another finding | unknown_outcome | No blind retry | Claim/approval/finding binding retained | Reconcile same operation and finding before retry |
 | Runtime role zero-object | unsupported by this convergence slice | No implicit Runtime rebuild | Run remains fail-closed | Use separately registered Runtime recovery authority |
 | Backup evidence missing | blocked | No | Inspection remains usable | Capture and verify all-role backup evidence |
 | Runtime Persistence non-empty + readiness=false | blocked handoff | No migration from convergence | Same run/finding evidence retained | Create a separate Recovery Kernel remediation plan for `runtime_persistence.schema.repair`, then resume after fresh readback |
