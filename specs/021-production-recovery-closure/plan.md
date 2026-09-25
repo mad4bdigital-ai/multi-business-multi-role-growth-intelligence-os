@@ -16,7 +16,6 @@ exact Production SHA
 → backup evidence
 → conditional Governance zero-object rebuild
 → conditional runtime-persistence zero-object rebuild
-→ conditional non-empty runtime-persistence schema repair
 → canonical grants apply/readback when explicitly required
 → bootstrap ledger readiness
 → MCP catalog migration only when explicitly required
@@ -88,7 +87,7 @@ The final gate derives `status=recovered` and `active=true` only after database,
 
 Repair selection is evidence-driven and tri-state. The full inspection must preserve `true | false | null` readiness rather than collapsing missing evidence to false. Consequential repair is allowed only on explicit false evidence. An unknown readiness state blocks before approval reservation or execution claim.
 
-The only partial non-empty schema repair added by this slice is the existing Recovery Kernel capability `runtime_persistence.schema.repair` with operation `apply_migration`. It is eligible only when the runtime-persistence role is explicitly classified `nonempty_objects`, has a positive object count, and `runtime_persistence_ready=false`. No generic SQL repair path is introduced.
+For a runtime-persistence role explicitly classified `nonempty_objects` with a positive object count and `runtime_persistence_ready=false`, this convergence run stops and returns `create_recovery_kernel_remediation_plan_for_runtime_persistence_schema_repair`. The separate Recovery Kernel plan owns `runtime_persistence.schema.repair` and its `apply_migration` baseline-order proof. The convergence entrypoint never bypasses that proof and never introduces a generic SQL repair path.
 
 ## Durable approval fencing
 
