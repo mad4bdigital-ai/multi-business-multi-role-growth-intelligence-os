@@ -820,3 +820,90 @@ test("final parity recheck blocks recovery if Production moves after prior gates
   assert.equal(calls.filter((key) => key === "mcp_catalog_migration_apply").length, 1);
   assert.equal(calls.filter((key) => key === "local_manager_e2e_round_trip").length, 1);
 });
+
+
+test("stale executing mutation after process restart requires reconciliation without replay", async () => {
+  const store = makeStore();
+  const calls = [];
+  const executors = happyExecutors({ zeroGovernance: false, zeroPersistence: false, calls });
+  const originalPutRun = store.putRun.bind(store);
+  let capturedRunId = null;
+  let crashOnce = true;
+
+  store.putRun = async (run) => {
+    await originalPutRun(run);
+    capturedRunId = run.run_id;
+    const executing = run.steps.find((step) => step.status === "executing");
+    if (crashOnce && executing?.key === "canonical_grants_apply") {
+      crashOnce = false;
+      const error = new Error("simulated process crash after durable executing checkpoint");
+      error.code = "SIMULATED_PROCESS_CRASH";
+      throw error;
+    }
+  };
+
+  await assert.rejects(
+    runPlatformRecoveryConvergence(
+      { expected_sha: SHA },
+      { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
+    ),
+    (error) => error.code === "SIMULATED_PROCESS_CRASH",
+  );
+  assert.ok(capturedRunId);
+  assert.equal(calls.includes("canonical_grants_apply"), false);
+
+  store.putRun = originalPutRun;
+
+  await assert.rejects(
+    runPlatformRecoveryConvergence(
+      { expected_sha: SHA, run_id: capturedRunId, action: "reconcile" },
+      { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
+    ),
+    (error) => error.code === "PLATFORM_RECOVERY_EXECUTION_MAY_STILL_BE_IN_PROGRESS",
+  );
+
+  const persisted = await store.getRun(capturedRunId);
+  const executing = persisted.steps.find((step) => step.status === "executing");
+  assert.equal(executing.key, "canonical_grants_apply");
+  executing.execution_process_id = "recovery-process:previous-runtime";
+  executing.started_at = new Date(Date.now() - 16 * 60 * 1000).toISOString();
+  await originalPutRun(persisted);
+
+  const classified = await runPlatformRecoveryConvergence(
+    { expected_sha: SHA, run_id: capturedRunId, action: "advance" },
+    { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
+  );
+  assert.equal(classified.status, "unknown_outcome");
+  assert.equal(classified.blocking_stage, "canonical_grants_apply");
+  assert.equal(classified.error_code, "platform_recovery_orphaned_execution_after_process_restart");
+  assert.equal(classified.next_safe_action, "reconcile_same_operation_before_retry");
+  assert.equal(calls.includes("canonical_grants_apply"), false);
+
+  executors.canonical_grants_apply = {
+    execute: async (ctx) => {
+      calls.push("canonical_grants_apply");
+      return mutationPass(ctx);
+    },
+    reconcile: async (ctx) => pass(ctx, {
+      reconciled: true,
+      authority_verified: true,
+      readback_verified: true,
+    }),
+  };
+
+  const reconciled = await runPlatformRecoveryConvergence(
+    { expected_sha: SHA, run_id: capturedRunId, action: "reconcile" },
+    { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
+  );
+  assert.equal(reconciled.status, "pending");
+  assert.equal(reconciled.steps.find((step) => step.key === "canonical_grants_apply").status, "pass");
+  assert.equal(calls.includes("canonical_grants_apply"), false);
+
+  const final = await advanceUntilBoundary({
+    store,
+    executors,
+    runId: capturedRunId,
+  });
+  assert.equal(final.status, "recovered");
+  assert.equal(calls.includes("canonical_grants_apply"), false);
+});
