@@ -298,8 +298,13 @@ function validateBoundResult(run, step, result) {
     }
   }
 
-  if (step.key === "production_identity" && status === "pass" && value.exact_sha_parity !== true) {
-    fail("PLATFORM_RECOVERY_IDENTITY_PARITY_UNVERIFIED", "Production identity step did not prove exact SHA parity.", 502);
+  if (step.key === "production_identity" && status === "pass") {
+    if (value.exact_sha_parity !== true) {
+      fail("PLATFORM_RECOVERY_IDENTITY_PARITY_UNVERIFIED", "Production identity step did not prove exact SHA parity.", 502);
+    }
+    if (value.version_readback !== true || value.deployment_info_readback !== true) {
+      fail("PLATFORM_RECOVERY_IDENTITY_HTTP_READBACK_INCOMPLETE", "Production identity did not prove version and deployment-info readback.", 502);
+    }
   }
 
   if (step.key === "backup_evidence" && status === "pass") {
@@ -345,6 +350,10 @@ function validateBoundResult(run, step, result) {
     if (value.listDeviceTools !== true || value.schema_contract_not_ready === true) {
       fail("PLATFORM_RECOVERY_DEVICE_TOOLS_READBACK_FAILED", "Device tool functional readback did not pass.", 502);
     }
+  }
+
+  if (step.key === "production_activation_readiness" && status === "pass" && value.ready !== true) {
+    fail("PLATFORM_RECOVERY_ACTIVATION_NOT_READY", "Production activation readiness did not pass.", 502);
   }
 
   if (step.key === "local_manager_rate_limit_recovery" && status === "pass") {
