@@ -32,7 +32,10 @@
       "http-generic-api/test-staging-activation-gateway.mjs",
       "http-generic-api/test-staging-environment-certification-contract.mjs",
       "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
-      "http-generic-api/test-staging-autopilot-closure.mjs"
+      "http-generic-api/test-staging-autopilot-closure.mjs",
+      "http-generic-api/stagingEnvironmentConvergenceObservation.js",
+      "http-generic-api/test-staging-environment-convergence-live-observation.mjs",
+      "http-generic-api/test-staging-environment-convergence-plan-live-observation.mjs"
     ]
   },
   "merge_contract": {
@@ -120,6 +123,7 @@
             "If local Recovery trust is not exact, dry-run the local trust installer against profile-owned public Gateway /health and /ready evidence before any local change.",
             "When public Gateway evidence is already exact, update only the eight trusted-ingress allowlist keys and retry the local core once so the runtime consumes the new public trust binding.",
             "When public Gateway evidence is not exact, perform no local trust mutation and pass observed blocking/degraded reasons to the shared environment convergence bridge.",
+            "Before deciding not_required, read the profile-owned Activation Gateway /health endpoint and merge live SHA/policy/stale evidence with persisted runtime reasons.",
             "Build an immutable convergence plan whose plan_sha256 binds canonical repository, branch, exact commit, desired and observed Gateway policy identity, and the server-resolved execution target.",
             "Resolve bundle and Cloudflare Worker resource binding from the environment profile/server authority; callers do not select the provider execution target.",
             "Consume report.convergence.next_governed_handoff as the only convergence next-action source.",
@@ -137,7 +141,9 @@
             "The local trust installer first proves exact public SHA/policy/trust evidence, then may update only its eight-key trust allowlist; unrelated .env.staging values remain unchanged.",
             "The local core may be retried at most once and only after exact_public_gateway_trust_installed_locally.",
             "Converge-StagingActivationGateway.ps1 performs no workflow dispatch, provider mutation, trust installation, database mutation or Production mutation.",
-            "Provider, Cloudflare, workflow-dispatch, database and Production mutation flags remain false in AutoPilot results."
+            "Provider, Cloudflare, workflow-dispatch, database and Production mutation flags remain false in AutoPilot results.",
+            "A clean persisted runtime state cannot suppress a live Gateway SHA, policy key/hash, stale-state, service-identity, or reachability mismatch.",
+            "The planner's live observation performs GET-only profile-owned health readback and never provider, database, workflow-dispatch, or Production mutation."
           ],
           "tests": [
             {
@@ -153,6 +159,20 @@
               "working_directory": "http-generic-api",
               "path": "test-staging-autopilot-closure.mjs",
               "args": []
+            },
+            {
+              "id": "staging-live-convergence-observation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-environment-convergence-live-observation.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-live-convergence-plan",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-environment-convergence-plan-live-observation.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -164,7 +184,10 @@
             "http-generic-api/scripts/staging-environment-convergence-plan.mjs",
             "http-generic-api/config/environment-convergence-registry.json",
             "http-generic-api/environmentConvergenceEngine.js",
-            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
+            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+            "http-generic-api/stagingEnvironmentConvergenceObservation.js",
+            "http-generic-api/test-staging-environment-convergence-live-observation.mjs",
+            "http-generic-api/test-staging-environment-convergence-plan-live-observation.mjs"
           ]
         },
         {
