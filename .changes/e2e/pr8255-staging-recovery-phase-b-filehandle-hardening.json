@@ -11,7 +11,9 @@
       ".github/workflows/ci.yml",
       "http-generic-api/stagingRecoveryAuthorityBindingPhaseB.js",
       "docs/work-maps/**",
-      "specs/*/work-map-integration.json"
+      "specs/*/work-map-integration.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json"
     ]
   },
   "environment_impact": {
@@ -52,7 +54,8 @@
             "Windows path replacement or non-file state is rejected before token reuse.",
             "POSIX claim creation follows the repository directory-sync durability contract.",
             "Both staging and production impact are explicitly reviewed, live staging certification remains required, and production_mutation_allowed is false.",
-            "No deployment, provider, database, grant, migration, credential payload, or Production mutation is performed by this repository change."
+            "No deployment, provider, database, grant, migration, credential payload, or Production mutation is performed by this repository change.",
+            "The critical PR8255 declaration is registered exactly in Constitution.control_plane_paths and convergence.automation_control_paths; broad control-plane patterns and autonomous merge remain forbidden."
           ],
           "tests": [
             {
@@ -101,7 +104,9 @@
             ".github/workflows/ci.yml",
             "http-generic-api/stagingRecoveryAuthorityBindingPhaseB.js",
             "http-generic-api/recoveryReadinessEvidence.js",
-            "http-generic-api/config/deployment-branch-policy.json"
+            "http-generic-api/config/deployment-branch-policy.json",
+            ".github/derived-state-governance.json",
+            "http-generic-api/config/repository-governance-constitution.json"
           ]
         }
       ]
