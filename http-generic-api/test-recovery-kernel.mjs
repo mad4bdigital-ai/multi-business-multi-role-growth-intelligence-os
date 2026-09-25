@@ -1004,22 +1004,31 @@ function makeProductionRecoveryClosureEvidence(overrides = {}) {
     rate_limit_attribution_ready: true,
     ...(overrides.gates || {}),
   };
+  const cycleId = "run:production-recovery-closure-test";
+  const targetFingerprint = "7".repeat(64);
   return {
     contract: "mad4b.production-recovery-closure-evidence.v1",
     expected_sha: SHA,
     server_derived: true,
     durable: true,
     same_cycle: true,
+    cycle_id: cycleId,
+    target_fingerprint: targetFingerprint,
     inspection_run_id: "run:production-recovery-closure-test",
     inspection_evidence_hash: "9".repeat(64),
     backup_evidence: {
       contract: "mad4b.production-recovery-backup-evidence.v1",
       expected_sha: SHA,
       evidence_sha256: "8".repeat(64),
-      created_at: "2026-09-25T00:00:00.000Z",
+      created_at: new Date().toISOString(),
       evidence_ref: "recovery-backup:test-fixture",
       roles: ["runtime", "governance", "runtime_persistence"],
       verified: true,
+      storage_readback_verified: true,
+      restore_test_verified: true,
+      artifact_manifest_hash: "6".repeat(64),
+      target_fingerprint: targetFingerprint,
+      cycle_id: cycleId,
       secrets_included: false,
     },
     unknown_outcome: false,
