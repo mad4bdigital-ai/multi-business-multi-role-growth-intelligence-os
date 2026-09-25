@@ -2,6 +2,7 @@ import {
   inspectProductionDatabase,
   readProductionIdentity,
 } from "./recoveryKernel.js";
+import { PRODUCTION_RECOVERY_BACKUP_EVIDENCE_CONTRACT } from "./productionRecoveryClosure.js";
 
 const SHA40_RE = /^[0-9a-f]{40}$/u;
 const PRODUCTION_ORIGIN = "https://auth.mad4b.com";
@@ -153,6 +154,12 @@ export function normalizeFullInspectionForConvergence(result = {}) {
     durable: result?.durability?.inspection_durable === true,
     inspection_run_id: result?.inspection_run_id || result?.run_id || null,
     inspection_evidence_hash: result?.inspection_evidence_hash || null,
+    target_fingerprint: text(
+      result?.target_fingerprint
+        || result?.trust?.target_fingerprints?.composite
+        || inspection?.target_fingerprint,
+      256,
+    ) || null,
     roles: Object.freeze(roles),
   });
 }
@@ -230,14 +237,46 @@ export function createPlatformRecoveryConvergenceReadExecutors({
       "capture_and_verify_all_role_backup_evidence",
     );
     if (missing) return missing;
-    const result = await backupEvidenceReader({ expected_sha: ctx.expected_sha, target_key: "production-runtime" });
+
+    const inspection = Array.isArray(ctx.prior_steps)
+      ? ctx.prior_steps.find((entry) => entry?.key === "database_full_inspection")?.result
+      : null;
+    const targetFingerprint = text(inspection?.target_fingerprint, 256) || null;
+    if (!targetFingerprint) {
+      return blocked(ctx, "platform_recovery_backup_target_fingerprint_unavailable", "rerun_durable_full_inspection_before_backup");
+    }
+
+    const result = await backupEvidenceReader({
+      expected_sha: ctx.expected_sha,
+      target_key: "production-runtime",
+      run_id: ctx.run_id,
+      cycle_id: ctx.run_id,
+      target_fingerprint: targetFingerprint,
+    });
     const roles = Array.isArray(result?.roles) ? result.roles.map((role) => text(role, 64)) : [];
     const evidenceSha = text(result?.evidence_sha256 || result?.backup_evidence_sha256, 128).toLowerCase();
+    const manifestHash = text(result?.artifact_manifest_hash, 128).toLowerCase();
     const evidenceExpectedSha = normalizeSha(result?.expected_sha || result?.source_sha);
-    const ready = result?.backup_verified === true
+    const createdAt = text(result?.created_at, 80);
+    const createdAtMs = Date.parse(createdAt);
+    const nowMs = Date.now();
+    const fresh = Number.isFinite(createdAtMs)
+      && createdAtMs <= nowMs + 60_000
+      && nowMs - createdAtMs <= 24 * 60 * 60 * 1000;
+    const exactCycle = text(result?.cycle_id, 192) === ctx.run_id;
+    const exactTarget = text(result?.target_fingerprint, 256) === targetFingerprint;
+    const ready = result?.contract === PRODUCTION_RECOVERY_BACKUP_EVIDENCE_CONTRACT
+      && result?.backup_verified === true
+      && result?.verified === true
       && result?.durable === true
+      && result?.storage_readback_verified === true
+      && result?.restore_test_verified === true
       && evidenceExpectedSha === ctx.expected_sha
       && /^[0-9a-f]{64}$/u.test(evidenceSha)
+      && /^[0-9a-f]{64}$/u.test(manifestHash)
+      && exactCycle
+      && exactTarget
+      && fresh
       && ["runtime", "governance", "runtime_persistence"].every((role) => roles.includes(role))
       && result?.secrets_included === false;
     if (!ready) {
@@ -245,18 +284,35 @@ export function createPlatformRecoveryConvergenceReadExecutors({
         backup_verified: false,
         durable: result?.durable === true,
         exact_sha_bound: evidenceExpectedSha === ctx.expected_sha,
+        exact_cycle_bound: exactCycle,
+        exact_target_bound: exactTarget,
         evidence_hash_valid: /^[0-9a-f]{64}$/u.test(evidenceSha),
+        artifact_manifest_hash_valid: /^[0-9a-f]{64}$/u.test(manifestHash),
+        storage_readback_verified: result?.storage_readback_verified === true,
+        restore_test_verified: result?.restore_test_verified === true,
+        fresh,
         roles,
       });
     }
     return bound(ctx, {
       status: "pass",
+      contract: PRODUCTION_RECOVERY_BACKUP_EVIDENCE_CONTRACT,
       backup_verified: true,
+      verified: true,
       durable: true,
       exact_sha_bound: true,
+      exact_cycle_bound: true,
+      exact_target_bound: true,
+      expected_sha: ctx.expected_sha,
       roles,
       evidence_sha256: evidenceSha,
       evidence_ref: result.evidence_ref || result.backup_evidence_ref || null,
+      created_at: createdAt,
+      storage_readback_verified: true,
+      restore_test_verified: true,
+      artifact_manifest_hash: manifestHash,
+      target_fingerprint: targetFingerprint,
+      cycle_id: ctx.run_id,
       readback_verified: true,
     });
   };
