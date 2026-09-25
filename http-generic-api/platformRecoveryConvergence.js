@@ -713,7 +713,7 @@ async function releaseOrchestrationClaim(recoveryStore, context) {
   }
 }
 
-function approvalReservationContext(run, step, approvalId) {
+function stepReservationContext(run, step, approvalId) {
   const id = text(approvalId, 220);
   if (!SAFE_ID_RE.test(id)) {
     fail("PLATFORM_RECOVERY_APPROVAL_ID_INVALID", "A valid server-resolved approval_id is required for mutating convergence stages.", 503);
@@ -731,7 +731,7 @@ function approvalReservationContext(run, step, approvalId) {
 
 async function reserveStepApproval(recoveryStore, run, step, approvalId) {
   if (!isMutationStep(step)) return null;
-  const context = approvalReservationContext(run, step, approvalId);
+  const context = stepReservationContext(run, step, approvalId);
   const result = await recoveryStore.reserveApproval(context);
   if (result !== true && result?.reserved !== true && !(result?.existing === true && result?.same_idempotency === true)) {
     fail(
@@ -799,7 +799,7 @@ function buildFinalClosureEvidence(run) {
         && step.result?.readback_verified === true
         && step.result?.mutation_performed === true));
 
-  const rateLimitAttributionReady = rateStep?.status === "skipped_not_required"
+  const edgeAttributionOk = rateStep?.status === "skipped_not_required"
     || (rateStep?.status === "pass"
       && rateStep.result?.http_status_checked_before_json === true
       && rateStep.result?.retry_after_respected === true
@@ -844,7 +844,7 @@ function buildFinalClosureEvidence(run) {
       production_mutation_audited: mutationAuditReady,
       connector_auth_ready: connector.auth_ready === true
         && Number(connector.authenticated_operation_http_status) === 200,
-      rate_limit_attribution_ready: rateLimitAttributionReady,
+      rate_limit_attribution_ready: edgeAttributionOk,
     }),
     backup_evidence: Object.freeze({
       contract: backup.contract || null,
@@ -1191,9 +1191,9 @@ async function executeOneStep(run, step, { recoveryStore, executors, approvalRes
   }
 
   const orchestrationClaim = await acquireOrchestrationClaim(recoveryStore, run, step);
-  let approvalReservation = null;
+  let stepReservation = null;
   try {
-    approvalReservation = await reserveStepApproval(
+    stepReservation = await reserveStepApproval(
       recoveryStore,
       run,
       step,
@@ -1321,7 +1321,7 @@ async function executeOneStep(run, step, { recoveryStore, executors, approvalRes
     run.next_safe_action = mapped.next_safe_action;
     await persistRun(recoveryStore, run);
     if (result.status !== "unknown_outcome") {
-      await releaseStepApprovalReservation(recoveryStore, approvalReservation);
+      await releaseStepApprovalReservation(recoveryStore, stepReservation);
       await releaseOrchestrationClaim(recoveryStore, orchestrationClaim);
     }
     return { continue: false };
@@ -1329,7 +1329,7 @@ async function executeOneStep(run, step, { recoveryStore, executors, approvalRes
 
   if (isMutationStep(step)) {
     try {
-      await finalizeStepApproval(recoveryStore, approvalReservation);
+      await finalizeStepApproval(recoveryStore, stepReservation);
     } catch (error) {
       step.status = "unknown_outcome";
       step.completed_at = null;
@@ -1363,7 +1363,7 @@ async function executeOneStep(run, step, { recoveryStore, executors, approvalRes
   run.request_id = null;
   run.next_safe_action = "advance_same_run";
   await persistRun(recoveryStore, run);
-  await releaseStepApprovalReservation(recoveryStore, approvalReservation);
+  await releaseStepApprovalReservation(recoveryStore, stepReservation);
   await releaseOrchestrationClaim(recoveryStore, orchestrationClaim);
   return { continue: true, consequential_executed: isMutationStep(step) };
 }
@@ -1424,7 +1424,7 @@ async function reconcileUnknownStep(run, { recoveryStore, executors }) {
     run.blocking_stage = step.key;
     run.next_safe_action = "reconcile_same_operation_before_retry";
   } else if (result.status === "pass") {
-    const reconciliationApproval = approvalReservationContext(run, step, step.approval_id);
+    const reconciliationApproval = stepReservationContext(run, step, step.approval_id);
     await finalizeStepApproval(recoveryStore, reconciliationApproval);
     step.status = "pass";
     step.result = {
@@ -1459,7 +1459,7 @@ async function reconcileUnknownStep(run, { recoveryStore, executors }) {
   });
   await persistRun(recoveryStore, run);
   if (result.status === "pass") {
-    const reconciliationApproval = approvalReservationContext(run, step, step.approval_id);
+    const reconciliationApproval = stepReservationContext(run, step, step.approval_id);
     await releaseStepApprovalReservation(recoveryStore, reconciliationApproval);
     await releaseOrchestrationClaim(recoveryStore, orchestrationClaimContext(run, step));
   } else if (
@@ -1467,7 +1467,7 @@ async function reconcileUnknownStep(run, { recoveryStore, executors }) {
     && result.mutation_outcome_known === true
     && result.mutation_applied === false
   ) {
-    const reconciliationApproval = approvalReservationContext(run, step, step.approval_id);
+    const reconciliationApproval = stepReservationContext(run, step, step.approval_id);
     await releaseStepApprovalReservation(recoveryStore, reconciliationApproval);
     await releaseOrchestrationClaim(recoveryStore, orchestrationClaimContext(run, step));
   }
