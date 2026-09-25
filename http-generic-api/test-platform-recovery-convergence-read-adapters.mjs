@@ -20,15 +20,34 @@ const ENV = {
   }),
 };
 
-function ctx(key = "production_identity") {
+const RUN_ID = "run:platform-recovery:test-001";
+const TARGET_FINGERPRINT = "f".repeat(64);
+
+function ctx(key = "production_identity", overrides = {}) {
   return {
     expected_sha: SHA,
-    run_id: "run:platform-recovery:test-001",
+    run_id: RUN_ID,
     plan_hash: "b".repeat(64),
     step_id: `platform-recovery:test:${key}`,
     idempotency_key: `platform-recovery-idem:${key}`,
     prior_steps: [],
+    ...overrides,
   };
+}
+
+function backupCtx() {
+  return ctx("backup_evidence", {
+    prior_steps: [{
+      key: "database_full_inspection",
+      status: "pass",
+      result: {
+        durable: true,
+        target_fingerprint: TARGET_FINGERPRINT,
+        inspection_run_id: "run:inspection:test-001",
+        inspection_evidence_hash: "c".repeat(64),
+      },
+    }],
+  });
 }
 
 function response(body, status = 200, headers = {}) {
@@ -82,6 +101,7 @@ test("full inspection normalization preserves all role zero-object evidence and 
     run_id: "run:inspection:1",
     inspection_evidence_hash: "c".repeat(64),
     durability: { inspection_durable: true },
+    trust: { target_fingerprints: { composite: TARGET_FINGERPRINT } },
     inspection: {
       role_database_object_classifications: {
         runtime: "nonempty_objects",
@@ -105,6 +125,7 @@ test("full inspection normalization preserves all role zero-object evidence and 
   assert.equal(normalized.roles.governance.zero_object, true);
   assert.equal(normalized.roles.runtime_persistence.zero_object, true);
   assert.equal(normalized.roles.runtime.object_count_total, 17);
+  assert.equal(normalized.target_fingerprint, TARGET_FINGERPRINT);
 });
 
 test("identity adapter combines server identity with fixed public parity", async () => {
@@ -150,7 +171,7 @@ test("backup adapter requires verified evidence for all three database roles", a
       secrets_included: false,
     }),
   });
-  const result = await executors.backup_evidence(ctx("backup_evidence"));
+  const result = await executors.backup_evidence(backupCtx());
   assert.equal(result.status, "blocked");
   assert.equal(result.error_code, "platform_recovery_backup_evidence_not_ready");
 });
@@ -194,10 +215,19 @@ test("connector probe classifies 401 and 429 without triggering mutation", async
 
 test("backup evidence must be durable hash-addressed and exact-SHA bound", async () => {
   const base = {
+    contract: "mad4b.production-recovery-backup-evidence.v1",
     backup_verified: true,
+    verified: true,
     durable: true,
     expected_sha: SHA,
     evidence_sha256: "d".repeat(64),
+    evidence_ref: "backup:evidence:test",
+    created_at: new Date().toISOString(),
+    storage_readback_verified: true,
+    restore_test_verified: true,
+    artifact_manifest_hash: "e".repeat(64),
+    target_fingerprint: TARGET_FINGERPRINT,
+    cycle_id: RUN_ID,
     roles: ["runtime", "governance", "runtime_persistence"],
     secrets_included: false,
   };
@@ -206,7 +236,7 @@ test("backup evidence must be durable hash-addressed and exact-SHA bound", async
     deploymentParityReader: async () => ({ exact_sha_parity: true }),
     backupEvidenceReader: async () => base,
   });
-  assert.equal((await good.backup_evidence(ctx("backup_evidence"))).status, "pass");
+  assert.equal((await good.backup_evidence(backupCtx())).status, "pass");
 
   for (const mutation of [
     { durable: false },
@@ -218,7 +248,7 @@ test("backup evidence must be durable hash-addressed and exact-SHA bound", async
       deploymentParityReader: async () => ({ exact_sha_parity: true }),
       backupEvidenceReader: async () => ({ ...base, ...mutation }),
     });
-    const result = await bad.backup_evidence(ctx("backup_evidence"));
+    const result = await bad.backup_evidence(backupCtx());
     assert.equal(result.status, "blocked");
     assert.equal(result.error_code, "platform_recovery_backup_evidence_not_ready");
   }
@@ -265,5 +295,43 @@ test("connector verify returns a structured blocker for forbidden or origin fail
     assert.equal(result.error_code, "platform_recovery_connector_auth_not_ready");
     assert.equal(result.failure_kind, kind);
     assert.equal(result.request_id, `req-${status}`);
+  }
+});
+
+
+test("backup evidence rejects stale, wrong-cycle, and untested restore evidence", async () => {
+  const base = {
+    contract: "mad4b.production-recovery-backup-evidence.v1",
+    backup_verified: true,
+    verified: true,
+    durable: true,
+    expected_sha: SHA,
+    evidence_sha256: "d".repeat(64),
+    evidence_ref: "backup:evidence:test",
+    created_at: new Date().toISOString(),
+    storage_readback_verified: true,
+    restore_test_verified: true,
+    artifact_manifest_hash: "e".repeat(64),
+    target_fingerprint: TARGET_FINGERPRINT,
+    cycle_id: RUN_ID,
+    roles: ["runtime", "governance", "runtime_persistence"],
+    secrets_included: false,
+  };
+  for (const mutation of [
+    { created_at: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString() },
+    { cycle_id: "run:platform-recovery:other-cycle" },
+    { target_fingerprint: "9".repeat(64) },
+    { restore_test_verified: false },
+    { storage_readback_verified: false },
+    { artifact_manifest_hash: "bad" },
+  ]) {
+    const executors = createPlatformRecoveryConvergenceReadExecutors({
+      env: ENV,
+      deploymentParityReader: async () => ({ exact_sha_parity: true }),
+      backupEvidenceReader: async () => ({ ...base, ...mutation }),
+    });
+    const result = await executors.backup_evidence(backupCtx());
+    assert.equal(result.status, "blocked");
+    assert.equal(result.error_code, "platform_recovery_backup_evidence_not_ready");
   }
 });
