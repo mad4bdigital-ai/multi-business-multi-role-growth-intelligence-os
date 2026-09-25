@@ -340,9 +340,45 @@ export function createPlatformRecoveryConvergenceReadExecutors({
     if (missing) return missing;
     const result = await reader({ expected_sha: ctx.expected_sha, target_key: "production-runtime", role });
     const ready = result?.baseline_ready === true || result?.ready === true;
-    return ready
-      ? bound(ctx, { status: "pass", baseline_ready: true, readback_verified: true })
-      : blocked(ctx, `platform_recovery_${role}_baseline_not_ready`, `repair_${role}_baseline_and_resume`);
+    if (ready) {
+      return bound(ctx, { status: "pass", baseline_ready: true, readback_verified: true });
+    }
+
+    if (role === "runtime_persistence") {
+      const inspection = Array.isArray(ctx.prior_steps)
+        ? ctx.prior_steps.find((entry) => entry?.key === "database_full_inspection")?.result
+        : null;
+      const roleEvidence = inspection?.roles?.runtime_persistence || {};
+      const readiness = inspection?.checks?.runtime_persistence_ready;
+
+      if (
+        roleEvidence.classification === "nonempty_objects"
+        && Number.isInteger(Number(roleEvidence.object_count_total))
+        && Number(roleEvidence.object_count_total) > 0
+        && roleEvidence.zero_object === false
+        && readiness === false
+      ) {
+        return blocked(
+          ctx,
+          "platform_recovery_runtime_persistence_partial_schema_drift_requires_remediation_plan",
+          "create_recovery_kernel_remediation_plan_for_runtime_persistence_schema_repair",
+          {
+            registered_capability: "runtime_persistence.schema.repair",
+            direct_migration_first_forbidden: true,
+          },
+        );
+      }
+
+      if (readiness === null || readiness === undefined) {
+        return blocked(
+          ctx,
+          "platform_recovery_runtime_persistence_readiness_evidence_unavailable",
+          "rerun_full_inspection_with_runtime_persistence_readiness",
+        );
+      }
+    }
+
+    return blocked(ctx, `platform_recovery_${role}_baseline_not_ready`, `repair_${role}_baseline_and_resume`);
   };
 
   executors.governance_baseline_verify = roleBaseline("governance", governanceBaselineReadinessReader);
