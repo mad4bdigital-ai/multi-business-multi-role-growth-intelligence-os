@@ -353,6 +353,20 @@ function shouldSkip(run, step) {
     if (!zeroObject) return "role_not_zero_object";
   }
 
+  if (step.key === "canonical_grants_apply") {
+    const inspection = priorResult(run, "database_full_inspection");
+    if (inspection?.checks?.governance_db_privilege_ready === true) {
+      return "canonical_grants_already_ready";
+    }
+  }
+
+  if (step.key === "mcp_catalog_migration_apply") {
+    const inspection = priorResult(run, "database_full_inspection");
+    if (inspection?.checks?.mcp_catalog_schema_ready === true) {
+      return "mcp_catalog_schema_already_ready";
+    }
+  }
+
   if (step.key === "local_manager_rate_limit_recovery") {
     const probe = priorResult(run, "connector_auth_probe");
     const failureKind = text(probe?.failure_kind, 96);
