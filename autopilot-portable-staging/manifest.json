@@ -22,7 +22,7 @@
     },
     {
       "path": "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
-      "sha256": "9db2af651460c27af77831741ed475173a3596c9154716b9fa9fe08379178ae0"
+      "sha256": "698c6a750f1f1032872b07314d0e24e7eaabd6115ce14ec5da57011d6016c0db"
     },
     {
       "path": "autopilot-portable-staging/Clone-StagingDatabases.ps1",
@@ -30,11 +30,11 @@
     },
     {
       "path": "autopilot-portable-staging/Install-AutoDeployTask.ps1",
-      "sha256": "e63aa0497d1f71733ecaa6df97f1b12816e3556647a5bfff35fddb0fdab8050e"
+      "sha256": "b17592dc6d06007719ecc2f55305fd6d6decbf1129a883fc4235a1ca1ec8054d"
     },
     {
       "path": "autopilot-portable-staging/One-Click-Staging.ps1",
-      "sha256": "71af0931e571890096345897b5421f47e4622858cdf931dbd07f3cd0cbc9d9c7"
+      "sha256": "d77286bf82f1840b471a7de4ce91b2f14448ca893a6d6965c031d1ff3926ca37"
     },
     {
       "path": "autopilot-portable-staging/README.md",
@@ -62,7 +62,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "944e3850c249590993962c04231f002772633593b0ee6a6ddbb5e8b24548c498"
+      "sha256": "eec6ca1a358899d78f96e74a301bdb8027fbeacdb6136704f66a80b734f97bb4"
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "13b21b7a0214d6a699cd97ad9031a1aeab9b93e3d355e31652f362bee2a7e7b6"
+      "sha256": "44e44c09681ab3759276036aba6726d4c223535bb346891b9d991db35965687c"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -294,7 +294,7 @@
     },
     {
       "path": "http-generic-api/test-staging-auto-deploy-contract.mjs",
-      "sha256": "d488ccf7c284c9c7e7a55f958635db28a386138c40941b0184afe54d86298e8c"
+      "sha256": "c5db68ab4f66790d67bcc3672e81bab8002d6151e6ef04529eb926c2a11276f3"
     },
     {
       "path": "http-generic-api/test-staging-environment-certification-contract.mjs",
