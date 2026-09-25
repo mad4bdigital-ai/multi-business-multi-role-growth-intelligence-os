@@ -199,10 +199,7 @@ test("completed steps are not replayed when a later stage waits for authority", 
   const executors = happyExecutors({ calls });
   delete executors.canonical_grants_apply;
 
-  const first = await runPlatformRecoveryConvergence(
-    { expected_sha: SHA },
-    { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
-  );
+  const first = await advanceUntilBoundary({ store, executors });
   assert.equal(first.status, "awaiting_approval");
   assert.equal(first.blocking_stage, "canonical_grants_apply");
   const identityCalls = calls.filter((key) => key === "production_identity").length;
@@ -212,10 +209,7 @@ test("completed steps are not replayed when a later stage waits for authority", 
     return mutationPass(ctx);
   };
 
-  const second = await runPlatformRecoveryConvergence(
-    { expected_sha: SHA, run_id: first.run_id },
-    { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
-  );
+  const second = await advanceUntilBoundary({ store, executors, runId: first.run_id });
   assert.equal(second.status, "active");
   assert.equal(calls.filter((key) => key === "production_identity").length, identityCalls);
   assert.equal(calls.filter((key) => key === "canonical_grants_apply").length, 1);
@@ -224,7 +218,7 @@ test("completed steps are not replayed when a later stage waits for authority", 
 test("unknown mutation outcome blocks blind retry and requires explicit reconciliation", async () => {
   const store = makeStore();
   const calls = [];
-  const executors = happyExecutors({ calls });
+  const executors = happyExecutors({ zeroGovernance: false, zeroPersistence: false, calls });
   let executeCount = 0;
   executors.canonical_grants_apply = {
     execute: async (ctx) => {
@@ -246,10 +240,7 @@ test("unknown mutation outcome blocks blind retry and requires explicit reconcil
     reconcile: async (ctx) => pass(ctx, { reconciled: true, authority_verified: true, readback_verified: true }),
   };
 
-  const first = await runPlatformRecoveryConvergence(
-    { expected_sha: SHA },
-    { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
-  );
+  const first = await advanceUntilBoundary({ store, executors });
   assert.equal(first.status, "unknown_outcome");
   assert.equal(first.next_safe_action, "reconcile_same_operation_before_retry");
   assert.equal(executeCount, 1);
@@ -268,10 +259,7 @@ test("unknown mutation outcome blocks blind retry and requires explicit reconcil
   assert.equal(reconciled.status, "pending");
   assert.equal(reconciled.steps.find((step) => step.key === "canonical_grants_apply").status, "pass");
 
-  const final = await runPlatformRecoveryConvergence(
-    { expected_sha: SHA, run_id: first.run_id, action: "advance" },
-    { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
-  );
+  const final = await advanceUntilBoundary({ store, executors, runId: first.run_id });
   assert.equal(final.status, "active");
   assert.equal(executeCount, 1);
 });
