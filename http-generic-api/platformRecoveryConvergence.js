@@ -88,19 +88,80 @@ function assertStore(store) {
   }
 }
 
-function safeApproval(approval) {
-  if (!approval) return null;
-  const value = approval && typeof approval === "object" && !Array.isArray(approval) ? approval : {};
-  const approvalId = text(value.approval_id, 180);
-  const typedConfirmation = text(value.typed_confirmation, 256);
-  if (!approvalId || !typedConfirmation) {
-    fail("PLATFORM_RECOVERY_APPROVAL_INVALID", "approval requires approval_id and typed_confirmation.", 400);
+function isMutationStep(step) {
+  return ["consequential", "bounded_mutation"].includes(step?.kind);
+}
+
+async function resolveStepAuthority(run, step, approvalResolver) {
+  if (!isMutationStep(step)) return { ready: true, approval: null };
+  if (typeof approvalResolver !== "function") {
+    return {
+      ready: false,
+      error_code: "platform_recovery_step_approval_required",
+      next_safe_action: "obtain_server_verified_step_bound_approval",
+    };
   }
-  return Object.freeze({
-    approval_id: approvalId,
-    typed_confirmation: typedConfirmation,
-    secrets_included: false,
-  });
+
+  let raw;
+  try {
+    raw = await approvalResolver(Object.freeze({
+      expected_sha: run.expected_sha,
+      target_key: run.target_key,
+      run_id: run.run_id,
+      plan_hash: run.plan_hash,
+      step_id: step.step_id,
+      step_key: step.key,
+      step_kind: step.kind,
+      idempotency_key: step.idempotency_key,
+      secrets_included: false,
+    }));
+  } catch (error) {
+    fail(
+      "PLATFORM_RECOVERY_APPROVAL_RESOLUTION_FAILED",
+      "Server-side step approval resolution failed closed.",
+      Number(error?.status) || 503,
+      { step_key: step.key, error_code: text(error?.code || "approval_resolution_failed", 160) },
+    );
+  }
+
+  const value = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+  const bindings = [
+    ["expected_sha", run.expected_sha],
+    ["run_id", run.run_id],
+    ["plan_hash", run.plan_hash],
+    ["step_id", step.step_id],
+    ["idempotency_key", step.idempotency_key],
+  ];
+  const bindingMismatch = bindings.find(([key, expected]) => text(value[key], 256).toLowerCase() !== String(expected).toLowerCase());
+  if (
+    value.verified !== true
+    || value.secrets_included !== false
+    || value.single_use !== true
+    || bindingMismatch
+    || !SAFE_ID_RE.test(text(value.approval_id, 220))
+  ) {
+    fail(
+      "PLATFORM_RECOVERY_APPROVAL_BINDING_INVALID",
+      "Server-resolved approval is not verified and bound to the exact recovery step.",
+      409,
+      { step_key: step.key, binding: bindingMismatch?.[0] || null },
+    );
+  }
+
+  return {
+    ready: true,
+    approval: Object.freeze({
+      approval_id: text(value.approval_id, 220),
+      expected_sha: run.expected_sha,
+      run_id: run.run_id,
+      plan_hash: run.plan_hash,
+      step_id: step.step_id,
+      idempotency_key: step.idempotency_key,
+      single_use: true,
+      server_verified: true,
+      secrets_included: false,
+    }),
+  };
 }
 
 export function buildPlatformRecoveryConvergencePlan(expectedSha) {
@@ -456,13 +517,35 @@ function summarize(run) {
   };
 }
 
-async function executeOneStep(run, step, { recoveryStore, executors, approval }) {
+async function executeOneStep(run, step, { recoveryStore, executors, approvalResolver }) {
   const skipReason = shouldSkip(run, step);
   if (skipReason) {
     markSkipped(step, skipReason);
     await appendEvent(recoveryStore, run, step, "step_skipped", { reason: skipReason });
     await persistRun(recoveryStore, run);
     return { continue: true };
+  }
+
+  const authority = await resolveStepAuthority(run, step, approvalResolver);
+  if (!authority.ready) {
+    step.status = "awaiting_approval";
+    step.error_code = authority.error_code;
+    step.result = {
+      ok: false,
+      status: "awaiting_approval",
+      error_code: authority.error_code,
+      next_safe_action: authority.next_safe_action,
+      mutation_performed: false,
+      secrets_included: false,
+    };
+    run.status = "awaiting_approval";
+    run.active = false;
+    run.blocking_stage = step.key;
+    run.error_code = authority.error_code;
+    run.next_safe_action = authority.next_safe_action;
+    await appendEvent(recoveryStore, run, step, "step_waiting_for_approval", { error_code: authority.error_code });
+    await persistRun(recoveryStore, run);
+    return { continue: false };
   }
 
   const execute = executorFor(executors, step.key, "execute");
@@ -506,7 +589,7 @@ async function executeOneStep(run, step, { recoveryStore, executors, approval })
       role: step.role || null,
       migration: step.migration || null,
       idempotency_key: step.idempotency_key,
-      approval,
+      approval: authority.approval,
       prior_steps: run.steps
         .filter((candidate) => candidate.order < step.order)
         .map((candidate) => ({ key: candidate.key, status: candidate.status, result: candidate.result })),
@@ -576,6 +659,14 @@ async function reconcileUnknownStep(run, { recoveryStore, executors }) {
     secrets_included: false,
   }));
   const result = validateBoundResult(run, step, raw);
+  if (result.mutation_performed === true) {
+    fail(
+      "PLATFORM_RECOVERY_RECONCILIATION_MUTATION_FORBIDDEN",
+      "Unknown-outcome reconciliation must be readback-only and may not perform a second mutation.",
+      409,
+      { step_key: step.key },
+    );
+  }
   if (result.status === "unknown_outcome") {
     step.result = result;
     run.status = "unknown_outcome";
@@ -608,7 +699,7 @@ async function reconcileUnknownStep(run, { recoveryStore, executors }) {
 }
 
 export async function runPlatformRecoveryConvergence(input = {}, deps = {}) {
-  const allowed = new Set(["expected_sha", "run_id", "action", "approval"]);
+  const allowed = new Set(["expected_sha", "run_id", "action"]);
   const unexpected = Object.keys(input || {}).filter((key) => !allowed.has(key));
   if (unexpected.length) fail("PLATFORM_RECOVERY_INPUT_FIELD_FORBIDDEN", "Unsupported convergence input fields.", 400, { fields: unexpected });
 
@@ -616,7 +707,6 @@ export async function runPlatformRecoveryConvergence(input = {}, deps = {}) {
   const action = text(input.action || "advance", 32).toLowerCase();
   if (!["advance", "status", "reconcile"].includes(action)) fail("PLATFORM_RECOVERY_ACTION_INVALID", "action must be advance, status, or reconcile.", 400);
 
-  const approval = safeApproval(input.approval);
   const { run } = await loadOrCreateRun({
     expectedSha,
     runId: input.run_id || null,
@@ -688,7 +778,7 @@ export async function runPlatformRecoveryConvergence(input = {}, deps = {}) {
     const result = await executeOneStep(run, step, {
       recoveryStore: deps.recoveryStore,
       executors: deps.executors || {},
-      approval,
+      approvalResolver: deps.approvalResolver,
     });
     if (!result.continue) return summarize(run);
   }
