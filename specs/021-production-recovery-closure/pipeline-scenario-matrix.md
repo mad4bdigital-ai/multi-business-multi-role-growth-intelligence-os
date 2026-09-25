@@ -81,10 +81,15 @@ Every consequential or bounded-mutation stage rechecks exact Production deployme
 7. Unknown outcomes are not retryable until read-only reconciliation resolves the original idempotency key.
 8. HTTP 401 may justify credential rebind; HTTP 429, 403, 5xx, DNS, tunnel, and transport failures do not.
 9. Old connector credentials are revoked only after the newly installed credential succeeds on an authenticated probe.
-10. active is derived only by the final gate after all preceding stages complete and exact deployment parity is reverified.
+10. active is an operational state only; recovered is emitted only after a server-derived final closure proves every core gate, backup restore evidence, mutation audit, and exact deployment parity.
 
 ## Live authority boundary
 
 This PR implements the convergence state machine, read-adapter normalization, two-phase rebind coordinator, durable Local Manager rate-limit persistence, route contract, tests, and governance metadata. It does not itself activate Production mutation authority.
 
 Live Production execution remains fail-closed until the deployment-owned composition injects and certifies every required mutation executor, backup evidence reader, functional readback adapter, connector/device binding, and nested approval resolver.
+
+
+## Host-local Runtime grant diagnostic
+
+When Production inspection proves that `local_manager_device_link_sessions` and `local_manager_desktop_commands` exist but the Runtime principal lacks `SELECT/INSERT/UPDATE`, the convergence run must remain read-only until the host-local authority is available. The dry-run receipt must report `host_local_execution_required`, `local_connector_required=false`, `local_connector_fallback_allowed=false`, and `database_mutation_performed=false`. Applying grants requires a server-derived `grant_binding_hash`, an explicit bounded resource list containing only those two tables, durable readback, and the host-local handoff; the outer control plane must never synthesize the hash or widen the grant scope.
