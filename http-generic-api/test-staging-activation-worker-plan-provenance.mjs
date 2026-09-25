@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import {
   buildStagingActivationWorkerPreflightBinding,
   verifyStagingActivationWorkerHandoff,
@@ -42,7 +43,20 @@ const authoritativePreview = runEnvironmentConvergence({
   certificationReport: {
     outcome: "degraded",
     expected: { commit_sha: sourceSha },
-    gateway: { health: { sourceCommit: null } },
+    gateway: {
+      health: {
+        sourceCommit: null,
+        workerBuildSha: oldSha,
+        policyKey: profile.policy_key,
+        policyHash: profile.expected_policy_hash,
+        stale: true,
+        ok: false,
+        httpStatus: 503,
+      },
+      profile_validation: {
+        observed_public_host: profile.public_host,
+      },
+    },
     integrity_checks: [],
     readiness_checks: [
       { key: "gateway_policy_not_stale", ok: false, severity: "readiness", detail: { stale: true } },
@@ -116,13 +130,29 @@ try {
     },
   }));
   const bridgeScript = path.join(root, "http-generic-api/scripts/staging-environment-convergence-plan.mjs");
+  const fetchPreloadPath = path.join(parityDir, "gateway-fetch-preload.mjs");
+  fs.writeFileSync(fetchPreloadPath, `
+globalThis.fetch = async () => ({
+  ok: false,
+  status: 503,
+  async json() { return JSON.parse(process.env.MAD4B_TEST_GATEWAY_HEALTH_JSON); },
+});
+`, "utf8");
+  const preloadOption = `--import=${pathToFileURL(fetchPreloadPath).href}`;
   const bridgeRun = spawnSync(process.execPath, [
     bridgeScript,
     "--runtime-state", runtimePath,
     "--preflight", preflightPath,
     "--repository", "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
     "--recovery-trust-exact", "false",
-  ], { encoding: "utf8" });
+  ], {
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      NODE_OPTIONS: [process.env.NODE_OPTIONS, preloadOption].filter(Boolean).join(" "),
+      MAD4B_TEST_GATEWAY_HEALTH_JSON: JSON.stringify(staleHealth),
+    },
+  });
   assert.equal(bridgeRun.status, 0, bridgeRun.stderr);
   const bridgePlan = JSON.parse(bridgeRun.stdout);
   assert.equal(bridgePlan.status, "approval_required");
