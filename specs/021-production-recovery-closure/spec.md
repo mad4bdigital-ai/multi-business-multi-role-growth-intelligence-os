@@ -92,7 +92,29 @@ It is a durable resumable state machine, not a monolithic SQL transaction. The c
 
 Every stage is bound to `run_id + plan_hash + step_id + idempotency_key`. Completed stages are not replayed. One advance executes at most one consequential/bounded mutation before returning to a durable boundary.
 
-The canonical order is: identity → durable full inspection → backup evidence → conditional governance baseline → verify → conditional runtime-persistence baseline → verify → grants → verify → bootstrap ledger verify → MCP catalog migration → catalog verify → durable response-chunk smoke → Admin tools readback → Device tools readback → Production activation readiness → connector auth probe → conditional 429 recovery → conditional two-phase credential rebind → connector auth verify → Local Manager create/claim/complete E2E → deployment parity → final gate.
+The canonical order is: identity → durable full inspection → backup evidence → conditional Governance baseline rebuild → verify → conditional runtime-persistence baseline rebuild → conditional non-empty runtime-persistence schema repair → verify → canonical grants apply/verify → bootstrap ledger verify → MCP catalog migration/verify → durable response-chunk smoke → Admin tools readback → Device tools readback → Production activation readiness → connector auth probe → conditional 429 recovery → conditional two-phase credential rebind → connector auth verify → Local Manager create/claim/complete E2E → deployment parity → final Production activation recertification → closure evaluator.
 
 The runtime role is inspected and preserved; this convergence plan does not rebuild it.
-\nEvery consequential or bounded mutation rechecks public Production parity immediately before execution. Each mutation is also bound to a canonical nested authority reference and operation; outer convergence approval cannot substitute for that nested authority. Persistent external 429 with a healthy retry contract is `degraded` and resumable, not a reason to rotate credentials or replay DB recovery.\n\nSee `pipeline-scenario-matrix.md` for the normative branch matrix.\n
+
+Every consequential or bounded mutation rechecks public Production parity immediately before execution. Each mutation is also bound to a canonical nested authority reference and operation; outer convergence approval cannot substitute for that nested authority. Persistent external 429 with a healthy retry contract is `degraded` and resumable, not a reason to rotate credentials or replay DB recovery.
+
+See `pipeline-scenario-matrix.md` for the normative branch matrix.
+
+## Evidence-driven repair selection
+
+Readiness evidence is tri-state: `true`, `false`, or `null`. A repair mutation is eligible only when the durable full inspection explicitly proves the corresponding readiness check is `false`. Missing or malformed readiness evidence remains `null` and blocks before approval, execution claim, or mutation.
+
+For runtime-persistence:
+
+- `zero_objects` uses only the registered `runtime_persistence.baseline.rebuild_empty` capability;
+- `nonempty_objects` with `runtime_persistence_ready=false` may use only the registered `runtime_persistence.schema.repair` capability;
+- `runtime_persistence_ready=true` skips schema repair and still requires independent baseline/readiness verification;
+- missing object census or missing readiness evidence blocks fail-closed.
+
+The runtime role is inspected and preserved. Arbitrary partial Runtime or Governance corruption without a registered Recovery capability remains outside this convergence slice and must not fall back to raw SQL.
+
+## Approval and execution fencing
+
+Every mutating stage resolves an exact server-side single-use approval, acquires a durable orchestration execution claim, reserves the exact approval, persists an `executing` checkpoint, executes the nested Recovery authority, validates same-cycle readback, durably finalizes the approval, then releases the approval reservation and execution claim. Unknown outcomes retain the fence until read-only reconciliation resolves the original idempotency key.
+
+The final gate re-runs both exact Production deployment parity and Production activation readiness after the last mutation. Only then may the server-derived closure evaluator emit `status=recovered`; `active=true` is a compatibility/operational boolean, not an independent success status.
