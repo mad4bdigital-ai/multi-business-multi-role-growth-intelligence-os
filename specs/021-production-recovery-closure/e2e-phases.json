@@ -34,7 +34,9 @@
       "http-generic-api/test-local-manager-rate-limit-persistence.mjs",
       "http-generic-api/test-recovery-kernel.mjs",
       "http-generic-api/test-recovery-kernel-routes.mjs",
-      "http-generic-api/test-recovery-composition.mjs"
+      "http-generic-api/test-recovery-composition.mjs",
+      "http-generic-api/platformRecoveryConvergenceReadAdapters.js",
+      "http-generic-api/test-platform-recovery-convergence-read-adapters.mjs"
     ]
   },
   "merge_contract": {
@@ -108,6 +110,13 @@
               "working_directory": "http-generic-api",
               "path": "test-recovery-composition.mjs",
               "args": []
+            },
+            {
+              "id": "platform-recovery-read-adapters",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-recovery-convergence-read-adapters.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -115,7 +124,9 @@
             "http-generic-api/productionRecoveryOperationalAdapters.js",
             "http-generic-api/recoveryComposition.js",
             "specs/021-production-recovery-closure/acceptance.md",
-            "specs/021-production-recovery-closure/work-map-integration.json"
+            "specs/021-production-recovery-closure/work-map-integration.json",
+            "http-generic-api/platformRecoveryConvergenceReadAdapters.js",
+            "http-generic-api/test-platform-recovery-convergence-read-adapters.mjs"
           ]
         },
         {
