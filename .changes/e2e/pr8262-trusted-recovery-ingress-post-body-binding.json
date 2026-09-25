@@ -1,0 +1,111 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr8262-trusted-recovery-ingress-post-body-binding",
+  "title": "Trusted Recovery Ingress POST raw-body binding",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr8262-trusted-recovery-ingress-post-body-binding.json",
+      "edge/activation-gateway/src/gateway.mjs",
+      "http-generic-api/activation-gateway-runtime/src/gateway.mjs",
+      "http-generic-api/server.js",
+      "http-generic-api/trustedIngressContract.js",
+      "http-generic-api/test-staging-recovery-admin-surface.mjs",
+      "http-generic-api/test-trusted-ingress-contract.mjs",
+      "edge/activation-gateway/generated/route-policy.staging.json",
+      "http-generic-api/activation-gateway-runtime/generated/route-policy.staging.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Bind signed Staging Recovery POST ingress to the exact raw body bytes while preserving GET empty-body semantics, durable replay protection, host isolation, and zero provider or Production mutation.",
+      "e2e_journeys": [
+        {
+          "id": "trusted-recovery-ingress-post-body-binding",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Activation Gateway and Staging Recovery origin",
+          "entrypoint": "Send signed Recovery GET and POST requests through the canonical Activation Gateway Worker into the Staging Recovery origin verifier.",
+          "terminal_outcome": "Allowed GETs remain body-empty, allowed POSTs are accepted only when method, exact path, request id, auth digest, policy identity, raw-body digest and durable replay claim all match.",
+          "steps": [
+            "Capture exact raw JSON bytes for POST /admin/recovery/staging/* before Express JSON parsing.",
+            "Bound the Worker request body once and sign the SHA-256 of those same bytes before forwarding them upstream.",
+            "Resolve the explicit GET/POST allowlist for each Recovery path and reject methods or paths outside that matrix.",
+            "Recompute the SHA-256 digest from req.rawBody at the origin and compare it with the signed body_digest.",
+            "Reject changed-body substitution, GET-to-POST signature reuse, wrong-path reuse, replay, and a nonempty POST signed as an empty body.",
+            "Preserve durable atomic replay claim, trusted host identity, Staging-only authority and direct-origin fail-closed isolation."
+          ],
+          "assertions": [
+            "GET contract/readiness/certification remain empty-body signed requests.",
+            "POST rollout-plan, dark-deploy-dry-run and bounded internal authority paths require captured raw-body bytes.",
+            "JSON.stringify(req.body) is never used as verification input; verification hashes exact raw bytes.",
+            "The Worker hashes the same bounded bytes forwarded upstream.",
+            "A valid signed POST reaches the Recovery route; changed body, changed method, changed path and replay are rejected before route execution.",
+            "Direct-origin and wrong-host requests remain unavailable.",
+            "No provider mutation, database mutation, migration apply or Production mutation is introduced.",
+            "Live Staging certification remains required before any rollout.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "trusted-recovery-ingress-e2e",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-admin-surface.mjs",
+              "args": []
+            },
+            {
+              "id": "trusted-ingress-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-trusted-ingress-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/pr8262-trusted-recovery-ingress-post-body-binding.json",
+            "http-generic-api/server.js",
+            "http-generic-api/trustedIngressContract.js",
+            "edge/activation-gateway/src/gateway.mjs",
+            "http-generic-api/activation-gateway-runtime/src/gateway.mjs",
+            "http-generic-api/test-staging-recovery-admin-surface.mjs",
+            "http-generic-api/test-trusted-ingress-contract.mjs",
+            "edge/activation-gateway/generated/route-policy.staging.json",
+            "http-generic-api/activation-gateway-runtime/generated/route-policy.staging.json"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "trusted-recovery-ingress-e2e",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-staging-recovery-admin-surface.mjs",
+          "args": []
+        },
+        {
+          "id": "trusted-ingress-contract",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-trusted-ingress-contract.mjs",
+          "args": []
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
