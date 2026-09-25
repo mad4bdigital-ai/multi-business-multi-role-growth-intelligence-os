@@ -53,6 +53,8 @@ const REQUIRED_STORE_METHODS = Object.freeze([
   "putIdempotencyReceipt",
   "claimExecution",
   "releaseExecutionClaim",
+  "reserveApproval",
+  "releaseApprovalReservation",
 ]);
 
 function text(value, max = 512) {
@@ -96,6 +98,9 @@ function assertStore(store) {
   }
   if (store.independent_of_target_databases !== true) {
     fail("PLATFORM_RECOVERY_STORE_NOT_INDEPENDENT", "Recovery convergence store must explicitly prove independence from target databases.", 503);
+  }
+  if (typeof store.finalizeApproval !== "function" && typeof store.markApprovalUsed !== "function") {
+    fail("PLATFORM_RECOVERY_APPROVAL_FINALIZER_UNAVAILABLE", "Recovery convergence requires an idempotent durable approval finalizer.", 503);
   }
 }
 
@@ -222,6 +227,7 @@ function createStepState(planStep, runId, planHash) {
     result: null,
     request_id: null,
     error_code: null,
+    approval_id: null,
     execution_process_id: null,
     started_at: null,
     completed_at: null,
@@ -390,7 +396,7 @@ function shouldSkip(run, step) {
   return null;
 }
 
-function validateBoundResult(run, step, result) {
+function validateBoundResult(run, step, result, { mode = "execute" } = {}) {
   const value = result && typeof result === "object" && !Array.isArray(result) ? result : {};
   const status = text(value.status || (value.ok === true ? "pass" : ""), 64);
   if (!EXECUTOR_STATES.has(status)) fail("PLATFORM_RECOVERY_STEP_RESULT_INVALID", `Invalid result state for ${step.key}.`, 502);
@@ -412,6 +418,15 @@ function validateBoundResult(run, step, result) {
       if (text(value.authority_ref, 256) !== text(step.authority_ref, 256)) fail("PLATFORM_RECOVERY_STEP_AUTHORITY_REF_MISMATCH", `Step ${step.key} used a different nested authority.`, 502);
       if (text(value.nested_operation, 128) !== text(step.nested_operation, 128)) fail("PLATFORM_RECOVERY_STEP_OPERATION_MISMATCH", `Step ${step.key} used a different nested operation.`, 502);
       if (value.readback_verified !== true) fail("PLATFORM_RECOVERY_STEP_READBACK_UNVERIFIED", `Step ${step.key} did not complete same-cycle readback.`, 502);
+    }
+    if (mode === "reconcile" && isMutationStep(step)) {
+      if (value.mutation_performed !== false || value.reconciled !== true) {
+        fail(
+          "PLATFORM_RECOVERY_RECONCILIATION_READBACK_INVALID",
+          `Reconciliation for ${step.key} must be read-only and explicitly reconciled.`,
+          502,
+        );
+      }
     }
   }
 
@@ -455,7 +470,13 @@ function validateBoundResult(run, step, result) {
     const resources = Array.isArray(value.resources) ? value.resources : [];
     const allowed = new Set(["local_manager_device_link_sessions", "local_manager_desktop_commands"]);
     if (resources.length === 0 || resources.some((resource) => !allowed.has(String(resource.table || resource)))) fail("PLATFORM_RECOVERY_GRANT_SCOPE_INVALID", "Local Manager runtime grant scope is broader than the bounded runtime tables.", 502);
-    if (value.database_mutation_performed !== true || value.readback_verified !== true) fail("PLATFORM_RECOVERY_GRANT_READBACK_INCOMPLETE", "Grant repair requires durable host-local readback.", 502);
+    if (mode === "reconcile") {
+      if (value.database_mutation_performed !== false || value.reconciled !== true || value.readback_verified !== true) {
+        fail("PLATFORM_RECOVERY_GRANT_RECONCILIATION_INVALID", "Grant reconciliation must be host-local readback only and perform no database mutation.", 502);
+      }
+    } else if (value.database_mutation_performed !== true || value.readback_verified !== true) {
+      fail("PLATFORM_RECOVERY_GRANT_READBACK_INCOMPLETE", "Grant repair requires durable host-local readback.", 502);
+    }
   }
 
   if (step.key === "bootstrap_ledger_verify" && status === "pass" && value.bootstrap_ledger_ready !== true) {
@@ -495,15 +516,21 @@ function validateBoundResult(run, step, result) {
   }
 
   if (step.key === "connector_two_phase_rebind" && status === "pass") {
-    const required = [
-      "fresh_device_authorization_verified",
-      "pending_credential_created",
-      "local_atomic_install_verified",
-      "new_credential_probe_verified",
-      "old_credential_revoked_after_probe",
-    ];
-    for (const flag of required) if (value[flag] !== true) fail("PLATFORM_RECOVERY_CONNECTOR_REBIND_INCOMPLETE", `Connector two-phase rebind did not prove ${flag}.`, 502);
-    if (value.old_credential_revoked_before_probe === true) fail("PLATFORM_RECOVERY_CONNECTOR_REBIND_ORDER_INVALID", "Old credential was revoked before the new credential probe.", 502);
+    if (mode === "reconcile") {
+      if (value.reconciled !== true || value.new_credential_active !== true || value.old_credential_revoked !== true) {
+        fail("PLATFORM_RECOVERY_CONNECTOR_REBIND_RECONCILIATION_INCOMPLETE", "Connector reconciliation did not prove the active/revoked credential state.", 502);
+      }
+    } else {
+      const required = [
+        "fresh_device_authorization_verified",
+        "pending_credential_created",
+        "local_atomic_install_verified",
+        "new_credential_probe_verified",
+        "old_credential_revoked_after_probe",
+      ];
+      for (const flag of required) if (value[flag] !== true) fail("PLATFORM_RECOVERY_CONNECTOR_REBIND_INCOMPLETE", `Connector two-phase rebind did not prove ${flag}.`, 502);
+      if (value.old_credential_revoked_before_probe === true) fail("PLATFORM_RECOVERY_CONNECTOR_REBIND_ORDER_INVALID", "Old credential was revoked before the new credential probe.", 502);
+    }
     if (value.credential_material_returned_to_orchestrator === true) fail("PLATFORM_RECOVERY_CONNECTOR_SECRET_EXPOSED", "Connector credential material must not be returned to the orchestrator.", 502);
   }
 
@@ -641,6 +668,65 @@ async function releaseOrchestrationClaim(recoveryStore, context) {
   }
 }
 
+function approvalReservationContext(run, step, approvalId) {
+  const id = text(approvalId, 220);
+  if (!SAFE_ID_RE.test(id)) {
+    fail("PLATFORM_RECOVERY_APPROVAL_ID_INVALID", "A valid server-resolved approval_id is required for mutating convergence stages.", 503);
+  }
+  return Object.freeze({
+    approval_id: id,
+    expected_sha: run.expected_sha,
+    run_id: run.run_id,
+    plan_hash: run.plan_hash,
+    step_id: step.step_id,
+    idempotency_key: step.idempotency_key,
+    secrets_included: false,
+  });
+}
+
+async function reserveStepApproval(recoveryStore, run, step, approvalId) {
+  if (!isMutationStep(step)) return null;
+  const context = approvalReservationContext(run, step, approvalId);
+  const result = await recoveryStore.reserveApproval(context);
+  if (result !== true && result?.reserved !== true && !(result?.existing === true && result?.same_idempotency === true)) {
+    fail(
+      "PLATFORM_RECOVERY_APPROVAL_RESERVATION_DENIED",
+      `Approval reservation was denied for ${step.key}; execution is forbidden.`,
+      409,
+      { step_key: step.key },
+    );
+  }
+  return context;
+}
+
+async function releaseStepApprovalReservation(recoveryStore, context) {
+  if (!context) return;
+  await recoveryStore.releaseApprovalReservation(context);
+}
+
+async function finalizeStepApproval(recoveryStore, context) {
+  if (!context) return;
+  const finalizer = typeof recoveryStore.finalizeApproval === "function"
+    ? recoveryStore.finalizeApproval.bind(recoveryStore)
+    : recoveryStore.markApprovalUsed.bind(recoveryStore);
+  const result = typeof recoveryStore.finalizeApproval === "function"
+    ? await finalizer(context)
+    : await finalizer(context.approval_id);
+  if (
+    result !== undefined
+    && result !== true
+    && result?.finalized !== true
+    && result?.already_finalized !== true
+  ) {
+    fail(
+      "PLATFORM_RECOVERY_APPROVAL_FINALIZATION_FAILED",
+      "Approval finalization could not be durably recorded; reconciliation is required before replay.",
+      503,
+      { step_id: context.step_id },
+    );
+  }
+}
+
 function buildFinalClosureEvidence(run) {
   const result = (key) => priorResult(run, key);
   const state = (key) => findStep(run, key);
@@ -655,7 +741,7 @@ function buildFinalClosureEvidence(run) {
   const chunks = result("response_chunk_storage_smoke") || {};
   const admin = result("admin_tools_functional_readback") || {};
   const device = result("device_tools_functional_readback") || {};
-  const activation = result("production_activation_readiness") || {};
+  const activation = run.final_activation || result("production_activation_readiness") || {};
   const connector = result("connector_auth_verify") || {};
   const deployment = run.final_parity || result("deployment_parity") || {};
   const rateStep = state("local_manager_rate_limit_recovery");
@@ -840,6 +926,69 @@ async function verifyFinalDeploymentParity(run, finalStep, executors) {
   };
 }
 
+async function verifyFinalProductionActivation(run, finalStep, executors) {
+  const reader = executorFor(executors, "production_activation_readiness", "execute");
+  if (!reader) {
+    return {
+      ready: false,
+      error_code: "platform_recovery_final_activation_reader_unavailable",
+      next_safe_action: "restore_production_activation_readiness_reader",
+      result: null,
+    };
+  }
+
+  let result;
+  try {
+    result = await reader(Object.freeze({
+      expected_sha: run.expected_sha,
+      target_key: run.target_key,
+      run_id: run.run_id,
+      plan_hash: run.plan_hash,
+      step_id: finalStep.step_id,
+      step_key: "final_gate",
+      step_kind: "read_only_final_activation_recertification",
+      idempotency_key: `platform-recovery-final-activation:${run.plan_hash.slice(0, 24)}`,
+      prior_steps: run.steps
+        .filter((candidate) => candidate.key !== "final_gate")
+        .map((candidate) => ({ key: candidate.key, status: candidate.status, result: candidate.result })),
+      secrets_included: false,
+    }));
+  } catch (error) {
+    return {
+      ready: false,
+      error_code: text(error?.code || "platform_recovery_final_activation_read_failed", 160),
+      request_id: text(error?.request_id || error?.details?.request_id, 160) || null,
+      next_safe_action: "restore_production_activation_readiness_before_final_closure",
+      result: null,
+    };
+  }
+
+  const ready = result?.status === "pass"
+    && text(result?.expected_sha, 64).toLowerCase() === run.expected_sha
+    && result?.ready === true
+    && result?.readback_verified === true
+    && result?.mutation_performed !== true
+    && result?.secrets_included === false;
+
+  return {
+    ready,
+    error_code: ready ? null : "platform_recovery_final_activation_not_ready",
+    request_id: text(result?.request_id, 160) || null,
+    next_safe_action: ready ? "none" : "restore_production_activation_readiness_before_final_closure",
+    result: result && typeof result === "object"
+      ? {
+          expected_sha: run.expected_sha,
+          ready: result.ready === true,
+          readback_verified: result.readback_verified === true,
+          request_id: text(result.request_id, 160) || null,
+          checked_at: new Date().toISOString(),
+          mutation_performed: false,
+          secrets_included: false,
+        }
+      : null,
+  };
+}
+
 function summarize(run) {
   const staleExecution = staleExecutingStep(run);
   return {
@@ -857,6 +1006,7 @@ function summarize(run) {
     stale_execution_reconciliation_eligible: Boolean(staleExecution),
     stale_execution_step: staleExecution?.step?.key || null,
     final_parity: run.final_parity ? clone(run.final_parity) : null,
+    final_activation: run.final_activation ? clone(run.final_activation) : null,
     closure: run.closure ? clone(run.closure) : null,
     steps: run.steps.map((step) => ({
       order: step.order,
@@ -963,6 +1113,21 @@ async function executeOneStep(run, step, { recoveryStore, executors, approvalRes
   }
 
   const orchestrationClaim = await acquireOrchestrationClaim(recoveryStore, run, step);
+  let approvalReservation = null;
+  try {
+    approvalReservation = await reserveStepApproval(
+      recoveryStore,
+      run,
+      step,
+      authority.approval?.approval_id || null,
+    );
+  } catch (error) {
+    await releaseOrchestrationClaim(recoveryStore, orchestrationClaim);
+    throw error;
+  }
+  if (isMutationStep(step)) {
+    step.approval_id = authority.approval.approval_id;
+  }
 
   step.status = "executing";
   step.execution_process_id = PROCESS_INSTANCE_ID;
@@ -1078,9 +1243,40 @@ async function executeOneStep(run, step, { recoveryStore, executors, approvalRes
     run.next_safe_action = mapped.next_safe_action;
     await persistRun(recoveryStore, run);
     if (result.status !== "unknown_outcome") {
+      await releaseStepApprovalReservation(recoveryStore, approvalReservation);
       await releaseOrchestrationClaim(recoveryStore, orchestrationClaim);
     }
     return { continue: false };
+  }
+
+  if (isMutationStep(step)) {
+    try {
+      await finalizeStepApproval(recoveryStore, approvalReservation);
+    } catch (error) {
+      step.status = "unknown_outcome";
+      step.completed_at = null;
+      step.error_code = "platform_recovery_approval_finalization_unknown";
+      step.result = {
+        ...result,
+        ok: false,
+        status: "unknown_outcome",
+        error_code: step.error_code,
+        next_safe_action: "reconcile_same_operation_before_retry",
+        approval_finalization_error: text(error?.code || "approval_finalization_failed", 160),
+        secrets_included: false,
+      };
+      run.status = "unknown_outcome";
+      run.active = false;
+      run.blocking_stage = step.key;
+      run.error_code = step.error_code;
+      run.next_safe_action = "reconcile_same_operation_before_retry";
+      await appendEvent(recoveryStore, run, step, "step_unknown_outcome", {
+        error_code: step.error_code,
+        approval_finalization_error: step.result.approval_finalization_error,
+      });
+      await persistRun(recoveryStore, run);
+      return { continue: false };
+    }
   }
 
   step.status = "pass";
@@ -1089,6 +1285,7 @@ async function executeOneStep(run, step, { recoveryStore, executors, approvalRes
   run.request_id = null;
   run.next_safe_action = "advance_same_run";
   await persistRun(recoveryStore, run);
+  await releaseStepApprovalReservation(recoveryStore, approvalReservation);
   await releaseOrchestrationClaim(recoveryStore, orchestrationClaim);
   return { continue: true, consequential_executed: isMutationStep(step) };
 }
@@ -1134,8 +1331,7 @@ async function reconcileUnknownStep(run, { recoveryStore, executors }) {
     original_result: clone(step.result),
     secrets_included: false,
   }));
-  const result = validateBoundResult(run, step, raw);
-  if (result.mutation_performed === true) {
+  if (raw?.mutation_performed === true) {
     fail(
       "PLATFORM_RECOVERY_RECONCILIATION_MUTATION_FORBIDDEN",
       "Unknown-outcome reconciliation must be readback-only and may not perform a second mutation.",
@@ -1143,12 +1339,15 @@ async function reconcileUnknownStep(run, { recoveryStore, executors }) {
       { step_key: step.key },
     );
   }
+  const result = validateBoundResult(run, step, raw, { mode: "reconcile" });
   if (result.status === "unknown_outcome") {
     step.result = result;
     run.status = "unknown_outcome";
     run.blocking_stage = step.key;
     run.next_safe_action = "reconcile_same_operation_before_retry";
   } else if (result.status === "pass") {
+    const reconciliationApproval = approvalReservationContext(run, step, step.approval_id);
+    await finalizeStepApproval(recoveryStore, reconciliationApproval);
     step.status = "pass";
     step.result = result;
     step.completed_at = new Date().toISOString();
@@ -1173,7 +1372,17 @@ async function reconcileUnknownStep(run, { recoveryStore, executors }) {
     request_id: run.request_id,
   });
   await persistRun(recoveryStore, run);
-  if (result.status !== "unknown_outcome") {
+  if (result.status === "pass") {
+    const reconciliationApproval = approvalReservationContext(run, step, step.approval_id);
+    await releaseStepApprovalReservation(recoveryStore, reconciliationApproval);
+    await releaseOrchestrationClaim(recoveryStore, orchestrationClaimContext(run, step));
+  } else if (
+    result.status !== "unknown_outcome"
+    && result.mutation_outcome_known === true
+    && result.mutation_applied === false
+  ) {
+    const reconciliationApproval = approvalReservationContext(run, step, step.approval_id);
+    await releaseStepApprovalReservation(recoveryStore, reconciliationApproval);
     await releaseOrchestrationClaim(recoveryStore, orchestrationClaimContext(run, step));
   }
   return summarize(run);
@@ -1262,6 +1471,41 @@ export async function runPlatformRecoveryConvergence(input = {}, deps = {}) {
         run.request_id = step.request_id;
         run.next_safe_action = finalParity.next_safe_action;
         await appendEvent(deps.recoveryStore, run, step, "final_parity_blocked", {
+          error_code: step.error_code,
+          request_id: step.request_id,
+        });
+        await persistRun(deps.recoveryStore, run);
+        return summarize(run);
+      }
+
+      const finalActivation = await verifyFinalProductionActivation(run, step, deps.executors || {});
+      run.final_activation = finalActivation.result ? clone(finalActivation.result) : null;
+      if (!finalActivation.ready) {
+        step.status = "blocked";
+        step.error_code = finalActivation.error_code;
+        step.request_id = finalActivation.request_id || null;
+        step.result = {
+          ok: false,
+          status: "blocked",
+          expected_sha: run.expected_sha,
+          run_id: run.run_id,
+          plan_hash: run.plan_hash,
+          step_id: step.step_id,
+          idempotency_key: step.idempotency_key,
+          error_code: step.error_code,
+          request_id: step.request_id,
+          next_safe_action: finalActivation.next_safe_action,
+          mutation_performed: false,
+          readback_verified: false,
+          secrets_included: false,
+        };
+        run.status = "blocked";
+        run.active = false;
+        run.blocking_stage = "final_gate";
+        run.error_code = step.error_code;
+        run.request_id = step.request_id;
+        run.next_safe_action = finalActivation.next_safe_action;
+        await appendEvent(deps.recoveryStore, run, step, "final_activation_blocked", {
           error_code: step.error_code,
           request_id: step.request_id,
         });
