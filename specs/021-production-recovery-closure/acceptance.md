@@ -46,7 +46,7 @@ The following must all be true in one exact-SHA closure evidence pack:
 
 `platform_recovery_converge_v1` may report `status=recovered` with `active=true` only after every ordered stage is `pass` or an explicitly proven `skipped_not_required`, final same-cycle Production parity succeeds, final Production activation recertification succeeds, and `mad4b.production-recovery-closure.v1` independently derives `recovered`.
 
-Required live acceptance includes exact SHA/version/deployment-info parity, verified backup evidence, durable full inspection with consistent role census and tri-state readiness, governance/runtime-persistence baseline readiness, any evidence-selected partial runtime-persistence schema repair, canonical grants readback, MCP catalog migration/readback, real response-chunk write/read/delete/absence smoke, Admin and Device tool functional readbacks, connector authenticated HTTP 200, Local Manager create→claim→complete round-trip, final deployment parity, and final Production activation readiness.
+Required live acceptance includes exact SHA/version/deployment-info parity, verified backup evidence, durable full inspection with consistent role census and tri-state readiness, governance/runtime-persistence baseline readiness, bounded handoff for any non-empty runtime-persistence schema drift, canonical grants readback, MCP catalog migration/readback, real response-chunk write/read/delete/absence smoke, Admin and Device tool functional readbacks, connector authenticated HTTP 200, Local Manager create→claim→complete round-trip, final deployment parity, and final Production activation readiness.
 
 A role baseline rebuild is `skipped_not_required` only when the durable inspection proves that role is not zero-object. Runtime is never rebuilt by this convergence plan.
 
@@ -64,6 +64,6 @@ A stale prior-process execution may not be retried. It becomes reconciliation-el
 
 A repair mutation may not be selected from missing readiness evidence. `null`/unknown readiness blocks before approval resolution, reservation, execution claim, or provider/database mutation.
 
-A non-empty runtime-persistence role may use `runtime_persistence.schema.repair` only when the full inspection proves `classification=nonempty_objects`, a positive object count, and `runtime_persistence_ready=false`. Zero-object roles remain on the baseline-rebuild path. Runtime-core partial corruption and unregistered Governance schema corruption remain fail-closed.
+When the full inspection proves `classification=nonempty_objects`, a positive object count, and `runtime_persistence_ready=false`, convergence must block with the canonical remediation-plan handoff; it must not execute `runtime_persistence.schema.repair` directly. Zero-object roles remain on the baseline-rebuild path. After separate Recovery Kernel remediation, the same convergence run may resume only after fresh readiness evidence. Runtime-core partial corruption and unregistered Governance schema corruption remain fail-closed.
 
 For every mutation, the exact approval is durably reserved after the orchestration claim and finalized only after a verified terminal receipt. Unknown outcome or approval-finalization uncertainty requires reconciliation under the original idempotency key; no second mutation is allowed.
