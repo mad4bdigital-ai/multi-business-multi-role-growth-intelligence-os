@@ -124,14 +124,14 @@ function buildPlatformRecoveryConvergenceDependencies(adapters = {}) {
   const executors = isObject(adapters?.platformRecoveryConvergenceExecutors)
     ? Object.freeze({ ...adapters.platformRecoveryConvergenceExecutors })
     : Object.freeze({});
-  const approvalResolver = typeof adapters?.platformRecoveryConvergenceApprovalResolver === "function"
+  const resolver = typeof adapters?.platformRecoveryConvergenceApprovalResolver === "function"
     ? adapters.platformRecoveryConvergenceApprovalResolver
     : null;
   return Object.freeze({
     executors,
-    approvalResolver,
+    approvalResolver: resolver,
     configured_executor_keys: Object.freeze(Object.keys(executors).sort()),
-    approval_resolver_configured: typeof approvalResolver === "function",
+    approval_resolver_configured: typeof resolver === "function",
     caller_managed: false,
     secrets_included: false,
   });
