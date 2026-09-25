@@ -105,7 +105,13 @@ async function readTokenRecord(file) {
     if (!stat.isFile() || stat.size <= 0 || stat.size > TOKEN_RECORD_MAX_BYTES) {
       phaseBFailure("RECOVERY_PHASE_B_APPROVAL_TOKEN_STATE_INVALID", "The internal Phase B approval-token state is invalid.");
     }
-    return JSON.parse(await handle.readFile("utf8"));
+
+    const encoded = await handle.readFile("utf8");
+    try {
+      return JSON.parse(encoded);
+    } catch {
+      phaseBFailure("RECOVERY_PHASE_B_APPROVAL_TOKEN_STATE_INVALID", "The internal Phase B approval-token state is invalid.");
+    }
   } finally {
     await handle.close();
   }
@@ -122,18 +128,25 @@ async function createIssuanceClaim(file, challenge) {
     created_at: new Date().toISOString(),
     token_not_returned: true,
   };
+  let handle;
   try {
-    const handle = await open(file, "wx", 0o600);
-    try {
-      await handle.writeFile(`${JSON.stringify(claim)}\n`);
-      await handle.sync();
-      return handle;
-    } catch (error) {
-      await handle.close();
-      throw error;
-    }
+    handle = await open(file, "wx", 0o600);
   } catch (error) {
     if (error?.code === "EEXIST") return null;
+    throw error;
+  }
+
+  try {
+    await handle.writeFile(`${JSON.stringify(claim)}\n`);
+    await handle.sync();
+    return handle;
+  } catch (error) {
+    try {
+      await handle.close();
+    } catch {
+      // Preserve the original claim-write failure; the pathname remains claimed
+      // and retries still fail closed rather than risking duplicate issuance.
+    }
     throw error;
   }
 }
