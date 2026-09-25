@@ -343,3 +343,32 @@ test("backup evidence rejects stale, wrong-cycle, and untested restore evidence"
     assert.equal(result.error_code, "platform_recovery_backup_evidence_not_ready");
   }
 });
+
+
+test("missing inspection readiness remains unknown instead of becoming a repair finding", () => {
+  const normalized = normalizeFullInspectionForConvergence({
+    run_id: "run:inspection:missing-readiness",
+    inspection_evidence_hash: "c".repeat(64),
+    durability: { inspection_durable: true },
+    trust: { target_fingerprints: { composite: TARGET_FINGERPRINT } },
+    inspection: {
+      role_database_object_classifications: {
+        runtime: "nonempty_objects",
+        governance: "nonempty_objects",
+        runtime_persistence: "nonempty_objects",
+      },
+      role_database_object_counts: {
+        runtime: { total: 7 },
+        governance: { total: 5 },
+        runtime_persistence: { total: 4 },
+      },
+    },
+  });
+
+  assert.equal(normalized.checks.governance_db_privilege_ready, null);
+  assert.equal(normalized.checks.mcp_catalog_schema_ready, null);
+  assert.equal(normalized.checks.runtime_persistence_ready, null);
+  assert.equal(normalized.roles.runtime_persistence.classification, "nonempty_objects");
+  assert.equal(normalized.roles.runtime_persistence.object_count_total, 4);
+  assert.equal(normalized.roles.runtime_persistence.zero_object, false);
+});
