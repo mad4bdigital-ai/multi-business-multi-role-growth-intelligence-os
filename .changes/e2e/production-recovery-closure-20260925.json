@@ -21,7 +21,10 @@
       "http-generic-api/test-recovery-kernel.mjs",
       "specs/021-production-recovery-closure/completion.json",
       "specs/021-production-recovery-closure/checklists/requirements.md",
-      "http-generic-api/openapi.yaml"
+      "http-generic-api/openapi.yaml",
+      "http-generic-api/platformRecoveryConvergence.js",
+      "http-generic-api/test-platform-recovery-convergence.mjs",
+      "http-generic-api/scripts/test-manifest.mjs"
     ]
   },
   "merge_contract": {
@@ -44,7 +47,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Add one server-derived exact-SHA closure evaluator over existing Production Recovery evidence without widening mutation authority.",
+      "objective": "Add exact-SHA recovery closure plus a durable, fail-closed convergence framework without enabling live Production executors.",
       "e2e_journeys": [
         {
           "id": "production-recovery-closure-proof",
@@ -86,6 +89,45 @@
             "http-generic-api/test-recovery-kernel.mjs",
             "specs/021-production-recovery-closure/acceptance.md"
           ]
+        },
+        {
+          "id": "platform-recovery-convergence-framework",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Production Recovery convergence framework",
+          "entrypoint": "runPlatformRecoveryConvergence with server-injected durable store, step executors, and approval resolver",
+          "terminal_outcome": "The run advances in canonical order, stops before unauthorized mutations, persists evidence/idempotency, and cannot blind-retry unknown outcomes.",
+          "steps": [
+            "Bind the run to one exact Production SHA and deterministic plan hash.",
+            "Require independent durable recovery-store methods before execution.",
+            "Execute read-only discovery before conditional baseline repair.",
+            "Resolve every consequential or bounded-mutation authority server-side and bind it to SHA/run/plan/step/idempotency.",
+            "Require same-cycle authority/readback evidence from every mutation executor.",
+            "Treat unknown mutation outcome as reconciliation-only and forbid a second mutation during reconciliation.",
+            "Run catalog, response-chunk, activation, connector, rate-limit, Local Manager and deployment parity gates before final activation."
+          ],
+          "assertions": [
+            "Caller-supplied approval is forbidden.",
+            "Mutation executors are not invoked without server-resolved exact-step approval.",
+            "Approval replay across a different SHA/run/plan/step/idempotency binding fails closed.",
+            "Unknown-outcome reconciliation is readback-only.",
+            "Ordinary MCP catalog migration remains after baseline and grant readiness.",
+            "Credential rebind is conditional on credential_invalid and is not triggered by rate limiting.",
+            "The framework has no live executor wiring in this PR and performs no Production mutation by repository delivery alone."
+          ],
+          "tests": [
+            {
+              "id": "platform-recovery-convergence",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-recovery-convergence.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/platformRecoveryConvergence.js",
+            "http-generic-api/test-platform-recovery-convergence.mjs"
+          ]
         }
       ]
     },
@@ -113,7 +155,7 @@
     "migration_apply": false,
     "grant_execution": false,
     "provider_call": false,
-    "workflow_dispatch": false,
+    "workflow_dispatch": true,
     "production_deploy": false,
     "secrets_included": false
   }
