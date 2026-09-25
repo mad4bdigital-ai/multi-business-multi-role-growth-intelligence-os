@@ -447,9 +447,11 @@ test("real signed Worker to origin rejects forgery, substitution, replay and mis
     assert.equal(changedBodyResponse.status, 403, "same signature with changed body is rejected");
 
     const getProof = await captureSignedRequest({ method: "GET", requestPath: pathname });
+    const getAsPostHeaders = new Headers(getProof.headers);
+    getAsPostHeaders.set("content-type", "application/json");
     const getAsPost = await fetch(`${origin.url}${rolloutPath}`, {
       method: "POST",
-      headers: getProof.headers,
+      headers: getAsPostHeaders,
       body: rolloutBody,
     });
     assert.equal(getAsPost.status, 403, "GET signature cannot be reused for POST");
