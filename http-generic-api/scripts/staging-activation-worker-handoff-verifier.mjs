@@ -147,7 +147,7 @@ export async function verifyStagingActivationWorkerHandoff({
     });
   }
 
-  const recoveryMode = staleIdentity ? "stale_policy" : "exact_commit_bootstrap";
+  const handoffVariant = staleIdentity ? "stale_policy" : "exact_commit_bootstrap";
   const readinessChecks = [];
   if (staleIdentity) {
     readinessChecks.push(failedReadinessCheck("gateway_policy_not_stale", {
@@ -311,7 +311,7 @@ export async function verifyStagingActivationWorkerHandoff({
     worker_bundle_sha256: bundle.worker_bundle_sha256,
     preflight_binding_sha256: binding.preflight_binding_sha256,
     profile_owned_health_url: canonicalHealthUrl,
-    recovery_mode: recoveryMode,
+    recovery_mode: handoffVariant,
     bootstrap_override_authorized: exactCommitBootstrapIdentity,
     bootstrap_override_source: exactCommitBootstrapIdentity ? "gateway_exact_commit.bootstrap_override" : null,
     observed_gateway: {
