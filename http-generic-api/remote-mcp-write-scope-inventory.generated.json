@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7846,
+  "file_count": 7849,
   "route_count": 1115,
   "write_route_count": 681,
   "classified_write_surface_count": 44,
@@ -6286,8 +6286,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#POST:/admin/recovery/kernel/call:0",
-      "source_line": 200,
-      "source_offset": 7275,
+      "source_line": 237,
+      "source_offset": 9113,
       "method": "POST",
       "path": "/admin/recovery/kernel/call",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -6295,8 +6295,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#POST:/admin/recovery/kernel/platform-converge:1",
-      "source_line": 266,
-      "source_offset": 9949,
+      "source_line": 303,
+      "source_offset": 11787,
       "method": "POST",
       "path": "/admin/recovery/kernel/platform-converge",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -6304,8 +6304,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#POST:/admin/recovery/kernel/approval-challenge:2",
-      "source_line": 295,
-      "source_offset": 11103,
+      "source_line": 332,
+      "source_offset": 12944,
       "method": "POST",
       "path": "/admin/recovery/kernel/approval-challenge",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -6313,8 +6313,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#POST:/admin/recovery/kernel/execute-approved:3",
-      "source_line": 322,
-      "source_offset": 12228,
+      "source_line": 359,
+      "source_offset": 14069,
       "method": "POST",
       "path": "/admin/recovery/kernel/execute-approved",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -6322,8 +6322,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#POST:/admin/recovery/kernel/execute:4",
-      "source_line": 326,
-      "source_offset": 12553,
+      "source_line": 363,
+      "source_offset": 14394,
       "method": "POST",
       "path": "/admin/recovery/kernel/execute",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -6331,8 +6331,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#GET:/admin/recovery/kernel/runs/:run_id:5",
-      "source_line": 328,
-      "source_offset": 12626,
+      "source_line": 365,
+      "source_offset": 14467,
       "method": "GET",
       "path": "/admin/recovery/kernel/runs/:run_id",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -6340,8 +6340,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#GET:/admin/recovery/kernel/evidence/:run_id:6",
-      "source_line": 337,
-      "source_offset": 12997,
+      "source_line": 374,
+      "source_offset": 14838,
       "method": "GET",
       "path": "/admin/recovery/kernel/evidence/:run_id",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -37782,10 +37782,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/recoveryKernelRoutes.js",
-        "source_line": 200,
+        "source_line": 237,
         "handler_window_lines": [
-          200,
-          264
+          237,
+          301
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -37854,10 +37854,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/recoveryKernelRoutes.js",
-        "source_line": 266,
+        "source_line": 303,
         "handler_window_lines": [
-          266,
-          293
+          303,
+          330
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -37921,10 +37921,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/recoveryKernelRoutes.js",
-        "source_line": 295,
+        "source_line": 332,
         "handler_window_lines": [
-          295,
-          320
+          332,
+          357
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -37984,10 +37984,10 @@
       "operation_class": "decision",
       "evidence": {
         "file": "http-generic-api/routes/recoveryKernelRoutes.js",
-        "source_line": 322,
+        "source_line": 359,
         "handler_window_lines": [
-          322,
-          325
+          359,
+          362
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -38049,10 +38049,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/recoveryKernelRoutes.js",
-        "source_line": 326,
+        "source_line": 363,
         "handler_window_lines": [
-          326,
-          326
+          363,
+          363
         ],
         "evidence_flags": {
           "handler_window_present": true,
