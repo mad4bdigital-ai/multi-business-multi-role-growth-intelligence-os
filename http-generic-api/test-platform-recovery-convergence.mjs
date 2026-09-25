@@ -138,6 +138,8 @@ function canonicalGrantReconcilePass(ctx, extra = {}) {
   return pass(ctx, {
     reconciled: true,
     authority_verified: true,
+    mutation_outcome_known: true,
+    mutation_applied: true,
     execution_mode: "host_local",
     local_connector_required: false,
     local_connector_fallback_allowed: false,
@@ -673,9 +675,13 @@ test("unknown connector rebind outcome stops before connector verification and L
     },
     reconcile: async (ctx) => pass(ctx, {
       reconciled: true,
+      authority_verified: true,
+      mutation_outcome_known: true,
+      mutation_applied: true,
       readback_verified: true,
       new_credential_active: true,
       old_credential_revoked: true,
+      credential_material_returned_to_orchestrator: false,
     }),
   };
 
@@ -1017,4 +1023,45 @@ test("final activation recertification blocks recovered after later mutation if 
   assert.equal(calls.includes("production_activation_readiness:final_gate"), true);
   assert.equal(calls.filter((key) => key === "canonical_grants_apply").length, 1);
   assert.equal(calls.filter((key) => key === "local_manager_e2e_round_trip").length, 1);
+});
+
+
+test("successful reconciliation preserves original mutation audit for final closure", async () => {
+  const store = makeStore();
+  const executors = happyExecutors({ zeroGovernance: false, zeroPersistence: false });
+  let executeCount = 0;
+  executors.canonical_grants_apply = {
+    execute: async (ctx) => {
+      executeCount += 1;
+      return {
+        ...canonicalGrantMutationPass(ctx),
+        ok: false,
+        status: "unknown_outcome",
+        request_id: "req-reconcile-audit",
+        error_code: "provider_outcome_unknown",
+      };
+    },
+    reconcile: async (ctx) => canonicalGrantReconcilePass(ctx),
+  };
+
+  const first = await advanceUntilBoundary({ store, executors });
+  assert.equal(first.status, "unknown_outcome");
+  assert.equal(executeCount, 1);
+
+  const reconciled = await runPlatformRecoveryConvergence(
+    { expected_sha: SHA, run_id: first.run_id, action: "reconcile" },
+    { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
+  );
+  const grantStep = reconciled.steps.find((step) => step.key === "canonical_grants_apply");
+  assert.equal(reconciled.status, "pending");
+  assert.equal(grantStep.status, "pass");
+  assert.equal(grantStep.result.mutation_performed, true);
+  assert.equal(grantStep.result.reconciliation_mutation_performed, false);
+  assert.equal(grantStep.result.mutation_outcome_known, true);
+  assert.equal(grantStep.result.mutation_applied, true);
+
+  const final = await advanceUntilBoundary({ store, executors, runId: first.run_id });
+  assert.equal(final.status, "recovered");
+  assert.equal(final.closure?.production_mutation_audited, true);
+  assert.equal(executeCount, 1);
 });
