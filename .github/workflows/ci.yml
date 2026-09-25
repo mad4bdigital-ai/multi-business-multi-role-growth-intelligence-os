@@ -614,6 +614,12 @@ jobs:
       - name: Verify Phase B approval single issuance on Windows
         run: node .\\test-staging-recovery-phase-b-approval-single-issuance.mjs
 
+      - name: Verify Staging recovery regressions on Windows
+        run: |
+          node .\\test-staging-recovery-authority-binding.mjs
+          node .\\test-staging-recovery-certification-protocol.mjs
+          node .\\test-platform-recovery-convergence.mjs
+
   staging-semantic-portability:
     name: Staging Semantic Portability
     runs-on: windows-latest
