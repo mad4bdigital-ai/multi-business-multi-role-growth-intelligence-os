@@ -177,7 +177,7 @@ export async function verifyDeploymentAttestation(policy, env, { cryptoImpl = cr
   };
 }
 
-export async function signedRecoveryIngressHeaders(request, policy, requestId, verification, env, workerBuildIdentity, cryptoImpl = crypto, now = () => Date.now()) {
+export async function signedRecoveryIngressHeaders(request, policy, requestId, verification, env, workerBuildIdentity, cryptoImpl = crypto, now = () => Date.now(), bodyBytes = undefined) {
   if (!env.ACTIVATION_GATEWAY_INGRESS_PRIVATE_KEY_JWK || !env.ACTIVATION_GATEWAY_INGRESS_KEY_ID
     || workerBuildIdentity?.source_sha !== verification.sourceCommit
     || !/^[a-f0-9]{64}$/.test(workerBuildIdentity?.bundle_sha256 || "")) {
@@ -186,6 +186,10 @@ export async function signedRecoveryIngressHeaders(request, policy, requestId, v
   const headers = forwardedRequestHeaders(request, policy, requestId);
   const iat = Math.floor(now() / 1000);
   const digest = async (value) => hex(await cryptoImpl.subtle.digest("SHA-256", utf8(value)));
+  const digestBytes = async (value) => hex(await cryptoImpl.subtle.digest(
+    "SHA-256",
+    value instanceof ArrayBuffer || ArrayBuffer.isView(value) ? value : new Uint8Array(0),
+  ));
   const payload = {
     iss: `https://${policy.public_host}`,
     aud: policy.upstream_origin,
@@ -195,10 +199,10 @@ export async function signedRecoveryIngressHeaders(request, policy, requestId, v
     worker_bundle_sha256: workerBuildIdentity.bundle_sha256,
     policy_hash: policy.content_hash_sha256,
     method: request.method,
-    path: new URL(request.url).pathname + new URL(request.url).search,
+    path: new URL(request.url).pathname,
     request_id: requestId,
     auth_digest: await digest(JSON.stringify([headers.get("authorization") || "", headers.get("x-api-key") || ""])),
-    body_digest: await digest(""),
+    body_digest: await digestBytes(bodyBytes),
     iat, exp: Math.min(iat + 30, Math.floor(verification.expiresAtMs / 1000)),
     jti: cryptoImpl.randomUUID(),
     key_id: env.ACTIVATION_GATEWAY_INGRESS_KEY_ID,
@@ -590,7 +594,7 @@ export function createActivationGateway({
         upstream = await fetchImpl(target, {
           method: request.method,
           headers: policy.policy_key === "activation_gateway_staging" && url.pathname.startsWith("/admin/recovery/staging/")
-            ? await signedRecoveryIngressHeaders(request, policy, requestId, verification, env, workerBuildIdentity, cryptoImpl, now)
+            ? await signedRecoveryIngressHeaders(request, policy, requestId, verification, env, workerBuildIdentity, cryptoImpl, now, body)
             : forwardedRequestHeaders(request, policy, requestId),
           body,
           redirect: "manual",
