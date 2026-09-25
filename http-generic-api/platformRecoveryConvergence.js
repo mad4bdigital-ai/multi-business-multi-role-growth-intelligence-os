@@ -609,7 +609,7 @@ async function executeOneStep(run, step, { recoveryStore, executors, approvalRes
         .filter((candidate) => candidate.order < step.order)
         .map((candidate) => ({ key: candidate.key, status: candidate.status, result: candidate.result })),
       secrets_included: false,
-    })));
+    }));
   } catch (error) {
     rawResult = {
       ok: false,
