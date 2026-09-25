@@ -57,7 +57,12 @@ function phaseBFailure(code, message) {
 
 async function openPortableTokenRecordForRead(file) {
   if (process.platform !== "win32") {
-    return open(file, constants.O_RDONLY | constants.O_NOFOLLOW);
+    try {
+      return await open(file, constants.O_RDONLY | constants.O_NOFOLLOW);
+    } catch (error) {
+      if (error?.code === "ENOENT") return null;
+      throw error;
+    }
   }
 
   let before;
