@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { assertRecoveryData } from "./recoveryProofBoundary.js";
 
 export const LOCAL_CONNECTOR_TWO_PHASE_REBIND_CONTRACT = "mad4b.local-connector-two-phase-rebind.v1";
 
@@ -27,16 +28,6 @@ function requireFunction(value, name) {
   return value;
 }
 
-function assertNoCredentialMaterial(value, path = "root") {
-  if (!value || typeof value !== "object") return;
-  for (const [key, item] of Object.entries(value)) {
-    if (/^(secret|password|token|api_key|credential_value|authorization)$/iu.test(key)) {
-      fail("LOCAL_CONNECTOR_REBIND_SECRET_MATERIAL_FORBIDDEN", "Credential material may not cross the rebind coordinator.", 500, { field: `${path}.${key}` });
-    }
-    if (item && typeof item === "object") assertNoCredentialMaterial(item, `${path}.${key}`);
-  }
-}
-
 function assertSafeReceipt(receipt, phase) {
   if (!receipt || typeof receipt !== "object" || Array.isArray(receipt)) {
     fail("LOCAL_CONNECTOR_REBIND_RECEIPT_INVALID", `${phase} did not return a receipt.`, 502);
@@ -44,7 +35,16 @@ function assertSafeReceipt(receipt, phase) {
   if (receipt.secrets_included !== false) {
     fail("LOCAL_CONNECTOR_REBIND_RECEIPT_SECRET_BOUNDARY_INVALID", `${phase} did not prove secrets_included=false.`, 502);
   }
-  assertNoCredentialMaterial(receipt, phase);
+  try {
+    assertRecoveryData(receipt);
+  } catch (error) {
+    fail(
+      "LOCAL_CONNECTOR_REBIND_SECRET_MATERIAL_FORBIDDEN",
+      "Credential material may not cross the rebind coordinator.",
+      500,
+      { phase, error_code: String(error?.code || "recovery_proof_boundary") },
+    );
+  }
   return receipt;
 }
 
