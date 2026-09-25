@@ -287,6 +287,45 @@ await assert.rejects(
   verifyStagingActivationWorkerHandoff({
     sourceSha,
     expectedPolicyHash: profile.expected_policy_hash,
+    callerPlanSha256: exactCommitBootstrapPlanSha,
+    fetchImpl: async () => new Response(JSON.stringify({
+      ...exactCommitBootstrapHealth,
+      policyKey: "wrong_staging_profile",
+    }), { status: 200 }),
+    repositoryRoot: root,
+  }),
+  (error) => error?.code === "staging_activation_worker_handoff_not_stale",
+);
+await assert.rejects(
+  verifyStagingActivationWorkerHandoff({
+    sourceSha,
+    expectedPolicyHash: profile.expected_policy_hash,
+    callerPlanSha256: exactCommitBootstrapPlanSha,
+    fetchImpl: async () => new Response(JSON.stringify({
+      ...exactCommitBootstrapHealth,
+      service: "unexpected-service",
+    }), { status: 200 }),
+    repositoryRoot: root,
+  }),
+  (error) => error?.code === "staging_activation_worker_handoff_not_stale",
+);
+await assert.rejects(
+  verifyStagingActivationWorkerHandoff({
+    sourceSha,
+    expectedPolicyHash: profile.expected_policy_hash,
+    callerPlanSha256: exactCommitBootstrapPlanSha,
+    fetchImpl: async () => new Response(JSON.stringify({
+      ...exactCommitBootstrapHealth,
+      ok: false,
+    }), { status: 200 }),
+    repositoryRoot: root,
+  }),
+  (error) => error?.code === "staging_activation_worker_handoff_not_stale",
+);
+await assert.rejects(
+  verifyStagingActivationWorkerHandoff({
+    sourceSha,
+    expectedPolicyHash: profile.expected_policy_hash,
     callerPlanSha256: first.authoritative_plan_sha256,
     healthUrl: "https://activation.mad4b.com/health",
     fetchImpl: staleFetch,
@@ -307,6 +346,15 @@ assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commi
 assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.requires_same_run_preflight, true);
 assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.caller_selected_provider_target_allowed, false);
 assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.automatic_apply_allowed, false);
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.requires_http_status, 200);
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.requires_service, "activation-gateway");
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.requires_ok, true);
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.requires_stale, false);
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.requires_policy_key, "activation_gateway_staging");
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.requires_policy_hash_match, true);
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.requires_source_worker_equality, true);
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.requires_source_not_desired, true);
+assert.equal(registry.dependencies.activation_gateway.checks.gateway_exact_commit.bootstrap_override.requires_secrets_included_false, true);
 assert.match(workflow, /buildStagingActivationWorkerPreflightBinding/u);
 assert.ok(
   workflow.indexOf("      - name: Verify same-run plan and Worker bundle binding")
