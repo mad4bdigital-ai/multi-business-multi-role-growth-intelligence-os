@@ -53,7 +53,7 @@
 
 - [x] Add exact-SHA deterministic recovery plan and durable run identity.
 - [x] Persist run state, evidence events and idempotency receipts independently of target databases.
-- [x] Sequence backup → inspection → conditional baselines → grants → catalog migration → functional readbacks → activation → connector/rate-limit → Local Manager → deployment parity.
+- [x] Sequence inspection → backup → conditional baselines → grants → bootstrap ledger → catalog migration → functional readbacks → activation → connector/rate-limit → Local Manager → deployment parity.
 - [x] Skip baseline rebuild when the role is not zero-object.
 - [x] Require server-resolved step-bound approval before consequential/bounded mutation executors.
 - [x] Forbid caller-supplied approval as execution truth.
@@ -61,6 +61,6 @@
 - [x] Block blind retry after unknown outcome.
 - [x] Require unknown-outcome reconciliation to be readback-only.
 - [x] Keep credential rebind conditional on credential-invalid and separate from 429 recovery.
-- [x] Add full synthetic convergence regression suite and register it in the repository test manifest.
+- [x] Add full synthetic convergence regression suite and register it in the repository test manifest.\n- [x] Add fixed-origin Production parity read adapter for `/version` + `/deployment-info`.\n- [x] Normalize native full-inspection role classifications/counts into convergence zero-object evidence.\n- [x] Recheck exact deployment parity before every mutation stage.\n- [x] Bind every mutation to a canonical nested authority reference and operation.\n- [x] Gate MCP migration on bootstrap ledger readiness.\n- [x] Classify persistent external 429 as resumable degradation when Retry-After/backoff behavior is healthy.\n- [x] Add and govern the 19-map/16-domain Work Map integration plus pipeline scenario matrix.
 - [ ] Wire live durable store and governed step executors — blocked for separate Production-governed delivery.
 - [ ] Bind live approval resolver to the existing Recovery approval authority — blocked for separate Production-governed delivery.
