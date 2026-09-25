@@ -495,3 +495,99 @@ test("bootstrap ledger must be ready before MCP catalog migration can execute", 
   assert.equal(result.blocking_stage, "bootstrap_ledger_verify");
   assert.equal(calls.includes("mcp_catalog_migration_apply"), false);
 });
+
+
+test("deployment drift between mutations blocks the next mutation without replaying the first", async () => {
+  const store = makeStore();
+  const calls = [];
+  const executors = happyExecutors({ calls });
+  let parityChecks = 0;
+  executors.deployment_parity = async (ctx) => {
+    calls.push("deployment_parity");
+    parityChecks += 1;
+    return parityChecks === 1
+      ? pass(ctx, { exact_sha_parity: true })
+      : {
+          ...pass(ctx),
+          ok: false,
+          status: "blocked",
+          exact_sha_parity: false,
+          error_code: "deployment_moved",
+          next_safe_action: "redeploy_expected_sha",
+        };
+  };
+
+  const first = await runPlatformRecoveryConvergence(
+    { expected_sha: SHA },
+    { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
+  );
+  assert.equal(first.status, "pending");
+  assert.equal(first.steps.find((step) => step.key === "governance_baseline_rebuild").status, "pass");
+  assert.equal(calls.filter((key) => key === "governance_baseline_rebuild").length, 1);
+
+  const second = await runPlatformRecoveryConvergence(
+    { expected_sha: SHA, run_id: first.run_id },
+    { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
+  );
+  assert.equal(second.status, "blocked");
+  assert.equal(second.blocking_stage, "runtime_persistence_baseline_rebuild");
+  assert.equal(second.error_code, "platform_recovery_pre_mutation_parity_failed");
+  assert.equal(calls.filter((key) => key === "runtime_persistence_baseline_rebuild").length, 0);
+  assert.equal(calls.filter((key) => key === "governance_baseline_rebuild").length, 1);
+});
+
+test("missing deployment parity authority blocks before the first mutation", async () => {
+  const store = makeStore();
+  const calls = [];
+  const executors = happyExecutors({ calls });
+  delete executors.deployment_parity;
+
+  const result = await runPlatformRecoveryConvergence(
+    { expected_sha: SHA },
+    { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
+  );
+
+  assert.equal(result.status, "blocked");
+  assert.equal(result.blocking_stage, "governance_baseline_rebuild");
+  assert.equal(result.error_code, "platform_recovery_pre_mutation_parity_unavailable");
+  assert.equal(calls.includes("governance_baseline_rebuild"), false);
+});
+
+test("unknown connector rebind outcome stops before connector verification and Local Manager E2E", async () => {
+  const store = makeStore();
+  const calls = [];
+  const executors = happyExecutors({ calls });
+  executors.connector_auth_probe = async (ctx) => {
+    calls.push("connector_auth_probe");
+    return pass(ctx, {
+      auth_ready: false,
+      failure_kind: "credential_invalid",
+      authenticated_operation_http_status: 401,
+    });
+  };
+  executors.connector_two_phase_rebind = {
+    execute: async (ctx) => {
+      calls.push("connector_two_phase_rebind");
+      return {
+        ...mutationPass(ctx),
+        ok: false,
+        status: "unknown_outcome",
+        request_id: "req-rebind-unknown",
+        error_code: "connector_rebind_commit_outcome_unknown",
+      };
+    },
+    reconcile: async (ctx) => pass(ctx, {
+      reconciled: true,
+      readback_verified: true,
+      new_credential_active: true,
+      old_credential_revoked: true,
+    }),
+  };
+
+  const result = await advanceUntilBoundary({ store, executors });
+  assert.equal(result.status, "unknown_outcome");
+  assert.equal(result.blocking_stage, "connector_two_phase_rebind");
+  assert.equal(result.next_safe_action, "reconcile_same_operation_before_retry");
+  assert.equal(calls.includes("connector_auth_verify"), false);
+  assert.equal(calls.includes("local_manager_e2e_round_trip"), false);
+});
