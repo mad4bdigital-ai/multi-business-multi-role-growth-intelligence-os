@@ -3,6 +3,8 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
+import { readEnvironmentConvergenceRegistry } from "./environmentConvergenceRegistry.js";
 
 const commit = "a".repeat(40);
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "staging-convergence-ack-"));
@@ -10,6 +12,19 @@ const script = path.join(import.meta.dirname, "scripts/staging-environment-conve
 const runtimePath = path.join(dir, "runtime.json");
 const preflightPath = path.join(dir, "preflight.json");
 const wrapper = fs.readFileSync(path.join(import.meta.dirname, "../autopilot-portable-staging/Invoke-Staging-One-Click.ps1"), "utf8");
+const profile = readEnvironmentConvergenceRegistry().profiles.staging.activation_gateway;
+const fetchPreloadPath = path.join(dir, "gateway-fetch-preload.mjs");
+fs.writeFileSync(fetchPreloadPath, `
+globalThis.fetch = async () => {
+  const body = JSON.parse(process.env.MAD4B_TEST_GATEWAY_HEALTH_JSON);
+  return {
+    ok: true,
+    status: 200,
+    async json() { return body; },
+  };
+};
+`, "utf8");
+const preloadOption = `--import=${pathToFileURL(fetchPreloadPath).href}`;
 assert.match(wrapper, /\[string\]\$AcknowledgedConvergencePlanSha256/u);
 assert.match(wrapper, /'--acknowledged-plan-sha256'/u);
 assert.match(wrapper, /\$bridge\.convergence_run\.status -ne 'handoff_ready'/u);
@@ -18,7 +33,22 @@ const run = (ack = null) => spawnSync(process.execPath, [script,
   "--runtime-state", runtimePath, "--preflight", preflightPath,
   "--recovery-trust-exact", "false",
   ...(ack !== null ? ["--acknowledged-plan-sha256", ack] : []),
-], { encoding: "utf8" });
+], {
+  encoding: "utf8",
+  env: {
+    ...process.env,
+    NODE_OPTIONS: [process.env.NODE_OPTIONS, preloadOption].filter(Boolean).join(" "),
+    MAD4B_TEST_GATEWAY_HEALTH_JSON: JSON.stringify({
+      ok: true,
+      service: "activation-gateway",
+      policyKey: profile.policy_key,
+      policyHash: profile.expected_policy_hash,
+      sourceCommit: JSON.parse(fs.readFileSync(runtimePath, "utf8")).commit,
+      workerBuildSha: JSON.parse(fs.readFileSync(runtimePath, "utf8")).commit,
+      stale: false,
+    }),
+  },
+});
 
 try {
   write(runtimePath, { commit, certification_degraded_reasons: ["gateway_exact_commit"] });
