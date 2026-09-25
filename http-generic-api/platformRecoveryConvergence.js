@@ -439,7 +439,12 @@ function mutationEvidenceGate(run, step) {
     if (zeroObject === true) {
       return { ready: false, skip: true, reason: "zero_object_role_uses_baseline_rebuild" };
     }
-    if (zeroObject !== false) {
+    const roleEvidence = inspection?.roles?.runtime_persistence || {};
+    const explicitNonempty = roleEvidence.classification === "nonempty_objects"
+      && Number.isInteger(Number(roleEvidence.object_count_total))
+      && Number(roleEvidence.object_count_total) > 0
+      && roleEvidence.zero_object === false;
+    if (!explicitNonempty) {
       return {
         ready: false,
         error_code: "platform_recovery_runtime_persistence_object_evidence_unavailable",
@@ -516,8 +521,18 @@ function validateBoundResult(run, step, result, { mode = "execute" } = {}) {
 
   if (step.key === "database_full_inspection" && status === "pass") {
     for (const role of ["runtime", "governance", "runtime_persistence"]) {
-      if (typeof value.roles?.[role]?.zero_object !== "boolean") {
-        fail("PLATFORM_RECOVERY_INSPECTION_ROLE_INVALID", `Full inspection is missing zero_object evidence for ${role}.`, 502);
+      const evidence = value.roles?.[role] || {};
+      const classification = text(evidence.classification, 64);
+      const count = Number(evidence.object_count_total);
+      if (
+        typeof evidence.zero_object !== "boolean"
+        || !["zero_objects", "nonempty_objects"].includes(classification)
+        || !Number.isInteger(count)
+        || count < 0
+        || (classification === "zero_objects" && (count !== 0 || evidence.zero_object !== true))
+        || (classification === "nonempty_objects" && (count <= 0 || evidence.zero_object !== false))
+      ) {
+        fail("PLATFORM_RECOVERY_INSPECTION_ROLE_INVALID", `Full inspection object census is incomplete or inconsistent for ${role}.`, 502);
       }
     }
     if (value.durable !== true) fail("PLATFORM_RECOVERY_INSPECTION_NOT_DURABLE", "Full inspection evidence is not durable.", 502);
