@@ -10,6 +10,7 @@ param(
     [int]$LogonDelaySeconds = 25,
     [ValidateRange(60, 600)]
     [int]$BootGraceSeconds = 180,
+    [switch]$EnableActivationGateway,
     [switch]$StartTunnel,
     [ValidateSet("disabled", "windows_service", "docker_sidecar")]
     [string]$TunnelMode = "disabled",
