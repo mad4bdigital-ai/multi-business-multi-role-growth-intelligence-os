@@ -48,7 +48,6 @@ $escapedScript = $autoDeployScript.Replace('"', '\"')
 $escapedRepo = $RepositoryPath.Replace('"', '\"')
 $arguments = "-NoLogo -NoProfile -ExecutionPolicy Bypass -File `"$escapedScript`" -RepositoryPath `"$escapedRepo`" -Watch -PollSeconds $PollSeconds -BuildMode $BuildMode -TunnelMode $TunnelMode"
 if ($EnableActivationGateway) { $arguments += " -EnableActivationGateway" }
-if ($EnableActivationGateway) { $arguments += " -EnableActivationGateway" }
 
 $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Highest
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) -MultipleInstances IgnoreNew
