@@ -630,3 +630,20 @@ test("convergence plan declares canonical nested authorities for every mutating 
     assert.equal(step.nested_authority_required, true);
   }
 });
+
+
+test("server approval nested operation must match the exact stage", async () => {
+  const store = makeStore();
+  const calls = [];
+  const executors = happyExecutors({ calls });
+  const badResolver = async (ctx) => ({
+    ...(await happyApprovalResolver(ctx)),
+    nested_operation: "different_nested_operation",
+  });
+
+  await assert.rejects(
+    advanceUntilBoundary({ store, executors, approvalResolver: badResolver }),
+    (error) => error.code === "PLATFORM_RECOVERY_APPROVAL_BINDING_INVALID",
+  );
+  assert.equal(calls.includes("governance_baseline_rebuild"), false);
+});
