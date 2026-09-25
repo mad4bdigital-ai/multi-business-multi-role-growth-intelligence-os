@@ -372,3 +372,84 @@ test("missing inspection readiness remains unknown instead of becoming a repair 
   assert.equal(normalized.roles.runtime_persistence.object_count_total, 4);
   assert.equal(normalized.roles.runtime_persistence.zero_object, false);
 });
+
+
+test("partial non-empty runtime persistence drift routes to Recovery Kernel remediation planning", async () => {
+  const executors = createPlatformRecoveryConvergenceReadExecutors({
+    env: ENV,
+    deploymentParityReader: async () => ({ exact_sha_parity: true }),
+    runtimePersistenceBaselineReadinessReader: async () => ({
+      baseline_ready: false,
+      secrets_included: false,
+    }),
+  });
+  const context = ctx("runtime_persistence_baseline_verify", {
+    prior_steps: [{
+      key: "database_full_inspection",
+      status: "pass",
+      result: {
+        checks: { runtime_persistence_ready: false },
+        roles: {
+          runtime_persistence: {
+            zero_object: false,
+            classification: "nonempty_objects",
+            object_count_total: 4,
+          },
+        },
+      },
+    }],
+  });
+
+  const result = await executors.runtime_persistence_baseline_verify(context);
+  assert.equal(result.status, "blocked");
+  assert.equal(
+    result.error_code,
+    "platform_recovery_runtime_persistence_partial_schema_drift_requires_remediation_plan",
+  );
+  assert.equal(
+    result.next_safe_action,
+    "create_recovery_kernel_remediation_plan_for_runtime_persistence_schema_repair",
+  );
+  assert.equal(result.registered_capability, "runtime_persistence.schema.repair");
+  assert.equal(result.direct_migration_first_forbidden, true);
+  assert.equal(result.mutation_performed, false);
+});
+
+test("missing runtime persistence readiness requests a new inspection instead of repair", async () => {
+  const executors = createPlatformRecoveryConvergenceReadExecutors({
+    env: ENV,
+    deploymentParityReader: async () => ({ exact_sha_parity: true }),
+    runtimePersistenceBaselineReadinessReader: async () => ({
+      baseline_ready: false,
+      secrets_included: false,
+    }),
+  });
+  const context = ctx("runtime_persistence_baseline_verify", {
+    prior_steps: [{
+      key: "database_full_inspection",
+      status: "pass",
+      result: {
+        checks: { runtime_persistence_ready: null },
+        roles: {
+          runtime_persistence: {
+            zero_object: false,
+            classification: "nonempty_objects",
+            object_count_total: 4,
+          },
+        },
+      },
+    }],
+  });
+
+  const result = await executors.runtime_persistence_baseline_verify(context);
+  assert.equal(result.status, "blocked");
+  assert.equal(
+    result.error_code,
+    "platform_recovery_runtime_persistence_readiness_evidence_unavailable",
+  );
+  assert.equal(
+    result.next_safe_action,
+    "rerun_full_inspection_with_runtime_persistence_readiness",
+  );
+  assert.equal(result.mutation_performed, false);
+});
