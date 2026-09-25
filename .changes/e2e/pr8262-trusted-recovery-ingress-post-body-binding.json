@@ -27,7 +27,8 @@
       "http-generic-api/test-staging-auto-deploy-contract.mjs",
       "http-generic-api/test-windows-staging-bootstrap-supervisor.mjs",
       "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs",
-      "edge/activation-gateway/test-ingress-signing-diagnostics.mjs"
+      "edge/activation-gateway/test-ingress-signing-diagnostics.mjs",
+      "http-generic-api/test-staging-one-click-autopilot-core.mjs"
     ]
   },
   "merge_contract": {
@@ -131,6 +132,13 @@
               "working_directory": "edge/activation-gateway",
               "path": "test-ingress-signing-diagnostics.mjs",
               "args": []
+            },
+            {
+              "id": "staging-one-click-autopilot-core",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-one-click-autopilot-core.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -154,7 +162,8 @@
             "http-generic-api/test-staging-auto-deploy-contract.mjs",
             "http-generic-api/test-windows-staging-bootstrap-supervisor.mjs",
             "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs",
-            "edge/activation-gateway/test-ingress-signing-diagnostics.mjs"
+            "edge/activation-gateway/test-ingress-signing-diagnostics.mjs",
+            "http-generic-api/test-staging-one-click-autopilot-core.mjs"
           ]
         }
       ],
@@ -206,6 +215,13 @@
           "runner": "node",
           "working_directory": "edge/activation-gateway",
           "path": "test-ingress-signing-diagnostics.mjs",
+          "args": []
+        },
+        {
+          "id": "staging-one-click-autopilot-core",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-staging-one-click-autopilot-core.mjs",
           "args": []
         }
       ]
