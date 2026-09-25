@@ -103,6 +103,7 @@ function happyExecutors({ zeroGovernance = true, zeroPersistence = true, calls =
     runtime_persistence_baseline_verify: wrap("runtime_persistence_baseline_verify", (ctx) => pass(ctx, { baseline_ready: true })),
     canonical_grants_apply: wrap("canonical_grants_apply", (ctx) => mutationPass(ctx)),
     canonical_grants_verify: wrap("canonical_grants_verify", (ctx) => pass(ctx, { grants_ready: true })),
+    bootstrap_ledger_verify: wrap("bootstrap_ledger_verify", (ctx) => pass(ctx, { bootstrap_ledger_ready: true })),
     mcp_catalog_migration_apply: wrap("mcp_catalog_migration_apply", (ctx) => mutationPass(ctx)),
     mcp_catalog_verify: wrap("mcp_catalog_verify", (ctx) => pass(ctx, { mcp_catalog_level_ready: true })),
     response_chunk_storage_smoke: wrap("response_chunk_storage_smoke", (ctx) => mutationPass(ctx, { write_read_verified: true })),
@@ -427,4 +428,70 @@ test("unknown-outcome reconciliation cannot perform a second mutation", async ()
     ),
     (error) => error.code === "PLATFORM_RECOVERY_RECONCILIATION_MUTATION_FORBIDDEN",
   );
+});
+
+
+test("one advance call executes at most one consequential step", async () => {
+  const store = makeStore();
+  const calls = [];
+  const executors = happyExecutors({ calls });
+
+  const first = await runPlatformRecoveryConvergence(
+    { expected_sha: SHA },
+    { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
+  );
+
+  assert.equal(first.status, "pending");
+  assert.equal(first.steps.find((step) => step.key === "governance_baseline_rebuild").status, "pass");
+  assert.equal(first.steps.find((step) => step.key === "runtime_persistence_baseline_rebuild").status, "pending");
+  assert.equal(calls.filter((key) => key === "governance_baseline_rebuild").length, 1);
+  assert.equal(calls.filter((key) => key === "runtime_persistence_baseline_rebuild").length, 0);
+});
+
+test("full inspection runs before backup evidence and no mutation starts when backup blocks", async () => {
+  const store = makeStore();
+  const calls = [];
+  const executors = happyExecutors({ calls });
+  executors.backup_evidence = async (ctx) => {
+    calls.push("backup_evidence");
+    return {
+      ...pass(ctx),
+      ok: false,
+      status: "blocked",
+      error_code: "backup_not_ready",
+      next_safe_action: "capture_backup",
+    };
+  };
+
+  const result = await runPlatformRecoveryConvergence(
+    { expected_sha: SHA },
+    { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
+  );
+
+  assert.equal(result.status, "blocked");
+  assert.equal(result.blocking_stage, "backup_evidence");
+  assert.ok(calls.indexOf("database_full_inspection") >= 0);
+  assert.ok(calls.indexOf("database_full_inspection") < calls.indexOf("backup_evidence"));
+  assert.equal(calls.includes("governance_baseline_rebuild"), false);
+});
+
+test("bootstrap ledger must be ready before MCP catalog migration can execute", async () => {
+  const store = makeStore();
+  const calls = [];
+  const executors = happyExecutors({ zeroGovernance: false, zeroPersistence: false, calls });
+  executors.bootstrap_ledger_verify = async (ctx) => {
+    calls.push("bootstrap_ledger_verify");
+    return {
+      ...pass(ctx),
+      ok: false,
+      status: "blocked",
+      error_code: "bootstrap_ledger_not_ready",
+      next_safe_action: "repair_bootstrap_ledger",
+    };
+  };
+
+  const result = await advanceUntilBoundary({ store, executors });
+  assert.equal(result.status, "blocked");
+  assert.equal(result.blocking_stage, "bootstrap_ledger_verify");
+  assert.equal(calls.includes("mcp_catalog_migration_apply"), false);
 });
