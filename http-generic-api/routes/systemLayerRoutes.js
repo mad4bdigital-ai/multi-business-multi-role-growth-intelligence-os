@@ -108,6 +108,7 @@ const SHARED_ADMIN_RECOVERY_READONLY_CAPABILITIES = new Set([
   "tool_surface_parity",
   "recovery_capabilities",
   "production_activation_readiness",
+  "production_recovery_closure",
   "database_full_inspection",
   "finding_details",
   "remediation_plan_create",
