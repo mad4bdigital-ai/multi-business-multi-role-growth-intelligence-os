@@ -273,10 +273,7 @@ test("credential-invalid connector probe invokes two-phase rebind before authent
     return pass(ctx, { auth_ready: false, failure_kind: "credential_invalid", authenticated_operation_http_status: 401 });
   };
 
-  const result = await runPlatformRecoveryConvergence(
-    { expected_sha: SHA },
-    { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
-  );
+  const result = await advanceUntilBoundary({ store, executors });
 
   assert.equal(result.status, "active");
   assert.equal(result.steps.find((step) => step.key === "connector_two_phase_rebind").status, "pass");
@@ -302,10 +299,7 @@ test("rate limited connector recovery honors the rate-limit contract and never t
     });
   };
 
-  const result = await runPlatformRecoveryConvergence(
-    { expected_sha: SHA },
-    { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
-  );
+  const result = await advanceUntilBoundary({ store, executors });
 
   assert.equal(result.status, "active");
   assert.equal(result.steps.find((step) => step.key === "local_manager_rate_limit_recovery").status, "pass");
@@ -332,10 +326,7 @@ test("two-phase rebind rejects revoking the old credential before the new creden
   });
 
   await assert.rejects(
-    runPlatformRecoveryConvergence(
-      { expected_sha: SHA },
-      { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
-    ),
+    advanceUntilBoundary({ store, executors }),
     (error) => error.code === "PLATFORM_RECOVERY_CONNECTOR_REBIND_INCOMPLETE"
       || error.code === "PLATFORM_RECOVERY_CONNECTOR_REBIND_ORDER_INVALID",
   );
@@ -369,10 +360,11 @@ test("server approval resolver is required before any mutation executor is invok
   const calls = [];
   const executors = happyExecutors({ calls });
 
-  const result = await runPlatformRecoveryConvergence(
-    { expected_sha: SHA },
-    { recoveryStore: store, executors },
-  );
+  const result = await advanceUntilBoundary({
+    store,
+    executors,
+    approvalResolver: null,
+  });
 
   assert.equal(result.status, "awaiting_approval");
   assert.equal(result.blocking_stage, "governance_baseline_rebuild");
@@ -405,10 +397,7 @@ test("server approval must bind exact SHA run plan step and idempotency key", as
   });
 
   await assert.rejects(
-    runPlatformRecoveryConvergence(
-      { expected_sha: SHA },
-      { recoveryStore: store, executors, approvalResolver: badResolver },
-    ),
+    advanceUntilBoundary({ store, executors, approvalResolver: badResolver }),
     (error) => error.code === "PLATFORM_RECOVERY_APPROVAL_BINDING_INVALID",
   );
   assert.equal(calls.includes("governance_baseline_rebuild"), false);
@@ -416,7 +405,7 @@ test("server approval must bind exact SHA run plan step and idempotency key", as
 
 test("unknown-outcome reconciliation cannot perform a second mutation", async () => {
   const store = makeStore();
-  const executors = happyExecutors();
+  const executors = happyExecutors({ zeroGovernance: false, zeroPersistence: false });
   executors.canonical_grants_apply = {
     execute: async (ctx) => ({
       ...mutationPass(ctx),
@@ -428,10 +417,7 @@ test("unknown-outcome reconciliation cannot perform a second mutation", async ()
     reconcile: async (ctx) => mutationPass(ctx, { reconciled: true }),
   };
 
-  const first = await runPlatformRecoveryConvergence(
-    { expected_sha: SHA },
-    { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
-  );
+  const first = await advanceUntilBoundary({ store, executors });
   assert.equal(first.status, "unknown_outcome");
 
   await assert.rejects(
