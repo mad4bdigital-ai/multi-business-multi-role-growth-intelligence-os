@@ -102,6 +102,23 @@ test("full inspection normalization preserves all role zero-object evidence and 
     inspection_evidence_hash: "c".repeat(64),
     durability: { inspection_durable: true },
     trust: { target_fingerprints: { composite: TARGET_FINGERPRINT } },
+    findings: [{
+      finding_id: "finding:1234567890abcdef1234567890abcdef",
+      candidate_capability: "runtime_persistence.schema.repair",
+      category: "schema_drift",
+      repairability: "deterministic",
+      subject: { target_role: "runtime_persistence" },
+      inspection_run_id: "run:inspection:1",
+      inspection_evidence_hash: "c".repeat(64),
+      mutation_required: true,
+      observed_state: {
+        actual: {
+          password: "must-not-cross-normalization",
+          raw_sql: "must-not-cross-normalization",
+        },
+      },
+      secrets_included: false,
+    }],
     inspection: {
       checks: {
         governance_db_privilege_ready: true,
@@ -134,6 +151,19 @@ test("full inspection normalization preserves all role zero-object evidence and 
   assert.equal(normalized.checks.governance_db_privilege_ready, true);
   assert.equal(normalized.checks.mcp_catalog_schema_ready, true);
   assert.equal(normalized.checks.runtime_persistence_ready, false);
+  assert.equal(normalized.findings.length, 1);
+  assert.deepEqual(normalized.findings[0], {
+    finding_id: "finding:1234567890abcdef1234567890abcdef",
+    candidate_capability: "runtime_persistence.schema.repair",
+    category: "schema_drift",
+    repairability: "deterministic",
+    target_role: "runtime_persistence",
+    inspection_run_id: "run:inspection:1",
+    inspection_evidence_hash: "c".repeat(64),
+    mutation_required: true,
+    secrets_included: false,
+  });
+  assert.equal(JSON.stringify(normalized).includes("must-not-cross-normalization"), false);
 });
 
 test("identity adapter combines server identity with fixed public parity", async () => {
@@ -452,4 +482,54 @@ test("missing runtime persistence readiness requests a new inspection instead of
     "rerun_full_inspection_with_runtime_persistence_readiness",
   );
   assert.equal(result.mutation_performed, false);
+});
+
+
+test("invalid or unbound inspection findings are dropped from convergence evidence", () => {
+  const normalized = normalizeFullInspectionForConvergence({
+    run_id: "run:inspection:drop-invalid",
+    inspection_evidence_hash: "c".repeat(64),
+    durability: { inspection_durable: true },
+    trust: { target_fingerprints: { composite: TARGET_FINGERPRINT } },
+    findings: [
+      {
+        finding_id: "finding:not-hex",
+        candidate_capability: "runtime_persistence.schema.repair",
+        category: "schema_drift",
+        repairability: "deterministic",
+        subject: { target_role: "runtime_persistence" },
+        inspection_run_id: "run:inspection:drop-invalid",
+        inspection_evidence_hash: "c".repeat(64),
+        mutation_required: true,
+      },
+      {
+        finding_id: "finding:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        candidate_capability: "runtime_persistence.schema.repair",
+        category: "schema_drift",
+        repairability: "deterministic",
+        subject: { target_role: "runtime_persistence" },
+        inspection_run_id: "run:inspection:drop-invalid",
+        inspection_evidence_hash: "short",
+        mutation_required: true,
+      },
+    ],
+    inspection: {
+      checks: {
+        governance_db_privilege_ready: true,
+        mcp_catalog_schema_ready: true,
+        runtime_persistence_ready: false,
+      },
+      role_database_object_classifications: {
+        runtime: "nonempty_objects",
+        governance: "nonempty_objects",
+        runtime_persistence: "nonempty_objects",
+      },
+      role_database_object_counts: {
+        runtime: { total: 7 },
+        governance: { total: 5 },
+        runtime_persistence: { total: 4 },
+      },
+    },
+  });
+  assert.deepEqual(normalized.findings, []);
 });
