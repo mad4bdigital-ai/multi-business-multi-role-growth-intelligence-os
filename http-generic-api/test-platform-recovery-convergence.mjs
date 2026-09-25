@@ -713,20 +713,15 @@ test("final closure is recovered only from same-run durable evidence", async () 
   assert.equal(result.closure?.backup_evidence?.target_fingerprint, "f".repeat(64));
 });
 
-test("duplicate concurrent orchestration claim blocks a second mutation invocation", async () => {
+test("duplicate concurrent orchestration claim blocks mutation before executor invocation", async () => {
   const store = makeStore();
-  const executors = happyExecutors({ zeroGovernance: false, zeroPersistence: false });
-  const originalClaim = store.claimExecution.bind(store);
-  let holdClaim = false;
-  store.claimExecution = async (context) => {
-    const result = await originalClaim(context);
-    if (!holdClaim && result.claimed === true) {
-      holdClaim = true;
-      return result;
-    }
-    return { existing: true, status: "claimed", claim_id: "claim:existing" };
-  };
-  store.releaseExecutionClaim = async () => ({ released: true });
+  const calls = [];
+  const executors = happyExecutors({ zeroGovernance: false, zeroPersistence: false, calls });
+  store.claimExecution = async () => ({
+    existing: true,
+    status: "claimed",
+    claim_id: "claim:already-running",
+  });
 
   await assert.rejects(
     runPlatformRecoveryConvergence(
@@ -735,6 +730,7 @@ test("duplicate concurrent orchestration claim blocks a second mutation invocati
     ),
     (error) => error.code === "PLATFORM_RECOVERY_STEP_EXECUTION_IN_PROGRESS",
   );
+  assert.equal(calls.includes("canonical_grants_apply"), false);
 });
 
 test("mutation without a verified terminal receipt is promoted to unknown outcome", async () => {
@@ -751,4 +747,39 @@ test("mutation without a verified terminal receipt is promoted to unknown outcom
   assert.equal(result.status, "unknown_outcome");
   assert.equal(result.blocking_stage, "canonical_grants_apply");
   assert.equal(result.next_safe_action, "reconcile_same_operation_before_retry");
+});
+
+
+test("already-ready grants and MCP catalog are verified without mutation", async () => {
+  const store = makeStore();
+  const calls = [];
+  const executors = happyExecutors({ zeroGovernance: false, zeroPersistence: false, calls });
+  executors.database_full_inspection = async (ctx) => {
+    calls.push("database_full_inspection");
+    return pass(ctx, {
+      durable: true,
+      inspection_run_id: "run:inspection:pre-ready",
+      inspection_evidence_hash: "e".repeat(64),
+      target_fingerprint: "f".repeat(64),
+      checks: {
+        governance_db_privilege_ready: true,
+        mcp_catalog_schema_ready: true,
+        runtime_persistence_ready: true,
+      },
+      roles: {
+        runtime: { zero_object: false },
+        governance: { zero_object: false },
+        runtime_persistence: { zero_object: false },
+      },
+    });
+  };
+
+  const result = await advanceUntilBoundary({ store, executors });
+  assert.equal(result.status, "recovered");
+  assert.equal(calls.includes("canonical_grants_apply"), false);
+  assert.equal(calls.includes("mcp_catalog_migration_apply"), false);
+  assert.equal(calls.includes("canonical_grants_verify"), true);
+  assert.equal(calls.includes("mcp_catalog_verify"), true);
+  assert.equal(result.steps.find((step) => step.key === "canonical_grants_apply").status, "skipped_not_required");
+  assert.equal(result.steps.find((step) => step.key === "mcp_catalog_migration_apply").status, "skipped_not_required");
 });
