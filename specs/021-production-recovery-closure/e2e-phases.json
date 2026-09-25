@@ -74,6 +74,7 @@
             "Run durable full inspection and classify zero-object roles.",
             "Rebuild governance only when governance is proven zero-object and verify its baseline.",
             "Rebuild runtime-persistence only when runtime-persistence is proven zero-object and verify its baseline.",
+            "For a non-empty runtime-persistence role, run only the registered runtime_persistence.schema.repair authority when the durable inspection explicitly proves runtime_persistence_ready=false; missing readiness evidence blocks.",
             "Apply and verify canonical least-privilege grants through nested Recovery authority.",
             "Apply the MCP catalog migration only after baselines and grants are verified.",
             "Verify MCP catalog schema, durable response chunk write/read smoke, Admin tool readback, Device tool readback, and Production activation readiness."
@@ -84,7 +85,10 @@
             "Caller-selected SQL, database names, credentials, or migration filenames are forbidden.",
             "Consequential stages require nested server-resolved authority plus same-cycle readback.",
             "Unknown mutation outcome blocks blind retry and requires reconciliation under the same run and idempotency key.",
-            "A verified step is never replayed when a later stage blocks."
+            "A verified step is never replayed when a later stage blocks.",
+            "Missing readiness evidence remains unknown/null and never authorizes a grant, MCP migration, or runtime-persistence schema repair.",
+            "A role-dependent repair requires a consistent zero_objects/nonempty_objects classification and object count.",
+            "Partial non-empty Runtime or unregistered Governance schema corruption remains fail-closed rather than falling back to raw SQL."
           ],
           "tests": [
             {
@@ -200,13 +204,14 @@
           "level": "synthetic_runtime",
           "actor": "Recovery Control Plane",
           "entrypoint": "Resumed durable convergence run after database and connector readiness",
-          "terminal_outcome": "The platform reaches status=recovered with active=true only after Local Manager create→claim→complete, final same-cycle deployment parity, every prior gate, and the Production Recovery closure evaluator are proven; otherwise it returns a resumable blocked, degraded, or unknown-outcome state.",
+          "terminal_outcome": "The platform reaches status=recovered with active=true only after Local Manager create→claim→complete, final same-cycle deployment parity, final Production activation recertification, every prior gate, and the Production Recovery closure evaluator are proven; otherwise it returns a resumable blocked, degraded, or unknown-outcome state.",
           "steps": [
             "Create a governed Local Manager command.",
             "Require authenticated device claim with lease ownership.",
             "Complete the command with the matching claim token and same device authority.",
             "Verify exact deployment SHA parity again after recovery actions.",
             "Derive final gate only after every preceding step is pass or explicitly skipped_not_required.",
+            "Re-run Production activation readiness after the last mutation and after final deployment parity.",
             "Persist terminal run evidence and idempotency receipt."
           ],
           "assertions": [
@@ -215,7 +220,10 @@
             "A restarted caller resumes the same durable run rather than creating duplicate repair effects.",
             "Terminal blocked/degraded results preserve blocking_stage, error_code, request_id when available, and next_safe_action.",
             "A stale executing checkpoint from a prior process is never replayed; after the bounded liveness window it requires read-only reconciliation under the original idempotency key.",
-            "A final same-cycle deployment parity readback runs inside the final gate, so a deployment change after the earlier parity stage blocks recovered."
+            "A final same-cycle deployment parity readback runs inside the final gate, so a deployment change after the earlier parity stage blocks recovered.",
+            "Every mutating stage uses a durable orchestration claim plus an exact approval reservation/finalization fence around the nested Recovery authority.",
+            "Final activation regression after connector or Local Manager mutation blocks recovered even when the earlier activation readback was ready.",
+            "Read-only reconciliation preserves the original mutation audit and never performs a second mutation."
           ],
           "tests": [
             {
