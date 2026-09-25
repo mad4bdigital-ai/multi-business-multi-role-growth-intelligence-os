@@ -8,7 +8,7 @@
     "inventory_catalog_fingerprint": "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2",
     "catalog_fingerprint": "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2",
     "write_scope_count": 6,
-    "route_count": 680
+    "route_count": 681
   },
   "scope_selection": [
     "approvals.request",
@@ -38,7 +38,7 @@
           "http-generic-api/routes/managedExecutionRoutes.js#POST:/approval-holds/:id/decide:15",
           "http-generic-api/routes/platformEngineRoutes.js#POST:/platform/engines/database-lifecycle/scheduler-approval-metadata:17",
           "http-generic-api/routes/platformEngineRoutes.js#POST:/platform/engines/database-lifecycle/scheduler-approval-readback:18",
-          "http-generic-api/routes/recoveryKernelRoutes.js#POST:/admin/recovery/kernel/approval-challenge:1",
+          "http-generic-api/routes/recoveryKernelRoutes.js#POST:/admin/recovery/kernel/approval-challenge:2",
           "http-generic-api/routes/sessionInsightCapabilityEnvelopeApprovalRoutes.js#POST:/platform/session-insight-promotions/capability-envelope-approvals/decision:0",
           "http-generic-api/routes/sessionInsightCapabilityEnvelopeApprovalRoutes.js#POST:/platform/session-insight-promotions/capability-envelope-approvals/list:1",
           "http-generic-api/routes/supportTicketRoutes.js#POST:/admin/support/tickets/:ticket_id/approval-hold/decision:62",
@@ -462,5 +462,5 @@
     "credential_payload_reads": false,
     "secrets_included": false
   },
-  "evidence_fingerprint": "39768ae1a59cd2198cc65026fb8886a5a39f1184613e62dba4bd1013962bdbcf"
+  "evidence_fingerprint": "2fa3b961679492624be87a143e3c9d8f3a901e8002c292b03ff1174d1899418e"
 }
