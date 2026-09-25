@@ -8,6 +8,7 @@ import {
   sanitizeEvidence,
 } from "../recoveryKernel.js";
 import { runPlatformRecoveryConvergence } from "../platformRecoveryConvergence.js";
+import { createPlatformRecoveryConvergenceReadExecutors } from "../platformRecoveryConvergenceReadAdapters.js";
 import {
   buildRecoveryTypedConfirmationRequirements,
   issueAndExecuteApprovedRecoveryStep,
@@ -161,6 +162,18 @@ export function buildRecoveryKernelRoutes(options = {}) {
     hostBreakglassMutationExecutor,
     migrationLedger,
     productionActivationReadinessExecutor,
+    productionActivationReadinessReader,
+    productionRecoveryBackupEvidenceReader,
+    governanceBaselineReadinessReader,
+    runtimePersistenceBaselineReadinessReader,
+    canonicalGrantsReadinessReader,
+    bootstrapLedgerReadinessReader,
+    mcpCatalogReadinessReader,
+    adminToolsFunctionalReadbackReader,
+    deviceToolsFunctionalReadbackReader,
+    connectorAuthProbeReader,
+    localManagerRateLimitRecoveryReader,
+    productionDeploymentParityReader,
     platformRecoveryConvergenceExecutors,
     platformRecoveryConvergenceApprovalResolver,
     systemToolLookup,
@@ -170,6 +183,30 @@ export function buildRecoveryKernelRoutes(options = {}) {
     mutationRecoveryStore,
   } = resolveRecoveryRouteStores(options, recoveryStore);
   const router = Router();
+  const basePlatformRecoveryConvergenceExecutors = createPlatformRecoveryConvergenceReadExecutors({
+    env,
+    repoRoot,
+    recoveryStore: readOnlyRecoveryStore,
+    hostLocalInspectionExecutor,
+    ...(typeof productionDeploymentParityReader === "function" ? { deploymentParityReader: productionDeploymentParityReader } : {}),
+    backupEvidenceReader: productionRecoveryBackupEvidenceReader,
+    governanceBaselineReadinessReader,
+    runtimePersistenceBaselineReadinessReader,
+    canonicalGrantsReadinessReader,
+    bootstrapLedgerReadinessReader,
+    mcpCatalogReadinessReader,
+    adminToolsReadbackReader: adminToolsFunctionalReadbackReader,
+    deviceToolsReadbackReader: deviceToolsFunctionalReadbackReader,
+    productionActivationReadinessReader: productionActivationReadinessReader || productionActivationReadinessExecutor,
+    connectorAuthProbeReader,
+    localManagerRateLimitRecoveryReader,
+  });
+  const effectivePlatformRecoveryConvergenceExecutors = Object.freeze({
+    ...basePlatformRecoveryConvergenceExecutors,
+    ...(platformRecoveryConvergenceExecutors && typeof platformRecoveryConvergenceExecutors === "object" && !Array.isArray(platformRecoveryConvergenceExecutors)
+      ? platformRecoveryConvergenceExecutors
+      : {}),
+  });
   const guards = [requireBackendApiKey, requireAdminPrincipal].filter((value) => typeof value === "function");
   const fixedSystemToolLookup = systemToolLookup || (async (key, input = {}) => {
     const { SYSTEM_LAYER_TOOLS } = await import("./systemLayerRoutes.js");
@@ -273,7 +310,7 @@ export function buildRecoveryKernelRoutes(options = {}) {
       const action = String(body.action || "advance").trim().toLowerCase();
       const result = await runPlatformRecoveryConvergence(body, {
         recoveryStore: mutationRecoveryStore,
-        executors: platformRecoveryConvergenceExecutors || {},
+        executors: effectivePlatformRecoveryConvergenceExecutors,
         approvalResolver: platformRecoveryConvergenceApprovalResolver,
       });
       const statusCode = action === "status" ? 200 : 202;
