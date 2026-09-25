@@ -46,7 +46,9 @@
       "http-generic-api/platformRecoveryConvergenceReadAdapters.js",
       "http-generic-api/test-platform-recovery-convergence-read-adapters.mjs",
       "specs/021-production-recovery-closure/pipeline-scenario-matrix.md",
-      "http-generic-api/test-production-recovery-closure.mjs"
+      "http-generic-api/test-production-recovery-closure.mjs",
+      "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json"
     ]
   },
   "merge_contract": {
