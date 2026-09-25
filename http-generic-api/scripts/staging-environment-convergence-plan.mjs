@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { runEnvironmentConvergence } from "../environmentConvergenceEngine.js";
 import { readEnvironmentConvergenceRegistry } from "../environmentConvergenceRegistry.js";
+import { observeStagingGatewayConvergence } from "../stagingEnvironmentConvergenceObservation.js";
 
 const SHA_RE = /^[0-9a-f]{40}$/u;
 const HASH_RE = /^[0-9a-f]{64}$/u;
@@ -87,9 +88,14 @@ try {
   const runtime = readJson(args.runtimeState, "AutoPilot runtime state");
   const preflight = readJson(args.preflight, "Staging schema/governance preflight report");
   const commit = validateInputs(runtime, preflight);
+  const liveGateway = await observeStagingGatewayConvergence({
+    registry,
+    expectedCommit: commit,
+  });
   const observedReasons = values([
     ...values(runtime.certification_blocking_failures),
     ...values(runtime.certification_degraded_reasons),
+    ...values(liveGateway.reasons),
     ...(args.recoveryTrustExact ? [] : ["gateway_recovery_trusted_ingress"]),
   ]);
   const staleWorkerRefreshRequired = observedReasons.includes("gateway_policy_not_stale");
@@ -98,7 +104,9 @@ try {
     : [];
   const reasons = observedReasons.filter((reason) => !deferredReasons.includes(reason));
   const runtimeObservedGatewaySourceCommit = String(runtime?.activation_gateway_source_commit || "").trim().toLowerCase() || null;
-  const planObservedGatewaySourceCommit = staleWorkerRefreshRequired ? null : runtimeObservedGatewaySourceCommit;
+  const liveObservedGatewaySourceCommit = String(liveGateway.observation?.sourceCommit || "").trim().toLowerCase() || null;
+  const observedGatewaySourceCommit = liveObservedGatewaySourceCommit || runtimeObservedGatewaySourceCommit;
+  const planObservedGatewaySourceCommit = staleWorkerRefreshRequired ? null : observedGatewaySourceCommit;
 
   if (reasons.length === 0) {
     if (args.acknowledgedPlanSha256) {
@@ -113,6 +121,7 @@ try {
       deferred_reasons: deferredReasons,
       report: { convergence: { status: "converged", next_governed_handoff: null } },
       convergence_run: null,
+      gateway_observation: liveGateway.observation,
       safety: { provider_mutation: false, workflow_dispatch: false, production_mutation: false, database_mutation: false, secrets_included: false },
     }));
     process.exit(0);
@@ -122,7 +131,20 @@ try {
   const certificationReport = {
     outcome: "degraded",
     expected: { commit_sha: commit },
-    gateway: { health: { sourceCommit: planObservedGatewaySourceCommit } },
+    gateway: {
+      health: {
+        sourceCommit: planObservedGatewaySourceCommit,
+        workerBuildSha: liveGateway.observation.workerBuildSha,
+        policyKey: liveGateway.observation.policyKey,
+        policyHash: liveGateway.observation.policyHash,
+        stale: liveGateway.observation.stale,
+        ok: liveGateway.observation.ok,
+        httpStatus: liveGateway.observation.httpStatus,
+      },
+      profile_validation: {
+        observed_public_host: liveGateway.observation.publicHost,
+      },
+    },
     integrity_checks: checks.filter((entry) => entry.severity === "blocking"),
     readiness_checks: checks.filter((entry) => entry.severity !== "blocking"),
   };
@@ -169,7 +191,9 @@ try {
     reasons,
     deferred_reasons: deferredReasons,
     runtime_observed_gateway_source_commit: runtimeObservedGatewaySourceCommit,
+    live_observed_gateway_source_commit: liveObservedGatewaySourceCommit,
     plan_observed_gateway_source_commit: planObservedGatewaySourceCommit,
+    gateway_observation: liveGateway.observation,
     report: { convergence: finalRun.classification || null },
     plan: finalRun.plan || null,
     approval_checkpoint: finalRun.approval_checkpoint || null,
