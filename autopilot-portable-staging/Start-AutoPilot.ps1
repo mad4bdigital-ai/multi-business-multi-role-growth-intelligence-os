@@ -9,7 +9,6 @@ param(
     [switch]$StartTunnel,
     [ValidateSet("disabled", "windows_service", "docker_sidecar")]
     [string]$TunnelMode = "disabled",
-    [switch]$EnableActivationGateway,
     [switch]$RequireSchemaBundle,
     [switch]$ApplySchemaBundle,
     [switch]$ValidateOnly,
