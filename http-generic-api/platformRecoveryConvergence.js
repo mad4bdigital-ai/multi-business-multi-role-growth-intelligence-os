@@ -23,6 +23,7 @@ export const PLATFORM_RECOVERY_CONVERGENCE_STEPS = Object.freeze([
   Object.freeze({ key: "governance_baseline_rebuild", kind: "consequential", role: "governance", conditional_zero_object: true, authority_ref: "governance.baseline.rebuild_empty", nested_operation: "database.rebuild_empty" }),
   Object.freeze({ key: "governance_baseline_verify", kind: "read_only", role: "governance" }),
   Object.freeze({ key: "runtime_persistence_baseline_rebuild", kind: "consequential", role: "runtime_persistence", conditional_zero_object: true, authority_ref: "runtime_persistence.baseline.rebuild_empty", nested_operation: "database.rebuild_empty" }),
+  Object.freeze({ key: "runtime_persistence_schema_repair", kind: "consequential", role: "runtime_persistence", conditional_nonzero_schema_drift: true, authority_ref: "runtime_persistence.schema.repair", nested_operation: "apply_migration" }),
   Object.freeze({ key: "runtime_persistence_baseline_verify", kind: "read_only", role: "runtime_persistence" }),
   Object.freeze({ key: "canonical_grants_apply", kind: "consequential", authority_ref: "runtime_bootstrap_canonical_grant_contract", nested_operation: "apply_grants" }),
   Object.freeze({ key: "canonical_grants_verify", kind: "read_only" }),
@@ -365,6 +366,16 @@ function shouldSkip(run, step) {
     if (!zeroObject) return "role_not_zero_object";
   }
 
+  if (step.key === "runtime_persistence_schema_repair") {
+    const inspection = priorResult(run, "database_full_inspection");
+    if (inspection?.roles?.runtime_persistence?.zero_object === true) {
+      return "zero_object_role_uses_baseline_rebuild";
+    }
+    if (inspection?.checks?.runtime_persistence_ready === true) {
+      return "runtime_persistence_schema_already_ready";
+    }
+  }
+
   if (step.key === "canonical_grants_apply") {
     const inspection = priorResult(run, "database_full_inspection");
     if (inspection?.checks?.governance_db_privilege_ready === true) {
@@ -394,6 +405,57 @@ function shouldSkip(run, step) {
   }
 
   return null;
+}
+
+function mutationEvidenceGate(run, step) {
+  if (!isMutationStep(step)) return { ready: true };
+
+  const inspection = priorResult(run, "database_full_inspection");
+  if (step.key === "canonical_grants_apply") {
+    const value = inspection?.checks?.governance_db_privilege_ready;
+    if (value === false) return { ready: true };
+    if (value === true) return { ready: false, skip: true, reason: "canonical_grants_already_ready" };
+    return {
+      ready: false,
+      error_code: "platform_recovery_grant_gap_evidence_unavailable",
+      next_safe_action: "rerun_full_inspection_with_governance_privilege_readiness",
+    };
+  }
+
+  if (step.key === "mcp_catalog_migration_apply") {
+    const value = inspection?.checks?.mcp_catalog_schema_ready;
+    if (value === false) return { ready: true };
+    if (value === true) return { ready: false, skip: true, reason: "mcp_catalog_schema_already_ready" };
+    return {
+      ready: false,
+      error_code: "platform_recovery_mcp_catalog_gap_evidence_unavailable",
+      next_safe_action: "rerun_full_inspection_with_mcp_catalog_readiness",
+    };
+  }
+
+  if (step.key === "runtime_persistence_schema_repair") {
+    const zeroObject = inspection?.roles?.runtime_persistence?.zero_object;
+    const value = inspection?.checks?.runtime_persistence_ready;
+    if (zeroObject === true) {
+      return { ready: false, skip: true, reason: "zero_object_role_uses_baseline_rebuild" };
+    }
+    if (zeroObject !== false) {
+      return {
+        ready: false,
+        error_code: "platform_recovery_runtime_persistence_object_evidence_unavailable",
+        next_safe_action: "rerun_durable_full_inspection_before_schema_repair",
+      };
+    }
+    if (value === false) return { ready: true };
+    if (value === true) return { ready: false, skip: true, reason: "runtime_persistence_schema_already_ready" };
+    return {
+      ready: false,
+      error_code: "platform_recovery_runtime_persistence_schema_gap_evidence_unavailable",
+      next_safe_action: "rerun_full_inspection_with_runtime_persistence_readiness",
+    };
+  }
+
+  return { ready: true };
 }
 
 function validateBoundResult(run, step, result, { mode = "execute" } = {}) {
@@ -1043,6 +1105,39 @@ async function executeOneStep(run, step, { recoveryStore, executors, approvalRes
     await appendEvent(recoveryStore, run, step, "step_skipped", { reason: skipReason });
     await persistRun(recoveryStore, run);
     return { continue: true };
+  }
+
+  const mutationEvidence = mutationEvidenceGate(run, step);
+  if (!mutationEvidence.ready) {
+    if (mutationEvidence.skip) {
+      markSkipped(step, mutationEvidence.reason);
+      await appendEvent(recoveryStore, run, step, "step_skipped", { reason: mutationEvidence.reason });
+      await persistRun(recoveryStore, run);
+      return { continue: true };
+    }
+    step.status = "blocked";
+    step.error_code = mutationEvidence.error_code;
+    step.result = {
+      ok: false,
+      status: "blocked",
+      error_code: mutationEvidence.error_code,
+      next_safe_action: mutationEvidence.next_safe_action,
+      mutation_performed: false,
+      readback_verified: false,
+      secrets_included: false,
+    };
+    run.status = "blocked";
+    run.active = false;
+    run.blocking_stage = step.key;
+    run.error_code = mutationEvidence.error_code;
+    run.request_id = null;
+    run.next_safe_action = mutationEvidence.next_safe_action;
+    await appendEvent(recoveryStore, run, step, "step_blocked_mutation_evidence", {
+      error_code: step.error_code,
+      next_safe_action: run.next_safe_action,
+    });
+    await persistRun(recoveryStore, run);
+    return { continue: false };
   }
 
   const preMutationParity = await verifyPreMutationDeploymentParity(run, step, executors);
