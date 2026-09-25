@@ -38,7 +38,9 @@
       "http-generic-api/platformRecoveryConvergenceReadAdapters.js",
       "http-generic-api/test-platform-recovery-convergence-read-adapters.mjs",
       "specs/021-production-recovery-closure/pipeline-scenario-matrix.md",
-      "http-generic-api/test-production-recovery-closure.mjs"
+      "http-generic-api/test-production-recovery-closure.mjs",
+      "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json"
     ]
   },
   "merge_contract": {
@@ -129,7 +131,9 @@
             "specs/021-production-recovery-closure/work-map-integration.json",
             "http-generic-api/platformRecoveryConvergenceReadAdapters.js",
             "http-generic-api/test-platform-recovery-convergence-read-adapters.mjs",
-            "specs/021-production-recovery-closure/pipeline-scenario-matrix.md"
+            "specs/021-production-recovery-closure/pipeline-scenario-matrix.md",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json"
           ]
         },
         {
@@ -185,7 +189,9 @@
             "apps/local-manager-windows/DesktopCommandPollBackoffStore.cs",
             "http-generic-api/test-local-connector-two-phase-rebind.mjs",
             "http-generic-api/test-local-manager-rate-limit-persistence.mjs",
-            "specs/021-production-recovery-closure/pipeline-scenario-matrix.md"
+            "specs/021-production-recovery-closure/pipeline-scenario-matrix.md",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json"
           ]
         },
         {
@@ -232,7 +238,9 @@
             "http-generic-api/routes/recoveryKernelRoutes.js",
             "specs/021-production-recovery-closure/acceptance.md",
             "specs/021-production-recovery-closure/pipeline-scenario-matrix.md",
-            "http-generic-api/test-production-recovery-closure.mjs"
+            "http-generic-api/test-production-recovery-closure.mjs",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json"
           ]
         }
       ]
