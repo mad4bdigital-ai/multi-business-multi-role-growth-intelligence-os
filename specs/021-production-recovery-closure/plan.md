@@ -96,3 +96,10 @@ For mutating steps the outer convergence layer adds a replay-prevention fence ar
 `resolve approval → claim execution → reserve approval → persist executing → execute nested authority → validate/readback → finalize approval → persist pass → release reservation/claim`.
 
 If provider or finalization outcome is unknown, the claim and reservation remain durable and automatic retry is forbidden. Reconciliation is read-only, proves `mutation_outcome_known` and `mutation_applied`, preserves the original mutation audit, then finalizes/releases the same authority records.
+
+
+## Finding-bound partial repair
+
+A non-empty Runtime Persistence role with `runtime_persistence_ready=false` does not use rebuild-empty. The full inspection must expose exactly one canonical deterministic `runtime_persistence.schema.repair` finding. The convergence run persists a bounded finding projection and binds its digest into approval, durable reservation, executor input, receipt validation, and reconciliation.
+
+Zero-object Runtime Persistence remains owned by `runtime_persistence.baseline.rebuild_empty`; the partial-repair stage is skipped. A ready non-empty role also skips repair. Missing, stale, malformed, or ambiguous findings stop before authority resolution.
