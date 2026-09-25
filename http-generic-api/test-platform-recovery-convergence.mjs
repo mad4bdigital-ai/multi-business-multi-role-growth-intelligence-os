@@ -17,6 +17,8 @@ async function happyApprovalResolver(ctx) {
     step_id: ctx.step_id,
     authority_ref: ctx.authority_ref,
     nested_operation: ctx.nested_operation || null,
+    finding_id: ctx.finding_id || null,
+    finding_binding_hash: ctx.finding_binding_hash || null,
     idempotency_key: ctx.idempotency_key,
     single_use: true,
     secrets_included: false,
@@ -100,6 +102,10 @@ function pass(ctx, extra = {}) {
     step_id: ctx.step_id,
     authority_ref: ctx.authority_ref || null,
     nested_operation: ctx.nested_operation || null,
+    finding_id: ctx.finding_binding?.finding_id || null,
+    finding_binding_hash: ctx.finding_binding_hash || null,
+    inspection_run_id: ctx.finding_binding?.inspection_run_id || null,
+    inspection_evidence_hash: ctx.finding_binding?.inspection_evidence_hash || null,
     idempotency_key: ctx.idempotency_key,
     mutation_performed: false,
     readback_verified: true,
@@ -206,6 +212,9 @@ function happyExecutors({ zeroGovernance = true, zeroPersistence = true, calls =
     governance_baseline_rebuild: wrap("governance_baseline_rebuild", (ctx) => mutationPass(ctx)),
     governance_baseline_verify: wrap("governance_baseline_verify", (ctx) => pass(ctx, { baseline_ready: true })),
     runtime_persistence_baseline_rebuild: wrap("runtime_persistence_baseline_rebuild", (ctx) => mutationPass(ctx)),
+    runtime_persistence_schema_repair: wrap("runtime_persistence_schema_repair", (ctx) => mutationPass(ctx, {
+      database_mutation_performed: true,
+    })),
     runtime_persistence_baseline_verify: wrap("runtime_persistence_baseline_verify", (ctx) => pass(ctx, { baseline_ready: true })),
     canonical_grants_apply: wrap("canonical_grants_apply", (ctx) => canonicalGrantMutationPass(ctx)),
     canonical_grants_verify: wrap("canonical_grants_verify", (ctx) => pass(ctx, { grants_ready: true })),
@@ -735,6 +744,7 @@ test("convergence plan declares canonical nested authorities for every mutating 
   const expected = {
     governance_baseline_rebuild: ["governance.baseline.rebuild_empty", "database.rebuild_empty"],
     runtime_persistence_baseline_rebuild: ["runtime_persistence.baseline.rebuild_empty", "database.rebuild_empty"],
+    runtime_persistence_schema_repair: ["runtime_persistence.schema.repair", "apply_migration"],
     canonical_grants_apply: ["runtime_bootstrap_canonical_grant_contract", "apply_grants"],
     mcp_catalog_migration_apply: ["governance.mcp_catalog.repair", "apply_migration"],
     response_chunk_storage_smoke: ["response_chunk_durable_recovery_smoke", "execute_smoke"],
@@ -1187,4 +1197,199 @@ test("inconsistent role census is rejected before any recovery mutation", async 
     (error) => error.code === "PLATFORM_RECOVERY_INSPECTION_ROLE_INVALID",
   );
   assert.equal(calls.includes("governance_baseline_rebuild"), false);
+});
+
+
+function runtimePersistenceRepairFinding({
+  findingId = "finding:1234567890abcdef1234567890abcdef",
+  inspectionRunId = "run:inspection:partial-rp",
+  inspectionEvidenceHash = "4".repeat(64),
+} = {}) {
+  return {
+    finding_id: findingId,
+    candidate_capability: "runtime_persistence.schema.repair",
+    category: "schema_drift",
+    repairability: "deterministic",
+    target_role: "runtime_persistence",
+    inspection_run_id: inspectionRunId,
+    inspection_evidence_hash: inspectionEvidenceHash,
+    mutation_required: true,
+    secrets_included: false,
+  };
+}
+
+test("non-empty runtime persistence schema drift uses exactly one canonical finding-bound repair", async () => {
+  const store = makeStore();
+  const calls = [];
+  const executors = happyExecutors({ zeroGovernance: false, zeroPersistence: false, calls });
+  const inspectionRunId = "run:inspection:partial-rp";
+  const inspectionEvidenceHash = "4".repeat(64);
+  const finding = runtimePersistenceRepairFinding({ inspectionRunId, inspectionEvidenceHash });
+
+  executors.database_full_inspection = async (ctx) => {
+    calls.push("database_full_inspection");
+    return pass(ctx, {
+      durable: true,
+      inspection_run_id: inspectionRunId,
+      inspection_evidence_hash: inspectionEvidenceHash,
+      target_fingerprint: "f".repeat(64),
+      checks: {
+        governance_db_privilege_ready: true,
+        mcp_catalog_schema_ready: true,
+        runtime_persistence_ready: false,
+      },
+      findings: [finding],
+      roles: {
+        runtime: roleInspectionEvidence(false, 7),
+        governance: roleInspectionEvidence(false, 5),
+        runtime_persistence: roleInspectionEvidence(false, 4),
+      },
+    });
+  };
+
+  const result = await advanceUntilBoundary({ store, executors });
+  assert.equal(result.status, "recovered");
+  assert.equal(calls.filter((key) => key === "runtime_persistence_schema_repair").length, 1);
+  assert.equal(calls.includes("runtime_persistence_baseline_rebuild"), false);
+
+  const step = result.steps.find((entry) => entry.key === "runtime_persistence_schema_repair");
+  assert.equal(step.status, "pass");
+  assert.equal(step.finding_binding?.finding_id, finding.finding_id);
+  assert.match(step.finding_binding_hash || "", /^[0-9a-f]{64}$/u);
+  assert.equal(step.result?.finding_id, finding.finding_id);
+  assert.equal(step.result?.inspection_run_id, inspectionRunId);
+  assert.equal(step.result?.inspection_evidence_hash, inspectionEvidenceHash);
+});
+
+test("partial runtime persistence drift without one canonical finding blocks before approval or mutation", async () => {
+  const store = makeStore();
+  const calls = [];
+  let resolverInvocations = 0;
+  const executors = happyExecutors({ zeroGovernance: false, zeroPersistence: false, calls });
+  executors.database_full_inspection = async (ctx) => {
+    calls.push("database_full_inspection");
+    return pass(ctx, {
+      durable: true,
+      inspection_run_id: "run:inspection:partial-missing",
+      inspection_evidence_hash: "5".repeat(64),
+      target_fingerprint: "f".repeat(64),
+      checks: {
+        governance_db_privilege_ready: true,
+        mcp_catalog_schema_ready: true,
+        runtime_persistence_ready: false,
+      },
+      findings: [],
+      roles: {
+        runtime: roleInspectionEvidence(false, 7),
+        governance: roleInspectionEvidence(false, 5),
+        runtime_persistence: roleInspectionEvidence(false, 4),
+      },
+    });
+  };
+  const resolver = async (ctx) => {
+    resolverInvocations += 1;
+    return happyApprovalResolver(ctx);
+  };
+
+  const result = await advanceUntilBoundary({ store, executors, approvalResolver: resolver });
+  assert.equal(result.status, "blocked");
+  assert.equal(result.blocking_stage, "runtime_persistence_schema_repair");
+  assert.equal(result.error_code, "platform_recovery_partial_repair_finding_missing");
+  assert.equal(calls.includes("runtime_persistence_schema_repair"), false);
+  assert.equal(resolverInvocations, 0);
+});
+
+test("ambiguous partial runtime persistence findings fail closed before mutation", async () => {
+  const store = makeStore();
+  const calls = [];
+  const executors = happyExecutors({ zeroGovernance: false, zeroPersistence: false, calls });
+  const inspectionRunId = "run:inspection:partial-ambiguous";
+  const inspectionEvidenceHash = "6".repeat(64);
+  executors.database_full_inspection = async (ctx) => pass(ctx, {
+    durable: true,
+    inspection_run_id: inspectionRunId,
+    inspection_evidence_hash: inspectionEvidenceHash,
+    target_fingerprint: "f".repeat(64),
+    checks: {
+      governance_db_privilege_ready: true,
+      mcp_catalog_schema_ready: true,
+      runtime_persistence_ready: false,
+    },
+    findings: [
+      runtimePersistenceRepairFinding({ findingId: "finding:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", inspectionRunId, inspectionEvidenceHash }),
+      runtimePersistenceRepairFinding({ findingId: "finding:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", inspectionRunId, inspectionEvidenceHash }),
+    ],
+    roles: {
+      runtime: roleInspectionEvidence(false, 7),
+      governance: roleInspectionEvidence(false, 5),
+      runtime_persistence: roleInspectionEvidence(false, 4),
+    },
+  });
+
+  const result = await advanceUntilBoundary({ store, executors });
+  assert.equal(result.status, "blocked");
+  assert.equal(result.error_code, "platform_recovery_partial_repair_finding_ambiguous");
+  assert.equal(calls.includes("runtime_persistence_schema_repair"), false);
+});
+
+test("partial repair receipt bound to another finding becomes unknown outcome and forbids replay", async () => {
+  const store = makeStore();
+  const calls = [];
+  const executors = happyExecutors({ zeroGovernance: false, zeroPersistence: false, calls });
+  const inspectionRunId = "run:inspection:partial-receipt-mismatch";
+  const inspectionEvidenceHash = "7".repeat(64);
+  const finding = runtimePersistenceRepairFinding({ inspectionRunId, inspectionEvidenceHash });
+  executors.database_full_inspection = async (ctx) => pass(ctx, {
+    durable: true,
+    inspection_run_id: inspectionRunId,
+    inspection_evidence_hash: inspectionEvidenceHash,
+    target_fingerprint: "f".repeat(64),
+    checks: {
+      governance_db_privilege_ready: true,
+      mcp_catalog_schema_ready: true,
+      runtime_persistence_ready: false,
+    },
+    findings: [finding],
+    roles: {
+      runtime: roleInspectionEvidence(false, 7),
+      governance: roleInspectionEvidence(false, 5),
+      runtime_persistence: roleInspectionEvidence(false, 4),
+    },
+  });
+  executors.runtime_persistence_schema_repair = async (ctx) => {
+    calls.push("runtime_persistence_schema_repair");
+    return mutationPass(ctx, {
+      finding_id: "finding:ffffffffffffffffffffffffffffffff",
+      database_mutation_performed: true,
+    });
+  };
+
+  const first = await advanceUntilBoundary({ store, executors });
+  assert.equal(first.status, "unknown_outcome");
+  assert.equal(first.blocking_stage, "runtime_persistence_schema_repair");
+  assert.equal(first.next_safe_action, "reconcile_same_operation_before_retry");
+  assert.equal(calls.filter((key) => key === "runtime_persistence_schema_repair").length, 1);
+
+  const blind = await runPlatformRecoveryConvergence(
+    { expected_sha: SHA, run_id: first.run_id, action: "advance" },
+    { recoveryStore: store, executors, approvalResolver: happyApprovalResolver },
+  );
+  assert.equal(blind.status, "unknown_outcome");
+  assert.equal(calls.filter((key) => key === "runtime_persistence_schema_repair").length, 1);
+});
+
+test("zero-object runtime persistence rebuild never also runs partial schema repair", async () => {
+  const store = makeStore();
+  const calls = [];
+  const result = await advanceUntilBoundary({
+    store,
+    executors: happyExecutors({ zeroGovernance: false, zeroPersistence: true, calls }),
+  });
+  assert.equal(result.status, "recovered");
+  assert.equal(calls.filter((key) => key === "runtime_persistence_baseline_rebuild").length, 1);
+  assert.equal(calls.includes("runtime_persistence_schema_repair"), false);
+  assert.equal(
+    result.steps.find((step) => step.key === "runtime_persistence_schema_repair").status,
+    "skipped_not_required",
+  );
 });
