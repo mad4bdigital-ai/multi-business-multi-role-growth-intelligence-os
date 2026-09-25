@@ -11,6 +11,7 @@
       ".changes/e2e/staging-health-gateway-ready-provenance-20260925.json",
       ".github/derived-state-governance.json",
       ".github/governance/test-authority-registry.json",
+      "docs/governance/configuration-drift-baseline-extensions.json",
       "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/routes/healthRoutes.js",
       "http-generic-api/scripts/manifests/test-manifest-spec011.mjs",
@@ -60,7 +61,8 @@
             "Malformed or missing manifest/policy evidence is omitted from body and headers.",
             "Missing evidence remains fail-closed for Gateway readiness rather than being replaced by environment guesses.",
             "The source repair performs no Gateway, Cloudflare, DNS, database, Staging deploy, or Production deploy mutation.",
-            "Production mutation remains unauthorized even though healthRoutes.js is classified as shared_runtime."
+            "Production mutation remains unauthorized even though healthRoutes.js is classified as shared_runtime.",
+            "The policyHash response-field literals are explicitly classified as non-secret code-owned governance inputs, not runtime configuration or execution authority."
           ],
           "tests": [
             {
@@ -96,11 +98,12 @@
           ],
           "evidence_paths": [
             ".changes/e2e/staging-health-gateway-ready-provenance-20260925.json",
+            ".github/governance/test-authority-registry.json",
+            "docs/governance/configuration-drift-baseline-extensions.json",
             "http-generic-api/routes/healthRoutes.js",
-            "http-generic-api/test-health-gateway-ready-provenance.mjs",
             "http-generic-api/scripts/manifests/test-manifest-spec011.mjs",
             "http-generic-api/scripts/manifests/test-manifest-upstream-main.mjs",
-            ".github/governance/test-authority-registry.json"
+            "http-generic-api/test-health-gateway-ready-provenance.mjs"
           ]
         }
       ]
