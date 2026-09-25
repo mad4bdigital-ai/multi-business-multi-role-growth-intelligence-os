@@ -1,5 +1,9 @@
 import { createHash } from "node:crypto";
-import { evaluateProductionRecoveryClosure } from "./productionRecoveryClosure.js";
+import {
+  evaluateProductionRecoveryClosure,
+  PRODUCTION_RECOVERY_BACKUP_EVIDENCE_CONTRACT,
+  PRODUCTION_RECOVERY_CLOSURE_EVIDENCE_CONTRACT,
+} from "./productionRecoveryClosure.js";
 import { assertRecoveryData } from "./recoveryProofBoundary.js";
 
 const SHA40_RE = /^[0-9a-f]{40}$/u;
@@ -46,8 +50,7 @@ const REQUIRED_STORE_METHODS = Object.freeze([
   "appendEvidenceEvent",
   "putIdempotencyReceipt",
   "claimExecution",
-  "reserveApproval",
-  "markApprovalUsed",
+  "releaseExecutionClaim",
 ]);
 
 function text(value, max = 512) {
@@ -302,7 +305,7 @@ async function loadOrCreateRun({ expectedSha, runId = null, recoveryStore }) {
     current_step_id: plan.steps[0]?.step_id || null,
     steps: plan.steps.map((step) => createStepState(step, expectedRunId, plan.plan_hash)),
     active: false,
-    closure: run.closure ? clone(run.closure) : null,
+    closure: null,
     automatic_retry_allowed: false,
     database_names_caller_selectable: false,
     raw_sql_allowed: false,
@@ -529,6 +532,143 @@ function executorFor(executors, key, mode = "execute") {
   return null;
 }
 
+function orchestrationClaimContext(run, step) {
+  return Object.freeze({
+    idempotency_key: `platform-recovery-orchestration:${hash({
+      run_id: run.run_id,
+      plan_hash: run.plan_hash,
+      step_id: step.step_id,
+      step_idempotency_key: step.idempotency_key,
+    }).slice(0, 40)}`,
+    run_id: run.run_id,
+    plan_hash: run.plan_hash,
+    step_id: step.step_id,
+    expected_sha: run.expected_sha,
+    claim_scope: "platform_recovery_convergence_orchestration",
+    secrets_included: false,
+  });
+}
+
+async function acquireOrchestrationClaim(recoveryStore, run, step) {
+  if (!isMutationStep(step)) return null;
+  const context = orchestrationClaimContext(run, step);
+  const result = await recoveryStore.claimExecution(context);
+  if (result?.existing === true || result?.status === "reconciliation_required") {
+    fail(
+      "PLATFORM_RECOVERY_STEP_EXECUTION_IN_PROGRESS",
+      `A durable orchestration claim already exists for ${step.key}; duplicate execution is forbidden.`,
+      409,
+      { step_key: step.key, next_safe_action: "read_same_run_status_or_reconcile" },
+    );
+  }
+  if (result !== true && result?.claimed !== true) {
+    fail("PLATFORM_RECOVERY_STEP_EXECUTION_CLAIM_DENIED", `The durable store did not grant an orchestration claim for ${step.key}.`, 409);
+  }
+  return context;
+}
+
+async function releaseOrchestrationClaim(recoveryStore, context) {
+  if (!context) return;
+  const result = await recoveryStore.releaseExecutionClaim(context);
+  if (result !== undefined && result !== true && result?.released !== true) {
+    fail("PLATFORM_RECOVERY_STEP_EXECUTION_CLAIM_RELEASE_FAILED", "The orchestration execution claim could not be durably released.", 503);
+  }
+}
+
+function buildFinalClosureEvidence(run) {
+  const result = (key) => priorResult(run, key);
+  const state = (key) => findStep(run, key);
+  const identity = result("production_identity") || {};
+  const inspection = result("database_full_inspection") || {};
+  const backup = result("backup_evidence") || {};
+  const governance = result("governance_baseline_verify") || {};
+  const persistence = result("runtime_persistence_baseline_verify") || {};
+  const grants = result("canonical_grants_verify") || {};
+  const bootstrap = result("bootstrap_ledger_verify") || {};
+  const catalog = result("mcp_catalog_verify") || {};
+  const chunks = result("response_chunk_storage_smoke") || {};
+  const admin = result("admin_tools_functional_readback") || {};
+  const device = result("device_tools_functional_readback") || {};
+  const activation = result("production_activation_readiness") || {};
+  const connector = result("connector_auth_verify") || {};
+  const deployment = result("deployment_parity") || {};
+  const rateStep = state("local_manager_rate_limit_recovery");
+
+  const mutationAuditReady = run.steps
+    .filter((step) => isMutationStep(step))
+    .every((step) => step.status === "skipped_not_required"
+      || (step.status === "pass"
+        && step.result?.authority_verified === true
+        && step.result?.readback_verified === true
+        && step.result?.mutation_performed === true));
+
+  const rateLimitAttributionReady = rateStep?.status === "skipped_not_required"
+    || (rateStep?.status === "pass"
+      && rateStep.result?.http_status_checked_before_json === true
+      && rateStep.result?.retry_after_respected === true
+      && rateStep.result?.backoff_persisted === true
+      && rateStep.result?.rate_limit_source_attributed === true);
+
+  return Object.freeze({
+    contract: PRODUCTION_RECOVERY_CLOSURE_EVIDENCE_CONTRACT,
+    expected_sha: run.expected_sha,
+    server_derived: true,
+    durable: inspection.durable === true && backup.durable === true,
+    same_cycle: true,
+    cycle_id: run.run_id,
+    target_fingerprint: inspection.target_fingerprint || null,
+    inspection_run_id: inspection.inspection_run_id || null,
+    inspection_evidence_hash: inspection.inspection_evidence_hash || null,
+    gates: Object.freeze({
+      exact_source_sha_verified: identity.exact_sha_parity === true
+        && identity.version_readback === true
+        && identity.deployment_info_readback === true
+        && deployment.exact_sha_parity === true,
+      durable_inspection_verified: inspection.durable === true
+        && Boolean(inspection.inspection_run_id)
+        && /^[0-9a-f]{64}$/u.test(text(inspection.inspection_evidence_hash, 128)),
+      governance_baseline_ready: governance.baseline_ready === true,
+      runtime_persistence_baseline_ready: persistence.baseline_ready === true,
+      canonical_grants_ready: grants.grants_ready === true,
+      bootstrap_ledger_ready: bootstrap.bootstrap_ledger_ready === true,
+      mcp_catalog_schema_ready: catalog.mcp_catalog_level_ready === true,
+      admin_catalog_functional_readback: admin.listAdminTools === true
+        && admin.repo_inspect === true
+        && admin.schema_contract_not_ready !== true,
+      device_catalog_functional_readback: device.listDeviceTools === true
+        && device.schema_contract_not_ready !== true,
+      response_chunk_storage_smoke: chunks.write_read_verified === true
+        && chunks.delete_verified === true
+        && chunks.absence_readback_verified === true,
+      production_activation_readiness: activation.ready === true,
+      backup_evidence_verified: backup.backup_verified === true
+        && backup.verified === true
+        && backup.contract === PRODUCTION_RECOVERY_BACKUP_EVIDENCE_CONTRACT,
+      production_mutation_audited: mutationAuditReady,
+      connector_auth_ready: connector.auth_ready === true
+        && Number(connector.authenticated_operation_http_status) === 200,
+      rate_limit_attribution_ready: rateLimitAttributionReady,
+    }),
+    backup_evidence: Object.freeze({
+      contract: backup.contract || null,
+      expected_sha: backup.expected_sha || run.expected_sha,
+      evidence_sha256: backup.evidence_sha256 || null,
+      created_at: backup.created_at || null,
+      evidence_ref: backup.evidence_ref || null,
+      roles: Array.isArray(backup.roles) ? [...backup.roles] : [],
+      verified: backup.verified === true,
+      storage_readback_verified: backup.storage_readback_verified === true,
+      restore_test_verified: backup.restore_test_verified === true,
+      artifact_manifest_hash: backup.artifact_manifest_hash || null,
+      target_fingerprint: backup.target_fingerprint || null,
+      cycle_id: backup.cycle_id || null,
+      secrets_included: false,
+    }),
+    unknown_outcome: run.steps.some((step) => step.status === "unknown_outcome"),
+    secrets_included: false,
+  });
+}
+
 async function verifyPreMutationDeploymentParity(run, step, executors) {
   if (!isMutationStep(step)) return { ready: true };
   const reader = executorFor(executors, "deployment_parity", "execute");
@@ -571,7 +711,7 @@ async function verifyPreMutationDeploymentParity(run, step, executors) {
 
 function summarize(run) {
   return {
-    ok: run.status === "recovered",
+    ok: run.status === "recovered" && run.active === true,
     contract: RUN_CONTRACT,
     run_id: run.run_id,
     expected_sha: run.expected_sha,
@@ -582,6 +722,7 @@ function summarize(run) {
     error_code: run.error_code,
     request_id: run.request_id,
     next_safe_action: run.next_safe_action,
+    closure: run.closure ? clone(run.closure) : null,
     steps: run.steps.map((step) => ({
       order: step.order,
       step_id: step.step_id,
@@ -686,6 +827,8 @@ async function executeOneStep(run, step, { recoveryStore, executors, approvalRes
     return { continue: false };
   }
 
+  const orchestrationClaim = await acquireOrchestrationClaim(recoveryStore, run, step);
+
   step.status = "executing";
   step.attempts += 1;
   run.status = "running";
@@ -717,7 +860,7 @@ async function executeOneStep(run, step, { recoveryStore, executors, approvalRes
   } catch (error) {
     rawResult = {
       ok: false,
-      status: error?.unknown_outcome === true ? "unknown_outcome" : "blocked",
+      status: error?.unknown_outcome === true || (isMutationStep(step) && error?.mutation_performed === true) ? "unknown_outcome" : "blocked",
       error_code: text(error?.code || "platform_recovery_stage_failed", 160),
       request_id: text(error?.request_id || error?.details?.request_id, 160) || null,
       next_safe_action: error?.unknown_outcome === true ? "reconcile_same_operation_before_retry" : "resolve_blocking_stage_and_resume_same_run",
@@ -726,7 +869,54 @@ async function executeOneStep(run, step, { recoveryStore, executors, approvalRes
     };
   }
 
-  const result = validateBoundResult(run, step, rawResult);
+  if (isMutationStep(step)
+    && rawResult?.mutation_performed === true
+    && !["pass", "unknown_outcome"].includes(text(rawResult?.status, 64))) {
+    rawResult = {
+      ...rawResult,
+      ok: false,
+      status: "unknown_outcome",
+      error_code: rawResult?.error_code || "platform_recovery_mutation_without_verified_terminal_state",
+      next_safe_action: "reconcile_same_operation_before_retry",
+      secrets_included: false,
+    };
+  }
+
+  let result;
+  try {
+    result = validateBoundResult(run, step, rawResult);
+  } catch (error) {
+    if (isMutationStep(step) && rawResult?.mutation_performed !== false) {
+      step.status = "unknown_outcome";
+      step.error_code = "platform_recovery_mutation_receipt_invalid";
+      step.request_id = text(rawResult?.request_id, 160) || null;
+      step.result = {
+        ok: false,
+        status: "unknown_outcome",
+        error_code: step.error_code,
+        request_id: step.request_id,
+        next_safe_action: "reconcile_same_operation_before_retry",
+        mutation_performed: rawResult?.mutation_performed === true,
+        receipt_validation_error: text(error?.code || "invalid_mutation_receipt", 160),
+        secrets_included: false,
+      };
+      run.status = "unknown_outcome";
+      run.active = false;
+      run.blocking_stage = step.key;
+      run.error_code = step.error_code;
+      run.request_id = step.request_id;
+      run.next_safe_action = "reconcile_same_operation_before_retry";
+      await appendEvent(recoveryStore, run, step, "step_unknown_outcome", {
+        error_code: step.error_code,
+        request_id: step.request_id,
+        receipt_validation_error: step.result.receipt_validation_error,
+      });
+      await persistRun(recoveryStore, run);
+      return { continue: false };
+    }
+    await releaseOrchestrationClaim(recoveryStore, orchestrationClaim);
+    throw error;
+  }
   step.result = result;
   step.status = result.status;
   step.request_id = text(result.request_id, 160) || null;
@@ -747,6 +937,9 @@ async function executeOneStep(run, step, { recoveryStore, executors, approvalRes
     run.request_id = step.request_id;
     run.next_safe_action = mapped.next_safe_action;
     await persistRun(recoveryStore, run);
+    if (result.status !== "unknown_outcome") {
+      await releaseOrchestrationClaim(recoveryStore, orchestrationClaim);
+    }
     return { continue: false };
   }
 
@@ -756,6 +949,7 @@ async function executeOneStep(run, step, { recoveryStore, executors, approvalRes
   run.request_id = null;
   run.next_safe_action = "advance_same_run";
   await persistRun(recoveryStore, run);
+  await releaseOrchestrationClaim(recoveryStore, orchestrationClaim);
   return { continue: true, consequential_executed: isMutationStep(step) };
 }
 
@@ -816,6 +1010,9 @@ async function reconcileUnknownStep(run, { recoveryStore, executors }) {
     request_id: run.request_id,
   });
   await persistRun(recoveryStore, run);
+  if (result.status !== "unknown_outcome") {
+    await releaseOrchestrationClaim(recoveryStore, orchestrationClaimContext(run, step));
+  }
   return summarize(run);
 }
 
@@ -843,7 +1040,7 @@ export async function runPlatformRecoveryConvergence(input = {}, deps = {}) {
     run.next_safe_action = "reconcile_same_operation_before_retry";
     return summarize(run);
   }
-  if (run.status === "active") return summarize(run);
+  if (run.status === "recovered" || run.status === "active") return summarize(run);
 
   run.status = "running";
   run.next_safe_action = "advance_same_run";
@@ -862,6 +1059,57 @@ export async function runPlatformRecoveryConvergence(input = {}, deps = {}) {
         await persistRun(deps.recoveryStore, run);
         return summarize(run);
       }
+
+      const closureEvidence = buildFinalClosureEvidence(run);
+      const closure = evaluateProductionRecoveryClosure({
+        expectedSha: run.expected_sha,
+        evidence: closureEvidence,
+      });
+      run.closure = clone(closure);
+
+      if (closure.status !== "recovered") {
+        step.status = closure.status === "unknown_outcome"
+          ? "unknown_outcome"
+          : closure.status === "degraded_non_db"
+            ? "degraded"
+            : "blocked";
+        step.error_code = `platform_recovery_final_closure_${closure.status}`;
+        step.result = {
+          ok: false,
+          status: step.status,
+          expected_sha: run.expected_sha,
+          run_id: run.run_id,
+          plan_hash: run.plan_hash,
+          step_id: step.step_id,
+          idempotency_key: step.idempotency_key,
+          closure_status: closure.status,
+          closure_sha256: closure.closure_sha256,
+          problems: closure.problems,
+          mutation_performed: false,
+          readback_verified: true,
+          secrets_included: false,
+        };
+        run.status = closure.status === "unknown_outcome"
+          ? "unknown_outcome"
+          : closure.status === "degraded_non_db"
+            ? "degraded"
+            : "blocked";
+        run.active = false;
+        run.blocking_stage = "final_gate";
+        run.error_code = step.error_code;
+        run.request_id = null;
+        run.next_safe_action = closure.status === "unknown_outcome"
+          ? "reconcile_same_operation_before_retry"
+          : "resolve_closure_evidence_and_resume_same_run";
+        await appendEvent(deps.recoveryStore, run, step, "final_closure_not_recovered", {
+          closure_status: closure.status,
+          closure_sha256: closure.closure_sha256,
+          problems: closure.problems,
+        });
+        await persistRun(deps.recoveryStore, run);
+        return summarize(run);
+      }
+
       step.status = "pass";
       step.result = {
         ok: true,
@@ -872,24 +1120,30 @@ export async function runPlatformRecoveryConvergence(input = {}, deps = {}) {
         step_id: step.step_id,
         idempotency_key: step.idempotency_key,
         all_gates_passed: true,
+        closure_status: closure.status,
+        closure_sha256: closure.closure_sha256,
         mutation_performed: false,
         readback_verified: true,
         secrets_included: false,
       };
-      run.status = "active";
+      run.status = "recovered";
       run.active = true;
       run.blocking_stage = null;
       run.error_code = null;
       run.request_id = null;
       run.next_safe_action = "none";
-      await appendEvent(deps.recoveryStore, run, step, "run_activated", { all_gates_passed: true });
+      await appendEvent(deps.recoveryStore, run, step, "run_recovered", {
+        all_gates_passed: true,
+        closure_sha256: closure.closure_sha256,
+      });
       await persistRun(deps.recoveryStore, run);
       await deps.recoveryStore.putIdempotencyReceipt(run.idempotency_key, {
         contract: "mad4b.platform-recovery-convergence-idempotency.v1",
         run_id: run.run_id,
         expected_sha: run.expected_sha,
         plan_hash: run.plan_hash,
-        status: "active",
+        status: "recovered",
+        closure_sha256: closure.closure_sha256,
         secrets_included: false,
       });
       return summarize(run);
