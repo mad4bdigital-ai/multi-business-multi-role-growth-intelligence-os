@@ -8,14 +8,14 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7856,
-  "route_count": 1115,
-  "write_route_count": 681,
+  "file_count": 7862,
+  "route_count": 1118,
+  "write_route_count": 683,
   "classified_write_surface_count": 44,
-  "classified_write_route_count": 681,
+  "classified_write_route_count": 683,
   "unclassified_write_route_count": 0,
-  "intentionally_unmapped_write_route_count": 637,
-  "sensitive_intentionally_unmapped_write_route_count": 637,
+  "intentionally_unmapped_write_route_count": 639,
+  "sensitive_intentionally_unmapped_write_route_count": 639,
   "migration_count": 450,
   "registry_evidence_count": 118,
   "write_scope_count": 6,
@@ -6283,6 +6283,33 @@
       "path": "/platform/mock-crm/contacts",
       "file": "http-generic-api/routes/platformSmokeRoutes.js",
       "write": false
+    },
+    {
+      "route_id": "http-generic-api/routes/productionRecoveryBootstrapRoutes.js#GET:/admin/recovery-bootstrap/status:0",
+      "source_line": 45,
+      "source_offset": 1498,
+      "method": "GET",
+      "path": "/admin/recovery-bootstrap/status",
+      "file": "http-generic-api/routes/productionRecoveryBootstrapRoutes.js",
+      "write": false
+    },
+    {
+      "route_id": "http-generic-api/routes/productionRecoveryBootstrapRoutes.js#POST:/admin/recovery-bootstrap/plan:1",
+      "source_line": 57,
+      "source_offset": 1896,
+      "method": "POST",
+      "path": "/admin/recovery-bootstrap/plan",
+      "file": "http-generic-api/routes/productionRecoveryBootstrapRoutes.js",
+      "write": true
+    },
+    {
+      "route_id": "http-generic-api/routes/productionRecoveryBootstrapRoutes.js#POST:/admin/recovery-bootstrap/apply:2",
+      "source_line": 68,
+      "source_offset": 2189,
+      "method": "POST",
+      "path": "/admin/recovery-bootstrap/apply",
+      "file": "http-generic-api/routes/productionRecoveryBootstrapRoutes.js",
+      "write": true
     },
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#POST:/admin/recovery/kernel/call:0",
@@ -37775,6 +37802,132 @@
       "reason": "connector_or_local_execution_requires_device_capability"
     },
     {
+      "route_id": "http-generic-api/routes/productionRecoveryBootstrapRoutes.js#POST:/admin/recovery-bootstrap/plan:1",
+      "classification": "intentionally_unmapped",
+      "mapping_status": "blocked",
+      "domain": "platform_control_plane",
+      "operation_class": "create_or_request",
+      "evidence": {
+        "file": "http-generic-api/routes/productionRecoveryBootstrapRoutes.js",
+        "source_line": 57,
+        "handler_window_lines": [
+          57,
+          66
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": false,
+          "db_registry_signal": false,
+          "authority_signal": true,
+          "readback_signal": true,
+          "mutation_signal": false
+        },
+        "signals": {
+          "provider": [],
+          "db_registry": [],
+          "authority": [
+            "admin"
+          ],
+          "readback": [
+            "response"
+          ],
+          "mutation": []
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "low_static",
+        "basis": "handler_window_signals_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract",
+        "live_db_registry_readback"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [],
+      "resource_candidate": "platform_control_plane",
+      "resource_key": null,
+      "operation_key": null,
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "platform-control-plane-governance",
+      "classification_confidence": "heuristic_requires_manual_confirmation",
+      "risk_class": "critical",
+      "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
+    },
+    {
+      "route_id": "http-generic-api/routes/productionRecoveryBootstrapRoutes.js#POST:/admin/recovery-bootstrap/apply:2",
+      "classification": "intentionally_unmapped",
+      "mapping_status": "blocked",
+      "domain": "platform_control_plane",
+      "operation_class": "create_or_request",
+      "evidence": {
+        "file": "http-generic-api/routes/productionRecoveryBootstrapRoutes.js",
+        "source_line": 68,
+        "handler_window_lines": [
+          68,
+          82
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": false,
+          "db_registry_signal": false,
+          "authority_signal": true,
+          "readback_signal": true,
+          "mutation_signal": false
+        },
+        "signals": {
+          "provider": [],
+          "db_registry": [],
+          "authority": [
+            "admin"
+          ],
+          "readback": [
+            "response"
+          ],
+          "mutation": []
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "low_static",
+        "basis": "handler_window_signals_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract",
+        "live_db_registry_readback"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [],
+      "resource_candidate": "platform_control_plane",
+      "resource_key": null,
+      "operation_key": null,
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "platform-control-plane-governance",
+      "classification_confidence": "heuristic_requires_manual_confirmation",
+      "risk_class": "critical",
+      "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
+    },
+    {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#POST:/admin/recovery/kernel/call:0",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
@@ -54316,17 +54469,17 @@
   ],
   "evidence_graph": {
     "node_counts": {
-      "routes": 681,
+      "routes": 683,
       "domains": 11,
-      "handler_files": 136
+      "handler_files": 137
     },
     "edge_counts": {
-      "route_to_handler_file": 681,
-      "route_to_domain": 681,
+      "route_to_handler_file": 683,
+      "route_to_domain": 683,
       "route_to_provider_signal": 100,
       "route_to_db_registry_signal": 0,
-      "route_to_authority_signal": 430,
-      "route_to_readback_signal": 385,
+      "route_to_authority_signal": 432,
+      "route_to_readback_signal": 387,
       "route_to_mutation_signal": 390,
       "route_to_explicit_scope_candidate": 44
     },
@@ -60863,8 +61016,8 @@
     {
       "severity": "high",
       "code": "INTENTIONALLY_UNMAPPED_WRITE_ROUTES_BLOCKED",
-      "count": 637,
-      "sensitive_count": 637
+      "count": 639,
+      "sensitive_count": 639
     },
     {
       "severity": "medium",
