@@ -1,10 +1,18 @@
 import assert from "node:assert/strict";
-import { generateKeyPairSync } from "node:crypto";
+import { generateKeyPairSync, sign } from "node:crypto";
+import { mkdtemp, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { createProductionRecoveryComposition } from "./productionRecoveryCompositionFactory.js";
 import { createServerManagedRecoveryBindingProvider } from "./serverManagedRecoveryBindingProvider.js";
 import {
   createProductionRecoveryBaselineBindingForEnv,
+  createProductionRecoveryReadinessAuthoritiesForEnv,
 } from "./productionRecoveryBaselineAuthorityBinding.js";
+import {
+  createFileRecoveryEvidenceStore,
+  readinessEvidencePayload,
+} from "./recoveryReadinessEvidence.js";
 
 const SHA = "a".repeat(40);
 const TARGET = "b".repeat(64);
@@ -199,6 +207,131 @@ function buildResolver(testEnv) {
   await assert.rejects(
     () => envelope.adapters.migrationLedger.finalize({ migration: "1051" }),
     (error) => error?.code === "RECOVERY_PRODUCTION_ORDINARY_MIGRATION_NOT_ENABLED",
+  );
+}
+
+{
+  const root = await mkdtemp(path.join(os.tmpdir(), "production-recovery-readiness-"));
+  const certificationKeys = generateKeyPairSync("ed25519");
+  const testEnv = env({
+    RECOVERY_PRODUCTION_READINESS_DIRECTORY: root,
+    RECOVERY_PRODUCTION_CERTIFICATION_PUBLIC_KEY: certificationKeys.publicKey.export({ type: "spki", format: "pem" }),
+    RECOVERY_PRODUCTION_CERTIFICATION_KEY_ID: "production-certification-test-key",
+    RECOVERY_PRODUCTION_CERTIFICATION_ISSUER: "production-certification-test-workflow",
+  });
+
+  try {
+    const context = {
+      environment: "production",
+      runtime_class: "hostinger_autodeploy",
+      read_only: true,
+      production_live: false,
+    };
+
+    const authority = createProductionRecoveryReadinessAuthoritiesForEnv(
+      context,
+      testEnv,
+      { attestationReader },
+    );
+    const preCertification = await authority.readSnapshot();
+    assert.equal(preCertification.pre_certification, true);
+    assert.equal(preCertification.candidateSha, SHA);
+    assert.equal(preCertification.candidateTargetFingerprint, TARGET);
+    assert.equal(preCertification.runtimeClass, "hostinger_autodeploy");
+    assert.equal(preCertification.stagingCertification, null);
+
+    const store = createFileRecoveryEvidenceStore({
+      directory: path.join(root, "certification-evidence"),
+      replayDirectory: path.join(root, "replay"),
+    });
+    const payload = {
+      contract: "mad4b.recovery-readiness-evidence.v1",
+      issuer: testEnv.RECOVERY_PRODUCTION_CERTIFICATION_ISSUER,
+      key_id: testEnv.RECOVERY_PRODUCTION_CERTIFICATION_KEY_ID,
+      environment: "production",
+      deployment_sha: SHA,
+      target_fingerprint: TARGET,
+      expires_at: new Date(Date.now() + 60_000).toISOString(),
+      stagingCertification: {
+        contract: "mad4b.staging-recovery-certification-reference.v1",
+        certified: true,
+        secrets_included: false,
+      },
+      unresolvedRecoveryIncidents: [],
+      secrets_included: false,
+    };
+    const record = {
+      payload,
+      signature: sign(
+        null,
+        Buffer.from(readinessEvidencePayload(payload)),
+        certificationKeys.privateKey,
+      ).toString("base64url"),
+    };
+    const recordId = await store.putCertification(record);
+    await store.setCurrentCertification(recordId);
+
+    const certifiedAuthority = createProductionRecoveryReadinessAuthoritiesForEnv(
+      context,
+      testEnv,
+      { attestationReader },
+    );
+    const certified = await certifiedAuthority.readSnapshot();
+    assert.equal(certified.pre_certification, false);
+    assert.equal(certified.authenticity_verified, true);
+    assert.equal(certified.candidateSha, SHA);
+    assert.equal(certified.candidateTargetFingerprint, TARGET);
+    assert.equal(certified.stagingCertification.certified, true);
+
+    const wrongPayload = {
+      ...payload,
+      target_fingerprint: "f".repeat(64),
+      expires_at: new Date(Date.now() + 60_000).toISOString(),
+    };
+    const wrongRecord = {
+      payload: wrongPayload,
+      signature: sign(
+        null,
+        Buffer.from(readinessEvidencePayload(wrongPayload)),
+        certificationKeys.privateKey,
+      ).toString("base64url"),
+    };
+    const wrongRecordId = await store.putCertification(wrongRecord);
+    await store.setCurrentCertification(wrongRecordId);
+
+    const mismatchedAuthority = createProductionRecoveryReadinessAuthoritiesForEnv(
+      context,
+      testEnv,
+      { attestationReader },
+    );
+    await assert.rejects(
+      () => mismatchedAuthority.readSnapshot(),
+      (error) => error?.code === "RECOVERY_EVIDENCE_TARGET_MISMATCH",
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}
+
+{
+  const testEnv = env({
+    RECOVERY_PRODUCTION_READINESS_DIRECTORY: "relative/recovery-readiness",
+    RECOVERY_PRODUCTION_CERTIFICATION_PUBLIC_KEY: generateKeyPairSync("ed25519").publicKey.export({ type: "spki", format: "pem" }),
+    RECOVERY_PRODUCTION_CERTIFICATION_KEY_ID: "production-certification-test-key",
+    RECOVERY_PRODUCTION_CERTIFICATION_ISSUER: "production-certification-test-workflow",
+  });
+  assert.throws(
+    () => createProductionRecoveryReadinessAuthoritiesForEnv(
+      {
+        environment: "production",
+        runtime_class: "hostinger_autodeploy",
+        read_only: true,
+        production_live: false,
+      },
+      testEnv,
+      { attestationReader },
+    ),
+    (error) => error?.code === "RECOVERY_PRODUCTION_READINESS_DIRECTORY_INVALID",
   );
 }
 
