@@ -1,3 +1,5 @@
+import path from "node:path";
+import { createPublicKey } from "node:crypto";
 import {
   createServerManagedRecoveryAuthorityBinding,
   createServerManagedRecoveryBindingEnvelope,
@@ -17,6 +19,10 @@ import {
 } from "./recoveryTrustModel.js";
 import { resolveRuntimeEnvironmentStrict } from "./runtimeEnvironmentResolver.js";
 import { PRODUCTION_RECOVERY_LIVE_AUTHORIZATION_CONTRACT } from "./productionRecoveryCompositionFactory.js";
+import {
+  createFileRecoveryEvidenceStore,
+  createRecoveryReadinessAuthorities as createCanonicalRecoveryReadinessAuthorities,
+} from "./recoveryReadinessEvidence.js";
 
 export const PRODUCTION_RECOVERY_BASELINE_AUTHORITY_BINDING_CONTRACT =
   "mad4b.production-recovery-baseline-authority-binding.v1";
@@ -29,6 +35,13 @@ const REQUIRED_SERVER_ENV = Object.freeze([
   "RECOVERY_PRODUCTION_APPROVAL_SECRET",
   "RECOVERY_PRODUCTION_EXECUTION_PRIVATE_KEY_JWK",
 ]);
+const REQUIRED_READINESS_ENV = Object.freeze([
+  "RECOVERY_PRODUCTION_READINESS_DIRECTORY",
+  "RECOVERY_PRODUCTION_CERTIFICATION_PUBLIC_KEY",
+  "RECOVERY_PRODUCTION_CERTIFICATION_KEY_ID",
+  "RECOVERY_PRODUCTION_CERTIFICATION_ISSUER",
+]);
+const SAFE_TRUST_ID = /^[A-Za-z0-9._:-]{8,160}$/u;
 
 function text(value, max = 4096) {
   return String(value ?? "").trim().slice(0, max);
@@ -79,6 +92,72 @@ function assertServerSecrets(env = process.env) {
   }
 }
 
+function assertReadinessContext(context = {}, env = process.env) {
+  const runtime = assertRuntime({
+    environment: context.environment,
+    runtime_class: context.runtime_class,
+  }, env);
+  if (context.read_only !== true || context.production_live !== false) {
+    fail(
+      "RECOVERY_PRODUCTION_READINESS_CONTEXT_DENIED",
+      "Production Recovery readiness authority requires read_only=true and production_live=false.",
+    );
+  }
+  return runtime;
+}
+
+function resolveProductionReadinessConfiguration(env = process.env) {
+  const missing = REQUIRED_READINESS_ENV.filter((key) => !text(env[key]));
+  if (missing.length) {
+    fail(
+      "RECOVERY_PRODUCTION_READINESS_CONFIGURATION_MISSING",
+      "Production Recovery readiness persistence and public certification trust must be configured atomically.",
+      { missing_fields: missing },
+    );
+  }
+
+  const rootValue = text(env.RECOVERY_PRODUCTION_READINESS_DIRECTORY);
+  if (!path.isAbsolute(rootValue)) {
+    fail(
+      "RECOVERY_PRODUCTION_READINESS_DIRECTORY_INVALID",
+      "Production Recovery readiness directory must be an absolute deployment-owned persistent path.",
+    );
+  }
+
+  const publicKeyPem = String(env.RECOVERY_PRODUCTION_CERTIFICATION_PUBLIC_KEY).trim();
+  const keyId = text(env.RECOVERY_PRODUCTION_CERTIFICATION_KEY_ID, 160);
+  const issuer = text(env.RECOVERY_PRODUCTION_CERTIFICATION_ISSUER, 512);
+  if (!SAFE_TRUST_ID.test(keyId) || !issuer) {
+    fail(
+      "RECOVERY_PRODUCTION_CERTIFICATION_TRUST_INVALID",
+      "Production Recovery certification trust identity is invalid.",
+    );
+  }
+
+  let verificationKey;
+  try {
+    verificationKey = createPublicKey(publicKeyPem);
+  } catch {
+    fail(
+      "RECOVERY_PRODUCTION_CERTIFICATION_PUBLIC_KEY_INVALID",
+      "Production Recovery certification public key is invalid.",
+    );
+  }
+  if (verificationKey.asymmetricKeyType !== "ed25519") {
+    fail(
+      "RECOVERY_PRODUCTION_CERTIFICATION_PUBLIC_KEY_INVALID",
+      "Production Recovery certification trust must use Ed25519.",
+    );
+  }
+
+  return Object.freeze({
+    root: path.resolve(rootValue),
+    publicKey: publicKeyPem,
+    keyId,
+    issuer,
+  });
+}
+
 function readExactProductionAttestation(env = process.env) {
   const deployment = readDeploymentManifest(env);
   const manifest = deployment?.ok ? deployment.manifest : null;
@@ -119,6 +198,72 @@ function readExactProductionAttestation(env = process.env) {
     database_mutation_performed: false,
     provider_mutation_performed: false,
     secrets_included: false,
+  });
+}
+
+export function createProductionRecoveryReadinessAuthoritiesForEnv(
+  context = {},
+  env = process.env,
+  {
+    attestationReader = readExactProductionAttestation,
+    evidenceStoreFactory = createFileRecoveryEvidenceStore,
+    readinessAuthorityFactory = createCanonicalRecoveryReadinessAuthorities,
+  } = {},
+) {
+  const runtime = assertReadinessContext(context, env);
+  const configuration = resolveProductionReadinessConfiguration(env);
+
+  const evidenceStore = evidenceStoreFactory({
+    directory: path.join(configuration.root, "certification-evidence"),
+    replayDirectory: path.join(configuration.root, "replay"),
+  });
+
+  const deploymentIdentityProvider = Object.freeze({
+    contract: "mad4b.production-recovery-readiness-deployment-identity.v1",
+    async readAttestation() {
+      const attestation = await attestationReader(env);
+      return Object.freeze({
+        ...attestation,
+        environment: "production",
+        sha: attestation.sha,
+        deployment_sha: attestation.sha,
+        target_fingerprint: attestation.target_fingerprint,
+        read_only: true,
+        read_only_probe: true,
+        database_connection_performed: false,
+        database_mutation_performed: false,
+        provider_mutation_performed: false,
+        secrets_included: false,
+      });
+    },
+  });
+
+  const targetIdentityProvider = Object.freeze({
+    contract: "mad4b.production-recovery-readiness-target-identity.v1",
+    async readIdentity() {
+      const attestation = await attestationReader(env);
+      return Object.freeze({
+        contract: "mad4b.recovery-target-identity.v1",
+        environment: "production",
+        runtime_class: runtime.runtime_class,
+        target_fingerprint: attestation.target_fingerprint,
+        read_only: true,
+        database_connection_performed: false,
+        database_mutation_performed: false,
+        provider_mutation_performed: false,
+        secrets_included: false,
+      });
+    },
+  });
+
+  return readinessAuthorityFactory({
+    evidenceStore,
+    deploymentIdentityProvider,
+    targetIdentityProvider,
+    publicKey: configuration.publicKey,
+    keyId: configuration.keyId,
+    issuer: configuration.issuer,
+    env,
   });
 }
 
@@ -237,10 +382,17 @@ export function createServerManagedRecoveryBinding(context = {}) {
   return createProductionRecoveryBaselineBindingForEnv(context, process.env);
 }
 
+export function createRecoveryReadinessAuthorities(context = {}) {
+  return createProductionRecoveryReadinessAuthoritiesForEnv(context, process.env);
+}
+
 export const _testingProductionRecoveryBaselineAuthorityBinding = Object.freeze({
   assertRuntime,
   assertServerSecrets,
+  assertReadinessContext,
+  resolveProductionReadinessConfiguration,
   readExactProductionAttestation,
   denyGovernanceMigrationLedgerFinalize,
   REQUIRED_SERVER_ENV,
+  REQUIRED_READINESS_ENV,
 });
