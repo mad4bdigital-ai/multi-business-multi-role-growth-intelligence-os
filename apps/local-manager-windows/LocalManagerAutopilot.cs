@@ -12,7 +12,8 @@ internal sealed record AutopilotFailure(
     bool Retryable,
     string? RequestId = null,
     int? RetryAfterSeconds = null,
-    string? Surface = null);
+    string? Surface = null,
+    string? RateLimitSource = null);
 
 internal static class AutopilotNetworkRecovery
 {
@@ -38,7 +39,10 @@ internal static class AutopilotNetworkRecovery
                 true);
     }
 
-    internal static AutopilotFailure ClassifyHttp(HttpStatusCode statusCode, string? responseBody)
+    internal static AutopilotFailure ClassifyHttp(
+        HttpStatusCode statusCode,
+        string? responseBody,
+        string? rateLimitSource = null)
     {
         var numeric = (int)statusCode;
         var body = responseBody ?? string.Empty;
@@ -78,7 +82,8 @@ internal static class AutopilotNetworkRecovery
                 structured.Retryable,
                 structured.RequestId,
                 structured.RetryAfterSeconds,
-                structured.Surface);
+                structured.Surface,
+                string.IsNullOrWhiteSpace(rateLimitSource) ? structured.RateLimitSource : rateLimitSource);
         }
 
         var generic = ParseStructuredHttpError(body, "platform_http_failure", numeric >= 500);
@@ -97,7 +102,8 @@ internal static class AutopilotNetworkRecovery
         string? RequestId,
         bool Retryable,
         int? RetryAfterSeconds,
-        string? Surface);
+        string? Surface,
+        string? RateLimitSource);
 
     private static StructuredHttpError ParseStructuredHttpError(string? responseBody, string fallbackCode, bool fallbackRetryable)
     {
@@ -106,6 +112,7 @@ internal static class AutopilotNetworkRecovery
         var retryable = fallbackRetryable;
         int? retryAfterSeconds = null;
         string? surface = null;
+        string? rateLimitSource = null;
 
         try
         {
@@ -128,6 +135,7 @@ internal static class AutopilotNetworkRecovery
                 ?? JsonInt(root, "retry_after")
                 ?? JsonInt(root, "retry_after_seconds");
             surface = JsonText(error, "surface") ?? JsonText(root, "surface");
+            rateLimitSource = JsonText(error, "rate_limit_source") ?? JsonText(root, "rate_limit_source");
         }
         catch (JsonException)
         {
@@ -138,8 +146,9 @@ internal static class AutopilotNetworkRecovery
             SafeDiagnostic(code),
             string.IsNullOrWhiteSpace(requestId) ? null : SafeDiagnostic(requestId),
             retryable,
-            retryAfterSeconds is null ? null : Math.Clamp(retryAfterSeconds.Value, 1, 300),
-            string.IsNullOrWhiteSpace(surface) ? null : SafeDiagnostic(surface));
+            retryAfterSeconds is null ? null : Math.Clamp(retryAfterSeconds.Value, 1, 86400),
+            string.IsNullOrWhiteSpace(surface) ? null : SafeDiagnostic(surface),
+            string.IsNullOrWhiteSpace(rateLimitSource) ? null : SafeDiagnostic(rateLimitSource));
     }
 
     private static string? JsonText(JsonElement element, string property)
