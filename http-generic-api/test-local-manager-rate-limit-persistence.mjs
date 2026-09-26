@@ -14,7 +14,7 @@ test("desktop command backoff is restored across Local Manager restart", () => {
   assert.match(program, /DesktopCommandPollBackoffStore/u);
 
   assert.match(store, /desktop-command-poll-backoff\.json/u);
-  assert.match(store, /MaxBackoffSeconds\s*=\s*300/u);
+  assert.match(store, /MaxBackoffSeconds\s*=\s*86400/u);
   assert.match(store, /backoff_until_utc/u);
   assert.match(store, /failure_count/u);
   assert.match(store, /File\.Move\(temporary, _statePath, true\)/u);
@@ -24,11 +24,32 @@ test("desktop command backoff is restored across Local Manager restart", () => {
 test("429 handling observes HTTP status and Retry-After before JSON-dependent recovery", () => {
   assert.match(deviceLink, /RetryAfterSeconds\(response\)/u);
   assert.match(deviceLink, /response\.StatusCode/u);
+  assert.match(deviceLink, /MaxRetryAfterSeconds\s*=\s*86400/u);
+  assert.match(deviceLink, /upstream_edge/u);
+  assert.match(deviceLink, /application/u);
   assert.match(program, /HttpStatusCode\.TooManyRequests/u);
   assert.match(program, /RetryAfterSeconds\(response, 120\)/u);
-  assert.match(program, /Math\.Max\(localBackoffSeconds, serverRetryAfterSeconds \?\? 0\)/u);
+  assert.match(program, /Math\.Max\(localBackoffWithJitter, serverRetryAfterSeconds \?\? 0\)/u);
+  assert.match(program, /Random\.Shared\.Next/u);
+  assert.match(program, /rate_limit_source = rateLimitSource/u);
+  assert.match(program, /upstream_edge/u);
+  assert.match(program, /application/u);
   assert.match(autopilot, /if \(numeric == 429\)/u);
-  assert.match(autopilot, /RetryAfterSeconds/u);
+  assert.match(autopilot, /Math\.Clamp\(retryAfterSeconds\.Value, 1, 86400\)/u);
+});
+
+test("401 stops ordinary polling until relink while 403 remains authorization denial", () => {
+  assert.match(program, /errorCode: authenticationRequired \? "credential_invalid" : "authorization_denied"/u);
+  assert.match(program, /relinkRequired: authenticationRequired/u);
+  assert.match(program, /if \(authenticationRequired\) _desktopCommandTimer\.Stop\(\);/u);
+  assert.match(program, /relink_required = relinkRequired/u);
+  assert.match(program, /StartDesktopCommandPolling\(\);/u);
+});
+
+test("pairing rate limit remains resumable and carries source attribution", () => {
+  assert.match(program, /Pairing temporarily rate limited\. Retrying after/u);
+  assert.match(program, /rate_limit_source = response\.RateLimitSource/u);
+  assert.match(program, /continue;/u);
 });
 
 test("successful polling clears durable backoff instead of preserving stale throttling", () => {
