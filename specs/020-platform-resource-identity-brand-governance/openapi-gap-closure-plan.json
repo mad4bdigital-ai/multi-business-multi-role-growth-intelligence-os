@@ -6,8 +6,8 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "95d5ee6acc782849cc33cac96831cd04228de9a5c8c818d38370f09d5bf9ab3c",
-    "dispatch_artifact_sha256": "7ad9a1f0ed8424486258ac3f1dbccc6469454fb9ec89ba99ec51069032b41664"
+    "dispatch_source_digest": "66fa4e6d31b3c7bc77be35b43ee9909ba73fcd01e4317460ed63db6c78d852b8",
+    "dispatch_artifact_sha256": "cee11a3b1667191e09d775dff0faf30d4bd2dca3777c54b9816385077555d922"
   },
   "coverage": {
     "operation_count": 1081,
@@ -16,7 +16,7 @@
     "auth_contract_gap_count": 0,
     "openapi_detail_gap_count": 323,
     "unresolved_surface_decision_count": 1,
-    "unresolved_operation_class_count": 2,
+    "unresolved_operation_class_count": 0,
     "untested_family_count": 1,
     "untested_operation_count": 3,
     "coverage_complete": false
@@ -88,7 +88,7 @@
       "detail_gap_count": 3,
       "operation_count": 3,
       "untested_operation_count": 3,
-      "unresolved_operation_count": 2,
+      "unresolved_operation_count": 0,
       "next_action": "assign_owner_and_record_surface_decision_before_projection",
       "activation_allowed": false,
       "evidence_refs": [
