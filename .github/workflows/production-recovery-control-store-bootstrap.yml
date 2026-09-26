@@ -1,0 +1,221 @@
+name: Production Recovery Control Store Bootstrap
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Bounded bootstrap operation
+        required: true
+        type: choice
+        options:
+          - status
+          - plan
+          - apply_schema
+      expected_sha:
+        description: Exact current Production deployment SHA
+        required: true
+        type: string
+      plan_sha256:
+        description: Exact authoritative bootstrap plan SHA-256 (apply_schema only)
+        required: false
+        type: string
+      confirmation:
+        description: Typed confirmation APPLY_PRODUCTION_RECOVERY_CONTROL_STORE_SCHEMA (apply_schema only)
+        required: false
+        type: string
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: read
+
+concurrency:
+  group: production-recovery-control-store-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    name: Resolve bounded bootstrap request
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.resolve.outputs.enabled }}
+      operation: ${{ steps.resolve.outputs.operation }}
+      expected_sha: ${{ steps.resolve.outputs.expected_sha }}
+      plan_sha256: ${{ steps.resolve.outputs.plan_sha256 }}
+      confirmation: ${{ steps.resolve.outputs.confirmation }}
+    steps:
+      - id: resolve
+        name: Validate request envelope
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_OPERATION: ${{ inputs.operation }}
+          INPUT_EXPECTED_SHA: ${{ inputs.expected_sha }}
+          INPUT_PLAN_SHA256: ${{ inputs.plan_sha256 }}
+          INPUT_CONFIRMATION: ${{ inputs.confirmation }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          AUTHOR_ASSOCIATION: ${{ github.event.comment.author_association }}
+        run: |
+          set -euo pipefail
+
+          enabled=false
+          operation=""
+          expected_sha=""
+          plan_sha256=""
+          confirmation=""
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            enabled=true
+            operation="$INPUT_OPERATION"
+            expected_sha="$INPUT_EXPECTED_SHA"
+            plan_sha256="$INPUT_PLAN_SHA256"
+            confirmation="$INPUT_CONFIRMATION"
+          elif [ "$EVENT_NAME" = "issue_comment" ]; then
+            if [ "$ISSUE_NUMBER" != "7999" ] || [ "$AUTHOR_ASSOCIATION" != "OWNER" ]; then
+              echo "enabled=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            first_line="$(printf '%s\n' "$COMMENT_BODY" | sed -n '1p' | tr -d '\r' | xargs)"
+            case "$first_line" in
+              PRODUCTION_RECOVERY_CONTROL_STORE_BOOTSTRAP_STATUS)
+                operation=status
+                ;;
+              PLAN_PRODUCTION_RECOVERY_CONTROL_STORE_BOOTSTRAP)
+                operation=plan
+                ;;
+              APPLY_PRODUCTION_RECOVERY_CONTROL_STORE_SCHEMA)
+                operation=apply_schema
+                confirmation=APPLY_PRODUCTION_RECOVERY_CONTROL_STORE_SCHEMA
+                ;;
+              *)
+                echo "enabled=false" >> "$GITHUB_OUTPUT"
+                exit 0
+                ;;
+            esac
+
+            expected_sha="$(printf '%s\n' "$COMMENT_BODY" | sed -nE 's/^(exact_sha|expected_sha):[[:space:]]*([0-9a-fA-F]{40})[[:space:]]*$/\2/p' | head -n1 | tr '[:upper:]' '[:lower:]')"
+            plan_sha256="$(printf '%s\n' "$COMMENT_BODY" | sed -nE 's/^plan_sha256:[[:space:]]*([0-9a-fA-F]{64})[[:space:]]*$/\1/p' | head -n1 | tr '[:upper:]' '[:lower:]')"
+            enabled=true
+          fi
+
+          if ! [[ "$expected_sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::exact current Production SHA is required"
+            exit 1
+          fi
+
+          case "$operation" in
+            status|plan)
+              if [ -n "$plan_sha256" ] || [ -n "$confirmation" ]; then
+                echo "::error::status/plan must not include mutation authorization"
+                exit 1
+              fi
+              ;;
+            apply_schema)
+              if ! [[ "$plan_sha256" =~ ^[0-9a-f]{64}$ ]]; then
+                echo "::error::apply_schema requires exact plan_sha256"
+                exit 1
+              fi
+              if [ "$confirmation" != "APPLY_PRODUCTION_RECOVERY_CONTROL_STORE_SCHEMA" ]; then
+                echo "::error::typed apply confirmation mismatch"
+                exit 1
+              fi
+              ;;
+            *)
+              echo "::error::unsupported bootstrap operation"
+              exit 1
+              ;;
+          esac
+
+          {
+            echo "enabled=$enabled"
+            echo "operation=$operation"
+            echo "expected_sha=$expected_sha"
+            echo "plan_sha256=$plan_sha256"
+            echo "confirmation=$confirmation"
+          } >> "$GITHUB_OUTPUT"
+
+  read:
+    name: Read-only bootstrap status or plan
+    needs: resolve
+    if: needs.resolve.outputs.enabled == 'true' && (needs.resolve.outputs.operation == 'status' || needs.resolve.outputs.operation == 'plan')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      OPERATION: ${{ needs.resolve.outputs.operation }}
+      EXPECTED_SHA: ${{ needs.resolve.outputs.expected_sha }}
+    steps:
+      - name: Call bounded Production bootstrap read surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$BACKEND_API_KEY"
+          response="$RUNNER_TEMP/recovery-bootstrap-read.json"
+
+          if [ "$OPERATION" = "status" ]; then
+            http="$(curl -sS -o "$response" -w '%{http_code}'               -H "Authorization: Bearer $BACKEND_API_KEY"               -H 'Accept: application/json'               "$RUNTIME_BASE_URL/admin/recovery-bootstrap/status?expected_sha=$EXPECTED_SHA")"
+          else
+            payload="$RUNNER_TEMP/recovery-bootstrap-plan-request.json"
+            jq -n --arg expected_sha "$EXPECTED_SHA" '{expected_sha:$expected_sha}' > "$payload"
+            http="$(curl -sS -o "$response" -w '%{http_code}' -X POST               -H "Authorization: Bearer $BACKEND_API_KEY"               -H 'Accept: application/json'               -H 'Content-Type: application/json'               --data-binary "@$payload"               "$RUNTIME_BASE_URL/admin/recovery-bootstrap/plan")"
+          fi
+
+          jq 'del(.configuration_presence.recovery_control_db_password)' "$response"
+          test "$http" = "200"
+          test "$(jq -r '.secrets_included // false' "$response")" = "false"
+
+      - name: Upload bounded read evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-recovery-control-store-bootstrap-${{ needs.resolve.outputs.operation }}-${{ needs.resolve.outputs.expected_sha }}
+          path: ${{ runner.temp }}/recovery-bootstrap-read.json
+          if-no-files-found: error
+          retention-days: 14
+
+  apply_schema:
+    name: Apply independent Recovery Control Store schema
+    needs: resolve
+    if: needs.resolve.outputs.enabled == 'true' && needs.resolve.outputs.operation == 'apply_schema'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: Production
+    env:
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      EXPECTED_SHA: ${{ needs.resolve.outputs.expected_sha }}
+      PLAN_SHA256: ${{ needs.resolve.outputs.plan_sha256 }}
+      CONFIRMATION: ${{ needs.resolve.outputs.confirmation }}
+    steps:
+      - name: Execute exact bounded schema plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$BACKEND_API_KEY"
+          payload="$RUNNER_TEMP/recovery-bootstrap-apply-request.json"
+          response="$RUNNER_TEMP/recovery-bootstrap-apply.json"
+
+          jq -n             --arg expected_sha "$EXPECTED_SHA"             --arg plan_sha256 "$PLAN_SHA256"             --arg confirmation "$CONFIRMATION"             '{expected_sha:$expected_sha,plan_sha256:$plan_sha256,confirmation:$confirmation}' > "$payload"
+
+          http="$(curl -sS -o "$response" -w '%{http_code}' -X POST             -H "Authorization: Bearer $BACKEND_API_KEY"             -H 'Accept: application/json'             -H 'Content-Type: application/json'             --data-binary "@$payload"             "$RUNTIME_BASE_URL/admin/recovery-bootstrap/apply")"
+
+          cat "$response" | jq .
+          test "$http" = "200"
+          test "$(jq -r '.ok' "$response")" = "true"
+          test "$(jq -r '.status' "$response")" = "control_store_schema_ready"
+          test "$(jq -r '.same_cycle_readback_performed' "$response")" = "true"
+          test "$(jq -r '.target_database_mutation_performed' "$response")" = "false"
+          test "$(jq -r '.provider_mutation_performed' "$response")" = "false"
+          test "$(jq -r '.production_runtime_mutation_performed' "$response")" = "false"
+          test "$(jq -r '.secrets_included' "$response")" = "false"
+
+      - name: Upload immutable bounded apply receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-recovery-control-store-bootstrap-apply-${{ needs.resolve.outputs.expected_sha }}-${{ needs.resolve.outputs.plan_sha256 }}
+          path: ${{ runner.temp }}/recovery-bootstrap-apply.json
+          if-no-files-found: error
+          retention-days: 30
