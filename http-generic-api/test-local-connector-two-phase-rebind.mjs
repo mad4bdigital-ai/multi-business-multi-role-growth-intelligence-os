@@ -185,6 +185,27 @@ test("canonical recovery proof boundary rejects nested token and client-secret m
   }
 });
 
+test("phase receipt allowlists reject unexpected safe-looking fields", async () => {
+  const executor = createLocalConnectorTwoPhaseRebindExecutor({
+    resolveBoundDeviceContext: async () => ({ ...baseContext() }),
+    preparePendingCredential: async () => ({
+      pending_credential_ref: "credential:pending-unexpected-field",
+      old_credential_active: true,
+      old_credential_revoked: false,
+      debug_note: "this field is not part of the prepare receipt contract",
+      secrets_included: false,
+    }),
+    installPendingCredentialLocally: async () => ({}),
+    probePendingCredential: async () => ({}),
+    commitPendingCredential: async () => ({}),
+  });
+
+  await assert.rejects(
+    executor(STEP),
+    (error) => error.code === "LOCAL_CONNECTOR_REBIND_RECEIPT_FIELD_FORBIDDEN",
+  );
+});
+
 test("opaque credential references remain allowed by the canonical proof boundary", async () => {
   const executor = createLocalConnectorTwoPhaseRebindExecutor({
     resolveBoundDeviceContext: async () => ({ ...baseContext() }),
