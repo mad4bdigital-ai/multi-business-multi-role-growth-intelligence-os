@@ -79,6 +79,28 @@ function configPresence(env = process.env) {
   });
 }
 
+function buildPreRebuildSequence({ readiness, binding }) {
+  const controlStoreReady = readiness?.ready === true
+    && readiness?.config_complete === true
+    && readiness?.connection_ready === true
+    && readiness?.schema_ready === true;
+  const bindingReady = binding?.mode === "production_live" && binding?.module_configured === true;
+  return Object.freeze([
+    { key: "recovery_control_store_configured", ready: readiness?.config_complete === true, mutation: false },
+    { key: "recovery_control_store_connection_ready", ready: readiness?.connection_ready === true, mutation: false },
+    { key: "recovery_control_store_schema_ready", ready: readiness?.schema_ready === true, mutation: "bootstrap_schema_only" },
+    { key: "server_managed_recovery_binding_ready", ready: bindingReady, mutation: false },
+    { key: "durable_full_inspection", ready: false, pending_after: controlStoreReady && bindingReady ? null : "bootstrap_prerequisites", mutation: false },
+    { key: "role_selection_provenance_bound", ready: false, pending_after: "durable_full_inspection", mutation: false },
+    { key: "role_bundle_bindings_bound", ready: false, pending_after: "durable_full_inspection", mutation: false },
+    { key: "governance_baseline_ready", ready: false, pending_after: "typed_rebuild_approval", mutation: "separate_recovery_execution" },
+    { key: "runtime_persistence_baseline_ready", ready: false, pending_after: "typed_rebuild_approval", mutation: "separate_recovery_execution" },
+    { key: "canonical_grants_readback_ready", ready: false, pending_after: "baseline_rebuild", mutation: "separate_grant_authority" },
+    { key: "governance_authority_ready", ready: false, pending_after: "canonical_grants_readback_ready", mutation: false },
+    { key: "ordinary_migration_ready", ready: false, pending_after: "governance_authority_ready", mutation: "separate_migration_authority" },
+  ]);
+}
+
 function classifyAction({ readiness, binding }) {
   if (readiness?.config_complete !== true) {
     return {
@@ -212,6 +234,15 @@ export async function inspectProductionRecoveryControlStoreBootstrap(
       independent_of_target_databases: readiness?.independent_of_target_databases === true,
     },
     configuration_presence: configPresence(env),
+    pre_rebuild_sequence: buildPreRebuildSequence({ readiness, binding }),
+    scope_boundaries: {
+      rebuild_execution_in_scope: false,
+      grant_mutation_in_scope: false,
+      ordinary_migration_in_scope: false,
+      hostinger_environment_write_in_scope: false,
+      database_or_user_creation_in_scope: false,
+      recovery_control_store_schema_reconciliation_in_scope: true,
+    },
     next_action: classification.action,
     execution_allowed: classification.execution_allowed,
     blocker: classification.blocker,
@@ -392,5 +423,6 @@ export const _testingProductionRecoveryControlStoreBootstrap = Object.freeze({
   digest,
   configPresence,
   classifyAction,
+  buildPreRebuildSequence,
   requiredSha,
 });
