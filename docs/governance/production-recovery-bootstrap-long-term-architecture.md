@@ -45,7 +45,7 @@ The current patch adds a bounded Production Recovery Control Store bootstrap sur
 - verify exact Production deployment identity;
 - inspect Recovery Control Store configuration presence without exposing secret values;
 - inspect connection and schema readiness;
-- report server-managed Recovery binding mode/module readiness;
+- report server-managed Recovery binding mode/module configuration;
 - build an immutable plan bound to the exact Production SHA;
 - reconcile only the repository-owned `CREATE TABLE IF NOT EXISTS` schema for the independent Recovery Control Store;
 - require an exact plan SHA-256 and typed confirmation before schema reconciliation;
@@ -72,7 +72,7 @@ The current patch adds a bounded Production Recovery Control Store bootstrap sur
 Recovery Control Store configured
 → Recovery Control Store connection ready
 → Recovery Control Store schema ready
-→ Server-managed Recovery binding ready
+→ Server-managed Recovery binding configured (live readiness still unverified)
 → Durable full inspection
 → Role-selection provenance bound
 → Role-bundle bindings bound
@@ -229,3 +229,42 @@ The long-term Recovery Authority Plane, Hostinger semantic env adapter, database
 They should be delivered as a separate feature after the immediate Production recovery bootstrap is closed and verified.
 
 This separation is intentional so the current incident is resolved with the smallest auditable authority increase while preserving a clear migration path to the stronger long-term architecture.
+
+## Schema completeness and deployment drift
+
+The fixed Control Store DDL is the canonical inventory for all eleven tables.
+Readiness checks every required column (type, nullability, default, update behavior,
+and text collation), primary/unique/secondary index, and InnoDB base-table identity.
+Absent tables are eligible for fixed CREATE TABLE reconciliation. Missing or malformed
+columns/indexes in an existing table require separate migration authority; CREATE TABLE
+IF NOT EXISTS cannot repair them. Metadata query failures never authorize bootstrap.
+
+`scope=durable_inspection` remains compatible with inspection consumers, while
+`schema_scope=mutation_grade` and `mutation_grade_schema_ready` describe the expanded
+physical schema check. They do not authorize a recovery mutation or certify the live
+adapter graph. `server_managed_recovery_binding_configured` and
+`binding.readiness_verified=false` deliberately report configuration only. The fresh
+Recovery Kernel inspection must resolve and validate the live server-managed binding.
+
+The plan includes a digest of canonical deployment identity, including available
+manifest tree, image, context and deployment-time fields. Identity is read again after
+pool resolution immediately before the first DDL; drift rejects with HTTP 412 without
+SQL dispatch. Drift between statements stops remaining DDL and requires reconciliation.
+These checks narrow the race window; they are not an atomic deployment/DB fencing
+protocol and cannot detect a remote deployment invisible to the local canonical reader.
+A lost first DDL acknowledgement reports unknown outcome, not proven no mutation.
+No ambiguous or partial result permits automatic replay.
+
+## Isolation and operational prerequisites
+
+The database, principal and secret configuration must already exist; this bootstrap
+cannot provision them. Reusing a target database host remains supported for incident
+closure. Distinct database/principal names provide logical isolation only, not
+infrastructure failure-domain isolation. Even an explicit different hostname is not
+proof of a separate failure domain. External provider/authority-plane independence
+remains a separate delivery.
+
+After authorized deployment, obtain fresh status and plan, apply only with the exact
+current typed confirmation, verify full-schema readback, then run fresh durable
+inspection and the existing governed convergence authorities. Do not reuse plans or
+approval material across SHA or state changes.

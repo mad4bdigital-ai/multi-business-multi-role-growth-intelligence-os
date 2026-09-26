@@ -190,7 +190,11 @@
             "Retry-After greater than 300 seconds survives durable restart state up to the declared one-day safety ceiling.",
             "401 produces credential_invalid with relink_required and stops ordinary polling; 403 produces authorization_denied without credential rotation.",
             "Application 429 carries rate_limit_source=application; empty/no-app-evidence 429 is classified upstream_edge.",
-            "Repository delivery performs no Production runtime deployment, target DB rebuild, grant apply, ordinary migration, provider mutation, or secret rotation."
+            "Repository delivery performs no Production runtime deployment, target DB rebuild, grant apply, ordinary migration, provider mutation, or secret rotation.",
+            "All eleven Control Store tables and their critical column/index/table properties are checked from the canonical DDL inventory.",
+            "An empty Control Store is eligible for creation; existing malformed tables and unavailable schema evidence fail closed.",
+            "Deployment identity drift after plan validation prevents the first DDL; mid-cycle drift or lost acknowledgement requires reconciliation without replay.",
+            "Configured server-managed binding is not reported as verified live readiness."
           ],
           "tests": [
             {

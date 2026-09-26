@@ -360,3 +360,4 @@ process.stdout.write(`${JSON.stringify({
   automerge_allowed: report.automerge_allowed
 })}\n`);
 if (blocking.length) process.exitCode = 1;
+else if (mode === "finalizer" && manual.length) process.exitCode = 2;

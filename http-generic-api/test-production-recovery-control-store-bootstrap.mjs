@@ -177,9 +177,10 @@ const configuredEnv = {
       }),
     },
   );
+  assert.equal(status.binding.readiness_verified, false);
   assert.equal(status.next_action, "durable_reinspection_required");
   assert.equal(status.execution_allowed, false);
-  assert.equal(status.pre_rebuild_sequence.find((x) => x.key === "server_managed_recovery_binding_ready")?.ready, true);
+  assert.equal(status.pre_rebuild_sequence.find((x) => x.key === "server_managed_recovery_binding_configured")?.ready, true);
   assert.equal(status.pre_rebuild_sequence.find((x) => x.key === "durable_full_inspection")?.ready, false);
   assert.equal(status.pre_rebuild_sequence.find((x) => x.key === "role_selection_provenance_bound")?.pending_after, "durable_full_inspection");
   assert.equal(status.pre_rebuild_sequence.find((x) => x.key === "role_bundle_bindings_bound")?.pending_after, "durable_full_inspection");
@@ -197,6 +198,7 @@ const configuredEnv = {
       connection_ready: true,
       schema_ready: false,
       error_code: "RECOVERY_CONTROL_STORE_SCHEMA_NOT_READY",
+      missing_tables: ["recovery_control_locks"],
       independent_of_target_databases: true,
       database_connection_performed: true,
       database_mutation_performed: false,
@@ -239,6 +241,7 @@ const configuredEnv = {
           connection_ready: true,
           schema_ready: false,
           error_code: "RECOVERY_CONTROL_STORE_SCHEMA_NOT_READY",
+          missing_tables: ["recovery_control_locks"],
           independent_of_target_databases: true,
           database_connection_performed: true,
           database_mutation_performed: false,
@@ -286,7 +289,7 @@ const configuredEnv = {
       "recovery_control_store_configured",
       "recovery_control_store_connection_ready",
       "recovery_control_store_schema_ready",
-      "server_managed_recovery_binding_ready",
+      "server_managed_recovery_binding_configured",
       "durable_full_inspection",
       "role_selection_provenance_bound",
       "role_bundle_bindings_bound",
@@ -299,4 +302,163 @@ const configuredEnv = {
   );
 }
 
-console.log("production recovery control-store bootstrap tests passed");
+
+
+// Exercise the real metadata reader and classifier together, not a mocked ready flag.
+const { getRecoveryControlStoreReadiness, RECOVERY_CONTROL_STORE_SCHEMA_INVENTORY, _testingRecoveryControlDb } =
+  await import("./recoveryControlDb.js");
+const inventory = RECOVERY_CONTROL_STORE_SCHEMA_INVENTORY;
+assert.equal(Object.keys(inventory).length, 11);
+const metadata = {
+  tables: Object.keys(inventory).map((TABLE_NAME) => ({ TABLE_NAME, TABLE_TYPE: "BASE TABLE", ENGINE: "InnoDB", TABLE_COLLATION: "utf8mb4_unicode_ci" })),
+  columns: Object.entries(inventory).flatMap(([TABLE_NAME, table]) => Object.entries(table.columns).map(([COLUMN_NAME, column]) => ({
+    TABLE_NAME, COLUMN_NAME, COLUMN_TYPE: column.type, IS_NULLABLE: column.nullable ? "YES" : "NO",
+    COLUMN_DEFAULT: column.default, EXTRA: column.on_update ? "on update current_timestamp(6)" : "",
+    COLLATION_NAME: /^(?:varchar|char|longtext)/u.test(column.type) ? "utf8mb4_unicode_ci" : null,
+  }))),
+  indexes: Object.entries(inventory).flatMap(([TABLE_NAME, table]) => table.indexes.map((index, i) => ({
+    TABLE_NAME, INDEX_NAME: index.primary ? "PRIMARY" : `fixture_${i}`, columns: index.columns,
+    NON_UNIQUE: index.unique ? 0 : 1, INDEX_TYPE: "BTREE",
+  }))),
+};
+function metadataPool(data, { onRelease = () => {}, readError = null } = {}) {
+  return { async getConnection() { return {
+    async ping() {}, release: onRelease,
+    async query(sql, params) {
+      assert.equal(params[0], configuredEnv.RECOVERY_CONTROL_DB_NAME);
+      assert.equal(params.length, 12, "all eleven tables must be queried");
+      if (readError) throw readError;
+      if (sql.includes("information_schema.COLUMNS")) return [data.columns];
+      if (sql.includes("information_schema.STATISTICS")) return [data.indexes];
+      if (sql.includes("information_schema.TABLES")) return [data.tables];
+      assert.fail("readiness must only issue fixed metadata SELECTs");
+    },
+  }; } };
+}
+async function schemaStatus(data, options) {
+  return getRecoveryControlStoreReadiness({ env: configuredEnv, poolProvider: () => metadataPool(data, options) });
+}
+function classify(readiness) {
+  return _testingProductionRecoveryControlStoreBootstrap.classifyAction({ readiness, binding: {} });
+}
+const emptyMetadata = { tables: [], columns: [], indexes: [] };
+const emptyReadiness = await schemaStatus(emptyMetadata);
+assert.equal(emptyReadiness.missing_tables.length, 11);
+assert.deepEqual(emptyReadiness.missing_indexes, []);
+assert.equal(classify(emptyReadiness).action, "reconcile_control_store_schema");
+const completeReadiness = await schemaStatus(metadata);
+assert.equal(completeReadiness.ready, true);
+assert.equal(completeReadiness.mutation_grade_schema_ready, true);
+assert.equal(completeReadiness.schema_scope, "mutation_grade");
+
+const inspectionTables = new Set(["recovery_control_records", "recovery_control_run_idempotency", "recovery_control_idempotency_receipts", "recovery_control_evidence_events"]);
+const inspectionOnly = Object.fromEntries(Object.entries(metadata).map(([key, rows]) => [key, rows.filter((row) => inspectionTables.has(row.TABLE_NAME))]));
+assert.equal((await schemaStatus(inspectionOnly)).mutation_grade_schema_ready, false);
+assert.equal((await schemaStatus(inspectionOnly)).missing_tables.length, 7);
+
+for (const table of Object.keys(inventory)) {
+  const missing = Object.fromEntries(Object.entries(metadata).map(([key, rows]) => [key, rows.filter((row) => row.TABLE_NAME !== table)]));
+  const status = await schemaStatus(missing);
+  assert.equal(status.ready, false, table);
+  assert.deepEqual(status.missing_tables, [table]);
+  assert.equal(classify(status).action, "reconcile_control_store_schema");
+}
+for (const row of metadata.columns) {
+  const data = { ...metadata, columns: metadata.columns.filter((candidate) => candidate !== row) };
+  const status = await schemaStatus(data);
+  assert.equal(status.ready, false, `${row.TABLE_NAME}.${row.COLUMN_NAME}`);
+  assert.equal(classify(status).action, "blocked_control_store_schema_drift");
+}
+for (const row of metadata.indexes) {
+  const data = { ...metadata, indexes: metadata.indexes.filter((candidate) => candidate !== row) };
+  const status = await schemaStatus(data);
+  assert.equal(status.ready, false, `${row.TABLE_NAME}.${row.INDEX_NAME}`);
+  assert.equal(classify(status).action, "blocked_control_store_schema_drift");
+}
+for (const patch of [
+  { COLUMN_TYPE: "bigint" }, { COLUMN_DEFAULT: "1" }, { IS_NULLABLE: "YES" }, { EXTRA: "STORED GENERATED" },
+]) {
+  const data = structuredClone(metadata);
+  Object.assign(data.columns.find((row) => row.COLUMN_NAME === "fence_counter"), patch);
+  assert.equal(classify(await schemaStatus(data)).action, "blocked_control_store_schema_drift");
+}
+for (const patch of [{ ENGINE: "MyISAM" }, { TABLE_TYPE: "VIEW" }, { TABLE_COLLATION: "utf8mb4_bin" }]) {
+  const data = structuredClone(metadata);
+  Object.assign(data.tables.find((row) => row.TABLE_NAME === "recovery_control_locks"), patch);
+  assert.equal(classify(await schemaStatus(data)).action, "blocked_control_store_schema_drift");
+}
+{
+  const data = structuredClone(metadata);
+  const index = data.indexes.find((row) => row.TABLE_NAME === "recovery_control_locks" && row.columns === "lease_id");
+  index.NON_UNIQUE = 1;
+  assert.equal((await schemaStatus(data)).ready, false, "non-unique lease IDs must fail closed");
+  index.NON_UNIQUE = 0;
+  index.columns = "lease_id:prefix:10";
+  assert.equal((await schemaStatus(data)).ready, false, "prefix indexes are not full identity indexes");
+}
+assert.throws(() => _testingRecoveryControlDb.buildSchemaInventory(["CREATE TABLE arbitrary (id INT)"]), /Unsupported/u);
+{
+  let releases = 0;
+  const status = await schemaStatus(metadata, { readError: Object.assign(new Error("transport"), { code: "ECONNRESET" }), onRelease: () => { releases += 1; } });
+  assert.equal(status.ready, false);
+  assert.equal(classify(status).execution_allowed, false);
+  assert.equal(releases, 1);
+}
+
+function bootstrapHarness({ onPool = () => {}, onQuery = async () => {}, onReadback = () => completeReadiness } = {}) {
+  let readCount = 0;
+  const state = { identity: identityReader(), queries: [] };
+  const deps = {
+    env: configuredEnv, identityReader: () => state.identity, runtimeResolver, bindingStatusReader,
+    readinessReader: async () => ++readCount <= 2 ? emptyReadiness : onReadback(),
+    poolProvider: () => {
+      onPool(state);
+      return { async query(sql) { state.queries.push(sql); await onQuery(state); return [[], []]; } };
+    },
+  };
+  return { state, deps };
+}
+async function applyHarness(harness) {
+  const plan = await buildProductionRecoveryControlStoreBootstrapPlan({ expected_sha: SHA }, harness.deps);
+  return applyProductionRecoveryControlStoreBootstrapPlan({ expected_sha: SHA, plan_sha256: plan.plan_sha256,
+    confirmation: PRODUCTION_RECOVERY_CONTROL_STORE_BOOTSTRAP_CONFIRMATION }, harness.deps);
+}
+for (const drift of [
+  { commit_sha: "b".repeat(40) }, { branch: "main" }, { repository: "other/repo" },
+  { manifest: { deployed_at: "2026-09-26T10:00:00Z" } }, { runtime_generation: "new-generation" },
+]) {
+  const harness = bootstrapHarness({ onPool: (state) => { state.identity = { ...state.identity, ...drift }; } });
+  await assert.rejects(() => applyHarness(harness), (error) => error.status === 412);
+  assert.equal(harness.state.queries.length, 0, "post-plan deployment drift must reject before any DDL");
+}
+{
+  const harness = bootstrapHarness({ onQuery: async (state) => { state.identity = { ...state.identity, commit_sha: "b".repeat(40) }; } });
+  const receipt = await applyHarness(harness);
+  assert.equal(receipt.status, "reconciliation_required");
+  assert.equal(receipt.statements_acknowledged, 1);
+  assert.equal(harness.state.queries.length, 1, "mid-cycle drift must stop remaining DDL");
+  assert.equal(receipt.automatic_replay_allowed, false);
+}
+for (const failAt of [1, 3]) {
+  const harness = bootstrapHarness({ onQuery: async (state) => {
+    if (state.queries.length === failAt) throw Object.assign(new Error("lost acknowledgement"), { code: "ECONNRESET" });
+  } });
+  const receipt = await applyHarness(harness);
+  assert.equal(receipt.status, "reconciliation_required");
+  assert.equal(receipt.statements_attempted, failAt);
+  assert.equal(receipt.statements_acknowledged, failAt - 1);
+  assert.equal(receipt.unknown_outcome, true);
+  assert.equal(receipt.database_mutation_performed, failAt === 1 ? null : true);
+  assert.equal(receipt.automatic_replay_allowed, false);
+  assert.equal(harness.state.queries.length, failAt);
+}
+for (const onReadback of [
+  () => { throw new Error("readback unavailable"); },
+  () => ({ ...completeReadiness, ready: false, schema_ready: false }),
+]) {
+  const receipt = await applyHarness(bootstrapHarness({ onReadback }));
+  assert.equal(receipt.status, "reconciliation_required");
+  assert.equal(receipt.automatic_replay_allowed, false);
+  assert.equal(receipt.statements_acknowledged, 11);
+}
+console.log("production recovery control-store bootstrap tests passed (full schema, empty store, drift, identity and ambiguity)");

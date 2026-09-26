@@ -84,13 +84,13 @@ function buildPreRebuildSequence({ readiness, binding }) {
     && readiness?.config_complete === true
     && readiness?.connection_ready === true
     && readiness?.schema_ready === true;
-  const bindingReady = binding?.mode === "production_live" && binding?.module_configured === true;
+  const bindingConfigured = binding?.mode === "production_live" && binding?.module_configured === true;
   return Object.freeze([
     { key: "recovery_control_store_configured", ready: readiness?.config_complete === true, mutation: false },
     { key: "recovery_control_store_connection_ready", ready: readiness?.connection_ready === true, mutation: false },
     { key: "recovery_control_store_schema_ready", ready: readiness?.schema_ready === true, mutation: "bootstrap_schema_only" },
-    { key: "server_managed_recovery_binding_ready", ready: bindingReady, mutation: false },
-    { key: "durable_full_inspection", ready: false, pending_after: controlStoreReady && bindingReady ? null : "bootstrap_prerequisites", mutation: false },
+    { key: "server_managed_recovery_binding_configured", ready: bindingConfigured, mutation: false },
+    { key: "durable_full_inspection", ready: false, pending_after: controlStoreReady && bindingConfigured ? null : "bootstrap_prerequisites", mutation: false },
     { key: "role_selection_provenance_bound", ready: false, pending_after: "durable_full_inspection", mutation: false },
     { key: "role_bundle_bindings_bound", ready: false, pending_after: "durable_full_inspection", mutation: false },
     { key: "governance_baseline_ready", ready: false, pending_after: "typed_rebuild_approval", mutation: "separate_recovery_execution" },
@@ -118,12 +118,20 @@ function classifyAction({ readiness, binding }) {
   }
   const missingColumns = Array.isArray(readiness?.missing_columns) ? readiness.missing_columns : [];
   const missingIndexes = Array.isArray(readiness?.missing_indexes) ? readiness.missing_indexes : [];
-  if (readiness?.schema_ready !== true && (missingColumns.length > 0 || missingIndexes.length > 0)) {
+  const malformedColumns = Array.isArray(readiness?.malformed_columns) ? readiness.malformed_columns : [];
+  const malformedTables = Array.isArray(readiness?.malformed_tables) ? readiness.malformed_tables : [];
+  if (readiness?.schema_ready !== true && (missingColumns.length > 0 || missingIndexes.length > 0
+    || malformedColumns.length > 0 || malformedTables.length > 0)) {
     return {
       action: "blocked_control_store_schema_drift",
       execution_allowed: false,
       blocker: "RECOVERY_CONTROL_STORE_PARTIAL_SCHEMA_REQUIRES_SEPARATE_MIGRATION",
     };
+  }
+  if (readiness?.schema_ready !== true && (readiness?.error_code !== "RECOVERY_CONTROL_STORE_SCHEMA_NOT_READY"
+    || !Array.isArray(readiness?.missing_tables) || readiness.missing_tables.length === 0)) {
+    return { action: "blocked_control_store_readiness", execution_allowed: false,
+      blocker: "RECOVERY_CONTROL_STORE_SCHEMA_EVIDENCE_INCOMPLETE" };
   }
   if (readiness?.schema_ready !== true) {
     return {
@@ -150,20 +158,14 @@ function defaultIdentityReader(env) {
   return readCanonicalDeploymentIdentity({ env, requireManifest: true });
 }
 
-export async function inspectProductionRecoveryControlStoreBootstrap(
-  input = {},
-  {
-    env = process.env,
-    identityReader = defaultIdentityReader,
-    runtimeResolver = resolveRuntimeEnvironmentStrict,
-    bindingStatusReader = getServerManagedRecoveryBindingStatus,
-    readinessReader = getRecoveryControlStoreReadiness,
-    poolProvider = getRecoveryControlPool,
-  } = {},
-) {
-  const expectedSha = input?.expected_sha ? requiredSha(input.expected_sha) : null;
-  const runtime = runtimeResolver(env);
-  const identity = identityReader(env);
+function inspectBootstrapIdentity(expectedSha, {
+  env = process.env, identityReader = defaultIdentityReader, runtimeResolver = resolveRuntimeEnvironmentStrict,
+} = {}) {
+  let runtime;
+  let identity;
+  try { runtime = runtimeResolver(env); identity = identityReader(env); }
+  catch { throw bootstrapError("RECOVERY_CONTROL_STORE_BOOTSTRAP_PRODUCTION_IDENTITY_MISMATCH",
+    "Canonical Production identity could not be read.", {}, 412); }
   const observedSha = text(identity?.commit_sha || identity?.sha, 40).toLowerCase();
   const exactIdentity = Boolean(
     runtime?.ok === true
@@ -192,6 +194,33 @@ export async function inspectProductionRecoveryControlStoreBootstrap(
     );
   }
 
+  const deploymentIdentityHash = digest({
+    repository: identity?.repository || null, branch: identity?.branch || null, sha: observedSha,
+    runtime_class: runtime?.runtime_class || null, environment_key: runtime?.environment_key || null,
+    tree_sha: identity?.manifest?.tree_sha || null,
+    context_file_set_sha256: identity?.manifest?.context_file_set_sha256 || null,
+    image_digest: identity?.manifest?.image_digest || null,
+    deployed_at: identity?.manifest?.deployed_at || null,
+    runtime_generation: identity?.runtime_generation || identity?.manifest?.runtime_generation || null,
+  });
+  return { runtime, identity, observedSha, exactIdentity, deploymentIdentityHash };
+}
+
+export async function inspectProductionRecoveryControlStoreBootstrap(
+  input = {},
+  {
+    env = process.env,
+    identityReader = defaultIdentityReader,
+    runtimeResolver = resolveRuntimeEnvironmentStrict,
+    bindingStatusReader = getServerManagedRecoveryBindingStatus,
+    readinessReader = getRecoveryControlStoreReadiness,
+    poolProvider = getRecoveryControlPool,
+  } = {},
+) {
+  const expectedSha = input?.expected_sha ? requiredSha(input.expected_sha) : null;
+  const { runtime, observedSha, exactIdentity, deploymentIdentityHash } =
+    inspectBootstrapIdentity(expectedSha, { env, identityReader, runtimeResolver });
+
   let readiness;
   try {
     readiness = await readinessReader({ env, poolProvider });
@@ -218,6 +247,7 @@ export async function inspectProductionRecoveryControlStoreBootstrap(
     expected_sha: expectedSha,
     observed_sha: SHA40.test(observedSha) ? observedSha : null,
     production_identity_ready: exactIdentity,
+    deployment_identity_sha256: deploymentIdentityHash,
     runtime: {
       environment_key: runtime?.environment_key || null,
       runtime_class: runtime?.runtime_class || null,
@@ -227,6 +257,7 @@ export async function inspectProductionRecoveryControlStoreBootstrap(
       mode: binding?.mode || "disabled",
       requested_mode: binding?.requested_mode || "disabled",
       module_configured: binding?.module_configured === true,
+      readiness_verified: false,
       module_id_hash: binding?.module_id_hash || null,
       binding_source: binding?.binding_source || "server_managed",
     },
@@ -235,11 +266,15 @@ export async function inspectProductionRecoveryControlStoreBootstrap(
       config_complete: readiness?.config_complete === true,
       connection_ready: readiness?.connection_ready === true,
       schema_ready: readiness?.schema_ready === true,
+      schema_scope: readiness?.schema_scope || null,
+      mutation_grade_schema_ready: readiness?.mutation_grade_schema_ready === true,
       ready: readiness?.ready === true,
       error_code: readiness?.error_code || null,
       missing_tables: Array.isArray(readiness?.missing_tables) ? readiness.missing_tables : [],
       missing_columns: Array.isArray(readiness?.missing_columns) ? readiness.missing_columns : [],
       missing_indexes: Array.isArray(readiness?.missing_indexes) ? readiness.missing_indexes : [],
+      malformed_columns: Array.isArray(readiness?.malformed_columns) ? readiness.malformed_columns : [],
+      malformed_tables: Array.isArray(readiness?.malformed_tables) ? readiness.malformed_tables : [],
       independent_of_target_databases: readiness?.independent_of_target_databases === true,
     },
     configuration_presence: configPresence(env),
@@ -278,6 +313,7 @@ export async function buildProductionRecoveryControlStoreBootstrapPlan(
   const base = {
     contract: "mad4b.production-recovery-control-store-bootstrap-plan.v1",
     expected_sha: expectedSha,
+    deployment_identity_sha256: status.deployment_identity_sha256,
     action: status.next_action,
     execution_allowed: status.execution_allowed === true,
     blocker: status.blocker,
@@ -365,9 +401,22 @@ export async function applyProductionRecoveryControlStoreBootstrapPlan(
     );
   }
 
+  const assertCurrentIdentity = () => {
+    const current = inspectBootstrapIdentity(expectedSha, { env, ...deps });
+    if (current.deploymentIdentityHash !== plan.deployment_identity_sha256) {
+      throw bootstrapError("RECOVERY_CONTROL_STORE_BOOTSTRAP_DEPLOYMENT_DRIFT",
+        "Production deployment identity changed after bootstrap plan validation.", {}, 412);
+    }
+  };
+  // Re-read after pool resolution, immediately before the first SQL dispatch.
+  assertCurrentIdentity();
   let executed = 0;
+  let attempted = 0;
   try {
     for (const statement of RECOVERY_CONTROL_STORE_SCHEMA_STATEMENTS) {
+      // A later drift is reconciliation-only because earlier DDL may have committed.
+      if (attempted > 0) assertCurrentIdentity();
+      attempted += 1;
       await pool.query(statement);
       executed += 1;
     }
@@ -380,6 +429,8 @@ export async function applyProductionRecoveryControlStoreBootstrapPlan(
       plan_sha256: plan.plan_sha256,
       statement_count: RECOVERY_CONTROL_STORE_SCHEMA_STATEMENTS.length,
       statements_acknowledged: executed,
+      statements_attempted: attempted,
+      unknown_outcome: attempted > executed,
       failure_code: error?.code || "RECOVERY_CONTROL_STORE_SCHEMA_APPLY_FAILED",
       same_cycle_readback_performed: false,
       automatic_replay_allowed: false,
@@ -388,7 +439,7 @@ export async function applyProductionRecoveryControlStoreBootstrapPlan(
       target_database_mutation_performed: false,
       provider_mutation_performed: false,
       production_runtime_mutation_performed: false,
-      database_mutation_performed: executed > 0,
+      database_mutation_performed: executed > 0 ? true : (attempted > 0 ? null : false),
       secrets_included: false,
     });
   }

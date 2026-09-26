@@ -174,6 +174,26 @@ assert.ok(malformedReport.objections.some((entry) =>
 ));
 assert.equal(malformedReport.automerge_allowed, false);
 
+// Source mode reports manual gates without blocking the evidence producer.
+// Finalizer mode must return a distinct non-zero status until exact-head approval.
+const producerReport = path.join(dir, "producer.json");
+fs.writeFileSync(producerReport, JSON.stringify({ producers: [{ id: "policy-objection-ci", required: true, passed: true }] }));
+for (const [authorization, expectedStatus, expectedDecision] of [
+  [null, 2, "manual_authorization_required"],
+  [staleAuthorizationReport, 2, "manual_authorization_required"],
+  [authorizationReport, 0, "manual_authorization_satisfied"],
+]) {
+  const output = path.join(dir, "finalizer.json");
+  const args = ["scripts/repository-governance-objection-gate.mjs", "--mode", "finalizer",
+    "--governance-report", criticalGovernanceReport, "--evidence-report", producerReport, "--report-file", output];
+  if (authorization) args.push("--manual-authorization-report", authorization);
+  const result = spawnSync(process.execPath, args, { cwd: root, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
+  assert.equal(result.status, expectedStatus, `${result.stdout}\n${result.stderr}`);
+  const finalized = JSON.parse(fs.readFileSync(output, "utf8"));
+  assert.equal(finalized.decision_state, expectedDecision);
+  assert.equal(finalized.automerge_allowed, false, "manual authorization must not enable autonomous merge");
+}
+
 fs.rmSync(dir, { recursive: true, force: true });
 console.log(JSON.stringify({
   ok: true,
