@@ -643,6 +643,7 @@
     "docs/governance/production-promotion-semantic-continuity-guard.md",
     "docs/governance/production-readiness-consolidated-fix.md",
     "docs/governance/production-recovery-control-store-7999.md",
+    "docs/governance/production-recovery-bootstrap-long-term-architecture.md",
     "docs/governance/recovery-composition.md",
     "docs/governance/recovery-server-managed-authority-binding.md",
     "docs/governance/runtime-breakglass-environments.md",

@@ -1,3 +1,7 @@
+// frontend-surface-operation: get /admin/recovery-bootstrap/status
+// frontend-surface-operation: post /admin/recovery-bootstrap/plan
+// frontend-surface-operation: post /admin/recovery-bootstrap/apply
+
 import assert from "node:assert/strict";
 import {
   PRODUCTION_RECOVERY_CONTROL_STORE_BOOTSTRAP_CONFIRMATION,

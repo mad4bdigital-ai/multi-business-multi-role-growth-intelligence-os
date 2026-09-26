@@ -12593,7 +12593,7 @@
     },
     {
       "rule_id": "production-recovery-control-store-bootstrap-private-admin-surface",
-      "family_key": "production-recovery-control-store-bootstrap",
+      "family_key": "production-recovery-bootstrap",
       "source_file": "routes/productionRecoveryBootstrapRoutes.js",
       "scope": "admin",
       "decision": "internal_only",
