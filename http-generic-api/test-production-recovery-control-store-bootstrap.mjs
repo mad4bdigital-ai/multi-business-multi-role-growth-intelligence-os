@@ -118,6 +118,36 @@ const configuredEnv = {
 }
 
 {
+  const plan = await buildProductionRecoveryControlStoreBootstrapPlan(
+    { expected_sha: SHA },
+    {
+      env: configuredEnv,
+      identityReader,
+      runtimeResolver,
+      bindingStatusReader,
+      readinessReader: async () => ({
+        ready: false,
+        config_complete: true,
+        connection_ready: true,
+        schema_ready: false,
+        error_code: "RECOVERY_CONTROL_STORE_SCHEMA_NOT_READY",
+        missing_tables: [],
+        missing_columns: ["recovery_control_records.payload_sha256"],
+        missing_indexes: [],
+        independent_of_target_databases: true,
+        database_connection_performed: true,
+        database_mutation_performed: false,
+        secrets_included: false,
+      }),
+    },
+  );
+  assert.equal(plan.action, "blocked_control_store_schema_drift");
+  assert.equal(plan.execution_allowed, false);
+  assert.equal(plan.blocker, "RECOVERY_CONTROL_STORE_PARTIAL_SCHEMA_REQUIRES_SEPARATE_MIGRATION");
+  assert.equal(plan.required_confirmation, null);
+}
+
+{
   const env = {
     ...configuredEnv,
     RECOVERY_SERVER_MANAGED_BINDING_MODE: "production_live",
