@@ -96,6 +96,7 @@ export function createLocalConnectorTwoPhaseRebindExecutor({
     let pendingRef = null;
     let installed = false;
     let probeVerified = false;
+    let commitAttempted = false;
     let requestId = null;
     try {
       const prepared = assertSafeReceipt(await prepare(Object.freeze({
@@ -151,6 +152,7 @@ export function createLocalConnectorTwoPhaseRebindExecutor({
         expected_sha: text(stepContext.expected_sha, 40).toLowerCase(),
         secrets_included: false,
       };
+      commitAttempted = true;
       const committed = assertSafeReceipt(await commit(Object.freeze({
         pending_credential_ref: pendingRef,
         old_credential_ref: oldCredentialRef,
@@ -193,10 +195,15 @@ export function createLocalConnectorTwoPhaseRebindExecutor({
         })).catch(() => {});
       }
       if (error?.unknown_outcome === true) throw error;
-      if (probeVerified && error?.code === "LOCAL_CONNECTOR_REBIND_COMMIT_UNVERIFIED") {
+      if (commitAttempted && error?.mutation_performed !== false) {
         error.unknown_outcome = true;
-        error.mutation_performed = true;
+        error.reconciliation_required = true;
+        error.automatic_retry_allowed = false;
+        error.commit_attempted = true;
         error.request_id = requestId;
+        error.mutation_performed = error?.code === "LOCAL_CONNECTOR_REBIND_COMMIT_UNVERIFIED"
+          ? true
+          : null;
       }
       throw error;
     }
