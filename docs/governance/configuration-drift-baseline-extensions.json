@@ -686,6 +686,17 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": "http-generic-api/recoveryKernel.js|sameIdempotencyReplay|literal_declaration|sameidempotencyreplay",
+      "owner": "recovery-governance",
+      "reason": "The Recovery Kernel sameIdempotencyReplay predicate is a non-secret, fail-closed replay classification that permits only an existing approval reservation explicitly proven to use the same idempotency key. It cannot create approvals, issue tickets, select targets, bypass cryptographic binding, or grant runtime, database, provider, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": "http-generic-api/routes/authRoutes.js|LOCAL_MANAGER_USER_JWT_SCOPE|literal_declaration|local.manager.user.jwt.scope",
       "owner": "identity-platform",
       "reason": "Local Manager user JWT scope is a fixed non-secret authorization policy constant shared by login issuance and route verification; changing it requires reviewed auth-contract changes and does not itself grant runtime mutation.",
