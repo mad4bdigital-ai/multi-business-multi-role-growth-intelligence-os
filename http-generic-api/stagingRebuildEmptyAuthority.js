@@ -468,7 +468,7 @@ export function createStagingRebuildEmptyAuthority({ env = process.env, adapters
         if ((await graph.approvalVerifier.verify({ token: approvalToken, approval, context })) !== true) fail("RECOVERY_APPROVAL_INVALID", "Server-managed Recovery approval verification failed closed.", { role }, 401);
         const approvalBinding = buildApprovalBinding({ approvalId: approval.approval_id, approvalHash: approval.challenge_hash, approvalVersion: approval.approval_version || "v1", planHash: plan.plan_hash, stepId: step.step_id, stepHash: step.step_hash, targetKey: plan.target_key, targetFingerprint: plan.target_fingerprint, targetRole: role, operation: step.operation });
         const reservation = await store.reserveApproval({ ...context, approval_hash: approvalBinding.approval_hash, approval_binding_hash: approvalBinding.binding_hash, idempotency_key: plan.idempotency_key, execution_ticket_id: null });
-        if (reservation?.reserved !== true && reservation?.same_idempotency !== true && reservation?.existing !== true) fail("RECOVERY_APPROVAL_INVALID", "The role-plan approval challenge is already reserved or consumed.", { role, reconciliation_required: true }, 409);
+        if (reservation?.reserved !== true && !(reservation?.existing === true && reservation?.same_idempotency === true)) fail("RECOVERY_APPROVAL_INVALID", "The role-plan approval challenge is already reserved or consumed by another execution claim.", { role, reconciliation_required: true }, 409);
         let ticketPersisted = false;
         try {
           const ticket = await issueExecutionTicket({
