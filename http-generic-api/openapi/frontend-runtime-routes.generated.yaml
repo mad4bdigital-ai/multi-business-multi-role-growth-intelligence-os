@@ -1644,6 +1644,29 @@ paths:
           - requireBackendApiKey
         configuration_dependencies:
           - BACKEND_API_KEY
+  /admin/recovery-bootstrap/status:
+    get:
+      operationId: getAdminRecoveryBootstrapStatuscd0dacae
+      summary: GET /admin/recovery-bootstrap/status (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/productionRecoveryBootstrapRoutes.js
+      x-mad4b-runtime-auth:
+        profile: admin_backend
+        principal: admin
+        guard_chain:
+          - requireAdminPrincipal
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
   /admin/release/readiness:
     get:
       operationId: getAdminReleaseReadiness83f8ceaa
@@ -5277,6 +5300,52 @@ paths:
           description: Runtime response shape is not yet captured by a reviewed canonical schema.
       x-contract-completeness: operation-index-only
       x-source-file: routes/adminOnboardingRoutes.js
+      x-mad4b-runtime-auth:
+        profile: admin_backend
+        principal: admin
+        guard_chain:
+          - requireAdminPrincipal
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
+  /admin/recovery-bootstrap/apply:
+    post:
+      operationId: postAdminRecoveryBootstrapApply4f2d02cc
+      summary: POST /admin/recovery-bootstrap/apply (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/productionRecoveryBootstrapRoutes.js
+      x-mad4b-runtime-auth:
+        profile: admin_backend
+        principal: admin
+        guard_chain:
+          - requireAdminPrincipal
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
+  /admin/recovery-bootstrap/plan:
+    post:
+      operationId: postAdminRecoveryBootstrapPlane1509d88
+      summary: POST /admin/recovery-bootstrap/plan (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/productionRecoveryBootstrapRoutes.js
       x-mad4b-runtime-auth:
         profile: admin_backend
         principal: admin

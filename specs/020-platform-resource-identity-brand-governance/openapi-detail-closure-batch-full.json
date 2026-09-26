@@ -6,10 +6,10 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_artifact_sha256": "94e6377d31ed8dca502d0d257c584f98b672c78bb9ea4a08b18246a832e68637",
-    "family_count": 176,
-    "detail_family_count": 76,
-    "dispatch_operation_count": 1078
+    "dispatch_artifact_sha256": "7ad9a1f0ed8424486258ac3f1dbccc6469454fb9ec89ba99ec51069032b41664",
+    "family_count": 177,
+    "detail_family_count": 77,
+    "dispatch_operation_count": 1081
   },
   "scope_boundary": {
     "route_wiring": false,
@@ -38,10 +38,10 @@
     "evidence_only": true
   },
   "summary": {
-    "family_count": 76,
-    "dispatch_family_count": 176,
-    "operation_count": 320,
-    "detail_evidence_required_count": 320,
+    "family_count": 77,
+    "dispatch_family_count": 177,
+    "operation_count": 323,
+    "detail_evidence_required_count": 323,
     "canonical_openapi_added_count": 0,
     "excluded_scope_count": 0
   },
@@ -173,6 +173,69 @@
         "test-platform-recovery-convergence-read-adapters.mjs",
         "test-platform-recovery-convergence.mjs",
         "test-production-recovery-closure.mjs"
+      ],
+      "closure_status": "detail_evidence_required",
+      "canonical_openapi_added": false,
+      "route_wiring": false,
+      "runtime_authority": false,
+      "production_activation": false
+    },
+    {
+      "family_key": "production-recovery-bootstrap",
+      "method": "GET",
+      "path": "/admin/recovery-bootstrap/status",
+      "signature": "GET /admin/recovery-bootstrap/status",
+      "source_file": "routes/productionRecoveryBootstrapRoutes.js",
+      "scope": "admin",
+      "delivery_kind": "api",
+      "openapi_contract_level": "operation-index-only",
+      "auth_parity": "equivalent",
+      "governance_classification": "read",
+      "governance_rule_id": null,
+      "evidence_refs": [
+        "http-generic-api/frontend-surface-dispatch.generated.json"
+      ],
+      "closure_status": "detail_evidence_required",
+      "canonical_openapi_added": false,
+      "route_wiring": false,
+      "runtime_authority": false,
+      "production_activation": false
+    },
+    {
+      "family_key": "production-recovery-bootstrap",
+      "method": "POST",
+      "path": "/admin/recovery-bootstrap/plan",
+      "signature": "POST /admin/recovery-bootstrap/plan",
+      "source_file": "routes/productionRecoveryBootstrapRoutes.js",
+      "scope": "admin",
+      "delivery_kind": "api",
+      "openapi_contract_level": "operation-index-only",
+      "auth_parity": "equivalent",
+      "governance_classification": "unresolved",
+      "governance_rule_id": null,
+      "evidence_refs": [
+        "http-generic-api/frontend-surface-dispatch.generated.json"
+      ],
+      "closure_status": "detail_evidence_required",
+      "canonical_openapi_added": false,
+      "route_wiring": false,
+      "runtime_authority": false,
+      "production_activation": false
+    },
+    {
+      "family_key": "production-recovery-bootstrap",
+      "method": "POST",
+      "path": "/admin/recovery-bootstrap/apply",
+      "signature": "POST /admin/recovery-bootstrap/apply",
+      "source_file": "routes/productionRecoveryBootstrapRoutes.js",
+      "scope": "admin",
+      "delivery_kind": "api",
+      "openapi_contract_level": "operation-index-only",
+      "auth_parity": "equivalent",
+      "governance_classification": "unresolved",
+      "governance_rule_id": null,
+      "evidence_refs": [
+        "http-generic-api/frontend-surface-dispatch.generated.json"
       ],
       "closure_status": "detail_evidence_required",
       "canonical_openapi_added": false,

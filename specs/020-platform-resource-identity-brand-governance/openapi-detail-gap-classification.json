@@ -6,19 +6,19 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "565ba6d05c0e4a90c74c16407f9f914c23dff901b50f4b4096f577bdf029ddf8",
-    "dispatch_artifact_sha256": "94e6377d31ed8dca502d0d257c584f98b672c78bb9ea4a08b18246a832e68637"
+    "dispatch_source_digest": "95d5ee6acc782849cc33cac96831cd04228de9a5c8c818d38370f09d5bf9ab3c",
+    "dispatch_artifact_sha256": "7ad9a1f0ed8424486258ac3f1dbccc6469454fb9ec89ba99ec51069032b41664"
   },
   "coverage": {
-    "operation_count": 1078,
-    "openapi_documented_count": 1062,
+    "operation_count": 1081,
+    "openapi_documented_count": 1065,
     "openapi_canonical_documented_count": 742,
-    "openapi_generated_index_count": 320,
+    "openapi_generated_index_count": 323,
     "openapi_gap_count": 0,
     "auth_contract_gap_count": 0,
-    "openapi_detail_gap_count": 320,
-    "unresolved_surface_decision_count": 0,
-    "coverage_complete": true
+    "openapi_detail_gap_count": 323,
+    "unresolved_surface_decision_count": 1,
+    "coverage_complete": false
   },
   "distributions": {
     "surface_decisions_by_family": [
@@ -39,6 +39,10 @@
         "count": 6
       },
       {
+        "decision": "requires_review",
+        "count": 1
+      },
+      {
         "decision": "unified_ui",
         "count": 1
       }
@@ -57,6 +61,10 @@
         "count": 5
       },
       {
+        "decision": "requires_review",
+        "count": 3
+      },
+      {
         "decision": "embedded_ui",
         "count": 2
       }
@@ -64,11 +72,11 @@
     "detail_gap_entries_by_method": [
       {
         "method": "POST",
-        "count": 148
+        "count": 150
       },
       {
         "method": "GET",
-        "count": 117
+        "count": 118
       },
       {
         "method": "PUT",
@@ -86,7 +94,7 @@
     "detail_gap_entries_by_path_first_segment": [
       {
         "path_first_segment": "admin",
-        "count": 39
+        "count": 42
       },
       {
         "path_first_segment": "dev-agent",
@@ -475,6 +483,10 @@
         "count": 3
       },
       {
+        "family_key": "production-recovery-bootstrap",
+        "count": 3
+      },
+      {
         "family_key": "staging-recovery-admin",
         "count": 3
       },
@@ -654,9 +666,15 @@
   ],
   "priority_summary": {
     "blocking_contract_gap_count": 0,
-    "surface_decision_required_family_count": 0,
-    "documentation_only_detail_gap_count": 320,
-    "top_surface_decision_families": []
+    "surface_decision_required_family_count": 1,
+    "documentation_only_detail_gap_count": 323,
+    "top_surface_decision_families": [
+      {
+        "family_key": "production-recovery-bootstrap",
+        "surface_decision": "requires_review",
+        "detail_gap_count": 3
+      }
+    ]
   },
   "scope_boundary": {
     "route_wiring": false,
