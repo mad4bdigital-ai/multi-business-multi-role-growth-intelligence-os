@@ -45,6 +45,7 @@ const upstreamCommands = [
   "node test-production-recovery-host-local-baseline-rebuild.mjs",
   "node test-production-recovery-baseline-authority-binding.mjs",
   "node test-production-recovery-control-store-bootstrap.mjs",
+  "node test-production-recovery-control-store-bootstrap-workflow.mjs",
   "node test-production-recovery-baseline-rebuild-governed-workflow.mjs",
   "node test-server-managed-recovery-binding.mjs",
   "node test-recovery-action-bridge.mjs",
