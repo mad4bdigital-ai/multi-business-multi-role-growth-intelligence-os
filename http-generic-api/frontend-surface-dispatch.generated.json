@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "66fa4e6d31b3c7bc77be35b43ee9909ba73fcd01e4317460ed63db6c78d852b8",
+    "source_digest": "97e5ede8ab119e5f3fabe6ebb8186f4f669af5e2db5c2de54a1196f1e1a5ceb2",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,12 +11,12 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "5925704c58ad4104a34c7ee32ee7ea237970d240b6a3e29a64a67e5a830c2f4f",
+        "sha256": "a262145fdb7090578197983a6a1ce9e80bb5b7af8ee32f06939375fa6bf7d4e1",
         "present": true
       },
       {
         "file": "frontend-surface-policy.json",
-        "sha256": "78857df67214fc7b505ab43ed7697529191b03a9e435c224b1d75d5170260163",
+        "sha256": "145043c577227d77dd7c05321ab2ba72625a372b90445cb221e02fec431ce1b0",
         "present": true
       },
       {
@@ -1121,7 +1121,7 @@
       },
       {
         "file": "test-frontend-surface-coverage-claims.mjs",
-        "sha256": "a158fa00b4b11d27cd47879e2f813778b227721df39a8b2deaf25cf63a18bd33",
+        "sha256": "0c1e23801419a5039e392fdee60cc1a4707da6eaac743b165a101ea71894618b",
         "present": true
       },
       {
@@ -1137,6 +1137,11 @@
       {
         "file": "test-managed-google-oauth-broker.mjs",
         "sha256": "4d6d143ea6ad0a5cbede043fa966f064cbb7917ddc301d38247c2bd8bde39905",
+        "present": true
+      },
+      {
+        "file": "test-production-recovery-control-store-bootstrap.mjs",
+        "sha256": "baf7383da75e5b1226f059be5e0c82a03cbb6694883a963e5e9926c9fd211017",
         "present": true
       },
       {
@@ -1233,14 +1238,14 @@
     "classified_mutation_count": 38,
     "governed_mutation_operation_count": 38,
     "embedded_ui_family_count": 7,
-    "unresolved_surface_decision_count": 1,
-    "test_owned_family_count": 176,
-    "untested_family_count": 1,
-    "test_owned_operation_count": 1078,
-    "untested_operation_count": 3,
-    "ready_task_count": 176,
-    "blocked_task_count": 1,
-    "coverage_complete": false
+    "unresolved_surface_decision_count": 0,
+    "test_owned_family_count": 177,
+    "untested_family_count": 0,
+    "test_owned_operation_count": 1081,
+    "untested_operation_count": 0,
+    "ready_task_count": 177,
+    "blocked_task_count": 0,
+    "coverage_complete": true
   },
   "waves": [
     {
@@ -3941,7 +3946,9 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-production-recovery-control-store-bootstrap.mjs"
+          ],
           "governance": {
             "classification": "read",
             "classification_source": "http_method",
@@ -4009,7 +4016,9 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-production-recovery-control-store-bootstrap.mjs"
+          ],
           "governance": {
             "classification": "preflight",
             "classification_source": "operation_rule",
@@ -4087,7 +4096,9 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-production-recovery-control-store-bootstrap.mjs"
+          ],
           "governance": {
             "classification": "state_change",
             "classification_source": "operation_rule",
@@ -4139,12 +4150,10 @@
       "evidence_routes": [
         "GET /admin/recovery-bootstrap/status"
       ],
-      "tests": [],
-      "untested_operations": [
-        "GET /admin/recovery-bootstrap/status",
-        "POST /admin/recovery-bootstrap/plan",
-        "POST /admin/recovery-bootstrap/apply"
+      "tests": [
+        "test-production-recovery-control-store-bootstrap.mjs"
       ],
+      "untested_operations": [],
       "resources": [],
       "embedded_ui": false,
       "embedded_ui_operations": [],
@@ -4169,16 +4178,25 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/productionRecoveryBootstrapRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-production-recovery-control-store-bootstrap.mjs"
       ],
       "surface_decision": {
-        "decision": "requires_review",
-        "rationale": "No repository policy decision covers this route family.",
-        "owner": null
+        "decision": "internal_only",
+        "rationale": "The Production Recovery Control Store bootstrap surface is a private administrative API used only to inspect, plan, and—after exact-SHA, exact-plan and typed approval—reconcile the repository-owned schema of the independent Recovery Control Store. It is not a browser surface and cannot create databases or users, mutate target databases, change Hostinger environment state, apply rebuilds or grants, or run ordinary migrations.",
+        "owner": "runtime-operations",
+        "rule_id": "production-recovery-control-store-bootstrap-private-admin-surface",
+        "evidence_refs": [
+          "docs/governance/production-recovery-bootstrap-long-term-architecture.md",
+          "productionRecoveryControlStoreBootstrap.js",
+          "routes/productionRecoveryBootstrapRoutes.js",
+          "test-production-recovery-control-store-bootstrap-workflow.mjs",
+          "test-production-recovery-control-store-bootstrap.mjs"
+        ]
       },
       "operation_blockers": [],
       "risk": {
-        "score": 14,
+        "score": 10,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -98021,6 +98039,58 @@
       ]
     },
     {
+      "task_key": "frontend.production-recovery-bootstrap",
+      "title": "Resolve and deliver production recovery bootstrap",
+      "wave": "F3-admin-workspaces",
+      "state": "ready",
+      "blockers": [],
+      "dependencies": [
+        "F0-source-baseline",
+        "F2-admin-bff-session",
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
+      ],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/productionRecoveryBootstrapRoutes.js",
+        "scripts/test-manifest.mjs",
+        "test-production-recovery-control-store-bootstrap.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered",
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-production-recovery-control-store-bootstrap.mjs"
+      ]
+    },
+    {
       "task_key": "frontend.recovery-kernel",
       "title": "Resolve and deliver recovery kernel",
       "wave": "F3-admin-workspaces",
@@ -100003,59 +100073,6 @@
         "node scripts/frontend-surface-dispatch.mjs --check",
         "node scripts/resource-api-coverage-audit.mjs --changed",
         "node test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
-      "task_key": "frontend.production-recovery-bootstrap",
-      "title": "Resolve and deliver production recovery bootstrap",
-      "wave": "F3-admin-workspaces",
-      "state": "blocked",
-      "blockers": [
-        "test_ownership_gap",
-        "surface_policy_decision_required"
-      ],
-      "dependencies": [
-        "F0-source-baseline",
-        "F2-admin-bff-session",
-        "mutation-preflight",
-        "operation-classification",
-        "same-cycle-readback"
-      ],
-      "source_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/brand-core-asset-materialization.yaml",
-        "openapi/container-authority-override-governance-smoke.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/frontend-runtime-routes.generated.yaml",
-        "openapi/hostinger-storage-tenant-runtime.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "openapi/support-ticket-admin-brand.yaml",
-        "openapi/support-ticket-admin-execution.yaml",
-        "openapi/support-ticket-admin-remaining.yaml",
-        "openapi/support-ticket-runtime-completion.yaml",
-        "openapi/support-tickets.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/index.js",
-        "routes/productionRecoveryBootstrapRoutes.js",
-        "scripts/test-manifest.mjs"
-      ],
-      "acceptance_gates": [
-        "source_baseline_unchanged",
-        "scope_and_auth_explicit",
-        "openapi_or_explicit_exemption",
-        "surface_policy_resolved",
-        "tests_registered",
-        "operation_classification_explicit",
-        "preflight_approval_readback_rollback"
-      ],
-      "verification": [
-        "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
       ]
     },
     {

@@ -2,7 +2,7 @@
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
     "id": "frontend-operation-governance-generator-v6-root-workspace-brand-container",
-    "source_digest": "bc817fb1bb8aa96dc9e44c3299ef08641a46c9e91ed57ae2a69a7cbe21d2b355",
+    "source_digest": "cd47e8e9b889fd3a4a718b653cf8039d83dc34170bf6f9b066f1bf27ba8ff888",
     "fail_closed": true
   },
   "source_authority": [
@@ -13,7 +13,7 @@
     },
     {
       "file": "frontend-operation-governance-tests.json",
-      "sha256": "ca3910fa89bfa04b62d50a78afc506cd3db075af1dd7f1f3b3a08bf16fce1d09",
+      "sha256": "839c5a5d1446dd88b253fe2bb813ec0a281fbfb164fd28962f59d61db8afa2c0",
       "present": true
     },
     {

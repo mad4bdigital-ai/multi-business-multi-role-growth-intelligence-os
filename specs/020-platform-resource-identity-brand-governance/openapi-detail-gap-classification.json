@@ -6,8 +6,8 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "66fa4e6d31b3c7bc77be35b43ee9909ba73fcd01e4317460ed63db6c78d852b8",
-    "dispatch_artifact_sha256": "cee11a3b1667191e09d775dff0faf30d4bd2dca3777c54b9816385077555d922"
+    "dispatch_source_digest": "97e5ede8ab119e5f3fabe6ebb8186f4f669af5e2db5c2de54a1196f1e1a5ceb2",
+    "dispatch_artifact_sha256": "fc5dffe39280a2e1625c3e0b429990f38b8ed34f904924e9dde295612e9d2ff9"
   },
   "coverage": {
     "operation_count": 1081,
@@ -17,14 +17,14 @@
     "openapi_gap_count": 0,
     "auth_contract_gap_count": 0,
     "openapi_detail_gap_count": 323,
-    "unresolved_surface_decision_count": 1,
-    "coverage_complete": false
+    "unresolved_surface_decision_count": 0,
+    "coverage_complete": true
   },
   "distributions": {
     "surface_decisions_by_family": [
       {
         "decision": "internal_only",
-        "count": 122
+        "count": 123
       },
       {
         "decision": "api_only",
@@ -39,10 +39,6 @@
         "count": 6
       },
       {
-        "decision": "requires_review",
-        "count": 1
-      },
-      {
         "decision": "unified_ui",
         "count": 1
       }
@@ -50,7 +46,7 @@
     "detail_gap_entries_by_surface_decision": [
       {
         "decision": "internal_only",
-        "count": 276
+        "count": 279
       },
       {
         "decision": "api_only",
@@ -59,10 +55,6 @@
       {
         "decision": "legacy_compatibility",
         "count": 5
-      },
-      {
-        "decision": "requires_review",
-        "count": 3
       },
       {
         "decision": "embedded_ui",
@@ -666,15 +658,9 @@
   ],
   "priority_summary": {
     "blocking_contract_gap_count": 0,
-    "surface_decision_required_family_count": 1,
+    "surface_decision_required_family_count": 0,
     "documentation_only_detail_gap_count": 323,
-    "top_surface_decision_families": [
-      {
-        "family_key": "production-recovery-bootstrap",
-        "surface_decision": "requires_review",
-        "detail_gap_count": 3
-      }
-    ]
+    "top_surface_decision_families": []
   },
   "scope_boundary": {
     "route_wiring": false,

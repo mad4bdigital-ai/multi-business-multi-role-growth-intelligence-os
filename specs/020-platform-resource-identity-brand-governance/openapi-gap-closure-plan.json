@@ -6,8 +6,8 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "66fa4e6d31b3c7bc77be35b43ee9909ba73fcd01e4317460ed63db6c78d852b8",
-    "dispatch_artifact_sha256": "cee11a3b1667191e09d775dff0faf30d4bd2dca3777c54b9816385077555d922"
+    "dispatch_source_digest": "97e5ede8ab119e5f3fabe6ebb8186f4f669af5e2db5c2de54a1196f1e1a5ceb2",
+    "dispatch_artifact_sha256": "fc5dffe39280a2e1625c3e0b429990f38b8ed34f904924e9dde295612e9d2ff9"
   },
   "coverage": {
     "operation_count": 1081,
@@ -15,27 +15,26 @@
     "openapi_gap_count": 0,
     "auth_contract_gap_count": 0,
     "openapi_detail_gap_count": 323,
-    "unresolved_surface_decision_count": 1,
+    "unresolved_surface_decision_count": 0,
     "unresolved_operation_class_count": 0,
-    "untested_family_count": 1,
-    "untested_operation_count": 3,
-    "coverage_complete": false
+    "untested_family_count": 0,
+    "untested_operation_count": 0,
+    "coverage_complete": true
   },
   "closure_summary": {
     "blocking_contract_gaps": 0,
     "read_only_traceability_closures": 323,
-    "surface_decisions_requiring_owner": 1,
+    "surface_decisions_requiring_owner": 0,
     "priority_family_counts": {
-      "P1_surface_decision": 1,
-      "P2_detail_traceability": 76,
+      "P1_surface_decision": 0,
+      "P2_detail_traceability": 77,
       "P3_observe": 100
     },
     "surface_decision_family_counts": {
       "api_only": 41,
       "embedded_ui": 6,
-      "internal_only": 122,
+      "internal_only": 123,
       "legacy_compatibility": 6,
-      "requires_review": 1,
       "unified_ui": 1
     },
     "all_safe_closures_included": true,
@@ -79,42 +78,6 @@
     }
   ],
   "families": [
-    {
-      "family_key": "production-recovery-bootstrap",
-      "label": "production recovery bootstrap",
-      "scope": "admin",
-      "surface_decision": "requires_review",
-      "priority": "P1_surface_decision",
-      "detail_gap_count": 3,
-      "operation_count": 3,
-      "untested_operation_count": 3,
-      "unresolved_operation_count": 0,
-      "next_action": "assign_owner_and_record_surface_decision_before_projection",
-      "activation_allowed": false,
-      "evidence_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/brand-core-asset-materialization.yaml",
-        "openapi/container-authority-override-governance-smoke.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/frontend-runtime-routes.generated.yaml",
-        "openapi/hostinger-storage-tenant-runtime.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "openapi/support-ticket-admin-brand.yaml",
-        "openapi/support-ticket-admin-execution.yaml",
-        "openapi/support-ticket-admin-remaining.yaml",
-        "openapi/support-ticket-runtime-completion.yaml",
-        "openapi/support-tickets.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/index.js",
-        "routes/productionRecoveryBootstrapRoutes.js",
-        "scripts/test-manifest.mjs"
-      ]
-    },
     {
       "family_key": "dev-agent",
       "label": "dev agent",
@@ -1484,6 +1447,43 @@
         "routes/platformEngineRoutes.js",
         "scripts/test-manifest.mjs",
         "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "family_key": "production-recovery-bootstrap",
+      "label": "production recovery bootstrap",
+      "scope": "admin",
+      "surface_decision": "internal_only",
+      "priority": "P2_detail_traceability",
+      "detail_gap_count": 3,
+      "operation_count": 3,
+      "untested_operation_count": 0,
+      "unresolved_operation_count": 0,
+      "next_action": "add_detail_evidence_without_claiming_canonical_coverage",
+      "activation_allowed": false,
+      "evidence_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/productionRecoveryBootstrapRoutes.js",
+        "scripts/test-manifest.mjs",
+        "test-production-recovery-control-store-bootstrap.mjs"
       ]
     },
     {
