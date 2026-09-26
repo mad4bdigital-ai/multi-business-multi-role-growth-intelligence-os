@@ -74,7 +74,10 @@ internal static class AutopilotNetworkRecovery
         }
         if (numeric == 429)
         {
-            var structured = ParseStructuredHttpError(body, "platform_rate_limited", true);
+            var fallbackCode = string.Equals(rateLimitSource, "upstream_edge", StringComparison.OrdinalIgnoreCase)
+                ? "edge_rate_limited"
+                : "platform_rate_limited";
+            var structured = ParseStructuredHttpError(body, fallbackCode, true);
             return new AutopilotFailure(
                 structured.Code,
                 $"{structured.Code}: auth.mad4b.com asked Local Manager to slow down.",
