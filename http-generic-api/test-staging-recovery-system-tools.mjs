@@ -234,6 +234,19 @@ test("Production and conflicting-environment calls fail before any Staging recov
   for (const env of [PRODUCTION_ENV, CONFLICTING_ENV]) {
     const attempts = [
       () => stagingRecoveryCertificationCanaryPlanCreate({ expected_sha: "a".repeat(40) }, { env }),
+      () => stagingRecoveryCertificationCanaryApprove({
+        plan_id: `plan:${"1".repeat(32)}`,
+        plan_hash: "2".repeat(64),
+        step_id: `step:${"3".repeat(32)}`,
+        idempotency_key: "staging-recovery-canary-approve-test",
+        approval_confirmation: "APPROVE_STAGING_RECOVERY_CERTIFICATION_CANARY:bounded",
+      }, { env }),
+      () => stagingRecoveryCertificationCanaryExecute({
+        plan_id: `plan:${"1".repeat(32)}`,
+        plan_hash: "2".repeat(64),
+        step_id: `step:${"3".repeat(32)}`,
+        idempotency_key: "staging-recovery-canary-execute-test",
+      }, { env }),
       () => stagingRecoveryAccessRepairPrepare({
         expected_sha: "a".repeat(40),
         idempotency_key: "staging-recovery-test-001",
@@ -405,6 +418,18 @@ test("dedicated Staging certification canary approve/execute resolves approval s
     assert.equal(planned.production_authority, false);
 
     const idempotencyKey = "staging-canary-system-tool:exact";
+    await assert.rejects(
+      () => stagingRecoveryCertificationCanaryApprove({
+        plan_id: planned.plan_id,
+        plan_hash: planned.plan_hash,
+        step_id: planned.steps[0].step_id,
+        idempotency_key: "staging-canary-system-tool:wrong-confirmation",
+        approval_confirmation: `${planned.approval_confirmation}:tampered`,
+      }, { env }),
+      (error) => error?.code === "STAGING_RECOVERY_CANARY_APPROVAL_INVALID"
+        && error?.status === 401,
+    );
+
     const approved = await stagingRecoveryCertificationCanaryApprove({
       plan_id: planned.plan_id,
       plan_hash: planned.plan_hash,
