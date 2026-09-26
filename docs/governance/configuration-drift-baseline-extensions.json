@@ -631,6 +631,17 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": "http-generic-api/productionRecoveryControlStoreBootstrap.js|bindingConfigured|literal_declaration|bindingconfigured",
+      "owner": "recovery-governance",
+      "reason": "The Production Recovery control-store bootstrap bindingConfigured predicate is a non-secret, read-only completeness result describing whether the server-derived deployment binding is available. It does not select a database, grant approval, issue a ticket, bypass exact-SHA checks, or authorize runtime, provider, protected-ref, or Production mutation.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": "http-generic-api/recoveryActivationReadiness.js|allRequiredComponentsConfigured|literal_declaration|allrequiredcomponentsconfigured",
       "owner": "recovery-governance",
       "reason": "The Recovery readiness allRequiredComponentsConfigured predicate is a non-secret, read-only completeness result for the server-managed authority graph. It cannot enable live execution or grant mutation authority.",
@@ -1437,6 +1448,17 @@
       "fingerprint": "http-generic-api/stagingRecoveryPhaseBConcurrency.js|STAGING_RECOVERY_PHASE_B_CONCURRENCY_CONTRACT|literal_declaration|staging.recovery.phase.b.concurrency.contract",
       "owner": "staging-recovery-governance",
       "reason": "Static Phase B concurrency evidence contract identifier; it is not a configurable runtime setting and grants no mutation, provider, database, or Production authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/stagingRecoverySystemTools.js|approvalResolverReady|literal_declaration|approvalresolverready",
+      "owner": "staging-recovery-governance",
+      "reason": "The Staging Recovery approvalResolverReady predicate is a non-secret, read-only fail-closed readiness result. It reports whether approval material can be resolved from durable server-managed authority and cannot itself create an approval, issue a ticket, execute a canary, grant database/provider authority, or enable Production mutation.",
       "lifecycle": "permanent",
       "configuration_class": "ci_governance_input",
       "sensitivity": "non_secret_reference",
