@@ -18,6 +18,8 @@ import {
   stagingRecoveryAccessRepairApprove,
   stagingRecoveryAccessRepairPrepare,
   stagingRecoveryActivationGatewayDarkDeployDryRun,
+  stagingRecoveryCertificationCanaryApprove,
+  stagingRecoveryCertificationCanaryExecute,
   stagingRecoveryCertificationCanaryPlanCreate,
   stagingRecoverySystemSurfaceReadiness,
 } from "./stagingRecoverySystemTools.js";
@@ -40,6 +42,8 @@ const CONFLICTING_ENV = Object.freeze({
 
 const BUSINESS_TOOLS = [
   "staging_recovery_certification_canary_plan_create",
+  "staging_recovery_certification_canary_approve",
+  "staging_recovery_certification_canary_execute",
   "staging_recovery_access_repair_prepare",
   "staging_recovery_access_repair_execute",
   "staging_recovery_access_repair_approve",
@@ -388,3 +392,65 @@ test("Schema-repair descriptors expose only high-level plan/approval/execution r
 });
 
 console.log("staging recovery system tool contract tests loaded");
+
+test("dedicated Staging certification canary approve/execute resolves approval server-side and never exposes Production authority", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "staging-recovery-canary-system-tool-"));
+  try {
+    const env = { ...stagingEnv(root), RECOVERY_MUTATIONS_ENABLED: "true" };
+    const planned = await stagingRecoveryCertificationCanaryPlanCreate({ expected_sha: SHA }, { env });
+    assert.equal(planned.status, "approval_required");
+    assert.match(planned.approval_confirmation, /^APPROVE_STAGING_RECOVERY_CERTIFICATION_CANARY:/u);
+    assert.equal(planned.approval_token_returned, false);
+    assert.equal(planned.execution_ticket_returned, false);
+    assert.equal(planned.production_authority, false);
+
+    const idempotencyKey = "staging-canary-system-tool:exact";
+    const approved = await stagingRecoveryCertificationCanaryApprove({
+      plan_id: planned.plan_id,
+      plan_hash: planned.plan_hash,
+      step_id: planned.steps[0].step_id,
+      idempotency_key: idempotencyKey,
+      approval_confirmation: planned.approval_confirmation,
+    }, { env });
+    assert.equal(approved.status, "ticket_issued");
+    assert.equal(approved.approval_token_returned, false);
+    assert.equal(approved.execution_ticket_returned, false);
+    assert.equal(Object.hasOwn(approved, "execution_ticket_id"), false);
+    assert.equal(Object.hasOwn(approved, "execution_ticket_hash"), false);
+    assert.equal(approved.database_mutation_performed, false);
+    assert.equal(approved.provider_mutation_performed, false);
+    assert.equal(approved.production_authority, false);
+
+    const executed = await stagingRecoveryCertificationCanaryExecute({
+      plan_id: planned.plan_id,
+      plan_hash: planned.plan_hash,
+      step_id: planned.steps[0].step_id,
+      idempotency_key: idempotencyKey,
+    }, { env });
+    assert.equal(executed.ok, true);
+    assert.equal(executed.approval_token_returned, false);
+    assert.equal(executed.execution_ticket_returned, false);
+    assert.equal(Object.hasOwn(executed, "execution_ticket_id"), false);
+    assert.equal(Object.hasOwn(executed, "execution_ticket_hash"), false);
+    assert.equal(executed.database_mutation_performed, false);
+    assert.equal(executed.provider_mutation_performed, false);
+    assert.equal(executed.production_authority, false);
+
+    const replay = await stagingRecoveryCertificationCanaryExecute({
+      plan_id: planned.plan_id,
+      plan_hash: planned.plan_hash,
+      step_id: planned.steps[0].step_id,
+      idempotency_key: idempotencyKey,
+    }, { env });
+    assert.equal(replay.idempotent_replay, true);
+    assert.equal(replay.approval_token_returned, false);
+    assert.equal(replay.execution_ticket_returned, false);
+
+    const readiness = await stagingRecoverySystemSurfaceReadiness({}, { env });
+    assert.equal(readiness.server_managed_approval_resolver_ready, true);
+    assert.equal(readiness.dedicated_certification_canary_approve_execute, true);
+    assert.equal(readiness.production_authority, false);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

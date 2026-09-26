@@ -66,6 +66,7 @@ test("Phase A binds a complete durable Staging Recovery graph and remains certif
       "mutationExecutor", "partialReceiptStore", "proofResolver", "readbackVerifier", "recoveryLock", "recoveryStore",
     ].sort());
     assert.equal(envelope.adapters.recoveryStore.executionTicketVerifier, envelope.adapters.executionTicketVerifier);
+    assert.equal(typeof envelope.adapters.approvalStore.resolveApprovedExecutionApproval, "function");
     assert.deepEqual(envelope.adapters.recoveryStore.durability_profile, recoveryFilesystemDurabilityProfile());
     const recoveryStoreReadiness = await envelope.adapters.recoveryStore.getReadiness();
     assert.deepEqual(recoveryStoreReadiness.durability_profile, recoveryFilesystemDurabilityProfile());
@@ -284,6 +285,55 @@ test("Phase A concurrent key initialization always signs and verifies with one E
     const signatures = await Promise.all(Array.from({ length: 24 }, () => graph.executionTicketSigner.sign({ payload, ticket_hash })));
     const verified = await Promise.all(signatures.map((signature, index) => graph.executionTicketVerifier.verify({ ticket_hash, ticket: { ...payload, ticket_id: `ticket:key:${index}`, ticket_hash, signature } })));
     assert.equal(verified.every(Boolean), true);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+
+test("Staging approval store resolves only an exact current durable approval for a verified admin principal", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "staging-recovery-approval-resolver-"));
+  try {
+    const env = stagingEnv(root);
+    const roots = _testingStagingRecoveryAuthorityBinding.roots(env);
+    const graph = _testingStagingRecoveryAuthorityBinding.adapters(roots.readiness, env).adapters;
+    const approval = {
+      contract: "mad4b.recovery-approval-challenge.v1",
+      approval_id: `approval:${"1".repeat(32)}`,
+      plan_id: `plan:${"2".repeat(32)}`,
+      plan_hash: "3".repeat(64),
+      step_id: `step:${"4".repeat(32)}`,
+      step_hash: "5".repeat(64),
+      expected_sha: SHA,
+      target_key: "staging-recovery-certification",
+      target_fingerprint: "6".repeat(64),
+      step_target_fingerprint: "6".repeat(64),
+      target_role: "runtime",
+      expires_at: new Date(Date.now() + 60_000).toISOString(),
+      used: false,
+      secrets_included: false,
+    };
+    await graph.recoveryStore.putApproval(approval);
+    const context = {
+      approval_id: approval.approval_id,
+      plan_id: approval.plan_id,
+      plan_hash: approval.plan_hash,
+      step_id: approval.step_id,
+      step_hash: approval.step_hash,
+      expected_sha: approval.expected_sha,
+      target_key: approval.target_key,
+      target_fingerprint: approval.target_fingerprint,
+      target_role: approval.target_role,
+      admin_principal_verified: true,
+    };
+    const resolved = await graph.approvalStore.resolveApprovedExecutionApproval(context);
+    assert.equal(resolved.server_resolved, true);
+    assert.equal(resolved.single_use, true);
+    assert.equal(resolved.secrets_included, false);
+    assert.match(resolved.approval_token, /^[^.]+\.[^.]+$/u);
+    assert.equal(await graph.approvalVerifier.verify({ token: resolved.approval_token, approval, context }), true);
+    assert.equal(await graph.approvalStore.resolveApprovedExecutionApproval({ ...context, admin_principal_verified: false }), null);
+    assert.equal(await graph.approvalStore.resolveApprovedExecutionApproval({ ...context, expected_sha: "f".repeat(40) }), null);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
