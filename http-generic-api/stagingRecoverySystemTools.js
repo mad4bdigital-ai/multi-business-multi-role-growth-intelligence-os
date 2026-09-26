@@ -171,13 +171,26 @@ async function resolveCertificationCanaryApprovalToken(graph, approval, plan, st
   return token;
 }
 
+const CANARY_SENSITIVE_EVIDENCE_KEYS = new Set([
+  "approval_token",
+  "server_token",
+  "execution_ticket_id",
+  "execution_ticket_hash",
+  "signature",
+]);
+
+function redactCanarySensitiveEvidence(value) {
+  if (Array.isArray(value)) return value.map((entry) => redactCanarySensitiveEvidence(entry));
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => !CANARY_SENSITIVE_EVIDENCE_KEYS.has(key))
+      .map(([key, entry]) => [key, redactCanarySensitiveEvidence(entry)]),
+  );
+}
+
 function sanitizeCanaryReplay(value = {}) {
-  const {
-    execution_ticket_id: _executionTicketId,
-    execution_ticket_hash: _executionTicketHash,
-    approval_token: _approvalToken,
-    ...safe
-  } = value || {};
+  const safe = redactCanarySensitiveEvidence(value || {});
   return {
     ...safe,
     approval_token_returned: false,
@@ -816,3 +829,8 @@ export function buildStagingRecoverySystemTools(env = process.env) {
 }
 
 export const STAGING_RECOVERY_SYSTEM_TOOLS = Object.freeze(buildStagingRecoverySystemTools(process.env));
+
+export const _testingStagingRecoverySystemTools = Object.freeze({
+  sanitizeCanaryReplay,
+  redactCanarySensitiveEvidence,
+});

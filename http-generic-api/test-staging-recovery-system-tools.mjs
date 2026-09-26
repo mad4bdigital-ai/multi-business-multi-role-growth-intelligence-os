@@ -13,6 +13,7 @@ import {
   createStagingSchemaRepairTicketAuthority,
 } from "./stagingSchemaRepairSystemTools.js";
 import {
+  _testingStagingRecoverySystemTools,
   buildStagingRecoverySystemTools,
   isStagingRecoverySystemEnvironment,
   stagingRecoveryAccessRepairApprove,
@@ -478,4 +479,41 @@ test("dedicated Staging certification canary approve/execute resolves approval s
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+
+test("certification canary evidence redaction removes nested approval and execution-ticket material", () => {
+  const sanitized = _testingStagingRecoverySystemTools.sanitizeCanaryReplay({
+    status: "reconciliation_required",
+    execution_ticket_id: "ticket:top-level",
+    execution_ticket_hash: "a".repeat(64),
+    approval_token: "approval-token-top-level",
+    nested: {
+      execution_ticket_id: "ticket:nested",
+      execution_ticket_hash: "b".repeat(64),
+      server_token: "server-token-nested",
+      signature: "signature-nested",
+      safe_hash: "c".repeat(64),
+      deeper: [{
+        approval_token: "approval-token-array",
+        execution_ticket_id: "ticket:array",
+        safe: true,
+      }],
+    },
+  });
+  assert.equal(Object.hasOwn(sanitized, "execution_ticket_id"), false);
+  assert.equal(Object.hasOwn(sanitized, "execution_ticket_hash"), false);
+  assert.equal(Object.hasOwn(sanitized, "approval_token"), false);
+  assert.equal(Object.hasOwn(sanitized.nested, "execution_ticket_id"), false);
+  assert.equal(Object.hasOwn(sanitized.nested, "execution_ticket_hash"), false);
+  assert.equal(Object.hasOwn(sanitized.nested, "server_token"), false);
+  assert.equal(Object.hasOwn(sanitized.nested, "signature"), false);
+  assert.equal(Object.hasOwn(sanitized.nested.deeper[0], "approval_token"), false);
+  assert.equal(Object.hasOwn(sanitized.nested.deeper[0], "execution_ticket_id"), false);
+  assert.equal(sanitized.nested.safe_hash, "c".repeat(64));
+  assert.equal(sanitized.nested.deeper[0].safe, true);
+  assert.equal(sanitized.approval_token_returned, false);
+  assert.equal(sanitized.execution_ticket_returned, false);
+  assert.equal(sanitized.production_authority, false);
+  assert.equal(sanitized.secrets_included, false);
 });
