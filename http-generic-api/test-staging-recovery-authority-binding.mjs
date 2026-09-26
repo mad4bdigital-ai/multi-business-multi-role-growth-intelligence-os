@@ -225,8 +225,23 @@ test("Phase A approval reservation is single-owner across idempotency races", as
     const contexts = ["idem:a", "idem:b", "idem:c", "idem:d"].map((idempotency_key) => ({ approval_id: record.approval_id, plan_hash: record.plan_hash, step_id: record.step_id, idempotency_key }));
     const results = await Promise.all(contexts.map((context) => store.reserveApproval(context)));
     assert.equal(results.filter((result) => result.reserved === true).length, 1);
-    const winner = contexts[results.findIndex((result) => result.reserved === true)];
+    const winnerIndex = results.findIndex((result) => result.reserved === true);
+    const winner = contexts[winnerIndex];
     assert.ok(winner);
+    for (const [index, result] of results.entries()) {
+      if (index === winnerIndex) continue;
+      assert.equal(result.reserved, false);
+      assert.equal(result.existing, false);
+      assert.equal(result.same_idempotency, false);
+    }
+    const sameOwnerReplay = await store.reserveApproval(winner);
+    assert.equal(sameOwnerReplay.reserved, false);
+    assert.equal(sameOwnerReplay.existing, true);
+    assert.equal(sameOwnerReplay.same_idempotency, true);
+    const foreignReplay = await store.reserveApproval({ ...winner, idempotency_key: "idem:foreign-replay" });
+    assert.equal(foreignReplay.reserved, false);
+    assert.equal(foreignReplay.existing, false);
+    assert.equal(foreignReplay.same_idempotency, false);
     assert.equal((await store.markApprovalUsed(record.approval_id)).finalized, true);
     assert.equal((await store.reserveApproval({ ...winner, idempotency_key: "idem:after-used" })).reserved, false);
   } finally {
