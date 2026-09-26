@@ -8,6 +8,8 @@ import {
   RECOVERY_CONTROL_STORE_SCHEMA_STATEMENTS,
 } from "../productionRecoveryControlStore.js";
 
+import { getRecoveryControlStoreReadiness } from "../recoveryControlDb.js";
+
 const CONTRACT = "mad4b.production-recovery-control-store-resilient-certification.v1";
 const cli = process.argv.slice(2);
 assert.deepEqual(
@@ -51,6 +53,30 @@ let poolC = null;
 
 try {
   for (const statement of RECOVERY_CONTROL_STORE_SCHEMA_STATEMENTS) await poolA.query(statement);
+
+  // Real MariaDB metadata readback, hard-bound to the disposable service above.
+  const readinessEnv = {
+    RECOVERY_CONTROL_DB_HOST: connectionConfig.host,
+    RECOVERY_CONTROL_DB_PORT: String(connectionConfig.port),
+    RECOVERY_CONTROL_DB_NAME: connectionConfig.database,
+    RECOVERY_CONTROL_DB_USER: connectionConfig.user,
+    RECOVERY_CONTROL_DB_PASSWORD: connectionConfig.password,
+  };
+  const readSchema = () => getRecoveryControlStoreReadiness({ env: readinessEnv, poolProvider: () => poolA });
+  const completeSchema = await readSchema();
+  assert.equal(completeSchema.mutation_grade_schema_ready, true, JSON.stringify(completeSchema));
+  await poolA.query("DROP TABLE recovery_control_locks");
+  const missingLocks = await readSchema();
+  assert.equal(missingLocks.ready, false);
+  assert.deepEqual(missingLocks.missing_tables, ["recovery_control_locks"]);
+  assert.deepEqual(missingLocks.missing_indexes, []);
+  await poolA.query(RECOVERY_CONTROL_STORE_SCHEMA_STATEMENTS.find((sql) => sql.startsWith("CREATE TABLE IF NOT EXISTS recovery_control_locks (")));
+  await poolA.query("ALTER TABLE recovery_control_locks MODIFY fence_counter BIGINT NOT NULL DEFAULT 0");
+  const malformedLocks = await readSchema();
+  assert.equal(malformedLocks.ready, false);
+  assert.ok(malformedLocks.malformed_columns.includes("recovery_control_locks.fence_counter"));
+  await poolA.query("ALTER TABLE recovery_control_locks MODIFY fence_counter BIGINT UNSIGNED NOT NULL DEFAULT 0");
+  assert.equal((await readSchema()).mutation_grade_schema_ready, true);
 
   const verifier = Object.freeze({
     verify: async () => ({ ok: true, disposable_certification_only: true, secrets_included: false }),
@@ -162,6 +188,9 @@ try {
   assert.equal(persistedTicket?.ticket_hash, ticketHash, "execution ticket payload must remain durable after restart");
 
   const boundedEvidence = {
+    full_schema_readback_verified: true,
+    missing_lock_table_rejected: true,
+    malformed_fencing_counter_rejected: true,
     approval_race_single_winner: true,
     execution_ticket_race_single_winner: true,
     execution_ticket_replay_rejected: true,

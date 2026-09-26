@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { getRecoveryControlPool, getRecoveryControlStoreReadiness } from "./recoveryControlDb.js";
+import { getRecoveryControlPool, getRecoveryControlStoreReadiness, RECOVERY_CONTROL_STORE_SCHEMA_STATEMENTS } from "./recoveryControlDb.js";
 import { RECOVERY_DURABLE_STORE_CONTRACT } from "./recoveryDurableStoreContract.js";
 
 export const PRODUCTION_RECOVERY_CONTROL_STORE_CONTRACT = "mad4b.production-recovery-control-store.v1";
@@ -21,115 +21,7 @@ const RECORD_TYPES = Object.freeze({
   ephemeralCapability: "ephemeral_capability",
 });
 
-export const RECOVERY_CONTROL_STORE_SCHEMA_STATEMENTS = Object.freeze([
-  `CREATE TABLE IF NOT EXISTS recovery_control_records (
-    record_type VARCHAR(32) NOT NULL,
-    record_id VARCHAR(191) NOT NULL,
-    plan_id VARCHAR(191) NULL,
-    step_id VARCHAR(191) NULL,
-    idempotency_key VARCHAR(191) NULL,
-    payload_json LONGTEXT NOT NULL,
-    payload_sha256 CHAR(64) NOT NULL,
-    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
-    PRIMARY KEY (record_type, record_id),
-    KEY idx_recovery_control_plan_step (record_type, plan_id, step_id, updated_at),
-    KEY idx_recovery_control_idempotency (record_type, idempotency_key)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
-  `CREATE TABLE IF NOT EXISTS recovery_control_run_idempotency (
-    idempotency_key VARCHAR(191) NOT NULL,
-    run_id VARCHAR(191) NOT NULL,
-    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    PRIMARY KEY (idempotency_key),
-    KEY idx_recovery_control_run_id (run_id)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
-  `CREATE TABLE IF NOT EXISTS recovery_control_idempotency_receipts (
-    idempotency_key VARCHAR(191) NOT NULL,
-    payload_json LONGTEXT NOT NULL,
-    payload_sha256 CHAR(64) NOT NULL,
-    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
-    PRIMARY KEY (idempotency_key)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
-  `CREATE TABLE IF NOT EXISTS recovery_control_approval_index (
-    plan_id VARCHAR(191) NOT NULL,
-    step_id VARCHAR(191) NOT NULL,
-    approval_id VARCHAR(191) NOT NULL,
-    updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
-    PRIMARY KEY (plan_id, step_id),
-    KEY idx_recovery_control_approval_id (approval_id)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
-  `CREATE TABLE IF NOT EXISTS recovery_control_execution_claims (
-    idempotency_key VARCHAR(191) NOT NULL,
-    claim_id VARCHAR(191) NOT NULL,
-    status VARCHAR(32) NOT NULL,
-    payload_json LONGTEXT NOT NULL,
-    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    PRIMARY KEY (idempotency_key),
-    UNIQUE KEY uq_recovery_control_claim_id (claim_id)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
-  `CREATE TABLE IF NOT EXISTS recovery_control_approval_reservations (
-    reservation_key CHAR(64) NOT NULL,
-    approval_id VARCHAR(191) NOT NULL,
-    plan_hash CHAR(64) NOT NULL,
-    step_id VARCHAR(191) NOT NULL,
-    idempotency_key VARCHAR(191) NOT NULL,
-    payload_json LONGTEXT NOT NULL,
-    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    PRIMARY KEY (reservation_key),
-    KEY idx_recovery_control_approval_reservation (approval_id, idempotency_key)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
-  `CREATE TABLE IF NOT EXISTS recovery_control_approval_finalizations (
-    approval_id VARCHAR(191) NOT NULL,
-    finalized_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    PRIMARY KEY (approval_id)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
-  `CREATE TABLE IF NOT EXISTS recovery_control_execution_tickets (
-    ticket_id VARCHAR(191) NOT NULL,
-    ticket_hash CHAR(64) NOT NULL,
-    state VARCHAR(32) NOT NULL DEFAULT 'issued',
-    reservation_idempotency_key VARCHAR(191) NULL,
-    payload_json LONGTEXT NOT NULL,
-    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    reserved_at DATETIME(6) NULL,
-    finalized_at DATETIME(6) NULL,
-    updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
-    PRIMARY KEY (ticket_id),
-    KEY idx_recovery_control_ticket_state (state),
-    KEY idx_recovery_control_ticket_hash (ticket_hash)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
-  `CREATE TABLE IF NOT EXISTS recovery_control_evidence_events (
-    event_id CHAR(36) NOT NULL,
-    run_id VARCHAR(191) NOT NULL,
-    event_hash CHAR(64) NOT NULL,
-    payload_json LONGTEXT NOT NULL,
-    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    PRIMARY KEY (event_id),
-    UNIQUE KEY uq_recovery_control_event_hash (event_hash),
-    KEY idx_recovery_control_evidence_run (run_id, created_at)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
-  `CREATE TABLE IF NOT EXISTS recovery_control_exception_events (
-    event_id CHAR(36) NOT NULL,
-    exception_id VARCHAR(191) NOT NULL,
-    event_hash CHAR(64) NOT NULL,
-    payload_json LONGTEXT NOT NULL,
-    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    PRIMARY KEY (event_id),
-    UNIQUE KEY uq_recovery_control_exception_event_hash (event_hash),
-    KEY idx_recovery_control_exception_event (exception_id, created_at)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
-  `CREATE TABLE IF NOT EXISTS recovery_control_locks (
-    target_key VARCHAR(191) NOT NULL,
-    fence_counter BIGINT UNSIGNED NOT NULL DEFAULT 0,
-    lease_id VARCHAR(191) NULL,
-    fencing_token VARCHAR(255) NULL,
-    plan_hash CHAR(64) NULL,
-    expires_at DATETIME(6) NULL,
-    updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
-    PRIMARY KEY (target_key),
-    UNIQUE KEY uq_recovery_control_lease_id (lease_id)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
-]);
+export { RECOVERY_CONTROL_STORE_SCHEMA_STATEMENTS };
 
 function stable(value) {
   if (Array.isArray(value)) return value.map(stable);

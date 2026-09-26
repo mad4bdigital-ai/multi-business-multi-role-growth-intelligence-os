@@ -1069,7 +1069,7 @@ assert.equal(generatedGapOperations.filter((operation) => ["state_change", "exte
 const governedMutations = operations.filter((operation) => ["state_change", "external_effect"].includes(operation.governance?.classification));
 assert.ok(governedMutations.every((operation) => operation.governance?.governed === true), "every mutation operation must be fully governed");
 assert.ok(governedMutations.every((operation) => ["preflight", "approval", "readback", "rollback"].every((key) => operation.governance?.controls?.[key]?.mode)), "every mutation operation must expose all four control modes");
-assert.equal(governedMutations.length, 37, "the governed mutation set includes bounded Recovery controls plus the Production convergence orchestrator, Gateway preflight, one-time installer redemption, WordPress Staging exact-artifact deployment, three Managed Google OAuth protocol effects, four device-link lifecycle mutations, explicit Local Manager n8n provisioning, and four desktop-command lifecycle effects");
+assert.equal(governedMutations.length, 38, "the governed mutation set includes bounded Recovery controls including the Recovery Control Store schema apply, plus the Production convergence orchestrator, Gateway preflight, one-time installer redemption, WordPress Staging exact-artifact deployment, three Managed Google OAuth protocol effects, four device-link lifecycle mutations, explicit Local Manager n8n provisioning, and four desktop-command lifecycle effects");
 for (const signature of [
   "POST /local-manager/device/desktop-commands/claim",
   "POST /local-manager/device/desktop-commands/{commandId}/heartbeat",

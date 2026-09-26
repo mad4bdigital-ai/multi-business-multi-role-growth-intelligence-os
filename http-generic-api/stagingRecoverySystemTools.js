@@ -1,4 +1,4 @@
-import { createStagingCertificationCanaryPlan, executeRemediationStep } from "./recoveryKernel.js";
+import { createApprovalChallenge, createExecutionTicket, createStagingCertificationCanaryPlan, executeRemediationStep } from "./recoveryKernel.js";
 import { createStagingAccessRepairTicketAuthority } from "./stagingAccessRepairTicketAuthority.js";
 import { stagingRecoveryAuthorityInternals } from "./stagingRecoveryAuthorityBinding.js";
 import { createStagingRebuildEmptyAuthority } from "./stagingRebuildEmptyAuthority.js";
@@ -13,6 +13,8 @@ const SHA256_RE = /^[0-9a-f]{64}$/u;
 const PLAN_ID_RE = /^plan:[0-9a-f]{32}$/u;
 const STEP_ID_RE = /^step:[0-9a-f]{32}$/u;
 const SAFE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$/u;
+const STAGING_CERTIFICATION_CANARY_CAPABILITY = "staging.certification.canary";
+const STAGING_CERTIFICATION_CANARY_TARGET = "staging-recovery-certification";
 const STAGING_ENVIRONMENT_VALUES = new Set(["staging", "stage", "staging_local_windows_docker"]);
 const PRODUCTION_ENVIRONMENT_VALUES = new Set(["production", "prod", "production_hostinger_autodeploy"]);
 
@@ -93,6 +95,111 @@ function requireSafeId(value, field, pattern = SAFE_ID_RE) {
   return normalized;
 }
 
+function canaryApprovalConfirmation(plan, step) {
+  return `APPROVE_STAGING_RECOVERY_CERTIFICATION_CANARY:${plan.plan_hash}:${step.step_hash}:${plan.expected_sha}:${plan.target_key}:${plan.target_fingerprint}`;
+}
+
+async function resolveCertificationCanaryPlan(graph, input = {}) {
+  const planId = requireSafeId(input.plan_id, "plan_id", PLAN_ID_RE);
+  const planHash = requireSha256(input.plan_hash, "plan_hash");
+  const stepId = requireSafeId(input.step_id, "step_id", STEP_ID_RE);
+  const plan = await graph.recoveryStore?.getPlan?.(planId);
+  const step = Array.isArray(plan?.steps) ? plan.steps.find((entry) => entry.step_id === stepId) : null;
+  if (!plan
+    || plan.plan_hash !== planHash
+    || plan.environment !== "staging"
+    || plan.branch !== "main"
+    || plan.target_key !== STAGING_CERTIFICATION_CANARY_TARGET
+    || plan.production_live_enabled !== false
+    || plan.database_mutation_performed !== false
+    || plan.provider_mutation_performed !== false
+    || !step
+    || step.capability_key !== STAGING_CERTIFICATION_CANARY_CAPABILITY
+    || step.operation !== STAGING_CERTIFICATION_CANARY_CAPABILITY
+    || step.target_role !== "runtime") {
+    throw systemError(409, "STAGING_RECOVERY_CANARY_BINDING_MISMATCH", "The references do not resolve to the fixed Staging certification canary plan.");
+  }
+  const attestation = await graph.deploymentIdentityProvider?.readAttestation?.();
+  const deploymentSha = text(attestation?.sha || attestation?.deployment_sha, 64).toLowerCase();
+  if (attestation?.environment !== "staging"
+    || attestation?.branch !== "main"
+    || deploymentSha !== plan.expected_sha
+    || text(attestation?.target_fingerprint, 128).toLowerCase() !== text(plan.target_fingerprint, 128).toLowerCase()) {
+    throw systemError(412, "STAGING_RECOVERY_CANARY_DEPLOYMENT_MISMATCH", "The certification canary is not bound to the exact current Staging deployment and target.");
+  }
+  return { plan, step };
+}
+
+async function ensureCertificationCanaryApproval(graph, plan, step) {
+  let approval = await graph.recoveryStore?.getApprovalByPlanStep?.(plan.plan_id, step.step_id);
+  if (!approval) {
+    await createApprovalChallenge(
+      { plan_id: plan.plan_id, plan_hash: plan.plan_hash, step_id: step.step_id },
+      { recoveryStore: graph.recoveryStore, approvalIssuer: graph.approvalIssuer, approvalStore: graph.approvalStore },
+    );
+    approval = await graph.recoveryStore?.getApprovalByPlanStep?.(plan.plan_id, step.step_id);
+  }
+  if (!approval || approval.used === true || !approval.expires_at || Date.parse(approval.expires_at) <= Date.now()) {
+    throw systemError(401, "STAGING_RECOVERY_CANARY_APPROVAL_INVALID", "A current server-managed approval challenge is required for the exact Staging certification canary step.");
+  }
+  return approval;
+}
+
+async function resolveCertificationCanaryApprovalToken(graph, approval, plan, step, idempotencyKey) {
+  const resolver = graph.approvalStore?.resolveApprovedExecutionApproval;
+  if (typeof resolver !== "function") {
+    throw systemError(503, "STAGING_RECOVERY_SERVER_APPROVAL_RESOLVER_UNAVAILABLE", "The Staging Recovery approval store cannot resolve approved execution material server-side.");
+  }
+  const resolved = await resolver.call(graph.approvalStore, {
+    approval_id: approval.approval_id,
+    plan_id: plan.plan_id,
+    plan_hash: plan.plan_hash,
+    step_id: step.step_id,
+    step_hash: step.step_hash,
+    expected_sha: plan.expected_sha,
+    target_key: plan.target_key,
+    target_fingerprint: step.target_fingerprint || plan.target_fingerprint,
+    target_role: step.target_role,
+    idempotency_key: idempotencyKey,
+    admin_principal_verified: true,
+    secrets_included: false,
+  });
+  const token = typeof resolved === "string" ? resolved : text(resolved?.approval_token, 512);
+  if (!token || token.length < 16) {
+    throw systemError(401, "STAGING_RECOVERY_CANARY_APPROVAL_UNRESOLVED", "The server-managed Staging approval could not be resolved for the exact certification canary step.");
+  }
+  return token;
+}
+
+const CANARY_SENSITIVE_EVIDENCE_KEYS = new Set([
+  "approval_token",
+  "server_token",
+  "execution_ticket_id",
+  "execution_ticket_hash",
+  "signature",
+]);
+
+function redactCanarySensitiveEvidence(value) {
+  if (Array.isArray(value)) return value.map((entry) => redactCanarySensitiveEvidence(entry));
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => !CANARY_SENSITIVE_EVIDENCE_KEYS.has(key))
+      .map(([key, entry]) => [key, redactCanarySensitiveEvidence(entry)]),
+  );
+}
+
+function sanitizeCanaryReplay(value = {}) {
+  const safe = redactCanarySensitiveEvidence(value || {});
+  return {
+    ...safe,
+    approval_token_returned: false,
+    execution_ticket_returned: false,
+    production_authority: false,
+    secrets_included: false,
+  };
+}
+
 export async function stagingRecoveryCertificationCanaryPlanCreate(input = {}, { env = process.env } = {}) {
   requireStagingEnvironment(env);
   requireObject(input, ["expected_sha"], ["expected_sha"], "STAGING_RECOVERY_CANARY_PLAN_INPUT_INVALID");
@@ -103,14 +210,158 @@ export async function stagingRecoveryCertificationCanaryPlanCreate(input = {}, {
     recoveryStore: graph.recoveryStore,
     deploymentIdentityProvider: graph.deploymentIdentityProvider,
   });
+  const step = Array.isArray(plan.steps) ? plan.steps[0] : null;
   return {
     ...plan,
+    status: "approval_required",
+    approval_confirmation: step ? canaryApprovalConfirmation(plan, step) : null,
+    approval_token_returned: false,
+    execution_ticket_returned: false,
     surface_contract: STAGING_RECOVERY_SYSTEM_SURFACE_CONTRACT,
     control_plane_state_written: true,
     target_database_mutation_performed: false,
     provider_mutation_performed: false,
     production_authority: false,
     secrets_included: false,
+  };
+}
+
+export async function stagingRecoveryCertificationCanaryApprove(input = {}, { env = process.env } = {}) {
+  requireStagingEnvironment(env);
+  requireObject(
+    input,
+    ["plan_id", "plan_hash", "step_id", "idempotency_key", "approval_confirmation"],
+    ["plan_id", "plan_hash", "step_id", "idempotency_key", "approval_confirmation"],
+    "STAGING_RECOVERY_CANARY_APPROVE_INPUT_INVALID",
+  );
+  const graph = graphFor(env);
+  const idempotencyKey = requireSafeId(input.idempotency_key, "idempotency_key");
+  const { plan, step } = await resolveCertificationCanaryPlan(graph, input);
+  if (text(input.approval_confirmation, 1024) !== canaryApprovalConfirmation(plan, step)) {
+    throw systemError(401, "STAGING_RECOVERY_CANARY_APPROVAL_INVALID", "Exact high-level Staging certification canary approval confirmation is required.", {
+      confirmation_formula: "APPROVE_STAGING_RECOVERY_CERTIFICATION_CANARY:<plan_hash>:<step_hash>:<expected_sha>:staging-recovery-certification:<target_fingerprint>",
+    });
+  }
+  if (plan.execution_ticket_id || plan.status === "approved") {
+    if (plan.approval_idempotency_key === idempotencyKey && plan.execution_ticket_id && plan.execution_ticket_hash) {
+      return {
+        ok: true,
+        contract: "mad4b.staging-recovery-certification-canary-approval.v1",
+        status: "ticket_already_issued",
+        plan_id: plan.plan_id,
+        plan_hash: plan.plan_hash,
+        step_id: step.step_id,
+        expected_sha: plan.expected_sha,
+        approval_token_returned: false,
+        execution_ticket_returned: false,
+        production_authority: false,
+        database_mutation_performed: false,
+        provider_mutation_performed: false,
+        secrets_included: false,
+      };
+    }
+    throw systemError(409, "STAGING_RECOVERY_CANARY_APPROVAL_ALREADY_ISSUED", "The certification canary approval has already issued a single-use execution ticket.");
+  }
+  const approval = await ensureCertificationCanaryApproval(graph, plan, step);
+  const approvalToken = await resolveCertificationCanaryApprovalToken(graph, approval, plan, step, idempotencyKey);
+  const ticket = await createExecutionTicket({
+    plan_id: plan.plan_id,
+    plan_hash: plan.plan_hash,
+    step_id: step.step_id,
+    approval_token: approvalToken,
+    idempotency_key: idempotencyKey,
+  }, {
+    recoveryStore: graph.recoveryStore,
+    executionTicketSigner: graph.executionTicketSigner,
+    deploymentIdentityProvider: graph.deploymentIdentityProvider,
+    approvalVerifier: graph.approvalVerifier,
+    approvalStore: graph.approvalStore,
+  });
+  await graph.recoveryStore.putPlan({
+    ...plan,
+    status: "approved",
+    approval_id: approval.approval_id,
+    approval_idempotency_key: idempotencyKey,
+    execution_ticket_id: ticket.ticket_id,
+    execution_ticket_hash: ticket.ticket_hash,
+  });
+  return {
+    ok: true,
+    contract: "mad4b.staging-recovery-certification-canary-approval.v1",
+    status: "ticket_issued",
+    plan_id: plan.plan_id,
+    plan_hash: plan.plan_hash,
+    step_id: step.step_id,
+    expected_sha: plan.expected_sha,
+    approval_id: approval.approval_id,
+    approval_token_returned: false,
+    execution_ticket_returned: false,
+    single_use: true,
+    production_authority: false,
+    database_mutation_performed: false,
+    provider_mutation_performed: false,
+    secrets_included: false,
+  };
+}
+
+export async function stagingRecoveryCertificationCanaryExecute(input = {}, { env = process.env } = {}) {
+  requireStagingEnvironment(env);
+  requireObject(
+    input,
+    ["plan_id", "plan_hash", "step_id", "idempotency_key"],
+    ["plan_id", "plan_hash", "step_id", "idempotency_key"],
+    "STAGING_RECOVERY_CANARY_EXECUTE_INPUT_INVALID",
+  );
+  const graph = graphFor(env);
+  const idempotencyKey = requireSafeId(input.idempotency_key, "idempotency_key");
+  const { plan, step } = await resolveCertificationCanaryPlan(graph, input);
+  const existing = await graph.recoveryStore.getRunByIdempotency?.(idempotencyKey);
+  if (existing) {
+    if ((existing.plan_hash && existing.plan_hash !== plan.plan_hash) || (existing.step_id && existing.step_id !== step.step_id)) {
+      throw systemError(409, "STAGING_RECOVERY_CANARY_IDEMPOTENCY_BINDING_MISMATCH", "The idempotency key is already bound to a different Recovery plan or step.");
+    }
+    return sanitizeCanaryReplay({
+      ...existing,
+      status: existing.phase === "execution_outcome_unknown" || existing.status === "execution_outcome_unknown"
+        ? "reconciliation_required"
+        : existing.status,
+      reconciliation_required: existing.phase === "execution_outcome_unknown" || existing.status === "execution_outcome_unknown",
+      idempotent_replay: true,
+    });
+  }
+  if (!plan.execution_ticket_id || !plan.execution_ticket_hash || plan.approval_idempotency_key !== idempotencyKey) {
+    throw systemError(409, "STAGING_RECOVERY_CANARY_EXECUTION_TICKET_REQUIRED", "The certification canary requires the server-issued single-use ticket bound to the same idempotency key.");
+  }
+  const ticket = await graph.recoveryStore.getExecutionTicket(plan.execution_ticket_id);
+  if (!ticket || ticket.ticket_hash !== plan.execution_ticket_hash) {
+    throw systemError(409, "STAGING_RECOVERY_CANARY_EXECUTION_TICKET_INVALID", "The server-issued certification canary execution ticket is unavailable or rebound.");
+  }
+  const approval = await graph.recoveryStore.getApprovalByPlanStep(plan.plan_id, step.step_id);
+  const approvalToken = await resolveCertificationCanaryApprovalToken(graph, approval, plan, step, idempotencyKey);
+  const result = await executeRemediationStep({
+    plan_id: plan.plan_id,
+    plan_hash: plan.plan_hash,
+    step_id: step.step_id,
+    approval_token: approvalToken,
+    idempotency_key: idempotencyKey,
+    execution_ticket_id: ticket.ticket_id,
+  }, {
+    env,
+    adminPrincipal: { verified: true, binding: "admin_guard_auth_context" },
+    approvalVerifier: graph.approvalVerifier,
+    approvalStore: graph.approvalStore,
+    recoveryLock: graph.recoveryLock,
+    mutationExecutor: graph.mutationExecutor,
+    recoveryStore: graph.recoveryStore,
+    readbackVerifier: graph.readbackVerifier,
+    deploymentIdentityProvider: graph.deploymentIdentityProvider,
+    migrationLedger: graph.migrationLedger,
+  });
+  return {
+    ...sanitizeCanaryReplay(result),
+    contract: "mad4b.staging-recovery-certification-canary-execution.v1",
+    database_mutation_performed: false,
+    provider_mutation_performed: false,
   };
 }
 
@@ -316,7 +567,20 @@ export async function stagingRecoverySystemSurfaceReadiness(_input = {}, { env =
       secrets_included: false,
     };
   }
-  graphFor(env);
+  const graph = graphFor(env);
+  const approvalResolverReady = typeof graph.approvalStore?.resolveApprovedExecutionApproval === "function";
+  if (!approvalResolverReady) {
+    return {
+      ok: false,
+      status: "blocked",
+      classification: "staging_recovery_server_approval_resolver_unavailable",
+      available: false,
+      environment: "staging",
+      production_authority: false,
+      mutations_executed: false,
+      secrets_included: false,
+    };
+  }
   return {
     ok: true,
     status: "pass",
@@ -332,6 +596,8 @@ export async function stagingRecoverySystemSurfaceReadiness(_input = {}, { env =
     caller_selected_target_fingerprint: false,
     caller_selected_rebuild_role: false,
     caller_selected_rebuild_plan_or_step: false,
+    server_managed_approval_resolver_ready: true,
+    dedicated_certification_canary_approve_execute: true,
     production_authority: false,
     raw_sql_allowed: false,
     caller_command_allowed: false,
@@ -355,6 +621,49 @@ const descriptors = Object.freeze([
       additionalProperties: false,
       required: ["expected_sha"],
       properties: { expected_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" } },
+    },
+  },
+  {
+    name: "staging_recovery_certification_canary_approve",
+    handler: "stagingRecoveryCertificationCanaryApprove",
+    description: "Staging-only Admin Recovery operation. Consumes the exact high-level certification-canary confirmation, resolves approval material only inside the server, and issues one signed single-use execution ticket without returning approval tokens, ticket identifiers, signatures, SQL, commands, credentials, or Production authority.",
+    source_key: STAGING_RECOVERY_SYSTEM_SOURCE_KEY,
+    capability_key: STAGING_CERTIFICATION_CANARY_CAPABILITY,
+    catalog_level: "private_recovery",
+    tags: ["recovery", "staging", "private", "certification", "canary", "approval"],
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["plan_id", "plan_hash", "step_id", "idempotency_key", "approval_confirmation"],
+      properties: {
+        plan_id: { type: "string", pattern: "^plan:[0-9a-f]{32}$" },
+        plan_hash: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
+        step_id: { type: "string", pattern: "^step:[0-9a-f]{32}$" },
+        idempotency_key: { type: "string", minLength: 8, maxLength: 160 },
+        approval_confirmation: { type: "string", minLength: 32, maxLength: 1024 },
+      },
+    },
+  },
+  {
+    name: "staging_recovery_certification_canary_execute",
+    handler: "stagingRecoveryCertificationCanaryExecute",
+    description: "Staging-only Admin Recovery operation. Resolves the approved canary, approval material and server-issued single-use ticket internally, executes only staging.certification.canary under the fenced Recovery authority, and requires independent same-cycle readback. It grants no Production, SQL, provider, DNS, or deployment authority.",
+    source_key: STAGING_RECOVERY_SYSTEM_SOURCE_KEY,
+    capability_key: STAGING_CERTIFICATION_CANARY_CAPABILITY,
+    catalog_level: "private_recovery",
+    tags: ["recovery", "staging", "private", "certification", "canary", "execute"],
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["plan_id", "plan_hash", "step_id", "idempotency_key"],
+      properties: {
+        plan_id: { type: "string", pattern: "^plan:[0-9a-f]{32}$" },
+        plan_hash: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
+        step_id: { type: "string", pattern: "^step:[0-9a-f]{32}$" },
+        idempotency_key: { type: "string", minLength: 8, maxLength: 160 },
+      },
     },
   },
   {
@@ -520,3 +829,8 @@ export function buildStagingRecoverySystemTools(env = process.env) {
 }
 
 export const STAGING_RECOVERY_SYSTEM_TOOLS = Object.freeze(buildStagingRecoverySystemTools(process.env));
+
+export const _testingStagingRecoverySystemTools = Object.freeze({
+  sanitizeCanaryReplay,
+  redactCanarySensitiveEvidence,
+});
