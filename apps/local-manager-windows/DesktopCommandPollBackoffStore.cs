@@ -7,7 +7,7 @@ internal sealed record DesktopCommandPollBackoffState(DateTimeOffset BackoffUnti
 
 internal sealed class DesktopCommandPollBackoffStore
 {
-    internal const int MaxBackoffSeconds = 300;
+    internal const int MaxBackoffSeconds = 86400;
     private readonly string _statePath;
 
     public DesktopCommandPollBackoffStore(string installRoot)
@@ -36,8 +36,8 @@ internal sealed class DesktopCommandPollBackoffStore
                 return null;
             }
 
-            // Persisted throttling is bounded so corrupted or extreme state cannot
-            // starve device polling indefinitely after restart.
+            // Persisted throttling preserves long server Retry-After windows while remaining
+            // bounded to one day so corrupted state cannot starve polling indefinitely.
             var maxUntil = now.AddSeconds(MaxBackoffSeconds);
             var boundedUntil = persistedUntil > maxUntil ? maxUntil : persistedUntil;
             var failureCount = 1;
