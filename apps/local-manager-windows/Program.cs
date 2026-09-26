@@ -397,6 +397,7 @@ internal static class Program
                         pairing_code = (int)response.StatusCode == 429 ? "rate_limited" : "failed",
                         status_code = (int)response.StatusCode,
                         retry_after_seconds = (int)response.StatusCode == 429 ? retryAfter ?? 120 : (int?)null,
+                        rate_limit_source = (int)response.StatusCode == 429 ? response.RateLimitSource : null,
                         secrets_included = false
                     }, _json);
                     return;
@@ -435,6 +436,7 @@ internal static class Program
                     {
                         pairing_code = "rate_limited",
                         retry_after_seconds = waitSeconds,
+                        rate_limit_source = response.RateLimitSource,
                         secrets_included = false
                     }, _json);
                     await Task.Delay(TimeSpan.FromSeconds(waitSeconds));
@@ -444,6 +446,10 @@ internal static class Program
                 if (response.IsSuccessStatusCode && poll?.Ok == true && !string.IsNullOrWhiteSpace(poll.DeviceAccessToken))
                 {
                     SaveDeviceToken(poll.DeviceAccessToken, poll.Device?.DeviceId, poll.Status);
+                    _desktopCommandPollFailureCount = 0;
+                    _desktopCommandPollBackoffUntil = DateTimeOffset.MinValue;
+                    ClearDesktopCommandPollBackoff();
+                    StartDesktopCommandPolling();
                     _progress.Value = 100;
                     _status.Text = "Device approved, linked, and token saved with DPAPI.";
                     _output.Text = JsonSerializer.Serialize(new
@@ -1721,11 +1727,16 @@ internal static class Program
                             serverRetryAfterSeconds: 300,
                             errorCode: authenticationRequired ? "credential_invalid" : "authorization_denied",
                             retryable: false,
-                            surface: "desktop_commands_claim");
+                            surface: "desktop_commands_claim",
+                            relinkRequired: authenticationRequired);
+                        if (authenticationRequired) _desktopCommandTimer.Stop();
                     }
                     else
                     {
-                        var failure = AutopilotNetworkRecovery.ClassifyHttp(response.StatusCode, text);
+                        var rateLimitSource = response.StatusCode == System.Net.HttpStatusCode.TooManyRequests
+                            ? RateLimitSource(response, text)
+                            : null;
+                        var failure = AutopilotNetworkRecovery.ClassifyHttp(response.StatusCode, text, rateLimitSource);
                         RegisterDesktopCommandPollFailure(
                             failure,
                             response.StatusCode == System.Net.HttpStatusCode.TooManyRequests ? RetryAfterSeconds(response, 120) : null);
@@ -1760,7 +1771,8 @@ internal static class Program
                 failure.Code,
                 failure.RequestId,
                 failure.Retryable,
-                failure.Surface);
+                failure.Surface,
+                failure.RateLimitSource);
         }
 
         private void RegisterDesktopCommandPollFailure(
@@ -1770,7 +1782,9 @@ internal static class Program
             string? errorCode = null,
             string? requestId = null,
             bool? retryable = null,
-            string? surface = null)
+            string? surface = null,
+            string? rateLimitSource = null,
+            bool relinkRequired = false)
         {
             _desktopCommandPollFailureCount += 1;
             var localBackoffSeconds = _desktopCommandPollFailureCount switch
@@ -1780,9 +1794,11 @@ internal static class Program
                 3 => 60,
                 _ => 120
             };
+            var localJitterSeconds = Random.Shared.Next(0, Math.Max(2, localBackoffSeconds / 5 + 1));
+            var localBackoffWithJitter = localBackoffSeconds + localJitterSeconds;
             var backoffSeconds = Math.Min(
                 DesktopCommandPollBackoffStore.MaxBackoffSeconds,
-                Math.Max(localBackoffSeconds, serverRetryAfterSeconds ?? 0));
+                Math.Max(localBackoffWithJitter, serverRetryAfterSeconds ?? 0));
             _desktopCommandPollBackoffUntil = DateTimeOffset.UtcNow.AddSeconds(backoffSeconds);
             SaveDesktopCommandPollBackoff();
 
@@ -1806,7 +1822,9 @@ internal static class Program
                         requestId,
                         retryable,
                         retry_after = serverRetryAfterSeconds,
-                        surface
+                        surface,
+                        rate_limit_source = rateLimitSource,
+                        relink_required = relinkRequired
                     },
                     token_plaintext_shown = false,
                     secrets_included = false
@@ -1826,6 +1844,23 @@ internal static class Program
                 return (int)Math.Clamp(Math.Ceiling((retryAt - DateTimeOffset.UtcNow).TotalSeconds), 1, int.MaxValue);
             }
             return Math.Max(fallbackSeconds, 1);
+        }
+
+        private static string? RateLimitSource(HttpResponseMessage response, string body)
+        {
+            if (response.StatusCode != System.Net.HttpStatusCode.TooManyRequests) return null;
+            if (response.Headers.TryGetValues("x-rate-limit-source", out var explicitSources))
+            {
+                var explicitSource = explicitSources.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+                if (!string.IsNullOrWhiteSpace(explicitSource)) return explicitSource.Trim().ToLowerInvariant();
+            }
+            var hasRequestId = response.Headers.TryGetValues("x-request-id", out var requestIds)
+                && requestIds.Any(value => !string.IsNullOrWhiteSpace(value));
+            var hasApplicationRateHeaders = response.Headers.Any(header =>
+                header.Key.StartsWith("x-rate-limit-", StringComparison.OrdinalIgnoreCase));
+            return string.IsNullOrWhiteSpace(body) && !hasRequestId && !hasApplicationRateHeaders
+                ? "upstream_edge"
+                : "application";
         }
 
         private async Task ExecuteDesktopCommandAsync(HttpClient client, string token, JsonElement command)
