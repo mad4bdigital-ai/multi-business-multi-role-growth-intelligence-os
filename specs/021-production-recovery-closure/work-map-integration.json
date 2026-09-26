@@ -3,8 +3,8 @@
   "feature_key": "021-production-recovery-closure",
   "review_state": "ready_for_implementation",
   "registry": {
-    "fingerprint": "58d320038c7adfef8d2850895dcfc47dfc6d4027a1fad32ad0e804782c9413ab",
-    "index_source_hash": "b163da31a2b6628dcfe5f3b76c538243958b82054f4c0df8897e3b995f48893a",
+    "fingerprint": "c8d3ab19bf0f23de390cd57eeabe82809a0fe6ea8f18a0972da529eb442c5379",
+    "index_source_hash": "f7c5c89cb62122cbaf1cc70087a2144b78164b46bf4812bac4518ce0de512b4c",
     "coverage_source_hash": "763f2907274cf6d6d8ecb20caa8124a20f4804498a6ebea8a71c068828bfa2ca",
     "map_count": 19,
     "domain_count": 16,

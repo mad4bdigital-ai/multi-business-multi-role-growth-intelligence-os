@@ -7,6 +7,9 @@ import {
 import {
   describeRecoveryStoreQualification,
 } from "./recoveryDurableStoreContract.js";
+import {
+  _testingRecoveryControlDb,
+} from "./recoveryControlDb.js";
 
 function createFakeControlStoreBackend({ schemaReady = true } = {}) {
   const records = new Map();
@@ -14,35 +17,48 @@ function createFakeControlStoreBackend({ schemaReady = true } = {}) {
   const events = new Map();
   const runBindings = new Map();
   const queries = [];
+  const schemaInventory = _testingRecoveryControlDb.RECOVERY_CONTROL_STORE_SCHEMA_INVENTORY;
 
-  const requiredColumns = {
-    recovery_control_records: ["record_type", "record_id", "payload_json", "payload_sha256", "created_at", "updated_at"],
-    recovery_control_run_idempotency: ["idempotency_key", "run_id", "created_at"],
-    recovery_control_idempotency_receipts: ["idempotency_key", "payload_json", "payload_sha256", "created_at", "updated_at"],
-    recovery_control_evidence_events: ["event_id", "run_id", "event_hash", "payload_json", "created_at"],
-  };
-  const requiredIndexes = [
-    ["recovery_control_records", "PRIMARY", 0, "record_type,record_id"],
-    ["recovery_control_run_idempotency", "PRIMARY", 0, "idempotency_key"],
-    ["recovery_control_run_idempotency", "idx_recovery_control_run_id", 1, "run_id"],
-    ["recovery_control_idempotency_receipts", "PRIMARY", 0, "idempotency_key"],
-    ["recovery_control_evidence_events", "PRIMARY", 0, "event_id"],
-    ["recovery_control_evidence_events", "idx_recovery_control_evidence_run", 1, "run_id,created_at"],
-  ];
+  const columnRows = Object.entries(schemaInventory).flatMap(([table, definition]) =>
+    Object.entries(definition.columns).map(([column, expected]) => ({
+      TABLE_NAME: table,
+      COLUMN_NAME: column,
+      COLUMN_TYPE: expected.type,
+      IS_NULLABLE: expected.nullable ? "YES" : "NO",
+      COLUMN_DEFAULT: expected.default,
+      EXTRA: expected.on_update ? "on update CURRENT_TIMESTAMP(6)" : "",
+      COLLATION_NAME: /^(?:varchar|char|longtext)/u.test(expected.type) ? "utf8mb4_unicode_ci" : null,
+    })),
+  );
+  const indexRows = Object.entries(schemaInventory).flatMap(([table, definition]) =>
+    definition.indexes.map((expected, index) => ({
+      TABLE_NAME: table,
+      INDEX_NAME: expected.primary ? "PRIMARY" : `${expected.unique ? "uq" : "idx"}_${table}_${index}`,
+      NON_UNIQUE: expected.unique ? 0 : 1,
+      INDEX_TYPE: "BTREE",
+      columns: expected.columns,
+    })),
+  );
+  const tableRows = Object.keys(schemaInventory).map((table) => ({
+    TABLE_NAME: table,
+    TABLE_TYPE: "BASE TABLE",
+    ENGINE: "InnoDB",
+    TABLE_COLLATION: "utf8mb4_unicode_ci",
+  }));
 
   async function query(sql, params = []) {
     const normalized = String(sql).replace(/\s+/gu, " ").trim();
     queries.push(normalized);
 
     if (normalized.includes("FROM information_schema.COLUMNS")) {
-      const rows = Object.entries(requiredColumns).flatMap(([table, columns]) =>
-        columns.map((column) => ({ TABLE_NAME: table, COLUMN_NAME: column })),
-      );
-      if (!schemaReady) return [rows.filter((row) => !(row.TABLE_NAME === "recovery_control_records" && row.COLUMN_NAME === "payload_sha256"))];
-      return [rows];
+      if (!schemaReady) return [columnRows.filter((row) => !(row.TABLE_NAME === "recovery_control_records" && row.COLUMN_NAME === "payload_sha256"))];
+      return [columnRows];
     }
     if (normalized.includes("FROM information_schema.STATISTICS")) {
-      return [requiredIndexes.map(([TABLE_NAME, INDEX_NAME, NON_UNIQUE, columns]) => ({ TABLE_NAME, INDEX_NAME, NON_UNIQUE, columns }))];
+      return [indexRows];
+    }
+    if (normalized.includes("FROM information_schema.TABLES")) {
+      return [tableRows];
     }
 
     if (normalized.startsWith("INSERT INTO recovery_control_records")) {

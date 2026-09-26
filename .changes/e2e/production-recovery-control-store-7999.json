@@ -165,7 +165,8 @@
             "Run/idempotency and receipt evidence survive recreation of all original pools.",
             "Retry after a deliberately discarded claim response resolves the existing claim instead of creating a second claim.",
             "Identical append-only evidence is replay-safe.",
-            "The certification uses only disposable CI MariaDB and reports production_authorized=false, live_activation_performed=false and secrets_included=false."
+            "The certification uses only disposable CI MariaDB and reports production_authorized=false, live_activation_performed=false and secrets_included=false.",
+            "Disposable MariaDB readback verifies every Control Store table and rejects a missing locks table or malformed fencing counter before recovery execution."
           ],
           "tests": [
             {

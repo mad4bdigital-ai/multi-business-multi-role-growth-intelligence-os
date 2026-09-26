@@ -40,6 +40,10 @@
     {
       "file": "test-remote-runtime-catalog-probe.mjs",
       "evidence_scope": "remote-runtime-target-catalog-readonly"
+    },
+    {
+      "file": "test-production-recovery-control-store-bootstrap.mjs",
+      "evidence_scope": "production-recovery-control-store-bootstrap"
     }
   ]
 }

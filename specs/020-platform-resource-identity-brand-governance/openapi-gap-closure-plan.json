@@ -6,15 +6,15 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "565ba6d05c0e4a90c74c16407f9f914c23dff901b50f4b4096f577bdf029ddf8",
-    "dispatch_artifact_sha256": "94e6377d31ed8dca502d0d257c584f98b672c78bb9ea4a08b18246a832e68637"
+    "dispatch_source_digest": "997e57b3a4740f8000e9d4fd8eba848941096f33978d6d1ecd917aaa4038246b",
+    "dispatch_artifact_sha256": "430f99e0652752cfbf752083f15661637d3b1110198db2acadf899b5e9547486"
   },
   "coverage": {
-    "operation_count": 1078,
-    "mounted_family_count": 176,
+    "operation_count": 1081,
+    "mounted_family_count": 177,
     "openapi_gap_count": 0,
     "auth_contract_gap_count": 0,
-    "openapi_detail_gap_count": 320,
+    "openapi_detail_gap_count": 323,
     "unresolved_surface_decision_count": 0,
     "unresolved_operation_class_count": 0,
     "untested_family_count": 0,
@@ -23,17 +23,17 @@
   },
   "closure_summary": {
     "blocking_contract_gaps": 0,
-    "read_only_traceability_closures": 320,
+    "read_only_traceability_closures": 323,
     "surface_decisions_requiring_owner": 0,
     "priority_family_counts": {
       "P1_surface_decision": 0,
-      "P2_detail_traceability": 76,
+      "P2_detail_traceability": 77,
       "P3_observe": 100
     },
     "surface_decision_family_counts": {
       "api_only": 41,
       "embedded_ui": 6,
-      "internal_only": 122,
+      "internal_only": 123,
       "legacy_compatibility": 6,
       "unified_ui": 1
     },
@@ -1447,6 +1447,43 @@
         "routes/platformEngineRoutes.js",
         "scripts/test-manifest.mjs",
         "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "family_key": "production-recovery-bootstrap",
+      "label": "production recovery bootstrap",
+      "scope": "admin",
+      "surface_decision": "internal_only",
+      "priority": "P2_detail_traceability",
+      "detail_gap_count": 3,
+      "operation_count": 3,
+      "untested_operation_count": 0,
+      "unresolved_operation_count": 0,
+      "next_action": "add_detail_evidence_without_claiming_canonical_coverage",
+      "activation_allowed": false,
+      "evidence_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/productionRecoveryBootstrapRoutes.js",
+        "scripts/test-manifest.mjs",
+        "test-production-recovery-control-store-bootstrap.mjs"
       ]
     },
     {

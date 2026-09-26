@@ -140,7 +140,7 @@ function makeDurableStore() {
     },
     async reserveApproval(context) {
       const key = `${context.approval_id}:${context.plan_hash}:${context.step_id}:${context.idempotency_key}`;
-      if (approvalReservations.has(key)) return { reserved: false, existing: true };
+      if (approvalReservations.has(key)) return { reserved: false, existing: true, same_idempotency: true };
       const approval = approvals.get(context.approval_id);
       if (!approval || approval.used === true || approval.reserved === true || approval.plan_hash !== context.plan_hash || approval.step_id !== context.step_id) return { reserved: false };
       approvalReservations.set(key, clone({ ...context, reserved_at: new Date().toISOString() }));

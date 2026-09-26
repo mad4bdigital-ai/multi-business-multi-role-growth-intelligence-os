@@ -9,6 +9,7 @@ namespace Mad4B.LocalManager.Windows;
 
 internal sealed class DeviceLinkClient
 {
+    private const int MaxRetryAfterSeconds = 86400;
     private readonly string _deviceLinkStartUrl;
     private readonly string _deviceLinkPollUrl;
     private readonly string _deviceSessionUrl;
@@ -110,20 +111,33 @@ internal sealed class DeviceLinkClient
             response.ReasonPhrase,
             text,
             payload,
-            RetryAfterSeconds(response));
+            RetryAfterSeconds(response),
+            RateLimitSource(response, text));
     }
 
     private static int? RetryAfterSeconds(HttpResponseMessage response)
     {
         if (response.Headers.RetryAfter?.Delta is TimeSpan delta)
         {
-            return Math.Clamp((int)Math.Ceiling(delta.TotalSeconds), 1, 300);
+            return Math.Clamp((int)Math.Ceiling(delta.TotalSeconds), 1, MaxRetryAfterSeconds);
         }
         if (response.Headers.RetryAfter?.Date is DateTimeOffset retryAt)
         {
-            return Math.Clamp((int)Math.Ceiling((retryAt - DateTimeOffset.UtcNow).TotalSeconds), 1, 300);
+            return Math.Clamp((int)Math.Ceiling((retryAt - DateTimeOffset.UtcNow).TotalSeconds), 1, MaxRetryAfterSeconds);
         }
         return null;
+    }
+
+    private static string? RateLimitSource(HttpResponseMessage response, string body)
+    {
+        if (response.StatusCode != HttpStatusCode.TooManyRequests) return null;
+        var hasRequestId = response.Headers.TryGetValues("x-request-id", out var requestIds)
+            && requestIds.Any(value => !string.IsNullOrWhiteSpace(value));
+        var hasApplicationRateHeaders = response.Headers.Any(header =>
+            header.Key.StartsWith("x-rate-limit-", StringComparison.OrdinalIgnoreCase));
+        return string.IsNullOrWhiteSpace(body) && !hasRequestId && !hasApplicationRateHeaders
+            ? "upstream_edge"
+            : "application";
     }
 }
 
@@ -133,7 +147,8 @@ internal sealed record DeviceLinkHttpResult<T>(
     string? ReasonPhrase,
     string RawText,
     T? Payload,
-    int? RetryAfterSeconds);
+    int? RetryAfterSeconds,
+    string? RateLimitSource);
 
 internal sealed class DeviceLinkError
 {
