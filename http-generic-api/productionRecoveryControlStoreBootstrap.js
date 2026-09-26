@@ -116,6 +116,15 @@ function classifyAction({ readiness, binding }) {
       blocker: readiness?.error_code || "RECOVERY_CONTROL_STORE_CONNECTION_NOT_READY",
     };
   }
+  const missingColumns = Array.isArray(readiness?.missing_columns) ? readiness.missing_columns : [];
+  const missingIndexes = Array.isArray(readiness?.missing_indexes) ? readiness.missing_indexes : [];
+  if (readiness?.schema_ready !== true && (missingColumns.length > 0 || missingIndexes.length > 0)) {
+    return {
+      action: "blocked_control_store_schema_drift",
+      execution_allowed: false,
+      blocker: "RECOVERY_CONTROL_STORE_PARTIAL_SCHEMA_REQUIRES_SEPARATE_MIGRATION",
+    };
+  }
   if (readiness?.schema_ready !== true) {
     return {
       action: "reconcile_control_store_schema",
@@ -384,7 +393,30 @@ export async function applyProductionRecoveryControlStoreBootstrapPlan(
     });
   }
 
-  const readback = await readinessReader({ env, poolProvider });
+  let readback;
+  try {
+    readback = await readinessReader({ env, poolProvider });
+  } catch (error) {
+    return Object.freeze({
+      ok: false,
+      contract: "mad4b.production-recovery-control-store-bootstrap-receipt.v1",
+      status: "reconciliation_required",
+      expected_sha: expectedSha,
+      plan_sha256: plan.plan_sha256,
+      statement_count: RECOVERY_CONTROL_STORE_SCHEMA_STATEMENTS.length,
+      statements_acknowledged: executed,
+      failure_code: error?.code || "RECOVERY_CONTROL_STORE_POST_APPLY_READBACK_FAILED",
+      same_cycle_readback_performed: false,
+      automatic_replay_allowed: false,
+      runtime_env_write_performed: false,
+      database_or_user_creation_performed: false,
+      target_database_mutation_performed: false,
+      provider_mutation_performed: false,
+      production_runtime_mutation_performed: false,
+      database_mutation_performed: executed > 0,
+      secrets_included: false,
+    });
+  }
   const ready = readback?.ready === true
     && readback?.config_complete === true
     && readback?.connection_ready === true
