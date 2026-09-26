@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { constants } from "node:fs";
-import { mkdir, open } from "node:fs/promises";
+import { lstat, mkdir, open } from "node:fs/promises";
 import path from "node:path";
 import {
   createServerManagedRecoveryBinding as createPhaseABinding,
@@ -10,6 +10,7 @@ import {
 import {
   createFileRecoveryEvidenceStore,
   createRecoveryReadinessAuthorities as createCanonicalReadinessAuthority,
+  syncRecoveryDirectory,
 } from "./recoveryReadinessEvidence.js";
 import { readDeploymentManifest } from "./deploymentManifest.js";
 import { wrapStagingRecoveryAdaptersForPhaseB } from "./stagingRecoveryPhaseBConcurrency.js";
@@ -55,20 +56,76 @@ function phaseBFailure(code, message) {
   });
 }
 
-async function readTokenRecord(file) {
-  let handle;
+async function openPortableTokenRecordForRead(file) {
+  if (process.platform !== "win32") {
+    try {
+      return await open(file, constants.O_RDONLY | constants.O_NOFOLLOW);
+    } catch (error) {
+      if (error?.code === "ENOENT") return null;
+      throw error;
+    }
+  }
+
+  let before;
   try {
-    handle = await open(file, constants.O_RDONLY | constants.O_NOFOLLOW);
+    before = await lstat(file, { bigint: true });
   } catch (error) {
     if (error?.code === "ENOENT") return null;
     throw error;
   }
+
+  if (before.isSymbolicLink() || !before.isFile()) {
+    phaseBFailure("RECOVERY_PHASE_B_APPROVAL_TOKEN_STATE_INVALID", "The internal Phase B approval-token state is invalid.");
+  }
+
+  let handle;
+  try {
+    handle = await open(file, "r");
+  } catch (error) {
+    if (error?.code === "ENOENT") return null;
+    throw error;
+  }
+
+  try {
+    const after = await handle.stat({ bigint: true });
+    if (!after.isFile() || before.dev !== after.dev || before.ino !== after.ino) {
+      phaseBFailure("RECOVERY_PHASE_B_APPROVAL_TOKEN_STATE_CHANGED", "The internal Phase B approval-token state changed while it was being opened.");
+    }
+    return handle;
+  } catch (error) {
+    await handle.close();
+    throw error;
+  }
+}
+
+async function readTokenRecord(file) {
+  const handle = await openPortableTokenRecordForRead(file);
+  if (!handle) return null;
   try {
     const stat = await handle.stat();
     if (!stat.isFile() || stat.size <= 0 || stat.size > TOKEN_RECORD_MAX_BYTES) {
       phaseBFailure("RECOVERY_PHASE_B_APPROVAL_TOKEN_STATE_INVALID", "The internal Phase B approval-token state is invalid.");
     }
-    return JSON.parse(await handle.readFile("utf8"));
+
+    const buffer = Buffer.alloc(TOKEN_RECORD_MAX_BYTES + 1);
+    let offset = 0;
+    while (offset < buffer.length) {
+      const { bytesRead } = await handle.read(buffer, offset, buffer.length - offset, offset);
+      if (!Number.isInteger(bytesRead) || bytesRead < 0) {
+        phaseBFailure("RECOVERY_PHASE_B_APPROVAL_TOKEN_STATE_INVALID", "The internal Phase B approval-token state is invalid.");
+      }
+      if (bytesRead === 0) break;
+      offset += bytesRead;
+    }
+    if (offset <= 0 || offset > TOKEN_RECORD_MAX_BYTES) {
+      phaseBFailure("RECOVERY_PHASE_B_APPROVAL_TOKEN_STATE_INVALID", "The internal Phase B approval-token state is invalid.");
+    }
+
+    try {
+      return JSON.parse(buffer.subarray(0, offset).toString("utf8"));
+    } catch {
+      phaseBFailure("RECOVERY_PHASE_B_APPROVAL_TOKEN_STATE_INVALID", "The internal Phase B approval-token state is invalid.");
+    }
   } finally {
     await handle.close();
   }
@@ -85,17 +142,26 @@ async function createIssuanceClaim(file, challenge) {
     created_at: new Date().toISOString(),
     token_not_returned: true,
   };
+  let handle;
   try {
-    const handle = await open(file, "wx", 0o600);
-    try {
-      await handle.writeFile(`${JSON.stringify(claim)}\n`);
-      await handle.sync();
-    } finally {
-      await handle.close();
-    }
-    return true;
+    handle = await open(file, "wx", 0o600);
   } catch (error) {
-    if (error?.code === "EEXIST") return false;
+    if (error?.code === "EEXIST") return null;
+    throw error;
+  }
+
+  try {
+    await handle.writeFile(`${JSON.stringify(claim)}\n`);
+    await handle.sync();
+    await syncRecoveryDirectory(path.dirname(file));
+    return handle;
+  } catch (error) {
+    try {
+      await handle.close();
+    } catch {
+      // Preserve the original claim-write failure; the pathname remains claimed
+      // and retries still fail closed rather than risking duplicate issuance.
+    }
     throw error;
   }
 }
@@ -109,7 +175,7 @@ function assertSameApprovalBinding(record, challenge) {
   }
 }
 
-async function finalizeTokenRecord(file, challenge, issued) {
+async function finalizeTokenRecord(handle, challenge, issued) {
   if (typeof issued?.server_token !== "string" || issued.server_token.length < 16 || issued.server_token.length > 4096
     || !issued.expires_at || Date.parse(issued.expires_at) <= Date.now()) {
     phaseBFailure("RECOVERY_PHASE_B_APPROVAL_TOKEN_ISSUER_INVALID", "The server-managed Staging approval issuer failed closed.");
@@ -124,13 +190,19 @@ async function finalizeTokenRecord(file, challenge, issued) {
     server_token: issued.server_token,
     token_not_returned: true,
   };
-  const handle = await open(file, constants.O_WRONLY | constants.O_TRUNC | constants.O_NOFOLLOW, 0o600);
-  try {
-    await handle.writeFile(`${JSON.stringify(record)}\n`);
-    await handle.sync();
-  } finally {
-    await handle.close();
+  const encoded = Buffer.from(`${JSON.stringify(record)}\n`, "utf8");
+  await handle.truncate(0);
+
+  let offset = 0;
+  while (offset < encoded.length) {
+    const { bytesWritten } = await handle.write(encoded, offset, encoded.length - offset, offset);
+    if (!Number.isInteger(bytesWritten) || bytesWritten <= 0) {
+      phaseBFailure("RECOVERY_PHASE_B_APPROVAL_TOKEN_WRITE_INCOMPLETE", "The internal Phase B approval-token state could not be finalized durably.");
+    }
+    offset += bytesWritten;
   }
+
+  await handle.sync();
   return record;
 }
 
@@ -142,16 +214,16 @@ function phaseBApprovalIssuer(baseIssuer, root) {
   return Object.freeze({
     async createChallenge(challenge) {
       const file = path.join(tokenRoot, `${tokenKey(challenge?.approval_id)}.json`);
-      const claimed = await createIssuanceClaim(file, challenge);
-      if (claimed) {
+      const claimHandle = await createIssuanceClaim(file, challenge);
+      if (claimHandle) {
         try {
           const issued = await baseIssuer.createChallenge(challenge);
-          const record = await finalizeTokenRecord(file, challenge, issued);
+          const record = await finalizeTokenRecord(claimHandle, challenge, issued);
           return Object.freeze({ authority: "server_managed", expires_at: record.expires_at, server_token: record.server_token });
-        } catch (error) {
-          // A partially issued approval is never reissued. The caller must create a new
-          // approval challenge so one approval id can never map to two server tokens.
-          throw error;
+        } finally {
+          // A failed issuer intentionally leaves the durable record in "issuing".
+          // Keep the descriptor pinned through finalization, then close it exactly once.
+          await claimHandle.close();
         }
       }
       const record = await readTokenRecord(file);

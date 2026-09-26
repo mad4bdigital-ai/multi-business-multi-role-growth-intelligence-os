@@ -1,0 +1,271 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "021-production-recovery-closure",
+  "title": "Durable Production platform recovery convergence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "specs/021-production-recovery-closure/spec.md",
+      "specs/021-production-recovery-closure/plan.md",
+      "specs/021-production-recovery-closure/tasks.md",
+      "specs/021-production-recovery-closure/acceptance.md",
+      "specs/021-production-recovery-closure/completion.json",
+      "specs/021-production-recovery-closure/checklists/requirements.md",
+      "specs/021-production-recovery-closure/work-map-integration.json",
+      "specs/021-production-recovery-closure/e2e-phases.json",
+      ".changes/e2e/production-recovery-closure-20260925.json",
+      "http-generic-api/platformRecoveryConvergence.js",
+      "http-generic-api/productionRecoveryClosure.js",
+      "http-generic-api/localConnectorTwoPhaseRebind.js",
+      "http-generic-api/productionRecoveryOperationalAdapters.js",
+      "http-generic-api/recoveryComposition.js",
+      "http-generic-api/recoveryKernel.js",
+      "http-generic-api/routes/recoveryKernelRoutes.js",
+      "http-generic-api/routes/systemLayerRoutes.js",
+      "http-generic-api/config/recovery-kernel-manifest.json",
+      "http-generic-api/openapi.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml",
+      "apps/local-manager-windows/Program.cs",
+      "apps/local-manager-windows/DesktopCommandPollBackoffStore.cs",
+      "http-generic-api/test-platform-recovery-convergence.mjs",
+      "http-generic-api/test-local-connector-two-phase-rebind.mjs",
+      "http-generic-api/test-local-manager-rate-limit-persistence.mjs",
+      "http-generic-api/test-recovery-kernel.mjs",
+      "http-generic-api/test-recovery-kernel-routes.mjs",
+      "http-generic-api/test-recovery-composition.mjs",
+      "http-generic-api/platformRecoveryConvergenceReadAdapters.js",
+      "http-generic-api/test-platform-recovery-convergence-read-adapters.mjs",
+      "specs/021-production-recovery-closure/pipeline-scenario-matrix.md",
+      "http-generic-api/test-production-recovery-closure.mjs",
+      "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "declared_targets": [
+      "production",
+      "staging"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide one resumable fail-closed platform_recovery_converge_v1 operation that composes existing Recovery Kernel authorities without granting live Production mutation authority in this PR.",
+      "e2e_journeys": [
+        {
+          "id": "database-recovery-baseline-to-functional-readback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Production Recovery administrator",
+          "entrypoint": "POST /admin/recovery/kernel/platform-converge with exact expected_sha",
+          "terminal_outcome": "The same durable run either reaches verified database/catalog/chunk readiness in the mandated order or stops on the first bounded stage without replaying prior verified stages.",
+          "steps": [
+            "Verify exact Production source identity including version and deployment-info readback.",
+            "Require verified backup evidence for runtime, governance, and runtime-persistence.",
+            "Run durable full inspection and classify zero-object roles.",
+            "Rebuild governance only when governance is proven zero-object and verify its baseline.",
+            "Rebuild runtime-persistence only when runtime-persistence is proven zero-object and verify its baseline.",
+            "For a non-empty runtime-persistence role with runtime_persistence_ready=false, stop convergence and return the canonical Recovery Kernel remediation-plan handoff; never execute migration-first repair inside convergence.",
+            "Apply and verify canonical least-privilege grants through nested Recovery authority.",
+            "Apply the MCP catalog migration only after baselines and grants are verified.",
+            "Verify MCP catalog schema, durable response chunk write/read smoke, Admin tool readback, Device tool readback, and Production activation readiness."
+          ],
+          "assertions": [
+            "Runtime is never rebuilt merely because governance or runtime-persistence is zero-object.",
+            "A non-zero role is skipped for rebuild and must still pass independent readiness verification.",
+            "Caller-selected SQL, database names, credentials, or migration filenames are forbidden.",
+            "Consequential stages require nested server-resolved authority plus same-cycle readback.",
+            "Unknown mutation outcome blocks blind retry and requires reconciliation under the same run and idempotency key.",
+            "A verified step is never replayed when a later stage blocks.",
+            "Missing readiness evidence remains unknown/null and never authorizes a grant, MCP migration, or runtime-persistence schema repair.",
+            "A role-dependent repair requires a consistent zero_objects/nonempty_objects classification and object count.",
+            "Partial non-empty runtime-persistence drift routes to the Recovery Kernel remediation plan, while partial Runtime or unregistered Governance schema corruption remains fail-closed."
+          ],
+          "tests": [
+            {
+              "id": "platform-recovery-convergence",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-recovery-convergence.mjs",
+              "args": []
+            },
+            {
+              "id": "recovery-kernel",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-kernel.mjs",
+              "args": []
+            },
+            {
+              "id": "recovery-kernel-routes",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-kernel-routes.mjs",
+              "args": []
+            },
+            {
+              "id": "recovery-composition",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-composition.mjs",
+              "args": []
+            },
+            {
+              "id": "platform-recovery-read-adapters",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-recovery-convergence-read-adapters.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/platformRecoveryConvergence.js",
+            "http-generic-api/productionRecoveryOperationalAdapters.js",
+            "http-generic-api/recoveryComposition.js",
+            "specs/021-production-recovery-closure/acceptance.md",
+            "specs/021-production-recovery-closure/work-map-integration.json",
+            "http-generic-api/platformRecoveryConvergenceReadAdapters.js",
+            "http-generic-api/test-platform-recovery-convergence-read-adapters.mjs",
+            "specs/021-production-recovery-closure/pipeline-scenario-matrix.md",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json"
+          ]
+        },
+        {
+          "id": "connector-and-local-manager-recovery",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Linked Local Manager device and Recovery administrator",
+          "entrypoint": "Connector authentication probe inside the same convergence run",
+          "terminal_outcome": "401 credential-invalid can use two-phase rebind; 429 uses durable bounded backoff and attribution; neither path bypasses device authentication or exposes credential material.",
+          "steps": [
+            "Probe an authenticated connector operation and classify success, credential_invalid, or rate-limited/edge-limited failure.",
+            "For 429, inspect status before JSON, honor bounded Retry-After, persist backoff across restart, attribute the rate-limit source, then re-probe without rotating credentials.",
+            "For credential_invalid only, require fresh device authentication and fresh user authorization.",
+            "Prepare a pending credential reference without returning raw credential material to the orchestrator.",
+            "Install the pending credential atomically on the local device and restart the connector runtime.",
+            "Probe an authenticated operation with the new credential.",
+            "Only after successful probe, commit the new credential and revoke the old credential.",
+            "Verify authenticated connector operation returns 200."
+          ],
+          "assertions": [
+            "429 never triggers credential rebind.",
+            "The old connector credential remains valid until the new credential passes authenticated probing.",
+            "Failed new-credential probing cancels the pending credential and preserves old authority.",
+            "No raw connector secret, local API key, device token, or installer secret appears in the orchestrator result.",
+            "Device Bearer authentication and fresh privileged user authorization remain mandatory."
+          ],
+          "tests": [
+            {
+              "id": "local-connector-two-phase-rebind",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-local-connector-two-phase-rebind.mjs",
+              "args": []
+            },
+            {
+              "id": "local-manager-rate-limit-persistence",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-local-manager-rate-limit-persistence.mjs",
+              "args": []
+            },
+            {
+              "id": "platform-recovery-connector-branches",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-recovery-convergence.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/localConnectorTwoPhaseRebind.js",
+            "apps/local-manager-windows/Program.cs",
+            "apps/local-manager-windows/DesktopCommandPollBackoffStore.cs",
+            "http-generic-api/test-local-connector-two-phase-rebind.mjs",
+            "http-generic-api/test-local-manager-rate-limit-persistence.mjs",
+            "specs/021-production-recovery-closure/pipeline-scenario-matrix.md",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json"
+          ]
+        },
+        {
+          "id": "local-manager-round-trip-to-active-final-gate",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Recovery Control Plane",
+          "entrypoint": "Resumed durable convergence run after database and connector readiness",
+          "terminal_outcome": "The platform reaches status=recovered with active=true only after Local Manager create→claim→complete, final same-cycle deployment parity, final Production activation recertification, every prior gate, and the Production Recovery closure evaluator are proven; otherwise it returns a resumable blocked, degraded, or unknown-outcome state.",
+          "steps": [
+            "Create a governed Local Manager command.",
+            "Require authenticated device claim with lease ownership.",
+            "Complete the command with the matching claim token and same device authority.",
+            "Verify exact deployment SHA parity again after recovery actions.",
+            "Derive final gate only after every preceding step is pass or explicitly skipped_not_required.",
+            "Re-run Production activation readiness after the last mutation and after final deployment parity.",
+            "Persist terminal run evidence and idempotency receipt."
+          ],
+          "assertions": [
+            "recovered is never inferred from CI, deployment transport success, or migration success alone.",
+            "Final gate cannot pass while any prior stage is pending, blocked, failed, degraded, or unknown_outcome.",
+            "A restarted caller resumes the same durable run rather than creating duplicate repair effects.",
+            "Terminal blocked/degraded results preserve blocking_stage, error_code, request_id when available, and next_safe_action.",
+            "A stale executing checkpoint from a prior process is never replayed; after the bounded liveness window it requires read-only reconciliation under the original idempotency key.",
+            "A final same-cycle deployment parity readback runs inside the final gate, so a deployment change after the earlier parity stage blocks recovered.",
+            "Every mutating stage uses a durable orchestration claim plus an exact approval reservation/finalization fence around the nested Recovery authority.",
+            "Final activation regression after connector or Local Manager mutation blocks recovered even when the earlier activation readback was ready.",
+            "Read-only reconciliation preserves the original mutation audit and never performs a second mutation."
+          ],
+          "tests": [
+            {
+              "id": "platform-recovery-resume-final-gate",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-recovery-convergence.mjs",
+              "args": []
+            },
+            {
+              "id": "production-recovery-closure-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-recovery-closure.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/platformRecoveryConvergence.js",
+            "http-generic-api/routes/recoveryKernelRoutes.js",
+            "specs/021-production-recovery-closure/acceptance.md",
+            "specs/021-production-recovery-closure/pipeline-scenario-matrix.md",
+            "http-generic-api/test-production-recovery-closure.mjs",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Keep live Production convergence disabled until the exact deployed implementation, live server-owned executor graph, backup evidence, step-bound approvals, and post-mutation readbacks are independently certified.",
+      "blockers": [
+        "exact_production_deployed_sha_required",
+        "live_platform_recovery_executor_graph_not_certified",
+        "verified_all_role_backup_evidence_required",
+        "fresh_durable_full_inspection_required",
+        "step_bound_mutation_approvals_required",
+        "same_cycle_database_and_connector_readbacks_required",
+        "production_activation_and_local_manager_e2e_required"
+      ]
+    }
+  ]
+}

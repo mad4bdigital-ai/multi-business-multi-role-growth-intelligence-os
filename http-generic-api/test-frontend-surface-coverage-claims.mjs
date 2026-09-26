@@ -1069,7 +1069,7 @@ assert.equal(generatedGapOperations.filter((operation) => ["state_change", "exte
 const governedMutations = operations.filter((operation) => ["state_change", "external_effect"].includes(operation.governance?.classification));
 assert.ok(governedMutations.every((operation) => operation.governance?.governed === true), "every mutation operation must be fully governed");
 assert.ok(governedMutations.every((operation) => ["preflight", "approval", "readback", "rollback"].every((key) => operation.governance?.controls?.[key]?.mode)), "every mutation operation must expose all four control modes");
-assert.equal(governedMutations.length, 36, "the governed mutation set includes bounded Recovery controls, Gateway preflight, one-time installer redemption, WordPress Staging exact-artifact deployment, three Managed Google OAuth protocol effects, four device-link lifecycle mutations, explicit Local Manager n8n provisioning, and four desktop-command lifecycle effects");
+assert.equal(governedMutations.length, 37, "the governed mutation set includes bounded Recovery controls plus the Production convergence orchestrator, Gateway preflight, one-time installer redemption, WordPress Staging exact-artifact deployment, three Managed Google OAuth protocol effects, four device-link lifecycle mutations, explicit Local Manager n8n provisioning, and four desktop-command lifecycle effects");
 for (const signature of [
   "POST /local-manager/device/desktop-commands/claim",
   "POST /local-manager/device/desktop-commands/{commandId}/heartbeat",
@@ -1114,6 +1114,9 @@ assert.equal(managedGoogleRefresh.governance?.classification, "external_effect",
 assert.ok(governedMutations.some((operation) => operation.signature === "POST /admin/recovery/kernel/execute"), "plan-bound Recovery execution must remain explicitly governed");
 assert.ok(governedMutations.some((operation) => operation.signature === "POST /admin/recovery/kernel/execute-approved"), "server-issued Recovery bridge must remain explicitly governed");
 assert.ok(governedMutations.some((operation) => operation.signature === "POST /admin/recovery/kernel/approval-challenge"), "approval challenge issuer must remain explicitly governed");
+const platformConverge = governedMutations.find((operation) => operation.signature === "POST /admin/recovery/kernel/platform-converge");
+assert.ok(platformConverge, "Production Recovery convergence orchestrator must remain explicitly governed");
+assert.equal(platformConverge.governance?.classification, "external_effect", "Production Recovery convergence must retain external-effect classification");
 assert.equal(plan.safety?.executes_provider_calls, false, "coverage claims must not execute provider calls");
 assert.equal(plan.safety?.writes_database, false, "coverage claims must not write the database");
 assert.equal(plan.safety?.deploys, false, "coverage claims must not deploy or enable Production mutation");

@@ -6,15 +6,15 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "3a26e65c3844fd756b4b17b05a31510d553698cc9d3273a529ada34c5de5a36c",
-    "dispatch_artifact_sha256": "12a5d1ff82a1cfdea2f5da41c436758543c54346f902fe26cb3d1419cb8841e8"
+    "dispatch_source_digest": "565ba6d05c0e4a90c74c16407f9f914c23dff901b50f4b4096f577bdf029ddf8",
+    "dispatch_artifact_sha256": "94e6377d31ed8dca502d0d257c584f98b672c78bb9ea4a08b18246a832e68637"
   },
   "coverage": {
-    "operation_count": 1077,
+    "operation_count": 1078,
     "mounted_family_count": 176,
     "openapi_gap_count": 0,
     "auth_contract_gap_count": 0,
-    "openapi_detail_gap_count": 319,
+    "openapi_detail_gap_count": 320,
     "unresolved_surface_decision_count": 0,
     "unresolved_operation_class_count": 0,
     "untested_family_count": 0,
@@ -23,12 +23,12 @@
   },
   "closure_summary": {
     "blocking_contract_gaps": 0,
-    "read_only_traceability_closures": 319,
+    "read_only_traceability_closures": 320,
     "surface_decisions_requiring_owner": 0,
     "priority_family_counts": {
       "P1_surface_decision": 0,
-      "P2_detail_traceability": 75,
-      "P3_observe": 101
+      "P2_detail_traceability": 76,
+      "P3_observe": 100
     },
     "surface_decision_family_counts": {
       "api_only": 41,
@@ -2123,6 +2123,44 @@
         "scripts/test-manifest.mjs",
         "test-frontend-surface-coverage-claims.mjs",
         "test-remote-runtime-catalog-probe.mjs"
+      ]
+    },
+    {
+      "family_key": "recovery-kernel",
+      "label": "recovery kernel",
+      "scope": "admin",
+      "surface_decision": "internal_only",
+      "priority": "P2_detail_traceability",
+      "detail_gap_count": 1,
+      "operation_count": 7,
+      "untested_operation_count": 0,
+      "unresolved_operation_count": 0,
+      "next_action": "add_detail_evidence_without_claiming_canonical_coverage",
+      "activation_allowed": false,
+      "evidence_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/recoveryKernelRoutes.js",
+        "scripts/test-manifest.mjs",
+        "test-recovery-kernel-routes.mjs",
+        "test-recovery-kernel.mjs"
       ]
     },
     {
@@ -5495,43 +5533,6 @@
         "routes/platformSmokeRoutes.js",
         "scripts/test-manifest.mjs",
         "test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
-      "family_key": "recovery-kernel",
-      "label": "recovery kernel",
-      "scope": "admin",
-      "surface_decision": "internal_only",
-      "priority": "P3_observe",
-      "detail_gap_count": 0,
-      "operation_count": 6,
-      "untested_operation_count": 0,
-      "unresolved_operation_count": 0,
-      "next_action": "continue_deterministic_observation_and_regression_checks",
-      "activation_allowed": false,
-      "evidence_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/brand-core-asset-materialization.yaml",
-        "openapi/container-authority-override-governance-smoke.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/hostinger-storage-tenant-runtime.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "openapi/support-ticket-admin-brand.yaml",
-        "openapi/support-ticket-admin-execution.yaml",
-        "openapi/support-ticket-admin-remaining.yaml",
-        "openapi/support-ticket-runtime-completion.yaml",
-        "openapi/support-tickets.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/index.js",
-        "routes/recoveryKernelRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-recovery-kernel-routes.mjs",
-        "test-recovery-kernel.mjs"
       ]
     },
     {

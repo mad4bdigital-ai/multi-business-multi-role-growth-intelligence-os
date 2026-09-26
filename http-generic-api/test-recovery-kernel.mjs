@@ -236,11 +236,36 @@ async function storeExecutionTicket(store, plan, step, idempotencyKey) {
       operation: step.operation,
     }),
     operation: step.operation,
-    role_bundle_bindings: plan.role_bundle_bindings && Object.keys(plan.role_bundle_bindings).length ? plan.role_bundle_bindings : (step.role_bundle_binding ? { [step.target_role]: step.role_bundle_binding } : {}),
+    role_bundle_bindings: _testingRecoveryKernel.roleBundleBindingsForStep(step, plan),
   }, { signer: { sign: async ({ ticket_hash }) => `sig:${ticket_hash}` } });
   await store.putExecutionTicket(ticket);
   return ticket;
 }
+
+test("multi-role recovery plan projects exactly one role-bundle binding per approved step", () => {
+  const governanceStep = {
+    target_role: "governance",
+    role_bundle_binding: ROLE_BUNDLE_BINDINGS.governance,
+  };
+  const persistenceStep = {
+    target_role: "runtime_persistence",
+    role_bundle_binding: ROLE_BUNDLE_BINDINGS.runtime_persistence,
+  };
+  const plan = { role_bundle_bindings: ROLE_BUNDLE_BINDINGS };
+
+  assert.deepEqual(
+    _testingRecoveryKernel.roleBundleBindingsForStep(governanceStep, plan),
+    { governance: ROLE_BUNDLE_BINDINGS.governance },
+  );
+  assert.deepEqual(
+    _testingRecoveryKernel.roleBundleBindingsForStep(persistenceStep, plan),
+    { runtime_persistence: ROLE_BUNDLE_BINDINGS.runtime_persistence },
+  );
+  assert.deepEqual(
+    _testingRecoveryKernel.roleBundleBindingsForStep({ target_role: "runtime" }, plan),
+    {},
+  );
+});
 
 async function prepareExecutableStep(idempotencyKey) {
   const durable = makeDurableStore();
@@ -308,6 +333,8 @@ test("Recovery Kernel capability catalog is static, bounded, and secret-safe", (
     "system_tool_get",
     "system_tools_search",
     "production_activation_readiness",
+    "production_recovery_closure",
+    "platform_recovery_converge_v1",
     "database_full_inspection",
     "remediation_plan_create",
     "remediation_plan_preview",
@@ -324,7 +351,7 @@ test("Recovery Kernel capability catalog is static, bounded, and secret-safe", (
     "ephemeral_capability_create",
     "unsupported_capability_execute",
   ]) assert.ok(result.capabilities.some((entry) => entry.capability_key === key), key);
-  assert.deepEqual(result.mutation_capabilities, ["runtime.baseline.rebuild_empty", "governance.baseline.rebuild_empty", "runtime_persistence.baseline.rebuild_empty", "remediation_step_execute", "unsupported_capability_execute"]);
+  assert.deepEqual(result.mutation_capabilities, ["platform_recovery_converge_v1", "runtime.baseline.rebuild_empty", "governance.baseline.rebuild_empty", "runtime_persistence.baseline.rebuild_empty", "remediation_step_execute", "unsupported_capability_execute"]);
   assert.equal(result.database_independent_capabilities.includes("recovery_capabilities"), true);
 });
 
@@ -955,4 +982,139 @@ test("unsupported capability is plan-bound and brokerless execution fails closed
   const run = [...durable.runs.values()].at(-1);
   assert.ok(run.events.some((event) => event.phase === "executing"));
   assert.equal(run.evidence.database_mutation_performed, undefined);
+});
+
+
+function makeProductionRecoveryClosureEvidence(overrides = {}) {
+  const gates = {
+    exact_source_sha_verified: true,
+    durable_inspection_verified: true,
+    governance_baseline_ready: true,
+    runtime_persistence_baseline_ready: true,
+    canonical_grants_ready: true,
+    bootstrap_ledger_ready: true,
+    mcp_catalog_schema_ready: true,
+    admin_catalog_functional_readback: true,
+    device_catalog_functional_readback: true,
+    response_chunk_storage_smoke: true,
+    production_activation_readiness: true,
+    backup_evidence_verified: true,
+    production_mutation_audited: true,
+    connector_auth_ready: true,
+    rate_limit_attribution_ready: true,
+    ...(overrides.gates || {}),
+  };
+  const cycleId = "run:production-recovery-closure-test";
+  const targetFingerprint = "7".repeat(64);
+  return {
+    contract: "mad4b.production-recovery-closure-evidence.v1",
+    expected_sha: SHA,
+    server_derived: true,
+    durable: true,
+    same_cycle: true,
+    cycle_id: cycleId,
+    target_fingerprint: targetFingerprint,
+    inspection_run_id: "run:production-recovery-closure-test",
+    inspection_evidence_hash: "9".repeat(64),
+    backup_evidence: {
+      contract: "mad4b.production-recovery-backup-evidence.v1",
+      expected_sha: SHA,
+      evidence_sha256: "8".repeat(64),
+      created_at: new Date().toISOString(),
+      evidence_ref: "recovery-backup:test-fixture",
+      roles: ["runtime", "governance", "runtime_persistence"],
+      verified: true,
+      storage_readback_verified: true,
+      restore_test_verified: true,
+      artifact_manifest_hash: "6".repeat(64),
+      target_fingerprint: targetFingerprint,
+      cycle_id: cycleId,
+      secrets_included: false,
+    },
+    unknown_outcome: false,
+    gates,
+    secrets_included: false,
+    ...overrides,
+    gates,
+  };
+}
+
+test("Production Recovery closure requires server-derived durable same-cycle evidence", async () => {
+  await assert.rejects(
+    callRecoveryKernelCapability("production_recovery_closure", { expected_sha: SHA }, { env: ENV }),
+    (error) => error.code === "RECOVERY_PRODUCTION_CLOSURE_EVIDENCE_RESOLVER_UNAVAILABLE",
+  );
+
+  const result = await callRecoveryKernelCapability(
+    "production_recovery_closure",
+    { expected_sha: SHA },
+    {
+      env: ENV,
+      productionRecoveryClosureEvidenceResolver: async () => makeProductionRecoveryClosureEvidence(),
+    },
+  );
+  assert.equal(result.status, "recovered");
+  assert.equal(result.ok, true);
+  assert.equal(result.core_recovered, true);
+  assert.equal(result.unknown_outcome, false);
+  assert.equal(result.read_only_probe, true);
+  assert.equal(result.database_mutation_performed, false);
+  assert.equal(result.provider_mutation_performed, false);
+  assert.equal(result.production_mutation_performed, false);
+  assert.equal(result.closure_sha256.length, 64);
+});
+
+test("Production Recovery closure cannot report recovered without verified backup evidence", async () => {
+  const result = await callRecoveryKernelCapability(
+    "production_recovery_closure",
+    { expected_sha: SHA },
+    {
+      env: ENV,
+      productionRecoveryClosureEvidenceResolver: async () => makeProductionRecoveryClosureEvidence({
+        backup_evidence: null,
+      }),
+    },
+  );
+  assert.equal(result.status, "blocked");
+  assert.equal(result.core_recovered, false);
+  assert.equal(result.backup_evidence_verified, false);
+  assert.ok(result.problems.includes("backup_evidence_missing"));
+});
+
+test("Production Recovery closure preserves unknown outcome as terminal until reconciliation", async () => {
+  const result = await callRecoveryKernelCapability(
+    "production_recovery_closure",
+    { expected_sha: SHA },
+    {
+      env: ENV,
+      productionRecoveryClosureEvidenceResolver: async () => makeProductionRecoveryClosureEvidence({
+        unknown_outcome: true,
+      }),
+    },
+  );
+  assert.equal(result.status, "unknown_outcome");
+  assert.equal(result.ok, false);
+  assert.equal(result.core_recovered, false);
+  assert.equal(result.reconciliation_required, true);
+  assert.equal(result.automatic_retry_allowed, false);
+});
+
+test("Production Recovery closure separates non-DB connector and rate-limit gaps", async () => {
+  const result = await callRecoveryKernelCapability(
+    "production_recovery_closure",
+    { expected_sha: SHA },
+    {
+      env: ENV,
+      productionRecoveryClosureEvidenceResolver: async () => makeProductionRecoveryClosureEvidence({
+        gates: {
+          connector_auth_ready: false,
+          rate_limit_attribution_ready: false,
+        },
+      }),
+    },
+  );
+  assert.equal(result.status, "degraded_non_db");
+  assert.equal(result.core_recovered, true);
+  assert.equal(result.ok, false);
+  assert.deepEqual(result.non_db_gaps, ["connector_auth_ready", "rate_limit_attribution_ready"]);
 });

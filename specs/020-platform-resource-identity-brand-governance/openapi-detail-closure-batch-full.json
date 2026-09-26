@@ -6,10 +6,10 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_artifact_sha256": "12a5d1ff82a1cfdea2f5da41c436758543c54346f902fe26cb3d1419cb8841e8",
+    "dispatch_artifact_sha256": "94e6377d31ed8dca502d0d257c584f98b672c78bb9ea4a08b18246a832e68637",
     "family_count": 176,
-    "detail_family_count": 75,
-    "dispatch_operation_count": 1077
+    "detail_family_count": 76,
+    "dispatch_operation_count": 1078
   },
   "scope_boundary": {
     "route_wiring": false,
@@ -38,10 +38,10 @@
     "evidence_only": true
   },
   "summary": {
-    "family_count": 75,
+    "family_count": 76,
     "dispatch_family_count": 176,
-    "operation_count": 319,
-    "detail_evidence_required_count": 319,
+    "operation_count": 320,
+    "detail_evidence_required_count": 320,
     "canonical_openapi_added_count": 0,
     "excluded_scope_count": 0
   },
@@ -144,6 +144,35 @@
       "governance_rule_id": null,
       "evidence_refs": [
         "http-generic-api/frontend-surface-dispatch.generated.json"
+      ],
+      "closure_status": "detail_evidence_required",
+      "canonical_openapi_added": false,
+      "route_wiring": false,
+      "runtime_authority": false,
+      "production_activation": false
+    },
+    {
+      "family_key": "recovery-kernel",
+      "method": "POST",
+      "path": "/admin/recovery/kernel/platform-converge",
+      "signature": "POST /admin/recovery/kernel/platform-converge",
+      "source_file": "routes/recoveryKernelRoutes.js",
+      "scope": "admin",
+      "delivery_kind": "api",
+      "openapi_contract_level": "operation-index-only",
+      "auth_parity": "equivalent",
+      "governance_classification": "external_effect",
+      "governance_rule_id": "recovery-kernel-platform-convergence-orchestrator",
+      "evidence_refs": [
+        "http-generic-api/frontend-surface-dispatch.generated.json",
+        "platformRecoveryConvergence.js",
+        "platformRecoveryConvergenceReadAdapters.js",
+        "productionRecoveryClosure.js",
+        "routes/recoveryKernelRoutes.js",
+        "specs/021-production-recovery-closure/pipeline-scenario-matrix.md",
+        "test-platform-recovery-convergence-read-adapters.mjs",
+        "test-platform-recovery-convergence.mjs",
+        "test-production-recovery-closure.mjs"
       ],
       "closure_status": "detail_evidence_required",
       "canonical_openapi_added": false,

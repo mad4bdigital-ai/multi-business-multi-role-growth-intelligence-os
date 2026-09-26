@@ -103,7 +103,8 @@
       ".github/workflows/pr-risk-labeler.yml",
       "http-generic-api/scripts/single-owner-review-gate.mjs",
       "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs",
-      "scripts/test-ai-agent-instruction-reference-integrity.mjs"
+      "scripts/test-ai-agent-instruction-reference-integrity.mjs",
+      "http-generic-api/test-recovery-kernel-routes.mjs"
     ]
   },
   "merge_contract": {
@@ -295,6 +296,13 @@
               "working_directory": ".",
               "path": ".github/tests/production-promotion-runtime.test.mjs",
               "args": []
+            },
+            {
+              "id": "spec020-recovery-kernel-platform-convergence-route-coverage",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-kernel-routes.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -395,7 +403,8 @@
             "http-generic-api/scripts/generate-openapi-mutation-policy.mjs",
             ".github/workflows/pr-risk-labeler.yml",
             "http-generic-api/scripts/single-owner-review-gate.mjs",
-            "scripts/test-ai-agent-instruction-reference-integrity.mjs"
+            "scripts/test-ai-agent-instruction-reference-integrity.mjs",
+            "http-generic-api/test-recovery-kernel-routes.mjs"
           ],
           "secrets_included": false
         }

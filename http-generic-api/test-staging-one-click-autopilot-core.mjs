@@ -8,6 +8,7 @@ const launcher = fs.readFileSync(path.join(packageRoot, "One-Click-Staging.ps1")
 const bootstrap = fs.readFileSync(path.join(packageRoot, "Bootstrap-Staging-One-Click.ps1"), "utf8");
 const dualModeCore = fs.readFileSync(path.join(packageRoot, "Invoke-Staging-One-Click-Core.ps1"), "utf8");
 const startAutoPilot = fs.readFileSync(path.join(packageRoot, "Start-AutoPilot.ps1"), "utf8");
+const stagingEnvironment = fs.readFileSync(path.join(packageRoot, "Staging-Environment.ps1"), "utf8");
 const certification = fs.readFileSync(path.join(packageRoot, "Invoke-StagingCertification.ps1"), "utf8");
 const autoDeploy = fs.readFileSync(path.join(packageRoot, "Auto-Deploy-Staging.ps1"), "utf8");
 const installAutoDeploy = fs.readFileSync(path.join(packageRoot, "Install-AutoDeployTask.ps1"), "utf8");
@@ -63,6 +64,8 @@ assert.equal(policy.lifecycle.activation_readiness.semantic_repair_handoff.nonmi
 assert.equal(policy.lifecycle.activation_readiness.semantic_repair_handoff.automatic_apply, false);
 assert.equal(policy.lifecycle.activation_readiness.semantic_repair_handoff.automatic_retry, false);
 assert.equal(policy.lifecycle.activation_readiness.semantic_repair_handoff.reconcile_before_retry, true);
+assert.match(launcher, /\$handoffState = if \(\$status -in @\("ready", "not_required"\)\) \{ "not_required" \} elseif \(\$planEligible\) \{ "plan_required" \} else \{ "inspection_required" \}/);
+assert.match(launcher, /if \(\$handoffState -eq "not_required"\) \{[\s\S]*?Remove-Item -LiteralPath \$handoffPath -Force/s);
 assert.equal(policy.lifecycle.activation_readiness.stale_policy_blocks_activation, true);
 assert.equal(policy.lifecycle.activation_readiness.schema_and_catalog_readiness_required, true);
 assert.deepEqual(policy.safety, {
@@ -103,6 +106,14 @@ assert.match(launcher, /Write-StagingUtf8NoBom/);
 assert.match(launcher, /Start-AutoPilot\.ps1/);
 assert.match(launcher, /Install-AutoDeployTask\.ps1/);
 assert.ok(dualModeCore.includes("Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ORIGIN_APP' 'http://127.0.0.1:8080'"));
+assert.ok(
+  startAutoPilot.includes('if ($TunnelSelected -and $effectiveEnv -notmatch'),
+  "Start-AutoPilot must scope the loopback tunnel-origin guard to selected tunnel transports",
+);
+assert.ok(
+  startAutoPilot.includes('if (-not $TunnelSelected -and (Read-EnvValue $EnvFile "CLOUDFLARE_TUNNEL_ORIGIN_APP") -ne "")'),
+  "disabled Staging bootstrap must require the tunnel origin to remain empty",
+);
 assert.equal(dualModeCore.includes("Set-StagingEnvValue $envFile 'CLOUDFLARE_TUNNEL_ORIGIN_APP' 'http://app:8080'"), false);
 assert.match(bootstrap, /git.*fetch.*origin/s);
 assert.match(bootstrap, /git.*checkout.*--detach/s);
@@ -168,6 +179,14 @@ assert.match(gitTransport, /remote: \|warning: \|hint: /);
 assert.match(launcher, /Staging-GitTransport\.ps1/);
 assert.match(bootstrap, /Staging-GitTransport\.ps1/);
 assert.match(startAutoPilot, /Staging-GitTransport\.ps1/);
+assert.match(startAutoPilot, /Staging-Environment\.ps1/);
+assert.match(startAutoPilot, /Set-StagingTunnelRuntimeProfile -Path \$EnvFile -TunnelMode \$TunnelMode/);
+assert.match(stagingEnvironment, /function Set-StagingTunnelRuntimeProfile/);
+assert.match(stagingEnvironment, /mad4b\.staging-tunnel-runtime-profile\.v1/);
+assert.match(stagingEnvironment, /'windows_service'[\s\S]*?CLOUDFLARE_TUNNEL_ORIGIN_APP' 'http:\/\/127\.0\.0\.1:8080'/);
+assert.match(stagingEnvironment, /production_mutation = \$false/);
+assert.match(stagingEnvironment, /provider_mutation = \$false/);
+assert.match(stagingEnvironment, /database_mutation = \$false/);
 assert.match(autoDeploy, /Staging-GitTransport\.ps1/);
 assert.match(launcher, /Clone-StagingDatabases\.ps1/);
 assert.match(launcher, /Invoke-StagingCertification\.ps1/);
@@ -258,6 +277,14 @@ assert.match(startAutoPilot, /function Invoke-SelfUpdate/);
 assert.match(startAutoPilot, /-SkipSelfUpdate/);
 assert.match(startAutoPilot, /if \(\$RequireSchemaBundle\) \{ \$childArgs \+= "-RequireSchemaBundle" \}/);
 assert.match(startAutoPilot, /if \(\$ApplySchemaBundle\) \{ \$childArgs \+= "-ApplySchemaBundle" \}/);
+assert.match(startAutoPilot, /\[switch\]\$EnableActivationGateway/);
+assert.match(startAutoPilot, /if \(\$EnableActivationGateway\) \{ \$childArgs \+= "-EnableActivationGateway" \}/);
+assert.match(startAutoPilot, /Set-EnvValue \$EnvFile "ACTIVATION_STAGING_GATEWAY_ENABLED" \$activationGatewayDesired/);
+assert.match(autoDeploy, /\[switch\]\$EnableActivationGateway/);
+assert.match(autoDeploy, /if \(\$EnableActivationGateway\) \{ \$pilotArgs \+= "-EnableActivationGateway" \}/);
+assert.match(installAutoDeploy, /\[switch\]\$EnableActivationGateway/);
+assert.match(installAutoDeploy, /if \(\$EnableActivationGateway\) \{ \$arguments \+= " -EnableActivationGateway" \}/);
+assert.match(launcher, /if \(\$EnableActivationGateway\) \{ \$args \+= "-EnableActivationGateway" \}/);
 assert.match(startAutoPilot, /reloaded exact-commit Auto Pilot before local execution/);
 assert.match(startAutoPilot, /prepare-staging-build-context\.mjs/);
 assert.match(startAutoPilot, /Invoke-StagingCertification\.ps1/);
@@ -275,7 +302,10 @@ assert.match(launcher, /canonical-semantic-repair-handoff\.json/);
 assert.match(launcher, /canonical_missing/);
 assert.match(launcher, /plan_required/);
 assert.match(launcher, /inspection_required/);
-assert.match(launcher, /staging:canonical-repair:plan/);
+assert.match(launcher, /Repair-StagingCanonicalSemanticData\.ps1/);
+assert.match(launcher, /mode = "Plan"/);
+assert.match(launcher, /host_git_authority_required = \$true/);
+assert.match(launcher, /runtime_provenance_required = \$true/);
 assert.match(launcher, /automatic = \$false/);
 assert.match(launcher, /reconcile_before_retry = \$true/);
 assert.match(launcher, /canonical_semantic_repair_handoff = \$semanticRepairHandoff/);

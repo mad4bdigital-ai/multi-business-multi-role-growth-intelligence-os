@@ -3,6 +3,8 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
+import { readEnvironmentConvergenceRegistry } from "./environmentConvergenceRegistry.js";
 
 const commit = "a".repeat(40);
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "staging-convergence-ack-"));
@@ -10,15 +12,41 @@ const script = path.join(import.meta.dirname, "scripts/staging-environment-conve
 const runtimePath = path.join(dir, "runtime.json");
 const preflightPath = path.join(dir, "preflight.json");
 const wrapper = fs.readFileSync(path.join(import.meta.dirname, "../autopilot-portable-staging/Invoke-Staging-One-Click.ps1"), "utf8");
+const profile = readEnvironmentConvergenceRegistry().profiles.staging.activation_gateway;
+const fetchPreloadPath = path.join(dir, "gateway-fetch-preload.mjs");
+function writeGatewayFetchPreload(body) {
+  fs.writeFileSync(fetchPreloadPath, `
+const body = ${JSON.stringify(body)};
+globalThis.fetch = async () => ({
+  ok: true,
+  status: 200,
+  async json() { return body; },
+});
+`, "utf8");
+}
 assert.match(wrapper, /\[string\]\$AcknowledgedConvergencePlanSha256/u);
 assert.match(wrapper, /'--acknowledged-plan-sha256'/u);
 assert.match(wrapper, /\$bridge\.convergence_run\.status -ne 'handoff_ready'/u);
 const write = (file, value) => fs.writeFileSync(file, JSON.stringify(value));
-const run = (ack = null) => spawnSync(process.execPath, [script,
-  "--runtime-state", runtimePath, "--preflight", preflightPath,
-  "--recovery-trust-exact", "false",
-  ...(ack !== null ? ["--acknowledged-plan-sha256", ack] : []),
-], { encoding: "utf8" });
+const run = (ack = null) => {
+  const runtime = JSON.parse(fs.readFileSync(runtimePath, "utf8"));
+  writeGatewayFetchPreload({
+    ok: true,
+    service: "activation-gateway",
+    policyKey: profile.policy_key,
+    policyHash: profile.expected_policy_hash,
+    sourceCommit: runtime.commit,
+    workerBuildSha: runtime.commit,
+    stale: false,
+  });
+  return spawnSync(process.execPath, [
+    "--import", pathToFileURL(fetchPreloadPath).href,
+    script,
+    "--runtime-state", runtimePath, "--preflight", preflightPath,
+    "--recovery-trust-exact", "false",
+    ...(ack !== null ? ["--acknowledged-plan-sha256", ack] : []),
+  ], { encoding: "utf8" });
+};
 
 try {
   write(runtimePath, { commit, certification_degraded_reasons: ["gateway_exact_commit"] });

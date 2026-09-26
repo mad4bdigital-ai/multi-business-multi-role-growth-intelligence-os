@@ -1,0 +1,116 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-canonical-resource-registry-read-grant-20260924",
+  "title": "Staging canonical resource registry read-authority grant",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-canonical-resource-registry-read-grant-20260924.json",
+      ".github/derived-state-governance.json",
+      ".github/governance/test-authority-registry.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/databasePrivilegeContracts.js",
+      "http-generic-api/test-staging-canonical-resource-registry-grant.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Add canonical_resource_registry to the local Staging runtime read overlay with SELECT-only authority while preserving Production/bootstrap runtime grants unchanged.",
+      "e2e_journeys": [
+        {
+          "id": "staging-canonical-resource-registry-read-authority",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Windows Docker Staging recovery operator",
+          "entrypoint": "autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1",
+          "terminal_outcome": "After the source patch is merged to main and local HEAD equals origin/main, the official Staging grant reconciliation can supply SELECT-only access to canonical_resource_registry with no Production/bootstrap grant widening.",
+          "steps": [
+            "Keep BOOTSTRAP_ROLE_GRANT_POLICIES.runtime unchanged.",
+            "Add canonical_resource_registry only to STAGING_RUNTIME_READ_ONLY_TABLES.",
+            "Derive its per-table operation set as SELECT only.",
+            "Verify the repository-owned Staging runtime grant plan marks the table required and SELECT-only.",
+            "Run the governed regression suite before any database mutation.",
+            "After merge to main and exact local synchronization, use the existing official Staging readiness repair path for grant reconciliation and same-cycle readback.",
+            "Register this critical Staging read-authority contract exactly in Constitution.control_plane_paths and convergence.automation_control_paths without broadening patterns or granting autonomous merge authority."
+          ],
+          "assertions": [
+            "STAGING_ROLE_GRANT_POLICIES.runtime requires canonical_resource_registry.",
+            "canonical_resource_registry receives SELECT only.",
+            "BOOTSTRAP_ROLE_GRANT_POLICIES.runtime does not include canonical_resource_registry.",
+            "No schema-wide grant, GRANT OPTION, Production database mutation, provider mutation, Hostinger mutation, Cloudflare mutation, or secret output is introduced.",
+            "The critical declaration is registered exactly in both control-plane registries; control-plane self-amendment remains manual-merge-only."
+          ],
+          "tests": [
+            {
+              "id": "staging-canonical-resource-registry-grant",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-canonical-resource-registry-grant.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-execution-policies-grant",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-execution-policies-grant.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-database-readiness-repair",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-database-readiness-repair.mjs",
+              "args": []
+            },
+            {
+              "id": "runtime-bootstrap-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-bootstrap-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/derived-state-governance.json",
+            ".github/governance/test-authority-registry.json",
+            "autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "http-generic-api/databasePrivilegeContracts.js",
+            "http-generic-api/scripts/staging-role-grant-plan.mjs",
+            "http-generic-api/test-runtime-bootstrap-contract.mjs",
+            "http-generic-api/test-staging-canonical-resource-registry-grant.mjs",
+            "http-generic-api/test-staging-database-readiness-repair.mjs",
+            "http-generic-api/test-staging-execution-policies-grant.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Production mutation remains outside this Staging-only authority patch.",
+      "blockers": [
+        "Production/bootstrap grants are intentionally unchanged.",
+        "Any Production promotion or database mutation requires a separate governed lifecycle."
+      ]
+    }
+  ]
+}

@@ -303,7 +303,7 @@ test('mutation confirmation is bound to strategy and exact SHA', () => {
 test('canonical baseline schema is checksum-bound, statement-bound, and data-free', () => {
   const schema = readFileSync(new URL('../../http-generic-api/schema.sql', import.meta.url), 'utf8');
   assert.doesNotThrow(() => assertBaselineSchemaSafety('http-generic-api/schema.sql', schema, {
-    sha256: '14e624b74f86160475c66ba02f1003f3221acb46d9d9f79334352afa16a36c33',
+    sha256: '7c089cb4262f7a8020ed2cffd47b5e549ed0a14f2a6410d43b212590e2196518',
     statement_count: 27,
   }));
   assert.throws(() => assertBaselineSchemaSafety('http-generic-api/schema.sql', 'CREATE TABLE x (id INT); INSERT INTO x VALUES (1);', {

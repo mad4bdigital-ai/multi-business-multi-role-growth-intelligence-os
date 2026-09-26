@@ -134,13 +134,36 @@ async function githubJson(pathname) {
   assert.ok(response.ok, `GitHub read failed HTTP ${response.status}: ${pathname}`);
   return payload;
 }
+const PARITY_WINDOW_MS = 6 * 60 * 1000;
+const PARITY_MAX_ATTEMPTS = 24;
+const PARITY_DEFAULT_DELAY_MS = 15000;
+const PARITY_RATE_LIMIT_FALLBACK_MS = 30000;
+
+function parseRetryAfterMs(value, nowMs = Date.now()) {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  if (/^\d+$/.test(raw)) return Math.max(0, Number(raw) * 1000);
+  const at = Date.parse(raw);
+  return Number.isFinite(at) ? Math.max(0, at - nowMs) : null;
+}
+function boundedParityDelay(results, remainingMs) {
+  const rateLimited = results.some((result) => result?.status === 429);
+  const retryAfterMs = results
+    .filter((result) => result?.status === 429 && Number.isFinite(result?.retry_after_ms))
+    .reduce((max, result) => Math.max(max, Number(result.retry_after_ms)), 0);
+  const requestedDelay = rateLimited
+    ? Math.max(PARITY_RATE_LIMIT_FALLBACK_MS, retryAfterMs)
+    : PARITY_DEFAULT_DELAY_MS;
+  return Math.max(0, Math.min(requestedDelay, Math.max(0, remainingMs)));
+}
 async function requestGet(url, timeoutMs = 20000) {
   try {
     const response = await fetch(url, { headers: { Accept: "application/json" }, redirect: "error", signal: AbortSignal.timeout(timeoutMs) });
     const text = await response.text();
     let payload; try { payload = text ? JSON.parse(text) : null; } catch { payload = { non_json_response: true }; }
-    return { transport_ok: true, status: response.status, http_ok: response.ok, payload };
-  } catch (error) { return { transport_ok: false, status: null, http_ok: false, payload: null, transport_error: String(error?.name || "Error") }; }
+    const retryAfterMs = parseRetryAfterMs(response.headers.get("retry-after"));
+    return { transport_ok: true, status: response.status, http_ok: response.ok, payload, retry_after_ms: retryAfterMs };
+  } catch (error) { return { transport_ok: false, status: null, http_ok: false, payload: null, retry_after_ms: null, transport_error: String(error?.name || "Error") }; }
 }
 async function requestRaw(pathname, body, timeoutMs = 300000) {
   try {
@@ -200,16 +223,40 @@ async function verifySourceAndRuntimeParity() {
   const sql = Buffer.from(String(migrationFile.content || "").replace(/\s+/g, ""), "base64").toString("utf8");
   migrationChecksum = sha256(sql);
   assert.equal(splitMigrationSqlStatements(sql).length, EXPECTED_MIGRATION_STATEMENTS, "Migration 1051 statement count drifted");
-  for (let attempt = 1; attempt <= 24; attempt += 1) {
+  const parityDeadlineMs = Date.now() + PARITY_WINDOW_MS;
+  let attempt = 0;
+  let rateLimitObserved = false;
+  let maxRetryAfterMs = 0;
+  let lastStatuses = { health: null, version: null, deployment_info: null };
+  while (attempt < PARITY_MAX_ATTEMPTS && Date.now() < parityDeadlineMs) {
+    attempt += 1;
     const [health, version, deployment] = await Promise.all([requestGet(`${BASE}/health`), requestGet(`${BASE}/version`), requestGet(`${BASE}/deployment-info`)]);
+    const probes = [health, version, deployment];
+    lastStatuses = { health: health.status ?? null, version: version.status ?? null, deployment_info: deployment.status ?? null };
+    if (probes.some((result) => result?.status === 429)) rateLimitObserved = true;
+    maxRetryAfterMs = Math.max(maxRetryAfterMs, ...probes.map((result) => Number(result?.retry_after_ms || 0)));
     if (health.http_ok && health.payload?.ok === true && version.http_ok && collectShas(version.payload).has(runtimeSha) && deployment.http_ok && collectShas(deployment.payload).has(runtimeSha)) {
       assert.equal(await currentRefSha("main"), mainSha, "main moved during runtime parity");
       assert.equal(await currentRefSha("Production"), productionSha, "Production moved during runtime parity");
-      return { target_branch: TARGET_BRANCH, target_sha: targetSha, main_sha: mainSha, production_sha: productionSha, migration_checksum_sha256: migrationChecksum, envelope_creator_contract_fingerprint: sourceEnvelopeContract.fingerprint, attempt, health: "pass", version: "pass", deployment: "pass", secrets_included: false };
+      return { target_branch: TARGET_BRANCH, target_sha: targetSha, main_sha: mainSha, production_sha: productionSha, migration_checksum_sha256: migrationChecksum, envelope_creator_contract_fingerprint: sourceEnvelopeContract.fingerprint, attempt, health: "pass", version: "pass", deployment: "pass", rate_limit_observed: rateLimitObserved, max_retry_after_ms: maxRetryAfterMs || null, secrets_included: false };
     }
-    if (attempt < 24) await new Promise((resolve) => setTimeout(resolve, 15000));
+    const remainingMs = Math.max(0, parityDeadlineMs - Date.now());
+    if (attempt < PARITY_MAX_ATTEMPTS && remainingMs > 0) {
+      const delayMs = boundedParityDelay(probes, remainingMs);
+      if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
   }
-  throw new Error("Runtime did not converge to the exact Production SHA within bounded window");
+  const error = new Error("Runtime did not converge to the exact Production SHA within bounded window");
+  error.code = "runtime_parity_not_converged";
+  error.details = {
+    attempt_count: attempt,
+    last_statuses: lastStatuses,
+    rate_limit_observed: rateLimitObserved,
+    max_retry_after_ms: maxRetryAfterMs || null,
+    parity_window_ms: PARITY_WINDOW_MS,
+    secrets_included: false,
+  };
+  throw error;
 }
 async function verifyMigration1051Applied() {
   const result = await requestRaw("/gpt/tools/call", { name: "governed_migration_schema_readback", tool_args: { migration: MIGRATION, expected_checksum_sha256: migrationChecksum, expected_statement_count: EXPECTED_MIGRATION_STATEMENTS, expected_tables: ["platform_resource_adapters", "platform_capability_readback_contracts", "capability_apply_authorization_policy_registry", "repository_capability_bindings", "repository_capability_policy_layers", "governed_migration_authorization_registry"] } }, 180000);

@@ -25,10 +25,15 @@ assert.deepEqual(artifact.scope_boundary, {
   credential_read: false,
   production_activation: false,
 });
+const expectedDetailFamilyCount = dispatch.families.filter((family) => {
+  assert(Array.isArray(family.operations), `dispatch family has no operations: ${family.family_key}`);
+  return family.operations.some((operation) => operation.openapi_contract_level === "operation-index-only");
+}).length;
+
 assert.equal(artifact.source.family_count, dispatch.coverage.mounted_family_count);
-assert.equal(artifact.source.detail_family_count, 75);
+assert.equal(artifact.source.detail_family_count, expectedDetailFamilyCount);
 assert.equal(artifact.source.dispatch_operation_count, dispatch.coverage.operation_count);
-assert.equal(artifact.summary.family_count, 75);
+assert.equal(artifact.summary.family_count, expectedDetailFamilyCount);
 assert.equal(artifact.summary.dispatch_family_count, dispatch.coverage.mounted_family_count);
 const expectedDetailOperationCount = dispatch.coverage.openapi_detail_gap_count;
 assert.equal(artifact.summary.operation_count, expectedDetailOperationCount);

@@ -14,6 +14,13 @@ import { buildStagingTrustedIngressCertificationEvidence } from "./stagingTruste
 const execFileAsync = promisify(execFile);
 const apiRoot = dirname(fileURLToPath(import.meta.url));
 
+const serverSource = await readFile(join(apiRoot, "server.js"), "utf8");
+assert.match(
+  serverSource,
+  /req\.method === "POST"[\s\S]*requestPath\.startsWith\("\/admin\/recovery\/staging\/"\)[\s\S]*req\.rawBody = Buffer\.from\(buffer\)/u,
+  "Staging Recovery POSTs must preserve exact raw JSON bytes before parsing",
+);
+
 const pending = buildTrustedIngressReadiness({ NODE_ENV: "staging", REMOTE_MCP_TRUST_PROXY_HOST_HEADERS: "true" });
 assert.equal(pending.ready, false);
 assert.equal(pending.failure_mode, "staging_attestation_pending");

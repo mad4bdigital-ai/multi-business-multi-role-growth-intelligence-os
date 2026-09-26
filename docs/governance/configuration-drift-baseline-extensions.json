@@ -147,6 +147,61 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": ".github/ops/github-main-review-policy-live-activation.mjs|maxRetryAfterMs|literal_declaration|maxretryafterms",
+      "owner": "repository-governance",
+      "reason": "This value is derived only from bounded HTTP Retry-After metadata for secret-free readiness diagnostics; it is not a configurable provider value and grants no mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/github-main-review-policy-live-activation.mjs|PARITY_DEFAULT_DELAY_MS|literal_declaration|parity.default.delay.ms",
+      "owner": "repository-governance",
+      "reason": "The fixed default delay bounds read-only Production identity polling between attempts; it contains no endpoint credential or provider value and grants no Ruleset, runtime, database, Hostinger, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/github-main-review-policy-live-activation.mjs|PARITY_RATE_LIMIT_FALLBACK_MS|literal_declaration|parity.rate.limit.fallback.ms",
+      "owner": "repository-governance",
+      "reason": "The fixed 429 fallback delay prevents aggressive read-only Production identity retries when Retry-After is absent; it contains no credential or provider value and grants no mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/github-main-review-policy-live-activation.mjs|rateLimited|literal_declaration|ratelimited",
+      "owner": "repository-governance",
+      "reason": "This local boolean classifies a bounded GET response set for backoff selection; it is not external configuration and grants no runtime, provider, database, Ruleset, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/github-main-review-policy-live-activation.mjs|rateLimitObserved|literal_declaration|ratelimitobserved",
+      "owner": "repository-governance",
+      "reason": "This boolean records whether bounded read-only parity probes observed HTTP 429; it is diagnostic evidence only and grants no runtime, provider, database, Ruleset, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": ".github/ops/github-repository-policy-1051-metadata-state.mjs|base|environment_reference|runtime.base.url",
       "owner": "repository-governance",
       "reason": "RUNTIME_BASE_URL is consumed by the bounded Migration 1051 metadata-state module only to address the existing admin control read surface; this binding grants no Apply, runtime, database, provider, protected-ref, or Production mutation authority.",
@@ -216,6 +271,116 @@
       "fingerprint": ".github/ops/lib/github-review-policy-public-probe-preload.mjs|MAX_RETRY_AFTER_MS|literal_declaration|max.retry.after.ms",
       "owner": "repository-governance",
       "reason": "Fixed upper bound for Retry-After handling by the public exact-SHA policy readiness probes; it is a non-secret fail-bounded safety invariant and grants no runtime, provider, database, protected-ref, Ruleset Apply, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/production-recovery-baseline-rebuild-governed.mjs|BASE|environment_reference|runtime.base.url",
+      "owner": "recovery-governance",
+      "reason": "RUNTIME_BASE_URL binds the governed Production Recovery bridge to the canonical admin control surface. It is an addressing input only; consequential execution additionally requires the exact Production SHA, a server-derived Recovery plan, a server-issued single-step challenge, and the typed approval confirmation.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/production-recovery-baseline-rebuild-governed.mjs|COMMENT|environment_reference|comment.body",
+      "owner": "recovery-governance",
+      "reason": "COMMENT_BODY carries the immutable issue-comment command into the producer. The producer accepts only the exact baseline prepare command or exact server-issued single-step approval phrase and rejects all other input before Recovery execution.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/production-recovery-baseline-rebuild-governed.mjs|EVIDENCE_DIR|environment_reference|evidence.dir",
+      "owner": "recovery-governance",
+      "reason": "EVIDENCE_DIR selects only the ephemeral no-secret GitHub Actions artifact directory for governed Production Recovery receipts and failures; it is not a runtime or database target.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/production-recovery-baseline-rebuild-governed.mjs|GH|environment_reference|gh.token",
+      "owner": "recovery-governance",
+      "reason": "GH_TOKEN is a workflow credential reference used only for exact Production-ref readback and bounded issue-comment evidence on the configured control issue. It is not accepted by the Recovery Kernel as database or execution authority, and its value is never persisted or emitted.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "credential_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/production-recovery-baseline-rebuild-governed.mjs|ISSUE|environment_reference|control.issue",
+      "owner": "recovery-governance",
+      "reason": "CONTROL_ISSUE binds the producer to the dedicated Production Recovery governance thread. It is an audit/routing identity and is not accepted as Recovery execution authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/production-recovery-baseline-rebuild-governed.mjs|KEY|environment_reference|backend.api.key",
+      "owner": "recovery-governance",
+      "reason": "BACKEND_API_KEY is a credential reference used by the governed bridge to authenticate to the existing admin control surface. No credential value is tracked or emitted; possession of this reference is not sufficient to execute Recovery because exact-SHA plan, server challenge, approval binding, execution ticket, fence, and same-cycle readback gates remain mandatory.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "credential_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/production-recovery-baseline-rebuild-governed.mjs|PHASE|environment_reference|recovery.bridge.phase",
+      "owner": "recovery-governance",
+      "reason": "RECOVERY_BRIDGE_PHASE selects the bounded prepare or execute code path inside the governed producer. The execute path still requires the exact workflow-authored approval marker and typed server challenge; the phase selector cannot authorize mutation by itself.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/production-recovery-baseline-rebuild-governed.mjs|REPO|environment_reference|repository",
+      "owner": "recovery-governance",
+      "reason": "Repository identity scopes GitHub readback and issue evidence to the repository that owns the governed Recovery workflow. It narrows authority and cannot select a database, role, plan, ticket, or provider target.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/production-recovery-baseline-rebuild-governed.mjs|WORKFLOW_RUN_ATTEMPT|environment_reference|github.run.attempt",
+      "owner": "recovery-governance",
+      "reason": "GITHUB_RUN_ATTEMPT contributes to the bounded idempotency namespace so a rerun does not silently alias a previous prepare cycle. It carries no Recovery plan, approval, ticket, database, or provider authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/production-recovery-baseline-rebuild-governed.mjs|WORKFLOW_RUN_ID|environment_reference|github.run.id",
+      "owner": "recovery-governance",
+      "reason": "GITHUB_RUN_ID contributes to the producer idempotency namespace so separate workflow executions cannot collide or silently reuse an earlier prepare cycle. It narrows replay behavior and grants no authority by itself.",
       "lifecycle": "permanent",
       "configuration_class": "ci_governance_input",
       "sensitivity": "non_secret_reference",
@@ -513,6 +678,17 @@
       "fingerprint": "http-generic-api/routes/authRoutes.js|LOCAL_MANAGER_USER_JWT_SCOPE|literal_declaration|local.manager.user.jwt.scope",
       "owner": "identity-platform",
       "reason": "Local Manager user JWT scope is a fixed non-secret authorization policy constant shared by login issuance and route verification; changing it requires reviewed auth-contract changes and does not itself grant runtime mutation.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/routes/healthRoutes.js|policyHash|literal_declaration|policyhash",
+      "owner": "gateway-governance",
+      "reason": "policyHash is a read-only deployment-evidence response field emitted by /health from the packaged Activation Gateway route-policy artifact. It is not runtime configuration, is validated as an exact SHA-256 before exposure, and grants no runtime, database, provider, protected-ref, Gateway deploy, or Production mutation authority.",
       "lifecycle": "permanent",
       "configuration_class": "ci_governance_input",
       "sensitivity": "non_secret_reference",
@@ -1093,6 +1269,17 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": "http-generic-api/scripts/staging-canonical-semantic-repair-runtime-check.mjs|envCommit|environment_reference|deploy.commit",
+      "owner": "staging-runtime-governance",
+      "reason": "DEPLOY_COMMIT is a non-secret exact Runtime provenance reference used to fail closed unless the live Staging app container deployment identity equals the immutable canonical semantic repair commit before read-only plan, precondition, or readback operations. It grants no database, provider, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": "http-generic-api/scripts/staging-canonical-semantic-repair.mjs|dbName|environment_reference|db.name",
       "owner": "staging-runtime-governance",
       "reason": "Database-name observation is a local target safety guard used only to reject Production/Hostinger-like repair targets; it does not select or authorize a database.",
@@ -1308,6 +1495,28 @@
       "lifecycle": "permanent",
       "configuration_class": "ci_governance_input",
       "sensitivity": "credential_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/test-github-repository-policy-live-activation-contract.mjs|PARITY_RATE_LIMIT_FALLBACK_MS|literal_declaration|parity.rate.limit.fallback.ms",
+      "owner": "repository-governance",
+      "reason": "This test-only literal pins the governed 429 fallback contract for deterministic regression coverage; it contains no secret or provider setting and grants no mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/test-health-gateway-ready-provenance.mjs|policyHash|literal_declaration|policyhash",
+      "owner": "gateway-governance",
+      "reason": "policyHash is a non-secret regression-fixture response field used only to prove exact packaged Gateway policy evidence and fail-closed omission of malformed values. It is not runtime configuration and grants no Staging, Production, provider, database, protected-ref, or Gateway mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false

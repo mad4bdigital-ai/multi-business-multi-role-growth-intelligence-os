@@ -204,6 +204,7 @@
             "Windows portability tests use SHA-pinned GitHub Actions and do not receive write permissions or persisted checkout credentials.",
             "Every registered canonical artifact matches raw repository bytes, declared statement count, target role, safety flags, existing dependencies, and an acyclic dependency graph.",
             "The schema bundles remain no-data artifacts; canonical semantic data is a separate Runtime-only bundle derived exclusively from the disposable Git migration projection.",
+            "The Legacy Staging importer derives canonical semantic snapshot cardinality from the registered policy table list and fails closed when bundle manifest cardinality diverges.",
             "The semantic snapshot cannot be used for in-place repair and cannot target Governance, Runtime Persistence, Production, Hostinger, or provider resources.",
             "Every activation_*_registry created by migrations is explicitly declared; the wildcard family is guard-only and fail-closed for unregistered future registries.",
             "Semantic completeness reports zero unresolved replay debt only when every canonical dataset has a registered replay artifact; readiness still requires live readback.",
@@ -248,6 +249,13 @@
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-staging-schema-bundle-builder.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-database-recovery-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/staging-database-recovery-contract.mjs",
               "args": []
             },
             {

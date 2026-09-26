@@ -1,0 +1,186 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-recovery-closure-20260925",
+  "title": "Platform Recovery exact-SHA convergence and closure",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/production-recovery-closure-20260925.json",
+      "specs/021-production-recovery-closure/spec.md",
+      "specs/021-production-recovery-closure/plan.md",
+      "specs/021-production-recovery-closure/tasks.md",
+      "specs/021-production-recovery-closure/acceptance.md",
+      "http-generic-api/productionRecoveryClosure.js",
+      "http-generic-api/recoveryKernel.js",
+      "http-generic-api/routes/recoveryKernelRoutes.js",
+      "http-generic-api/routes/systemLayerRoutes.js",
+      "http-generic-api/config/recovery-kernel-manifest.json",
+      "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml",
+      "http-generic-api/test-recovery-kernel.mjs",
+      "specs/021-production-recovery-closure/completion.json",
+      "specs/021-production-recovery-closure/checklists/requirements.md",
+      "http-generic-api/openapi.yaml",
+      "http-generic-api/platformRecoveryConvergence.js",
+      "http-generic-api/test-platform-recovery-convergence.mjs",
+      "http-generic-api/scripts/test-manifest.mjs",
+      ".github/governance/test-authority-registry.json",
+      "apps/local-manager-windows/DesktopCommandPollBackoffStore.cs",
+      "apps/local-manager-windows/Program.cs",
+      "autopilot-portable-staging/manifest.json",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "docs/write-scope-shadow-evidence-2026-08-15.json",
+      "http-generic-api/localConnectorTwoPhaseRebind.js",
+      "http-generic-api/productionRecoveryOperationalAdapters.js",
+      "http-generic-api/recoveryComposition.js",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/scripts/manifests/test-manifest-spec011.mjs",
+      "http-generic-api/scripts/manifests/test-manifest-upstream-main.mjs",
+      "http-generic-api/test-local-connector-two-phase-rebind.mjs",
+      "http-generic-api/test-local-manager-rate-limit-persistence.mjs",
+      "http-generic-api/test-recovery-composition.mjs",
+      "http-generic-api/test-recovery-kernel-routes.mjs",
+      "specs/021-production-recovery-closure/work-map-integration.json",
+      "specs/021-production-recovery-closure/e2e-phases.json",
+      "http-generic-api/platformRecoveryConvergenceReadAdapters.js",
+      "http-generic-api/test-platform-recovery-convergence-read-adapters.mjs",
+      "specs/021-production-recovery-closure/pipeline-scenario-matrix.md",
+      "http-generic-api/test-production-recovery-closure.mjs",
+      "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "production",
+      "staging"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false,
+    "live_migration_executed": false,
+    "live_grant_executed": false,
+    "deployment_or_restart_executed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Add one exact-SHA durable Recovery Kernel convergence entrypoint plus final closure classification, connector two-phase rebind, and persistent Local Manager throttling recovery without activating Production from repository source.",
+      "e2e_journeys": [
+        {
+          "id": "production-recovery-closure-proof",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Production Recovery Kernel",
+          "entrypoint": "recovery_kernel_call capability_key=production_recovery_closure",
+          "terminal_outcome": "Recovery is classified only from durable same-cycle server evidence; unknown outcomes and missing backup or functional readback fail closed.",
+          "steps": [
+            "Accept only expected_sha from the caller.",
+            "Resolve the evidence pack through a server-injected resolver.",
+            "Verify exact SHA, durable inspection identity and evidence hash.",
+            "Verify all-role backup evidence and every required core recovery gate.",
+            "Classify unknown outcome before any success state.",
+            "Separate connector auth and rate-limit attribution as non-DB degradation.",
+            "Return a deterministic no-secret closure hash."
+          ],
+          "assertions": [
+            "Caller-supplied readiness booleans are forbidden.",
+            "Missing server resolver fails closed.",
+            "Missing backup evidence cannot produce recovered.",
+            "Unknown outcome cannot produce recovered and automatic retry remains forbidden.",
+            "Functional catalog and response-chunk readbacks are mandatory core gates.",
+            "Closure evaluation performs no Production, database, provider, migration, grant, deployment or workflow mutation.",
+            "Non-DB connector/429 gaps do not trigger DB recovery replay."
+          ],
+          "tests": [
+            {
+              "id": "recovery-kernel-closure",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-kernel.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/productionRecoveryClosure.js",
+            "http-generic-api/recoveryKernel.js",
+            "http-generic-api/test-recovery-kernel.mjs",
+            "specs/021-production-recovery-closure/acceptance.md"
+          ]
+        },
+        {
+          "id": "platform-recovery-convergence-framework",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Production Recovery convergence framework",
+          "entrypoint": "runPlatformRecoveryConvergence with server-injected durable store, step executors, and approval resolver",
+          "terminal_outcome": "The run advances in canonical order, stops before unauthorized mutations, persists evidence/idempotency, and cannot blind-retry unknown outcomes.",
+          "steps": [
+            "Bind the run to one exact Production SHA and deterministic plan hash.",
+            "Require independent durable recovery-store methods before execution.",
+            "Execute read-only discovery before conditional baseline repair.",
+            "Resolve every consequential or bounded-mutation authority server-side and bind it to SHA/run/plan/step/idempotency.",
+            "Require same-cycle authority/readback evidence from every mutation executor.",
+            "Treat unknown mutation outcome as reconciliation-only and forbid a second mutation during reconciliation.",
+            "Run catalog, response-chunk, activation, connector, rate-limit, Local Manager and deployment parity gates before final activation."
+          ],
+          "assertions": [
+            "Caller-supplied approval is forbidden.",
+            "Mutation executors are not invoked without server-resolved exact-step approval.",
+            "Approval replay across a different SHA/run/plan/step/idempotency binding fails closed.",
+            "Unknown-outcome reconciliation is readback-only.",
+            "Ordinary MCP catalog migration remains after baseline and grant readiness.",
+            "Credential rebind is conditional on credential_invalid and is not triggered by rate limiting.",
+            "The framework has no live executor wiring in this PR and performs no Production mutation by repository delivery alone."
+          ],
+          "tests": [
+            {
+              "id": "platform-recovery-convergence",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-recovery-convergence.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/platformRecoveryConvergence.js",
+            "http-generic-api/test-platform-recovery-convergence.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Keep live Production recovery closure blocked until exact deployed SHA, backup evidence, fresh durable inspection, server resolver wiring, governed repairs and same-cycle functional readbacks are proven.",
+      "blockers": [
+        "exact_production_deployment_readback_required",
+        "server_closure_evidence_resolver_not_live_certified",
+        "verified_backup_evidence_required",
+        "fresh_durable_full_inspection_required",
+        "governance_and_runtime_persistence_baseline_readiness_required",
+        "canonical_grants_and_bootstrap_ledger_readiness_required",
+        "functional_catalog_and_response_chunk_readbacks_required",
+        "production_activation_readiness_required",
+        "connector_auth_and_rate_limit_attribution_closure_required"
+      ]
+    }
+  ],
+  "safety": {
+    "repository_only": true,
+    "production_mutation_allowed": false,
+    "database_mutation": false,
+    "migration_apply": false,
+    "grant_execution": false,
+    "provider_call": false,
+    "workflow_dispatch": true,
+    "production_deploy": false,
+    "secrets_included": false
+  }
+}

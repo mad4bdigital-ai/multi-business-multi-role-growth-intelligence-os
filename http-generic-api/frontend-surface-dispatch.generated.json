@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "3a26e65c3844fd756b4b17b05a31510d553698cc9d3273a529ada34c5de5a36c",
+    "source_digest": "565ba6d05c0e4a90c74c16407f9f914c23dff901b50f4b4096f577bdf029ddf8",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,12 +11,12 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "dea4514032fc7b481b320f871e885ae442ea88a4257f5ce4382835e7fe21e34d",
+        "sha256": "8a2ae8d7e0d49df107c644a61559286138f6cff648d121870d8bcb124cb560e8",
         "present": true
       },
       {
         "file": "frontend-surface-policy.json",
-        "sha256": "c269f154b9475df9e1aa74de3668b37e11eb37cfe5ac93b4384f0393f09e79e7",
+        "sha256": "22e9554b0373f3ad09c243181856c67c2451cf734f899f33cd17ab396f3472bd",
         "present": true
       },
       {
@@ -26,7 +26,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "6a8d780fb6cf2f874efde0214e5b9b1cd48d0835582f33fbb4ac8dded308ee92",
+        "sha256": "2387d7bd7f44c369c884c654ac6e6296fff55b175cf4f09e65c5f0a2b0201df5",
         "present": true
       },
       {
@@ -76,7 +76,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "457c6faf5f0e8e4b635a4ea6385f756d97fde254cfe5782a5add461591eff486",
+        "sha256": "24c990a3566f12abf7076d864542ceb902380de9ca03c1bd2f0660faec459928",
         "present": true
       },
       {
@@ -131,7 +131,7 @@
       },
       {
         "file": "openapi/openapi.custom-gpt.staging-admin.yaml",
-        "sha256": "15116a068540b1e19655ca2d15015129b9eb403ffa578461206b51be1228b760",
+        "sha256": "8893c99b9b9a229070c547ea570f7168a0250cafd4b1a36c6c0bc27af5c7cc1a",
         "present": true
       },
       {
@@ -626,7 +626,7 @@
       },
       {
         "file": "routes/healthRoutes.js",
-        "sha256": "cc5b70689c4e30add9e093dc0dc36e6a798ae70cc3c9ece26e144004dafd3987",
+        "sha256": "4c8f25bc92da636e285c55bfc3b3c63c8682e2c45531593d5df007329f8f6780",
         "present": true
       },
       {
@@ -676,7 +676,7 @@
       },
       {
         "file": "routes/localManagerBetaRoutes.js",
-        "sha256": "c934d67385bd4d891af437a350e773ef9ef652fd7a911eb997159b30b62d2989",
+        "sha256": "720b809bf40b56ec51c6e6f997be33b4a5da60088682638906fbe66189b11d9a",
         "present": true
       },
       {
@@ -781,7 +781,7 @@
       },
       {
         "file": "routes/recoveryKernelRoutes.js",
-        "sha256": "f409df342737dc7477306886f2372f990c4084d97ab521bef3bb007f026012e0",
+        "sha256": "1add3c0cbb7c5d554b3676a4191ec6b774ce1034a0de2879509ebc6d910e2178",
         "present": true
       },
       {
@@ -1001,7 +1001,7 @@
       },
       {
         "file": "routes/systemLayerRoutes.js",
-        "sha256": "fb1ba7f6e41a1842c3c481420a46d7183ca6d956f4290c54e27fecddd4f55cc6",
+        "sha256": "a6a13c21e6ea867702408b45083f90e30f688d40af26f22e94230a9c3fc4d4c3",
         "present": true
       },
       {
@@ -1091,7 +1091,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "300931e662f7eeac40004f51c6ef8a04a86a6c906deb5b74aa885de7f2f680a8",
+        "sha256": "b72e4b1b32d6248693c19f5521bbab2d88781fd6d19562686f7fb7dc1909e508",
         "present": true
       },
       {
@@ -1116,7 +1116,7 @@
       },
       {
         "file": "test-frontend-surface-coverage-claims.mjs",
-        "sha256": "ebaa9387c5b8edd17c8a1c6ce56ca2e7d48ccfb962e0e18b8fc265db5760b247",
+        "sha256": "a158fa00b4b11d27cd47879e2f813778b227721df39a8b2deaf25cf63a18bd33",
         "present": true
       },
       {
@@ -1141,12 +1141,12 @@
       },
       {
         "file": "test-recovery-kernel-routes.mjs",
-        "sha256": "650f837513cbbda951cb46582ebe72d3cb745c3a5420f21c65360434b64933f8",
+        "sha256": "adb7a8f69e2069e1a55ace0007b9bc97f6ac9437277f7da76442f249a3dc513e",
         "present": true
       },
       {
         "file": "test-recovery-kernel.mjs",
-        "sha256": "838f195fc35d6b56666367bb5322a11fd341b43c34b7e7ecf38edfe5e838c1d3",
+        "sha256": "07f64951ece2e7051a49b0dfca914846f64542408d6b69eff20c773d80dfc938",
         "present": true
       },
       {
@@ -1166,7 +1166,7 @@
       },
       {
         "file": "test-staging-recovery-admin-surface.mjs",
-        "sha256": "ea64fa7cc70108a4dc26df00b37bc9767e6a81e312f4696fbb510f702272ae12",
+        "sha256": "af5bc4ba453e1a18c22065d717867fc9ca5e4d9f68c7326e3ca308f6e41deb67",
         "present": true
       },
       {
@@ -1209,29 +1209,29 @@
     "mounted_family_count": 176,
     "mounted_route_file_count": 145,
     "mixed_scope_route_file_count": 26,
-    "operation_count": 1077,
-    "openapi_documented_count": 1061,
+    "operation_count": 1078,
+    "openapi_documented_count": 1062,
     "openapi_canonical_documented_count": 742,
-    "openapi_generated_index_count": 319,
+    "openapi_generated_index_count": 320,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 319,
+    "openapi_detail_gap_count": 320,
     "openapi_detail_gap_policy": "accepted_generated_index_only",
     "auth_parity_counts": {
-      "equivalent": 1061,
+      "equivalent": 1062,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 656,
+    "non_get_candidate_count": 657,
     "unresolved_operation_class_count": 0,
-    "classified_mutation_count": 36,
-    "governed_mutation_operation_count": 36,
+    "classified_mutation_count": 37,
+    "governed_mutation_operation_count": 37,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 0,
     "test_owned_family_count": 176,
     "untested_family_count": 0,
-    "test_owned_operation_count": 1077,
+    "test_owned_operation_count": 1078,
     "untested_operation_count": 0,
     "ready_task_count": 176,
     "blocked_task_count": 0,
@@ -3164,7 +3164,7 @@
       "family_key": "recovery-kernel",
       "label": "recovery kernel",
       "source_file": "routes/recoveryKernelRoutes.js",
-      "source_digest": "f409df342737dc7477306886f2372f990c4084d97ab521bef3bb007f026012e0",
+      "source_digest": "1add3c0cbb7c5d554b3676a4191ec6b774ce1034a0de2879509ebc6d910e2178",
       "mount_prefix": "/",
       "mount_order": 13611,
       "split_from_mixed_scope_file": false,
@@ -3254,6 +3254,112 @@
           },
           "mutation_candidate": true,
           "mutation": false
+        },
+        {
+          "method": "POST",
+          "path": "/admin/recovery/kernel/platform-converge",
+          "signature": "POST /admin/recovery/kernel/platform-converge",
+          "source_file": "routes/recoveryKernelRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "router.use:requireAdminPrincipal",
+              "router.use:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [
+            "test-recovery-kernel-routes.mjs"
+          ],
+          "governance": {
+            "classification": "external_effect",
+            "classification_source": "operation_rule",
+            "mutation_candidate": true,
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "exact_sha_durable_run_nested_authority_and_pre_mutation_parity"
+              },
+              "approval": {
+                "mode": "server_resolved_step_bound_nested_approval"
+              },
+              "readback": {
+                "mode": "inline_post_commit",
+                "operation": "GET /admin/recovery/kernel/runs/{run_id}"
+              },
+              "rollback": {
+                "mode": "step_owned_compensation_or_reconciliation",
+                "rationale": "The orchestrator itself does not synthesize rollback. Each nested effect retains its registered compensation/reconciliation contract, unknown outcomes block blind retry, and verified prior steps are not replayed."
+              }
+            },
+            "parameter_bindings": {
+              "expected_sha": "request.body.expected_sha",
+              "run_id": "request.body.run_id (optional resume binding)",
+              "action": "request.body.action in {advance,status,reconcile}",
+              "approval": "forbidden from caller",
+              "sql": "forbidden from caller",
+              "credentials": "forbidden from caller",
+              "database_selection": "forbidden from caller"
+            },
+            "blockers": [],
+            "rule_id": "recovery-kernel-platform-convergence-orchestrator",
+            "owner": "runtime-operations",
+            "rationale": "The private Production Recovery convergence endpoint persists a durable exact-SHA run and may advance one nested consequential stage per request when live authorities are injected. It forbids caller SQL, database names, credentials, raw targets, migration selection, and caller approval material; every consequential effect remains bound to a canonical nested authority, exact operation, durable idempotency claim, same-cycle readback, and final Recovery closure.",
+            "evidence_refs": [
+              "platformRecoveryConvergence.js",
+              "platformRecoveryConvergenceReadAdapters.js",
+              "productionRecoveryClosure.js",
+              "routes/recoveryKernelRoutes.js",
+              "specs/021-production-recovery-closure/pipeline-scenario-matrix.md",
+              "test-platform-recovery-convergence-read-adapters.mjs",
+              "test-platform-recovery-convergence.mjs",
+              "test-production-recovery-closure.mjs"
+            ]
+          },
+          "mutation_candidate": true,
+          "mutation": true
         },
         {
           "method": "POST",
@@ -3702,7 +3808,9 @@
       ],
       "openapi_gaps": [],
       "openapi_exemptions": [],
-      "openapi_detail_gaps": [],
+      "openapi_detail_gaps": [
+        "POST /admin/recovery/kernel/platform-converge"
+      ],
       "auth_contract_gaps": [],
       "evidence_routes": [
         "GET /admin/recovery/kernel/evidence/{run_id}"
@@ -3723,6 +3831,7 @@
         "openapi/brand-core-asset-materialization.yaml",
         "openapi/container-authority-override-governance-smoke.yaml",
         "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
@@ -3754,7 +3863,7 @@
       },
       "operation_blockers": [],
       "risk": {
-        "score": 9,
+        "score": 10,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -6066,7 +6175,7 @@
       "family_key": "local-manager-beta.admin",
       "label": "local manager beta (admin)",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "c934d67385bd4d891af437a350e773ef9ef652fd7a911eb997159b30b62d2989",
+      "source_digest": "720b809bf40b56ec51c6e6f997be33b4a5da60088682638906fbe66189b11d9a",
       "mount_prefix": "/",
       "mount_order": 14168,
       "split_from_mixed_scope_file": true,
@@ -6205,7 +6314,7 @@
       "family_key": "local-manager-beta.local_device",
       "label": "local manager beta (local_device)",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "c934d67385bd4d891af437a350e773ef9ef652fd7a911eb997159b30b62d2989",
+      "source_digest": "720b809bf40b56ec51c6e6f997be33b4a5da60088682638906fbe66189b11d9a",
       "mount_prefix": "/",
       "mount_order": 14168,
       "split_from_mixed_scope_file": true,
@@ -6796,7 +6905,7 @@
       "family_key": "local-manager-beta.public.default",
       "label": "local manager beta (public) [default]",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "c934d67385bd4d891af437a350e773ef9ef652fd7a911eb997159b30b62d2989",
+      "source_digest": "720b809bf40b56ec51c6e6f997be33b4a5da60088682638906fbe66189b11d9a",
       "mount_prefix": "/",
       "mount_order": 14168,
       "split_from_mixed_scope_file": true,
@@ -7470,7 +7579,7 @@
       "family_key": "local-manager-beta.public.local-manager",
       "label": "local manager beta (public) [local-manager]",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "c934d67385bd4d891af437a350e773ef9ef652fd7a911eb997159b30b62d2989",
+      "source_digest": "720b809bf40b56ec51c6e6f997be33b4a5da60088682638906fbe66189b11d9a",
       "mount_prefix": "/",
       "mount_order": 14168,
       "split_from_mixed_scope_file": true,
@@ -13471,7 +13580,7 @@
       "family_key": "system-layer.admin",
       "label": "system layer (admin)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "fb1ba7f6e41a1842c3c481420a46d7183ca6d956f4290c54e27fecddd4f55cc6",
+      "source_digest": "a6a13c21e6ea867702408b45083f90e30f688d40af26f22e94230a9c3fc4d4c3",
       "mount_prefix": "/",
       "mount_order": 15321,
       "split_from_mixed_scope_file": true,
@@ -14247,7 +14356,7 @@
       "family_key": "system-layer.developer",
       "label": "system layer (developer)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "fb1ba7f6e41a1842c3c481420a46d7183ca6d956f4290c54e27fecddd4f55cc6",
+      "source_digest": "a6a13c21e6ea867702408b45083f90e30f688d40af26f22e94230a9c3fc4d4c3",
       "mount_prefix": "/",
       "mount_order": 15321,
       "split_from_mixed_scope_file": true,
@@ -22701,7 +22810,7 @@
       "family_key": "health.public.default",
       "label": "health [default]",
       "source_file": "routes/healthRoutes.js",
-      "source_digest": "cc5b70689c4e30add9e093dc0dc36e6a798ae70cc3c9ece26e144004dafd3987",
+      "source_digest": "4c8f25bc92da636e285c55bfc3b3c63c8682e2c45531593d5df007329f8f6780",
       "mount_prefix": "/",
       "mount_order": 16669,
       "split_from_mixed_scope_file": false,
@@ -22875,7 +22984,7 @@
       "family_key": "health.public.health",
       "label": "health [health]",
       "source_file": "routes/healthRoutes.js",
-      "source_digest": "cc5b70689c4e30add9e093dc0dc36e6a798ae70cc3c9ece26e144004dafd3987",
+      "source_digest": "4c8f25bc92da636e285c55bfc3b3c63c8682e2c45531593d5df007329f8f6780",
       "mount_prefix": "/",
       "mount_order": 16669,
       "split_from_mixed_scope_file": false,
@@ -97617,6 +97726,7 @@
         "openapi/brand-core-asset-materialization.yaml",
         "openapi/container-authority-override-governance-smoke.yaml",
         "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",

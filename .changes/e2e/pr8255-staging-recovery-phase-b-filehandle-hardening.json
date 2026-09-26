@@ -1,0 +1,116 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr8255-staging-recovery-phase-b-filehandle-hardening",
+  "title": "PR8255 Staging Recovery Phase B file-handle hardening",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr8255-staging-recovery-phase-b-filehandle-hardening.json",
+      ".github/workflows/ci.yml",
+      "http-generic-api/stagingRecoveryAuthorityBindingPhaseB.js",
+      "docs/work-maps/**",
+      "specs/*/work-map-integration.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Harden Phase B approval-token single issuance and restart-safe reads across Windows and POSIX without authorizing deployment, provider, database, grant, migration, or Production mutation.",
+      "e2e_journeys": [
+        {
+          "id": "pr8255-phase-b-single-issuance-and-recovery-regression",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging Recovery Phase B authority",
+          "entrypoint": "Resolve and issue the server-owned Phase B approval token from the durable filesystem authority.",
+          "terminal_outcome": "One approval produces at most one durable token record, restart reads remain fail-closed, exact recovery bindings remain intact, and Production mutation remains unauthorized.",
+          "steps": [
+            "Create the issuance claim with exclusive file creation and keep the pinned file handle through finalization.",
+            "Durably sync the claim using the repository recovery filesystem durability primitive and finalize the issued record through the same descriptor.",
+            "On Windows, reopen existing state only through lstat, open, fstat identity verification; on POSIX retain no-follow semantics.",
+            "Run the focused Phase B, authority-binding, certification-protocol, and platform-convergence regressions."
+          ],
+          "assertions": [
+            "The existing single-issuance and binding semantics remain unchanged.",
+            "Partial writes and corrupt token state fail closed.",
+            "Windows path replacement or non-file state is rejected before token reuse.",
+            "POSIX claim creation follows the repository directory-sync durability contract.",
+            "Both staging and production impact are explicitly reviewed, live staging certification remains required, and production_mutation_allowed is false.",
+            "No deployment, provider, database, grant, migration, credential payload, or Production mutation is performed by this repository change.",
+            "The critical PR8255 declaration is registered exactly in Constitution.control_plane_paths and convergence.automation_control_paths; broad control-plane patterns and autonomous merge remain forbidden."
+          ],
+          "tests": [
+            {
+              "id": "phase-b-single-issuance",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-phase-b-approval-single-issuance.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-recovery-authority-binding",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-authority-binding.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-recovery-certification-protocol",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-certification-protocol.mjs",
+              "args": []
+            },
+            {
+              "id": "platform-recovery-convergence",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-recovery-convergence.mjs",
+              "args": []
+            },
+            {
+              "id": "pr8255-environment-impact-closure",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+              "args": [
+                "--base-sha",
+                "BASE_SHA",
+                "--head-sha",
+                "HEAD_SHA"
+              ]
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/pr8255-staging-recovery-phase-b-filehandle-hardening.json",
+            ".github/workflows/ci.yml",
+            "http-generic-api/stagingRecoveryAuthorityBindingPhaseB.js",
+            "http-generic-api/recoveryReadinessEvidence.js",
+            "http-generic-api/config/deployment-branch-policy.json",
+            ".github/derived-state-governance.json",
+            "http-generic-api/config/repository-governance-constitution.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

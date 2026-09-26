@@ -416,6 +416,7 @@ function Start-LocalStaging([string]$RepoPath, [string]$Sha, [string]$EnvFile) {
     if (-not (Test-Path $start)) { Fail "Start-AutoPilot.ps1 is missing" }
     $args = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $start, "-RepositoryPath", $RepoPath, "-RepositoryUrl", $RepositoryUrl, "-ExpectedRepository", $ExpectedRepository, "-Ref", $Ref, "-ExpectedCommit", $Sha, "-BuildMode", $BuildMode)
     if (-not $NoTunnel) { $args += "-StartTunnel" }
+    if ($EnableActivationGateway) { $args += "-EnableActivationGateway" }
     Invoke-Native "powershell.exe" $args
 }
 
@@ -505,7 +506,7 @@ function Read-RuntimeCertificationState([string]$RepoPath, [string]$Sha) {
 function Write-CanonicalSemanticRepairHandoff([string]$RepoPath, [string]$ScriptRoot, [string]$Sha, [string]$SemanticStatus) {
     $status = if ([string]::IsNullOrWhiteSpace($SemanticStatus)) { "runtime_database_unavailable" } else { $SemanticStatus }
     $planEligible = $status -eq "canonical_missing"
-    $handoffState = if ($status -eq "ready") { "not_required" } elseif ($planEligible) { "plan_required" } else { "inspection_required" }
+    $handoffState = if ($status -in @("ready", "not_required")) { "not_required" } elseif ($planEligible) { "plan_required" } else { "inspection_required" }
     $handoff = [ordered]@{
         contract = "mad4b.staging.canonical-semantic-repair-handoff.v1"
         status = $handoffState
@@ -516,9 +517,12 @@ function Write-CanonicalSemanticRepairHandoff([string]$RepoPath, [string]$Script
         target_role = "runtime"
         plan = if ($planEligible) {
             [ordered]@{
-                working_directory = (Join-Path $RepoPath "http-generic-api")
-                npm_script = "staging:canonical-repair:plan"
+                runner = (Join-Path $RepoPath "autopilot-portable-staging\Repair-StagingCanonicalSemanticData.ps1")
+                mode = "Plan"
+                plan_file_parameter_required = $true
                 expected_commit = $Sha
+                host_git_authority_required = $true
+                runtime_provenance_required = $true
                 database_mutation_performed = $false
             }
         } else { $null }
@@ -557,6 +561,7 @@ function Install-AutoDeploy([string]$RepoPath) {
     $installer = Join-Path $RepoPath "autopilot-portable-staging\Install-AutoDeployTask.ps1"
     if (-not (Test-Path $installer)) { Fail "Install-AutoDeployTask.ps1 is missing" }
     $args = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $installer, "-RepositoryPath", $RepoPath, "-PollSeconds", "$PollSeconds", "-BuildMode", $BuildMode, "-TunnelMode", $AutoDeployTunnelMode)
+    if ($EnableActivationGateway) { $args += "-EnableActivationGateway" }
     Invoke-Native "powershell.exe" $args
 }
 
@@ -597,8 +602,9 @@ if ($Mode -eq "Validate") {
     $start = Join-Path $repo "autopilot-portable-staging\Start-AutoPilot.ps1"
     $args = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $start, "-RepositoryPath", $repo, "-RepositoryUrl", $RepositoryUrl, "-ExpectedRepository", $ExpectedRepository, "-Ref", $Ref, "-ExpectedCommit", $sha, "-BuildMode", $BuildMode, "-ValidateOnly")
     if (-not $NoTunnel) { $args += "-StartTunnel" }
+    if ($EnableActivationGateway) { $args += "-EnableActivationGateway" }
     Invoke-Native "powershell.exe" $args
-    Write-Host "AUTO_PILOT_VALIDATED: commit=$sha tunnel=$(-not $NoTunnel)"
+    Write-Host "AUTO_PILOT_VALIDATED: commit=$sha tunnel=$(-not $NoTunnel) activation_gateway_desired=$([bool]$EnableActivationGateway)"
     return
 }
 

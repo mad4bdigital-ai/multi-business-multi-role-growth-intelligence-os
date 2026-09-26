@@ -1,0 +1,138 @@
+{
+  "schema_version": 1,
+  "feature_key": "021-production-recovery-closure",
+  "title": "Platform Recovery Convergence and Closure",
+  "status": "in_progress",
+  "delivery_mode": "single_pr",
+  "requirements": {
+    "migration": false,
+    "production_verification": false,
+    "post_merge_audit": false,
+    "security_review": true,
+    "openapi_3_1": true
+  },
+  "delivery": {
+    "specification": {
+      "status": "current_pr",
+      "role": "exact_sha_recovery_closure_contract"
+    },
+    "implementation_slices": [
+      {
+        "role": "server_derived_closure_evaluator",
+        "status": "implemented_on_current_branch",
+        "runtime_authority": false,
+        "database_write": false,
+        "migration_applied": false,
+        "grant_mutation": false,
+        "provider_call": false,
+        "production_activation": false
+      },
+      {
+        "role": "recovery_kernel_readonly_capability",
+        "status": "implemented_on_current_branch",
+        "capability_key": "production_recovery_closure",
+        "risk_class": "C0",
+        "caller_supplied_readiness_forbidden": true,
+        "server_evidence_resolver_required": true,
+        "runtime_authority": false,
+        "production_activation": false
+      },
+      {
+        "role": "durable_platform_recovery_convergence_framework",
+        "status": "implemented_on_current_branch",
+        "live_executor_wiring": false,
+        "approval_resolver_live_wiring": false,
+        "durable_store_live_wiring": false,
+        "runtime_authority": false,
+        "production_activation": false,
+        "database_mutation_performed": false,
+        "provider_write_performed": false
+      },
+      {
+        "role": "connector_two_phase_rebind",
+        "status": "implemented_on_current_branch",
+        "fresh_device_authorization_required": true,
+        "old_credential_retained_until_probe": true,
+        "credential_material_returned": false,
+        "live_credential_rotation_performed": false
+      },
+      {
+        "role": "local_manager_persistent_rate_limit_recovery",
+        "status": "implemented_on_current_branch",
+        "retry_after_supported": true,
+        "backoff_persisted_across_restart": true,
+        "backoff_max_seconds": 300,
+        "secrets_included": false
+      }
+    ]
+  },
+  "verification": {
+    "closure_contract_tests": "implemented_pending_exact_head_ci",
+    "kernel_capability_tests": "implemented_pending_exact_head_ci",
+    "e2e_governance": "pending_exact_head_ci",
+    "security_review": "pending_pr_review",
+    "architecture_review": "pending_pr_review",
+    "platform_recovery_convergence_tests": "implemented_pending_exact_head_ci",
+    "connector_two_phase_rebind_tests": "implemented_pending_exact_head_ci",
+    "local_manager_rate_limit_persistence_tests": "implemented_pending_exact_head_ci"
+  },
+  "implementation": {
+    "started": true,
+    "runtime_enforcement_enabled": false,
+    "migrations_authored": false,
+    "migrations_applied": false,
+    "runtime_deployed": false,
+    "production_mutation_performed": false,
+    "database_mutation_performed": false,
+    "grant_mutation_performed": false,
+    "provider_write_performed": false,
+    "production_activated": false
+  },
+  "evidence": {
+    "tests": [
+      "http-generic-api/test-recovery-kernel.mjs",
+      "http-generic-api/test-platform-recovery-convergence.mjs",
+      "http-generic-api/test-local-connector-two-phase-rebind.mjs",
+      "http-generic-api/test-local-manager-rate-limit-persistence.mjs",
+      "http-generic-api/test-recovery-composition.mjs",
+      "http-generic-api/test-recovery-kernel-routes.mjs",
+      "http-generic-api/test-platform-recovery-convergence-read-adapters.mjs"
+    ],
+    "implementation_files": [
+      "http-generic-api/productionRecoveryClosure.js",
+      "http-generic-api/recoveryKernel.js",
+      "http-generic-api/routes/recoveryKernelRoutes.js",
+      "http-generic-api/routes/systemLayerRoutes.js",
+      "http-generic-api/config/recovery-kernel-manifest.json",
+      "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml",
+      "http-generic-api/platformRecoveryConvergence.js",
+      "http-generic-api/localConnectorTwoPhaseRebind.js",
+      "http-generic-api/recoveryComposition.js",
+      "http-generic-api/productionRecoveryOperationalAdapters.js",
+      "apps/local-manager-windows/DesktopCommandPollBackoffStore.cs",
+      "apps/local-manager-windows/Program.cs",
+      "http-generic-api/platformRecoveryConvergenceReadAdapters.js"
+    ],
+    "e2e_contract": ".changes/e2e/production-recovery-closure-20260925.json",
+    "secrets_included": false,
+    "sensitive_values_included": false,
+    "pipeline_scenario_matrix": "specs/021-production-recovery-closure/pipeline-scenario-matrix.md"
+  },
+  "required_closeout_evidence": [
+    "exact_head_ci",
+    "e2e_phase_governance",
+    "derived_state_closure",
+    "custom_gpt_contract_guard",
+    "branch_test_diagnostic",
+    "pr_review"
+  ],
+  "notes": [
+    "This PR adds closure evaluation only and performs no live Production recovery.",
+    "Live backup capture, durable inspection, database recovery, grants, migrations, deployment, and functional Production readbacks remain separately governed operations.",
+    "The Spec Kit remains in_progress until live deployment-owned evidence resolver wiring and operational closure are delivered in later governed slices.",
+    "The durable convergence framework is repository code only in this PR; consequential executors and live approval/store wiring remain disabled until a separately governed Production slice.",
+    "The single platform_recovery_converge_v1 entrypoint is repository-wired and fail-closed; live Production executor/approval composition remains a separately governed deployment-owned authority."
+  ],
+  "secrets_included": false,
+  "sensitive_values_included": false
+}

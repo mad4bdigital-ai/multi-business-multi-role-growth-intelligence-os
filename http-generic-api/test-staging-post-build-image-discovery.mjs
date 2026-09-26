@@ -10,6 +10,12 @@ assert.match(finder, /composeModel\.name/);
 assert.match(finder, /-app:latest/);
 assert.match(finder, /docker image inspect --format '\{\{\.Id\}\}' \$effectiveImageRef/);
 assert.match(finder, /Test-ExactStagingImage/);
+assert.match(source, /\$inspectJson = \(& docker image inspect \$ImageId 2>\$null \| Out-String\)\.Trim\(\)/);
+assert.match(source, /\$inspect = @\(\$inspectJson \| ConvertFrom-Json\)\[0\]/);
+assert.match(source, /\$labels = \$inspect\.Config\.Labels/);
+assert.match(source, /\$inspectedId = \(\[string\]\$inspect\.Id\)\.Trim\(\)\.ToLowerInvariant\(\)/);
+assert.doesNotMatch(source, /docker image inspect --format '\{\{json \.Config\.Labels\}\}' \$ImageId/);
+assert.doesNotMatch(source, /docker image inspect --format '\{\{\.Id\}\}' \$ImageId/);
 assert.doesNotMatch(finder, /"images", "-q", "app"/);
 
 for (const label of [

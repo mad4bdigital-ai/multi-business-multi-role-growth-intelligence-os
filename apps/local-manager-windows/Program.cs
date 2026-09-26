@@ -169,6 +169,7 @@ internal static class Program
         private bool _desktopCommandPollRunning;
         private int _desktopCommandPollFailureCount;
         private DateTimeOffset _desktopCommandPollBackoffUntil = DateTimeOffset.MinValue;
+        private readonly DesktopCommandPollBackoffStore _desktopCommandPollBackoffStore = new(InstallRoot);
         private bool _autopilotRecoveryRunning;
         private bool _autopilotRecoveryAttempted;
         private readonly Label _status;
@@ -276,6 +277,7 @@ internal static class Program
             Shown += async (_, _) =>
             {
                 EnsureLocalFiles(_status);
+                RestoreDesktopCommandPollBackoff();
                 ShowTokenStatus();
                 await CheckAndInstallUpdateAsync(false);
                 await RunStartupAutopilotAsync();
@@ -425,6 +427,19 @@ internal static class Program
                 _progress.Value = Math.Min(90, _progress.Value + 5);
                 var response = await _deviceLinkClient.PollAsync(code, pollToken, sessionId, deviceProofChallenge);
                 var poll = response.Payload;
+                if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                {
+                    var waitSeconds = response.RetryAfterSeconds ?? 120;
+                    _status.Text = $"Pairing temporarily rate limited. Retrying after {waitSeconds} seconds.";
+                    _output.Text = JsonSerializer.Serialize(new
+                    {
+                        pairing_code = "rate_limited",
+                        retry_after_seconds = waitSeconds,
+                        secrets_included = false
+                    }, _json);
+                    await Task.Delay(TimeSpan.FromSeconds(waitSeconds));
+                    continue;
+                }
                 if ((int)response.StatusCode == 202 || string.Equals(poll?.Status, "pending", StringComparison.OrdinalIgnoreCase)) continue;
                 if (response.IsSuccessStatusCode && poll?.Ok == true && !string.IsNullOrWhiteSpace(poll.DeviceAccessToken))
                 {
@@ -1521,9 +1536,7 @@ internal static class Program
                 using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
                 var infoUrl = UpdateInfoUrl + "?current_version=" + Uri.EscapeDataString(CurrentSemVer());
                 using var response = await client.GetAsync(infoUrl);
-                var text = await response.Content.ReadAsStringAsync();
-                var info = JsonSerializer.Deserialize<WindowsUpdateInfo>(text, _json);
-                if (!response.IsSuccessStatusCode || info?.Ok != true)
+                if (!response.IsSuccessStatusCode)
                 {
                     if (userInitiated)
                     {
@@ -1536,6 +1549,31 @@ internal static class Program
                             update_check = "failed",
                             status_code = (int)response.StatusCode,
                             retry_after_seconds = response.StatusCode == System.Net.HttpStatusCode.TooManyRequests ? retryAfterSeconds : (int?)null,
+                            secrets_included = false
+                        }, _json);
+                    }
+                    return;
+                }
+
+                var text = await response.Content.ReadAsStringAsync();
+                WindowsUpdateInfo? info;
+                try
+                {
+                    info = JsonSerializer.Deserialize<WindowsUpdateInfo>(text, _json);
+                }
+                catch (JsonException)
+                {
+                    info = null;
+                }
+                if (info?.Ok != true)
+                {
+                    if (userInitiated)
+                    {
+                        _status.Text = "Update check returned an invalid response. Try again later.";
+                        _output.Text = JsonSerializer.Serialize(new
+                        {
+                            update_check = "invalid_response",
+                            status_code = (int)response.StatusCode,
                             secrets_included = false
                         }, _json);
                     }
@@ -1635,6 +1673,25 @@ internal static class Program
 
         private void LaunchUpdaterAndRestart(string installerPath) { var helperPath = Path.Combine(UpdatesRoot, "run-local-manager-update.cmd"); var appPath = Application.ExecutablePath; var currentPid = Environment.ProcessId; var script = string.Join("\r\n", new[] { "@echo off", "setlocal", "set \"INSTALLER=" + installerPath + "\"", "set \"APP=" + appPath + "\"", "set \"PID=" + currentPid + "\"", "echo Updating Mad4B Local Manager...", "timeout /t 1 /nobreak >nul", "taskkill /PID %PID% /T /F >nul 2>nul", "for /l %%i in (1,1,30) do ( tasklist /fi \"PID eq %PID%\" | find \"%PID%\" >nul || goto app_stopped & timeout /t 1 /nobreak >nul )", ":app_stopped", "copy /y \"%INSTALLER%\" \"%APP%\" >nul", "if errorlevel 1 ( echo ERROR: Could not replace Local Manager executable. & pause & exit /b 1 )", "start \"\" \"%APP%\"", "exit /b 0" }) + "\r\n"; File.WriteAllText(helperPath, script, Encoding.ASCII); Process.Start(new ProcessStartInfo { FileName = "cmd.exe", Arguments = "/c \"" + helperPath + "\"", WorkingDirectory = UpdatesRoot, UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden }); BeginInvoke(new Action(Close)); }
         private void ShowTopMostMessage(string title, string message) { var previousTopMost = TopMost; try { if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal; Show(); Activate(); TopMost = true; MessageBox.Show(this, message, title, MessageBoxButtons.OK, MessageBoxIcon.Information); } finally { TopMost = previousTopMost; } }
+        private void RestoreDesktopCommandPollBackoff()
+        {
+            var state = _desktopCommandPollBackoffStore.Load(DateTimeOffset.UtcNow);
+            if (state is null) return;
+            _desktopCommandPollBackoffUntil = state.BackoffUntilUtc;
+            _desktopCommandPollFailureCount = state.FailureCount;
+        }
+
+        private void SaveDesktopCommandPollBackoff()
+        {
+            if (!_desktopCommandPollBackoffStore.Save(_desktopCommandPollBackoffUntil, _desktopCommandPollFailureCount))
+                _status.Text = "Polling backoff is active in memory; its restart persistence could not be verified.";
+        }
+
+        private void ClearDesktopCommandPollBackoff()
+        {
+            _desktopCommandPollBackoffStore.Clear();
+        }
+
         private void StartDesktopCommandPolling() { if (_desktopCommandTimer.Enabled) return; _desktopCommandTimer.Tick += async (_, _) => await PollDesktopCommandsAsync(); _desktopCommandTimer.Start(); _ = PollDesktopCommandsAsync(); }
         private async Task PollDesktopCommandsAsync()
         {
@@ -1656,7 +1713,17 @@ internal static class Program
                 var text = await response.Content.ReadAsStringAsync();
                 if (!response.IsSuccessStatusCode)
                 {
-                    if (response.StatusCode != System.Net.HttpStatusCode.Unauthorized && response.StatusCode != System.Net.HttpStatusCode.Forbidden)
+                    if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized || response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+                    {
+                        var authenticationRequired = response.StatusCode == System.Net.HttpStatusCode.Unauthorized;
+                        RegisterDesktopCommandPollFailure(
+                            authenticationRequired ? "Device authentication required. Reconnect this device." : "Device permission denied. Check access without rotating credentials.",
+                            serverRetryAfterSeconds: 300,
+                            errorCode: authenticationRequired ? "credential_invalid" : "authorization_denied",
+                            retryable: false,
+                            surface: "desktop_commands_claim");
+                    }
+                    else
                     {
                         var failure = AutopilotNetworkRecovery.ClassifyHttp(response.StatusCode, text);
                         RegisterDesktopCommandPollFailure(
@@ -1665,10 +1732,12 @@ internal static class Program
                     }
                     return;
                 }
+                using var doc = JsonDocument.Parse(text);
+                if (!doc.RootElement.TryGetProperty("commands", out var commands) || commands.ValueKind != JsonValueKind.Array)
+                    throw new InvalidDataException("Desktop command response did not contain the expected commands array.");
                 _desktopCommandPollFailureCount = 0;
                 _desktopCommandPollBackoffUntil = DateTimeOffset.MinValue;
-                using var doc = JsonDocument.Parse(text);
-                if (!doc.RootElement.TryGetProperty("commands", out var commands) || commands.ValueKind != JsonValueKind.Array) return;
+                ClearDesktopCommandPollBackoff();
                 foreach (var command in commands.EnumerateArray()) await ExecuteDesktopCommandAsync(client, token, command);
             }
             catch (Exception ex)
@@ -1683,7 +1752,7 @@ internal static class Program
         }
         private void RegisterDesktopCommandPollFailure(AutopilotFailure failure, int? headerRetryAfterSeconds = null)
         {
-            var effectiveRetryAfter = failure.RetryAfterSeconds ?? headerRetryAfterSeconds;
+            var effectiveRetryAfter = Math.Max(failure.RetryAfterSeconds ?? 0, headerRetryAfterSeconds ?? 0);
             RegisterDesktopCommandPollFailure(
                 failure.Message,
                 failure.Diagnostic,
@@ -1711,8 +1780,11 @@ internal static class Program
                 3 => 60,
                 _ => 120
             };
-            var backoffSeconds = Math.Min(300, Math.Max(localBackoffSeconds, serverRetryAfterSeconds ?? 0));
+            var backoffSeconds = Math.Min(
+                DesktopCommandPollBackoffStore.MaxBackoffSeconds,
+                Math.Max(localBackoffSeconds, serverRetryAfterSeconds ?? 0));
             _desktopCommandPollBackoffUntil = DateTimeOffset.UtcNow.AddSeconds(backoffSeconds);
+            SaveDesktopCommandPollBackoff();
 
             // Desktop command polling is a background convenience path. Do not keep
             // overwriting the main status every timer tick for transient TLS/network
@@ -1747,13 +1819,13 @@ internal static class Program
             var retryAfter = response.Headers.RetryAfter;
             if (retryAfter?.Delta is TimeSpan delta)
             {
-                return Math.Clamp((int)Math.Ceiling(delta.TotalSeconds), 1, 300);
+                return (int)Math.Clamp(Math.Ceiling(delta.TotalSeconds), 1, int.MaxValue);
             }
             if (retryAfter?.Date is DateTimeOffset retryAt)
             {
-                return Math.Clamp((int)Math.Ceiling((retryAt - DateTimeOffset.UtcNow).TotalSeconds), 1, 300);
+                return (int)Math.Clamp(Math.Ceiling((retryAt - DateTimeOffset.UtcNow).TotalSeconds), 1, int.MaxValue);
             }
-            return Math.Clamp(fallbackSeconds, 1, 300);
+            return Math.Max(fallbackSeconds, 1);
         }
 
         private async Task ExecuteDesktopCommandAsync(HttpClient client, string token, JsonElement command)
@@ -2183,3 +2255,4 @@ internal static class Program
     }
 
 }
+

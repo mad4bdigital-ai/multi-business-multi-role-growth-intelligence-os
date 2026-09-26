@@ -107,6 +107,9 @@ assert.match(autoDeploy, /Get-OptionalPropertyValue \$snapshot "local_connector_
 assert.doesNotMatch(autoDeploy, /\$snapshot\.staging_tunnel/);
 assert.doesNotMatch(autoDeploy, /\$snapshot\.local_connector_tunnel/);
 assert.match(autoDeploy, /\$pilotArgs \+= @\("-TunnelMode", \$TunnelMode\)/);
+assert.match(autoDeploy, /if \(\$EnableActivationGateway\) \{ \$pilotArgs \+= "-EnableActivationGateway" \}/);
+assert.match(installer, /if \(\$EnableActivationGateway\) \{ \$arguments \+= " -EnableActivationGateway" \}/);
+assert.match(startAutoPilot, /if \(\$EnableActivationGateway\) \{ \$childArgs \+= "-EnableActivationGateway" \}/);
 assert.match(autoDeploy, /Get-OptionalPropertyValue \$Runtime "certification_degraded_reasons"/);
 assert.match(autoDeploy, /Get-OptionalPropertyValue \$Runtime "certification_blocking_failures"/);
 assert.match(autoDeploy, /Connector failure[\s\S]*cannot prevent repair/);

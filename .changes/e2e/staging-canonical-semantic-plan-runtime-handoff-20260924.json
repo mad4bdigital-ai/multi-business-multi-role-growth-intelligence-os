@@ -1,0 +1,123 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-canonical-semantic-plan-runtime-handoff-20260924",
+  "title": "Staging canonical semantic repair runtime-bound planning handoff",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-canonical-semantic-plan-runtime-handoff-20260924.json",
+      ".github/derived-state-governance.json",
+      "autopilot-portable-staging/One-Click-Staging.ps1",
+      "autopilot-portable-staging/Repair-StagingCanonicalSemanticData.ps1",
+      "autopilot-portable-staging/manifest.json",
+      "docs/governance/configuration-drift-baseline-extensions.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/scripts/staging-canonical-semantic-repair-runtime-check.mjs",
+      "http-generic-api/test-staging-canonical-semantic-repair-runner.mjs",
+      "http-generic-api/test-staging-one-click-autopilot-core.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Close the canonical semantic repair planning handoff gap by binding host Git authority and live Staging Runtime provenance to one exact commit before generating an immutable read-only repair plan.",
+      "e2e_journeys": [
+        {
+          "id": "runtime-bound-canonical-semantic-repair-planning",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository-bound local Staging repair operator",
+          "entrypoint": "autopilot-portable-staging/Repair-StagingCanonicalSemanticData.ps1 -Mode Plan",
+          "terminal_outcome": "A canonical semantic repair plan is emitted only when host Git authority and the live app deployment provenance match the exact commit and Runtime inspection proves an unambiguous missing canonical identity; planning performs no database or provider mutation.",
+          "steps": [
+            "Verify local HEAD and origin/main equal the exact expected commit.",
+            "Verify the live Staging app deployment manifest and DEPLOY_COMMIT equal the same exact commit.",
+            "Inspect canonical semantic readiness through the ordinary Runtime DB identity.",
+            "Allow plan generation only for missing identity with zero exact rows, zero resolver candidates, and zero conflicts.",
+            "Persist the immutable plan with no-BOM encoding and validate its repository-bound artifact hashes.",
+            "Keep apply separate behind typed confirmation, durable ledger, registered artifact execution, and same-cycle Runtime readback."
+          ],
+          "assertions": [
+            "The change affects Staging only and live Staging certification remains required.",
+            "Production mutation is not allowed.",
+            "DEPLOY_COMMIT is treated only as a non-secret exact-runtime identity reference and grants no execution authority.",
+            "Plan mode performs no database, provider, Hostinger, Cloudflare, or Production mutation.",
+            "Caller-controlled SQL, database target, workspace identity, and artifact path remain forbidden.",
+            "secrets_included is false.",
+            "Repository control-plane registration affects governance for staging and production branches, but this change grants no Production mutation authority."
+          ],
+          "tests": [
+            {
+              "id": "environment-impact-closure",
+              "runner": "node",
+              "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+              "args": [
+                "--base-sha",
+                "BASE_SHA",
+                "--head-sha",
+                "HEAD_SHA"
+              ]
+            },
+            {
+              "id": "canonical-semantic-repair-runner",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-canonical-semantic-repair-runner.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-one-click-autopilot-core",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-one-click-autopilot-core.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-canonical-semantic-plan-runtime-handoff-20260924.json",
+            ".github/derived-state-governance.json",
+            "autopilot-portable-staging/One-Click-Staging.ps1",
+            "autopilot-portable-staging/Repair-StagingCanonicalSemanticData.ps1",
+            "autopilot-portable-staging/manifest.json",
+            "docs/governance/configuration-drift-baseline-extensions.json",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "http-generic-api/scripts/staging-canonical-semantic-repair-runtime-check.mjs",
+            "http-generic-api/test-staging-canonical-semantic-repair-runner.mjs",
+            "http-generic-api/test-staging-one-click-autopilot-core.mjs"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "environment-impact-closure",
+          "runner": "node",
+          "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+          "args": [
+            "--base-sha",
+            "BASE_SHA",
+            "--head-sha",
+            "HEAD_SHA"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

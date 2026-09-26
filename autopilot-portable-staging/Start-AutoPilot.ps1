@@ -5,6 +5,7 @@ param(
     [string]$ExpectedRepository = "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
     [string]$Ref = "main",
     [string]$ExpectedCommit = "",
+    [switch]$EnableActivationGateway,
     [switch]$StartTunnel,
     [ValidateSet("disabled", "windows_service", "docker_sidecar")]
     [string]$TunnelMode = "disabled",
@@ -35,8 +36,11 @@ if (-not (Test-Path -LiteralPath $GitTransportPath)) { throw "Missing shared Git
 $StagingCloudflaredPath = Join-Path $PSScriptRoot "Staging-WindowsCloudflared.ps1"
 if (-not (Test-Path -LiteralPath $StagingCloudflaredPath)) { throw "Missing Staging Cloudflared helper: $StagingCloudflaredPath" }
 . $StagingCloudflaredPath
+$StagingEnvironmentPath = Join-Path $PSScriptRoot "Staging-Environment.ps1"
+if (-not (Test-Path -LiteralPath $StagingEnvironmentPath)) { throw "Missing Staging environment helper: $StagingEnvironmentPath" }
+. $StagingEnvironmentPath
 $LogComponent = "app-operations"
-Write-StagingOperationBoundary -Component $LogComponent -Stage "process" -Outcome "start" -Message "application operations process started" -Data @{ validate_only = [bool]$ValidateOnly; stop = [bool]$Stop; tunnel = [bool]$TunnelSelected; tunnel_mode = $TunnelMode; require_schema_bundle = [bool]$RequireSchemaBundle; apply_schema_bundle = [bool]$ApplySchemaBundle }
+Write-StagingOperationBoundary -Component $LogComponent -Stage "process" -Outcome "start" -Message "application operations process started" -Data @{ validate_only = [bool]$ValidateOnly; stop = [bool]$Stop; tunnel = [bool]$TunnelSelected; tunnel_mode = $TunnelMode; activation_gateway_desired = [bool]$EnableActivationGateway; require_schema_bundle = [bool]$RequireSchemaBundle; apply_schema_bundle = [bool]$ApplySchemaBundle }
 trap {
     Write-StagingLog -Level error -Component $LogComponent -Stage "unhandled" -Message $_.Exception.Message -Data @{ error_type = $_.Exception.GetType().FullName }
     Write-Host "APP_OPERATIONS_FAILURE_LOGGED: $(Get-StagingLogRoot)" -ForegroundColor Red
@@ -284,6 +288,7 @@ function Invoke-SelfUpdate {
         "-ExpectedCommit", $ExpectedCommit, "-BuildMode", $childBuildMode, "-SkipSelfUpdate"
     )
     $childArgs += @("-TunnelMode", $TunnelMode)
+    if ($EnableActivationGateway) { $childArgs += "-EnableActivationGateway" }
     if ($RequireSchemaBundle) { $childArgs += "-RequireSchemaBundle" }
     if ($ApplySchemaBundle) { $childArgs += "-ApplySchemaBundle" }
     if ($ValidateOnly) { $childArgs += "-ValidateOnly" }
@@ -302,16 +307,20 @@ function Test-ExactStagingImage([string]$ImageId, [string]$ExpectedCommit, [stri
     if ($ImageId -notmatch '^sha256:[0-9a-fA-F]{64}$') { return $false }
     if ($ExpectedCommit -notmatch '^[0-9a-fA-F]{40}$' -or $ExpectedTree -notmatch '^[0-9a-fA-F]{40}$' -or $ExpectedContextFileSet -notmatch '^[0-9a-fA-F]{64}$') { return $false }
     try {
-        $labelsJson = (& docker image inspect --format '{{json .Config.Labels}}' $ImageId 2>$null | Out-String).Trim()
-        if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($labelsJson) -or $labelsJson -eq "null") { return $false }
-        $labels = $labelsJson | ConvertFrom-Json
-        $inspectedId = (& docker image inspect --format '{{.Id}}' $ImageId 2>$null | Out-String).Trim().ToLowerInvariant()
-        if ($LASTEXITCODE -ne 0 -or $inspectedId -ne $ImageId.ToLowerInvariant()) { return $false }
-        return ([string]$labels.'org.mad4b.staging.provenance.contract' -eq "mad4b.staging-build-provenance.v1" -and
-            [string]$labels.'org.mad4b.staging.build.commit' -eq $ExpectedCommit.ToLowerInvariant() -and
-            [string]$labels.'org.mad4b.staging.build.tree' -eq $ExpectedTree.ToLowerInvariant() -and
-            [string]$labels.'org.mad4b.staging.build.context_file_set_sha256' -eq $ExpectedContextFileSet.ToLowerInvariant() -and
-            [string]$labels.'org.mad4b.staging.build.secrets_included' -eq "false")
+        # Avoid Docker Go-template quoting/parsing differences on Windows PowerShell 5.1.
+        # Parse the canonical image inspect JSON once, then validate both identity and labels.
+        $inspectJson = (& docker image inspect $ImageId 2>$null | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($inspectJson)) { return $false }
+        $inspect = @($inspectJson | ConvertFrom-Json)[0]
+        if ($null -eq $inspect -or $null -eq $inspect.Config -or $null -eq $inspect.Config.Labels) { return $false }
+        $labels = $inspect.Config.Labels
+        $inspectedId = ([string]$inspect.Id).Trim().ToLowerInvariant()
+        if ($inspectedId -ne $ImageId.ToLowerInvariant()) { return $false }
+        return (([string]$labels.'org.mad4b.staging.provenance.contract').Trim() -eq "mad4b.staging-build-provenance.v1" -and
+            (([string]$labels.'org.mad4b.staging.build.commit').Trim().ToLowerInvariant()) -eq $ExpectedCommit.ToLowerInvariant() -and
+            (([string]$labels.'org.mad4b.staging.build.tree').Trim().ToLowerInvariant()) -eq $ExpectedTree.ToLowerInvariant() -and
+            (([string]$labels.'org.mad4b.staging.build.context_file_set_sha256').Trim().ToLowerInvariant()) -eq $ExpectedContextFileSet.ToLowerInvariant() -and
+            (([string]$labels.'org.mad4b.staging.build.secrets_included').Trim().ToLowerInvariant()) -eq "false")
     } catch {
         return $false
     }
@@ -538,9 +547,10 @@ try {
     Write-StagingUtf8NoBom $EnvFile $envText
     Ensure-EnvDefault $EnvFile "TENANT_GPT_STAGING_OAUTH_CLIENT_ID" "mad4b-tenant-gpt-staging"
     Ensure-EnvDefault $EnvFile "TENANT_GPT_ACTIONS_CONFIDENTIAL_CLIENT_COMPAT_ENABLED" "true"
-    Ensure-EnvDefault $EnvFile "ACTIVATION_STAGING_GATEWAY_ENABLED" "false"
-    Ensure-EnvDefault $EnvFile "ACTIVATION_HOST_GATEWAY_HOST" "activation-dev.mad4b.com"
-    Ensure-EnvDefault $EnvFile "ACTIVATION_STAGING_AUTH_HOST" "activation-dev.mad4b.com"
+    $activationGatewayDesired = if ($EnableActivationGateway) { "true" } else { "false" }
+    Set-EnvValue $EnvFile "ACTIVATION_STAGING_GATEWAY_ENABLED" $activationGatewayDesired
+    Set-EnvValue $EnvFile "ACTIVATION_HOST_GATEWAY_HOST" "activation-dev.mad4b.com"
+    Set-EnvValue $EnvFile "ACTIVATION_STAGING_AUTH_HOST" "activation-dev.mad4b.com"
     # Keep runtime deployment readback bound to the immutable commit selected above.
     Set-EnvValue $EnvFile "DEPLOYMENT_EXPECTED_COMMIT_SHA" $ExpectedCommit
     Set-EnvValue $EnvFile "DEPLOY_COMMIT" $ExpectedCommit
@@ -548,6 +558,11 @@ try {
     Set-EnvValue $EnvFile "STAGING_BUILD_CONTEXT" (([IO.Path]::GetFullPath($BuildContextPath)) -replace '\\','/')
     Set-EnvValue $EnvFile "STAGING_BUILD_TREE" $buildTree.ToLowerInvariant()
     Set-EnvValue $EnvFile "STAGING_BUILD_CONTEXT_FILE_SET_SHA256" ([string]$buildContextMetadata.context_file_set_sha256)
+    # Reconcile only the selected tunnel transport profile. This is safe for direct
+    # Start-AutoPilot and Auto-Deploy callers and does not widen Activation Gateway,
+    # database, provider, or Production mutation authority.
+    $tunnelProfile = Set-StagingTunnelRuntimeProfile -Path $EnvFile -TunnelMode $TunnelMode
+    Write-StagingOperationBoundary -Component $LogComponent -Stage "tunnel-profile" -Outcome "success" -Message "canonical Staging tunnel runtime profile reconciled" -Data @{ tunnel_mode = [string]$tunnelProfile.tunnel_mode; tunnel_origin = [string]$tunnelProfile.tunnel_origin; app_host_bind = [string]$tunnelProfile.app_host_bind; production_mutation = [bool]$tunnelProfile.production_mutation; provider_mutation = [bool]$tunnelProfile.provider_mutation; database_mutation = [bool]$tunnelProfile.database_mutation; secrets_included = [bool]$tunnelProfile.secrets_included }
     Assert-UniqueEnvKeys $EnvFile
     $effectiveEnv = Get-Content -Raw $EnvFile
     if ($effectiveEnv -match '(?im)^CLOUDFLARE_TUNNEL_TOKEN=\s*$' -and $TunnelMode -eq "docker_sidecar") { Fail "docker_sidecar requested but CLOUDFLARE_TUNNEL_TOKEN is empty" }
@@ -560,7 +575,8 @@ try {
     if ($effectiveEnv -notmatch '(?im)^CLOUDFLARE_TUNNEL_HOSTNAMES=dev\.mad4b\.com,mcp-dev\.mad4b\.com\s*$') { Fail "Staging Tunnel requires exactly dev.mad4b.com and mcp-dev.mad4b.com; Activation uses a separate Worker custom domain" }
     if ($activationGatewayEnabled -and (Read-EnvValue $EnvFile "ACTIVATION_HOST_GATEWAY_HOST") -ne "activation-dev.mad4b.com") { Fail "Activation Staging Gateway must use activation-dev.mad4b.com as its Worker custom domain" }
     if ($activationGatewayEnabled -and (Read-EnvValue $EnvFile "ACTIVATION_STAGING_AUTH_HOST") -ne "activation-dev.mad4b.com") { Fail "Activation Staging OAuth host must be activation-dev.mad4b.com" }
-    if ($effectiveEnv -notmatch '(?im)^CLOUDFLARE_TUNNEL_ORIGIN_APP=http://127\.0\.0\.1:8080\s*$') { Fail "Staging tunnel origin must be exactly http://127.0.0.1:8080" }
+    if ($TunnelSelected -and $effectiveEnv -notmatch '(?im)^CLOUDFLARE_TUNNEL_ORIGIN_APP=http://127\.0\.0\.1:8080\s*$') { Fail "Staging tunnel origin must be exactly http://127.0.0.1:8080 when a tunnel transport is selected" }
+    if (-not $TunnelSelected -and (Read-EnvValue $EnvFile "CLOUDFLARE_TUNNEL_ORIGIN_APP") -ne "") { Fail "Disabled Staging tunnel mode must not retain a tunnel origin" }
     if ($effectiveEnv -notmatch '(?im)^CLOUDFLARE_TUNNEL_LOGLEVEL=info\s*$') { Fail "Staging tunnel loglevel must remain info; debug may expose request headers" }
     if ($effectiveEnv -notmatch '(?im)^CLOUDFLARE_TUNNEL_GRACE_PERIOD=30s\s*$') { Fail "Staging tunnel grace period must remain 30s" }
     if ($effectiveEnv -match '(?im)^CLOUDFLARE_TUNNEL_HOSTNAMES=.*(auth\.mad4b\.com|mcp\.mad4b\.com|activation\.mad4b\.com)') { Fail "Forbidden Production hostname found in staging tunnel list" }

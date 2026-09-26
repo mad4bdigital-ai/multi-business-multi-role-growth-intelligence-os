@@ -52,8 +52,11 @@ const executionKeys = Object.freeze([
   "lease_id",
   "fencing_token",
   "role_selection_proof_hash",
+  "role_selection_proof",
+  "selected_roles",
   "deployment_attestation_hash",
   "role_bundle_binding",
+  "role_bundle_bindings",
   "grant_binding_hash",
 ]);
 
@@ -186,6 +189,8 @@ export function createProductionRecoveryOperationalAdapters({
   persistImmutablePartialReceipt,
   resolveDurableInspectionProof,
   finalizeGovernanceMigrationLedger,
+  platformRecoveryConvergenceExecutors = null,
+  platformRecoveryConvergenceApprovalResolver = null,
 } = {}) {
   const core = assertFoundation(foundation);
   const executeOwned = requireFn(executeDeploymentOwnedMutation, "executeDeploymentOwnedMutation");
@@ -295,6 +300,12 @@ export function createProductionRecoveryOperationalAdapters({
     partialReceiptStore,
     proofResolver,
     migrationLedger,
+    ...(platformRecoveryConvergenceExecutors && typeof platformRecoveryConvergenceExecutors === "object" && !Array.isArray(platformRecoveryConvergenceExecutors)
+      ? { platformRecoveryConvergenceExecutors: Object.freeze({ ...platformRecoveryConvergenceExecutors }) }
+      : {}),
+    ...(typeof platformRecoveryConvergenceApprovalResolver === "function"
+      ? { platformRecoveryConvergenceApprovalResolver }
+      : {}),
   });
 }
 

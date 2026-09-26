@@ -309,7 +309,9 @@ Require ([string]$semanticSnapshotManifest.exact_source_commit -eq $ExpectedComm
 $semanticSnapshotTables = @($semanticSnapshotManifest.tables | ForEach-Object { [string]$_ })
 $expectedSemanticSnapshotTables = @($semanticSnapshotPolicy.tables | ForEach-Object { [string]$_ })
 Require (($semanticSnapshotTables -join ",") -eq ($expectedSemanticSnapshotTables -join ",")) "Canonical semantic snapshot table order is not exact."
-Require ($semanticSnapshotTables.Count -eq 20 -and [int]$semanticSnapshotManifest.table_count -eq 20) "Canonical semantic snapshot table count is not canonical."
+$expectedSemanticSnapshotTableCount = $expectedSemanticSnapshotTables.Count
+Require ($expectedSemanticSnapshotTableCount -gt 0) "Canonical semantic snapshot policy table list is empty."
+Require ($semanticSnapshotTables.Count -eq $expectedSemanticSnapshotTableCount -and [int]$semanticSnapshotManifest.table_count -eq $expectedSemanticSnapshotTableCount) "Canonical semantic snapshot table count does not match policy."
 Require ([int]$semanticSnapshotManifest.statement_count -gt 0) "Canonical semantic snapshot contains no statements."
 foreach ($table in $semanticSnapshotTables) {
   Require ($table -match '^[A-Za-z0-9_]+$') "Canonical semantic snapshot table name is unsafe: $table"

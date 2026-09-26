@@ -157,15 +157,27 @@ export function buildStagingRebuildEmptyInspectionEnvelope({ expectedCommit, cor
   };
 }
 
+function parseCliCensus(args) {
+  const censusJson = arg(args, "--census-json");
+  const censusJsonBase64 = arg(args, "--census-json-base64");
+  if (Boolean(censusJson) === Boolean(censusJsonBase64)) fail("exactly one of --census-json or --census-json-base64 is required");
+  if (censusJson) return JSON.parse(censusJson);
+  const encoded = String(censusJsonBase64 || "").trim();
+  if (!encoded || encoded.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/u.test(encoded)) fail("invalid --census-json-base64 payload");
+  const decoded = Buffer.from(encoded, "base64").toString("utf8");
+  const canonical = Buffer.from(decoded, "utf8").toString("base64");
+  if (canonical.replace(/=+$/u, "") !== encoded.replace(/=+$/u, "")) fail("non-canonical --census-json-base64 payload");
+  return JSON.parse(decoded);
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const expectedCommit = arg(args, "--expected-commit");
-  const censusJson = arg(args, "--census-json");
   const correlationId = arg(args, "--correlation-id", `staging-rebuild-empty-${randomUUID()}`);
   const manifestPath = arg(args, "--manifest", DEFAULT_MANIFEST);
   const envFile = arg(args, "--env-file", DEFAULT_ENV_FILE);
-  if (!censusJson) fail("--census-json is required");
-  const envelope = buildStagingRebuildEmptyInspectionEnvelope({ expectedCommit, correlationId, censusRows: JSON.parse(censusJson), manifestPath, envFile });
+  const censusRows = parseCliCensus(args);
+  const envelope = buildStagingRebuildEmptyInspectionEnvelope({ expectedCommit, correlationId, censusRows, manifestPath, envFile });
   process.stdout.write(`${JSON.stringify(envelope)}\n`);
 }
 

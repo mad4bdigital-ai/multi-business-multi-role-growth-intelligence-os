@@ -106,6 +106,11 @@ try {
   foreach ($role in @("runtime", "governance", "runtime_persistence")) {
     Require (Test-Path -LiteralPath ([string]$prepared.roles.$role.output_file) -PathType Leaf) "Prepared role bundle is missing: $role"
   }
+  $preparedSemanticSnapshotPath = [string]$prepared.canonical_semantic_snapshot.output_file
+  Require (-not [string]::IsNullOrWhiteSpace($preparedSemanticSnapshotPath)) "Prepared canonical semantic snapshot path is missing."
+  Require (Test-Path -LiteralPath $preparedSemanticSnapshotPath -PathType Leaf) "Prepared canonical semantic snapshot bundle is missing."
+  $preparedSemanticSnapshotSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $preparedSemanticSnapshotPath).Hash.ToLowerInvariant()
+  Require ($preparedSemanticSnapshotSha -eq ([string]$bundleManifest.canonical_semantic_snapshot.sha256).ToLowerInvariant()) "Prepared canonical semantic snapshot bundle hash mismatch."
 
   $plan | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $ReplayEvidencePath -Encoding utf8
   $applyArgs = @(

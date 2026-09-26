@@ -6,6 +6,7 @@ param(
     [string]$ExpectedRepository = "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
     [int]$PollSeconds = 300,
     [switch]$Watch,
+    [switch]$EnableActivationGateway,
     [switch]$StartTunnel,
     [ValidateSet("disabled", "windows_service", "docker_sidecar")]
     [string]$TunnelMode = "disabled",
@@ -42,7 +43,7 @@ $script:CurrentEligibility = $null
 $script:ProviderMutationPerformed = $false
 $script:ProviderMutationInitiated = $false
 $script:ProviderMutationScope = "none"
-Write-StagingOperationBoundary -Component $LogComponent -Stage "process" -Outcome "start" -Message "auto-deploy process started" -Data @{ watch = [bool]$Watch; ref = $Ref; poll_seconds = $PollSeconds }
+Write-StagingOperationBoundary -Component $LogComponent -Stage "process" -Outcome "start" -Message "auto-deploy process started" -Data @{ watch = [bool]$Watch; ref = $Ref; poll_seconds = $PollSeconds; activation_gateway_desired = [bool]$EnableActivationGateway }
 
 function Acquire-AutoPilotRunLock {
     try {
@@ -547,6 +548,7 @@ while ($true) {
         Enter-DeploymentLease "local_deployment" $sha "deploying" 1200
         $pilotArgs = @("-RepositoryPath", $RepositoryPath, "-RepositoryUrl", $RepositoryUrl, "-ExpectedRepository", $ExpectedRepository, "-Ref", $Ref, "-ExpectedCommit", $sha, "-BuildMode", $BuildMode)
         $pilotArgs += @("-TunnelMode", $TunnelMode)
+        if ($EnableActivationGateway) { $pilotArgs += "-EnableActivationGateway" }
         if ($ValidateOnly) { $pilotArgs += "-ValidateOnly" }
         Write-Host ("> powershell.exe -File Start-AutoPilot.ps1 {0}" -f ($pilotArgs -join " "))
         & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $startScript @pilotArgs

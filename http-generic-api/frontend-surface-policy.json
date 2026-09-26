@@ -1856,6 +1856,47 @@
       ]
     },
     {
+      "rule_id": "recovery-kernel-platform-convergence-orchestrator",
+      "operation": "POST /admin/recovery/kernel/platform-converge",
+      "source_file": "routes/recoveryKernelRoutes.js",
+      "classification": "external_effect",
+      "owner": "runtime-operations",
+      "rationale": "The private Production Recovery convergence endpoint persists a durable exact-SHA run and may advance one nested consequential stage per request when live authorities are injected. It forbids caller SQL, database names, credentials, raw targets, migration selection, and caller approval material; every consequential effect remains bound to a canonical nested authority, exact operation, durable idempotency claim, same-cycle readback, and final Recovery closure.",
+      "preflight": {
+        "mode": "exact_sha_durable_run_nested_authority_and_pre_mutation_parity"
+      },
+      "approval": {
+        "mode": "server_resolved_step_bound_nested_approval"
+      },
+      "readback": {
+        "mode": "inline_post_commit",
+        "operation": "GET /admin/recovery/kernel/runs/{run_id}"
+      },
+      "rollback": {
+        "mode": "step_owned_compensation_or_reconciliation",
+        "rationale": "The orchestrator itself does not synthesize rollback. Each nested effect retains its registered compensation/reconciliation contract, unknown outcomes block blind retry, and verified prior steps are not replayed."
+      },
+      "parameter_bindings": {
+        "expected_sha": "request.body.expected_sha",
+        "run_id": "request.body.run_id (optional resume binding)",
+        "action": "request.body.action in {advance,status,reconcile}",
+        "approval": "forbidden from caller",
+        "sql": "forbidden from caller",
+        "credentials": "forbidden from caller",
+        "database_selection": "forbidden from caller"
+      },
+      "evidence_refs": [
+        "routes/recoveryKernelRoutes.js",
+        "platformRecoveryConvergence.js",
+        "platformRecoveryConvergenceReadAdapters.js",
+        "productionRecoveryClosure.js",
+        "test-platform-recovery-convergence.mjs",
+        "test-platform-recovery-convergence-read-adapters.mjs",
+        "test-production-recovery-closure.mjs",
+        "specs/021-production-recovery-closure/pipeline-scenario-matrix.md"
+      ]
+    },
+    {
       "rule_id": "staging-recovery-bootstrap-partial-receipt",
       "operation": "POST /admin/recovery/staging/bootstrap-partial-receipt",
       "source_file": "routes/stagingRecoveryAdminRoutes.js",

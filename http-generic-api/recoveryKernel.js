@@ -1,3 +1,4 @@
+import { evaluateProductionRecoveryClosure } from "./productionRecoveryClosure.js";
 import { createHash, randomUUID } from "node:crypto";
 import { readDeploymentManifest } from "./deploymentManifest.js";
 import { executeHostLocalRoleInspection } from "./hostLocalRuntimeInspection.js";
@@ -298,6 +299,8 @@ export const RECOVERY_KERNEL_CAPABILITIES = Object.freeze([
   capability("system_tools_search", "C0", "Search the bounded repository-registered fixed system-tool descriptors without loading the large dynamic catalog.", { dependencies: ["static_system_tool_registry"] }),
   capability("recovery_capabilities", "C0", "Return the static Recovery Kernel capability matrix, risk classes, dependencies, and boundaries.", { dependencies: ["repository_static_contract"] }),
   capability("production_activation_readiness", "C0", "Read the three bounded Production readiness dimensions without loading a large catalog or performing mutation.", { dependencies: ["mcp_catalog_schema_reader", "governance_privilege_reader", "runtime_persistence_reader"] }),
+  capability("production_recovery_closure", "C0", "Derive final Production Recovery closure only from exact-SHA durable same-cycle server evidence; caller-supplied readiness booleans are forbidden.", { dependencies: ["production_recovery_closure_evidence_resolver", "durable_full_inspection", "backup_evidence", "functional_readbacks"] }),
+  capability("platform_recovery_converge_v1", "C5", "Run or resume exact-SHA durable platform recovery convergence; nested consequential steps remain separately approval-bound and readback-verified.", { dependencies: ["recovery_durable_store", "production_identity", "nested_step_authority", "same_cycle_readback"], mutation: true, approval_required: true, rollback: "step_specific_reconciliation" }),
   capability("database_full_inspection", "C0", "Run the exact-SHA Production host-local full database inspection using the three independent role identities in the server environment.", { dependencies: ["host_local_role_env", "production_identity", "runtime_bootstrap_contract"] }),
   capability("runtime.baseline.rebuild_empty", "C5", "Rebuild only the runtime role from its repository-owned baseline when the same-cycle inspection proves that role has zero schema objects; never drops a nonempty target.", { dependencies: ["database_full_inspection", "role_object_proof", "role_fingerprint", "recovery_plan_state"], mutation: true, approval_required: true, blast_radius: { database_roles: ["runtime"], tables_max: 0, rows_data_mutation: false, schema_mutation: true, grants_mutation: false, cross_database: false }, rollback: "forward_only_or_capability_declared" }),
   capability("governance.baseline.rebuild_empty", "C5", "Rebuild only the governance role from its repository-owned baseline when the same-cycle inspection proves that role has zero schema objects; never drops a nonempty target.", { dependencies: ["database_full_inspection", "role_object_proof", "role_fingerprint", "recovery_plan_state"], mutation: true, approval_required: true, blast_radius: { database_roles: ["governance"], tables_max: 0, rows_data_mutation: false, schema_mutation: true, grants_mutation: false, cross_database: false }, rollback: "forward_only_or_capability_declared" }),
@@ -709,9 +712,10 @@ async function readAndValidateDeploymentAttestation(deploymentIdentityProvider, 
 }
 
 function roleBundleBindingsForStep(step, plan = null) {
-  if (plan?.role_bundle_bindings && typeof plan.role_bundle_bindings === "object" && Object.keys(plan.role_bundle_bindings).length) return plan.role_bundle_bindings;
-  if (!step?.role_bundle_binding) return {};
-  return { [step.target_role]: step.role_bundle_binding };
+  const role = text(step?.target_role, 64);
+  const binding = step?.role_bundle_binding || (role ? plan?.role_bundle_bindings?.[role] : null) || null;
+  if (!role || !binding) return {};
+  return { [role]: binding };
 }
 
 function deriveRoleSelectionProofFromFindings(findings, expectedSha, targetFingerprints = {}, { durable = false } = {}) {
@@ -733,6 +737,31 @@ function deriveRoleSelectionProofFromFindings(findings, expectedSha, targetFinge
     finding_ids: rebuildFindings.map((finding) => finding.finding_id).sort(),
     role_object_count_fingerprints: roleFingerprints,
     composite_target_fingerprint: text(targetFingerprints.composite, 128),
+  };
+  return { ...proof, selection_hash: computeRoleSelectionProofHash(proof) };
+}
+
+function roleSelectionProofForStep(plan, step) {
+  const base = plan?.role_selection_proof || null;
+  if (step?.mutation_class !== "C5") return base;
+  const role = text(step.target_role, 64);
+  if (!base || base.source !== "durable_full_inspection" || base.expected_sha !== plan.expected_sha
+    || !Array.isArray(base.selected_roles) || !base.selected_roles.includes(role)
+    || !Array.isArray(base.finding_ids) || !base.finding_ids.includes(step.finding_id)
+    || !text(base.role_object_count_fingerprints?.[role], 128)
+    || !text(base.inspection_run_id, 160) || !text(base.inspection_evidence_hash, 128)
+    || !text(base.composite_target_fingerprint, 128)) {
+    throw kernelError(409, "RECOVERY_ROLE_SELECTION_PROVENANCE_UNAVAILABLE", "Baseline execution requires a complete durable role-selection proof for the exact approved step.", { target_role: role, finding_id: step?.finding_id || null });
+  }
+  const proof = {
+    source: base.source,
+    expected_sha: base.expected_sha,
+    selected_roles: [role],
+    inspection_run_id: base.inspection_run_id,
+    inspection_evidence_hash: base.inspection_evidence_hash,
+    finding_ids: [step.finding_id],
+    role_object_count_fingerprints: { [role]: base.role_object_count_fingerprints[role] },
+    composite_target_fingerprint: base.composite_target_fingerprint,
   };
   return { ...proof, selection_hash: computeRoleSelectionProofHash(proof) };
 }
@@ -1061,20 +1090,21 @@ export async function createExecutionTicket(input = {}, { recoveryStore, executi
   requireMutationRecoveryStore(recoveryStore);
   if (!executionTicketSigner || typeof executionTicketSigner.sign !== "function") throw kernelError(503, "RECOVERY_EXECUTION_TICKET_SIGNER_UNAVAILABLE", "A server-side execution-ticket signer is required; tickets are never self-issued or synthesized.");
   const approvalToken = assertApprovalTokenShape(input.approval_token);
+  const stepRoleSelectionProof = roleSelectionProofForStep(plan, step);
   const approvalResult = await verifyAndBuildApprovalBinding(plan, step, approvalToken, { approvalVerifier, approvalStore, recoveryStore });
   const approvalReservationContext = { ...approvalResult.context, approval_id: approvalResult.approval.approval_id, approval_hash: approvalResult.binding.approval_hash, approval_binding_hash: approvalResult.binding.binding_hash, idempotency_key: text(input.idempotency_key, 160), execution_ticket_id: null };
   if (!approvalReservationContext.idempotency_key) throw kernelError(400, "RECOVERY_IDEMPOTENCY_KEY_REQUIRED", "A caller-supplied idempotency_key is required before approval reservation and ticket issuance.");
   await reserveApproval(recoveryStore, approvalReservationContext);
   try {
     const ticket = await issueExecutionTicket({
-      inspection_run_id: plan.role_selection_proof?.inspection_run_id || `run:${plan.plan_id.slice(-32)}`,
-      inspection_evidence_hash: plan.role_selection_proof?.inspection_evidence_hash || plan.finding_hash,
-      finding_ids: plan.finding_ids,
-      selected_roles: plan.role_selection_proof?.selected_roles || ["composite"],
+      inspection_run_id: stepRoleSelectionProof?.inspection_run_id || `run:${plan.plan_id.slice(-32)}`,
+      inspection_evidence_hash: stepRoleSelectionProof?.inspection_evidence_hash || plan.finding_hash,
+      finding_ids: stepRoleSelectionProof?.finding_ids || plan.finding_ids,
+      selected_roles: stepRoleSelectionProof?.selected_roles || ["composite"],
       role_selection_required: step.mutation_class === "C5",
-      role_object_count_fingerprints: plan.role_selection_proof?.role_object_count_fingerprints || {},
+      role_object_count_fingerprints: stepRoleSelectionProof?.role_object_count_fingerprints || {},
       target_fingerprints: plan.target_fingerprints || { composite: plan.target_fingerprint },
-      role_selection_hash: plan.role_selection_hash || null,
+      role_selection_hash: stepRoleSelectionProof?.selection_hash || null,
       role_bundle_bindings: roleBundleBindingsForStep(step, plan),
       deployment_attestation_hash: deploymentAttestation.attestation_hash,
       approval_id: approvalResult.binding.approval_id,
@@ -1282,6 +1312,7 @@ export async function executeRemediationStep(input = {}, { env = process.env, ad
   const approval = approvalResult.approval;
   const approvalContext = approvalResult.context;
   const approvalBinding = approvalResult.binding;
+  const stepRoleSelectionProof = roleSelectionProofForStep(plan, step);
   const executionTicketExpected = {
     plan_hash: plan.plan_hash,
     step_hash: step.step_hash,
@@ -1295,11 +1326,11 @@ export async function executeRemediationStep(input = {}, { env = process.env, ad
     approval_hash: approvalBinding.approval_hash,
     approval_version: approvalBinding.approval_version,
     approval_binding: approvalBinding,
-    role_selection_hash: plan.role_selection_hash || null,
+    role_selection_hash: stepRoleSelectionProof?.selection_hash || null,
     role_bundle_bindings: roleBundleBindingsForStep(step, plan),
     deployment_attestation_hash: plan.runtime_attestation_hash || null,
     target_fingerprints: plan.target_fingerprints || { composite: plan.target_fingerprint },
-    selected_roles: plan.role_selection_proof?.selected_roles || ["composite"],
+    selected_roles: stepRoleSelectionProof?.selected_roles || ["composite"],
     grant_binding_hash: step.grant_binding_hash || plan.grant_binding_hash || null,
   };
   try {
@@ -1361,6 +1392,10 @@ export async function executeRemediationStep(input = {}, { env = process.env, ad
     await writeRun(run, { recoveryStore });
     let result;
     const executionPayload = {
+      plan_id: plan.plan_id,
+      plan_hash: plan.plan_hash,
+      step_id: step.step_id,
+      step_hash: step.step_hash,
       capability_key: step.capability_key,
       operation: step.operation,
       target_role: step.target_role,
@@ -1368,16 +1403,17 @@ export async function executeRemediationStep(input = {}, { env = process.env, ad
       expected_sha: plan.expected_sha,
       target_key: plan.target_key,
       target_fingerprint: step.target_fingerprint || plan.target_fingerprint,
-      plan_hash: plan.plan_hash,
-      step_id: step.step_id,
       idempotency_key: idempotencyKey,
       execution_ticket_id: executionTicketId,
       execution_ticket_hash: executionTicket.ticket_hash,
       lease_id: lockHandle.lease_id,
       fencing_token: lockHandle.fencing_token,
-      role_selection_proof_hash: plan.role_selection_hash || null,
+      role_selection_proof_hash: stepRoleSelectionProof?.selection_hash || null,
+      role_selection_proof: stepRoleSelectionProof ? sanitizeEvidence(stepRoleSelectionProof) : null,
+      selected_roles: Array.isArray(stepRoleSelectionProof?.selected_roles) ? [...stepRoleSelectionProof.selected_roles] : [step.target_role],
       deployment_attestation_hash: deploymentAttestation.attestation_hash,
       role_bundle_binding: step.role_bundle_binding || null,
+      role_bundle_bindings: roleBundleBindingsForStep(step, plan),
       grant_binding_hash: step.grant_binding_hash || plan.grant_binding_hash || null,
     };
     try {
@@ -1717,6 +1753,17 @@ export async function callRecoveryKernelCapability(capabilityKey, input = {}, de
         }),
       });
     }
+    case "production_recovery_closure": {
+      const body = assertObject(input);
+      const unexpected = Object.keys(body).filter((field) => field !== "expected_sha");
+      if (unexpected.length) throw kernelError(400, "RECOVERY_INPUT_FIELD_FORBIDDEN", "production_recovery_closure accepts only expected_sha.", { fields: unexpected });
+      const expectedSha = requireSha(body.expected_sha);
+      if (typeof deps.productionRecoveryClosureEvidenceResolver !== "function") {
+        throw kernelError(503, "RECOVERY_PRODUCTION_CLOSURE_EVIDENCE_RESOLVER_UNAVAILABLE", "Production Recovery closure requires a server-injected durable evidence resolver.");
+      }
+      const evidence = await deps.productionRecoveryClosureEvidenceResolver({ expected_sha: expectedSha });
+      return sanitizeEvidence(evaluateProductionRecoveryClosure({ expectedSha, evidence }));
+    }
     case "database_full_inspection": return inspectProductionDatabase(input, deps);
     case "unsupported_recovery_escalate": return escalateUnsupportedRecovery(input, { ...deps, adminPrincipal: deps.adminPrincipal });
     case "ssh_session_preview": return previewSshSession(input, { ...deps, adminPrincipal: deps.adminPrincipal });
@@ -1757,6 +1804,7 @@ export const _testingRecoveryKernel = Object.freeze({
   findingsFromInspection,
   classifyFinding,
   planSteps,
+  roleBundleBindingsForStep,
   requireProductionRequest,
   noMutationAttestation,
   CAPABILITY_INDEX,
