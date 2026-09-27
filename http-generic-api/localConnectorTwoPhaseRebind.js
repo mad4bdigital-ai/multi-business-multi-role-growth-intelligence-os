@@ -1,9 +1,64 @@
 import { createHash, randomUUID } from "node:crypto";
-import { assertRecoveryData } from "./recoveryProofBoundary.js";
+import { assertRecoveryData, projectRecoveryReceipt } from "./recoveryProofBoundary.js";
 
 export const LOCAL_CONNECTOR_TWO_PHASE_REBIND_CONTRACT = "mad4b.local-connector-two-phase-rebind.v1";
 
 const SAFE_REF_RE = /^[A-Za-z0-9._:-]{8,240}$/u;
+
+const PHASE_RECEIPT_FIELDS = Object.freeze({
+  bound_context: Object.freeze([
+    "device_id",
+    "user_ref",
+    "tenant_ref",
+    "old_credential_ref",
+    "device_authentication_verified",
+    "fresh_user_authorization_verified",
+    "status",
+    "request_id",
+    "secrets_included",
+  ]),
+  prepare: Object.freeze([
+    "pending_credential_ref",
+    "old_credential_active",
+    "old_credential_revoked",
+    "credential_version",
+    "issued_at",
+    "expires_at",
+    "status",
+    "request_id",
+    "secrets_included",
+  ]),
+  install: Object.freeze([
+    "local_atomic_install_verified",
+    "old_credential_revoked",
+    "device_id",
+    "credential_version",
+    "installed_at",
+    "status",
+    "request_id",
+    "secrets_included",
+  ]),
+  probe: Object.freeze([
+    "authenticated",
+    "http_status",
+    "old_credential_revoked",
+    "probe_status",
+    "credential_version",
+    "request_id",
+    "status",
+    "secrets_included",
+  ]),
+  commit: Object.freeze([
+    "new_credential_active",
+    "old_credential_revoked",
+    "commit_readback_verified",
+    "credential_version",
+    "committed_at",
+    "request_id",
+    "status",
+    "secrets_included",
+  ]),
+});
 
 function text(value, max = 512) {
   return String(value ?? "").trim().slice(0, max);
@@ -45,7 +100,24 @@ function assertSafeReceipt(receipt, phase) {
       { phase, error_code: String(error?.code || "recovery_proof_boundary") },
     );
   }
-  return receipt;
+  const allowed = PHASE_RECEIPT_FIELDS[phase];
+  if (!allowed) {
+    fail("LOCAL_CONNECTOR_REBIND_RECEIPT_PHASE_UNKNOWN", "Receipt phase is not registered.", 500, { phase });
+  }
+  try {
+    return projectRecoveryReceipt(
+      receipt,
+      allowed,
+      "LOCAL_CONNECTOR_REBIND_RECEIPT_FIELD_FORBIDDEN",
+    );
+  } catch (error) {
+    fail(
+      error?.code || "LOCAL_CONNECTOR_REBIND_RECEIPT_FIELD_FORBIDDEN",
+      "Receipt contains fields outside the registered phase schema.",
+      502,
+      { phase },
+    );
+  }
 }
 
 function opaqueRef(value, field) {
@@ -96,6 +168,7 @@ export function createLocalConnectorTwoPhaseRebindExecutor({
     let pendingRef = null;
     let installed = false;
     let probeVerified = false;
+    let commitAttempted = false;
     let requestId = null;
     try {
       const prepared = assertSafeReceipt(await prepare(Object.freeze({
@@ -151,6 +224,7 @@ export function createLocalConnectorTwoPhaseRebindExecutor({
         expected_sha: text(stepContext.expected_sha, 40).toLowerCase(),
         secrets_included: false,
       };
+      commitAttempted = true;
       const committed = assertSafeReceipt(await commit(Object.freeze({
         pending_credential_ref: pendingRef,
         old_credential_ref: oldCredentialRef,
@@ -193,10 +267,15 @@ export function createLocalConnectorTwoPhaseRebindExecutor({
         })).catch(() => {});
       }
       if (error?.unknown_outcome === true) throw error;
-      if (probeVerified && error?.code === "LOCAL_CONNECTOR_REBIND_COMMIT_UNVERIFIED") {
+      if (commitAttempted && error?.mutation_performed !== false) {
         error.unknown_outcome = true;
-        error.mutation_performed = true;
+        error.reconciliation_required = true;
+        error.automatic_retry_allowed = false;
+        error.commit_attempted = true;
         error.request_id = requestId;
+        error.mutation_performed = error?.code === "LOCAL_CONNECTOR_REBIND_COMMIT_UNVERIFIED"
+          ? true
+          : null;
       }
       throw error;
     }

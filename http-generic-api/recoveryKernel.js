@@ -540,8 +540,9 @@ async function claimExecution(recoveryStore, context) {
 async function reserveApproval(recoveryStore, context) {
   if (!recoveryStore || typeof recoveryStore.reserveApproval !== "function") throw kernelError(503, "RECOVERY_APPROVAL_RESERVATION_UNAVAILABLE", "An atomic durable approval reservation provider is required before any consequential step.");
   const result = await recoveryStore.reserveApproval(sanitizeEvidence(context));
-  if (result !== true && result?.reserved !== true && result?.existing !== true) throw kernelError(409, "RECOVERY_APPROVAL_RESERVATION_DENIED", "The approval is already reserved, consumed, expired, or bound to another execution claim.");
-  return result === true ? { reserved: true } : result?.existing === true ? { reserved: true, existing: true } : result;
+  const sameIdempotencyReplay = result?.existing === true && result?.same_idempotency === true;
+  if (result !== true && result?.reserved !== true && !sameIdempotencyReplay) throw kernelError(409, "RECOVERY_APPROVAL_RESERVATION_DENIED", "The approval is already reserved, consumed, expired, or bound to another execution claim.");
+  return result === true ? { reserved: true } : sameIdempotencyReplay ? { reserved: true, existing: true, same_idempotency: true } : result;
 }
 
 async function reserveExecutionTicket(recoveryStore, context) {

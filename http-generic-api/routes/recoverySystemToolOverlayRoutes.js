@@ -9,6 +9,8 @@ import {
   stagingRecoveryAccessRepairExecute,
   stagingRecoveryAccessRepairPrepare,
   stagingRecoveryActivationGatewayDarkDeployDryRun,
+  stagingRecoveryCertificationCanaryApprove,
+  stagingRecoveryCertificationCanaryExecute,
   stagingRecoveryCertificationCanaryPlanCreate,
   stagingRecoveryRebuildEmptyApprove,
   stagingRecoveryRebuildEmptyInspectionRecord,
@@ -36,6 +38,8 @@ const STAGING_REBUILD_ROLE_CAPABILITIES = Object.freeze([
 ]);
 const STAGING_TOOL_NAMES = new Set([
   "staging_recovery_certification_canary_plan_create",
+  "staging_recovery_certification_canary_approve",
+  "staging_recovery_certification_canary_execute",
   "prepareStagingActivationGatewayDarkDeployDryRun",
   "staging_recovery_access_repair_prepare",
   "staging_recovery_access_repair_approve",
@@ -278,6 +282,8 @@ async function executeOverlayTool(name, args, deps = {}) {
       });
     }
     if (name === "staging_recovery_certification_canary_plan_create") return stagingRecoveryCertificationCanaryPlanCreate(args, { env: runtimeEnv });
+    if (name === "staging_recovery_certification_canary_approve") return stagingRecoveryCertificationCanaryApprove(args, { env: runtimeEnv });
+    if (name === "staging_recovery_certification_canary_execute") return stagingRecoveryCertificationCanaryExecute(args, { env: runtimeEnv });
     if (name === "prepareStagingActivationGatewayDarkDeployDryRun") {
       return stagingRecoveryActivationGatewayDarkDeployDryRun(args, {
         ...(deps.gatewayPreflightDeps || {}),

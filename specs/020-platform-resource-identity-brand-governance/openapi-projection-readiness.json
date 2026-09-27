@@ -26,13 +26,13 @@
     "production_activation_allowed": false
   },
   "repository_openapi_baseline": {
-    "operation_count": 1078,
-    "openapi_documented_count": 1062,
+    "operation_count": 1081,
+    "openapi_documented_count": 1065,
     "openapi_canonical_documented_count": 742,
-    "openapi_generated_index_count": 320,
+    "openapi_generated_index_count": 323,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 320,
+    "openapi_detail_gap_count": 323,
     "auth_contract_gap_count": 0,
     "unresolved_operation_class_count": 0,
     "unresolved_surface_decision_count": 0,

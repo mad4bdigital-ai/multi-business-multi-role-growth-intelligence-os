@@ -131,10 +131,50 @@ function ticketAuthorities(root) {
   return { signer, verifier };
 }
 
-function approvalAuthorities(root) {
+function approvalAuthorities(root, durableStore = null) {
   const storeRoot = path.join(root, "approval-challenges");
-  const store = Object.freeze({ async putChallenge(c) { try { await writeJson(path.join(storeRoot, `${key(c.approval_id)}.json`), c, true); } catch (e) { if (e.code !== "EEXIST") throw e; } }, async getChallenge(id) { return readJson(path.join(storeRoot, `${key(id)}.json`)); } });
-  const issuer = Object.freeze({ async createChallenge(c) { const k = await keys(root, "approval"); const payload = { approval_id: c.approval_id, plan_hash: c.plan_hash, step_id: c.step_id, expires_at: new Date(Date.now() + 300000).toISOString(), nonce: randomUUID() }; const encoded = Buffer.from(canonical(payload)).toString("base64url"); const signature = sign(null, Buffer.from(canonical(payload)), k.privateKey).toString("base64url"); return { authority: "server_managed", expires_at: payload.expires_at, server_token: `${encoded}.${signature}` }; } });
+  const issueServerToken = async (challenge) => {
+    const k = await keys(root, "approval");
+    const payload = {
+      approval_id: challenge.approval_id,
+      plan_hash: challenge.plan_hash,
+      step_id: challenge.step_id,
+      expires_at: new Date(Date.now() + 300000).toISOString(),
+      nonce: randomUUID(),
+    };
+    const encoded = Buffer.from(canonical(payload)).toString("base64url");
+    const signature = sign(null, Buffer.from(canonical(payload)), k.privateKey).toString("base64url");
+    return { authority: "server_managed", expires_at: payload.expires_at, server_token: `${encoded}.${signature}` };
+  };
+  const resolveApprovedExecutionApproval = async (context = {}) => {
+    if (context.admin_principal_verified !== true || !durableStore?.getApprovalByPlanStep) return null;
+    const approval = await durableStore.getApprovalByPlanStep(txt(context.plan_id, 160), txt(context.step_id, 160));
+    if (!approval || approval.used === true || !approval.expires_at || Date.parse(approval.expires_at) <= Date.now()) return null;
+    const expectedTargetFingerprint = txt(approval.step_target_fingerprint || approval.target_fingerprint, 128).toLowerCase();
+    const exact = approval.approval_id === txt(context.approval_id, 160)
+      && approval.plan_id === txt(context.plan_id, 160)
+      && approval.plan_hash === txt(context.plan_hash, 128).toLowerCase()
+      && approval.step_id === txt(context.step_id, 160)
+      && approval.step_hash === txt(context.step_hash, 128).toLowerCase()
+      && approval.expected_sha === txt(context.expected_sha, 64).toLowerCase()
+      && approval.target_key === txt(context.target_key, 160)
+      && expectedTargetFingerprint === txt(context.target_fingerprint, 128).toLowerCase()
+      && (!context.target_role || approval.target_role === txt(context.target_role, 96));
+    if (!exact) return null;
+    const issued = await issueServerToken(approval);
+    return issued?.server_token
+      ? { approval_token: issued.server_token, approval_id: approval.approval_id, server_resolved: true, single_use: true, secrets_included: false }
+      : null;
+  };
+  const store = Object.freeze({
+    async putChallenge(challenge) {
+      try { await writeJson(path.join(storeRoot, `${key(challenge.approval_id)}.json`), challenge, true); }
+      catch (e) { if (e.code !== "EEXIST") throw e; }
+    },
+    async getChallenge(id) { return readJson(path.join(storeRoot, `${key(id)}.json`)); },
+    resolveApprovedExecutionApproval,
+  });
+  const issuer = Object.freeze({ async createChallenge(challenge) { return issueServerToken(challenge); } });
   const verifier = Object.freeze({ async verify({ token, approval, context }) { if (typeof token !== "string" || token.length > 4096) return false; const [encoded, signature] = token.split("."); if (!encoded || !signature) return false; let p; try { p = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")); } catch { return false; } const k = await keys(root, "approval"); return Date.parse(p.expires_at) > Date.now() && p.approval_id === approval?.approval_id && p.plan_hash === approval?.plan_hash && p.step_id === approval?.step_id && (!context?.plan_hash || context.plan_hash === p.plan_hash) && verify(null, Buffer.from(canonical(p)), k.publicKey, Buffer.from(signature, "base64url")); } });
   return { store, issuer, verifier };
 }
@@ -193,7 +233,7 @@ function recoveryStore(root, executionTicketVerifier) {
     async markApprovalUsed(id) { const a = await get("approvals", id); if (!a) return { already_finalized: true }; const finalized = await claim("approval-used", id, { approval_id: id, finalized_at: new Date().toISOString(), secrets_included: false }); if (!finalized) return { already_finalized: true }; await put("approvals", id, { ...a, used: true, finalized_at: new Date().toISOString() }); return { finalized: true }; },
     async claimExecution(c) { const v = { claim_id: `claim:${key(c.idempotency_key).slice(0, 32)}`, status: "claimed", ...c }; return await claim("execution-claims", c.idempotency_key, v) ? { claimed: true, claim_id: v.claim_id } : { existing: true, status: "claimed", claim_id: (await get("execution-claims", c.idempotency_key))?.claim_id }; },
     async releaseExecutionClaim(c) { await remove(file("execution-claims", c.idempotency_key)); return { released: true }; },
-    async reserveApproval(c) { const a = await get("approvals", c.approval_id); const used = await get("approval-used", c.approval_id); if (!a || a.used || used || a.plan_hash !== c.plan_hash || a.step_id !== c.step_id) return { reserved: false }; const id = approvalReservationId(c); const value = { ...c, reservation_id: id, reserved_at: new Date().toISOString(), secrets_included: false }; if (await claim("approval-reservations", id, value)) return { reserved: true }; const existing = await get("approval-reservations", id); return { reserved: false, existing: true, same_idempotency: existing?.idempotency_key === c.idempotency_key }; },
+    async reserveApproval(c) { const a = await get("approvals", c.approval_id); const used = await get("approval-used", c.approval_id); if (!a || a.used || used || a.plan_hash !== c.plan_hash || a.step_id !== c.step_id) return { reserved: false }; const id = approvalReservationId(c); const value = { ...c, reservation_id: id, reserved_at: new Date().toISOString(), secrets_included: false }; if (await claim("approval-reservations", id, value)) return { reserved: true }; const existing = await get("approval-reservations", id); const sameIdempotency = existing?.idempotency_key === c.idempotency_key; return sameIdempotency ? { reserved: false, existing: true, same_idempotency: true } : { reserved: false, existing: false, same_idempotency: false }; },
     async releaseApprovalReservation(c) { const id = approvalReservationId(c); const existing = await get("approval-reservations", id); if (existing?.idempotency_key !== c.idempotency_key) return { released: false }; await remove(file("approval-reservations", id)); return { released: true }; },
     async getExecutionTicket(id) { return get("tickets", id); },
     async putExecutionTicket(t) { try { await writeIntegrityJson(file("tickets", t.ticket_id), t, true); } catch (e) { if (e.code !== "EEXIST") throw e; const existing = await get("tickets", t.ticket_id); if (!existing || existing.ticket_hash !== t.ticket_hash) denied("RECOVERY_STAGING_EXECUTION_TICKET_COLLISION", "Execution ticket identity cannot be rebound to different content."); } },
@@ -269,8 +309,13 @@ function readback(root) {
 function immutableStore(root, name, method) { return Object.freeze({ async [method](value) { const id = digest(value); try { await writeJson(path.join(root, name, `${id}.json`), value, true); } catch (e) { if (e.code !== "EEXIST") throw e; } return { persisted: true, finalized: true, durable: true, evidence_hash: id }; } }); }
 
 function adapters(root, env = process.env) {
-  const target = targetIdentityProvider(root); const deployment = deploymentIdentityProvider(target, env); const ticket = ticketAuthorities(root); const approval = approvalAuthorities(root); const c = canary(root);
-  return { target, deployment, adapters: Object.freeze({ deploymentIdentityProvider: deployment, recoveryStore: recoveryStore(root, ticket.verifier), approvalIssuer: approval.issuer, approvalVerifier: approval.verifier, approvalStore: approval.store, recoveryLock: lock(root), mutationExecutor: c, hostLocalMutationExecutor: c.execute, readbackVerifier: readback(root), executionTicketSigner: ticket.signer, executionTicketVerifier: ticket.verifier, partialReceiptStore: immutableStore(root, "partial-receipts", "putImmutablePartialRebuildReceipt"), proofResolver: async () => ({ contract: "mad4b.staging-recovery-proof-resolver.v1", source: "durable_staging_authority", server_derived: true, secrets_included: false }), migrationLedger: immutableStore(root, "migration-ledger", "finalize") }) };
+  const target = targetIdentityProvider(root);
+  const deployment = deploymentIdentityProvider(target, env);
+  const ticket = ticketAuthorities(root);
+  const durableRecoveryStore = recoveryStore(root, ticket.verifier);
+  const approval = approvalAuthorities(root, durableRecoveryStore);
+  const c = canary(root);
+  return { target, deployment, adapters: Object.freeze({ deploymentIdentityProvider: deployment, recoveryStore: durableRecoveryStore, approvalIssuer: approval.issuer, approvalVerifier: approval.verifier, approvalStore: approval.store, recoveryLock: lock(root), mutationExecutor: c, hostLocalMutationExecutor: c.execute, readbackVerifier: readback(root), executionTicketSigner: ticket.signer, executionTicketVerifier: ticket.verifier, partialReceiptStore: immutableStore(root, "partial-receipts", "putImmutablePartialRebuildReceipt"), proofResolver: async () => ({ contract: "mad4b.staging-recovery-proof-resolver.v1", source: "durable_staging_authority", server_derived: true, secrets_included: false }), migrationLedger: immutableStore(root, "migration-ledger", "finalize") }) };
 }
 function provenance(sha) { if (!SHA40.test(sha || "")) denied("RECOVERY_STAGING_PROVENANCE_SHA_INVALID", "Typed provenance requires exact SHA."); const durable = new Set(["recoveryStore", "approvalStore", "recoveryLock", "partialReceiptStore", "migrationLedger"]); return { contract: "mad4b.recovery-adapter-provenance.v1", environment: "staging", deployment_sha: sha, components: Object.fromEntries(RECOVERY_COMPOSITION_COMPONENT_KEYS.map((name) => [name, { implementation_id: `mad4b.staging.recovery.${name}.v1`, artifact_sha256: MODULE_SHA256, authority_class: "server_managed", storage_class: durable.has(name) ? "durable" : "stateless" }])), secrets_included: false }; }
 

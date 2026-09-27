@@ -185,6 +185,27 @@ test("canonical recovery proof boundary rejects nested token and client-secret m
   }
 });
 
+test("phase receipt allowlists reject unexpected safe-looking fields", async () => {
+  const executor = createLocalConnectorTwoPhaseRebindExecutor({
+    resolveBoundDeviceContext: async () => ({ ...baseContext() }),
+    preparePendingCredential: async () => ({
+      pending_credential_ref: "credential:pending-unexpected-field",
+      old_credential_active: true,
+      old_credential_revoked: false,
+      debug_note: "this field is not part of the prepare receipt contract",
+      secrets_included: false,
+    }),
+    installPendingCredentialLocally: async () => ({}),
+    probePendingCredential: async () => ({}),
+    commitPendingCredential: async () => ({}),
+  });
+
+  await assert.rejects(
+    executor(STEP),
+    (error) => error.code === "LOCAL_CONNECTOR_REBIND_RECEIPT_FIELD_FORBIDDEN",
+  );
+});
+
 test("opaque credential references remain allowed by the canonical proof boundary", async () => {
   const executor = createLocalConnectorTwoPhaseRebindExecutor({
     resolveBoundDeviceContext: async () => ({ ...baseContext() }),
@@ -217,4 +238,88 @@ test("opaque credential references remain allowed by the canonical proof boundar
   const result = await executor(STEP);
   assert.equal(result.status, "pass");
   assert.equal(result.credential_material_returned_to_orchestrator, false);
+});
+
+
+test("commit transport failure becomes unknown outcome and requires reconciliation", async () => {
+  const executor = createLocalConnectorTwoPhaseRebindExecutor({
+    resolveBoundDeviceContext: async () => ({ ...baseContext() }),
+    preparePendingCredential: async () => ({
+      pending_credential_ref: "credential:pending-unknown-outcome",
+      old_credential_active: true,
+      old_credential_revoked: false,
+      secrets_included: false,
+    }),
+    installPendingCredentialLocally: async () => ({
+      local_atomic_install_verified: true,
+      old_credential_revoked: false,
+      secrets_included: false,
+    }),
+    probePendingCredential: async () => ({
+      authenticated: true,
+      http_status: 200,
+      old_credential_revoked: false,
+      request_id: "request:probe-unknown-outcome",
+      secrets_included: false,
+    }),
+    commitPendingCredential: async () => {
+      const error = new Error("commit transport timed out after request dispatch");
+      error.code = "LOCAL_CONNECTOR_REBIND_COMMIT_TRANSPORT_TIMEOUT";
+      throw error;
+    },
+  });
+
+  await assert.rejects(
+    executor(STEP),
+    (error) => {
+      assert.equal(error.code, "LOCAL_CONNECTOR_REBIND_COMMIT_TRANSPORT_TIMEOUT");
+      assert.equal(error.unknown_outcome, true);
+      assert.equal(error.reconciliation_required, true);
+      assert.equal(error.automatic_retry_allowed, false);
+      assert.equal(error.commit_attempted, true);
+      assert.equal(error.mutation_performed, null);
+      assert.equal(error.request_id, "request:probe-unknown-outcome");
+      return true;
+    },
+  );
+});
+
+test("explicit proof that commit did not mutate remains a normal retryable failure", async () => {
+  const executor = createLocalConnectorTwoPhaseRebindExecutor({
+    resolveBoundDeviceContext: async () => ({ ...baseContext() }),
+    preparePendingCredential: async () => ({
+      pending_credential_ref: "credential:pending-no-mutation",
+      old_credential_active: true,
+      old_credential_revoked: false,
+      secrets_included: false,
+    }),
+    installPendingCredentialLocally: async () => ({
+      local_atomic_install_verified: true,
+      old_credential_revoked: false,
+      secrets_included: false,
+    }),
+    probePendingCredential: async () => ({
+      authenticated: true,
+      http_status: 200,
+      old_credential_revoked: false,
+      request_id: "request:probe-no-mutation",
+      secrets_included: false,
+    }),
+    commitPendingCredential: async () => {
+      const error = new Error("provider rejected commit before mutation");
+      error.code = "LOCAL_CONNECTOR_REBIND_COMMIT_REJECTED";
+      error.mutation_performed = false;
+      throw error;
+    },
+  });
+
+  await assert.rejects(
+    executor(STEP),
+    (error) => {
+      assert.equal(error.code, "LOCAL_CONNECTOR_REBIND_COMMIT_REJECTED");
+      assert.notEqual(error.unknown_outcome, true);
+      assert.equal(error.mutation_performed, false);
+      return true;
+    },
+  );
 });

@@ -5,52 +5,152 @@ let recoveryControlPool = null;
 
 export const RECOVERY_CONTROL_STORE_READINESS_CONTRACT = "mad4b.recovery-control-store-readiness.v1";
 
-const DURABLE_INSPECTION_SCHEMA = Object.freeze({
-  recovery_control_records: Object.freeze([
-    "record_type",
-    "record_id",
-    "payload_json",
-    "payload_sha256",
-    "created_at",
-    "updated_at",
-  ]),
-  recovery_control_run_idempotency: Object.freeze([
-    "idempotency_key",
-    "run_id",
-    "created_at",
-  ]),
-  recovery_control_idempotency_receipts: Object.freeze([
-    "idempotency_key",
-    "payload_json",
-    "payload_sha256",
-    "created_at",
-    "updated_at",
-  ]),
-  recovery_control_evidence_events: Object.freeze([
-    "event_id",
-    "run_id",
-    "event_hash",
-    "payload_json",
-    "created_at",
-  ]),
-});
+export const RECOVERY_CONTROL_STORE_SCHEMA_STATEMENTS = Object.freeze([
+  `CREATE TABLE IF NOT EXISTS recovery_control_records (
+    record_type VARCHAR(32) NOT NULL,
+    record_id VARCHAR(191) NOT NULL,
+    plan_id VARCHAR(191) NULL,
+    step_id VARCHAR(191) NULL,
+    idempotency_key VARCHAR(191) NULL,
+    payload_json LONGTEXT NOT NULL,
+    payload_sha256 CHAR(64) NOT NULL,
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (record_type, record_id),
+    KEY idx_recovery_control_plan_step (record_type, plan_id, step_id, updated_at),
+    KEY idx_recovery_control_idempotency (record_type, idempotency_key)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS recovery_control_run_idempotency (
+    idempotency_key VARCHAR(191) NOT NULL,
+    run_id VARCHAR(191) NOT NULL,
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (idempotency_key),
+    KEY idx_recovery_control_run_id (run_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS recovery_control_idempotency_receipts (
+    idempotency_key VARCHAR(191) NOT NULL,
+    payload_json LONGTEXT NOT NULL,
+    payload_sha256 CHAR(64) NOT NULL,
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (idempotency_key)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS recovery_control_approval_index (
+    plan_id VARCHAR(191) NOT NULL,
+    step_id VARCHAR(191) NOT NULL,
+    approval_id VARCHAR(191) NOT NULL,
+    updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (plan_id, step_id),
+    KEY idx_recovery_control_approval_id (approval_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS recovery_control_execution_claims (
+    idempotency_key VARCHAR(191) NOT NULL,
+    claim_id VARCHAR(191) NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    payload_json LONGTEXT NOT NULL,
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (idempotency_key),
+    UNIQUE KEY uq_recovery_control_claim_id (claim_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS recovery_control_approval_reservations (
+    reservation_key CHAR(64) NOT NULL,
+    approval_id VARCHAR(191) NOT NULL,
+    plan_hash CHAR(64) NOT NULL,
+    step_id VARCHAR(191) NOT NULL,
+    idempotency_key VARCHAR(191) NOT NULL,
+    payload_json LONGTEXT NOT NULL,
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (reservation_key),
+    KEY idx_recovery_control_approval_reservation (approval_id, idempotency_key)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS recovery_control_approval_finalizations (
+    approval_id VARCHAR(191) NOT NULL,
+    finalized_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (approval_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS recovery_control_execution_tickets (
+    ticket_id VARCHAR(191) NOT NULL,
+    ticket_hash CHAR(64) NOT NULL,
+    state VARCHAR(32) NOT NULL DEFAULT 'issued',
+    reservation_idempotency_key VARCHAR(191) NULL,
+    payload_json LONGTEXT NOT NULL,
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    reserved_at DATETIME(6) NULL,
+    finalized_at DATETIME(6) NULL,
+    updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (ticket_id),
+    KEY idx_recovery_control_ticket_state (state),
+    KEY idx_recovery_control_ticket_hash (ticket_hash)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS recovery_control_evidence_events (
+    event_id CHAR(36) NOT NULL,
+    run_id VARCHAR(191) NOT NULL,
+    event_hash CHAR(64) NOT NULL,
+    payload_json LONGTEXT NOT NULL,
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (event_id),
+    UNIQUE KEY uq_recovery_control_event_hash (event_hash),
+    KEY idx_recovery_control_evidence_run (run_id, created_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS recovery_control_exception_events (
+    event_id CHAR(36) NOT NULL,
+    exception_id VARCHAR(191) NOT NULL,
+    event_hash CHAR(64) NOT NULL,
+    payload_json LONGTEXT NOT NULL,
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (event_id),
+    UNIQUE KEY uq_recovery_control_exception_event_hash (event_hash),
+    KEY idx_recovery_control_exception_event (exception_id, created_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS recovery_control_locks (
+    target_key VARCHAR(191) NOT NULL,
+    fence_counter BIGINT UNSIGNED NOT NULL DEFAULT 0,
+    lease_id VARCHAR(191) NULL,
+    fencing_token VARCHAR(255) NULL,
+    plan_hash CHAR(64) NULL,
+    expires_at DATETIME(6) NULL,
+    updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (target_key),
+    UNIQUE KEY uq_recovery_control_lease_id (lease_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+]);
 
-const DURABLE_INSPECTION_INDEXES = Object.freeze({
-  recovery_control_records: Object.freeze([
-    Object.freeze({ columns: "record_type,record_id", unique: true }),
-  ]),
-  recovery_control_run_idempotency: Object.freeze([
-    Object.freeze({ columns: "idempotency_key", unique: true }),
-    Object.freeze({ columns: "run_id", unique: false }),
-  ]),
-  recovery_control_idempotency_receipts: Object.freeze([
-    Object.freeze({ columns: "idempotency_key", unique: true }),
-  ]),
-  recovery_control_evidence_events: Object.freeze([
-    Object.freeze({ columns: "event_id", unique: true }),
-    Object.freeze({ columns: "run_id,created_at", unique: false }),
-  ]),
-});
+// The fixed DDL is the sole schema inventory. Unsupported repository DDL fails
+// at module load instead of silently shrinking readiness coverage.
+function buildSchemaInventory(statements) {
+  return Object.freeze(Object.fromEntries(statements.map((statement) => {
+    const match = /^CREATE TABLE IF NOT EXISTS (\w+) \(\n([\s\S]+)\n  \) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci$/u.exec(statement);
+    if (!match) throw new Error("Unsupported Recovery Control Store schema statement");
+    const columns = {};
+    const indexes = [];
+    for (const raw of match[2].split("\n")) {
+      const line = raw.trim().replace(/,$/u, "");
+      const index = /^(PRIMARY KEY|UNIQUE KEY \w+|KEY \w+) \(([^)]+)\)$/u.exec(line);
+      if (index) {
+        indexes.push(Object.freeze({
+          columns: index[2].replace(/\s+/gu, ""),
+          unique: !index[1].startsWith("KEY "),
+          primary: index[1] === "PRIMARY KEY",
+        }));
+        continue;
+      }
+      const column = /^(\w+) ((?:VARCHAR|CHAR|DATETIME)\(\d+\)|LONGTEXT|BIGINT UNSIGNED) (NOT NULL|NULL)(?: DEFAULT ('[^']*'|CURRENT_TIMESTAMP\(6\)|0))?( ON UPDATE CURRENT_TIMESTAMP\(6\))?$/u.exec(line);
+      if (!column) throw new Error("Unsupported Recovery Control Store column definition");
+      columns[column[1]] = Object.freeze({
+        type: column[2].toLowerCase(), nullable: column[3] === "NULL",
+        default: normalizeDefault(column[4]), on_update: Boolean(column[5]),
+      });
+    }
+    return [match[1], Object.freeze({ columns: Object.freeze(columns), indexes: Object.freeze(indexes) })];
+  })));
+}
+
+function normalizeDefault(value) {
+  if (value == null || String(value).toUpperCase() === "NULL") return null;
+  return String(value).replace(/^'(.*)'$/u, "$1").replace(/CURRENT_TIMESTAMP/giu, "current_timestamp");
+}
+
+export const RECOVERY_CONTROL_STORE_SCHEMA_INVENTORY = buildSchemaInventory(RECOVERY_CONTROL_STORE_SCHEMA_STATEMENTS);
 
 function text(value) {
   return String(value ?? "").trim();
@@ -214,63 +314,52 @@ export async function testRecoveryControlConnection() {
   }
 }
 
-function normalizedColumnInventory(rows = []) {
-  const inventory = new Map();
-  for (const row of rows || []) {
-    const table = text(row.TABLE_NAME || row.table_name);
-    const column = text(row.COLUMN_NAME || row.column_name);
-    if (!table || !column) continue;
-    if (!inventory.has(table)) inventory.set(table, new Set());
-    inventory.get(table).add(column);
-  }
-  return inventory;
-}
-
-function normalizedIndexInventory(rows = []) {
-  const inventory = new Map();
-  for (const row of rows || []) {
-    const table = text(row.TABLE_NAME || row.table_name);
-    const columns = text(row.columns || row.COLUMNS || row.column_list);
-    if (!table || !columns) continue;
-    if (!inventory.has(table)) inventory.set(table, []);
-    inventory.get(table).push({
-      columns,
-      unique: Number(row.NON_UNIQUE ?? row.non_unique ?? 1) === 0,
-    });
-  }
-  return inventory;
-}
-
-function evaluateDurableInspectionSchema(columnRows = [], indexRows = []) {
-  const columns = normalizedColumnInventory(columnRows);
-  const indexes = normalizedIndexInventory(indexRows);
+function evaluateControlStoreSchema(columnRows = [], indexRows = [], tableRows = []) {
   const missingTables = [];
   const missingColumns = [];
   const missingIndexes = [];
-
-  for (const [table, requiredColumns] of Object.entries(DURABLE_INSPECTION_SCHEMA)) {
-    if (!columns.has(table)) {
+  const malformedColumns = [];
+  const malformedTables = [];
+  const rowValue = (row, key) => row[key] ?? row[key.toLowerCase()];
+  for (const [table, required] of Object.entries(RECOVERY_CONTROL_STORE_SCHEMA_INVENTORY)) {
+    const metadata = tableRows.find((row) => rowValue(row, "TABLE_NAME") === table);
+    if (!metadata) {
       missingTables.push(table);
+      // A missing table is creatable. Its absent columns/indexes are not drift.
       continue;
     }
-    for (const column of requiredColumns) {
-      if (!columns.get(table).has(column)) missingColumns.push(`${table}.${column}`);
+    if (rowValue(metadata, "TABLE_TYPE") !== "BASE TABLE"
+      || String(rowValue(metadata, "ENGINE")).toLowerCase() !== "innodb"
+      || rowValue(metadata, "TABLE_COLLATION") !== "utf8mb4_unicode_ci") malformedTables.push(table);
+    const columns = columnRows.filter((row) => rowValue(row, "TABLE_NAME") === table);
+    for (const [name, expected] of Object.entries(required.columns)) {
+      const row = columns.find((entry) => rowValue(entry, "COLUMN_NAME") === name);
+      if (!row) { missingColumns.push(`${table}.${name}`); continue; }
+      const type = String(rowValue(row, "COLUMN_TYPE")).toLowerCase().replace(/bigint\(\d+\)/u, "bigint");
+      const extra = String(rowValue(row, "EXTRA") || "").toLowerCase();
+      if (type !== expected.type
+        || rowValue(row, "IS_NULLABLE") !== (expected.nullable ? "YES" : "NO")
+        || normalizeDefault(rowValue(row, "COLUMN_DEFAULT")) !== expected.default
+        || extra.includes("on update current_timestamp(6)") !== expected.on_update
+        || /(?:virtual|stored) generated/u.test(extra)
+        || (/^(?:varchar|char|longtext)/u.test(expected.type) && rowValue(row, "COLLATION_NAME") !== "utf8mb4_unicode_ci")) {
+        malformedColumns.push(`${table}.${name}`);
+      }
+    }
+    const indexes = indexRows.filter((row) => rowValue(row, "TABLE_NAME") === table);
+    for (const expected of required.indexes) {
+      if (!indexes.some((row) => rowValue(row, "columns") === expected.columns
+        && Number(rowValue(row, "NON_UNIQUE")) === (expected.unique ? 0 : 1)
+        && (!expected.primary || rowValue(row, "INDEX_NAME") === "PRIMARY")
+        && String(rowValue(row, "INDEX_TYPE")).toUpperCase() === "BTREE")) {
+        missingIndexes.push(`${table}(${expected.columns})${expected.unique ? ":unique" : ""}`);
+      }
     }
   }
-
-  for (const [table, requiredIndexes] of Object.entries(DURABLE_INSPECTION_INDEXES)) {
-    const observed = indexes.get(table) || [];
-    for (const required of requiredIndexes) {
-      const matched = observed.some((entry) => entry.columns === required.columns && (!required.unique || entry.unique));
-      if (!matched) missingIndexes.push(`${table}(${required.columns})${required.unique ? ":unique" : ""}`);
-    }
-  }
-
   return {
-    ready: missingTables.length === 0 && missingColumns.length === 0 && missingIndexes.length === 0,
-    missing_tables: missingTables,
-    missing_columns: missingColumns,
-    missing_indexes: missingIndexes,
+    ready: [missingTables, missingColumns, missingIndexes, malformedColumns, malformedTables].every((items) => items.length === 0),
+    missing_tables: missingTables, missing_columns: missingColumns, missing_indexes: missingIndexes,
+    malformed_columns: malformedColumns, malformed_tables: malformedTables,
   };
 }
 
@@ -281,14 +370,18 @@ export async function getRecoveryControlStoreReadiness({
   const base = {
     contract: RECOVERY_CONTROL_STORE_READINESS_CONTRACT,
     scope: "durable_inspection",
+    schema_scope: "mutation_grade",
+    mutation_grade_schema_ready: false,
     independent_of_target_databases: false,
     config_complete: false,
     connection_ready: false,
     schema_ready: false,
-    required_tables: Object.keys(DURABLE_INSPECTION_SCHEMA),
+    required_tables: Object.keys(RECOVERY_CONTROL_STORE_SCHEMA_INVENTORY),
     missing_tables: [],
     missing_columns: [],
     missing_indexes: [],
+    malformed_columns: [],
+    malformed_tables: [],
     read_only_probe: true,
     database_connection_performed: false,
     database_mutation_performed: false,
@@ -321,26 +414,34 @@ export async function getRecoveryControlStoreReadiness({
     conn = await pool.getConnection();
     await conn.ping();
     report.connection_ready = true;
-    const tableNames = Object.keys(DURABLE_INSPECTION_SCHEMA);
+    const tableNames = Object.keys(RECOVERY_CONTROL_STORE_SCHEMA_INVENTORY);
     const placeholders = tableNames.map(() => "?").join(",");
     const [columnRows] = await conn.query(
-      `SELECT TABLE_NAME, COLUMN_NAME
+      `SELECT TABLE_NAME, COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT, EXTRA, COLLATION_NAME
          FROM information_schema.COLUMNS
         WHERE TABLE_SCHEMA = ?
           AND TABLE_NAME IN (${placeholders})`,
       [config.database, ...tableNames],
     );
     const [indexRows] = await conn.query(
-      `SELECT TABLE_NAME, INDEX_NAME, NON_UNIQUE,
-              GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX SEPARATOR ',') AS columns
+      `SELECT TABLE_NAME, INDEX_NAME, NON_UNIQUE, INDEX_TYPE,
+              GROUP_CONCAT(CONCAT(COLUMN_NAME, IF(SUB_PART IS NULL, '', CONCAT(':prefix:', SUB_PART))) ORDER BY SEQ_IN_INDEX SEPARATOR ',') AS columns
          FROM information_schema.STATISTICS
         WHERE TABLE_SCHEMA = ?
           AND TABLE_NAME IN (${placeholders})
-        GROUP BY TABLE_NAME, INDEX_NAME, NON_UNIQUE`,
+        GROUP BY TABLE_NAME, INDEX_NAME, NON_UNIQUE, INDEX_TYPE`,
       [config.database, ...tableNames],
     );
-    const schema = evaluateDurableInspectionSchema(columnRows, indexRows);
+    const [tableRows] = await conn.query(
+      `SELECT TABLE_NAME, TABLE_TYPE, ENGINE, TABLE_COLLATION FROM information_schema.TABLES
+        WHERE TABLE_SCHEMA = ? AND TABLE_NAME IN (${placeholders})`,
+      [config.database, ...tableNames],
+    );
+    const schema = evaluateControlStoreSchema(columnRows, indexRows, tableRows);
     report.schema_ready = schema.ready;
+    report.mutation_grade_schema_ready = schema.ready;
+    report.malformed_columns = schema.malformed_columns;
+    report.malformed_tables = schema.malformed_tables;
     report.missing_tables = schema.missing_tables;
     report.missing_columns = schema.missing_columns;
     report.missing_indexes = schema.missing_indexes;
@@ -369,13 +470,11 @@ export async function closeRecoveryControlPool() {
 
 export const _testingRecoveryControlDb = Object.freeze({
   TARGET_DATABASE_BINDINGS,
-  DURABLE_INSPECTION_SCHEMA,
-  DURABLE_INSPECTION_INDEXES,
+  RECOVERY_CONTROL_STORE_SCHEMA_INVENTORY,
+  buildSchemaInventory,
   resolveTargetDatabaseBindings,
   configuredTargetCollisions,
   firstConfiguredTargetValue,
   boundedInteger,
-  normalizedColumnInventory,
-  normalizedIndexInventory,
-  evaluateDurableInspectionSchema,
+  evaluateControlStoreSchema,
 });

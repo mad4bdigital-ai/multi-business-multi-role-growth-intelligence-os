@@ -66,6 +66,7 @@ test("Phase A binds a complete durable Staging Recovery graph and remains certif
       "mutationExecutor", "partialReceiptStore", "proofResolver", "readbackVerifier", "recoveryLock", "recoveryStore",
     ].sort());
     assert.equal(envelope.adapters.recoveryStore.executionTicketVerifier, envelope.adapters.executionTicketVerifier);
+    assert.equal(typeof envelope.adapters.approvalStore.resolveApprovedExecutionApproval, "function");
     assert.deepEqual(envelope.adapters.recoveryStore.durability_profile, recoveryFilesystemDurabilityProfile());
     const recoveryStoreReadiness = await envelope.adapters.recoveryStore.getReadiness();
     assert.deepEqual(recoveryStoreReadiness.durability_profile, recoveryFilesystemDurabilityProfile());
@@ -224,8 +225,23 @@ test("Phase A approval reservation is single-owner across idempotency races", as
     const contexts = ["idem:a", "idem:b", "idem:c", "idem:d"].map((idempotency_key) => ({ approval_id: record.approval_id, plan_hash: record.plan_hash, step_id: record.step_id, idempotency_key }));
     const results = await Promise.all(contexts.map((context) => store.reserveApproval(context)));
     assert.equal(results.filter((result) => result.reserved === true).length, 1);
-    const winner = contexts[results.findIndex((result) => result.reserved === true)];
+    const winnerIndex = results.findIndex((result) => result.reserved === true);
+    const winner = contexts[winnerIndex];
     assert.ok(winner);
+    for (const [index, result] of results.entries()) {
+      if (index === winnerIndex) continue;
+      assert.equal(result.reserved, false);
+      assert.equal(result.existing, false);
+      assert.equal(result.same_idempotency, false);
+    }
+    const sameOwnerReplay = await store.reserveApproval(winner);
+    assert.equal(sameOwnerReplay.reserved, false);
+    assert.equal(sameOwnerReplay.existing, true);
+    assert.equal(sameOwnerReplay.same_idempotency, true);
+    const foreignReplay = await store.reserveApproval({ ...winner, idempotency_key: "idem:foreign-replay" });
+    assert.equal(foreignReplay.reserved, false);
+    assert.equal(foreignReplay.existing, false);
+    assert.equal(foreignReplay.same_idempotency, false);
     assert.equal((await store.markApprovalUsed(record.approval_id)).finalized, true);
     assert.equal((await store.reserveApproval({ ...winner, idempotency_key: "idem:after-used" })).reserved, false);
   } finally {
@@ -284,6 +300,55 @@ test("Phase A concurrent key initialization always signs and verifies with one E
     const signatures = await Promise.all(Array.from({ length: 24 }, () => graph.executionTicketSigner.sign({ payload, ticket_hash })));
     const verified = await Promise.all(signatures.map((signature, index) => graph.executionTicketVerifier.verify({ ticket_hash, ticket: { ...payload, ticket_id: `ticket:key:${index}`, ticket_hash, signature } })));
     assert.equal(verified.every(Boolean), true);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+
+test("Staging approval store resolves only an exact current durable approval for a verified admin principal", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "staging-recovery-approval-resolver-"));
+  try {
+    const env = stagingEnv(root);
+    const roots = _testingStagingRecoveryAuthorityBinding.roots(env);
+    const graph = _testingStagingRecoveryAuthorityBinding.adapters(roots.readiness, env).adapters;
+    const approval = {
+      contract: "mad4b.recovery-approval-challenge.v1",
+      approval_id: `approval:${"1".repeat(32)}`,
+      plan_id: `plan:${"2".repeat(32)}`,
+      plan_hash: "3".repeat(64),
+      step_id: `step:${"4".repeat(32)}`,
+      step_hash: "5".repeat(64),
+      expected_sha: SHA,
+      target_key: "staging-recovery-certification",
+      target_fingerprint: "6".repeat(64),
+      step_target_fingerprint: "6".repeat(64),
+      target_role: "runtime",
+      expires_at: new Date(Date.now() + 60_000).toISOString(),
+      used: false,
+      secrets_included: false,
+    };
+    await graph.recoveryStore.putApproval(approval);
+    const context = {
+      approval_id: approval.approval_id,
+      plan_id: approval.plan_id,
+      plan_hash: approval.plan_hash,
+      step_id: approval.step_id,
+      step_hash: approval.step_hash,
+      expected_sha: approval.expected_sha,
+      target_key: approval.target_key,
+      target_fingerprint: approval.target_fingerprint,
+      target_role: approval.target_role,
+      admin_principal_verified: true,
+    };
+    const resolved = await graph.approvalStore.resolveApprovedExecutionApproval(context);
+    assert.equal(resolved.server_resolved, true);
+    assert.equal(resolved.single_use, true);
+    assert.equal(resolved.secrets_included, false);
+    assert.match(resolved.approval_token, /^[^.]+\.[^.]+$/u);
+    assert.equal(await graph.approvalVerifier.verify({ token: resolved.approval_token, approval, context }), true);
+    assert.equal(await graph.approvalStore.resolveApprovedExecutionApproval({ ...context, admin_principal_verified: false }), null);
+    assert.equal(await graph.approvalStore.resolveApprovedExecutionApproval({ ...context, expected_sha: "f".repeat(40) }), null);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

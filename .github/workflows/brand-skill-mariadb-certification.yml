@@ -26,6 +26,7 @@ on:
       - "http-generic-api/scripts/brand-skill-migration-preflight.mjs"
       - "http-generic-api/scripts/brand-skill-mariadb-disposable-certification.mjs"
       - "http-generic-api/productionRecoveryControlStore.js"
+      - "http-generic-api/recoveryControlDb.js"
       - "http-generic-api/scripts/production-recovery-control-store-resilient-certification.mjs"
       - "http-generic-api/scripts/e2e-production-recovery-control-store-resilient.mjs"
       - ".changes/e2e/production-recovery-control-store-7999.json"

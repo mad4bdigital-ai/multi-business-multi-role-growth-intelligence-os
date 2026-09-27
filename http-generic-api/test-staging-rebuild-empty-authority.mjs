@@ -208,6 +208,32 @@ test("approval retry returns the same persisted role-specific single-use tickets
   await assert.rejects(() => h.authority.approveAndIssue({ ...input, idempotency_key: "different-idempotency-key" }), (error) => error?.code === "RECOVERY_APPROVAL_INVALID");
 });
 
+test("role-ticket issuance rejects an approval reservation owned by another idempotency key", async () => {
+  const h = harness();
+  const recorded = await h.authority.recordInspection(inspectionEnvelope({ correlation: "staging-authority-test-foreign-reservation" }));
+  const prepared = await h.authority.prepare({ expected_sha: SHA, inspection_run_id: recorded.inspection_run_id, idempotency_key: "staging-authority-idempotency-owner" });
+  const rolePlan = prepared.role_plans[0];
+  const plan = await h.store.getPlan(rolePlan.plan_id);
+  const step = plan.steps[0];
+  const approval = await h.store.getApprovalByPlanStep(plan.plan_id, step.step_id);
+  const foreign = await h.store.reserveApproval({
+    approval_id: approval.approval_id,
+    plan_hash: plan.plan_hash,
+    step_id: step.step_id,
+    idempotency_key: "foreign-idempotency-owner",
+  });
+  assert.equal(foreign.reserved, true);
+  await assert.rejects(
+    () => h.authority.approveAndIssue({
+      expected_sha: SHA,
+      inspection_run_id: recorded.inspection_run_id,
+      idempotency_key: "staging-authority-idempotency-owner",
+      approval_confirmation: prepared.approval_confirmation,
+    }),
+    (error) => error?.code === "RECOVERY_APPROVAL_INVALID" && error?.status === 409,
+  );
+});
+
 test("durable role-selection proof is invalidated if Recovery control-plane identity changes", async () => {
   const h = harness();
   const recorded = await h.authority.recordInspection(inspectionEnvelope({ correlation: "staging-authority-test-control-plane" }));

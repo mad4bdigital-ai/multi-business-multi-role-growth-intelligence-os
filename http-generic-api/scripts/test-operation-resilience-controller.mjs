@@ -169,6 +169,10 @@ resetOperationResilienceState();
   assert.equal(secondRes.statusCode, 429);
   assert.equal(secondRes.payload.error.code, "OPERATION_RATE_LIMITED");
   assert.equal(secondRes.headers["retry-after"], "1");
+  assert.equal(secondRes.headers["x-rate-limit-source"], "application");
+  assert.equal(secondRes.payload.rate_limit_source, "application");
+  assert.equal(secondRes.payload.request_id, "req-rate-limit");
+  assert.equal(secondRes.payload.error.details.rate_limit_source, "application");
   assert.equal(secondRes.payload.secrets_included, false);
 }
 

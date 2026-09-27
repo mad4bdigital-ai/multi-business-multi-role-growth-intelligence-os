@@ -46,7 +46,7 @@ test("Staging Recovery tools are absent from Production catalog and present only
 
   const staging = synchronizeRecoverySystemToolDescriptors(STAGING_ENV);
   assert.equal(staging.staging_advertised, true);
-  assert.equal(staging.staging_tool_count, 12);
+  assert.equal(staging.staging_tool_count, 14);
   assert.deepEqual(
     SYSTEM_LAYER_TOOLS
       .filter((entry) => entry.source_key === "staging_recovery_system_surface_v1")
@@ -54,6 +54,8 @@ test("Staging Recovery tools are absent from Production catalog and present only
       .sort(),
     [
       "staging_recovery_certification_canary_plan_create",
+      "staging_recovery_certification_canary_approve",
+      "staging_recovery_certification_canary_execute",
       "prepareStagingActivationGatewayDarkDeployDryRun",
       "staging_recovery_access_repair_prepare",
       "staging_recovery_access_repair_execute",

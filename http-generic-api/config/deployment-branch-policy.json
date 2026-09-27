@@ -213,7 +213,6 @@
           ".specify/schemas/**",
           ".specify/spec-kit-work-map-integration-policy.json",
           ".specify/work-map-schema-classification-registry.json",
-          "Updating Registry Patch Index.md",
           "deployment_parity_checklist.md",
           "docs/ai-docs-agent-governance.md",
           "docs/auto-docs-agent/**",
@@ -297,12 +296,13 @@
           "http-generic-api/scripts/test-github-review-policy-target.mjs",
           "http-generic-api/scripts/test-hostinger-storage-cleanup-script.mjs",
           "http-generic-api/scripts/test-manifest.mjs",
+          "http-generic-api/scripts/test-operation-resilience-controller.mjs",
           "http-generic-api/scripts/test-platform-configuration-entry-guard.mjs",
           "http-generic-api/scripts/test-platform-work-map-schema-intelligence.mjs",
           "http-generic-api/scripts/test-protected-branch-validation-triggers.mjs",
           "http-generic-api/scripts/test-protected-branch-validation-triggers.mjs",
-          "http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs",
           "http-generic-api/scripts/test-remote-mcp-write-scope-generated-refresh-recipe.mjs",
+          "http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs",
           "http-generic-api/scripts/validate-staging-recovery-admin-openapi.mjs",
           "http-generic-api/scripts/work-map-schema-classification-*.mjs",
           "http-generic-api/test-*.js",
@@ -322,7 +322,8 @@
           "specs/015-tenant-operating-system-studio/tools/validate-spec.mjs",
           "specs/021-portable-staging-autopilot/e2e-phases.json",
           "specs/integration-governed-execution-runtime-composition/wordpress-site-control-plane-provider-profile.json",
-          "specs/integration-governed-execution-runtime-composition/x0-external-certification-reference.json"
+          "specs/integration-governed-execution-runtime-composition/x0-external-certification-reference.json",
+          "Updating Registry Patch Index.md"
         ],
         "environments": [
           "repository"

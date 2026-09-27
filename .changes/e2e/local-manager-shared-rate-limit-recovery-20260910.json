@@ -54,7 +54,7 @@
           ],
           "assertions": [
             "An idle linked desktop generates at most two scheduled command polls per minute before backoff.",
-            "Server Retry-After is bounded to 1 through 300 seconds and is never shortened by local backoff.",
+            "Server Retry-After values above 300 seconds are preserved up to the one-day durable safety ceiling and are never shortened by local exponential backoff with jitter.",
             "Pairing, update, and repair diagnostics contain no token, command payload, or secret.",
             "A 429 never authorizes connector repair or bypasses current-version verification.",
             "The project and release-owner route agree on version 0.2.29.",

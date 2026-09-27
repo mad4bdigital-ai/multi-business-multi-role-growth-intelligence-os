@@ -375,7 +375,8 @@ export function createOperationResilienceController({
 
     if (!rate.allowed) {
       res.setHeader?.("Retry-After", String(rate.retry_after_seconds));
-      return res.status(429).json(errorEnvelope(
+      res.setHeader?.("x-rate-limit-source", "application");
+      const envelope = errorEnvelope(
         req,
         "OPERATION_RATE_LIMITED",
         "The operation rate limit was exceeded.",
@@ -385,8 +386,14 @@ export function createOperationResilienceController({
           window_ms: policy.rate_window_ms,
           retry_after_seconds: rate.retry_after_seconds,
           retryable: true,
+          rate_limit_source: "application",
         },
-      ));
+      );
+      return res.status(429).json({
+        ...envelope,
+        request_id: envelope.error.requestId,
+        rate_limit_source: "application",
+      });
     }
 
     const circuit = await checkCircuit({
