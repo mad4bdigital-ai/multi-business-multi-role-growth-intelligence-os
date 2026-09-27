@@ -75,6 +75,93 @@ test("independent verifier binds negative tests and emits the complete Productio
   await assert.rejects(() => independentlyVerifyStagingRecoveryCanaryEvidence(envelope, { expectedSha: SHA, expectedTargetFingerprint: TARGET, workflowSourceSha: SHA, negativeTestEvidence: negativeEvidence(), loadKernelArtifacts: async () => ({ ...source, ticket: { ...source.ticket, ticket_hash: "f".repeat(64) } }) }), (e) => e.code === "RECOVERY_CANARY_KERNEL_BINDING_MISMATCH");
 });
 
+test("independent countersign revalidates fresh Worker and Gateway identity", async () => {
+  const source = await input();
+
+  const envelope = produceGenuineStagingRecoveryCanaryEvidence(source);
+
+  const liveWorkerProviderObservation = {
+    contract: "mad4b.staging.worker-provider-observation.v1",
+    environment: "staging",
+    provider: "cloudflare_workers",
+    observed_in: source.workerDeploymentEvidence.observed_in,
+    deployment_verified: source.workerDeploymentEvidence.deployment_verified,
+    deployment_sha: source.workerDeploymentEvidence.deployment_sha,
+    gateway_host: source.workerDeploymentEvidence.gateway_host,
+    policy_hash: source.workerDeploymentEvidence.policy_hash,
+    worker_build_sha: source.workerDeploymentEvidence.worker_build_sha,
+    policy_source_sha: source.workerDeploymentEvidence.policy_source_sha,
+    worker_bundle_sha256: source.workerDeploymentEvidence.worker_bundle_sha256,
+    release_bundle_sha256: source.workerDeploymentEvidence.release_bundle_sha256,
+    deployed_bundle_sha256: source.workerDeploymentEvidence.deployed_bundle_sha256,
+    observed_at: new Date().toISOString(),
+    secrets_included: false,
+  };
+
+  const liveIngressBuildIdentity = {
+    ...source.ingressBuildIdentity,
+    expires_at: Math.floor(Date.now() / 1000) + 30,
+  };
+
+  const report = await independentlyVerifyStagingRecoveryCanaryEvidence(
+    envelope,
+    {
+      expectedSha: SHA,
+      expectedTargetFingerprint: TARGET,
+      workflowSourceSha: SHA,
+      negativeTestEvidence: negativeEvidence(),
+      liveWorkerProviderObservation,
+      liveIngressBuildIdentity,
+      requireLiveRuntimeRevalidation: true,
+      loadKernelArtifacts: async () => source,
+    },
+  );
+
+  assert.equal(report.verified, true);
+
+  await assert.rejects(
+    () => independentlyVerifyStagingRecoveryCanaryEvidence(
+      envelope,
+      {
+        expectedSha: SHA,
+        expectedTargetFingerprint: TARGET,
+        workflowSourceSha: SHA,
+        negativeTestEvidence: negativeEvidence(),
+        liveWorkerProviderObservation: {
+          ...liveWorkerProviderObservation,
+          deployed_bundle_sha256: "f".repeat(64),
+        },
+        liveIngressBuildIdentity,
+        requireLiveRuntimeRevalidation: true,
+        loadKernelArtifacts: async () => source,
+      },
+    ),
+    (error) =>
+      error.code === "RECOVERY_CANARY_LIVE_WORKER_PROVENANCE_MISMATCH",
+  );
+
+  await assert.rejects(
+    () => independentlyVerifyStagingRecoveryCanaryEvidence(
+      envelope,
+      {
+        expectedSha: SHA,
+        expectedTargetFingerprint: TARGET,
+        workflowSourceSha: SHA,
+        negativeTestEvidence: negativeEvidence(),
+        liveWorkerProviderObservation,
+        liveIngressBuildIdentity: {
+          ...liveIngressBuildIdentity,
+          worker_bundle_sha256: "f".repeat(64),
+        },
+        requireLiveRuntimeRevalidation: true,
+        loadKernelArtifacts: async () => source,
+      },
+    ),
+    (error) =>
+      error.code === "RECOVERY_CANARY_LIVE_INGRESS_BUILD_MISMATCH",
+  );
+});
+
 test("independent verifier rejects absent, failing, or cross-SHA negative evidence", async () => {
   const source = await input(); const envelope = produceGenuineStagingRecoveryCanaryEvidence(source);
   await assert.rejects(() => independentlyVerifyStagingRecoveryCanaryEvidence(envelope, { expectedSha: SHA, expectedTargetFingerprint: TARGET, workflowSourceSha: SHA, loadKernelArtifacts: async () => source }), (e) => e.code === "RECOVERY_CANARY_NEGATIVE_TEST_EVIDENCE_REQUIRED");
