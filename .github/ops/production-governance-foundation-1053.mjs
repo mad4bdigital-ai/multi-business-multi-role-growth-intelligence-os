@@ -19,6 +19,7 @@ export const MIGRATION = "1053_production_governance_capability_envelope_foundat
 export const MIGRATION_SHA256 = "c74beba4919458db0dc6dedca6e04b9868bbb6b99cc673505ba70272f3541724";
 export const STATEMENT_COUNT = 1;
 export const TABLE = "capability_resolution_envelope_ledger";
+export const REQUIRED_COLLATION = "utf8mb4_uca1400_ai_ci";
 export const CONFIRMATION = "APPLY_PRODUCTION_GOVERNANCE_FOUNDATION_1053";
 const SHA40 = /^[0-9a-f]{40}$/u;
 const SHA256 = /^[0-9a-f]{64}$/u;
@@ -172,7 +173,7 @@ async function schemaShape(connection) {
   );
   if (tables.length === 0) return { table_present: false, exact: false, missing_columns: [...EXPECTED_COLUMNS], missing_indexes: [...EXPECTED_INDEXES], blocker: null };
   const [columns] = await connection.query(
-    "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? ORDER BY ORDINAL_POSITION",
+    "SELECT COLUMN_NAME,COLUMN_TYPE,IS_NULLABLE,COLUMN_DEFAULT,EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? ORDER BY ORDINAL_POSITION",
     [TABLE],
   );
   const [indexes] = await connection.query(
@@ -183,19 +184,45 @@ async function schemaShape(connection) {
   const indexSet = new Set(indexes.map((row) => String(row.INDEX_NAME)));
   const missingColumns = EXPECTED_COLUMNS.filter((name) => !columnSet.has(name));
   const missingIndexes = EXPECTED_INDEXES.filter((name) => !indexSet.has(name));
+  const byColumn = new Map(columns.map((row) => [String(row.COLUMN_NAME), row]));
+  const criticalColumnChecks = [
+    ["id", /^bigint\(20\) unsigned$/iu, "NO", /auto_increment/iu],
+    ["envelope_id", /^varchar\(36\)$/iu, "NO", null],
+    ["envelope_sha256", /^char\(64\)$/iu, "NO", null],
+    ["envelope_json", /^(?:json|longtext)$/iu, "NO", null],
+    ["secrets_included", /^tinyint\(1\)$/iu, "NO", null],
+  ].map(([name, typePattern, nullable, extraPattern]) => {
+    const row = byColumn.get(name);
+    return {
+      column: name,
+      ready: Boolean(
+        row
+        && typePattern.test(String(row.COLUMN_TYPE || ""))
+        && String(row.IS_NULLABLE || "").toUpperCase() === nullable
+        && (!extraPattern || extraPattern.test(String(row.EXTRA || "")))
+      ),
+    };
+  });
+  const criticalColumnsReady = criticalColumnChecks.every((entry) => entry.ready);
   const table = tables[0] || {};
+  const observedCollation = String(table.TABLE_COLLATION || "").toLowerCase();
   const tablePropertiesReady = String(table.TABLE_TYPE) === "BASE TABLE"
     && String(table.ENGINE || "").toUpperCase() === "INNODB"
-    && String(table.TABLE_COLLATION || "").toLowerCase().startsWith("utf8mb4");
+    && observedCollation === REQUIRED_COLLATION;
+  const shapeReady = tablePropertiesReady && missingColumns.length === 0 && missingIndexes.length === 0 && criticalColumnsReady;
   return {
     table_present: true,
-    exact: tablePropertiesReady && missingColumns.length === 0 && missingIndexes.length === 0,
+    exact: shapeReady,
     missing_columns: missingColumns,
     missing_indexes: missingIndexes,
+    critical_column_checks: criticalColumnChecks,
+    critical_columns_ready: criticalColumnsReady,
     table_properties_ready: tablePropertiesReady,
+    observed_collation: observedCollation || null,
+    required_collation: REQUIRED_COLLATION,
     observed_column_count: columns.length,
     observed_index_count: indexes.length,
-    blocker: tablePropertiesReady && missingColumns.length === 0 && missingIndexes.length === 0 ? null : "FOUNDATION_PARTIAL_SCHEMA_REQUIRES_SEPARATE_RECONCILIATION",
+    blocker: shapeReady ? null : "FOUNDATION_PARTIAL_SCHEMA_REQUIRES_SEPARATE_RECONCILIATION",
   };
 }
 
@@ -276,6 +303,9 @@ function planBase({ expectedSha, target, identity, state }) {
       missing_column_count: state.schema.missing_columns.length,
       missing_index_count: state.schema.missing_indexes.length,
       table_properties_ready: state.schema.table_properties_ready === true,
+      critical_columns_ready: state.schema.critical_columns_ready === true,
+      required_collation: REQUIRED_COLLATION,
+      observed_collation: state.schema.observed_collation || null,
     },
     exact_apply_ledger_verified: state.exact_apply_ledger_verified === true,
     required_confirmation: executionAllowed ? CONFIRMATION : null,
