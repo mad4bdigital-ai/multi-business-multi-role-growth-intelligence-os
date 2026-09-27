@@ -1,4 +1,3 @@
-import { getPool } from "./db.js";
 import { getGovernancePool } from "./governanceDb.js";
 import {
   markCapabilityEnvelopeReferenced,
@@ -10,23 +9,30 @@ export const governedMigrationAuthorizationConfirmation = runtime.governedMigrat
 export const inspectGovernedMigrationAuthorizationCandidate = runtime.inspectGovernedMigrationAuthorizationCandidate;
 
 /**
- * The migration bootstrap has two deliberately separate authorities:
- * - readPool: capability-envelope/authority resolution only;
+ * The migration bootstrap has two deliberately separate concerns on the
+ * dedicated Governance store:
+ * - envelopeReadPool: read-only resolution of the just-created capability envelope;
  * - writerPool: governed migration authorization, apply-policy, dispatch
  *   certification and envelope lifecycle mutations/readback.
  *
- * A legacy deps.pool is intentionally not accepted as writer authority. Tests
- * and internal same-cycle callers must inject deps.writerPool explicitly.
+ * Runtime authority data may still be consulted while building the envelope,
+ * before it is persisted. Once persisted, migration authorization must resolve
+ * that exact envelope from the canonical Governance store; falling back to the
+ * ordinary Runtime DB would create a split-store envelope_not_found failure.
+ *
+ * A legacy deps.pool is intentionally not accepted as writer or envelope-read
+ * authority. Tests/internal callers may inject deps.envelopeReadPool or
+ * deps.writerPool explicitly.
  */
 export async function bootstrapGovernedMigrationAuthorization(input = {}, deps = {}) {
-  const readPool = deps.readPool || getPool();
+  const envelopeReadPool = deps.envelopeReadPool || deps.readPool || getGovernancePool();
   const writerPool = deps.writerPool || getGovernancePool();
   const resolveEnvelope = deps.resolveEnvelope || resolveCapabilityExecutionEnvelope;
   const markReferenced = deps.markReferenced || markCapabilityEnvelopeReferenced;
 
-  const resolveWithRuntimeAuthority = async (options = {}) => resolveEnvelope({
+  const resolveWithGovernanceEnvelope = async (options = {}) => resolveEnvelope({
     ...options,
-    pool: readPool,
+    pool: envelopeReadPool,
   });
   const markWithGovernanceWriter = async (options = {}) => markReferenced({
     ...options,
@@ -37,7 +43,7 @@ export async function bootstrapGovernedMigrationAuthorization(input = {}, deps =
   return runtime.bootstrapGovernedMigrationAuthorization(input, {
     ...deps,
     pool: writerPool,
-    resolveEnvelope: resolveWithRuntimeAuthority,
+    resolveEnvelope: resolveWithGovernanceEnvelope,
     markReferenced: markWithGovernanceWriter,
   });
 }
