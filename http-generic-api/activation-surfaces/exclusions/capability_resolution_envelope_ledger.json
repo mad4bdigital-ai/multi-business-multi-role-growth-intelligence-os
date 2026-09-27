@@ -1,0 +1,7 @@
+{
+  "surface_key": "capability_resolution_envelope_ledger",
+  "source_table": "capability_resolution_envelope_ledger",
+  "reason": "Excluded because this table is internal Governance control-plane persistence for bounded capability-resolution envelopes and audit/readback state. It is not a tenant-facing activation resource, grant, connector, installation, workspace, or user-manageable authorization surface; operational access remains only through governed internal tooling.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}
