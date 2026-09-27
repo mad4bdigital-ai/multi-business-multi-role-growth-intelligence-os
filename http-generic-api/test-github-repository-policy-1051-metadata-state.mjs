@@ -87,24 +87,40 @@ assert.equal(bounded429RetryDelayMs({ retryAfter: "Thu, 10 Sep 2026 00:01:00 GMT
 assert.equal(bounded429RetryDelayMs({ retryAfter: "not-a-date", retryIndex: 1, nowMs: sampleNow }), 15000);
 
 assert.equal(classifyDependencyBlockReason({
+  runtimeDependencyReady: false,
   foundationDependencyReady: false,
   governanceWriterReady: false,
-  migrationReadbackRateLimited: true,
+  migration225ReadbackRateLimited: true,
+}), "migration_225_readback_rate_limited");
+assert.equal(classifyDependencyBlockReason({
+  runtimeDependencyReady: false,
+  foundationDependencyReady: false,
+  governanceWriterReady: false,
+}), "migration_225_runtime_dependency_not_ready");
+assert.equal(classifyDependencyBlockReason({
+  runtimeDependencyReady: true,
+  foundationDependencyReady: false,
+  governanceWriterReady: false,
+  foundationReadbackRateLimited: true,
 }), "migration_1053_readback_rate_limited");
 assert.equal(classifyDependencyBlockReason({
+  runtimeDependencyReady: true,
+  foundationDependencyReady: false,
+  governanceWriterReady: true,
+}), "migration_1053_governance_foundation_not_ready");
+assert.equal(classifyDependencyBlockReason({
+  runtimeDependencyReady: true,
   foundationDependencyReady: true,
   governanceWriterReady: false,
   governanceReadbackRateLimited: true,
 }), "governance_writer_readback_rate_limited");
 assert.equal(classifyDependencyBlockReason({
-  foundationDependencyReady: false,
-  governanceWriterReady: true,
-}), "migration_1053_governance_foundation_not_ready");
-assert.equal(classifyDependencyBlockReason({
+  runtimeDependencyReady: true,
   foundationDependencyReady: true,
   governanceWriterReady: false,
 }), "governance_writer_readiness_not_ready");
 assert.equal(classifyDependencyBlockReason({
+  runtimeDependencyReady: true,
   foundationDependencyReady: true,
   governanceWriterReady: true,
 }), null);
@@ -118,7 +134,14 @@ assert.match(metadataStateSource, /rate_limit_exhausted: response\.status === 42
 assert.match(metadataStateSource, /\{ retry429: true \}/g);
 assert.match(metadataStateSource, /migration_1051_dependency_readback_rate_limited/);
 assert.match(metadataStateSource, /read-only dependency readback remained rate limited after bounded retries/);
+assert.match(metadataStateSource, /database_role:\s*'runtime'/);
 assert.match(metadataStateSource, /database_role:\s*'governance'/);
+assert.match(metadataStateSource, /github_repository_policy_1051_envelope_dependency_225\.v4/);
+assert.match(metadataStateSource, /github_repository_policy_1051_envelope_foundation_1053\.v1/);
+assert.match(metadataStateSource, /dependency-225-readback\.json/);
+assert.match(metadataStateSource, /foundation-1053-readback\.json/);
+assert.match(metadataStateSource, /migration_1051_dependency_225_not_ready/);
+assert.match(metadataStateSource, /migration_1051_foundation_1053_not_ready/);
 assert.doesNotMatch(metadataStateSource, /rate_limit.*grants_apply_authority:\s*true/i);
 
 assert.match(METADATA_STATE_SQL, /AS adapter_count/);
