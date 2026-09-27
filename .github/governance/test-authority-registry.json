@@ -108,7 +108,8 @@
         "http-generic-api/governanceDbPrivilegeContract.js",
         "http-generic-api/governanceDbPrivilegeReadinessRuntime.js",
         "http-generic-api/governanceDbPrivilegeReadinessService.js",
-        "http-generic-api/test-governance-db-privilege-readiness.mjs"
+        "http-generic-api/test-governance-db-privilege-readiness.mjs",
+        "http-generic-api/test-governance-db-writer-authority.mjs"
       ]
     },
     {
