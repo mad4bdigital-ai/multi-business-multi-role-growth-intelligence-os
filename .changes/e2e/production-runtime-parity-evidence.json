@@ -60,6 +60,7 @@
             "Inspect the checked-in workflow and prove live probing is workflow_dispatch-only and dispatches fail when GITHUB_REF is not refs/heads/main.",
             "Prove trusted exact main-event checkout, full Production-ref availability, and expected_sha equality with refs/remotes/origin/Production.",
             "Generate live evidence with exactly two required auth.mad4b.com endpoints: auth=/version and auth-deployment=/deployment-info; reject workflow-level connector or dev endpoint input.",
+            "Reject reporter configuration itself unless both auth=/version and auth-deployment=/deployment-info are present and required, so direct CLI/library invocation cannot bypass runtime-environment identity.",
             "Exercise exact /version parity plus /deployment-info runtime identity parity, required deployed-SHA drift, ambiguous runtime classification, and untrusted identity fields while proving raw or malformed identity values are not persisted.",
             "Reject loopback, private, link-local, documentation, multicast, invalid, and over-cardinality DNS results before TLS or HTTP execution.",
             "Inspect bounded DNS and full-response HTTP timeout enforcement, exercise TLS failure, and verify secret redaction.",
@@ -81,6 +82,7 @@
             "The raw response body, unknown JSON fields, malformed identity values, and error details are never written to the artifact.",
             "The required auth /version endpoint passes only when service equals http_generic_api_connector, deployed_commit_sha equals the exact requested SHA, and deployment branch equals Production.",
             "Workflow enforcement requires exactly two required endpoints, both passed, with /deployment-info proving environment_key=production, runtime_variant=production_hostinger_autodeploy, runtime_class=hostinger_autodeploy, runtime_class_explicit=true, source_branch=Production, first_failure=null, and tooling_sha equal to the exact trusted main event SHA.",
+            "The reporter validateConfiguration contract rejects /version-only invocation with production_identity_endpoint_missing before probing.",
             "The report declares secrets_included=false and all mutation/effect flags false.",
             "A generic production/prod signal without DEPLOYMENT_ENVIRONMENT=production_hostinger_autodeploy remains runtime_class_ambiguous and cannot satisfy Production runtime parity.",
             "The /deployment-info evidence exposes only bounded non-secret classification metadata and never raw environment values."
