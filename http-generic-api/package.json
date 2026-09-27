@@ -56,6 +56,7 @@
     "remote-mcp:client:status:all": "node scripts/provision-remote-mcp-client.mjs --all-status",
     "production:config-preflight": "node scripts/production-config-preflight.mjs",
     "supervisor:readiness": "node scripts/supervisor-runtime-readiness.mjs",
+    "local-manager:readiness": "node scripts/local-manager-readiness.mjs",
     "runtime-persistence:readiness": "node scripts/runtime-persistence-operational-readiness.mjs",
     "database:collation:check": "node scripts/mariadb-collation-ci-guard.mjs",
     "database:lifecycle:check": "node scripts/runtime-data-lifecycle-guard.mjs && node test-runtime-data-lifecycle-guard.mjs",

@@ -24,6 +24,8 @@ const base = {
   LOCAL_MANAGER_WRITE_DB_USER: "local_manager_writer",
   LOCAL_MANAGER_WRITE_DB_PASSWORD: "local_manager_writer_fixture_password",
   DB_USER: "runtime_reader",
+  DB_HOST: "db",
+  DB_NAME: "growth_runtime",
 };
 
 const ready = evaluateProductionConfig(base);
@@ -286,3 +288,10 @@ assert.equal(writerReusesRuntimeIdentity.ok, false);
 assert.match(writerReusesRuntimeIdentity.errors.join("\n"), /distinct from DB_USER/);
 
 console.log("test-production-config-preflight: ok");
+
+for (const override of [{LOCAL_MANAGER_WRITE_DB_HOST:"production-db"},{LOCAL_MANAGER_WRITE_DB_NAME:"other_runtime"},{LOCAL_MANAGER_WRITE_DB_PORT:"3307"}]) {
+  const result = evaluateProductionConfig({...base,...override});
+  assert.equal(result.ok,false);
+  assert.equal(result.local_manager_write.runtime_target_bound,false);
+  assert.match(result.errors.join("\n"),/LOCAL_MANAGER_WRITE_DB_TARGET_MISMATCH/);
+}

@@ -66,6 +66,12 @@ export function resolveLocalManagerWriteDbConfig(env = process.env) {
       "Local Manager write authority must use a non-root identity distinct from DB_USER.",
     );
   }
+  const targetMatches = clean(env.DB_HOST).toLowerCase() === clean(env.LOCAL_MANAGER_WRITE_DB_HOST).toLowerCase()
+    && (Number(env.DB_PORT) || 3306) === (Number(env.LOCAL_MANAGER_WRITE_DB_PORT) || 3306)
+    && clean(env.DB_NAME, 128) === clean(env.LOCAL_MANAGER_WRITE_DB_NAME, 128);
+  if (!clean(env.DB_HOST) || !clean(env.DB_NAME) || !targetMatches) {
+    throw fail("LOCAL_MANAGER_WRITE_DB_TARGET_MISMATCH", "Local Manager writer must target this environment's runtime database.");
+  }
   return {
     host: clean(env.LOCAL_MANAGER_WRITE_DB_HOST, 255),
     port: Number(env.LOCAL_MANAGER_WRITE_DB_PORT) || 3306,
@@ -98,7 +104,7 @@ function sameTenant(left, right) {
 const LOCAL_MANAGER_BROAD_WRITE_PRIVILEGES = new Set([
   "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER", "INDEX",
   "TRIGGER", "REFERENCES", "EXECUTE", "EVENT", "CREATE ROUTINE",
-  "ALTER ROUTINE", "CREATE VIEW", "CREATE TEMPORARY TABLES", "LOCK TABLES",
+  "ALTER ROUTINE", "CREATE VIEW", "CREATE TEMPORARY TABLES", "LOCK TABLES", "GRANT OPTION",
 ]);
 
 function accountToGrantee(value) {
@@ -111,13 +117,16 @@ function accountToGrantee(value) {
   return quote(account.slice(0, split)) + "@" + quote(account.slice(split + 1));
 }
 
-export async function assertLocalManagerWritePrivilegeReadiness({ pool = null } = {}) {
+export async function assertLocalManagerWritePrivilegeReadiness({ pool = null, expectedDatabase = process.env.DB_NAME } = {}) {
   const writer = pool || getLocalManagerWritePool();
   const [identityRows] = await writer.query("SELECT CURRENT_USER() AS current_account, DATABASE() AS current_database");
   const currentAccount = clean(identityRows?.[0]?.current_account, 255);
   const currentDatabase = clean(identityRows?.[0]?.current_database, 128);
   if (!currentAccount || !currentDatabase) {
     throw fail("LOCAL_MANAGER_WRITE_IDENTITY_READBACK_FAILED", "Dedicated Local Manager DB identity/database readback failed.");
+  }
+  if (expectedDatabase && currentDatabase !== clean(expectedDatabase, 128)) {
+    throw fail("LOCAL_MANAGER_WRITE_DB_TARGET_MISMATCH", "Writer database readback does not match the runtime database.");
   }
   const grantee = accountToGrantee(currentAccount);
   const [userPrivileges] = await writer.query(
@@ -137,7 +146,6 @@ export async function assertLocalManagerWritePrivilegeReadiness({ pool = null } 
     .map((row) => clean(row.PRIVILEGE_TYPE || row.privilege_type, 64).toUpperCase())
     .filter((privilege) => LOCAL_MANAGER_BROAD_WRITE_PRIVILEGES.has(privilege));
   const schemaWrites = schemaPrivileges
-    .filter((row) => clean(row.TABLE_SCHEMA || row.table_schema, 128) === currentDatabase)
     .map((row) => clean(row.PRIVILEGE_TYPE || row.privilege_type, 64).toUpperCase())
     .filter((privilege) => LOCAL_MANAGER_BROAD_WRITE_PRIVILEGES.has(privilege));
 
@@ -213,9 +221,11 @@ async function withDedicatedWriteTransaction(writer, operation) {
     );
   }
 
-  await connection.beginTransaction();
+  let commitAttempted = false;
   try {
+    await connection.beginTransaction();
     const result = await operation(connection);
+    commitAttempted = true;
     await connection.commit();
     return result;
   } catch (error) {
@@ -224,6 +234,7 @@ async function withDedicatedWriteTransaction(writer, operation) {
     } catch {
       // Preserve the original bounded writer failure; rollback errors never broaden authority.
     }
+    if (commitAttempted) { error.mutation_outcome = "unknown"; error.reconciliation_required = true; }
     throw error;
   } finally {
     if (ownsConnection && typeof connection.release === "function") connection.release();
@@ -512,3 +523,5 @@ export async function provisionLocalManagerN8n({
     };
   });
 }
+
+export const _testingLocalManagerWriteAuthority = Object.freeze({ withDedicatedWriteTransaction });
