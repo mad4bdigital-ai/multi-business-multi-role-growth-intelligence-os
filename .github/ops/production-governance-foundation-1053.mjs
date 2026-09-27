@@ -16,7 +16,7 @@ const mysql = requireFromApi("mysql2/promise");
 
 export const CONTRACT = "mad4b.production-governance-foundation-1053.v1";
 export const MIGRATION = "1053_production_governance_capability_envelope_foundation.sql";
-export const MIGRATION_SHA256 = "21caf065fa700a92b301fb0abf82cc0e34520acbf4b2c913b920b7914c158e46";
+export const MIGRATION_SHA256 = "c74beba4919458db0dc6dedca6e04b9868bbb6b99cc673505ba70272f3541724";
 export const STATEMENT_COUNT = 1;
 export const TABLE = "capability_resolution_envelope_ledger";
 export const CONFIRMATION = "APPLY_PRODUCTION_GOVERNANCE_FOUNDATION_1053";
