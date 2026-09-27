@@ -242,11 +242,11 @@ assert.match(workflow, /APPLY_1051_GITHUB_REPOSITORY_POLICY_AFTER_RECORD_ONLY_RE
 assert.match(workflow, /ROLLOUT_PHASE: record_only/);
 assert.match(workflow, /ROLLOUT_PHASE: verify_record_only/);
 assert.doesNotMatch(workflow, /RECOVERY_PHASE:/);
-assert.match(workflow, /Capture Governance Foundation 1053 and Governance writer readiness before orphan-ledger reconciliation/);
+assert.match(workflow, /Capture Runtime 225, Governance Foundation 1053, and Governance writer readiness before orphan-ledger reconciliation/);
 assert.match(workflow, /Create checksum-bound authorization and dry-run before record-only reconciliation/);
 assert.match(workflow, /Verify exact record-only ledger before reconciled Apply/);
 assert.match(workflow, /Execute metadata Apply only after certified record-only reconciliation/);
-const reconcileGuard = workflow.indexOf("Capture Governance Foundation 1053 and Governance writer readiness before orphan-ledger reconciliation");
+const reconcileGuard = workflow.indexOf("Capture Runtime 225, Governance Foundation 1053, and Governance writer readiness before orphan-ledger reconciliation");
 const reconcileAuth = workflow.indexOf("Create checksum-bound authorization and dry-run before record-only reconciliation");
 const reconcileMutation = workflow.indexOf("Record exact Migration 1051 ledger without replaying SQL");
 assert.ok(reconcileGuard >= 0 && reconcileAuth > reconcileGuard && reconcileMutation > reconcileAuth);
