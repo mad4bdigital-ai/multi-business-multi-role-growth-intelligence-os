@@ -906,6 +906,7 @@ jobs:
               auth?.status === "passed" &&
               deployment?.required === true &&
               deployment?.status === "passed" &&
+              deployment?.runtime?.canonical_provenance_present === true &&
               deployment?.runtime?.runtime_environment?.environment_key === "production" &&
               deployment?.runtime?.runtime_environment?.runtime_variant === "production_hostinger_autodeploy" &&
               deployment?.runtime?.runtime_environment?.canonical_runtime_variant === "production_hostinger_autodeploy" &&
