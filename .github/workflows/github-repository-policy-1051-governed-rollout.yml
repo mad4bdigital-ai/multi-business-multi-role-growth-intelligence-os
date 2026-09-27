@@ -39,7 +39,7 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22'
-      - name: Capture Governance Foundation 1053 dependency diagnostic before authorization
+      - name: Capture Runtime 225 plus Governance Foundation 1053 dependency diagnostics before authorization
         env:
           METADATA_DIAGNOSTIC_MODE: readiness
         run: node .github/ops/github-repository-policy-1051-metadata-state.mjs
@@ -85,7 +85,7 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22'
-      - name: Capture Governance Foundation 1053 and Governance writer readiness before orphan-ledger reconciliation
+      - name: Capture Runtime 225, Governance Foundation 1053, and Governance writer readiness before orphan-ledger reconciliation
         env:
           METADATA_DIAGNOSTIC_MODE: readiness
         run: node .github/ops/github-repository-policy-1051-metadata-state.mjs
@@ -135,7 +135,7 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22'
-      - name: Recheck Governance Foundation 1053 and Governance writer readiness before reconciled Apply
+      - name: Recheck Runtime 225, Governance Foundation 1053, and Governance writer readiness before reconciled Apply
         env:
           METADATA_DIAGNOSTIC_MODE: readiness
         run: node .github/ops/github-repository-policy-1051-metadata-state.mjs
