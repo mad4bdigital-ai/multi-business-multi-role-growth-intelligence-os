@@ -10,6 +10,7 @@ const workflow = read("../.github/workflows/production-governance-foundation-105
 const recoveryRoutes = JSON.parse(read("../.github/ops/production-runtime-recovery-routes.json"));
 const bootstrapContract = JSON.parse(read("./config/runtime-bootstrap-contract.json"));
 const gptRoutes = read("./routes/gptToolsRoutes.js");
+const gptRoutesLegacy = read("./routes/gptToolsRoutesLegacy.js");
 
 const checksum = createHash("sha256").update(migration, "utf8").digest("hex");
 assert.equal(checksum, "21caf065fa700a92b301fb0abf82cc0e34520acbf4b2c913b920b7914c158e46");
@@ -59,6 +60,12 @@ const authorizationToolBlock = gptRoutes.slice(
   gptRoutes.indexOf('name: "governed_migration_schema_readback"'),
 );
 assert.doesNotMatch(authorizationToolBlock, /database_role: \{ type: "string", enum: \["runtime", "governance"\]/u);
+const legacyReadbackToolBlock = gptRoutesLegacy.slice(
+  gptRoutesLegacy.indexOf('name: "governed_migration_schema_readback"'),
+  gptRoutesLegacy.indexOf('name: "dynamic_container_projection_apply"'),
+);
+assert.match(legacyReadbackToolBlock, /database_role: \{ type: "string", enum: \["runtime", "governance"\]/u);
+assert.match(gptRoutesLegacy, /databaseRole === "governance" \? getGovernancePool\(\) : getPool\(\)/u);
 assert.match(gptRoutes, /databaseRole === "governance" \? getGovernancePool\(\) : getPool\(\)/u);
 assert.doesNotMatch(gptRoutes, /database_name.*governed_migration_schema_readback/iu);
 
