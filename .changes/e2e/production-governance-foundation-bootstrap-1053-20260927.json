@@ -26,7 +26,8 @@
       "http-generic-api/test-governed-migration-authorization-bootstrap.mjs",
       "docs/governance/configuration-drift-baseline-extensions.json",
       "http-generic-api/test-staging-schema-bundle-builder.mjs",
-      ".github/workflows/github-repository-policy-1050-governed-rollout.yml"
+      ".github/workflows/github-repository-policy-1050-governed-rollout.yml",
+      "http-generic-api/activation-surfaces/exclusions/capability_resolution_envelope_ledger.json"
     ]
   },
   "merge_contract": {
@@ -90,7 +91,8 @@
             "Migration 1051 requires both the legacy Migration 225 Runtime proof and Migration 1053 Governance proof, plus Governance writer readiness; neither side alone is sufficient.",
             "Foundation 1053 introduces no ungoverned secret/configuration drift: its new EVIDENCE_DIR and closed plan|apply|verify phase references are explicitly classified as non-secret CI governance inputs.",
             "The ordered Staging schema projection remains role-aware after Foundation 1053: capability_resolution_envelope_ledger stays Governance-owned, Runtime-excluded, and the two additional ENUM definitions are reflected in the deterministic enum-chain count.",
-            "Foundation 1053 reuses the existing Migration 1050 control workflow; it does not add a new .github/workflows surface."
+            "Foundation 1053 reuses the existing Migration 1050 control workflow; it does not add a new .github/workflows surface.",
+            "The capability_resolution_envelope_ledger is explicitly classified as internal Governance control-plane persistence and is not exposed as a tenant-facing activation surface."
           ],
           "tests": [
             {
@@ -161,7 +163,8 @@
             "http-generic-api/test-governed-migration-authorization-bootstrap.mjs",
             "docs/governance/configuration-drift-baseline-extensions.json",
             "http-generic-api/test-staging-schema-bundle-builder.mjs",
-            ".github/workflows/github-repository-policy-1050-governed-rollout.yml"
+            ".github/workflows/github-repository-policy-1050-governed-rollout.yml",
+            "http-generic-api/activation-surfaces/exclusions/capability_resolution_envelope_ledger.json"
           ]
         }
       ]
