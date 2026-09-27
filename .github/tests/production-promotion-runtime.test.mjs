@@ -100,6 +100,17 @@ test("R7 decision accepts only exact Production runtime identity and classifies 
     versionShas: [expectedSha],
     runtimeSha: expectedSha,
     runtimeBranch: "Production",
+    runtimeEnvironment: {
+      ok: true,
+      environment_key: "production",
+      runtime_variant: "production_hostinger_autodeploy",
+      canonical_runtime_variant: "production_hostinger_autodeploy",
+      runtime_class: "hostinger_autodeploy",
+      runtime_class_explicit: true,
+      source_branch: "Production",
+      raw_values_exposed: false,
+      secrets_included: false,
+    },
     protectedResource: {
       resource: "https://mcp.mad4b.com",
       authorization_servers: ["https://auth.mad4b.com/auth/mcp"],
@@ -115,6 +126,17 @@ test("R7 decision accepts only exact Production runtime identity and classifies 
   assert.equal(resolveR7Decision(base).classification, "production_current");
   assert.equal(resolveR7Decision({ ...base, runtimeSha: sha(8), versionShas: [] }).classification, "runtime_activation_pending_or_sha_mismatch");
   assert.equal(resolveR7Decision({ ...base, runtimeBranch: "main" }).classification, "runtime_sha_current_branch_provenance_mismatch");
+  assert.equal(resolveR7Decision({
+    ...base,
+    runtimeEnvironment: {
+      ...base.runtimeEnvironment,
+      runtime_variant: "production",
+      canonical_runtime_variant: null,
+      runtime_class: null,
+      runtime_class_explicit: false,
+    },
+  }).classification, "runtime_environment_identity_not_explicit");
+  assert.equal(resolveR7Decision({ ...base, runtimeEnvironment: {} }).productionCurrent, false);
   assert.throws(() => resolveR7Decision({ ...base, expectedSha: "short" }), /expectedSha/u);
 });
 
