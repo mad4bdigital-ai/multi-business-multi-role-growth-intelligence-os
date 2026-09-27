@@ -21,11 +21,12 @@ export const inspectGovernedMigrationAuthorizationCandidate = runtime.inspectGov
  * ordinary Runtime DB would create a split-store envelope_not_found failure.
  *
  * A legacy deps.pool is intentionally not accepted as writer or envelope-read
- * authority. Tests/internal callers may inject deps.envelopeReadPool or
- * deps.writerPool explicitly.
+ * authority. Tests/internal callers may inject deps.envelopeReadPool or deps.writerPool explicitly.
+ * A generic deps.readPool alias is intentionally ignored so Runtime DB cannot
+ * become a fallback for persisted migration envelopes.
  */
 export async function bootstrapGovernedMigrationAuthorization(input = {}, deps = {}) {
-  const envelopeReadPool = deps.envelopeReadPool || deps.readPool || getGovernancePool();
+  const envelopeReadPool = deps.envelopeReadPool || getGovernancePool();
   const writerPool = deps.writerPool || getGovernancePool();
   const resolveEnvelope = deps.resolveEnvelope || resolveCapabilityExecutionEnvelope;
   const markReferenced = deps.markReferenced || markCapabilityEnvelopeReferenced;
