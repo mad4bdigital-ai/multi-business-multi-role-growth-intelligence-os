@@ -51,6 +51,9 @@ const stagingCompose = fs.readFileSync(path.join(root, "http-generic-api/docker-
 const stagingEnvironmentSource = fs.readFileSync(path.join(portable, "Staging-Environment.ps1"), "utf8");
 const stagingWindowsCloudflaredSource = fs.readFileSync(path.join(portable, "Staging-WindowsCloudflared.ps1"), "utf8");
 const stagingProviderAuthorityHelper = fs.readFileSync(path.join(portable, "Enable-StagingActivationGatewayProviderAuthority.ps1"), "utf8");
+const repositoryGovernanceConstitution = JSON.parse(fs.readFileSync(path.join(root, "http-generic-api/config/repository-governance-constitution.json"), "utf8"));
+const derivedStateGovernance = JSON.parse(fs.readFileSync(path.join(root, ".github/derived-state-governance.json"), "utf8"));
+const providerAuthorityDeclaration = ".changes/e2e/staging-gateway-provider-authority-transport-20260927.json";
 const stagingWorker = fs.readFileSync(path.join(root, "edge/activation-gateway/src/worker-staging.mjs"), "utf8");
 
 const protectedPortablePaths = [
@@ -319,6 +322,8 @@ assert.match(stagingProviderAuthorityHelper, /STAGING_CLOUDFLARE_API_TOKEN_HOST_
 assert.match(stagingProviderAuthorityHelper, /STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED" "true"/u);
 assert.match(stagingProviderAuthorityHelper, /provider_mutation_performed = \$false/u);
 assert.doesNotMatch(stagingProviderAuthorityHelper, /Write-Host[^\n]*\$plain/u);
+assert.ok(repositoryGovernanceConstitution.control_plane_paths.includes(providerAuthorityDeclaration));
+assert.ok(derivedStateGovernance.convergence.automation_control_paths.includes(providerAuthorityDeclaration));
 
 assert.match(liveCertification, /loadActivationGatewayProfilePolicy\("staging"/u);
 assert.doesNotMatch(liveCertification, /STAGING_CERT_GATEWAY_POLICY_PATH/u);

@@ -11,6 +11,7 @@
   "scope": {
     "include": [
       ".changes/e2e/staging-gateway-provider-authority-transport-20260927.json",
+      ".github/derived-state-governance.json",
       "autopilot-portable-staging/Enable-StagingActivationGatewayProviderAuthority.ps1",
       "autopilot-portable-staging/Staging-Environment.ps1",
       "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
@@ -19,6 +20,7 @@
       "docs/governance/platform-configuration-entry-registry.json",
       "http-generic-api/.env.staging.example",
       "http-generic-api/config/empty-provider-secret",
+      "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/docker-compose.staging.yml",
       "http-generic-api/scripts/generate-portable-staging-manifest.mjs",
       "http-generic-api/stagingActivationGatewayApplyAdapter.js",
@@ -61,7 +63,8 @@
             "The feature gate remains false by default and cannot use the empty placeholder secret for apply.",
             "The shared adapter delegates only the Staging profile path changed here; Production rollout implementation and Production resource binding are unchanged.",
             "No database migration, DNS mutation, custom-domain mutation, provider mutation or Production deployment is performed by this PR.",
-            "secrets_included is false."
+            "secrets_included is false.",
+            "The critical feature declaration is registered exactly in Constitution.control_plane_paths and convergence.automation_control_paths; autonomous merge remains forbidden."
           ],
           "tests": [
             {
@@ -74,14 +77,16 @@
           ],
           "evidence_paths": [
             ".changes/e2e/staging-gateway-provider-authority-transport-20260927.json",
+            ".github/derived-state-governance.json",
             "autopilot-portable-staging/Enable-StagingActivationGatewayProviderAuthority.ps1",
             "autopilot-portable-staging/Staging-Environment.ps1",
             "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
+            "docs/governance/configuration-drift-baseline-extensions.json",
+            "docs/governance/platform-configuration-entry-registry.json",
+            "http-generic-api/config/repository-governance-constitution.json",
             "http-generic-api/docker-compose.staging.yml",
             "http-generic-api/stagingActivationGatewayApplyAdapter.js",
-            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
-            "docs/governance/platform-configuration-entry-registry.json",
-            "docs/governance/configuration-drift-baseline-extensions.json"
+            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
           ]
         }
       ]
