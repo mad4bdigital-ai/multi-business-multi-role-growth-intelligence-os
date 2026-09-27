@@ -20,6 +20,7 @@
       ".github/workflows/hostinger-production-runtime-readback-r7.yml",
       "http-generic-api/test-hostinger-production-runtime-readback-r7.mjs",
       ".github/tests/production-promotion-runtime.test.mjs",
+      ".github/governance/test-authority-registry.json",
       "http-generic-api/scripts/production-runtime-parity-evidence.mjs",
       ".github/workflows/production-runtime-parity-evidence.yml",
       "http-generic-api/scripts/test-production-runtime-parity-evidence.mjs",
@@ -123,7 +124,8 @@
             ".github/scripts/production-r7-decision.mjs",
             ".github/workflows/hostinger-production-runtime-readback-r7.yml",
             "http-generic-api/scripts/production-runtime-parity-evidence.mjs",
-            ".github/workflows/production-runtime-parity-evidence.yml"
+            ".github/workflows/production-runtime-parity-evidence.yml",
+            ".github/governance/test-authority-registry.json"
           ]
         }
       ]
