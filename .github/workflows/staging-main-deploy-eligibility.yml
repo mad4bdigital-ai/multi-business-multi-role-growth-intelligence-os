@@ -112,6 +112,8 @@ jobs:
         run: |
           node http-generic-api/test-staging-autopilot-closure.mjs
           node http-generic-api/test-staging-environment-certification-contract.mjs
+          node http-generic-api/test-staging-recovery-admin-surface.mjs
+          node http-generic-api/test-staging-recovery-certification-protocol.mjs
           node http-generic-api/test-staging-openapi-mcp-db-boundary.mjs
           node http-generic-api/test-staging-runtime-oauth-profile.mjs
           node http-generic-api/test-staging-three-db-topology.mjs
@@ -441,6 +443,25 @@ jobs:
           jq '{ok, service, policyKey, policyHash, deploymentId, sourceCommit, workerBuildSha, workerBundleSha256, stale, secretsIncluded}' "$response_file" || true
           exit 1
 
+      - name: Capture provider-observed Worker provenance
+        shell: bash
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          EXPECTED_WORKER_BUNDLE_SHA256: ${{ needs.activation_worker_refresh_preflight.outputs.worker_bundle_sha256 }}
+          STAGING_WORKER_PROVIDER_OBSERVATION_FILE: ${{ env.ARTIFACT_DIR }}/worker-provider-observation.json
+        run: |
+          set -euo pipefail
+          node .github/scripts/staging-recovery-worker-provider-evidence.mjs
+
+      - name: Upload provider-observed Worker provenance
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: staging-recovery-worker-provider-observation-${{ inputs.source_sha }}
+          path: ${{ env.ARTIFACT_DIR }}/worker-provider-observation.json
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Upload deployed Recovery origin trust
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -458,6 +479,7 @@ jobs:
             printf -- '- source SHA: `%s`\n' "$SOURCE_SHA"
             printf -- '- Worker: `%s`\n' "$WORKER_NAME"
             printf '%s\n' '- Recovery origin trust artifact: `public-key-only`'
+            printf '%s\n' '- Worker provider provenance: `captured-read-only`'
             printf '%s\n' '- Production deployment: `false`'
             printf '%s\n' '- Database mutation: `false`'
             printf '%s\n' '- secrets included in summary: `false`'
