@@ -179,6 +179,16 @@ export function validateConfiguration({ expectedSha, expectedBranch, endpoints, 
     };
   });
   if (requiredCount < 1) throw new EvidenceError("required_endpoint_missing", "At least one endpoint must be required.");
+  const endpointByName = new Map(normalized.map((endpoint) => [endpoint.name, endpoint]));
+  for (const requiredName of ["auth", "auth-deployment"]) {
+    const endpoint = endpointByName.get(requiredName);
+    if (!endpoint || endpoint.required !== true) {
+      throw new EvidenceError(
+        "production_identity_endpoint_missing",
+        `Production runtime parity requires required endpoints auth=/version and auth-deployment=/deployment-info; missing ${requiredName}.`
+      );
+    }
+  }
   return { expectedSha, expectedBranch: "Production", timeoutMs, endpoints: normalized };
 }
 
