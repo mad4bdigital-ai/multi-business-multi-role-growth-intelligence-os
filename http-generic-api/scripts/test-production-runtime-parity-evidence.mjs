@@ -17,6 +17,11 @@ const authEndpoint = () => ({
   url: "https://auth.mad4b.com/version",
   required: true
 });
+const deploymentEndpoint = () => ({
+  name: "auth-deployment",
+  url: "https://auth.mad4b.com/deployment-info",
+  required: true
+});
 const successfulTls = async () => ({
   authorized: true,
   protocol: "TLSv1.3",
@@ -32,6 +37,38 @@ const runtimeResponse = (sha = SHA) => new Response(JSON.stringify({
   deployment: {
     deployed_commit_sha: sha,
     manifest: { branch: "Production" }
+  }
+}), {
+  status: 200,
+  headers: { "content-type": "application/json" }
+});
+const deploymentInfoResponse = ({ sha = SHA, explicit = true } = {}) => new Response(JSON.stringify({
+  ok: true,
+  service: "growth-intelligence-platform",
+  commit_sha: sha,
+  branch: "Production",
+  runtime_environment: explicit ? {
+    ok: true,
+    environment_key: "production",
+    runtime_variant: "production_hostinger_autodeploy",
+    canonical_runtime_variant: "production_hostinger_autodeploy",
+    runtime_class: "hostinger_autodeploy",
+    runtime_class_explicit: true,
+    source_branch: "Production",
+    reason: null,
+    raw_values_exposed: false,
+    secrets_included: false
+  } : {
+    ok: false,
+    environment_key: "production",
+    runtime_variant: "production",
+    canonical_runtime_variant: "production_hostinger_autodeploy",
+    runtime_class: null,
+    runtime_class_explicit: false,
+    source_branch: "Production",
+    reason: "runtime_class_ambiguous",
+    raw_values_exposed: false,
+    secrets_included: false
   }
 }), {
   status: 200,
@@ -64,9 +101,14 @@ try {
   assert.match(workflow, /persist-credentials: false/u);
   assert.match(workflow, /refs\/remotes\/origin\/Production/u);
   assert.match(workflow, /--endpoint "auth=\$\{AUTH_URL\}"/u);
-  assert.match(workflow, /endpoints\.length === 1/u);
+  assert.match(workflow, /--endpoint "auth-deployment=\$\{DEPLOYMENT_INFO_URL\}"/u);
+  assert.match(workflow, /endpoints\.length === 2/u);
   assert.match(workflow, /auth\?\.required === true/u);
   assert.match(workflow, /auth\?\.status === "passed"/u);
+  assert.match(workflow, /deployment\?\.required === true/u);
+  assert.match(workflow, /deployment\?\.status === "passed"/u);
+  assert.match(workflow, /production_hostinger_autodeploy/u);
+  assert.match(workflow, /runtime_class_explicit/u);
   assert.doesNotMatch(workflow, /connector_url|dev_url|require_dev/u);
   assert.doesNotMatch(workflow, /--(?:optional-)?endpoint "connector=/u);
   assert.doesNotMatch(workflow, /--(?:optional-)?endpoint "dev=/u);
@@ -78,11 +120,17 @@ try {
   assert.equal(policy.production.source_branch, "Production");
   assert.equal(policy.production.deployment_provider, "hostinger");
   assert.equal(policy.production.auto_deploy_on_push, true);
+  assert.equal(policy.production.required_runtime_environment.deployment_environment, "production_hostinger_autodeploy");
+  assert.equal(policy.production.required_runtime_environment.runtime_class, "hostinger_autodeploy");
+  assert.equal(policy.production.required_runtime_environment.runtime_class_explicit, true);
   assert.equal(policy.connector_recovery.hostname, "connector.mad4b.com");
   assert.equal(policy.connector_recovery.hostinger_auto_deploy, false);
   assert.equal(policy.staging.hostname, "dev.mad4b.com");
   assert.equal(policy.staging.hostinger_auto_deploy, false);
   assert.equal(policy.staging.production_traffic_allowed, false);
+  assert.equal(policy.staging.required_runtime_environment.deployment_environment, "staging_local_windows_docker");
+  assert.equal(policy.staging.required_runtime_environment.runtime_class, "local_windows_docker");
+  assert.equal(policy.staging.required_runtime_environment.runtime_class_explicit, true);
 
   assert.match(reporterSource, /"dns_timeout"/u);
   assert.match(reporterSource, /"http_timeout"/u);
@@ -122,11 +170,11 @@ try {
   const passed = await runProductionRuntimeParityEvidence({
     expectedSha: SHA,
     expectedBranch: "Production",
-    endpoints: [authEndpoint()],
+    endpoints: [authEndpoint(), deploymentEndpoint()],
     outputDir: path.join(root, "passed"),
     lookup,
     tlsProbe: successfulTls,
-    fetchImpl: async () => runtimeResponse(),
+    fetchImpl: async (url) => String(url).endsWith("/deployment-info") ? deploymentInfoResponse() : runtimeResponse(),
     env: {
       GITHUB_SHA: "d".repeat(40),
       GITHUB_REPOSITORY: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
@@ -141,9 +189,15 @@ try {
 
   assert.equal(passed.report.contract, PRODUCTION_RUNTIME_PARITY_CONTRACT);
   assert.equal(passed.report.outcome, "passed");
-  assert.equal(passed.report.endpoints.length, 1);
+  assert.equal(passed.report.endpoints.length, 2);
   assert.equal(passed.report.endpoints[0].name, "auth");
   assert.equal(passed.report.endpoints[0].status, "passed");
+  assert.equal(passed.report.endpoints[1].name, "auth-deployment");
+  assert.equal(passed.report.endpoints[1].status, "passed");
+  assert.equal(passed.report.endpoints[1].runtime.runtime_environment.environment_key, "production");
+  assert.equal(passed.report.endpoints[1].runtime.runtime_environment.runtime_variant, "production_hostinger_autodeploy");
+  assert.equal(passed.report.endpoints[1].runtime.runtime_environment.runtime_class, "hostinger_autodeploy");
+  assert.equal(passed.report.endpoints[1].runtime.runtime_environment.runtime_class_explicit, true);
   assert.equal(passed.report.endpoints[0].dns.addresses[0].length, 64);
   assert.notEqual(passed.report.endpoints[0].dns.addresses[0], "104.21.10.20");
   assert.equal(passed.report.side_effects.repository_mutation_performed, false);
@@ -151,6 +205,24 @@ try {
   assert.equal(passed.report.secrets_included, false);
   assert.ok(fs.existsSync(passed.jsonPath));
   assert.ok(fs.existsSync(passed.markdownPath));
+
+  const runtimeIdentityFailed = await runProductionRuntimeParityEvidence({
+    expectedSha: SHA,
+    expectedBranch: "Production",
+    endpoints: [authEndpoint(), deploymentEndpoint()],
+    outputDir: path.join(root, "runtime-identity-failed"),
+    lookup,
+    tlsProbe: successfulTls,
+    fetchImpl: async (url) => String(url).endsWith("/deployment-info")
+      ? deploymentInfoResponse({ explicit: false })
+      : runtimeResponse()
+  });
+  assert.equal(runtimeIdentityFailed.report.outcome, "failed");
+  assert.equal(runtimeIdentityFailed.report.first_failure.endpoint, "auth-deployment");
+  assert.equal(runtimeIdentityFailed.report.first_failure.code, "runtime_environment_identity_not_explicit");
+  assert.equal(runtimeIdentityFailed.report.endpoints[1].runtime.runtime_environment.runtime_class_explicit, false);
+  assert.equal(runtimeIdentityFailed.report.side_effects.repository_mutation_performed, false);
+  assert.equal(runtimeIdentityFailed.report.side_effects.provider_dispatch_performed, false);
 
   const shaFailed = await runProductionRuntimeParityEvidence({
     expectedSha: SHA,
@@ -281,7 +353,7 @@ try {
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 9,
+  tests: 10,
   gate: "production_runtime_parity_auth_topology",
   contract: PRODUCTION_RUNTIME_PARITY_CONTRACT,
   secrets_included: false
