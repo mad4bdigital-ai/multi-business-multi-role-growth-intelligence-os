@@ -21,7 +21,10 @@
       ".github/ops/github-repository-policy-1051-metadata-state.mjs",
       ".github/workflows/github-repository-policy-1051-governed-rollout.yml",
       "http-generic-api/test-github-repository-policy-1051-metadata-state.mjs",
-      "http-generic-api/test-github-repository-policy-live-activation-contract.mjs"
+      "http-generic-api/test-github-repository-policy-live-activation-contract.mjs",
+      "http-generic-api/governedMigrationAuthorizationBootstrap.js",
+      "http-generic-api/test-governance-db-writer-authority.mjs",
+      "http-generic-api/test-governed-migration-authorization-bootstrap.mjs"
     ]
   },
   "merge_contract": {
@@ -65,7 +68,8 @@
             "Require a separate typed Apply comment bound to exact Production SHA and plan_sha256.",
             "After the fixed one-statement DDL, require same-cycle table shape readback, write a canonical 1053 Apply ledger row, then require exact ledger plus schema readback.",
             "Expose governed migration schema readback through a closed runtime|governance role selector without accepting database names or credentials.",
-            "Bind Migration 1051 readiness/pre-Apply to the exact Migration 1053 Governance ledger and schema through database_role=governance; legacy Migration 225 remains non-executable."
+            "Bind Migration 1051 readiness/pre-Apply to the exact Migration 1053 Governance ledger and schema through database_role=governance; legacy Migration 225 remains non-executable.",
+            "Resolve governed-migration authorization and Apply envelopes from the canonical Governance store after create/approve; never look up those just-created envelope IDs through the ordinary Runtime DB."
           ],
           "assertions": [
             "Migration 225 remains allowed only in dry_run/verification-only paths.",
@@ -77,7 +81,9 @@
             "Apply requires APPLY_PRODUCTION_GOVERNANCE_FOUNDATION_1053 plus exact current Production SHA and current plan hash.",
             "No Production mutation is executed by this repository patch or its CI.",
             "Critical workflow/operator/change-contract paths are registered exactly in repository control-plane governance.",
-            "Migration 1051 no longer treats a Runtime-DB Migration 225 readback as sufficient for the Governance-owned capability envelope foundation."
+            "Migration 1051 no longer treats a Runtime-DB Migration 225 readback as sufficient for the Governance-owned capability envelope foundation.",
+            "The 1050 authorization/apply envelope chain cannot regress to Runtime getPool(): authorization resolution and governed-migration Apply resolution use the Governance envelope store, while lifecycle reference mutation uses the Governance writer.",
+            "Migration 1051 requires both the legacy Migration 225 Runtime proof and Migration 1053 Governance proof, plus Governance writer readiness; neither side alone is sufficient."
           ],
           "tests": [
             {
@@ -107,6 +113,20 @@
               "working_directory": "http-generic-api",
               "path": "test-github-repository-policy-live-activation-contract.mjs",
               "args": []
+            },
+            {
+              "id": "governance-db-writer-authority",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governance-db-writer-authority.mjs",
+              "args": []
+            },
+            {
+              "id": "governed-migration-authorization-bootstrap",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-migration-authorization-bootstrap.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -122,7 +142,10 @@
             ".github/ops/github-repository-policy-1051-metadata-state.mjs",
             ".github/workflows/github-repository-policy-1051-governed-rollout.yml",
             "http-generic-api/test-github-repository-policy-1051-metadata-state.mjs",
-            "http-generic-api/test-github-repository-policy-live-activation-contract.mjs"
+            "http-generic-api/test-github-repository-policy-live-activation-contract.mjs",
+            "http-generic-api/governedMigrationAuthorizationBootstrap.js",
+            "http-generic-api/test-governance-db-writer-authority.mjs",
+            "http-generic-api/test-governed-migration-authorization-bootstrap.mjs"
           ]
         }
       ]
