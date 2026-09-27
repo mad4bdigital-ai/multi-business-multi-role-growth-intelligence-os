@@ -6,7 +6,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
 
 concurrency:
   group: production-governance-foundation-1053
@@ -68,7 +67,7 @@ jobs:
         env:
           EXPECTED_PRODUCTION_SHA: ${{ steps.identity.outputs.expected_sha }}
         run: node .github/ops/production-governance-foundation-1053.mjs
-      - name: Publish exact no-secret plan receipt
+      - name: Validate and summarize exact no-secret plan
         shell: bash
         env:
           EXPECTED_SHA: ${{ steps.identity.outputs.expected_sha }}
@@ -80,25 +79,25 @@ jobs:
           action="$(jq -r '.action' "${file}")"
           allowed="$(jq -r '.execution_allowed' "${file}")"
           blocker="$(jq -r '.blocker // "none"' "${file}")"
-          body="## Production Governance Foundation 1053 — exact plan
-
-          - Production SHA: ${EXPECTED_SHA}
-          - plan_sha256: ${plan_sha}
-          - action: ${action}
-          - execution_allowed: ${allowed}
-          - blocker: ${blocker}
-          - legacy Migration 225 Apply authorized: false
-          - caller database/SQL accepted: false
-          - provider/deployment mutation: false
-          - secrets_included: false"
-          if [[ "${allowed}" == "true" ]]; then
-            body="${body}
-
-          Exact separately governed Apply command:
-
-          APPLY_PRODUCTION_GOVERNANCE_FOUNDATION_1053:${EXPECTED_SHA}:${plan_sha}"
-          fi
-          gh api --method POST "/repos/${GITHUB_REPOSITORY}/issues/${CONTROL_ISSUE}/comments" -f body="${body}" >/dev/null
+          {
+            echo "## Production Governance Foundation 1053 — exact plan"
+            echo ""
+            echo "- Production SHA: ${EXPECTED_SHA}"
+            echo "- plan_sha256: ${plan_sha}"
+            echo "- action: ${action}"
+            echo "- execution_allowed: ${allowed}"
+            echo "- blocker: ${blocker}"
+            echo "- legacy Migration 225 Apply authorized: false"
+            echo "- caller database/SQL accepted: false"
+            echo "- repository/provider/deployment mutation: false"
+            echo "- secrets_included: false"
+            if [[ "${allowed}" == "true" ]]; then
+              echo ""
+              echo "Exact separately governed Apply command:"
+              echo ""
+              echo "\`APPLY_PRODUCTION_GOVERNANCE_FOUNDATION_1053:${EXPECTED_SHA}:${plan_sha}\`"
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
       - name: Upload bounded plan evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -186,29 +185,30 @@ jobs:
             (.automatic_replay_allowed==false) and
             (.secrets_included==false)
           ' "${file}" >/dev/null
-      - name: Publish bounded Apply receipt
+      - name: Summarize bounded Apply receipt
         shell: bash
         env:
           EXPECTED_SHA: ${{ steps.identity.outputs.expected_sha }}
         run: |
           set -Eeuo pipefail
-          body="## Production Governance Foundation 1053 — Apply complete
-
-          - Production SHA: ${EXPECTED_SHA}
-          - migration: 1053_production_governance_capability_envelope_foundation.sql
-          - same-cycle schema readback: true
-          - exact Apply ledger: true
-          - Governance DB mutation: true
-          - Runtime DB mutation: false
-          - legacy Migration 225 marked applied: false
-          - provider/deployment mutation: false
-          - automatic replay: false
-          - secrets_included: false
-
-          Next read-only command:
-
-          VERIFY_PRODUCTION_GOVERNANCE_FOUNDATION_1053:${EXPECTED_SHA}"
-          gh api --method POST "/repos/${GITHUB_REPOSITORY}/issues/${CONTROL_ISSUE}/comments" -f body="${body}" >/dev/null
+          {
+            echo "## Production Governance Foundation 1053 — Apply complete"
+            echo ""
+            echo "- Production SHA: ${EXPECTED_SHA}"
+            echo "- migration: 1053_production_governance_capability_envelope_foundation.sql"
+            echo "- same-cycle schema readback: true"
+            echo "- exact Apply ledger: true"
+            echo "- Governance DB mutation: true"
+            echo "- Runtime DB mutation: false"
+            echo "- legacy Migration 225 marked applied: false"
+            echo "- repository/provider/deployment mutation: false"
+            echo "- automatic replay: false"
+            echo "- secrets_included: false"
+            echo ""
+            echo "Next read-only command:"
+            echo ""
+            echo "\`VERIFY_PRODUCTION_GOVERNANCE_FOUNDATION_1053:${EXPECTED_SHA}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
       - name: Upload bounded Apply evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
