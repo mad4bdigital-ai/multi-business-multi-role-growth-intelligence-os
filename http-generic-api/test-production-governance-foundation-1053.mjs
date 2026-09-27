@@ -49,7 +49,16 @@ assert.equal(recoveryRoutes.recovery_migrations["225_sprint67_capability_resolut
 assert.deepEqual(bootstrapContract.migrations["225_sprint67_capability_resolution_envelope_ledger.sql"].allowed_modes, ["dry_run"]);
 assert.equal(bootstrapContract.migrations["225_sprint67_capability_resolution_envelope_ledger.sql"].role, "verification_only");
 
-assert.match(gptRoutes, /database_role: \{ type: "string", enum: \["runtime", "governance"\]/u);
+const readbackToolBlock = gptRoutes.slice(
+  gptRoutes.indexOf('name: "governed_migration_schema_readback"'),
+  gptRoutes.indexOf('name: "dynamic_container_projection_apply"'),
+);
+assert.match(readbackToolBlock, /database_role: \{ type: "string", enum: \["runtime", "governance"\]/u);
+const authorizationToolBlock = gptRoutes.slice(
+  gptRoutes.indexOf('name: "governed_migration_authorization_bootstrap"'),
+  gptRoutes.indexOf('name: "governed_migration_schema_readback"'),
+);
+assert.doesNotMatch(authorizationToolBlock, /database_role: \{ type: "string", enum: \["runtime", "governance"\]/u);
 assert.match(gptRoutes, /databaseRole === "governance" \? getGovernancePool\(\) : getPool\(\)/u);
 assert.doesNotMatch(gptRoutes, /database_name.*governed_migration_schema_readback/iu);
 
