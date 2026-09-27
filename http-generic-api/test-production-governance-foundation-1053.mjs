@@ -19,10 +19,15 @@ assert.equal(statements.length, 1);
 assert.match(statements[0], /^CREATE TABLE IF NOT EXISTS capability_resolution_envelope_ledger\b/iu);
 assert.doesNotMatch(migration, /\b(?:DROP|DELETE|ALTER|TRUNCATE|GRANT|REVOKE|CALL|LOAD\s+DATA)\b/iu);
 assert.doesNotMatch(migration, /platform_runtime_config|admin_platform_endpoint_tools/iu);
+assert.match(migration, /ENGINE=InnoDB\s+DEFAULT\s+CHARSET=utf8mb4\s+COLLATE=utf8mb4_uca1400_ai_ci/iu);
 
 assert.match(operator, /MIGRATION = "1053_production_governance_capability_envelope_foundation\.sql"/u);
 assert.match(operator, /MIGRATION_SHA256 = "c74beba4919458db0dc6dedca6e04b9868bbb6b99cc673505ba70272f3541724"/u);
 assert.match(operator, /STATEMENT_COUNT = 1/u);
+assert.match(operator, /REQUIRED_COLLATION = "utf8mb4_uca1400_ai_ci"/u);
+assert.match(operator, /observedCollation === REQUIRED_COLLATION/u);
+assert.match(operator, /critical_columns_ready/u);
+assert.match(operator, /FOUNDATION_PARTIAL_SCHEMA_REQUIRES_SEPARATE_RECONCILIATION/u);
 assert.match(operator, /APPLY_PRODUCTION_GOVERNANCE_FOUNDATION_1053/u);
 assert.match(operator, /governance_database/u);
 assert.match(operator, /FOUNDATION_GOVERNANCE_DATABASE_NOT_DEDICATED/u);
