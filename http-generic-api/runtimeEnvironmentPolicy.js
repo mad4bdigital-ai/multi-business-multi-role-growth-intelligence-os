@@ -1,3 +1,5 @@
+// Repository-owned specialized runtime_policy registry; not a general Config Catalog entry.
+// Authority family: platform_engine_policy / platform_policy_registry; values are code-reviewed deployment invariants.
 export const RUNTIME_ENVIRONMENT_POLICY_CONTRACT = "mad4b.runtime-environment-policy.v1";
 
 function freezeProfile(profile) {
