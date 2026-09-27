@@ -37,7 +37,7 @@ export async function verifyAndCountersignStagingRecovery({ evidenceDirectory, o
   const payload = buildRecoveryReadinessSigningPayload(envelope, verificationReport, { issuer: required(env, "RECOVERY_STAGING_CERTIFICATION_ISSUER"), keyId: required(env, "RECOVERY_STAGING_CERTIFICATION_KEY_ID") });
   const signed = signVerifiedRecoveryEvidence({ payload, verificationReport, env });
   await mkdir(output, { recursive: true, mode: 0o700 });
-  await writeFile(path.join(output, "verification-report.json"), JSON.stringify(report, null, 2) + "\n", { mode: 0o600 });
+  await writeFile(path.join(output, "verification-report.json"), JSON.stringify(verificationReport, null, 2) + "\n", { mode: 0o600 });
   await writeFile(path.join(output, "signed-certification.json"), JSON.stringify(signed, null, 2) + "\n", { mode: 0o600 });
   return { verified: true, deployment_sha: expectedSha, target_fingerprint: expectedTargetFingerprint, certification_run_id: envelope.certification_run_id, negative_tests_passed: verificationReport.negative_tests?.all_passed === true, secrets_included: false };
 }
