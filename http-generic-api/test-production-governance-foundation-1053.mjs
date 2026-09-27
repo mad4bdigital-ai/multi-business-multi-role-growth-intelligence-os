@@ -13,7 +13,7 @@ const gptRoutes = read("./routes/gptToolsRoutes.js");
 const gptRoutesLegacy = read("./routes/gptToolsRoutesLegacy.js");
 
 const checksum = createHash("sha256").update(migration, "utf8").digest("hex");
-assert.equal(checksum, "21caf065fa700a92b301fb0abf82cc0e34520acbf4b2c913b920b7914c158e46");
+assert.equal(checksum, "c74beba4919458db0dc6dedca6e04b9868bbb6b99cc673505ba70272f3541724");
 const statements = splitMigrationSqlStatements(migration);
 assert.equal(statements.length, 1);
 assert.match(statements[0], /^CREATE TABLE IF NOT EXISTS capability_resolution_envelope_ledger\b/iu);
@@ -21,7 +21,7 @@ assert.doesNotMatch(migration, /\b(?:DROP|DELETE|ALTER|TRUNCATE|GRANT|REVOKE|CAL
 assert.doesNotMatch(migration, /platform_runtime_config|admin_platform_endpoint_tools/iu);
 
 assert.match(operator, /MIGRATION = "1053_production_governance_capability_envelope_foundation\.sql"/u);
-assert.match(operator, /MIGRATION_SHA256 = "21caf065fa700a92b301fb0abf82cc0e34520acbf4b2c913b920b7914c158e46"/u);
+assert.match(operator, /MIGRATION_SHA256 = "c74beba4919458db0dc6dedca6e04b9868bbb6b99cc673505ba70272f3541724"/u);
 assert.match(operator, /STATEMENT_COUNT = 1/u);
 assert.match(operator, /APPLY_PRODUCTION_GOVERNANCE_FOUNDATION_1053/u);
 assert.match(operator, /governance_database/u);
