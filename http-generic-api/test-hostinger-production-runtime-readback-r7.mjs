@@ -53,9 +53,14 @@ assert.match(workflow, /repository_issue_comment_authorized: false/);
 assert.match(workflow, /repository_issue_comment_performed: false/);
 assert.match(workflow, /production_current/);
 assert.match(workflow, /runtimeEnvironment: deployment\?\.runtime_environment \|\| \{\}/);
+assert.match(workflow, /const runtimeSha = String\(deployment\?\.gitCommitFull \|\| ''\)/);
+assert.match(workflow, /const runtimeBranch = String\(deployment\?\.gitBranch \|\| ''\)/);
+assert.match(workflow, /canonical_manifest_detected === true/);
+assert.match(workflow, /runtimeProvenanceCanonical/);
 assert.match(decision, /runtimeIdentityReady/);
 assert.match(decision, /production_hostinger_autodeploy/);
 assert.match(decision, /hostinger_autodeploy/);
+assert.match(decision, /runtime_canonical_provenance_missing/);
 assert.match(decision, /runtime_environment_identity_not_explicit/);
 assert.match(decision, /runtime_activation_pending_or_sha_mismatch/);
 assert.match(decision, /runtime_sha_current_branch_provenance_mismatch/);
@@ -82,7 +87,7 @@ assert.doesNotMatch(workflow, /git push/);
 
 console.log(JSON.stringify({
   ok: true,
-  contract: 'mad4b.hostinger-production-runtime-readback-r7.workflow-test.v4',
+  contract: 'mad4b.hostinger-production-runtime-readback-r7.workflow-test.v5',
   trigger: 'owner_bound_issue_comment',
   report_directory_initialized_after_runner_allocation: true,
   public_get_only: true,
