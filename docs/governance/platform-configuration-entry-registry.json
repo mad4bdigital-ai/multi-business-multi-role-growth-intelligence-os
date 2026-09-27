@@ -1205,6 +1205,23 @@
       "secrets_included": false
     },
     {
+      "config_key": "staging.cloudflare.api.token.file",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "gateway-governance",
+      "risk_class": "critical",
+      "scope_types": [
+        "platform",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+      "resolver_ref": "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+      "readback_ref": "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+      "shadow_evidence_ref": "docs/governance/admin-recovery-chatgpt-connection.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
       "config_key": "tenant.gpt.activation.legacy.audience.cutoff",
       "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
       "owner": "platform-governance",
@@ -1506,5 +1523,5 @@
     "production_activation_allowed": false
   },
   "$schema": "../../.specify/schemas/platform-configuration-entry-registry.schema.json",
-  "entry_count": 84
+  "entry_count": 85
 }
