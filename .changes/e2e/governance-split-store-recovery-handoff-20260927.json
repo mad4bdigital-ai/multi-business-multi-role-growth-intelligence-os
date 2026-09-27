@@ -1,0 +1,124 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "governance-split-store-recovery-handoff-20260927",
+  "title": "Canonical Governance envelope store and Production Recovery baseline handoff",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/governance-split-store-recovery-handoff-20260927.json",
+      "http-generic-api/governedMigrationAuthorizationBootstrap.js",
+      "http-generic-api/routes/gptToolsRoutes.js",
+      "http-generic-api/routes/gptToolsRoutesLegacy.js",
+      ".github/ops/github-repository-policy-1050-readiness-diagnostic-wrapper.mjs",
+      "http-generic-api/test-governance-db-writer-authority.mjs",
+      "http-generic-api/test-governed-migration-authorization-bootstrap.mjs",
+      "http-generic-api/test-github-repository-policy-1050-governed-rollout.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false,
+    "deployment_or_restart_executed": false,
+    "database_mutation_executed": false,
+    "migration_apply_executed": false,
+    "grant_mutation_executed": false,
+    "provider_mutation_executed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Close the split-store capability-envelope failure without introducing a parallel Governance bootstrap engine: persisted migration envelopes are resolved and consumed only from the Governance store, while a zero-object Governance/Runtime-Persistence diagnosis produces a bounded read-only handoff to the existing role-selective Production Recovery baseline rebuild.",
+      "e2e_journeys": [
+        {
+          "id": "governance-envelope-to-canonical-recovery-handoff",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Production governance recovery operator",
+          "entrypoint": "Migration 1050 readiness plus governed migration authorization/execute surfaces",
+          "terminal_outcome": "A persisted capability envelope is read and consumed from the canonical Governance store; if readiness proves exactly governance and runtime_persistence are zero-object roles, evidence contains the exact Recovery prepare command but dispatches or executes nothing automatically.",
+          "steps": [
+            "Resolve persisted Migration 1050 authorization envelopes from getGovernancePool rather than the ordinary Runtime DB.",
+            "Keep authorization registry, apply-policy, dispatch-certification, and envelope lifecycle writes on the Governance writer.",
+            "Resolve and mark governed_migration_execute envelopes through the Governance store in both primary and legacy route implementations.",
+            "When Migration 1050 readiness fails because the Governance envelope ledger is unavailable, retain the existing read-only full role inspection.",
+            "Require the inspection to prove runtime=nonempty_objects and exactly governance,runtime_persistence=zero_objects before emitting a Recovery handoff.",
+            "Emit only the existing canonical Issue #6813 baseline-rebuild prepare command; do not dispatch it, do not create an approval on behalf of the operator, and do not execute any mutation.",
+            "Leave actual role rebuild execution to the existing server-derived Recovery plan, role-bundle binding, single-step approval, execution-ticket, and same-cycle readback lifecycle."
+          ],
+          "assertions": [
+            "No new migration or DDL is introduced by this patch.",
+            "No caller-selected database, SQL, credential, provider operation, deployment, or raw shell is introduced.",
+            "Migration 225 remains verification-only and no synthetic Apply ledger is written.",
+            "The recovery handoff is emitted only for the exact zero-object role set governance,runtime_persistence.",
+            "The prepare command is evidence only and automatic execution/replay are false.",
+            "Every consequential Recovery role step still requires a separate server-issued single-step approval."
+          ],
+          "tests": [
+            {
+              "id": "governance-db-writer-authority",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governance-db-writer-authority.mjs",
+              "args": []
+            },
+            {
+              "id": "governed-migration-authorization-bootstrap",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-migration-authorization-bootstrap.mjs",
+              "args": []
+            },
+            {
+              "id": "github-repository-policy-1050-governed-rollout",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-policy-1050-governed-rollout.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/governance-split-store-recovery-handoff-20260927.json",
+            "http-generic-api/governedMigrationAuthorizationBootstrap.js",
+            "http-generic-api/routes/gptToolsRoutes.js",
+            "http-generic-api/routes/gptToolsRoutesLegacy.js",
+            ".github/ops/github-repository-policy-1050-readiness-diagnostic-wrapper.mjs",
+            "http-generic-api/test-governance-db-writer-authority.mjs",
+            "http-generic-api/test-governed-migration-authorization-bootstrap.mjs",
+            "http-generic-api/test-github-repository-policy-1050-governed-rollout.mjs",
+            ".github/ops/production-recovery-baseline-rebuild-governed.mjs",
+            ".github/workflows/governed-production-promotion-dispatch-bridge.yml"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "After merge and exact runtime deployment, rerun Migration 1050 readiness. If the same zero-object role set remains current, obtain a fresh baseline-rebuild preparation and then require the server-issued role-by-role approvals."
+    }
+  ],
+  "safety": {
+    "repository_only": true,
+    "production_mutation_allowed": false,
+    "database_mutation": false,
+    "migration_apply": false,
+    "grant_execution": false,
+    "provider_call": false,
+    "deployment": false,
+    "restart": false,
+    "secrets_included": false
+  }
+}
