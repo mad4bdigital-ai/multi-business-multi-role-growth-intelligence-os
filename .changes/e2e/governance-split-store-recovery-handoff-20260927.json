@@ -15,7 +15,8 @@
       ".github/ops/github-repository-policy-1050-readiness-diagnostic-wrapper.mjs",
       "http-generic-api/test-governance-db-writer-authority.mjs",
       "http-generic-api/test-governed-migration-authorization-bootstrap.mjs",
-      "http-generic-api/test-github-repository-policy-1050-governed-rollout.mjs"
+      "http-generic-api/test-github-repository-policy-1050-governed-rollout.mjs",
+      ".github/governance/test-authority-registry.json"
     ]
   },
   "merge_contract": {
@@ -64,7 +65,8 @@
             "Migration 225 remains verification-only and no synthetic Apply ledger is written.",
             "The recovery handoff is emitted only for the exact zero-object role set governance,runtime_persistence.",
             "The prepare command is evidence only and automatic execution/replay are false.",
-            "Every consequential Recovery role step still requires a separate server-issued single-step approval."
+            "Every consequential Recovery role step still requires a separate server-issued single-step approval.",
+            "The changed Governance writer regression test is registered under the canonical governance_db_privilege_readiness test authority."
           ],
           "tests": [
             {
@@ -99,7 +101,8 @@
             "http-generic-api/test-governed-migration-authorization-bootstrap.mjs",
             "http-generic-api/test-github-repository-policy-1050-governed-rollout.mjs",
             ".github/ops/production-recovery-baseline-rebuild-governed.mjs",
-            ".github/workflows/governed-production-promotion-dispatch-bridge.yml"
+            ".github/workflows/governed-production-promotion-dispatch-bridge.yml",
+            ".github/governance/test-authority-registry.json"
           ]
         }
       ]
