@@ -179,6 +179,7 @@ jobs:
             versionShas,
             runtimeSha,
             runtimeBranch,
+            runtimeEnvironment: deployment?.runtime_environment || {},
             protectedResource,
             authorizationServer,
           });
