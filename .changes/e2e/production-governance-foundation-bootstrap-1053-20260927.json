@@ -24,7 +24,8 @@
       "http-generic-api/test-github-repository-policy-live-activation-contract.mjs",
       "http-generic-api/governedMigrationAuthorizationBootstrap.js",
       "http-generic-api/test-governance-db-writer-authority.mjs",
-      "http-generic-api/test-governed-migration-authorization-bootstrap.mjs"
+      "http-generic-api/test-governed-migration-authorization-bootstrap.mjs",
+      "docs/governance/configuration-drift-baseline-extensions.json"
     ]
   },
   "merge_contract": {
@@ -69,7 +70,8 @@
             "After the fixed one-statement DDL, require same-cycle table shape readback, write a canonical 1053 Apply ledger row, then require exact ledger plus schema readback.",
             "Expose governed migration schema readback through a closed runtime|governance role selector without accepting database names or credentials.",
             "Bind Migration 1051 readiness/pre-Apply to the exact Migration 1053 Governance ledger and schema through database_role=governance; legacy Migration 225 remains non-executable.",
-            "Resolve governed-migration authorization and Apply envelopes from the canonical Governance store after create/approve; never look up those just-created envelope IDs through the ordinary Runtime DB."
+            "Resolve governed-migration authorization and Apply envelopes from the canonical Governance store after create/approve; never look up those just-created envelope IDs through the ordinary Runtime DB.",
+            "Govern the Foundation 1053 workflow-only EVIDENCE_DIR and phase configuration references through the non-secret configuration-drift baseline; do not treat either value as runtime or mutation authority."
           ],
           "assertions": [
             "Migration 225 remains allowed only in dry_run/verification-only paths.",
@@ -83,7 +85,8 @@
             "Critical workflow/operator/change-contract paths are registered exactly in repository control-plane governance.",
             "Migration 1051 no longer treats a Runtime-DB Migration 225 readback as sufficient for the Governance-owned capability envelope foundation.",
             "The 1050 authorization/apply envelope chain cannot regress to Runtime getPool(): authorization resolution and governed-migration Apply resolution use the Governance envelope store, while lifecycle reference mutation uses the Governance writer.",
-            "Migration 1051 requires both the legacy Migration 225 Runtime proof and Migration 1053 Governance proof, plus Governance writer readiness; neither side alone is sufficient."
+            "Migration 1051 requires both the legacy Migration 225 Runtime proof and Migration 1053 Governance proof, plus Governance writer readiness; neither side alone is sufficient.",
+            "Foundation 1053 introduces no ungoverned secret/configuration drift: its new EVIDENCE_DIR and closed plan|apply|verify phase references are explicitly classified as non-secret CI governance inputs."
           ],
           "tests": [
             {
@@ -145,7 +148,8 @@
             "http-generic-api/test-github-repository-policy-live-activation-contract.mjs",
             "http-generic-api/governedMigrationAuthorizationBootstrap.js",
             "http-generic-api/test-governance-db-writer-authority.mjs",
-            "http-generic-api/test-governed-migration-authorization-bootstrap.mjs"
+            "http-generic-api/test-governed-migration-authorization-bootstrap.mjs",
+            "docs/governance/configuration-drift-baseline-extensions.json"
           ]
         }
       ]
