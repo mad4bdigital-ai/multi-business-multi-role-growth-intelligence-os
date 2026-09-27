@@ -186,7 +186,7 @@ async function schemaShape(connection) {
   const missingIndexes = EXPECTED_INDEXES.filter((name) => !indexSet.has(name));
   const byColumn = new Map(columns.map((row) => [String(row.COLUMN_NAME), row]));
   const criticalColumnChecks = [
-    ["id", /^bigint\(20\) unsigned$/iu, "NO", /auto_increment/iu],
+    ["id", /^bigint(?:\\(\\d+\\))? unsigned$/iu, "NO", /auto_increment/iu],
     ["envelope_id", /^varchar\(36\)$/iu, "NO", null],
     ["envelope_sha256", /^char\(64\)$/iu, "NO", null],
     ["envelope_json", /^(?:json|longtext)$/iu, "NO", null],
