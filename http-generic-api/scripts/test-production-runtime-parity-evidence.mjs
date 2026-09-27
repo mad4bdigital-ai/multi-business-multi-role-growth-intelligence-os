@@ -113,6 +113,7 @@ try {
   assert.match(workflow, /auth\?\.status === "passed"/u);
   assert.match(workflow, /deployment\?\.required === true/u);
   assert.match(workflow, /deployment\?\.status === "passed"/u);
+  assert.match(workflow, /deployment\?\.runtime\?\.canonical_provenance_present === true/u);
   assert.match(workflow, /production_hostinger_autodeploy/u);
   assert.match(workflow, /runtime_class_explicit/u);
   assert.doesNotMatch(workflow, /connector_url|dev_url|require_dev/u);
