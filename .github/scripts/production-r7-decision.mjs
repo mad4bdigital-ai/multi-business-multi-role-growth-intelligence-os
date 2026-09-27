@@ -19,7 +19,7 @@ export function resolveR7Decision({
   const versionShaExact = versionShas.map((value) => String(value).toLowerCase()).includes(expectedSha);
   const deploymentShaExact = normalizedRuntimeSha === expectedSha;
   const branchExact = runtimeBranch === expectedBranch;
-  const runtimeEnvironmentReady = runtimeEnvironment?.ok === true
+  const runtimeIdentityReady = runtimeEnvironment?.ok === true
     && runtimeEnvironment?.environment_key === "production"
     && runtimeEnvironment?.runtime_variant === "production_hostinger_autodeploy"
     && runtimeEnvironment?.canonical_runtime_variant === "production_hostinger_autodeploy"
@@ -47,7 +47,7 @@ export function resolveR7Decision({
     && versionShaExact
     && deploymentShaExact
     && branchExact
-    && runtimeEnvironmentReady
+    && runtimeIdentityReady
     && oauthDiscoveryReady;
   const classification = productionCurrent
     ? "production_current"
@@ -55,7 +55,7 @@ export function resolveR7Decision({
       ? "runtime_activation_pending_or_sha_mismatch"
       : !branchExact
         ? "runtime_sha_current_branch_provenance_mismatch"
-        : !runtimeEnvironmentReady
+        : !runtimeIdentityReady
           ? "runtime_environment_identity_not_explicit"
           : trustedIngressAttestationRequired
             ? "trusted_ingress_attestation_required"
@@ -68,7 +68,7 @@ export function resolveR7Decision({
     versionShaExact,
     deploymentShaExact,
     branchExact,
-    runtimeEnvironmentReady,
+    runtimeEnvironmentReady: runtimeIdentityReady,
     protectedResourceReady,
     authorizationServerReady,
     trustedIngressAttestationRequired,
