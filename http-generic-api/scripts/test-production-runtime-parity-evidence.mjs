@@ -80,11 +80,13 @@ try {
     expectedSha: SHA,
     expectedBranch: "Production",
     timeoutMs: 5000,
-    endpoints: [authEndpoint()]
+    endpoints: [authEndpoint(), deploymentEndpoint()]
   });
-  assert.equal(configuration.endpoints.length, 1);
+  assert.equal(configuration.endpoints.length, 2);
   assert.equal(configuration.endpoints[0].name, "auth");
   assert.equal(configuration.endpoints[0].required, true);
+  assert.equal(configuration.endpoints[1].name, "auth-deployment");
+  assert.equal(configuration.endpoints[1].required, true);
 
   const repositoryRoot = process.env.REPOSITORY_ROOT || path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
   const workflowPath = path.join(repositoryRoot, ".github/workflows/production-runtime-parity-evidence.yml");
@@ -164,8 +166,14 @@ try {
   assert.throws(() => validateConfiguration({
     expectedSha: SHA,
     expectedBranch: "production",
-    endpoints: [authEndpoint()]
+    endpoints: [authEndpoint(), deploymentEndpoint()]
   }), /exactly Production/u);
+
+  assert.throws(() => validateConfiguration({
+    expectedSha: SHA,
+    expectedBranch: "Production",
+    endpoints: [authEndpoint()]
+  }), /auth-deployment/u);
 
   const passed = await runProductionRuntimeParityEvidence({
     expectedSha: SHA,
@@ -227,7 +235,7 @@ try {
   const shaFailed = await runProductionRuntimeParityEvidence({
     expectedSha: SHA,
     expectedBranch: "Production",
-    endpoints: [authEndpoint()],
+    endpoints: [authEndpoint(), deploymentEndpoint()],
     outputDir: path.join(root, "sha-failed"),
     lookup,
     tlsProbe: successfulTls,
@@ -252,7 +260,7 @@ try {
   const untrustedIdentityFailed = await runProductionRuntimeParityEvidence({
     expectedSha: SHA,
     expectedBranch: "Production",
-    endpoints: [authEndpoint()],
+    endpoints: [authEndpoint(), deploymentEndpoint()],
     outputDir: path.join(root, "untrusted-identity-failed"),
     lookup,
     tlsProbe: successfulTls,
@@ -279,7 +287,7 @@ try {
   const privateDnsFailed = await runProductionRuntimeParityEvidence({
     expectedSha: SHA,
     expectedBranch: "Production",
-    endpoints: [authEndpoint()],
+    endpoints: [authEndpoint(), deploymentEndpoint()],
     outputDir: path.join(root, "private-dns-failed"),
     lookup: async () => [{ address: "127.0.0.1", family: 4 }],
     tlsProbe: async () => {
@@ -295,7 +303,7 @@ try {
   const excessiveDnsFailed = await runProductionRuntimeParityEvidence({
     expectedSha: SHA,
     expectedBranch: "Production",
-    endpoints: [authEndpoint()],
+    endpoints: [authEndpoint(), deploymentEndpoint()],
     outputDir: path.join(root, "excessive-dns-failed"),
     lookup: async () => Array.from({ length: 17 }, (_, index) => ({
       address: `104.21.10.${index + 1}`,
@@ -315,7 +323,7 @@ try {
     const documentationDnsFailed = await runProductionRuntimeParityEvidence({
       expectedSha: SHA,
       expectedBranch: "Production",
-      endpoints: [authEndpoint()],
+      endpoints: [authEndpoint(), deploymentEndpoint()],
       outputDir: path.join(root, `documentation-dns-${address.replaceAll(":", "-")}`),
       lookup: async () => [{ address, family: address.includes(":") ? 6 : 4 }],
       tlsProbe: async () => {
@@ -332,7 +340,7 @@ try {
   const tlsFailed = await runProductionRuntimeParityEvidence({
     expectedSha: SHA,
     expectedBranch: "Production",
-    endpoints: [authEndpoint()],
+    endpoints: [authEndpoint(), deploymentEndpoint()],
     outputDir: path.join(root, "tls-failed"),
     lookup,
     tlsProbe: async () => {
@@ -353,7 +361,7 @@ try {
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 10,
+  tests: 11,
   gate: "production_runtime_parity_auth_topology",
   contract: PRODUCTION_RUNTIME_PARITY_CONTRACT,
   secrets_included: false
