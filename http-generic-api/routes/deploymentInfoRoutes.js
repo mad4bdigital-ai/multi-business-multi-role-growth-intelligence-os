@@ -272,6 +272,7 @@ export function buildDeploymentInfoRoutes({
   mcpCatalogSchemaReadinessReader = readMcpCatalogSchemaReadinessSafe,
   productionActivationReadinessReader = runProductionActivationReadiness,
   runtimeBootstrapStatusReader = getRuntimeBootstrapStatus,
+  runtimeEnvironmentReader = buildRuntimeEnvironmentEvidence,
   runtimeBootstrapReader = runBootstrap,
   hostLocalInspectionReader = executeHostLocalRoleInspection,
   platformAdminWorkspaceReadinessReader,
@@ -584,7 +585,7 @@ export function buildDeploymentInfoRoutes({
       };
     }
 
-    const runtimeEnvironment = buildRuntimeEnvironmentEvidence(process.env);
+    const runtimeEnvironment = await Promise.resolve(runtimeEnvironmentReader(process.env));
 
     res.status(200).json({
       ok: true,
