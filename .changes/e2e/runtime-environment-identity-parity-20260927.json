@@ -1,0 +1,148 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "runtime-environment-identity-parity-20260927",
+  "title": "Fail-closed runtime environment identity parity across Staging and Production",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/runtime-environment-identity-parity-20260927.json",
+      "http-generic-api/runtimeEnvironmentPolicy.js",
+      "http-generic-api/runtimeEnvironmentResolver.js",
+      "http-generic-api/routes/deploymentInfoRoutes.js",
+      "http-generic-api/docker-compose.staging.yml",
+      "http-generic-api/config/deployment-branch-policy.json",
+      "http-generic-api/test-runtime-environment-resolver.mjs",
+      "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
+      ".github/scripts/production-r7-decision.mjs",
+      ".github/workflows/hostinger-production-runtime-readback-r7.yml",
+      "http-generic-api/test-hostinger-production-runtime-readback-r7.mjs",
+      ".github/tests/production-promotion-runtime.test.mjs",
+      "http-generic-api/scripts/production-runtime-parity-evidence.mjs",
+      ".github/workflows/production-runtime-parity-evidence.yml",
+      "http-generic-api/scripts/test-production-runtime-parity-evidence.mjs",
+      ".changes/e2e/production-runtime-parity-evidence.json",
+      "docs/governance/hostinger-runtime-bootstrap.md",
+      "docs/governance/governed-autopilot-production-deployment.md"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false,
+    "deployment_or_restart_executed": false,
+    "database_mutation_executed": false,
+    "migration_apply_executed": false,
+    "grant_mutation_executed": false,
+    "provider_mutation_executed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make runtime environment class an explicit, observable, fail-closed deployment invariant so a correct SHA and branch cannot be mistaken for a certified Staging or Production runtime when the concrete deployment class is ambiguous.",
+      "e2e_journeys": [
+        {
+          "id": "cross-environment-runtime-identity-parity",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Deployment certification and Recovery automation",
+          "entrypoint": "runtimeEnvironmentResolver, /deployment-info, Production R7, and Production Runtime Parity Evidence",
+          "terminal_outcome": "Staging certifies only staging_local_windows_docker and Production certifies only production_hostinger_autodeploy; generic production/prod/staging signals remain insufficient for privileged runtime-class certification, while all readback evidence remains bounded and secret-free.",
+          "steps": [
+            "Resolve environment family and runtime class from one canonical runtime-environment policy without treating generic production/prod aliases as explicit Hostinger identity.",
+            "Pin the local Docker Staging process to staging_local_windows_docker in Compose as well as the local env template authority.",
+            "Expose sanitized strict runtime-environment evidence in /deployment-info without returning raw environment values.",
+            "Require Production R7 to prove exact Production SHA, Production branch, and explicit production_hostinger_autodeploy runtime class before production_current can be true.",
+            "Require Production Runtime Parity Evidence to validate both /version and /deployment-info and fail closed when runtime identity is ambiguous even if SHA and branch are current.",
+            "Declare exact runtime-environment requirements in deployment-branch-policy for both Staging and Production.",
+            "Preserve cross-environment conflict rejection and all existing Recovery, approval, ticket, database, and provider boundaries."
+          ],
+          "assertions": [
+            "DEPLOYMENT_ENVIRONMENT=production_hostinger_autodeploy is required for runtime_class_explicit=true in Production.",
+            "NODE_ENV=production or REMOTE_MCP_ENVIRONMENT=production alone remains runtime_class_ambiguous.",
+            "DEPLOYMENT_ENVIRONMENT=staging_local_windows_docker is the canonical local Staging runtime variant.",
+            "Conflicting Staging and Production signals fail with runtime_environment_conflict.",
+            "/deployment-info returns only classification metadata, signal key names, and false secret/raw-value attestations; environment values are not exposed.",
+            "Production R7 and Production Runtime Parity reject current SHA/branch when runtime class is not explicit.",
+            "No Production deployment, restart, database mutation, migration apply, grant apply, provider mutation, credential mutation, or secret read is performed by this repository patch."
+          ],
+          "tests": [
+            {
+              "id": "runtime-environment-resolver",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-environment-resolver.mjs",
+              "args": []
+            },
+            {
+              "id": "deployment-info-runtime-environment-parity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-gate-deployment-info-parity.mjs",
+              "args": []
+            },
+            {
+              "id": "production-runtime-parity-evidence",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-production-runtime-parity-evidence.mjs",
+              "args": []
+            },
+            {
+              "id": "production-r7-workflow-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-hostinger-production-runtime-readback-r7.mjs",
+              "args": []
+            },
+            {
+              "id": "production-promotion-r7-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/tests/production-promotion-runtime.test.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/runtime-environment-identity-parity-20260927.json",
+            "http-generic-api/runtimeEnvironmentPolicy.js",
+            "http-generic-api/runtimeEnvironmentResolver.js",
+            "http-generic-api/routes/deploymentInfoRoutes.js",
+            "http-generic-api/config/deployment-branch-policy.json",
+            ".github/scripts/production-r7-decision.mjs",
+            ".github/workflows/hostinger-production-runtime-readback-r7.yml",
+            "http-generic-api/scripts/production-runtime-parity-evidence.mjs",
+            ".github/workflows/production-runtime-parity-evidence.yml"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "After merge and governed deployment configuration, prove live Production reports production_hostinger_autodeploy and live Staging reports staging_local_windows_docker before resuming Recovery Control Store planning."
+    }
+  ],
+  "safety": {
+    "repository_only": true,
+    "production_mutation_allowed": false,
+    "database_mutation": false,
+    "migration_apply": false,
+    "grant_execution": false,
+    "provider_call": false,
+    "deployment": false,
+    "restart": false,
+    "secrets_included": false
+  }
+}
