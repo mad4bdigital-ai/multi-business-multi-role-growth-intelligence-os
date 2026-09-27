@@ -9,6 +9,7 @@ on:
     paths:
       - 'apps/local-manager-windows/**'
       - 'apps/local-manager-windows-tests/**'
+      - 'apps/local-manager-sidecar-certification/**'
       - 'http-generic-api/routes/localManagerBetaRoutes.js'
       - 'http-generic-api/localManagerReleaseRegistry.js'
       - 'http-generic-api/test-local-manager-tool-release-owner.mjs'
@@ -17,6 +18,7 @@ on:
     paths:
       - 'apps/local-manager-windows/**'
       - 'apps/local-manager-windows-tests/**'
+      - 'apps/local-manager-sidecar-certification/**'
       - 'http-generic-api/routes/localManagerBetaRoutes.js'
       - 'http-generic-api/localManagerReleaseRegistry.js'
       - 'http-generic-api/test-local-manager-tool-release-owner.mjs'
@@ -47,6 +49,11 @@ jobs:
         run: |
           dotnet run --project apps/local-manager-windows-tests/LocalManagerProfileTests.csproj -p:LocalManagerEnvironment=production
           dotnet run --project apps/local-manager-windows-tests/LocalManagerProfileTests.csproj -p:LocalManagerEnvironment=staging
+
+      - name: Certify sidecar contracts in both environments
+        run: |
+          dotnet run --project apps/local-manager-sidecar-certification/Mad4B.LocalManager.SidecarCertification.csproj -p:LocalManagerEnvironment=production
+          dotnet run --project apps/local-manager-sidecar-certification/Mad4B.LocalManager.SidecarCertification.csproj -p:LocalManagerEnvironment=staging
       - name: Restore
         run: dotnet restore apps/local-manager-windows/Mad4B.LocalManager.Windows.csproj
 

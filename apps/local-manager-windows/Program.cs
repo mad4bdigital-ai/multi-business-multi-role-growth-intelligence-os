@@ -32,6 +32,11 @@ internal static class Program
     private static void Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
+        if (args.Any(arg => string.Equals(arg, "--update-self-test", StringComparison.Ordinal)))
+        {
+            Environment.ExitCode = RunUpdateSelfTest();
+            return;
+        }
         if (WindowsAppRegistration.TryHandleCommandLine(args, Application.ExecutablePath)) return;
         if (TryBootstrapInstallFromPortablePath()) return;
 
@@ -78,6 +83,23 @@ internal static class Program
     private static string ProgramInstallRoot => DeviceIdentityStore.DefaultInstallRoot;
 
     private static string InstalledExePath => Path.Combine(ProgramInstallRoot, "Mad4B-Local-Manager.exe");
+
+    private static int RunUpdateSelfTest()
+    {
+        try
+        {
+            var path = Path.GetFullPath(Application.ExecutablePath);
+            if (!File.Exists(path)) return 20;
+            using var stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            if (stream.ReadByte() != (byte)'M' || stream.ReadByte() != (byte)'Z') return 21;
+            if (LocalManagerEnvironment.Name is not ("production" or "staging")) return 22;
+            return 0;
+        }
+        catch
+        {
+            return 23;
+        }
+    }
 
     private static bool TryBootstrapInstallFromPortablePath()
     {
@@ -1747,7 +1769,24 @@ internal static class Program
             finally { if (pendingDownload is not null) { try { File.Delete(pendingDownload); } catch { } } }
         }
 
-        private void LaunchUpdaterAndRestart(string installerPath) { var helperPath = Path.Combine(UpdatesRoot, "run-local-manager-update.cmd"); var appPath = Application.ExecutablePath; var currentPid = Environment.ProcessId; var script = string.Join("\r\n", new[] { "@echo off", "setlocal", "set \"INSTALLER=" + installerPath + "\"", "set \"APP=" + appPath + "\"", "set \"PID=" + currentPid + "\"", "echo Updating Mad4B Local Manager...", "timeout /t 1 /nobreak >nul", "taskkill /PID %PID% /T /F >nul 2>nul", "for /l %%i in (1,1,30) do ( tasklist /fi \"PID eq %PID%\" | find \"%PID%\" >nul || goto app_stopped & timeout /t 1 /nobreak >nul )", ":app_stopped", "copy /y \"%INSTALLER%\" \"%APP%\" >nul", "if errorlevel 1 ( echo ERROR: Could not replace Local Manager executable. & pause & exit /b 1 )", "start \"\" \"%APP%\"", "exit /b 0" }) + "\r\n"; File.WriteAllText(helperPath, script, Encoding.ASCII); Process.Start(new ProcessStartInfo { FileName = "cmd.exe", Arguments = "/c \"" + helperPath + "\"", WorkingDirectory = UpdatesRoot, UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden }); BeginInvoke(new Action(Close)); }
+        private void LaunchUpdaterAndRestart(string installerPath)
+        {
+            var helperPath = Path.Combine(UpdatesRoot, "run-local-manager-update.cmd");
+            var appPath = Application.ExecutablePath;
+            var currentPid = Environment.ProcessId;
+            var script = LocalManagerUpdateHandoff.BuildScript(installerPath, appPath, currentPid);
+            File.WriteAllText(helperPath, script, Encoding.ASCII);
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = "/c \"" + helperPath + "\"",
+                WorkingDirectory = UpdatesRoot,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WindowStyle = ProcessWindowStyle.Hidden,
+            });
+            BeginInvoke(new Action(Close));
+        }
         private void ShowTopMostMessage(string title, string message) { var previousTopMost = TopMost; try { if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal; Show(); Activate(); TopMost = true; MessageBox.Show(this, message, title, MessageBoxButtons.OK, MessageBoxIcon.Information); } finally { TopMost = previousTopMost; } }
         private void RestoreDesktopCommandPollBackoff()
         {

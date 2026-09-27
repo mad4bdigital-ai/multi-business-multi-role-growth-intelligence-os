@@ -7,5 +7,6 @@
   <ItemGroup>
     <Compile Include="../local-manager-windows/LocalManagerEnvironment.cs" Link="LocalManagerEnvironment.cs" />
     <Compile Include="../local-manager-windows/LocalManagerUpdatePolicy.cs" Link="LocalManagerUpdatePolicy.cs" />
+    <Compile Include="../local-manager-windows/LocalManagerUpdateHandoff.cs" Link="LocalManagerUpdateHandoff.cs" />
   </ItemGroup>
 </Project>

@@ -34,7 +34,11 @@ try {
     await check("runtime_identity",async()=>{
       runtimePool ||= getPool();
       const [rows]=await runtimePool.query("SELECT DATABASE() AS db, CURRENT_USER() AS account");
-      return {ready:rows.length===1&&rows[0].db===process.env.DB_NAME&&String(rows[0].account).split("@")[0]===process.env.DB_USER};
+      const [identity] = rows;
+      const account = String(identity?.account || "");
+      const separator = account.indexOf("@");
+      const accountName = separator >= 0 ? account.slice(0, separator) : account;
+      return {ready:rows.length===1&&identity?.db===process.env.DB_NAME&&accountName===process.env.DB_USER};
     });
     await check("writer_privileges",async()=>{writerPool=getLocalManagerWritePool();const result=await assertLocalManagerWritePrivilegeReadiness({pool:writerPool});return {ready:result.ready,generic_runtime_fallback:false};});
     await check("release_registry",async()=>{const release=await latestLocalManagerWindowsRelease({pool:runtimePool||getPool()});return {ready:release.source==="db"&&!release.registry_degraded&&/^[a-f0-9]{64}$/iu.test(release.sha256||""),version:release.version,source:release.source,reason:release.registry_reason};});

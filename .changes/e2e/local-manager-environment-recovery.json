@@ -1,0 +1,111 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "local-manager-environment-recovery",
+  "title": "Local Manager environment-bound pairing, database recovery and rollback-safe Windows updates",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/local-manager-environment-recovery.json",
+      ".github/workflows/local-manager-windows.yml",
+      "apps/local-manager-windows/**",
+      "apps/local-manager-windows-tests/**",
+      "apps/local-manager-sidecar-certification/**",
+      "http-generic-api/localManager*.js",
+      "http-generic-api/public/connect/**",
+      "http-generic-api/routes/localManagerBetaRoutes.js",
+      "http-generic-api/routes/localConnectorInstallRoutes.js",
+      "http-generic-api/scripts/local-manager-readiness.mjs",
+      "http-generic-api/services/localManagerDeviceLinkService.js",
+      "http-generic-api/runtimeBootstrapStatus.js",
+      "http-generic-api/runtimeIntegrity.js",
+      "http-generic-api/test-local-manager-*.mjs",
+      "http-generic-api/test-connect-routes.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove environment isolation, exact device recovery, least-privilege database evidence, release-channel integrity and rollback-safe update handoff without granting Production mutation authority.",
+      "e2e_journeys": [
+        {
+          "id": "local-manager-environment-recovery",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Manager recovery operator",
+          "entrypoint": "Local Manager Windows device link and environment readiness",
+          "terminal_outcome": "The selected environment, device, database writer, release artifact and update handoff are exact and fail closed when identity or evidence is missing.",
+          "steps": [
+            "Resolve an explicit staging or production runtime identity before release or database authority selection.",
+            "Bind the device recovery handoff to the exact device identity and return route supplied by the pairing journey.",
+            "Verify the dedicated writer account, environment marker, database target and non-grantable least-privilege matrix.",
+            "Select only a canonical GitHub release URL from the runtime-specific release channel after URL normalization.",
+            "Stage the Windows executable, verify staged bytes, retain the previous version, self-test the replacement and roll back on failure.",
+            "Build and certify Sidecar contracts under both production and staging compile profiles."
+          ],
+          "assertions": [
+            "Missing or conflicting runtime identity never defaults to Production release selection.",
+            "Cross-channel, dot-segment and wrong-tag release artifacts are rejected by the server policy.",
+            "A failed device provisioning request never marks the device journey complete.",
+            "CURRENT_USER() must match the configured writer and GRANT OPTION is forbidden at global, schema and table scope.",
+            "Sidecar certification compiles with the same environment contract as the Windows application.",
+            "The updater never overwrites the live executable directly and retains an automatic rollback path."
+          ],
+          "tests": [
+            {
+              "id": "local-manager-environment-recovery-regressions",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-local-manager-environment-recovery.mjs",
+              "args": []
+            },
+            {
+              "id": "local-manager-connect-route-regressions",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-connect-routes.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/local-manager-environment-recovery.json",
+            ".github/workflows/local-manager-windows.yml",
+            "apps/local-manager-windows/LocalManagerEnvironment.cs",
+            "apps/local-manager-windows/LocalManagerUpdatePolicy.cs",
+            "apps/local-manager-windows/LocalManagerUpdateHandoff.cs",
+            "apps/local-manager-sidecar-certification/Mad4B.LocalManager.SidecarCertification.csproj",
+            "http-generic-api/localManagerReleaseRegistry.js",
+            "http-generic-api/localManagerWriteAuthority.js",
+            "http-generic-api/test-local-manager-environment-recovery.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Run governed live Staging acceptance against a clean database, an incomplete database and an interrupted write cycle."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Certify repeated Windows update, failed self-test rollback, reconnect and unknown-commit recovery behavior."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This PR does not authorize a Production canary or deployment."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "Production promotion, database migration, grant mutation and release signing remain separately governed."
+    }
+  ],
+  "secrets_included": false
+}

@@ -55,10 +55,23 @@ test("production credential rejected on staging even under a shared test key",as
   await assert.rejects(requireLocalManagerDevice({headers:{authorization:`Bearer ${token}`}}),{code:"invalid_device_token"});
 });
 test("dedicated writer must target this environment's runtime database",async()=>{
-  const env={LOCAL_MANAGER_WRITE_AUTHORITY_ENABLED:"true",DB_HOST:"db",DB_NAME:"staging",DB_USER:"reader",LOCAL_MANAGER_WRITE_DB_HOST:"db",LOCAL_MANAGER_WRITE_DB_NAME:"staging",LOCAL_MANAGER_WRITE_DB_USER:"writer",LOCAL_MANAGER_WRITE_DB_PASSWORD:"fixture"};
+  const env={NODE_ENV:"staging",LOCAL_MANAGER_WRITE_AUTHORITY_ENABLED:"true",LOCAL_MANAGER_WRITE_DB_ENVIRONMENT:"staging",DB_HOST:"db",DB_NAME:"staging",DB_USER:"reader",LOCAL_MANAGER_WRITE_DB_HOST:"db",LOCAL_MANAGER_WRITE_DB_NAME:"staging",LOCAL_MANAGER_WRITE_DB_USER:"writer",LOCAL_MANAGER_WRITE_DB_PASSWORD:"fixture"};
   assert.equal(resolveLocalManagerWriteDbConfig(env).database,"staging");
   for(const changes of [{LOCAL_MANAGER_WRITE_DB_NAME:"production"},{LOCAL_MANAGER_WRITE_DB_HOST:"production-db"},{LOCAL_MANAGER_WRITE_DB_PORT:"3307"}]) assert.throws(()=>resolveLocalManagerWriteDbConfig({...env,...changes}),{code:"LOCAL_MANAGER_WRITE_DB_TARGET_MISMATCH"});
-  await assert.rejects(assertLocalManagerWritePrivilegeReadiness({pool:{query:async()=>[[{current_account:"writer@localhost",current_database:"production"}]]},expectedDatabase:"staging"}),{code:"LOCAL_MANAGER_WRITE_DB_TARGET_MISMATCH"});
+  await assert.rejects(assertLocalManagerWritePrivilegeReadiness({pool:{query:async()=>[[{current_account:"writer@localhost",current_database:"production"}]]},expectedDatabase:"staging",expectedUser:"writer",env}),{code:"LOCAL_MANAGER_WRITE_DB_TARGET_MISMATCH"});
+  await assert.rejects(assertLocalManagerWritePrivilegeReadiness({pool:{query:async()=>[[{current_account:"other@localhost",current_database:"staging"}]]},expectedDatabase:"staging",expectedUser:"writer",env}),{code:"LOCAL_MANAGER_WRITE_CURRENT_ACCOUNT_MISMATCH"});
+  const grantablePool={query:async(sql)=>{
+    if(sql.includes("CURRENT_USER()")) return [[{current_account:"writer@localhost",current_database:"staging"}]];
+    if(sql.includes("USER_PRIVILEGES")) return [[{PRIVILEGE_TYPE:"SELECT",IS_GRANTABLE:"YES"}]];
+    if(sql.includes("SCHEMA_PRIVILEGES")) return [[]];
+    if(sql.includes("TABLE_PRIVILEGES")) return [[]];
+    throw new Error("Unexpected query");
+  }};
+  await assert.rejects(
+    assertLocalManagerWritePrivilegeReadiness({pool:grantablePool,expectedDatabase:"staging",expectedUser:"writer",env}),
+    error=>error.code==="LOCAL_MANAGER_WRITE_PRIVILEGE_NOT_READY"&&error.details?.grantable?.some(item=>item.scope==="global"),
+  );
+  assert.throws(()=>resolveLocalManagerWriteDbConfig({...env,LOCAL_MANAGER_WRITE_DB_ENVIRONMENT:"production"}),{code:"LOCAL_MANAGER_WRITE_DB_ENVIRONMENT_MISMATCH"});
 });
 test("canonical lookup does not adopt an unrelated sole account connector",async()=>{
   let calls=0;
@@ -115,11 +128,48 @@ test("repair ignores tenant overrides and denies ambiguous configs without write
     const result=f.res();await handler({headers:{authorization:`Bearer ${token}`},body:{tenant_id:"other"},auth:{is_admin:true}},result);assert.equal(result.code,count?409:404);assert.equal(result.body.download_url,undefined);
   }
 });
-test("staging release never falls back to a production executable",async()=>{
-  const env={NODE_ENV:"staging"};
-  for(const pool of [{query:async()=>[[]]},{query:async()=>{throw new Error("offline");}},{query:async()=>[[{artifact_url:"https://github.com/example/production.exe",sha256:"a".repeat(64)}]]}]) await assert.rejects(latestLocalManagerWindowsRelease({env,pool}),{code:"local_manager_staging_release_unavailable"});
-  const release=await latestLocalManagerWindowsRelease({env,pool:{query:async(_sql,params)=>{assert.deepEqual(params,["latest-staging"]);return [[{version:"0.2.31",artifact_url:"https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-staging/setup.exe",sha256:"a".repeat(64)}]];}}});
-  assert.equal(release.source,"db");assert.equal(release.registry_degraded,false);
+test("release selection is environment-bound after URL canonicalization",async()=>{
+  await assert.rejects(
+    latestLocalManagerWindowsRelease({env:{},pool:{query:async()=>[[]]}}),
+    {code:"local_manager_release_environment_unresolved"},
+  );
+  const stagingEnv={NODE_ENV:"staging"};
+  const productionEnv={NODE_ENV:"production"};
+  const stagingRow={
+    release_channel:"latest-staging",
+    release_tag:"local-manager-windows-staging",
+    version:"0.2.31",
+    artifact_url:"https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-staging/Mad4B-Local-Manager-Setup-0.2.31.exe",
+    sha256_url:"https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-staging/Mad4B-Local-Manager-Setup-0.2.31.exe.sha256.json",
+    sha256:"a".repeat(64),
+  };
+  for(const pool of [{query:async()=>[[]]},{query:async()=>{throw new Error("offline");}}]) {
+    await assert.rejects(latestLocalManagerWindowsRelease({env:stagingEnv,pool}),{code:"local_manager_staging_release_unavailable"});
+  }
+  await assert.rejects(
+    latestLocalManagerWindowsRelease({env:stagingEnv,pool:{query:async()=>[[{
+      ...stagingRow,
+      artifact_url:"https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-staging/../local-manager-windows-latest/Mad4B-Local-Manager-Setup-0.2.31.exe",
+    }]]}}),
+    error=>["local_manager_release_channel_mismatch","local_manager_release_artifact_invalid"].includes(error.code),
+  );
+  const stagingRelease=await latestLocalManagerWindowsRelease({env:stagingEnv,pool:{query:async(_sql,params)=>{assert.deepEqual(params,["latest-staging"]);return [[stagingRow]];}}});
+  assert.equal(stagingRelease.source,"db");assert.equal(stagingRelease.registry_degraded,false);
+
+  const productionRow={
+    release_channel:"latest-prerelease",
+    release_tag:"local-manager-windows-latest",
+    version:"0.2.31",
+    artifact_url:"https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-latest/Mad4B-Local-Manager-Setup-0.2.31.exe",
+    sha256_url:"https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-latest/Mad4B-Local-Manager-Setup-0.2.31.exe.sha256.json",
+    sha256:"b".repeat(64),
+  };
+  await assert.rejects(
+    latestLocalManagerWindowsRelease({env:productionEnv,pool:{query:async()=>[[{...productionRow,release_tag:"local-manager-windows-staging",artifact_url:stagingRow.artifact_url,sha256_url:stagingRow.sha256_url}]]}}),
+    {code:"local_manager_release_channel_mismatch"},
+  );
+  const productionRelease=await latestLocalManagerWindowsRelease({env:productionEnv,pool:{query:async(_sql,params)=>{assert.deepEqual(params,["latest-prerelease"]);return [[productionRow]];}}});
+  assert.equal(productionRelease.source,"db");
 });
 test("lost commit acknowledgment remains unknown and failed begin releases the connection",async()=>{
   for(const phase of ["begin","commit"]) {

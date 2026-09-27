@@ -16,6 +16,13 @@ Reject(()=>LocalManagerUpdatePolicy.ValidateArtifact(own.Replace("github.com","g
 Reject(()=>LocalManagerUpdatePolicy.ValidateArtifact(own+"?redirect=other",LocalManagerEnvironment.Name));
 Reject(()=>LocalManagerUpdatePolicy.ValidateHash(""));
 Reject(()=>LocalManagerUpdatePolicy.ValidateHash(new string('a',63)));
+var handoff=LocalManagerUpdateHandoff.BuildScript(@"C:\updates\new.exe",@"C:\Apps\LocalManager.exe",1234);
+Assert(handoff.Contains(@"set ""STAGED=C:\Apps\LocalManager.exe.next"""),"Update is not staged.");
+Assert(handoff.Contains(@"set ""BACKUP=C:\Apps\LocalManager.exe.previous"""),"Previous version is not retained.");
+Assert(handoff.Contains(@"fc /b ""%INSTALLER%"" ""%STAGED%"""),"Staged bytes are not verified.");
+Assert(handoff.Contains(@"--update-self-test"),"Updated executable is not self-tested.");
+Assert(handoff.Contains(@"move /y ""%BACKUP%"" ""%APP%"""),"Rollback path is missing.");
+Assert(!handoff.Contains(@"copy /y ""%INSTALLER%"" ""%APP%"""),"Direct executable overwrite remains.");
 var path=Path.GetTempFileName();
 try {
     await File.WriteAllTextAsync(path,"fixture executable bytes");

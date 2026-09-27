@@ -600,6 +600,7 @@ function localManagerLinkDevicePage(initialCode = "") {
 const GOOGLE_CLIENT_ID = ${JSON.stringify(GOOGLE_CLIENT_ID)};
 const $ = (id) => document.getElementById(id);
 let pairingFingerprint = '';
+let pairingDeviceId = '';
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 function normalizeCode(value){ return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/^(.{4})(.*)$/,'$1-$2').slice(0,9); }
 function setOut(obj){ $('out').textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2); }
@@ -642,6 +643,7 @@ async function loadPreview(){
   if(!res.ok || !data.ok){ $('devicePreview').innerHTML = '<span class="bad">'+esc(data?.error?.message || 'Could not load pairing code.')+'</span>'; return; }
   const d = data.device || {};
   pairingFingerprint = String(d.pairing_fingerprint || '');
+  pairingDeviceId = String(d.device_id || '').trim().toLowerCase();
   $('devicePreview').innerHTML = 'Device: <strong>'+esc(d.display_label || d.hostname || d.device_id || 'Windows device')+'</strong> · Platform: '+esc(d.platform || 'windows')+' · Version: '+esc(d.app_version || 'unknown')+' · Status: '+esc(d.effective_status || data.status)+' · Expires: '+esc(d.expires_at || 'soon');
 }
 function getToken(){ return sessionStorage.getItem('mlm_user_token') || ''; }
@@ -660,7 +662,13 @@ async function approveDevice(){
   setOut(data);
   if(res.ok && data.ok){
     if(data.connector_alias && data.connector_alias.resolved !== true){
-      $('authState').innerHTML = '<span class="bad">Approval saved. Connector setup is incomplete; the device is not linked yet. Complete connector installation, then return and approve again.</span> <a href="/connect?return_to='+encodeURIComponent('/app/local-manager/link-device?code='+code)+'">Open account setup</a>';
+      if(!pairingDeviceId){
+        $('authState').innerHTML = '<span class="bad">Approval saved, but the pairing session did not return an exact device identity. Start a fresh device link from the Windows app.</span>';
+        return false;
+      }
+      const retryPath = '/app/local-manager/link-device?code=' + encodeURIComponent(code) + '&auto_retry=1';
+      const setupUrl = '/connect?device_id=' + encodeURIComponent(pairingDeviceId) + '&return_to=' + encodeURIComponent(retryPath);
+      $('authState').innerHTML = '<span class="bad">Approval saved. Connector setup is incomplete; the device is not linked yet. Complete connector installation, then return and approve again.</span> <a href="' + setupUrl + '">Open account setup</a>';
       return false;
     }
     const msg = data.already_linked
@@ -698,6 +706,11 @@ async function initializeLinkDevicePage(){
   $('codePreview').textContent = $('deviceCode').value || '---- ----';
   await loadPreview();
   if(signedIn && normalizeCode($('deviceCode').value)){
+    const autoRetry = new URLSearchParams(window.location.search).get('auto_retry') === '1';
+    if(autoRetry){
+      await approveDevice();
+      return;
+    }
     setOut({ok:true,status:'signed_in',message:'Signed in. Review the device details, then click Approve device.'});
   }
 }

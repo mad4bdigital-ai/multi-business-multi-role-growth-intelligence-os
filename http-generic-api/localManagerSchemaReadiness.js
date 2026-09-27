@@ -22,7 +22,11 @@ export function evaluateDeviceLinkSchema(columns, indexes) {
   }
   const groups = new Map();
   for (const row of indexes) { const group = groups.get(row.INDEX_NAME) || []; group.push(row); groups.set(row.INDEX_NAME,group); }
-  const missingUnique = ["session_id","display_code_hash","poll_token_hash"].filter(column => ![...groups.values()].some(rows => rows.length === 1 && Number(rows[0].NON_UNIQUE) === 0 && rows[0].COLUMN_NAME === column && rows[0].SUB_PART == null));
+  const missingUnique = ["session_id","display_code_hash","poll_token_hash"].filter(column => ![...groups.values()].some(rows => {
+    if (rows.length !== 1) return false;
+    const [only] = rows;
+    return Number(only.NON_UNIQUE) === 0 && only.COLUMN_NAME === column && only.SUB_PART == null;
+  }));
   return { ready: !missing.length && !incompatible.length && !missingUnique.length,
     missing_columns: missing, incompatible_columns: incompatible, missing_unique_keys: missingUnique,
     migration_required: "20260922_local_manager_device_link_authority.sql",

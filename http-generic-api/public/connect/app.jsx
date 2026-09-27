@@ -11,6 +11,16 @@ function apiFetch(path, opts = {}) {
     .then(r => r.json().catch(() => ({})).then(data => ({ ok: r.ok, status: r.status, data })));
 }
 
+function readConnectHandoff() {
+  const params = new URLSearchParams(window.location.search);
+  const candidateDeviceId = String(params.get('device_id') || '').trim().toLowerCase();
+  const candidateReturnTo = String(params.get('return_to') || '').trim();
+  return {
+    deviceId: /^[a-z0-9-]{2,32}$/.test(candidateDeviceId) ? candidateDeviceId : '',
+    returnTo: candidateReturnTo.startsWith('/') && !candidateReturnTo.startsWith('//') ? candidateReturnTo : '',
+  };
+}
+
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
 
@@ -27,7 +37,9 @@ function App() {
   const [tenant, setTenant] = useState(null);
   const [memberships, setMemberships] = useState([]);
   const [authError, setAuthError] = useState('');
-  const [deviceId, setDeviceId] = useState('nagy-mbp-m4');
+  const [handoff] = useState(readConnectHandoff);
+  const [deviceId, setDeviceId] = useState(handoff.deviceId);
+  const [deviceError, setDeviceError] = useState('');
   const [connections, setConnections] = useState({ cloudflare: 'not_connected', hostinger: 'not_connected', device: 'not_connected', launch: 'not_connected' });
   const [completed, setCompleted] = useState(new Set());
   const [evidenceOpen, setEvidenceOpen] = useState(false);
@@ -52,8 +64,13 @@ function App() {
         setConnections(c => ({ ...c, cloudflare: 'connected', hostinger: 'connected' }));
       }
       if (data.devices?.length > 0) {
-        setConnections(c => ({ ...c, device: 'installed_here' }));
-        setDeviceId(data.devices[0].device_id);
+        const exactDevice = handoff.deviceId
+          ? data.devices.find((device) => device.device_id === handoff.deviceId)
+          : (data.devices.length === 1 ? data.devices.at(0) : null);
+        if (exactDevice) {
+          setConnections(c => ({ ...c, device: 'installed_here' }));
+          setDeviceId(exactDevice.device_id);
+        }
       }
       return true;
     }
@@ -207,12 +224,32 @@ function App() {
   };
 
   const handleDeviceComplete = async () => {
-    if (tenant) {
-      const { ok, data } = await apiFetch('/connect/device-install', { method: 'POST', body: JSON.stringify({ device_id: deviceId }) });
-      pushLog({ method: 'POST', path: '/connect/device-install', status: ok ? 201 : 500, ms: 312, body: ok ? data : { error: data?.error?.message } });
+    const normalizedDeviceId = String(deviceId || '').trim().toLowerCase();
+    if (!tenant || !/^[a-z0-9-]{2,32}$/.test(normalizedDeviceId)) {
+      setDeviceError('A valid device identity from the pairing flow is required.');
+      return false;
     }
+    const { ok, status, data } = await apiFetch('/connect/device-install', {
+      method: 'POST',
+      body: JSON.stringify({ device_id: normalizedDeviceId }),
+    });
+    pushLog({
+      method: 'POST',
+      path: '/connect/device-install',
+      status: status || (ok ? 201 : 500),
+      ms: 312,
+      body: ok ? data : { error: data?.error?.message, code: data?.error?.code },
+    });
+    if (!ok) {
+      setDeviceError(data?.error?.message || 'Device provisioning failed. No completion state was recorded.');
+      return false;
+    }
+    setDeviceError('');
+    setDeviceId(normalizedDeviceId);
     setConnections(c => ({ ...c, device: 'installed_here' }));
     setCompleted(prev => new Set([...prev, 'device']));
+    if (handoff.returnTo) window.setTimeout(() => window.location.assign(handoff.returnTo), 0);
+    return true;
   };
 
   const handleLaunch = () => { setStep('launch'); };
@@ -268,7 +305,7 @@ function App() {
                 {step === 'credentials' && <CredentialVault connections={connections} onSave={handleSaveCredentials} onBack={() => setStep('hub')}/>}
                 {step === 'preferences' && <PreferencesStep tenant={tenant} onSave={handleSavePreferences} onBack={() => setStep('credentials')}/>}
                 {step === 'business' && <BusinessProfileStep tenant={tenant} onSave={handleSaveBusiness} onBack={() => setStep('preferences')}/>}
-                {step === 'device' && <DeviceInstall tenant={tenant} deviceId={deviceId} setDeviceId={setDeviceId} onComplete={handleDeviceComplete} onBack={() => setStep('hub')} completed={connections.device === 'installed_here'}/>}
+                {step === 'device' && <DeviceInstall tenant={tenant} deviceId={deviceId} setDeviceId={setDeviceId} onComplete={handleDeviceComplete} onBack={() => setStep('hub')} completed={connections.device === 'installed_here'} error={deviceError}/>}
                 {step === 'launch' && <GptLaunch session={session} tenant={tenant} deviceId={deviceId} connections={connections} onLaunch={handleOpenGpt} onBack={() => setStep('hub')} userToken={localStorage.getItem('mad4b_connect_token')}/>}
               </section>
             </div>

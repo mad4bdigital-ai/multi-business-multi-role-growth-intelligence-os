@@ -549,7 +549,8 @@ async function resolveCanonicalConnectorConfig({ userId, tenantId, deviceId, hos
     error.code = "canonical_connector_config_ambiguous";
     throw error;
   }
-  return rows[0] || null;
+  const [canonical] = rows;
+  return canonical || null;
 }
 
 async function inspectLocalConnectorAliasForDeviceLink({ session, principal }) {
