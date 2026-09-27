@@ -108,7 +108,8 @@
         "http-generic-api/governanceDbPrivilegeContract.js",
         "http-generic-api/governanceDbPrivilegeReadinessRuntime.js",
         "http-generic-api/governanceDbPrivilegeReadinessService.js",
-        "http-generic-api/test-governance-db-privilege-readiness.mjs"
+        "http-generic-api/test-governance-db-privilege-readiness.mjs",
+        "http-generic-api/test-governance-db-writer-authority.mjs"
       ]
     },
     {
@@ -122,7 +123,8 @@
       "id": "governed_migration_capability_envelope_authorization",
       "test_paths": [
         "http-generic-api/test-capability-resolution-envelope-ledger.mjs",
-        "http-generic-api/test-governed-migration-authorization-bootstrap.mjs"
+        "http-generic-api/test-governed-migration-authorization-bootstrap.mjs",
+        "http-generic-api/test-tenant-platform-plugin-1052-governed-readiness.mjs"
       ]
     },
     {
