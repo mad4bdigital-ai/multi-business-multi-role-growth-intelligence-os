@@ -44,4 +44,4 @@ CREATE TABLE IF NOT EXISTS capability_resolution_envelope_ledger (
   KEY idx_capability_resolution_envelope_status (envelope_status, expires_at),
   KEY idx_capability_resolution_envelope_decision (decision, created_at),
   CONSTRAINT chk_capability_resolution_envelope_no_secrets CHECK (secrets_included = 0)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
