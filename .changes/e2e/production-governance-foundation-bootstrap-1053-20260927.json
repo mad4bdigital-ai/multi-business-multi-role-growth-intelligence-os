@@ -11,7 +11,6 @@
       ".changes/e2e/production-governance-foundation-bootstrap-1053-20260927.json",
       "http-generic-api/migrations/1053_production_governance_capability_envelope_foundation.sql",
       ".github/ops/production-governance-foundation-1053.mjs",
-      ".github/workflows/production-governance-foundation-1053.yml",
       "http-generic-api/routes/gptToolsRoutes.js",
       "http-generic-api/routes/gptToolsRoutesLegacy.js",
       "http-generic-api/test-production-governance-foundation-1053.mjs",
@@ -26,7 +25,8 @@
       "http-generic-api/test-governance-db-writer-authority.mjs",
       "http-generic-api/test-governed-migration-authorization-bootstrap.mjs",
       "docs/governance/configuration-drift-baseline-extensions.json",
-      "http-generic-api/test-staging-schema-bundle-builder.mjs"
+      "http-generic-api/test-staging-schema-bundle-builder.mjs",
+      ".github/workflows/github-repository-policy-1050-governed-rollout.yml"
     ]
   },
   "merge_contract": {
@@ -72,7 +72,8 @@
             "Expose governed migration schema readback through a closed runtime|governance role selector without accepting database names or credentials.",
             "Bind Migration 1051 readiness/pre-Apply to the exact Migration 1053 Governance ledger and schema through database_role=governance; legacy Migration 225 remains non-executable.",
             "Resolve governed-migration authorization and Apply envelopes from the canonical Governance store after create/approve; never look up those just-created envelope IDs through the ordinary Runtime DB.",
-            "Govern the Foundation 1053 workflow-only EVIDENCE_DIR and phase configuration references through the non-secret configuration-drift baseline; do not treat either value as runtime or mutation authority."
+            "Govern the Foundation 1053 workflow-only EVIDENCE_DIR and phase configuration references through the non-secret configuration-drift baseline; do not treat either value as runtime or mutation authority.",
+            "Host Foundation 1053 PLAN/APPLY/VERIFY jobs inside the existing Migration 1050 Issue #6628 control workflow so the CI workflow surface count does not grow."
           ],
           "assertions": [
             "Migration 225 remains allowed only in dry_run/verification-only paths.",
@@ -88,7 +89,8 @@
             "The 1050 authorization/apply envelope chain cannot regress to Runtime getPool(): authorization resolution and governed-migration Apply resolution use the Governance envelope store, while lifecycle reference mutation uses the Governance writer.",
             "Migration 1051 requires both the legacy Migration 225 Runtime proof and Migration 1053 Governance proof, plus Governance writer readiness; neither side alone is sufficient.",
             "Foundation 1053 introduces no ungoverned secret/configuration drift: its new EVIDENCE_DIR and closed plan|apply|verify phase references are explicitly classified as non-secret CI governance inputs.",
-            "The ordered Staging schema projection remains role-aware after Foundation 1053: capability_resolution_envelope_ledger stays Governance-owned, Runtime-excluded, and the two additional ENUM definitions are reflected in the deterministic enum-chain count."
+            "The ordered Staging schema projection remains role-aware after Foundation 1053: capability_resolution_envelope_ledger stays Governance-owned, Runtime-excluded, and the two additional ENUM definitions are reflected in the deterministic enum-chain count.",
+            "Foundation 1053 reuses the existing Migration 1050 control workflow; it does not add a new .github/workflows surface."
           ],
           "tests": [
             {
@@ -145,7 +147,6 @@
             ".changes/e2e/production-governance-foundation-bootstrap-1053-20260927.json",
             "http-generic-api/migrations/1053_production_governance_capability_envelope_foundation.sql",
             ".github/ops/production-governance-foundation-1053.mjs",
-            ".github/workflows/production-governance-foundation-1053.yml",
             "http-generic-api/routes/gptToolsRoutes.js",
             "http-generic-api/test-production-governance-foundation-1053.mjs",
             ".github/governance/test-authority-registry.json",
@@ -159,7 +160,8 @@
             "http-generic-api/test-governance-db-writer-authority.mjs",
             "http-generic-api/test-governed-migration-authorization-bootstrap.mjs",
             "docs/governance/configuration-drift-baseline-extensions.json",
-            "http-generic-api/test-staging-schema-bundle-builder.mjs"
+            "http-generic-api/test-staging-schema-bundle-builder.mjs",
+            ".github/workflows/github-repository-policy-1050-governed-rollout.yml"
           ]
         }
       ]
