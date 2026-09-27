@@ -40,7 +40,8 @@ assert.match(operator, /automatic_replay_allowed: false/u);
 assert.doesNotMatch(operator, /process\.env\.(?:DB_NAME|GOVERNANCE_DB_NAME)/u);
 
 assert.match(workflow, /^name: Governed Migration 1050 GitHub Repository Policy Bootstrap Repair Rollout/mu);
-assert.match(workflow, /Plan exact Production Governance foundation repair/u);\nassert.match(workflow, /PLAN_PRODUCTION_GOVERNANCE_FOUNDATION_1053:/u);
+assert.match(workflow, /Plan exact Production Governance foundation repair/u);
+assert.match(workflow, /PLAN_PRODUCTION_GOVERNANCE_FOUNDATION_1053:/u);
 assert.match(workflow, /APPLY_PRODUCTION_GOVERNANCE_FOUNDATION_1053:/u);
 assert.match(workflow, /VERIFY_PRODUCTION_GOVERNANCE_FOUNDATION_1053:/u);
 assert.match(workflow, /environment: Production/u);
