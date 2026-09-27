@@ -338,7 +338,7 @@
     },
     {
       "path": "autopilot-portable-staging/Staging-Environment.ps1",
-      "sha256": "ccc22e81fa93d0407691e91a4ba2cce01fe9f3227ed30aaa96f409073f702bec"
+      "sha256": "5f6f2aa8715552774eb3d62e27a93f9a722e226ca338cb2562aabcdf4a32ed31"
     },
     {
       "path": "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
