@@ -53,7 +53,7 @@ assert.match(workflow, /repository_issue_comment_authorized: false/);
 assert.match(workflow, /repository_issue_comment_performed: false/);
 assert.match(workflow, /production_current/);
 assert.match(workflow, /runtimeEnvironment: deployment\?\.runtime_environment \|\| \{\}/);
-assert.match(decision, /runtimeEnvironmentReady/);
+assert.match(decision, /runtimeIdentityReady/);
 assert.match(decision, /production_hostinger_autodeploy/);
 assert.match(decision, /hostinger_autodeploy/);
 assert.match(decision, /runtime_environment_identity_not_explicit/);
