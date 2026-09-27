@@ -452,7 +452,7 @@ export async function captureMetadataState({ base, key, evidenceDir, mode = 'ver
     ledger,
     readiness_dependency_guard: mode === 'readiness' ? {
       status: dependencyGuardAllowed ? 'pass' : 'blocked',
-      reason: dependencyGuardAllowed ? 'migration_225_runtime_and_governance_writer_schema_verified' : foundation1053.dependency_block_reason,
+      reason: dependencyGuardAllowed ? 'migration_1053_governance_foundation_and_writer_schema_verified' : foundation1053.dependency_block_reason,
     } : null,
     pre_apply_guard: mode === 'pre_apply' ? {
       status: guardAllowed ? 'pass' : 'blocked',
@@ -481,7 +481,7 @@ export async function captureMetadataState({ base, key, evidenceDir, mode = 'ver
     if (!dependencyGuardAllowed) {
       const blockedBy429 = foundation1053.dependency_block_reason === 'migration_1053_readback_rate_limited'
         || foundation1053.dependency_block_reason === 'governance_writer_readback_rate_limited';
-      const writerBlocked = foundation1053.runtime_dependency_ready === true && foundation1053.governance_writer_ready !== true;
+      const writerBlocked = foundation1053.foundation_dependency_ready === true && foundation1053.governance_writer_ready !== true;
       const error = new Error(blockedBy429
         ? 'Migration 1051 readiness blocked: read-only dependency readback remained rate limited after bounded retries'
         : writerBlocked
@@ -500,7 +500,7 @@ export async function captureMetadataState({ base, key, evidenceDir, mode = 'ver
     if (!dependencyGuardAllowed) {
       const blockedBy429 = foundation1053.dependency_block_reason === 'migration_1053_readback_rate_limited'
         || foundation1053.dependency_block_reason === 'governance_writer_readback_rate_limited';
-      const writerBlocked = foundation1053.runtime_dependency_ready === true && foundation1053.governance_writer_ready !== true;
+      const writerBlocked = foundation1053.foundation_dependency_ready === true && foundation1053.governance_writer_ready !== true;
       const error = new Error(blockedBy429
         ? 'Migration 1051 pre-Apply blocked: read-only dependency readback remained rate limited after bounded retries'
         : writerBlocked
@@ -533,13 +533,13 @@ async function main() {
     target_metadata_state: report.target_metadata_state,
     authorization_state: report.authorization_state,
     metadata_present: report.metadata_present,
-    dependency_225_runtime_ready: report.envelope_dependency_225?.runtime_dependency_ready ?? false,
-    governance_writer_schema_ready: report.envelope_dependency_225?.governance_writer_readiness?.schema_objects_ready ?? false,
-    governance_writer_ready: report.envelope_dependency_225?.governance_writer_ready ?? false,
-    dependency_225_ready: report.envelope_dependency_225?.dependency_ready ?? false,
-    dependency_block_reason: report.envelope_dependency_225?.dependency_block_reason ?? null,
-    dependency_rate_limit_retries: report.envelope_dependency_225?.rate_limit_retries ?? 0,
-    dependency_rate_limit_exhausted: report.envelope_dependency_225?.rate_limit_exhausted ?? false,
+    foundation_1053_ready: report.envelope_foundation_1053?.foundation_dependency_ready ?? false,
+    governance_writer_schema_ready: report.envelope_foundation_1053?.governance_writer_readiness?.schema_objects_ready ?? false,
+    governance_writer_ready: report.envelope_foundation_1053?.governance_writer_ready ?? false,
+    foundation_dependency_ready: report.envelope_foundation_1053?.dependency_ready ?? false,
+    dependency_block_reason: report.envelope_foundation_1053?.dependency_block_reason ?? null,
+    dependency_rate_limit_retries: report.envelope_foundation_1053?.rate_limit_retries ?? 0,
+    dependency_rate_limit_exhausted: report.envelope_foundation_1053?.rate_limit_exhausted ?? false,
     readiness_dependency_guard: report.readiness_dependency_guard?.status ?? null,
     pre_apply_guard: report.pre_apply_guard?.status ?? null,
     metadata_grants_apply_authority: false,
