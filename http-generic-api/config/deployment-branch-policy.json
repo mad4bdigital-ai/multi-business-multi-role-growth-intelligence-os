@@ -318,6 +318,7 @@
           "http-generic-api/scripts/test-operation-resilience-controller.mjs",
           "http-generic-api/scripts/test-platform-configuration-entry-guard.mjs",
           "http-generic-api/scripts/test-platform-work-map-schema-intelligence.mjs",
+          "http-generic-api/scripts/test-production-runtime-parity-evidence.mjs",
           "http-generic-api/scripts/test-protected-branch-validation-triggers.mjs",
           "http-generic-api/scripts/test-protected-branch-validation-triggers.mjs",
           "http-generic-api/scripts/test-remote-mcp-write-scope-generated-refresh-recipe.mjs",
