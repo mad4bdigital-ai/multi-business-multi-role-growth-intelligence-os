@@ -1084,6 +1084,7 @@ const VIRTUAL_ADMIN_TOOLS = [
           description: "Required only when rotating an existing unapplied authorization to a reviewed replacement checksum.",
         },
         expected_statement_count: { type: "integer", minimum: 1, maximum: 5000 },
+        database_role: { type: "string", enum: ["runtime", "governance"], default: "runtime", description: "Closed database-role selector; raw database names are never accepted." },
         pull_request: { type: "integer", minimum: 1 },
         merge_sha: { type: "string", pattern: "^[0-9a-f]{40}$" },
         confirm: { type: "string" },
@@ -3255,8 +3256,13 @@ async function dispatchToolImpl(callerType, toolKey, args, req, runtimeDeps = {}
   }
   if (callerType === "admin" && toolKey === "governed_migration_schema_readback") {
     try {
-      const result = await runGovernedMigrationSchemaReadback(args || {}, { pool: getPool() });
-      return { status: result.ok ? 200 : 409, body: result };
+      const databaseRole = String(args?.database_role || "runtime").trim().toLowerCase();
+      if (!["runtime", "governance"].includes(databaseRole)) {
+        return { status: 400, body: { ok: false, error: { code: "governed_migration_schema_readback_database_role_invalid", message: "database_role must be runtime or governance." }, secrets_included: false } };
+      }
+      const pool = databaseRole === "governance" ? getGovernancePool() : getPool();
+      const result = await runGovernedMigrationSchemaReadback(args || {}, { pool });
+      return { status: result.ok ? 200 : 409, body: { ...result, database_role: databaseRole, raw_database_name_exposed: false } };
     } catch (err) {
       return { status: err?.status || 500, body: { ok: false, error: { code: err?.code || "governed_migration_schema_readback_failed", message: err?.message || "Governed migration schema readback failed.", details: err?.details }, secrets_included: false } };
     }
