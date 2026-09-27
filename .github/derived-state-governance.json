@@ -314,7 +314,6 @@
       ".github/workflows/policy-objection-ci.yml",
       ".github/workflows/pr-generated-artifact-refresh.yml",
       ".github/workflows/production-certified-release-cut-validation.yml",
-      ".github/workflows/production-governance-foundation-1053.yml",
       ".github/workflows/production-promotion-candidate-contract.yml",
       ".github/workflows/production-promotion-candidate.yml",
       ".github/workflows/production-promotion-rehearsal.yml",
