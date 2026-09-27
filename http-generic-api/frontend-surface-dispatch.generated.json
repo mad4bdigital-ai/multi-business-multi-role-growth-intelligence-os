@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "27798dccb41d99a784e1a80583636f03dae72b5d588e81ec5a6db1293b43ec98",
+    "source_digest": "1ce3331cc6550cb233b4ff9a1472c9557d1616b902d09d737a68d1aca0176109",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "a262145fdb7090578197983a6a1ce9e80bb5b7af8ee32f06939375fa6bf7d4e1",
+        "sha256": "00bddfe783b9c66bbb6a24770fd734e8fe03ec76c7181f6441a5b635eea7f75e",
         "present": true
       },
       {
@@ -661,7 +661,7 @@
       },
       {
         "file": "routes/localConnectorInstallRoutes.js",
-        "sha256": "0d7ebbbc6b2481b46a8d12a0bb3a3d4ce8052424ef53324c92053e9bb336ff72",
+        "sha256": "c7542beb0a43503567b27e459b12698b890fb64c4353ca5fd2f1d5da4c2dbd4f",
         "present": true
       },
       {
@@ -676,7 +676,7 @@
       },
       {
         "file": "routes/localManagerBetaRoutes.js",
-        "sha256": "720b809bf40b56ec51c6e6f997be33b4a5da60088682638906fbe66189b11d9a",
+        "sha256": "2ece1b45f49a41022d8d3f47f4c64081cfd67f57cc3c859cb5a65ccd08cc45b1",
         "present": true
       },
       {
@@ -1096,7 +1096,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "4b7355a3905a8a6359f913e8ce25e2ff8981a020438f0d46cca9cf9b9aadfc3a",
+        "sha256": "a169db51c42ecacbdef346050d81682f2cdfe74628ff25c0697aa5c9d286cc81",
         "present": true
       },
       {
@@ -6508,7 +6508,7 @@
       "family_key": "local-manager-beta.admin",
       "label": "local manager beta (admin)",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "720b809bf40b56ec51c6e6f997be33b4a5da60088682638906fbe66189b11d9a",
+      "source_digest": "2ece1b45f49a41022d8d3f47f4c64081cfd67f57cc3c859cb5a65ccd08cc45b1",
       "mount_prefix": "/",
       "mount_order": 14352,
       "split_from_mixed_scope_file": true,
@@ -6647,7 +6647,7 @@
       "family_key": "local-manager-beta.local_device",
       "label": "local manager beta (local_device)",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "720b809bf40b56ec51c6e6f997be33b4a5da60088682638906fbe66189b11d9a",
+      "source_digest": "2ece1b45f49a41022d8d3f47f4c64081cfd67f57cc3c859cb5a65ccd08cc45b1",
       "mount_prefix": "/",
       "mount_order": 14352,
       "split_from_mixed_scope_file": true,
@@ -7238,7 +7238,7 @@
       "family_key": "local-manager-beta.public.default",
       "label": "local manager beta (public) [default]",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "720b809bf40b56ec51c6e6f997be33b4a5da60088682638906fbe66189b11d9a",
+      "source_digest": "2ece1b45f49a41022d8d3f47f4c64081cfd67f57cc3c859cb5a65ccd08cc45b1",
       "mount_prefix": "/",
       "mount_order": 14352,
       "split_from_mixed_scope_file": true,
@@ -7912,7 +7912,7 @@
       "family_key": "local-manager-beta.public.local-manager",
       "label": "local manager beta (public) [local-manager]",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "720b809bf40b56ec51c6e6f997be33b4a5da60088682638906fbe66189b11d9a",
+      "source_digest": "2ece1b45f49a41022d8d3f47f4c64081cfd67f57cc3c859cb5a65ccd08cc45b1",
       "mount_prefix": "/",
       "mount_order": 14352,
       "split_from_mixed_scope_file": true,
@@ -8770,7 +8770,7 @@
       "family_key": "local-connector-install.developer",
       "label": "local connector install (developer)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "0d7ebbbc6b2481b46a8d12a0bb3a3d4ce8052424ef53324c92053e9bb336ff72",
+      "source_digest": "c7542beb0a43503567b27e459b12698b890fb64c4353ca5fd2f1d5da4c2dbd4f",
       "mount_prefix": "/",
       "mount_order": 14514,
       "split_from_mixed_scope_file": true,
@@ -9213,7 +9213,7 @@
       "family_key": "local-connector-install.local_device",
       "label": "local connector install (local_device)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "0d7ebbbc6b2481b46a8d12a0bb3a3d4ce8052424ef53324c92053e9bb336ff72",
+      "source_digest": "c7542beb0a43503567b27e459b12698b890fb64c4353ca5fd2f1d5da4c2dbd4f",
       "mount_prefix": "/",
       "mount_order": 14514,
       "split_from_mixed_scope_file": true,
