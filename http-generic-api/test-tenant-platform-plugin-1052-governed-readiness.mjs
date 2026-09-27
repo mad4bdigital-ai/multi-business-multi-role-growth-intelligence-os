@@ -52,7 +52,9 @@ assert.ok(runtimeSource.includes('resolveMigrationExecutorReadiness'));
 assert.match(wrapperSource, /readPool/);
 assert.match(wrapperSource, /writerPool/);
 assert.match(wrapperSource, /pool: writerPool/);
-assert.match(wrapperSource, /pool: readPool/);
+assert.match(wrapperSource, /pool: envelopeReadPool/);
+assert.match(wrapperSource, /envelopeReadPool = deps\.envelopeReadPool \|\| deps\.readPool \|\| getGovernancePool\(\)/);
+assert.doesNotMatch(wrapperSource, /getPool\(\)/);
 assert.ok(manifestSource.includes('node test-tenant-platform-plugin-1052-governed-readiness.mjs'));
 
 await assert.rejects(
