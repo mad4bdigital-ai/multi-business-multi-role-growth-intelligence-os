@@ -321,7 +321,7 @@ async function probeEndpoint(endpoint, configuration, dependencies) {
       const rawSha = payload?.commit_sha || payload?.commit;
       const rawBranch = payload?.branch;
       const runtimeEnvironment = payload?.runtime_environment || {};
-      const runtimeEnvironmentReady = runtimeEnvironment?.ok === true
+      const runtimeIdentityReady = runtimeEnvironment?.ok === true
         && runtimeEnvironment?.environment_key === "production"
         && runtimeEnvironment?.runtime_variant === "production_hostinger_autodeploy"
         && runtimeEnvironment?.canonical_runtime_variant === "production_hostinger_autodeploy"
@@ -350,7 +350,7 @@ async function probeEndpoint(endpoint, configuration, dependencies) {
       if (rawService !== "growth-intelligence-platform") throw new EvidenceError("service_identity_mismatch", `Endpoint ${endpoint.name} returned an unexpected service identity.`);
       if (String(rawSha || "").toLowerCase() !== configuration.expectedSha) throw new EvidenceError("deployed_sha_mismatch", `Endpoint ${endpoint.name} is not running the expected Production SHA.`);
       if (rawBranch !== configuration.expectedBranch) throw new EvidenceError("deployment_branch_mismatch", `Endpoint ${endpoint.name} is not reporting the expected Production branch.`);
-      if (!runtimeEnvironmentReady) throw new EvidenceError("runtime_environment_identity_not_explicit", `Endpoint ${endpoint.name} did not prove the explicit production_hostinger_autodeploy runtime identity.`);
+      if (!runtimeIdentityReady) throw new EvidenceError("runtime_environment_identity_not_explicit", `Endpoint ${endpoint.name} did not prove the explicit production_hostinger_autodeploy runtime identity.`);
     } else {
       const rawService = payload?.service;
       const rawSha = payload?.deployment?.deployed_commit_sha;
