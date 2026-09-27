@@ -133,3 +133,274 @@ jobs:
           path: ${{ env.EVIDENCE_DIR }}
           if-no-files-found: error
           retention-days: 30
+
+  plan:
+    name: Plan exact Production Governance foundation repair
+    if: >-
+      github.event.issue.number == 6628 &&
+      !github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, 'PLAN_PRODUCTION_GOVERNANCE_FOUNDATION_1053:') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    concurrency:
+      group: production-governance-foundation-1053-plan
+      cancel-in-progress: false
+    environment: Production
+    env:
+      COMMENT_BODY: ${{ github.event.comment.body }}
+      FOUNDATION_PHASE: plan
+      RUNTIME_BOOTSTRAP_TARGETS_JSON: ${{ vars.RUNTIME_BOOTSTRAP_TARGETS_JSON }}
+      BOOTSTRAP_TARGET_KEY: production-runtime
+      MYSQL_BOOTSTRAP_HOST: ${{ vars.MYSQL_BOOTSTRAP_HOST }}
+      MYSQL_BOOTSTRAP_PORT: ${{ vars.MYSQL_BOOTSTRAP_PORT || '3306' }}
+      MYSQL_BOOTSTRAP_USER: ${{ secrets.MYSQL_BOOTSTRAP_USER }}
+      MYSQL_BOOTSTRAP_PASSWORD: ${{ secrets.MYSQL_BOOTSTRAP_PASSWORD }}
+      GH_TOKEN: ${{ github.token }}
+      EVIDENCE_DIR: .artifacts/production-governance-foundation-1053-plan
+    steps:
+      - name: Validate exact current Production SHA
+        id: identity
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ ! "${COMMENT_BODY}" =~ ^PLAN_PRODUCTION_GOVERNANCE_FOUNDATION_1053:([0-9a-f]{40})$ ]]; then
+            echo "::error::Foundation plan confirmation format mismatch"
+            exit 1
+          fi
+          expected_sha="${BASH_REMATCH[1]}"
+          current_sha="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+          [[ "${current_sha}" == "${expected_sha}" ]]
+          echo "expected_sha=${expected_sha}" >> "${GITHUB_OUTPUT}"
+      - name: Checkout trusted main workflow source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '22'
+      - name: Install database client without lifecycle scripts
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts
+      - name: Build read-only foundation plan
+        env:
+          EXPECTED_PRODUCTION_SHA: ${{ steps.identity.outputs.expected_sha }}
+        run: node .github/ops/production-governance-foundation-1053.mjs
+      - name: Validate and summarize exact no-secret plan
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ steps.identity.outputs.expected_sha }}
+        run: |
+          set -Eeuo pipefail
+          file="${EVIDENCE_DIR}/plan.json"
+          jq -e '(.contract=="mad4b.production-governance-foundation-1053-plan.v1") and (.secrets_included==false) and (.legacy_migration_225_apply_authorized==false) and (.legacy_migration_225_marked_applied==false)' "${file}" >/dev/null
+          plan_sha="$(jq -er '.plan_sha256' "${file}")"
+          action="$(jq -r '.action' "${file}")"
+          allowed="$(jq -r '.execution_allowed' "${file}")"
+          blocker="$(jq -r '.blocker // "none"' "${file}")"
+          {
+            echo "## Production Governance Foundation 1053 — exact plan"
+            echo ""
+            echo "- Production SHA: ${EXPECTED_SHA}"
+            echo "- plan_sha256: ${plan_sha}"
+            echo "- action: ${action}"
+            echo "- execution_allowed: ${allowed}"
+            echo "- blocker: ${blocker}"
+            echo "- legacy Migration 225 Apply authorized: false"
+            echo "- caller database/SQL accepted: false"
+            echo "- repository/provider/deployment mutation: false"
+            echo "- secrets_included: false"
+            if [[ "${allowed}" == "true" ]]; then
+              echo ""
+              echo "Exact separately governed Apply command:"
+              echo ""
+              echo "\`APPLY_PRODUCTION_GOVERNANCE_FOUNDATION_1053:${EXPECTED_SHA}:${plan_sha}\`"
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
+      - name: Upload bounded plan evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: production-governance-foundation-1053-plan-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}
+          if-no-files-found: error
+          retention-days: 30
+
+  apply:
+    name: Apply exact Production Governance foundation plan
+    if: >-
+      github.event.issue.number == 6628 &&
+      !github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, 'APPLY_PRODUCTION_GOVERNANCE_FOUNDATION_1053:') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 25
+    concurrency:
+      group: production-governance-foundation-1053-apply
+      cancel-in-progress: false
+    environment: Production
+    env:
+      COMMENT_BODY: ${{ github.event.comment.body }}
+      FOUNDATION_PHASE: apply
+      RUNTIME_BOOTSTRAP_TARGETS_JSON: ${{ vars.RUNTIME_BOOTSTRAP_TARGETS_JSON }}
+      BOOTSTRAP_TARGET_KEY: production-runtime
+      MYSQL_BOOTSTRAP_HOST: ${{ vars.MYSQL_BOOTSTRAP_HOST }}
+      MYSQL_BOOTSTRAP_PORT: ${{ vars.MYSQL_BOOTSTRAP_PORT || '3306' }}
+      MYSQL_BOOTSTRAP_USER: ${{ secrets.MYSQL_BOOTSTRAP_USER }}
+      MYSQL_BOOTSTRAP_PASSWORD: ${{ secrets.MYSQL_BOOTSTRAP_PASSWORD }}
+      OPERATOR_CONFIRMATION: APPLY_PRODUCTION_GOVERNANCE_FOUNDATION_1053
+      GH_TOKEN: ${{ github.token }}
+      EVIDENCE_DIR: .artifacts/production-governance-foundation-1053-apply
+    steps:
+      - name: Validate exact SHA and plan hash
+        id: identity
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ ! "${COMMENT_BODY}" =~ ^APPLY_PRODUCTION_GOVERNANCE_FOUNDATION_1053:([0-9a-f]{40}):([0-9a-f]{64})$ ]]; then
+            echo "::error::Foundation Apply confirmation format mismatch"
+            exit 1
+          fi
+          expected_sha="${BASH_REMATCH[1]}"
+          plan_sha="${BASH_REMATCH[2]}"
+          current_sha="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+          [[ "${current_sha}" == "${expected_sha}" ]]
+          echo "expected_sha=${expected_sha}" >> "${GITHUB_OUTPUT}"
+          echo "plan_sha=${plan_sha}" >> "${GITHUB_OUTPUT}"
+      - name: Checkout trusted main workflow source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '22'
+      - name: Install database client without lifecycle scripts
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts
+      - name: Apply fixed one-statement foundation migration
+        env:
+          EXPECTED_PRODUCTION_SHA: ${{ steps.identity.outputs.expected_sha }}
+          PLAN_SHA256: ${{ steps.identity.outputs.plan_sha }}
+        run: node .github/ops/production-governance-foundation-1053.mjs
+      - name: Validate same-cycle receipt
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ steps.identity.outputs.expected_sha }}
+          PLAN_SHA: ${{ steps.identity.outputs.plan_sha }}
+        run: |
+          set -Eeuo pipefail
+          file="${EVIDENCE_DIR}/apply.json"
+          jq -e --arg sha "${EXPECTED_SHA}" --arg plan "${PLAN_SHA}" '
+            (.ok==true) and
+            (.status=="governance_envelope_foundation_ready") and
+            (.expected_sha==$sha) and
+            (.plan_sha256==$plan) and
+            (.same_cycle_schema_readback_performed==true) and
+            (.same_cycle_ledger_readback_performed==true) and
+            (.governance_database_mutation_performed==true) and
+            (.runtime_database_mutation_performed==false) and
+            (.legacy_migration_225_marked_applied==false) and
+            (.provider_mutation_performed==false) and
+            (.deployment_performed==false) and
+            (.automatic_replay_allowed==false) and
+            (.secrets_included==false)
+          ' "${file}" >/dev/null
+      - name: Summarize bounded Apply receipt
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ steps.identity.outputs.expected_sha }}
+        run: |
+          set -Eeuo pipefail
+          {
+            echo "## Production Governance Foundation 1053 — Apply complete"
+            echo ""
+            echo "- Production SHA: ${EXPECTED_SHA}"
+            echo "- migration: 1053_production_governance_capability_envelope_foundation.sql"
+            echo "- same-cycle schema readback: true"
+            echo "- exact Apply ledger: true"
+            echo "- Governance DB mutation: true"
+            echo "- Runtime DB mutation: false"
+            echo "- legacy Migration 225 marked applied: false"
+            echo "- repository/provider/deployment mutation: false"
+            echo "- automatic replay: false"
+            echo "- secrets_included: false"
+            echo ""
+            echo "Next read-only command:"
+            echo ""
+            echo "\`VERIFY_PRODUCTION_GOVERNANCE_FOUNDATION_1053:${EXPECTED_SHA}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+      - name: Upload bounded Apply evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: production-governance-foundation-1053-apply-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}
+          if-no-files-found: error
+          retention-days: 30
+
+  verify:
+    name: Verify Production Governance foundation
+    if: >-
+      github.event.issue.number == 6628 &&
+      !github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, 'VERIFY_PRODUCTION_GOVERNANCE_FOUNDATION_1053:') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    concurrency:
+      group: production-governance-foundation-1053-verify
+      cancel-in-progress: false
+    environment: Production
+    env:
+      COMMENT_BODY: ${{ github.event.comment.body }}
+      FOUNDATION_PHASE: verify
+      RUNTIME_BOOTSTRAP_TARGETS_JSON: ${{ vars.RUNTIME_BOOTSTRAP_TARGETS_JSON }}
+      BOOTSTRAP_TARGET_KEY: production-runtime
+      MYSQL_BOOTSTRAP_HOST: ${{ vars.MYSQL_BOOTSTRAP_HOST }}
+      MYSQL_BOOTSTRAP_PORT: ${{ vars.MYSQL_BOOTSTRAP_PORT || '3306' }}
+      MYSQL_BOOTSTRAP_USER: ${{ secrets.MYSQL_BOOTSTRAP_USER }}
+      MYSQL_BOOTSTRAP_PASSWORD: ${{ secrets.MYSQL_BOOTSTRAP_PASSWORD }}
+      GH_TOKEN: ${{ github.token }}
+      EVIDENCE_DIR: .artifacts/production-governance-foundation-1053-verify
+    steps:
+      - name: Validate exact current Production SHA
+        id: identity
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ ! "${COMMENT_BODY}" =~ ^VERIFY_PRODUCTION_GOVERNANCE_FOUNDATION_1053:([0-9a-f]{40})$ ]]; then
+            echo "::error::Foundation Verify confirmation format mismatch"
+            exit 1
+          fi
+          expected_sha="${BASH_REMATCH[1]}"
+          current_sha="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+          [[ "${current_sha}" == "${expected_sha}" ]]
+          echo "expected_sha=${expected_sha}" >> "${GITHUB_OUTPUT}"
+      - name: Checkout trusted main workflow source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '22'
+      - name: Install database client without lifecycle scripts
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts
+      - name: Verify exact schema and Apply ledger
+        env:
+          EXPECTED_PRODUCTION_SHA: ${{ steps.identity.outputs.expected_sha }}
+        run: node .github/ops/production-governance-foundation-1053.mjs
+      - name: Upload bounded verification evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: production-governance-foundation-1053-verify-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}
+          if-no-files-found: error
+          retention-days: 30
