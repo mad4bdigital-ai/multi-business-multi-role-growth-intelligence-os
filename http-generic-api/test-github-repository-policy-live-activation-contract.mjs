@@ -94,7 +94,7 @@ assert.match(metadataState, /github_repository_policy_1051_governance_writer_rea
 assert.match(metadataState, /225_sprint67_capability_resolution_envelope_ledger\.sql/);
 assert.match(metadataState, /35b034940c2be63d9bf8a8099573cac1c5a75b5fffd8ccfad60a453ed3cf7419/);
 assert.match(metadataState, /1053_production_governance_capability_envelope_foundation\.sql/);
-assert.match(metadataState, /21caf065fa700a92b301fb0abf82cc0e34520acbf4b2c913b920b7914c158e46/);
+assert.match(metadataState, /c74beba4919458db0dc6dedca6e04b9868bbb6b99cc673505ba70272f3541724/);
 assert.match(metadataState, /capability_resolution_envelope_ledger/);
 assert.match(metadataState, /database_role:\s*'runtime'/);
 assert.match(metadataState, /database_role:\s*'governance'/);
