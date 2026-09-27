@@ -87,25 +87,25 @@ assert.equal(bounded429RetryDelayMs({ retryAfter: "Thu, 10 Sep 2026 00:01:00 GMT
 assert.equal(bounded429RetryDelayMs({ retryAfter: "not-a-date", retryIndex: 1, nowMs: sampleNow }), 15000);
 
 assert.equal(classifyDependencyBlockReason({
-  runtimeDependencyReady: false,
+  foundationDependencyReady: false,
   governanceWriterReady: false,
   migrationReadbackRateLimited: true,
-}), "migration_225_readback_rate_limited");
+}), "migration_1053_readback_rate_limited");
 assert.equal(classifyDependencyBlockReason({
-  runtimeDependencyReady: true,
+  foundationDependencyReady: true,
   governanceWriterReady: false,
   governanceReadbackRateLimited: true,
 }), "governance_writer_readback_rate_limited");
 assert.equal(classifyDependencyBlockReason({
-  runtimeDependencyReady: false,
+  foundationDependencyReady: false,
   governanceWriterReady: true,
-}), "migration_225_runtime_dependency_not_ready");
+}), "migration_1053_governance_foundation_not_ready");
 assert.equal(classifyDependencyBlockReason({
-  runtimeDependencyReady: true,
+  foundationDependencyReady: true,
   governanceWriterReady: false,
 }), "governance_writer_readiness_not_ready");
 assert.equal(classifyDependencyBlockReason({
-  runtimeDependencyReady: true,
+  foundationDependencyReady: true,
   governanceWriterReady: true,
 }), null);
 
@@ -118,6 +118,7 @@ assert.match(metadataStateSource, /rate_limit_exhausted: response\.status === 42
 assert.match(metadataStateSource, /\{ retry429: true \}/g);
 assert.match(metadataStateSource, /migration_1051_dependency_readback_rate_limited/);
 assert.match(metadataStateSource, /read-only dependency readback remained rate limited after bounded retries/);
+assert.match(metadataStateSource, /database_role:\s*'governance'/);
 assert.doesNotMatch(metadataStateSource, /rate_limit.*grants_apply_authority:\s*true/i);
 
 assert.match(METADATA_STATE_SQL, /AS adapter_count/);
@@ -218,11 +219,11 @@ assert.match(workflow, /APPLY_1051_GITHUB_REPOSITORY_POLICY_AFTER_RECORD_ONLY_RE
 assert.match(workflow, /ROLLOUT_PHASE: record_only/);
 assert.match(workflow, /ROLLOUT_PHASE: verify_record_only/);
 assert.doesNotMatch(workflow, /RECOVERY_PHASE:/);
-assert.match(workflow, /Capture Migration 225 and Governance writer readiness before orphan-ledger reconciliation/);
+assert.match(workflow, /Capture Governance Foundation 1053 and Governance writer readiness before orphan-ledger reconciliation/);
 assert.match(workflow, /Create checksum-bound authorization and dry-run before record-only reconciliation/);
 assert.match(workflow, /Verify exact record-only ledger before reconciled Apply/);
 assert.match(workflow, /Execute metadata Apply only after certified record-only reconciliation/);
-const reconcileGuard = workflow.indexOf("Capture Migration 225 and Governance writer readiness before orphan-ledger reconciliation");
+const reconcileGuard = workflow.indexOf("Capture Governance Foundation 1053 and Governance writer readiness before orphan-ledger reconciliation");
 const reconcileAuth = workflow.indexOf("Create checksum-bound authorization and dry-run before record-only reconciliation");
 const reconcileMutation = workflow.indexOf("Record exact Migration 1051 ledger without replaying SQL");
 assert.ok(reconcileGuard >= 0 && reconcileAuth > reconcileGuard && reconcileMutation > reconcileAuth);
