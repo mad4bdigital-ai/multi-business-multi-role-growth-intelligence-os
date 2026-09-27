@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "1ce3331cc6550cb233b4ff9a1472c9557d1616b902d09d737a68d1aca0176109",
+    "source_digest": "7a8b84ceaaff1f0a067004897fb73216cc4d6578999d7721eba8fbd8b9283a6f",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -276,7 +276,7 @@
       },
       {
         "file": "public/connect/app.jsx",
-        "sha256": "526917d67a8b142a0f527e159f48113dc5d27a8ac170de2542952e0bd8a7ce06",
+        "sha256": "d2f340a807d7959490da9fed2a6afef00a88ad572dfdb15d854026f5a1f48fd8",
         "present": true
       },
       {
@@ -311,7 +311,7 @@
       },
       {
         "file": "public/connect/steps-3.jsx",
-        "sha256": "dbcf6a91c05b7ec5e31643345e94c94877d89eb38521166b6c9a05913df597ff",
+        "sha256": "c7646e36e1bbcbf94117b8009f78a6a973be22c0c80b5dd7fb11a6095239694e",
         "present": true
       },
       {
@@ -676,7 +676,7 @@
       },
       {
         "file": "routes/localManagerBetaRoutes.js",
-        "sha256": "2ece1b45f49a41022d8d3f47f4c64081cfd67f57cc3c859cb5a65ccd08cc45b1",
+        "sha256": "5faecbe0f2d38b521599053007c7788fb8a41256574b2addead5a7bb7fc0f822",
         "present": true
       },
       {
@@ -6508,7 +6508,7 @@
       "family_key": "local-manager-beta.admin",
       "label": "local manager beta (admin)",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "2ece1b45f49a41022d8d3f47f4c64081cfd67f57cc3c859cb5a65ccd08cc45b1",
+      "source_digest": "5faecbe0f2d38b521599053007c7788fb8a41256574b2addead5a7bb7fc0f822",
       "mount_prefix": "/",
       "mount_order": 14352,
       "split_from_mixed_scope_file": true,
@@ -6647,7 +6647,7 @@
       "family_key": "local-manager-beta.local_device",
       "label": "local manager beta (local_device)",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "2ece1b45f49a41022d8d3f47f4c64081cfd67f57cc3c859cb5a65ccd08cc45b1",
+      "source_digest": "5faecbe0f2d38b521599053007c7788fb8a41256574b2addead5a7bb7fc0f822",
       "mount_prefix": "/",
       "mount_order": 14352,
       "split_from_mixed_scope_file": true,
@@ -7238,7 +7238,7 @@
       "family_key": "local-manager-beta.public.default",
       "label": "local manager beta (public) [default]",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "2ece1b45f49a41022d8d3f47f4c64081cfd67f57cc3c859cb5a65ccd08cc45b1",
+      "source_digest": "5faecbe0f2d38b521599053007c7788fb8a41256574b2addead5a7bb7fc0f822",
       "mount_prefix": "/",
       "mount_order": 14352,
       "split_from_mixed_scope_file": true,
@@ -7912,7 +7912,7 @@
       "family_key": "local-manager-beta.public.local-manager",
       "label": "local manager beta (public) [local-manager]",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "2ece1b45f49a41022d8d3f47f4c64081cfd67f57cc3c859cb5a65ccd08cc45b1",
+      "source_digest": "5faecbe0f2d38b521599053007c7788fb8a41256574b2addead5a7bb7fc0f822",
       "mount_prefix": "/",
       "mount_order": 14352,
       "split_from_mixed_scope_file": true,
