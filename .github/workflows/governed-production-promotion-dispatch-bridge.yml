@@ -451,21 +451,21 @@ jobs:
           set -Eeuo pipefail
           body="## Production Recovery Control Store — exact plan
 
-          - Production SHA: `${EXPECTED_SHA}`
-          - plan_sha256: `${PLAN_SHA}`
-          - action: `${ACTION}`
-          - execution_allowed: `${EXECUTION_ALLOWED}`
-          - blocker: `${BLOCKER}`
-          - required_confirmation: `${REQUIRED_CONFIRMATION:-none}`
-          - database_mutation_performed: `false`
-          - target_database_mutation_performed: `false`
-          - provider_mutation_performed: `false`
-          - production_runtime_mutation_performed: `false`
-          - secrets_included: `false`
+          - Production SHA: ${EXPECTED_SHA}
+          - plan_sha256: ${PLAN_SHA}
+          - action: ${ACTION}
+          - execution_allowed: ${EXECUTION_ALLOWED}
+          - blocker: ${BLOCKER}
+          - required_confirmation: ${REQUIRED_CONFIRMATION:-none}
+          - database_mutation_performed: false
+          - target_database_mutation_performed: false
+          - provider_mutation_performed: false
+          - production_runtime_mutation_performed: false
+          - secrets_included: false
 
-          If and only if action is `reconcile_control_store_schema` and execution_allowed is `true`, the exact separately governed apply command is:
+          If and only if action is reconcile_control_store_schema and execution_allowed is true, the exact separately governed apply command is:
 
-          `APPLY_PRODUCTION_RECOVERY_CONTROL_STORE_SCHEMA:${EXPECTED_SHA}:${PLAN_SHA}`"
+          APPLY_PRODUCTION_RECOVERY_CONTROL_STORE_SCHEMA:${EXPECTED_SHA}:${PLAN_SHA}"
           gh api --method POST "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments" -f body="${body}" >/dev/null
 
       - name: Upload no-secret Control Store plan evidence
@@ -570,16 +570,16 @@ jobs:
           set -Eeuo pipefail
           body="## Production Recovery Control Store — schema reconciliation complete
 
-          - Production SHA: `${EXPECTED_SHA}`
-          - plan_sha256: `${PLAN_SHA}`
-          - status: `${APPLY_STATUS}`
-          - next_action: `${NEXT_ACTION}`
-          - same_cycle_readback_performed: `true`
-          - target_database_mutation_performed: `false`
-          - provider_mutation_performed: `false`
-          - production_runtime_mutation_performed: `false`
-          - automatic_replay_allowed: `false`
-          - secrets_included: `false`"
+          - Production SHA: ${EXPECTED_SHA}
+          - plan_sha256: ${PLAN_SHA}
+          - status: ${APPLY_STATUS}
+          - next_action: ${NEXT_ACTION}
+          - same_cycle_readback_performed: true
+          - target_database_mutation_performed: false
+          - provider_mutation_performed: false
+          - production_runtime_mutation_performed: false
+          - automatic_replay_allowed: false
+          - secrets_included: false"
           gh api --method POST "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments" -f body="${body}" >/dev/null
 
       - name: Upload no-secret Control Store apply evidence
