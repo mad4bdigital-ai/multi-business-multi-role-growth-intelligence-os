@@ -30,16 +30,16 @@ export async function verifyAndCountersignStagingRecovery({ evidenceDirectory, o
     ),
   );
   const expectedSha = required(env, "GITHUB_SHA"); const expectedTargetFingerprint = required(env, "RECOVERY_STAGING_EXPECTED_TARGET_FINGERPRINT");
-  const report = await independentlyVerifyStagingRecoveryCanaryEvidence(envelope, { expectedSha, expectedTargetFingerprint, workflowSourceSha: expectedSha, negativeTestEvidence, liveWorkerProviderObservation, liveIngressBuildIdentity, requireLiveRuntimeRevalidation: true, loadKernelArtifacts: async (ids) => {
+  const verificationReport = await independentlyVerifyStagingRecoveryCanaryEvidence(envelope, { expectedSha, expectedTargetFingerprint, workflowSourceSha: expectedSha, negativeTestEvidence, liveWorkerProviderObservation, liveIngressBuildIdentity, requireLiveRuntimeRevalidation: true, loadKernelArtifacts: async (ids) => {
     if (artifacts.plan.plan_id !== ids.plan_id || artifacts.approval.approval_id !== ids.approval_id || artifacts.ticket.ticket_id !== ids.ticket_id || artifacts.run.run_id !== ids.run_id) throw Object.assign(new Error("Kernel artifact identity mismatch"), { code: "RECOVERY_COUNTERSIGN_ARTIFACT_IDENTITY_MISMATCH" });
     return artifacts;
   } });
-  const payload = buildRecoveryReadinessSigningPayload(envelope, report, { issuer: required(env, "RECOVERY_STAGING_CERTIFICATION_ISSUER"), keyId: required(env, "RECOVERY_STAGING_CERTIFICATION_KEY_ID") });
-  const signed = signVerifiedRecoveryEvidence({ payload, verificationReport: report, env });
+  const payload = buildRecoveryReadinessSigningPayload(envelope, verificationReport, { issuer: required(env, "RECOVERY_STAGING_CERTIFICATION_ISSUER"), keyId: required(env, "RECOVERY_STAGING_CERTIFICATION_KEY_ID") });
+  const signed = signVerifiedRecoveryEvidence({ payload, verificationReport, env });
   await mkdir(output, { recursive: true, mode: 0o700 });
   await writeFile(path.join(output, "verification-report.json"), JSON.stringify(report, null, 2) + "\n", { mode: 0o600 });
   await writeFile(path.join(output, "signed-certification.json"), JSON.stringify(signed, null, 2) + "\n", { mode: 0o600 });
-  return { verified: true, deployment_sha: expectedSha, target_fingerprint: expectedTargetFingerprint, certification_run_id: envelope.certification_run_id, negative_tests_passed: report.negative_tests?.all_passed === true, secrets_included: false };
+  return { verified: true, deployment_sha: expectedSha, target_fingerprint: expectedTargetFingerprint, certification_run_id: envelope.certification_run_id, negative_tests_passed: verificationReport.negative_tests?.all_passed === true, secrets_included: false };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
