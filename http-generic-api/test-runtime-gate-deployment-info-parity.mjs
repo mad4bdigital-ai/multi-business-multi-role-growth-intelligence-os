@@ -77,9 +77,6 @@ const previousRuntimeGovernanceDbName = process.env.GOVERNANCE_DB_NAME;
   const previousGithubSha = process.env.GITHUB_SHA;
   const previousGithubRefName = process.env.GITHUB_REF_NAME;
   const previousGithubRepository = process.env.GITHUB_REPOSITORY;
-  const previousNodeEnv = process.env.NODE_ENV;
-  const previousDeploymentEnvironment = process.env.DEPLOYMENT_ENVIRONMENT;
-  const previousRemoteMcpEnvironment = process.env.REMOTE_MCP_ENVIRONMENT;
   let server;
   let runtimePoolFactoryCalls = 0;
 
@@ -105,10 +102,24 @@ try {
   let runtimeBootstrapReaderInput;
   let hostLocalInspectionReaderInput;
   process.env.GITHUB_REPOSITORY = "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os";
-  process.env.NODE_ENV = "staging";
-  process.env.DEPLOYMENT_ENVIRONMENT = "staging_local_windows_docker";
-  process.env.REMOTE_MCP_ENVIRONMENT = "staging";
   app.use(buildDeploymentInfoRoutes({
+    runtimeEnvironmentReader: async () => ({
+      contract: "mad4b.runtime-environment-resolver.v1",
+      environment_policy_contract: "mad4b.runtime-environment-policy.v1",
+      ok: true,
+      environment_key: "staging",
+      runtime_variant: "staging_local_windows_docker",
+      canonical_runtime_variant: "staging_local_windows_docker",
+      runtime_class: "local_windows_docker",
+      runtime_class_explicit: true,
+      deployment_model: "main_local_staging",
+      source_branch: "main",
+      reason: null,
+      signal_keys: ["deployment-environment", "node-environment", "remote-mcp-environment"],
+      signal_count: 3,
+      raw_values_exposed: false,
+      secrets_included: false,
+    }),
     runtimeIntegrityReader: async (input) => {
       integrityReaderInput = input;
       return ({
@@ -258,7 +269,7 @@ try {
   assert.equal(deploymentInfo.runtime_environment.source_branch, "main");
   assert.equal(deploymentInfo.runtime_environment.raw_values_exposed, false);
   assert.equal(deploymentInfo.runtime_environment.secrets_included, false);
-  assert.deepEqual(deploymentInfo.runtime_environment.signal_keys.sort(), ["DEPLOYMENT_ENVIRONMENT", "NODE_ENV", "REMOTE_MCP_ENVIRONMENT"].sort());
+  assert.deepEqual(deploymentInfo.runtime_environment.signal_keys.sort(), ["deployment-environment", "node-environment", "remote-mcp-environment"].sort());
   assert.equal(deploymentInfo.evidence.runtime_environment_resolved, true);
   assert.equal(deploymentInfo.evidence.runtime_environment_key, "staging");
   assert.equal(deploymentInfo.evidence.runtime_class_explicit, true);
@@ -417,12 +428,6 @@ try {
   else process.env.GITHUB_REF_NAME = previousGithubRefName;
   if (previousGithubRepository === undefined) delete process.env.GITHUB_REPOSITORY;
   else process.env.GITHUB_REPOSITORY = previousGithubRepository;
-  if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
-  else process.env.NODE_ENV = previousNodeEnv;
-  if (previousDeploymentEnvironment === undefined) delete process.env.DEPLOYMENT_ENVIRONMENT;
-  else process.env.DEPLOYMENT_ENVIRONMENT = previousDeploymentEnvironment;
-  if (previousRemoteMcpEnvironment === undefined) delete process.env.REMOTE_MCP_ENVIRONMENT;
-  else process.env.REMOTE_MCP_ENVIRONMENT = previousRemoteMcpEnvironment;
   rmSync(dir, { recursive: true, force: true });
 }
 
