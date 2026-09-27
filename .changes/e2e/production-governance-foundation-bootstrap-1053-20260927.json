@@ -17,7 +17,11 @@
       "http-generic-api/test-production-governance-foundation-1053.mjs",
       ".github/governance/test-authority-registry.json",
       "http-generic-api/config/repository-governance-constitution.json",
-      ".github/derived-state-governance.json"
+      ".github/derived-state-governance.json",
+      ".github/ops/github-repository-policy-1051-metadata-state.mjs",
+      ".github/workflows/github-repository-policy-1051-governed-rollout.yml",
+      "http-generic-api/test-github-repository-policy-1051-metadata-state.mjs",
+      "http-generic-api/test-github-repository-policy-live-activation-contract.mjs"
     ]
   },
   "merge_contract": {
@@ -60,7 +64,8 @@
             "Fail closed on partial table shape, incomplete governed migration ledger contract, checksum drift, stale plan hash, or replay.",
             "Require a separate typed Apply comment bound to exact Production SHA and plan_sha256.",
             "After the fixed one-statement DDL, require same-cycle table shape readback, write a canonical 1053 Apply ledger row, then require exact ledger plus schema readback.",
-            "Expose governed migration schema readback through a closed runtime|governance role selector without accepting database names or credentials."
+            "Expose governed migration schema readback through a closed runtime|governance role selector without accepting database names or credentials.",
+            "Bind Migration 1051 readiness/pre-Apply to the exact Migration 1053 Governance ledger and schema through database_role=governance; legacy Migration 225 remains non-executable."
           ],
           "assertions": [
             "Migration 225 remains allowed only in dry_run/verification-only paths.",
@@ -71,7 +76,8 @@
             "Caller-selected SQL, database name, provider operation, deployment, automatic replay, and secret output are forbidden.",
             "Apply requires APPLY_PRODUCTION_GOVERNANCE_FOUNDATION_1053 plus exact current Production SHA and current plan hash.",
             "No Production mutation is executed by this repository patch or its CI.",
-            "Critical workflow/operator/change-contract paths are registered exactly in repository control-plane governance."
+            "Critical workflow/operator/change-contract paths are registered exactly in repository control-plane governance.",
+            "Migration 1051 no longer treats a Runtime-DB Migration 225 readback as sufficient for the Governance-owned capability envelope foundation."
           ],
           "tests": [
             {
@@ -87,6 +93,20 @@
               "working_directory": "http-generic-api",
               "path": "test-governed-migration-schema-readback-tool.mjs",
               "args": []
+            },
+            {
+              "id": "github-repository-policy-1051-metadata-state",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-policy-1051-metadata-state.mjs",
+              "args": []
+            },
+            {
+              "id": "github-repository-policy-live-activation-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-policy-live-activation-contract.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -98,7 +118,11 @@
             "http-generic-api/test-production-governance-foundation-1053.mjs",
             ".github/governance/test-authority-registry.json",
             "http-generic-api/config/repository-governance-constitution.json",
-            ".github/derived-state-governance.json"
+            ".github/derived-state-governance.json",
+            ".github/ops/github-repository-policy-1051-metadata-state.mjs",
+            ".github/workflows/github-repository-policy-1051-governed-rollout.yml",
+            "http-generic-api/test-github-repository-policy-1051-metadata-state.mjs",
+            "http-generic-api/test-github-repository-policy-live-activation-contract.mjs"
           ]
         }
       ]
