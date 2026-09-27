@@ -169,8 +169,14 @@ jobs:
             mcp_authorization_server: readStatus('mcp-authorization-server'),
           };
           const manifest = deployment?.deployment && typeof deployment.deployment === 'object' ? deployment.deployment : {};
-          const runtimeSha = String(deployment?.commit_sha || deployment?.commit || manifest?.commit_sha || manifest?.commit || '').toLowerCase();
-          const runtimeBranch = String(deployment?.branch || manifest?.branch || '');
+          const runtimeSha = String(deployment?.gitCommitFull || '').toLowerCase();
+          const runtimeBranch = String(deployment?.gitBranch || '');
+          const runtimeProvenanceCanonical = Boolean(
+            /^[0-9a-f]{40}$/i.test(runtimeSha)
+              && runtimeBranch === 'Production'
+              && String(deployment?.provenanceSource || '').trim()
+              && deployment?.evidence?.canonical_manifest_detected === true
+          );
           const versionShas = collectShas(version);
           const decision = resolveR7Decision({
             expectedSha,
@@ -179,6 +185,7 @@ jobs:
             versionShas,
             runtimeSha,
             runtimeBranch,
+            runtimeProvenanceCanonical,
             runtimeEnvironment: deployment?.runtime_environment || {},
             protectedResource,
             authorizationServer,
@@ -189,6 +196,7 @@ jobs:
             versionShaExact,
             deploymentShaExact,
             branchExact,
+            runtimeProvenanceCanonical: runtimeProvenanceCanonicalReady,
             protectedResourceReady,
             authorizationServerReady,
             trustedIngressAttestationRequired,
@@ -211,7 +219,8 @@ jobs:
               version_shas: versionShas,
               deployment_commit_sha: runtimeSha || null,
               deployment_branch: runtimeBranch || null,
-              deployment_branch_source: String(deployment?.branch_source || manifest?.branch_source || '') || null,
+              canonical_provenance_present: runtimeProvenanceCanonical,
+              deployment_branch_source: String(deployment?.provenanceSource || '') ? 'canonical_manifest' : null,
               deployed_at: String(deployment?.deployed_at || manifest?.deployed_at || '') || null,
               protected_resource_error_code: errorCode(protectedResource) || null,
               authorization_server_error_code: errorCode(authorizationServer) || null,
@@ -224,6 +233,7 @@ jobs:
               version_sha_exact: versionShaExact,
               deployment_sha_exact: deploymentShaExact,
               branch_exact: branchExact,
+              canonical_deployment_provenance: runtimeProvenanceCanonicalReady,
               trusted_ingress_attestation_required: trustedIngressAttestationRequired,
               oauth_protected_resource_ready: protectedResourceReady,
               oauth_authorization_server_ready: authorizationServerReady,
