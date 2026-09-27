@@ -1,0 +1,123 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-governance-foundation-bootstrap-1053-20260927",
+  "title": "Bounded split-topology Production Governance envelope foundation repair",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/production-governance-foundation-bootstrap-1053-20260927.json",
+      "http-generic-api/migrations/1053_production_governance_capability_envelope_foundation.sql",
+      ".github/ops/production-governance-foundation-1053.mjs",
+      ".github/workflows/production-governance-foundation-1053.yml",
+      "http-generic-api/routes/gptToolsRoutes.js",
+      "http-generic-api/routes/gptToolsRoutesLegacy.js",
+      "http-generic-api/test-production-governance-foundation-1053.mjs",
+      ".github/governance/test-authority-registry.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false,
+    "deployment_or_restart_executed": false,
+    "database_mutation_executed": false,
+    "migration_apply_executed": false,
+    "grant_mutation_executed": false,
+    "provider_mutation_executed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Close the Production Governance bootstrap paradox without making legacy Migration 225 generally executable: introduce a Governance-only successor migration, a separately authorized exact-SHA/plan-hash repair workflow, and a closed runtime/governance readback selector.",
+      "e2e_journeys": [
+        {
+          "id": "production-governance-envelope-foundation-repair",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Production governance recovery operator",
+          "entrypoint": "Issue #6628 typed PLAN/APPLY/VERIFY commands and governed migration schema readback",
+          "terminal_outcome": "A missing Governance-owned capability_resolution_envelope_ledger can be repaired only through fixed Migration 1053 after exact Production identity and allowlisted split-topology checks; same-cycle schema plus exact Apply-ledger readback succeeds without marking Migration 225 applied or mutating Runtime DB, providers, deployment, grants, or credentials.",
+          "steps": [
+            "Keep Migration 225 verification-only in generic runtime bootstrap and recovery contracts.",
+            "Create Migration 1053 with only the Governance-owned capability_resolution_envelope_ledger CREATE TABLE statement.",
+            "Derive the Governance database exclusively from the repository-owned production-runtime target; reject same-database topology and caller-selected database names.",
+            "Require exact live Production SHA, Production branch, production_hostinger_autodeploy runtime class, and explicit runtime identity before a plan is executable.",
+            "Use the dedicated MYSQL_BOOTSTRAP operator only inside the protected GitHub Production environment; never expand the table-scoped Governance writer with CREATE authority.",
+            "Fail closed on partial table shape, incomplete governed migration ledger contract, checksum drift, stale plan hash, or replay.",
+            "Require a separate typed Apply comment bound to exact Production SHA and plan_sha256.",
+            "After the fixed one-statement DDL, require same-cycle table shape readback, write a canonical 1053 Apply ledger row, then require exact ledger plus schema readback.",
+            "Expose governed migration schema readback through a closed runtime|governance role selector without accepting database names or credentials."
+          ],
+          "assertions": [
+            "Migration 225 remains allowed only in dry_run/verification-only paths.",
+            "Migration 1053 has checksum 21caf065fa700a92b301fb0abf82cc0e34520acbf4b2c913b920b7914c158e46 and exactly one SQL statement.",
+            "Migration 1053 contains no platform_runtime_config or admin_platform_endpoint_tools mutation.",
+            "The repair never records Migration 225 as applied.",
+            "The repair derives governance_database from RUNTIME_BOOTSTRAP_TARGETS_JSON and requires it to be separate from runtime database.",
+            "Caller-selected SQL, database name, provider operation, deployment, automatic replay, and secret output are forbidden.",
+            "Apply requires APPLY_PRODUCTION_GOVERNANCE_FOUNDATION_1053 plus exact current Production SHA and current plan hash.",
+            "No Production mutation is executed by this repository patch or its CI.",
+            "Critical workflow/operator/change-contract paths are registered exactly in repository control-plane governance."
+          ],
+          "tests": [
+            {
+              "id": "production-governance-foundation-1053-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-governance-foundation-1053.mjs",
+              "args": []
+            },
+            {
+              "id": "governed-migration-schema-readback",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-migration-schema-readback-tool.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/production-governance-foundation-bootstrap-1053-20260927.json",
+            "http-generic-api/migrations/1053_production_governance_capability_envelope_foundation.sql",
+            ".github/ops/production-governance-foundation-1053.mjs",
+            ".github/workflows/production-governance-foundation-1053.yml",
+            "http-generic-api/routes/gptToolsRoutes.js",
+            "http-generic-api/test-production-governance-foundation-1053.mjs",
+            ".github/governance/test-authority-registry.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "After merge and governed Production promotion/deployment, run PLAN only, obtain an exact plan hash, and execute APPLY only under a separate operator authorization followed by VERIFY and fresh 1050 readiness."
+    }
+  ],
+  "safety": {
+    "repository_only": true,
+    "production_mutation_allowed": false,
+    "database_mutation": false,
+    "migration_apply": false,
+    "grant_execution": false,
+    "provider_call": false,
+    "deployment": false,
+    "restart": false,
+    "secrets_included": false
+  }
+}
