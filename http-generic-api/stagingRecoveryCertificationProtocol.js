@@ -394,6 +394,9 @@ export async function independentlyVerifyStagingRecoveryCanaryEvidence(envelope,
   now = Date.now(),
   loadKernelArtifacts,
   negativeTestEvidence,
+  liveIngressBuildIdentity = null,
+  liveWorkerProviderObservation = null,
+  requireLiveRuntimeRevalidation = false,
 } = {}) {
   if (envelope?.contract !== STAGING_RECOVERY_CANARY_EVIDENCE_CONTRACT) {
     fail("RECOVERY_CANARY_EVIDENCE_CONTRACT_INVALID", "Unknown evidence contract.");
@@ -432,6 +435,74 @@ export async function independentlyVerifyStagingRecoveryCanaryEvidence(envelope,
     || stagingRecoveryCertificationHash(artifacts.run.events) !== envelope.kernel.event_chain_hash) {
     fail("RECOVERY_CANARY_KERNEL_BINDING_MISMATCH", "Independent Kernel bindings mismatch.");
   }
+  if (requireLiveRuntimeRevalidation) {
+    if (!liveIngressBuildIdentity || !liveWorkerProviderObservation) {
+      fail(
+        "RECOVERY_CANARY_LIVE_RUNTIME_REVALIDATION_REQUIRED",
+        "Fresh Worker provider and Gateway ingress observations are required before countersigning.",
+      );
+    }
+
+    const worker = envelope.workerDeploymentEvidence;
+
+    const providerFields = [
+      "deployment_sha",
+      "observed_in",
+      "deployment_verified",
+      "gateway_host",
+      "policy_hash",
+      "worker_build_sha",
+      "policy_source_sha",
+      "worker_bundle_sha256",
+      "release_bundle_sha256",
+      "deployed_bundle_sha256",
+    ];
+
+    for (const key of providerFields) {
+      if (worker?.[key] !== liveWorkerProviderObservation?.[key]) {
+        fail(
+          "RECOVERY_CANARY_LIVE_WORKER_PROVENANCE_MISMATCH",
+          `Live Worker provider evidence differs at ${key}.`,
+        );
+      }
+    }
+
+    if (
+      !Number.isFinite(Date.parse(liveWorkerProviderObservation?.observed_at))
+      || Date.parse(liveWorkerProviderObservation.observed_at) < now - 5 * 60 * 1000
+      || Date.parse(liveWorkerProviderObservation.observed_at) > now + 60 * 1000
+    ) {
+      fail(
+        "RECOVERY_CANARY_LIVE_WORKER_PROVENANCE_STALE",
+        "Live Worker provider observation is stale.",
+      );
+    }
+
+    const ingressFields = [
+      "deployment_sha",
+      "worker_build_sha",
+      "worker_bundle_sha256",
+      "policy_hash",
+      "gateway_host",
+    ];
+
+    for (const key of ingressFields) {
+      if (
+        envelope.ingressBuildIdentity?.[key]
+        !== liveIngressBuildIdentity?.[key]
+      ) {
+        fail(
+          "RECOVERY_CANARY_LIVE_INGRESS_BUILD_MISMATCH",
+          `Fresh Gateway ingress identity differs at ${key}.`,
+        );
+      }
+    }
+  }
+
+  const ingressForVerification = requireLiveRuntimeRevalidation
+    ? liveIngressBuildIdentity
+    : envelope.ingressBuildIdentity;
+
   const external = await evaluateExternalStagingEvidence({
     candidateSha: envelope.deployment_sha,
     candidateTargetFingerprint: envelope.target_fingerprint,
@@ -440,7 +511,7 @@ export async function independentlyVerifyStagingRecoveryCanaryEvidence(envelope,
     oauthEvidence: envelope.oauthEvidence,
     networkEvidence: envelope.networkEvidence,
     workerDeploymentEvidence: envelope.workerDeploymentEvidence,
-  }, envelope.ingressBuildIdentity);
+  }, ingressForVerification);
   if (!external.ready) {
     fail("RECOVERY_CANARY_EXTERNAL_EVIDENCE_INVALID", external.blocking_failures.join(","));
   }
