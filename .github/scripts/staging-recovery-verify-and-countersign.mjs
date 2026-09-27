@@ -13,8 +13,24 @@ export async function verifyAndCountersignStagingRecovery({ evidenceDirectory, o
   const envelope = await json(path.join(root, "canary-evidence.json"));
   const artifacts = Object.fromEntries(await Promise.all(Object.entries(REQUIRED_FILES).map(async ([key, file]) => [key, await json(path.join(root, file))])));
   const negativeTestEvidence = await json(path.resolve(required(env, "RECOVERY_STAGING_NEGATIVE_TEST_EVIDENCE_FILE")));
+  const liveWorkerProviderObservation = await json(
+    path.resolve(
+      required(
+        env,
+        "RECOVERY_STAGING_LIVE_WORKER_PROVIDER_OBSERVATION_FILE",
+      ),
+    ),
+  );
+  const liveIngressBuildIdentity = await json(
+    path.resolve(
+      required(
+        env,
+        "RECOVERY_STAGING_LIVE_INGRESS_BUILD_IDENTITY_FILE",
+      ),
+    ),
+  );
   const expectedSha = required(env, "GITHUB_SHA"); const expectedTargetFingerprint = required(env, "RECOVERY_STAGING_EXPECTED_TARGET_FINGERPRINT");
-  const report = await independentlyVerifyStagingRecoveryCanaryEvidence(envelope, { expectedSha, expectedTargetFingerprint, workflowSourceSha: expectedSha, negativeTestEvidence, loadKernelArtifacts: async (ids) => {
+  const report = await independentlyVerifyStagingRecoveryCanaryEvidence(envelope, { expectedSha, expectedTargetFingerprint, workflowSourceSha: expectedSha, negativeTestEvidence, liveWorkerProviderObservation, liveIngressBuildIdentity, requireLiveRuntimeRevalidation: true, loadKernelArtifacts: async (ids) => {
     if (artifacts.plan.plan_id !== ids.plan_id || artifacts.approval.approval_id !== ids.approval_id || artifacts.ticket.ticket_id !== ids.ticket_id || artifacts.run.run_id !== ids.run_id) throw Object.assign(new Error("Kernel artifact identity mismatch"), { code: "RECOVERY_COUNTERSIGN_ARTIFACT_IDENTITY_MISMATCH" });
     return artifacts;
   } });
