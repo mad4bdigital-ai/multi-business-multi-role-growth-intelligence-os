@@ -175,7 +175,8 @@ assert.match(guardSource, /normalizedMode !== "apply"/);
 assert.match(guardSource, /pool: writerPool \|\| getGovernancePool\(\)/);
 
 const bootstrapSource = readFileSync(new URL("./governedMigrationAuthorizationBootstrap.js", import.meta.url), "utf8");
-assert.match(bootstrapSource, /const envelopeReadPool = deps\.envelopeReadPool \|\| deps\.readPool \|\| getGovernancePool\(\)/);
+assert.match(bootstrapSource, /const envelopeReadPool = deps\.envelopeReadPool \|\| getGovernancePool\(\)/);
+assert.doesNotMatch(bootstrapSource, /envelopeReadPool = deps\.envelopeReadPool \|\| deps\.readPool/);
 assert.match(bootstrapSource, /const writerPool = deps\.writerPool \|\| getGovernancePool\(\)/);
 assert.match(bootstrapSource, /pool: envelopeReadPool/);
 assert.match(bootstrapSource, /pool: writerPool/);
