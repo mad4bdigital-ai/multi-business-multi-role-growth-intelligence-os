@@ -123,7 +123,8 @@
       "test_paths": [
         "http-generic-api/test-capability-resolution-envelope-ledger.mjs",
         "http-generic-api/test-governed-migration-authorization-bootstrap.mjs",
-        "http-generic-api/test-production-governance-foundation-1053.mjs"
+        "http-generic-api/test-production-governance-foundation-1053.mjs",
+        "http-generic-api/test-governance-db-writer-authority.mjs"
       ]
     },
     {
