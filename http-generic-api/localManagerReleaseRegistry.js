@@ -182,7 +182,7 @@ export async function latestLocalManagerWindowsRelease({ pool = null, env = proc
     };
   }
 
-  const selectedRow = rows.at(0) || null;
+  const [selectedRow = null] = rows;
   if (!selectedRow) {
     if (runtime.environment_key === "staging") throw stagingUnavailable();
     return {

@@ -58,15 +58,17 @@ function App() {
       const color = ['coral','cyan','lime','blue'][Math.floor(Math.random()*4)];
       const m = [{ tenant_id: data.tenant.tenant_id, name: data.tenant.display_name || data.tenant.tenant_id, role: data.tenant.role || 'member', role_label: (data.tenant.role||'member').charAt(0).toUpperCase()+(data.tenant.role||'member').slice(1), color, initial: (data.tenant.display_name||'T')[0].toUpperCase(), domain: '', type: 'Company', segment: 'Corporate' }];
       setMemberships(m);
-      setTenant(m[0]);
+      const [membership] = m;
+      setTenant(membership);
       setCompleted(new Set(['auth','tenant']));
       if (data.connection?.status === 'active') {
         setConnections(c => ({ ...c, cloudflare: 'connected', hostinger: 'connected' }));
       }
       if (data.devices?.length > 0) {
+        const [onlyDevice = null] = data.devices;
         const exactDevice = handoff.deviceId
           ? data.devices.find((device) => device.device_id === handoff.deviceId)
-          : (data.devices.length === 1 ? data.devices.at(0) : null);
+          : (data.devices.length === 1 ? onlyDevice : null);
         if (exactDevice) {
           setConnections(c => ({ ...c, device: 'installed_here' }));
           setDeviceId(exactDevice.device_id);
