@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "997e57b3a4740f8000e9d4fd8eba848941096f33978d6d1ecd917aaa4038246b",
+    "source_digest": "c2fa93fe2659a02678e9b2420d2e59e4c9a27a77b455295e2b9536401791a682",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -546,7 +546,7 @@
       },
       {
         "file": "routes/deploymentInfoRoutes.js",
-        "sha256": "51a12ace035f6c65559975e3a94577349f7b6c5fb5390da62fade25a5c280343",
+        "sha256": "a2e86cf0d19f093118f41079ef9e0b36f91055f99fb4dd0b11cce498f68eaad0",
         "present": true
       },
       {
@@ -1171,7 +1171,7 @@
       },
       {
         "file": "test-runtime-gate-deployment-info-parity.mjs",
-        "sha256": "19b3b13e8e7e6795c0ae03c844759a3af62d55f1be11dee0a1b7abdd709b330f",
+        "sha256": "bcd9b0dab1423b291a681bcbc5a6ed5ba8d92147ec9dfd12c62d9f0e986be26d",
         "present": true
       },
       {
@@ -1912,7 +1912,7 @@
       "family_key": "deployment-info.developer",
       "label": "deployment info (developer)",
       "source_file": "routes/deploymentInfoRoutes.js",
-      "source_digest": "51a12ace035f6c65559975e3a94577349f7b6c5fb5390da62fade25a5c280343",
+      "source_digest": "a2e86cf0d19f093118f41079ef9e0b36f91055f99fb4dd0b11cce498f68eaad0",
       "mount_prefix": "/",
       "mount_order": 13395,
       "split_from_mixed_scope_file": true,
@@ -2201,7 +2201,7 @@
       "family_key": "deployment-info.public",
       "label": "deployment info (public)",
       "source_file": "routes/deploymentInfoRoutes.js",
-      "source_digest": "51a12ace035f6c65559975e3a94577349f7b6c5fb5390da62fade25a5c280343",
+      "source_digest": "a2e86cf0d19f093118f41079ef9e0b36f91055f99fb4dd0b11cce498f68eaad0",
       "mount_prefix": "/",
       "mount_order": 13395,
       "split_from_mixed_scope_file": true,

@@ -83,6 +83,10 @@ services:
       - ${STAGING_DATA_ROOT:-./.staging-data}/app:/app/data
     environment:
       NODE_ENV: staging
+      # Deployment class is pinned in Compose as well as .env.staging so an
+      # accidental env-file edit cannot silently reclassify the Staging runtime.
+      DEPLOYMENT_ENVIRONMENT: staging_local_windows_docker
+      REMOTE_MCP_ENVIRONMENT: staging
       RECOVERY_SERVER_MANAGED_BINDING_MODULE: ./stagingRecoveryAuthorityBindingPhaseB.js
       # These PR-head markers are non-secret certification context only. They
       # never grant Recovery mutation authority and default to empty on main.

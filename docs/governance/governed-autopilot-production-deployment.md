@@ -23,7 +23,7 @@ No source change in this PR authorizes Cloudflare, Hostinger, DNS, database, mig
 | Staging Activation env keys or local secrets were missing | Generate only local ignored secrets and repair only non-secret Staging defaults without printing secret values |
 | Staging Tunnel scope could include Activation or Production | Keep Tunnel ingress limited to `dev.mad4b.com` and `mcp-dev.mad4b.com`; keep `activation-dev.mad4b.com` on its independent Worker |
 | Hostinger runtime started without the SSO signing secret | Require the dedicated Production secret as a startup/preflight contract; never invent a Production substitute in CI |
-| Git promotion succeeded while public runtime returned 503 | Treat branch promotion and runtime activation as separate states; R7 must remain negative until public identity endpoints prove the exact SHA/branch |
+| Git promotion succeeded while public runtime returned 503 | Treat branch promotion and runtime activation as separate states; R7 must remain negative until public identity endpoints prove the exact SHA/branch and explicit Hostinger runtime class |
 | MCP OAuth metadata can fail closed when ingress trust is incomplete | Require the three-part trusted-ingress contract and test it under Production semantics |
 | Root discovery trusted forwarded-host input differently from MCP | Route host-sensitive public surfaces through one shared trusted-host authority |
 | Repository DNS policy assumed one record type while provider evidence used another | Make the invariant proxied Hostinger Production routing with an explicit `A`/`CNAME` allowed set, without mutating provider state |
@@ -67,15 +67,17 @@ For one exact Production SHA it verifies:
 2. `/health`, `/version`, `/deployment-info`, and `/connector-agent/version` are HTTP 200;
 3. version/deployment identity reports the exact Production SHA;
 4. deployment branch provenance is `Production`;
-5. `https://mcp.mad4b.com/.well-known/oauth-protected-resource` is HTTP 200 and advertises the canonical MCP resource and authorization server with trusted ingress ready;
-6. `https://auth.mad4b.com/.well-known/oauth-authorization-server/auth/mcp` is HTTP 200 and advertises the canonical issuer/authorization/token endpoints with trusted ingress ready;
-7. no provider mutation, deployment, database mutation, SQL, migration, or secret payload access is performed.
+5. `/deployment-info.runtime_environment` proves `environment_key=production`, `runtime_variant=production_hostinger_autodeploy`, `runtime_class=hostinger_autodeploy`, and `runtime_class_explicit=true` without exposing raw environment values;
+6. `https://mcp.mad4b.com/.well-known/oauth-protected-resource` is HTTP 200 and advertises the canonical MCP resource and authorization server with trusted ingress ready;
+7. `https://auth.mad4b.com/.well-known/oauth-authorization-server/auth/mcp` is HTTP 200 and advertises the canonical issuer/authorization/token endpoints with trusted ingress ready;
+8. no provider mutation, deployment, database mutation, SQL, migration, or secret payload access is performed.
 
 The bounded classifications include:
 
 - `production_current`
 - `trusted_ingress_attestation_required`
 - `runtime_sha_current_branch_provenance_mismatch`
+- `runtime_environment_identity_not_explicit`
 - `runtime_activation_pending_or_sha_mismatch`
 - `oauth_discovery_not_ready`
 - `runtime_parity_incomplete`
@@ -113,7 +115,7 @@ The schema now permits the safety declaration only as `false`; it remains option
 | Production DNS policy | Proxied Hostinger origin with only `A` or `CNAME` permitted by repository policy |
 | OAuth discovery | Canonical protected-resource and authorization-server metadata succeed under GET-only R7 |
 | E2E maintenance governance | One explicit `secrets_included=false` maintenance contract covers every changed runtime file |
-| Production current | Exact SHA/branch + identity endpoints + trusted ingress + OAuth discovery all pass R7 |
+| Production current | Exact SHA/branch + explicit `production_hostinger_autodeploy` runtime identity + trusted ingress + OAuth discovery all pass R7 |
 | MCP transport | Not claimed by this PR; separately authorized live POST verification remains outstanding |
 
 ## Operational rule
@@ -125,6 +127,7 @@ validate repository
 → pin exact candidate
 → separately authorize promotion/deployment
 → run GET-only R7
+→ require explicit Hostinger runtime identity
 → classify runtime/OAuth state
 → separately verify provider configuration
 → separately authorize live MCP POST transport verification when required
