@@ -250,6 +250,7 @@ function planBase({ expectedSha, target, identity, state }) {
   let executionAllowed = false;
   let blocker = null;
   if (!state.ledger_contract.ready) blocker = state.ledger_contract.blocker;
+  else if (state.exact_apply_ledger_verified && !state.schema.exact) blocker = "FOUNDATION_LEDGER_SCHEMA_DIVERGENCE";
   else if (state.schema.table_present && !state.schema.exact) blocker = state.schema.blocker;
   else if (state.ok && state.exact_apply_ledger_verified) action = "already_ready";
   else {
@@ -470,12 +471,14 @@ async function main() {
     fs.writeFileSync(path.join(process.env.EVIDENCE_DIR, `${phase}.json`), `${JSON.stringify(result, null, 2)}\n`);
     if (phase === "verify" && result.ok !== true) process.exitCode = 1;
   } catch (error) {
+    const mutationAttempted = error?.details?.statement_acknowledged === true || error?.details?.ledger_recorded === true;
     const result = {
       ok: false,
       contract: CONTRACT,
       phase,
       error: { code: error?.code || "FOUNDATION_FAILED", message: error?.message || "Foundation operation failed.", details: error?.details || {} },
-      database_mutation_performed: false,
+      database_mutation_performed: mutationAttempted ? null : false,
+      database_mutation_state: mutationAttempted ? "partial_possible_requires_reconciliation" : "none",
       provider_mutation_performed: false,
       deployment_performed: false,
       automatic_replay_allowed: false,
