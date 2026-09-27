@@ -25,7 +25,8 @@
       "http-generic-api/governedMigrationAuthorizationBootstrap.js",
       "http-generic-api/test-governance-db-writer-authority.mjs",
       "http-generic-api/test-governed-migration-authorization-bootstrap.mjs",
-      "docs/governance/configuration-drift-baseline-extensions.json"
+      "docs/governance/configuration-drift-baseline-extensions.json",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs"
     ]
   },
   "merge_contract": {
@@ -86,7 +87,8 @@
             "Migration 1051 no longer treats a Runtime-DB Migration 225 readback as sufficient for the Governance-owned capability envelope foundation.",
             "The 1050 authorization/apply envelope chain cannot regress to Runtime getPool(): authorization resolution and governed-migration Apply resolution use the Governance envelope store, while lifecycle reference mutation uses the Governance writer.",
             "Migration 1051 requires both the legacy Migration 225 Runtime proof and Migration 1053 Governance proof, plus Governance writer readiness; neither side alone is sufficient.",
-            "Foundation 1053 introduces no ungoverned secret/configuration drift: its new EVIDENCE_DIR and closed plan|apply|verify phase references are explicitly classified as non-secret CI governance inputs."
+            "Foundation 1053 introduces no ungoverned secret/configuration drift: its new EVIDENCE_DIR and closed plan|apply|verify phase references are explicitly classified as non-secret CI governance inputs.",
+            "The ordered Staging schema projection remains role-aware after Foundation 1053: capability_resolution_envelope_ledger stays Governance-owned, Runtime-excluded, and the two additional ENUM definitions are reflected in the deterministic enum-chain count."
           ],
           "tests": [
             {
@@ -130,6 +132,13 @@
               "working_directory": "http-generic-api",
               "path": "test-governed-migration-authorization-bootstrap.mjs",
               "args": []
+            },
+            {
+              "id": "staging-schema-bundle-builder",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-schema-bundle-builder.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -149,7 +158,8 @@
             "http-generic-api/governedMigrationAuthorizationBootstrap.js",
             "http-generic-api/test-governance-db-writer-authority.mjs",
             "http-generic-api/test-governed-migration-authorization-bootstrap.mjs",
-            "docs/governance/configuration-drift-baseline-extensions.json"
+            "docs/governance/configuration-drift-baseline-extensions.json",
+            "http-generic-api/test-staging-schema-bundle-builder.mjs"
           ]
         }
       ]
