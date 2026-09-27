@@ -64,6 +64,7 @@
             "Resolve environment family and runtime class from one canonical runtime-environment policy without treating generic production/prod aliases as explicit Hostinger identity.",
             "Pin the local Docker Staging process to staging_local_windows_docker in Compose as well as the local env template authority.",
             "Expose sanitized strict runtime-environment evidence in /deployment-info without returning raw environment values.",
+            "Require Production certification to consume only canonical deployment-manifest SHA/branch provenance, matching Recovery bootstrap requireManifest=true semantics.",
             "Require Production R7 to prove exact Production SHA, Production branch, and explicit production_hostinger_autodeploy runtime class before production_current can be true.",
             "Require Production Runtime Parity Evidence to validate both /version and /deployment-info and fail closed when runtime identity is ambiguous even if SHA and branch are current.",
             "Declare exact runtime-environment requirements in deployment-branch-policy for both Staging and Production.",
@@ -76,6 +77,7 @@
             "Conflicting Staging and Production signals fail with runtime_environment_conflict.",
             "/deployment-info returns only classification metadata, signal key names, and false secret/raw-value attestations; environment values are not exposed.",
             "Production R7 and Production Runtime Parity reject current SHA/branch when runtime class is not explicit.",
+            "Production R7 and Runtime Parity reject fallback-only deployment identity when gitCommitFull/gitBranch canonical manifest evidence is absent.",
             "No Production deployment, restart, database mutation, migration apply, grant apply, provider mutation, credential mutation, or secret read is performed by this repository patch."
           ],
           "tests": [
