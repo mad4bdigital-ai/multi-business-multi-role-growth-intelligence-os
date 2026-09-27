@@ -17,11 +17,11 @@ const EXPECTED_TABLES = Object.freeze([
   'repository_capability_policy_layers',
   'governed_migration_authorization_registry',
 ]);
-const ENVELOPE_DEPENDENCY_MIGRATION = '225_sprint67_capability_resolution_envelope_ledger.sql';
-const ENVELOPE_DEPENDENCY_PATH = new URL(`../../http-generic-api/migrations/${ENVELOPE_DEPENDENCY_MIGRATION}`, import.meta.url);
-const ENVELOPE_DEPENDENCY_EXPECTED_CHECKSUM = '35b034940c2be63d9bf8a8099573cac1c5a75b5fffd8ccfad60a453ed3cf7419';
-const ENVELOPE_DEPENDENCY_EXPECTED_STATEMENT_COUNT = 3;
-const ENVELOPE_DEPENDENCY_EXPECTED_TABLES = Object.freeze(['capability_resolution_envelope_ledger']);
+const FOUNDATION_DEPENDENCY_MIGRATION = '1053_production_governance_capability_envelope_foundation.sql';
+const FOUNDATION_DEPENDENCY_PATH = new URL(`../../http-generic-api/migrations/${FOUNDATION_DEPENDENCY_MIGRATION}`, import.meta.url);
+const FOUNDATION_DEPENDENCY_EXPECTED_CHECKSUM = '21caf065fa700a92b301fb0abf82cc0e34520acbf4b2c913b920b7914c158e46';
+const FOUNDATION_DEPENDENCY_EXPECTED_STATEMENT_COUNT = 1;
+const FOUNDATION_DEPENDENCY_EXPECTED_TABLES = Object.freeze(['capability_resolution_envelope_ledger']);
 const READBACK_BACKOFF = Object.freeze({
   attempts: 4,
   delaysMs: Object.freeze([5000, 15000, 30000]),
@@ -156,13 +156,13 @@ export function bounded429RetryDelayMs({ retryAfter = null, retryIndex = 0, nowM
 }
 
 export function classifyDependencyBlockReason({
-  runtimeDependencyReady = false,
+  foundationDependencyReady = false,
   governanceWriterReady = false,
   migrationReadbackRateLimited = false,
   governanceReadbackRateLimited = false,
 } = {}) {
-  if (migrationReadbackRateLimited) return 'migration_225_readback_rate_limited';
-  if (!runtimeDependencyReady) return 'migration_225_runtime_dependency_not_ready';
+  if (migrationReadbackRateLimited) return 'migration_1053_readback_rate_limited';
+  if (!foundationDependencyReady) return 'migration_1053_governance_foundation_not_ready';
   if (governanceReadbackRateLimited) return 'governance_writer_readback_rate_limited';
   if (!governanceWriterReady) return 'governance_writer_readiness_not_ready';
   return null;
@@ -311,39 +311,40 @@ async function captureGovernanceWriterReadiness({ base, key }) {
   };
 }
 
-async function captureEnvelopeDependency225({ base, key, evidenceDir }) {
-  const sql = fs.readFileSync(ENVELOPE_DEPENDENCY_PATH, 'utf8');
+async function captureEnvelopeFoundation1053({ base, key, evidenceDir }) {
+  const sql = fs.readFileSync(FOUNDATION_DEPENDENCY_PATH, 'utf8');
   const checksum = sha256(sql);
   const statementCount = splitMigrationSqlStatements(sql).length;
-  assert.equal(checksum, ENVELOPE_DEPENDENCY_EXPECTED_CHECKSUM, 'Migration 225 checksum changed');
-  assert.equal(statementCount, ENVELOPE_DEPENDENCY_EXPECTED_STATEMENT_COUNT, 'Migration 225 statement count changed');
+  assert.equal(checksum, FOUNDATION_DEPENDENCY_EXPECTED_CHECKSUM, 'Migration 1053 checksum changed');
+  assert.equal(statementCount, FOUNDATION_DEPENDENCY_EXPECTED_STATEMENT_COUNT, 'Migration 1053 statement count changed');
   const result = await requestRaw(base, key, '/gpt/tools/call', {
     name: 'governed_migration_schema_readback',
     tool_args: {
-      migration: ENVELOPE_DEPENDENCY_MIGRATION,
+      migration: FOUNDATION_DEPENDENCY_MIGRATION,
+      database_role: 'governance',
       expected_checksum_sha256: checksum,
       expected_statement_count: statementCount,
-      expected_tables: [...ENVELOPE_DEPENDENCY_EXPECTED_TABLES],
+      expected_tables: [...FOUNDATION_DEPENDENCY_EXPECTED_TABLES],
     },
   }, 180000, { retry429: true });
   const readback = keyed(result.payload, 'readback_status');
   const schemaTables = Array.isArray(readback?.schema?.tables) ? readback.schema.tables : [];
   const missingTables = Array.isArray(readback?.expectations?.missing?.tables) ? readback.expectations.missing.tables : [];
-  const tablePresent = schemaTables.some((row) => String(row?.TABLE_NAME || row?.table_name || '') === ENVELOPE_DEPENDENCY_EXPECTED_TABLES[0])
-    && !missingTables.includes(ENVELOPE_DEPENDENCY_EXPECTED_TABLES[0]);
-  const exactLedgerVerified = result.transport_ok && ledgerPass(readback, checksum, statementCount, ENVELOPE_DEPENDENCY_MIGRATION);
-  const runtimeDependencyReady = exactLedgerVerified && tablePresent;
+  const tablePresent = schemaTables.some((row) => String(row?.TABLE_NAME || row?.table_name || '') === FOUNDATION_DEPENDENCY_EXPECTED_TABLES[0])
+    && !missingTables.includes(FOUNDATION_DEPENDENCY_EXPECTED_TABLES[0]);
+  const exactLedgerVerified = result.transport_ok && ledgerPass(readback, checksum, statementCount, FOUNDATION_DEPENDENCY_MIGRATION);
+  const foundationDependencyReady = exactLedgerVerified && tablePresent;
   const governanceWriter = await captureGovernanceWriterReadiness({ base, key });
-  const dependencyReady = runtimeDependencyReady && governanceWriter.ready;
+  const dependencyReady = foundationDependencyReady && governanceWriter.ready;
   const dependencyBlockReason = classifyDependencyBlockReason({
-    runtimeDependencyReady,
+    foundationDependencyReady,
     governanceWriterReady: governanceWriter.ready,
     migrationReadbackRateLimited: result.rate_limit_exhausted === true,
     governanceReadbackRateLimited: governanceWriter.rate_limit_exhausted === true,
   });
   const report = {
-    contract: 'github_repository_policy_1051_envelope_dependency_225.v3',
-    migration: ENVELOPE_DEPENDENCY_MIGRATION,
+    contract: 'github_repository_policy_1051_envelope_foundation_1053.v1',
+    migration: FOUNDATION_DEPENDENCY_MIGRATION,
     migration_checksum_sha256: checksum,
     statement_count: statementCount,
     transport_ok: result.transport_ok,
@@ -354,10 +355,10 @@ async function captureEnvelopeDependency225({ base, key, evidenceDir }) {
     readback_status: readback?.readback_status ?? null,
     ledger_found: readback?.ledger?.found ?? null,
     exact_apply_ledger_verified: exactLedgerVerified,
-    table: ENVELOPE_DEPENDENCY_EXPECTED_TABLES[0],
+    table: FOUNDATION_DEPENDENCY_EXPECTED_TABLES[0],
     table_present: tablePresent,
     missing_tables: missingTables,
-    runtime_dependency_ready: runtimeDependencyReady,
+    foundation_dependency_ready: foundationDependencyReady,
     governance_writer_readiness: governanceWriter,
     governance_writer_ready: governanceWriter.ready,
     dependency_block_reason: dependencyBlockReason,
@@ -371,12 +372,12 @@ async function captureEnvelopeDependency225({ base, key, evidenceDir }) {
     secrets_included: false,
   };
   fs.mkdirSync(evidenceDir, { recursive: true });
-  fs.writeFileSync(path.join(evidenceDir, 'dependency-225-readback.json'), `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+  fs.writeFileSync(path.join(evidenceDir, 'foundation-1053-readback.json'), `${JSON.stringify(report, null, 2)}\n`, 'utf8');
   return report;
 }
 
 export async function captureMetadataState({ base, key, evidenceDir, mode = 'verify' }) {
-  const dependency225 = await captureEnvelopeDependency225({ base, key, evidenceDir });
+  const foundation1053 = await captureEnvelopeFoundation1053({ base, key, evidenceDir });
   const body = buildAdminControlDbReadRequest({
     sql: METADATA_STATE_SQL,
     params: [],
@@ -425,7 +426,7 @@ export async function captureMetadataState({ base, key, evidenceDir, mode = 'ver
   const diagnosticCaptured = result.transport_ok && result.http_ok && result.payload?.ok !== false && rows.length === 1;
   const metadataReplayAllowed = diagnosticCaptured && (ledger.exact_apply_ledger_verified || classification.replay_safe_without_exact_ledger);
   const dependencyGuardRequired = mode === 'readiness' || mode === 'pre_apply';
-  const dependencyGuardAllowed = dependency225.dependency_ready === true;
+  const dependencyGuardAllowed = foundation1053.dependency_ready === true;
   const guardAllowed = mode !== 'pre_apply'
     ? true
     : metadataReplayAllowed && dependencyGuardAllowed;
@@ -447,16 +448,16 @@ export async function captureMetadataState({ base, key, evidenceDir, mode = 'ver
     counts: classification.counts,
     presence: classification.presence,
     metadata: safeMetadata(row),
-    envelope_dependency_225: dependency225,
+    envelope_foundation_1053: foundation1053,
     ledger,
     readiness_dependency_guard: mode === 'readiness' ? {
       status: dependencyGuardAllowed ? 'pass' : 'blocked',
-      reason: dependencyGuardAllowed ? 'migration_225_runtime_and_governance_writer_schema_verified' : dependency225.dependency_block_reason,
+      reason: dependencyGuardAllowed ? 'migration_225_runtime_and_governance_writer_schema_verified' : foundation1053.dependency_block_reason,
     } : null,
     pre_apply_guard: mode === 'pre_apply' ? {
       status: guardAllowed ? 'pass' : 'blocked',
       reason: !dependencyGuardAllowed
-        ? dependency225.dependency_block_reason
+        ? foundation1053.dependency_block_reason
         : ledger.exact_apply_ledger_verified
           ? 'exact_apply_ledger_already_verified'
           : classification.replay_safe_without_exact_ledger
@@ -478,38 +479,38 @@ export async function captureMetadataState({ base, key, evidenceDir, mode = 'ver
 
   if (mode === 'readiness') {
     if (!dependencyGuardAllowed) {
-      const blockedBy429 = dependency225.dependency_block_reason === 'migration_225_readback_rate_limited'
-        || dependency225.dependency_block_reason === 'governance_writer_readback_rate_limited';
-      const writerBlocked = dependency225.runtime_dependency_ready === true && dependency225.governance_writer_ready !== true;
+      const blockedBy429 = foundation1053.dependency_block_reason === 'migration_1053_readback_rate_limited'
+        || foundation1053.dependency_block_reason === 'governance_writer_readback_rate_limited';
+      const writerBlocked = foundation1053.runtime_dependency_ready === true && foundation1053.governance_writer_ready !== true;
       const error = new Error(blockedBy429
         ? 'Migration 1051 readiness blocked: read-only dependency readback remained rate limited after bounded retries'
         : writerBlocked
           ? 'Migration 1051 readiness blocked: Governance DB writer schema and privilege readiness are not proven on the same Production runtime that will persist the capability envelope'
-          : 'Migration 1051 readiness blocked: Migration 225 runtime dependency requires an exact Apply ledger and capability_resolution_envelope_ledger table');
+          : 'Migration 1051 readiness blocked: Governance Foundation 1053 requires an exact Governance Apply ledger and capability_resolution_envelope_ledger table');
       error.code = blockedBy429
         ? 'migration_1051_dependency_readback_rate_limited'
         : writerBlocked
           ? 'migration_1051_governance_writer_dependency_not_ready'
-          : 'migration_1051_dependency_225_not_ready';
+          : 'migration_1051_foundation_1053_not_ready';
       throw error;
     }
   }
   if (mode === 'pre_apply') {
     assert.ok(diagnosticCaptured, 'Migration 1051 pre-Apply metadata diagnostic is unavailable');
     if (!dependencyGuardAllowed) {
-      const blockedBy429 = dependency225.dependency_block_reason === 'migration_225_readback_rate_limited'
-        || dependency225.dependency_block_reason === 'governance_writer_readback_rate_limited';
-      const writerBlocked = dependency225.runtime_dependency_ready === true && dependency225.governance_writer_ready !== true;
+      const blockedBy429 = foundation1053.dependency_block_reason === 'migration_1053_readback_rate_limited'
+        || foundation1053.dependency_block_reason === 'governance_writer_readback_rate_limited';
+      const writerBlocked = foundation1053.runtime_dependency_ready === true && foundation1053.governance_writer_ready !== true;
       const error = new Error(blockedBy429
         ? 'Migration 1051 pre-Apply blocked: read-only dependency readback remained rate limited after bounded retries'
         : writerBlocked
           ? 'Migration 1051 pre-Apply blocked: Governance DB writer schema and privilege readiness are not proven'
-          : 'Migration 1051 pre-Apply blocked: Migration 225 runtime dependency is not ready');
+          : 'Migration 1051 pre-Apply blocked: Governance Foundation 1053 dependency is not ready');
       error.code = blockedBy429
         ? 'migration_1051_dependency_readback_rate_limited'
         : writerBlocked
           ? 'migration_1051_governance_writer_dependency_not_ready'
-          : 'migration_1051_dependency_225_not_ready';
+          : 'migration_1051_foundation_1053_not_ready';
       throw error;
     }
     assert.ok(guardAllowed, `Migration 1051 replay guard blocked ${classification.target_metadata_state} target metadata without an exact Apply ledger`);
