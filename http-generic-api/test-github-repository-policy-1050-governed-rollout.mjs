@@ -67,7 +67,16 @@ assert.match(readinessDiagnosticWrapper, /secrets_included: false/);
 assert.doesNotMatch(readinessDiagnosticWrapper, /parsed\?\.error\?\.message/);
 assert.doesNotMatch(readinessDiagnosticWrapper, /adminError\?\.message/);
 assert.doesNotMatch(readinessDiagnosticWrapper, /JSON\.stringify\(payload/);
-assert.doesNotMatch(readinessDiagnosticWrapper, /APPLY_HOSTINGER_RUNTIME_/);
+assert.match(readinessDiagnosticWrapper, /github_repository_policy_1050_recovery_handoff\.v1/);
+assert.match(readinessDiagnosticWrapper, /eligible_for_recovery_prepare/);
+assert.match(readinessDiagnosticWrapper, /canonical_role_selective_baseline_rebuild_required/);
+assert.match(readinessDiagnosticWrapper, /APPLY_HOSTINGER_RUNTIME_BASELINE_REBUILD:\$\{report\.production_sha\}:production-runtime:governance,runtime_persistence/);
+assert.match(readinessDiagnosticWrapper, /prepare_phase_is_read_only: true/);
+assert.match(readinessDiagnosticWrapper, /execution_requires_separate_server_issued_single_step_approval: true/);
+assert.match(readinessDiagnosticWrapper, /automatic_execution_allowed: false/);
+assert.match(readinessDiagnosticWrapper, /legacy_migration_225_apply_authorized: false/);
+assert.match(readinessDiagnosticWrapper, /governance-foundation-recovery-handoff\.json/);
+assert.doesNotMatch(readinessDiagnosticWrapper, /gh workflow run|workflow_dispatch\s*\(/iu);
 assert.match(readinessDiagnosticWrapper, /await import\('\.\/github-repository-policy-1050-governed-rollout\.mjs'\);/);
 
 assert.match(runner, /const SOURCE_PR = Number\(process\.env\.SOURCE_PR \|\| 6746\);/);
