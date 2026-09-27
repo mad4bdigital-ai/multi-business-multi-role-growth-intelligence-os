@@ -75,7 +75,7 @@
           ],
           "assertions": [
             "Migration 225 remains allowed only in dry_run/verification-only paths.",
-            "Migration 1053 has checksum 21caf065fa700a92b301fb0abf82cc0e34520acbf4b2c913b920b7914c158e46 and exactly one SQL statement.",
+            "Migration 1053 has checksum c74beba4919458db0dc6dedca6e04b9868bbb6b99cc673505ba70272f3541724 and exactly one SQL statement.",
             "Migration 1053 contains no platform_runtime_config or admin_platform_endpoint_tools mutation.",
             "The repair never records Migration 225 as applied.",
             "The repair derives governance_database from RUNTIME_BOOTSTRAP_TARGETS_JSON and requires it to be separate from runtime database.",
