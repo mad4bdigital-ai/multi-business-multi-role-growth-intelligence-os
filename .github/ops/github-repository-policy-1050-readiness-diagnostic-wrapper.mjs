@@ -155,9 +155,12 @@ function buildRecoveryHandoff(report) {
     : [];
   const expectedRoles = ['governance', 'runtime_persistence'];
   const classifications = report?.role_database_object_classifications || {};
+  const fingerprints = report?.role_database_object_count_fingerprints || {};
   const eligible = report?.result === 'inspection_complete'
     && /^[0-9a-f]{40}$/.test(String(report?.production_sha || ''))
+    && /^[0-9a-f]{64}$/.test(String(report?.target_fingerprint || ''))
     && JSON.stringify(roles) === JSON.stringify(expectedRoles)
+    && expectedRoles.every((role) => /^[0-9a-f]{64}$/.test(String(fingerprints[role] || '')))
     && classifications.runtime === 'nonempty_objects'
     && classifications.governance === 'zero_objects'
     && classifications.runtime_persistence === 'zero_objects'
