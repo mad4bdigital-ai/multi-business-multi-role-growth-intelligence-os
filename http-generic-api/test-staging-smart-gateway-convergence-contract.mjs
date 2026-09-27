@@ -47,6 +47,10 @@ const hardeningMigrationSource = fs.readFileSync(path.join(root, "http-generic-a
 const trustedIngress = fs.readFileSync(path.join(root, "http-generic-api/trustedIngressContract.js"), "utf8");
 const activationGatewayRoutes = fs.readFileSync(path.join(root, "http-generic-api/routes/activationHostGatewayRoutes.js"), "utf8");
 const stagingEnvExample = fs.readFileSync(path.join(root, "http-generic-api/.env.staging.example"), "utf8");
+const stagingCompose = fs.readFileSync(path.join(root, "http-generic-api/docker-compose.staging.yml"), "utf8");
+const stagingEnvironmentSource = fs.readFileSync(path.join(portable, "Staging-Environment.ps1"), "utf8");
+const stagingWindowsCloudflaredSource = fs.readFileSync(path.join(portable, "Staging-WindowsCloudflared.ps1"), "utf8");
+const stagingProviderAuthorityHelper = fs.readFileSync(path.join(portable, "Enable-StagingActivationGatewayProviderAuthority.ps1"), "utf8");
 const stagingWorker = fs.readFileSync(path.join(root, "edge/activation-gateway/src/worker-staging.mjs"), "utf8");
 
 const protectedPortablePaths = [
@@ -291,6 +295,30 @@ assert.match(stagingEnvExample, /^REMOTE_MCP_TRUSTED_INGRESS_KEY_ID=$/mu);
 assert.match(stagingEnvExample, /^REMOTE_MCP_EXPECTED_DEPLOYMENT_SHA=$/mu);
 assert.match(stagingEnvExample, /^RECOVERY_STAGING_INGRESS_REPLAY_DIRECTORY=\/app\/data\/recovery-ingress$/mu);
 assert.doesNotMatch(stagingEnvExample, /^ACTIVATION_GATEWAY_INGRESS_PRIVATE_KEY_JWK=/mu);
+assert.match(stagingEnvExample, /^STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED=false$/mu);
+assert.match(stagingEnvExample, /^STAGING_CLOUDFLARE_API_TOKEN_HOST_FILE=\.\/config\/empty-provider-secret$/mu);
+assert.doesNotMatch(stagingEnvExample, /^CLOUDFLARE_API_TOKEN=/mu);
+assert.match(stagingCompose, /source:\s*staging_cloudflare_api_token/u);
+assert.match(stagingCompose, /STAGING_CLOUDFLARE_API_TOKEN_FILE:\s*\/run\/secrets\/staging_cloudflare_api_token/u);
+assert.match(stagingCompose, /STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED:\s*\$\{STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED:-false\}/u);
+assert.match(stagingCompose, /STAGING_CLOUDFLARE_API_TOKEN_HOST_FILE:-\.\/config\/empty-provider-secret/u);
+assert.match(serverAdapterSource, /import fs from "node:fs"/u);
+assert.match(serverAdapterSource, /DEFAULT_STAGING_CLOUDFLARE_API_TOKEN_FILE/u);
+assert.match(serverAdapterSource, /STAGING_CLOUDFLARE_API_TOKEN_FILE/u);
+assert.match(serverAdapterSource, /staging_activation_gateway_provider_secret_unreadable/u);
+assert.match(serverAdapterSource, /staging_activation_gateway_cloudflare_token_missing/u);
+assert.match(stagingEnvironmentSource, /Cloudflare provider credentials must never be persisted in \.env\.staging/u);
+assert.match(stagingEnvironmentSource, /C:\\ProgramData\\Mad4B\\Staging\\Cloudflared\\tunnel-token\.txt/u);
+assert.match(stagingEnvironmentSource, /C:\\ProgramData\\Mad4B\\Staging\\Cloudflared\\cloudflared\.log/u);
+assert.doesNotMatch(stagingEnvironmentSource, /Set-StagingEnvValue[^\n]*'CLOUDFLARE_API_TOKEN'/u);
+assert.match(stagingWindowsCloudflaredSource, /legacyTokenFile = 'C:\\ProgramData\\cloudflared\\tunnel-token\.txt'/u);
+assert.match(stagingWindowsCloudflaredSource, /Copy only; never delete or/u);
+assert.match(stagingProviderAuthorityHelper, /ENABLE_STAGING_ACTIVATION_GATEWAY_PROVIDER_AUTHORITY/u);
+assert.match(stagingProviderAuthorityHelper, /Read-Host "Cloudflare API token" -AsSecureString/u);
+assert.match(stagingProviderAuthorityHelper, /STAGING_CLOUDFLARE_API_TOKEN_HOST_FILE/u);
+assert.match(stagingProviderAuthorityHelper, /STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED" "true"/u);
+assert.match(stagingProviderAuthorityHelper, /provider_mutation_performed = \$false/u);
+assert.doesNotMatch(stagingProviderAuthorityHelper, /Write-Host[^\n]*\$plain/u);
 
 assert.match(liveCertification, /loadActivationGatewayProfilePolicy\("staging"/u);
 assert.doesNotMatch(liveCertification, /STAGING_CERT_GATEWAY_POLICY_PATH/u);
