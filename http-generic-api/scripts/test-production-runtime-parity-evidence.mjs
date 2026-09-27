@@ -42,11 +42,15 @@ const runtimeResponse = (sha = SHA) => new Response(JSON.stringify({
   status: 200,
   headers: { "content-type": "application/json" }
 });
-const deploymentInfoResponse = ({ sha = SHA, explicit = true } = {}) => new Response(JSON.stringify({
+const deploymentInfoResponse = ({ sha = SHA, explicit = true, canonical = true } = {}) => new Response(JSON.stringify({
   ok: true,
   service: "growth-intelligence-platform",
   commit_sha: sha,
   branch: "Production",
+  gitCommitFull: canonical ? sha : null,
+  gitBranch: canonical ? "Production" : null,
+  provenanceSource: canonical ? "/app/deployment-manifest.json" : null,
+  evidence: { canonical_manifest_detected: canonical },
   runtime_environment: explicit ? {
     ok: true,
     environment_key: "production",
@@ -202,6 +206,7 @@ try {
   assert.equal(passed.report.endpoints[0].status, "passed");
   assert.equal(passed.report.endpoints[1].name, "auth-deployment");
   assert.equal(passed.report.endpoints[1].status, "passed");
+  assert.equal(passed.report.endpoints[1].runtime.canonical_provenance_present, true);
   assert.equal(passed.report.endpoints[1].runtime.runtime_environment.environment_key, "production");
   assert.equal(passed.report.endpoints[1].runtime.runtime_environment.runtime_variant, "production_hostinger_autodeploy");
   assert.equal(passed.report.endpoints[1].runtime.runtime_environment.runtime_class, "hostinger_autodeploy");
@@ -213,6 +218,22 @@ try {
   assert.equal(passed.report.secrets_included, false);
   assert.ok(fs.existsSync(passed.jsonPath));
   assert.ok(fs.existsSync(passed.markdownPath));
+
+  const canonicalProvenanceFailed = await runProductionRuntimeParityEvidence({
+    expectedSha: SHA,
+    expectedBranch: "Production",
+    endpoints: [authEndpoint(), deploymentEndpoint()],
+    outputDir: path.join(root, "canonical-provenance-failed"),
+    lookup,
+    tlsProbe: successfulTls,
+    fetchImpl: async (url) => String(url).endsWith("/deployment-info")
+      ? deploymentInfoResponse({ canonical: false })
+      : runtimeResponse()
+  });
+  assert.equal(canonicalProvenanceFailed.report.outcome, "failed");
+  assert.equal(canonicalProvenanceFailed.report.first_failure.endpoint, "auth-deployment");
+  assert.equal(canonicalProvenanceFailed.report.first_failure.code, "canonical_deployment_provenance_missing");
+  assert.equal(canonicalProvenanceFailed.report.endpoints[1].runtime.canonical_provenance_present, false);
 
   const runtimeIdentityFailed = await runProductionRuntimeParityEvidence({
     expectedSha: SHA,
@@ -361,7 +382,7 @@ try {
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 11,
+  tests: 12,
   gate: "production_runtime_parity_auth_topology",
   contract: PRODUCTION_RUNTIME_PARITY_CONTRACT,
   secrets_included: false
