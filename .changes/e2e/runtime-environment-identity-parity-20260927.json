@@ -26,7 +26,9 @@
       "http-generic-api/scripts/test-production-runtime-parity-evidence.mjs",
       ".changes/e2e/production-runtime-parity-evidence.json",
       "docs/governance/hostinger-runtime-bootstrap.md",
-      "docs/governance/governed-autopilot-production-deployment.md"
+      "docs/governance/governed-autopilot-production-deployment.md",
+      "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json"
     ]
   },
   "merge_contract": {
@@ -78,7 +80,8 @@
             "/deployment-info returns only classification metadata, signal key names, and false secret/raw-value attestations; environment values are not exposed.",
             "Production R7 and Production Runtime Parity reject current SHA/branch when runtime class is not explicit.",
             "Production R7 and Runtime Parity reject fallback-only deployment identity when gitCommitFull/gitBranch canonical manifest evidence is absent.",
-            "No Production deployment, restart, database mutation, migration apply, grant apply, provider mutation, credential mutation, or secret read is performed by this repository patch."
+            "No Production deployment, restart, database mutation, migration apply, grant apply, provider mutation, credential mutation, or secret read is performed by this repository patch.",
+            "Every changed critical runtime-identity governance path is registered exactly in Constitution.control_plane_paths and convergence.automation_control_paths; broad patterns and autonomous merge remain forbidden."
           ],
           "tests": [
             {
@@ -127,7 +130,9 @@
             ".github/workflows/hostinger-production-runtime-readback-r7.yml",
             "http-generic-api/scripts/production-runtime-parity-evidence.mjs",
             ".github/workflows/production-runtime-parity-evidence.yml",
-            ".github/governance/test-authority-registry.json"
+            ".github/governance/test-authority-registry.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json"
           ]
         }
       ]
