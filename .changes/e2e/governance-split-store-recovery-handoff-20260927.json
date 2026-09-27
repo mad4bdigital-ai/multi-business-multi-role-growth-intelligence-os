@@ -18,7 +18,8 @@
       "http-generic-api/test-github-repository-policy-1050-governed-rollout.mjs",
       ".github/governance/test-authority-registry.json",
       "http-generic-api/config/repository-governance-constitution.json",
-      ".github/derived-state-governance.json"
+      ".github/derived-state-governance.json",
+      "http-generic-api/test-tenant-platform-plugin-1052-governed-readiness.mjs"
     ]
   },
   "merge_contract": {
@@ -69,7 +70,8 @@
             "The prepare command is evidence only and automatic execution/replay are false.",
             "Every consequential Recovery role step still requires a separate server-issued single-step approval.",
             "The changed Governance writer regression test is registered under the canonical governance_db_privilege_readiness test authority.",
-            "The recovery handoff change-contract itself is registered exactly in Constitution.control_plane_paths and convergence.automation_control_paths; autonomous merge remains forbidden."
+            "The recovery handoff change-contract itself is registered exactly in Constitution.control_plane_paths and convergence.automation_control_paths; autonomous merge remains forbidden.",
+            "Migration 1052 readiness regression proves persisted governed-migration envelopes resolve from the Governance store and cannot regress to the legacy Runtime readPool contract."
           ],
           "tests": [
             {
@@ -92,6 +94,13 @@
               "working_directory": "http-generic-api",
               "path": "test-github-repository-policy-1050-governed-rollout.mjs",
               "args": []
+            },
+            {
+              "id": "tenant-platform-plugin-1052-governed-readiness",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-platform-plugin-1052-governed-readiness.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -107,7 +116,8 @@
             ".github/workflows/governed-production-promotion-dispatch-bridge.yml",
             ".github/governance/test-authority-registry.json",
             "http-generic-api/config/repository-governance-constitution.json",
-            ".github/derived-state-governance.json"
+            ".github/derived-state-governance.json",
+            "http-generic-api/test-tenant-platform-plugin-1052-governed-readiness.mjs"
           ]
         }
       ]
