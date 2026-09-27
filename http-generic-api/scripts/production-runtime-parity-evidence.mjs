@@ -328,8 +328,14 @@ async function probeEndpoint(endpoint, configuration, dependencies) {
     }
     if (endpoint.name === "auth-deployment") {
       const rawService = payload?.service;
-      const rawSha = payload?.commit_sha || payload?.commit;
-      const rawBranch = payload?.branch;
+      const rawSha = payload?.gitCommitFull;
+      const rawBranch = payload?.gitBranch;
+      const canonicalProvenancePresent = Boolean(
+        SHA_PATTERN.test(String(rawSha ?? ""))
+          && rawBranch === "Production"
+          && String(payload?.provenanceSource || "").trim()
+          && payload?.evidence?.canonical_manifest_detected === true
+      );
       const runtimeEnvironment = payload?.runtime_environment || {};
       const runtimeIdentityReady = runtimeEnvironment?.ok === true
         && runtimeEnvironment?.environment_key === "production"
@@ -344,6 +350,7 @@ async function probeEndpoint(endpoint, configuration, dependencies) {
         service: rawService === "growth-intelligence-platform" ? "growth-intelligence-platform" : null,
         deployed_commit_sha: SHA_PATTERN.test(String(rawSha ?? "")) ? String(rawSha).toLowerCase() : null,
         deployment_branch: rawBranch === "Production" ? "Production" : null,
+        canonical_provenance_present: canonicalProvenancePresent,
         runtime_environment: {
           ok: runtimeEnvironment?.ok === true,
           environment_key: runtimeEnvironment?.environment_key || null,
@@ -358,6 +365,7 @@ async function probeEndpoint(endpoint, configuration, dependencies) {
         },
       };
       if (rawService !== "growth-intelligence-platform") throw new EvidenceError("service_identity_mismatch", `Endpoint ${endpoint.name} returned an unexpected service identity.`);
+      if (!canonicalProvenancePresent) throw new EvidenceError("canonical_deployment_provenance_missing", `Endpoint ${endpoint.name} did not prove canonical deployment-manifest provenance.`);
       if (String(rawSha || "").toLowerCase() !== configuration.expectedSha) throw new EvidenceError("deployed_sha_mismatch", `Endpoint ${endpoint.name} is not running the expected Production SHA.`);
       if (rawBranch !== configuration.expectedBranch) throw new EvidenceError("deployment_branch_mismatch", `Endpoint ${endpoint.name} is not reporting the expected Production branch.`);
       if (!runtimeIdentityReady) throw new EvidenceError("runtime_environment_identity_not_explicit", `Endpoint ${endpoint.name} did not prove the explicit production_hostinger_autodeploy runtime identity.`);
