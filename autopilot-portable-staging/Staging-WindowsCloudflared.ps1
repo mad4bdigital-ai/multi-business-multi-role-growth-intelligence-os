@@ -60,6 +60,21 @@ function Ensure-StagingCloudflaredTokenFile([string]$EnvFile) {
 
     $hasToken = (Test-Path -LiteralPath $tokenFile) -and -not [string]::IsNullOrWhiteSpace((Get-Content -Raw -LiteralPath $tokenFile -ErrorAction SilentlyContinue))
     if (-not $hasToken) {
+        # One-way compatibility migration for machines provisioned before the
+        # Staging-specific ProgramData namespace. Copy only; never delete or
+        # mutate the legacy file because another cloudflared runtime may own it.
+        $legacyTokenFile = 'C:\ProgramData\cloudflared\tunnel-token.txt'
+        if ($tokenFile -ne $legacyTokenFile -and (Test-Path -LiteralPath $legacyTokenFile)) {
+            $legacyToken = Get-Content -Raw -LiteralPath $legacyTokenFile -ErrorAction SilentlyContinue
+            if (-not [string]::IsNullOrWhiteSpace($legacyToken)) {
+                $encoding = New-Object Text.UTF8Encoding($false)
+                [IO.File]::WriteAllText($tokenFile, $legacyToken.Trim(), $encoding)
+                Protect-StagingCloudflaredFile $tokenFile
+                $hasToken = $true
+            }
+        }
+    }
+    if (-not $hasToken) {
         $token = Get-StagingEnvValue $EnvFile 'CLOUDFLARE_TUNNEL_TOKEN'
         if ([string]::IsNullOrWhiteSpace($token)) {
             Write-Host 'One-time secure input: provide the dedicated Staging Cloudflare Tunnel token for the Windows service token-file.'

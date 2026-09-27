@@ -98,7 +98,7 @@
     },
     {
       "path": "http-generic-api/.env.staging.example",
-      "sha256": "82d88cf3b6fd719bfb3347d0607a24bfa830455070519f68576e2dec22480486"
+      "sha256": "f486d5f5b3a3ea6c18ce3fc975a4ce3eda0162a42a3f3739eaa3a5b134dbefcd"
     },
     {
       "path": "http-generic-api/Dockerfile",
@@ -138,7 +138,7 @@
     },
     {
       "path": "http-generic-api/docker-compose.staging.yml",
-      "sha256": "388d7f1c8116134ab92513a550030495bcc241cd8277ea1203eafd63f96e9a25"
+      "sha256": "45c88fa841f39a05a6cc9e8ff23afc7e2a6d68b23ea045175a4a85ae0b1ebb5e"
     },
     {
       "path": "http-generic-api/docker-compose.yml",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "4f7f6475343777ec486a3fad2212afcbd1857a534fd77afcf504fc5dffd6fbb0"
+      "sha256": "f7a1589e99d208034005a7ae78a16ff8ef8b52063c66fe9b196c25ec1f7cc7dd"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -338,11 +338,11 @@
     },
     {
       "path": "autopilot-portable-staging/Staging-Environment.ps1",
-      "sha256": "1d2cb3d42de0a1e30d81e363aea4ed735fd814c760ad697349cc938bde5259f7"
+      "sha256": "5f6f2aa8715552774eb3d62e27a93f9a722e226ca338cb2562aabcdf4a32ed31"
     },
     {
       "path": "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
-      "sha256": "d62111f0c03edc65a81db4f82b8d6c66b67c0e0e908cc1c2944a40180189e888"
+      "sha256": "fe8389e1768fd0df550b953bea8cbc06607767301e7666ef38e88872945ac6c8"
     },
     {
       "path": "http-generic-api/docker-compose.staging.windows-service.yml",
@@ -354,7 +354,7 @@
     },
     {
       "path": "http-generic-api/scripts/generate-portable-staging-manifest.mjs",
-      "sha256": "34e83ba7c92ec161f6766ed344004cc2f3cc8dff295e4a44580bf135ff54362e"
+      "sha256": "b69d8138a939b812653956568c72e5fc3f192333951200c82c7a7816ef484f72"
     },
     {
       "path": "http-generic-api/scripts/provision-remote-mcp-client.mjs",
@@ -423,6 +423,14 @@
     {
       "path": "local-connector/Get-LocalConnectorConvergence.ps1",
       "sha256": "4b3d93cd57aba94010c77b9b8d17886d4240fb91a84980789b098873093a0413"
+    },
+    {
+      "path": "autopilot-portable-staging/Enable-StagingActivationGatewayProviderAuthority.ps1",
+      "sha256": "85949d0756b61e30172b63693d87f6b9a7258d48fc0152bade618c949f90886d"
+    },
+    {
+      "path": "http-generic-api/config/empty-provider-secret",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   ],
   "safety": {

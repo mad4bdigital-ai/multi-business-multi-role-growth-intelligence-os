@@ -81,6 +81,9 @@ services:
       - .env.staging
     volumes:
       - ${STAGING_DATA_ROOT:-./.staging-data}/app:/app/data
+    secrets:
+      - source: staging_cloudflare_api_token
+        target: staging_cloudflare_api_token
     environment:
       NODE_ENV: staging
       # Deployment class is pinned in Compose as well as .env.staging so an
@@ -103,6 +106,10 @@ services:
       # runtime. Do not expose it to application routes where it could be
       # mistaken for a Local Connector tunnel credential.
       CLOUDFLARE_TUNNEL_TOKEN: ""
+      # Provider authority is server-held. .env.staging contains only the host
+      # secret-file location and the non-secret feature gate, never the token.
+      STAGING_CLOUDFLARE_API_TOKEN_FILE: /run/secrets/staging_cloudflare_api_token
+      STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED: ${STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED:-false}
       DB_HOST: runtime-db
       DB_PORT: 3306
       DB_NAME: ${DB_NAME:?set DB_NAME in .env.staging}
@@ -159,3 +166,7 @@ services:
     depends_on:
       app:
         condition: service_healthy
+
+secrets:
+  staging_cloudflare_api_token:
+    file: ${STAGING_CLOUDFLARE_API_TOKEN_HOST_FILE:-./config/empty-provider-secret}

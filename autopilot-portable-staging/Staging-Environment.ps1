@@ -77,6 +77,9 @@ function Assert-StagingEnvironmentSafety([string]$Path) {
     if ($text -match '(?im)^(REMOTE_MCP_ACCESS_TOKEN|REMOTE_MCP_REFRESH_TOKEN|REMOTE_MCP_AUTHORIZATION_CODE)=') {
         throw 'Runtime-minted MCP access/refresh/authorization credentials must never be persisted in .env.staging.'
     }
+    if ($text -match '(?im)^CLOUDFLARE_API_TOKEN=') {
+        throw 'Cloudflare provider credentials must never be persisted in .env.staging; use the server-held provider secret-file transport.'
+    }
     if ($text -notmatch '(?im)^TENANT_GPT_SSO_COOKIE_MODE=host_only\s*$') { throw 'Staging SSO cookie mode must be host_only.' }
     if ((Get-StagingEnvValue $Path 'STAGING_AUTHENTICATED_REMOTE_E2E_REQUIRED').ToLowerInvariant() -ne 'true') { throw 'Authenticated Tenant/MCP remote E2E must remain mandatory for Staging PLATFORM_READY.' }
     foreach ($key in @('MIGRATION_APPLIED','PRODUCTION_MUTATION_AUTHORIZED','RULESET_MUTATION_AUTHORIZED')) {
@@ -88,7 +91,13 @@ function Assert-StagingEnvironmentSafety([string]$Path) {
         throw 'Both supported Staging tunnel runtimes must use canonical remote-managed origin http://127.0.0.1:8080.'
     }
     $tokenFile = Get-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_TOKEN_FILE'
-    if ($tokenFile -and $tokenFile -notmatch '(?i)^C:\\ProgramData\\cloudflared\\[^\\]+$') { throw 'Windows tunnel token-file must remain under C:\ProgramData\cloudflared.' }
+    if ($tokenFile -and $tokenFile -notmatch '(?i)^C:\\ProgramData\\Mad4B\\Staging\\Cloudflared\\[^\\]+$') { throw 'Windows tunnel token-file must remain under C:\ProgramData\Mad4B\Staging\Cloudflared.' }
+    $providerGate = (Get-StagingEnvValue $Path 'STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED').ToLowerInvariant()
+    if ($providerGate -notin @('true','false')) { throw 'STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED must be true or false.' }
+    $providerSecretHostFile = Get-StagingEnvValue $Path 'STAGING_CLOUDFLARE_API_TOKEN_HOST_FILE'
+    if ($providerGate -eq 'true' -and ([string]::IsNullOrWhiteSpace($providerSecretHostFile) -or $providerSecretHostFile -match '(?i)empty-provider-secret$')) {
+        throw 'Staging Activation Gateway apply cannot be enabled without a dedicated server-held Cloudflare provider secret file.'
+    }
     $metrics = Get-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_METRICS'
     if ($metrics -and $metrics -notmatch '^127\.0\.0\.1:\d{2,5}$') { throw 'Cloudflared metrics must remain loopback-only.' }
     $appId = Get-StagingEnvValue $Path 'REMOTE_MCP_APP_ID'
@@ -124,8 +133,8 @@ function Set-StagingTunnelRuntimeProfile {
     Set-StagingEnvValue $Path 'STAGING_TUNNEL_MODE' $TunnelMode
     Set-StagingEnvValue $Path 'STAGING_TUNNEL_REMOTE_ORIGIN' 'http://127.0.0.1:8080'
     Set-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_HOSTNAMES' 'dev.mad4b.com,mcp-dev.mad4b.com'
-    Set-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_TOKEN_FILE' 'C:\ProgramData\cloudflared\tunnel-token.txt'
-    Set-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_LOG_FILE' 'C:\ProgramData\cloudflared\staging-cloudflared.log'
+    Set-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_TOKEN_FILE' 'C:\ProgramData\Mad4B\Staging\Cloudflared\tunnel-token.txt'
+    Set-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_LOG_FILE' 'C:\ProgramData\Mad4B\Staging\Cloudflared\cloudflared.log'
     Set-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_METRICS' '127.0.0.1:49312'
     Set-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_LOGLEVEL' 'info'
     Set-StagingEnvValue $Path 'CLOUDFLARE_TUNNEL_GRACE_PERIOD' '30s'
@@ -238,6 +247,14 @@ function Initialize-StagingEnvironment {
     Set-StagingEnvValue $envFile 'REMOTE_MCP_RESOURCE_DOCUMENTATION_URL' 'https://mcp-dev.mad4b.com/docs'
 
     Set-StagingEnvValue $envFile 'ACTIVATION_STAGING_GATEWAY_ENABLED' ($(if ($EnableActivationGateway) { 'true' } else { 'false' }))
+    $providerApplyGate = Get-StagingEnvValue $envFile 'STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED'
+    if ([string]::IsNullOrWhiteSpace($providerApplyGate)) { $providerApplyGate = 'false' }
+    Set-StagingEnvValue $envFile 'STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED' $providerApplyGate
+    $providerSecretHostFile = Get-StagingEnvValue $envFile 'STAGING_CLOUDFLARE_API_TOKEN_HOST_FILE'
+    if ([string]::IsNullOrWhiteSpace($providerSecretHostFile)) {
+        $providerSecretHostFile = Join-Path $apiPath 'config\empty-provider-secret'
+    }
+    Set-StagingEnvValue $envFile 'STAGING_CLOUDFLARE_API_TOKEN_HOST_FILE' $providerSecretHostFile
     Set-StagingEnvValue $envFile 'ACTIVATION_HOST_GATEWAY_HOST' 'activation-dev.mad4b.com'
     Set-StagingEnvValue $envFile 'ACTIVATION_STAGING_UPSTREAM_HOST' 'dev.mad4b.com'
     Set-StagingEnvValue $envFile 'ACTIVATION_STAGING_AUTH_HOST' 'activation-dev.mad4b.com'
