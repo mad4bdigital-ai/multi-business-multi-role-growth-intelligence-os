@@ -7,6 +7,7 @@ export function resolveR7Decision({
   versionShas = [],
   runtimeSha = "",
   runtimeBranch = "",
+  runtimeProvenanceCanonical = false,
   runtimeEnvironment = {},
   protectedResource = {},
   authorizationServer = {},
@@ -47,6 +48,7 @@ export function resolveR7Decision({
     && versionShaExact
     && deploymentShaExact
     && branchExact
+    && runtimeProvenanceCanonical === true
     && runtimeIdentityReady
     && oauthDiscoveryReady;
   const classification = productionCurrent
@@ -55,7 +57,9 @@ export function resolveR7Decision({
       ? "runtime_activation_pending_or_sha_mismatch"
       : !branchExact
         ? "runtime_sha_current_branch_provenance_mismatch"
-        : !runtimeIdentityReady
+        : runtimeProvenanceCanonical !== true
+          ? "runtime_canonical_provenance_missing"
+          : !runtimeIdentityReady
           ? "runtime_environment_identity_not_explicit"
           : trustedIngressAttestationRequired
             ? "trusted_ingress_attestation_required"
@@ -68,6 +72,7 @@ export function resolveR7Decision({
     versionShaExact,
     deploymentShaExact,
     branchExact,
+    runtimeProvenanceCanonical: runtimeProvenanceCanonical === true,
     runtimeEnvironmentReady: runtimeIdentityReady,
     protectedResourceReady,
     authorizationServerReady,
