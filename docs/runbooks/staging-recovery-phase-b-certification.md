@@ -2,6 +2,12 @@
 
 This runbook closes the live Staging Recovery certification after the Staging deployment is already healthy and exact-main bound. It does not repair Docker, apply database migrations, mutate Production, or synthesize external evidence.
 
+**PR-A hold:** `RECOVERY_EXTERNAL_ACQUISITION_AUTHORITY_AVAILABLE` is hard-coded
+to `false`. The local canary, independent countersign, signing payload, and
+readiness fail closed even if the evidence carries a correctly recomputed hash
+or `source_authenticity_verified=true`. Do not run this procedure until PR-B
+adds a trusted acquisition verifier and explicitly replaces that code gate.
+
 ## Preconditions
 
 - Local checkout is `main` and exactly equals `origin/main`.
@@ -14,6 +20,27 @@ This runbook closes the live Staging Recovery certification after the Staging de
   - deployed Worker provenance evidence;
   - Activation Gateway ingress-build identity evidence.
 - The dedicated Staging Recovery Ed25519 public trust is configured in the Staging app and the corresponding private signing key is configured only in the `staging-recovery-certification` GitHub environment.
+
+Registration, OAuth, and network observations use
+`mad4b.recovery-external-observation.v1`. Each contains `evidence_kind`,
+`source_provenance.source`, a unique observation ID, exact deployment SHA and
+target fingerprint, observation and expiry times (at most one hour apart),
+`secrets_included=false`, and a SHA-256 `evidence_hash` of canonical JSON with
+only that hash field removed. The verifier recomputes the hash, checks the
+contract and expected source identifiers, and rejects secret fields. These
+source identifiers are assertions within the evidence, not independent proof
+of origin. PR-B must add authenticated acquisition before certification can
+claim source authenticity. Do not pass hand-written JSON to the canary.
+
+Network isolation applies to protected `/admin/recovery/staging/*` routes:
+the unsigned direct request must return either `403` with
+`RECOVERY_TRUSTED_INGRESS_REQUIRED` (Gateway host without signed ingress),
+or `404` with `RECOVERY_STAGING_HOST_UNAVAILABLE` (direct `dev.mad4b.com`
+host isolation). A signed Gateway request for the same path, method, and body
+digest must succeed with 2xx. A generic `404` is rejected. The observation
+records both paths, methods, body digests, statuses and direct denial reason;
+an independent runner in PR-B must measure them. Public `/health` may remain
+available.
 
 ## 1. Produce the genuine local canary and dispatch countersign
 

@@ -16,6 +16,62 @@ const stable = (v) => Array.isArray(v) ? v.map(stable) : v && typeof v === "obje
   ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, stable(v[k])])) : v;
 export const readinessEvidencePayload = (v) => JSON.stringify(stable(v));
 const hash = (v) => createHash("sha256").update(v).digest("hex");
+export const RECOVERY_EXTERNAL_EVIDENCE_CONTRACT = "mad4b.recovery-external-observation.v1";
+// PR-B must replace this closed gate with an independently verified acquisition authority.
+// An evidence field or a caller-controlled environment flag must never enable certification.
+export const RECOVERY_EXTERNAL_ACQUISITION_AUTHORITY_AVAILABLE = false;
+const EXTERNAL_KINDS = Object.freeze({
+  registration: ["chatgpt_registration", "chatgpt_live_readback"],
+  oauth: ["oauth_browser_round_trip", "oauth_server_correlation"],
+  network: ["origin_network_isolation", "independent_network_probe"],
+});
+const SECRET_FIELD = /^(?:authorization|password|secret|credential|credentials|private[_-]?key|access[_-]?token|refresh[_-]?token|id[_-]?token|client[_-]?secret|api[_-]?key|bearer[_-]?token)$|(?:^|[_-])(?:password|secret|credential|private[_-]?key|access[_-]?token|refresh[_-]?token)(?:$|[_-])/iu;
+const CAMEL_SECRET_FIELD = /(?:Secret|Password|Credential|PrivateKey|AccessToken|RefreshToken|IdToken|ApiKey|BearerToken)(?:$|[A-Z])/u;
+const hasSecret = (value) => value && typeof value === "object" && Object.entries(value).some(([key, nested]) =>
+  (key !== "secrets_included" && (SECRET_FIELD.test(key) || CAMEL_SECRET_FIELD.test(key))) || hasSecret(nested));
+export function recoveryExternalEvidenceHash(evidence) {
+  if (!evidence || typeof evidence !== "object" || Array.isArray(evidence)) return null;
+  const payload = { ...evidence };
+  delete payload.evidence_hash;
+  return hash(readinessEvidencePayload(payload));
+}
+export function verifyRecoveryExternalEvidenceIntegrity(evidence, {
+  kind, expectedSha, expectedTargetFingerprint, now = Date.now(),
+} = {}) {
+  if (!evidence || typeof evidence !== "object" || Array.isArray(evidence)
+    || !EXTERNAL_KINDS[kind]
+    || evidence.contract !== RECOVERY_EXTERNAL_EVIDENCE_CONTRACT
+    || evidence.evidence_kind !== EXTERNAL_KINDS[kind][0]
+    || evidence.source_provenance?.source !== EXTERNAL_KINDS[kind][1]
+    || typeof evidence.source_provenance?.observation_id !== "string"
+    || !/^[A-Za-z0-9._:-]{8,160}$/u.test(evidence.source_provenance.observation_id)
+    || !SHA40.test(expectedSha || "")
+    || ! /^(?:target:)?[a-f0-9]{64}$/u.test(expectedTargetFingerprint || "")
+    || evidence.deployment_sha !== expectedSha
+    || evidence.target_fingerprint !== expectedTargetFingerprint
+    || evidence.secrets_included !== false || hasSecret(evidence)
+    || !SHA256.test(evidence.evidence_hash || "")
+    || recoveryExternalEvidenceHash(evidence) !== evidence.evidence_hash) return false;
+  if (kind === "network" && (evidence.direct_recovery_surface_bypass_denied !== true
+    || !["GET", "POST"].includes(evidence.request_method)
+    || !/^\/admin\/recovery\/staging\/[a-z0-9/-]+$/u.test(evidence.direct_recovery_surface_path || "")
+    || !((evidence.direct_recovery_surface_status === 403
+      && evidence.direct_recovery_surface_reason === "RECOVERY_TRUSTED_INGRESS_REQUIRED")
+      || (evidence.direct_recovery_surface_status === 404
+        && evidence.direct_recovery_surface_reason === "RECOVERY_STAGING_HOST_UNAVAILABLE"))
+    || evidence.signed_gateway_recovery_path !== evidence.direct_recovery_surface_path
+    || evidence.signed_gateway_recovery_method !== evidence.request_method
+    || !SHA256.test(evidence.request_body_sha256 || "")
+    || evidence.signed_gateway_recovery_body_sha256 !== evidence.request_body_sha256
+    || (evidence.request_method === "GET" && evidence.request_body_sha256 !== hash(""))
+    || !Number.isInteger(evidence.signed_gateway_recovery_status)
+    || evidence.signed_gateway_recovery_status < 200 || evidence.signed_gateway_recovery_status >= 300)) return false;
+  const observed = Date.parse(evidence.observed_at || "");
+  const expires = Date.parse(evidence.expires_at || "");
+  return Number.isFinite(observed) && Number.isFinite(expires)
+    && observed <= now + 60_000 && expires > now && expires > observed
+    && expires - observed <= 3_600_000;
+}
 function fail(code) { throw Object.assign(new Error(code), { code, status: 503 }); }
 
 // Called only on manifests inside the verified signed evidence envelope. Rebuild
@@ -342,25 +398,38 @@ export async function evaluateExternalStagingEvidence(snapshot, ingressBuildIden
   const oauth = snapshot?.oauthEvidence;
   const network = snapshot?.networkEvidence;
   const worker = snapshot?.workerDeploymentEvidence;
+  const integrity = (evidence, kind) => verifyRecoveryExternalEvidenceIntegrity(evidence, {
+    kind, expectedSha: snapshot?.candidateSha,
+    expectedTargetFingerprint: snapshot?.candidateTargetFingerprint,
+  });
   const bound = (evidence) => evidence?.deployment_sha === snapshot?.candidateSha
     && evidence?.target_fingerprint === snapshot?.candidateTargetFingerprint
     && SHA256.test(evidence?.evidence_hash || "")
     && Number.isFinite(Date.parse(evidence?.expires_at)) && Date.parse(evidence.expires_at) > Date.now();
   const checks = {
     signed_evidence_authority: snapshot?.authenticity_verified === true,
-    actual_chatgpt_registration: registration?.observed_in === "chatgpt" && bound(registration)
+    external_acquisition_authority: RECOVERY_EXTERNAL_ACQUISITION_AUTHORITY_AVAILABLE,
+    actual_chatgpt_registration: integrity(registration, "registration") && registration?.observed_in === "chatgpt" && bound(registration)
       && Object.entries(expected).every(([key, value]) => registration[key] === value),
-    oauth_browser_round_trip: bound(oauth) && oauth?.issuer === "https://dev.mad4b.com"
+    oauth_browser_round_trip: integrity(oauth, "oauth") && bound(oauth) && oauth?.issuer === "https://dev.mad4b.com"
       && oauth?.resource === "https://activation-dev.mad4b.com"
       && ["authorize", "login_consent", "code", "callback", "token", "resource"].every((step) => oauth?.steps?.[step] === "pass"),
-    origin_network_isolation: bound(network)
+    origin_network_isolation: integrity(network, "network") && bound(network)
       && network?.environment === "staging"
       && network?.gateway_host === gateway.gateway_host
       && network?.upstream_origin === gateway.upstream_origin
       && network?.gateway_only === true
       && network?.signed_ingress_required === true
       && network?.network_restriction_verified === true
-      && network?.direct_origin_publicly_reachable === false,
+      && network?.direct_recovery_surface_bypass_denied === true
+      && ((network?.direct_recovery_surface_status === 403
+        && network?.direct_recovery_surface_reason === "RECOVERY_TRUSTED_INGRESS_REQUIRED")
+        || (network?.direct_recovery_surface_status === 404
+          && network?.direct_recovery_surface_reason === "RECOVERY_STAGING_HOST_UNAVAILABLE"))
+      && network?.signed_gateway_recovery_path === network?.direct_recovery_surface_path
+      && network?.signed_gateway_recovery_method === network?.request_method
+      && network?.signed_gateway_recovery_status >= 200
+      && network?.signed_gateway_recovery_status < 300,
     deployed_worker_provenance: bound(worker)
       && worker?.observed_in === "cloudflare_workers"
       && worker?.deployment_verified === true

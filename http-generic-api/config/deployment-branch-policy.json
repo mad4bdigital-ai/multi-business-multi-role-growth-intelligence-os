@@ -235,6 +235,7 @@
           ".specify/schemas/**",
           ".specify/spec-kit-work-map-integration-policy.json",
           ".specify/work-map-schema-classification-registry.json",
+          "AI_Agent_Knowledge_Guide.md",
           "deployment_parity_checklist.md",
           "docs/ai-docs-agent-governance.md",
           "docs/auto-docs-agent/**",
