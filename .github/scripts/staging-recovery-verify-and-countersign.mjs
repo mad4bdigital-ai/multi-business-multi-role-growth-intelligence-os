@@ -30,10 +30,31 @@ export async function verifyAndCountersignStagingRecovery({ evidenceDirectory, o
     ),
   );
   const expectedSha = required(env, "GITHUB_SHA"); const expectedTargetFingerprint = required(env, "RECOVERY_STAGING_EXPECTED_TARGET_FINGERPRINT");
-  const verificationReport = await independentlyVerifyStagingRecoveryCanaryEvidence(envelope, { expectedSha, expectedTargetFingerprint, workflowSourceSha: expectedSha, negativeTestEvidence, liveWorkerProviderObservation, liveIngressBuildIdentity, requireLiveRuntimeRevalidation: true, loadKernelArtifacts: async (ids) => {
-    if (artifacts.plan.plan_id !== ids.plan_id || artifacts.approval.approval_id !== ids.approval_id || artifacts.ticket.ticket_id !== ids.ticket_id || artifacts.run.run_id !== ids.run_id) throw Object.assign(new Error("Kernel artifact identity mismatch"), { code: "RECOVERY_COUNTERSIGN_ARTIFACT_IDENTITY_MISMATCH" });
-    return artifacts;
-  } });
+  const verificationReport = await independentlyVerifyStagingRecoveryCanaryEvidence(
+    envelope,
+    {
+      expectedSha,
+      expectedTargetFingerprint,
+      workflowSourceSha: expectedSha,
+      negativeTestEvidence,
+      liveWorkerProviderObservation,
+      liveIngressBuildIdentity,
+      requireLiveRuntimeRevalidation: true,
+      loadKernelArtifacts: async (ids) => {
+        if (
+          artifacts.plan.plan_id !== ids.plan_id
+          || artifacts.approval.approval_id !== ids.approval_id
+          || artifacts.ticket.ticket_id !== ids.ticket_id
+          || artifacts.run.run_id !== ids.run_id
+        ) {
+          throw Object.assign(new Error("Kernel artifact identity mismatch"), {
+            code: "RECOVERY_COUNTERSIGN_ARTIFACT_IDENTITY_MISMATCH",
+          });
+        }
+        return artifacts;
+      },
+    },
+  );
   const payload = buildRecoveryReadinessSigningPayload(envelope, verificationReport, { issuer: required(env, "RECOVERY_STAGING_CERTIFICATION_ISSUER"), keyId: required(env, "RECOVERY_STAGING_CERTIFICATION_KEY_ID") });
   const signed = signVerifiedRecoveryEvidence({ payload, verificationReport, env });
   await mkdir(output, { recursive: true, mode: 0o700 });
