@@ -377,6 +377,21 @@ test("OAuth source requires complete ordered server correlation without secret-b
   );
 });
 
+test("OAuth correlation structure cannot become source authority from a caller-provided events file", async () => {
+  const evidence = await validEvidence();
+  const result = verifyRecoveryOAuthServerCorrelationSource(evidence.oauth, {
+    expectedSha: SHA,
+    expectedTargetFingerprint: TARGET,
+  });
+  assert.equal(result.verified, false);
+  assert.equal(
+    result.reason_code,
+    "RECOVERY_OAUTH_SERVER_CORRELATION_SOURCE_UNAVAILABLE",
+  );
+  assert.equal(result.source, "oauth_server_correlation");
+  assert.equal(result.secrets_included, false);
+});
+
 test("server binding enforces acquisition-key separation from ingress and certification trust", () => {
   const acquisition = keyPair();
   const ingress = keyPair();
