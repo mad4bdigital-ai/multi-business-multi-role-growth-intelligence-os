@@ -14,7 +14,7 @@ namespace Mad4B.LocalManager.Windows;
 
 internal static class Program
 {
-    private const string BaseUrl = "https://auth.mad4b.com";
+    private const string BaseUrl = LocalManagerEnvironment.BaseUrl;
     private const string LocalManagerUrl = BaseUrl + "/app/local-manager";
     private const string SignInUrl = BaseUrl + "/app/local-manager/link-device?mode=signin&source=windows-app";
     private const string UpdateUrl = BaseUrl + "/app/local-manager/download/windows";
@@ -32,6 +32,11 @@ internal static class Program
     private static void Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
+        if (args.Any(arg => string.Equals(arg, "--update-self-test", StringComparison.Ordinal)))
+        {
+            Environment.ExitCode = RunUpdateSelfTest();
+            return;
+        }
         if (WindowsAppRegistration.TryHandleCommandLine(args, Application.ExecutablePath)) return;
         if (TryBootstrapInstallFromPortablePath()) return;
 
@@ -75,9 +80,26 @@ internal static class Program
         }
     }
 
-    private static string ProgramInstallRoot => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Mad4B", "LocalManager");
+    private static string ProgramInstallRoot => DeviceIdentityStore.DefaultInstallRoot;
 
     private static string InstalledExePath => Path.Combine(ProgramInstallRoot, "Mad4B-Local-Manager.exe");
+
+    private static int RunUpdateSelfTest()
+    {
+        try
+        {
+            var path = Path.GetFullPath(Application.ExecutablePath);
+            if (!File.Exists(path)) return 20;
+            using var stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            if (stream.ReadByte() != (byte)'M' || stream.ReadByte() != (byte)'Z') return 21;
+            if (LocalManagerEnvironment.Name is not ("production" or "staging")) return 22;
+            return 0;
+        }
+        catch
+        {
+            return 23;
+        }
+    }
 
     private static bool TryBootstrapInstallFromPortablePath()
     {
@@ -131,7 +153,8 @@ internal static class Program
         {
             try
             {
-                if (process.Id == currentProcessId || !LooksLikeLocalManagerProcess(process)) continue;
+                if (process.Id == currentProcessId || !LooksLikeLocalManagerProcess(process)
+                    || !PathsEqual(process.MainModule?.FileName ?? "", InstalledExePath)) continue;
                 if (process.MainWindowHandle != IntPtr.Zero) process.CloseMainWindow();
                 if (!process.WaitForExit(3000)) process.Kill(true);
             }
@@ -187,14 +210,14 @@ internal static class Program
         public MainForm()
         {
             _connectorCapabilityVerifier = new ConnectorCapabilityVerifier(_deviceControlClient);
-            Text = "Mad4B Local Manager";
+            Text = "Mad4B Local Manager" + LocalManagerEnvironment.DisplaySuffix;
             MinimumSize = new Size(900, 780);
             StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Segoe UI", 10);
 
             var title = new Label
             {
-                Text = "Mad4B Local Manager",
+                Text = "Mad4B Local Manager" + LocalManagerEnvironment.DisplaySuffix,
                 Font = new Font("Segoe UI", 22, FontStyle.Bold),
                 AutoSize = true,
                 Location = new Point(24, 20)
@@ -231,7 +254,7 @@ internal static class Program
             var shortcutButton = MakeButton("Create desktop shortcut", 28, 336, 210, (_, _) => CreateShortcut());
             var folderButton = MakeButton("Open local folder", 254, 336, 170, (_, _) => OpenLocalFolder());
             var updateButton = MakeButton("Check / install update", 440, 336, 200, async (_, _) => await CheckAndInstallUpdateAsync(true));
-            var tokenStatusButton = MakeButton("Token status", 656, 336, 166, (_, _) => ShowTokenStatus());
+            var tokenStatusButton = MakeButton("Token status", 656, 336, 166, async (_, _) => await ShowTokenStatusAsync());
 
             var repairButton = MakeButton("Repair connector", 28, 392, 170, async (_, _) => await RepairConnectorAsync());
             var capabilitiesButton = MakeButton("Capabilities", 214, 392, 150, async (_, _) => await ConfigureConnectorCapabilitiesAsync());
@@ -274,11 +297,12 @@ internal static class Program
                 startN8nButton, openN8nButton, _status, _progress, _output
             });
 
+            FormClosed += (_, _) => _pairingCancellation?.Cancel();
             Shown += async (_, _) =>
             {
                 EnsureLocalFiles(_status);
                 RestoreDesktopCommandPollBackoff();
-                ShowTokenStatus();
+                await ShowTokenStatusAsync();
                 await CheckAndInstallUpdateAsync(false);
                 await RunStartupAutopilotAsync();
                 StartDesktopCommandPolling();
@@ -340,29 +364,39 @@ internal static class Program
             }
         }
 
-        private void ShowTokenStatus()
+        private async Task ShowTokenStatusAsync()
         {
             EnsureLocalFiles(_status);
             var hasFile = _deviceIdentityStore.TokenFileExists;
             var token = LoadDeviceToken(false);
-            _status.Text = token is not null
-                ? "Linked.\nDevice token is available from DPAPI for this Windows user."
-                : hasFile
-                    ? "Device token file exists but could not be unprotected for this Windows user."
-                    : "Not linked.\nNo DPAPI device token is stored.";
+            var verified = false;
+            var verification = token is null ? "no_readable_credential" : "unavailable";
+            if (token is not null)
+            {
+                try
+                {
+                    var response = await _deviceLinkClient.GetSessionAsync(token);
+                    verified = response.IsSuccessStatusCode && response.Payload.ValueKind == JsonValueKind.Object
+                        && response.Payload.TryGetProperty("ok", out var ok) && ok.ValueKind == JsonValueKind.True;
+                    verification = verified ? "verified" : ((int)response.StatusCode is 401 or 403 ? "relink_required" : "server_unavailable");
+                }
+                catch { verification = "server_unavailable"; }
+            }
+            _status.Text = verified ? "Linked. Device session verified with " + BaseUrl
+                : token is not null ? "Credential stored. Session not verified: " + verification
+                : hasFile ? "Device token file could not be unprotected for this Windows user." : "No device credential stored.";
             _output.Text = JsonSerializer.Serialize(new
             {
-                linked = token is not null,
-                token_file_exists = hasFile,
-                token_storage = "Windows DPAPI CurrentUser",
-                token_plaintext_shown = false,
-                local_folder = InstallRoot,
-                secrets_included = false
+                linked = verified, credential_stored = token is not null, session_verified = verified, verification,
+                environment = LocalManagerEnvironment.Name, control_plane_origin = BaseUrl,
+                token_file_exists = hasFile, token_storage = "Windows DPAPI CurrentUser",
+                token_plaintext_shown = false, local_folder = InstallRoot, secrets_included = false
             }, _json);
         }
 
         private void ForgetDeviceToken()
         {
+            _pairingCancellation?.Cancel();
             _deviceIdentityStore.Delete();
             _pairingCode.Text = "Pairing code: not started";
             _progress.Value = 0;
@@ -370,8 +404,16 @@ internal static class Program
             _output.Text = "Device token removed.\r\nLink this device again to restore controls.";
         }
 
-        private async Task StartDeviceLinkAsync(string mode = "link")
+        private bool _pairingInProgress;
+        private CancellationTokenSource? _pairingCancellation;
+        private bool _repairInProgress;
+
+        private async Task<bool> StartDeviceLinkAsync(string mode = "link", bool runAutopilot = true)
         {
+            if (_pairingInProgress) return false;
+            _pairingInProgress = true;
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromMinutes(10));
+            _pairingCancellation = cancellation;
             try
             {
                 EnsureLocalFiles(_status);
@@ -383,7 +425,7 @@ internal static class Program
                     Environment.MachineName,
                     Environment.MachineName,
                     "windows",
-                    Application.ProductVersion);
+                    Application.ProductVersion, cancellation.Token);
                 var start = response.Payload;
                 if (!response.IsSuccessStatusCode || start?.Ok != true || string.IsNullOrWhiteSpace(start.UserCode) || string.IsNullOrWhiteSpace(start.PollToken) || string.IsNullOrWhiteSpace(start.SessionId) || string.IsNullOrWhiteSpace(start.DeviceProofChallenge))
                 {
@@ -400,7 +442,7 @@ internal static class Program
                         rate_limit_source = (int)response.StatusCode == 429 ? response.RateLimitSource : null,
                         secrets_included = false
                     }, _json);
-                    return;
+                    return false;
                 }
 
                 _pairingCode.Text = "Pairing code: " + start.UserCode;
@@ -409,24 +451,34 @@ internal static class Program
                 _output.Text = JsonSerializer.Serialize(new { pairing_code = start.UserCode, expires_in = start.ExpiresIn, secrets_included = false }, _json);
                 var approvalUrl = start.VerificationUriComplete ?? start.VerificationUri ?? (BaseUrl + "/app/local-manager/link-device");
                 approvalUrl += approvalUrl.Contains('?') ? "&mode=" + Uri.EscapeDataString(mode) : "?mode=" + Uri.EscapeDataString(mode);
+                var approvalUri = new Uri(approvalUrl, UriKind.Absolute);
+                if (approvalUri.Scheme != Uri.UriSchemeHttps || approvalUri.Authority != new Uri(BaseUrl).Authority)
+                    throw new InvalidOperationException("Pairing approval origin does not match this application environment.");
                 OpenUrl(approvalUrl);
-                await PollDeviceLinkAsync(start.UserCode, start.PollToken, start.SessionId, start.DeviceProofChallenge, Math.Max(2, start.Interval));
+                return await PollDeviceLinkAsync(start.UserCode, start.PollToken, start.SessionId, start.DeviceProofChallenge, Math.Max(2, start.Interval), runAutopilot, cancellation.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                if (!IsDisposed) _status.Text = "Pairing cancelled or timed out. Start a new code to try again.";
+                return false;
             }
             catch (Exception ex)
             {
                 _status.Text = "Pairing failed: " + ex.Message;
+                return false;
             }
+            finally { _pairingInProgress = false; _pairingCancellation = null; }
         }
 
-        private async Task PollDeviceLinkAsync(string code, string pollToken, string sessionId, string deviceProofChallenge, int intervalSeconds)
+        private async Task<bool> PollDeviceLinkAsync(string code, string pollToken, string sessionId, string deviceProofChallenge, int intervalSeconds, bool runAutopilot, CancellationToken cancellationToken)
         {
             var started = DateTimeOffset.UtcNow;
             while (DateTimeOffset.UtcNow - started < TimeSpan.FromMinutes(10))
             {
-                await Task.Delay(TimeSpan.FromSeconds(intervalSeconds));
+                await Task.Delay(TimeSpan.FromSeconds(intervalSeconds), cancellationToken);
                 _status.Text = "Waiting for approval in browser…";
                 _progress.Value = Math.Min(90, _progress.Value + 5);
-                var response = await _deviceLinkClient.PollAsync(code, pollToken, sessionId, deviceProofChallenge);
+                var response = await _deviceLinkClient.PollAsync(code, pollToken, sessionId, deviceProofChallenge, cancellationToken);
                 var poll = response.Payload;
                 if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
                 {
@@ -439,7 +491,13 @@ internal static class Program
                         rate_limit_source = response.RateLimitSource,
                         secrets_included = false
                     }, _json);
-                    await Task.Delay(TimeSpan.FromSeconds(waitSeconds));
+                    await Task.Delay(TimeSpan.FromSeconds(waitSeconds), cancellationToken);
+                    continue;
+                }
+                if (response.StatusCode == System.Net.HttpStatusCode.Conflict && poll?.Error?.Code == "connector_alias_reconciliation_required")
+                {
+                    _status.Text = "Approval saved. Complete connector setup in the browser, then approve again. Waiting for setup…";
+                    intervalSeconds = Math.Max(intervalSeconds, 15);
                     continue;
                 }
                 if ((int)response.StatusCode == 202 || string.Equals(poll?.Status, "pending", StringComparison.OrdinalIgnoreCase)) continue;
@@ -460,15 +518,16 @@ internal static class Program
                         token_plaintext_shown = false,
                         secrets_included = false
                     }, _json);
-                    await RunStartupAutopilotAsync();
-                    return;
+                    if (runAutopilot) await RunStartupAutopilotAsync();
+                    return true;
                 }
 
                 _status.Text = "Pairing stopped: " + (poll?.Error?.Message ?? poll?.Status ?? response.ReasonPhrase ?? "unknown status");
                 _output.Text = response.RawText;
-                return;
+                return false;
             }
             _status.Text = "Pairing timed out.\nStart a new code to try again.";
+            return false;
         }
 
         private async Task LoadDeviceSessionAsync()
@@ -644,6 +703,10 @@ internal static class Program
 
         private async Task RepairConnectorAsync()
         {
+            if (_repairInProgress) return;
+            _repairInProgress = true;
+            try
+            {
             var token = LoadDeviceToken();
             if (string.IsNullOrWhiteSpace(token))
             {
@@ -659,6 +722,14 @@ internal static class Program
                 _progress.Value = 0;
                 _status.Text = "Requesting device-scoped connector repair installer…";
                 var response = await _signedInstallerCoordinator.RequestRepairAsync(token);
+                if (response.Link?.Error?.Code == "fresh_local_manager_user_authorization_required")
+                {
+                    if (MessageBox.Show("Approve a new device link in your browser to authorize this repair. Continue?", "Repair authorization", MessageBoxButtons.OKCancel, MessageBoxIcon.Information) != DialogResult.OK) return;
+                    if (!await StartDeviceLinkAsync("link", runAutopilot: false)) return;
+                    token = LoadDeviceToken();
+                    if (string.IsNullOrWhiteSpace(token)) return;
+                    response = await _signedInstallerCoordinator.RequestRepairAsync(token);
+                }
                 var link = response.Link;
                 if (!response.IsSuccessStatusCode || link?.Ok != true || string.IsNullOrWhiteSpace(link.DownloadUrl))
                 {
@@ -693,6 +764,8 @@ internal static class Program
                 _status.Text = "Connector repair failed: " + ex.Message;
                 _output.Text = ex.ToString();
             }
+            }
+            finally { _repairInProgress = false; }
         }
 
         private async Task ConfigureConnectorCapabilitiesAsync()
@@ -875,7 +948,7 @@ internal static class Program
             {
                 EnsureLocalFiles(_status);
                 _progress.Value = 0;
-                _status.Text = "Requesting capability installer from auth.mad4b.com…";
+                _status.Text = "Requesting capability installer from " + BaseUrl + "…";
                 var response = await _signedInstallerCoordinator.RequestCapabilitiesAsync(
                     token,
                     requestedCapabilities,
@@ -1631,17 +1704,34 @@ internal static class Program
 
         private async Task DownloadAndRunLatestAsync()
         {
+            string? pendingDownload = null;
             try
             {
                 EnsureLocalFiles(_status);
                 _status.Text = "Checking latest Windows app…";
                 _progress.Value = 0;
                 using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
-                using var response = await client.GetAsync(UpdateUrl, HttpCompletionOption.ResponseHeadersRead);
+                using var metadataResponse = await client.GetAsync(UpdateInfoUrl);
+                metadataResponse.EnsureSuccessStatusCode();
+                var info = JsonSerializer.Deserialize<WindowsUpdateInfo>(await metadataResponse.Content.ReadAsStringAsync(), _json);
+                if (info?.Ok != true) throw new InvalidOperationException("Update metadata is unavailable.");
+                var artifact = LocalManagerUpdatePolicy.ValidateArtifact(info.DirectDownloadUrl, info.Environment);
+                var expectedHash = info.Sha256;
+                if (string.IsNullOrWhiteSpace(expectedHash))
+                {
+                    // Checksum URL is bound to the same repository asset.
+                    using var checksumResponse = await client.GetAsync(artifact.AbsoluteUri + ".sha256.json");
+                    checksumResponse.EnsureSuccessStatusCode();
+                    using var checksum = JsonDocument.Parse(await checksumResponse.Content.ReadAsStringAsync());
+                    expectedHash = LocalManagerUpdatePolicy.ReadHash(checksum.RootElement);
+                }
+                LocalManagerUpdatePolicy.ValidateHash(expectedHash);
+                using var response = await client.GetAsync(artifact, HttpCompletionOption.ResponseHeadersRead);
                 response.EnsureSuccessStatusCode();
                 var total = response.Content.Headers.ContentLength;
                 var safeVersion = DateTimeOffset.UtcNow.ToString("yyyyMMddHHmmssfff");
                 var target = Path.Combine(UpdatesRoot, $"Mad4B-Local-Manager-Setup-{safeVersion}.exe");
+                pendingDownload = target;
                 await using (var source = await response.Content.ReadAsStreamAsync())
                 await using (var destination = File.Create(target))
                 {
@@ -1661,6 +1751,7 @@ internal static class Program
                     }
                 }
 
+                await LocalManagerUpdatePolicy.VerifyFileAsync(target, expectedHash);
                 var fileInfo = new FileInfo(target);
                 if (!fileInfo.Exists || fileInfo.Length < 2) throw new InvalidOperationException("Downloaded installer file is missing or empty.");
                 var signature = File.ReadAllBytes(target).Take(2).ToArray();
@@ -1669,15 +1760,33 @@ internal static class Program
                     throw new InvalidOperationException("Downloaded file is not a valid Windows EXE. Please download again from the web app.");
                 }
                 _progress.Value = 100;
-                _status.Text = $"Latest installer downloaded: {target}.\nLaunching update handoff…"; LaunchUpdaterAndRestart(target); return;
+                _status.Text = $"Latest installer downloaded: {target}.\nLaunching update handoff…"; LaunchUpdaterAndRestart(target); pendingDownload = null; return;
             }
             catch (Exception ex)
             {
                 _status.Text = "Update failed: " + ex.Message;
             }
+            finally { if (pendingDownload is not null) { try { File.Delete(pendingDownload); } catch { } } }
         }
 
-        private void LaunchUpdaterAndRestart(string installerPath) { var helperPath = Path.Combine(UpdatesRoot, "run-local-manager-update.cmd"); var appPath = Application.ExecutablePath; var currentPid = Environment.ProcessId; var script = string.Join("\r\n", new[] { "@echo off", "setlocal", "set \"INSTALLER=" + installerPath + "\"", "set \"APP=" + appPath + "\"", "set \"PID=" + currentPid + "\"", "echo Updating Mad4B Local Manager...", "timeout /t 1 /nobreak >nul", "taskkill /PID %PID% /T /F >nul 2>nul", "for /l %%i in (1,1,30) do ( tasklist /fi \"PID eq %PID%\" | find \"%PID%\" >nul || goto app_stopped & timeout /t 1 /nobreak >nul )", ":app_stopped", "copy /y \"%INSTALLER%\" \"%APP%\" >nul", "if errorlevel 1 ( echo ERROR: Could not replace Local Manager executable. & pause & exit /b 1 )", "start \"\" \"%APP%\"", "exit /b 0" }) + "\r\n"; File.WriteAllText(helperPath, script, Encoding.ASCII); Process.Start(new ProcessStartInfo { FileName = "cmd.exe", Arguments = "/c \"" + helperPath + "\"", WorkingDirectory = UpdatesRoot, UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden }); BeginInvoke(new Action(Close)); }
+        private void LaunchUpdaterAndRestart(string installerPath)
+        {
+            var helperPath = Path.Combine(UpdatesRoot, "run-local-manager-update.cmd");
+            var appPath = Application.ExecutablePath;
+            var currentPid = Environment.ProcessId;
+            var script = LocalManagerUpdateHandoff.BuildScript(installerPath, appPath, currentPid);
+            File.WriteAllText(helperPath, script, Encoding.ASCII);
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = "/c \"" + helperPath + "\"",
+                WorkingDirectory = UpdatesRoot,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WindowStyle = ProcessWindowStyle.Hidden,
+            });
+            BeginInvoke(new Action(Close));
+        }
         private void ShowTopMostMessage(string title, string message) { var previousTopMost = TopMost; try { if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal; Show(); Activate(); TopMost = true; MessageBox.Show(this, message, title, MessageBoxButtons.OK, MessageBoxIcon.Information); } finally { TopMost = previousTopMost; } }
         private void RestoreDesktopCommandPollBackoff()
         {
@@ -2284,6 +2393,9 @@ internal static class Program
     {
         [JsonPropertyName("ok")] public bool Ok { get; set; }
         [JsonPropertyName("latest_version")] public string? LatestVersion { get; set; }
+        [JsonPropertyName("environment")] public string? Environment { get; set; }
+        [JsonPropertyName("direct_download_url")] public string? DirectDownloadUrl { get; set; }
+        [JsonPropertyName("sha256")] public string? Sha256 { get; set; }
         [JsonPropertyName("current_version")] public string? CurrentVersion { get; set; }
         [JsonPropertyName("update_available")] public bool? UpdateAvailable { get; set; }
         [JsonPropertyName("release_notes")] public string[]? ReleaseNotes { get; set; }

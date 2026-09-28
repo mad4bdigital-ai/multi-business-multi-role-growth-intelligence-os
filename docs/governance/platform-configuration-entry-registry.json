@@ -512,6 +512,24 @@
       "secrets_included": false
     },
     {
+      "config_key": "local.manager.write.db.environment",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "local-manager",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "staging",
+        "production"
+      ],
+      "binding_ref": "http-generic-api/localManagerWriteAuthority.js",
+      "resolver_ref": "http-generic-api/runtimeEnvironmentResolver.js",
+      "readback_ref": "http-generic-api/test-local-manager-environment-recovery.mjs",
+      "shadow_evidence_ref": "docs/runbooks/local-manager-environment-recovery.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
       "config_key": "max.attestation.ttl.seconds",
       "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
       "owner": "platform-runtime",
@@ -1523,5 +1541,5 @@
     "production_activation_allowed": false
   },
   "$schema": "../../.specify/schemas/platform-configuration-entry-registry.schema.json",
-  "entry_count": 85
+  "entry_count": 86
 }

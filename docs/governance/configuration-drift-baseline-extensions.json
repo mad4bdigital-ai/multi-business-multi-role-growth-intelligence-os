@@ -1577,6 +1577,39 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": "http-generic-api/test-local-manager-environment-recovery.mjs|f|environment_reference|local.manager.device.jwt.secret",
+      "owner": "local-manager",
+      "reason": "Test fixture restores a named Local Manager signing-key environment reference after isolation tests. It stores no secret value in governance metadata and grants no runtime, database, provider, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "secret_reference_name",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/test-local-manager-environment-recovery.mjs|LOCAL_MANAGER_DEVICE_JWT_SECRET|environment_reference|local.manager.device.jwt.secret",
+      "owner": "local-manager",
+      "reason": "Test-only environment-key cleanup verifies Local Manager signer fail-closed behavior. It references only the variable name, contains no secret value, and grants no runtime, database, provider, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "secret_reference_name",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/test-local-manager-environment-recovery.mjs|NODE_ENV|environment_reference|node.env",
+      "owner": "local-manager",
+      "reason": "Test-only environment selection fixture proves Production/Staging isolation and fail-closed behavior; it is non-secret test input and grants no runtime, database, provider, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": "http-generic-api/test-managed-git-remote-transport.mjs|GIT_CONFIG_GLOBAL|environment_reference|git.config.global",
       "owner": "repository-governance",
       "reason": "Test-only hostile global Git configuration path used to prove that Managed Git injects deterministic EOL and credential policy per child process; it contains no secret and grants no repository, runtime, provider, database, protected-ref, or Production mutation authority.",

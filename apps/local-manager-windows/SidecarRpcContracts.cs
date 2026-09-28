@@ -6,7 +6,7 @@ namespace Mad4B.LocalManager.Windows;
 internal static class SidecarRpcContracts
 {
     internal const int ProtocolVersion = 1;
-    internal const string PipeName = "mad4b-local-manager-v1";
+    internal const string PipeName = "mad4b-local-manager-v1" + LocalManagerEnvironment.Suffix;
 
     private static readonly HashSet<string> ForbiddenResponseKeys = new(StringComparer.OrdinalIgnoreCase)
     {

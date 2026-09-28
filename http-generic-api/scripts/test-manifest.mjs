@@ -204,6 +204,7 @@ const staticDiscoveryCommands = [
   "node test-ticket-external-delivery-completion-certification.mjs",
   "node test-local-connector-transport-errors.mjs",
   "node test-local-manager-pairing-security.mjs",
+  "node test-local-manager-environment-recovery.mjs",
   "node test-transport-response-chunk-schema-recovery.mjs",
   "node test-user-dashboard-dynamic-tabs-bridge.mjs",
   "node test-workflow-registry-authority-resolver.mjs",

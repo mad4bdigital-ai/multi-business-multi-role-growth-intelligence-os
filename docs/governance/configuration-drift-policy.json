@@ -1350,6 +1350,8 @@
     "http-generic-api/scripts/local-gateway-sensitive-approval-smoke-test.mjs|JWT_SECRET|environment_reference|jwt.secret",
     "http-generic-api/scripts/local-gateway-sensitive-approval-smoke-test.mjs|approvalHoldId|literal_declaration|approvalholdid",
     "http-generic-api/scripts/local-gateway-sensitive-approval-smoke-test.mjs|token|environment_reference|jwt.secret",
+    "http-generic-api/scripts/local-manager-readiness.mjs|DB_NAME|environment_reference|db.name",
+    "http-generic-api/scripts/local-manager-readiness.mjs|fingerprint|environment_reference|db.host",
     "http-generic-api/scripts/local-project-path-repair.mjs|allowedRoots|environment_reference|local.project.allowed.roots",
     "http-generic-api/scripts/maintenance-tools/branch-hygiene-policy.mjs|DEFAULT_POLICY_PATH|literal_declaration|policy.path",
     "http-generic-api/scripts/maintenance-tools/branch-hygiene-policy.mjs|GITHUB_REPOSITORY|environment_reference|github.repository",

@@ -162,6 +162,8 @@
       {
         "id": "shared_runtime",
         "patterns": [
+          "apps/local-manager-sidecar-certification/**",
+          "apps/local-manager-windows-tests/**",
           "apps/local-manager-windows/**",
           "canonicals/openapi/**",
           "edge/**",
@@ -190,6 +192,7 @@
           "http-generic-api/scripts/governed-migration-runner-bootstrap.mjs",
           "http-generic-api/scripts/governed-migration-runner.mjs",
           "http-generic-api/scripts/host-breakglass-*.mjs",
+          "http-generic-api/scripts/local-manager-readiness.mjs",
           "http-generic-api/scripts/provision-remote-mcp-client.mjs",
           "http-generic-api/scripts/runtime-persistence-operational-readiness.mjs",
           "http-generic-api/scripts/split-openapi.mjs",
