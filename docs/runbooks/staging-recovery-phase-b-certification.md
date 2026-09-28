@@ -39,7 +39,7 @@ PR-B1 deliberately remains fail-closed for live certification.
 - Independent Network acquisition is implemented and executable.
 - The OAuth correlation producer and verifier are implemented, but no trusted server-side producer currently exports the complete six-event correlation chain to this workflow.
 - ChatGPT registration parity can be verified against the expected schema, but no provider-backed or platform-supplied source attestation currently proves that the observed registration originated from ChatGPT Builder.
-- Therefore the PR-B1 acquisition workflow records both unavailable source authorities and does **not** read the acquisition private key or produce `acquisition-receipt.json`.
+- Therefore the PR-B1 `acquire_external_evidence` operation in `Staging Post-Deploy Verification` records both unavailable source authorities and does **not** read the acquisition private key or produce `acquisition-receipt.json`.
 - Without a valid receipt the local canary, GitHub countersign, certification signing payload and readiness remain blocked.
 
 Do not bypass this hold with manual OAuth events, manually asserted registration parity, a nonce, or operator confirmation.
@@ -72,14 +72,15 @@ The existing `mad4b.recovery-external-observation.v1` evidence contract remains 
 
 A direct-origin `404 / RECOVERY_STAGING_HOST_UNAVAILABLE` can remain useful PR-A host-isolation integrity evidence, but it is **not sufficient for PR-B1 acquisition authority**. Receipt signing requires the explicit trusted-ingress `403`.
 
-## 1. Run the external acquisition workflow
+## 1. Run the external acquisition operation
 
-Dispatch `Staging Recovery External Evidence Acquisition` at exact `main` with:
+Dispatch the existing `Staging Post-Deploy Verification` workflow at exact `main` with:
 
+- `operation=acquire_external_evidence`;
 - `expected_sha`;
 - `expected_target_fingerprint`.
 
-The PR-B1 workflow:
+The PR-B1 acquisition operation:
 
 1. proves `GITHUB_SHA == HEAD == origin/main == expected_sha`;
 2. performs the same-request direct-vs-Gateway network probe;
