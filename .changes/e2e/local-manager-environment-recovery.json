@@ -8,20 +8,23 @@
   "scope": {
     "include": [
       ".changes/e2e/local-manager-environment-recovery.json",
+      ".github/governance/test-authority-registry.json",
       ".github/workflows/local-manager-windows.yml",
-      "apps/local-manager-windows/**",
-      "apps/local-manager-windows-tests/**",
       "apps/local-manager-sidecar-certification/**",
+      "apps/local-manager-windows-tests/**",
+      "apps/local-manager-windows/**",
+      "http-generic-api/config/deployment-branch-policy.json",
+      "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/localManager*.js",
       "http-generic-api/public/connect/**",
-      "http-generic-api/routes/localManagerBetaRoutes.js",
       "http-generic-api/routes/localConnectorInstallRoutes.js",
-      "http-generic-api/scripts/local-manager-readiness.mjs",
-      "http-generic-api/services/localManagerDeviceLinkService.js",
+      "http-generic-api/routes/localManagerBetaRoutes.js",
       "http-generic-api/runtimeBootstrapStatus.js",
       "http-generic-api/runtimeIntegrity.js",
-      "http-generic-api/test-local-manager-*.mjs",
-      "http-generic-api/test-connect-routes.mjs"
+      "http-generic-api/scripts/local-manager-readiness.mjs",
+      "http-generic-api/services/localManagerDeviceLinkService.js",
+      "http-generic-api/test-connect-routes.mjs",
+      "http-generic-api/test-local-manager-*.mjs"
     ]
   },
   "merge_contract": {
@@ -74,11 +77,14 @@
           ],
           "evidence_paths": [
             ".changes/e2e/local-manager-environment-recovery.json",
+            ".github/governance/test-authority-registry.json",
             ".github/workflows/local-manager-windows.yml",
-            "apps/local-manager-windows/LocalManagerEnvironment.cs",
-            "apps/local-manager-windows/LocalManagerUpdatePolicy.cs",
-            "apps/local-manager-windows/LocalManagerUpdateHandoff.cs",
             "apps/local-manager-sidecar-certification/Mad4B.LocalManager.SidecarCertification.csproj",
+            "apps/local-manager-windows/LocalManagerEnvironment.cs",
+            "apps/local-manager-windows/LocalManagerUpdateHandoff.cs",
+            "apps/local-manager-windows/LocalManagerUpdatePolicy.cs",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/config/repository-governance-constitution.json",
             "http-generic-api/localManagerReleaseRegistry.js",
             "http-generic-api/localManagerWriteAuthority.js",
             "http-generic-api/test-local-manager-environment-recovery.mjs"
@@ -107,5 +113,15 @@
       "objective": "Production promotion, database migration, grant mutation and release signing remain separately governed."
     }
   ],
-  "secrets_included": false
+  "secrets_included": false,
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  }
 }

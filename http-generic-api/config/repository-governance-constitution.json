@@ -279,12 +279,14 @@
       "id": "application_runtime",
       "risk": "high",
       "patterns": [
+        "apps/local-manager-device-proof-certification/**",
+        "apps/local-manager-sidecar-certification/**",
+        "apps/local-manager-windows-tests/**",
+        "apps/local-manager-windows/**",
+        "edge/**",
         "http-generic-api/**",
         "src/**",
-        "edge/**",
-        "wordpress/**",
-        "apps/local-manager-windows/**",
-        "apps/local-manager-device-proof-certification/**"
+        "wordpress/**"
       ]
     },
     {
