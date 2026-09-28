@@ -4253,7 +4253,7 @@
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager:0",
       "source_line": 897,
-      "source_offset": 54375,
+      "source_offset": 54641,
       "method": "GET",
       "path": "/app/local-manager",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4262,7 +4262,7 @@
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager/update/windows:1",
       "source_line": 903,
-      "source_offset": 54601,
+      "source_offset": 54867,
       "method": "GET",
       "path": "/app/local-manager/update/windows",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4271,7 +4271,7 @@
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager/download/windows:2",
       "source_line": 910,
-      "source_offset": 55073,
+      "source_offset": 55339,
       "method": "GET",
       "path": "/app/local-manager/download/windows",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4280,7 +4280,7 @@
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager/sign-in:3",
       "source_line": 920,
-      "source_offset": 55819,
+      "source_offset": 56085,
       "method": "GET",
       "path": "/app/local-manager/sign-in",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4289,7 +4289,7 @@
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager/sign-up:4",
       "source_line": 936,
-      "source_offset": 56772,
+      "source_offset": 57038,
       "method": "GET",
       "path": "/app/local-manager/sign-up",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4298,7 +4298,7 @@
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager/link-device:5",
       "source_line": 952,
-      "source_offset": 57677,
+      "source_offset": 57943,
       "method": "GET",
       "path": "/app/local-manager/link-device",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4307,7 +4307,7 @@
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager/devices:6",
       "source_line": 958,
-      "source_offset": 57941,
+      "source_offset": 58207,
       "method": "GET",
       "path": "/app/local-manager/devices",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4316,7 +4316,7 @@
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager/routes:7",
       "source_line": 964,
-      "source_offset": 58179,
+      "source_offset": 58445,
       "method": "GET",
       "path": "/app/local-manager/routes",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4325,7 +4325,7 @@
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager/backups:8",
       "source_line": 980,
-      "source_offset": 58990,
+      "source_offset": 59256,
       "method": "GET",
       "path": "/app/local-manager/backups",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4334,7 +4334,7 @@
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager/settings:9",
       "source_line": 996,
-      "source_offset": 59810,
+      "source_offset": 60076,
       "method": "GET",
       "path": "/app/local-manager/settings",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4343,7 +4343,7 @@
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#POST:/local-manager/device-link/start:10",
       "source_line": 1012,
-      "source_offset": 60563,
+      "source_offset": 60829,
       "method": "POST",
       "path": "/local-manager/device-link/start",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4352,7 +4352,7 @@
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/local-manager/device-link/preview:11",
       "source_line": 1013,
-      "source_offset": 60675,
+      "source_offset": 60941,
       "method": "GET",
       "path": "/local-manager/device-link/preview",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4361,7 +4361,7 @@
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#POST:/local-manager/device-link/poll:12",
       "source_line": 1014,
-      "source_offset": 60790,
+      "source_offset": 61056,
       "method": "POST",
       "path": "/local-manager/device-link/poll",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4370,7 +4370,7 @@
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#POST:/local-manager/device-link/approve:13",
       "source_line": 1015,
-      "source_offset": 60900,
+      "source_offset": 61166,
       "method": "POST",
       "path": "/local-manager/device-link/approve",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4379,7 +4379,7 @@
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/local-manager/device-link/devices:14",
       "source_line": 1016,
-      "source_offset": 60979,
+      "source_offset": 61245,
       "method": "GET",
       "path": "/local-manager/device-link/devices",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4388,7 +4388,7 @@
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#POST:/local-manager/device-link/devices/:sessionId/revoke:15",
       "source_line": 1017,
-      "source_offset": 61050,
+      "source_offset": 61316,
       "method": "POST",
       "path": "/local-manager/device-link/devices/:sessionId/revoke",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4397,7 +4397,7 @@
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/local-manager/device/session:16",
       "source_line": 1018,
-      "source_offset": 61181,
+      "source_offset": 61447,
       "method": "GET",
       "path": "/local-manager/device/session",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4406,7 +4406,7 @@
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/local-manager/device/controls:17",
       "source_line": 1019,
-      "source_offset": 61246,
+      "source_offset": 61512,
       "method": "GET",
       "path": "/local-manager/device/controls",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4415,7 +4415,7 @@
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#POST:/local-manager/device/n8n/provision:18",
       "source_line": 1020,
-      "source_offset": 61313,
+      "source_offset": 61579,
       "method": "POST",
       "path": "/local-manager/device/n8n/provision",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4424,7 +4424,7 @@
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager/admin:19",
       "source_line": 1022,
-      "source_offset": 61423,
+      "source_offset": 61689,
       "method": "GET",
       "path": "/app/local-manager/admin",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4433,7 +4433,7 @@
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/local-manager/beta:20",
       "source_line": 1028,
-      "source_offset": 61657,
+      "source_offset": 61923,
       "method": "GET",
       "path": "/local-manager/beta",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4442,7 +4442,7 @@
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/local-manager/beta/status:21",
       "source_line": 1034,
-      "source_offset": 61873,
+      "source_offset": 62139,
       "method": "GET",
       "path": "/local-manager/beta/status",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
