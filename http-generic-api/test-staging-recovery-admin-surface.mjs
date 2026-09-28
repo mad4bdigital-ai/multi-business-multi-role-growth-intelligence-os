@@ -537,6 +537,16 @@ test("readiness consumes one signed snapshot; every external pre-live proof is m
         ...recoveryReadinessRouteDependencies(authority), ingressBuildIdentity });
     }
     const ready = await read(payload);
+    assert.equal(ready.target_fingerprint, cert.target_fingerprint);
+    assert.deepEqual(ready.ingress_build_identity, ingress);
+    assert.equal(
+      Object.hasOwn(ready.ingress_build_identity, "auth_digest"),
+      false,
+    );
+    assert.equal(
+      Object.hasOwn(ready.ingress_build_identity, "jti"),
+      false,
+    );
     assert.equal(ready.ready, true, JSON.stringify(ready));
     assert.equal(ready.production_live.enabled, false);
     assert.notEqual(payload.workerDeploymentEvidence.worker_bundle_sha256, payload.workerDeploymentEvidence.deployed_bundle_sha256,

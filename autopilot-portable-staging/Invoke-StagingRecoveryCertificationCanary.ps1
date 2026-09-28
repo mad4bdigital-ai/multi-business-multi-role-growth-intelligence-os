@@ -12,11 +12,17 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$NetworkEvidenceFile,
 
-    [Parameter(Mandatory = $true)]
-    [string]$WorkerEvidenceFile,
+    [Parameter(Mandatory = $false)]
+    [string]$WorkerEvidenceFile = "",
 
-    [Parameter(Mandatory = $true)]
-    [string]$IngressBuildIdentityFile,
+    [Parameter(Mandatory = $false)]
+    [string]$IngressBuildIdentityFile = "",
+
+    [Parameter(Mandatory = $false)]
+    [string]$WorkerProviderEvidenceFile = "",
+
+    [Parameter(Mandatory = $false)]
+    [switch]$CaptureRuntimeEvidence,
 
     [Parameter(Mandatory = $false)]
     [string]$OutputDirectory = "",
@@ -158,8 +164,38 @@ try {
     $registration = Resolve-RequiredFile -PathValue $RegistrationEvidenceFile -Label "RegistrationEvidenceFile"
     $oauth = Resolve-RequiredFile -PathValue $OAuthEvidenceFile -Label "OAuthEvidenceFile"
     $network = Resolve-RequiredFile -PathValue $NetworkEvidenceFile -Label "NetworkEvidenceFile"
-    $worker = Resolve-RequiredFile -PathValue $WorkerEvidenceFile -Label "WorkerEvidenceFile"
-    $ingress = Resolve-RequiredFile -PathValue $IngressBuildIdentityFile -Label "IngressBuildIdentityFile"
+    $worker = $null
+    $ingress = $null
+    $workerProvider = $null
+
+    if ($CaptureRuntimeEvidence) {
+        if (-not [string]::IsNullOrWhiteSpace($WorkerEvidenceFile) -or
+            -not [string]::IsNullOrWhiteSpace($IngressBuildIdentityFile)) {
+            throw "CaptureRuntimeEvidence cannot be combined with WorkerEvidenceFile or IngressBuildIdentityFile."
+        }
+
+        if ([string]::IsNullOrWhiteSpace($WorkerProviderEvidenceFile)) {
+            throw "CaptureRuntimeEvidence requires WorkerProviderEvidenceFile."
+        }
+
+        $workerProvider = Resolve-RequiredFile `
+            -PathValue $WorkerProviderEvidenceFile `
+            -Label "WorkerProviderEvidenceFile"
+    }
+    else {
+        if ([string]::IsNullOrWhiteSpace($WorkerEvidenceFile) -or
+            [string]::IsNullOrWhiteSpace($IngressBuildIdentityFile)) {
+            throw "Provide WorkerEvidenceFile and IngressBuildIdentityFile, or use CaptureRuntimeEvidence with WorkerProviderEvidenceFile."
+        }
+
+        $worker = Resolve-RequiredFile `
+            -PathValue $WorkerEvidenceFile `
+            -Label "WorkerEvidenceFile"
+
+        $ingress = Resolve-RequiredFile `
+            -PathValue $IngressBuildIdentityFile `
+            -Label "IngressBuildIdentityFile"
+    }
 
     if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
         $OutputDirectory = Join-Path $scriptRoot ("recovery-certification-artifacts\" + $ExpectedSha)
@@ -182,12 +218,33 @@ try {
     $copies = @(
         @($registration, "registration.json"),
         @($oauth, "oauth.json"),
-        @($network, "network.json"),
-        @($worker, "worker.json"),
-        @($ingress, "ingress-build.json")
+        @($network, "network.json")
     )
+
+    if ($CaptureRuntimeEvidence) {
+        $copies += ,@($workerProvider, "worker-provider-observation.json")
+    }
+    else {
+        $copies += ,@($worker, "worker.json")
+        $copies += ,@($ingress, "ingress-build.json")
+    }
     foreach ($copy in $copies) {
         Invoke-NativeChecked -FilePath "docker" -Arguments ($compose + @("cp", $copy[0], ("app:{0}/{1}" -f $containerInput, $copy[1])))
+    }
+
+    if ($CaptureRuntimeEvidence) {
+        $captureArgs = $compose + @(
+            "exec", "-T",
+            "-e", ("RECOVERY_STAGING_EXPECTED_SHA={0}" -f $ExpectedSha),
+            "-e", ("RECOVERY_STAGING_WORKER_PROVIDER_OBSERVATION_FILE={0}/worker-provider-observation.json" -f $containerInput),
+            "-e", ("RECOVERY_STAGING_WORKER_EVIDENCE_OUTPUT_FILE={0}/worker.json" -f $containerInput),
+            "-e", ("RECOVERY_STAGING_INGRESS_BUILD_IDENTITY_OUTPUT_FILE={0}/ingress-build.json" -f $containerInput),
+            "app",
+            "node",
+            "scripts/staging-recovery-bind-live-runtime-evidence.mjs"
+        )
+
+        Invoke-NativeChecked -FilePath "docker" -Arguments $captureArgs
     }
 
     $execArgs = $compose + @(
