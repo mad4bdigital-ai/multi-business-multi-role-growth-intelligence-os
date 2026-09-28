@@ -1,0 +1,66 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-recovery-external-evidence-integrity-20260928",
+  "title": "Bind Staging Recovery external observations to canonical integrity and protected route evidence",
+  "delivery_mode": "single_pr",
+  "merge_contract": { "minimum_phase": "mvp" },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-recovery-external-evidence-integrity-20260928.json",
+      "docs/runbooks/staging-recovery-phase-b-certification.md",
+      "http-generic-api/recoveryReadinessEvidence.js",
+      "http-generic-api/stagingRecoveryCertificationProtocol.js",
+      "http-generic-api/test-staging-recovery-admin-surface.mjs",
+      "http-generic-api/test-staging-recovery-certification-protocol.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["production", "staging"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Reject modified, stale, cross-target or secret-bearing observations before the Recovery Kernel lifecycle and reject false network bypass claims.",
+      "e2e_journeys": [
+        {
+          "id": "staging-recovery-external-evidence-readback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging Recovery verifier",
+          "entrypoint": "Verify an external observation and run a synthetic Staging Recovery canary",
+          "terminal_outcome": "Only canonical, short-lived observations bound to the exact Staging SHA and target pass; protected direct route bypass claims are checked and Production remains disabled.",
+          "steps": [
+            "Verify kind, contract, provenance identifiers, exact SHA and target, freshness, and canonical hash.",
+            "Reject secret fields and modified observations before Kernel execution.",
+            "Verify unsigned direct access to the protected Recovery route is denied and signed Gateway access succeeds.",
+            "Confirm public health reachability is compatible with the isolation contract."
+          ],
+          "assertions": [
+            "Source identifiers are structural assertions; authenticated acquisition remains a separate PR-B requirement.",
+            "Runtime verification and countersign fail closed on invalid evidence.",
+            "Production mutation is prohibited and live Staging certification remains required."
+          ],
+          "tests": [
+            { "id": "staging-recovery-certification-protocol", "runner": "node", "working_directory": "http-generic-api", "path": "test-staging-recovery-certification-protocol.mjs", "args": [] },
+            { "id": "staging-recovery-admin-surface", "runner": "node", "working_directory": "http-generic-api", "path": "test-staging-recovery-admin-surface.mjs", "args": [] }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-recovery-external-evidence-integrity-20260928.json",
+            "http-generic-api/recoveryReadinessEvidence.js",
+            "http-generic-api/stagingRecoveryCertificationProtocol.js",
+            "http-generic-api/test-staging-recovery-certification-protocol.mjs",
+            "http-generic-api/test-staging-recovery-admin-surface.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
