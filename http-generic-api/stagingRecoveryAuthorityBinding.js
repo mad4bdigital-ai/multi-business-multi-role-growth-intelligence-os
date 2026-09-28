@@ -12,6 +12,7 @@ import {
   syncRecoveryDirectory,
 } from "./recoveryReadinessEvidence.js";
 import { RECOVERY_COMPOSITION_COMPONENT_KEYS } from "./recoveryComposition.js";
+import { createRecoveryExternalAcquisitionAuthority } from "./recoveryExternalAcquisitionAuthority.js";
 import { readDeploymentManifest } from "./deploymentManifest.js";
 import { resolveRuntimeEnvironmentStrict } from "./runtimeEnvironmentResolver.js";
 
@@ -38,6 +39,21 @@ function runtime(context = {}, env = process.env, readiness = false) {
   if (context.production_live === true) denied("RECOVERY_STAGING_PRODUCTION_LIVE_FORBIDDEN", "Production live authority is forbidden.");
   if (!readiness && context.requested_mode && context.requested_mode !== "injected_non_live") denied("RECOVERY_STAGING_BINDING_MODE_DENIED", "Only injected_non_live is accepted.");
   return r;
+}
+
+function externalAcquisitionAuthority(env = process.env) {
+  const publicKey = String(env.STAGING_RECOVERY_ACQUISITION_PUBLIC_KEY || "").trim();
+  const keyId = txt(env.STAGING_RECOVERY_ACQUISITION_KEY_ID, 200);
+  const issuer = txt(env.STAGING_RECOVERY_ACQUISITION_ISSUER, 512);
+  const configured = [publicKey, keyId, issuer].filter(Boolean).length;
+  if (configured === 0) return null;
+  if (configured !== 3) {
+    denied(
+      "RECOVERY_EXTERNAL_ACQUISITION_TRUST_INCOMPLETE",
+      "Staging Recovery external acquisition trust must configure public key, key ID, and issuer together.",
+    );
+  }
+  return createRecoveryExternalAcquisitionAuthority({ publicKey, keyId, issuer });
 }
 
 function roots(env = process.env) {
@@ -315,7 +331,7 @@ function adapters(root, env = process.env) {
   const durableRecoveryStore = recoveryStore(root, ticket.verifier);
   const approval = approvalAuthorities(root, durableRecoveryStore);
   const c = canary(root);
-  return { target, deployment, adapters: Object.freeze({ deploymentIdentityProvider: deployment, recoveryStore: durableRecoveryStore, approvalIssuer: approval.issuer, approvalVerifier: approval.verifier, approvalStore: approval.store, recoveryLock: lock(root), mutationExecutor: c, hostLocalMutationExecutor: c.execute, readbackVerifier: readback(root), executionTicketSigner: ticket.signer, executionTicketVerifier: ticket.verifier, partialReceiptStore: immutableStore(root, "partial-receipts", "putImmutablePartialRebuildReceipt"), proofResolver: async () => ({ contract: "mad4b.staging-recovery-proof-resolver.v1", source: "durable_staging_authority", server_derived: true, secrets_included: false }), migrationLedger: immutableStore(root, "migration-ledger", "finalize") }) };
+  return { target, deployment, adapters: Object.freeze({ deploymentIdentityProvider: deployment, recoveryStore: durableRecoveryStore, approvalIssuer: approval.issuer, approvalVerifier: approval.verifier, approvalStore: approval.store, recoveryLock: lock(root), mutationExecutor: c, hostLocalMutationExecutor: c.execute, readbackVerifier: readback(root), executionTicketSigner: ticket.signer, executionTicketVerifier: ticket.verifier, externalEvidenceAcquisitionAuthority: externalAcquisitionAuthority(env), partialReceiptStore: immutableStore(root, "partial-receipts", "putImmutablePartialRebuildReceipt"), proofResolver: async () => ({ contract: "mad4b.staging-recovery-proof-resolver.v1", source: "durable_staging_authority", server_derived: true, secrets_included: false }), migrationLedger: immutableStore(root, "migration-ledger", "finalize") }) };
 }
 function provenance(sha) { if (!SHA40.test(sha || "")) denied("RECOVERY_STAGING_PROVENANCE_SHA_INVALID", "Typed provenance requires exact SHA."); const durable = new Set(["recoveryStore", "approvalStore", "recoveryLock", "partialReceiptStore", "migrationLedger"]); return { contract: "mad4b.recovery-adapter-provenance.v1", environment: "staging", deployment_sha: sha, components: Object.fromEntries(RECOVERY_COMPOSITION_COMPONENT_KEYS.map((name) => [name, { implementation_id: `mad4b.staging.recovery.${name}.v1`, artifact_sha256: MODULE_SHA256, authority_class: "server_managed", storage_class: durable.has(name) ? "durable" : "stateless" }])), secrets_included: false }; }
 
@@ -329,7 +345,7 @@ export function createServerManagedRecoveryBinding(context = {}) {
 
 function createRecoveryReadinessAuthoritiesForEnv(context = {}, env = process.env) {
   runtime(context, env, true); if (context.read_only !== true || context.production_live !== false) denied("RECOVERY_STAGING_READINESS_CONTEXT_DENIED", "Readiness requires read_only=true and production_live=false.");
-  const r = roots(env); const a = adapters(r.readiness, env); const store = createFileRecoveryEvidenceStore({ directory: path.join(r.readiness, "certification-evidence"), replayDirectory: r.replay }); return createCanonicalReadinessAuthority({ evidenceStore: store, deploymentIdentityProvider: a.deployment, targetIdentityProvider: a.target, publicKey: null, keyId: null, issuer: null, env, adapterProvenanceReader: async () => provenance((await a.deployment.readAttestation()).sha) });
+  const r = roots(env); const a = adapters(r.readiness, env); const store = createFileRecoveryEvidenceStore({ directory: path.join(r.readiness, "certification-evidence"), replayDirectory: r.replay }); return createCanonicalReadinessAuthority({ evidenceStore: store, deploymentIdentityProvider: a.deployment, targetIdentityProvider: a.target, publicKey: null, keyId: null, issuer: null, env, externalAcquisitionAuthority: a.adapters.externalEvidenceAcquisitionAuthority, adapterProvenanceReader: async () => provenance((await a.deployment.readAttestation()).sha) });
 }
 
 export function createRecoveryReadinessAuthorities(context = {}) {
@@ -342,6 +358,7 @@ export const stagingRecoveryAuthorityInternals = Object.freeze({
   runtime,
   provenance,
   targetIdentityProvider,
+  externalAcquisitionAuthority,
   adapters,
   createServerManagedRecoveryBindingForEnv,
   createRecoveryReadinessAuthoritiesForEnv,
