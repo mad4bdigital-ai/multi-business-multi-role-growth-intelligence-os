@@ -16,7 +16,6 @@
       ".github/scripts/staging-recovery-sign-acquisition-receipt.mjs",
       ".github/scripts/staging-recovery-verify-and-countersign.mjs",
       ".github/workflows/staging-post-deploy-verification.yml",
-      ".github/workflows/staging-recovery-external-evidence-acquisition.yml",
       "AI_Agent_Knowledge_Guide.md",
       "autopilot-portable-staging/Invoke-StagingRecoveryCertificationCanary.ps1",
       "docs/runbooks/staging-recovery-phase-b-certification.md",
@@ -67,7 +66,7 @@
             "Validate ordered no-secret OAuth server-correlation events and redirect-URI hash binding.",
             "Keep ChatGPT registration source verification unavailable even when registration parity is valid.",
             "Require acquisition receipt transport before local canary and independent countersign.",
-            "Confirm PR-B1 workflow records OAuth/Registration blockers and never consumes the private acquisition key on the blocked path."
+            "Confirm The consolidated Staging Post-Deploy Verification acquisition operation records OAuth/Registration blockers and never consumes the private acquisition key on the blocked path."
           ],
           "assertions": [
             "No environment flag, caller verified field, manual JSON or operator acknowledgement can manufacture acquisition authority.",
@@ -102,7 +101,6 @@
           ],
           "evidence_paths": [
             ".changes/e2e/staging-recovery-external-acquisition-b1-20260928.json",
-            ".github/workflows/staging-recovery-external-evidence-acquisition.yml",
             ".github/scripts/staging-recovery-sign-acquisition-receipt.mjs",
             "http-generic-api/recoveryExternalAcquisitionAuthority.js",
             "http-generic-api/stagingRecoveryExternalEvidence.js",
