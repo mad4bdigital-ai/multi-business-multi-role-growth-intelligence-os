@@ -7,6 +7,7 @@ import {
   verifyRecoveryExternalEvidenceIntegrity,
 } from "./recoveryReadinessEvidence.js";
 import {
+  brandRecoveryExternalSourceVerification,
   recoveryExternalSourceProofHash,
 } from "./recoveryExternalAcquisitionAuthority.js";
 import {
@@ -369,13 +370,14 @@ export function verifyRecoveryOAuthServerCorrelationSource(evidence, options = {
     ) {
       return Object.freeze({ verified: false, reason_code: "RECOVERY_OAUTH_SOURCE_INVALID", secrets_included: false });
     }
-    return Object.freeze({
+    const result = Object.freeze({
       verified: true,
       evidence_hash: evidence.evidence_hash,
       source_proof_hash: recoveryExternalSourceProofHash(evidence),
       source: "oauth_server_correlation",
       secrets_included: false,
     });
+    return brandRecoveryExternalSourceVerification("oauth", result, evidence);
   } catch {
     return Object.freeze({ verified: false, reason_code: "RECOVERY_OAUTH_SOURCE_INVALID", secrets_included: false });
   }
@@ -460,13 +462,14 @@ export function verifyRecoveryNetworkIsolationSource(evidence, options = {}) {
       secrets_included: false,
     });
   }
-  return Object.freeze({
+  const result = Object.freeze({
     verified: true,
     evidence_hash: evidence.evidence_hash,
     source_proof_hash: recoveryExternalSourceProofHash(evidence),
     source: "independent_network_probe",
     secrets_included: false,
   });
+  return brandRecoveryExternalSourceVerification("network", result, evidence);
 }
 
 export function unavailableRegistrationSourceVerification(registrationEvidence) {
