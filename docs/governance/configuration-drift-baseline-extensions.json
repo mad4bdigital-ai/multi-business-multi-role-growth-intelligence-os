@@ -532,6 +532,50 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": ".github/workflows/staging-post-deploy-verification.yml|evidence|environment_reference|network.file",
+      "owner": "staging-recovery-governance",
+      "reason": "NETWORK_FILE identifies only the ephemeral no-secret network evidence file produced within the same GitHub runner; it grants no external authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/workflows/staging-post-deploy-verification.yml|EXPECTED_SHA|environment_reference|expected.sha",
+      "owner": "staging-recovery-governance",
+      "reason": "Exact Staging SHA is a non-secret identity binding for the bounded Recovery external-acquisition operation; it narrows evidence to one main deployment and grants no mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/workflows/staging-post-deploy-verification.yml|EXPECTED_TARGET_FINGERPRINT|environment_reference|expected.target.fingerprint",
+      "owner": "staging-recovery-governance",
+      "reason": "Exact Staging target fingerprint is a non-secret identity binding for the bounded Recovery acquisition operation and cannot select or mutate a provider, database, or Production target.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/workflows/staging-post-deploy-verification.yml|OUTPUT|environment_reference|output",
+      "owner": "staging-recovery-governance",
+      "reason": "OUTPUT points only to the ephemeral GitHub runner acquisition-status artifact and is not a runtime, provider, database, or deployment target.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": "edge/activation-gateway/src/gateway.mjs|policyHashRequired|literal_declaration|policyhashrequired",
       "owner": "gateway-governance",
       "reason": "The gateway policyHashRequired predicate is a code-owned fail-closed policy contract. It only requires attested policy/source evidence for readiness and grants no runtime, database, provider, protected-ref, or Production mutation authority.",
@@ -667,6 +711,17 @@
       "fingerprint": "http-generic-api/recoveryActivationReadiness.js|stagingModeValid|literal_declaration|stagingmodevalid",
       "owner": "recovery-governance",
       "reason": "The Recovery readiness stagingModeValid predicate is a non-secret, read-only environment-bound safety check. It rejects non-staging composition modes and grants no runtime, database, provider, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/recoveryExternalAcquisitionAuthority.js|MAX_TTL_MS|literal_declaration|max.ttl.ms",
+      "owner": "staging-recovery-governance",
+      "reason": "Fixed one-hour maximum acquisition-receipt TTL is a code-owned fail-closed safety bound; it contains no configured value and grants no runtime or Production mutation authority.",
       "lifecycle": "permanent",
       "configuration_class": "ci_governance_input",
       "sensitivity": "non_secret_reference",
@@ -1401,6 +1456,94 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": "http-generic-api/scripts/staging-recovery-acquire-network-evidence.mjs|authorization|environment_reference|backend.api.key",
+      "owner": "staging-recovery-governance",
+      "reason": "The Authorization header is derived from the server-held BACKEND_API_KEY reference solely for the bounded Recovery probe; no credential value is committed or emitted and it cannot create acquisition authority by itself.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "credential_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-recovery-acquire-network-evidence.mjs|BACKEND_API_KEY|environment_reference|backend.api.key",
+      "owner": "staging-recovery-governance",
+      "reason": "BACKEND_API_KEY is a credential reference used only to authenticate the bounded read-only Activation Gateway Recovery probe; the value is never persisted or emitted and does not authorize provider/database/Production mutation.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "credential_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-recovery-acquire-network-evidence.mjs|deploymentSha|environment_reference|expected.sha",
+      "owner": "staging-recovery-governance",
+      "reason": "Expected deployment SHA is a non-secret exact-main evidence binding used by the independent network probe and grants no mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-recovery-acquire-network-evidence.mjs|targetFingerprint|environment_reference|expected.target.fingerprint",
+      "owner": "staging-recovery-governance",
+      "reason": "Expected target fingerprint binds network evidence to the existing Staging Recovery target and cannot select or mutate a target.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-recovery-acquire-oauth-evidence.mjs|EXPECTED_SHA|environment_reference|expected.sha",
+      "owner": "staging-recovery-governance",
+      "reason": "Exact Staging SHA binds OAuth correlation evidence to one deployment and carries no execution or mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-recovery-acquire-oauth-evidence.mjs|EXPECTED_TARGET_FINGERPRINT|environment_reference|expected.target.fingerprint",
+      "owner": "staging-recovery-governance",
+      "reason": "Exact Staging target fingerprint binds OAuth correlation evidence to the governed Recovery target and grants no execution authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-recovery-acquire-registration-evidence.mjs|EXPECTED_SHA|environment_reference|expected.sha",
+      "owner": "staging-recovery-governance",
+      "reason": "Exact Staging SHA binds registration parity evidence to one deployment while source authenticity remains fail-closed; it grants no certification authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-recovery-acquire-registration-evidence.mjs|EXPECTED_TARGET_FINGERPRINT|environment_reference|expected.target.fingerprint",
+      "owner": "staging-recovery-governance",
+      "reason": "Exact target fingerprint binds registration parity evidence to the governed Staging Recovery target and cannot create provider-backed source authenticity.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": "http-generic-api/scripts/test-platform-configuration-entry-guard.mjs|reviewedPolicyFingerprint|literal_declaration|reviewedpolicyfingerprint",
       "owner": "repository-governance",
       "reason": "The platform configuration guard regression fixture binds a non-secret reviewed fingerprint to prove that permanent governance extensions bypass only the intended candidate classification while unreviewed and unsafe entries remain blocked.",
@@ -1459,6 +1602,17 @@
       "fingerprint": "http-generic-api/stagingRecoveryAuthorityBindingPhaseB.js|STAGING_RECOVERY_PHASE_B_APPROVAL_TOKEN_CONTRACT|literal_declaration|staging.recovery.phase.b.approval.token.contract",
       "owner": "staging-recovery-governance",
       "reason": "Static Phase B single-issuance approval-token handle contract identifier; it is not runtime configuration and grants no approval, repository, provider, database, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/stagingRecoveryExternalEvidence.js|MAX_TTL_MS|literal_declaration|max.ttl.ms",
+      "owner": "staging-recovery-governance",
+      "reason": "Fixed one-hour maximum external-observation TTL is a code-owned fail-closed freshness bound; it contains no configured value and grants no runtime or Production mutation authority.",
       "lifecycle": "permanent",
       "configuration_class": "ci_governance_input",
       "sensitivity": "non_secret_reference",
