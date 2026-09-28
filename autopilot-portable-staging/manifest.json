@@ -146,11 +146,11 @@
     },
     {
       "path": "http-generic-api/frontend-operation-governance.generated.json",
-      "sha256": "00bddfe783b9c66bbb6a24770fd734e8fe03ec76c7181f6441a5b635eea7f75e"
+      "sha256": "e7306a76b8f8ac78bd375d45cbf226cea2d81533d41bffe9152d2e7247d8a765"
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "0c1af53a7bcfa65abe2359778d2f2ca4b22d87f04549bee06f2fba33746d75d2"
+      "sha256": "465605143b58957ae21b970f6f87385a253642dce682a70ffd49007198fb3631"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -286,7 +286,7 @@
     },
     {
       "path": "http-generic-api/scripts/staging-live-certification.mjs",
-      "sha256": "8c02efa989a84b507fa3eec58b3e7dc2da7be8c1e45c14c502e28d7178fcabf5"
+      "sha256": "f72429166fc688484827ef2b4bd023478b57485a45214e60eec6e04c57470f0e"
     },
     {
       "path": "http-generic-api/tenantGptOAuthPkce.js",
