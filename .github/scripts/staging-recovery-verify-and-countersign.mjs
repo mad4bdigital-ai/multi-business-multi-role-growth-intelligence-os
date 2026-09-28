@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildRecoveryReadinessSigningPayload, independentlyVerifyStagingRecoveryCanaryEvidence } from "../../http-generic-api/stagingRecoveryCertificationProtocol.js";
 import { signVerifiedRecoveryEvidence } from "./staging-recovery-sign-certification.mjs";
+import { createRecoveryExternalAcquisitionAuthority } from "../../http-generic-api/recoveryExternalAcquisitionAuthority.js";
 
 const REQUIRED_FILES = Object.freeze({ plan: "kernel-plan.json", approval: "kernel-approval.json", ticket: "kernel-ticket.json", receipt: "kernel-receipt.json", run: "kernel-run.json" });
 async function json(file) { return JSON.parse(await readFile(file, "utf8")); }
@@ -30,6 +31,11 @@ export async function verifyAndCountersignStagingRecovery({ evidenceDirectory, o
     ),
   );
   const expectedSha = required(env, "GITHUB_SHA"); const expectedTargetFingerprint = required(env, "RECOVERY_STAGING_EXPECTED_TARGET_FINGERPRINT");
+  const externalEvidenceAcquisitionAuthority = createRecoveryExternalAcquisitionAuthority({
+    publicKey: required(env, "STAGING_RECOVERY_ACQUISITION_PUBLIC_KEY"),
+    keyId: required(env, "STAGING_RECOVERY_ACQUISITION_KEY_ID"),
+    issuer: required(env, "STAGING_RECOVERY_ACQUISITION_ISSUER"),
+  });
   const verificationReport = await independentlyVerifyStagingRecoveryCanaryEvidence(
     envelope,
     {
@@ -40,6 +46,7 @@ export async function verifyAndCountersignStagingRecovery({ evidenceDirectory, o
       liveWorkerProviderObservation,
       liveIngressBuildIdentity,
       requireLiveRuntimeRevalidation: true,
+      externalEvidenceAcquisitionAuthority,
       loadKernelArtifacts: async (ids) => {
         if (
           artifacts.plan.plan_id !== ids.plan_id
