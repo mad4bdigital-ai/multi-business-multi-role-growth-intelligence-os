@@ -20,7 +20,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
-import { webcrypto, generateKeyPairSync, sign } from "node:crypto";
+import { webcrypto, generateKeyPairSync, sign, createHash } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import { createFileRecoveryEvidenceStore, createRecoveryReadinessAuthorities, readinessEvidencePayload, recoveryReadinessRouteDependencies, expectedStagingRegistration, expectedStagingGatewayDeployment, recoveryExternalEvidenceHash, RECOVERY_EXTERNAL_EVIDENCE_CONTRACT, RECOVERY_READINESS_EVIDENCE_CONTRACT } from "./recoveryReadinessEvidence.js";
@@ -331,6 +331,12 @@ test("real signed Worker to origin rejects forgery, substitution, replay and mis
   });
   const pathname = "/admin/recovery/staging/contract";
   try {
+    const direct = await fetch(`${origin.url}${pathname}`, { headers: { host: new URL(policy.upstream_origin).host, "x-forwarded-host": policy.public_host } });
+    assert.equal(direct.status, 403);
+    assert.equal((await direct.json()).error.code, "RECOVERY_TRUSTED_INGRESS_REQUIRED");
+    const directDev = await fetch(`${origin.url}${pathname}`, { headers: { host: new URL(policy.upstream_origin).host } });
+    assert.equal(directDev.status, 404);
+    assert.equal((await directDev.json()).error.code, "RECOVERY_STAGING_HOST_UNAVAILABLE");
     const response = await handler(new Request(`https://${policy.public_host}${pathname}`, { headers: { "x-mad4b-ingress-attestation": "caller-forgery" } }), workerEnv);
     assert.equal(response.status, 200);
     assert.equal((await response.json()).production_authority, false);
@@ -523,7 +529,11 @@ test("readiness consumes one signed snapshot; every external pre-live proof is m
       networkEvidence: seal("network", { environment: "staging", gateway_host: gateway.gateway_host,
         upstream_origin: gateway.upstream_origin, gateway_only: true, signed_ingress_required: true,
         network_restriction_verified: true, direct_recovery_surface_bypass_denied: true,
-        direct_recovery_surface_status: 403, direct_recovery_surface_path: "/admin/recovery/staging/contract",
+        request_method: "GET", request_body_sha256: createHash("sha256").update("").digest("hex"),
+        direct_recovery_surface_status: 403, direct_recovery_surface_reason: "RECOVERY_TRUSTED_INGRESS_REQUIRED",
+        direct_recovery_surface_path: "/admin/recovery/staging/contract",
+        signed_gateway_recovery_path: "/admin/recovery/staging/contract", signed_gateway_recovery_method: "GET",
+        signed_gateway_recovery_body_sha256: createHash("sha256").update("").digest("hex"),
         signed_gateway_recovery_status: 200, public_health_status: 200 }),
       workerDeploymentEvidence: { ...binding, observed_in: "cloudflare_workers", deployment_verified: true,
         gateway_host: gateway.gateway_host, policy_hash: gateway.policy_hash,
@@ -558,7 +568,8 @@ test("readiness consumes one signed snapshot; every external pre-live proof is m
       Object.hasOwn(ready.ingress_build_identity, "jti"),
       false,
     );
-    assert.equal(ready.ready, true, JSON.stringify(ready));
+    assert.equal(ready.ready, false, "synthetic observations cannot activate certification");
+    assert.deepEqual(ready.external_evidence.blocking_failures, ["external_acquisition_authority"]);
     assert.equal(ready.production_live.enabled, false);
     assert.notEqual(payload.workerDeploymentEvidence.worker_bundle_sha256, payload.workerDeploymentEvidence.deployed_bundle_sha256,
       "the source-set and emitted deployment bytes legitimately have different hashes");

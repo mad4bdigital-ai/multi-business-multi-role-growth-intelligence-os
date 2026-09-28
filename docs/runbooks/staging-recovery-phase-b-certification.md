@@ -2,6 +2,12 @@
 
 This runbook closes the live Staging Recovery certification after the Staging deployment is already healthy and exact-main bound. It does not repair Docker, apply database migrations, mutate Production, or synthesize external evidence.
 
+**PR-A hold:** `RECOVERY_EXTERNAL_ACQUISITION_AUTHORITY_AVAILABLE` is hard-coded
+to `false`. The local canary, independent countersign, signing payload, and
+readiness fail closed even if the evidence carries a correctly recomputed hash
+or `source_authenticity_verified=true`. Do not run this procedure until PR-B
+adds a trusted acquisition verifier and explicitly replaces that code gate.
+
 ## Preconditions
 
 - Local checkout is `main` and exactly equals `origin/main`.
@@ -27,10 +33,14 @@ of origin. PR-B must add authenticated acquisition before certification can
 claim source authenticity. Do not pass hand-written JSON to the canary.
 
 Network isolation applies to protected `/admin/recovery/staging/*` routes:
-unsigned direct requests must receive a 4xx response, while signed Gateway
-requests must succeed. Public `/health` may remain available. The observation
-records both outcomes and the protected path; acquisition must measure them
-from an independent runner.
+the unsigned direct request must return either `403` with
+`RECOVERY_TRUSTED_INGRESS_REQUIRED` (Gateway host without signed ingress),
+or `404` with `RECOVERY_STAGING_HOST_UNAVAILABLE` (direct `dev.mad4b.com`
+host isolation). A signed Gateway request for the same path, method, and body
+digest must succeed with 2xx. A generic `404` is rejected. The observation
+records both paths, methods, body digests, statuses and direct denial reason;
+an independent runner in PR-B must measure them. Public `/health` may remain
+available.
 
 ## 1. Produce the genuine local canary and dispatch countersign
 

@@ -453,6 +453,22 @@ Use `v_platform_capability_readiness_vector` for independent readiness dimension
 
 Detailed operator contract: `docs/platform-capability-assurance-graph.md`.
 
+### Staging Recovery external evidence
+
+Registration, OAuth, and Network observations use the canonical
+`mad4b.recovery-external-observation.v1` contract with exact SHA/target,
+freshness, no secrets, and a recomputed evidence hash. Source labels and
+caller-provided `source_authenticity_verified` are not source proof. PR-A keeps
+`RECOVERY_EXTERNAL_ACQUISITION_AUTHORITY_AVAILABLE=false` in server code:
+the local canary, independent countersign, signing payload, and readiness must
+remain blocked until PR-B supplies genuine authenticated acquisition. Network
+evidence must pair the same protected route, method and body hash across
+unsigned direct `403` (`RECOVERY_TRUSTED_INGRESS_REQUIRED`) or direct origin
+`404` (`RECOVERY_STAGING_HOST_UNAVAILABLE`) and signed Gateway 2xx. Generic
+`404` and public `/health` are separate: the former is invalid evidence, the
+latter does not violate this contract. See
+`docs/runbooks/staging-recovery-phase-b-certification.md`.
+
 ### Platform Plugin smoke certification governance
 
 Platform Plugin REST actions must not be treated as dispatch-ready just because `app_integrations`, action bindings, or endpoint rows exist. The public dispatch path must resolve readiness, credential/connection state, action grants, and smoke certification before execution.

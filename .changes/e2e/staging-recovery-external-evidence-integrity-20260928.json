@@ -9,6 +9,7 @@
   "scope": {
     "include": [
       ".changes/e2e/staging-recovery-external-evidence-integrity-20260928.json",
+      "AI_Agent_Knowledge_Guide.md",
       "docs/runbooks/staging-recovery-phase-b-certification.md",
       "http-generic-api/recoveryReadinessEvidence.js",
       "http-generic-api/stagingRecoveryCertificationProtocol.js",
@@ -27,23 +28,25 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Reject modified, stale, cross-target or secret-bearing observations before the Recovery Kernel lifecycle and reject false network bypass claims.",
+      "objective": "Reject modified, stale, cross-target or secret-bearing observations and keep certification closed until authenticated acquisition exists; bind network denial and Gateway success to the same request.",
       "e2e_journeys": [
         {
           "id": "staging-recovery-external-evidence-readback",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Staging Recovery verifier",
-          "entrypoint": "Verify an external observation and run a synthetic Staging Recovery canary",
-          "terminal_outcome": "Only canonical, short-lived observations bound to the exact Staging SHA and target pass; protected direct route bypass claims are checked and Production remains disabled.",
+          "entrypoint": "Verify synthetic external observations and attempt a Staging Recovery canary",
+          "terminal_outcome": "Canonical, short-lived observations can pass structural verification, but canary, countersign, signing and readiness remain closed until PR-B adds authenticated acquisition; Production remains disabled.",
           "steps": [
             "Verify kind, contract, provenance identifiers, exact SHA and target, freshness, and canonical hash.",
             "Reject secret fields and modified observations before Kernel execution.",
-            "Verify unsigned direct access to the protected Recovery route is denied and signed Gateway access succeeds.",
+            "Reject even hash-consistent, source-labeled observations before Kernel execution or countersign while the server-owned acquisition gate is closed.",
+            "Verify direct denial reason and status, and bind the same protected path, method, and body digest to signed Gateway success.",
             "Confirm public health reachability is compatible with the isolation contract."
           ],
           "assertions": [
             "Source identifiers are structural assertions; authenticated acquisition remains a separate PR-B requirement.",
+            "Caller-supplied source_authenticity_verified=true cannot enable certification.",
             "Runtime verification and countersign fail closed on invalid evidence.",
             "Production mutation is prohibited and live Staging certification remains required."
           ],

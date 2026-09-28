@@ -5,6 +5,7 @@ import {
 } from "./recoveryActivationReadiness.js";
 import {
   RECOVERY_READINESS_EVIDENCE_CONTRACT,
+  RECOVERY_EXTERNAL_ACQUISITION_AUTHORITY_AVAILABLE,
   evaluateExternalStagingEvidence,
   verifyRecoveryExternalEvidenceIntegrity,
 } from "./recoveryReadinessEvidence.js";
@@ -59,7 +60,8 @@ const PHASES = Object.freeze([
   "verified",
   "recovered",
 ]);
-const SECRET_KEY = /(password|secret|credential|authorization|private[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret)/u;
+const SECRET_KEY = /^(?:authorization|password|secret|credential|credentials|private[_-]?key|access[_-]?token|refresh[_-]?token|id[_-]?token|client[_-]?secret|api[_-]?key|bearer[_-]?token)$|(?:^|[_-])(?:password|secret|credential|private[_-]?key|access[_-]?token|refresh[_-]?token)(?:$|[_-])/u;
+const CAMEL_SECRET_KEY = /(?:Secret|Password|Credential|PrivateKey|AccessToken|RefreshToken|IdToken|ApiKey|BearerToken)(?:$|[A-Z])/u;
 
 const stable = (value) => Array.isArray(value)
   ? value.map(stable)
@@ -84,7 +86,7 @@ function noSecrets(value, at = "evidence") {
   if (!value || typeof value !== "object") return;
   for (const [key, child] of Object.entries(value)) {
     const negativeAttestation = key === "caller_credentials_accepted" && child === false;
-    if (key !== "secrets_included" && !negativeAttestation && SECRET_KEY.test(key.toLowerCase())) {
+    if (key !== "secrets_included" && !negativeAttestation && (SECRET_KEY.test(key.toLowerCase()) || CAMEL_SECRET_KEY.test(key))) {
       fail("RECOVERY_CANARY_SECRET_FIELD_FORBIDDEN", `Forbidden field: ${at}.${key}`);
     }
     noSecrets(child, `${at}.${key}`);
@@ -229,6 +231,9 @@ export async function runGenuineStagingRecoveryCanary({
     if (!verifyRecoveryExternalEvidenceIntegrity(evidence, {
       kind, expectedSha, expectedTargetFingerprint: preflightAttestation.target_fingerprint,
     })) fail("RECOVERY_CANARY_EXTERNAL_INTEGRITY_INVALID", `${kind} evidence integrity is invalid.`);
+  }
+  if (!RECOVERY_EXTERNAL_ACQUISITION_AUTHORITY_AVAILABLE) {
+    fail("RECOVERY_CANARY_SOURCE_AUTHENTICITY_UNAVAILABLE", "Authenticated external acquisition is required before running the canary.");
   }
   const plan = await createStagingCertificationCanaryPlan(
     { expected_sha: expectedSha },
@@ -519,6 +524,13 @@ export async function independentlyVerifyStagingRecoveryCanaryEvidence(envelope,
     ? liveIngressBuildIdentity
     : envelope.ingressBuildIdentity;
 
+  const negativeTests = normalizeNegativeTestEvidence(negativeTestEvidence);
+  if (negativeTests.exact_sha && negativeTests.exact_sha !== expectedSha) {
+    fail("RECOVERY_CANARY_NEGATIVE_TEST_SHA_MISMATCH", "Negative-test evidence is not bound to the exact workflow SHA.");
+  }
+  if (!RECOVERY_EXTERNAL_ACQUISITION_AUTHORITY_AVAILABLE) {
+    fail("RECOVERY_CANARY_SOURCE_AUTHENTICITY_UNAVAILABLE", "Authenticated external acquisition is required before countersigning.");
+  }
   const external = await evaluateExternalStagingEvidence({
     candidateSha: envelope.deployment_sha,
     candidateTargetFingerprint: envelope.target_fingerprint,
@@ -536,10 +548,6 @@ export async function independentlyVerifyStagingRecoveryCanaryEvidence(envelope,
     || envelope.safety?.production_mutation_performed !== false
     || envelope.safety?.secrets_included !== false) {
     fail("RECOVERY_CANARY_BOUNDARY_INVALID", "Safety boundary invalid.");
-  }
-  const negativeTests = normalizeNegativeTestEvidence(negativeTestEvidence);
-  if (negativeTests.exact_sha && negativeTests.exact_sha !== expectedSha) {
-    fail("RECOVERY_CANARY_NEGATIVE_TEST_SHA_MISMATCH", "Negative-test evidence is not bound to the exact workflow SHA.");
   }
   const lifecycleTrace = certifiedLifecycleTrace(envelope);
   const checks = {
@@ -579,6 +587,9 @@ export async function independentlyVerifyStagingRecoveryCanaryEvidence(envelope,
 }
 
 export function buildRecoveryReadinessSigningPayload(envelope, report, { issuer, keyId } = {}) {
+  if (!RECOVERY_EXTERNAL_ACQUISITION_AUTHORITY_AVAILABLE) {
+    fail("RECOVERY_CANARY_SOURCE_AUTHENTICITY_UNAVAILABLE", "Authenticated external acquisition is required before signing.");
+  }
   if (report?.verified !== true
     || report.evidence_envelope_sha256 !== envelope?.evidence_envelope_sha256
     || report.lifecycle_trace == null
