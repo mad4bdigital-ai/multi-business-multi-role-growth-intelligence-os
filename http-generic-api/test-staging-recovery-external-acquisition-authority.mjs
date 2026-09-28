@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
-import { createHash, generateKeyPairSync } from "node:crypto";
+import { createHash, generateKeyPairSync, sign as cryptoSign } from "node:crypto";
 import test from "node:test";
 import {
   createRecoveryExternalAcquisitionAuthority,
+  RECOVERY_EXTERNAL_ACQUISITION_RECEIPT_CONTRACT,
+  recoveryExternalAcquisitionCanonicalPayload,
   recoveryExternalSourceProofHash,
   signRecoveryExternalAcquisitionReceipt,
   verifyRecoveryExternalAcquisitionAuthority,
@@ -113,46 +115,55 @@ async function validEvidence() {
   return { registration, oauth, network };
 }
 
-function sourceVerification({ registration, oauth, network }) {
-  return {
-    registration: {
-      verified: true,
-      evidence_hash: registration.evidence_hash,
-      source_proof_hash: recoveryExternalSourceProofHash(registration),
-      source: "chatgpt_live_readback",
-      secrets_included: false,
-    },
-    oauth: verifyRecoveryOAuthServerCorrelationSource(oauth, {
-      expectedSha: SHA,
-      expectedTargetFingerprint: TARGET,
-    }),
-    network: verifyRecoveryNetworkIsolationSource(network, {
-      expectedSha: SHA,
-      expectedTargetFingerprint: TARGET,
-    }),
-  };
-}
-
 async function signedFixture(overrides = {}) {
   const keys = keyPair();
   const evidence = await validEvidence();
-  const receipt = signRecoveryExternalAcquisitionReceipt(
-    {
-      deploymentSha: SHA,
-      targetFingerprint: TARGET,
-      acquisitionRunId: "github-acquisition:test-0001",
-      registrationEvidence: evidence.registration,
-      oauthEvidence: evidence.oauth,
-      networkEvidence: evidence.network,
-      sourceVerification: sourceVerification(evidence),
-      ...overrides,
+  const issuedAt = overrides.issuedAt || new Date().toISOString();
+  const expiresAt =
+    overrides.expiresAt || new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  const unsigned = {
+    contract: RECOVERY_EXTERNAL_ACQUISITION_RECEIPT_CONTRACT,
+    environment: "staging",
+    deployment_sha: SHA,
+    target_fingerprint: TARGET,
+    acquisition_run_id: "github-acquisition:test-0001",
+    issuer: ISSUER,
+    key_id: KEY_ID,
+    issued_at: issuedAt,
+    expires_at: expiresAt,
+    observations: {
+      registration: {
+        observation_id: evidence.registration.source_provenance.observation_id,
+        source: "chatgpt_live_readback",
+        evidence_hash: evidence.registration.evidence_hash,
+        source_proof_hash: recoveryExternalSourceProofHash(evidence.registration),
+        verified: true,
+      },
+      oauth: {
+        observation_id: evidence.oauth.source_provenance.observation_id,
+        source: "oauth_server_correlation",
+        evidence_hash: evidence.oauth.evidence_hash,
+        source_proof_hash: recoveryExternalSourceProofHash(evidence.oauth),
+        verified: true,
+      },
+      network: {
+        observation_id: evidence.network.source_provenance.observation_id,
+        source: "independent_network_probe",
+        evidence_hash: evidence.network.evidence_hash,
+        source_proof_hash: recoveryExternalSourceProofHash(evidence.network),
+        verified: true,
+      },
     },
-    {
-      privateKey: keys.privateKey,
-      keyId: KEY_ID,
-      issuer: ISSUER,
-    },
-  );
+    secrets_included: false,
+  };
+  const receipt = Object.freeze({
+    ...unsigned,
+    signature_b64url: cryptoSign(
+      null,
+      Buffer.from(recoveryExternalAcquisitionCanonicalPayload(unsigned)),
+      keys.privateKey,
+    ).toString("base64url"),
+  });
   const authority = createRecoveryExternalAcquisitionAuthority({
     publicKey: keys.publicKey,
     keyId: KEY_ID,
@@ -409,6 +420,46 @@ test("registration parity without provider source attestation can never sign an 
   assert.equal(
     registration.reason_code,
     "RECOVERY_REGISTRATION_SOURCE_ATTESTATION_UNAVAILABLE",
+  );
+
+  const forgedRegistrationVerification = {
+    verified: true,
+    evidence_hash: evidence.registration.evidence_hash,
+    source_proof_hash: recoveryExternalSourceProofHash(evidence.registration),
+    source: "chatgpt_live_readback",
+    secrets_included: false,
+  };
+  assert.throws(
+    () =>
+      signRecoveryExternalAcquisitionReceipt(
+        {
+          deploymentSha: SHA,
+          targetFingerprint: TARGET,
+          acquisitionRunId: "github-acquisition:test-forged-registration",
+          registrationEvidence: evidence.registration,
+          oauthEvidence: evidence.oauth,
+          networkEvidence: evidence.network,
+          sourceVerification: {
+            registration: forgedRegistrationVerification,
+            oauth: verifyRecoveryOAuthServerCorrelationSource(evidence.oauth, {
+              expectedSha: SHA,
+              expectedTargetFingerprint: TARGET,
+            }),
+            network: verifyRecoveryNetworkIsolationSource(evidence.network, {
+              expectedSha: SHA,
+              expectedTargetFingerprint: TARGET,
+            }),
+          },
+        },
+        {
+          privateKey: keys.privateKey,
+          keyId: KEY_ID,
+          issuer: ISSUER,
+        },
+      ),
+    (error) =>
+      error.code ===
+      "RECOVERY_REGISTRATION_SOURCE_ATTESTATION_UNAVAILABLE",
   );
 
   assert.throws(
