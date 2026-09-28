@@ -105,6 +105,24 @@ test("external evidence integrity rejects mutations, fabricated hashes, stale or
   }
 });
 
+test("invalid external evidence stops the canary before Kernel state is touched", async () => {
+  const source = await input();
+  let kernelCalls = 0;
+  const blocked = new Proxy({}, { get() { kernelCalls += 1; throw new Error("Kernel must not run"); } });
+  const adapters = Object.fromEntries([
+    "recoveryStore", "approvalIssuer", "approvalVerifier", "approvalStore",
+    "executionTicketSigner", "recoveryLock", "mutationExecutor", "readbackVerifier",
+  ].map((key) => [key, blocked]));
+  adapters.deploymentIdentityProvider = { readAttestation: async () => ({ sha: SHA, target_fingerprint: TARGET }) };
+  const badNetwork = { ...source.networkEvidence, direct_recovery_surface_status: 200 };
+  badNetwork.evidence_hash = recoveryExternalEvidenceHash(badNetwork);
+  await assert.rejects(() => runGenuineStagingRecoveryCanary({ expectedSha: SHA,
+    externalEvidence: { registrationEvidence: source.registrationEvidence, oauthEvidence: source.oauthEvidence,
+      networkEvidence: badNetwork } }, { adapters }),
+  (error) => error.code === "RECOVERY_CANARY_EXTERNAL_INTEGRITY_INVALID");
+  assert.equal(kernelCalls, 0);
+});
+
 test("independent verifier binds negative tests and emits the complete Production-consumable certification", async () => {
   const source = await input(); const envelope = produceGenuineStagingRecoveryCanaryEvidence(source);
   const report = await independentlyVerifyStagingRecoveryCanaryEvidence(envelope, { expectedSha: SHA, expectedTargetFingerprint: TARGET, workflowSourceSha: SHA, negativeTestEvidence: negativeEvidence(), loadKernelArtifacts: async () => source });
