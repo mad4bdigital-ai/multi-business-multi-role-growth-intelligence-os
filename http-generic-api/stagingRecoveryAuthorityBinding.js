@@ -53,6 +53,45 @@ function externalAcquisitionAuthority(env = process.env) {
       "Staging Recovery external acquisition trust must configure public key, key ID, and issuer together.",
     );
   }
+
+  let acquisitionKey;
+  try {
+    acquisitionKey = createPublicKey(publicKey);
+  } catch {
+    denied(
+      "RECOVERY_EXTERNAL_ACQUISITION_TRUST_INVALID",
+      "Staging Recovery external acquisition public trust is invalid.",
+    );
+  }
+  const acquisitionFingerprint = digest(
+    acquisitionKey.export({ format: "der", type: "spki" }),
+  );
+  for (const [label, candidate] of [
+    ["activation_gateway_ingress", env.REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY],
+    ["recovery_certification", env.RECOVERY_STAGING_CERTIFICATION_PUBLIC_KEY],
+  ]) {
+    const value = String(candidate || "").trim();
+    if (!value) continue;
+    let otherKey;
+    try {
+      otherKey = createPublicKey(value);
+    } catch {
+      denied(
+        "RECOVERY_EXTERNAL_ACQUISITION_SEPARATION_TRUST_INVALID",
+        `The ${label} public key is invalid; acquisition-key separation cannot be proven.`,
+      );
+    }
+    if (
+      digest(otherKey.export({ format: "der", type: "spki" })) ===
+      acquisitionFingerprint
+    ) {
+      denied(
+        "RECOVERY_EXTERNAL_ACQUISITION_KEY_REUSE_FORBIDDEN",
+        `The Staging Recovery acquisition key must be distinct from ${label} trust.`,
+      );
+    }
+  }
+
   return createRecoveryExternalAcquisitionAuthority({ publicKey, keyId, issuer });
 }
 
