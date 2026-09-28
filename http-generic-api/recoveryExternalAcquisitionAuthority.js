@@ -121,7 +121,12 @@ function invalid(reason_code, detail = null) {
 
 export function brandRecoveryExternalSourceVerification(kind, value, evidence) {
   const source = SOURCE[kind];
+  // PR-B1 intentionally permits in-process branding only for the live network
+  // probe path. OAuth remains structural-only until a runtime-owned correlation
+  // collector exists, and Registration remains closed until provider-backed
+  // source attestation exists.
   if (
+    kind !== "network" ||
     !source ||
     !value ||
     typeof value !== "object" ||
