@@ -13,6 +13,8 @@ assert.match(canaryPs, /\$head -ne \$originMain/u);
 assert.match(canaryPs, /RECOVERY_STAGING_REGISTRATION_EVIDENCE_FILE/u);
 assert.match(canaryPs, /RECOVERY_STAGING_OAUTH_EVIDENCE_FILE/u);
 assert.match(canaryPs, /RECOVERY_STAGING_NETWORK_EVIDENCE_FILE/u);
+assert.match(canaryPs, /RECOVERY_STAGING_ACQUISITION_RECEIPT_FILE/u);
+assert.match(canaryPs, /AcquisitionReceiptFile/u);
 assert.match(canaryPs, /RECOVERY_STAGING_WORKER_EVIDENCE_FILE/u);
 assert.match(canaryPs, /RECOVERY_STAGING_INGRESS_BUILD_IDENTITY_FILE/u);
 assert.match(canaryPs, /COUNTERSIGN_STAGING_RECOVERY/u);
@@ -23,10 +25,15 @@ assert.match(workflow, /evidence_bundle_zip_base64:/u);
 assert.match(workflow, /Run exact-SHA Recovery negative regression suites/u);
 assert.match(workflow, /staging-recovery-negative-test-evidence\.mjs/u);
 assert.match(workflow, /RECOVERY_STAGING_NEGATIVE_TEST_EVIDENCE_FILE/u);
+assert.match(workflow, /STAGING_RECOVERY_ACQUISITION_PUBLIC_KEY/u);
+assert.match(workflow, /STAGING_RECOVERY_ACQUISITION_KEY_ID/u);
+assert.match(workflow, /STAGING_RECOVERY_ACQUISITION_ISSUER/u);
 assert.match(workflow, /test "\$\(git rev-parse origin\/main\)" = "\$\{\{ inputs\.expected_sha \}\}"/u);
 
 assert.match(verifier, /negativeTestEvidence/u);
 assert.match(verifier, /RECOVERY_STAGING_NEGATIVE_TEST_EVIDENCE_FILE/u);
+assert.match(verifier, /createRecoveryExternalAcquisitionAuthority/u);
+assert.match(verifier, /externalEvidenceAcquisitionAuthority/u);
 assert.match(negative, /STAGING_RECOVERY_REQUIRED_NEGATIVE_TESTS/u);
 assert.match(negative, /RECOVERY_STAGING_NEGATIVE_TEST_SUITES_PASSED/u);
 
