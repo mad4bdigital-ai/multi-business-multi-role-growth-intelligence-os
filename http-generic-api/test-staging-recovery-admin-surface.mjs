@@ -23,7 +23,7 @@ import YAML from "yaml";
 import { webcrypto, generateKeyPairSync, sign } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
-import { createFileRecoveryEvidenceStore, createRecoveryReadinessAuthorities, readinessEvidencePayload, recoveryReadinessRouteDependencies, expectedStagingRegistration, expectedStagingGatewayDeployment, RECOVERY_READINESS_EVIDENCE_CONTRACT } from "./recoveryReadinessEvidence.js";
+import { createFileRecoveryEvidenceStore, createRecoveryReadinessAuthorities, readinessEvidencePayload, recoveryReadinessRouteDependencies, expectedStagingRegistration, expectedStagingGatewayDeployment, recoveryExternalEvidenceHash, RECOVERY_EXTERNAL_EVIDENCE_CONTRACT, RECOVERY_READINESS_EVIDENCE_CONTRACT } from "./recoveryReadinessEvidence.js";
 import { buildActivationHostGatewayRoutes } from "./routes/activationHostGatewayRoutes.js";
 import { createActivationGateway, stableJson } from "../edge/activation-gateway/src/gateway.mjs";
 
@@ -504,16 +504,27 @@ test("readiness consumes one signed snapshot; every external pre-live proof is m
     const gateway = await expectedStagingGatewayDeployment();
     const binding = { deployment_sha: cert.deployment_sha, target_fingerprint: cert.target_fingerprint,
       evidence_hash: "e".repeat(64), expires_at: cert.expires_at };
+    function seal(kind, value) {
+      const types = { registration: ["chatgpt_registration", "chatgpt_live_readback"],
+        oauth: ["oauth_browser_round_trip", "oauth_server_correlation"],
+        network: ["origin_network_isolation", "independent_network_probe"] };
+      const base = { ...value, ...binding, contract: RECOVERY_EXTERNAL_EVIDENCE_CONTRACT,
+        evidence_kind: types[kind][0], source_provenance: { source: types[kind][1], observation_id: `test-${kind}-observation` },
+        observed_at: new Date().toISOString(), secrets_included: false };
+      return { ...base, evidence_hash: recoveryExternalEvidenceHash(base) };
+    }
     const payload = {
       contract: RECOVERY_READINESS_EVIDENCE_CONTRACT, issuer: "isolated-test-signer", key_id: "test-key",
       environment: "staging", ...binding, stagingCertification: cert,
       adapterProvenance: completeStagingComposition().adapter_provenance,
-      registrationEvidence: { ...await expectedStagingRegistration(), ...binding, observed_in: "chatgpt" },
-      oauthEvidence: { ...binding, issuer: "https://dev.mad4b.com", resource: "https://activation-dev.mad4b.com",
-        steps: Object.fromEntries(["authorize", "login_consent", "code", "callback", "token", "resource"].map((key) => [key, "pass"])) },
-      networkEvidence: { ...binding, environment: "staging", gateway_host: gateway.gateway_host,
+      registrationEvidence: seal("registration", { ...await expectedStagingRegistration(), observed_in: "chatgpt" }),
+      oauthEvidence: seal("oauth", { issuer: "https://dev.mad4b.com", resource: "https://activation-dev.mad4b.com",
+        steps: Object.fromEntries(["authorize", "login_consent", "code", "callback", "token", "resource"].map((key) => [key, "pass"])) }),
+      networkEvidence: seal("network", { environment: "staging", gateway_host: gateway.gateway_host,
         upstream_origin: gateway.upstream_origin, gateway_only: true, signed_ingress_required: true,
-        network_restriction_verified: true, direct_origin_publicly_reachable: false },
+        network_restriction_verified: true, direct_recovery_surface_bypass_denied: true,
+        direct_recovery_surface_status: 403, direct_recovery_surface_path: "/admin/recovery/staging/contract",
+        signed_gateway_recovery_status: 200, public_health_status: 200 }),
       workerDeploymentEvidence: { ...binding, observed_in: "cloudflare_workers", deployment_verified: true,
         gateway_host: gateway.gateway_host, policy_hash: gateway.policy_hash,
         worker_build_sha: cert.deployment_sha, policy_source_sha: cert.deployment_sha,
@@ -565,7 +576,7 @@ test("readiness consumes one signed snapshot; every external pre-live proof is m
       { registrationEvidence: null }, { oauthEvidence: null }, { networkEvidence: null }, { workerDeploymentEvidence: null },
       { registrationEvidence: { ...payload.registrationEvidence, schema_sha256: "f".repeat(64) } },
       { oauthEvidence: { ...payload.oauthEvidence, resource: "https://activation.mad4b.com" } },
-      { networkEvidence: { ...payload.networkEvidence, direct_origin_publicly_reachable: true } },
+      { networkEvidence: { ...payload.networkEvidence, direct_recovery_surface_bypass_denied: false } },
       { workerDeploymentEvidence: { ...payload.workerDeploymentEvidence, deployed_bundle_sha256: "3".repeat(64) } },
       { workerDeploymentEvidence: { ...payload.workerDeploymentEvidence, release_bundle_sha256: null } },
       { workerDeploymentEvidence: { ...payload.workerDeploymentEvidence, worker_bundle_sha256: "3".repeat(64) } },

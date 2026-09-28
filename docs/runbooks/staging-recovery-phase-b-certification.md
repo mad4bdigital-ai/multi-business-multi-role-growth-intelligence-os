@@ -15,6 +15,23 @@ This runbook closes the live Staging Recovery certification after the Staging de
   - Activation Gateway ingress-build identity evidence.
 - The dedicated Staging Recovery Ed25519 public trust is configured in the Staging app and the corresponding private signing key is configured only in the `staging-recovery-certification` GitHub environment.
 
+Registration, OAuth, and network observations use
+`mad4b.recovery-external-observation.v1`. Each contains `evidence_kind`,
+`source_provenance.source`, a unique observation ID, exact deployment SHA and
+target fingerprint, observation and expiry times (at most one hour apart),
+`secrets_included=false`, and a SHA-256 `evidence_hash` of canonical JSON with
+only that hash field removed. The verifier recomputes the hash, checks the
+contract and expected source identifiers, and rejects secret fields. These
+source identifiers are assertions within the evidence, not independent proof
+of origin. PR-B must add authenticated acquisition before certification can
+claim source authenticity. Do not pass hand-written JSON to the canary.
+
+Network isolation applies to protected `/admin/recovery/staging/*` routes:
+unsigned direct requests must receive a 4xx response, while signed Gateway
+requests must succeed. Public `/health` may remain available. The observation
+records both outcomes and the protected path; acquisition must measure them
+from an independent runner.
+
 ## 1. Produce the genuine local canary and dispatch countersign
 
 From repository root on the Staging Windows host:

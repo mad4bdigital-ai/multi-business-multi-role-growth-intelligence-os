@@ -6,6 +6,7 @@ import {
 import {
   RECOVERY_READINESS_EVIDENCE_CONTRACT,
   evaluateExternalStagingEvidence,
+  verifyRecoveryExternalEvidenceIntegrity,
 } from "./recoveryReadinessEvidence.js";
 import { verifyStagingRecoverySignedCertificationRecord } from "./stagingRecoveryCertificationPublicTrust.js";
 import {
@@ -219,6 +220,16 @@ export async function runGenuineStagingRecoveryCanary({
   if (!adapters || required.some((key) => !adapters[key])) {
     fail("RECOVERY_CANARY_KERNEL_AUTHORITY_UNAVAILABLE", "The complete server-managed Staging Kernel authority graph is required.");
   }
+  const preflightAttestation = await adapters.deploymentIdentityProvider.readAttestation();
+  if (preflightAttestation?.sha !== expectedSha || !SHA256.test(preflightAttestation?.target_fingerprint || "")) {
+    fail("RECOVERY_CANARY_TARGET_BINDING_INVALID", "Exact Staging SHA/target binding is required.");
+  }
+  for (const [kind, evidence] of [["registration", externalEvidence.registrationEvidence],
+    ["oauth", externalEvidence.oauthEvidence], ["network", externalEvidence.networkEvidence]]) {
+    if (!verifyRecoveryExternalEvidenceIntegrity(evidence, {
+      kind, expectedSha, expectedTargetFingerprint: preflightAttestation.target_fingerprint,
+    })) fail("RECOVERY_CANARY_EXTERNAL_INTEGRITY_INVALID", `${kind} evidence integrity is invalid.`);
+  }
   const plan = await createStagingCertificationCanaryPlan(
     { expected_sha: expectedSha },
     { env, recoveryStore: adapters.recoveryStore, deploymentIdentityProvider: adapters.deploymentIdentityProvider },
@@ -323,12 +334,17 @@ export function produceGenuineStagingRecoveryCanaryEvidence({
   }
   fresh(generatedAt, expiresAt);
   const step = kernelArtifacts({ plan, approval, ticket, receipt, run });
-  for (const evidence of [registrationEvidence, oauthEvidence, networkEvidence, workerDeploymentEvidence]) {
-    if (evidence?.deployment_sha !== deploymentAttestation.sha
-      || evidence?.target_fingerprint !== targetIdentity.target_fingerprint
-      || !SHA256.test(evidence?.evidence_hash || "")) {
-      fail("RECOVERY_CANARY_EXTERNAL_BINDING_INVALID", "External evidence binding is invalid.");
-    }
+  for (const [kind, evidence] of [["registration", registrationEvidence],
+    ["oauth", oauthEvidence], ["network", networkEvidence]]) {
+    if (!verifyRecoveryExternalEvidenceIntegrity(evidence, {
+      kind, expectedSha: deploymentAttestation.sha,
+      expectedTargetFingerprint: targetIdentity.target_fingerprint,
+    })) fail("RECOVERY_CANARY_EXTERNAL_INTEGRITY_INVALID", `${kind} evidence integrity is invalid.`);
+  }
+  if (workerDeploymentEvidence?.deployment_sha !== deploymentAttestation.sha
+    || workerDeploymentEvidence?.target_fingerprint !== targetIdentity.target_fingerprint
+    || !SHA256.test(workerDeploymentEvidence?.evidence_hash || "")) {
+    fail("RECOVERY_CANARY_EXTERNAL_BINDING_INVALID", "Worker evidence binding is invalid.");
   }
   if (ingressBuildIdentity?.deployment_sha !== deploymentAttestation.sha) {
     fail("RECOVERY_CANARY_INGRESS_BINDING_INVALID", "Ingress build binding is invalid.");

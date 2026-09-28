@@ -3,7 +3,8 @@ import test from "node:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { expectedStagingGatewayDeployment, expectedStagingRegistration } from "./recoveryReadinessEvidence.js";
+import { expectedStagingGatewayDeployment, expectedStagingRegistration, recoveryExternalEvidenceHash,
+  verifyRecoveryExternalEvidenceIntegrity, RECOVERY_EXTERNAL_EVIDENCE_CONTRACT } from "./recoveryReadinessEvidence.js";
 import { RECOVERY_CERTIFICATION_TRACE_STEPS, certificationPayloadHash } from "./recoveryActivationReadiness.js";
 import { _testingStagingRecoveryAuthorityBinding } from "./stagingRecoveryAuthorityBinding.js";
 import {
@@ -34,10 +35,21 @@ function negativeEvidence(exactSha = SHA, status = "pass") {
     secrets_included: false,
   };
 }
+function seal(kind, payload, targetFingerprint = TARGET) {
+  const source = { registration: "chatgpt_live_readback", oauth: "oauth_server_correlation",
+    network: "independent_network_probe" }[kind];
+  const evidence_kind = { registration: "chatgpt_registration", oauth: "oauth_browser_round_trip",
+    network: "origin_network_isolation" }[kind];
+  const base = { ...payload, contract: RECOVERY_EXTERNAL_EVIDENCE_CONTRACT, evidence_kind,
+    source_provenance: { source, observation_id: `test-${kind}-observation` }, deployment_sha: SHA,
+    target_fingerprint: targetFingerprint, observed_at: new Date().toISOString(),
+    expires_at: new Date(Date.now() + 60_000).toISOString(), secrets_included: false };
+  return { ...base, evidence_hash: recoveryExternalEvidenceHash(base) };
+}
 async function input(targetFingerprint = TARGET) {
   const registration = await expectedStagingRegistration(); const gateway = await expectedStagingGatewayDeployment();
   const bound = { deployment_sha: SHA, target_fingerprint: targetFingerprint, evidence_hash: H, expires_at: new Date(Date.now() + 60_000).toISOString() };
-  return { deploymentAttestation: { environment: "staging", sha: SHA, target_fingerprint: targetFingerprint, attestation_hash: H }, targetIdentity: { environment: "staging", target_fingerprint: targetFingerprint }, ...artifacts(), registrationEvidence: { ...bound, ...registration, observed_in: "chatgpt" }, oauthEvidence: { ...bound, issuer: "https://dev.mad4b.com", resource: "https://activation-dev.mad4b.com", steps: Object.fromEntries(["authorize", "login_consent", "code", "callback", "token", "resource"].map((v) => [v, "pass"])) }, networkEvidence: { ...bound, environment: "staging", gateway_host: gateway.gateway_host, upstream_origin: gateway.upstream_origin, gateway_only: true, signed_ingress_required: true, network_restriction_verified: true, direct_origin_publicly_reachable: false }, workerDeploymentEvidence: { ...bound, observed_in: "cloudflare_workers", deployment_verified: true, gateway_host: gateway.gateway_host, policy_hash: gateway.policy_hash, worker_build_sha: SHA, policy_source_sha: SHA, worker_bundle_sha256: H, release_bundle_sha256: H, deployed_bundle_sha256: H }, ingressBuildIdentity: { deployment_sha: SHA, worker_build_sha: SHA, worker_bundle_sha256: H, policy_hash: gateway.policy_hash, gateway_host: gateway.gateway_host, expires_at: Math.floor(Date.now() / 1000) + 60 }, artifactIntegrity: { valid: true, manifest_sha256: H }, nonce: "nonce:protocol-test", certificationRunId: "cert-run:protocol-test" };
+  return { deploymentAttestation: { environment: "staging", sha: SHA, target_fingerprint: targetFingerprint, attestation_hash: H }, targetIdentity: { environment: "staging", target_fingerprint: targetFingerprint }, ...artifacts(), registrationEvidence: seal("registration", { ...registration, observed_in: "chatgpt" }, targetFingerprint), oauthEvidence: seal("oauth", { issuer: "https://dev.mad4b.com", resource: "https://activation-dev.mad4b.com", steps: Object.fromEntries(["authorize", "login_consent", "code", "callback", "token", "resource"].map((v) => [v, "pass"])) }, targetFingerprint), networkEvidence: seal("network", { environment: "staging", gateway_host: gateway.gateway_host, upstream_origin: gateway.upstream_origin, gateway_only: true, signed_ingress_required: true, network_restriction_verified: true, direct_recovery_surface_bypass_denied: true, direct_recovery_surface_status: 403, direct_recovery_surface_path: "/admin/recovery/staging/contract", signed_gateway_recovery_status: 200, public_health_status: 200 }, targetFingerprint), workerDeploymentEvidence: { ...bound, observed_in: "cloudflare_workers", deployment_verified: true, gateway_host: gateway.gateway_host, policy_hash: gateway.policy_hash, worker_build_sha: SHA, policy_source_sha: SHA, worker_bundle_sha256: H, release_bundle_sha256: H, deployed_bundle_sha256: H }, ingressBuildIdentity: { deployment_sha: SHA, worker_build_sha: SHA, worker_bundle_sha256: H, policy_hash: gateway.policy_hash, gateway_host: gateway.gateway_host, expires_at: Math.floor(Date.now() / 1000) + 60 }, artifactIntegrity: { valid: true, manifest_sha256: H }, nonce: "nonce:protocol-test", certificationRunId: "cert-run:protocol-test" };
 }
 
 test("runner executes the real Recovery Kernel lifecycle with the durable Staging adapters", async () => {
@@ -59,6 +71,38 @@ test("genuine producer derives lifecycle and server identity bindings only from 
   assert.throws(() => produceGenuineStagingRecoveryCanaryEvidence({ ...source, run: { ...source.run, events: source.run.events.slice(0, -1) } }), (e) => e.code === "RECOVERY_CANARY_LIFECYCLE_INVALID");
   assert.throws(() => produceGenuineStagingRecoveryCanaryEvidence({ ...source, deploymentAttestation: { ...source.deploymentAttestation, attestation_hash: null } }), (e) => e.code === "RECOVERY_CANARY_TARGET_BINDING_INVALID");
   assert.throws(() => produceGenuineStagingRecoveryCanaryEvidence({ ...source, receipt: { ...source.receipt, mutation_attestation: { ...source.receipt.mutation_attestation, database_mutation_performed: true } } }), (e) => e.code === "RECOVERY_CANARY_SAFETY_BOUNDARY_INVALID");
+});
+
+test("external evidence integrity rejects mutations, fabricated hashes, stale or secret-bearing observations", async () => {
+  const source = await input();
+  const valid = source.registrationEvidence;
+  const check = (e, kind = "registration", target = TARGET) => verifyRecoveryExternalEvidenceIntegrity(e,
+    { kind, expectedSha: SHA, expectedTargetFingerprint: target });
+  assert.equal(check(valid), true);
+  assert.equal(check({ ...valid, operation_count: 999 }), false);
+  assert.equal(check({ ...valid, evidence_hash: "f".repeat(64) }), false);
+  assert.equal(check(valid, "registration", "d".repeat(64)), false);
+  assert.equal(verifyRecoveryExternalEvidenceIntegrity(valid, { kind: "registration", expectedSha: "d".repeat(40), expectedTargetFingerprint: TARGET }), false);
+  for (const altered of [
+    { contract: "wrong" }, { evidence_kind: "oauth_browser_round_trip" },
+    { source_provenance: { source: "caller_flags", observation_id: "fake-observation" } },
+    { expires_at: new Date(Date.now() - 1).toISOString() },
+    { access_token: "never-persist-token" }, { nested: { client_secret: "no" } },
+    { secrets_included: true },
+  ]) {
+    const candidate = { ...valid, ...altered };
+    candidate.evidence_hash = recoveryExternalEvidenceHash(candidate);
+    assert.equal(check(candidate), false, JSON.stringify(altered));
+  }
+  const network = source.networkEvidence;
+  assert.equal(check(network, "network"), true, "public /health remains allowed");
+  for (const altered of [{ direct_recovery_surface_bypass_denied: false }, { direct_recovery_surface_status: 200 },
+    { signed_gateway_recovery_status: 403 }, { direct_recovery_surface_path: "/health" }]) {
+    const candidate = { ...network, ...altered };
+    candidate.evidence_hash = recoveryExternalEvidenceHash(candidate);
+    assert.throws(() => produceGenuineStagingRecoveryCanaryEvidence({ ...source, networkEvidence: candidate }),
+      (error) => error.code === "RECOVERY_CANARY_EXTERNAL_INTEGRITY_INVALID");
+  }
 });
 
 test("independent verifier binds negative tests and emits the complete Production-consumable certification", async () => {
