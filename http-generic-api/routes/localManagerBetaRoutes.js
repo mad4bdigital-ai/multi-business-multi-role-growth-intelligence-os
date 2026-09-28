@@ -666,9 +666,9 @@ async function approveDevice(){
         $('authState').innerHTML = '<span class="bad">Approval saved, but the pairing session did not return an exact device identity. Start a fresh device link from the Windows app.</span>';
         return false;
       }
-      const retryPath = '/app/local-manager/link-device?code=' + encodeURIComponent(code) + '&auto_retry=1';
-      const setupUrl = '/connect?device_id=' + encodeURIComponent(pairingDeviceId) + '&return_to=' + encodeURIComponent(retryPath);
-      $('authState').innerHTML = '<span class="bad">Approval saved. Connector setup is incomplete; the device is not linked yet. Complete connector installation, then return and approve again.</span> <a href="' + setupUrl + '">Open account setup</a>';
+      const setupReturnPath = '/app/local-manager/link-device?code=' + encodeURIComponent(code) + '&setup_return=1';
+      const setupUrl = '/connect?device_id=' + encodeURIComponent(pairingDeviceId) + '&return_to=' + encodeURIComponent(setupReturnPath);
+      $('authState').innerHTML = '<span class="bad">Approval saved. Connector setup is incomplete; the device is not linked yet. Complete connector installation; the Windows app will continue polling this approved session automatically.</span> <a href="' + setupUrl + '">Open account setup</a>';
       return false;
     }
     const msg = data.already_linked
@@ -706,9 +706,9 @@ async function initializeLinkDevicePage(){
   $('codePreview').textContent = $('deviceCode').value || '---- ----';
   await loadPreview();
   if(signedIn && normalizeCode($('deviceCode').value)){
-    const autoRetry = new URLSearchParams(window.location.search).get('auto_retry') === '1';
-    if(autoRetry){
-      await approveDevice();
+    const returnedFromSetup = new URLSearchParams(window.location.search).get('setup_return') === '1';
+    if(returnedFromSetup){
+      setOut({ok:true,status:'connector_setup_returned',message:'Connector setup returned. Your explicit approval is already saved; the Windows app will continue polling and complete the same session automatically.'});
       return;
     }
     setOut({ok:true,status:'signed_in',message:'Signed in. Review the device details, then click Approve device.'});

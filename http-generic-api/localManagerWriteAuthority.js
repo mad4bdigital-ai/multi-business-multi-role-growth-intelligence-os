@@ -138,11 +138,13 @@ function accountToGrantee(value) {
 
 export async function assertLocalManagerWritePrivilegeReadiness({
   pool = null,
-  expectedDatabase = process.env.DB_NAME,
-  expectedUser = process.env.LOCAL_MANAGER_WRITE_DB_USER,
+  expectedDatabase = null,
+  expectedUser = null,
   env = process.env,
 } = {}) {
   const databaseEnvironment = localManagerWriteEnvironmentBinding(env);
+  const resolvedExpectedDatabase = clean(expectedDatabase ?? env.DB_NAME, 128);
+  const resolvedExpectedUser = clean(expectedUser ?? env.LOCAL_MANAGER_WRITE_DB_USER, 128);
   const writer = pool || getLocalManagerWritePool(env);
   const [identityRows] = await writer.query("SELECT CURRENT_USER() AS current_account, DATABASE() AS current_database");
   const currentAccount = clean(identityRows?.[0]?.current_account, 255);
@@ -150,12 +152,12 @@ export async function assertLocalManagerWritePrivilegeReadiness({
   if (!currentAccount || !currentDatabase) {
     throw fail("LOCAL_MANAGER_WRITE_IDENTITY_READBACK_FAILED", "Dedicated Local Manager DB identity/database readback failed.");
   }
-  if (expectedDatabase && currentDatabase !== clean(expectedDatabase, 128)) {
+  if (resolvedExpectedDatabase && currentDatabase !== resolvedExpectedDatabase) {
     throw fail("LOCAL_MANAGER_WRITE_DB_TARGET_MISMATCH", "Writer database readback does not match the runtime database.");
   }
   const separator = currentAccount.lastIndexOf("@");
   const currentUser = (separator > 0 ? currentAccount.slice(0, separator) : currentAccount).replace(/^'+|'+$/gu, "");
-  if (!expectedUser || currentUser !== clean(expectedUser, 128)) {
+  if (!resolvedExpectedUser || currentUser !== resolvedExpectedUser) {
     throw fail("LOCAL_MANAGER_WRITE_CURRENT_ACCOUNT_MISMATCH", "CURRENT_USER() does not match the configured dedicated Local Manager writer.");
   }
   const grantee = accountToGrantee(currentAccount);

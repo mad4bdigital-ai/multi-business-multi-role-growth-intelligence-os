@@ -19,6 +19,7 @@ const base = {
   CONTROL_PLANE_WRITE_DB_USER: "control_plane_writer",
   CONTROL_PLANE_WRITE_DB_PASSWORD: "writer_fixture_password",
   LOCAL_MANAGER_WRITE_AUTHORITY_ENABLED: "true",
+  LOCAL_MANAGER_WRITE_DB_ENVIRONMENT: "production",
   LOCAL_MANAGER_WRITE_DB_HOST: "db",
   LOCAL_MANAGER_WRITE_DB_NAME: "growth_runtime",
   LOCAL_MANAGER_WRITE_DB_USER: "local_manager_writer",
@@ -55,6 +56,14 @@ assert.match(localManagerWriteReused.errors.join("\n"), /LOCAL_MANAGER_WRITE_DB_
 const localManagerWriteRoot = evaluateProductionConfig({ ...base, LOCAL_MANAGER_WRITE_DB_USER: "root" });
 assert.equal(localManagerWriteRoot.ok, false);
 assert.match(localManagerWriteRoot.errors.join("\n"), /LOCAL_MANAGER_WRITE_DB_USER must not be root/);
+const localManagerWriteEnvironmentMissing = evaluateProductionConfig({ ...base, LOCAL_MANAGER_WRITE_DB_ENVIRONMENT: "" });
+assert.equal(localManagerWriteEnvironmentMissing.ok, false);
+assert.equal(localManagerWriteEnvironmentMissing.local_manager_write.status, "invalid");
+assert.match(localManagerWriteEnvironmentMissing.errors.join("\n"), /LOCAL_MANAGER_WRITE_DB_ENVIRONMENT/);
+const localManagerWriteEnvironmentMismatch = evaluateProductionConfig({ ...base, LOCAL_MANAGER_WRITE_DB_ENVIRONMENT: "staging" });
+assert.equal(localManagerWriteEnvironmentMismatch.ok, false);
+assert.equal(localManagerWriteEnvironmentMismatch.local_manager_write.runtime_target_bound, false);
+assert.match(localManagerWriteEnvironmentMismatch.errors.join("\n"), /LOCAL_MANAGER_WRITE_DB_ENVIRONMENT_MISMATCH/);
 assert.equal(ready.oauth_client.confidential_compat_enabled, false);
 assert.equal(ready.oauth_client.confidential_compat_source, "secure_default_disabled");
 assert.equal(ready.managed_google_oauth.enabled, false);

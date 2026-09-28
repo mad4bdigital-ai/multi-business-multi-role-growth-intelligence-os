@@ -13,8 +13,9 @@ publication or live-device certification is performed by opening or merging this
 | Release tag | `local-manager-windows-latest` | `local-manager-windows-staging` |
 
 Each environment owns its database, keys, sessions, aliases and release records. Never copy
-production operational rows or secrets into staging. The Local Manager writer must target its
-runtime's DB_HOST/PORT/NAME with a distinct non-root user. Governance, persistence and recovery
+production operational rows or secrets into staging. The Local Manager writer must declare
+`LOCAL_MANAGER_WRITE_DB_ENVIRONMENT=production|staging` to match the resolved runtime, target
+that runtime's DB_HOST/PORT/NAME, and use a distinct non-root user. Governance, persistence and recovery
 stores keep their own existing authority contracts. No DDL/GRANT or runtime fallback is added.
 
 Windows credentials, registration, shortcuts, app state, pipes and DPAPI entropy are isolated.
@@ -58,10 +59,11 @@ service health, desktop commands and user consent still require behavioral verif
    Server misconfiguration is 503; invalid/expired credentials are 401. Key rotation requires relinking.
 4. Reconcile exact user/tenant/device/config identity. Duplicate identities fail closed; a sole
    unrelated account connector is not adopted. Installer-link issuance performs no alias writes.
-5. For a first device, complete authenticated account setup and `/connect/device-install`, then
-   return and approve the pending pairing. Approved-but-incomplete sessions wait for canonical
-   connector setup without issuing a repair token or provisioning provider resources implicitly.
-   Start a new code after ten minutes. Missing provisioning authority remains a deployment blocker,
+5. For a first device, explicitly approve the reviewed pairing once, then complete authenticated
+   account setup and `/connect/device-install` for that exact device identity. The approved session
+   remains pending while connector setup is incomplete; after provisioning, Windows polling completes
+   that same approval automatically. A browser return is status-only and must never call approval
+   implicitly. Start a new code after ten minutes. Missing provisioning authority remains a deployment blocker,
    not permission to broaden the pairing writer's grants.
 6. Publish tested 0.2.31 artifacts/checksums via the existing release process; reconcile the registry
    through its governed owner. Never invent a checksum in SQL. Staging CI uploads a separate artifact
