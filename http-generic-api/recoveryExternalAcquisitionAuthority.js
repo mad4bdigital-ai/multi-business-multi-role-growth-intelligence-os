@@ -18,6 +18,7 @@ const SAFE_ID = /^[A-Za-z0-9._:@/-]{8,200}$/u;
 const SIGNATURE = /^[A-Za-z0-9_-]{86}$/u;
 const MAX_TTL_MS = 60 * 60 * 1000;
 const authorities = new WeakSet();
+const sourceVerifications = new WeakSet();
 
 const SOURCE = Object.freeze({
   registration: Object.freeze({
@@ -118,6 +119,38 @@ function invalid(reason_code, detail = null) {
   });
 }
 
+export function brandRecoveryExternalSourceVerification(kind, value, evidence) {
+  const source = SOURCE[kind];
+  if (
+    !source ||
+    !value ||
+    typeof value !== "object" ||
+    Array.isArray(value) ||
+    value.verified !== true ||
+    value.source !== source.source ||
+    value.evidence_hash !== evidence?.evidence_hash ||
+    value.source_proof_hash !== recoveryExternalSourceProofHash(evidence) ||
+    value.secrets_included !== false
+  ) {
+    return value;
+  }
+  sourceVerifications.add(value);
+  return value;
+}
+
+function isBrandedSourceVerification(kind, value, evidence) {
+  const source = SOURCE[kind];
+  return Boolean(
+    source &&
+      sourceVerifications.has(value) &&
+      value?.verified === true &&
+      value?.source === source.source &&
+      value?.evidence_hash === evidence?.evidence_hash &&
+      value?.source_proof_hash === recoveryExternalSourceProofHash(evidence) &&
+      value?.secrets_included === false
+  );
+}
+
 function observationValid(kind, observation, evidence) {
   const source = SOURCE[kind];
   return Boolean(
@@ -216,7 +249,10 @@ function verifyReceiptInternal(
 
   let key;
   try {
-    key = createPublicKey(publicKey);
+    key =
+      publicKey?.type === "public" && publicKey?.asymmetricKeyType
+        ? publicKey
+        : createPublicKey(publicKey);
   } catch {
     return invalid("RECOVERY_EXTERNAL_ACQUISITION_KEY_INVALID");
   }
@@ -360,11 +396,7 @@ export function signRecoveryExternalAcquisitionReceipt(
       );
     }
     const sourceResult = sourceVerification?.[kind];
-    if (
-      sourceResult?.verified !== true ||
-      sourceResult?.evidence_hash !== evidence.evidence_hash ||
-      sourceResult?.source_proof_hash !== recoveryExternalSourceProofHash(evidence)
-    ) {
+    if (!isBrandedSourceVerification(kind, sourceResult, evidence)) {
       const code =
         kind === "registration"
           ? "RECOVERY_REGISTRATION_SOURCE_ATTESTATION_UNAVAILABLE"
