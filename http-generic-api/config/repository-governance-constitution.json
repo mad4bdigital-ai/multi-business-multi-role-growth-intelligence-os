@@ -324,6 +324,7 @@
       "risk": "low",
       "patterns": [
         "docs/**",
+        "AI_Agent_Knowledge_Guide.md",
         "README.md",
         "STAGING-DEEP-AUDIT-2026-08-15.md",
         "STAGING-WINDOWS.md",
