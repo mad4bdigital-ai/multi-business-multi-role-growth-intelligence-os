@@ -11,7 +11,10 @@
       ".changes/e2e/staging-recovery-external-evidence-integrity-20260928.json",
       "AI_Agent_Knowledge_Guide.md",
       "docs/runbooks/staging-recovery-phase-b-certification.md",
+      "http-generic-api/config/deployment-branch-policy.json",
+      "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/recoveryReadinessEvidence.js",
+      "http-generic-api/test-environment-impact-closure.mjs",
       "http-generic-api/stagingRecoveryCertificationProtocol.js",
       "http-generic-api/test-staging-recovery-admin-surface.mjs",
       "http-generic-api/test-staging-recovery-certification-protocol.mjs"
@@ -56,7 +59,10 @@
           ],
           "evidence_paths": [
             ".changes/e2e/staging-recovery-external-evidence-integrity-20260928.json",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/config/repository-governance-constitution.json",
             "http-generic-api/recoveryReadinessEvidence.js",
+            "http-generic-api/test-environment-impact-closure.mjs",
             "http-generic-api/stagingRecoveryCertificationProtocol.js",
             "http-generic-api/test-staging-recovery-certification-protocol.mjs",
             "http-generic-api/test-staging-recovery-admin-surface.mjs"
