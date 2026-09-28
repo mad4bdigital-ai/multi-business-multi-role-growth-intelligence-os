@@ -314,11 +314,95 @@ jobs:
           RECOVERY_STAGING_NEGATIVE_TEST_EVIDENCE_FILE: ${{ runner.temp }}/staging-recovery-negative-tests.json
         run: node .github/scripts/staging-recovery-negative-test-evidence.mjs
 
+      - name: Independently observe deployed Staging Worker
+        shell: bash
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          WORKER_NAME: mad4b-activation-gateway-staging
+          SOURCE_SHA: ${{ inputs.expected_sha }}
+          PUBLIC_HEALTH_URL: https://activation-dev.mad4b.com/health
+          STAGING_WORKER_PROVIDER_OBSERVATION_FILE: ${{ runner.temp }}/staging-recovery-live-worker-provider.json
+        run: |
+          set -euo pipefail
+
+          export EXPECTED_POLICY_HASH="$(
+            node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const policy = JSON.parse(
+            fs.readFileSync(
+              "edge/activation-gateway/generated/route-policy.staging.json",
+              "utf8",
+            ),
+          );
+          process.stdout.write(policy.content_hash_sha256);
+          NODE
+          )"
+
+          [[ "$EXPECTED_POLICY_HASH" =~ ^[a-f0-9]{64}$ ]]
+
+          node .github/scripts/staging-recovery-worker-provider-evidence.mjs
+
+      - name: Capture fresh Gateway ingress-build identity
+        shell: bash
+        env:
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          EXPECTED_TARGET_FINGERPRINT: ${{ inputs.expected_target_fingerprint }}
+        run: |
+          set -euo pipefail
+
+          test -n "$BACKEND_API_KEY"
+
+          response_file="$RUNNER_TEMP/staging-recovery-live-readiness.json"
+          ingress_file="$RUNNER_TEMP/staging-recovery-live-ingress.json"
+
+          status="$(
+            curl \
+              --silent \
+              --show-error \
+              --output "$response_file" \
+              --write-out '%{http_code}' \
+              --connect-timeout 10 \
+              --max-time 20 \
+              --header "Authorization: Bearer $BACKEND_API_KEY" \
+              --header "Accept: application/json" \
+              "https://activation-dev.mad4b.com/admin/recovery/staging/readiness"
+          )"
+
+          test "$status" = "200"
+
+          jq -e \
+            --arg sha "$EXPECTED_SHA" \
+            --arg target "$EXPECTED_TARGET_FINGERPRINT" '
+              .environment == "staging"
+              and .target_fingerprint == $target
+              and .deployment_attestation.sha == $sha
+              and .ingress_build_identity.deployment_sha == $sha
+              and .ingress_build_identity.worker_build_sha == $sha
+              and (.ingress_build_identity.worker_bundle_sha256
+                   | test("^[a-f0-9]{64}$"))
+              and (.ingress_build_identity.policy_hash
+                   | test("^[a-f0-9]{64}$"))
+              and .ingress_build_identity.gateway_host
+                  == "activation-dev.mad4b.com"
+              and (.ingress_build_identity.expires_at | type) == "number"
+              and .ingress_build_identity.expires_at > now
+              and .secrets_included == false
+            ' "$response_file" >/dev/null
+
+          jq '.ingress_build_identity' \
+            "$response_file" > "$ingress_file"
+
+          rm -f "$response_file"
+
       - name: Independently verify and countersign
         env:
           RECOVERY_STAGING_EVIDENCE_DIRECTORY: ${{ runner.temp }}/staging-recovery-canary
           RECOVERY_STAGING_COUNTERSIGN_OUTPUT_DIRECTORY: ${{ runner.temp }}/staging-recovery-countersign
           RECOVERY_STAGING_NEGATIVE_TEST_EVIDENCE_FILE: ${{ runner.temp }}/staging-recovery-negative-tests.json
+          RECOVERY_STAGING_LIVE_WORKER_PROVIDER_OBSERVATION_FILE: ${{ runner.temp }}/staging-recovery-live-worker-provider.json
+          RECOVERY_STAGING_LIVE_INGRESS_BUILD_IDENTITY_FILE: ${{ runner.temp }}/staging-recovery-live-ingress.json
           RECOVERY_STAGING_EXPECTED_TARGET_FINGERPRINT: ${{ inputs.expected_target_fingerprint }}
           RECOVERY_STAGING_CERTIFICATION_PRIVATE_KEY: ${{ secrets.RECOVERY_STAGING_CERTIFICATION_PRIVATE_KEY }}
           RECOVERY_STAGING_CERTIFICATION_ISSUER: ${{ vars.RECOVERY_STAGING_CERTIFICATION_ISSUER }}

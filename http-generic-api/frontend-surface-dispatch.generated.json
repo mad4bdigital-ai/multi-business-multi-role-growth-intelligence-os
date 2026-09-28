@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "84cfb344baea242bbd77acd947f61008dcb68fe7e16d5f3291d52ff163d4ed56",
+    "source_digest": "b4a97d9b60c644e638c91f5e47f3f738673fffdc11502312ef59f812a9bb21b6",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -986,7 +986,7 @@
       },
       {
         "file": "routes/stagingRecoveryAdminRoutes.js",
-        "sha256": "a2652174b1788eac1d8fb6255022da1664f26a320e8abf7db076061495ee7ae7",
+        "sha256": "d98740a6277dd51f854fd3242ae02d79898da739811b6a70c0415811a5a7a487",
         "present": true
       },
       {
@@ -1176,7 +1176,7 @@
       },
       {
         "file": "test-staging-recovery-admin-surface.mjs",
-        "sha256": "af5bc4ba453e1a18c22065d717867fc9ca5e4d9f68c7326e3ca308f6e41deb67",
+        "sha256": "6d89164dba2892b97b9e9d01c94932eb06af0f54de78ffc5052fafff25350121",
         "present": true
       },
       {
@@ -4205,7 +4205,7 @@
       "family_key": "staging-recovery-admin",
       "label": "staging recovery admin",
       "source_file": "routes/stagingRecoveryAdminRoutes.js",
-      "source_digest": "a2652174b1788eac1d8fb6255022da1664f26a320e8abf7db076061495ee7ae7",
+      "source_digest": "d98740a6277dd51f854fd3242ae02d79898da739811b6a70c0415811a5a7a487",
       "mount_prefix": "/",
       "mount_order": 13869,
       "split_from_mixed_scope_file": false,
