@@ -1,0 +1,118 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-recovery-external-acquisition-b1-20260928",
+  "title": "Bind Staging Recovery external source authenticity to a signed acquisition authority",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-recovery-external-acquisition-b1-20260928.json",
+      ".github/derived-state-governance.json",
+      ".github/governance/test-authority-registry.json",
+      ".github/scripts/staging-recovery-sign-acquisition-receipt.mjs",
+      ".github/scripts/staging-recovery-verify-and-countersign.mjs",
+      ".github/workflows/staging-post-deploy-verification.yml",
+      ".github/workflows/staging-recovery-external-evidence-acquisition.yml",
+      "AI_Agent_Knowledge_Guide.md",
+      "autopilot-portable-staging/Invoke-StagingRecoveryCertificationCanary.ps1",
+      "docs/runbooks/staging-recovery-phase-b-certification.md",
+      "http-generic-api/.env.staging.example",
+      "http-generic-api/recoveryExternalAcquisitionAuthority.js",
+      "http-generic-api/recoveryReadinessEvidence.js",
+      "http-generic-api/scripts/staging-recovery-acquire-network-evidence.mjs",
+      "http-generic-api/scripts/staging-recovery-acquire-oauth-evidence.mjs",
+      "http-generic-api/scripts/staging-recovery-acquire-registration-evidence.mjs",
+      "http-generic-api/scripts/staging-recovery-genuine-canary.mjs",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/stagingRecoveryAuthorityBinding.js",
+      "http-generic-api/stagingRecoveryAuthorityBindingPhaseB.js",
+      "http-generic-api/stagingRecoveryCertificationProtocol.js",
+      "http-generic-api/stagingRecoveryExternalEvidence.js",
+      "http-generic-api/test-staging-recovery-certification-script-surface.mjs",
+      "http-generic-api/test-staging-recovery-external-acquisition-authority.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "production",
+      "staging"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Replace the static external-acquisition gate with a server-branded Ed25519 receipt authority, add canonical Network/OAuth/Registration producers, keep Registration and unavailable OAuth acquisition fail-closed, and require receipt verification before canary, countersign, signing, and readiness.",
+      "e2e_journeys": [
+        {
+          "id": "staging-recovery-signed-external-acquisition-authority",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging Recovery acquisition verifier",
+          "entrypoint": "Validate signed receipt authority and exercise PR-B1 fail-closed external acquisition boundaries",
+          "terminal_outcome": "Network acquisition can verify, OAuth correlation contract is enforced, registration source authenticity remains unavailable, no live receipt is signed, and no canary/countersign/readiness path can be opened by caller flags or fabricated JSON.",
+          "steps": [
+            "Construct server-branded acquisition authority from dedicated Ed25519 public trust.",
+            "Verify receipt signature, key identity, exact SHA/target, TTL, evidence hashes and source-proof hashes.",
+            "Reject key reuse with Activation Gateway ingress or Recovery certification trust.",
+            "Validate same-request Network acquisition using direct trusted-ingress 403 and Gateway 2xx.",
+            "Validate ordered no-secret OAuth server-correlation events and redirect-URI hash binding.",
+            "Keep ChatGPT registration source verification unavailable even when registration parity is valid.",
+            "Require acquisition receipt transport before local canary and independent countersign.",
+            "Confirm PR-B1 workflow records OAuth/Registration blockers and never consumes the private acquisition key on the blocked path."
+          ],
+          "assertions": [
+            "No environment flag, caller verified field, manual JSON or operator acknowledgement can manufacture acquisition authority.",
+            "A direct-origin generic or host-isolation 404 cannot sign PR-B1 acquisition authority; the explicit trusted-ingress 403 is required.",
+            "OAuth token, authorization-code, credential or secret fields are rejected.",
+            "Registration parity without provider/source attestation cannot produce a signed acquisition receipt.",
+            "Acquisition and certification signing keys remain separate from Gateway ingress trust.",
+            "Production mutation, provider mutation and database mutation remain prohibited."
+          ],
+          "tests": [
+            {
+              "id": "staging-recovery-external-acquisition-authority",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-external-acquisition-authority.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-recovery-certification-protocol",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-certification-protocol.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-recovery-certification-script-surface",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-certification-script-surface.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-recovery-external-acquisition-b1-20260928.json",
+            ".github/workflows/staging-recovery-external-evidence-acquisition.yml",
+            ".github/scripts/staging-recovery-sign-acquisition-receipt.mjs",
+            "http-generic-api/recoveryExternalAcquisitionAuthority.js",
+            "http-generic-api/stagingRecoveryExternalEvidence.js",
+            "http-generic-api/stagingRecoveryCertificationProtocol.js",
+            "http-generic-api/recoveryReadinessEvidence.js",
+            "docs/runbooks/staging-recovery-phase-b-certification.md"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
