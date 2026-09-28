@@ -6,6 +6,8 @@ const publishPs = readFileSync("../autopilot-portable-staging/Invoke-StagingReco
 const workflow = readFileSync("../.github/workflows/staging-post-deploy-verification.yml", "utf8");
 const verifier = readFileSync("../.github/scripts/staging-recovery-verify-and-countersign.mjs", "utf8");
 const negative = readFileSync("../.github/scripts/staging-recovery-negative-test-evidence.mjs", "utf8");
+const acquisitionWorkflow = readFileSync("../.github/workflows/staging-recovery-external-evidence-acquisition.yml", "utf8");
+const acquisitionSigner = readFileSync("../.github/scripts/staging-recovery-sign-acquisition-receipt.mjs", "utf8");
 
 assert.match(canaryPs, /git" -Arguments @\("fetch", "origin", "main"\)/u);
 assert.match(canaryPs, /\$branch -ne "main"/u);
@@ -36,6 +38,13 @@ assert.match(verifier, /createRecoveryExternalAcquisitionAuthority/u);
 assert.match(verifier, /externalEvidenceAcquisitionAuthority/u);
 assert.match(negative, /STAGING_RECOVERY_REQUIRED_NEGATIVE_TESTS/u);
 assert.match(negative, /RECOVERY_STAGING_NEGATIVE_TEST_SUITES_PASSED/u);
+assert.match(acquisitionWorkflow, /staging-recovery-acquisition/u);
+assert.match(acquisitionWorkflow, /RECOVERY_OAUTH_SERVER_CORRELATION_SOURCE_UNAVAILABLE/u);
+assert.match(acquisitionWorkflow, /RECOVERY_REGISTRATION_SOURCE_ATTESTATION_UNAVAILABLE/u);
+assert.match(acquisitionWorkflow, /receipt_signed: false/u);
+assert.doesNotMatch(acquisitionWorkflow, /STAGING_RECOVERY_ACQUISITION_PRIVATE_KEY/u);
+assert.match(acquisitionSigner, /STAGING_RECOVERY_ACQUISITION_PRIVATE_KEY/u);
+assert.match(acquisitionSigner, /unavailableRegistrationSourceVerification/u);
 
 assert.match(publishPs, /gh run view/u);
 assert.match(publishPs, /conclusion -ne "success"/u);
