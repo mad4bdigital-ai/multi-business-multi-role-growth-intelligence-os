@@ -370,14 +370,19 @@ export function verifyRecoveryOAuthServerCorrelationSource(evidence, options = {
     ) {
       return Object.freeze({ verified: false, reason_code: "RECOVERY_OAUTH_SOURCE_INVALID", secrets_included: false });
     }
-    const result = Object.freeze({
-      verified: true,
+
+    // The repository currently has a correlation envelope library, but it is
+    // not wired into the live OAuth authorize/code/token/gateway handlers as a
+    // server-owned acquisition source. Therefore a file of structurally valid
+    // events is evidence structure only, never source authenticity.
+    return Object.freeze({
+      verified: false,
+      reason_code: "RECOVERY_OAUTH_SERVER_CORRELATION_SOURCE_UNAVAILABLE",
       evidence_hash: evidence.evidence_hash,
       source_proof_hash: recoveryExternalSourceProofHash(evidence),
       source: "oauth_server_correlation",
       secrets_included: false,
     });
-    return brandRecoveryExternalSourceVerification("oauth", result, evidence);
   } catch {
     return Object.freeze({ verified: false, reason_code: "RECOVERY_OAUTH_SOURCE_INVALID", secrets_included: false });
   }
