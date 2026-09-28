@@ -18,6 +18,8 @@
       ".github/workflows/staging-post-deploy-verification.yml",
       "AI_Agent_Knowledge_Guide.md",
       "autopilot-portable-staging/Invoke-StagingRecoveryCertificationCanary.ps1",
+      "docs/governance/configuration-drift-baseline-extensions.json",
+      "docs/governance/platform-configuration-entry-registry.json",
       "docs/runbooks/staging-recovery-phase-b-certification.md",
       "http-generic-api/.env.staging.example",
       "http-generic-api/recoveryExternalAcquisitionAuthority.js",
@@ -102,11 +104,13 @@
           "evidence_paths": [
             ".changes/e2e/staging-recovery-external-acquisition-b1-20260928.json",
             ".github/scripts/staging-recovery-sign-acquisition-receipt.mjs",
+            "docs/governance/configuration-drift-baseline-extensions.json",
+            "docs/governance/platform-configuration-entry-registry.json",
+            "docs/runbooks/staging-recovery-phase-b-certification.md",
             "http-generic-api/recoveryExternalAcquisitionAuthority.js",
-            "http-generic-api/stagingRecoveryExternalEvidence.js",
-            "http-generic-api/stagingRecoveryCertificationProtocol.js",
             "http-generic-api/recoveryReadinessEvidence.js",
-            "docs/runbooks/staging-recovery-phase-b-certification.md"
+            "http-generic-api/stagingRecoveryCertificationProtocol.js",
+            "http-generic-api/stagingRecoveryExternalEvidence.js"
           ]
         }
       ]
