@@ -11,6 +11,7 @@ import {
   recoveryExternalEvidenceHash,
   RECOVERY_EXTERNAL_EVIDENCE_CONTRACT,
 } from "./recoveryReadinessEvidence.js";
+import { _testingStagingRecoveryAuthorityBinding } from "./stagingRecoveryAuthorityBinding.js";
 import {
   RECOVERY_OAUTH_CORRELATION_EVENT_SEQUENCE,
   buildRecoveryNetworkIsolationEvidence,
@@ -362,6 +363,39 @@ test("OAuth source requires complete ordered server correlation without secret-b
         events: redirectDrift,
       }),
     (error) => error.code === "RECOVERY_OAUTH_CORRELATION_BINDING_INVALID",
+  );
+});
+
+test("server binding enforces acquisition-key separation from ingress and certification trust", () => {
+  const acquisition = keyPair();
+  const ingress = keyPair();
+  const certification = keyPair();
+  const base = {
+    STAGING_RECOVERY_ACQUISITION_PUBLIC_KEY: acquisition.publicKey,
+    STAGING_RECOVERY_ACQUISITION_KEY_ID: KEY_ID,
+    STAGING_RECOVERY_ACQUISITION_ISSUER: ISSUER,
+    REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY: ingress.publicKey,
+    RECOVERY_STAGING_CERTIFICATION_PUBLIC_KEY: certification.publicKey,
+  };
+  const authority = _testingStagingRecoveryAuthorityBinding.externalAcquisitionAuthority(base);
+  assert.equal(authority.contract, "mad4b.recovery-external-acquisition-authority.v1");
+
+  assert.throws(
+    () =>
+      _testingStagingRecoveryAuthorityBinding.externalAcquisitionAuthority({
+        ...base,
+        REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY: acquisition.publicKey,
+      }),
+    (error) => error.code === "RECOVERY_EXTERNAL_ACQUISITION_KEY_REUSE_FORBIDDEN",
+  );
+
+  assert.throws(
+    () =>
+      _testingStagingRecoveryAuthorityBinding.externalAcquisitionAuthority({
+        ...base,
+        RECOVERY_STAGING_CERTIFICATION_PUBLIC_KEY: acquisition.publicKey,
+      }),
+    (error) => error.code === "RECOVERY_EXTERNAL_ACQUISITION_KEY_REUSE_FORBIDDEN",
   );
 });
 
