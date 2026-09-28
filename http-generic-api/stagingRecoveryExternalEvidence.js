@@ -191,7 +191,6 @@ export async function buildRecoveryRegistrationParityEvidence({
 function normalizeOAuthEvents(events, {
   issuer = "https://dev.mad4b.com",
   resource = "https://activation-dev.mad4b.com",
-  redirectOrigin = "https://dev.mad4b.com",
   now = Date.now(),
   freshnessMs = 15 * 60 * 1000,
 } = {}) {
@@ -240,6 +239,12 @@ function normalizeOAuthEvents(events, {
     correlationIds.add(event.correlation_id);
     sessionIds.add(event.session_id);
     clientIds.add(event.client_id);
+    if (!SHA256.test(event?.redirect_uri_hash || "") || event?.environment !== "staging") {
+      fail(
+        "RECOVERY_OAUTH_CORRELATION_REDIRECT_BINDING_INVALID",
+        "OAuth server correlation must bind a Staging redirect URI by SHA-256.",
+      );
+    }
     return {
       event: event.event,
       correlation_id: event.correlation_id,
@@ -249,7 +254,8 @@ function normalizeOAuthEvents(events, {
       result: "pass",
       issuer: event.issuer || issuer,
       resource: event.resource || resource,
-      redirect_origin: event.redirect_origin || redirectOrigin,
+      redirect_uri_hash: event.redirect_uri_hash,
+      environment: event.environment,
       event_ref_hash: SHA256.test(event.event_ref_hash || "")
         ? event.event_ref_hash
         : sha256(
@@ -274,7 +280,8 @@ function normalizeOAuthEvents(events, {
       (event) =>
         event.issuer !== issuer ||
         event.resource !== resource ||
-        event.redirect_origin !== redirectOrigin,
+        event.environment !== "staging" ||
+        event.redirect_uri_hash !== normalized[0].redirect_uri_hash,
     )
   ) {
     fail(
@@ -294,13 +301,11 @@ export function buildRecoveryOAuthServerCorrelationEvidence({
   expiresAt,
   issuer = "https://dev.mad4b.com",
   resource = "https://activation-dev.mad4b.com",
-  redirectOrigin = "https://dev.mad4b.com",
   now = Date.now(),
 } = {}) {
   const normalized = normalizeOAuthEvents(events, {
     issuer,
     resource,
-    redirectOrigin,
     now,
   });
   const steps = {
@@ -316,7 +321,7 @@ export function buildRecoveryOAuthServerCorrelationEvidence({
     {
       issuer,
       resource,
-      redirect_origin: redirectOrigin,
+      redirect_uri_hash: normalized[0].redirect_uri_hash,
       server_correlation_verified: true,
       correlation_id: normalized[0].correlation_id,
       session_id: normalized[0].session_id,
@@ -342,7 +347,7 @@ export function verifyRecoveryOAuthServerCorrelationSource(evidence, options = {
       evidence?.server_correlation_verified !== true ||
       evidence?.issuer !== "https://dev.mad4b.com" ||
       evidence?.resource !== "https://activation-dev.mad4b.com" ||
-      evidence?.redirect_origin !== "https://dev.mad4b.com" ||
+      !SHA256.test(evidence?.redirect_uri_hash || "") ||
       !Array.isArray(evidence?.events)
     ) {
       return Object.freeze({ verified: false, reason_code: "RECOVERY_OAUTH_SOURCE_INVALID", secrets_included: false });
@@ -350,10 +355,10 @@ export function verifyRecoveryOAuthServerCorrelationSource(evidence, options = {
     const normalized = normalizeOAuthEvents(evidence.events, {
       issuer: evidence.issuer,
       resource: evidence.resource,
-      redirectOrigin: evidence.redirect_origin,
       now: options.now,
     });
     if (
+      evidence.redirect_uri_hash !== normalized[0].redirect_uri_hash ||
       evidence.event_chain_sha256 !== sha256(JSON.stringify(stable(normalized))) ||
       !verifyRecoveryExternalEvidenceIntegrity(evidence, {
         kind: "oauth",
