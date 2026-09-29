@@ -55,6 +55,17 @@ const directReason =
   direct.body?.reason ||
   null;
 
+const diagnostic = Object.freeze({
+  direct_status: direct.response.status,
+  direct_reason: directReason,
+  gateway_status: gateway.response.status,
+  health_status: health.response.status,
+  secrets_included: false,
+});
+function emitDiagnostic() {
+  process.stderr.write(`${JSON.stringify(diagnostic)}\n`);
+}
+
 const publicHealthIdentity = Object.freeze({
   status: health.response.status,
   ok: health.body?.ok === true,
@@ -74,6 +85,7 @@ if (
   publicHealthIdentity.secrets_included !== false ||
   !/^[a-f0-9]{64}$/u.test(publicHealthIdentity.worker_bundle_sha256 || "")
 ) {
+  emitDiagnostic();
   throw Object.assign(
     new Error("Live Activation Gateway health identity does not match the exact Staging SHA and policy."),
     {
@@ -83,7 +95,9 @@ if (
   );
 }
 
-const evidence = await buildRecoveryNetworkIsolationEvidence({
+let evidence;
+try {
+  evidence = await buildRecoveryNetworkIsolationEvidence({
   deploymentSha,
   targetFingerprint,
   direct: {
@@ -101,6 +115,10 @@ const evidence = await buildRecoveryNetworkIsolationEvidence({
     public_health_identity: publicHealthIdentity,
   },
 });
+} catch (error) {
+  emitDiagnostic();
+  throw error;
+}
 
 const output = JSON.stringify(evidence, null, 2) + "\n";
 if (a["output"]) fs.writeFileSync(a["output"], output, { mode: 0o600 });

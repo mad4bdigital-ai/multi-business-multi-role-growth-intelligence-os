@@ -62,7 +62,10 @@ Before the certification procedure below becomes executable, all of these must b
 - OAuth events share the same correlation, session, client, Staging issuer/resource and server-observed redirect-URI hash, are fresh, and contain no access token, refresh token, authorization code, client secret or credential payload.
 - Network evidence independently measures the same `GET /admin/recovery/staging/contract` request at direct origin and Activation Gateway:
   - identical path, method and SHA-256 of the empty body;
-  - direct origin returns exactly `403 / RECOVERY_TRUSTED_INGRESS_REQUIRED`;
+  - direct origin returns exactly one canonical direct-denial pair:
+    - `403 / RECOVERY_TRUSTED_INGRESS_REQUIRED` → `trusted_ingress_required`;
+    - `404 / RECOVERY_STAGING_HOST_UNAVAILABLE` → `staging_host_unavailable`;
+  - no generic `4xx` class is accepted: status and reason must match one of those pairs exactly;
   - Activation Gateway returns 2xx;
   - `GET https://activation-dev.mad4b.com/health` returns `ok=true`, `sourceCommit=expected_sha`, `workerBuildSha=expected_sha`, the canonical Staging `policyHash`, `secretsIncluded=false`, and a valid Worker bundle SHA-256;
   - the full public-health identity is embedded inside Network evidence and therefore covered by both the canonical evidence hash and acquisition source-proof hash.
@@ -72,7 +75,7 @@ Before the certification procedure below becomes executable, all of these must b
 
 The existing `mad4b.recovery-external-observation.v1` evidence contract remains the integrity envelope. The signed acquisition receipt is the separate source-authenticity authority; it does not replace evidence-hash verification.
 
-A direct-origin `404 / RECOVERY_STAGING_HOST_UNAVAILABLE` can remain useful PR-A host-isolation integrity evidence, but it is **not sufficient for PR-B1 acquisition authority**. Receipt signing requires the explicit trusted-ingress `403`.
+A direct-origin `404 / RECOVERY_STAGING_HOST_UNAVAILABLE` is a canonical PR-B1 isolation denial when the same request succeeds through the signed Activation Gateway. The verifier reclassifies the observed status+reason pair itself; a caller-provided denial class is never sufficient authority. Any other `401/403/404/5xx` combination fails closed.
 
 ## 1. Run the external acquisition operation
 
