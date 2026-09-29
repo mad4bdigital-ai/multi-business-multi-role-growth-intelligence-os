@@ -179,7 +179,7 @@ test("independent countersign revalidates fresh Worker and Gateway identity", as
   await assert.rejects(() => independentlyVerifyStagingRecoveryCanaryEvidence(envelope, {
     expectedSha: SHA, expectedTargetFingerprint: TARGET, workflowSourceSha: SHA,
     negativeTestEvidence: negativeEvidence(), liveWorkerProviderObservation,
-    liveIngressBuildIdentity, requireLiveRuntimeRevalidation: true,
+    liveIngressBuildIdentity, liveNetworkEvidence: source.networkEvidence, requireLiveRuntimeRevalidation: true,
     loadKernelArtifacts: async () => source,
   }), (error) => error.code === "RECOVERY_CANARY_SOURCE_AUTHENTICITY_UNAVAILABLE");
 
@@ -196,6 +196,7 @@ test("independent countersign revalidates fresh Worker and Gateway identity", as
           deployed_bundle_sha256: "f".repeat(64),
         },
         liveIngressBuildIdentity,
+        liveNetworkEvidence: source.networkEvidence,
         requireLiveRuntimeRevalidation: true,
         loadKernelArtifacts: async () => source,
       },
