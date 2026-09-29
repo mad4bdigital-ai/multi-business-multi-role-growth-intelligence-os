@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 import {
   expectedStagingGatewayDeployment,
   expectedStagingRegistration,
@@ -27,6 +28,42 @@ const SHA40 = /^[a-f0-9]{40}$/u;
 const SHA256 = /^[a-f0-9]{64}$/u;
 const SAFE_ID = /^[A-Za-z0-9._:@/-]{8,200}$/u;
 const MAX_TTL_MS = 60 * 60 * 1000;
+
+export const DIRECT_RECOVERY_DENIALS = Object.freeze([
+  Object.freeze({
+    status: 403,
+    reason: "RECOVERY_TRUSTED_INGRESS_REQUIRED",
+    denial_class: "trusted_ingress_required",
+  }),
+  Object.freeze({
+    status: 404,
+    reason: "RECOVERY_STAGING_HOST_UNAVAILABLE",
+    denial_class: "staging_host_unavailable",
+  }),
+]);
+
+export function classifyRecoveryDirectDenial({ status, reason } = {}) {
+  return (
+    DIRECT_RECOVERY_DENIALS.find(
+      (candidate) =>
+        candidate.status === status &&
+        candidate.reason === reason,
+    ) || null
+  );
+}
+
+function canonicalStagingGatewayPolicyHash() {
+  const policy = JSON.parse(
+    readFileSync(
+      new URL(
+        "./activation-gateway-runtime/generated/route-policy.staging.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  return policy?.content_hash_sha256 || null;
+}
 const SECRET_FIELD =
   /^(?:authorization|password|secret|credential|credentials|private[_-]?key|access[_-]?token|refresh[_-]?token|id[_-]?token|client[_-]?secret|api[_-]?key|bearer[_-]?token|authorization[_-]?code)$|(?:^|[_-])(?:password|secret|credential|private[_-]?key|access[_-]?token|refresh[_-]?token|authorization[_-]?code)(?:$|[_-])/iu;
 const CAMEL_SECRET_FIELD =
@@ -399,6 +436,7 @@ export async function buildRecoveryNetworkIsolationEvidence({
 } = {}) {
   const expected = await expectedStagingGatewayDeployment();
   const emptyBodyHash = sha256("");
+  const directDenial = classifyRecoveryDirectDenial(direct);
   if (
     direct?.method !== "GET" ||
     gateway?.method !== "GET" ||
@@ -406,8 +444,7 @@ export async function buildRecoveryNetworkIsolationEvidence({
     gateway?.path !== direct.path ||
     direct?.body_sha256 !== emptyBodyHash ||
     gateway?.body_sha256 !== direct.body_sha256 ||
-    direct?.status !== 403 ||
-    direct?.reason !== "RECOVERY_TRUSTED_INGRESS_REQUIRED" ||
+    !directDenial ||
     !Number.isInteger(gateway?.status) ||
     gateway.status < 200 ||
     gateway.status >= 300 ||
@@ -421,7 +458,7 @@ export async function buildRecoveryNetworkIsolationEvidence({
   ) {
     fail(
       "RECOVERY_NETWORK_SOURCE_INVALID",
-      "Network acquisition requires the same GET request, explicit trusted-ingress denial, and signed Gateway 2xx.",
+      "Network acquisition requires the same GET request, one canonical direct-denial pair, and signed Gateway 2xx.",
     );
   }
   return baseEvidence(
@@ -438,6 +475,7 @@ export async function buildRecoveryNetworkIsolationEvidence({
       request_body_sha256: direct.body_sha256,
       direct_recovery_surface_status: direct.status,
       direct_recovery_surface_reason: direct.reason,
+      direct_recovery_surface_denial_class: directDenial.denial_class,
       direct_recovery_surface_path: direct.path,
       signed_gateway_recovery_path: gateway.path,
       signed_gateway_recovery_method: gateway.method,
@@ -470,17 +508,39 @@ export function verifyRecoveryNetworkIsolationSource(evidence, options = {}) {
     expectedTargetFingerprint: options.expectedTargetFingerprint,
     now: options.now,
   });
+  const directDenial = classifyRecoveryDirectDenial({
+    status: evidence?.direct_recovery_surface_status,
+    reason: evidence?.direct_recovery_surface_reason,
+  });
+  let expectedPolicyHash = null;
+  try {
+    expectedPolicyHash = canonicalStagingGatewayPolicyHash();
+  } catch {
+    expectedPolicyHash = null;
+  }
   if (
     !valid ||
-    evidence?.direct_recovery_surface_status !== 403 ||
-    evidence?.direct_recovery_surface_reason !==
-      "RECOVERY_TRUSTED_INGRESS_REQUIRED" ||
+    !directDenial ||
+    evidence?.direct_recovery_surface_denial_class !== directDenial.denial_class ||
+    evidence?.direct_recovery_surface_bypass_denied !== true ||
+    evidence?.gateway_only !== true ||
+    evidence?.network_restriction_verified !== true ||
+    evidence?.request_method !== "GET" ||
+    evidence?.direct_recovery_surface_path !== "/admin/recovery/staging/contract" ||
+    evidence?.signed_gateway_recovery_path !== evidence?.direct_recovery_surface_path ||
+    evidence?.signed_gateway_recovery_method !== evidence?.request_method ||
+    evidence?.signed_gateway_recovery_body_sha256 !== evidence?.request_body_sha256 ||
+    evidence?.request_body_sha256 !== sha256("") ||
+    !Number.isInteger(evidence?.signed_gateway_recovery_status) ||
+    evidence.signed_gateway_recovery_status < 200 ||
+    evidence.signed_gateway_recovery_status >= 300 ||
     evidence?.public_health_identity?.status !== 200 ||
     evidence?.public_health_identity?.ok !== true ||
     evidence?.public_health_identity?.source_commit !== options.expectedSha ||
     evidence?.public_health_identity?.worker_build_sha !== options.expectedSha ||
     !SHA256.test(evidence?.public_health_identity?.worker_bundle_sha256 || "") ||
-    !SHA256.test(evidence?.public_health_identity?.policy_hash || "") ||
+    !SHA256.test(expectedPolicyHash || "") ||
+    evidence?.public_health_identity?.policy_hash !== expectedPolicyHash ||
     evidence?.public_health_identity?.secrets_included !== false
   ) {
     return Object.freeze({
