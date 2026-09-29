@@ -1,0 +1,29 @@
+{
+  "contract": "mad4b.recovery-external-source-authority-registry.v1",
+  "environment": "staging",
+  "sources": {
+    "registration": {
+      "source": "chatgpt_live_readback",
+      "status": "unavailable",
+      "authority_class": "provider_backed_attestation_required",
+      "reason_code": "RECOVERY_REGISTRATION_SOURCE_ATTESTATION_UNAVAILABLE"
+    },
+    "oauth": {
+      "source": "oauth_server_correlation",
+      "status": "foundation_only",
+      "authority_class": "server_correlation_runtime_integration_required",
+      "reason_code": "RECOVERY_OAUTH_RUNTIME_CORRELATION_UNAVAILABLE"
+    },
+    "network": {
+      "source": "independent_network_probe",
+      "status": "active",
+      "authority_class": "github_exact_main_independent_probe",
+      "reason_code": null
+    }
+  },
+  "manual_override_allowed": false,
+  "caller_assertion_allowed": false,
+  "environment_flag_can_activate_source": false,
+  "production_authority": false,
+  "secrets_included": false
+}
