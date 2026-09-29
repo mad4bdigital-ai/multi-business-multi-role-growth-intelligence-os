@@ -36,10 +36,11 @@ const REFRESH_RATE_LIMIT_PER_MINUTE = 60;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const BASE64URL_SHA256_RE = /^[A-Za-z0-9_-]{43}$/;
 
-function brokerError(status, code, message) {
+function brokerError(status, code, message, details = null) {
   const error = new Error(message);
   error.status = status;
   error.code = code;
+  if (details && typeof details === "object" && !Array.isArray(details)) error.details = details;
   return error;
 }
 
@@ -256,7 +257,16 @@ async function parseGoogleTokenResponse(response, failureCode) {
   }
   if (!response.ok || !data || typeof data !== "object") {
     const providerCode = cleanText(data?.error || data?.error_description || "", 96);
-    throw brokerError(response.status >= 400 && response.status < 500 ? 400 : 502, failureCode, providerCode ? `Google OAuth token endpoint rejected the request (${providerCode}).` : "Google OAuth token endpoint returned a non-success response.");
+    throw brokerError(
+      response.status >= 400 && response.status < 500 ? 400 : 502,
+      failureCode,
+      providerCode ? `Google OAuth token endpoint rejected the request (${providerCode}).` : "Google OAuth token endpoint returned a non-success response.",
+      {
+        provider_code: providerCode,
+        provider_http_status: Number(response.status) || 0,
+        reconnect_required: ["invalid_grant", "invalid_client", "unauthorized_client"].includes(providerCode),
+      },
+    );
   }
   return data;
 }
@@ -794,5 +804,19 @@ export function managedGoogleOAuthErrorResponse(error) {
   const message = status >= 500
     ? "Managed Google OAuth broker could not complete the request."
     : cleanText(error?.message || "Managed Google OAuth request failed.", 300);
-  return Object.freeze({ status, body: { ok: false, error: { code, message, status }, secrets_included: false } });
+  const details = error?.details && typeof error.details === "object" && !Array.isArray(error.details)
+    ? {
+        provider_code: cleanText(error.details.provider_code || "", 96),
+        provider_http_status: Number(error.details.provider_http_status) || 0,
+        reconnect_required: error.details.reconnect_required === true,
+      }
+    : null;
+  return Object.freeze({
+    status,
+    body: {
+      ok: false,
+      error: { code, message, status, ...(details ? { details } : {}) },
+      secrets_included: false,
+    },
+  });
 }
