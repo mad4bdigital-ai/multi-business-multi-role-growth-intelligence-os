@@ -37,7 +37,7 @@ A caller object with `verified=true`, an environment feature flag, a recomputed 
 PR-B1 deliberately remains fail-closed for live certification.
 
 - Independent Network acquisition is implemented and executable.
-- The OAuth correlation producer and verifier are implemented, but no trusted server-side producer currently exports the complete six-event correlation chain to this workflow.
+- The Tenant GPT OAuth runtime now carries a server-owned signed correlation from authorize through code issue, token exchange and protected-resource gateway verification. This still does **not** make Recovery OAuth source authority available: `callback_received` has no genuine provider/browser-backed observation yet, so no trusted server-side producer can export the complete six-event Recovery correlation chain.
 - ChatGPT registration parity can be verified against the expected schema, but no provider-backed or platform-supplied source attestation currently proves that the observed registration originated from ChatGPT Builder.
 - Therefore the PR-B1 `acquire_external_evidence` operation in `Staging Post-Deploy Verification` records both unavailable source authorities and does **not** read the acquisition private key or produce `acquisition-receipt.json`.
 - Without a valid receipt the local canary, GitHub countersign, certification signing payload and readiness remain blocked.
@@ -52,7 +52,7 @@ Before the certification procedure below becomes executable, all of these must b
 - Staging app deployment attestation is bound to the same exact SHA.
 - The Staging Recovery authority graph is ready.
 - Registration evidence is produced by a registered source authority whose authenticity can be independently verified.
-- OAuth evidence is exported by the OAuth server as one correlation containing, in order:
+- OAuth evidence is exported by a trusted producer from the server-owned runtime correlation plus a genuine callback observer as one correlation containing, in order:
   - `authorize_received`;
   - `login_consent_completed`;
   - `authorization_code_issued`;
@@ -95,7 +95,7 @@ The PR-B1 acquisition operation:
 6. uploads only bounded, no-secret acquisition evidence;
 7. performs no provider, database or Production mutation.
 
-Until trusted OAuth and Registration producers exist, a successful workflow means **the fail-closed acquisition check executed correctly**, not that Recovery certification is ready.
+Until the genuine OAuth callback observation closes B2A.2 and trusted OAuth/Registration producers exist, a successful workflow means **the fail-closed acquisition check executed correctly**, not that Recovery certification is ready. B2A runtime correlation alone must not flip `oauth_server_correlation_source_available` or `receipt_signed`.
 
 When a future PR adds both trusted producers, the same acquisition architecture may call `.github/scripts/staging-recovery-sign-acquisition-receipt.mjs`. That signer must revalidate all three sources before it is allowed to read the private signing key and emit `acquisition-receipt.json`.
 
