@@ -62,7 +62,7 @@ const publicHealthIdentity = Object.freeze({
   worker_build_sha: health.body?.workerBuildSha || null,
   worker_bundle_sha256: health.body?.workerBundleSha256 || null,
   policy_hash: health.body?.policyHash || null,
-  secrets_included: health.body?.secretsIncluded === false,
+  secrets_included: health.body?.secretsIncluded,
 });
 
 if (
@@ -71,7 +71,7 @@ if (
   publicHealthIdentity.source_commit !== deploymentSha ||
   publicHealthIdentity.worker_build_sha !== deploymentSha ||
   publicHealthIdentity.policy_hash !== expectedPolicy.content_hash_sha256 ||
-  publicHealthIdentity.secrets_included !== true ||
+  publicHealthIdentity.secrets_included !== false ||
   !/^[a-f0-9]{64}$/u.test(publicHealthIdentity.worker_bundle_sha256 || "")
 ) {
   throw Object.assign(
