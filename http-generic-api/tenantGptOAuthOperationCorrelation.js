@@ -4,7 +4,6 @@ import { normalizeTenantGptOAuthResource } from "./tenantGptOAuthResourceProfile
 
 export const TENANT_GPT_OAUTH_CORRELATION_SCHEMA_VERSION = 1;
 export const TENANT_GPT_OAUTH_CORRELATION_TICKET_PURPOSE = "tenant_gpt_oauth_correlation_ticket";
-export const TENANT_GPT_OAUTH_CORRELATION_TICKET_TTL_SECONDS = 5 * 60;
 const TENANT_GPT_OAUTH_CORRELATION_TICKET_MAX_LENGTH = 8192;
 const TENANT_GPT_OAUTH_CORRELATION_SIGNING_SECRET_MAX_LENGTH = 4096;
 export const TENANT_GPT_OAUTH_CORRELATION_STAGES = Object.freeze([
@@ -401,13 +400,13 @@ export function issueTenantGptOAuthCorrelationTicket(value, {
   jwtSecret,
   redirect_uri,
   state,
-  expiresInSeconds = TENANT_GPT_OAUTH_CORRELATION_TICKET_TTL_SECONDS,
+  expiresInSeconds = 5 * 60,
 } = {}) {
   const envelope = verifyTenantGptOAuthOperationCorrelation(value, {
     expected_stage: "oauth_authorize",
   });
   const ttl = Number(expiresInSeconds);
-  if (!Number.isInteger(ttl) || ttl < 30 || ttl > TENANT_GPT_OAUTH_CORRELATION_TICKET_TTL_SECONDS) {
+  if (!Number.isInteger(ttl) || ttl < 30 || ttl > 5 * 60) {
     failure("oauth_correlation_ticket_ttl_invalid", "OAuth correlation ticket TTL is invalid.", 500);
   }
   return jwt.sign(
