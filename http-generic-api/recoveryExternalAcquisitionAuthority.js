@@ -247,7 +247,14 @@ function verifyReceiptInternal(
   if (
     networkEvidence?.direct_recovery_surface_status !== 403 ||
     networkEvidence?.direct_recovery_surface_reason !==
-      "RECOVERY_TRUSTED_INGRESS_REQUIRED"
+      "RECOVERY_TRUSTED_INGRESS_REQUIRED" ||
+    networkEvidence?.public_health_identity?.status !== 200 ||
+    networkEvidence?.public_health_identity?.ok !== true ||
+    networkEvidence?.public_health_identity?.source_commit !== expectedSha ||
+    networkEvidence?.public_health_identity?.worker_build_sha !== expectedSha ||
+    !SHA256.test(networkEvidence?.public_health_identity?.worker_bundle_sha256 || "") ||
+    !SHA256.test(networkEvidence?.public_health_identity?.policy_hash || "") ||
+    networkEvidence?.public_health_identity?.secrets_included !== false
   ) {
     return invalid("RECOVERY_EXTERNAL_ACQUISITION_NETWORK_SOURCE_INVALID");
   }
