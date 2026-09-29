@@ -165,6 +165,7 @@ test("empty rebuild exposes a hashed selected-role graph without granting grants
     "20260922_local_manager_desktop_commands.sql",
     "20260922_local_manager_device_link_authority.sql",
     "20260922_local_manager_control_templates_registry.sql",
+    OAUTH_CORRELATION_MIGRATION,
   ]);
   assert.deepEqual(graph.behavioral_probes.map((probe) => probe.role), ["governance", "runtime_persistence", "runtime"]);
   assert.ok(graph.behavioral_probes.every((probe) => probe.execution_status === "declared_not_executed_in_preview" && probe.provider_accessed === false));
