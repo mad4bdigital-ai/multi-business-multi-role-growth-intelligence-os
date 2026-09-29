@@ -447,6 +447,7 @@ export async function independentlyVerifyStagingRecoveryCanaryEvidence(envelope,
   negativeTestEvidence,
   liveIngressBuildIdentity = null,
   liveWorkerProviderObservation = null,
+  liveNetworkEvidence = null,
   externalEvidenceAcquisitionAuthority = null,
   requireLiveRuntimeRevalidation = false,
 } = {}) {
@@ -488,10 +489,10 @@ export async function independentlyVerifyStagingRecoveryCanaryEvidence(envelope,
     fail("RECOVERY_CANARY_KERNEL_BINDING_MISMATCH", "Independent Kernel bindings mismatch.");
   }
   if (requireLiveRuntimeRevalidation) {
-    if (!liveIngressBuildIdentity || !liveWorkerProviderObservation) {
+    if (!liveIngressBuildIdentity || !liveWorkerProviderObservation || !liveNetworkEvidence) {
       fail(
         "RECOVERY_CANARY_LIVE_RUNTIME_REVALIDATION_REQUIRED",
-        "Fresh Worker provider and Gateway ingress observations are required before countersigning.",
+        "Fresh Worker provider, Gateway ingress, and independent network observations are required before countersigning.",
       );
     }
 
@@ -547,6 +548,32 @@ export async function independentlyVerifyStagingRecoveryCanaryEvidence(envelope,
           "RECOVERY_CANARY_LIVE_INGRESS_BUILD_MISMATCH",
           `Fresh Gateway ingress identity differs at ${key}.`,
         );
+      }
+    }
+
+    if (!verifyRecoveryExternalEvidenceIntegrity(liveNetworkEvidence, {
+      kind: "network",
+      expectedSha,
+      expectedTargetFingerprint,
+      now,
+    })) {
+      fail("RECOVERY_CANARY_LIVE_NETWORK_EVIDENCE_INVALID", "Fresh independent network evidence is invalid.");
+    }
+    const networkFields = [
+      "source_proof_hash",
+      "request_method",
+      "request_body_sha256",
+      "direct_recovery_surface_status",
+      "direct_recovery_surface_reason",
+      "direct_recovery_surface_path",
+      "signed_gateway_recovery_path",
+      "signed_gateway_recovery_method",
+      "signed_gateway_recovery_body_sha256",
+      "signed_gateway_recovery_status",
+    ];
+    for (const key of networkFields) {
+      if (envelope.networkEvidence?.[key] !== liveNetworkEvidence?.[key]) {
+        fail("RECOVERY_CANARY_LIVE_NETWORK_MISMATCH", `Fresh independent network evidence differs at ${key}.`);
       }
     }
   }
@@ -612,6 +639,7 @@ export async function independentlyVerifyStagingRecoveryCanaryEvidence(envelope,
     evidence_freshness: true,
     external_evidence: external.ready,
     external_acquisition_receipt: externalAcquisitionVerification.verified === true,
+    fresh_network_revalidation: requireLiveRuntimeRevalidation ? liveNetworkEvidence?.source_proof_hash === envelope.networkEvidence?.source_proof_hash : true,
     lifecycle_trace: RECOVERY_CERTIFICATION_TRACE_STEPS.every((name) => lifecycleTrace[name]?.status === "pass"),
     negative_tests: negativeTests.all_passed === true,
     production_boundary: true,
