@@ -194,6 +194,33 @@ async function getText(baseUrl, path, { headers = {} } = {}) {
   };
 }
 
+function correlationTicketFromAuthorizeHtml(html) {
+  const match = String(html || "").match(/const CORRELATION_TICKET = ("(?:\\.|[^"])*");/u);
+  if (!match) throw new Error("authorize html did not contain a correlation ticket");
+  return JSON.parse(match[1]);
+}
+
+async function issueCorrelationTicket(baseUrl, {
+  redirectUri,
+  state,
+  headers = {},
+  codeChallenge = PKCE_CHALLENGE,
+  codeChallengeMethod = "S256",
+} = {}) {
+  const query = new URLSearchParams({
+    client_id: "mad4b-tenant-gpt",
+    response_type: "code",
+    redirect_uri: redirectUri,
+    state,
+    scope: TENANT_SCOPE,
+    code_challenge: codeChallenge,
+    code_challenge_method: codeChallengeMethod,
+  });
+  const result = await getText(baseUrl, `/auth/oauth/authorize?${query.toString()}`, { headers });
+  if (result.status !== 200) throw new Error(`authorize failed while issuing correlation ticket: ${result.status}`);
+  return correlationTicketFromAuthorizeHtml(result.text);
+}
+
 const oauthTokenDiagnostics = [];
 const tenantGptActivationContexts = [];
 const oauthCredentialRequests = [];
@@ -206,8 +233,9 @@ const oauthClientPool = {
       durableOAuthCodes.set(params[0], {
         client_id: params[3],
         redirect_uri_hash: params[4],
+        request_correlation_ref: params[5],
         status: "issued",
-        expires_at: params[5],
+        expires_at: params[6],
         consumed_at: null,
       });
       return [{ affectedRows: 1 }];
@@ -217,6 +245,7 @@ const oauthClientPool = {
       const canConsume = record
         && record.client_id === params[1]
         && record.redirect_uri_hash === params[2]
+        && record.request_correlation_ref === params[3]
         && record.status === "issued";
       if (canConsume) {
         record.status = "consumed";
@@ -225,7 +254,7 @@ const oauthClientPool = {
       return [{ affectedRows: canConsume ? 1 : 0 }];
     }
     if (sql.includes("FROM `tenant_gpt_oauth_authorization_codes`")) {
-      const record = durableOAuthCodes.get(params[2]);
+      const record = durableOAuthCodes.get(params[3]);
       if (!record) return [[]];
       return [[{
         status: record.status,
@@ -233,6 +262,8 @@ const oauthClientPool = {
         consumed_at: record.consumed_at,
         client_matches: record.client_id === params[0] ? 1 : 0,
         redirect_matches: record.redirect_uri_hash === params[1] ? 1 : 0,
+        correlation_matches: record.request_correlation_ref === params[2] ? 1 : 0,
+        request_correlation_ref: record.request_correlation_ref,
         expired_by_store: 0,
       }]];
     }
@@ -332,6 +363,7 @@ try {
 
   section("authorize popup");
 
+  let primaryCorrelationTicket = null;
   {
     const result = await getText(
       baseUrl,
@@ -361,6 +393,9 @@ try {
     assert("authorize popup does not call broad login route", !result.text.includes('fetch("/auth/login"'));
     assert("authorize popup does not call broad registration route", !result.text.includes('fetch("/auth/register"'));
     assert("authorize popup does not call broad Google auth route", !result.text.includes('fetch("/auth/google"'));
+    primaryCorrelationTicket = correlationTicketFromAuthorizeHtml(result.text);
+    assert("authorize carries only a signed correlation ticket", typeof primaryCorrelationTicket === "string" && primaryCorrelationTicket.split(".").length === 3, primaryCorrelationTicket);
+    assert("authorize does not expose raw correlation envelope", !result.text.includes('"operation_id"'), result.text.slice(0, 500));
     assert("authorize leaves GIS button locale automatic", !/locale\s*:\s*["'][^"']+["']/.test(result.text));
     assert("authorize does not force a GSI hl parameter", !result.text.includes("gsi/client?hl="));
   }
@@ -538,7 +573,13 @@ try {
   }));
   const googleFlowServer = await startServer(googleFlowApp);
   try {
+    const googleCorrelationTicket = await issueCorrelationTicket(googleFlowServer.baseUrl, {
+      redirectUri,
+      state: "google-state",
+      headers: { "x-forwarded-host": "activation.mad4b.com" },
+    });
     const googleCodeResult = await postJson(googleFlowServer.baseUrl, "/auth/oauth/code", {
+      correlation_ticket: googleCorrelationTicket,
       credential: { kind: "google", id_token: "verified-google-id-token" },
       redirect_uri: redirectUri,
       state: "google-state",
@@ -602,7 +643,12 @@ try {
   const originalConsoleError = console.error;
   console.error = (...args) => infrastructureLogs.push(args);
   try {
+    const unavailableStoreTicket = await issueCorrelationTicket(unavailableStoreServer.baseUrl, {
+      redirectUri,
+      state: "unavailable-store-state",
+    });
     const unavailableCodeResult = await postJson(unavailableStoreServer.baseUrl, "/auth/oauth/code", {
+      correlation_ticket: unavailableStoreTicket,
       credential: { kind: "google", id_token: "verified-google-id-token" },
       redirect_uri: redirectUri,
       state: "unavailable-store-state",
@@ -617,7 +663,12 @@ try {
     assert("code-store diagnostics exclude raw database messages", !JSON.stringify(infrastructureLogs).includes("sensitive database connection detail"), JSON.stringify(infrastructureLogs));
     assert("code-store diagnostics mark secrets excluded", infrastructureLogs[0]?.[1]?.secrets_included === false, JSON.stringify(infrastructureLogs));
 
+    const unavailableIdentityTicket = await issueCorrelationTicket(unavailableStoreServer.baseUrl, {
+      redirectUri,
+      state: "unavailable-identity-state",
+    });
     const unavailableIdentityResult = await postJson(unavailableStoreServer.baseUrl, "/auth/oauth/code", {
+      correlation_ticket: unavailableIdentityTicket,
       credential: { kind: "google", id_token: "identity-outage" },
       redirect_uri: redirectUri,
       state: "unavailable-identity-state",
@@ -702,7 +753,7 @@ try {
     screen_hint: "signin",
     sign_in_options: ["email", "register"],
   };
-  const codeResult = await postJson(baseUrl, "/auth/oauth/code", { token: userToken, redirect_uri: redirectUri, state, scope: TENANT_SCOPE, code_challenge: PKCE_CHALLENGE, code_challenge_method: "S256", activation_context: activationContext });
+  const codeResult = await postJson(baseUrl, "/auth/oauth/code", { correlation_ticket: primaryCorrelationTicket, token: userToken, redirect_uri: redirectUri, state, scope: TENANT_SCOPE, code_challenge: PKCE_CHALLENGE, code_challenge_method: "S256", activation_context: activationContext });
   assert("code endpoint accepts signed user token", codeResult.status === 200, `${codeResult.status}`);
   const ssoCookie = String(codeResult.headers.get("set-cookie") || "").split(";")[0];
   assert("OAuth code issuance sets a persistent SSO cookie", ssoCookie.startsWith("mad4b_tenant_gpt_sso="), ssoCookie);
@@ -716,13 +767,21 @@ try {
   assert("authorization code binds the Activation protected resource", decodedAuthorizationCode?.resource === ACTIVATION_RESOURCE, JSON.stringify(decodedAuthorizationCode));
   assert("authorization code binds the PKCE challenge", decodedAuthorizationCode?.code_challenge === PKCE_CHALLENGE, JSON.stringify(decodedAuthorizationCode));
   assert("authorization code binds S256 PKCE method", decodedAuthorizationCode?.code_challenge_method === "S256", JSON.stringify(decodedAuthorizationCode));
+  assert("authorization code carries server-owned OAuth correlation", decodedAuthorizationCode?.oauth_correlation?.stage === "oauth_code_issue", JSON.stringify(decodedAuthorizationCode?.oauth_correlation));
+  assert("authorization code correlation binds its own JTI", typeof decodedAuthorizationCode?.oauth_correlation?.oauth_code_jti_sha256 === "string", JSON.stringify(decodedAuthorizationCode?.oauth_correlation));
+  assert("authorization-code store binds operation_id as request_correlation_ref", [...durableOAuthCodes.values()].some((row) => row.request_correlation_ref === decodedAuthorizationCode?.oauth_correlation?.operation_id), JSON.stringify([...durableOAuthCodes.values()]));
   assert("code response reports the Activation protected resource", codeResult.body.resource === ACTIVATION_RESOURCE, JSON.stringify(codeResult.body));
   assert("code response redirects legacy callback directly to canonical ChatGPT host", String(codeResult.body.redirect_to || "").startsWith(canonicalRedirectUri), codeResult.body.redirect_to);
   assert("code response does not redirect through legacy ChatGPT host", !String(codeResult.body.redirect_to || "").startsWith(redirectUri), codeResult.body.redirect_to);
   assert("code response preserves activation mode", codeResult.body.activation_context?.activation_mode === "dedicated", JSON.stringify(codeResult.body.activation_context));
   assert("code response preserves sign-in options", Array.isArray(codeResult.body.activation_context?.sign_in_options) && codeResult.body.activation_context.sign_in_options.includes("email"), JSON.stringify(codeResult.body.activation_context));
 
+  const ssoReuseTicket = await issueCorrelationTicket(baseUrl, {
+    redirectUri,
+    state: "sso-reuse-state",
+  });
   const ssoReuseResult = await postJson(baseUrl, "/auth/oauth/code", {
+    correlation_ticket: ssoReuseTicket,
     redirect_uri: redirectUri,
     state: "sso-reuse-state",
     scope: TENANT_SCOPE,
@@ -736,7 +795,12 @@ try {
   assert("SSO revoke endpoint returns success", revokeResult.status === 200, JSON.stringify(revokeResult.body));
   assert("SSO revoke endpoint revokes the sid", revokeResult.body.revoked === true && !ssoSessions.has(revokeResult.body.sid), JSON.stringify(revokeResult.body));
 
+  const credentialCorrelationTicket = await issueCorrelationTicket(baseUrl, {
+    redirectUri,
+    state: "credential-state",
+  });
   const credentialCodeResult = await postJson(baseUrl, "/auth/oauth/code", {
+    correlation_ticket: credentialCorrelationTicket,
     credential: { kind: "login", email: "user@example.com", password: "not-logged" },
     redirect_uri: redirectUri,
     state: "credential-state",
@@ -748,6 +812,19 @@ try {
   assert("activation host routes popup credentials into shared OAuth code logic", credentialCodeResult.status === 200, `${credentialCodeResult.status}`);
   assert("credential code preserves OAuth state", String(credentialCodeResult.body.redirect_to || "").includes("state=credential-state"), credentialCodeResult.body.redirect_to);
   assert("credential resolver receives the selected popup mode", oauthCredentialRequests[0]?.kind === "login", JSON.stringify(oauthCredentialRequests));
+
+  const tamperedTicket = `${primaryCorrelationTicket.slice(0, -1)}${primaryCorrelationTicket.endsWith("a") ? "b" : "a"}`;
+  const tamperedCorrelation = await postJson(baseUrl, "/auth/oauth/code", {
+    correlation_ticket: tamperedTicket,
+    token: userToken,
+    redirect_uri: redirectUri,
+    state,
+    scope: TENANT_SCOPE,
+    code_challenge: PKCE_CHALLENGE,
+    code_challenge_method: "S256",
+  });
+  assert("oauth code rejects a caller-tampered correlation ticket", tamperedCorrelation.status === 409 || tamperedCorrelation.status === 400, JSON.stringify(tamperedCorrelation.body));
+  assert("tampered correlation ticket fails before code issuance", String(tamperedCorrelation.body.error?.code || "").startsWith("oauth_correlation_"), JSON.stringify(tamperedCorrelation.body));
 
   const invalidClient = await postForm(baseUrl, "/auth/oauth/token", {
     grant_type: "authorization_code",
@@ -813,6 +890,8 @@ try {
   assert("access JWT has the Activation audience", accessPayload.aud === ACTIVATION_RESOURCE, JSON.stringify(accessPayload));
   assert("access JWT carries the Activation resource claim", accessPayload.resource === ACTIVATION_RESOURCE, JSON.stringify(accessPayload));
   assert("access JWT carries the authorized OAuth client", accessPayload.azp === "mad4b-tenant-gpt", JSON.stringify(accessPayload));
+  assert("access JWT carries verified token-exchange correlation", accessPayload.oauth_correlation?.stage === "oauth_token_exchange", JSON.stringify(accessPayload.oauth_correlation));
+  assert("access JWT preserves the code operation id", accessPayload.oauth_correlation?.operation_id === decodedAuthorizationCode?.oauth_correlation?.operation_id, JSON.stringify(accessPayload.oauth_correlation));
 
   const missingBearerProbe = await getText(baseUrl, "/tenant/activation/probe");
   assert("Activation gateway rejects a missing bearer token", missingBearerProbe.status === 401, `${missingBearerProbe.status}`);
@@ -836,12 +915,14 @@ try {
   const validProbeBody = JSON.parse(validProbe.text);
   assert("Activation gateway accepts the Activation-bound token", validProbe.status === 200, `${validProbe.status}`);
   assert("Activation gateway exposes the verified token resource", validProbeBody.auth?.token_resource === ACTIVATION_RESOURCE, JSON.stringify(validProbeBody));
+  assert("Activation gateway advances only verified OAuth correlation to gateway_verify", validProbeBody.auth?.oauth_correlation?.stage === "gateway_verify", JSON.stringify(validProbeBody.auth?.oauth_correlation));
+  assert("Activation gateway preserves the server-owned operation id", validProbeBody.auth?.oauth_operation_id === accessPayload.oauth_correlation?.operation_id, JSON.stringify(validProbeBody.auth));
   assert("access JWT has tenant subject", accessPayload.sub === "tenant:tenant-1:user:user-1", JSON.stringify(accessPayload));
   assert("stored activation context is linked to access JWT jti", tenantGptActivationContexts[0].access_jti === accessPayload.jti, JSON.stringify({ stored: tenantGptActivationContexts[0].access_jti, token: accessPayload.jti }));
   assert("access JWT carries linked tenant scopes", accessPayload.scope === [...TENANT_SCOPE_LINKS].sort().join(" "), JSON.stringify(accessPayload));
   assert("OAuth access JWT omits duplicated scope links", accessPayload.scope_links === undefined, JSON.stringify(accessPayload));
   assert("OAuth access JWT identifies the authorized client", accessPayload.client_id === "mad4b-tenant-gpt", JSON.stringify(accessPayload));
-  assert("OAuth access JWT stays compact", exchange.body.access_token.length < 1000, String(exchange.body.access_token.length));
+  assert("OAuth access JWT remains bounded for bearer transport", exchange.body.access_token.length < 4096, String(exchange.body.access_token.length));
   assert("access JWT carries tenant GPT purpose", accessPayload.purpose === "tenant_gpt_access", JSON.stringify(accessPayload));
 
   const replay = await postForm(baseUrl, "/auth/oauth/token", {
