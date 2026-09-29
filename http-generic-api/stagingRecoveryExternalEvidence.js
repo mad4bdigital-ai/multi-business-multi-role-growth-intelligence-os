@@ -410,7 +410,14 @@ export async function buildRecoveryNetworkIsolationEvidence({
     direct?.reason !== "RECOVERY_TRUSTED_INGRESS_REQUIRED" ||
     !Number.isInteger(gateway?.status) ||
     gateway.status < 200 ||
-    gateway.status >= 300
+    gateway.status >= 300 ||
+    gateway?.public_health_identity?.status !== 200 ||
+    gateway?.public_health_identity?.ok !== true ||
+    gateway?.public_health_identity?.source_commit !== deploymentSha ||
+    gateway?.public_health_identity?.worker_build_sha !== deploymentSha ||
+    gateway?.public_health_identity?.policy_hash !== expected.policy_hash ||
+    gateway?.public_health_identity?.secrets_included !== false ||
+    !SHA256.test(gateway?.public_health_identity?.worker_bundle_sha256 || "")
   ) {
     fail(
       "RECOVERY_NETWORK_SOURCE_INVALID",
@@ -436,7 +443,15 @@ export async function buildRecoveryNetworkIsolationEvidence({
       signed_gateway_recovery_method: gateway.method,
       signed_gateway_recovery_body_sha256: gateway.body_sha256,
       signed_gateway_recovery_status: gateway.status,
-      public_health_status: gateway.public_health_status ?? null,
+      public_health_identity: Object.freeze({
+        status: gateway.public_health_identity.status,
+        ok: true,
+        source_commit: gateway.public_health_identity.source_commit,
+        worker_build_sha: gateway.public_health_identity.worker_build_sha,
+        worker_bundle_sha256: gateway.public_health_identity.worker_bundle_sha256,
+        policy_hash: gateway.public_health_identity.policy_hash,
+        secrets_included: false,
+      }),
     },
     {
       deploymentSha,
@@ -459,7 +474,14 @@ export function verifyRecoveryNetworkIsolationSource(evidence, options = {}) {
     !valid ||
     evidence?.direct_recovery_surface_status !== 403 ||
     evidence?.direct_recovery_surface_reason !==
-      "RECOVERY_TRUSTED_INGRESS_REQUIRED"
+      "RECOVERY_TRUSTED_INGRESS_REQUIRED" ||
+    evidence?.public_health_identity?.status !== 200 ||
+    evidence?.public_health_identity?.ok !== true ||
+    evidence?.public_health_identity?.source_commit !== options.expectedSha ||
+    evidence?.public_health_identity?.worker_build_sha !== options.expectedSha ||
+    !SHA256.test(evidence?.public_health_identity?.worker_bundle_sha256 || "") ||
+    !SHA256.test(evidence?.public_health_identity?.policy_hash || "") ||
+    evidence?.public_health_identity?.secrets_included !== false
   ) {
     return Object.freeze({
       verified: false,
