@@ -8,8 +8,10 @@
   "scope": {
     "include": [
       ".changes/e2e/pr8319-staging-host-breakglass-compose-db-transport.json",
+      ".github/derived-state-governance.json",
       ".github/governance/test-authority-registry.json",
       "http-generic-api/config/host-breakglass-staging-contract.json",
+      "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/package.json",
       "http-generic-api/scripts/host-breakglass-local.mjs",
       "http-generic-api/scripts/staging-bootstrap-db-bridge.mjs",
@@ -73,8 +75,10 @@
           ],
           "evidence_paths": [
             ".changes/e2e/pr8319-staging-host-breakglass-compose-db-transport.json",
+            ".github/derived-state-governance.json",
             ".github/governance/test-authority-registry.json",
             "http-generic-api/config/host-breakglass-staging-contract.json",
+            "http-generic-api/config/repository-governance-constitution.json",
             "http-generic-api/scripts/host-breakglass-local.mjs",
             "http-generic-api/scripts/staging-bootstrap-db-bridge.mjs",
             "http-generic-api/stagingComposeBootstrapConnectionFactory.js",
