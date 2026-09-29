@@ -52,17 +52,24 @@ export function classifyRecoveryDirectDenial({ status, reason } = {}) {
   );
 }
 
-function canonicalStagingGatewayPolicyHash() {
-  const policy = JSON.parse(
-    readFileSync(
-      new URL(
-        "./activation-gateway-runtime/generated/route-policy.staging.json",
-        import.meta.url,
+function matchesCanonicalStagingGatewayPolicyHash(value) {
+  try {
+    const policy = JSON.parse(
+      readFileSync(
+        new URL(
+          "./activation-gateway-runtime/generated/route-policy.staging.json",
+          import.meta.url,
+        ),
+        "utf8",
       ),
-      "utf8",
-    ),
-  );
-  return policy?.content_hash_sha256 || null;
+    );
+    return (
+      SHA256.test(value || "") &&
+      value === policy?.content_hash_sha256
+    );
+  } catch {
+    return false;
+  }
 }
 const SECRET_FIELD =
   /^(?:authorization|password|secret|credential|credentials|private[_-]?key|access[_-]?token|refresh[_-]?token|id[_-]?token|client[_-]?secret|api[_-]?key|bearer[_-]?token|authorization[_-]?code)$|(?:^|[_-])(?:password|secret|credential|private[_-]?key|access[_-]?token|refresh[_-]?token|authorization[_-]?code)(?:$|[_-])/iu;
@@ -512,19 +519,15 @@ export function verifyRecoveryNetworkIsolationSource(evidence, options = {}) {
     status: evidence?.direct_recovery_surface_status,
     reason: evidence?.direct_recovery_surface_reason,
   });
-  let expectedPolicyHash = null;
-  try {
-    expectedPolicyHash = canonicalStagingGatewayPolicyHash();
-  } catch {
-    expectedPolicyHash = null;
-  }
   if (
     !valid ||
     !directDenial ||
     evidence?.direct_recovery_surface_denial_class !== directDenial.denial_class ||
     evidence?.direct_recovery_surface_bypass_denied !== true ||
     evidence?.gateway_only !== true ||
+    evidence?.signed_ingress_required !== true ||
     evidence?.network_restriction_verified !== true ||
+    evidence?.environment !== "staging" ||
     evidence?.request_method !== "GET" ||
     evidence?.direct_recovery_surface_path !== "/admin/recovery/staging/contract" ||
     evidence?.signed_gateway_recovery_path !== evidence?.direct_recovery_surface_path ||
@@ -539,8 +542,9 @@ export function verifyRecoveryNetworkIsolationSource(evidence, options = {}) {
     evidence?.public_health_identity?.source_commit !== options.expectedSha ||
     evidence?.public_health_identity?.worker_build_sha !== options.expectedSha ||
     !SHA256.test(evidence?.public_health_identity?.worker_bundle_sha256 || "") ||
-    !SHA256.test(expectedPolicyHash || "") ||
-    evidence?.public_health_identity?.policy_hash !== expectedPolicyHash ||
+    !matchesCanonicalStagingGatewayPolicyHash(
+      evidence?.public_health_identity?.policy_hash,
+    ) ||
     evidence?.public_health_identity?.secrets_included !== false
   ) {
     return Object.freeze({
