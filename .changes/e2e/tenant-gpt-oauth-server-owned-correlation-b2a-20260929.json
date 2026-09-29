@@ -27,7 +27,9 @@
       "http-generic-api/test-tenant-gpt-access-token-verifier.mjs",
       "http-generic-api/test-spec012-t030-oauth-correlation-foundation.mjs",
       "specs/012-tenant-activation-lifecycle/implementation/pr-2k-t030-oauth-operation-correlation-foundation.md",
-      "specs/012-tenant-activation-lifecycle/implementation/pr-2k-t030-oauth-operation-correlation-foundation.json"
+      "specs/012-tenant-activation-lifecycle/implementation/pr-2k-t030-oauth-operation-correlation-foundation.json",
+      "http-generic-api/config/runtime-bootstrap-contract.json",
+      "http-generic-api/test-host-breakglass-catalog.mjs"
     ]
   },
   "environment_impact": {
@@ -60,7 +62,8 @@
             "At /auth/oauth/token, verify code correlation and client/resource/subject/code-JTI bindings, atomically consume the exact row using request_correlation_ref, require readback parity, then advance to oauth_token_exchange with access JTI.",
             "Sign the bounded verified token-exchange correlation claim into the access token.",
             "At protected-resource bearer verification, reject present-but-invalid correlation and advance only verified claims to gateway_verify in server-owned req.auth context.",
-            "Keep callback_received unresolved and do not enable OAuth source branding, acquisition receipt signing, migration apply, deployment, provider mutation or Production mutation."
+            "Keep callback_received unresolved and do not enable OAuth source branding, acquisition receipt signing, migration apply, deployment, provider mutation or Production mutation.",
+            "Register the additive OAuth correlation migration in the repository-owned runtime bootstrap execution catalog with runtime target-role binding and explicit column/index postconditions; this PR performs no migration apply."
           ],
           "assertions": [
             "request_correlation_ref maps explicitly to OAuth correlation operation_id and has no foreign key to activation_runs.",
@@ -73,7 +76,8 @@
             "callback_received remains unresolved.",
             "oauth_server_correlation_source_available remains false.",
             "receipt_signed remains false.",
-            "Production mutation, credential mutation, provider mutation and database apply are outside this PR."
+            "Production mutation, credential mutation, provider mutation and database apply are outside this PR.",
+            "The OAuth correlation migration is explicitly cataloged for governed dry_run/apply_migration against the runtime database with DB_ credential binding, separate governance migration ledger, and same-contract postconditions."
           ],
           "tests": [
             {
@@ -124,6 +128,13 @@
               "working_directory": "http-generic-api",
               "path": "test-spec012-t030-oauth-correlation-foundation.mjs",
               "args": []
+            },
+            {
+              "id": "oauth-correlation-bootstrap-catalog",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-host-breakglass-catalog.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -137,7 +148,9 @@
             "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
             "http-generic-api/tenantGptAccessTokenVerifier.js",
             "specs/012-tenant-activation-lifecycle/implementation/pr-2k-t030-oauth-operation-correlation-foundation.md",
-            "specs/012-tenant-activation-lifecycle/implementation/pr-2k-t030-oauth-operation-correlation-foundation.json"
+            "specs/012-tenant-activation-lifecycle/implementation/pr-2k-t030-oauth-operation-correlation-foundation.json",
+            "http-generic-api/config/runtime-bootstrap-contract.json",
+            "http-generic-api/test-host-breakglass-catalog.mjs"
           ]
         }
       ]

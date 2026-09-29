@@ -5,10 +5,12 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { buildHostBreakglassPlan, dispatchHostBreakglassPlan, publicHostBreakglassCatalog, readHostBreakglassRun, readHostBreakglassToolContract, __hostBreakglassTest } from "./hostBreakglassCatalog.js";
+import { readStagingRuntimeBootstrapContract } from "./stagingRuntimeBootstrapContract.js";
 const SHA = "a".repeat(40);
 const TICKET_HASH = "f".repeat(64);
 const GRANT_BINDING_HASH = "e".repeat(64);
 const MIGRATION = "20260815_custom_gpt_mcp_catalog_levels.sql";
+const OAUTH_CORRELATION_MIGRATION = "20260929_tenant_gpt_oauth_authorization_code_correlation_ref.sql";
 const REPO_ROOT = path.resolve(process.cwd(), "..");
 const SQL_PATH = path.join(REPO_ROOT, ".github/breakglass/sql/test-host-breakglass.sql");
 const SHELL_PATH = path.join(REPO_ROOT, ".github/breakglass/shell/test-host-breakglass.sh");
@@ -125,6 +127,22 @@ test("empty database rebuild is exact-sha and repository-contract bound", () => 
   assert.equal(plan.runbook_execution_graph.sequential_role_execution, true);
   assert.equal(plan.runbook_execution_graph.grants_included, false);
   assert.match(plan.runbook_execution_graph.graph_sha256, /^[0-9a-f]{64}$/u);
+});
+test("Staging schema repair dry-run accepts the cataloged OAuth correlation migration without mutation", () => {
+  const plan = buildHostBreakglassPlan({
+    environment_key: "staging_local_windows_docker",
+    operation_key: "database.repair",
+    runbook_key: "database.schema_repair",
+    action: "dry_run",
+    expected_sha: SHA,
+    target_key: "staging-runtime",
+    migration: OAUTH_CORRELATION_MIGRATION,
+  }, { bootstrapContract: readStagingRuntimeBootstrapContract() });
+  assert.equal(plan.migration, OAUTH_CORRELATION_MIGRATION);
+  assert.equal(plan.environment_key, "staging_local_windows_docker");
+  assert.equal(plan.target_key, "staging-runtime");
+  assert.equal(plan.database_mutation_performed, false);
+  assert.equal(plan.secrets_included, false);
 });
 test("apply plans receive only runbook-scoped mutation capabilities", () => {
   const repair = buildHostBreakglassPlan({ operation_key: "database.repair", runbook_key: "database.schema_repair", action: "apply_migration", expected_sha: SHA, migration: MIGRATION, execution_ticket_id: "ticket:host-breakglass-repair-001", execution_ticket_hash: TICKET_HASH, confirmation: `APPLY_HOSTINGER_RUNTIME_MIGRATION:${SHA}:production-runtime:${MIGRATION}` });
