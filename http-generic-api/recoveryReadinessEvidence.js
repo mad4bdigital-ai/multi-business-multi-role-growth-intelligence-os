@@ -17,9 +17,6 @@ const stable = (v) => Array.isArray(v) ? v.map(stable) : v && typeof v === "obje
 export const readinessEvidencePayload = (v) => JSON.stringify(stable(v));
 const hash = (v) => createHash("sha256").update(v).digest("hex");
 export const RECOVERY_EXTERNAL_EVIDENCE_CONTRACT = "mad4b.recovery-external-observation.v1";
-// PR-B must replace this closed gate with an independently verified acquisition authority.
-// An evidence field or a caller-controlled environment flag must never enable certification.
-export const RECOVERY_EXTERNAL_ACQUISITION_AUTHORITY_AVAILABLE = false;
 const EXTERNAL_KINDS = Object.freeze({
   registration: ["chatgpt_registration", "chatgpt_live_readback"],
   oauth: ["oauth_browser_round_trip", "oauth_server_correlation"],
@@ -252,6 +249,7 @@ export function createRecoveryReadinessAuthorities({
   evidenceStore, deploymentIdentityProvider, targetIdentityProvider,
   recordId = null, publicKey = null, keyId = null, issuer = null, env = process.env,
   adapterProvenance = null, adapterProvenanceReader = null,
+  externalAcquisitionAuthority = null,
 } = {}) {
   const runtime = resolveRuntimeEnvironmentStrict(env);
   if (!runtime.ok || !["staging", "production"].includes(runtime.environment_key)) fail("RECOVERY_EVIDENCE_RUNTIME_INVALID");
@@ -261,6 +259,7 @@ export function createRecoveryReadinessAuthorities({
     || typeof targetIdentityProvider?.readIdentity !== "function") fail("RECOVERY_EVIDENCE_AUTHORITY_INCOMPLETE");
   if (recordId !== null && !SHA256.test(recordId || "")) fail("RECOVERY_EVIDENCE_AUTHORITY_INCOMPLETE");
   if (adapterProvenanceReader !== null && typeof adapterProvenanceReader !== "function") fail("RECOVERY_EVIDENCE_AUTHORITY_INCOMPLETE");
+  if (externalAcquisitionAuthority !== null && typeof externalAcquisitionAuthority?.verify !== "function") fail("RECOVERY_EVIDENCE_AUTHORITY_INCOMPLETE");
   if (runtime.environment_key === "staging" && runtime.runtime_class !== "local_windows_docker"
     && evidenceStore.replayStore?.scope !== "shared_deployment") fail("RECOVERY_REPLAY_STORE_SCOPE_INSUFFICIENT");
 
@@ -300,6 +299,8 @@ export function createRecoveryReadinessAuthorities({
       oauthEvidence: null,
       networkEvidence: null,
       workerDeploymentEvidence: null,
+      acquisitionReceipt: null,
+      externalAcquisitionVerification: null,
       unresolvedRecoveryIncidents: ["certification_not_issued"],
       evidence_id: null,
       authenticity_verified: false,
@@ -327,6 +328,16 @@ export function createRecoveryReadinessAuthorities({
     }
     if (payload.environment !== runtime.environment_key || payload.target_fingerprint !== target.target_fingerprint
       || payload.deployment_sha !== attestation.sha) fail("RECOVERY_EVIDENCE_TARGET_MISMATCH");
+    const externalAcquisitionVerification = externalAcquisitionAuthority
+      ? await externalAcquisitionAuthority.verify({
+          receipt: payload.acquisitionReceipt || null,
+          registrationEvidence: payload.registrationEvidence || null,
+          oauthEvidence: payload.oauthEvidence || null,
+          networkEvidence: payload.networkEvidence || null,
+          expectedSha: attestation.sha,
+          expectedTargetFingerprint: target.target_fingerprint,
+        })
+      : null;
     return Object.freeze({
       stagingCertification: payload.stagingCertification || null,
       deploymentAttestation: attestation,
@@ -340,6 +351,8 @@ export function createRecoveryReadinessAuthorities({
       oauthEvidence: payload.oauthEvidence || null,
       networkEvidence: payload.networkEvidence || null,
       workerDeploymentEvidence: payload.workerDeploymentEvidence || null,
+      acquisitionReceipt: payload.acquisitionReceipt || null,
+      externalAcquisitionVerification,
       unresolvedRecoveryIncidents: Array.isArray(payload.unresolvedRecoveryIncidents) ? payload.unresolvedRecoveryIncidents : ["incident_evidence_missing"],
       evidence_id: selectedRecordId,
       authenticity_verified: true,
@@ -408,7 +421,7 @@ export async function evaluateExternalStagingEvidence(snapshot, ingressBuildIden
     && Number.isFinite(Date.parse(evidence?.expires_at)) && Date.parse(evidence.expires_at) > Date.now();
   const checks = {
     signed_evidence_authority: snapshot?.authenticity_verified === true,
-    external_acquisition_authority: RECOVERY_EXTERNAL_ACQUISITION_AUTHORITY_AVAILABLE,
+    external_acquisition_authority: snapshot?.externalAcquisitionVerification?.verified === true,
     actual_chatgpt_registration: integrity(registration, "registration") && registration?.observed_in === "chatgpt" && bound(registration)
       && Object.entries(expected).every(([key, value]) => registration[key] === value),
     oauth_browser_round_trip: integrity(oauth, "oauth") && bound(oauth) && oauth?.issuer === "https://dev.mad4b.com"
