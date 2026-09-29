@@ -11,6 +11,7 @@
   "scope": {
     "include": [
       ".changes/e2e/tenant-gpt-oauth-server-owned-correlation-b2a-20260929.json",
+      "docs/runbooks/staging-recovery-phase-b-certification.md",
       "http-generic-api/migrations/20260929_tenant_gpt_oauth_authorization_code_correlation_ref.sql",
       "http-generic-api/tenantGptOAuthAuthorizationCodeStore.js",
       "http-generic-api/tenantGptOAuthOperationCorrelation.js",
@@ -127,6 +128,7 @@
           ],
           "evidence_paths": [
             ".changes/e2e/tenant-gpt-oauth-server-owned-correlation-b2a-20260929.json",
+            "docs/runbooks/staging-recovery-phase-b-certification.md",
             "http-generic-api/migrations/20260929_tenant_gpt_oauth_authorization_code_correlation_ref.sql",
             "http-generic-api/tenantGptOAuthOperationCorrelation.js",
             "http-generic-api/tenantGptOAuthAuthorizationCodeStore.js",
