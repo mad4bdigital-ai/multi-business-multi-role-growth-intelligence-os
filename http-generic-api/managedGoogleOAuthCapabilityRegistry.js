@@ -84,6 +84,12 @@ const CAPABILITIES = Object.freeze({
     risk_class: "sensitive",
     full_owner: true,
   }),
+  "apps_script.drive_scripts": Object.freeze({
+    scope: "https://www.googleapis.com/auth/drive.scripts",
+    family: "apps_script",
+    risk_class: "sensitive",
+    full_owner: true,
+  }),
   "generative_language.retriever": Object.freeze({
     scope: "https://www.googleapis.com/auth/generative-language.retriever",
     family: "generative_language",
@@ -210,6 +216,7 @@ const PROFILES = Object.freeze({
     "apps_script.metrics",
     "apps_script.processes",
     "apps_script.projects",
+    "apps_script.drive_scripts",
     "generative_language.retriever",
     "cloud.platform",
   ]),
@@ -265,15 +272,43 @@ function normalizeCapabilityList(value) {
   return [...new Set(value.map((item) => String(item || "").trim()).filter(Boolean))];
 }
 
-function legacyAccessScope(accessMode, requestedScope) {
+function accessBaseline(accessMode, requestedScopeValue) {
   const mode = String(accessMode || "").trim().toLowerCase();
-  const scope = String(requestedScope || "").trim();
-  if (mode === "read_only" && scope === GOOGLE_DRIVE_READ_SCOPE) return { access_mode: mode, requested_scope: scope, baseline_capability: "drive.read" };
-  if (mode === "read_write" && scope === GOOGLE_DRIVE_WRITE_SCOPE) return { access_mode: mode, requested_scope: scope, baseline_capability: "drive.write" };
-  throw capabilityError(
-    "managed_google_oauth_scope_contract_invalid",
-    "Requested Google Drive scope does not exactly match the requested managed access mode.",
-  );
+  const requestedScopes = normalizeManagedGoogleScopeList(requestedScopeValue);
+  const baselineScope = mode === "read_only"
+    ? GOOGLE_DRIVE_READ_SCOPE
+    : (mode === "read_write" ? GOOGLE_DRIVE_WRITE_SCOPE : "");
+  const baselineCapability = mode === "read_only" ? "drive.read" : (mode === "read_write" ? "drive.write" : "");
+  if (!baselineScope || !requestedScopes.includes(baselineScope)) {
+    throw capabilityError(
+      "managed_google_oauth_scope_contract_invalid",
+      "Requested Google scopes must include the exact Drive baseline required by the managed access mode.",
+    );
+  }
+  if (mode === "read_only" && requestedScopes.includes(GOOGLE_DRIVE_WRITE_SCOPE)) {
+    throw capabilityError(
+      "managed_google_oauth_readonly_scope_escalated",
+      "Read-only Managed Google OAuth cannot request the Drive write scope.",
+    );
+  }
+  const capabilityByScope = new Map();
+  for (const [capabilityId, definition] of Object.entries(CAPABILITIES)) {
+    if (!capabilityByScope.has(definition.scope)) capabilityByScope.set(definition.scope, capabilityId);
+  }
+  const unknownScopes = requestedScopes.filter((scope) => !capabilityByScope.has(scope));
+  if (unknownScopes.length) {
+    throw capabilityError(
+      "managed_google_oauth_scope_unregistered",
+      "Requested Google OAuth scope is not present in the governed capability registry.",
+    );
+  }
+  return {
+    access_mode: mode,
+    requested_scope: baselineScope,
+    baseline_capability: baselineCapability,
+    supplied_scopes: requestedScopes,
+    supplied_capabilities: requestedScopes.map((scope) => capabilityByScope.get(scope)),
+  };
 }
 
 export function managedGoogleCapabilityRegistry() {
@@ -294,7 +329,7 @@ export function resolveManagedGoogleOAuthAccess({
   scope_profile = "",
   requested_capabilities = [],
 } = {}) {
-  const legacy = legacyAccessScope(access_mode, requested_scope);
+  const legacy = accessBaseline(access_mode, requested_scope);
   const profile = String(scope_profile || "").trim().toLowerCase();
   const requested = normalizeCapabilityList(requested_capabilities);
 
@@ -317,6 +352,7 @@ export function resolveManagedGoogleOAuthAccess({
 
   const capabilityIds = [...new Set([
     legacy.baseline_capability,
+    ...legacy.supplied_capabilities,
     ...profileCapabilities,
     ...requested,
   ])];
