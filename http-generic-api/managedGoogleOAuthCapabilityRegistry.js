@@ -24,11 +24,23 @@ const CAPABILITIES = Object.freeze({
     risk_class: "sensitive",
     full_owner: true,
   }),
+  "docs.read": Object.freeze({
+    scope: "https://www.googleapis.com/auth/documents.readonly",
+    family: "workspace",
+    risk_class: "sensitive",
+    full_owner: false,
+  }),
   "docs.write": Object.freeze({
     scope: "https://www.googleapis.com/auth/documents",
     family: "workspace",
     risk_class: "sensitive",
     full_owner: true,
+  }),
+  "sheets.read": Object.freeze({
+    scope: "https://www.googleapis.com/auth/spreadsheets.readonly",
+    family: "workspace",
+    risk_class: "sensitive",
+    full_owner: false,
   }),
   "sheets.write": Object.freeze({
     scope: "https://www.googleapis.com/auth/spreadsheets",
@@ -36,11 +48,23 @@ const CAPABILITIES = Object.freeze({
     risk_class: "sensitive",
     full_owner: true,
   }),
+  "calendar.read": Object.freeze({
+    scope: "https://www.googleapis.com/auth/calendar.readonly",
+    family: "workspace",
+    risk_class: "sensitive",
+    full_owner: false,
+  }),
   "calendar.write": Object.freeze({
     scope: "https://www.googleapis.com/auth/calendar",
     family: "workspace",
     risk_class: "sensitive",
     full_owner: true,
+  }),
+  "gmail.read": Object.freeze({
+    scope: "https://www.googleapis.com/auth/gmail.readonly",
+    family: "gmail",
+    risk_class: "restricted",
+    full_owner: false,
   }),
   "gmail.full": Object.freeze({
     scope: "https://mail.google.com/",
@@ -59,6 +83,18 @@ const CAPABILITIES = Object.freeze({
     family: "gmail",
     risk_class: "restricted_admin",
     full_owner: true,
+  }),
+  "apps_script.deployments_read": Object.freeze({
+    scope: "https://www.googleapis.com/auth/script.deployments.readonly",
+    family: "apps_script",
+    risk_class: "sensitive",
+    full_owner: false,
+  }),
+  "apps_script.projects_read": Object.freeze({
+    scope: "https://www.googleapis.com/auth/script.projects.readonly",
+    family: "apps_script",
+    risk_class: "sensitive",
+    full_owner: false,
   }),
   "apps_script.deployments": Object.freeze({
     scope: "https://www.googleapis.com/auth/script.deployments",
