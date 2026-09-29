@@ -4,7 +4,10 @@ import YAML from "yaml";
 import path from "node:path";
 import { constants } from "node:fs";
 import { resolveRuntimeEnvironmentStrict } from "./runtimeEnvironmentResolver.js";
-import { verifyRecoveryExternalAcquisitionAuthority } from "./recoveryExternalAcquisitionAuthority.js";
+import {
+  isRecoveryExternalAcquisitionAuthority,
+  verifyRecoveryExternalAcquisitionAuthority,
+} from "./recoveryExternalAcquisitionAuthority.js";
 
 export const RECOVERY_READINESS_EVIDENCE_CONTRACT = "mad4b.recovery-readiness-evidence.v1";
 export const RECOVERY_CERTIFICATION_STORE_CONTRACT = "mad4b.recovery-certification-evidence-store.v1";
@@ -260,6 +263,10 @@ export function createRecoveryReadinessAuthorities({
     || typeof targetIdentityProvider?.readIdentity !== "function") fail("RECOVERY_EVIDENCE_AUTHORITY_INCOMPLETE");
   if (recordId !== null && !SHA256.test(recordId || "")) fail("RECOVERY_EVIDENCE_AUTHORITY_INCOMPLETE");
   if (adapterProvenanceReader !== null && typeof adapterProvenanceReader !== "function") fail("RECOVERY_EVIDENCE_AUTHORITY_INCOMPLETE");
+  if (externalAcquisitionAuthority !== null
+    && !isRecoveryExternalAcquisitionAuthority(externalAcquisitionAuthority)) {
+    fail("RECOVERY_EXTERNAL_ACQUISITION_AUTHORITY_UNTRUSTED");
+  }
   if (runtime.environment_key === "staging" && runtime.runtime_class !== "local_windows_docker"
     && evidenceStore.replayStore?.scope !== "shared_deployment") fail("RECOVERY_REPLAY_STORE_SCOPE_INSUFFICIENT");
 
