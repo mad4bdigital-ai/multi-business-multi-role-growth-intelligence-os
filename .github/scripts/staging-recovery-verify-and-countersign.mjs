@@ -30,6 +30,14 @@ export async function verifyAndCountersignStagingRecovery({ evidenceDirectory, o
       ),
     ),
   );
+  const liveNetworkEvidence = await json(
+    path.resolve(
+      required(
+        env,
+        "RECOVERY_STAGING_LIVE_NETWORK_EVIDENCE_FILE",
+      ),
+    ),
+  );
   const expectedSha = required(env, "GITHUB_SHA"); const expectedTargetFingerprint = required(env, "RECOVERY_STAGING_EXPECTED_TARGET_FINGERPRINT");
   const externalEvidenceAcquisitionAuthority = createRecoveryExternalAcquisitionAuthorityFromEnv(env);
   const verificationReport = await independentlyVerifyStagingRecoveryCanaryEvidence(
@@ -41,6 +49,7 @@ export async function verifyAndCountersignStagingRecovery({ evidenceDirectory, o
       negativeTestEvidence,
       liveWorkerProviderObservation,
       liveIngressBuildIdentity,
+      liveNetworkEvidence,
       externalEvidenceAcquisitionAuthority,
       requireLiveRuntimeRevalidation: true,
       loadKernelArtifacts: async (ids) => {
