@@ -13,7 +13,10 @@
       "specs/012-tenant-activation-lifecycle/e2e-phases.json",
       "specs/012-tenant-activation-lifecycle/implementation/pr-2h-policy-post-merge-and-t026-readiness.json",
       "specs/012-tenant-activation-lifecycle/implementation/pr-2h-policy-post-merge-and-t026-readiness.md",
-      "docs/runbooks/spec012-governed-policy-migration-readiness.md"
+      "docs/runbooks/spec012-governed-policy-migration-readiness.md",
+      "specs/012-tenant-activation-lifecycle/implementation/pr-2k-t030-oauth-operation-correlation-foundation.json",
+      "specs/012-tenant-activation-lifecycle/implementation/pr-2k-t030-oauth-operation-correlation-foundation.md",
+      ".changes/e2e/tenant-gpt-oauth-server-owned-correlation-b2a-20260929.json"
     ]
   },
   "merge_contract": {
@@ -23,7 +26,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Prove the PR #4181 post-merge closeout and the read-only T026 migration-design readiness path without granting migration or runtime authority.",
+      "objective": "Prove the PR #4181 post-merge/T026 migration-design readiness path and the repository-side T030 OAuth correlation runtime wiring without granting migration apply, Activation-run synthesis, Recovery OAuth source authority, or Production mutation.",
       "e2e_journeys": [
         {
           "id": "policy-closeout-to-t026-readiness-evidence",
@@ -61,6 +64,43 @@
             "http-generic-api/scripts/spec012-governed-policy-migration-readiness.mjs",
             "http-generic-api/test-spec012-policy-closeout-and-t026-readiness.mjs",
             "docs/runbooks/spec012-governed-policy-migration-readiness.md"
+          ]
+        },
+        {
+          "id": "t030-oauth-server-owned-correlation-runtime-wiring",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 012 OAuth/Activation lifecycle reviewer",
+          "entrypoint": "Tenant GPT OAuth authorize → code → token → protected-resource gateway repository runtime",
+          "terminal_outcome": "The repository carries one server-owned OAuth correlation through gateway_verify, binds the authorization-code row to operation_id, preserves replay/tamper/drift rejection, and still leaves T030 open until governed migration apply/readback, exact-SHA Staging verification, and a legitimate Activation-run projection bridge.",
+          "steps": [
+            "Verify authorize creates the correlation server-side and exposes only a short-lived signed ticket bound to client, resource, redirect URI and OAuth state.",
+            "Verify /oauth/code validates the ticket, advances identity_verify, persists request_correlation_ref = operation_id, then signs oauth_code_issue correlation into the authorization-code JWT.",
+            "Verify /oauth/token consumes the exact code row with the same operation_id before issuing a token-exchange correlation bound to the access JTI.",
+            "Verify protected-resource authentication rejects invalid correlation claims and advances only verified claims to gateway_verify in server-owned req.auth context.",
+            "Verify no synthetic activation_run, parallel ledger, Recovery OAuth source branding, callback_received claim, receipt signing, migration apply, deployment or Production mutation occurs."
+          ],
+          "assertions": [
+            "T030 remains unchecked until governed migration apply/readback and exact-SHA Staging verification complete.",
+            "request_correlation_ref is the OAuth correlation operation_id and has no foreign key to activation_runs.",
+            "activation_operation_projections.operation_id remains owned by activation_runs.run_id; this PR does not bridge pre-Activation OAuth identity by manufacturing a run.",
+            "Caller tampering, cross-code/client/resource/subject/access-JTI drift and code replay fail closed.",
+            "callback_received remains unresolved, oauth_server_correlation_source_available remains false, and receipt_signed remains false."
+          ],
+          "tests": [
+            {
+              "id": "spec012-t030-oauth-correlation-runtime-wiring",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec012-t030-oauth-correlation-foundation.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "specs/012-tenant-activation-lifecycle/e2e-phases.json",
+            "specs/012-tenant-activation-lifecycle/implementation/pr-2k-t030-oauth-operation-correlation-foundation.json",
+            "specs/012-tenant-activation-lifecycle/implementation/pr-2k-t030-oauth-operation-correlation-foundation.md",
+            ".changes/e2e/tenant-gpt-oauth-server-owned-correlation-b2a-20260929.json"
           ]
         }
       ]
