@@ -80,6 +80,11 @@ jobs:
       - name: Acquire or report OAuth server-correlation evidence
         working-directory: http-generic-api
         env:
+          DEPLOYMENT_ENVIRONMENT: staging_local_windows_docker
+          REMOTE_MCP_ENVIRONMENT: staging
+          ACTIVATION_STAGING_GATEWAY_ENABLED: "true"
+          TENANT_GPT_STAGING_AUTHORIZATION_SERVER_URL: https://dev.mad4b.com
+          TENANT_GPT_STAGING_ACTIVATION_RESOURCE_URL: https://activation-dev.mad4b.com
           RECOVERY_STAGING_EXPECTED_SHA: ${{ inputs.expected_sha }}
           RECOVERY_STAGING_EXPECTED_TARGET_FINGERPRINT: ${{ inputs.expected_target_fingerprint }}
           RECOVERY_STAGING_OAUTH_CORRELATION_URL: ${{ vars.RECOVERY_STAGING_OAUTH_CORRELATION_URL }}
