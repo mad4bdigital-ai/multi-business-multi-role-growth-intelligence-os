@@ -12,6 +12,9 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$NetworkEvidenceFile,
 
+    [Parameter(Mandatory = $true)]
+    [string]$AcquisitionReceiptFile,
+
     [Parameter(Mandatory = $false)]
     [string]$WorkerEvidenceFile = "",
 
@@ -164,6 +167,7 @@ try {
     $registration = Resolve-RequiredFile -PathValue $RegistrationEvidenceFile -Label "RegistrationEvidenceFile"
     $oauth = Resolve-RequiredFile -PathValue $OAuthEvidenceFile -Label "OAuthEvidenceFile"
     $network = Resolve-RequiredFile -PathValue $NetworkEvidenceFile -Label "NetworkEvidenceFile"
+    $acquisitionReceipt = Resolve-RequiredFile -PathValue $AcquisitionReceiptFile -Label "AcquisitionReceiptFile"
     $worker = $null
     $ingress = $null
     $workerProvider = $null
@@ -218,7 +222,8 @@ try {
     $copies = @(
         @($registration, "registration.json"),
         @($oauth, "oauth.json"),
-        @($network, "network.json")
+        @($network, "network.json"),
+        @($acquisitionReceipt, "acquisition-receipt.json")
     )
 
     if ($CaptureRuntimeEvidence) {
@@ -254,6 +259,7 @@ try {
         "-e", ("RECOVERY_STAGING_REGISTRATION_EVIDENCE_FILE={0}/registration.json" -f $containerInput),
         "-e", ("RECOVERY_STAGING_OAUTH_EVIDENCE_FILE={0}/oauth.json" -f $containerInput),
         "-e", ("RECOVERY_STAGING_NETWORK_EVIDENCE_FILE={0}/network.json" -f $containerInput),
+        "-e", ("RECOVERY_STAGING_ACQUISITION_RECEIPT_FILE={0}/acquisition-receipt.json" -f $containerInput),
         "-e", ("RECOVERY_STAGING_WORKER_EVIDENCE_FILE={0}/worker.json" -f $containerInput),
         "-e", ("RECOVERY_STAGING_INGRESS_BUILD_IDENTITY_FILE={0}/ingress-build.json" -f $containerInput),
         "app", "node", "scripts/staging-recovery-genuine-canary.mjs"
