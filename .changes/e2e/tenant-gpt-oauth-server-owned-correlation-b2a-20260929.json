@@ -1,0 +1,145 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "tenant-gpt-oauth-server-owned-correlation-b2a-20260929",
+  "title": "Wire server-owned Tenant GPT OAuth correlation from authorize through protected-resource gateway verification",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/tenant-gpt-oauth-server-owned-correlation-b2a-20260929.json",
+      "http-generic-api/migrations/20260929_tenant_gpt_oauth_authorization_code_correlation_ref.sql",
+      "http-generic-api/tenantGptOAuthAuthorizationCodeStore.js",
+      "http-generic-api/tenantGptOAuthOperationCorrelation.js",
+      "http-generic-api/tenantGptOAuthTokenExchangeBindingGuard.js",
+      "http-generic-api/tenantGptAccessTokenVerifier.js",
+      "http-generic-api/routes/authRoutes.js",
+      "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
+      "http-generic-api/test-tenant-gpt-oauth-operation-correlation.mjs",
+      "http-generic-api/test-tenant-gpt-oauth-authorization-code-store.mjs",
+      "http-generic-api/test-auth-oauth-routes.mjs",
+      "http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs",
+      "http-generic-api/test-tenant-gpt-oauth-token-binding-hardening.mjs",
+      "http-generic-api/test-tenant-gpt-access-token-verifier.mjs",
+      "http-generic-api/test-spec012-t030-oauth-correlation-foundation.mjs",
+      "specs/012-tenant-activation-lifecycle/implementation/pr-2k-t030-oauth-operation-correlation-foundation.md",
+      "specs/012-tenant-activation-lifecycle/implementation/pr-2k-t030-oauth-operation-correlation-foundation.json"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Carry one server-owned OAuth operation/correlation chain from authorize through gateway verification without creating a synthetic Activation run or enabling Recovery OAuth source authority.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-gpt-oauth-server-owned-correlation-runtime",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Tenant GPT OAuth authorization server and protected-resource gateway",
+          "entrypoint": "GET /auth/oauth/authorize",
+          "terminal_outcome": "A signed server-owned correlation survives authorize, code issuance, code consumption, token exchange and protected-resource verification as gateway_verify while callback observation and Recovery OAuth source authority remain unavailable.",
+          "steps": [
+            "Create oauth_authorize correlation server-side after client, resource and redirect validation.",
+            "Carry only a short-lived signed correlation ticket through the browser and bind it to client, resource, redirect URI and OAuth state.",
+            "Verify the ticket at /auth/oauth/code, advance to identity_verify, persist request_correlation_ref as operation_id, then advance to oauth_code_issue and sign the verified claim into the authorization-code JWT.",
+            "At /auth/oauth/token, verify code correlation and client/resource/subject/code-JTI bindings, atomically consume the exact row using request_correlation_ref, require readback parity, then advance to oauth_token_exchange with access JTI.",
+            "Sign the bounded verified token-exchange correlation claim into the access token.",
+            "At protected-resource bearer verification, reject present-but-invalid correlation and advance only verified claims to gateway_verify in server-owned req.auth context.",
+            "Keep callback_received unresolved and do not enable OAuth source branding, acquisition receipt signing, migration apply, deployment, provider mutation or Production mutation."
+          ],
+          "assertions": [
+            "request_correlation_ref maps explicitly to OAuth correlation operation_id and has no foreign key to activation_runs.",
+            "No synthetic activation_run or parallel correlation ledger is created.",
+            "Caller mutation of the correlation ticket fails closed.",
+            "Cross-code, cross-client, cross-resource, subject and access-JTI drift fail closed.",
+            "Authorization-code replay remains rejected.",
+            "Caller-provided req.auth cannot override verified gateway correlation.",
+            "activation_operation_projections and activation_stage_attempts are not written before a legitimate Activation run exists.",
+            "callback_received remains unresolved.",
+            "oauth_server_correlation_source_available remains false.",
+            "receipt_signed remains false.",
+            "Production mutation, credential mutation, provider mutation and database apply are outside this PR."
+          ],
+          "tests": [
+            {
+              "id": "oauth-operation-correlation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-gpt-oauth-operation-correlation.mjs",
+              "args": []
+            },
+            {
+              "id": "oauth-code-store",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-gpt-oauth-authorization-code-store.mjs",
+              "args": []
+            },
+            {
+              "id": "auth-oauth-routes",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-auth-oauth-routes.mjs",
+              "args": []
+            },
+            {
+              "id": "oauth-token-exchange-routes",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-gpt-oauth-token-exchange-routes.mjs",
+              "args": []
+            },
+            {
+              "id": "oauth-token-binding-hardening",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-gpt-oauth-token-binding-hardening.mjs",
+              "args": []
+            },
+            {
+              "id": "access-token-verifier",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-gpt-access-token-verifier.mjs",
+              "args": []
+            },
+            {
+              "id": "spec012-t030-runtime-wiring",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec012-t030-oauth-correlation-foundation.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/tenant-gpt-oauth-server-owned-correlation-b2a-20260929.json",
+            "http-generic-api/migrations/20260929_tenant_gpt_oauth_authorization_code_correlation_ref.sql",
+            "http-generic-api/tenantGptOAuthOperationCorrelation.js",
+            "http-generic-api/tenantGptOAuthAuthorizationCodeStore.js",
+            "http-generic-api/tenantGptOAuthTokenExchangeBindingGuard.js",
+            "http-generic-api/routes/authRoutes.js",
+            "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
+            "http-generic-api/tenantGptAccessTokenVerifier.js",
+            "specs/012-tenant-activation-lifecycle/implementation/pr-2k-t030-oauth-operation-correlation-foundation.md",
+            "specs/012-tenant-activation-lifecycle/implementation/pr-2k-t030-oauth-operation-correlation-foundation.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
