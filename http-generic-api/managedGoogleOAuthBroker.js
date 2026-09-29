@@ -11,6 +11,10 @@ import {
   GOOGLE_DRIVE_READ_SCOPE,
   GOOGLE_DRIVE_WRITE_SCOPE,
 } from "./managedGoogleOAuthProtocolPolicy.js";
+import {
+  resolveManagedGoogleOAuthAccess,
+  validateManagedGoogleGrantedScopes,
+} from "./managedGoogleOAuthCapabilityRegistry.js";
 
 export const MANAGED_GOOGLE_SESSION_CONTRACT = "mad4b.google-managed-oauth-session.v1";
 export const MANAGED_GOOGLE_REDEEM_REQUEST_CONTRACT = "mad4b.google-managed-oauth-redeem-request.v1";
@@ -87,11 +91,10 @@ function normalizeCallbackUrl(value) {
 }
 
 function exactAccessContract(accessMode, requestedScope) {
-  const mode = cleanText(accessMode, 32).toLowerCase();
-  const scope = cleanText(requestedScope, 512);
-  if (mode === "read_only" && scope === GOOGLE_DRIVE_READ_SCOPE) return { access_mode: mode, requested_scope: scope };
-  if (mode === "read_write" && scope === GOOGLE_DRIVE_WRITE_SCOPE) return { access_mode: mode, requested_scope: scope };
-  throw brokerError(400, "managed_google_oauth_scope_contract_invalid", "Requested Google Drive scope does not exactly match the requested managed access mode.");
+  return resolveManagedGoogleOAuthAccess({
+    access_mode: cleanText(accessMode, 32).toLowerCase(),
+    requested_scope: cleanText(requestedScope, 512),
+  });
 }
 
 function normalizeSiteBinding(raw) {
@@ -283,7 +286,7 @@ export function buildManagedGoogleAuthorizationUrl({ config, brokerState, reques
   url.searchParams.set("response_type", "code");
   url.searchParams.set("scope", requestedScope);
   url.searchParams.set("access_type", "offline");
-  url.searchParams.set("include_granted_scopes", "false");
+  url.searchParams.set("include_granted_scopes", "true");
   url.searchParams.set("prompt", "consent");
   url.searchParams.set("state", brokerState);
   return url.toString();
@@ -532,7 +535,12 @@ export function createManagedGoogleOAuthBroker({
       throw brokerError(400, "managed_google_oauth_session_contract_invalid", "Managed Google OAuth session contract is invalid.");
     }
     const binding = resolveExactSiteBinding(env, input);
-    const access = exactAccessContract(input.access_mode, input.requested_scope);
+    const access = resolveManagedGoogleOAuthAccess({
+      access_mode: input.access_mode,
+      requested_scope: input.requested_scope,
+      scope_profile: input.scope_profile,
+      requested_capabilities: input.requested_capabilities,
+    });
     const clientState = cleanText(input.state, 256);
     const verifierChallenge = cleanText(input.verifier_challenge, 128);
     if (clientState.length < 32 || !BASE64URL_SHA256_RE.test(verifierChallenge) || cleanText(input.verifier_method, 16) !== "S256") {
@@ -550,18 +558,33 @@ export function createManagedGoogleOAuthBroker({
       callback_uri: binding.callback_uri,
       access_mode: access.access_mode,
       requested_scope: access.requested_scope,
-      client_state_envelope: sealManagedGoogleEnvelope({ state: clientState }, config.encryption_key, randomBytesImpl),
+      client_state_envelope: sealManagedGoogleEnvelope({
+        state: clientState,
+        scope_profile: access.scope_profile,
+        requested_capabilities: access.requested_capabilities,
+        requested_scopes: access.requested_scopes,
+      }, config.encryption_key, randomBytesImpl),
       broker_state_hash: sha256Hex(brokerState),
       verifier_challenge: verifierChallenge,
       expires_at: new Date(nowDate.getTime() + config.session_ttl_seconds * 1000),
       created_at: nowDate,
-      audit_metadata: { access_mode: access.access_mode, scope_sha256_prefix: sha256Hex(access.requested_scope).slice(0, 12) },
+      audit_metadata: {
+        access_mode: access.access_mode,
+        scope_profile: access.scope_profile,
+        requested_capability_count: access.requested_capabilities.length,
+        requested_scope_count: access.scope_count,
+        scope_sha256_prefix: sha256Hex(access.authorization_scope).slice(0, 12),
+      },
     };
     await store.createSession(record);
     return {
       contract: MANAGED_GOOGLE_SESSION_CONTRACT,
       session_id: sessionId,
-      authorization_url: buildManagedGoogleAuthorizationUrl({ config, brokerState, requestedScope: access.requested_scope }),
+      authorization_url: buildManagedGoogleAuthorizationUrl({ config, brokerState, requestedScope: access.authorization_scope }),
+      scope_profile: access.scope_profile,
+      requested_capabilities: access.requested_capabilities,
+      requested_scopes: access.requested_scopes,
+      incremental_authorization: true,
     };
   }
 
@@ -579,7 +602,24 @@ export function createManagedGoogleOAuthBroker({
       origin: session.origin,
       callback_uri: session.callback_uri,
     });
-    const clientState = openManagedGoogleEnvelope(session.client_state_envelope, config.encryption_key).state;
+    const clientEnvelope = openManagedGoogleEnvelope(session.client_state_envelope, config.encryption_key);
+    const clientState = clientEnvelope.state;
+    const access = resolveManagedGoogleOAuthAccess({
+      access_mode: session.access_mode,
+      requested_scope: session.requested_scope,
+      scope_profile: clientEnvelope.scope_profile,
+      requested_capabilities: clientEnvelope.requested_capabilities,
+    });
+    if (
+      Array.isArray(clientEnvelope.requested_scopes) &&
+      clientEnvelope.requested_scopes.join(" ") !== access.requested_scopes.join(" ")
+    ) {
+      throw brokerError(
+        409,
+        "managed_google_oauth_capability_registry_changed",
+        "Managed Google OAuth capability registry changed while the authorization session was pending.",
+      );
+    }
     if (providerError) {
       const reason = safeProviderError(providerError);
       const denied = await store.markDenied({ session_id: session.session_id, site_uuid: session.site_uuid, origin: session.origin, reason, now: nowDate });
@@ -605,16 +645,22 @@ export function createManagedGoogleOAuthBroker({
     const tokens = await parseGoogleTokenResponse(response, "managed_google_oauth_code_exchange_failed");
     const accessToken = cleanText(tokens.access_token, 8192);
     const refreshToken = cleanText(tokens.refresh_token, 8192);
-    const grantedScope = cleanText(tokens.scope, 512);
+    const grantedScope = cleanText(tokens.scope, 8192);
     if (!accessToken || !refreshToken) throw brokerError(502, "managed_google_oauth_token_missing", "Google OAuth token exchange did not return both access and refresh tokens.");
-    exactAccessContract(session.access_mode, grantedScope);
+    const granted = validateManagedGoogleGrantedScopes(access, grantedScope);
     const expiresIn = boundedPositiveInt(tokens.expires_in, 3600, 24 * 60 * 60);
     const handoffCode = secureToken(32, randomBytesImpl);
     const tokenEnvelope = sealManagedGoogleEnvelope({
       access_token: accessToken,
       refresh_token: refreshToken,
       expires_in: expiresIn,
-      scope: grantedScope,
+      scope: granted.granted_scopes.join(" "),
+      scope_profile: access.scope_profile,
+      requested_capabilities: access.requested_capabilities,
+      requested_scopes: access.requested_scopes,
+      missing_scopes: granted.missing_requested_scopes,
+      previously_granted_scopes: granted.previously_granted_scopes,
+      complete_scope_grant: granted.complete,
     }, config.encryption_key, randomBytesImpl);
     const authorized = await store.authorizeSession({
       session_id: session.session_id,
@@ -655,13 +701,25 @@ export function createManagedGoogleOAuthBroker({
       now: nowDate,
     });
     const tokens = openManagedGoogleEnvelope(row.token_envelope, config.encryption_key);
-    exactAccessContract(row.access_mode, tokens.scope);
+    const access = resolveManagedGoogleOAuthAccess({
+      access_mode: row.access_mode,
+      requested_scope: row.requested_scope,
+      scope_profile: tokens.scope_profile,
+      requested_capabilities: tokens.requested_capabilities,
+    });
+    const granted = validateManagedGoogleGrantedScopes(access, tokens.scope);
     return {
       contract: MANAGED_GOOGLE_REDEMPTION_CONTRACT,
       access_token: String(tokens.access_token || ""),
       refresh_token: String(tokens.refresh_token || ""),
       expires_in: boundedPositiveInt(tokens.expires_in, Number(row.token_expires_in) || 3600, 24 * 60 * 60),
-      scope: String(tokens.scope || ""),
+      scope: granted.granted_scopes.join(" "),
+      scope_profile: access.scope_profile,
+      requested_capabilities: access.requested_capabilities,
+      requested_scopes: access.requested_scopes,
+      missing_scopes: granted.missing_requested_scopes,
+      previously_granted_scopes: granted.previously_granted_scopes,
+      complete_scope_grant: granted.complete,
     };
   }
 
@@ -671,7 +729,12 @@ export function createManagedGoogleOAuthBroker({
       throw brokerError(400, "managed_google_oauth_refresh_contract_invalid", "Managed Google OAuth refresh request contract is invalid.");
     }
     const binding = resolveSiteOriginBinding(env, input);
-    const access = exactAccessContract(input.access_mode, input.requested_scope);
+    const access = resolveManagedGoogleOAuthAccess({
+      access_mode: input.access_mode,
+      requested_scope: input.requested_scope,
+      scope_profile: input.scope_profile,
+      requested_capabilities: input.requested_capabilities,
+    });
     const refreshToken = cleanText(input.refresh_token, 8192);
     if (!refreshToken) throw brokerError(400, "managed_google_oauth_refresh_token_missing", "Managed Google OAuth refresh token is missing.");
     const nowDate = now();
@@ -691,22 +754,34 @@ export function createManagedGoogleOAuthBroker({
     const tokens = await parseGoogleTokenResponse(response, "managed_google_oauth_refresh_failed");
     const accessToken = cleanText(tokens.access_token, 8192);
     if (!accessToken) throw brokerError(502, "managed_google_oauth_refreshed_token_missing", "Google OAuth refresh did not return an access token.");
-    const returnedScope = cleanText(tokens.scope || access.requested_scope, 512);
-    exactAccessContract(access.access_mode, returnedScope);
+    const returnedScope = cleanText(tokens.scope || access.authorization_scope, 8192);
+    const granted = validateManagedGoogleGrantedScopes(access, returnedScope);
     const expiresIn = boundedPositiveInt(tokens.expires_in, 3600, 24 * 60 * 60);
     await store.appendAudit?.({
       event: "refresh",
       site_uuid: binding.site_uuid,
       outcome: "success",
       origin: binding.origin,
-      metadata: { access_mode: access.access_mode, scope_sha256_prefix: sha256Hex(returnedScope).slice(0, 12) },
+      metadata: {
+        access_mode: access.access_mode,
+        scope_profile: access.scope_profile,
+        requested_scope_count: access.scope_count,
+        granted_scope_count: granted.granted_scopes.length,
+        scope_sha256_prefix: sha256Hex(returnedScope).slice(0, 12),
+      },
       now: nowDate,
     });
     return {
       contract: MANAGED_GOOGLE_REFRESH_CONTRACT,
       access_token: accessToken,
       expires_in: expiresIn,
-      scope: returnedScope,
+      scope: granted.granted_scopes.join(" "),
+      scope_profile: access.scope_profile,
+      requested_capabilities: access.requested_capabilities,
+      requested_scopes: access.requested_scopes,
+      missing_scopes: granted.missing_requested_scopes,
+      previously_granted_scopes: granted.previously_granted_scopes,
+      complete_scope_grant: granted.complete,
     };
   }
 
