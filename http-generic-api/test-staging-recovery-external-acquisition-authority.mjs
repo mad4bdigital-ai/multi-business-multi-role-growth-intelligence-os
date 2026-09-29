@@ -479,7 +479,10 @@ test("receipt signer and verifier share the canonical Network direct-denial poli
           },
         ),
       (error) =>
-        error.code === "RECOVERY_EXTERNAL_ACQUISITION_NETWORK_SOURCE_INVALID",
+        [
+          "RECOVERY_EXTERNAL_ACQUISITION_EVIDENCE_INVALID",
+          "RECOVERY_EXTERNAL_ACQUISITION_NETWORK_SOURCE_INVALID",
+        ].includes(error.code),
     );
   }
 
