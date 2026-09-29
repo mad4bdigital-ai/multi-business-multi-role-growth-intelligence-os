@@ -60,6 +60,7 @@ assert.ok(sharedRuntimeClass.exclude_patterns.includes("http-generic-api/test-*.
 assert.ok(repositoryGovernanceClass.patterns.includes("http-generic-api/test-*.mjs"));
 assert.ok(repositoryGovernanceClass.patterns.includes("http-generic-api/test-*.js"));
 assert.ok(repositoryGovernanceClass.patterns.includes("AI_Agent_Knowledge_Guide.md"));
+assert.ok(repositoryGovernanceClass.patterns.includes("specs/*/implementation/**"));
 assert.deepEqual(
   [...policy.source_of_truth_paths].sort(),
   Object.values(policy.authorities).sort(),
@@ -88,6 +89,7 @@ assert.deepEqual(classifyPath("http-generic-api/test-environment-impact-closure.
 assert.deepEqual(classifyPath("http-generic-api/test-example.js", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath("docs/repository-inventory.json", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath("AI_Agent_Knowledge_Guide.md", classes).map((entry) => entry.id), ["repository_governance"]);
+assert.deepEqual(classifyPath("specs/012-tenant-activation-lifecycle/implementation/pr-example.json", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath("http-generic-api/scripts/e2e-phase-governance-core.mjs", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath(".specify/e2e-phase-governance.json", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath("docs/e2e-phase-governance.md", classes).map((entry) => entry.id), ["repository_governance"]);
