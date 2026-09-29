@@ -7,6 +7,7 @@ const workflow = readFileSync("../.github/workflows/staging-post-deploy-verifica
 const verifier = readFileSync("../.github/scripts/staging-recovery-verify-and-countersign.mjs", "utf8");
 const negative = readFileSync("../.github/scripts/staging-recovery-negative-test-evidence.mjs", "utf8");
 const acquisitionSigner = readFileSync("../.github/scripts/staging-recovery-sign-acquisition-receipt.mjs", "utf8");
+const networkAcquisition = readFileSync("./scripts/staging-recovery-acquire-network-evidence.mjs", "utf8");
 
 assert.match(canaryPs, /git" -Arguments @\("fetch", "origin", "main"\)/u);
 assert.match(canaryPs, /\$branch -ne "main"/u);
@@ -45,6 +46,12 @@ assert.match(workflow, /receipt_signed: false/u);
 assert.doesNotMatch(workflow, /STAGING_RECOVERY_ACQUISITION_PRIVATE_KEY/u);
 assert.match(acquisitionSigner, /STAGING_RECOVERY_ACQUISITION_PRIVATE_KEY/u);
 assert.match(acquisitionSigner, /unavailableRegistrationSourceVerification/u);
+assert.match(networkAcquisition, /sourceCommit/u);
+assert.match(networkAcquisition, /workerBuildSha/u);
+assert.match(networkAcquisition, /workerBundleSha256/u);
+assert.match(networkAcquisition, /policyHash/u);
+assert.match(networkAcquisition, /secretsIncluded/u);
+assert.match(networkAcquisition, /RECOVERY_NETWORK_GATEWAY_IDENTITY_MISMATCH/u);
 
 assert.match(publishPs, /gh run view/u);
 assert.match(publishPs, /conclusion -ne "success"/u);
