@@ -389,7 +389,7 @@ test("network acquisition binds exact live Gateway health identity into the evid
   };
 
   await assert.rejects(
-    () =>
+    async () =>
       buildRecoveryNetworkIsolationEvidence({
         ...base,
         gateway: {
@@ -403,7 +403,7 @@ test("network acquisition binds exact live Gateway health identity into the evid
   );
 
   await assert.rejects(
-    () =>
+    async () =>
       buildRecoveryNetworkIsolationEvidence({
         ...base,
         gateway: {
