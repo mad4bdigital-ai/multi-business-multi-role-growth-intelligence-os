@@ -98,7 +98,7 @@
     },
     {
       "path": "http-generic-api/.env.staging.example",
-      "sha256": "49df34227834cfc535beabbb634431e7ebd09192ddf03a2b57e6ab88f5f9fcb6"
+      "sha256": "69fcf59dedb1e46d86e391a1f624dd066c4a09d0765f596770a2c1ba93270f8b"
     },
     {
       "path": "http-generic-api/Dockerfile",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "49f72c98f181196e5834af6f71d9f4e872386f30ddd32996253430acccd6c968"
+      "sha256": "2fbbdd8ac3950dbaec953ebb2ac2cb5ad3cda76b1dbd1077cf4f4ead0c4be024"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -338,7 +338,7 @@
     },
     {
       "path": "autopilot-portable-staging/Staging-Environment.ps1",
-      "sha256": "5f6f2aa8715552774eb3d62e27a93f9a722e226ca338cb2562aabcdf4a32ed31"
+      "sha256": "451368867f434438ce4b5bb754827a034aa750d39a3236ac65fede58ea8f6679"
     },
     {
       "path": "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
