@@ -23,6 +23,7 @@
       "docs/runbooks/staging-recovery-phase-b-certification.md",
       "http-generic-api/.env.staging.example",
       "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/recoveryDirectDenialPolicy.js",
       "http-generic-api/recoveryExternalAcquisitionAuthority.js",
       "http-generic-api/recoveryReadinessEvidence.js",
       "http-generic-api/scripts/staging-recovery-acquire-network-evidence.mjs",
@@ -63,7 +64,7 @@
           "terminal_outcome": "Network acquisition can verify, OAuth correlation contract is enforced, registration source authenticity remains unavailable, no live receipt is signed, and no canary/countersign/readiness path can be opened by caller flags or fabricated JSON.",
           "steps": [
             "Construct server-branded acquisition authority from dedicated Ed25519 public trust.",
-            "Verify receipt signature, key identity, exact SHA/target, TTL, evidence hashes and source-proof hashes.",
+            "Verify receipt signature, key identity, exact SHA/target, TTL, evidence hashes and source-proof hashes, and require receipt signer/verifier to reuse the canonical Network direct-denial policy.",
             "Reject key reuse with Activation Gateway ingress or Recovery certification trust.",
             "Validate same-request Network acquisition using exactly one canonical direct-denial pair (403 / RECOVERY_TRUSTED_INGRESS_REQUIRED or 404 / RECOVERY_STAGING_HOST_UNAVAILABLE), Gateway 2xx, and exact live Gateway health identity bound to expected SHA, Worker build SHA, canonical policy hash, no-secret status, and Worker bundle hash.",
             "Validate ordered no-secret OAuth server-correlation events and redirect-URI hash binding.",
@@ -73,7 +74,7 @@
           ],
           "assertions": [
             "No environment flag, caller verified field, manual JSON or operator acknowledgement can manufacture acquisition authority.",
-            "Network source authority accepts only the two exact canonical direct-denial status+reason pairs; generic 401/403/404/5xx responses or caller-supplied denial classes cannot manufacture authority.",
+            "Network evidence and acquisition receipt signer/verifier accept only the two exact canonical direct-denial status+reason pairs; generic 401/403/404/5xx responses or caller-supplied denial classes cannot manufacture authority.",
             "Network acquisition cannot label a newer expected SHA onto an older live Gateway: health sourceCommit and workerBuildSha must equal the exact candidate SHA and health policyHash must equal the canonical Staging policy.",
             "OAuth token, authorization-code, credential or secret fields are rejected.",
             "Registration parity without provider/source attestation cannot produce a signed acquisition receipt.",
@@ -111,6 +112,7 @@
             "docs/governance/platform-configuration-entry-registry.json",
             "docs/runbooks/staging-recovery-phase-b-certification.md",
             "http-generic-api/config/repository-governance-constitution.json",
+            "http-generic-api/recoveryDirectDenialPolicy.js",
             "http-generic-api/recoveryExternalAcquisitionAuthority.js",
             "http-generic-api/recoveryReadinessEvidence.js",
             "http-generic-api/stagingRecoveryCertificationProtocol.js",

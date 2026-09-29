@@ -472,10 +472,12 @@ separate from Gateway trusted-ingress and Staging certification signing keys.
 
 Network acquisition authority requires the same
 `GET /admin/recovery/staging/contract` path, method and empty-body SHA-256 for
-direct origin and Activation Gateway, with direct exactly
-`403 / RECOVERY_TRUSTED_INGRESS_REQUIRED` and Gateway 2xx. A direct
-`404 / RECOVERY_STAGING_HOST_UNAVAILABLE` may remain useful host-isolation
-integrity evidence but is not strong enough to sign an acquisition receipt.
+direct origin and Activation Gateway, with direct matching exactly one canonical
+denial pair: `403 / RECOVERY_TRUSTED_INGRESS_REQUIRED` or
+`404 / RECOVERY_STAGING_HOST_UNAVAILABLE`, and Gateway 2xx. The Network
+evidence layer and acquisition receipt signer/verifier use the same canonical
+status+reason classifier; generic or mixed `401/403/404/5xx` combinations are
+not authority.
 
 OAuth acquisition accepts only the complete ordered server correlation:
 `authorize_received`, `login_consent_completed`,

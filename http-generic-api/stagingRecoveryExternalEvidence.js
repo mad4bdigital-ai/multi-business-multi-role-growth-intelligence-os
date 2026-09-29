@@ -1,6 +1,10 @@
 import { createHash, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import {
+  DIRECT_RECOVERY_DENIALS,
+  classifyRecoveryDirectDenial,
+} from "./recoveryDirectDenialPolicy.js";
+import {
   expectedStagingGatewayDeployment,
   expectedStagingRegistration,
   recoveryExternalEvidenceHash,
@@ -29,28 +33,10 @@ const SHA256 = /^[a-f0-9]{64}$/u;
 const SAFE_ID = /^[A-Za-z0-9._:@/-]{8,200}$/u;
 const MAX_TTL_MS = 60 * 60 * 1000;
 
-export const DIRECT_RECOVERY_DENIALS = Object.freeze([
-  Object.freeze({
-    status: 403,
-    reason: "RECOVERY_TRUSTED_INGRESS_REQUIRED",
-    denial_class: "trusted_ingress_required",
-  }),
-  Object.freeze({
-    status: 404,
-    reason: "RECOVERY_STAGING_HOST_UNAVAILABLE",
-    denial_class: "staging_host_unavailable",
-  }),
-]);
-
-export function classifyRecoveryDirectDenial({ status, reason } = {}) {
-  return (
-    DIRECT_RECOVERY_DENIALS.find(
-      (candidate) =>
-        candidate.status === status &&
-        candidate.reason === reason,
-    ) || null
-  );
-}
+export {
+  DIRECT_RECOVERY_DENIALS,
+  classifyRecoveryDirectDenial,
+};
 
 function matchesCanonicalStagingGatewayPolicyHash(value) {
   try {

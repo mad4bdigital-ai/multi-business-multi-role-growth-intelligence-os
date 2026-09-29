@@ -103,7 +103,10 @@ function oauthEvents({
   }));
 }
 
-async function validEvidence() {
+async function validEvidence({
+  networkStatus = 403,
+  networkReason = "RECOVERY_TRUSTED_INGRESS_REQUIRED",
+} = {}) {
   const registration = registrationEvidence();
   const oauth = buildRecoveryOAuthServerCorrelationEvidence({
     events: oauthEvents(),
@@ -114,13 +117,13 @@ async function validEvidence() {
   const network = await buildRecoveryNetworkIsolationEvidence({
     deploymentSha: SHA,
     targetFingerprint: TARGET,
-    observationId: "test-network-observation-0001",
+    observationId: `test-network-observation-${networkStatus}`,
     direct: {
       method: "GET",
       path: "/admin/recovery/staging/contract",
       body_sha256: EMPTY_HASH,
-      status: 403,
-      reason: "RECOVERY_TRUSTED_INGRESS_REQUIRED",
+      status: networkStatus,
+      reason: networkReason,
     },
     gateway: {
       method: "GET",
@@ -133,9 +136,36 @@ async function validEvidence() {
   return { registration, oauth, network };
 }
 
+function signedReceiptForEvidence({ receipt, evidence, privateKey }) {
+  const unsigned = {
+    ...receipt,
+    observations: {
+      ...receipt.observations,
+      network: {
+        ...receipt.observations.network,
+        observation_id: evidence.network.source_provenance.observation_id,
+        evidence_hash: evidence.network.evidence_hash,
+        source_proof_hash: recoveryExternalSourceProofHash(evidence.network),
+      },
+    },
+  };
+  delete unsigned.signature_b64url;
+  return Object.freeze({
+    ...unsigned,
+    signature_b64url: cryptoSign(
+      null,
+      Buffer.from(recoveryExternalAcquisitionCanonicalPayload(unsigned)),
+      privateKey,
+    ).toString("base64url"),
+  });
+}
+
 async function signedFixture(overrides = {}) {
   const keys = keyPair();
-  const evidence = await validEvidence();
+  const evidence = await validEvidence({
+    networkStatus: overrides.networkStatus,
+    networkReason: overrides.networkReason,
+  });
   const issuedAt = overrides.issuedAt || new Date().toISOString();
   const expiresAt =
     overrides.expiresAt || new Date(Date.now() + 10 * 60 * 1000).toISOString();
@@ -322,6 +352,169 @@ test("receipt rejects forged signature, evidence mutation, source drift, SHA, ta
   assert.equal(
     expired.reason_code,
     "RECOVERY_EXTERNAL_ACQUISITION_RECEIPT_EXPIRED",
+  );
+});
+
+test("receipt signer and verifier share the canonical Network direct-denial policy", async () => {
+  const canonicalPairs = [
+    [403, "RECOVERY_TRUSTED_INGRESS_REQUIRED"],
+    [404, "RECOVERY_STAGING_HOST_UNAVAILABLE"],
+  ];
+
+  for (const [networkStatus, networkReason] of canonicalPairs) {
+    const fixture = await signedFixture({ networkStatus, networkReason });
+    const verified = await verifyRecoveryExternalAcquisitionAuthority(
+      fixture.authority,
+      {
+        receipt: fixture.receipt,
+        registrationEvidence: fixture.evidence.registration,
+        oauthEvidence: fixture.evidence.oauth,
+        networkEvidence: fixture.evidence.network,
+        expectedSha: SHA,
+        expectedTargetFingerprint: TARGET,
+      },
+    );
+    assert.equal(verified.verified, true);
+
+    assert.throws(
+      () =>
+        signRecoveryExternalAcquisitionReceipt(
+          {
+            deploymentSha: SHA,
+            targetFingerprint: TARGET,
+            acquisitionRunId: `github-acquisition:canonical-${networkStatus}`,
+            registrationEvidence: fixture.evidence.registration,
+            oauthEvidence: fixture.evidence.oauth,
+            networkEvidence: fixture.evidence.network,
+            sourceVerification: {
+              registration: unavailableRegistrationSourceVerification(
+                fixture.evidence.registration,
+              ),
+              oauth: verifyRecoveryOAuthServerCorrelationSource(
+                fixture.evidence.oauth,
+                {
+                  expectedSha: SHA,
+                  expectedTargetFingerprint: TARGET,
+                },
+              ),
+              network: verifyRecoveryNetworkIsolationSource(
+                fixture.evidence.network,
+                {
+                  expectedSha: SHA,
+                  expectedTargetFingerprint: TARGET,
+                },
+              ),
+            },
+          },
+          {
+            privateKey: fixture.keys.privateKey,
+            keyId: KEY_ID,
+            issuer: ISSUER,
+          },
+        ),
+      (error) =>
+        error.code === "RECOVERY_REGISTRATION_SOURCE_ATTESTATION_UNAVAILABLE",
+    );
+  }
+
+  const base = await signedFixture({
+    networkStatus: 404,
+    networkReason: "RECOVERY_STAGING_HOST_UNAVAILABLE",
+  });
+  const invalidPairs = [
+    [404, "NOT_FOUND"],
+    [403, "FORBIDDEN"],
+    [401, "RECOVERY_TRUSTED_INGRESS_REQUIRED"],
+    [500, "RECOVERY_STAGING_HOST_UNAVAILABLE"],
+  ];
+
+  for (const [status, reason] of invalidPairs) {
+    const network = {
+      ...base.evidence.network,
+      direct_recovery_surface_status: status,
+      direct_recovery_surface_reason: reason,
+    };
+    network.evidence_hash = recoveryExternalEvidenceHash(network);
+    const evidence = { ...base.evidence, network };
+    const receipt = signedReceiptForEvidence({
+      receipt: base.receipt,
+      evidence,
+      privateKey: base.keys.privateKey,
+    });
+
+    const verified = await verifyRecoveryExternalAcquisitionAuthority(
+      base.authority,
+      {
+        receipt,
+        registrationEvidence: evidence.registration,
+        oauthEvidence: evidence.oauth,
+        networkEvidence: evidence.network,
+        expectedSha: SHA,
+        expectedTargetFingerprint: TARGET,
+      },
+    );
+    assert.equal(verified.verified, false);
+    assert.ok(
+      [
+        "RECOVERY_EXTERNAL_ACQUISITION_EVIDENCE_INVALID",
+        "RECOVERY_EXTERNAL_ACQUISITION_NETWORK_SOURCE_INVALID",
+      ].includes(verified.reason_code),
+    );
+
+    assert.throws(
+      () =>
+        signRecoveryExternalAcquisitionReceipt(
+          {
+            deploymentSha: SHA,
+            targetFingerprint: TARGET,
+            acquisitionRunId: `github-acquisition:invalid-${status}`,
+            registrationEvidence: evidence.registration,
+            oauthEvidence: evidence.oauth,
+            networkEvidence: evidence.network,
+          },
+          {
+            privateKey: base.keys.privateKey,
+            keyId: KEY_ID,
+            issuer: ISSUER,
+          },
+        ),
+      (error) =>
+        [
+          "RECOVERY_EXTERNAL_ACQUISITION_EVIDENCE_INVALID",
+          "RECOVERY_EXTERNAL_ACQUISITION_NETWORK_SOURCE_INVALID",
+        ].includes(error.code),
+    );
+  }
+
+  const wrongClassNetwork = {
+    ...base.evidence.network,
+    direct_recovery_surface_denial_class: "trusted_ingress_required",
+  };
+  wrongClassNetwork.evidence_hash = recoveryExternalEvidenceHash(
+    wrongClassNetwork,
+  );
+  const wrongClassEvidence = {
+    ...base.evidence,
+    network: wrongClassNetwork,
+  };
+  const wrongClassReceipt = signedReceiptForEvidence({
+    receipt: base.receipt,
+    evidence: wrongClassEvidence,
+    privateKey: base.keys.privateKey,
+  });
+  const wrongClassVerification =
+    await verifyRecoveryExternalAcquisitionAuthority(base.authority, {
+      receipt: wrongClassReceipt,
+      registrationEvidence: wrongClassEvidence.registration,
+      oauthEvidence: wrongClassEvidence.oauth,
+      networkEvidence: wrongClassEvidence.network,
+      expectedSha: SHA,
+      expectedTargetFingerprint: TARGET,
+    });
+  assert.equal(wrongClassVerification.verified, false);
+  assert.equal(
+    wrongClassVerification.reason_code,
+    "RECOVERY_EXTERNAL_ACQUISITION_NETWORK_SOURCE_INVALID",
   );
 });
 
