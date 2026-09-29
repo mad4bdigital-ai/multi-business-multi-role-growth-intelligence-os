@@ -65,7 +65,7 @@
             "Construct server-branded acquisition authority from dedicated Ed25519 public trust.",
             "Verify receipt signature, key identity, exact SHA/target, TTL, evidence hashes and source-proof hashes.",
             "Reject key reuse with Activation Gateway ingress or Recovery certification trust.",
-            "Validate same-request Network acquisition using direct trusted-ingress 403 and Gateway 2xx.",
+            "Validate same-request Network acquisition using direct trusted-ingress 403, Gateway 2xx, and exact live Gateway health identity bound to expected SHA, Worker build SHA, canonical policy hash, no-secret status, and Worker bundle hash.",
             "Validate ordered no-secret OAuth server-correlation events and redirect-URI hash binding.",
             "Keep ChatGPT registration source verification unavailable even when registration parity is valid.",
             "Require acquisition receipt transport before local canary and independent countersign.",
@@ -74,6 +74,7 @@
           "assertions": [
             "No environment flag, caller verified field, manual JSON or operator acknowledgement can manufacture acquisition authority.",
             "A direct-origin generic or host-isolation 404 cannot sign PR-B1 acquisition authority; the explicit trusted-ingress 403 is required.",
+            "Network acquisition cannot label a newer expected SHA onto an older live Gateway: health sourceCommit and workerBuildSha must equal the exact candidate SHA and health policyHash must equal the canonical Staging policy.",
             "OAuth token, authorization-code, credential or secret fields are rejected.",
             "Registration parity without provider/source attestation cannot produce a signed acquisition receipt.",
             "Acquisition and certification signing keys remain separate from Gateway ingress trust.",
