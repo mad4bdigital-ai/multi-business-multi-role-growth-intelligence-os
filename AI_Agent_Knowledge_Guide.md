@@ -457,16 +457,29 @@ Detailed operator contract: `docs/platform-capability-assurance-graph.md`.
 
 Registration, OAuth, and Network observations use the canonical
 `mad4b.recovery-external-observation.v1` contract with exact SHA/target,
-freshness, no secrets, and a recomputed evidence hash. Source labels and
-caller-provided `source_authenticity_verified` are not source proof. PR-A keeps
-`RECOVERY_EXTERNAL_ACQUISITION_AUTHORITY_AVAILABLE=false` in server code:
-the local canary, independent countersign, signing payload, and readiness must
-remain blocked until PR-B supplies genuine authenticated acquisition. Network
-evidence must pair the same protected route, method and body hash across
-unsigned direct `403` (`RECOVERY_TRUSTED_INGRESS_REQUIRED`) or direct origin
-`404` (`RECOVERY_STAGING_HOST_UNAVAILABLE`) and signed Gateway 2xx. Generic
-`404` and public `/health` are separate: the former is invalid evidence, the
-latter does not violate this contract. See
+freshness, no secrets, a recomputed evidence hash, and a source-proof hash.
+Source labels and caller-provided `source_authenticity_verified` are never
+source proof. PR-B1 replaces PR-A's static boolean hold with the branded
+server-side `mad4b.recovery-external-acquisition-authority.v1`, which verifies
+an Ed25519-signed `mad4b.recovery-external-acquisition-receipt.v1` bound to
+the exact SHA, target fingerprint, evidence hashes, source-proof hashes, TTL,
+issuer, and acquisition key. The acquisition signing key is independent from
+Gateway ingress trust and Recovery certification signing trust.
+
+Source authority remains fail-closed in
+`config/recovery-external-source-authorities.json`: independent Network
+acquisition is active, OAuth server correlation remains foundation-only until
+runtime integration is complete, and ChatGPT Registration source attestation
+remains unavailable until a provider-backed or equivalent non-forgeable source
+authority is registered. No environment flag, manual JSON, or operator claim
+may activate either missing source. Consequently PR-B1 does not by itself make
+Recovery certification pass.
+
+Network evidence must pair the same protected route, method and body hash
+across unsigned direct `403` (`RECOVERY_TRUSTED_INGRESS_REQUIRED`) and
+signed Gateway 2xx; GitHub countersign repeats a fresh independent probe and
+compares it to the receipt-bound observation. Public `/health` is separate
+from the protected Recovery route contract. See
 `docs/runbooks/staging-recovery-phase-b-certification.md`.
 
 ### Platform Plugin smoke certification governance
