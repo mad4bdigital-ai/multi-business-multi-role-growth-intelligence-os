@@ -63,7 +63,9 @@ Before the certification procedure below becomes executable, all of these must b
 - Network evidence independently measures the same `GET /admin/recovery/staging/contract` request at direct origin and Activation Gateway:
   - identical path, method and SHA-256 of the empty body;
   - direct origin returns exactly `403 / RECOVERY_TRUSTED_INGRESS_REQUIRED`;
-  - Activation Gateway returns 2xx.
+  - Activation Gateway returns 2xx;
+  - `GET https://activation-dev.mad4b.com/health` returns `ok=true`, `sourceCommit=expected_sha`, `workerBuildSha=expected_sha`, the canonical Staging `policyHash`, `secretsIncluded=false`, and a valid Worker bundle SHA-256;
+  - the full public-health identity is embedded inside Network evidence and therefore covered by both the canonical evidence hash and acquisition source-proof hash.
 - The acquisition receipt verifies against the dedicated public key and the exact evidence hashes, source-proof hashes, SHA, target fingerprint and TTL.
 - Deployed Worker provenance and Activation Gateway ingress-build identity bind to the same exact SHA/target.
 - The dedicated Staging Recovery certification signing trust remains independently configured in `staging-recovery-certification`.
