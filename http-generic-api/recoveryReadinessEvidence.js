@@ -4,6 +4,7 @@ import YAML from "yaml";
 import path from "node:path";
 import { constants } from "node:fs";
 import { resolveRuntimeEnvironmentStrict } from "./runtimeEnvironmentResolver.js";
+import { verifyRecoveryExternalAcquisitionAuthority } from "./recoveryExternalAcquisitionAuthority.js";
 
 export const RECOVERY_READINESS_EVIDENCE_CONTRACT = "mad4b.recovery-readiness-evidence.v1";
 export const RECOVERY_CERTIFICATION_STORE_CONTRACT = "mad4b.recovery-certification-evidence-store.v1";
@@ -331,15 +332,18 @@ export function createRecoveryReadinessAuthorities({
     }
     if (payload.environment !== runtime.environment_key || payload.target_fingerprint !== target.target_fingerprint
       || payload.deployment_sha !== attestation.sha) fail("RECOVERY_EVIDENCE_TARGET_MISMATCH");
-    const externalAcquisitionVerification = typeof externalAcquisitionAuthority?.verify === "function"
-      ? await externalAcquisitionAuthority.verify({
-          receipt: payload.acquisitionReceipt || null,
-          registrationEvidence: payload.registrationEvidence || null,
-          oauthEvidence: payload.oauthEvidence || null,
-          networkEvidence: payload.networkEvidence || null,
-          expectedSha: attestation.sha,
-          expectedTargetFingerprint: target.target_fingerprint,
-        })
+    const externalAcquisitionVerification = externalAcquisitionAuthority
+      ? await verifyRecoveryExternalAcquisitionAuthority(
+          externalAcquisitionAuthority,
+          {
+            receipt: payload.acquisitionReceipt || null,
+            registrationEvidence: payload.registrationEvidence || null,
+            oauthEvidence: payload.oauthEvidence || null,
+            networkEvidence: payload.networkEvidence || null,
+            expectedSha: attestation.sha,
+            expectedTargetFingerprint: target.target_fingerprint,
+          },
+        )
       : Object.freeze({
           verified: false,
           reason_code: "RECOVERY_EXTERNAL_ACQUISITION_AUTHORITY_UNAVAILABLE",
@@ -449,7 +453,14 @@ export async function evaluateExternalStagingEvidence(snapshot, ingressBuildIden
       && network?.signed_gateway_recovery_path === network?.direct_recovery_surface_path
       && network?.signed_gateway_recovery_method === network?.request_method
       && network?.signed_gateway_recovery_status >= 200
-      && network?.signed_gateway_recovery_status < 300,
+      && network?.signed_gateway_recovery_status < 300
+      && network?.public_health_identity?.status === 200
+      && network?.public_health_identity?.ok === true
+      && network?.public_health_identity?.source_commit === snapshot?.candidateSha
+      && network?.public_health_identity?.worker_build_sha === snapshot?.candidateSha
+      && network?.public_health_identity?.policy_hash === gateway.policy_hash
+      && SHA256.test(network?.public_health_identity?.worker_bundle_sha256 || "")
+      && network?.public_health_identity?.secrets_included === false,
     deployed_worker_provenance: bound(worker)
       && worker?.observed_in === "cloudflare_workers"
       && worker?.deployment_verified === true
