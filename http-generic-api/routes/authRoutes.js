@@ -1267,9 +1267,6 @@ export function buildAuthRoutes(deps) {
       if (!state) {
         return res.status(400).json({ ok: false, error: { code: "missing_state", message: "state is required." } });
       }
-      if (!correlation_ticket) {
-        return res.status(400).json({ ok: false, error: { code: "oauth_correlation_ticket_required", message: "A server-issued OAuth correlation ticket is required." } });
-      }
       if (!resourceProfile.ok) {
         return res.status(400).json({ ok: false, error: { code: resourceProfile.error, message: resourceProfile.message } });
       }
@@ -1283,6 +1280,9 @@ export function buildAuthRoutes(deps) {
       }
       if (!redirectDecision.allowed) {
         return res.status(400).json({ ok: false, error: { code: "invalid_redirect_uri", message: "redirect_uri is not allowed for the Tenant GPT client." } });
+      }
+      if (!correlation_ticket) {
+        return res.status(400).json({ ok: false, error: { code: "oauth_correlation_ticket_required", message: "A server-issued OAuth correlation ticket is required." } });
       }
 
       stage = "oauth_correlation_ticket";
