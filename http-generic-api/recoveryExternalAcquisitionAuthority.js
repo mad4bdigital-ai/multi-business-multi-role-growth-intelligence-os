@@ -6,6 +6,7 @@ import {
   verify as cryptoVerify,
 } from "node:crypto";
 import { verifyRecoveryExternalEvidenceIntegrity } from "./recoveryReadinessEvidence.js";
+import { classifyRecoveryDirectDenial } from "./recoveryDirectDenialPolicy.js";
 
 export const RECOVERY_EXTERNAL_ACQUISITION_RECEIPT_CONTRACT =
   "mad4b.recovery-external-acquisition-receipt.v1";
@@ -171,6 +172,21 @@ function observationValid(kind, observation, evidence) {
   );
 }
 
+function canonicalNetworkDirectDenial(networkEvidence) {
+  const denial = classifyRecoveryDirectDenial({
+    status: networkEvidence?.direct_recovery_surface_status,
+    reason: networkEvidence?.direct_recovery_surface_reason,
+  });
+  if (
+    !denial ||
+    networkEvidence?.direct_recovery_surface_denial_class !==
+      denial.denial_class
+  ) {
+    return null;
+  }
+  return denial;
+}
+
 function verifyReceiptInternal(
   receipt,
   {
@@ -241,13 +257,11 @@ function verifyReceiptInternal(
     }
   }
 
-  // PR-B1 strengthens the network source: only the explicit trusted-ingress
-  // denial is signable. A generic direct-origin 404 remains valid PR-A
-  // integrity evidence but is not strong enough for acquisition authority.
+  // Receipt verification uses the same exact canonical direct-denial policy as
+  // Network acquisition. The denial class is re-derived from status+reason and
+  // compared with the evidence field; arbitrary 4xx values never become authority.
   if (
-    networkEvidence?.direct_recovery_surface_status !== 403 ||
-    networkEvidence?.direct_recovery_surface_reason !==
-      "RECOVERY_TRUSTED_INGRESS_REQUIRED" ||
+    !canonicalNetworkDirectDenial(networkEvidence) ||
     networkEvidence?.public_health_identity?.status !== 200 ||
     networkEvidence?.public_health_identity?.ok !== true ||
     networkEvidence?.public_health_identity?.source_commit !== expectedSha ||
@@ -407,6 +421,17 @@ export function signRecoveryExternalAcquisitionReceipt(
         `Invalid ${kind} evidence.`,
       );
     }
+  }
+
+  if (!canonicalNetworkDirectDenial(networkEvidence)) {
+    throw fail(
+      "RECOVERY_EXTERNAL_ACQUISITION_NETWORK_SOURCE_INVALID",
+      "Network acquisition must prove one exact canonical direct-denial pair.",
+    );
+  }
+
+  for (const kind of Object.keys(SOURCE)) {
+    const evidence = evidenceByKind[kind];
     const sourceResult = sourceVerification?.[kind];
     if (!isBrandedSourceVerification(kind, sourceResult, evidence)) {
       const code =
@@ -415,17 +440,6 @@ export function signRecoveryExternalAcquisitionReceipt(
           : "RECOVERY_EXTERNAL_SOURCE_ATTESTATION_INVALID";
       throw fail(code, `Verified ${kind} source authority is required.`);
     }
-  }
-
-  if (
-    networkEvidence.direct_recovery_surface_status !== 403 ||
-    networkEvidence.direct_recovery_surface_reason !==
-      "RECOVERY_TRUSTED_INGRESS_REQUIRED"
-  ) {
-    throw fail(
-      "RECOVERY_EXTERNAL_ACQUISITION_NETWORK_SOURCE_INVALID",
-      "Network acquisition must prove the explicit trusted-ingress denial.",
-    );
   }
 
   const issued = Date.parse(issuedAt);
