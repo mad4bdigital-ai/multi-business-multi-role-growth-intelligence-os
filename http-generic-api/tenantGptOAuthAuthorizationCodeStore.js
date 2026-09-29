@@ -27,6 +27,14 @@ function requireText(name, value) {
   return normalized;
 }
 
+function requireCorrelationRef(value) {
+  const normalized = requireText("request_correlation_ref", value).toLowerCase();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalized)) {
+    throw new TypeError("request_correlation_ref must be a UUID operation_id.");
+  }
+  return normalized;
+}
+
 function rowsFromQueryResult(result) {
   if (Array.isArray(result)) {
     if (Array.isArray(result[0])) return result[0];
@@ -60,6 +68,7 @@ const CREATE_AUTHORIZATION_CODE_TABLE_SQL = `CREATE TABLE IF NOT EXISTS \`tenant
   \`tenant_id\` VARCHAR(64) NULL,
   \`client_id\` VARCHAR(191) NOT NULL,
   \`redirect_uri_hash\` CHAR(64) NOT NULL,
+  \`request_correlation_ref\` VARCHAR(36) NULL,
   \`status\` ENUM('issued','consumed','expired','revoked') NOT NULL DEFAULT 'issued',
   \`expires_at\` DATETIME NOT NULL,
   \`consumed_at\` DATETIME NULL,
@@ -67,7 +76,8 @@ const CREATE_AUTHORIZATION_CODE_TABLE_SQL = `CREATE TABLE IF NOT EXISTS \`tenant
   \`updated_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (\`code_jti_hash\`),
   KEY \`idx_tenant_gpt_oauth_codes_status_expiry\` (\`status\`, \`expires_at\`),
-  KEY \`idx_tenant_gpt_oauth_codes_user_created\` (\`user_id\`, \`created_at\`)
+  KEY \`idx_tenant_gpt_oauth_codes_user_created\` (\`user_id\`, \`created_at\`),
+  KEY \`idx_tenant_gpt_oauth_codes_correlation_ref\` (\`request_correlation_ref\`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`;
 
 function isMissingAuthorizationCodeTable(error) {
@@ -88,7 +98,11 @@ async function runWithAuthorizationCodeTableRecovery(execute, operation) {
 
 function classifyAuthorizationCodeRow(row) {
   if (!row) return "not_found";
-  if (!Boolean(Number(row.client_matches)) || !Boolean(Number(row.redirect_matches))) {
+  if (
+    !Boolean(Number(row.client_matches))
+    || !Boolean(Number(row.redirect_matches))
+    || !Boolean(Number(row.correlation_matches))
+  ) {
     return "binding_mismatch";
   }
   if (row.status === "consumed" || row.consumed_at) return "already_consumed";
@@ -101,16 +115,18 @@ async function readAuthorizationCodeState(execute, {
   codeJtiHash,
   clientId,
   redirectUriHash,
+  requestCorrelationRef,
 } = {}) {
   const result = await execute(
-    `SELECT status, expires_at, consumed_at,
+    `SELECT status, expires_at, consumed_at, request_correlation_ref,
             CASE WHEN client_id = ? THEN 1 ELSE 0 END AS client_matches,
             CASE WHEN redirect_uri_hash = ? THEN 1 ELSE 0 END AS redirect_matches,
+            CASE WHEN request_correlation_ref = ? THEN 1 ELSE 0 END AS correlation_matches,
             CASE WHEN expires_at <= UTC_TIMESTAMP(3) THEN 1 ELSE 0 END AS expired_by_store
        FROM \`tenant_gpt_oauth_authorization_codes\`
       WHERE code_jti_hash = ?
       LIMIT 1`,
-    [clientId, redirectUriHash, codeJtiHash],
+    [clientId, redirectUriHash, requestCorrelationRef, codeJtiHash],
   );
   const row = rowsFromQueryResult(result)[0] || null;
   return {
@@ -118,6 +134,7 @@ async function readAuthorizationCodeState(execute, {
     status: row?.status || null,
     consumed_at_present: Boolean(row?.consumed_at),
     expires_at: mysqlTimestamp(row?.expires_at),
+    request_correlation_ref: row?.request_correlation_ref || null,
   };
 }
 
@@ -160,15 +177,18 @@ export async function inspectTenantGptOAuthAuthorizationCode({
   jti,
   client_id,
   redirect_uri,
+  request_correlation_ref,
 } = {}) {
   const execute = requireQuery(query);
   const normalizedJti = requireText("jti", jti);
   const normalizedClientId = requireText("client_id", client_id);
   const normalizedRedirectUri = requireText("redirect_uri", redirect_uri);
+  const normalizedCorrelationRef = requireCorrelationRef(request_correlation_ref);
   const readback = await runWithAuthorizationCodeTableRecovery(execute, () => readAuthorizationCodeState(execute, {
     codeJtiHash: sha256(normalizedJti),
     clientId: normalizedClientId,
     redirectUriHash: sha256(normalizedRedirectUri),
+    requestCorrelationRef: normalizedCorrelationRef,
   }));
   return {
     ...readback.result,
@@ -184,6 +204,7 @@ export async function persistTenantGptOAuthAuthorizationCode({
   tenant_id = null,
   client_id,
   redirect_uri,
+  request_correlation_ref,
   expires_at,
 } = {}) {
   const execute = requireQuery(query);
@@ -191,6 +212,7 @@ export async function persistTenantGptOAuthAuthorizationCode({
   const normalizedUserId = requireText("user_id", user_id);
   const normalizedClientId = requireText("client_id", client_id);
   const normalizedRedirectUri = requireText("redirect_uri", redirect_uri);
+  const normalizedCorrelationRef = requireCorrelationRef(request_correlation_ref);
   const expiresAt = expires_at instanceof Date ? expires_at : new Date(expires_at);
   if (Number.isNaN(expiresAt.getTime())) throw new TypeError("expires_at must be a valid date.");
 
@@ -200,12 +222,13 @@ export async function persistTenantGptOAuthAuthorizationCode({
     tenant_id ? String(tenant_id).trim() : null,
     normalizedClientId,
     sha256(normalizedRedirectUri),
+    normalizedCorrelationRef,
     expiresAt,
   ];
   const persisted = await runWithAuthorizationCodeTableRecovery(execute, () => execute(
     `INSERT INTO \`tenant_gpt_oauth_authorization_codes\`
-      (code_jti_hash, user_id, tenant_id, client_id, redirect_uri_hash, status, expires_at)
-     VALUES (?, ?, ?, ?, ?, 'issued', ?)`,
+      (code_jti_hash, user_id, tenant_id, client_id, redirect_uri_hash, request_correlation_ref, status, expires_at)
+     VALUES (?, ?, ?, ?, ?, ?, 'issued', ?)`,
     params,
   ));
 
@@ -217,14 +240,16 @@ export async function consumeTenantGptOAuthAuthorizationCode({
   jti,
   client_id,
   redirect_uri,
+  request_correlation_ref,
 } = {}) {
   const execute = requireQuery(query);
   const normalizedJti = requireText("jti", jti);
   const normalizedClientId = requireText("client_id", client_id);
   const normalizedRedirectUri = requireText("redirect_uri", redirect_uri);
+  const normalizedCorrelationRef = requireCorrelationRef(request_correlation_ref);
   const codeJtiHash = sha256(normalizedJti);
   const redirectUriHash = sha256(normalizedRedirectUri);
-  const params = [codeJtiHash, normalizedClientId, redirectUriHash];
+  const params = [codeJtiHash, normalizedClientId, redirectUriHash, normalizedCorrelationRef];
 
   let consumed;
   try {
@@ -234,6 +259,7 @@ export async function consumeTenantGptOAuthAuthorizationCode({
         WHERE code_jti_hash = ?
           AND client_id = ?
           AND redirect_uri_hash = ?
+          AND request_correlation_ref = ?
           AND status = 'issued'
           AND consumed_at IS NULL
           AND expires_at > UTC_TIMESTAMP(3)`,
@@ -246,6 +272,7 @@ export async function consumeTenantGptOAuthAuthorizationCode({
         codeJtiHash,
         clientId: normalizedClientId,
         redirectUriHash,
+        requestCorrelationRef: normalizedCorrelationRef,
       });
     } catch {
       readback = null;
@@ -255,10 +282,17 @@ export async function consumeTenantGptOAuthAuthorizationCode({
 
   const result = resultFromQueryResult(consumed.result);
   if (Number(result?.affectedRows || 0) === 1) {
+    const readback = await readAuthorizationCodeState(execute, {
+      codeJtiHash,
+      clientId: normalizedClientId,
+      redirectUriHash,
+      requestCorrelationRef: normalizedCorrelationRef,
+    });
     return {
       consumed: true,
       outcome: "consumed",
-      readback_outcome: "already_consumed",
+      readback_outcome: readback.outcome,
+      request_correlation_ref: readback.request_correlation_ref,
       replay_allowed: false,
       store_error_code: null,
       table_recovered: consumed.table_recovered,
@@ -270,11 +304,13 @@ export async function consumeTenantGptOAuthAuthorizationCode({
     codeJtiHash,
     clientId: normalizedClientId,
     redirectUriHash,
+    requestCorrelationRef: normalizedCorrelationRef,
   });
   return {
     consumed: false,
     outcome: readback.outcome,
     readback_outcome: readback.outcome,
+    request_correlation_ref: readback.request_correlation_ref,
     replay_allowed: false,
     store_error_code: null,
     table_recovered: consumed.table_recovered,
