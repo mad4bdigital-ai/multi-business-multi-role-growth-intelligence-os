@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import jwt from "jsonwebtoken";
 import {
   recordTenantGptAccessTokenProfileEvidence,
@@ -15,6 +16,12 @@ import {
   recordTenantGptAudienceCompatibilityEvidence,
   rejectTenantGptAudienceCompatibilityForResourceMismatch,
 } from "./tenantGptAudienceCompatibilityPolicy.js";
+import {
+  advanceTenantGptOAuthOperationCorrelation,
+  safeTenantGptOAuthOperationCorrelationEvidence,
+  tenantGptOAuthOperationCorrelationClaim,
+  verifyTenantGptOAuthOperationCorrelation,
+} from "./tenantGptOAuthOperationCorrelation.js";
 
 const JWT_SECRET_MAX_LENGTH = 4096;
 
@@ -145,9 +152,34 @@ export function verifyTenantGptAccessToken(token, {
   emitTokenProfileEvidence(tokenProfile, onTokenProfileEvidence);
   if (!tokenProfile.accepted) throw profileFailure(tokenProfile);
 
+  let oauthCorrelation = null;
+  if (payload.oauth_correlation !== undefined) {
+    try {
+      oauthCorrelation = verifyTenantGptOAuthOperationCorrelation(
+        payload.oauth_correlation,
+        {
+          expected_stage: "oauth_token_exchange",
+          expected_resource: resource,
+          expected_client_id: payload.client_id || payload.azp,
+          expected_user_id: payload.user_id,
+          expected_tenant_id: payload.tenant_id,
+          expected_access_token_jti: payload.jti,
+        },
+      );
+    } catch {
+      throw tokenFailure(
+        "tenant_gpt_token_oauth_correlation_invalid",
+        "Tenant GPT access token OAuth correlation is invalid.",
+      );
+    }
+  }
+
   emitCompatibilityEvidence(compatibility, onCompatibilityEvidence);
   return {
     payload,
+    oauth_correlation: oauthCorrelation
+      ? tenantGptOAuthOperationCorrelationClaim(oauthCorrelation)
+      : null,
     verification: {
       issuer,
       audience: verifiedAudience,
@@ -193,6 +225,15 @@ export function requireActivationTenantGptAccessToken(req, res, next) {
 
   try {
     const verified = verifyTenantGptAccessToken(token);
+    const gatewayCorrelation = verified.oauth_correlation
+      ? advanceTenantGptOAuthOperationCorrelation(
+        verified.oauth_correlation,
+        {
+          stage: "gateway_verify",
+          request_id: randomUUID(),
+        },
+      )
+      : null;
     req.auth = {
       mode: "user_jwt",
       user_id: verified.payload.user_id,
@@ -220,6 +261,14 @@ export function requireActivationTenantGptAccessToken(req, res, next) {
       remaining_seconds: verified.verification.remaining_seconds,
       max_lifetime_seconds: verified.verification.max_lifetime_seconds,
       short_lived: verified.verification.short_lived,
+      oauth_correlation: gatewayCorrelation
+        ? tenantGptOAuthOperationCorrelationClaim(gatewayCorrelation)
+        : null,
+      oauth_correlation_evidence: gatewayCorrelation
+        ? safeTenantGptOAuthOperationCorrelationEvidence(gatewayCorrelation)
+        : null,
+      oauth_operation_id: gatewayCorrelation?.operation_id || null,
+      oauth_correlation_id: gatewayCorrelation?.correlation_id || null,
     };
     return next();
   } catch (error) {

@@ -333,6 +333,7 @@
           "http-generic-api/test-*.mjs",
           "scripts/**",
           "specs/**/*.md",
+          "specs/*/implementation/**",
           "specs/*/completion.json",
           "specs/*/e2e-phases.json",
           "specs/*/manifest.json",

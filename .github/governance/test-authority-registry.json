@@ -336,6 +336,16 @@
       ]
     },
     {
+      "id": "tenant_gpt_oauth_server_owned_correlation",
+      "test_paths": [
+        "http-generic-api/test-spec012-t030-oauth-correlation-foundation.mjs",
+        "http-generic-api/test-tenant-gpt-oauth-authorization-code-store.mjs",
+        "http-generic-api/test-tenant-gpt-oauth-operation-correlation.mjs",
+        "http-generic-api/test-tenant-gpt-oauth-token-binding-guard.mjs",
+        "http-generic-api/test-tenant-gpt-oauth-token-binding-hardening.mjs"
+      ]
+    },
+    {
       "id": "production_promotion_runtime",
       "test_paths": [
         ".github/tests/production-promotion-review-mode.test.mjs",

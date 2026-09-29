@@ -26,6 +26,11 @@ import {
   tenantGptRefreshReady,
   TENANT_GPT_REFRESH_TOKEN_TTL_SECONDS,
 } from "../tenantGptOAuthGrantStore.js";
+import {
+  advanceTenantGptOAuthOperationCorrelation,
+  safeTenantGptOAuthOperationCorrelationEvidence,
+  verifyTenantGptOAuthOperationCorrelation,
+} from "../tenantGptOAuthOperationCorrelation.js";
 
 const CHATGPT_CANONICAL_CALLBACK_HOST = "chatgpt.com";
 const CHATGPT_LEGACY_CALLBACK_HOST = "chat.openai.com";
@@ -223,6 +228,7 @@ async function recordTokenExchangeDiagnostic(query, event = {}) {
       access_token_prepared: event.access_token_prepared === true,
       requested_scope: event.requested_scope || null,
       code_consumption: event.code_consumption || null,
+      oauth_correlation: event.oauth_correlation || null,
       activation_context: event.activation_context || null,
       request_id: event.request_id || null,
       secrets_included: false,
@@ -570,28 +576,22 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
       if (!subject.ok) return invalidGrant(subject.outcome || "user_inactive");
       tokenLogContext.subject_prevalidated = true;
 
-      const accessJti = createId();
-      const accessExpiresAt = new Date(now() + accessTokenTtlSeconds * 1000);
-      const accessToken = issueAccessToken(
-        { user_id: subject.user.user_id, email: subject.user.email, tenant_id: subject.tenant_id },
-        {
-          clientId: clientValidation.client_id,
-          jwtid: accessJti,
-          resource: resourceProfile.resource,
-          expiresIn: accessTokenTtlSeconds,
-          scope: codePayload.scope,
-        },
-      );
-      tokenLogContext.access_token = {
-        token_type: "bearer",
-        length: String(accessToken || "").length,
-        secrets_included: false,
-      };
-      tokenLogContext.access_token_prepared = true;
-      tokenLogContext.requested_scope = {
-        count: String(codePayload.scope || "").split(/\s+/u).filter(Boolean).length,
-        secrets_included: false,
-      };
+      let codeCorrelation;
+      try {
+        codeCorrelation = verifyTenantGptOAuthOperationCorrelation(
+          codePayload.oauth_correlation,
+          {
+            expected_stage: "oauth_code_issue",
+            expected_resource: resourceProfile.resource,
+            expected_client_id: clientValidation.client_id,
+            expected_user_id: subject.user.user_id,
+            expected_tenant_id: subject.tenant_id,
+            expected_oauth_code_jti: codePayload.jti,
+          },
+        );
+      } catch (error) {
+        return invalidGrant(error?.code || "oauth_code_correlation_invalid");
+      }
 
       phase = "code_consumption";
       const codeConsumption = await consumeCode({
@@ -599,6 +599,7 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
         jti: codePayload.jti,
         client_id: clientValidation.client_id,
         redirect_uri: codePayload.redirect_uri,
+        request_correlation_ref: codeCorrelation.operation_id,
       });
       if (!codeConsumption.consumed) {
         return sendDecision(classifyTenantGptOAuthTokenExchangeOutcome({
@@ -607,12 +608,56 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
           failure_reason: codeConsumption.outcome,
         }));
       }
+      if (codeConsumption.request_correlation_ref !== codeCorrelation.operation_id) {
+        codeConsumed = true;
+        phase = "after_code_consumption";
+        return sendDecision(classifyTenantGptOAuthTokenExchangeOutcome({
+          phase,
+          consumption: { ...codeConsumption, consumed: true, replay_allowed: false },
+          failure_reason: "oauth_code_correlation_ref_mismatch",
+        }));
+      }
       codeConsumed = true;
       phase = "after_code_consumption";
       tokenLogContext.code_consumption = {
         consumed: true,
         outcome: codeConsumption.outcome || "consumed",
+        request_correlation_ref_present: Boolean(codeConsumption.request_correlation_ref),
         table_recovered: codeConsumption.table_recovered === true,
+        secrets_included: false,
+      };
+
+      const accessJti = createId();
+      const accessExpiresAt = new Date(now() + accessTokenTtlSeconds * 1000);
+      const tokenCorrelation = advanceTenantGptOAuthOperationCorrelation(
+        codeCorrelation,
+        {
+          stage: "oauth_token_exchange",
+          access_token_jti: accessJti,
+          request_id: requestId,
+        },
+        { nowMs: now() },
+      );
+      const accessToken = issueAccessToken(
+        { user_id: subject.user.user_id, email: subject.user.email, tenant_id: subject.tenant_id },
+        {
+          clientId: clientValidation.client_id,
+          jwtid: accessJti,
+          resource: resourceProfile.resource,
+          expiresIn: accessTokenTtlSeconds,
+          scope: codePayload.scope,
+          oauthCorrelation: tokenCorrelation,
+        },
+      );
+      tokenLogContext.oauth_correlation = safeTenantGptOAuthOperationCorrelationEvidence(tokenCorrelation);
+      tokenLogContext.access_token = {
+        token_type: "bearer",
+        length: String(accessToken || "").length,
+        secrets_included: false,
+      };
+      tokenLogContext.access_token_prepared = true;
+      tokenLogContext.requested_scope = {
+        count: String(codePayload.scope || "").split(/\s+/u).filter(Boolean).length,
         secrets_included: false,
       };
 
