@@ -80,6 +80,9 @@ function Assert-StagingEnvironmentSafety([string]$Path) {
     if ($text -match '(?im)^CLOUDFLARE_API_TOKEN=') {
         throw 'Cloudflare provider credentials must never be persisted in .env.staging; use the server-held provider secret-file transport.'
     }
+    if ($text -match '(?im)^STAGING_RECOVERY_ACQUISITION_PRIVATE_KEY=') {
+        throw 'Staging Recovery acquisition private key must never be persisted in .env.staging; keep it only in the staging-recovery-acquisition GitHub Environment.'
+    }
     if ($text -notmatch '(?im)^TENANT_GPT_SSO_COOKIE_MODE=host_only\s*$') { throw 'Staging SSO cookie mode must be host_only.' }
     if ((Get-StagingEnvValue $Path 'STAGING_AUTHENTICATED_REMOTE_E2E_REQUIRED').ToLowerInvariant() -ne 'true') { throw 'Authenticated Tenant/MCP remote E2E must remain mandatory for Staging PLATFORM_READY.' }
     foreach ($key in @('MIGRATION_APPLIED','PRODUCTION_MUTATION_AUTHORIZED','RULESET_MUTATION_AUTHORIZED')) {
