@@ -4,6 +4,10 @@ import { TENANT_GPT_OAUTH_CLIENT_ID } from "./tenantGptOAuthPreset.js";
 import { buildTenantGptOAuthMetadataRoutes } from "./routes/tenantGptOAuthMetadataRoutes.js";
 import { buildTenantGptOAuthTokenExchangeRoutes } from "./routes/tenantGptOAuthTokenExchangeRoutes.js";
 import { deriveTenantGptPkceChallenge } from "./tenantGptOAuthPkce.js";
+import {
+  advanceTenantGptOAuthOperationCorrelation,
+  createTenantGptOAuthOperationCorrelation,
+} from "./tenantGptOAuthOperationCorrelation.js";
 
 const RESOURCE = "https://activation.mad4b.com";
 const CALLBACK = "https://chatgpt.com/aip/g-route-test/oauth/callback";
@@ -18,6 +22,29 @@ const BASE_BODY = Object.freeze({
   client_secret: CLIENT_SECRET,
   code_verifier: CODE_VERIFIER,
 });
+const AUTHORIZE_CORRELATION = createTenantGptOAuthOperationCorrelation({
+  protected_resource: RESOURCE,
+  client_id: TENANT_GPT_OAUTH_CLIENT_ID,
+  request_id: "authorize-request",
+});
+const IDENTITY_CORRELATION = advanceTenantGptOAuthOperationCorrelation(
+  AUTHORIZE_CORRELATION,
+  {
+    stage: "identity_verify",
+    user_id: "user-1",
+    tenant_id: "tenant-1",
+    request_id: "identity-request",
+  },
+);
+const CODE_CORRELATION = advanceTenantGptOAuthOperationCorrelation(
+  IDENTITY_CORRELATION,
+  {
+    stage: "oauth_code_issue",
+    oauth_code_jti: "oauth-code-jti-sensitive",
+    request_id: "code-request",
+  },
+);
+
 const CODE_PAYLOAD = Object.freeze({
   purpose: "custom_gpt_oauth_code",
   jti: "oauth-code-jti-sensitive",
@@ -30,6 +57,7 @@ const CODE_PAYLOAD = Object.freeze({
   code_challenge_method: "S256",
   scope: "https://auth.mad4b.com/scopes/tenant.activation",
   activation_context: { purpose: "tenant_activation", activation_mode: "managed" },
+  oauth_correlation: CODE_CORRELATION,
 });
 
 function startServer(app) {
@@ -111,16 +139,20 @@ function createHarness(overrides = {}, { metadataMount = false } = {}) {
       assert.equal(payload.user_id, "user-1");
       assert.equal(payload.tenant_id, "tenant-1");
       assert.equal(options.resource, RESOURCE);
+      assert.equal(options.oauthCorrelation?.stage, "oauth_token_exchange");
+      assert.equal(options.oauthCorrelation?.operation_id, CODE_CORRELATION.operation_id);
       issuance.push({ payload, options });
       return "access-token-safe-test";
     },
     tenantGptRefreshReady: async () => ({ ready: false, reason: "test_refresh_disabled", secrets_included: false }),
     tenantGptRefreshTokensEnabled: () => false,
-    consumeCode: async () => {
+    consumeCode: async (input) => {
       order.push("consume");
+      assert.equal(input.request_correlation_ref, CODE_CORRELATION.operation_id);
       return {
         consumed: true,
         outcome: "consumed",
+        request_correlation_ref: CODE_CORRELATION.operation_id,
         table_recovered: false,
         replay_allowed: false,
         secrets_included: false,
@@ -183,11 +215,13 @@ assert.equal(success.headers.get("cache-control"), "no-store");
 assert.equal(success.headers.get("pragma"), "no-cache");
 assert.match(success.headers.get("x-request-id") || "", /^[0-9a-f-]{36}$/i);
 assert.equal(successHarness.legacyReached(), false);
-assert.equal(successHarness.order.indexOf("subject") < successHarness.order.indexOf("issue"), true);
-assert.equal(successHarness.order.indexOf("issue") < successHarness.order.indexOf("consume"), true);
-assert.equal(successHarness.order.indexOf("consume") < successHarness.order.indexOf("context"), true);
+assert.equal(successHarness.order.indexOf("subject") < successHarness.order.indexOf("consume"), true);
+assert.equal(successHarness.order.indexOf("consume") < successHarness.order.indexOf("issue"), true);
+assert.equal(successHarness.order.indexOf("issue") < successHarness.order.indexOf("context"), true);
 assert.equal(successHarness.issuance.length, 1);
 assert.equal(successHarness.issuance[0].options.expiresIn, 3600);
+assert.equal(successHarness.issuance[0].options.oauthCorrelation?.stage, "oauth_token_exchange");
+assert.equal(successHarness.issuance[0].options.oauthCorrelation?.operation_id, CODE_CORRELATION.operation_id);
 assert.equal(successHarness.activationContexts.length, 1);
 assert.equal(
   new Date(successHarness.activationContexts[0].expires_at).toISOString(),
@@ -295,7 +329,7 @@ const inactiveHarness = createHarness({
   resolveActiveSubject: async () => ({ ok: false, outcome: "user_inactive" }),
   consumeCode: async () => {
     inactiveConsumeCalled = true;
-    return { consumed: true, outcome: "consumed" };
+    return { consumed: true, outcome: "consumed", request_correlation_ref: CODE_CORRELATION.operation_id };
   },
 });
 const inactive = await runScenario(inactiveHarness);
@@ -309,7 +343,7 @@ const membershipHarness = createHarness({
   resolveActiveSubject: async () => ({ ok: false, outcome: "membership_inactive" }),
   consumeCode: async () => {
     membershipConsumeCalled = true;
-    return { consumed: true, outcome: "consumed" };
+    return { consumed: true, outcome: "consumed", request_correlation_ref: CODE_CORRELATION.operation_id };
   },
 });
 const membership = await runScenario(membershipHarness);
@@ -391,7 +425,7 @@ const raceHarness = createHarness({
     await new Promise((resolve) => setTimeout(resolve, 2));
     if (!raceConsumed) {
       raceConsumed = true;
-      return { consumed: true, outcome: "consumed", replay_allowed: false, secrets_included: false };
+      return { consumed: true, outcome: "consumed", request_correlation_ref: CODE_CORRELATION.operation_id, replay_allowed: false, secrets_included: false };
     }
     return { consumed: false, outcome: "already_consumed", replay_allowed: false, secrets_included: false };
   },
@@ -406,6 +440,20 @@ try {
 }
 assert.equal(raceResults.filter((result) => result.status === 200).length, 1);
 assert.equal(raceResults.filter((result) => result.status === 400 && result.body.error_code === "oauth_code_already_consumed").length, 1);
+
+const correlationRefMismatchHarness = createHarness({
+  consumeCode: async () => ({
+    consumed: true,
+    outcome: "consumed",
+    request_correlation_ref: "99999999-9999-4999-8999-999999999999",
+    replay_allowed: false,
+    secrets_included: false,
+  }),
+});
+const correlationRefMismatch = await runScenario(correlationRefMismatchHarness);
+assert.equal(correlationRefMismatch.status, 503);
+assert.equal(correlationRefMismatch.body.error_code, "oauth_token_response_not_committed");
+assert.equal(correlationRefMismatch.body.retry_same_code, false);
 
 const invalidHostHarness = createHarness();
 const invalidHost = await runScenario(invalidHostHarness, BASE_BODY, {
@@ -434,6 +482,7 @@ for (const harness of [
   preConsumptionHarness,
   postConsumptionHarness,
   raceHarness,
+  correlationRefMismatchHarness,
   invalidHostHarness,
 ]) {
   const diagnosticText = JSON.stringify(harness.diagnostics);
@@ -449,6 +498,7 @@ for (const response of [
   membership,
   preConsumption,
   postConsumption,
+  correlationRefMismatch,
   invalidHost,
 ]) {
   const serialized = JSON.stringify(response.body);
