@@ -14,6 +14,7 @@ const REQUIRED_EVIDENCE = Object.freeze({
   networkEvidence: "RECOVERY_STAGING_NETWORK_EVIDENCE_FILE",
   workerDeploymentEvidence: "RECOVERY_STAGING_WORKER_EVIDENCE_FILE",
   ingressBuildIdentity: "RECOVERY_STAGING_INGRESS_BUILD_IDENTITY_FILE",
+  acquisitionReceipt: "RECOVERY_STAGING_ACQUISITION_RECEIPT_FILE",
 });
 
 function required(env, key) {
