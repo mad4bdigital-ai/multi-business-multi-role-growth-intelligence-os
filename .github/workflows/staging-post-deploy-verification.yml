@@ -396,6 +396,14 @@ jobs:
 
           rm -f "$response_file"
 
+      - name: Re-run fresh independent Recovery network probe
+        working-directory: http-generic-api
+        env:
+          RECOVERY_STAGING_EXPECTED_SHA: ${{ inputs.expected_sha }}
+          RECOVERY_STAGING_EXPECTED_TARGET_FINGERPRINT: ${{ inputs.expected_target_fingerprint }}
+          RECOVERY_STAGING_NETWORK_EVIDENCE_FILE: ${{ runner.temp }}/staging-recovery-live-network.json
+        run: node scripts/staging-recovery-acquire-network-evidence.mjs
+
       - name: Independently verify and countersign
         env:
           RECOVERY_STAGING_EVIDENCE_DIRECTORY: ${{ runner.temp }}/staging-recovery-canary
@@ -403,7 +411,11 @@ jobs:
           RECOVERY_STAGING_NEGATIVE_TEST_EVIDENCE_FILE: ${{ runner.temp }}/staging-recovery-negative-tests.json
           RECOVERY_STAGING_LIVE_WORKER_PROVIDER_OBSERVATION_FILE: ${{ runner.temp }}/staging-recovery-live-worker-provider.json
           RECOVERY_STAGING_LIVE_INGRESS_BUILD_IDENTITY_FILE: ${{ runner.temp }}/staging-recovery-live-ingress.json
+          RECOVERY_STAGING_LIVE_NETWORK_EVIDENCE_FILE: ${{ runner.temp }}/staging-recovery-live-network.json
           RECOVERY_STAGING_EXPECTED_TARGET_FINGERPRINT: ${{ inputs.expected_target_fingerprint }}
+          STAGING_RECOVERY_ACQUISITION_PUBLIC_KEY: ${{ vars.STAGING_RECOVERY_ACQUISITION_PUBLIC_KEY }}
+          STAGING_RECOVERY_ACQUISITION_KEY_ID: ${{ vars.STAGING_RECOVERY_ACQUISITION_KEY_ID }}
+          STAGING_RECOVERY_ACQUISITION_ISSUER: ${{ vars.STAGING_RECOVERY_ACQUISITION_ISSUER }}
           RECOVERY_STAGING_CERTIFICATION_PRIVATE_KEY: ${{ secrets.RECOVERY_STAGING_CERTIFICATION_PRIVATE_KEY }}
           RECOVERY_STAGING_CERTIFICATION_ISSUER: ${{ vars.RECOVERY_STAGING_CERTIFICATION_ISSUER }}
           RECOVERY_STAGING_CERTIFICATION_KEY_ID: ${{ vars.RECOVERY_STAGING_CERTIFICATION_KEY_ID }}
