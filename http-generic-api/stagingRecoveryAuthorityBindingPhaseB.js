@@ -15,6 +15,7 @@ import {
 import { readDeploymentManifest } from "./deploymentManifest.js";
 import { wrapStagingRecoveryAdaptersForPhaseB } from "./stagingRecoveryPhaseBConcurrency.js";
 import { loadStagingRecoveryCertificationPublicTrust } from "./stagingRecoveryCertificationPublicTrust.js";
+import { createRecoveryExternalAcquisitionAuthorityFromEnv } from "./recoveryExternalAcquisitionAuthority.js";
 
 export const STAGING_RECOVERY_PHASE_B_BINDING_CONTRACT = "mad4b.staging-recovery-phase-b-binding.v1";
 export const STAGING_RECOVERY_PHASE_B_APPROVAL_TOKEN_CONTRACT = "mad4b.staging-recovery-phase-b-approval-token-handle.v1";
@@ -365,6 +366,7 @@ function createPrHeadReadinessAuthorities(context, authority) {
     keyId: null,
     issuer: null,
     env: process.env,
+    externalAcquisitionAuthority: createRecoveryExternalAcquisitionAuthorityFromEnv(process.env),
     adapterProvenanceReader: async () => phaseAInternals.provenance((await deployment.readAttestation()).sha),
   });
 }
@@ -375,6 +377,7 @@ export function createServerManagedRecoveryBinding(context = {}) {
   const singleIssueAdapters = Object.freeze({
     ...envelope.adapters,
     approvalIssuer: phaseBApprovalIssuer(envelope.adapters.approvalIssuer, root),
+    externalEvidenceAcquisitionAuthority: createRecoveryExternalAcquisitionAuthorityFromEnv(process.env),
   });
   const adapters = wrapStagingRecoveryAdaptersForPhaseB(singleIssueAdapters, { root });
   return Object.freeze({
@@ -410,6 +413,7 @@ export function createRecoveryReadinessAuthorities(context = {}) {
     keyId: trust.keyId,
     issuer: trust.issuer,
     env: process.env,
+    externalAcquisitionAuthority: createRecoveryExternalAcquisitionAuthorityFromEnv(process.env),
     adapterProvenanceReader: async () => phaseAInternals.provenance((await base.deployment.readAttestation()).sha),
   });
 }
