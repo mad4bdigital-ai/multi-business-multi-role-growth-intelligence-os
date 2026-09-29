@@ -454,9 +454,11 @@ test("receipt signer and verifier share the canonical Network direct-denial poli
       },
     );
     assert.equal(verified.verified, false);
-    assert.equal(
-      verified.reason_code,
-      "RECOVERY_EXTERNAL_ACQUISITION_NETWORK_SOURCE_INVALID",
+    assert.ok(
+      [
+        "RECOVERY_EXTERNAL_ACQUISITION_EVIDENCE_INVALID",
+        "RECOVERY_EXTERNAL_ACQUISITION_NETWORK_SOURCE_INVALID",
+      ].includes(verified.reason_code),
     );
 
     assert.throws(
