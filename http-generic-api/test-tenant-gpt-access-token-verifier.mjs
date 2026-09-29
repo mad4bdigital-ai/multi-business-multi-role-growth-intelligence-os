@@ -166,8 +166,17 @@ assert(
 );
 
 let middlewareNextCalls = 0;
+const middlewareIssuedAt = Math.floor(Date.now() / 1000) - 60;
+const middlewareToken = signToken({
+  iat: middlewareIssuedAt,
+  exp: middlewareIssuedAt + STRICT_TTL_SECONDS,
+  jti: ACCESS_JTI,
+  client_id: OAUTH_CLIENT_ID,
+  azp: OAUTH_CLIENT_ID,
+  oauth_correlation: TOKEN_CORRELATION,
+});
 const middlewareReq = {
-  headers: { authorization: `Bearer ${correlatedToken}` },
+  headers: { authorization: `Bearer ${middlewareToken}` },
   auth: { caller_override: true, oauth_operation_id: "caller-controlled" },
 };
 const middlewareRes = {
