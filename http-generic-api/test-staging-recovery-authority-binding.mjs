@@ -62,9 +62,15 @@ test("Phase A binds a complete durable Staging Recovery graph and remains certif
     assert.equal(envelope.secrets_included, false);
     assert.deepEqual(Object.keys(envelope.adapters).sort(), [
       "approvalIssuer", "approvalStore", "approvalVerifier", "deploymentIdentityProvider",
-      "executionTicketSigner", "executionTicketVerifier", "hostLocalMutationExecutor", "migrationLedger",
-      "mutationExecutor", "partialReceiptStore", "proofResolver", "readbackVerifier", "recoveryLock", "recoveryStore",
+      "executionTicketSigner", "executionTicketVerifier", "externalEvidenceAcquisitionAuthority",
+      "hostLocalMutationExecutor", "migrationLedger", "mutationExecutor", "partialReceiptStore",
+      "proofResolver", "readbackVerifier", "recoveryLock", "recoveryStore",
     ].sort());
+    assert.equal(
+      envelope.adapters.externalEvidenceAcquisitionAuthority,
+      null,
+      "Phase A/B1 must remain fail-closed when acquisition public trust is not configured",
+    );
     assert.equal(envelope.adapters.recoveryStore.executionTicketVerifier, envelope.adapters.executionTicketVerifier);
     assert.equal(typeof envelope.adapters.approvalStore.resolveApprovedExecutionApproval, "function");
     assert.deepEqual(envelope.adapters.recoveryStore.durability_profile, recoveryFilesystemDurabilityProfile());

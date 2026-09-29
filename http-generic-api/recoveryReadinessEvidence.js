@@ -4,6 +4,10 @@ import YAML from "yaml";
 import path from "node:path";
 import { constants } from "node:fs";
 import { resolveRuntimeEnvironmentStrict } from "./runtimeEnvironmentResolver.js";
+import {
+  isRecoveryExternalAcquisitionAuthority,
+  verifyRecoveryExternalAcquisitionAuthority,
+} from "./recoveryExternalAcquisitionAuthority.js";
 
 export const RECOVERY_READINESS_EVIDENCE_CONTRACT = "mad4b.recovery-readiness-evidence.v1";
 export const RECOVERY_CERTIFICATION_STORE_CONTRACT = "mad4b.recovery-certification-evidence-store.v1";
@@ -17,9 +21,6 @@ const stable = (v) => Array.isArray(v) ? v.map(stable) : v && typeof v === "obje
 export const readinessEvidencePayload = (v) => JSON.stringify(stable(v));
 const hash = (v) => createHash("sha256").update(v).digest("hex");
 export const RECOVERY_EXTERNAL_EVIDENCE_CONTRACT = "mad4b.recovery-external-observation.v1";
-// PR-B must replace this closed gate with an independently verified acquisition authority.
-// An evidence field or a caller-controlled environment flag must never enable certification.
-export const RECOVERY_EXTERNAL_ACQUISITION_AUTHORITY_AVAILABLE = false;
 const EXTERNAL_KINDS = Object.freeze({
   registration: ["chatgpt_registration", "chatgpt_live_readback"],
   oauth: ["oauth_browser_round_trip", "oauth_server_correlation"],
@@ -252,6 +253,7 @@ export function createRecoveryReadinessAuthorities({
   evidenceStore, deploymentIdentityProvider, targetIdentityProvider,
   recordId = null, publicKey = null, keyId = null, issuer = null, env = process.env,
   adapterProvenance = null, adapterProvenanceReader = null,
+  externalAcquisitionAuthority = null,
 } = {}) {
   const runtime = resolveRuntimeEnvironmentStrict(env);
   if (!runtime.ok || !["staging", "production"].includes(runtime.environment_key)) fail("RECOVERY_EVIDENCE_RUNTIME_INVALID");
@@ -261,6 +263,10 @@ export function createRecoveryReadinessAuthorities({
     || typeof targetIdentityProvider?.readIdentity !== "function") fail("RECOVERY_EVIDENCE_AUTHORITY_INCOMPLETE");
   if (recordId !== null && !SHA256.test(recordId || "")) fail("RECOVERY_EVIDENCE_AUTHORITY_INCOMPLETE");
   if (adapterProvenanceReader !== null && typeof adapterProvenanceReader !== "function") fail("RECOVERY_EVIDENCE_AUTHORITY_INCOMPLETE");
+  if (externalAcquisitionAuthority !== null
+    && !isRecoveryExternalAcquisitionAuthority(externalAcquisitionAuthority)) {
+    fail("RECOVERY_EXTERNAL_ACQUISITION_AUTHORITY_UNTRUSTED");
+  }
   if (runtime.environment_key === "staging" && runtime.runtime_class !== "local_windows_docker"
     && evidenceStore.replayStore?.scope !== "shared_deployment") fail("RECOVERY_REPLAY_STORE_SCOPE_INSUFFICIENT");
 
@@ -299,6 +305,12 @@ export function createRecoveryReadinessAuthorities({
       registrationEvidence: null,
       oauthEvidence: null,
       networkEvidence: null,
+      acquisitionReceipt: null,
+      externalAcquisitionVerification: Object.freeze({
+        verified: false,
+        reason_code: "RECOVERY_EXTERNAL_ACQUISITION_RECEIPT_UNAVAILABLE",
+        secrets_included: false,
+      }),
       workerDeploymentEvidence: null,
       unresolvedRecoveryIncidents: ["certification_not_issued"],
       evidence_id: null,
@@ -327,6 +339,23 @@ export function createRecoveryReadinessAuthorities({
     }
     if (payload.environment !== runtime.environment_key || payload.target_fingerprint !== target.target_fingerprint
       || payload.deployment_sha !== attestation.sha) fail("RECOVERY_EVIDENCE_TARGET_MISMATCH");
+    const externalAcquisitionVerification = externalAcquisitionAuthority
+      ? await verifyRecoveryExternalAcquisitionAuthority(
+          externalAcquisitionAuthority,
+          {
+            receipt: payload.acquisitionReceipt || null,
+            registrationEvidence: payload.registrationEvidence || null,
+            oauthEvidence: payload.oauthEvidence || null,
+            networkEvidence: payload.networkEvidence || null,
+            expectedSha: attestation.sha,
+            expectedTargetFingerprint: target.target_fingerprint,
+          },
+        )
+      : Object.freeze({
+          verified: false,
+          reason_code: "RECOVERY_EXTERNAL_ACQUISITION_AUTHORITY_UNAVAILABLE",
+          secrets_included: false,
+        });
     return Object.freeze({
       stagingCertification: payload.stagingCertification || null,
       deploymentAttestation: attestation,
@@ -339,6 +368,8 @@ export function createRecoveryReadinessAuthorities({
       registrationEvidence: payload.registrationEvidence || null,
       oauthEvidence: payload.oauthEvidence || null,
       networkEvidence: payload.networkEvidence || null,
+      acquisitionReceipt: payload.acquisitionReceipt || null,
+      externalAcquisitionVerification,
       workerDeploymentEvidence: payload.workerDeploymentEvidence || null,
       unresolvedRecoveryIncidents: Array.isArray(payload.unresolvedRecoveryIncidents) ? payload.unresolvedRecoveryIncidents : ["incident_evidence_missing"],
       evidence_id: selectedRecordId,
@@ -408,7 +439,7 @@ export async function evaluateExternalStagingEvidence(snapshot, ingressBuildIden
     && Number.isFinite(Date.parse(evidence?.expires_at)) && Date.parse(evidence.expires_at) > Date.now();
   const checks = {
     signed_evidence_authority: snapshot?.authenticity_verified === true,
-    external_acquisition_authority: RECOVERY_EXTERNAL_ACQUISITION_AUTHORITY_AVAILABLE,
+    external_acquisition_authority: snapshot?.externalAcquisitionVerification?.verified === true,
     actual_chatgpt_registration: integrity(registration, "registration") && registration?.observed_in === "chatgpt" && bound(registration)
       && Object.entries(expected).every(([key, value]) => registration[key] === value),
     oauth_browser_round_trip: integrity(oauth, "oauth") && bound(oauth) && oauth?.issuer === "https://dev.mad4b.com"
@@ -429,7 +460,14 @@ export async function evaluateExternalStagingEvidence(snapshot, ingressBuildIden
       && network?.signed_gateway_recovery_path === network?.direct_recovery_surface_path
       && network?.signed_gateway_recovery_method === network?.request_method
       && network?.signed_gateway_recovery_status >= 200
-      && network?.signed_gateway_recovery_status < 300,
+      && network?.signed_gateway_recovery_status < 300
+      && network?.public_health_identity?.status === 200
+      && network?.public_health_identity?.ok === true
+      && network?.public_health_identity?.source_commit === snapshot?.candidateSha
+      && network?.public_health_identity?.worker_build_sha === snapshot?.candidateSha
+      && network?.public_health_identity?.policy_hash === gateway.policy_hash
+      && SHA256.test(network?.public_health_identity?.worker_bundle_sha256 || "")
+      && network?.public_health_identity?.secrets_included === false,
     deployed_worker_provenance: bound(worker)
       && worker?.observed_in === "cloudflare_workers"
       && worker?.deployment_verified === true

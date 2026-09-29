@@ -419,6 +419,7 @@
         "http-generic-api/test-staging-recovery-certification-public-trust.mjs",
         "http-generic-api/test-staging-recovery-certification-script-surface.mjs",
         "http-generic-api/test-staging-recovery-certification-signing-authority.mjs",
+        "http-generic-api/test-staging-recovery-external-acquisition-authority.mjs",
         "http-generic-api/test-staging-recovery-gateway-preflight.mjs",
         "http-generic-api/test-staging-recovery-phase-b-approval-single-issuance.mjs",
         "http-generic-api/test-staging-recovery-phase-b-concurrency.mjs",
@@ -878,6 +879,7 @@
         "http-generic-api/test-staging-recovery-certification-protocol.mjs",
         "http-generic-api/test-staging-recovery-certification-public-trust.mjs",
         "http-generic-api/test-staging-recovery-certification-signing-authority.mjs",
+        "http-generic-api/test-staging-recovery-external-acquisition-authority.mjs",
         "http-generic-api/test-staging-recovery-phase-b-concurrency.mjs",
         "http-generic-api/test-staging-recovery-route-policy.mjs"
       ],

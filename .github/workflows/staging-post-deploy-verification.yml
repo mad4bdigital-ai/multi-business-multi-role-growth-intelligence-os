@@ -11,6 +11,7 @@ on:
         type: choice
         options:
           - verify
+          - acquire_external_evidence
           - countersign_recovery
       expected_sha:
         description: Commit SHA expected on staging; required for recovery countersign and defaults to the workflow commit for verification
@@ -30,7 +31,7 @@ on:
         required: false
         type: string
       expected_target_fingerprint:
-        description: Exact Staging target fingerprint; countersign only
+        description: Exact Staging target fingerprint; external acquisition or countersign
         required: false
         type: string
       confirmation:
@@ -42,12 +43,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ inputs.operation == 'countersign_recovery' && format('staging-recovery-genuine-certification-{0}-{1}', inputs.expected_sha, inputs.expected_target_fingerprint) || 'staging-post-deploy-verification' }}
-  cancel-in-progress: ${{ inputs.operation != 'countersign_recovery' }}
+  group: ${{ inputs.operation == 'countersign_recovery' && format('staging-recovery-genuine-certification-{0}-{1}', inputs.expected_sha, inputs.expected_target_fingerprint) || inputs.operation == 'acquire_external_evidence' && format('staging-recovery-external-acquisition-{0}-{1}', inputs.expected_sha, inputs.expected_target_fingerprint) || 'staging-post-deploy-verification' }}
+  cancel-in-progress: ${{ inputs.operation == 'verify' }}
 
 jobs:
   verify-staging:
-    if: inputs.operation != 'countersign_recovery'
+    if: inputs.operation == 'verify'
     name: Verify main on dev.mad4b.com
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -220,6 +221,147 @@ jobs:
           path: staging-verification-artifacts/
           if-no-files-found: warn
           retention-days: 14
+
+  acquire-external-evidence:
+    if: inputs.operation == 'acquire_external_evidence' && github.ref == 'refs/heads/main'
+    name: Acquire bounded Staging external evidence
+    runs-on: ubuntu-latest
+    environment: staging-recovery-acquisition
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      EXPECTED_SHA: ${{ inputs.expected_sha }}
+      EXPECTED_TARGET_FINGERPRINT: ${{ inputs.expected_target_fingerprint }}
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+    steps:
+      - name: Validate exact bounded acquisition inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::expected_sha must be a lowercase 40-character SHA."; exit 1; }
+          [[ "$EXPECTED_TARGET_FINGERPRINT" =~ ^[0-9a-f]{64}$ ]] || { echo "::error::expected_target_fingerprint must be a 64-character SHA-256 fingerprint."; exit 1; }
+          test -n "$BACKEND_API_KEY"
+
+      - name: Checkout exact Staging main candidate
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ inputs.expected_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prove exact main acquisition authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --quiet
+          test "$GITHUB_SHA" = "$EXPECTED_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test "$(git rev-parse origin/main)" = "$EXPECTED_SHA"
+
+      - name: Setup Node.js for acquisition
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install acquisition verifier dependencies
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts
+
+      - name: Acquire independent same-request network evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/staging-recovery-acquisition"
+          node http-generic-api/scripts/staging-recovery-acquire-network-evidence.mjs \
+            --expected-sha "$EXPECTED_SHA" \
+            --target-fingerprint "$EXPECTED_TARGET_FINGERPRINT" \
+            --output "$RUNNER_TEMP/staging-recovery-acquisition/network-evidence.json"
+
+      - name: Verify network acquisition source
+        shell: bash
+        run: |
+          set -euo pipefail
+          NETWORK_FILE="$RUNNER_TEMP/staging-recovery-acquisition/network-evidence.json" node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          import { verifyRecoveryNetworkIsolationSource } from "./http-generic-api/stagingRecoveryExternalEvidence.js";
+          const evidence = JSON.parse(fs.readFileSync(process.env.NETWORK_FILE, "utf8"));
+          const result = verifyRecoveryNetworkIsolationSource(evidence, {
+            expectedSha: process.env.EXPECTED_SHA,
+            expectedTargetFingerprint: process.env.EXPECTED_TARGET_FINGERPRINT,
+          });
+          if (!result.verified) throw new Error(result.reason_code || "network source verification failed");
+          NODE
+
+      - name: Record PR-B1 acquisition blockers
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUTPUT="$RUNNER_TEMP/staging-recovery-acquisition/acquisition-status.json" node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const status = {
+            contract: "mad4b.recovery-external-acquisition-status.v1",
+            environment: "staging",
+            deployment_sha: process.env.EXPECTED_SHA,
+            target_fingerprint: process.env.EXPECTED_TARGET_FINGERPRINT,
+            network_source_verified: true,
+            oauth_server_correlation_source_available: false,
+            registration_source_attestation_available: false,
+            receipt_signed: false,
+            blockers: [
+              { kind: "oauth", reason_code: "RECOVERY_OAUTH_SERVER_CORRELATION_SOURCE_UNAVAILABLE" },
+              { kind: "registration", reason_code: "RECOVERY_REGISTRATION_SOURCE_ATTESTATION_UNAVAILABLE" },
+            ],
+            provider_mutation_performed: false,
+            database_mutation_performed: false,
+            production_mutation_performed: false,
+            secrets_included: false,
+          };
+          fs.writeFileSync(process.env.OUTPUT, JSON.stringify(status, null, 2) + "\n", { mode: 0o600 });
+          NODE
+
+      - name: Enforce fail-closed PR-B1 acquisition hold
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -e '
+            .network_source_verified == true
+            and .oauth_server_correlation_source_available == false
+            and .registration_source_attestation_available == false
+            and .receipt_signed == false
+            and (.blockers | length) == 2
+            and .provider_mutation_performed == false
+            and .database_mutation_performed == false
+            and .production_mutation_performed == false
+            and .secrets_included == false
+          ' "$RUNNER_TEMP/staging-recovery-acquisition/acquisition-status.json" >/dev/null
+          test ! -e "$RUNNER_TEMP/staging-recovery-acquisition/acquisition-receipt.json"
+
+      - name: Upload bounded acquisition evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: staging-recovery-external-acquisition-${{ inputs.expected_sha }}-${{ inputs.expected_target_fingerprint }}
+          path: ${{ runner.temp }}/staging-recovery-acquisition/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Publish acquisition summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Staging Recovery external acquisition — PR-B1"
+            echo
+            echo "- Exact SHA: $EXPECTED_SHA"
+            echo "- Target fingerprint: $EXPECTED_TARGET_FINGERPRINT"
+            echo "- Network source: independently probed"
+            echo "- OAuth server correlation source: unavailable in PR-B1"
+            echo "- Registration source attestation: unavailable in PR-B1"
+            echo "- Acquisition receipt signed: no"
+            echo "- Production/provider/database mutation: none"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   verify-and-countersign:
     if: inputs.operation == 'countersign_recovery' && github.ref == 'refs/heads/main' && inputs.confirmation == 'COUNTERSIGN_STAGING_RECOVERY'
@@ -407,6 +549,9 @@ jobs:
           RECOVERY_STAGING_CERTIFICATION_PRIVATE_KEY: ${{ secrets.RECOVERY_STAGING_CERTIFICATION_PRIVATE_KEY }}
           RECOVERY_STAGING_CERTIFICATION_ISSUER: ${{ vars.RECOVERY_STAGING_CERTIFICATION_ISSUER }}
           RECOVERY_STAGING_CERTIFICATION_KEY_ID: ${{ vars.RECOVERY_STAGING_CERTIFICATION_KEY_ID }}
+          STAGING_RECOVERY_ACQUISITION_PUBLIC_KEY: ${{ vars.STAGING_RECOVERY_ACQUISITION_PUBLIC_KEY }}
+          STAGING_RECOVERY_ACQUISITION_KEY_ID: ${{ vars.STAGING_RECOVERY_ACQUISITION_KEY_ID }}
+          STAGING_RECOVERY_ACQUISITION_ISSUER: ${{ vars.STAGING_RECOVERY_ACQUISITION_ISSUER }}
           ACTIVATION_GATEWAY_INGRESS_PUBLIC_KEY_SHA256: ${{ vars.ACTIVATION_GATEWAY_INGRESS_PUBLIC_KEY_SHA256 }}
         run: node .github/scripts/staging-recovery-verify-and-countersign.mjs
 

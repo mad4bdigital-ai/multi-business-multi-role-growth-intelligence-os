@@ -456,17 +456,48 @@ Detailed operator contract: `docs/platform-capability-assurance-graph.md`.
 ### Staging Recovery external evidence
 
 Registration, OAuth, and Network observations use the canonical
-`mad4b.recovery-external-observation.v1` contract with exact SHA/target,
-freshness, no secrets, and a recomputed evidence hash. Source labels and
-caller-provided `source_authenticity_verified` are not source proof. PR-A keeps
-`RECOVERY_EXTERNAL_ACQUISITION_AUTHORITY_AVAILABLE=false` in server code:
-the local canary, independent countersign, signing payload, and readiness must
-remain blocked until PR-B supplies genuine authenticated acquisition. Network
-evidence must pair the same protected route, method and body hash across
-unsigned direct `403` (`RECOVERY_TRUSTED_INGRESS_REQUIRED`) or direct origin
-`404` (`RECOVERY_STAGING_HOST_UNAVAILABLE`) and signed Gateway 2xx. Generic
-`404` and public `/health` are separate: the former is invalid evidence, the
-latter does not violate this contract. See
+`mad4b.recovery-external-observation.v1` integrity contract with exact
+SHA/target, freshness, no secrets, source provenance and a recomputed evidence
+hash. Source labels, caller-provided `source_authenticity_verified`, operator
+confirmation and environment flags are not source authority.
+
+PR-B1 replaces the old static acquisition boolean with the branded,
+server-constructed `mad4b.recovery-external-acquisition-authority.v1`.
+The authority accepts only a valid Ed25519
+`mad4b.recovery-external-acquisition-receipt.v1` signed by the dedicated
+Staging acquisition key. The receipt binds the exact deployment SHA, target
+fingerprint, issuer, key ID, acquisition run, TTL and the Registration/OAuth/
+Network evidence hashes plus source-proof hashes. The acquisition key is
+separate from Gateway trusted-ingress and Staging certification signing keys.
+
+Network acquisition authority requires the same
+`GET /admin/recovery/staging/contract` path, method and empty-body SHA-256 for
+direct origin and Activation Gateway, with direct exactly
+`403 / RECOVERY_TRUSTED_INGRESS_REQUIRED` and Gateway 2xx. A direct
+`404 / RECOVERY_STAGING_HOST_UNAVAILABLE` may remain useful host-isolation
+integrity evidence but is not strong enough to sign an acquisition receipt.
+
+OAuth acquisition accepts only the complete ordered server correlation:
+`authorize_received`, `login_consent_completed`,
+`authorization_code_issued`, `callback_received`,
+`token_exchange_completed`, `resource_request_verified`. Events must share
+the same correlation/session/client, Staging issuer/resource and a
+server-observed redirect-URI hash, remain fresh, and never contain token,
+authorization-code, client-secret or credential payloads.
+
+PR-B1 remains intentionally fail-closed for live certification: no trusted
+server-side OAuth correlation export is currently wired to the acquisition
+workflow, and ChatGPT registration parity does not prove that the observation
+originated from ChatGPT Builder. Therefore the PR-B1 workflow verifies Network
+evidence, records the OAuth/Registration source-authority gaps, and must leave
+`receipt_signed=false`. It must not read the private acquisition key on that
+blocked path. No manual JSON, nonce, operator acknowledgement, or fabricated
+`verified=true` object may substitute for those source authorities.
+
+The local canary, independent GitHub countersign, certification signing payload
+and readiness re-verify the acquisition receipt. Readiness may expose
+`external_acquisition_authority=true` only as a result of successful receipt
+verification against the exact current SHA/target. See
 `docs/runbooks/staging-recovery-phase-b-certification.md`.
 
 ### Platform Plugin smoke certification governance

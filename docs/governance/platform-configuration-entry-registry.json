@@ -601,6 +601,23 @@
       "secrets_included": false
     },
     {
+      "config_key": "max.ttl.ms",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "staging-recovery-governance",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/recoveryExternalAcquisitionAuthority.js",
+      "resolver_ref": "http-generic-api/recoveryExternalAcquisitionAuthority.js",
+      "readback_ref": "http-generic-api/test-staging-recovery-external-acquisition-authority.mjs",
+      "shadow_evidence_ref": "docs/runbooks/staging-recovery-phase-b-certification.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
       "config_key": "max.ttl.seconds",
       "schema_ref": "http-generic-api/config/admin-tenant-inspection-policy.json",
       "owner": "platform-governance",
@@ -1541,5 +1558,5 @@
     "production_activation_allowed": false
   },
   "$schema": "../../.specify/schemas/platform-configuration-entry-registry.schema.json",
-  "entry_count": 86
+  "entry_count": 87
 }

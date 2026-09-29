@@ -98,7 +98,7 @@
     },
     {
       "path": "http-generic-api/.env.staging.example",
-      "sha256": "49df34227834cfc535beabbb634431e7ebd09192ddf03a2b57e6ab88f5f9fcb6"
+      "sha256": "48827751502687a59fcf41c191287a5b5b88535a010cab1f42763043b8b361ab"
     },
     {
       "path": "http-generic-api/Dockerfile",
@@ -146,11 +146,11 @@
     },
     {
       "path": "http-generic-api/frontend-operation-governance.generated.json",
-      "sha256": "e7306a76b8f8ac78bd375d45cbf226cea2d81533d41bffe9152d2e7247d8a765"
+      "sha256": "2958fc5605af6fd3cc0849a5e8eff8f70e4357af972b5ee00a9fdfbdba3a3011"
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "7ca85ba37eb86d7f5998043cbd9f853173eaad4993a13ce732af98a4244ad620"
+      "sha256": "9a32437129276bc139205cb729b95db383db69da8ce8d671f4849dd984ca5c21"
     },
     {
       "path": "http-generic-api/governanceDb.js",
