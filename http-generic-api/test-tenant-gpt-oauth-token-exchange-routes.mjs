@@ -26,7 +26,7 @@ const AUTHORIZE_CORRELATION = createTenantGptOAuthOperationCorrelation({
   protected_resource: RESOURCE,
   client_id: TENANT_GPT_OAUTH_CLIENT_ID,
   request_id: "authorize-request",
-});
+}, { nowMs: Date.parse("2026-08-04T00:00:00.000Z") });
 const IDENTITY_CORRELATION = advanceTenantGptOAuthOperationCorrelation(
   AUTHORIZE_CORRELATION,
   {
@@ -35,6 +35,7 @@ const IDENTITY_CORRELATION = advanceTenantGptOAuthOperationCorrelation(
     tenant_id: "tenant-1",
     request_id: "identity-request",
   },
+  { nowMs: Date.parse("2026-08-04T00:00:01.000Z") },
 );
 const CODE_CORRELATION = advanceTenantGptOAuthOperationCorrelation(
   IDENTITY_CORRELATION,
@@ -43,6 +44,7 @@ const CODE_CORRELATION = advanceTenantGptOAuthOperationCorrelation(
     oauth_code_jti: "oauth-code-jti-sensitive",
     request_id: "code-request",
   },
+  { nowMs: Date.parse("2026-08-04T00:00:02.000Z") },
 );
 
 const CODE_PAYLOAD = Object.freeze({
