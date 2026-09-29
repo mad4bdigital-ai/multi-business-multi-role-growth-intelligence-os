@@ -1,0 +1,142 @@
+name: Staging Recovery External Evidence Acquisition
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact current main SHA already deployed to Staging
+        required: true
+        type: string
+      expected_target_fingerprint:
+        description: Exact Staging target fingerprint
+        required: true
+        type: string
+      confirmation:
+        description: Type ACQUIRE_STAGING_RECOVERY_EXTERNAL_EVIDENCE
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-recovery-external-acquisition-${{ inputs.expected_sha }}
+  cancel-in-progress: false
+
+jobs:
+  acquire:
+    if: github.ref == 'refs/heads/main' && inputs.confirmation == 'ACQUIRE_STAGING_RECOVERY_EXTERNAL_EVIDENCE'
+    runs-on: ubuntu-latest
+    environment: staging-recovery-acquisition
+    steps:
+      - name: Validate exact bounded inputs
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          EXPECTED_TARGET_FINGERPRINT: ${{ inputs.expected_target_fingerprint }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$EXPECTED_TARGET_FINGERPRINT" =~ ^[0-9a-f]{64}$ ]]
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.expected_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Enforce exact current main
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test "$(git rev-parse origin/main)" = "$EXPECTED_SHA"
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install acquisition dependencies
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts
+
+      - name: Prepare no-secret evidence directory
+        shell: bash
+        run: mkdir -p "$RUNNER_TEMP/staging-recovery-acquisition"
+
+      - name: Acquire independent same-request network evidence
+        working-directory: http-generic-api
+        env:
+          RECOVERY_STAGING_EXPECTED_SHA: ${{ inputs.expected_sha }}
+          RECOVERY_STAGING_EXPECTED_TARGET_FINGERPRINT: ${{ inputs.expected_target_fingerprint }}
+          RECOVERY_STAGING_NETWORK_EVIDENCE_FILE: ${{ runner.temp }}/staging-recovery-acquisition/network-evidence.json
+        run: node scripts/staging-recovery-acquire-network-evidence.mjs
+
+      - name: Acquire or report OAuth server-correlation evidence
+        working-directory: http-generic-api
+        env:
+          RECOVERY_STAGING_EXPECTED_SHA: ${{ inputs.expected_sha }}
+          RECOVERY_STAGING_EXPECTED_TARGET_FINGERPRINT: ${{ inputs.expected_target_fingerprint }}
+          RECOVERY_STAGING_OAUTH_CORRELATION_URL: ${{ vars.RECOVERY_STAGING_OAUTH_CORRELATION_URL }}
+          RECOVERY_STAGING_OAUTH_EVIDENCE_FILE: ${{ runner.temp }}/staging-recovery-acquisition/oauth-evidence.json
+          RECOVERY_STAGING_OAUTH_STATUS_FILE: ${{ runner.temp }}/staging-recovery-acquisition/oauth-status.json
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+        run: node scripts/staging-recovery-acquire-oauth-evidence.mjs
+
+      - name: Evaluate Registration provider source authority
+        working-directory: http-generic-api
+        env:
+          RECOVERY_STAGING_REGISTRATION_STATUS_FILE: ${{ runner.temp }}/staging-recovery-acquisition/registration-status.json
+        run: node scripts/staging-recovery-acquire-registration-evidence.mjs
+
+      - name: Evaluate governed acquisition receipt issuance
+        env:
+          RECOVERY_STAGING_EXPECTED_SHA: ${{ inputs.expected_sha }}
+          RECOVERY_STAGING_EXPECTED_TARGET_FINGERPRINT: ${{ inputs.expected_target_fingerprint }}
+          RECOVERY_STAGING_ACQUISITION_RUN_ID: gha:${{ github.run_id }}:${{ github.run_attempt }}
+          RECOVERY_STAGING_NETWORK_EVIDENCE_FILE: ${{ runner.temp }}/staging-recovery-acquisition/network-evidence.json
+          RECOVERY_STAGING_OAUTH_EVIDENCE_FILE: ${{ runner.temp }}/staging-recovery-acquisition/oauth-evidence.json
+          RECOVERY_STAGING_REGISTRATION_EVIDENCE_FILE: ${{ runner.temp }}/staging-recovery-acquisition/registration-evidence.json
+          RECOVERY_STAGING_ACQUISITION_RECEIPT_FILE: ${{ runner.temp }}/staging-recovery-acquisition/acquisition-receipt.json
+          RECOVERY_STAGING_ACQUISITION_STATUS_FILE: ${{ runner.temp }}/staging-recovery-acquisition/acquisition-status.json
+          STAGING_RECOVERY_ACQUISITION_PRIVATE_KEY: ${{ secrets.STAGING_RECOVERY_ACQUISITION_PRIVATE_KEY }}
+          STAGING_RECOVERY_ACQUISITION_KEY_ID: ${{ vars.STAGING_RECOVERY_ACQUISITION_KEY_ID }}
+          STAGING_RECOVERY_ACQUISITION_ISSUER: ${{ vars.STAGING_RECOVERY_ACQUISITION_ISSUER }}
+        run: node .github/scripts/staging-recovery-sign-acquisition-receipt.mjs
+
+      - name: Assert PR-B1 remains fail-closed while source authorities are unavailable
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -e '.contract == "mad4b.recovery-external-acquisition-source-readiness.v1"'             "$RUNNER_TEMP/staging-recovery-acquisition/acquisition-status.json" >/dev/null
+          if jq -e '.ready == false' "$RUNNER_TEMP/staging-recovery-acquisition/acquisition-status.json" >/dev/null; then
+            test ! -e "$RUNNER_TEMP/staging-recovery-acquisition/acquisition-receipt.json"
+          fi
+
+      - name: Publish acquisition summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Staging Recovery external acquisition"
+            echo
+            echo "- Exact SHA: ${{ inputs.expected_sha }}"
+            echo "- Target fingerprint: ${{ inputs.expected_target_fingerprint }}"
+            if [[ -f "$RUNNER_TEMP/staging-recovery-acquisition/acquisition-status.json" ]]; then
+              jq -r '"- Receipt issued: " + (.receipt_issued|tostring), (.blockers[]? | "- Blocker: " + .kind + " / " + .reason_code)'                 "$RUNNER_TEMP/staging-recovery-acquisition/acquisition-status.json"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload bounded no-secret acquisition evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: staging-recovery-external-acquisition-${{ inputs.expected_sha }}-${{ inputs.expected_target_fingerprint }}
+          path: ${{ runner.temp }}/staging-recovery-acquisition/
+          if-no-files-found: error
+          retention-days: 7
