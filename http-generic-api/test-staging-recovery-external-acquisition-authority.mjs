@@ -19,6 +19,7 @@ import {
 import { _testingStagingRecoveryAuthorityBinding } from "./stagingRecoveryAuthorityBinding.js";
 import {
   RECOVERY_OAUTH_CORRELATION_EVENT_SEQUENCE,
+  classifyRecoveryDirectDenial,
   buildRecoveryNetworkIsolationEvidence,
   buildRecoveryOAuthServerCorrelationEvidence,
   unavailableRegistrationSourceVerification,
@@ -324,30 +325,120 @@ test("receipt rejects forged signature, evidence mutation, source drift, SHA, ta
   );
 });
 
-test("network acquisition requires same request and explicit trusted-ingress denial", async () => {
+test("network acquisition accepts only the two canonical direct-denial pairs", async () => {
+  const build = async ({ status, reason, gatewayStatus = 200 } = {}) =>
+    buildRecoveryNetworkIsolationEvidence({
+      deploymentSha: SHA,
+      targetFingerprint: TARGET,
+      observationId: `test-network-denial-${status}-${String(reason).toLowerCase()}`,
+      direct: {
+        method: "GET",
+        path: "/admin/recovery/staging/contract",
+        body_sha256: EMPTY_HASH,
+        status,
+        reason,
+      },
+      gateway: {
+        method: "GET",
+        path: "/admin/recovery/staging/contract",
+        body_sha256: EMPTY_HASH,
+        status: gatewayStatus,
+        public_health_identity: await gatewayHealthIdentity(),
+      },
+    });
+
+  assert.deepEqual(
+    classifyRecoveryDirectDenial({
+      status: 403,
+      reason: "RECOVERY_TRUSTED_INGRESS_REQUIRED",
+    }),
+    {
+      status: 403,
+      reason: "RECOVERY_TRUSTED_INGRESS_REQUIRED",
+      denial_class: "trusted_ingress_required",
+    },
+  );
+  assert.deepEqual(
+    classifyRecoveryDirectDenial({
+      status: 404,
+      reason: "RECOVERY_STAGING_HOST_UNAVAILABLE",
+    }),
+    {
+      status: 404,
+      reason: "RECOVERY_STAGING_HOST_UNAVAILABLE",
+      denial_class: "staging_host_unavailable",
+    },
+  );
+
+  const trustedIngress = await build({
+    status: 403,
+    reason: "RECOVERY_TRUSTED_INGRESS_REQUIRED",
+  });
+  assert.equal(
+    trustedIngress.direct_recovery_surface_denial_class,
+    "trusted_ingress_required",
+  );
+  assert.equal(
+    verifyRecoveryNetworkIsolationSource(trustedIngress, {
+      expectedSha: SHA,
+      expectedTargetFingerprint: TARGET,
+    }).verified,
+    true,
+  );
+
+  const unavailableHost = await build({
+    status: 404,
+    reason: "RECOVERY_STAGING_HOST_UNAVAILABLE",
+  });
+  assert.equal(
+    unavailableHost.direct_recovery_surface_denial_class,
+    "staging_host_unavailable",
+  );
+  assert.equal(
+    verifyRecoveryNetworkIsolationSource(unavailableHost, {
+      expectedSha: SHA,
+      expectedTargetFingerprint: TARGET,
+    }).verified,
+    true,
+  );
+
+  for (const [status, reason] of [
+    [404, "NOT_FOUND"],
+    [403, "FORBIDDEN"],
+    [401, "RECOVERY_TRUSTED_INGRESS_REQUIRED"],
+    [500, "RECOVERY_STAGING_HOST_UNAVAILABLE"],
+  ]) {
+    await assert.rejects(
+      () => build({ status, reason }),
+      (error) => error.code === "RECOVERY_NETWORK_SOURCE_INVALID",
+    );
+  }
+
   await assert.rejects(
     () =>
-      buildRecoveryNetworkIsolationEvidence({
-        deploymentSha: SHA,
-        targetFingerprint: TARGET,
-        direct: {
-          method: "GET",
-          path: "/admin/recovery/staging/contract",
-          body_sha256: EMPTY_HASH,
-          status: 404,
-          reason: "RECOVERY_STAGING_HOST_UNAVAILABLE",
-        },
-        gateway: {
-          method: "GET",
-          path: "/admin/recovery/staging/contract",
-          body_sha256: EMPTY_HASH,
-          status: 200,
-        },
+      build({
+        status: 404,
+        reason: "RECOVERY_STAGING_HOST_UNAVAILABLE",
+        gatewayStatus: 503,
       }),
     (error) => error.code === "RECOVERY_NETWORK_SOURCE_INVALID",
   );
+
+  const forgedClass = {
+    ...unavailableHost,
+    direct_recovery_surface_denial_class: "trusted_ingress_required",
+  };
+  forgedClass.evidence_hash = recoveryExternalEvidenceHash(forgedClass);
+  assert.equal(
+    verifyRecoveryNetworkIsolationSource(forgedClass, {
+      expectedSha: SHA,
+      expectedTargetFingerprint: TARGET,
+    }).verified,
+    false,
+  );
+
   await assert.rejects(
-    () =>
+    async () =>
       buildRecoveryNetworkIsolationEvidence({
         deploymentSha: SHA,
         targetFingerprint: TARGET,
@@ -363,6 +454,7 @@ test("network acquisition requires same request and explicit trusted-ingress den
           path: "/admin/recovery/staging/readiness",
           body_sha256: "f".repeat(64),
           status: 200,
+          public_health_identity: await gatewayHealthIdentity(),
         },
       }),
     (error) => error.code === "RECOVERY_NETWORK_SOURCE_INVALID",
@@ -431,6 +523,24 @@ test("network acquisition binds exact live Gateway health identity into the evid
   });
   assert.equal(verification.verified, false);
   assert.equal(verification.reason_code, "RECOVERY_NETWORK_SOURCE_INVALID");
+
+  const policyMutated = {
+    ...evidence.network,
+    public_health_identity: {
+      ...evidence.network.public_health_identity,
+      policy_hash: "d".repeat(64),
+    },
+  };
+  policyMutated.evidence_hash = recoveryExternalEvidenceHash(policyMutated);
+  const policyVerification = verifyRecoveryNetworkIsolationSource(policyMutated, {
+    expectedSha: SHA,
+    expectedTargetFingerprint: TARGET,
+  });
+  assert.equal(policyVerification.verified, false);
+  assert.equal(
+    policyVerification.reason_code,
+    "RECOVERY_NETWORK_SOURCE_INVALID",
+  );
 });
 
 test("OAuth source requires complete ordered server correlation without secret-bearing fields", () => {
