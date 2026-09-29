@@ -2,24 +2,38 @@
 
 This runbook closes the live Staging Recovery certification after the Staging deployment is already healthy and exact-main bound. It does not repair Docker, apply database migrations, mutate Production, or synthesize external evidence.
 
-**PR-A hold:** `RECOVERY_EXTERNAL_ACQUISITION_AUTHORITY_AVAILABLE` is hard-coded
-to `false`. The local canary, independent countersign, signing payload, and
-readiness fail closed even if the evidence carries a correctly recomputed hash
-or `source_authenticity_verified=true`. Do not run this procedure until PR-B
-adds a trusted acquisition verifier and explicitly replaces that code gate.
+**PR-B1 acquisition gate:** PR-A's hard-coded boolean hold is replaced by
+a branded server-side external-acquisition authority. The local canary,
+independent countersign, signing payload, and readiness accept external source
+authenticity only after verifying an Ed25519-signed
+`mad4b.recovery-external-acquisition-receipt.v1` against the exact deployment
+SHA, target fingerprint, evidence hashes, source-proof hashes, issuer/key ID,
+and bounded TTL. Caller fields, manual JSON, and environment flags cannot create
+this authority.
+
+PR-B1 deliberately remains fail-closed. Network acquisition is active, but
+OAuth server correlation is still `foundation_only` until its existing
+correlation lifecycle is wired into the live OAuth runtime, and Registration
+source attestation is `unavailable` until a provider-backed or equivalent
+non-forgeable ChatGPT registration source exists. The acquisition workflow may
+therefore collect evidence and return typed blockers with
+`receipt_issued=false`; that is the expected safe state, not a certification
+failure to bypass.
 
 ## Preconditions
 
 - Local checkout is `main` and exactly equals `origin/main`.
 - Staging app deployment attestation is bound to the same exact SHA.
 - The Staging Recovery authority graph is ready.
-- The five external evidence files are genuine live evidence and all bind to the same Staging SHA and target fingerprint:
-  - actual ChatGPT registration evidence;
-  - OAuth browser round-trip evidence;
-  - origin network-isolation evidence;
+- The external evidence set and the acquisition receipt all bind to the same Staging SHA and target fingerprint:
+  - provider-attested ChatGPT registration evidence;
+  - server-correlated OAuth evidence;
+  - independently measured origin network-isolation evidence;
+  - `mad4b.recovery-external-acquisition-receipt.v1`;
   - deployed Worker provenance evidence;
   - Activation Gateway ingress-build identity evidence.
-- The dedicated Staging Recovery Ed25519 public trust is configured in the Staging app and the corresponding private signing key is configured only in the `staging-recovery-certification` GitHub environment.
+- The dedicated Staging Recovery certification Ed25519 public trust is configured in the Staging app and its private key exists only in the `staging-recovery-certification` GitHub environment.
+- Acquisition trust uses a different Ed25519 key namespace: `STAGING_RECOVERY_ACQUISITION_PUBLIC_KEY`, `STAGING_RECOVERY_ACQUISITION_KEY_ID`, and `STAGING_RECOVERY_ACQUISITION_ISSUER`; its private key exists only in the `staging-recovery-acquisition` GitHub environment.
 
 Registration, OAuth, and network observations use
 `mad4b.recovery-external-observation.v1`. Each contains `evidence_kind`,
@@ -27,10 +41,10 @@ Registration, OAuth, and network observations use
 target fingerprint, observation and expiry times (at most one hour apart),
 `secrets_included=false`, and a SHA-256 `evidence_hash` of canonical JSON with
 only that hash field removed. The verifier recomputes the hash, checks the
-contract and expected source identifiers, and rejects secret fields. These
-source identifiers are assertions within the evidence, not independent proof
-of origin. PR-B must add authenticated acquisition before certification can
-claim source authenticity. Do not pass hand-written JSON to the canary.
+contract and expected source identifiers, and rejects secret fields. These source identifiers remain assertions within the evidence. Independent
+source authenticity comes only from the signed acquisition receipt and its
+registered source authorities. Do not pass hand-written JSON to the canary and
+do not treat `verified:true` as authority.
 
 Network isolation applies to protected `/admin/recovery/staging/*` routes:
 the unsigned direct request must return either `403` with
@@ -51,6 +65,7 @@ powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\autopilot-port
   -RegistrationEvidenceFile <registration.json> `
   -OAuthEvidenceFile <oauth.json> `
   -NetworkEvidenceFile <network.json> `
+  -AcquisitionReceiptFile <acquisition-receipt.json> `
   -WorkerProviderEvidenceFile <worker-provider-observation.json> `
   -CaptureRuntimeEvidence `
   -DispatchCountersign `
@@ -64,7 +79,9 @@ verified Activation Gateway ingress-build identity immediately before
 the local canary.
 
 The GitHub countersign independently re-reads both the Cloudflare
-Worker provider state and a new signed Gateway ingress identity.
+Worker provider state and a new signed Gateway ingress identity, verifies the
+acquisition receipt again using acquisition public trust, and repeats the
+protected-route Network probe before signing.
 The local ingress proof is therefore evidence of the local canary
 request, while the GitHub proof is the live authority used for
 independent countersign verification.
@@ -92,9 +109,11 @@ The `Staging Post-Deploy Verification` workflow:
 4. runs the governed Recovery negative regression suites at that SHA;
 5. binds negative-test evidence to the same `GITHUB_SHA`;
 6. independently recomputes the Kernel plan, approval, ticket, run, receipt and event-chain bindings;
-7. validates the real external-evidence envelope;
-8. builds the canonical Production-consumable Staging certification;
-9. signs it with the dedicated Staging Recovery certification key.
+7. verifies the acquisition receipt signature, exact SHA/target, evidence hashes and source-proof hashes;
+8. reruns a fresh independent Network probe and compares it with the receipt-bound observation;
+9. validates the real external-evidence envelope;
+10. builds the canonical Production-consumable Staging certification;
+11. signs it with the separate dedicated Staging Recovery certification key.
 
 A stale, cross-SHA, cross-target, secret-bearing, synthetic, negative-test-incomplete, or Production-targeting claim fails closed.
 
