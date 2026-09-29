@@ -2,6 +2,13 @@ import fs from "node:fs";
 import { createHash } from "node:crypto";
 import { buildRecoveryNetworkIsolationEvidence } from "../stagingRecoveryExternalEvidence.js";
 
+const expectedPolicy = JSON.parse(
+  fs.readFileSync(
+    new URL("../activation-gateway-runtime/generated/route-policy.staging.json", import.meta.url),
+    "utf8",
+  ),
+);
+
 function args(argv) {
   const out = {};
   for (let i = 2; i < argv.length; i += 1) {
@@ -48,6 +55,34 @@ const directReason =
   direct.body?.reason ||
   null;
 
+const publicHealthIdentity = Object.freeze({
+  status: health.response.status,
+  ok: health.body?.ok === true,
+  source_commit: health.body?.sourceCommit || null,
+  worker_build_sha: health.body?.workerBuildSha || null,
+  worker_bundle_sha256: health.body?.workerBundleSha256 || null,
+  policy_hash: health.body?.policyHash || null,
+  secrets_included: health.body?.secretsIncluded === false,
+});
+
+if (
+  publicHealthIdentity.status !== 200 ||
+  publicHealthIdentity.ok !== true ||
+  publicHealthIdentity.source_commit !== deploymentSha ||
+  publicHealthIdentity.worker_build_sha !== deploymentSha ||
+  publicHealthIdentity.policy_hash !== expectedPolicy.content_hash_sha256 ||
+  publicHealthIdentity.secrets_included !== true ||
+  !/^[a-f0-9]{64}$/u.test(publicHealthIdentity.worker_bundle_sha256 || "")
+) {
+  throw Object.assign(
+    new Error("Live Activation Gateway health identity does not match the exact Staging SHA and policy."),
+    {
+      code: "RECOVERY_NETWORK_GATEWAY_IDENTITY_MISMATCH",
+      secrets_included: false,
+    },
+  );
+}
+
 const evidence = await buildRecoveryNetworkIsolationEvidence({
   deploymentSha,
   targetFingerprint,
@@ -63,7 +98,7 @@ const evidence = await buildRecoveryNetworkIsolationEvidence({
     path,
     body_sha256: bodyHash,
     status: gateway.response.status,
-    public_health_status: health.response.status,
+    public_health_identity: publicHealthIdentity,
   },
 });
 
