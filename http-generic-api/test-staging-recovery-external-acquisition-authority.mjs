@@ -10,7 +10,10 @@ import {
   verifyRecoveryExternalAcquisitionAuthority,
 } from "./recoveryExternalAcquisitionAuthority.js";
 import {
+  createRecoveryReadinessAuthorities,
+  expectedStagingGatewayDeployment,
   recoveryExternalEvidenceHash,
+  RECOVERY_CERTIFICATION_STORE_CONTRACT,
   RECOVERY_EXTERNAL_EVIDENCE_CONTRACT,
 } from "./recoveryReadinessEvidence.js";
 import { _testingStagingRecoveryAuthorityBinding } from "./stagingRecoveryAuthorityBinding.js";
@@ -37,6 +40,20 @@ function keyPair() {
   return {
     privateKey: pair.privateKey.export({ type: "pkcs8", format: "pem" }),
     publicKey: pair.publicKey.export({ type: "spki", format: "pem" }),
+  };
+}
+
+async function gatewayHealthIdentity(overrides = {}) {
+  const gateway = await expectedStagingGatewayDeployment();
+  return {
+    status: 200,
+    ok: true,
+    source_commit: SHA,
+    worker_build_sha: SHA,
+    worker_bundle_sha256: "9".repeat(64),
+    policy_hash: gateway.policy_hash,
+    secrets_included: false,
+    ...overrides,
   };
 }
 
@@ -109,7 +126,7 @@ async function validEvidence() {
       path: "/admin/recovery/staging/contract",
       body_sha256: EMPTY_HASH,
       status: 200,
-      public_health_status: 200,
+      public_health_identity: await gatewayHealthIdentity(),
     },
   });
   return { registration, oauth, network };
@@ -207,6 +224,44 @@ test("signed acquisition receipt verifies only through a branded server authorit
   assert.equal(
     forged.reason_code,
     "RECOVERY_EXTERNAL_ACQUISITION_AUTHORITY_UNTRUSTED",
+  );
+});
+
+test("readiness rejects a caller-fabricated acquisition authority before verification", () => {
+  const fakeAuthority = {
+    contract: "mad4b.recovery-external-acquisition-authority.v1",
+    async verify() {
+      return { verified: true };
+    },
+  };
+  assert.throws(
+    () =>
+      createRecoveryReadinessAuthorities({
+        evidenceStore: {
+          contract: RECOVERY_CERTIFICATION_STORE_CONTRACT,
+          async getCertification() { return null; },
+          async putCertification() { return "unused"; },
+          replayStore: { scope: "single_filesystem" },
+        },
+        deploymentIdentityProvider: {
+          async readAttestation() {
+            return { environment: "staging", sha: SHA, target_fingerprint: TARGET };
+          },
+        },
+        targetIdentityProvider: {
+          async readIdentity() {
+            return { environment: "staging", runtime_class: "local_windows_docker", target_fingerprint: TARGET };
+          },
+        },
+        env: {
+          NODE_ENV: "staging",
+          DEPLOYMENT_ENVIRONMENT: "staging_local_windows_docker",
+          REMOTE_MCP_ENVIRONMENT: "staging",
+        },
+        externalAcquisitionAuthority: fakeAuthority,
+      }),
+    (error) =>
+      error.code === "RECOVERY_EXTERNAL_ACQUISITION_AUTHORITY_UNTRUSTED",
   );
 });
 
@@ -312,6 +367,70 @@ test("network acquisition requires same request and explicit trusted-ingress den
       }),
     (error) => error.code === "RECOVERY_NETWORK_SOURCE_INVALID",
   );
+});
+
+test("network acquisition binds exact live Gateway health identity into the evidence hash", async () => {
+  const base = {
+    deploymentSha: SHA,
+    targetFingerprint: TARGET,
+    direct: {
+      method: "GET",
+      path: "/admin/recovery/staging/contract",
+      body_sha256: EMPTY_HASH,
+      status: 403,
+      reason: "RECOVERY_TRUSTED_INGRESS_REQUIRED",
+    },
+    gateway: {
+      method: "GET",
+      path: "/admin/recovery/staging/contract",
+      body_sha256: EMPTY_HASH,
+      status: 200,
+    },
+  };
+
+  await assert.rejects(
+    () =>
+      buildRecoveryNetworkIsolationEvidence({
+        ...base,
+        gateway: {
+          ...base.gateway,
+          public_health_identity: await gatewayHealthIdentity({
+            source_commit: "c".repeat(40),
+          }),
+        },
+      }),
+    (error) => error.code === "RECOVERY_NETWORK_SOURCE_INVALID",
+  );
+
+  await assert.rejects(
+    () =>
+      buildRecoveryNetworkIsolationEvidence({
+        ...base,
+        gateway: {
+          ...base.gateway,
+          public_health_identity: await gatewayHealthIdentity({
+            policy_hash: "d".repeat(64),
+          }),
+        },
+      }),
+    (error) => error.code === "RECOVERY_NETWORK_SOURCE_INVALID",
+  );
+
+  const evidence = await validEvidence();
+  const mutated = {
+    ...evidence.network,
+    public_health_identity: {
+      ...evidence.network.public_health_identity,
+      worker_build_sha: "e".repeat(40),
+    },
+  };
+  mutated.evidence_hash = recoveryExternalEvidenceHash(mutated);
+  const verification = verifyRecoveryNetworkIsolationSource(mutated, {
+    expectedSha: SHA,
+    expectedTargetFingerprint: TARGET,
+  });
+  assert.equal(verification.verified, false);
+  assert.equal(verification.reason_code, "RECOVERY_NETWORK_SOURCE_INVALID");
 });
 
 test("OAuth source requires complete ordered server correlation without secret-bearing fields", () => {
