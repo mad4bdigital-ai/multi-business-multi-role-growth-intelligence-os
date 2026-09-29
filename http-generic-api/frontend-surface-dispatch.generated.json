@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "21d1c3672582c97185c82200a9cb288e03f911ab285592be826ae7b66fcbcc3a",
+    "source_digest": "aa5911b343af27a8b2603054ceb6a0bc989e7b511abddcef82fa0a360d6eab65",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -456,7 +456,7 @@
       },
       {
         "file": "routes/authRoutes.js",
-        "sha256": "1a7a78c808802ebb7506dbaeb8f6d4f4cae1a229bd7913726e194c36ac73c132",
+        "sha256": "b48e0a13751eb160f67c6de316594de91779b82d699068d40aaa7227b412825d",
         "present": true
       },
       {
@@ -15177,7 +15177,7 @@
       "family_key": "auth.admin",
       "label": "auth (admin)",
       "source_file": "routes/authRoutes.js",
-      "source_digest": "1a7a78c808802ebb7506dbaeb8f6d4f4cae1a229bd7913726e194c36ac73c132",
+      "source_digest": "b48e0a13751eb160f67c6de316594de91779b82d699068d40aaa7227b412825d",
       "mount_prefix": "/auth",
       "mount_order": 15546,
       "split_from_mixed_scope_file": true,
@@ -15325,7 +15325,7 @@
       "family_key": "auth.public",
       "label": "auth (public)",
       "source_file": "routes/authRoutes.js",
-      "source_digest": "1a7a78c808802ebb7506dbaeb8f6d4f4cae1a229bd7913726e194c36ac73c132",
+      "source_digest": "b48e0a13751eb160f67c6de316594de91779b82d699068d40aaa7227b412825d",
       "mount_prefix": "/auth",
       "mount_order": 15546,
       "split_from_mixed_scope_file": true,
