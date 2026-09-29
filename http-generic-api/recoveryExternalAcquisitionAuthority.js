@@ -167,7 +167,7 @@ export function isRecoveryExternalAcquisitionAuthority(value) {
 }
 
 export function createRecoveryExternalAcquisitionAuthorityFromEnv(env = process.env) {
-  const publicKey = String(env.STAGING_RECOVERY_ACQUISITION_PUBLIC_KEY || "").trim();
+  const publicKey = String(env.STAGING_RECOVERY_ACQUISITION_PUBLIC_KEY || "").trim().replace(/\\n/g, "\n");
   const keyId = String(env.STAGING_RECOVERY_ACQUISITION_KEY_ID || "").trim();
   const issuer = String(env.STAGING_RECOVERY_ACQUISITION_ISSUER || "").trim();
   if (!publicKey && !keyId && !issuer) return null;
