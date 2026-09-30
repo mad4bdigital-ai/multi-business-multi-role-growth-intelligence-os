@@ -747,6 +747,16 @@ export function createManagedGoogleOAuthBroker({
     });
     const refreshToken = cleanText(input.refresh_token, 8192);
     if (!refreshToken) throw brokerError(400, "managed_google_oauth_refresh_token_missing", "Managed Google OAuth refresh token is missing.");
+    const currentGrantedScope = cleanText(input.current_granted_scope, 8192);
+    if (access.scope_profile !== "legacy" && !currentGrantedScope) {
+      throw brokerError(
+        400,
+        "managed_google_oauth_current_granted_scope_missing",
+        "Managed Google OAuth profile refresh requires the currently granted scope set; requested scopes must never be treated as granted authority.",
+      );
+    }
+    const priorGrantedScope = currentGrantedScope || cleanText(input.requested_scope, 8192);
+    validateManagedGoogleGrantedScopes(access, priorGrantedScope);
     const nowDate = now();
     await enforceRateLimit(store, { siteUuid: binding.site_uuid, event: "refresh", limit: REFRESH_RATE_LIMIT_PER_MINUTE, nowDate });
     const body = new URLSearchParams({
@@ -764,7 +774,7 @@ export function createManagedGoogleOAuthBroker({
     const tokens = await parseGoogleTokenResponse(response, "managed_google_oauth_refresh_failed");
     const accessToken = cleanText(tokens.access_token, 8192);
     if (!accessToken) throw brokerError(502, "managed_google_oauth_refreshed_token_missing", "Google OAuth refresh did not return an access token.");
-    const returnedScope = cleanText(tokens.scope || access.authorization_scope, 8192);
+    const returnedScope = cleanText(tokens.scope, 8192) || priorGrantedScope;
     const granted = validateManagedGoogleGrantedScopes(access, returnedScope);
     const expiresIn = boundedPositiveInt(tokens.expires_in, 3600, 24 * 60 * 60);
     await store.appendAudit?.({
@@ -777,6 +787,7 @@ export function createManagedGoogleOAuthBroker({
         scope_profile: access.scope_profile,
         requested_scope_count: access.scope_count,
         granted_scope_count: granted.granted_scopes.length,
+        provider_scope_returned: Boolean(cleanText(tokens.scope, 8192)),
         scope_sha256_prefix: sha256Hex(returnedScope).slice(0, 12),
       },
       now: nowDate,
