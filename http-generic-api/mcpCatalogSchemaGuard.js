@@ -232,6 +232,11 @@ export async function readMcpCatalogSchemaReadiness({ pool = null } = {}) {
 
 const mcpCatalogSchemaStartupPreflightState = {
   contract: "mad4b.mcp-catalog-schema-startup-preflight.v1",
+  environment: "unknown",
+  environment_source: "not_run",
+  runtime_environment_reason: null,
+  runtime_class: null,
+  runtime_class_explicit: false,
   status: "not_run",
   ready: false,
   startup_blocked: false,
