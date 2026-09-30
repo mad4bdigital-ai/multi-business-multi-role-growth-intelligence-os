@@ -17,6 +17,21 @@ assert.match(workflow, /startsWith\(github\.event\.comment\.body, 'APPROVE PRODU
 assert.match(workflow, /contents:\s*read/u);
 assert.match(workflow, /issues:\s*write/u);
 assert.match(workflow, /BACKEND_API_KEY:\s*\$\{\{\s*secrets\.BACKEND_API_KEY\s*\}\}/u);
+
+const prepareJob = workflow.match(/\n  prepare:\n[\s\S]*?(?=\n  [A-Za-z0-9_-]+:\n|$)/u)?.[0] || "";
+const executeJob = workflow.match(/\n  execute:\n[\s\S]*?(?=\n  [A-Za-z0-9_-]+:\n|$)/u)?.[0] || "";
+
+assert.match(
+  prepareJob,
+  /environment:\s*\n\s*name:\s*Production\s*\n\s*deployment:\s*false/u,
+  "prepare must consume the Production environment credential without creating a deployment",
+);
+assert.match(
+  executeJob,
+  /environment:\s*\n\s*name:\s*Production\s*\n\s*deployment:\s*false/u,
+  "execute must consume the Production environment credential without creating a deployment",
+);
+
 assert.match(workflow, /cancel-in-progress:\s*false/u);
 
 for (const criticalPath of [

@@ -251,6 +251,9 @@ jobs:
 
   prepare:
     name: Prepare exact Production baseline rebuild approval
+    environment:
+      name: Production
+      deployment: false
     permissions:
       contents: read
       issues: write
@@ -298,6 +301,9 @@ jobs:
 
   execute:
     name: Execute one approved Production Recovery role step
+    environment:
+      name: Production
+      deployment: false
     permissions:
       contents: read
       issues: write
