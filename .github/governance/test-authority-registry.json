@@ -148,6 +148,7 @@
     {
       "id": "hostinger_runtime_bootstrap_contract",
       "test_paths": [
+        ".github/workflows/production-runtime-env-key-inventory.yml",
         ".github/workflows/production-runtime-parity-evidence.yml",
         "canonicals/openapi/custom-gpt-surfaces.yaml",
         "docs/governance/hostinger-runtime-bootstrap.md",
@@ -179,7 +180,9 @@
         "http-generic-api/scripts/host-breakglass-local.mjs",
         "http-generic-api/scripts/host-breakglass-ssh-capsule-executor.mjs",
         "http-generic-api/scripts/hostinger-runtime-bootstrap.mjs",
+        "http-generic-api/scripts/production-runtime-env-key-inventory.mjs",
         "http-generic-api/scripts/split-openapi.mjs",
+        "http-generic-api/scripts/test-production-runtime-env-key-inventory.mjs",
         "http-generic-api/test-admin-control.mjs",
         "http-generic-api/test-admin-host-breakglass-routes.mjs",
         "http-generic-api/test-custom-gpt-schemas.mjs",
@@ -205,8 +208,8 @@
         "http-generic-api/test-runtime-bootstrap-contract.mjs",
         "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
         "http-generic-api/test-runtime-integrity.mjs",
-        "http-generic-api/test-staging-independent-schema-contract.mjs",
         "http-generic-api/test-staging-compose-bootstrap-connection-factory.mjs",
+        "http-generic-api/test-staging-independent-schema-contract.mjs",
         "http-generic-api/test-tenant-gpt-operational-readiness.mjs",
         "http-generic-api/test-unsupported-recovery-broker.mjs",
         "http-generic-api/unsupportedRecoveryBroker.js"
