@@ -27,8 +27,9 @@ const productionRecoveryJobs = [
 for (const jobName of productionRecoveryJobs) {
   const start = workflow.indexOf(`name: ${jobName}`);
   assert.ok(start >= 0, `${jobName} must remain registered`);
-  const nextJob = workflow.indexOf("\n  ", start + 1);
-  const block = nextJob > start ? workflow.slice(start, nextJob) : workflow.slice(start);
+  const tail = workflow.slice(start);
+  const nextJob = tail.match(/\n  [A-Za-z0-9_-]+:\n(?=\s+name:)/u);
+  const block = nextJob ? tail.slice(0, nextJob.index) : tail;
   assert.match(block, /environment:\s*\n\s*name:\s*Production\s*\n\s*deployment:\s*false/u, `${jobName} must bind the Production environment without creating a deployment`);
   assert.match(block, /BACKEND_API_KEY:\s*\$\{\{\s*secrets\.BACKEND_API_KEY\s*\}\}/u, `${jobName} must consume the Production-scoped backend key`);
 }
