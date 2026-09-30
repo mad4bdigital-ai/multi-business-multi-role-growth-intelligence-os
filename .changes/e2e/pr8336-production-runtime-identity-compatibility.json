@@ -1,0 +1,102 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr8336-production-runtime-identity-compatibility",
+  "title": "PR8336 two-phase Production runtime identity compatibility",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr8336-production-runtime-identity-compatibility.json",
+      "http-generic-api/productionRuntimeIdentityCompatibility.js",
+      "http-generic-api/routes/recoveryKernelRoutes.js",
+      "http-generic-api/routes/systemLayerRoutes.js",
+      "http-generic-api/test-recovery-kernel.mjs",
+      "http-generic-api/test-recovery-kernel-routes.mjs",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "autopilot-portable-staging/manifest.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging", "production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Deploy a source-only compatibility guard that keeps the currently deployed legacy Production runtime recoverable while admitting the canonical explicit production_hostinger_autodeploy identity, without mutating Hostinger, databases, providers, credentials, or Production state.",
+      "e2e_journeys": [
+        {
+          "id": "production-runtime-identity-two-phase-compatibility",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed CI",
+          "entrypoint": "Evaluate Recovery Kernel and System Layer Production identity guards against legacy, canonical explicit, Staging, and conflicting runtime signals.",
+          "terminal_outcome": "Legacy NODE_ENV production/prod remains recoverable, canonical production_hostinger_autodeploy is accepted, Staging and conflicting identities fail closed, and Production mutation remains forbidden.",
+          "steps": [
+            "Run the transitional Production runtime identity matrix against the shared compatibility predicate.",
+            "Verify Recovery Kernel route fixtures identify legacy Production using NODE_ENV=production rather than branch identity alone.",
+            "Verify non-Production Git refs, Staging runtime identities, and mixed Production/Staging signals fail closed.",
+            "Verify canonical explicit Hostinger Production remains accepted during the mixed rollout state.",
+            "Preserve source-only rollout boundaries: no Hostinger env mutation, database mutation, provider mutation, credential payload read, Production deployment, or Control Store APPLY."
+          ],
+          "assertions": [
+            "NODE_ENV=production and NODE_ENV=prod are accepted during Phase 1.",
+            "DEPLOYMENT_ENVIRONMENT=production_hostinger_autodeploy is accepted as explicit canonical Production.",
+            "NODE_ENV=production plus DEPLOYMENT_ENVIRONMENT=production_hostinger_autodeploy remains accepted without a lockout window.",
+            "GITHUB_REF_NAME=main, staging_local_windows_docker, and mixed Production/Staging signals are rejected.",
+            "Branch name alone is not sufficient to establish the legacy Production runtime identity.",
+            "production_mutation_allowed is false and secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "production-runtime-identity-route-matrix",
+              "runner": "node",
+              "path": "http-generic-api/test-recovery-kernel-routes.mjs"
+            },
+            {
+              "id": "production-recovery-kernel-regression",
+              "runner": "node",
+              "path": "http-generic-api/test-recovery-kernel.mjs"
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/pr8336-production-runtime-identity-compatibility.json",
+            "http-generic-api/productionRuntimeIdentityCompatibility.js",
+            "http-generic-api/routes/recoveryKernelRoutes.js",
+            "http-generic-api/routes/systemLayerRoutes.js",
+            "http-generic-api/test-recovery-kernel-routes.mjs",
+            "http-generic-api/test-recovery-kernel.mjs",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/runtimeEnvironmentResolver.js"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "production-runtime-identity-route-matrix",
+          "runner": "node",
+          "path": "http-generic-api/test-recovery-kernel-routes.mjs"
+        },
+        {
+          "id": "production-recovery-kernel-regression",
+          "runner": "node",
+          "path": "http-generic-api/test-recovery-kernel.mjs"
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
