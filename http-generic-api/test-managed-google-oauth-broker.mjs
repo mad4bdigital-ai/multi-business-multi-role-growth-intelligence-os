@@ -300,7 +300,6 @@ const fetchImpl = async (url, options = {}) => {
       return new Response(JSON.stringify({
         access_token: "google-full-owner-access-refreshed",
         expires_in: 3600,
-        scope: GOOGLE_DRIVE_WRITE_SCOPE,
         token_type: "Bearer",
       }), { status: 200, headers: { "content-type": "application/json" } });
     }
@@ -610,11 +609,26 @@ assert.equal(refreshed.scope_profile, "legacy");
 assert.equal(refreshed.complete_scope_grant, true);
 assert.equal(googleRequests.length, 2);
 
+await assert.rejects(
+  () => broker.refresh({
+    contract: MANAGED_GOOGLE_REFRESH_REQUEST_CONTRACT,
+    site_uuid: SITE_UUID,
+    origin: ORIGIN,
+    refresh_token: "google-full-owner-refresh-token-fixture",
+    requested_scope: GOOGLE_DRIVE_WRITE_SCOPE,
+    access_mode: "read_write",
+    scope_profile: "full_owner",
+  }),
+  (error) => error?.code === "managed_google_oauth_current_granted_scope_missing",
+  "non-legacy refresh must never infer granted scopes from the requested capability profile",
+);
+
 const fullOwnerRefreshed = await broker.refresh({
   contract: MANAGED_GOOGLE_REFRESH_REQUEST_CONTRACT,
   site_uuid: SITE_UUID,
   origin: ORIGIN,
   refresh_token: "google-full-owner-refresh-token-fixture",
+  current_granted_scope: GOOGLE_DRIVE_WRITE_SCOPE,
   requested_scope: GOOGLE_DRIVE_WRITE_SCOPE,
   access_mode: "read_write",
   scope_profile: "full_owner",
@@ -628,7 +642,7 @@ assert.ok(fullOwnerRefreshed.requested_scopes.includes("https://www.googleapis.c
 assert.ok(fullOwnerRefreshed.requested_scopes.includes("https://www.googleapis.com/auth/tagmanager"));
 assert.ok(fullOwnerRefreshed.missing_scopes.includes("https://www.googleapis.com/auth/adwords"));
 assert.equal(fullOwnerRefreshed.complete_scope_grant, false, "refresh must surface newly registered full-owner scopes as missing instead of escalating silently");
-assert.equal(googleRequests.length, 3);
+assert.equal(googleRequests.length, 3, "missing current_granted_scope must fail before any provider refresh call");
 
 await assert.rejects(
   () => broker.refresh({
