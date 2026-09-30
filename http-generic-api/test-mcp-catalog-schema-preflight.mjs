@@ -75,6 +75,8 @@ const startup = await runMcpCatalogSchemaStartupPreflight({
   logger: { log: (value) => logs.push(["log", value]), warn: (value) => logs.push(["warn", value]) },
 });
 assert.equal(startup.contract, "mad4b.mcp-catalog-schema-startup-preflight.v1");
+assert.equal(startup.environment, "production");
+assert.equal(startup.environment_source, "explicit_argument");
 assert.equal(startup.status, "schema_contract_not_ready");
 assert.equal(startup.ready, false);
 assert.equal(startup.startup_blocked, false);
@@ -82,6 +84,28 @@ assert.equal(startup.database_mutation_performed, false);
 assert.equal(startup.migration_apply_performed, false);
 assert.equal(logs.at(-1)?.[0], "warn");
 assert.equal(getMcpCatalogSchemaStartupPreflight().status, "schema_contract_not_ready");
+
+const legacyRuntimeStartup = await runMcpCatalogSchemaStartupPreflight({
+  pool: missingPool,
+  env: { ...readinessEnv, NODE_ENV: "production" },
+  logger: { log: () => {}, warn: () => {} },
+});
+assert.equal(legacyRuntimeStartup.environment, "production");
+assert.equal(legacyRuntimeStartup.environment_source, "runtime_environment_resolver");
+assert.equal(legacyRuntimeStartup.runtime_environment_reason, "runtime_class_ambiguous");
+assert.equal(legacyRuntimeStartup.runtime_class, null);
+assert.equal(legacyRuntimeStartup.runtime_class_explicit, false);
+
+const explicitRuntimeStartup = await runMcpCatalogSchemaStartupPreflight({
+  pool: missingPool,
+  env: { ...readinessEnv, NODE_ENV: "production", DEPLOYMENT_ENVIRONMENT: "production_hostinger_autodeploy" },
+  logger: { log: () => {}, warn: () => {} },
+});
+assert.equal(explicitRuntimeStartup.environment, "production");
+assert.equal(explicitRuntimeStartup.environment_source, "runtime_environment_resolver");
+assert.equal(explicitRuntimeStartup.runtime_environment_reason, null);
+assert.equal(explicitRuntimeStartup.runtime_class, "hostinger_autodeploy");
+assert.equal(explicitRuntimeStartup.runtime_class_explicit, true);
 
 const projected = buildMcpCatalogSchemaNotReadyResponse({
   code: "mcp_catalog_schema_migration_required",
