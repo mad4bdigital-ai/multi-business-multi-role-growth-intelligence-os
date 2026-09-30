@@ -91,13 +91,6 @@ function normalizeCallbackUrl(value) {
   }
 }
 
-function exactAccessContract(accessMode, requestedScope) {
-  return resolveManagedGoogleOAuthAccess({
-    access_mode: cleanText(accessMode, 32).toLowerCase(),
-    requested_scope: cleanText(requestedScope, 512),
-  });
-}
-
 function normalizeSiteBinding(raw) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const siteUuid = cleanText(raw.site_uuid, 64);
