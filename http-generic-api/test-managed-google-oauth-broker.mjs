@@ -296,6 +296,14 @@ const fetchImpl = async (url, options = {}) => {
   }
   if (body.get("grant_type") === "refresh_token") {
     assert.equal(body.get("client_secret"), env.MANAGED_GOOGLE_OAUTH_CLIENT_SECRET);
+    if (body.get("refresh_token") === "google-full-owner-refresh-token-fixture") {
+      return new Response(JSON.stringify({
+        access_token: "google-full-owner-access-refreshed",
+        expires_in: 3600,
+        scope: GOOGLE_DRIVE_WRITE_SCOPE,
+        token_type: "Bearer",
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }
     assert.equal(body.get("refresh_token"), "google-refresh-token-fixture");
     return new Response(JSON.stringify({
       access_token: "google-access-token-refreshed",
@@ -598,7 +606,29 @@ const refreshed = await broker.refresh({
 assert.equal(refreshed.contract, MANAGED_GOOGLE_REFRESH_CONTRACT);
 assert.equal(refreshed.access_token, "google-access-token-refreshed");
 assert.equal(refreshed.scope, GOOGLE_DRIVE_READ_SCOPE);
+assert.equal(refreshed.scope_profile, "legacy");
+assert.equal(refreshed.complete_scope_grant, true);
 assert.equal(googleRequests.length, 2);
+
+const fullOwnerRefreshed = await broker.refresh({
+  contract: MANAGED_GOOGLE_REFRESH_REQUEST_CONTRACT,
+  site_uuid: SITE_UUID,
+  origin: ORIGIN,
+  refresh_token: "google-full-owner-refresh-token-fixture",
+  requested_scope: GOOGLE_DRIVE_WRITE_SCOPE,
+  access_mode: "read_write",
+  scope_profile: "full_owner",
+});
+assert.equal(fullOwnerRefreshed.contract, MANAGED_GOOGLE_REFRESH_CONTRACT);
+assert.equal(fullOwnerRefreshed.access_token, "google-full-owner-access-refreshed");
+assert.equal(fullOwnerRefreshed.scope, GOOGLE_DRIVE_WRITE_SCOPE);
+assert.equal(fullOwnerRefreshed.scope_profile, "full_owner");
+assert.ok(fullOwnerRefreshed.requested_scopes.includes(GOOGLE_DRIVE_WRITE_SCOPE));
+assert.ok(fullOwnerRefreshed.requested_scopes.includes("https://www.googleapis.com/auth/adwords"));
+assert.ok(fullOwnerRefreshed.requested_scopes.includes("https://www.googleapis.com/auth/tagmanager"));
+assert.ok(fullOwnerRefreshed.missing_scopes.includes("https://www.googleapis.com/auth/adwords"));
+assert.equal(fullOwnerRefreshed.complete_scope_grant, false, "refresh must surface newly registered full-owner scopes as missing instead of escalating silently");
+assert.equal(googleRequests.length, 3);
 
 await assert.rejects(
   () => broker.refresh({
