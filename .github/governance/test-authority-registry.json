@@ -206,6 +206,7 @@
         "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
         "http-generic-api/test-runtime-integrity.mjs",
         "http-generic-api/test-staging-independent-schema-contract.mjs",
+        "http-generic-api/test-staging-compose-bootstrap-connection-factory.mjs",
         "http-generic-api/test-tenant-gpt-operational-readiness.mjs",
         "http-generic-api/test-unsupported-recovery-broker.mjs",
         "http-generic-api/unsupportedRecoveryBroker.js"
