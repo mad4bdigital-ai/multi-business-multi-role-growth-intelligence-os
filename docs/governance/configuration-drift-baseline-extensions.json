@@ -1093,6 +1093,94 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": "http-generic-api/scripts/production-runtime-env-key-inventory.mjs|BACKEND_API_KEY|environment_reference|backend.api.key",
+      "owner": "production-recovery-governance",
+      "reason": "BACKEND_API_KEY is an existing credential reference used only to authenticate the bounded read-only Production Admin env-key inventory; its value is never emitted and it grants no provider, database, deployment, restart, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "credential_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/production-runtime-env-key-inventory.mjs|EXPECTED_PRODUCTION_SHA|environment_reference|expected.production.sha",
+      "owner": "production-recovery-governance",
+      "reason": "EXPECTED_PRODUCTION_SHA is a non-secret exact-ref binding that must match the live Production branch head before any read-only credential use; it grants no mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/production-runtime-env-key-inventory.mjs|HOSTINGER_ACCOUNT_USERNAME|literal_declaration|hostinger.account.username",
+      "owner": "production-recovery-governance",
+      "reason": "The Hostinger account username is a fixed non-secret target identity already used by governed Hostinger evidence workflows; it scopes the read-only inventory to the platform-owned auth.mad4b.com account and grants no mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/production-runtime-env-key-inventory.mjs|HOSTINGER_API_BASE_URL|literal_declaration|hostinger.api.base.url",
+      "owner": "production-recovery-governance",
+      "reason": "The Hostinger API base URL is the fixed official provider endpoint for the GET-only inventory and is not caller-controlled or mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/production-runtime-env-key-inventory.mjs|HOSTINGER_API_TOKEN|environment_reference|hostinger.api.token",
+      "owner": "production-recovery-governance",
+      "reason": "HOSTINGER_API_TOKEN is an existing credential reference used only for the official Hostinger GET environment-key inventory; values are required to remain masked and the collector performs no provider mutation.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "credential_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/production-runtime-env-key-inventory.mjs|HOSTINGER_DOMAIN|literal_declaration|hostinger.domain",
+      "owner": "production-recovery-governance",
+      "reason": "auth.mad4b.com is the fixed Production application identity for this read-only inventory; the literal prevents caller-selected Hostinger targets and grants no mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/production-runtime-env-key-inventory.mjs|outputDir|environment_reference|output.dir",
+      "owner": "production-recovery-governance",
+      "reason": "outputDir is a runner-local artifact directory reference for bounded no-secret inventory evidence and has no provider, runtime, database, or deployment authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/production-runtime-env-key-inventory.mjs|RUNTIME_BASE_URL|literal_declaration|runtime.base.url",
+      "owner": "production-recovery-governance",
+      "reason": "https://auth.mad4b.com is the fixed Production runtime readback endpoint for the Admin env-key list; it is non-secret, caller-unselectable, and grants no runtime or provider mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": "http-generic-api/scripts/provision-remote-mcp-client.mjs|canonicalAppId|environment_reference|remote.mcp.app.id",
       "owner": "oauth-governance",
       "reason": "Validated Staging Remote MCP application identifier alias used for canonical provisioning readback.",
