@@ -19,7 +19,9 @@
   },
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
-    "declared_targets": ["production"],
+    "declared_targets": [
+      "production"
+    ],
     "cross_environment_reviewed": true,
     "live_staging_certification_required": false,
     "production_mutation_allowed": false,
@@ -38,7 +40,7 @@
         {
           "id": "production-env-key-inventory",
           "end_to_end": true,
-          "level": "live_read_only",
+          "level": "synthetic_runtime",
           "actor": "Repository owner through an exact Production-SHA-bound GitHub Actions read-only workflow",
           "entrypoint": "READ_PRODUCTION_ENV_KEY_INVENTORY:<exact Production SHA>",
           "terminal_outcome": "Evidence proves whether DEPLOYMENT_ENVIRONMENT already exists in the live runtime and Hostinger provider configuration, detects duplicate key names, and emits no environment values or secrets.",
