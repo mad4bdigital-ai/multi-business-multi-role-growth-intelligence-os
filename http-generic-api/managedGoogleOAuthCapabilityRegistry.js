@@ -311,11 +311,11 @@ function normalizeCapabilityList(value) {
 function accessBaseline(accessMode, requestedScopeValue) {
   const mode = String(accessMode || "").trim().toLowerCase();
   const requestedScopes = normalizeManagedGoogleScopeList(requestedScopeValue);
-  const baselineScope = mode === "read_only"
+  const requiredDriveScope = mode === "read_only"
     ? GOOGLE_DRIVE_READ_SCOPE
     : (mode === "read_write" ? GOOGLE_DRIVE_WRITE_SCOPE : "");
   const baselineCapability = mode === "read_only" ? "drive.read" : (mode === "read_write" ? "drive.write" : "");
-  if (!baselineScope || !requestedScopes.includes(baselineScope)) {
+  if (!requiredDriveScope || !requestedScopes.includes(requiredDriveScope)) {
     throw capabilityError(
       "managed_google_oauth_scope_contract_invalid",
       "Requested Google scopes must include the exact Drive baseline required by the managed access mode.",
@@ -340,7 +340,7 @@ function accessBaseline(accessMode, requestedScopeValue) {
   }
   return {
     access_mode: mode,
-    requested_scope: baselineScope,
+    requested_scope: requiredDriveScope,
     baseline_capability: baselineCapability,
     supplied_scopes: requestedScopes,
     supplied_capabilities: requestedScopes.map((scope) => capabilityByScope.get(scope)),
