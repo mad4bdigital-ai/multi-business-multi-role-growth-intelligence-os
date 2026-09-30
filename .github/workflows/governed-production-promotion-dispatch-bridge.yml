@@ -259,6 +259,9 @@ jobs:
       !github.event.issue.pull_request &&
       startsWith(github.event.comment.body, 'APPLY_HOSTINGER_RUNTIME_BASELINE_REBUILD:') &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 35
     concurrency:
@@ -306,6 +309,9 @@ jobs:
       !github.event.issue.pull_request &&
       startsWith(github.event.comment.body, 'APPROVE PRODUCTION RECOVERY ') &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     concurrency:
@@ -354,6 +360,9 @@ jobs:
       !github.event.issue.pull_request &&
       startsWith(github.event.comment.body, 'PLAN_PRODUCTION_RECOVERY_CONTROL_STORE:') &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     concurrency:
@@ -487,6 +496,9 @@ jobs:
       !github.event.issue.pull_request &&
       startsWith(github.event.comment.body, 'APPLY_PRODUCTION_RECOVERY_CONTROL_STORE_SCHEMA:') &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 20
     concurrency:
