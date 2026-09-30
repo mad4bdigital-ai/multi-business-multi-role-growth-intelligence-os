@@ -1,0 +1,90 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-runtime-env-key-inventory-20260930",
+  "title": "Read-only Production runtime and Hostinger environment key inventory",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/production-runtime-env-key-inventory-20260930.json",
+      ".github/workflows/production-runtime-env-key-inventory.yml",
+      "http-generic-api/scripts/production-runtime-env-key-inventory.mjs",
+      "http-generic-api/scripts/test-production-runtime-env-key-inventory.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["production"],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": false,
+    "production_mutation_allowed": false,
+    "deployment_or_restart_executed": false,
+    "database_mutation_executed": false,
+    "migration_apply_executed": false,
+    "grant_mutation_executed": false,
+    "provider_mutation_executed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Read only environment key names from the live Production process and Hostinger Node.js environment inventory so an existing canonical key can be selected instead of creating a duplicate or replaying masked provider values.",
+      "e2e_journeys": [
+        {
+          "id": "production-env-key-inventory",
+          "end_to_end": true,
+          "level": "live_read_only",
+          "actor": "Repository owner through an exact Production-SHA-bound GitHub Actions read-only workflow",
+          "entrypoint": "READ_PRODUCTION_ENV_KEY_INVENTORY:<exact Production SHA>",
+          "terminal_outcome": "Evidence proves whether DEPLOYMENT_ENVIRONMENT already exists in the live runtime and Hostinger provider configuration, detects duplicate key names, and emits no environment values or secrets.",
+          "steps": [
+            "Verify the requested SHA equals the current protected Production branch head before credential use.",
+            "Read runtime process environment key names through the existing backend-key-authenticated Admin env list action with values disabled.",
+            "Read Hostinger Node.js environment variables with the official GET endpoint using the existing HOSTINGER_API_TOKEN.",
+            "Reject provider evidence if any environment value is returned unmasked.",
+            "Retain only identity-like key names, presence, counts, and duplicate-name evidence.",
+            "Classify the canonical DEPLOYMENT_ENVIRONMENT key as update_existing_key when present or create_missing_key_once when absent."
+          ],
+          "assertions": [
+            "No environment value is requested from the runtime process.",
+            "Hostinger provider values must remain masked and are discarded before evidence is emitted.",
+            "The workflow performs GET-only provider access and no provider mutation.",
+            "No Production runtime mutation, restart, deployment, database mutation, migration apply, grant apply, repository mutation, or secret disclosure occurs.",
+            "DEPLOYMENT_ENVIRONMENT is the only canonical key selected for the Hostinger runtime-class fix; NODE_ENV and REMOTE_MCP_ENVIRONMENT remain diagnostic alternatives only."
+          ],
+          "tests": [
+            {
+              "id": "production-runtime-env-key-inventory",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-production-runtime-env-key-inventory.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/production-runtime-env-key-inventory-20260930.json",
+            ".github/workflows/production-runtime-env-key-inventory.yml",
+            "http-generic-api/scripts/production-runtime-env-key-inventory.mjs",
+            "http-generic-api/scripts/test-production-runtime-env-key-inventory.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "safety": {
+    "repository_only": false,
+    "production_mutation_allowed": false,
+    "database_mutation": false,
+    "migration_apply": false,
+    "grant_execution": false,
+    "provider_call": true,
+    "deployment": false,
+    "restart": false,
+    "secrets_included": false
+  }
+}
