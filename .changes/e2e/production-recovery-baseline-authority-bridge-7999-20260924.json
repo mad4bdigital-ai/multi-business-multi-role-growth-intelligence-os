@@ -156,7 +156,8 @@
             "Request a fresh read-only full inspection from the private Production Recovery surface and require mutation-grade durable evidence.",
             "Create the canonical server-derived remediation plan and emit only the first role approval phrase.",
             "On an exact APPROVE PRODUCTION RECOVERY phrase, execute one server-approved step through execute-approved and read its durable run.",
-            "Issue the next role challenge only after the prior role has verified same-cycle readback."
+            "Issue the next role challenge only after the prior role has verified same-cycle readback.",
+            "Resolve Production Admin Recovery credentials only through the protected GitHub Production environment before any private runtime call."
           ],
           "assertions": [
             "Workflow callers cannot supply finding IDs, plan IDs, roles, execution tickets, approval tokens, SQL, shell commands, or provider routes.",
@@ -164,7 +165,8 @@
             "Each execution is exactly one role and one approval.",
             "Unknown or unverified execution is reconciliation-only and is never automatically replayed.",
             "The workflow returns no execution ticket, signature, credential, or approval token.",
-            "Synthetic test execution performs no Production mutation."
+            "Synthetic test execution performs no Production mutation.",
+            "Baseline prepare/execute and Control Store plan/apply jobs are bound to Environment Production with deployment=false, preventing repository-level credential drift from reaching the Production Admin surface."
           ],
           "tests": [
             {
