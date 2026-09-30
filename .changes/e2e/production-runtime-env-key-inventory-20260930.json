@@ -9,7 +9,7 @@
   "scope": {
     "include": [
       ".changes/e2e/production-runtime-env-key-inventory-20260930.json",
-      ".github/workflows/production-runtime-env-key-inventory.yml",
+      ".github/workflows/governed-production-promotion-dispatch-bridge.yml",
       "http-generic-api/scripts/production-runtime-env-key-inventory.mjs",
       "http-generic-api/scripts/test-production-runtime-env-key-inventory.mjs"
     ]
@@ -70,7 +70,7 @@
           ],
           "evidence_paths": [
             ".changes/e2e/production-runtime-env-key-inventory-20260930.json",
-            ".github/workflows/production-runtime-env-key-inventory.yml",
+            ".github/workflows/governed-production-promotion-dispatch-bridge.yml",
             "http-generic-api/scripts/production-runtime-env-key-inventory.mjs",
             "http-generic-api/scripts/test-production-runtime-env-key-inventory.mjs"
           ]
