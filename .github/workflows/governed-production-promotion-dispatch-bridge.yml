@@ -818,7 +818,7 @@ jobs:
 
       - name: Validate read-only inventory contract
         working-directory: http-generic-api
-        run: node scripts/test-production-runtime-env-key-inventory.mjs
+        run: node test-production-runtime-env-key-inventory.mjs
 
       - name: Collect key names only
         working-directory: http-generic-api
