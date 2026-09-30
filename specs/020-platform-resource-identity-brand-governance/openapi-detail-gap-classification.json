@@ -6,8 +6,8 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "aa5911b343af27a8b2603054ceb6a0bc989e7b511abddcef82fa0a360d6eab65",
-    "dispatch_artifact_sha256": "b1a618627fec05ae58fde22d309e9059dcee34353dc83fe450220fe680f70f4a"
+    "dispatch_source_digest": "086078ca523aa8d3c9aefda6b56db0038a69440d4d75092283235ca7edd53599",
+    "dispatch_artifact_sha256": "21e8a2bb79aa8e1d8c068b9ddd54bd7f01e7b68ff60e9786cc46b82734ffefa3"
   },
   "coverage": {
     "operation_count": 1081,

@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "aa5911b343af27a8b2603054ceb6a0bc989e7b511abddcef82fa0a360d6eab65",
+    "source_digest": "086078ca523aa8d3c9aefda6b56db0038a69440d4d75092283235ca7edd53599",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -26,7 +26,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "2387d7bd7f44c369c884c654ac6e6296fff55b175cf4f09e65c5f0a2b0201df5",
+        "sha256": "61a013b32cfbb53d1572171f2041f7c4052dc9ae061c431e393ed69192d3fa09",
         "present": true
       },
       {
@@ -131,7 +131,7 @@
       },
       {
         "file": "openapi/openapi.custom-gpt.staging-admin.yaml",
-        "sha256": "8893c99b9b9a229070c547ea570f7168a0250cafd4b1a36c6c0bc27af5c7cc1a",
+        "sha256": "f78a9ec8926af841dc6edc439fd6f763f33a4aaba5236dc381a3238f035893ec",
         "present": true
       },
       {
@@ -1136,7 +1136,7 @@
       },
       {
         "file": "test-managed-google-oauth-broker.mjs",
-        "sha256": "4d6d143ea6ad0a5cbede043fa966f064cbb7917ddc301d38247c2bd8bde39905",
+        "sha256": "90ff2c1110a0c07b6ef2067b8b018d5980c64ba6a70d30d2169568060d2789a1",
         "present": true
       },
       {
