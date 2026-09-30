@@ -419,6 +419,7 @@ assert.equal(capabilityRegistry.contract, "mad4b.google-oauth-capability-registr
 assert.equal(capabilityRegistry.incremental_authorization, true);
 assert.ok(capabilityRegistry.profiles.full_owner.includes("gmail.full"));
 assert.ok(capabilityRegistry.profiles.full_owner.includes("apps_script.projects"));
+assert.ok(capabilityRegistry.profiles.full_owner.includes("apps_script.drive_scripts"));
 assert.ok(capabilityRegistry.profiles.full_owner.includes("cloud.platform"));
 assert.ok(capabilityRegistry.profiles.full_owner.includes("google_ads.full"));
 const fullOwnerScopes = capabilityRegistry.profiles.full_owner.map((capabilityId) => capabilityRegistry.capabilities[capabilityId].scope);
@@ -432,8 +433,19 @@ const fullOwnerAccess = resolveManagedGoogleOAuthAccess({
 assert.ok(fullOwnerAccess.requested_scopes.includes(GOOGLE_DRIVE_WRITE_SCOPE));
 assert.ok(fullOwnerAccess.requested_scopes.includes("https://mail.google.com/"));
 assert.ok(fullOwnerAccess.requested_scopes.includes("https://www.googleapis.com/auth/script.projects"));
+assert.ok(fullOwnerAccess.requested_scopes.includes("https://www.googleapis.com/auth/drive.scripts"));
 assert.ok(fullOwnerAccess.requested_scopes.includes("https://www.googleapis.com/auth/cloud-platform"));
 assert.ok(fullOwnerAccess.scope_count > 10);
+
+assert.throws(
+  () => resolveManagedGoogleOAuthAccess({
+    access_mode: "read_only",
+    requested_scope: GOOGLE_DRIVE_READ_SCOPE,
+    scope_profile: "full_owner",
+  }),
+  (error) => error?.code === "managed_google_oauth_readonly_scope_escalated",
+  "full_owner must fail closed when requested through a read-only Drive baseline",
+);
 
 const multiScopeAccess = resolveManagedGoogleOAuthAccess({
   access_mode: "read_write",
@@ -496,6 +508,7 @@ assert.equal(fullOwnerAuth.searchParams.get("include_granted_scopes"), "true");
 assert.ok(fullOwnerRequestedScopes.includes("https://mail.google.com/"));
 assert.ok(fullOwnerRequestedScopes.includes("https://www.googleapis.com/auth/calendar"));
 assert.ok(fullOwnerRequestedScopes.includes("https://www.googleapis.com/auth/generative-language.retriever"));
+assert.ok(fullOwnerRequestedScopes.includes("https://www.googleapis.com/auth/drive.scripts"));
 assert.equal(fullOwnerSession.scope_profile, "full_owner");
 assert.equal(fullOwnerSession.incremental_authorization, true);
 
