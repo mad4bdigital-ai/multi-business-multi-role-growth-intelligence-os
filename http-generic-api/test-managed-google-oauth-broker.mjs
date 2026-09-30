@@ -21,6 +21,11 @@ import {
   parseManagedGoogleSiteBindings,
   sealManagedGoogleEnvelope,
 } from "./managedGoogleOAuthBroker.js";
+import {
+  managedGoogleCapabilityRegistry,
+  resolveManagedGoogleOAuthAccess,
+  validateManagedGoogleGrantedScopes,
+} from "./managedGoogleOAuthCapabilityRegistry.js";
 import { GOOGLE_TOKEN_ENDPOINT } from "./managedGoogleOAuthProtocolPolicy.js";
 import {
   authenticateManagedGoogleSiteRequest,
@@ -405,8 +410,94 @@ assert.equal(authUrl.searchParams.get("redirect_uri"), env.MANAGED_GOOGLE_OAUTH_
 assert.equal(authUrl.searchParams.get("scope"), GOOGLE_DRIVE_READ_SCOPE);
 assert.equal(authUrl.searchParams.get("access_type"), "offline");
 assert.equal(authUrl.searchParams.get("prompt"), "consent");
+assert.equal(authUrl.searchParams.get("include_granted_scopes"), "true");
 const brokerState = authUrl.searchParams.get("state");
 assert.ok(brokerState && brokerState !== clientState);
+
+const capabilityRegistry = managedGoogleCapabilityRegistry();
+assert.equal(capabilityRegistry.contract, "mad4b.google-oauth-capability-registry.v1");
+assert.equal(capabilityRegistry.incremental_authorization, true);
+assert.ok(capabilityRegistry.profiles.full_owner.includes("gmail.full"));
+assert.ok(capabilityRegistry.profiles.full_owner.includes("apps_script.projects"));
+assert.ok(capabilityRegistry.profiles.full_owner.includes("cloud.platform"));
+assert.ok(capabilityRegistry.profiles.full_owner.includes("google_ads.full"));
+const fullOwnerScopes = capabilityRegistry.profiles.full_owner.map((capabilityId) => capabilityRegistry.capabilities[capabilityId].scope);
+assert.equal(new Set(fullOwnerScopes).size, fullOwnerScopes.length, "full_owner scope registry must remain deduplicated");
+
+const fullOwnerAccess = resolveManagedGoogleOAuthAccess({
+  access_mode: "read_write",
+  requested_scope: GOOGLE_DRIVE_WRITE_SCOPE,
+  scope_profile: "full_owner",
+});
+assert.ok(fullOwnerAccess.requested_scopes.includes(GOOGLE_DRIVE_WRITE_SCOPE));
+assert.ok(fullOwnerAccess.requested_scopes.includes("https://mail.google.com/"));
+assert.ok(fullOwnerAccess.requested_scopes.includes("https://www.googleapis.com/auth/script.projects"));
+assert.ok(fullOwnerAccess.requested_scopes.includes("https://www.googleapis.com/auth/cloud-platform"));
+assert.ok(fullOwnerAccess.scope_count > 10);
+
+const multiScopeAccess = resolveManagedGoogleOAuthAccess({
+  access_mode: "read_write",
+  requested_scope: [
+    GOOGLE_DRIVE_WRITE_SCOPE,
+    "https://www.googleapis.com/auth/documents",
+    "https://www.googleapis.com/auth/spreadsheets",
+  ].join(" "),
+});
+assert.deepEqual(
+  multiScopeAccess.requested_scopes,
+  [GOOGLE_DRIVE_WRITE_SCOPE, "https://www.googleapis.com/auth/documents", "https://www.googleapis.com/auth/spreadsheets"],
+  "legacy multi-scope callers must resolve through the governed registry without requiring a new profile field",
+);
+
+const partialGrant = validateManagedGoogleGrantedScopes(
+  resolveManagedGoogleOAuthAccess({
+    access_mode: "read_write",
+    requested_scope: GOOGLE_DRIVE_WRITE_SCOPE,
+    requested_capabilities: ["docs.write", "sheets.write"],
+  }),
+  [GOOGLE_DRIVE_WRITE_SCOPE, "https://www.googleapis.com/auth/documents"].join(" "),
+);
+assert.equal(partialGrant.complete, false);
+assert.deepEqual(partialGrant.missing_requested_scopes, ["https://www.googleapis.com/auth/spreadsheets"]);
+
+assert.throws(
+  () => resolveManagedGoogleOAuthAccess({
+    access_mode: "read_write",
+    requested_scope: GOOGLE_DRIVE_WRITE_SCOPE + " https://www.googleapis.com/auth/not-a-real-governed-scope",
+  }),
+  (error) => error?.code === "managed_google_oauth_scope_unregistered",
+  "unregistered Google scopes must fail closed",
+);
+
+assert.throws(
+  () => resolveManagedGoogleOAuthAccess({
+    access_mode: "read_only",
+    requested_scope: GOOGLE_DRIVE_READ_SCOPE + " " + GOOGLE_DRIVE_WRITE_SCOPE,
+  }),
+  (error) => error?.code === "managed_google_oauth_readonly_scope_escalated",
+  "read-only profile must not retain Drive write authority",
+);
+
+const fullOwnerSession = await broker.createSession({
+  contract: MANAGED_GOOGLE_SESSION_CONTRACT,
+  site_uuid: SITE_UUID,
+  origin: ORIGIN,
+  callback_uri: CALLBACK,
+  access_mode: "read_write",
+  requested_scope: GOOGLE_DRIVE_WRITE_SCOPE,
+  scope_profile: "full_owner",
+  state: clientState + "-full-owner",
+  verifier_challenge: challenge,
+  verifier_method: "S256",
+});
+const fullOwnerAuth = new URL(fullOwnerSession.authorization_url);
+const fullOwnerRequestedScopes = fullOwnerAuth.searchParams.get("scope").split(/\s+/u);
+assert.equal(fullOwnerAuth.searchParams.get("include_granted_scopes"), "true");
+assert.ok(fullOwnerRequestedScopes.includes("https://mail.google.com/"));
+assert.ok(fullOwnerRequestedScopes.includes("https://www.googleapis.com/auth/calendar"));
+assert.ok(fullOwnerRequestedScopes.includes("https://www.googleapis.com/auth/generative-language.retriever"));
+assert.equal(fullOwnerSession.scope_profile, "full_owner");
+assert.equal(fullOwnerSession.incremental_authorization, true);
 
 const storedSession = store.sessions.get(session.session_id);
 assert.equal(storedSession.site_uuid, SITE_UUID);
