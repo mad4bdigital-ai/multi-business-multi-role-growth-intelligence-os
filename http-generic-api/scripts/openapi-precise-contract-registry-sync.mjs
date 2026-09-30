@@ -397,6 +397,20 @@ function isKnownManagedGoogleOAuthScopeExpansionPredecessor(operation, contract)
   const pathItem = loadReferencedPathItem(expectedRef);
   const canonicalOperation = pathItem?.post;
   if (!canonicalOperation || typeof canonicalOperation !== "object") return false;
+
+  // Managed refresh evolved in two reviewed steps: capability-profile expansion,
+  // then explicit current_granted_scope provenance. Accept only the exact
+  // immediately-previous canonical shape so the governed writer can converge
+  // it to the current canonical contract. Any other drift remains fail-closed.
+  if (transition.kind === "refresh") {
+    const immediatePredecessor = JSON.parse(JSON.stringify(canonicalOperation));
+    const immediateProperties = immediatePredecessor?.requestBody?.content?.["application/json"]?.schema?.properties;
+    if (immediateProperties && Object.hasOwn(immediateProperties, "current_granted_scope")) {
+      delete immediateProperties.current_granted_scope;
+      if (equivalent(operation, immediatePredecessor)) return true;
+    }
+  }
+
   const predecessor = JSON.parse(JSON.stringify(canonicalOperation));
 
   if (transition.kind === "session") {
