@@ -100,6 +100,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           reject() { echo "::error::$1"; exit 1; }
+          require_sha() { [[ "$2" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::$1 must be an exact lowercase SHA"; return 1; }; }
           [[ "$CONFIRMATION" == "AUTHORIZE_GOVERNED_PRODUCTION_PROMOTION_REQUEST" ]] || reject "typed confirmation mismatch"
           [[ "$REQUEST_PR" =~ ^[1-9][0-9]*$ ]] || reject "request_pr must be a positive integer"
           [[ "$EXPECTED_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || reject "expected_head_sha must be an exact lowercase SHA"
