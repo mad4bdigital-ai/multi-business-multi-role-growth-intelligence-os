@@ -9,7 +9,10 @@
     "include": [
       ".changes/e2e/production-promotion-staging-resume-20260930.json",
       ".github/workflows/governed-production-promotion-request-launcher.yml",
-      "http-generic-api/test-production-promotion-convergence-workflows.mjs"
+      "http-generic-api/test-production-promotion-convergence-workflows.mjs",
+      "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json",
+      ".github/tests/repository-governance-objection-gate.test.mjs"
     ]
   },
   "merge_contract": {
@@ -33,13 +36,15 @@
             "Treat only staging_live_certification failure as a resumable external dependency; all other supporting-gate failures remain hard failures.",
             "Publish an exact staging-resume marker and resumable manifest with merge/deployment false.",
             "Require current main to contain the authorized release cut, Production to remain pinned, candidate parent topology/tree to remain exact, and the request head to remain tree-identical to the release cut.",
-            "After Staging becomes exact, resume through the existing explicitly governed Production promotion dispatch using the same request identity; do not add an automatically mutating workflow trigger."
+            "After Staging becomes exact, resume through the existing explicitly governed Production promotion dispatch using the same request identity; do not add an automatically mutating workflow trigger.",
+            "Register this critical E2E declaration exactly in Constitution.control_plane_paths and in the Derived State convergence automation control surface."
           ],
           "assertions": [
             "Advancing main with a descendant no longer invalidates the launcher merely because the trusted controller SHA differs from the older release cut.",
             "No Production merge, deployment, migration, database mutation, provider mutation, credential payload read, secret output, or force push is authorized.",
             "secrets_included is false.",
-            "Repository automation governance remains intact: no new workflow_run-triggered write workflow or implicit repository mutation is introduced."
+            "Repository automation governance remains intact: no new workflow_run-triggered write workflow or implicit repository mutation is introduced.",
+            "The critical declaration is present in both canonical control-plane registries, so Policy Objection CI reports no changed-critical-path-unregistered blocker."
           ],
           "tests": [
             {
@@ -53,7 +58,10 @@
           "evidence_paths": [
             ".changes/e2e/production-promotion-staging-resume-20260930.json",
             ".github/workflows/governed-production-promotion-request-launcher.yml",
-            "http-generic-api/test-production-promotion-convergence-workflows.mjs"
+            "http-generic-api/test-production-promotion-convergence-workflows.mjs",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json",
+            ".github/tests/repository-governance-objection-gate.test.mjs"
           ]
         }
       ]
@@ -79,5 +87,15 @@
       "objective": "This change does not authorize Production merge or deployment."
     }
   ],
-  "secrets_included": false
+  "secrets_included": false,
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": false,
+    "production_mutation_allowed": false
+  }
 }
