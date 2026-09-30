@@ -21,7 +21,9 @@
       "http-generic-api/test-recovery-kernel.mjs",
       "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
       "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
-      "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json"
+      "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
+      "http-generic-api/mcpCatalogSchemaGuard.js",
+      "http-generic-api/test-mcp-catalog-schema-preflight.mjs"
     ]
   },
   "merge_contract": {
@@ -56,7 +58,12 @@
             "Verify Recovery Kernel route fixtures identify legacy Production using NODE_ENV=production rather than branch identity alone.",
             "Verify non-Production Git refs, Staging runtime identities, and mixed Production/Staging signals fail closed.",
             "Verify canonical explicit Hostinger Production remains accepted during the mixed rollout state.",
-            "Preserve source-only rollout boundaries: no Hostinger env mutation, database mutation, provider mutation, credential payload read, Production deployment, or Control Store APPLY."
+            "Preserve source-only rollout boundaries: no Hostinger env mutation, database mutation, provider mutation, credential payload read, Production deployment, or Control Store APPLY.",
+            "Verify MCP catalog startup preflight derives environment identity from resolveRuntimeEnvironmentStrict when no explicit environment argument is supplied, distinguishing legacy ambiguous Production from explicit hostinger_autodeploy Production.",
+            "After governed Production promotion, require runtime bootstrap source binding and exact target binding to be configured before any bootstrap or mutation path is considered.",
+            "Treat mcp_catalog_level schema drift as a registered migration gate only; do not auto-apply 20260815_custom_gpt_mcp_catalog_levels.sql from this Phase-1 source PR.",
+            "Treat ER_TABLEACCESS_DENIED_ERROR on runtime write surfaces such as dynamic_audit_scheduler_runs or actions as an authority blocker that must be resolved through Control Store PLAN/readback before APPLY.",
+            "Require runtime parity startup reconciliation to return non-degraded readback after the approved schema/authority sequence before legacy compatibility can be removed."
           ],
           "assertions": [
             "NODE_ENV=production and NODE_ENV=prod are accepted during Phase 1.",
@@ -65,7 +72,14 @@
             "GITHUB_REF_NAME=main, staging_local_windows_docker, and mixed Production/Staging signals are rejected.",
             "Branch name alone is not sufficient to establish the legacy Production runtime identity.",
             "production_mutation_allowed is false and secrets_included is false.",
-            "The PR8336 declaration is registered exactly in Constitution.control_plane_paths and convergence.automation_control_paths; autonomous merge remains forbidden."
+            "The PR8336 declaration is registered exactly in Constitution.control_plane_paths and convergence.automation_control_paths; autonomous merge remains forbidden.",
+            "MCP startup preflight reports environment_source and runtime identity diagnostics without exposing secrets or performing mutations.",
+            "Legacy NODE_ENV=production is reported as environment=production with runtime_class_explicit=false and runtime_environment_reason=runtime_class_ambiguous.",
+            "NODE_ENV=production plus DEPLOYMENT_ENVIRONMENT=production_hostinger_autodeploy is reported as environment=production, runtime_class=hostinger_autodeploy, runtime_class_explicit=true, and no runtime environment reason.",
+            "A bootstrap_not_configured observation is a post-promotion readiness blocker, not authority to auto-enable bootstrap.",
+            "schema_contract_not_ready with migration_apply_required=true is a plan/apply gate; migration_apply_performed remains false in Phase 1.",
+            "write_authority_unavailable / ER_TABLEACCESS_DENIED_ERROR is a grant/readback blocker; this PR does not alter DB grants.",
+            "runtime parity degraded by write-authority failure prevents declaring Production recovery complete."
           ],
           "tests": [
             {
@@ -77,6 +91,11 @@
               "id": "production-recovery-kernel-regression",
               "runner": "node",
               "path": "http-generic-api/test-recovery-kernel.mjs"
+            },
+            {
+              "id": "mcp-catalog-startup-runtime-identity-diagnostics",
+              "runner": "node",
+              "path": "http-generic-api/test-mcp-catalog-schema-preflight.mjs"
             }
           ],
           "evidence_paths": [
@@ -89,7 +108,13 @@
             "http-generic-api/config/deployment-branch-policy.json",
             "http-generic-api/runtimeEnvironmentResolver.js",
             "http-generic-api/config/repository-governance-constitution.json",
-            ".github/derived-state-governance.json"
+            ".github/derived-state-governance.json",
+            "http-generic-api/mcpCatalogSchemaGuard.js",
+            "http-generic-api/test-mcp-catalog-schema-preflight.mjs",
+            "http-generic-api/runtimeBootstrapStatus.js",
+            "http-generic-api/runtimeParityStartupReconciler.js",
+            "docs/runbooks/production-write-authority-recovery.md",
+            "specs/021-production-recovery-closure/pipeline-scenario-matrix.md"
           ]
         }
       ],
@@ -103,6 +128,11 @@
           "id": "production-recovery-kernel-regression",
           "runner": "node",
           "path": "http-generic-api/test-recovery-kernel.mjs"
+        },
+        {
+          "id": "mcp-catalog-startup-runtime-identity-diagnostics",
+          "runner": "node",
+          "path": "http-generic-api/test-mcp-catalog-schema-preflight.mjs"
         }
       ]
     }
