@@ -23,7 +23,8 @@
       "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
       "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
       "http-generic-api/mcpCatalogSchemaGuard.js",
-      "http-generic-api/test-mcp-catalog-schema-preflight.mjs"
+      "http-generic-api/test-mcp-catalog-schema-preflight.mjs",
+      ".github/governance/test-authority-registry.json"
     ]
   },
   "merge_contract": {
@@ -63,7 +64,8 @@
             "After governed Production promotion, require runtime bootstrap source binding and exact target binding to be configured before any bootstrap or mutation path is considered.",
             "Treat mcp_catalog_level schema drift as a registered migration gate only; do not auto-apply 20260815_custom_gpt_mcp_catalog_levels.sql from this Phase-1 source PR.",
             "Treat ER_TABLEACCESS_DENIED_ERROR on runtime write surfaces such as dynamic_audit_scheduler_runs or actions as an authority blocker that must be resolved through Control Store PLAN/readback before APPLY.",
-            "Require runtime parity startup reconciliation to return non-degraded readback after the approved schema/authority sequence before legacy compatibility can be removed."
+            "Require runtime parity startup reconciliation to return non-degraded readback after the approved schema/authority sequence before legacy compatibility can be removed.",
+            "Register test-mcp-catalog-schema-preflight.mjs under the hostinger_runtime_bootstrap_contract test authority."
           ],
           "assertions": [
             "NODE_ENV=production and NODE_ENV=prod are accepted during Phase 1.",
@@ -79,7 +81,8 @@
             "A bootstrap_not_configured observation is a post-promotion readiness blocker, not authority to auto-enable bootstrap.",
             "schema_contract_not_ready with migration_apply_required=true is a plan/apply gate; migration_apply_performed remains false in Phase 1.",
             "write_authority_unavailable / ER_TABLEACCESS_DENIED_ERROR is a grant/readback blocker; this PR does not alter DB grants.",
-            "runtime parity degraded by write-authority failure prevents declaring Production recovery complete."
+            "runtime parity degraded by write-authority failure prevents declaring Production recovery complete.",
+            "The MCP preflight runtime identity regression test is registered in .github/governance/test-authority-registry.json under hostinger_runtime_bootstrap_contract."
           ],
           "tests": [
             {
@@ -114,7 +117,8 @@
             "http-generic-api/runtimeBootstrapStatus.js",
             "http-generic-api/runtimeParityStartupReconciler.js",
             "docs/runbooks/production-write-authority-recovery.md",
-            "specs/021-production-recovery-closure/pipeline-scenario-matrix.md"
+            "specs/021-production-recovery-closure/pipeline-scenario-matrix.md",
+            ".github/governance/test-authority-registry.json"
           ]
         }
       ],
