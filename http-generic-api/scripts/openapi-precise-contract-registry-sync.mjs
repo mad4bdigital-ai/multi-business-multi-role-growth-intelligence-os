@@ -6,6 +6,10 @@ import {
   collectSupportTicketRuntimeOperations,
   inspectSupportTicketRuntimeContracts,
 } from "./support-ticket-runtime-openapi-contracts.mjs";
+import {
+  GOOGLE_DRIVE_READ_SCOPE,
+  GOOGLE_DRIVE_WRITE_SCOPE,
+} from "../managedGoogleOAuthProtocolPolicy.js";
 
 const ROOT = process.cwd();
 const OPENAPI_PATH = path.join(ROOT, "openapi.yaml");
@@ -24,8 +28,6 @@ const REMOTE_RUNTIME_CATALOG_READONLY_ROUTE_FILE = "routes/operationalConsoleRou
 const REMOTE_RUNTIME_CATALOG_READONLY_PATH_ITEM_REF = "./openapi/remote-runtime-target-catalog-readonly.yaml#/remoteRuntimeTargetCatalogReadonlyPath";
 const MANAGED_GOOGLE_ROUTE_FILE = "routes/managedGoogleOAuthRoutes.js";
 const MANAGED_GOOGLE_PATH_ITEM_REF = "./openapi/managed-google-oauth.yaml";
-const MANAGED_GOOGLE_DRIVE_READ_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
-const MANAGED_GOOGLE_DRIVE_WRITE_SCOPE = "https://www.googleapis.com/auth/drive";
 const MANAGED_GOOGLE_SCOPE_EXPANSION_TRANSITIONS = new Map([
   ["POST /v1/google/oauth/session", { pointer: "managedGoogleOAuthSessionPath", operation_id: "createManagedGoogleOAuthSession", kind: "session" }],
   ["POST /v1/google/oauth/redeem", { pointer: "managedGoogleOAuthRedeemPath", operation_id: "redeemManagedGoogleOAuthHandoff", kind: "redeem" }],
@@ -356,7 +358,7 @@ function restoreLegacyManagedGoogleScopeSchema(schema) {
   schema.properties ||= {};
   schema.properties.requested_scope = {
     type: "string",
-    enum: [MANAGED_GOOGLE_DRIVE_READ_SCOPE, MANAGED_GOOGLE_DRIVE_WRITE_SCOPE],
+    enum: [GOOGLE_DRIVE_READ_SCOPE, GOOGLE_DRIVE_WRITE_SCOPE],
   };
   delete schema.properties.scope_profile;
   delete schema.properties.requested_capabilities;
@@ -368,7 +370,7 @@ function restoreLegacyManagedGoogleTokenResponse(operation, { session = false } 
   if (!session) {
     properties.scope = {
       type: "string",
-      enum: [MANAGED_GOOGLE_DRIVE_READ_SCOPE, MANAGED_GOOGLE_DRIVE_WRITE_SCOPE],
+      enum: [GOOGLE_DRIVE_READ_SCOPE, GOOGLE_DRIVE_WRITE_SCOPE],
     };
   }
   for (const field of [
