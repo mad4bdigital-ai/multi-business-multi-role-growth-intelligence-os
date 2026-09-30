@@ -171,6 +171,7 @@ assert.doesNotMatch(launcher, /MAX_ATTEMPTS=3/u);
 assert.doesNotMatch(launcher, /gh pr merge/u);
 assert.doesNotMatch(launcher, /contents:\s*write/u);
 
+
 for (const gate of registry.gates) {
   assert.equal(gate.required, true);
   assert.equal(gate.effect, "read_only");
