@@ -29,7 +29,8 @@
       "http-generic-api/scripts/prepare-managed-google-site-enrollment.mjs",
       "http-generic-api/test-managed-google-oauth-broker.mjs",
       "http-generic-api/test-managed-google-site-enrollment.mjs",
-      "http-generic-api/test-production-config-preflight.mjs"
+      "http-generic-api/test-production-config-preflight.mjs",
+      "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs"
     ]
   },
   "merge_contract": {
