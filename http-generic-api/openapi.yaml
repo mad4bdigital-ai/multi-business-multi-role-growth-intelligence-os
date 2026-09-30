@@ -24371,181 +24371,6 @@ paths:
           description: Per-site redemption rate limit exceeded.
         "503":
           description: Broker configuration or persistence is unavailable.
-  /v1/google/oauth/refresh:
-    post:
-      operationId: refreshManagedGoogleOAuthAccessToken
-      summary: Refresh a Managed Google OAuth access token without scope escalation
-      description: Uses the broker-owned Google OAuth client secret to refresh an access token for an exact authenticated Site Profile. The Drive baseline must match the requested access mode and every requested scope/capability must resolve through the governed Google capability registry; unregistered scope escalation is rejected. The Google refresh token is credential material supplied only over the site-HMAC authenticated server-to-server channel and is never persisted in plaintext by this operation.
-      tags:
-        - managed-google-oauth
-      x-runtime-contract-source: routes/managedGoogleOAuthRoutes.js
-      x-runtime-auth-profile: managed_google_site_hmac
-      x-contract-completeness: precise-runtime-contract
-      x-custom-gpt-exclude: true
-      x-gpt-action-exclude: true
-      x-openai-isConsequential: false
-      security:
-        - managedGoogleSiteHmac: []
-      parameters:
-        - in: header
-          name: X-MAD4B-Site-Key-ID
-          required: true
-          schema:
-            type: string
-            pattern: ^[A-Za-z0-9._:-]{3,64}$
-        - in: header
-          name: X-MAD4B-Site-Timestamp
-          required: true
-          schema:
-            type: string
-            pattern: ^\d{10}$
-        - in: header
-          name: X-MAD4B-Site-Nonce
-          required: true
-          schema:
-            type: string
-            pattern: ^[A-Za-z0-9_-]{22,128}$
-        - in: header
-          name: X-MAD4B-Site-Signature
-          required: true
-          schema:
-            type: string
-            pattern: ^[a-f0-9]{64}$
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required:
-                - contract
-                - site_uuid
-                - origin
-                - refresh_token
-                - requested_scope
-                - access_mode
-              properties:
-                contract:
-                  type: string
-                  enum:
-                    - mad4b.google-managed-oauth-refresh-request.v1
-                site_uuid:
-                  type: string
-                  format: uuid
-                origin:
-                  type: string
-                  format: uri
-                  pattern: ^https://
-                refresh_token:
-                  type: string
-                  minLength: 1
-                  maxLength: 8192
-                  writeOnly: true
-                requested_scope:
-                  type: string
-                  minLength: 1
-                  maxLength: 8192
-                  description: Space-delimited governed Google OAuth scopes. Must include the Drive baseline required by access_mode.
-                scope_profile:
-                  type: string
-                  enum:
-                    - legacy
-                    - custom
-                    - drive_read_only
-                    - drive_read_write
-                    - workspace_full
-                    - marketing_full
-                    - full_owner
-                  default: legacy
-                requested_capabilities:
-                  type: array
-                  maxItems: 64
-                  uniqueItems: true
-                  items:
-                    type: string
-                    minLength: 1
-                    maxLength: 128
-                access_mode:
-                  type: string
-                  enum:
-                    - read_only
-                    - read_write
-      responses:
-        "200":
-          description: Refreshed Google access token returned to the authenticated WordPress site.
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: false
-                required:
-                  - ok
-                  - contract
-                  - access_token
-                  - expires_in
-                  - scope
-                  - credential_material_included
-                properties:
-                  ok:
-                    type: boolean
-                    enum:
-                      - true
-                  contract:
-                    type: string
-                    enum:
-                      - mad4b.google-managed-oauth-refresh.v1
-                  access_token:
-                    type: string
-                    minLength: 1
-                    writeOnly: true
-                  expires_in:
-                    type: integer
-                    minimum: 1
-                    maximum: 86400
-                  scope:
-                    type: string
-                    minLength: 1
-                    maxLength: 8192
-                    description: Space-delimited scope set actually granted by Google.
-                  scope_profile:
-                    type: string
-                  requested_capabilities:
-                    type: array
-                    items:
-                      type: string
-                  requested_scopes:
-                    type: array
-                    items:
-                      type: string
-                  missing_scopes:
-                    type: array
-                    items:
-                      type: string
-                  previously_granted_scopes:
-                    type: array
-                    items:
-                      type: string
-                  complete_scope_grant:
-                    type: boolean
-                  credential_material_included:
-                    type: boolean
-                    enum:
-                      - true
-        "400":
-          description: Invalid refresh contract, access mode, governed capability profile, or requested scope set.
-        "401":
-          description: Missing, expired or invalid site-HMAC authentication.
-        "403":
-          description: Site credential or exact Site Profile binding is not authorized.
-        "409":
-          description: Site-HMAC nonce replay detected.
-        "429":
-          description: Per-site refresh rate limit exceeded.
-        "502":
-          description: Google token refresh failed.
-        "503":
-          description: Broker configuration or persistence is unavailable.
   /v1/google/oauth/session:
     post:
       operationId: createManagedGoogleOAuthSession
@@ -24720,3 +24545,183 @@ paths:
           description: Per-site session creation rate limit exceeded.
         "503":
           description: Managed Google OAuth broker configuration or persistence is unavailable.
+  /v1/google/oauth/refresh:
+    post:
+      operationId: refreshManagedGoogleOAuthAccessToken
+      summary: Refresh a Managed Google OAuth access token without scope escalation
+      description: Uses the broker-owned Google OAuth client secret to refresh an access token for an exact authenticated Site Profile. The Drive baseline must match the requested access mode and every requested scope/capability must resolve through the governed Google capability registry; unregistered scope escalation is rejected. The Google refresh token is credential material supplied only over the site-HMAC authenticated server-to-server channel and is never persisted in plaintext by this operation.
+      tags:
+        - managed-google-oauth
+      x-runtime-contract-source: routes/managedGoogleOAuthRoutes.js
+      x-runtime-auth-profile: managed_google_site_hmac
+      x-contract-completeness: precise-runtime-contract
+      x-custom-gpt-exclude: true
+      x-gpt-action-exclude: true
+      x-openai-isConsequential: false
+      security:
+        - managedGoogleSiteHmac: []
+      parameters:
+        - in: header
+          name: X-MAD4B-Site-Key-ID
+          required: true
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9._:-]{3,64}$
+        - in: header
+          name: X-MAD4B-Site-Timestamp
+          required: true
+          schema:
+            type: string
+            pattern: ^\d{10}$
+        - in: header
+          name: X-MAD4B-Site-Nonce
+          required: true
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9_-]{22,128}$
+        - in: header
+          name: X-MAD4B-Site-Signature
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-f0-9]{64}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - contract
+                - site_uuid
+                - origin
+                - refresh_token
+                - requested_scope
+                - access_mode
+              properties:
+                contract:
+                  type: string
+                  enum:
+                    - mad4b.google-managed-oauth-refresh-request.v1
+                site_uuid:
+                  type: string
+                  format: uuid
+                origin:
+                  type: string
+                  format: uri
+                  pattern: ^https://
+                refresh_token:
+                  type: string
+                  minLength: 1
+                  maxLength: 8192
+                  writeOnly: true
+                current_granted_scope:
+                  type: string
+                  minLength: 1
+                  maxLength: 8192
+                  description: Space-delimited scope set currently granted to this refresh token. Required for non-legacy capability profiles so requested scopes are never inferred as granted authority when Google omits scope from a refresh response.
+                requested_scope:
+                  type: string
+                  minLength: 1
+                  maxLength: 8192
+                  description: Space-delimited governed Google OAuth scopes. Must include the Drive baseline required by access_mode.
+                scope_profile:
+                  type: string
+                  enum:
+                    - legacy
+                    - custom
+                    - drive_read_only
+                    - drive_read_write
+                    - workspace_full
+                    - marketing_full
+                    - full_owner
+                  default: legacy
+                requested_capabilities:
+                  type: array
+                  maxItems: 64
+                  uniqueItems: true
+                  items:
+                    type: string
+                    minLength: 1
+                    maxLength: 128
+                access_mode:
+                  type: string
+                  enum:
+                    - read_only
+                    - read_write
+      responses:
+        "200":
+          description: Refreshed Google access token returned to the authenticated WordPress site.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - ok
+                  - contract
+                  - access_token
+                  - expires_in
+                  - scope
+                  - credential_material_included
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - true
+                  contract:
+                    type: string
+                    enum:
+                      - mad4b.google-managed-oauth-refresh.v1
+                  access_token:
+                    type: string
+                    minLength: 1
+                    writeOnly: true
+                  expires_in:
+                    type: integer
+                    minimum: 1
+                    maximum: 86400
+                  scope:
+                    type: string
+                    minLength: 1
+                    maxLength: 8192
+                    description: Space-delimited scope set actually granted by Google.
+                  scope_profile:
+                    type: string
+                  requested_capabilities:
+                    type: array
+                    items:
+                      type: string
+                  requested_scopes:
+                    type: array
+                    items:
+                      type: string
+                  missing_scopes:
+                    type: array
+                    items:
+                      type: string
+                  previously_granted_scopes:
+                    type: array
+                    items:
+                      type: string
+                  complete_scope_grant:
+                    type: boolean
+                  credential_material_included:
+                    type: boolean
+                    enum:
+                      - true
+        "400":
+          description: Invalid refresh contract, access mode, governed capability profile, or requested scope set.
+        "401":
+          description: Missing, expired or invalid site-HMAC authentication.
+        "403":
+          description: Site credential or exact Site Profile binding is not authorized.
+        "409":
+          description: Site-HMAC nonce replay detected.
+        "429":
+          description: Per-site refresh rate limit exceeded.
+        "502":
+          description: Google token refresh failed.
+        "503":
+          description: Broker configuration or persistence is unavailable.
