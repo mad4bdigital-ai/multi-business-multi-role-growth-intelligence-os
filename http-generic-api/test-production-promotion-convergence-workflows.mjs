@@ -171,6 +171,18 @@ assert.doesNotMatch(launcher, /MAX_ATTEMPTS=3/u);
 assert.doesNotMatch(launcher, /gh pr merge/u);
 assert.doesNotMatch(launcher, /contents:\s*write/u);
 
+{
+  const sourceStart = launcher.indexOf("- name: Resolve authorized release cut and request identity");
+  const sourceEnd = launcher.indexOf("- name: Initialize convergence evidence", sourceStart);
+  assert.ok(sourceStart >= 0 && sourceEnd > sourceStart, "launcher source step must remain discoverable");
+  const sourceStep = launcher.slice(sourceStart, sourceEnd);
+  assert.match(sourceStep, /require_sha\(\) \{/u, "source step must define require_sha locally before first use");
+  assert.ok(
+    sourceStep.indexOf("require_sha()") < sourceStep.indexOf('require_sha CURRENT_MAIN_API_SHA "$CURRENT_MAIN_API_SHA"'),
+    "require_sha must be defined in the same shell step before CURRENT_MAIN_API_SHA validation",
+  );
+}
+
 
 for (const gate of registry.gates) {
   assert.equal(gate.required, true);
