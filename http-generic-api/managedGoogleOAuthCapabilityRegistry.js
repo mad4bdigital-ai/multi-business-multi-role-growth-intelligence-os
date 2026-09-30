@@ -401,6 +401,12 @@ export function resolveManagedGoogleOAuthAccess({
   }
 
   const scopes = normalizeManagedGoogleScopeList(capabilityIds.map((id) => CAPABILITIES[id].scope));
+  if (legacy.access_mode === "read_only" && scopes.includes(GOOGLE_DRIVE_WRITE_SCOPE)) {
+    throw capabilityError(
+      "managed_google_oauth_readonly_scope_escalated",
+      "Read-only Managed Google OAuth cannot resolve a capability profile that includes the Drive write scope.",
+    );
+  }
   const effectiveProfile = profile || (requested.length ? "custom" : "legacy");
   return Object.freeze({
     ...legacy,
