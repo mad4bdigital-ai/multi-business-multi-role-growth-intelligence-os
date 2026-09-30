@@ -169,5 +169,9 @@ console.log(JSON.stringify({
   assert.equal(bridgeWorkflow.includes("BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}"), true);
   assert.equal(bridgeWorkflow.includes("node scripts/production-runtime-env-key-inventory.mjs"), true);
   const inventoryJob = bridgeWorkflow.slice(bridgeWorkflow.indexOf("  env-key-inventory:"));
-  assert.equal(/--request\s+(?:PUT|PATCH|DELETE)/u.test(inventoryJob), false);
+  assert.equal(/--request\s+(?:PUT|PATCH|DELETE)/u.test(inventoryJob), false);  assert.equal(inventoryJob.includes('test("(^|_)(password|private_key|access_token|refresh_token|credential_value|raw_value)(_|$)"; "i")'), true);
+  assert.equal(inventoryJob.includes('test("password|private_key|access_token|refresh_token|credential_value|raw_value"; "i")'), false);
+  const sensitiveEvidenceKey = /(^|_)(password|private_key|access_token|refresh_token|credential_value|raw_value)(_|$)/iu;
+  assert.equal(sensitiveEvidenceKey.test("raw_values_exposed"), false);
+  assert.equal(sensitiveEvidenceKey.test("raw_value"), true);
 }
