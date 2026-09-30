@@ -11,7 +11,7 @@
       ".changes/e2e/production-runtime-env-key-inventory-20260930.json",
       ".github/workflows/governed-production-promotion-dispatch-bridge.yml",
       "http-generic-api/scripts/production-runtime-env-key-inventory.mjs",
-      "http-generic-api/scripts/test-production-runtime-env-key-inventory.mjs"
+      "http-generic-api/test-production-runtime-env-key-inventory.mjs"
     ]
   },
   "merge_contract": {
@@ -64,7 +64,7 @@
               "id": "production-runtime-env-key-inventory",
               "runner": "node",
               "working_directory": "http-generic-api",
-              "path": "scripts/test-production-runtime-env-key-inventory.mjs",
+              "path": "test-production-runtime-env-key-inventory.mjs",
               "args": []
             }
           ],
@@ -72,7 +72,7 @@
             ".changes/e2e/production-runtime-env-key-inventory-20260930.json",
             ".github/workflows/governed-production-promotion-dispatch-bridge.yml",
             "http-generic-api/scripts/production-runtime-env-key-inventory.mjs",
-            "http-generic-api/scripts/test-production-runtime-env-key-inventory.mjs"
+            "http-generic-api/test-production-runtime-env-key-inventory.mjs"
           ]
         }
       ]
