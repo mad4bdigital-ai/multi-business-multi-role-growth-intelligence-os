@@ -59,6 +59,7 @@ const criticalPath = ".github/governance/policy-registry.json";
 assert.ok(constitution.control_plane_paths.includes(criticalPath));
 assert.ok(constitution.control_plane_paths.includes(".changes/e2e/staging-production-access-repair-execution-20260909.json"));
 assert.ok(constitution.control_plane_paths.includes(".changes/e2e/critical-declaration-registration-closure-20260910.json"));
+assert.ok(constitution.control_plane_paths.includes(".changes/e2e/production-promotion-staging-resume-20260930.json"));
 canonicalGovernance.change_inventory.changes = [{
   raw_status: "M",
   status: "M",
