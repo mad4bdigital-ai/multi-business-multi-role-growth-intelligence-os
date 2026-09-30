@@ -78,6 +78,15 @@ assert.match(bridgeSource, /github\.event\.issue\.number == 6813/u);
 assert.match(bridgeSource, /\^PLAN_PRODUCTION_RECOVERY_CONTROL_STORE:\(\[0-9a-f\]\{40\}\)\$/u);
 assert.match(bridgeSource, /\^APPLY_PRODUCTION_RECOVERY_CONTROL_STORE_SCHEMA:\(\[0-9a-f\]\{40\}\):\(\[0-9a-f\]\{64\}\)\$/u);
 assert.match(bridgeSource, /APPLY_PRODUCTION_RECOVERY_CONTROL_STORE_SCHEMA/u);
+for (const job of ["control-store-plan", "control-store-apply"]) {
+  const next = job === "control-store-plan" ? "control-store-apply" : "release-cut-reconciliation";
+  const start = bridgeSource.indexOf("\n  " + job + ":\n");
+  const end = bridgeSource.indexOf("\n  " + next + ":\n", start + 1);
+  assert.ok(start >= 0 && end > start, job + " job block must exist");
+  const block = bridgeSource.slice(start, end);
+  assert.match(block, /environment:\s*\n\s*name:\s*Production\s*\n\s*deployment:\s*false/u, job + " must consume Production-scoped secrets");
+  assert.match(block, /BACKEND_API_KEY:\s*\$\{\{\s*secrets\.BACKEND_API_KEY\s*\}\}/u, job + " must use the Production-scoped backend API key");
+}
 assert.match(bridgeSource, /target_database_mutation_performed/u);
 assert.match(bridgeSource, /provider_mutation_performed/u);
 assert.match(bridgeSource, /production_runtime_mutation_performed/u);
