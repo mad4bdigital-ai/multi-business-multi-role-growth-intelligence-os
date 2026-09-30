@@ -161,7 +161,7 @@ console.log(JSON.stringify({
 
 
 {
-  const bridgeWorkflow = readFileSync(new URL("../../.github/workflows/governed-production-promotion-dispatch-bridge.yml", import.meta.url), "utf8");
+  const bridgeWorkflow = readFileSync(new URL("../.github/workflows/governed-production-promotion-dispatch-bridge.yml", import.meta.url), "utf8");
   assert.equal(bridgeWorkflow.includes("  env-key-inventory:"), true);
   assert.equal(bridgeWorkflow.includes("READ_PRODUCTION_ENV_KEY_INVENTORY:([0-9a-f]{40})"), true);
   assert.equal(bridgeWorkflow.includes("name: Production"), true);
