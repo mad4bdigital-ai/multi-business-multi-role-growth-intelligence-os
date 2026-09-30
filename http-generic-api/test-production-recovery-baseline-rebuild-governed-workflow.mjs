@@ -18,19 +18,36 @@ assert.match(workflow, /contents:\s*read/u);
 assert.match(workflow, /issues:\s*write/u);
 assert.match(workflow, /BACKEND_API_KEY:\s*\$\{\{\s*secrets\.BACKEND_API_KEY\s*\}\}/u);
 
-const prepareJob = workflow.match(/\n  prepare:\n[\s\S]*?(?=\n  [A-Za-z0-9_-]+:\n|$)/u)?.[0] || "";
-const executeJob = workflow.match(/\n  execute:\n[\s\S]*?(?=\n  [A-Za-z0-9_-]+:\n|$)/u)?.[0] || "";
+const prepareJob = workflow.match(/\r?\n  prepare:\r?\n[\s\S]*?(?=\r?\n  [A-Za-z0-9_-]+:\r?\n|$)/u)?.[0] || "";
+const executeJob = workflow.match(/\r?\n  execute:\r?\n[\s\S]*?(?=\r?\n  [A-Za-z0-9_-]+:\r?\n|$)/u)?.[0] || "";
 
 assert.match(
   prepareJob,
-  /environment:\s*\n\s*name:\s*Production\s*\n\s*deployment:\s*false/u,
+  /environment:\s*\r?\n\s*name:\s*Production\s*\r?\n\s*deployment:\s*false/u,
   "prepare must consume the Production environment credential without creating a deployment",
 );
 assert.match(
   executeJob,
-  /environment:\s*\n\s*name:\s*Production\s*\n\s*deployment:\s*false/u,
+  /environment:\s*\r?\n\s*name:\s*Production\s*\r?\n\s*deployment:\s*false/u,
   "execute must consume the Production environment credential without creating a deployment",
 );
+
+
+const productionRecoveryJobs = [
+  "Prepare exact Production baseline rebuild approval",
+  "Execute one approved Production Recovery role step",
+  "Read exact Production Recovery Control Store bootstrap plan",
+  "Apply exact Production Recovery Control Store schema plan",
+];
+for (const jobName of productionRecoveryJobs) {
+  const start = workflow.indexOf(`name: ${jobName}`);
+  assert.ok(start >= 0, `${jobName} must remain registered`);
+  const tail = workflow.slice(start);
+  const nextJob = tail.match(/\n  [A-Za-z0-9_-]+:\n(?=\s+name:)/u);
+  const block = nextJob ? tail.slice(0, nextJob.index) : tail;
+  assert.match(block, /environment:\s*\n\s*name:\s*Production\s*\n\s*deployment:\s*false/u, `${jobName} must bind the Production environment without creating a deployment`);
+  assert.match(block, /BACKEND_API_KEY:\s*\$\{\{\s*secrets\.BACKEND_API_KEY\s*\}\}/u, `${jobName} must consume the Production-scoped backend key`);
+}
 
 assert.match(workflow, /cancel-in-progress:\s*false/u);
 
