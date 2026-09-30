@@ -253,6 +253,11 @@ managedGoogleOAuthRefreshPath:
               site_uuid: { type: string, format: uuid }
               origin: { type: string, format: uri, pattern: '^https://' }
               refresh_token: { type: string, minLength: 1, maxLength: 8192, writeOnly: true }
+              current_granted_scope:
+                type: string
+                minLength: 1
+                maxLength: 8192
+                description: Space-delimited scope set currently granted to this refresh token. Required for non-legacy capability profiles so requested scopes are never inferred as granted authority when Google omits scope from a refresh response.
               requested_scope:
                 type: string
                 minLength: 1
