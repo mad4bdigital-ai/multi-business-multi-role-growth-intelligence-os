@@ -17,6 +17,22 @@ assert.match(workflow, /startsWith\(github\.event\.comment\.body, 'APPROVE PRODU
 assert.match(workflow, /contents:\s*read/u);
 assert.match(workflow, /issues:\s*write/u);
 assert.match(workflow, /BACKEND_API_KEY:\s*\$\{\{\s*secrets\.BACKEND_API_KEY\s*\}\}/u);
+
+const productionRecoveryJobs = [
+  "Prepare exact Production baseline rebuild approval",
+  "Execute one approved Production Recovery role step",
+  "Read exact Production Recovery Control Store bootstrap plan",
+  "Apply exact Production Recovery Control Store schema plan",
+];
+for (const jobName of productionRecoveryJobs) {
+  const start = workflow.indexOf(`name: ${jobName}`);
+  assert.ok(start >= 0, `${jobName} must remain registered`);
+  const nextJob = workflow.indexOf("\n  ", start + 1);
+  const block = nextJob > start ? workflow.slice(start, nextJob) : workflow.slice(start);
+  assert.match(block, /environment:\s*\n\s*name:\s*Production\s*\n\s*deployment:\s*false/u, `${jobName} must bind the Production environment without creating a deployment`);
+  assert.match(block, /BACKEND_API_KEY:\s*\$\{\{\s*secrets\.BACKEND_API_KEY\s*\}\}/u, `${jobName} must consume the Production-scoped backend key`);
+}
+
 assert.match(workflow, /cancel-in-progress:\s*false/u);
 
 for (const criticalPath of [
