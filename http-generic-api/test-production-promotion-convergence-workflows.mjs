@@ -4,6 +4,7 @@ import { buildSemanticContinuityReport } from "../.github/scripts/production-pro
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const launcher = read(".github/workflows/governed-production-promotion-request-launcher.yml");
+const stagingResume = read(".github/workflows/governed-production-promotion-staging-resume.yml");
 const candidate = read(".github/workflows/production-promotion-candidate.yml");
 const mainSourcePinGuard = read(".github/workflows/governed-production-main-source-pin-guard.yml");
 const releaseSourcePinGate = read(".github/workflows/governed-production-release-source-pin-gate.yml");
@@ -170,6 +171,31 @@ assert.doesNotMatch(launcher, /source-pinned main moved during convergence/u);
 assert.doesNotMatch(launcher, /MAX_ATTEMPTS=3/u);
 assert.doesNotMatch(launcher, /gh pr merge/u);
 assert.doesNotMatch(launcher, /contents:\s*write/u);
+
+
+for (const required of [
+  /name: Governed Production Promotion Staging Resume/u,
+  /workflows: \["Staging Live Certification"\]/u,
+  /github\.event\.workflow_run\.conclusion == 'success'/u,
+  /Checkout current trusted main controller/u,
+  /ref: main/u,
+  /release\/production-candidate-/u,
+  /resume controller is not running from the current trusted main tip/u,
+  /GOVERNED_PRODUCTION_STAGING_RESUME_ARMED/u,
+  /git merge-base --is-ancestor "\$RELEASE_CUT_SHA" "\$CURRENT_MAIN_SHA"/u,
+  /git merge-base --is-ancestor "\$CURRENT_PRODUCTION_SHA" "\$RELEASE_CUT_SHA"/u,
+  /candidate first parent differs from release cut/u,
+  /candidate second parent differs from current Production/u,
+  /candidate tree differs from release cut/u,
+  /request head is not tree-identical to release cut/u,
+  /gh workflow run governed-production-promotion-request-launcher\.yml/u,
+  /--ref main/u,
+  /AUTHORIZE_GOVERNED_PRODUCTION_PROMOTION_REQUEST/u,
+  /merge executed: false/u,
+  /Production mutation: false/u,
+  /secrets included: false/u,
+]) assert.match(stagingResume, required);
+assert.doesNotMatch(stagingResume, /gh pr merge|git push|contents:\s*write|CLOUDFLARE_API_TOKEN|BACKEND_API_KEY|JWT_SECRET/u);
 
 for (const gate of registry.gates) {
   assert.equal(gate.required, true);
