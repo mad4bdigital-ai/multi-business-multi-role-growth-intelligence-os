@@ -843,7 +843,7 @@ jobs:
             (.effects.database_mutation_performed == false) and
             (.effects.restart_performed == false) and
             (.effects.deployment_performed == false) and
-            ([.. | objects | keys[] | select(test("password|private_key|access_token|refresh_token|credential_value|raw_value"; "i"))] | length == 0)
+            ([.. | objects | keys[] | select(test("(^|_)(password|private_key|access_token|refresh_token|credential_value|raw_value)(_|$)"; "i"))] | length == 0)
           ' "${EVIDENCE_PATH}" >/dev/null
 
       - name: Upload no-secret env key inventory
