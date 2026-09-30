@@ -6,7 +6,7 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_artifact_sha256": "21e8a2bb79aa8e1d8c068b9ddd54bd7f01e7b68ff60e9786cc46b82734ffefa3",
+    "dispatch_artifact_sha256": "b980074c71e96bb34e309431cc2e05cdd0e6056f894601dba59b5a1f3d4502fa",
     "family_count": 177,
     "detail_family_count": 77,
     "dispatch_operation_count": 1081
