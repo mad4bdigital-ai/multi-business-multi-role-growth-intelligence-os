@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import assert from "node:assert/strict";
+import assert from "node:assert/strict";\nimport { readFileSync } from "node:fs";
 import {
   collectInventory,
   validateEvidence,
@@ -154,6 +154,18 @@ function response(body, status = 200) {
 console.log(JSON.stringify({
   ok: true,
   contract: "mad4b.production-runtime-env-key-inventory-tests.v1",
-  tests: 5,
+  tests: 6,
   secrets_included: false
 }));
+
+
+{
+  const bridgeWorkflow = readFileSync(new URL("../../.github/workflows/governed-production-promotion-dispatch-bridge.yml", import.meta.url), "utf8");
+  assert.match(bridgeWorkflow, /^  env-key-inventory:\\s*$/mu);
+  assert.match(bridgeWorkflow, /READ_PRODUCTION_ENV_KEY_INVENTORY:\\(\\[0-9a-f\\]\\{40\\}\\)/u);
+  assert.match(bridgeWorkflow, /name: Production/u);
+  assert.match(bridgeWorkflow, /HOSTINGER_API_TOKEN: \\$\\{\\{ secrets\\.HOSTINGER_API_TOKEN \\}\\}/u);
+  assert.match(bridgeWorkflow, /BACKEND_API_KEY: \\$\\{\\{ secrets\\.BACKEND_API_KEY \\}\\}/u);
+  assert.match(bridgeWorkflow, /node scripts\\/production-runtime-env-key-inventory\\.mjs/u);
+  assert.doesNotMatch(bridgeWorkflow, /READ_PRODUCTION_ENV_KEY_INVENTORY:[\\s\\S]{0,6000}curl[\\s\\S]{0,200}--request (?:PUT|PATCH|DELETE)/u);
+}
