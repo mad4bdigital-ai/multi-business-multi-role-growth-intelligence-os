@@ -400,6 +400,11 @@ test("Production Recovery identity compatibility preserves legacy runtime and ad
       expected: true,
     },
     {
+      name: "Production branch alone does not establish runtime identity",
+      env: { GITHUB_REF_NAME: "Production" },
+      expected: false,
+    },
+    {
       name: "main branch cannot impersonate Production",
       env: { NODE_ENV: "production", GITHUB_REF_NAME: "main" },
       expected: false,
