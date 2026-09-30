@@ -1,0 +1,145 @@
+name: Governed Production Promotion Staging Resume
+
+on:
+  workflow_run:
+    workflows: ["Staging Live Certification"]
+    types: [completed]
+
+permissions:
+  actions: write
+  contents: read
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: governed-production-staging-resume-${ github.event.workflow_run.head_sha }
+  cancel-in-progress: false
+
+jobs:
+  resume:
+    name: Resume exact staging-blocked promotion
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${ github.token }
+      REPOSITORY: ${ github.repository }
+      CANDIDATE_SHA: ${ github.event.workflow_run.head_sha }
+      CANDIDATE_BRANCH: ${ github.event.workflow_run.head_branch }
+      STAGING_RUN_ID: ${ github.event.workflow_run.id }
+    steps:
+      - name: Checkout current trusted main controller
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve exact resumable promotion identity
+        id: identity
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          reject() { echo "::error::$1"; exit 1; }
+          require_sha() { [[ "$2" =~ ^[0-9a-f]{40}$ ]] || reject "$1 must be an exact lowercase SHA"; }
+
+          require_sha CANDIDATE_SHA "$CANDIDATE_SHA"
+          [[ "$CANDIDATE_BRANCH" == release/production-candidate-* ]] || reject "successful Staging certification is not bound to a governed Production candidate branch"
+
+          CURRENT_MAIN_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          CURRENT_PRODUCTION_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+          require_sha CURRENT_MAIN_SHA "$CURRENT_MAIN_SHA"
+          require_sha CURRENT_PRODUCTION_SHA "$CURRENT_PRODUCTION_SHA"
+          [[ "$(git rev-parse HEAD)" == "$CURRENT_MAIN_SHA" ]] || reject "resume controller is not running from the current trusted main tip"
+
+          RELEASE_JSON="$(gh pr list --repo "$REPOSITORY" --state open --base Production --head "$CANDIDATE_BRANCH" --limit 10 --json number,title,body,headRefOid,headRefName,baseRefOid,baseRefName)"
+          [[ "$(jq 'length' <<<"$RELEASE_JSON")" == 1 ]] || reject "expected exactly one open governed Production release PR for certified candidate"
+          RELEASE_PR="$(jq -r '.[0].number' <<<"$RELEASE_JSON")"
+          RELEASE_HEAD="$(jq -r '.[0].headRefOid' <<<"$RELEASE_JSON")"
+          RELEASE_BASE="$(jq -r '.[0].baseRefOid' <<<"$RELEASE_JSON")"
+          RELEASE_BODY="$(jq -r '.[0].body // ""' <<<"$RELEASE_JSON")"
+          [[ "$RELEASE_HEAD" == "$CANDIDATE_SHA" ]] || reject "release PR head differs from successful Staging certification candidate"
+          [[ "$RELEASE_BASE" == "$CURRENT_PRODUCTION_SHA" ]] || reject "release PR base differs from current Production"
+          [[ "$RELEASE_BODY" == *"governed_promotion_candidate: true"* ]] || reject "release PR lacks governed candidate marker"
+
+          RELEASE_CUT_SHA="$(grep -Eo 'release cut: `[0-9a-f]{40}`' <<<"$RELEASE_BODY" | head -n1 | tr -d '`' | awk '{print $3}')"
+          PINNED_PRODUCTION="$(grep -Eo 'pinned Production: `[0-9a-f]{40}`' <<<"$RELEASE_BODY" | head -n1 | tr -d '`' | awk '{print $3}')"
+          require_sha RELEASE_CUT_SHA "$RELEASE_CUT_SHA"
+          require_sha PINNED_PRODUCTION "$PINNED_PRODUCTION"
+          [[ "$PINNED_PRODUCTION" == "$CURRENT_PRODUCTION_SHA" ]] || reject "Production moved after staging-blocked promotion"
+
+          git fetch --no-tags origin \
+            "+refs/heads/${CANDIDATE_BRANCH}:refs/remotes/origin/resume-candidate" \
+            '+refs/heads/main:refs/remotes/origin/main' \
+            '+refs/heads/Production:refs/remotes/origin/Production'
+          [[ "$(git rev-parse refs/remotes/origin/resume-candidate)" == "$CANDIDATE_SHA" ]] || reject "candidate branch moved after successful Staging certification"
+          git cat-file -e "${RELEASE_CUT_SHA}^{commit}"
+          git merge-base --is-ancestor "$RELEASE_CUT_SHA" "$CURRENT_MAIN_SHA" || reject "release cut is no longer contained by current main"
+          git merge-base --is-ancestor "$CURRENT_PRODUCTION_SHA" "$RELEASE_CUT_SHA" || reject "current Production is no longer contained by release cut"
+          [[ "$(git rev-parse "${CANDIDATE_SHA}^1")" == "$RELEASE_CUT_SHA" ]] || reject "candidate first parent differs from release cut"
+          [[ "$(git rev-parse "${CANDIDATE_SHA}^2")" == "$CURRENT_PRODUCTION_SHA" ]] || reject "candidate second parent differs from current Production"
+          git diff --quiet "$RELEASE_CUT_SHA" "$CANDIDATE_SHA" || reject "candidate tree differs from release cut"
+
+          REQUESTS_JSON="$(gh pr list --repo "$REPOSITORY" --state open --base main --limit 100 --json number,title,body,headRefOid,headRefName)"
+          REQUEST_JSON="$(jq --arg cut "$RELEASE_CUT_SHA" --arg prod "$CURRENT_PRODUCTION_SHA" '[.[] | select(.title == "ops: request governed Production synchronization") | select((.body // "") | contains("release_cut_main: `" + $cut + "`")) | select((.body // "") | contains("current_production: `" + $prod + "`"))]' <<<"$REQUESTS_JSON")"
+          [[ "$(jq 'length' <<<"$REQUEST_JSON")" == 1 ]] || reject "expected exactly one open governed request PR for release cut"
+          REQUEST_PR="$(jq -r '.[0].number' <<<"$REQUEST_JSON")"
+          REQUEST_HEAD_SHA="$(jq -r '.[0].headRefOid' <<<"$REQUEST_JSON")"
+          REQUEST_HEAD_BRANCH="$(jq -r '.[0].headRefName' <<<"$REQUEST_JSON")"
+          require_sha REQUEST_HEAD_SHA "$REQUEST_HEAD_SHA"
+
+          git fetch --no-tags origin "+refs/heads/${REQUEST_HEAD_BRANCH}:refs/remotes/origin/resume-request"
+          [[ "$(git rev-parse refs/remotes/origin/resume-request)" == "$REQUEST_HEAD_SHA" ]] || reject "request branch moved"
+          git merge-base --is-ancestor "$RELEASE_CUT_SHA" "$REQUEST_HEAD_SHA" || reject "request head no longer descends from release cut"
+          git diff --quiet "$RELEASE_CUT_SHA" "$REQUEST_HEAD_SHA" || reject "request head is not tree-identical to release cut"
+
+          COMMENTS="$(gh api "/repos/${REPOSITORY}/issues/${REQUEST_PR}/comments?per_page=100")"
+          MARKER_PREFIX="GOVERNED_PRODUCTION_STAGING_RESUME_ARMED request_pr=${REQUEST_PR} request_head=${REQUEST_HEAD_SHA} release_cut=${RELEASE_CUT_SHA} Production=${CURRENT_PRODUCTION_SHA} candidate=${CANDIDATE_SHA} review_mode="
+          MARKERS="$(jq --arg prefix "$MARKER_PREFIX" '[.[] | .body // "" | select(startswith($prefix))]' <<<"$COMMENTS")"
+          [[ "$(jq 'length' <<<"$MARKERS")" == 1 ]] || reject "exact staging resume marker is missing or ambiguous"
+          MARKER="$(jq -r '.[0]' <<<"$MARKERS")"
+          REVIEW_MODE="$(sed -n 's/.* review_mode=\(human\|ai_policy\) .*/\1/p' <<<"$MARKER")"
+          case "$REVIEW_MODE" in human|ai_policy) ;; *) reject "staging resume marker review mode is invalid" ;; esac
+
+          {
+            echo "request_pr=$REQUEST_PR"
+            echo "request_head_sha=$REQUEST_HEAD_SHA"
+            echo "release_cut_sha=$RELEASE_CUT_SHA"
+            echo "review_mode=$REVIEW_MODE"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch same governed promotion operation
+        shell: bash
+        env:
+          REQUEST_PR: ${ steps.identity.outputs.request_pr }
+          REQUEST_HEAD_SHA: ${ steps.identity.outputs.request_head_sha }
+          RELEASE_CUT_SHA: ${ steps.identity.outputs.release_cut_sha }
+          REVIEW_MODE: ${ steps.identity.outputs.review_mode }
+        run: |
+          set -Eeuo pipefail
+          gh workflow run governed-production-promotion-request-launcher.yml \
+            --repo "$REPOSITORY" \
+            --ref main \
+            --field request_pr="$REQUEST_PR" \
+            --field expected_head_sha="$RELEASE_CUT_SHA" \
+            --field expected_request_head_sha="$REQUEST_HEAD_SHA" \
+            --field release_branch_prefix="release/production-candidate" \
+            --field validation_branch_prefix="gpt/validate-production-candidate" \
+            --field validation_base_branch_prefix="gpt/validate-production-base" \
+            --field review_mode="$REVIEW_MODE" \
+            --field confirmation="AUTHORIZE_GOVERNED_PRODUCTION_PROMOTION_REQUEST"
+
+      - name: Publish resume summary
+        shell: bash
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## Governed Production staging resume
+          - staging certification run: `$STAGING_RUN_ID`
+          - candidate: `$CANDIDATE_SHA`
+          - release cut: `${ steps.identity.outputs.release_cut_sha }`
+          - request PR: `${ steps.identity.outputs.request_pr }`
+          - merge executed: false
+          - deployment executed: false
+          - Production mutation: false
+          - secrets included: false
+          EOF
