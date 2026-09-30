@@ -17,6 +17,15 @@ assert.match(workflow, /startsWith\(github\.event\.comment\.body, 'APPROVE PRODU
 assert.match(workflow, /contents:\s*read/u);
 assert.match(workflow, /issues:\s*write/u);
 assert.match(workflow, /BACKEND_API_KEY:\s*\$\{\{\s*secrets\.BACKEND_API_KEY\s*\}\}/u);
+for (const job of ["prepare", "execute"]) {
+  const next = job === "prepare" ? "execute" : "control-store-plan";
+  const start = workflow.indexOf("\n  " + job + ":\n");
+  const end = workflow.indexOf("\n  " + next + ":\n", start + 1);
+  assert.ok(start >= 0 && end > start, job + " job block must exist");
+  const block = workflow.slice(start, end);
+  assert.match(block, /environment:\s*\n\s*name:\s*Production\s*\n\s*deployment:\s*false/u, job + " must consume Production-scoped secrets");
+  assert.match(block, /BACKEND_API_KEY:\s*\$\{\{\s*secrets\.BACKEND_API_KEY\s*\}\}/u, job + " must use the Production-scoped backend API key");
+}
 assert.match(workflow, /cancel-in-progress:\s*false/u);
 
 for (const criticalPath of [
