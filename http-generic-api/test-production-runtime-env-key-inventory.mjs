@@ -162,11 +162,12 @@ console.log(JSON.stringify({
 
 {
   const bridgeWorkflow = readFileSync(new URL("../../.github/workflows/governed-production-promotion-dispatch-bridge.yml", import.meta.url), "utf8");
-  assert.match(bridgeWorkflow, /^  env-key-inventory:\\s*$/mu);
-  assert.match(bridgeWorkflow, /READ_PRODUCTION_ENV_KEY_INVENTORY:\\(\\[0-9a-f\\]\\{40\\}\\)/u);
-  assert.match(bridgeWorkflow, /name: Production/u);
-  assert.match(bridgeWorkflow, /HOSTINGER_API_TOKEN: \\$\\{\\{ secrets\\.HOSTINGER_API_TOKEN \\}\\}/u);
-  assert.match(bridgeWorkflow, /BACKEND_API_KEY: \\$\\{\\{ secrets\\.BACKEND_API_KEY \\}\\}/u);
-  assert.match(bridgeWorkflow, /node scripts\\/production-runtime-env-key-inventory\\.mjs/u);
-  assert.doesNotMatch(bridgeWorkflow, /READ_PRODUCTION_ENV_KEY_INVENTORY:[\\s\\S]{0,6000}curl[\\s\\S]{0,200}--request (?:PUT|PATCH|DELETE)/u);
+  assert.equal(bridgeWorkflow.includes("  env-key-inventory:"), true);
+  assert.equal(bridgeWorkflow.includes("READ_PRODUCTION_ENV_KEY_INVENTORY:([0-9a-f]{40})"), true);
+  assert.equal(bridgeWorkflow.includes("name: Production"), true);
+  assert.equal(bridgeWorkflow.includes("HOSTINGER_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN }}"), true);
+  assert.equal(bridgeWorkflow.includes("BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}"), true);
+  assert.equal(bridgeWorkflow.includes("node scripts/production-runtime-env-key-inventory.mjs"), true);
+  const inventoryJob = bridgeWorkflow.slice(bridgeWorkflow.indexOf("  env-key-inventory:"));
+  assert.equal(/--request\s+(?:PUT|PATCH|DELETE)/u.test(inventoryJob), false);
 }
