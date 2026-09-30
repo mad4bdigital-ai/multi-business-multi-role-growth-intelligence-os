@@ -666,6 +666,7 @@ assert.equal(startupPoolResolutionCount, 0, "Managed OAuth router construction m
 const routes = readFileSync("./routes/managedGoogleOAuthRoutes.js", "utf8");
 const siteAuthSource = readFileSync("./managedGoogleOAuthSiteRequestAuth.js", "utf8");
 const protocolPolicy = readFileSync("./managedGoogleOAuthProtocolPolicy.js", "utf8");
+const preciseRegistrySync = readFileSync("./scripts/openapi-precise-contract-registry-sync.mjs", "utf8");
 const openapi = readFileSync("./openapi.yaml", "utf8");
 const openapiDoc = YAML.parse(openapi);
 const frontendPolicy = JSON.parse(readFileSync("./frontend-surface-policy.json", "utf8"));
@@ -698,6 +699,17 @@ assert.ok(siteAuthSource.includes("timingSafeEqual"), "managed OAuth signatures 
 assert.ok(siteAuthSource.includes("consumeRequestNonce"), "managed OAuth site request auth must consume one-time nonces");
 assert.ok(protocolPolicy.includes("mad4b.provider-protocol-policy-registry.v1"), "Google OAuth protocol invariants must live in the provider protocol policy registry");
 assert.ok(protocolPolicy.includes("provider_protocol_policy_registry"), "provider protocol policy registry marker missing");
+assert.ok(preciseRegistrySync.includes("MANAGED_GOOGLE_SCOPE_EXPANSION_TRANSITIONS"), "Managed Google precise predecessor transition registry missing");
+assert.ok(preciseRegistrySync.includes("isKnownManagedGoogleOAuthScopeExpansionPredecessor"), "Managed Google precise predecessor verifier missing");
+assert.ok(preciseRegistrySync.includes("restoreLegacyManagedGoogleScopeSchema"), "Managed Google legacy request-scope predecessor reconstruction missing");
+assert.ok(preciseRegistrySync.includes("restoreLegacyManagedGoogleTokenResponse"), "Managed Google legacy response-scope predecessor reconstruction missing");
+for (const signature of [
+  "POST /v1/google/oauth/session",
+  "POST /v1/google/oauth/redeem",
+  "POST /v1/google/oauth/refresh",
+]) {
+  assert.ok(preciseRegistrySync.includes(signature), `Managed Google precise transition missing: ${signature}`);
+}
 assert.equal(/\bconst\s+GOOGLE_TOKEN_ENDPOINT\s*=/.test(readFileSync("./managedGoogleOAuthBroker.js", "utf8")), false, "broker core must not own provider protocol endpoint constants");
 
 const managedOperations = new Map();
