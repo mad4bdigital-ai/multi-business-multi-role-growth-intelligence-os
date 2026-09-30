@@ -328,7 +328,6 @@
       ".github/workflows/production-promotion-candidate-contract.yml",
       ".github/workflows/production-promotion-candidate.yml",
       ".github/workflows/production-promotion-rehearsal.yml",
-      ".github/workflows/production-runtime-env-key-inventory.yml",
       ".github/workflows/production-runtime-parity-evidence.yml",
       ".github/workflows/remote-mcp-oauth-path-format-guard.yml",
       ".github/workflows/repository-evaluation.yml",
