@@ -3,8 +3,8 @@
   "feature_key": "016-chatgpt-plugin-mcp-integration",
   "review_state": "draft",
   "registry": {
-    "fingerprint": "0f7756820878fdc7673bc2013cead83e05f7e35d82ce1536c1a43d15a714aaf1",
-    "index_source_hash": "301d2340f2f819c378773f32ce735056cb870edc03ec1bf997b2878f8c9abd09",
+    "fingerprint": "b14d0c602d52d7dbe04872afdde45f884df2974bacb84255f60c7a068e542fc2",
+    "index_source_hash": "bb075150422d0914a489d6ecdcd8199213b4dfd1f4e05a42873db5e16b9ab25c",
     "coverage_source_hash": "abce2f42ab7c9d99541544311f176b4b0de36a39fea822630e86b4d080f24601",
     "map_count": 19,
     "domain_count": 16,
