@@ -255,6 +255,12 @@ test("controller uses certified immutable cuts and a declarative supporting-gate
 
   assert.match(launcher, /production-promotion-supporting-gates\.mjs/u);
   assert.match(launcher, /production-certified-release-cut-validation\.yml/u);
+  const sourceStepStart = launcher.indexOf("- name: Resolve authorized release cut and request identity");
+  const sourceStepEnd = launcher.indexOf("- name: Initialize convergence evidence");
+  assert.ok(sourceStepStart >= 0 && sourceStepEnd > sourceStepStart, "promotion source gate step must remain discoverable");
+  const sourceStep = launcher.slice(sourceStepStart, sourceStepEnd);
+  assert.match(sourceStep, /require_sha\(\) \{ \[\[ "\$2" =~ \^\[0-9a-f\]\{40\}\$ \]\]/u, "source gate must define require_sha locally before use");
+  assert.ok(sourceStep.indexOf("require_sha()") < sourceStep.indexOf("require_sha CURRENT_MAIN_API_SHA"), "local require_sha definition must precede source-gate invocation");
   assert.match(launcher, /OPERATION_ID="promo-/u);
   assert.match(launcher, /reusing existing idempotent promotion surfaces/u);
   assert.match(launcher, /approval-manifest\.json/u);
