@@ -1,0 +1,86 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-promotion-staging-resume-20260930",
+  "title": "Resumable Production promotion across offline local Staging and advancing main",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/production-promotion-staging-resume-20260930.json",
+      ".github/workflows/governed-production-promotion-request-launcher.yml",
+      ".github/workflows/governed-production-promotion-staging-resume.yml",
+      "http-generic-api/test-production-promotion-convergence-workflows.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Preserve an immutable governed Production candidate when local Staging is temporarily unavailable, record an exact resumable dependency, and automatically resume the same operation only after exact Staging Live Certification succeeds.",
+      "e2e_journeys": [
+        {
+          "id": "offline-staging-resume",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed Production promotion controller",
+          "entrypoint": "A certified exact Production candidate reaches the required Staging Live Certification gate while local Windows Staging is stale or offline.",
+          "terminal_outcome": "The controller records WAITING_FOR_STAGING without Production mutation; a later successful exact Staging Live Certification resolves the same open release/request identity against current trusted main and pinned Production, then re-dispatches the same governed promotion operation.",
+          "steps": [
+            "Keep the release cut, request head, Production SHA, candidate SHA, and review mode exact.",
+            "Treat only staging_live_certification failure as a resumable external dependency; all other supporting-gate failures remain hard failures.",
+            "Publish an exact staging-resume marker and resumable manifest with merge/deployment false.",
+            "On a successful Staging Live Certification workflow_run, run only trusted current-main controller code.",
+            "Require current main to contain the authorized release cut, Production to remain pinned, candidate parent topology/tree to remain exact, and the request head to remain tree-identical to the release cut.",
+            "Re-dispatch the existing launcher from current main with the original exact release cut/request identity."
+          ],
+          "assertions": [
+            "Advancing main with a descendant no longer invalidates the launcher merely because the trusted controller SHA differs from the older release cut.",
+            "A non-descendant main, changed Production ref, moved candidate/request branch, missing or ambiguous resume marker, or invalid review mode fails closed.",
+            "No Production merge, deployment, migration, database mutation, provider mutation, credential payload read, secret output, or force push is authorized.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "production-promotion-convergence-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-promotion-convergence-workflows.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/production-promotion-staging-resume-20260930.json",
+            ".github/workflows/governed-production-promotion-request-launcher.yml",
+            ".github/workflows/governed-production-promotion-staging-resume.yml",
+            "http-generic-api/test-production-promotion-convergence-workflows.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Exercise one real offline-to-online Staging convergence and prove automatic resumption reuses the existing candidate surfaces."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise duplicate workflow_run delivery, main advancement, Production movement, missing markers, and stale candidate branches with fail-closed behavior."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "No provider or Production canary authority is added."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This change does not authorize Production merge or deployment."
+    }
+  ],
+  "secrets_included": false
+}
