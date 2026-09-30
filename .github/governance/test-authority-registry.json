@@ -181,7 +181,7 @@
         "http-generic-api/scripts/hostinger-runtime-bootstrap.mjs",
         "http-generic-api/scripts/production-runtime-env-key-inventory.mjs",
         "http-generic-api/scripts/split-openapi.mjs",
-        "http-generic-api/scripts/test-production-runtime-env-key-inventory.mjs",
+        "http-generic-api/test-production-runtime-env-key-inventory.mjs",
         "http-generic-api/test-admin-control.mjs",
         "http-generic-api/test-admin-host-breakglass-routes.mjs",
         "http-generic-api/test-custom-gpt-schemas.mjs",
