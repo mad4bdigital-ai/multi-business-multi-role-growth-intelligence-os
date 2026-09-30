@@ -8,7 +8,7 @@
 import assert from "node:assert/strict";
 import express from "express";
 import test from "node:test";
-import { buildRecoveryKernelRoutes } from "./routes/recoveryKernelRoutes.js";
+import { buildRecoveryKernelRoutes, _testingRecoveryKernelRoutes } from "./routes/recoveryKernelRoutes.js";
 
 function startServer(app) {
   return new Promise((resolve) => {
@@ -366,3 +366,79 @@ test("platform convergence rejects unregistered caller fields", async () => {
     await new Promise((resolve) => server.close(resolve));
   }
 });
+
+test("Production Recovery identity compatibility preserves legacy runtime and admits canonical Hostinger transition without admitting Staging or branch conflicts", () => {
+  const {
+    assertProductionEnvironment,
+    productionEnvironmentIdentityIsValid,
+  } = _testingRecoveryKernelRoutes;
+
+  const cases = [
+    {
+      name: "current Production remains recoverable",
+      env: { NODE_ENV: "production" },
+      expected: true,
+    },
+    {
+      name: "legacy prod alias remains recoverable",
+      env: { NODE_ENV: "prod" },
+      expected: true,
+    },
+    {
+      name: "mixed rollout state resolves as explicit canonical Production",
+      env: { NODE_ENV: "production", DEPLOYMENT_ENVIRONMENT: "production_hostinger_autodeploy" },
+      expected: true,
+    },
+    {
+      name: "canonical Production runtime without NODE_ENV is accepted",
+      env: { DEPLOYMENT_ENVIRONMENT: "production_hostinger_autodeploy" },
+      expected: true,
+    },
+    {
+      name: "canonical Production runtime with Production branch is accepted",
+      env: { DEPLOYMENT_ENVIRONMENT: "production_hostinger_autodeploy", GITHUB_REF_NAME: "Production" },
+      expected: true,
+    },
+    {
+      name: "main branch cannot impersonate Production",
+      env: { NODE_ENV: "production", GITHUB_REF_NAME: "main" },
+      expected: false,
+    },
+    {
+      name: "canonical Staging runtime is rejected",
+      env: { DEPLOYMENT_ENVIRONMENT: "staging_local_windows_docker" },
+      expected: false,
+    },
+    {
+      name: "mixed Production and Staging signals fail closed",
+      env: { NODE_ENV: "production", REMOTE_MCP_ENVIRONMENT: "staging" },
+      expected: false,
+    },
+  ];
+
+  for (const entry of cases) {
+    assert.equal(
+      productionEnvironmentIdentityIsValid(entry.env),
+      entry.expected,
+      entry.name,
+    );
+    if (entry.expected) {
+      assert.doesNotThrow(() => assertProductionEnvironment(entry.env), entry.name);
+    } else {
+      assert.throws(
+        () => assertProductionEnvironment(entry.env),
+        (error) => error?.code === "recovery_kernel_production_only"
+          && error?.status === 404
+          && error?.details?.secrets_included === false,
+        entry.name,
+      );
+    }
+  }
+
+  assert.throws(
+    () => assertProductionEnvironment({}),
+    (error) => error?.code === "recovery_kernel_production_environment_unavailable"
+      && error?.status === 404,
+  );
+});
+
