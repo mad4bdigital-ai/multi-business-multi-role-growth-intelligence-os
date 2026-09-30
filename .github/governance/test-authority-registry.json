@@ -148,7 +148,6 @@
     {
       "id": "hostinger_runtime_bootstrap_contract",
       "test_paths": [
-        ".github/workflows/production-runtime-env-key-inventory.yml",
         ".github/workflows/production-runtime-parity-evidence.yml",
         "canonicals/openapi/custom-gpt-surfaces.yaml",
         "docs/governance/hostinger-runtime-bootstrap.md",
