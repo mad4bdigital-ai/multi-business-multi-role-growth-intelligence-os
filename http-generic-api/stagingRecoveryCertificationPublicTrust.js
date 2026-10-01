@@ -6,6 +6,7 @@ export const STAGING_RECOVERY_SIGNED_RECORD_CONTRACT = "mad4b.staging-recovery-s
 
 const SHA40 = /^[a-f0-9]{40}$/u;
 const SHA256 = /^[a-f0-9]{64}$/u;
+const IMAGE_DIGEST_RE = /^sha256:[0-9a-f]{64}$/u;
 const SAFE_ID = /^[A-Za-z0-9._:-]{8,160}$/u;
 
 function fail(code, message) {
@@ -83,6 +84,12 @@ export function verifyStagingRecoverySignedCertificationRecord(record, {
     fail("RECOVERY_CERTIFICATION_FRESHNESS_INVALID", "Recovery certification is stale or future-dated.");
   }
   if (!SHA256.test(payload.evidence_envelope_sha256 || "") || !SHA256.test(payload.verification_report_sha256 || "")) fail("RECOVERY_CERTIFICATION_BINDING_HASH_INVALID", "Recovery certification binding hashes are invalid.");
+  const artifactIntegrity = payload.stagingCertification?.artifact_integrity;
+  if (artifactIntegrity?.valid !== true
+    || !SHA256.test(String(artifactIntegrity?.manifest_sha256 || ""))
+    || !IMAGE_DIGEST_RE.test(String(artifactIntegrity?.app_image_digest || ""))) {
+    fail("RECOVERY_CERTIFICATION_ARTIFACT_INTEGRITY_INVALID", "Signed Recovery certification requires exact manifest and Staging app image digests.");
+  }
   if (payload.production_live_enabled !== false || payload.production_mutation_performed !== false || payload.local_connector_production_authority !== false) fail("RECOVERY_CERTIFICATION_PRODUCTION_BOUNDARY_INVALID", "Recovery certification attempted to cross the Production boundary.");
   if (!/^[A-Za-z0-9_-]{86}$/u.test(record.signature || "")) fail("RECOVERY_CERTIFICATION_SIGNATURE_INVALID", "Recovery certification signature encoding is invalid.");
 
