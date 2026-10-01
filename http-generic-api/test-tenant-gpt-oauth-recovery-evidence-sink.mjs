@@ -1,17 +1,30 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import {
+delete process.env.NODE_ENV;
+delete process.env.REMOTE_MCP_ENVIRONMENT;
+process.env.DEPLOYMENT_ENVIRONMENT = "staging_local_windows_docker";
+process.env.ACTIVATION_STAGING_GATEWAY_ENABLED = "true";
+
+const {
   advanceTenantGptOAuthOperationCorrelation,
   createTenantGptOAuthOperationCorrelation,
-} from "./tenantGptOAuthOperationCorrelation.js";
-import {
+} = await import("./tenantGptOAuthOperationCorrelation.js");
+const {
   TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS,
   buildTenantGptOAuthRecoveryServerEvidence,
   readTenantGptOAuthRecoveryServerEvidence,
   recordTenantGptOAuthRecoveryServerEvidence,
   verifyTenantGptOAuthRecoveryServerEvidence,
-} from "./tenantGptOAuthRecoveryEvidenceSink.js";
+} = await import("./tenantGptOAuthRecoveryEvidenceSink.js");
+
+const STAGING_ENV = Object.freeze({
+  DEPLOYMENT_ENVIRONMENT: "staging_local_windows_docker",
+  ACTIVATION_STAGING_GATEWAY_ENABLED: "true",
+});
+const PRODUCTION_ENV = Object.freeze({
+  DEPLOYMENT_ENVIRONMENT: "production_hostinger_autodeploy",
+});
 
 const DEPLOYMENT_SHA = "2b464908bd2639792ff54eafd5f0132612de78b0";
 const OPERATION_ID = "11111111-1111-4111-8111-111111111111";
@@ -260,13 +273,24 @@ const skipped = await recordTenantGptOAuthRecoveryServerEvidence({
     productionQueryCalled = true;
     throw new Error("must not write");
   },
-  enabled: false,
+  enabled: true,
+  env: PRODUCTION_ENV,
   input: null,
   nowMs: NOW_MS,
 });
 assert.equal(skipped.recorded, false);
 assert.equal(skipped.production_mutation_performed, false);
 assert.equal(productionQueryCalled, false);
+
+assert.equal(
+  errorCode(() => buildTenantGptOAuthRecoveryServerEvidence({
+    event: "authorize_received",
+    correlation: authorize,
+    redirect_uri_sha256: REDIRECT_HASH,
+    deployment_sha: DEPLOYMENT_SHA,
+  }, { nowMs: NOW_MS, env: PRODUCTION_ENV })),
+  "oauth_recovery_evidence_staging_runtime_required",
+);
 
 const isolated = await readTenantGptOAuthRecoveryServerEvidence({
   query,
