@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: staging-live-certification-${{ inputs.expected_candidate_sha }}
@@ -19,6 +20,7 @@ jobs:
   certify:
     name: Staging Live Certification
     runs-on: ubuntu-24.04
+    environment: staging-recovery-certification
     timeout-minutes: 12
     env:
       EXPECTED_CANDIDATE_SHA: ${{ inputs.expected_candidate_sha }}
@@ -121,6 +123,125 @@ jobs:
             .safety.raw_public_key_reported == false and
             .safety.secrets_included == false
           ' "$STAGING_TRUST_REPORT_FILE" >/dev/null
+
+      - name: Resolve current Staging Recovery target fingerprint
+        env:
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          RELEASE_CUT_SHA: ${{ steps.identity.outputs.release_cut_sha }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test -n "$BACKEND_API_KEY"
+          response="$RUNNER_TEMP/staging-recovery-live-readiness.json"
+          status="$(
+            curl --silent --show-error               --output "$response"               --write-out '%{http_code}'               --connect-timeout 10               --max-time 20               --header "Authorization: Bearer $BACKEND_API_KEY"               --header "Accept: application/json"               "https://activation-dev.mad4b.com/admin/recovery/staging/readiness"
+          )"
+          [[ "$status" == "200" ]] || { echo "::error::Recovery readiness returned HTTP $status"; exit 1; }
+          target="$(jq -er --arg sha "$RELEASE_CUT_SHA" '
+            select(
+              .environment == "staging"
+              and .deployment_attestation.sha == $sha
+              and (.target_fingerprint | test("^[0-9a-f]{64}$"))
+              and .secrets_included == false
+            )
+            | .target_fingerprint
+          ' "$response")"
+          echo "RECOVERY_STAGING_EXPECTED_TARGET_FINGERPRINT=$target" >> "$GITHUB_ENV"
+
+      - name: Download exact signed Recovery certification
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_CUT_SHA: ${{ steps.identity.outputs.release_cut_sha }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          artifact_name="staging-recovery-signed-certification-${RELEASE_CUT_SHA}-${RECOVERY_STAGING_EXPECTED_TARGET_FINGERPRINT}"
+          artifact_json="$(
+            gh api               -H "Accept: application/vnd.github+json"               "/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${artifact_name}&per_page=100"
+          )"
+          artifact_id="$(
+            jq -er --arg sha "$RELEASE_CUT_SHA" '
+              [
+                .artifacts[]
+                | select(
+                    .expired == false
+                    and .workflow_run.head_sha == $sha
+                    and .workflow_run.head_branch == "main"
+                  )
+              ]
+              | sort_by(.created_at)
+              | last
+              | .id
+            ' <<<"$artifact_json"
+          )"
+          output_dir="$RUNNER_TEMP/staging-recovery-signed-certification"
+          rm -rf "$output_dir"
+          mkdir -p "$output_dir"
+          gh api             -H "Accept: application/vnd.github+json"             "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip"             > "$RUNNER_TEMP/staging-recovery-signed-certification.zip"
+          unzip -qq "$RUNNER_TEMP/staging-recovery-signed-certification.zip" -d "$output_dir"
+          rm -f "$RUNNER_TEMP/staging-recovery-signed-certification.zip"
+          mapfile -t signed_files < <(find "$output_dir" -type f -name signed-certification.json -print)
+          [[ "${#signed_files[@]}" -eq 1 ]] || { echo "::error::Expected exactly one signed-certification.json"; exit 1; }
+          echo "RECOVERY_STAGING_SIGNED_CERTIFICATION_FILE=${signed_files[0]}" >> "$GITHUB_ENV"
+
+      - name: Verify signed Recovery certification and bind app image digest
+        env:
+          RELEASE_CUT_SHA: ${{ steps.identity.outputs.release_cut_sha }}
+          RECOVERY_STAGING_CERTIFICATION_PUBLIC_KEY: ${{ vars.RECOVERY_STAGING_CERTIFICATION_PUBLIC_KEY }}
+          RECOVERY_STAGING_CERTIFICATION_ISSUER: ${{ vars.RECOVERY_STAGING_CERTIFICATION_ISSUER }}
+          RECOVERY_STAGING_CERTIFICATION_KEY_ID: ${{ vars.RECOVERY_STAGING_CERTIFICATION_KEY_ID }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          import {
+            loadStagingRecoveryCertificationPublicTrust,
+            verifyStagingRecoverySignedCertificationRecord,
+          } from "./http-generic-api/stagingRecoveryCertificationPublicTrust.js";
+
+          const file = process.env.RECOVERY_STAGING_SIGNED_CERTIFICATION_FILE;
+          const expectedSha = process.env.RELEASE_CUT_SHA;
+          const expectedTargetFingerprint =
+            process.env.RECOVERY_STAGING_EXPECTED_TARGET_FINGERPRINT;
+          if (!file || !expectedSha || !expectedTargetFingerprint) {
+            throw new Error("Signed certification verification inputs are incomplete.");
+          }
+
+          const record = JSON.parse(fs.readFileSync(file, "utf8"));
+          const payload = record?.payload;
+          if (
+            payload?.environment !== "staging"
+            || payload?.branch !== "main"
+            || payload?.deployment_sha !== expectedSha
+            || payload?.target_fingerprint !== expectedTargetFingerprint
+          ) {
+            throw new Error("Signed certification is not bound to the exact live Staging target.");
+          }
+
+          const trust = loadStagingRecoveryCertificationPublicTrust(process.env);
+          const verified = verifyStagingRecoverySignedCertificationRecord(record, {
+            trust,
+            expectedSha,
+            expectedTargetFingerprint,
+            expectedRunId: payload.certification_run_id,
+            expectedNonce: payload.nonce,
+          });
+          const certification = verified.payload.stagingCertification;
+          const imageDigest = String(
+            certification?.artifact_integrity?.app_image_digest || "",
+          ).toLowerCase();
+          if (
+            certification?.environment_key !== "staging"
+            || certification?.branch !== "main"
+            || certification?.deployment_sha !== expectedSha
+            || certification?.target_fingerprint !== expectedTargetFingerprint
+            || !/^sha256:[0-9a-f]{64}$/u.test(imageDigest)
+          ) {
+            throw new Error("Verified signed certification lacks exact Staging app image binding.");
+          }
+          fs.appendFileSync(process.env.GITHUB_ENV, `STAGING_CERT_APP_IMAGE_ID=${imageDigest}\n`);
+          NODE
 
       - name: Certify live Staging against exact main release cut
         env:
