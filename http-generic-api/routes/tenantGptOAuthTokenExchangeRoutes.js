@@ -660,15 +660,6 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
         { nowMs: now() },
       );
 
-      await persistOAuthRecoveryTokenStage(
-        tokenQuery,
-        {
-          event: "token_exchange_completed",
-          correlation: tokenCorrelation,
-          redirect_uri_sha256: sha256(canonicalizeRedirectUri(codePayload.redirect_uri) || codePayload.redirect_uri),
-        },
-        now(),
-      );
       const accessToken = issueAccessToken(
         { user_id: subject.user.user_id, email: subject.user.email, tenant_id: subject.tenant_id },
         {
@@ -679,6 +670,15 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
           scope: codePayload.scope,
           oauthCorrelation: tokenCorrelation,
         },
+      );
+      await persistOAuthRecoveryTokenStage(
+        tokenQuery,
+        {
+          event: "token_exchange_completed",
+          correlation: tokenCorrelation,
+          redirect_uri_sha256: sha256(canonicalizeRedirectUri(codePayload.redirect_uri) || codePayload.redirect_uri),
+        },
+        now(),
       );
       tokenLogContext.oauth_correlation = safeTenantGptOAuthOperationCorrelationEvidence(tokenCorrelation);
       tokenLogContext.access_token = {
