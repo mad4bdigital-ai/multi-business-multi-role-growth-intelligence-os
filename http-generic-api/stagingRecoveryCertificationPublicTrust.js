@@ -17,6 +17,11 @@ function fingerprint(key) {
   return createHash("sha256").update(key.export({ format: "der", type: "spki" })).digest("hex");
 }
 
+function normalizePem(value) {
+  const raw = String(value || "").trim();
+  return raw.includes("\\n") ? raw.replaceAll("\\n", "\n") : raw;
+}
+
 function normalizePublicKey(value, code) {
   let key;
   try { key = createPublicKey(value); }
@@ -26,7 +31,7 @@ function normalizePublicKey(value, code) {
 }
 
 export function loadStagingRecoveryCertificationPublicTrust(env = process.env) {
-  const publicKeyPem = String(env.RECOVERY_STAGING_CERTIFICATION_PUBLIC_KEY || "").trim();
+  const publicKeyPem = normalizePem(env.RECOVERY_STAGING_CERTIFICATION_PUBLIC_KEY);
   const keyId = String(env.RECOVERY_STAGING_CERTIFICATION_KEY_ID || "").trim();
   const issuer = String(env.RECOVERY_STAGING_CERTIFICATION_ISSUER || "").trim();
   const configured = [publicKeyPem, keyId, issuer].filter(Boolean).length;
@@ -36,7 +41,7 @@ export function loadStagingRecoveryCertificationPublicTrust(env = process.env) {
   if (!issuer) fail("RECOVERY_CERTIFICATION_ISSUER_INVALID", "Recovery certification issuer is invalid.");
 
   const publicKey = normalizePublicKey(publicKeyPem, "RECOVERY_CERTIFICATION_PUBLIC_KEY_INVALID");
-  const ingressPem = String(env.REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY || "").trim();
+  const ingressPem = normalizePem(env.REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY);
   if (!ingressPem) {
     fail("RECOVERY_CERTIFICATION_INGRESS_TRUST_UNAVAILABLE", "Activation Gateway ingress public trust is required before Phase B certification trust can be enabled.");
   }
