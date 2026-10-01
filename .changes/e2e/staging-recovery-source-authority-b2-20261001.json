@@ -11,14 +11,16 @@
   "scope": {
     "include": [
       ".changes/e2e/staging-recovery-source-authority-b2-20261001.json",
+      ".github/derived-state-governance.json",
       ".github/governance/test-authority-registry.json",
-      "http-generic-api/tenantGptOAuthRecoveryEvidenceSink.js",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/routes/activationHostGatewayRoutes.js",
       "http-generic-api/routes/authRoutes.js",
       "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
+      "http-generic-api/scripts/manifests/test-manifest-spec012.mjs",
       "http-generic-api/tenantGptAccessTokenVerifier.js",
-      "http-generic-api/routes/activationHostGatewayRoutes.js",
-      "http-generic-api/test-tenant-gpt-oauth-recovery-evidence-sink.mjs",
-      "http-generic-api/scripts/manifests/test-manifest-spec012.mjs"
+      "http-generic-api/tenantGptOAuthRecoveryEvidenceSink.js",
+      "http-generic-api/test-tenant-gpt-oauth-recovery-evidence-sink.mjs"
     ]
   },
   "environment_impact": {
@@ -62,7 +64,9 @@
             "Production runtime performs no Recovery evidence database mutation.",
             "Live OAuth handlers contain no callback_received event writer.",
             "Registration parity does not become provider-backed source authority in this PR.",
-            "Recovery OAuth source verification and acquisition receipt signing remain blocked until genuine external callback authority is implemented."
+            "Recovery OAuth source verification and acquisition receipt signing remain blocked until genuine external callback authority is implemented.",
+            "This critical E2E declaration is registered exactly in Constitution.control_plane_paths and convergence.automation_control_paths.",
+            "Control-plane self-amendment remains manual-merge-only; autonomous merge authority is not introduced."
           ],
           "tests": [
             {
@@ -74,14 +78,16 @@
             }
           ],
           "evidence_paths": [
-            "http-generic-api/tenantGptOAuthRecoveryEvidenceSink.js",
-            "http-generic-api/test-tenant-gpt-oauth-recovery-evidence-sink.mjs",
+            ".github/derived-state-governance.json",
+            ".github/governance/test-authority-registry.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "http-generic-api/routes/activationHostGatewayRoutes.js",
             "http-generic-api/routes/authRoutes.js",
             "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
-            "http-generic-api/tenantGptAccessTokenVerifier.js",
-            "http-generic-api/routes/activationHostGatewayRoutes.js",
             "http-generic-api/scripts/manifests/test-manifest-spec012.mjs",
-            ".github/governance/test-authority-registry.json"
+            "http-generic-api/tenantGptAccessTokenVerifier.js",
+            "http-generic-api/tenantGptOAuthRecoveryEvidenceSink.js",
+            "http-generic-api/test-tenant-gpt-oauth-recovery-evidence-sink.mjs"
           ]
         }
       ]
