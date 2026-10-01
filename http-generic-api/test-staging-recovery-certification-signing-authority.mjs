@@ -26,6 +26,7 @@ const NONCE = "nonce:phase-b-001";
 const EVIDENCE = "c".repeat(64);
 const ISSUER = "mad4b://staging-recovery-certification";
 const KEY_ID = "recovery-certification-test";
+const IMAGE = "sha256:" + "d".repeat(64);
 
 function validStagingCertification() {
   return {
@@ -44,7 +45,7 @@ function validStagingCertification() {
     lifecycle_trace: { durable_inspection: { status: "pass" } },
     negative_tests: { all_passed: true, cases: {} },
     audit_evidence: { durable: true, evidence_hash: "e".repeat(64), canonical_payload_hash: "f".repeat(64) },
-    artifact_integrity: { valid: true },
+    artifact_integrity: { valid: true, manifest_sha256: "a".repeat(64), app_image_digest: IMAGE },
     expires_at: new Date(Date.now() + 60_000).toISOString(),
     safety: {
       production_mutation_performed: false,
@@ -168,6 +169,25 @@ test("signer rejects non-canonical or cross-environment payloads before signing"
       verificationReport,
       env: env(),
     }));
+  }
+});
+
+test("signer fails closed on missing or malformed app image digest", () => {
+  const verificationReport = report();
+  for (const artifact_integrity of [
+    { valid: true, manifest_sha256: "a".repeat(64) },
+    { valid: true, manifest_sha256: "a".repeat(64), app_image_digest: "sha256:bad" },
+  ]) {
+    assert.throws(
+      () => signVerifiedRecoveryEvidence({
+        payload: payload(verificationReport, {
+          stagingCertification: { ...validStagingCertification(), artifact_integrity },
+        }),
+        verificationReport,
+        env: env(),
+      }),
+      (error) => error?.code === "RECOVERY_CERTIFICATION_STAGING_CERTIFICATE_INVALID",
+    );
   }
 });
 
