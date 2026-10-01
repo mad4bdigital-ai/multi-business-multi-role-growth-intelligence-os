@@ -25,7 +25,8 @@
       "http-generic-api/recoveryActivationReadiness.js",
       "http-generic-api/test-production-recovery-canary-readiness.mjs",
       "http-generic-api/test-recovery-activation-readiness.mjs",
-      "http-generic-api/test-staging-recovery-admin-surface.mjs"
+      "http-generic-api/test-staging-recovery-admin-surface.mjs",
+      "http-generic-api/test-staging-environment-certification-contract.mjs"
     ]
   },
   "environment_impact": {
@@ -120,6 +121,13 @@
               "working_directory": "http-generic-api",
               "path": "test-staging-recovery-admin-surface.mjs",
               "args": []
+            },
+            {
+              "id": "staging-environment-certification-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-environment-certification-contract.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -134,7 +142,8 @@
             "http-generic-api/recoveryActivationReadiness.js",
             "http-generic-api/test-production-recovery-canary-readiness.mjs",
             "http-generic-api/test-recovery-activation-readiness.mjs",
-            "http-generic-api/test-staging-recovery-admin-surface.mjs"
+            "http-generic-api/test-staging-recovery-admin-surface.mjs",
+            "http-generic-api/test-staging-environment-certification-contract.mjs"
           ]
         }
       ]
