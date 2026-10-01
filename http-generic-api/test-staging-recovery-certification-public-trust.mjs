@@ -224,6 +224,31 @@ test("public trust rejects missing, malformed, or post-signature image digest ta
   );
 });
 
+test("Recovery certification trust accepts governed ingress fingerprint without raw ingress PEM", () => {
+  const trust = loadStagingRecoveryCertificationPublicTrust({
+    RECOVERY_STAGING_CERTIFICATION_PUBLIC_KEY: publicPem,
+    RECOVERY_STAGING_CERTIFICATION_KEY_ID: KEY_ID,
+    RECOVERY_STAGING_CERTIFICATION_ISSUER: ISSUER,
+    ACTIVATION_GATEWAY_INGRESS_PUBLIC_KEY_SHA256: ingressFingerprint,
+  });
+  assert.equal(trust.separation_verified, true);
+  assert.equal(trust.activation_gateway_ingress_public_key_sha256, ingressFingerprint);
+  assert.equal(trust.activation_gateway_ingress_trust_source, "governed_fingerprint");
+});
+
+test("Recovery certification trust rejects disagreement between raw ingress key and governed fingerprint", () => {
+  assert.throws(
+    () => loadStagingRecoveryCertificationPublicTrust({
+      RECOVERY_STAGING_CERTIFICATION_PUBLIC_KEY: publicPem,
+      RECOVERY_STAGING_CERTIFICATION_KEY_ID: KEY_ID,
+      RECOVERY_STAGING_CERTIFICATION_ISSUER: ISSUER,
+      REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY: ingressPublicPem,
+      ACTIVATION_GATEWAY_INGRESS_PUBLIC_KEY_SHA256: "f".repeat(64),
+    }),
+    (error) => error?.code === "RECOVERY_CERTIFICATION_INGRESS_TRUST_MISMATCH",
+  );
+});
+
 test("Recovery certification trust fails closed when Activation Gateway ingress trust is unavailable", () => {
   assert.throws(
     () => loadStagingRecoveryCertificationPublicTrust({
