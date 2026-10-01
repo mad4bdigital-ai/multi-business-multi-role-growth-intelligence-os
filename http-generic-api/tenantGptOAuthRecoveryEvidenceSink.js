@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { TENANT_GPT_IS_STAGING_RUNTIME } from "./tenantGptOAuthPreset.js";
+import { isStagingRuntime } from "./runtimeEnvironmentResolver.js";
 import { verifyTenantGptOAuthOperationCorrelation } from "./tenantGptOAuthOperationCorrelation.js";
 
 export const TENANT_GPT_OAUTH_RECOVERY_SERVER_EVIDENCE_CONTRACT =
@@ -28,8 +29,8 @@ const EVENT_STAGE = Object.freeze({
 const SHA40 = /^[a-f0-9]{40}$/u;
 const SHA256 = /^[a-f0-9]{64}$/u;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
-const MAX_TTL_MS = 60 * 60 * 1000;
-const DEFAULT_TTL_MS = 15 * 60 * 1000;
+const RECOVERY_EVIDENCE_CEILING_MILLISECONDS = 60 * 60 * 1000;
+const RECOVERY_EVIDENCE_WINDOW_MILLISECONDS = 15 * 60 * 1000;
 const SENSITIVE_INPUT_KEY = /(^|_)(authorization|code|credential|password|secret|token|cookie|raw)(_|$)/iu;
 
 const INPUT_KEYS = new Set([
@@ -159,7 +160,7 @@ function assertFreshness(occurredAt, expiresAt, nowMs) {
     !Number.isFinite(occurred)
     || !Number.isFinite(expires)
     || expires <= occurred
-    || expires - occurred > MAX_TTL_MS
+    || expires - occurred > RECOVERY_EVIDENCE_CEILING_MILLISECONDS
     || occurred > Number(nowMs) + 60_000
     || expires <= Number(nowMs)
   ) {
@@ -205,6 +206,13 @@ export function buildTenantGptOAuthRecoveryServerEvidence(input = {}, {
   nowMs = Date.now(),
   env = process.env,
 } = {}) {
+  if (!isStagingRuntime(env)) {
+    fail(
+      "oauth_recovery_evidence_staging_runtime_required",
+      "Server-owned OAuth Recovery evidence can only be built for Staging runtime.",
+      403,
+    );
+  }
   assertAllowedKeys(input, INPUT_KEYS, "input");
   const event = eventName(input.event);
   const expectedStage = EVENT_STAGE[event];
@@ -220,7 +228,7 @@ export function buildTenantGptOAuthRecoveryServerEvidence(input = {}, {
     "occurred_at",
   );
   const expiresAt = normalizeTimestamp(
-    input.expires_at || new Date(Date.parse(occurredAt) + DEFAULT_TTL_MS).toISOString(),
+    input.expires_at || new Date(Date.parse(occurredAt) + RECOVERY_EVIDENCE_WINDOW_MILLISECONDS).toISOString(),
     "expires_at",
   );
   assertFreshness(occurredAt, expiresAt, nowMs);
@@ -318,7 +326,7 @@ export async function recordTenantGptOAuthRecoveryServerEvidence({
   env = process.env,
   nowMs = Date.now(),
 } = {}) {
-  if (!enabled) {
+  if (!enabled || !isStagingRuntime(env)) {
     return Object.freeze({
       recorded: false,
       reason: "staging_runtime_required",
