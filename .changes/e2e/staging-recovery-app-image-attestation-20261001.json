@@ -20,7 +20,8 @@
       "http-generic-api/test-staging-recovery-certification-protocol.mjs",
       "http-generic-api/test-staging-recovery-certification-public-trust.mjs",
       "http-generic-api/test-staging-recovery-certification-script-surface.mjs",
-      "http-generic-api/test-staging-recovery-certification-signing-authority.mjs"
+      "http-generic-api/test-staging-recovery-certification-signing-authority.mjs",
+      "docs/governance/configuration-drift-baseline-extensions.json"
     ]
   },
   "environment_impact": {
@@ -53,7 +54,8 @@
             "Reject signing and public-trust verification when the image binding is absent, malformed, or tampered.",
             "Discover only successful main-branch Recovery certification workflow runs whose head SHA equals the exact release cut.",
             "Select only a non-expired signed Recovery artifact for that exact SHA, then derive the target fingerprint from the signed payload rather than trusting the artifact name.",
-            "Verify Ed25519 public trust, payload freshness/hash, exact environment/branch/deployment SHA, target binding, artifact-name consistency, and app image digest before exporting STAGING_CERT_APP_IMAGE_ID."
+            "Verify Ed25519 public trust, payload freshness/hash, exact environment/branch/deployment SHA, target binding, artifact-name consistency, and app image digest before exporting STAGING_CERT_APP_IMAGE_ID.",
+            "Register the new non-secret live-certification environment references as permanent configuration-drift baseline extensions with no runtime or Production mutation authority."
           ],
           "assertions": [
             "The Docker image digest is not sourced from /deployment-info and is not hardcoded.",
@@ -100,7 +102,8 @@
             "autopilot-portable-staging/Invoke-StagingRecoveryCertificationCanary.ps1",
             "http-generic-api/scripts/staging-recovery-genuine-canary.mjs",
             "http-generic-api/stagingRecoveryCertificationProtocol.js",
-            "http-generic-api/stagingRecoveryCertificationPublicTrust.js"
+            "http-generic-api/stagingRecoveryCertificationPublicTrust.js",
+            "docs/governance/configuration-drift-baseline-extensions.json"
           ]
         }
       ]
