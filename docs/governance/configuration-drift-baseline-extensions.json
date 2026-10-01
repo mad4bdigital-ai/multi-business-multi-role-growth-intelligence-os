@@ -2173,7 +2173,7 @@
     {
       "fingerprint": ".github/workflows/staging-live-certification.yml|RECOVERY_STAGING_EXPECTED_TARGET_FINGERPRINT|environment_reference|recovery.staging.expected.target.fingerprint",
       "owner": "staging-recovery-governance",
-      "reason": "The current Staging Recovery target fingerprint is a non-secret exact-target identity obtained from an authenticated read-only readiness probe and used only to select and verify the matching signed certification artifact; it grants no provider, database, deployment, protected-ref, or Production mutation authority.",
+      "reason": "The Staging Recovery target fingerprint is a non-secret identity derived only after cryptographic verification of exact-SHA signed Recovery evidence and then passed through the runner environment for bounded consistency checks; artifact naming is not a trust root and no backend, JWT, tunnel, provider, database, protected-ref, or Production mutation authority is granted.",
       "lifecycle": "permanent",
       "configuration_class": "ci_governance_input",
       "sensitivity": "non_secret_reference",
