@@ -10,6 +10,7 @@ export const STAGING_RECOVERY_GITHUB_VERIFICATION_REPORT_CONTRACT = "mad4b.stagi
 
 const SHA40 = /^[a-f0-9]{40}$/u;
 const SHA256 = /^[a-f0-9]{64}$/u;
+const IMAGE_DIGEST_RE = /^sha256:[0-9a-f]{64}$/u;
 const SAFE_ID = /^[A-Za-z0-9._:-]{8,160}$/u;
 const REQUIRED_VERIFICATION_CHECKS = Object.freeze([
   "exact_main",
@@ -99,6 +100,9 @@ function assertStagingCertification(certification, payload) {
     || certification?.branch !== "main"
     || certification?.deployment_sha !== payload.deployment_sha
     || certification?.target_fingerprint !== payload.target_fingerprint
+    || certification?.artifact_integrity?.valid !== true
+    || !SHA256.test(String(certification?.artifact_integrity?.manifest_sha256 || ""))
+    || !IMAGE_DIGEST_RE.test(String(certification?.artifact_integrity?.app_image_digest || ""))
     || certification?.secrets_included !== false
     || certification?.safety?.production_mutation_performed !== false
     || certification?.safety?.caller_credentials_accepted !== false

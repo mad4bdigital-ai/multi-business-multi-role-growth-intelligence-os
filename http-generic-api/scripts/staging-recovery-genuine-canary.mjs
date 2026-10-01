@@ -8,6 +8,7 @@ import { readDeploymentManifest } from "../deploymentManifest.js";
 import { runGenuineStagingRecoveryCanary } from "../stagingRecoveryCertificationProtocol.js";
 
 const SHA40 = /^[a-f0-9]{40}$/u;
+const IMAGE_DIGEST_RE = /^sha256:[0-9a-f]{64}$/u;
 const REQUIRED_EVIDENCE = Object.freeze({
   registrationEvidence: "RECOVERY_STAGING_REGISTRATION_EVIDENCE_FILE",
   oauthEvidence: "RECOVERY_STAGING_OAUTH_EVIDENCE_FILE",
@@ -39,6 +40,10 @@ function canonical(value) {
 }
 
 function manifestIntegrity(env) {
+  const appImageDigest = required(env, "RECOVERY_STAGING_APP_IMAGE_DIGEST").toLowerCase();
+  if (!IMAGE_DIGEST_RE.test(appImageDigest)) {
+    throw Object.assign(new Error("RECOVERY_STAGING_APP_IMAGE_DIGEST must be an exact sha256 Docker image digest."), { code: "RECOVERY_STAGING_CANARY_APP_IMAGE_DIGEST_INVALID" });
+  }
   const result = readDeploymentManifest(env);
   if (!result?.ok || !result?.manifest) {
     throw Object.assign(new Error("A verified deployment manifest is required before Staging recovery certification."), { code: "RECOVERY_STAGING_CANARY_DEPLOYMENT_MANIFEST_INVALID" });
@@ -47,6 +52,7 @@ function manifestIntegrity(env) {
   return Object.freeze({
     valid: true,
     manifest_sha256: createHash("sha256").update(payload).digest("hex"),
+    app_image_digest: appImageDigest,
     repository: result.manifest.repository || null,
     branch: result.manifest.branch || null,
     deployment_sha: result.manifest.commit_sha || null,
@@ -97,6 +103,7 @@ export async function produceStagingRecoveryCanaryArtifacts({ env = process.env 
     target_fingerprint: result.envelope.target_fingerprint,
     certification_run_id: result.envelope.certification_run_id,
     evidence_envelope_sha256: result.envelope.evidence_envelope_sha256,
+    app_image_digest: result.envelope.artifactIntegrity.app_image_digest,
     approval_token_returned: false,
     production_live_enabled: false,
     secrets_included: false,

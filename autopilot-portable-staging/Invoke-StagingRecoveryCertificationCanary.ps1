@@ -214,6 +214,15 @@ try {
         "-f", $composeWindows,
         "--env-file", $envFile
     )
+    $appContainerId = ((& docker @compose ps -q app 2>$null | Out-String).Trim()).ToLowerInvariant()
+    if ($appContainerId -notmatch '^[0-9a-f]{64}$') {
+        throw "Staging app container is not running with a full container ID."
+    }
+    $appImageDigest = ((& docker inspect --format '{{.Image}}' $appContainerId 2>$null | Out-String).Trim()).ToLowerInvariant()
+    if ($appImageDigest -notmatch '^sha256:[0-9a-f]{64}$') {
+        throw "Staging app image identity is not a content-addressed sha256 digest."
+    }
+
     $containerInput = "/app/data/recovery-certification-input/$ExpectedSha"
     $containerOutput = "/app/data/recovery-certification-out/$ExpectedSha"
 
@@ -255,6 +264,7 @@ try {
     $execArgs = $compose + @(
         "exec", "-T",
         "-e", ("RECOVERY_STAGING_EXPECTED_SHA={0}" -f $ExpectedSha),
+        "-e", ("RECOVERY_STAGING_APP_IMAGE_DIGEST={0}" -f $appImageDigest),
         "-e", ("RECOVERY_STAGING_CANARY_OUTPUT_DIRECTORY={0}" -f $containerOutput),
         "-e", ("RECOVERY_STAGING_REGISTRATION_EVIDENCE_FILE={0}/registration.json" -f $containerInput),
         "-e", ("RECOVERY_STAGING_OAUTH_EVIDENCE_FILE={0}/oauth.json" -f $containerInput),
@@ -273,8 +283,11 @@ try {
         throw "The canary completed without a summary artifact."
     }
     $summary = Get-Content -LiteralPath $summaryPath -Raw | ConvertFrom-Json
-    if ($summary.deployment_sha -ne $ExpectedSha -or $summary.production_live_enabled -ne $false -or $summary.secrets_included -ne $false) {
-        throw "The generated canary summary failed exact-SHA or safety validation."
+    if ($summary.deployment_sha -ne $ExpectedSha -or
+        ([string]$summary.app_image_digest).ToLowerInvariant() -ne $appImageDigest -or
+        $summary.production_live_enabled -ne $false -or
+        $summary.secrets_included -ne $false) {
+        throw "The generated canary summary failed exact-SHA, app-image, or safety validation."
     }
 
     Write-Host "Staging Recovery genuine canary evidence completed."

@@ -1,0 +1,153 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-recovery-app-image-attestation-20261001",
+  "title": "Staging Recovery signed app image attestation and live certification binding",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-recovery-app-image-attestation-20261001.json",
+      ".github/scripts/staging-recovery-sign-certification.mjs",
+      ".github/workflows/staging-live-certification.yml",
+      "autopilot-portable-staging/Invoke-StagingRecoveryCertificationCanary.ps1",
+      "http-generic-api/scripts/staging-recovery-genuine-canary.mjs",
+      "http-generic-api/stagingRecoveryCertificationProtocol.js",
+      "http-generic-api/stagingRecoveryCertificationPublicTrust.js",
+      "http-generic-api/test-staging-recovery-certification-protocol.mjs",
+      "http-generic-api/test-staging-recovery-certification-public-trust.mjs",
+      "http-generic-api/test-staging-recovery-certification-script-surface.mjs",
+      "http-generic-api/test-staging-recovery-certification-signing-authority.mjs",
+      "docs/governance/configuration-drift-baseline-extensions.json",
+      "http-generic-api/recoveryActivationReadiness.js",
+      "http-generic-api/test-production-recovery-canary-readiness.mjs",
+      "http-generic-api/test-recovery-activation-readiness.mjs",
+      "http-generic-api/test-staging-recovery-admin-surface.mjs",
+      "http-generic-api/test-staging-environment-certification-contract.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Cryptographically bind genuine Staging Recovery certification to the exact host-observed Docker app image digest and require that signed binding before live Staging certification.",
+      "e2e_journeys": [
+        {
+          "id": "signed-staging-app-image-attestation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging Recovery certification authority",
+          "entrypoint": "Capture the running Staging app image digest from the Docker host, include it in the canary artifact-integrity envelope, countersign it on GitHub-hosted Actions, and consume only the exact signed record in Staging Live Certification.",
+          "terminal_outcome": "Staging Live Certification receives STAGING_CERT_APP_IMAGE_ID only after exact release-cut, non-expired signed target-fingerprint, public-trust signature, payload hash, artifact-name consistency, and app-image digest verification.",
+          "steps": [
+            "Read the exact running app container image digest from the same host-side Docker identity used by Invoke-StagingCertification.ps1.",
+            "Fail closed when the canary artifact-integrity envelope omits or malforms app_image_digest.",
+            "Carry artifactIntegrity unchanged into stagingCertification.artifact_integrity before canonical payload hashing and signing.",
+            "Reject signing and public-trust verification when the image binding is absent, malformed, or tampered.",
+            "Discover only successful main-branch Recovery certification workflow runs whose head SHA equals the exact release cut.",
+            "Select only a non-expired signed Recovery artifact for that exact SHA, then derive the target fingerprint from the signed payload rather than trusting the artifact name.",
+            "Verify Ed25519 public trust, payload freshness/hash, exact environment/branch/deployment SHA, target binding, artifact-name consistency, and app image digest before exporting STAGING_CERT_APP_IMAGE_ID.",
+            "Register the new non-secret live-certification environment references as permanent configuration-drift baseline extensions with no runtime or Production mutation authority.",
+            "Require the Recovery readiness consumer itself to reject certifications that lack an exact manifest hash or sha256 Staging app image attestation."
+          ],
+          "assertions": [
+            "The Docker image digest is not sourced from /deployment-info and is not hardcoded.",
+            "The required digest format is exactly sha256 followed by 64 lowercase hexadecimal characters.",
+            "Staging Live Certification remains free of backend, JWT, and tunnel secret dependencies.",
+            "Artifact naming alone is insufficient; signature, payload hash, freshness, exact deployment SHA, environment, branch, target fingerprint, and producing workflow head are verified.",
+            "A different but syntactically valid digest inserted after signing invalidates the signature.",
+            "Production deployment, provider mutation, database mutation, migration apply, grant apply, credential read, and secret persistence remain forbidden.",
+            "Recovery readiness cannot become valid from artifact_integrity.valid alone; exact manifest and app image identities are mandatory."
+          ],
+          "tests": [
+            {
+              "id": "recovery-certification-protocol",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-certification-protocol.mjs",
+              "args": []
+            },
+            {
+              "id": "recovery-certification-signing-authority",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-certification-signing-authority.mjs",
+              "args": []
+            },
+            {
+              "id": "recovery-certification-public-trust",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-certification-public-trust.mjs",
+              "args": []
+            },
+            {
+              "id": "recovery-certification-script-surface",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-certification-script-surface.mjs",
+              "args": []
+            },
+            {
+              "id": "recovery-activation-readiness",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-activation-readiness.mjs",
+              "args": []
+            },
+            {
+              "id": "production-recovery-canary-readiness",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-recovery-canary-readiness.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-recovery-admin-surface",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-admin-surface.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-environment-certification-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-environment-certification-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-recovery-app-image-attestation-20261001.json",
+            ".github/scripts/staging-recovery-sign-certification.mjs",
+            ".github/workflows/staging-live-certification.yml",
+            "autopilot-portable-staging/Invoke-StagingRecoveryCertificationCanary.ps1",
+            "http-generic-api/scripts/staging-recovery-genuine-canary.mjs",
+            "http-generic-api/stagingRecoveryCertificationProtocol.js",
+            "http-generic-api/stagingRecoveryCertificationPublicTrust.js",
+            "docs/governance/configuration-drift-baseline-extensions.json",
+            "http-generic-api/recoveryActivationReadiness.js",
+            "http-generic-api/test-production-recovery-canary-readiness.mjs",
+            "http-generic-api/test-recovery-activation-readiness.mjs",
+            "http-generic-api/test-staging-recovery-admin-surface.mjs",
+            "http-generic-api/test-staging-environment-certification-contract.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
