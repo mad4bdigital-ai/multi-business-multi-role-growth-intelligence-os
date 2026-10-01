@@ -15,7 +15,7 @@ import {
   runGenuineStagingRecoveryCanary,
 } from "./stagingRecoveryCertificationProtocol.js";
 
-const SHA = "a".repeat(40); const TARGET = "b".repeat(64); const H = "c".repeat(64);
+const SHA = "a".repeat(40); const TARGET = "b".repeat(64); const H = "c".repeat(64); const IMAGE = "sha256:" + "d".repeat(64);
 function artifacts() {
   const step = { step_id: "step:" + "1".repeat(32), step_hash: "2".repeat(64), operation: "staging.certification.canary" };
   const plan = { contract: "mad4b.recovery-remediation-plan.v1", plan_id: "plan:" + "3".repeat(32), plan_hash: "4".repeat(64), steps: [step] };
@@ -49,7 +49,7 @@ function seal(kind, payload, targetFingerprint = TARGET) {
 async function input(targetFingerprint = TARGET) {
   const registration = await expectedStagingRegistration(); const gateway = await expectedStagingGatewayDeployment();
   const bound = { deployment_sha: SHA, target_fingerprint: targetFingerprint, evidence_hash: H, expires_at: new Date(Date.now() + 60_000).toISOString() };
-  return { deploymentAttestation: { environment: "staging", sha: SHA, target_fingerprint: targetFingerprint, attestation_hash: H }, targetIdentity: { environment: "staging", target_fingerprint: targetFingerprint }, ...artifacts(), registrationEvidence: seal("registration", { ...registration, observed_in: "chatgpt" }, targetFingerprint), oauthEvidence: seal("oauth", { issuer: "https://dev.mad4b.com", resource: "https://activation-dev.mad4b.com", steps: Object.fromEntries(["authorize", "login_consent", "code", "callback", "token", "resource"].map((v) => [v, "pass"])) }, targetFingerprint), networkEvidence: seal("network", { environment: "staging", gateway_host: gateway.gateway_host, upstream_origin: gateway.upstream_origin, gateway_only: true, signed_ingress_required: true, network_restriction_verified: true, direct_recovery_surface_bypass_denied: true, request_method: "GET", request_body_sha256: createHash("sha256").update("").digest("hex"), direct_recovery_surface_status: 403, direct_recovery_surface_reason: "RECOVERY_TRUSTED_INGRESS_REQUIRED", direct_recovery_surface_path: "/admin/recovery/staging/contract", signed_gateway_recovery_path: "/admin/recovery/staging/contract", signed_gateway_recovery_method: "GET", signed_gateway_recovery_body_sha256: createHash("sha256").update("").digest("hex"), signed_gateway_recovery_status: 200, public_health_status: 200 }, targetFingerprint), workerDeploymentEvidence: { ...bound, observed_in: "cloudflare_workers", deployment_verified: true, gateway_host: gateway.gateway_host, policy_hash: gateway.policy_hash, worker_build_sha: SHA, policy_source_sha: SHA, worker_bundle_sha256: H, release_bundle_sha256: H, deployed_bundle_sha256: H }, ingressBuildIdentity: { deployment_sha: SHA, worker_build_sha: SHA, worker_bundle_sha256: H, policy_hash: gateway.policy_hash, gateway_host: gateway.gateway_host, expires_at: Math.floor(Date.now() / 1000) + 60 }, artifactIntegrity: { valid: true, manifest_sha256: H }, nonce: "nonce:protocol-test", certificationRunId: "cert-run:protocol-test" };
+  return { deploymentAttestation: { environment: "staging", sha: SHA, target_fingerprint: targetFingerprint, attestation_hash: H }, targetIdentity: { environment: "staging", target_fingerprint: targetFingerprint }, ...artifacts(), registrationEvidence: seal("registration", { ...registration, observed_in: "chatgpt" }, targetFingerprint), oauthEvidence: seal("oauth", { issuer: "https://dev.mad4b.com", resource: "https://activation-dev.mad4b.com", steps: Object.fromEntries(["authorize", "login_consent", "code", "callback", "token", "resource"].map((v) => [v, "pass"])) }, targetFingerprint), networkEvidence: seal("network", { environment: "staging", gateway_host: gateway.gateway_host, upstream_origin: gateway.upstream_origin, gateway_only: true, signed_ingress_required: true, network_restriction_verified: true, direct_recovery_surface_bypass_denied: true, request_method: "GET", request_body_sha256: createHash("sha256").update("").digest("hex"), direct_recovery_surface_status: 403, direct_recovery_surface_reason: "RECOVERY_TRUSTED_INGRESS_REQUIRED", direct_recovery_surface_path: "/admin/recovery/staging/contract", signed_gateway_recovery_path: "/admin/recovery/staging/contract", signed_gateway_recovery_method: "GET", signed_gateway_recovery_body_sha256: createHash("sha256").update("").digest("hex"), signed_gateway_recovery_status: 200, public_health_status: 200 }, targetFingerprint), workerDeploymentEvidence: { ...bound, observed_in: "cloudflare_workers", deployment_verified: true, gateway_host: gateway.gateway_host, policy_hash: gateway.policy_hash, worker_build_sha: SHA, policy_source_sha: SHA, worker_bundle_sha256: H, release_bundle_sha256: H, deployed_bundle_sha256: H }, ingressBuildIdentity: { deployment_sha: SHA, worker_build_sha: SHA, worker_bundle_sha256: H, policy_hash: gateway.policy_hash, gateway_host: gateway.gateway_host, expires_at: Math.floor(Date.now() / 1000) + 60 }, artifactIntegrity: { valid: true, manifest_sha256: H, app_image_digest: IMAGE }, nonce: "nonce:protocol-test", certificationRunId: "cert-run:protocol-test" };
 }
 
 test("runner rejects self-asserted provenance before creating Kernel state", async () => {
@@ -78,6 +78,24 @@ test("genuine producer derives lifecycle and server identity bindings only from 
   assert.throws(() => produceGenuineStagingRecoveryCanaryEvidence({ ...source, run: { ...source.run, events: source.run.events.slice(0, -1) } }), (e) => e.code === "RECOVERY_CANARY_LIFECYCLE_INVALID");
   assert.throws(() => produceGenuineStagingRecoveryCanaryEvidence({ ...source, deploymentAttestation: { ...source.deploymentAttestation, attestation_hash: null } }), (e) => e.code === "RECOVERY_CANARY_TARGET_BINDING_INVALID");
   assert.throws(() => produceGenuineStagingRecoveryCanaryEvidence({ ...source, receipt: { ...source.receipt, mutation_attestation: { ...source.receipt.mutation_attestation, database_mutation_performed: true } } }), (e) => e.code === "RECOVERY_CANARY_SAFETY_BOUNDARY_INVALID");
+});
+
+test("artifact integrity requires exact Staging app image digest", async () => {
+  const source = await input();
+  assert.throws(
+    () => produceGenuineStagingRecoveryCanaryEvidence({
+      ...source,
+      artifactIntegrity: { valid: true, manifest_sha256: H },
+    }),
+    (error) => error.code === "RECOVERY_CANARY_ARTIFACT_INTEGRITY_INVALID",
+  );
+  assert.throws(
+    () => produceGenuineStagingRecoveryCanaryEvidence({
+      ...source,
+      artifactIntegrity: { valid: true, manifest_sha256: H, app_image_digest: "sha256:not-a-digest" },
+    }),
+    (error) => error.code === "RECOVERY_CANARY_ARTIFACT_INTEGRITY_INVALID",
+  );
 });
 
 test("external evidence integrity rejects mutations, fabricated hashes, stale or secret-bearing observations", async () => {
