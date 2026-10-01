@@ -46,6 +46,7 @@ export const STAGING_RECOVERY_REQUIRED_NEGATIVE_TESTS = Object.freeze([
 
 const SHA40 = /^[a-f0-9]{40}$/u;
 const SHA256 = /^[a-f0-9]{64}$/u;
+const IMAGE_DIGEST_RE = /^sha256:[0-9a-f]{64}$/u;
 const SAFE_ID = /^[A-Za-z0-9._:-]{8,160}$/u;
 const PHASES = Object.freeze([
   "created",
@@ -80,6 +81,17 @@ function fail(code, message) {
     status: 409,
     details: { secrets_included: false },
   });
+}
+
+function assertArtifactIntegrity(value) {
+  if (value?.valid !== true
+    || !SHA256.test(String(value?.manifest_sha256 || ""))
+    || !IMAGE_DIGEST_RE.test(String(value?.app_image_digest || ""))) {
+    fail(
+      "RECOVERY_CANARY_ARTIFACT_INTEGRITY_INVALID",
+      "Exact Staging manifest and app image digests are required.",
+    );
+  }
 }
 
 function noSecrets(value, at = "evidence") {
@@ -369,9 +381,7 @@ export function produceGenuineStagingRecoveryCanaryEvidence({
   if (ingressBuildIdentity?.deployment_sha !== deploymentAttestation.sha) {
     fail("RECOVERY_CANARY_INGRESS_BINDING_INVALID", "Ingress build binding is invalid.");
   }
-  if (artifactIntegrity?.valid !== true || !SHA256.test(artifactIntegrity.manifest_sha256 || "")) {
-    fail("RECOVERY_CANARY_ARTIFACT_INTEGRITY_INVALID", "Artifact integrity proof is invalid.");
-  }
+  assertArtifactIntegrity(artifactIntegrity);
   const base = {
     contract: STAGING_RECOVERY_CANARY_EVIDENCE_CONTRACT,
     environment: "staging",
@@ -576,8 +586,8 @@ export async function independentlyVerifyStagingRecoveryCanaryEvidence(envelope,
   if (!external.ready) {
     fail("RECOVERY_CANARY_EXTERNAL_EVIDENCE_INVALID", external.blocking_failures.join(","));
   }
-  if (envelope.artifactIntegrity?.valid !== true
-    || envelope.safety?.production_live_enabled !== false
+  assertArtifactIntegrity(envelope.artifactIntegrity);
+  if (envelope.safety?.production_live_enabled !== false
     || envelope.safety?.production_mutation_performed !== false
     || envelope.safety?.secrets_included !== false) {
     fail("RECOVERY_CANARY_BOUNDARY_INVALID", "Safety boundary invalid.");
@@ -632,6 +642,7 @@ export function buildRecoveryReadinessSigningPayload(envelope, report, { issuer,
     || report.negative_tests?.all_passed !== true) {
     fail("RECOVERY_CANARY_VERIFICATION_REPORT_INVALID", "Verified lifecycle and negative-test report required.");
   }
+  assertArtifactIntegrity(envelope?.artifactIntegrity);
   const stagingCertification = {
     contract: STAGING_RECOVERY_CERTIFICATION_CONTRACT,
     certification_id: `cert:staging:${envelope.certification_run_id}`,
