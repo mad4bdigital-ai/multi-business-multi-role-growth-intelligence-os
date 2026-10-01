@@ -5,7 +5,6 @@ const canaryPs = readFileSync("../autopilot-portable-staging/Invoke-StagingRecov
 const publishPs = readFileSync("../autopilot-portable-staging/Invoke-StagingRecoveryCertificationPublish.ps1", "utf8");
 const workflow = readFileSync("../.github/workflows/staging-post-deploy-verification.yml", "utf8");
 const liveWorkflow = readFileSync("../.github/workflows/staging-live-certification.yml", "utf8");
-const liveWorkflow = readFileSync("../.github/workflows/staging-live-certification.yml", "utf8");
 const verifier = readFileSync("../.github/scripts/staging-recovery-verify-and-countersign.mjs", "utf8");
 const negative = readFileSync("../.github/scripts/staging-recovery-negative-test-evidence.mjs", "utf8");
 const acquisitionSigner = readFileSync("../.github/scripts/staging-recovery-sign-acquisition-receipt.mjs", "utf8");
