@@ -155,6 +155,17 @@ test("GitHub-hosted signer is exact-main bound and local verifier accepts only p
   assert.equal(verified.ingress_key_separation_verified, true);
 });
 
+test("public trust accepts governed PEM values transported with escaped newlines", () => {
+  const trust = loadStagingRecoveryCertificationPublicTrust({
+    RECOVERY_STAGING_CERTIFICATION_PUBLIC_KEY: publicPem.replaceAll("\n", "\\n"),
+    RECOVERY_STAGING_CERTIFICATION_KEY_ID: KEY_ID,
+    RECOVERY_STAGING_CERTIFICATION_ISSUER: ISSUER,
+    REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY: ingressPublicPem.replaceAll("\n", "\\n"),
+  });
+  assert.equal(trust.contract, STAGING_RECOVERY_CERTIFICATION_TRUST_CONTRACT);
+  assert.equal(trust.separation_verified, true);
+});
+
 test("public trust rejects missing, malformed, or post-signature image digest tampering", () => {
   const verificationReport = report();
   const signerEnv = {
