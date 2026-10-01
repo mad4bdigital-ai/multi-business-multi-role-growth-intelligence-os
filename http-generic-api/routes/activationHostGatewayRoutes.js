@@ -219,26 +219,26 @@ export function buildActivationHostGatewayRoutes({
           const operationId = String(input?.correlation?.operation_id || "");
           const correlationId = String(input?.correlation?.correlation_id || "");
           const event = String(input?.event || "");
-          const cacheKey = `${operationId}:${correlationId}:${event}`;
-          if (recoveryObservationCache.has(cacheKey)) {
-            return recoveryObservationCache.get(cacheKey);
+          const observationIdentity = `${operationId}:${correlationId}:${event}`;
+          if (recoveryObservationCache.has(observationIdentity)) {
+            return recoveryObservationCache.get(observationIdentity);
           }
           const pending = recordTenantGptOAuthRecoveryServerEvidence({
             query: (sql, params) => getPool().query(sql, params),
             input,
             env,
           });
-          recoveryObservationCache.set(cacheKey, pending);
+          recoveryObservationCache.set(observationIdentity, pending);
           if (recoveryObservationCache.size > 2048) {
             const oldest = recoveryObservationCache.keys().next().value;
-            if (oldest && oldest !== cacheKey) recoveryObservationCache.delete(oldest);
+            if (oldest && oldest !== observationIdentity) recoveryObservationCache.delete(oldest);
           }
           try {
             const result = await pending;
-            if (result?.recorded !== true) recoveryObservationCache.delete(cacheKey);
+            if (result?.recorded !== true) recoveryObservationCache.delete(observationIdentity);
             return result;
           } catch (error) {
-            recoveryObservationCache.delete(cacheKey);
+            recoveryObservationCache.delete(observationIdentity);
             throw error;
           }
         })
