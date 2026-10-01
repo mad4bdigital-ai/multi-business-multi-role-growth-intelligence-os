@@ -72,6 +72,16 @@
               "path": "test-tenant-gpt-oauth-recovery-evidence-sink.mjs",
               "args": []
             }
+          ],
+          "evidence_paths": [
+            "http-generic-api/tenantGptOAuthRecoveryEvidenceSink.js",
+            "http-generic-api/test-tenant-gpt-oauth-recovery-evidence-sink.mjs",
+            "http-generic-api/routes/authRoutes.js",
+            "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
+            "http-generic-api/tenantGptAccessTokenVerifier.js",
+            "http-generic-api/routes/activationHostGatewayRoutes.js",
+            "http-generic-api/scripts/manifests/test-manifest-spec012.mjs",
+            ".github/governance/test-authority-registry.json"
           ]
         }
       ]
