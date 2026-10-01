@@ -155,6 +155,24 @@ test("valid staging certification is exact-bound and secret-free", () => {
   assert.equal(result.secrets_included, false);
 });
 
+test("staging certification rejects missing or malformed app image attestation", () => {
+  for (const artifact_integrity of [
+    { valid: true, manifest_sha256: "a".repeat(64) },
+    { valid: true, manifest_sha256: "a".repeat(64), app_image_digest: "sha256:bad" },
+  ]) {
+    const certification = validCertification();
+    certification.artifact_integrity = artifact_integrity;
+    certification.audit_evidence.canonical_payload_hash = certificationPayloadHash(certification);
+    const result = evaluateStagingRecoveryCertification({
+      certification,
+      expectedSha: SHA,
+      expectedTargetFingerprint: TARGET,
+    });
+    assert.equal(result.valid, false);
+    assert.ok(result.blocking_failures.includes("artifact_integrity"));
+  }
+});
+
 test("staging certification rejects stale, wrong-SHA, and cross-target evidence", () => {
   const stale = evaluateStagingRecoveryCertification({
     certification: validCertification({ expiresAt: new Date(Date.now() - 1000).toISOString() }),
